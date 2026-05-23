@@ -77,7 +77,7 @@ export default function Dashboard() {
       <DieselWidget avgConsumptionL100={32} />
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title={t('profit')} value={`€${(s?.profit ?? 0).toLocaleString(i18n.language)}`} color={profitColor} trend={s?.profit} />
         <StatCard title={t('revenue')} value={`€${(s?.totalRevenue ?? 0).toLocaleString(i18n.language)}`} color="text-success" />
         <StatCard title={t('activeTrips')} value={s?.active ?? 0} color="text-primary" />

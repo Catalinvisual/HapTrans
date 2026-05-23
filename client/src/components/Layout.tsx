@@ -5,7 +5,7 @@ import { formatDate } from '../lib/dateUtils';
 import Sidebar from './Sidebar';
 import LanguageDropdown from './LanguageDropdown';
 import { useAuthStore } from '../store/authStore';
-import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle } from 'lucide-react';
+import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 
@@ -36,6 +36,7 @@ export default function Layout() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetchNotifications();
@@ -70,16 +71,24 @@ export default function Layout() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-surface relative">
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <div className="flex-1 flex flex-col overflow-hidden w-full">
         {/* Top Bar */}
-        <header className="h-16 bg-white border-b border-border flex items-center justify-between px-6 flex-shrink-0 shadow-sm">
-          <div>
-            <h2 className="text-base font-semibold text-text">{title}</h2>
-            <p className="text-xs text-text-secondary">
-              {formatDate(new Date().toISOString())}
-            </p>
+        <header className="h-16 bg-white border-b border-border flex items-center justify-between px-4 md:px-6 flex-shrink-0 shadow-sm">
+          <div className="flex items-center gap-3">
+            <button 
+              className="md:hidden p-2 -ml-2 text-text-secondary hover:bg-surface rounded-lg"
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <div>
+              <h2 className="text-base font-semibold text-text">{title}</h2>
+              <p className="text-xs text-text-secondary hidden sm:block">
+                {formatDate(new Date().toISOString())}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             {/* Notification bell */}
@@ -209,8 +218,8 @@ export default function Layout() {
         </header>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="p-6 max-w-screen-2xl mx-auto">
+        <main className="flex-1 overflow-y-auto w-full">
+          <div className="p-4 md:p-6 max-w-screen-2xl mx-auto">
             <Outlet />
           </div>
         </main>

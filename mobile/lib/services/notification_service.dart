@@ -6,7 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import 'dart:io';
 
-const _kApiUrl = 'http://192.168.2.7:3001/api';
+import '../utils/constants.dart';
+const _kApiUrl = kApiUrl;
 
 /// Background handler - MUST be top-level, MUST have @pragma annotation
 @pragma('vm:entry-point')

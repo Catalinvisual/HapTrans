@@ -64,7 +64,7 @@ export default function FinancialPage() {
           </ResponsiveContainer>
         )}
       </div>
-      <div className="card p-0 overflow-hidden">
+      <div className="card p-0 overflow-x-auto">
         <table className="w-full">
           <thead><tr className="bg-surface border-b border-border">
             {[t('monthTable'), t('trips'), t('revenue'), t('costs'), t('profit'), t('costPerKm')].map(h => <th key={h} className="table-header">{h}</th>)}

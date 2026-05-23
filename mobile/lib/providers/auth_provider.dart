@@ -96,8 +96,8 @@ class AuthProvider extends ChangeNotifier {
           e.type == DioExceptionType.receiveTimeout ||
           e.type == DioExceptionType.connectionError) {
         return _locale.languageCode == 'ro'
-            ? 'Eroare conexiune: Nu se poate contacta laptopul. Verificați dacă laptopul și telefonul sunt pe aceeași rețea Wi-Fi și că firewall-ul permite portul 3001! (IP: 192.168.2.7)'
-            : 'Connection Error: Cannot reach the laptop. Verify that both phone and laptop are on the same Wi-Fi and that the firewall allows port 3001! (IP: 192.168.2.7)';
+            ? 'Eroare conexiune: Nu se poate contacta serverul. Verificati conexiunea la internet!'
+            : 'Connection Error: Cannot reach the server. Verify your internet connection!';
       }
       if (e.response?.statusCode == 401) {
         return _locale.languageCode == 'ro' ? 'Email sau parolă incorectă' : 'Invalid email or password';
