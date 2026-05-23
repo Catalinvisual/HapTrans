@@ -8,7 +8,16 @@ export class FirebaseService {
 
   constructor() {
     try {
-      const serviceAccountPath = path.join(process.cwd(), 'firebase-service-account.json');
+      const fs = require('fs');
+      let serviceAccountPath = path.join(process.cwd(), 'firebase-service-account.json');
+      
+      if (!fs.existsSync(serviceAccountPath)) {
+        serviceAccountPath = path.resolve(__dirname, '../../firebase-service-account.json');
+      }
+      if (!fs.existsSync(serviceAccountPath)) {
+        serviceAccountPath = path.resolve(__dirname, '../../../firebase-service-account.json');
+      }
+
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccountPath),
       });
