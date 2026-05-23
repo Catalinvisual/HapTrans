@@ -1,0 +1,246 @@
+import { useEffect, useState } from 'react';
+import Flatpickr from 'react-flatpickr';
+import 'flatpickr/dist/themes/light.css';
+import { useTranslation } from 'react-i18next';
+import { Plus, Search, Eye, Download, Share2 } from 'lucide-react';
+import api from '../lib/api';
+import toast from 'react-hot-toast';
+import ExportModal from '../components/ExportModal';
+import { generateInvoicePdfBase64 } from '../lib/invoicePdfGenerator';
+import { formatDate } from '../lib/dateUtils';
+import CustomSelect from '../components/CustomSelect';
+
+const STATUS_COLORS: Record<string, string> = { draft:'badge-gray', sent:'badge-primary', paid:'badge-success', overdue:'badge-error', cancelled:'badge-error' };
+
+export default function InvoicesPage() {
+  const { t, i18n } = useTranslation();
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [trips, setTrips] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState('');
+  const [showExport, setShowExport] = useState(false);
+  const [form, setForm] = useState({ clientId: '', tripId: '', amount: '', vatPercent: '19', issueDate: '', dueDate: '', notes: '' });
+
+  const load = async () => {
+    const [inv, cl, tr] = await Promise.all([api.get('/invoices'), api.get('/clients'), api.get('/trips')]);
+    setInvoices(inv.data); setClients(cl.data); setTrips(tr.data); setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const handlePreview = (invoice: any) => {
+    const newTab = window.open();
+    if (newTab) {
+      newTab.document.write(
+        `<iframe src="${invoice.pdfData}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%; position: fixed;" allowfullscreen></iframe>`
+      );
+    } else {
+      toast.error(t('allowPopups'));
+    }
+  };
+
+  const handleDownload = (invoice: any) => {
+    const link = document.createElement("a");
+    link.href = invoice.pdfData;
+    link.download = `Factura_${invoice.invoiceNumber}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success(t('invoiceDownloaded'));
+  };
+
+  const handleShare = async (invoice: any) => {
+    if (navigator.share) {
+      try {
+        const arr = invoice.pdfData.split(',');
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while(n--){
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        const file = new File([u8arr], `Factura_${invoice.invoiceNumber}.pdf`, { type: mime });
+        
+        await navigator.share({
+          files: [file],
+          title: `Factură ${invoice.invoiceNumber}`,
+          text: `Bună ziua, vă transmitem factura ${invoice.invoiceNumber} emisă de HapTrans.`,
+        });
+        toast.success(t('invoiceShared'));
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          toast.error(t('shareFailed'));
+        }
+      }
+    } else {
+      navigator.clipboard.writeText(`Factura ${invoice.invoiceNumber} - Client: ${invoice.client?.name} - Suma: EUR ${invoice.amount}`);
+      toast.success(t('copiedToClipboard'));
+    }
+  };
+
+  const ensurePdfAndExecute = async (invoice: any, action: (inv: any) => void) => {
+    if (invoice.pdfData) {
+      action(invoice);
+    } else {
+      const loadId = toast.loading(t('generatingPdf'));
+      try {
+        const base64Pdf = generateInvoicePdfBase64(invoice);
+        await api.patch(`/invoices/${invoice.id}`, { pdfData: base64Pdf });
+        invoice.pdfData = base64Pdf;
+        toast.dismiss(loadId);
+        action(invoice);
+        load();
+      } catch {
+        toast.dismiss(loadId);
+        toast.error(t('pdfGenerateError'));
+      }
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const dataToSubmit = {
+        ...form,
+        tripId: form.tripId === '' ? null : form.tripId,
+        amount: form.amount === '' ? null : Number(form.amount),
+        vatPercent: form.vatPercent === '' ? null : Number(form.vatPercent),
+      };
+      const res = await api.post('/invoices', dataToSubmit);
+      const savedInvoice = res.data;
+      const base64Pdf = generateInvoicePdfBase64(savedInvoice);
+      await api.patch(`/invoices/${savedInvoice.id}`, { pdfData: base64Pdf });
+      toast.success(t('invoiceCreatedWithPdf'));
+      setShowForm(false);
+      load();
+    } catch {
+      toast.error(t('error'));
+    }
+  };
+
+  const filtered = invoices.filter(i => {
+    const query = search.toLowerCase();
+    return (
+      (i.invoiceNumber || '').toLowerCase().includes(query) ||
+      (i.client?.name || '').toLowerCase().includes(query) ||
+      (i.status || '').toLowerCase().includes(query) ||
+      (i.notes || '').toLowerCase().includes(query) ||
+      String(i.amount || '').includes(query)
+    );
+  }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+  return (
+    <div className="space-y-5 animate-fade-in">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-text">{t('invoices')}</h1>
+          <p className="text-text-secondary text-sm">{invoices.length} {t('invoicesCount')}</p>
+        </div>
+        <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2"><Plus className="w-4 h-4" /> {t('newInvoice')}</button>
+      </div>
+      {showForm && (
+        <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md">
+          <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">{t('newInvoice')}</h3>
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div><label className="label font-semibold">{t('client')}</label>
+              <CustomSelect value={form.clientId} onChange={val => setForm({...form, clientId: val})} placeholder={t('selectClient')} options={clients.map((c: any) => ({ value: c.id, label: c.name }))} />
+            </div>
+            <div><label className="label font-semibold">{t('trip')} (optional)</label>
+              <CustomSelect value={form.tripId} onChange={val => setForm({...form, tripId: val})} placeholder={t('noTrip')} options={trips.map((t: any) => ({ value: t.id, label: `${t.pickupAddress} → ${t.dropoffAddress}` }))} />
+            </div>
+            <div><label className="label font-semibold">{t('amount')} (€)</label><input type="number" className="input" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} required /></div>
+            <div><label className="label font-semibold">{t('tva')} (%)</label><input type="number" className="input" value={form.vatPercent} onChange={e => setForm({...form, vatPercent: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('issueDate')}</label><Flatpickr value={form.issueDate} onChange={(dates, dateStr) => setForm({...form, issueDate: dateStr})} className="input bg-white" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }} placeholder="DD/MM/YYYY" /></div>
+            <div><label className="label font-semibold">{t('dueDate')}</label><Flatpickr value={form.dueDate} onChange={(dates, dateStr) => setForm({...form, dueDate: dateStr})} className="input bg-white" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }} placeholder="DD/MM/YYYY" /></div>
+            <div className="md:col-span-2 lg:col-span-3"><label className="label font-semibold">{t('notes')}</label><textarea className="input resize-none" rows={2} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} /></div>
+            <div className="flex gap-3 md:col-span-2 lg:col-span-3 pt-3 border-t border-border mt-2">
+              <button type="submit" className="btn-primary px-6 py-2.5 font-bold shadow-md shadow-primary/20">{t('save')}</button>
+              <button type="button" onClick={() => setShowForm(false)} className="btn-secondary px-6 py-2.5 font-bold">{t('cancel')}</button>
+            </div>
+          </form>
+        </div>
+      )}
+      <div className="card p-0 overflow-hidden bg-white border border-border rounded-2xl shadow-sm">
+        <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 flex-1 max-w-md">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
+              <input className="input pl-9 py-2 text-sm" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold border-primary/20 hover:border-primary/50 text-primary transition-all">
+              <Download className="w-4 h-4" /> {t('export')}
+            </button>
+          </div>
+          <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
+            {filtered.length} {t('results')}
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead><tr className="bg-surface border-b border-border">
+              {[t('invoiceNo'), t('client'), t('amount'), t('tva'), t('issueDate'), t('dueDate'), t('status'), t('actions')].map(h => (
+                <th key={h} className="table-header">{h}</th>
+              ))}</tr></thead>
+            <tbody>
+              {loading ? <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
+                : filtered.length === 0 ? <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
+                : filtered.map(inv => (
+                  <tr key={inv.id} className="hover:bg-surface/60 transition-colors">
+                    <td className="table-cell font-mono text-sm font-bold">{inv.invoiceNumber}</td>
+                    <td className="table-cell font-bold text-text">{inv.client?.name}</td>
+                    <td className="table-cell font-semibold text-success">€{Number(inv.amount).toLocaleString(i18n.language)}</td>
+                    <td className="table-cell font-semibold text-text-secondary">{inv.vatPercent}%</td>
+                    <td className="table-cell text-xs font-medium text-text-secondary">{formatDate(inv.issueDate)}</td>
+                    <td className="table-cell text-xs font-medium text-text-secondary">{formatDate(inv.dueDate)}</td>
+                    <td className="table-cell"><span className={STATUS_COLORS[inv.status] || 'badge-gray'}>{t(inv.status)}</span></td>
+                    <td className="table-cell">
+                      <div className="flex items-center gap-3">
+                        <CustomSelect className="w-32 text-xs" value={inv.status} onChange={async val => { await api.patch(`/invoices/${inv.id}`, { status: val }); toast.success(t('statusUpdated')); load(); }} options={[
+                          { value: 'draft', label: t('draft'), color: 'text-gray-500' },
+                          { value: 'sent', label: t('sent'), color: 'text-primary' },
+                          { value: 'paid', label: t('paid'), color: 'text-success' },
+                          { value: 'overdue', label: t('overdue'), color: 'text-error' },
+                          { value: 'cancelled', label: t('cancelled'), color: 'text-gray-400' },
+                        ]} />
+                        <div className="flex items-center gap-1 border-l border-border pl-3">
+                          <button onClick={() => ensurePdfAndExecute(inv, handlePreview)} className="p-1 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-all" title="Previzualizare PDF">
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => ensurePdfAndExecute(inv, handleDownload)} className="p-1 text-text-secondary hover:text-success rounded hover:bg-green-50 transition-all" title="Descărcare PDF">
+                            <Download className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => ensurePdfAndExecute(inv, handleShare)} className="p-1 text-text-secondary hover:text-warning rounded hover:bg-yellow-50 transition-all" title="Partajare Factură">
+                            <Share2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <ExportModal
+        isOpen={showExport}
+        onClose={() => setShowExport(false)}
+        data={filtered}
+        filename="Facturi_HapTrans"
+        getDateField={item => item.issueDate || item.createdAt}
+        headers={[
+          { key: 'createdAt', label: 'Data Inregistrare', transform: val => val ? formatDate(val) : '' },
+          { key: 'invoiceNumber', label: 'Numar Factura' },
+          { key: 'client', label: 'Nume Client', transform: val => val?.name || '' },
+          { key: 'amount', label: 'Suma Fara TVA (€)' },
+          { key: 'vatPercent', label: 'TVA (%)' },
+          { key: 'issueDate', label: 'Data Emitere', transform: val => val ? formatDate(val) : '' },
+          { key: 'dueDate', label: 'Data Scadenta', transform: val => val ? formatDate(val) : '' },
+          { key: 'status', label: 'Status' },
+        ]}
+      />
+    </div>
+  );
+}

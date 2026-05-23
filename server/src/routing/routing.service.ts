@@ -1,0 +1,266 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
+import { decode as flexDecode } from '@here/flexpolyline';
+
+@Injectable()
+export class RoutingService {
+  private readonly logger = new Logger(RoutingService.name);
+  private readonly hereKey: string;
+  private readonly orsKey: string;
+
+  constructor(private config: ConfigService) {
+    this.hereKey = this.config.get('HERE_API_KEY') || '';
+    this.orsKey = this.config.get('ORS_API_KEY') || '';
+  }
+
+  // ─── Autocomplete Address (HERE Maps) ──────────────────────────────────────
+  async autocompleteAddress(query: string): Promise<any[]> {
+    try {
+      const res = await axios.get('https://autocomplete.search.hereapi.com/v1/autocomplete', {
+        params: { q: query, apiKey: this.hereKey, limit: 5 },
+      });
+      if (res.data?.items) {
+        return res.data.items.map((item: any) => {
+          let customLabel = '';
+          if (item.address) {
+            const { street, houseNumber, postalCode, city, countryName } = item.address;
+            const parts = [];
+            const streetPart = [street, houseNumber].filter(Boolean).join(' ');
+            if (streetPart) parts.push(streetPart);
+            
+            const cityPart = [postalCode, city].filter(Boolean).join(' ');
+            if (cityPart) parts.push(cityPart);
+            
+            if (countryName) parts.push(countryName);
+            
+            customLabel = parts.join(', ');
+          }
+          return {
+            label: customLabel || item.title || item.address?.label,
+            id: item.id
+          };
+        });
+      }
+      return [];
+    } catch (e) {
+      this.logger.error(`Autocomplete failed for "${query}": ${e.message}`);
+      return [];
+    }
+  }
+
+  // ─── Geocoding: address → {lat, lng} ───────────────────────────────────────
+  async geocode(address: string): Promise<{ lat: number; lng: number; label: string } | null> {
+    try {
+      const res = await axios.get('https://geocode.search.hereapi.com/v1/geocode', {
+        params: { q: address, apiKey: this.hereKey, limit: 1 },
+        timeout: 8000,
+      });
+      const item = res.data.items?.[0];
+      if (!item) return null;
+      return {
+        lat: item.position.lat,
+        lng: item.position.lng,
+        label: item.address?.label || address,
+      };
+    } catch (e) {
+      this.logger.error(`Geocode failed for "${address}": ${e.message}`);
+      return null;
+    }
+  }
+
+  // ─── Routing: calculate truck route with HERE Maps ─────────────────────────
+  async calculateRoute(
+    originLat: number, originLng: number,
+    destLat: number, destLng: number,
+    truckParams?: { weightKg?: number; heightCm?: number; lengthCm?: number }
+  ) {
+    try {
+      const params: any = {
+        transportMode: 'truck',
+        origin: `${originLat},${originLng}`,
+        destination: `${destLat},${destLng}`,
+        return: 'summary,polyline,tolls',
+        apiKey: this.hereKey,
+        'vehicle[grossWeight]': truckParams?.weightKg || 40000,
+        'vehicle[height]': truckParams?.heightCm || 400,
+        'vehicle[length]': truckParams?.lengthCm || 1360,
+        currency: 'EUR',
+      };
+
+      const res = await axios.get('https://router.hereapi.com/v8/routes', {
+        params,
+        timeout: 12000,
+      });
+
+      const route = res.data.routes?.[0];
+      if (!route) return null;
+
+      const section = route.sections?.[0];
+      const summary = section?.summary;
+
+      const EXCHANGE_RATES: Record<string, number> = {
+        'EUR': 1,
+        'HUF': 390,
+        'PLN': 4.3,
+        'RON': 4.97,
+        'CZK': 25.3,
+        'BGN': 1.95,
+        'SEK': 11.6,
+        'DKK': 7.45,
+        'CHF': 0.98,
+        'GBP': 0.85,
+        'TRY': 34.5,
+        'RSD': 117.2,
+        'BAM': 1.95,
+        'MKD': 61.5,
+        'NOK': 11.8,
+      };
+
+      // Extract toll costs
+      let tollCost = 0;
+      let tollCurrency = 'EUR';
+      const tolls = section?.tolls || [];
+      tolls.forEach((toll: any) => {
+        if (toll.fares && toll.fares.length > 0) {
+          let minFareEUR = Number.MAX_VALUE;
+          toll.fares.forEach((fare: any) => {
+            const priceObj = fare.convertedPrice || fare.price;
+            if (priceObj?.value !== undefined) {
+              const val = parseFloat(priceObj.value);
+              const currency = priceObj.currency || 'EUR';
+              
+              const rate = EXCHANGE_RATES[currency] || 1;
+              const valueInEUR = currency === 'EUR' ? val : val / rate;
+
+              if (valueInEUR < minFareEUR) {
+                minFareEUR = valueInEUR;
+              }
+            }
+          });
+          if (minFareEUR !== Number.MAX_VALUE) {
+            tollCost += minFareEUR;
+          }
+        }
+      });
+
+      const distanceKm = Math.round((summary?.length || 0) / 1000);
+      const durationSec = summary?.duration || 0;
+      const durationMin = Math.round(durationSec / 60);
+      const hours = Math.floor(durationMin / 60);
+      const mins = durationMin % 60;
+
+      let coordinates: number[][] = [];
+      if (section?.polyline) {
+        try {
+          const decoded = flexDecode(section.polyline);
+          if (decoded && decoded.polyline) {
+            coordinates = decoded.polyline.map((p: any) => [p[1], p[0]]); // format: [lng, lat]
+          }
+        } catch (err) {
+          this.logger.error('Failed to decode flexpolyline: ' + err.message);
+        }
+      }
+
+      return {
+        distanceKm,
+        durationMin,
+        durationText: `${hours}h ${mins}m`,
+        tollCost: parseFloat(tollCost.toFixed(2)),
+        tollCurrency,
+        polyline: section?.polyline || null,
+        coordinates,
+        source: 'here',
+      };
+    } catch (e) {
+      this.logger.warn(`HERE routing failed: ${e.message}. Falling back to ORS...`);
+      return this.calculateRouteORS(originLat, originLng, destLat, destLng);
+    }
+  }
+
+  // ─── Fallback: OpenRouteService ────────────────────────────────────────────
+  async calculateRouteORS(
+    originLat: number, originLng: number,
+    destLat: number, destLng: number
+  ) {
+    try {
+      const res = await axios.post(
+        'https://api.openrouteservice.org/v2/directions/driving-hgv',
+        {
+          coordinates: [[originLng, originLat], [destLng, destLat]],
+          format: 'geojson',
+          instructions: false,
+        },
+        {
+          headers: { Authorization: this.orsKey, 'Content-Type': 'application/json' },
+          timeout: 12000,
+        }
+      );
+
+      const feature = res.data.features?.[0];
+      const summary = feature?.properties?.summary;
+      if (!summary) return null;
+
+      const distanceKm = Math.round((summary.distance || 0) / 1000);
+      const durationSec = summary.duration || 0;
+      const durationMin = Math.round(durationSec / 60);
+      const hours = Math.floor(durationMin / 60);
+      const mins = durationMin % 60;
+
+      return {
+        distanceKm,
+        durationMin,
+        durationText: `${hours}h ${mins}m`,
+        tollCost: 0,
+        tollCurrency: 'EUR',
+        polyline: null,
+        coordinates: feature?.geometry?.coordinates || [],
+        source: 'ors',
+      };
+    } catch (e) {
+      this.logger.error(`ORS routing also failed: ${e.message}`);
+      return null;
+    }
+  }
+
+  // ─── Diesel prices via EuroOilWatch (no key needed) ───────────────────────
+  async getDieselPrices() {
+    try {
+      // EuroOilWatch provides EU diesel prices from European Commission data
+      const res = await axios.get('https://ec.europa.eu/energy/observatory/reports/latest_prices_with_taxes.json', {
+        timeout: 8000,
+      });
+      
+      const data = res.data;
+      const targetCountries = ['RO', 'NL', 'DE', 'FR', 'BE', 'PL', 'HU', 'AT'];
+      const prices: any[] = [];
+
+      if (data && typeof data === 'object') {
+        const entries = Array.isArray(data) ? data : Object.values(data);
+        entries.forEach((entry: any) => {
+          const code = entry?.country || entry?.code;
+          const diesel = entry?.diesel_with_taxes || entry?.diesel || entry?.value;
+          if (targetCountries.includes(code) && diesel) {
+            prices.push({ country: code, price: parseFloat(diesel), currency: 'EUR', unit: 'L' });
+          }
+        });
+      }
+
+      if (prices.length > 0) return prices;
+      throw new Error('No prices extracted from EC API');
+    } catch (e) {
+      this.logger.warn(`EC diesel API failed: ${e.message}. Using fallback static prices.`);
+      // Fallback: reasonable static EU diesel prices (updated manually)
+      return [
+        { country: 'RO', flag: '🇷🇴', price: 1.82, currency: 'EUR', unit: 'L', source: 'static' },
+        { country: 'NL', flag: '🇳🇱', price: 2.12, currency: 'EUR', unit: 'L', source: 'static' },
+        { country: 'DE', flag: '🇩🇪', price: 1.95, currency: 'EUR', unit: 'L', source: 'static' },
+        { country: 'FR', flag: '🇫🇷', price: 1.89, currency: 'EUR', unit: 'L', source: 'static' },
+        { country: 'BE', flag: '🇧🇪', price: 1.94, currency: 'EUR', unit: 'L', source: 'static' },
+        { country: 'PL', flag: '🇵🇱', price: 1.72, currency: 'EUR', unit: 'L', source: 'static' },
+        { country: 'HU', flag: '🇭🇺', price: 1.78, currency: 'EUR', unit: 'L', source: 'static' },
+        { country: 'AT', flag: '🇦🇹', price: 1.86, currency: 'EUR', unit: 'L', source: 'static' },
+      ];
+    }
+  }
+}
