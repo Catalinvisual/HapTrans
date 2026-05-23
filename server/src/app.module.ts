@@ -24,6 +24,7 @@ import { RoutingModule } from './routing/routing.module';
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
+        url: config.get('DATABASE_URL'),
         host: config.get('DB_HOST'),
         port: +(config.get('DB_PORT') as string),
         username: config.get('DB_USERNAME'),
