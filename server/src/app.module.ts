@@ -17,6 +17,9 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { FirebaseModule } from './firebase/firebase.module';
 import { RoutingModule } from './routing/routing.module';
 
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -52,5 +55,7 @@ import { RoutingModule } from './routing/routing.module';
     FirebaseModule,
     RoutingModule,
   ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
