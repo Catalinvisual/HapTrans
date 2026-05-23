@@ -6,24 +6,41 @@ import * as path from 'path';
 export class FirebaseService {
   private readonly logger = new Logger(FirebaseService.name);
 
+  public debugInfo: any = {};
+
   constructor() {
     try {
       const fs = require('fs');
       let serviceAccountPath = path.join(process.cwd(), 'firebase-service-account.json');
+      this.debugInfo.cwdPath = serviceAccountPath;
+      this.debugInfo.cwdExists = fs.existsSync(serviceAccountPath);
       
-      if (!fs.existsSync(serviceAccountPath)) {
+      if (!this.debugInfo.cwdExists) {
         serviceAccountPath = path.resolve(__dirname, '../../firebase-service-account.json');
+        this.debugInfo.fallback1Path = serviceAccountPath;
+        this.debugInfo.fallback1Exists = fs.existsSync(serviceAccountPath);
       }
       if (!fs.existsSync(serviceAccountPath)) {
         serviceAccountPath = path.resolve(__dirname, '../../../firebase-service-account.json');
+        this.debugInfo.fallback2Path = serviceAccountPath;
+        this.debugInfo.fallback2Exists = fs.existsSync(serviceAccountPath);
+      }
+
+      this.debugInfo.finalPath = serviceAccountPath;
+
+      if (fs.existsSync(serviceAccountPath)) {
+        this.debugInfo.fileContentLength = fs.readFileSync(serviceAccountPath, 'utf8').length;
       }
 
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccountPath),
       });
       this.logger.log('Firebase Admin initialized successfully');
+      this.debugInfo.initialized = true;
     } catch (error) {
       this.logger.error('Failed to initialize Firebase Admin', error);
+      this.debugInfo.error = error.message;
+      this.debugInfo.initialized = false;
     }
   }
 
