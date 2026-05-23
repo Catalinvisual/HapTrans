@@ -586,8 +586,8 @@ export default function TripsPage() {
             </button>
           </div>
           
-          <div className="flex items-center justify-between w-full mt-3">
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar flex-nowrap">
+          <div className="flex flex-col md:flex-row md:items-center justify-between w-full mt-3 gap-3">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar flex-nowrap w-full">
               {['all', 'pending', 'confirmed', 'in_progress', 'completed', 'cancelled'].map(s => (
                 <button
                   key={s}

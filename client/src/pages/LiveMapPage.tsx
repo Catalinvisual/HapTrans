@@ -509,7 +509,7 @@ export default function LiveMapPage() {
           <span className="w-2 h-2 bg-success rounded-full animate-pulse-dot" /> Live
         </span>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {trucks.slice(0, 8).map((truck: any) => (
           <div 
             key={truck.id} 

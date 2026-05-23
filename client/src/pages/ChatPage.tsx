@@ -95,18 +95,18 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-8.5rem)] rounded-2xl overflow-hidden bg-white border border-border shadow-sm animate-fade-in">
+    <div className="flex flex-col md:flex-row h-[calc(100vh-8.5rem)] rounded-2xl overflow-hidden bg-white border border-border shadow-sm animate-fade-in">
       
       {/* LEFT SIDEBAR: List of rooms */}
-      <div className="w-80 border-r border-border flex flex-col bg-surface/30 flex-shrink-0">
-        <div className="p-4 border-b border-border bg-white">
-          <h2 className="font-bold text-text flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-primary" /> {t('chatChannels')}
+      <div className="w-full md:w-80 border-b md:border-b-0 md:border-r border-border flex flex-col bg-surface/30 flex-shrink-0 h-40 md:h-full">
+        <div className="p-3 md:p-4 border-b border-border bg-white flex-shrink-0">
+          <h2 className="font-bold text-text flex items-center gap-2 text-sm md:text-base">
+            <MessageSquare className="w-4 h-4 md:w-5 md:h-5 text-primary" /> {t('chatChannels')}
           </h2>
-          <p className="text-xs text-text-secondary mt-1">{t('selectDriverOrGeneral')}</p>
+          <p className="text-[10px] md:text-xs text-text-secondary mt-1 hidden md:block">{t('selectDriverOrGeneral')}</p>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        <div className="flex-1 overflow-y-auto p-2 md:p-3 space-y-1.5 md:space-y-2">
           
           {/* General Support Chat room button */}
           <button
