@@ -36,10 +36,10 @@ export class Truck {
   @Column({ type: 'enum', enum: TruckStatus, default: TruckStatus.ACTIVE })
   status: TruckStatus;
 
-  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
   currentLat: number;
 
-  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
   currentLng: number;
 
   @OneToMany(() => Trip, (trip) => trip.truck)

@@ -54,7 +54,14 @@ export default function LiveMapPage() {
     script.src = 'https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js';
     script.onload = () => initMap();
     document.head.appendChild(script);
-    return () => { document.head.removeChild(link); };
+    return () => {
+      document.head.removeChild(link);
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+      }
+      markersRef.current = {};
+    };
   }, []);
 
   const initMap = () => {
@@ -120,9 +127,11 @@ export default function LiveMapPage() {
       tripsRef.current = tripsRes.data;
       
       const activeTruckDrivers: Record<string, string> = {};
+      const activeDriverTrucks: Record<string, any> = {};
       tripsRes.data.forEach((trip: any) => {
         if ((trip.status === 'in_progress' || trip.status === 'confirmed') && trip.truck && trip.driver) {
           activeTruckDrivers[trip.truck.id] = trip.driver.user?.name || 'Șofer';
+          activeDriverTrucks[trip.driver.id] = trip.truck;
         }
       });
 
@@ -138,16 +147,17 @@ export default function LiveMapPage() {
         }
       });
 
-      // Plot drivers with coordinates using their allotted truck or driver details
+      // Plot drivers with coordinates only if they are not already driving a plotted truck
       dr.data.forEach((d: any) => {
         if (d.currentLat && d.currentLng) {
-          const plate = d.truck?.plateNumber || 'SV 19 HAP';
-          const label = `${truckWord} (${plate})`;
-          const driverName = d.user?.name || 'Șofer';
-          
-          if (!markersRef.current[d.truck?.id || '']) {
-            addMarker(d.id, parseFloat(d.currentLng), parseFloat(d.currentLat), label, driverName);
+          const assignedTruck = activeDriverTrucks[d.id];
+          if (assignedTruck && assignedTruck.currentLat && assignedTruck.currentLng) {
+            // Already plotted as part of the truck loop, skip duplicate marker
+            return;
           }
+          const label = `${t('driver') || 'Șofer'}: ${d.user?.name || 'Șofer'}`;
+          const driverName = d.user?.name || 'Șofer';
+          addMarker(d.id, parseFloat(d.currentLng), parseFloat(d.currentLat), label, driverName);
         }
       });
     } catch (e) { console.error(e); }
