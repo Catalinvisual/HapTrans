@@ -181,33 +181,54 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _ctrl = TextEditingController();
   final _scroll = ScrollController();
+  late ChatProvider _chatProvider;
+  int _messageCount = 0;
 
   @override
   void initState() {
     super.initState();
-    final chat = context.read<ChatProvider>();
+    _chatProvider = context.read<ChatProvider>();
     final auth = context.read<AuthProvider>();
-    chat.loadMessages(widget.token, widget.trip['id']);
-    chat.connect(widget.token, widget.trip['id'], auth.user?['id'] ?? '');
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollDown());
+    
+    _messageCount = _chatProvider.messages.length;
+    _chatProvider.addListener(_onChatUpdate);
+    
+    _chatProvider.loadMessages(widget.token, widget.trip['id']);
+    _chatProvider.connect(widget.token, widget.trip['id'], auth.user?['id'] ?? '');
+  }
+
+  void _onChatUpdate() {
+    if (!mounted) return;
+    if (_chatProvider.messages.length != _messageCount) {
+      _messageCount = _chatProvider.messages.length;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollDown());
+    }
   }
 
   void _scrollDown() {
-    if (_scroll.hasClients) _scroll.animateTo(_scroll.position.maxScrollExtent, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+    if (_scroll.hasClients) {
+      _scroll.animateTo(
+        _scroll.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   void _send() {
     final text = _ctrl.text.trim();
     if (text.isEmpty) return;
     final auth = context.read<AuthProvider>();
-    context.read<ChatProvider>().sendMessage(widget.trip['id'], auth.user!['id'], text);
+    _chatProvider.sendMessage(widget.trip['id'], auth.user!['id'], text);
     _ctrl.clear();
-    Future.delayed(const Duration(milliseconds: 100), _scrollDown);
   }
 
   @override
   void dispose() {
-    context.read<ChatProvider>().disconnect();
+    _chatProvider.removeListener(_onChatUpdate);
+    _chatProvider.disconnect();
+    _ctrl.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
