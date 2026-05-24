@@ -61,6 +61,10 @@ class _MapScreenState extends State<MapScreen> {
   void _toggleTracking() async {
     final auth = context.read<AuthProvider>();
     final tripProv = context.read<TripProvider>();
+    
+    final granted = await BackgroundLocationService.requestAlwaysLocationPermission(context);
+    if (!granted) return;
+
     setState(() => _tracking = !_tracking);
     if (_tracking) {
       String? activeTruckId;

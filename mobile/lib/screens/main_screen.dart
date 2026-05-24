@@ -86,13 +86,12 @@ class _MainScreenState extends State<MainScreen> {
     if (shouldTrack && !_isAutoTracking) {
       _isAutoTracking = true;
       try {
-        LocationPermission perm = await Geolocator.checkPermission();
-        if (perm == LocationPermission.denied) {
-          perm = await Geolocator.requestPermission();
-        }
-        if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-          _isAutoTracking = false;
-          return;
+        if (mounted) {
+          final granted = await BackgroundLocationService.requestAlwaysLocationPermission(context);
+          if (!granted) {
+            _isAutoTracking = false;
+            return;
+          }
         }
 
         String? activeTruckId;

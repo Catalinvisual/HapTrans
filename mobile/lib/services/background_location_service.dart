@@ -4,9 +4,52 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../utils/constants.dart';
 
 class BackgroundLocationService {
+  static Future<bool> requestAlwaysLocationPermission(BuildContext context) async {
+    // 1. Request foreground permission first
+    var status = await Permission.location.status;
+    if (!status.isGranted) {
+      status = await Permission.location.request();
+      if (!status.isGranted) {
+        return false;
+      }
+    }
+
+    // 2. Request background permission
+    var alwaysStatus = await Permission.locationAlways.status;
+    if (!alwaysStatus.isGranted) {
+      // Show explanation dialog first so they know why they are being redirected
+      if (context.mounted) {
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Permisiune Locație / Location Permission'),
+            content: const Text(
+              'Pentru a monitoriza corect camionul când aplicația este închisă sau ecranul este stins, te rugăm ca pe ecranul următor să selectezi opțiunea:\n'
+              '→ „Permiteți tot timpul”\n\n'
+              'To monitor the truck correctly when the app is closed or the screen is off, please select:\n'
+              '→ "Allow all the time" on the next screen.'
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+      
+      alwaysStatus = await Permission.locationAlways.request();
+    }
+
+    return alwaysStatus.isGranted;
+  }
+
   static Future<void> initialize() async {
     final service = FlutterBackgroundService();
 
