@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../utils/constants.dart';
 import '../services/notification_service.dart';
+import '../services/background_location_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final SharedPreferences _prefs;
@@ -143,6 +144,7 @@ class AuthProvider extends ChangeNotifier {
     _user = null;
     _prefs.remove('token');
     _prefs.remove('user');
+    BackgroundLocationService.stop();
     notifyListeners();
   }
 

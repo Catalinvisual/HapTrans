@@ -8,6 +8,7 @@ import '../providers/trip_provider.dart';
 import '../providers/chat_provider.dart';
 import '../utils/constants.dart';
 import '../services/notification_service.dart';
+import '../services/background_location_service.dart';
 import 'trips_screen.dart';
 import 'map_screen.dart';
 import 'documents_screen.dart';
@@ -94,45 +95,23 @@ class _MainScreenState extends State<MainScreen> {
           return;
         }
 
-        if (!chatProv.connected) {
-          chatProv.connect(auth.token!, '', auth.user?['id'] ?? '');
-        }
-
         String? activeTruckId;
         if (activeTrip['truck'] != null) {
           activeTruckId = activeTrip['truck']['id'];
         }
 
-        // Send initial location
-        final lastPos = await Geolocator.getLastKnownPosition();
-        if (lastPos != null) {
-          chatProv.sendLocation(auth.user!['id'], activeTruckId, lastPos.latitude, lastPos.longitude);
-        }
-
-        _gpsSubscription = Geolocator.getPositionStream(
-          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 10)
-        ).listen((p) {
-          if (!_isAutoTracking) return;
-          String? currentTruckId;
-          try {
-            final t = tripProv.trips.firstWhere(
-              (tr) => tr['status'] == 'in_progress' || tr['status'] == 'confirmed',
-              orElse: () => <String, dynamic>{},
-            );
-            if (t.isNotEmpty && t['truck'] != null) {
-              currentTruckId = t['truck']['id'];
-            }
-          } catch (_) {}
-          chatProv.sendLocation(auth.user!['id'], currentTruckId, p.latitude, p.longitude);
-        });
+        await BackgroundLocationService.start(
+          token: auth.token!,
+          userId: auth.user!['id'],
+          truckId: activeTruckId,
+        );
       } catch (e) {
         debugPrint('Error starting auto-tracking: $e');
         _isAutoTracking = false;
       }
     } else if (!shouldTrack && _isAutoTracking) {
       _isAutoTracking = false;
-      _gpsSubscription?.cancel();
-      _gpsSubscription = null;
+      await BackgroundLocationService.stop();
     }
   }
 

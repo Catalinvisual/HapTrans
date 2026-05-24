@@ -10,12 +10,14 @@ import 'utils/constants.dart';
 import 'l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'services/notification_service.dart';
+import 'services/background_location_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
   // NotificationService.init() will internally sync the FCM token to server
   await NotificationService().init();
+  await BackgroundLocationService.initialize();
   runApp(HapTransApp(prefs: prefs));
 }
 

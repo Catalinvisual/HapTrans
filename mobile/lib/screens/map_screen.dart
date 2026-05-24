@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../providers/trip_provider.dart';
 import '../utils/constants.dart';
+import '../services/background_location_service.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -18,6 +19,7 @@ class _MapScreenState extends State<MapScreen> {
   LatLng? _pos;
   final _mapCtrl = MapController();
   bool _tracking = false;
+  StreamSubscription<Position>? _localGpsSub;
 
   @override
   void initState() {
@@ -58,14 +60,9 @@ class _MapScreenState extends State<MapScreen> {
 
   void _toggleTracking() async {
     final auth = context.read<AuthProvider>();
-    final chat = context.read<ChatProvider>();
     final tripProv = context.read<TripProvider>();
     setState(() => _tracking = !_tracking);
     if (_tracking) {
-      if (!chat.connected) {
-        chat.connect(auth.token!, '', auth.user?['id'] ?? '');
-      }
-
       String? activeTruckId;
       try {
         final activeTrip = tripProv.trips.firstWhere(
@@ -80,40 +77,34 @@ class _MapScreenState extends State<MapScreen> {
         }
       } catch (_) {}
 
-      // Send initial location immediately if already available
-      if (_pos != null) {
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (_tracking && _pos != null) {
-            chat.sendLocation(auth.user!['id'], activeTruckId, _pos!.latitude, _pos!.longitude);
-          }
-        });
-      } else {
-        try {
-          final p = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.high,
-            timeLimit: const Duration(seconds: 5),
-          );
-          final ll = LatLng(p.latitude, p.longitude);
-          setState(() => _pos = ll);
-          _mapCtrl.move(ll, 15);
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (_tracking) {
-              chat.sendLocation(auth.user!['id'], activeTruckId, p.latitude, p.longitude);
-            }
-          });
-        } catch (e) {
-          debugPrint('Error getting immediate position: $e');
-        }
-      }
+      await BackgroundLocationService.start(
+        token: auth.token!,
+        userId: auth.user!['id'],
+        truckId: activeTruckId,
+      );
 
-      Geolocator.getPositionStream(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 10)).listen((p) {
+      _localGpsSub = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 10,
+        ),
+      ).listen((p) {
         if (!_tracking) return;
         final ll = LatLng(p.latitude, p.longitude);
         setState(() => _pos = ll);
         _mapCtrl.move(ll, 15);
-        chat.sendLocation(auth.user!['id'], activeTruckId, p.latitude, p.longitude);
       });
+    } else {
+      await BackgroundLocationService.stop();
+      _localGpsSub?.cancel();
+      _localGpsSub = null;
     }
+  }
+
+  @override
+  void dispose() {
+    _localGpsSub?.cancel();
+    super.dispose();
   }
 
   @override
