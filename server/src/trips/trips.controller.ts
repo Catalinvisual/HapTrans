@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Query, Request } from '@nestjs/common';
 import { TripsService } from './trips.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -11,7 +11,7 @@ export class TripsController {
   @Get('monthly-profits') getMonthly() { return this.service.getMonthlyProfits(); }
   @Get(':id') findOne(@Param('id') id: string) { return this.service.findOne(id); }
   @Post() create(@Body() dto: any) { return this.service.create(dto); }
-  @Patch(':id') update(@Param('id') id: string, @Body() dto: any) { return this.service.update(id, dto); }
+  @Patch(':id') update(@Param('id') id: string, @Body() dto: any, @Request() req: any) { return this.service.update(id, dto, req.user); }
   @Delete(':id') remove(@Param('id') id: string) { return this.service.remove(id); }
   @Post(':id/costs') addCost(@Param('id') id: string, @Body() dto: any) { return this.service.addCost(id, dto); }
 }

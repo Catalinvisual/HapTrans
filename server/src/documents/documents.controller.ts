@@ -26,12 +26,14 @@ export class DocumentsController {
       uploadedById: req.user.id,
     });
 
-    await this.notificationsService.create({
-      type: 'document',
-      title: 'notif_document_title',
-      message: `${body.type}|||${body.tripId || 'N/A'}`,
-      relatedId: doc.id,
-    });
+    if (req.user && req.user.role === 'driver') {
+      await this.notificationsService.create({
+        type: 'document',
+        title: 'notif_document_title',
+        message: `${body.type}|||${body.tripId || 'N/A'}`,
+        relatedId: doc.id,
+      });
+    }
 
     return doc;
   }

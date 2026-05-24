@@ -38,13 +38,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`trip_${data.tripId}`).emit('newMessage', msg);
     this.server.emit('newMessageGlobal', msg); // Emit globally for app local push
     
-    // Create dashboard notification for admin
-    await this.notificationsService.create({
-      type: 'chat',
-      title: 'notif_chat_title',
-      message: data.content || (data.fileUrl ? 'notif_chat_file' : ''),
-      relatedId: data.tripId,
-    });
+    // Create dashboard notification for admin ONLY if sender is a driver
+    try {
+      const senderDriver = await this.driversService.findByUserId(data.senderId);
+      if (senderDriver) {
+        await this.notificationsService.create({
+          type: 'chat',
+          title: 'notif_chat_title',
+          message: data.content || (data.fileUrl ? 'notif_chat_file' : ''),
+          relatedId: data.tripId,
+        });
+      }
+    } catch (e) {
+      console.error('Error checking driver sender for dashboard notification:', e);
+    }
     
     try {
       if (data.tripId && !data.tripId.startsWith('driver_') && data.tripId !== 'general') {

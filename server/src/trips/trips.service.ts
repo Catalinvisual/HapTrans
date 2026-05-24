@@ -5,6 +5,7 @@ import { Trip, TripStatus } from './trip.entity';
 import { TripCost } from './trip-cost.entity';
 import { FirebaseService } from '../firebase/firebase.service';
 import { ChatGateway } from '../chat/chat.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class TripsService {
@@ -13,6 +14,7 @@ export class TripsService {
     @InjectRepository(TripCost) private costsRepo: Repository<TripCost>,
     private firebaseService: FirebaseService,
     @Inject(forwardRef(() => ChatGateway)) private chatGateway: ChatGateway,
+    private notificationsService: NotificationsService,
   ) {}
 
   findAll() {
@@ -63,7 +65,7 @@ export class TripsService {
     return saved;
   }
 
-  async update(id: string, dto: any) {
+  async update(id: string, dto: any, user?: any) {
     const updateData: any = {};
     if (dto.clientId !== undefined) updateData.client = { id: dto.clientId };
     if (dto.truckId !== undefined) updateData.truck = { id: dto.truckId };
@@ -90,25 +92,42 @@ export class TripsService {
     await this.repo.update(id, updateData);
     const updatedTrip = await this.findOne(id);
     
-    if (updatedTrip && updatedTrip.driver && updatedTrip.driver.user && updatedTrip.driver.user.fcmToken) {
-      let title = 'Cursă modificată';
-      let body = `Cursa ${updatedTrip.pickupAddress} -> ${updatedTrip.dropoffAddress} a fost modificată.`;
-      
-      if (dto.status !== undefined) {
-        title = 'Status cursă modificat';
-        body = `Cursa ${updatedTrip.pickupAddress} -> ${updatedTrip.dropoffAddress} este acum: ${dto.status}.`;
-        if (dto.status === 'cancelled') {
-          title = 'Cursă anulată';
-          body = `Cursa ${updatedTrip.pickupAddress} -> ${updatedTrip.dropoffAddress} a fost anulată!`;
+    const isDriver = user?.role === 'driver';
+
+    if (updatedTrip && updatedTrip.driver && updatedTrip.driver.user) {
+      if (isDriver) {
+        // Driver updated status -> Only create a dashboard notification for SaaS, do NOT send push to driver
+        if (dto.status !== undefined) {
+          await this.notificationsService.create({
+            type: 'trip',
+            title: 'notif_trip_title',
+            message: `${id}|||${dto.status}`,
+            relatedId: id,
+          });
+        }
+      } else {
+        // Admin/Dispatcher updated -> Send push notification to driver, do NOT create dashboard notification
+        if (updatedTrip.driver.user.fcmToken) {
+          let title = 'Cursă modificată';
+          let body = `Cursa ${updatedTrip.pickupAddress} -> ${updatedTrip.dropoffAddress} a fost modificată.`;
+          
+          if (dto.status !== undefined) {
+            title = 'Status cursă modificat';
+            body = `Cursa ${updatedTrip.pickupAddress} -> ${updatedTrip.dropoffAddress} este acum: ${dto.status}.`;
+            if (dto.status === 'cancelled') {
+              title = 'Cursă anulată';
+              body = `Cursa ${updatedTrip.pickupAddress} -> ${updatedTrip.dropoffAddress} a fost anulată!`;
+            }
+          }
+          
+          await this.firebaseService.sendPushNotification(
+            updatedTrip.driver.user.fcmToken,
+            title,
+            body,
+            { type: 'trip', tripId: updatedTrip.id }
+          );
         }
       }
-      
-      await this.firebaseService.sendPushNotification(
-        updatedTrip.driver.user.fcmToken,
-        title,
-        body,
-        { type: 'trip', tripId: updatedTrip.id }
-      );
     }
     
     // Broadcast via Socket.IO so mobile app catches it even in background
