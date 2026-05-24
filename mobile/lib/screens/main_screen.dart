@@ -44,6 +44,10 @@ class _MainScreenState extends State<MainScreen> {
 
       if (auth.token != null) {
         tripProv.loadTrips(auth.token!).then((_) {
+          if (tripProv.error == '401') {
+            auth.logout();
+            return;
+          }
           if (mounted) {
             _updateAutomaticTracking(auth, tripProv, chatProv);
           }
@@ -54,6 +58,10 @@ class _MainScreenState extends State<MainScreen> {
         _pollingTimer = Timer.periodic(const Duration(seconds: 8), (timer) {
           if (mounted && auth.token != null) {
             tripProv.silentReloadTrips(auth.token!).then((_) {
+              if (tripProv.error == '401') {
+                auth.logout();
+                return;
+              }
               if (mounted) {
                 _updateAutomaticTracking(auth, tripProv, chatProv);
               }

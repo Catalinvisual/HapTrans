@@ -23,7 +23,11 @@ class TripProvider extends ChangeNotifier {
       _trips = List<Map<String, dynamic>>.from(res.data);
       _error = null;
     } catch (e) {
-      _error = e.toString();
+      if (e is DioException && e.response?.statusCode == 401) {
+        _error = '401';
+      } else {
+        _error = e.toString();
+      }
     }
     _loading = false; notifyListeners();
   }
@@ -34,7 +38,12 @@ class TripProvider extends ChangeNotifier {
       _trips = List<Map<String, dynamic>>.from(res.data);
       _error = null;
       notifyListeners();
-    } catch (_) {}
+    } catch (e) {
+      if (e is DioException && e.response?.statusCode == 401) {
+        _error = '401';
+        notifyListeners();
+      }
+    }
   }
 
   Future<bool> updateStatus(String token, String tripId, String status) async {

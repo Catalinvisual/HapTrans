@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import '../utils/constants.dart';
 import '../services/notification_service.dart';
 import '../services/background_location_service.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 
 class AuthProvider extends ChangeNotifier {
   final SharedPreferences _prefs;
@@ -13,11 +14,31 @@ class AuthProvider extends ChangeNotifier {
 
   AuthProvider(this._prefs) {
     _token = _prefs.getString('token');
+    if (_token != null) {
+      bool isExpired = true;
+      try {
+        isExpired = JwtDecoder.isExpired(_token!);
+      } catch (_) {}
+
+      if (isExpired) {
+        _token = null;
+        _prefs.remove('token');
+        _prefs.remove('user');
+      }
+    }
+
     final lang = _prefs.getString('lang') ?? 'ro';
     _locale = Locale(lang);
     final userJson = _prefs.getString('user');
-    if (userJson != null) {
-      _user = {'name': _prefs.getString('userName'), 'id': _prefs.getString('userId'), 'role': _prefs.getString('userRole')};
+    if (userJson != null && _token != null) {
+      _user = {
+        'name': _prefs.getString('userName'),
+        'id': _prefs.getString('userId'),
+        'role': _prefs.getString('userRole')
+      };
+    } else {
+      _user = null;
+      _prefs.remove('user');
     }
   }
 
