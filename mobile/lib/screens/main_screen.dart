@@ -44,7 +44,7 @@ class _MainScreenState extends State<MainScreen> {
 
       if (auth.token != null) {
         tripProv.loadTrips(auth.token!).then((_) {
-          if (tripProv.error == '401') {
+          if (tripProv.error == '401' || (tripProv.error != null && tripProv.error!.contains('401'))) {
             auth.logout();
             Navigator.pushReplacementNamed(context, '/login');
             return;
@@ -59,7 +59,7 @@ class _MainScreenState extends State<MainScreen> {
         _pollingTimer = Timer.periodic(const Duration(seconds: 8), (timer) {
           if (mounted && auth.token != null) {
             tripProv.silentReloadTrips(auth.token!).then((_) {
-              if (tripProv.error == '401') {
+              if (tripProv.error == '401' || (tripProv.error != null && tripProv.error!.contains('401'))) {
                 auth.logout();
                 Navigator.pushReplacementNamed(context, '/login');
                 return;
