@@ -10,8 +10,8 @@ export class RoutingService {
   private readonly orsKey: string;
 
   constructor(private config: ConfigService) {
-    this.hereKey = this.config.get('HERE_API_KEY') || '';
-    this.orsKey = this.config.get('ORS_API_KEY') || '';
+    this.hereKey = (this.config.get('HERE_API_KEY') || '').trim();
+    this.orsKey = (this.config.get('ORS_API_KEY') || '').trim();
   }
 
   // ─── Autocomplete Address (HERE Maps) ──────────────────────────────────────
