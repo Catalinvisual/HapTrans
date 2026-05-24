@@ -44,6 +44,7 @@ export default function LiveMapPage() {
   const tripsRef = useRef<any[]>([]);
   const trucksStateRef = useRef<any[]>([]);
   const driversStateRef = useRef<any[]>([]);
+  const focusedTruckRef = useRef<any>(null);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -163,10 +164,56 @@ export default function LiveMapPage() {
     } catch (e) { console.error(e); }
   };
 
+  const animateMarker = (marker: any, start: [number, number], end: [number, number], durationMs: number = 1500) => {
+    const startTime = performance.now();
+    const step = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / durationMs, 1);
+      
+      const lng = start[0] + (end[0] - start[0]) * progress;
+      const lat = start[1] + (end[1] - start[1]) * progress;
+      
+      marker.setLngLat([lng, lat]);
+      
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
+    };
+    requestAnimationFrame(step);
+  };
+
   const addMarker = (id: string, lng: number, lat: number, label: string, popupText: string) => {
     if (!mapInstance.current || !window.maplibregl) return;
-    if (markersRef.current[id]) markersRef.current[id].remove();
     
+    const existingMarker = markersRef.current[id];
+    if (existingMarker) {
+      const startLngLat = existingMarker.getLngLat();
+      animateMarker(existingMarker, [startLngLat.lng, startLngLat.lat], [lng, lat], 1500);
+      
+      const el = existingMarker.getElement();
+      if (el) {
+        const labelEl = el.querySelector('.marker-label');
+        if (labelEl) {
+          labelEl.innerHTML = `<span style="color:#FF7A1A">🚚</span> ${label}`;
+        }
+      }
+      
+      const popup = existingMarker.getPopup();
+      if (popup) {
+        const lang = i18n.language || 'ro';
+        const driverWord = DRIVER_TRANSLATIONS[lang] || DRIVER_TRANSLATIONS['ro'];
+        popup.setHTML(`
+          <div style="font-family:sans-serif;padding:6px 8px;min-width:140px">
+            <div style="font-size:12px;font-weight:bold;color:#0F172A;margin-bottom:4px;border-bottom:1px solid #E2E8F0;padding-bottom:4px">${label}</div>
+            <div style="font-size:11px;color:#475569;display:flex;align-items:center;gap:4px">
+              <span style="font-weight:bold;color:#FF7A1A">${driverWord}:</span> ${popupText}
+            </div>
+          </div>
+        `);
+      }
+      return;
+    }
+
     const color = '#FF7A1A'; 
     const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:white;margin:auto"><path d="M14 18H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v10"/><path d="M14 2v16"/><path d="M14 10h5l3 3v3h-8"/><circle cx="7.5" cy="18.5" r="2.5"/><circle cx="17.5" cy="18.5" r="2.5"/></svg>`;
 
@@ -176,7 +223,7 @@ export default function LiveMapPage() {
     const el = document.createElement('div');
     el.style.cssText = `display:flex;flex-direction:column;align-items:center;cursor:pointer`;
     el.innerHTML = `
-      <div style="background:#0F172A;color:#FFFFFF;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:bold;white-space:nowrap;box-shadow:0 4px 10px rgba(0,0,0,0.3);margin-bottom:6px;border:1.5px solid #FF7A1A;display:flex;align-items:center;gap:6px">
+      <div class="marker-label" style="background:#0F172A;color:#FFFFFF;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:bold;white-space:nowrap;box-shadow:0 4px 10px rgba(0,0,0,0.3);margin-bottom:6px;border:1.5px solid #FF7A1A;display:flex;align-items:center;gap:6px">
         <span style="color:#FF7A1A">🚚</span> ${label}
       </div>
       <div style="width:38px;height:38px;background:${color};border-radius:50%;display:flex;align-items:center;justify-content:center;border:2.5px solid white;box-shadow:0 0 15px rgba(255,122,26,0.6)">
@@ -185,7 +232,6 @@ export default function LiveMapPage() {
     `;
 
     el.addEventListener('click', (e) => {
-      // Ensure we catch it before MapLibre stops propagation
       let truck = trucksStateRef.current.find((t: any) => t.id === id);
       if (!truck) {
         const drv = driversStateRef.current.find((d: any) => d.id === id);
@@ -198,6 +244,7 @@ export default function LiveMapPage() {
         if (plateStr) truck = trucksStateRef.current.find((t: any) => t.plateNumber === plateStr);
       }
       if (truck) {
+        focusedTruckRef.current = truck;
         drawRoute(truck);
       }
     }, true);
@@ -216,7 +263,7 @@ export default function LiveMapPage() {
     markersRef.current[id] = marker;
   };
 
-  const drawRoute = async (truck: any) => {
+  const drawRoute = async (truck: any, preventFitBounds: boolean = false) => {
     if (!mapInstance.current) return;
 
     // Find active trip for this truck
@@ -292,7 +339,7 @@ export default function LiveMapPage() {
         if (c[1] > maxLat) maxLat = c[1];
       }
       
-      if (minLng !== Infinity) {
+      if (minLng !== Infinity && !preventFitBounds) {
         mapInstance.current.fitBounds(
           [[minLng, minLat], [maxLng, maxLat]],
           { padding: 60, duration: 1200 }
@@ -358,6 +405,7 @@ export default function LiveMapPage() {
   };
 
   const focusOnTruck = (truck: any) => {
+    focusedTruckRef.current = truck;
     let lat = truck.currentLat;
     let lng = truck.currentLng;
 
@@ -439,7 +487,15 @@ export default function LiveMapPage() {
   };
 
   useEffect(() => {
-    const socket = io(import.meta.env.VITE_WS_URL || 'http://localhost:3001');
+    const getWsUrl = () => {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      if (apiUrl) {
+        return apiUrl.replace(/\/api\/?$/, '');
+      }
+      return 'http://localhost:3001';
+    };
+
+    const socket = io(getWsUrl());
     socket.on('locationUpdate', (data: any) => {
       let driverName = 'Șofer';
       let plateNumber = 'SV 19 HAP';
@@ -487,6 +543,12 @@ export default function LiveMapPage() {
         return updated;
       });
 
+      // Remove standalone driver marker if they are now assigned to a truck
+      if (finalTruckId !== data.driverId && markersRef.current[data.driverId]) {
+        markersRef.current[data.driverId].remove();
+        delete markersRef.current[data.driverId];
+      }
+
       // Try to resolve the plate number from the updated trucks list
       const matchedTruck = trucksStateRef.current.find(t => t.id === finalTruckId);
       if (matchedTruck) {
@@ -498,18 +560,58 @@ export default function LiveMapPage() {
       const lang = i18n.language || 'ro';
       const truckWord = TRUCK_TRANSLATIONS[lang] || TRUCK_TRANSLATIONS['ro'];
       const label = `${truckWord} (${plateNumber})`;
-      
-      if (markersRef.current[data.driverId]) {
-        markersRef.current[data.driverId].remove();
-        delete markersRef.current[data.driverId];
-      }
-      if (finalTruckId && markersRef.current[finalTruckId]) {
-        markersRef.current[finalTruckId].remove();
-        delete markersRef.current[finalTruckId];
+
+      // Smoothly update the marker coordinate
+      const existingMarker = markersRef.current[finalTruckId];
+      if (existingMarker) {
+        const startLngLat = existingMarker.getLngLat();
+        animateMarker(
+          existingMarker,
+          [startLngLat.lng, startLngLat.lat],
+          [parseFloat(data.lng), parseFloat(data.lat)],
+          1500
+        );
+
+        // Update the label DOM text
+        const el = existingMarker.getElement();
+        if (el) {
+          const labelEl = el.querySelector('.marker-label');
+          if (labelEl) {
+            labelEl.innerHTML = `<span style="color:#FF7A1A">🚚</span> ${label}`;
+          }
+        }
+
+        // Update popup info
+        const popup = existingMarker.getPopup();
+        if (popup) {
+          const driverWord = DRIVER_TRANSLATIONS[lang] || DRIVER_TRANSLATIONS['ro'];
+          popup.setHTML(`
+            <div style="font-family:sans-serif;padding:6px 8px;min-width:140px">
+              <div style="font-size:12px;font-weight:bold;color:#0F172A;margin-bottom:4px;border-bottom:1px solid #E2E8F0;padding-bottom:4px">${label}</div>
+              <div style="font-size:11px;color:#475569;display:flex;align-items:center;gap:4px">
+                <span style="font-weight:bold;color:#FF7A1A">${driverWord}:</span> ${driverName}
+              </div>
+            </div>
+          `);
+        }
+      } else {
+        addMarker(finalTruckId, parseFloat(data.lng), parseFloat(data.lat), label, driverName);
       }
 
-      addMarker(finalTruckId, parseFloat(data.lng), parseFloat(data.lat), label, driverName);
+      // If this is the currently focused truck, auto-center and update the routing line in real-time
+      if (focusedTruckRef.current && focusedTruckRef.current.id === finalTruckId) {
+        if (mapInstance.current) {
+          mapInstance.current.easeTo({
+            center: [parseFloat(data.lng), parseFloat(data.lat)],
+            duration: 1000,
+          });
+        }
+        if (matchedTruck) {
+          drawRoute(matchedTruck, true); // update routing line without resetting zoom bounds
+        }
+      }
     });
+
     return () => { socket.disconnect(); };
   }, [i18n.language]);
 
