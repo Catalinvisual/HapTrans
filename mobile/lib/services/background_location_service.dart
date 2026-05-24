@@ -21,23 +21,53 @@ class BackgroundLocationService {
     // 2. Request background permission
     var alwaysStatus = await Permission.locationAlways.status;
     if (!alwaysStatus.isGranted) {
+      final locale = Localizations.localeOf(context).languageCode;
+      
+      final Map<String, Map<String, String>> translations = {
+        'ro': {
+          'title': 'Permisiune Locație Fundal',
+          'content': 'Pentru a monitoriza corect camionul când aplicația este închisă sau ecranul este stins, te rugăm ca pe ecranul următor să selectezi opțiunea:\n\n→ „Permiteți tot timpul”',
+          'button': 'OK',
+        },
+        'en': {
+          'title': 'Background Location Permission',
+          'content': 'To monitor the truck correctly when the app is closed or the screen is off, please select the following option on the next screen:\n\n→ "Allow all the time"',
+          'button': 'OK',
+        },
+        'nl': {
+          'title': 'Locatiepermissie op de achtergrond',
+          'content': 'Om de vrachtwagen correct te volgen wanneer de app gesloten is of het scherm uit staat, selecteert u de volgende optie in het volgende scherm:\n\n→ "Altijd toestaan"',
+          'button': 'OK',
+        },
+        'de': {
+          'title': 'Hintergrund-Standortberechtigung',
+          'content': 'Um den Lkw korrekt zu überwachen, wenn die App geschlossen oder der Bildschirm ausgeschaltet ist, wählen Sie bitte auf dem nächsten Bildschirm folgende Option:\n\n→ "Immer zulassen"',
+          'button': 'OK',
+        },
+        'fr': {
+          'title': 'Autorisation de localisation en arrière-plan',
+          'content': 'Pour suivre correctement le camion lorsque l\'application est fermée ou que l\'écran est éteint, veuillez sélectionner l\'option suivante sur l\'écran suivant :\n\n→ "Toujours autoriser"',
+          'button': 'OK',
+        },
+      };
+
+      final lang = translations.containsKey(locale) ? locale : 'en';
+      final titleText = translations[lang]!['title']!;
+      final contentText = translations[lang]!['content']!;
+      final buttonText = translations[lang]!['button']!;
+
       // Show explanation dialog first so they know why they are being redirected
       if (context.mounted) {
         await showDialog(
           context: context,
           barrierDismissible: false,
           builder: (ctx) => AlertDialog(
-            title: const Text('Permisiune Locație / Location Permission'),
-            content: const Text(
-              'Pentru a monitoriza corect camionul când aplicația este închisă sau ecranul este stins, te rugăm ca pe ecranul următor să selectezi opțiunea:\n'
-              '→ „Permiteți tot timpul”\n\n'
-              'To monitor the truck correctly when the app is closed or the screen is off, please select:\n'
-              '→ "Allow all the time" on the next screen.'
-            ),
+            title: Text(titleText),
+            content: Text(contentText),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('OK'),
+                child: Text(buttonText),
               ),
             ],
           ),
