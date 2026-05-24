@@ -223,17 +223,22 @@ export default function LiveMapPage() {
     const etaLabels = ETA_TRANSLATIONS[lang] || ETA_TRANSLATIONS['en'];
 
     const isPending = ['pending', 'confirmed'].includes(activeTrip.status);
-    const destAddress = isPending ? activeTrip.pickupAddress : activeTrip.dropoffAddress;
-    const destLabel = isPending ? etaLabels.pickup : etaLabels.dropoff;
+    const hasTruckGps = !!(truck.currentLat && truck.currentLng && parseFloat(truck.currentLat) !== 0 && parseFloat(truck.currentLng) !== 0);
+    const destAddress = (isPending && hasTruckGps) ? activeTrip.pickupAddress : activeTrip.dropoffAddress;
+    const destLabel = (isPending && hasTruckGps) ? etaLabels.pickup : etaLabels.dropoff;
 
     if (!destAddress) {
+      return;
+    }
+
+    if (!hasTruckGps && (!activeTrip.pickupAddress || !activeTrip.dropoffAddress)) {
       return;
     }
 
     const loadToast = toast.loading(etaLabels.calcRoute);
     try {
       const payload: any = { destAddress };
-      if (truck.currentLat && truck.currentLng) {
+      if (hasTruckGps) {
         payload.originLat = parseFloat(truck.currentLat);
         payload.originLng = parseFloat(truck.currentLng);
       } else {

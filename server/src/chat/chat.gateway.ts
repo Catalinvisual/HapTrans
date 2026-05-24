@@ -62,7 +62,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         }
       } else if (data.tripId && data.tripId.startsWith('driver_')) {
         const driverId = data.tripId.replace('driver_', '');
-        const driver = await this.driversService.findOne(driverId);
+        const driver = await this.driversService.findByUserId(driverId);
         if (driver && driver.user && driver.user.id !== data.senderId && driver.user.fcmToken) {
           const body = data.content ? data.content : 'Fișier atașat / Attached file';
           await this.firebaseService.sendPushNotification(

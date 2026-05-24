@@ -19,6 +19,21 @@ export class AppController {
     return this.firebaseService.debugInfo;
   }
 
+  @Get('debug-env')
+  getDebugEnv(): any {
+    const here = process.env.HERE_API_KEY;
+    const ors = process.env.ORS_API_KEY;
+    return {
+      hasHereKey: !!here,
+      hereKeyLength: here ? here.length : 0,
+      hereKeyStart: here ? here.substring(0, 5) + '...' + here.substring(here.length - 5) : '',
+      hasOrsKey: !!ors,
+      orsKeyLength: ors ? ors.length : 0,
+      orsKeyStart: ors ? ors.substring(0, 5) + '...' + ors.substring(ors.length - 5) : '',
+      NODE_ENV: process.env.NODE_ENV,
+    };
+  }
+
   @Get('test-push')
   async testPush(): Promise<string> {
     try {

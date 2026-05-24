@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Zap, Plus, Pencil, Trash2, Search, ChevronDown, Scale, Layers, Download, FileText, Clock, Box } from 'lucide-react';
 import api from '../lib/api';
@@ -34,6 +35,7 @@ export default function TripsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showExport, setShowExport] = useState(false);
   const [openStatusId, setOpenStatusId] = useState<string | null>(null);
+  const [statusCoords, setStatusCoords] = useState({ left: 0, top: 0, width: 0 });
   const [editId, setEditId] = useState<string | null>(null);
   const [isDispatching, setIsDispatching] = useState(false);
   const [palletDropdownOpen, setPalletDropdownOpen] = useState(false);
@@ -703,15 +705,28 @@ export default function TripsPage() {
                       <div className="relative group">
                         <button
                           className={`${STATUS_COLORS[trip.status] || 'badge-gray'} flex items-center justify-between gap-2 outline-none font-bold text-xs border-none hover:opacity-80 transition-opacity m-0 w-full min-w-[120px] text-left`}
-                          onClick={() => setOpenStatusId(openStatusId === trip.id ? null : trip.id)}
+                          onClick={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setStatusCoords({
+                              left: rect.left,
+                              top: rect.bottom + window.scrollY,
+                              width: Math.max(150, rect.width),
+                            });
+                            setOpenStatusId(openStatusId === trip.id ? null : trip.id);
+                          }}
                           onBlur={() => setOpenStatusId(null)}
                         >
                           <span>{t(trip.status === 'in_progress' ? 'inProgress' : trip.status) || trip.status}</span>
                           <ChevronDown className="w-3 h-3 text-current opacity-70" />
                         </button>
-                        {openStatusId === trip.id && (
+                        {openStatusId === trip.id && typeof document !== 'undefined' && createPortal(
                           <div 
-                            className="absolute top-full mt-1 left-0 z-50 bg-white border border-border rounded-xl shadow-xl overflow-hidden min-w-[150px] animate-fade-in"
+                            className="absolute z-[9999] bg-white border border-border rounded-xl shadow-xl overflow-hidden min-w-[150px] animate-fade-in"
+                            style={{
+                              left: statusCoords.left,
+                              top: statusCoords.top,
+                              width: statusCoords.width,
+                            }}
                           >
                             {[
                               { value: 'pending', label: t('pending') },
@@ -740,7 +755,8 @@ export default function TripsPage() {
                                 {opt.label}
                               </div>
                             ))}
-                          </div>
+                          </div>,
+                          document.body
                         )}
                       </div>
                     </td>
