@@ -141,10 +141,24 @@ export default function LiveMapPage() {
 
       // Plot trucks with coordinates
       tr.data.forEach((t: any) => {
-        if (t.currentLat && t.currentLng) {
-          const driverName = activeTruckDrivers[t.id] || t.driver?.user?.name || 'Șofer';
+        let lat = t.currentLat;
+        let lng = t.currentLng;
+        const driverName = activeTruckDrivers[t.id] || t.driver?.user?.name || 'Șofer';
+
+        // Check if there is an active driver for this truck who has precise coordinates
+        const assignedDriver = dr.data.find((d: any) => 
+          d.truck?.id === t.id || 
+          (activeDriverTrucks[d.id] && activeDriverTrucks[d.id].id === t.id)
+        );
+
+        if (assignedDriver && assignedDriver.currentLat && assignedDriver.currentLng) {
+          lat = assignedDriver.currentLat;
+          lng = assignedDriver.currentLng;
+        }
+
+        if (lat && lng) {
           const label = `${truckWord} (${t.plateNumber})`;
-          addMarker(t.id, parseFloat(t.currentLng), parseFloat(t.currentLat), label, driverName);
+          addMarker(t.id, parseFloat(lng), parseFloat(lat), label, driverName);
         }
       });
 
