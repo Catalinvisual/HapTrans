@@ -119,6 +119,9 @@ class _MapScreenState extends State<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final locale = context.watch<AuthProvider>().locale.languageCode;
+    final tripProv = context.watch<TripProvider>();
+    final bool hasActiveTrip = tripProv.trips.any((t) => t['status'] == 'in_progress' || t['status'] == 'confirmed');
+
     return Scaffold(
       appBar: AppBar(title: Text({'ro':'Hartă Live','en':'Live Map','nl':'Live Kaart','de':'Live-Karte','fr':'Carte en direct'}[locale] ?? 'Live Map')),
       body: Stack(children: [
@@ -148,10 +151,12 @@ class _MapScreenState extends State<MapScreen> {
         // Start/Stop Tracking Button
         Positioned(bottom: 24, right: 16, child: FloatingActionButton.extended(
           heroTag: 'tracking_btn',
-          onPressed: _toggleTracking,
-          backgroundColor: _tracking ? kSuccess : kPrimary,
-          icon: Icon(_tracking ? Icons.stop : Icons.play_arrow),
-          label: Text(_tracking ? 'Stop' : ({'ro':'Pornește tracking','en':'Start tracking','nl':'Starten','de':'Tracking starten','fr':'Démarrer le suivi'}[locale] ?? 'Start tracking')),
+          onPressed: hasActiveTrip ? null : _toggleTracking,
+          backgroundColor: (hasActiveTrip || _tracking) ? kSuccess : kPrimary,
+          icon: Icon((hasActiveTrip || _tracking) ? Icons.gps_fixed : Icons.play_arrow),
+          label: Text(hasActiveTrip 
+            ? ({'ro':'Tracking automat','en':'Auto tracking','nl':'Automatisch tr.'}[locale] ?? 'Auto tracking')
+            : (_tracking ? 'Stop' : ({'ro':'Pornește tracking','en':'Start tracking','nl':'Starten','de':'Tracking starten','fr':'Démarrer le suivi'}[locale] ?? 'Start tracking'))),
         )),
       ]),
     );

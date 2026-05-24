@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:badges/badges.dart' as badges;
@@ -23,20 +24,39 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   Timer? _pollingTimer;
+  StreamSubscription<Position>? _gpsSubscription;
+  bool _isAutoTracking = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<AuthProvider>();
+      final tripProv = context.read<TripProvider>();
+      final chatProv = context.read<ChatProvider>();
+
+      tripProv.addListener(() {
+        if (mounted) {
+          _updateAutomaticTracking(auth, tripProv, chatProv);
+        }
+      });
+
       if (auth.token != null) {
-        context.read<TripProvider>().loadTrips(auth.token!);
-        context.read<ChatProvider>().connectGlobal(auth.token!, auth.user?['id'] ?? '', locale: auth.locale.languageCode);
+        tripProv.loadTrips(auth.token!).then((_) {
+          if (mounted) {
+            _updateAutomaticTracking(auth, tripProv, chatProv);
+          }
+        });
+        chatProv.connectGlobal(auth.token!, auth.user?['id'] ?? '', locale: auth.locale.languageCode);
         
         // Start polling every 8 seconds silently for real-time trip additions!
         _pollingTimer = Timer.periodic(const Duration(seconds: 8), (timer) {
           if (mounted && auth.token != null) {
-            context.read<TripProvider>().silentReloadTrips(auth.token!);
+            tripProv.silentReloadTrips(auth.token!).then((_) {
+              if (mounted) {
+                _updateAutomaticTracking(auth, tripProv, chatProv);
+              }
+            });
           }
         });
         
@@ -48,6 +68,72 @@ class _MainScreenState extends State<MainScreen> {
         });
       }
     });
+  }
+
+  void _updateAutomaticTracking(AuthProvider auth, TripProvider tripProv, ChatProvider chatProv) async {
+    // Check if there is an active (in_progress) or confirmed trip
+    final activeTrip = tripProv.trips.firstWhere(
+      (t) => t['status'] == 'in_progress',
+      orElse: () => tripProv.trips.firstWhere(
+        (t) => t['status'] == 'confirmed',
+        orElse: () => <String, dynamic>{},
+      ),
+    );
+
+    final bool shouldTrack = activeTrip.isNotEmpty;
+
+    if (shouldTrack && !_isAutoTracking) {
+      _isAutoTracking = true;
+      try {
+        LocationPermission perm = await Geolocator.checkPermission();
+        if (perm == LocationPermission.denied) {
+          perm = await Geolocator.requestPermission();
+        }
+        if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
+          _isAutoTracking = false;
+          return;
+        }
+
+        if (!chatProv.connected) {
+          chatProv.connect(auth.token!, '', auth.user?['id'] ?? '');
+        }
+
+        String? activeTruckId;
+        if (activeTrip['truck'] != null) {
+          activeTruckId = activeTrip['truck']['id'];
+        }
+
+        // Send initial location
+        final lastPos = await Geolocator.getLastKnownPosition();
+        if (lastPos != null) {
+          chatProv.sendLocation(auth.user!['id'], activeTruckId, lastPos.latitude, lastPos.longitude);
+        }
+
+        _gpsSubscription = Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 10)
+        ).listen((p) {
+          if (!_isAutoTracking) return;
+          String? currentTruckId;
+          try {
+            final t = tripProv.trips.firstWhere(
+              (tr) => tr['status'] == 'in_progress' || tr['status'] == 'confirmed',
+              orElse: () => <String, dynamic>{},
+            );
+            if (t.isNotEmpty && t['truck'] != null) {
+              currentTruckId = t['truck']['id'];
+            }
+          } catch (_) {}
+          chatProv.sendLocation(auth.user!['id'], currentTruckId, p.latitude, p.longitude);
+        });
+      } catch (e) {
+        debugPrint('Error starting auto-tracking: $e');
+        _isAutoTracking = false;
+      }
+    } else if (!shouldTrack && _isAutoTracking) {
+      _isAutoTracking = false;
+      _gpsSubscription?.cancel();
+      _gpsSubscription = null;
+    }
   }
 
   void _syncFcmNow(AuthProvider auth) {
@@ -64,6 +150,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void dispose() {
     _pollingTimer?.cancel();
+    _gpsSubscription?.cancel();
     super.dispose();
   }
 
