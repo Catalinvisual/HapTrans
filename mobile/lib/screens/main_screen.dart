@@ -46,6 +46,7 @@ class _MainScreenState extends State<MainScreen> {
         tripProv.loadTrips(auth.token!).then((_) {
           if (tripProv.error == '401') {
             auth.logout();
+            Navigator.pushReplacementNamed(context, '/login');
             return;
           }
           if (mounted) {
@@ -60,6 +61,7 @@ class _MainScreenState extends State<MainScreen> {
             tripProv.silentReloadTrips(auth.token!).then((_) {
               if (tripProv.error == '401') {
                 auth.logout();
+                Navigator.pushReplacementNamed(context, '/login');
                 return;
               }
               if (mounted) {
