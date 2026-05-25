@@ -90,6 +90,18 @@ class NotificationService {
       await _plugin
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(channel);
+
+      const locationChannel = AndroidNotificationChannel(
+        'haptrans_location_service',
+        'HapTrans Tracking',
+        description: 'Locația ta este monitorizată pentru dispecerat în timpul cursei.',
+        importance: Importance.low,
+        playSound: false,
+        enableVibration: false,
+      );
+      await _plugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(locationChannel);
     }
 
     try {
