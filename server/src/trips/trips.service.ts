@@ -116,6 +116,23 @@ export class TripsService {
           relatedId: updatedTrip.id,
         });
       }
+
+      // Truck maintenance check (Alert every 50,000 km)
+      if (updatedTrip.truck) {
+         const allTruckTrips = await this.repo.find({ where: { truck: { id: updatedTrip.truck.id }, status: TripStatus.COMPLETED } });
+         const totalKm = allTruckTrips.reduce((sum, t) => sum + (Number(t.distanceKm) || 0), 0);
+         const maintenanceThreshold = 50000;
+         
+         const prevTotalKm = totalKm - (Number(updatedTrip.distanceKm) || 0);
+         if (Math.floor(totalKm / maintenanceThreshold) > Math.floor(prevTotalKm / maintenanceThreshold)) {
+            await this.notificationsService.create({
+              type: 'system',
+              title: '🔧 Alertă Mentenanță Camion',
+              message: `Camionul ${updatedTrip.truck.plateNumber || 'ID: ' + updatedTrip.truck.id} a depășit pragul de ${Math.floor(totalKm / maintenanceThreshold) * maintenanceThreshold} km și necesită revizie / schimb de ulei!`,
+              relatedId: updatedTrip.truck.id,
+            });
+         }
+      }
     }
     
     const isDriver = user?.role === 'driver';
