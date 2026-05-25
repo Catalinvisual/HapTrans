@@ -16,7 +16,7 @@ export default function TrucksPage() {
   const [search, setSearch] = useState('');
   const [showExport, setShowExport] = useState(false);
   
-  const [form, setForm] = useState({ plateNumber: '', brand: '', model: '', year: '', payloadCapacity: '', fuelConsumption: '' });
+  const [form, setForm] = useState({ plateNumber: '', brand: '', model: '', year: '', payloadCapacity: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '' });
   const [editId, setEditId] = useState<string | null>(null);
 
   const executeDelete = async () => {
@@ -39,7 +39,7 @@ export default function TrucksPage() {
     try {
       if (editId) { await api.patch(`/trucks/${editId}`, form); toast.success(t('truckUpdated')); }
       else { await api.post('/trucks', form); toast.success(t('truckAdded')); }
-      setShowForm(false); setEditId(null); setForm({ plateNumber: '', brand: '', model: '', year: '', payloadCapacity: '', fuelConsumption: '' });
+      setShowForm(false); setEditId(null); setForm({ plateNumber: '', brand: '', model: '', year: '', payloadCapacity: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '' });
       load();
     } catch { toast.error(t('saveError')); }
   };
@@ -122,7 +122,7 @@ export default function TrucksPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-surface border-b border-border">
-                {[t('plateNumber'), t('brand'), t('model'), t('year'), t('capacity'), t('consumption'), t('status'), t('documents'), t('actions')].map(h => (
+                {[t('plateNumber'), t('brand'), t('model'), t('year'), 'Mentenanță', t('status'), t('documents'), t('actions')].map(h => (
                   <th key={h} className="table-header">{h}</th>
                 ))}
               </tr>
@@ -153,7 +153,7 @@ export default function TrucksPage() {
                   </td>
                   <td className="table-cell">
                     <div className="flex items-center gap-1">
-                      <button onClick={() => { setForm({ plateNumber: truck.plateNumber, brand: truck.brand, model: truck.model, year: truck.year, payloadCapacity: truck.payloadCapacity, fuelConsumption: truck.fuelConsumption }); setEditId(truck.id); setShowForm(true); }} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary-light transition-all">
+                      <button onClick={() => { setForm({ plateNumber: truck.plateNumber, brand: truck.brand, model: truck.model, year: truck.year, payloadCapacity: truck.payloadCapacity, fuelConsumption: truck.fuelConsumption, totalMileage: truck.totalMileage || '', nextMaintenanceMileage: truck.nextMaintenanceMileage || '' }); setEditId(truck.id); setShowForm(true); }} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary-light transition-all">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button onClick={() => setDeleteId(truck.id)} className="p-1.5 text-text-secondary hover:text-error rounded-lg hover:bg-red-50 transition-all">

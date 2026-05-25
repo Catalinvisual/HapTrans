@@ -1,7 +1,8 @@
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, In } from 'typeorm';
+import { Repository, Between, In, LessThanOrEqual, MoreThanOrEqual, Not } from 'typeorm';
 import { Trip, TripStatus } from './trip.entity';
+import { Truck } from '../trucks/truck.entity';
 import { TripCost } from './trip-cost.entity';
 import { FirebaseService } from '../firebase/firebase.service';
 import { ChatGateway } from '../chat/chat.gateway';
@@ -27,7 +28,31 @@ export class TripsService {
     return this.repo.findOne({ where: { id }, relations: ['client', 'truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'messages'] });
   }
 
+  async checkConflict(driverId: string, truckId: string, pickupDate: Date | string, dropoffDate: Date | string, excludeTripId?: string) {
+    if (!pickupDate || !dropoffDate) return;
+    
+    const start = new Date(pickupDate);
+    const end = new Date(dropoffDate);
+
+    const query = this.repo.createQueryBuilder('trip')
+      .where('trip.status NOT IN (:...statuses)', { statuses: [TripStatus.COMPLETED, TripStatus.CANCELLED] })
+      .andWhere('trip.pickupDate <= :end', { end })
+      .andWhere('trip.dropoffDate >= :start', { start });
+
+    if (excludeTripId) {
+      query.andWhere('trip.id != :excludeTripId', { excludeTripId });
+    }
+
+    query.andWhere('(trip.driverId = :driverId OR trip.truckId = :truckId)', { driverId, truckId });
+
+    const conflict = await query.getOne();
+    if (conflict) {
+      throw new ConflictException(`Suprapunere detectată! Există deja o cursă programată (ID: ${conflict.id}) în acest interval de timp pentru șoferul sau camionul selectat.`);
+    }
+  }
+
   async create(dto: any) {
+    await this.checkConflict(dto.driverId, dto.truckId, dto.pickupDate, dto.dropoffDate);
     const trip = this.repo.create({
       client: { id: dto.clientId },
       truck: { id: dto.truckId },
@@ -68,6 +93,19 @@ export class TripsService {
   }
 
   async update(id: string, dto: any, user?: any) {
+    const existingTrip = await this.findOne(id);
+    
+    // Check conflicts if dates, truck, or driver are changing
+    const pDate = dto.pickupDate !== undefined ? dto.pickupDate : existingTrip?.pickupDate;
+    const dDate = dto.dropoffDate !== undefined ? dto.dropoffDate : existingTrip?.dropoffDate;
+    const dId = dto.driverId !== undefined ? dto.driverId : existingTrip?.driver?.id;
+    const tId = dto.truckId !== undefined ? dto.truckId : existingTrip?.truck?.id;
+    const isStatusChangingToCompletedOrCancelled = dto.status === TripStatus.COMPLETED || dto.status === TripStatus.CANCELLED;
+
+    if (!isStatusChangingToCompletedOrCancelled && (dto.pickupDate || dto.dropoffDate || dto.driverId || dto.truckId)) {
+      await this.checkConflict(dId, tId, pDate, dDate, id);
+    }
+
     const updateData: any = {};
     if (dto.clientId !== undefined) updateData.client = { id: dto.clientId };
     if (dto.truckId !== undefined) updateData.truck = { id: dto.truckId };
@@ -117,20 +155,22 @@ export class TripsService {
         });
       }
 
-      // Truck maintenance check (Alert every 50,000 km)
-      if (updatedTrip.truck) {
-         const allTruckTrips = await this.repo.find({ where: { truck: { id: updatedTrip.truck.id }, status: TripStatus.COMPLETED } });
-         const totalKm = allTruckTrips.reduce((sum, t) => sum + (Number(t.distanceKm) || 0), 0);
-         const maintenanceThreshold = 50000;
-         
-         const prevTotalKm = totalKm - (Number(updatedTrip.distanceKm) || 0);
-         if (Math.floor(totalKm / maintenanceThreshold) > Math.floor(prevTotalKm / maintenanceThreshold)) {
-            await this.notificationsService.create({
-              type: 'system',
-              title: '🔧 Alertă Mentenanță Camion',
-              message: `Camionul ${updatedTrip.truck.plateNumber || 'ID: ' + updatedTrip.truck.id} a depășit pragul de ${Math.floor(totalKm / maintenanceThreshold) * maintenanceThreshold} km și necesită revizie / schimb de ulei!`,
-              relatedId: updatedTrip.truck.id,
-            });
+      // Truck maintenance check using entity fields
+      if (updatedTrip.truck && Number(updatedTrip.distanceKm) > 0) {
+         const truck = await this.repo.manager.findOne(Truck, { where: { id: updatedTrip.truck.id } });
+         if (truck) {
+             const newTotalKm = Number(truck.totalMileage || 0) + Number(updatedTrip.distanceKm);
+             const threshold = Number(truck.nextMaintenanceMileage || 50000);
+             await this.repo.manager.update(Truck, truck.id, { totalMileage: newTotalKm });
+             
+             if (newTotalKm >= threshold) {
+                await this.notificationsService.create({
+                  type: 'system',
+                  title: '🔧 Alertă Mentenanță Camion',
+                  message: `Camionul ${truck.plateNumber} a ajuns la ${newTotalKm} km și a depășit limita de revizie (${threshold} km)!`,
+                  relatedId: truck.id,
+                });
+             }
          }
       }
     }

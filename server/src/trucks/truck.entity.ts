@@ -42,6 +42,12 @@ export class Truck {
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
   currentLng: number;
 
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2, default: 0 })
+  totalMileage: number;
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2, default: 50000 })
+  nextMaintenanceMileage: number;
+
   @OneToMany(() => Trip, (trip) => trip.truck)
   trips: Trip[];
 
