@@ -6,6 +6,7 @@ import { TripCost } from './trip-cost.entity';
 import { FirebaseService } from '../firebase/firebase.service';
 import { ChatGateway } from '../chat/chat.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
+import { InvoicesService } from '../invoices/invoices.service';
 
 @Injectable()
 export class TripsService {
@@ -15,6 +16,7 @@ export class TripsService {
     private firebaseService: FirebaseService,
     @Inject(forwardRef(() => ChatGateway)) private chatGateway: ChatGateway,
     private notificationsService: NotificationsService,
+    private invoicesService: InvoicesService,
   ) {}
 
   findAll() {
@@ -91,6 +93,30 @@ export class TripsService {
 
     await this.repo.update(id, updateData);
     const updatedTrip = await this.findOne(id);
+
+    // Auto-generate invoice if trip completed
+    if (dto.status === TripStatus.COMPLETED && updatedTrip?.client) {
+      if (!updatedTrip.invoices || updatedTrip.invoices.length === 0) {
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 30); // Net 30 default
+        await this.invoicesService.create({
+          clientId: updatedTrip.client.id,
+          tripId: updatedTrip.id,
+          amount: updatedTrip.price || 0,
+          status: 'draft',
+          issueDate: new Date(),
+          dueDate: dueDate,
+        });
+        
+        // Notify dispatch
+        await this.notificationsService.create({
+          type: 'invoice',
+          title: 'Factură generată automat',
+          message: `Factură draft generată pentru cursa ${updatedTrip.pickupAddress.split(',')[0]} -> ${updatedTrip.dropoffAddress.split(',')[0]}`,
+          relatedId: updatedTrip.id,
+        });
+      }
+    }
     
     const isDriver = user?.role === 'driver';
 
