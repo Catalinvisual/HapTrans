@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Zap, Plus, Pencil, Trash2, Search, ChevronDown, Scale, Layers, Download, FileText, Clock, Box } from 'lucide-react';
+import { Zap, Plus, Pencil, Trash2, Search, ChevronDown, Scale, Layers, Download, FileText, Clock, Box, AlertTriangle } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import Flatpickr from 'react-flatpickr';
@@ -141,6 +141,19 @@ export default function TripsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const priceNum = form.price === '' ? 0 : Number(form.price);
+    const costNum = form.estimatedCost === '' ? 0 : Number(form.estimatedCost);
+
+    if (priceNum > 0 && costNum > 0 && priceNum < costNum) {
+      const confirmMsg = i18n.language === 'ro'
+        ? `Atenție: Prețul cursei (€${priceNum}) este mai mic decât costul estimat (€${costNum})!\n\nSalvarea acestei curse va genera o pierdere de €${(costNum - priceNum).toFixed(2)} pentru companie.\n\nSigur vrei să continui?`
+        : `Warning: The price (€${priceNum}) is lower than the estimated cost (€${costNum})!\n\nSaving this trip will result in a loss of €${(costNum - priceNum).toFixed(2)} for the company.\n\nAre you sure you want to continue?`;
+      
+      if (!window.confirm(confirmMsg)) {
+        return;
+      }
+    }
+
     try {
       const data = {
         ...form,
@@ -460,8 +473,8 @@ export default function TripsPage() {
             {/* Financial Details */}
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="label font-semibold text-xs">{t('price')} (€)</label>
-                <input type="number" className="input text-xs" value={form.price} onChange={e => setForm({...form, price: e.target.value})} />
+                <label className={`label font-semibold text-xs ${Number(form.price) > 0 && Number(form.estimatedCost) > 0 && Number(form.price) < Number(form.estimatedCost) ? 'text-red-600' : ''}`}>{t('price')} (€)</label>
+                <input type="number" className={`input text-xs ${Number(form.price) > 0 && Number(form.estimatedCost) > 0 && Number(form.price) < Number(form.estimatedCost) ? 'border-red-400 focus:border-red-500 focus:ring-red-200 bg-red-50/30' : ''}`} value={form.price} onChange={e => setForm({...form, price: e.target.value})} />
               </div>
               <div>
                 <label className="label font-semibold text-xs">{t('estimatedCost')} (€)</label>
@@ -472,6 +485,23 @@ export default function TripsPage() {
                 <input type="number" className="input text-xs" value={form.realCost} onChange={e => setForm({...form, realCost: e.target.value})} />
               </div>
             </div>
+
+            {Number(form.price) > 0 && Number(form.estimatedCost) > 0 && Number(form.price) < Number(form.estimatedCost) && (
+              <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-800 text-xs">
+                <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">
+                    {i18n.language === 'ro' ? 'Risc de pierdere!' : 'Loss Warning!'}
+                  </span>{' '}
+                  {i18n.language === 'ro'
+                    ? `Prețul cursei (€${form.price}) este mai mic decât costul estimat al traseului (€${form.estimatedCost}). Pierdere estimată: `
+                    : `The price (€${form.price}) is lower than the estimated cost (€${form.estimatedCost}). Estimated loss: `}
+                  <span className="font-bold text-red-700 underline text-sm ml-1">
+                    €{(Number(form.estimatedCost) - Number(form.price)).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Optional Cargo Details (Pallets, Weight, Volume) */}
             <div className="border-t border-dashed border-border pt-4 md:col-span-2 lg:col-span-3">
