@@ -176,6 +176,7 @@ export default function LiveMapPage() {
   const lastRouteCalcRef = useRef<Record<string, { lat: number; lng: number; time: number }>>({});
   const activeRoutesRef = useRef<Record<string, [number, number][]>>({});
   const animationFramesRef = useRef<Record<string, number>>({});
+  const lastUpdateTimesRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -837,12 +838,25 @@ export default function LiveMapPage() {
       const existingMarker = markersRef.current[finalTruckId];
       if (existingMarker) {
         const startLngLat = existingMarker.getLngLat();
+        
+        // Calculate dynamic animation duration based on actual time elapsed since last update
+        const now = Date.now();
+        const lastTime = lastUpdateTimesRef.current[finalTruckId];
+        let animDuration = 4500; // default to 4.5s (since interval is reduced to 5s)
+        if (lastTime) {
+          const diff = now - lastTime;
+          // Clamp duration to prevent visual glitches (e.g. between 1.5s and 25s)
+          // Subtract 500ms to ensure the animation finishes slightly before the next update
+          animDuration = Math.max(1500, Math.min(25000, diff - 500));
+        }
+        lastUpdateTimesRef.current[finalTruckId] = now;
+
         animateMarker(
           finalTruckId,
           existingMarker,
           [startLngLat.lng, startLngLat.lat],
           [parseFloat(data.lng), parseFloat(data.lat)],
-          14500
+          animDuration
         );
 
         // Update the label DOM text

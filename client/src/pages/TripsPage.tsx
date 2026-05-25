@@ -144,44 +144,56 @@ export default function TripsPage() {
     const priceNum = form.price === '' ? 0 : Number(form.price);
     const costNum = form.estimatedCost === '' ? 0 : Number(form.estimatedCost);
 
+    const performSave = async () => {
+      try {
+        const data = {
+          ...form,
+          price: form.price === '' ? null : Number(form.price),
+          estimatedCost: form.estimatedCost === '' ? null : Number(form.estimatedCost),
+          realCost: form.realCost === '' ? null : Number(form.realCost),
+          distanceKm: form.distanceKm === '' ? null : Number(form.distanceKm),
+          pallets: form.pallets === '' ? null : Number(form.pallets),
+          weightKg: form.weightKg === '' ? null : Number(form.weightKg),
+          volumeCbm: form.volumeCbm === '' ? null : Number(form.volumeCbm),
+        };
+
+        if (editId) {
+          await api.patch(`/trips/${editId}`, data);
+          toast.success(t('tripUpdated'));
+        } else {
+          await api.post('/trips', data);
+          toast.success(t('tripAdded'));
+        }
+        setShowForm(false); setEditId(null); 
+        setForm({ 
+          clientId:'', truckId:'', driverId:'', pickupAddress:'', dropoffAddress:'', 
+          pickupDate:'', dropoffDate:'', price:'', estimatedCost:'', realCost:'', distanceKm:'', notes:'',
+          pickupTime: '', dropoffTime: '', pallets: '', weightKg: '', volumeCbm: '',
+          loadingReference: '', unloadingReference: '',
+        });
+        load();
+      } catch { toast.error(t('saveError')); }
+    };
+
     if (priceNum > 0 && costNum > 0 && priceNum < costNum) {
-      const confirmMsg = i18n.language === 'ro'
-        ? `Atenție: Prețul cursei (€${priceNum}) este mai mic decât costul estimat (€${costNum})!\n\nSalvarea acestei curse va genera o pierdere de €${(costNum - priceNum).toFixed(2)} pentru companie.\n\nSigur vrei să continui?`
-        : `Warning: The price (€${priceNum}) is lower than the estimated cost (€${costNum})!\n\nSaving this trip will result in a loss of €${(costNum - priceNum).toFixed(2)} for the company.\n\nAre you sure you want to continue?`;
-      
-      if (!window.confirm(confirmMsg)) {
-        return;
-      }
+      setConfirmModal({
+        isOpen: true,
+        title: t('warning') || 'Atenție!',
+        message: i18n.language === 'ro'
+          ? `Prețul cursei (€${priceNum}) este mai mic decât costul estimat (€${costNum})!\n\nSalvarea acestei curse va genera o pierdere de €${(costNum - priceNum).toFixed(2)} pentru companie.\n\nSigur vrei să continui?`
+          : `Warning: The price (€${priceNum}) is lower than the estimated cost (€${costNum})!\n\nSaving this trip will result in a loss of €${(costNum - priceNum).toFixed(2)} for the company.\n\nAre you sure you want to continue?`,
+        confirmText: t('continue') || 'Continuă',
+        cancelText: t('cancel') || 'Anulează',
+        type: 'warning',
+        onConfirm: async () => {
+          setConfirmModal((prev: any) => ({ ...prev, isOpen: false }));
+          await performSave();
+        }
+      });
+      return;
     }
 
-    try {
-      const data = {
-        ...form,
-        price: form.price === '' ? null : Number(form.price),
-        estimatedCost: form.estimatedCost === '' ? null : Number(form.estimatedCost),
-        realCost: form.realCost === '' ? null : Number(form.realCost),
-        distanceKm: form.distanceKm === '' ? null : Number(form.distanceKm),
-        pallets: form.pallets === '' ? null : Number(form.pallets),
-        weightKg: form.weightKg === '' ? null : Number(form.weightKg),
-        volumeCbm: form.volumeCbm === '' ? null : Number(form.volumeCbm),
-      };
-
-      if (editId) {
-        await api.patch(`/trips/${editId}`, data);
-        toast.success(t('tripUpdated'));
-      } else {
-        await api.post('/trips', data);
-        toast.success(t('tripAdded'));
-      }
-      setShowForm(false); setEditId(null); 
-      setForm({ 
-        clientId:'', truckId:'', driverId:'', pickupAddress:'', dropoffAddress:'', 
-        pickupDate:'', dropoffDate:'', price:'', estimatedCost:'', realCost:'', distanceKm:'', notes:'',
-        pickupTime: '', dropoffTime: '', pallets: '', weightKg: '', volumeCbm: '',
-        loadingReference: '', unloadingReference: '',
-      });
-      load();
-    } catch { toast.error(t('saveError')); }
+    await performSave();
   };
 
   const handleDelete = (id: string) => {

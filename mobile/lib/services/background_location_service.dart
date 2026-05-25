@@ -224,7 +224,7 @@ void onStart(ServiceInstance service) async {
   });
 
   // Start periodic tracking
-  timer = Timer.periodic(const Duration(seconds: 15), (t) async {
+  timer = Timer.periodic(const Duration(seconds: 5), (t) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');

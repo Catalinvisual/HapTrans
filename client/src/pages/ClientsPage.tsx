@@ -17,7 +17,7 @@ export default function ClientsPage() {
   const [search, setSearch] = useState('');
   const [showExport, setShowExport] = useState(false);
   
-  const [form, setForm] = useState({ name: '', cui: '', address: '', postalCode: '', contactName: '', contactEmail: '', phone: '' });
+  const [form, setForm] = useState({ name: '', cui: '', address: '', contactName: '', contactEmail: '', phone: '' });
   const [editId, setEditId] = useState<string | null>(null);
 
   const load = () => api.get('/clients').then(r => { setClients(r.data); setLoading(false); });
@@ -28,7 +28,7 @@ export default function ClientsPage() {
     try {
       if (editId) { await api.patch(`/clients/${editId}`, form); toast.success(t('clientUpdated')); }
       else { await api.post('/clients', form); toast.success(t('clientAdded')); }
-      setShowForm(false); setEditId(null); setForm({ name: '', cui: '', address: '', postalCode: '', contactName: '', contactEmail: '', phone: '' });
+      setShowForm(false); setEditId(null); setForm({ name: '', cui: '', address: '', contactName: '', contactEmail: '', phone: '' });
       load();
       } catch {
  toast.error(t('error'));
@@ -112,21 +112,6 @@ export default function ClientsPage() {
               />
             </div>
 
-            {/* Postal Code — always UPPERCASE */}
-            <div>
-              <label className="label font-semibold flex items-center gap-1">
-                {t('postalCode') || 'Cod Poștal'}
-                <span className="text-[10px] font-normal text-text-secondary ml-1 bg-surface px-1.5 py-0.5 rounded-md uppercase tracking-wider">AUTO CAPS</span>
-              </label>
-              <input
-                className="input uppercase tracking-widest font-mono"
-                value={form.postalCode}
-                onChange={e => setForm({ ...form, postalCode: e.target.value.toUpperCase() })}
-                placeholder="e.g. NL-1234 AB"
-                maxLength={12}
-              />
-            </div>
-
             <div className="flex gap-3 col-span-1 md:col-span-2 lg:col-span-3 pt-3 border-t border-border mt-2">
               <button type="submit" className="btn-primary px-6 py-2.5 font-bold shadow-md shadow-primary/20">{t('save')}</button>
               <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="btn-secondary px-6 py-2.5 font-bold">{t('cancel')}</button>
@@ -174,7 +159,7 @@ export default function ClientsPage() {
                   <td className="table-cell text-xs text-text-secondary">{c.contactEmail || '—'}</td>
                   <td className="table-cell text-xs font-medium text-text-secondary">{c.phone || '—'}</td>
                   <td className="table-cell">
-                    <button onClick={() => { setForm({ name: c.name, cui: c.cui, address: c.address, postalCode: c.postalCode || '', contactName: c.contactName, contactEmail: c.contactEmail, phone: c.phone }); setEditId(c.id); setShowForm(true); }} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary-light transition-all">
+                    <button onClick={() => { setForm({ name: c.name, cui: c.cui, address: c.address, contactName: c.contactName, contactEmail: c.contactEmail, phone: c.phone }); setEditId(c.id); setShowForm(true); }} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary-light transition-all">
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button onClick={() => handleDelete(c.id)} className="p-1.5 text-text-secondary hover:text-error rounded-lg hover:bg-error/10 transition-all ml-1">
