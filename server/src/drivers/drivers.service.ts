@@ -38,6 +38,7 @@ export class DriversService {
       licenseExpiry: dto.licenseExpiry ? new Date(dto.licenseExpiry) : null as any,
       medicalExpiry: dto.medicalExpiry ? new Date(dto.medicalExpiry) : null as any,
       tachoCardExpiry: dto.tachoCardExpiry ? new Date(dto.tachoCardExpiry) : null as any,
+      dailyRate: dto.dailyRate ? Number(dto.dailyRate) : null as any,
       status: dto.status || 'available'
     } as any);
     return this.repo.save(driver);
@@ -67,6 +68,7 @@ export class DriversService {
     if (dto.licenseExpiry !== undefined) driver.licenseExpiry = dto.licenseExpiry ? new Date(dto.licenseExpiry) : null as any;
     if (dto.medicalExpiry !== undefined) driver.medicalExpiry = dto.medicalExpiry ? new Date(dto.medicalExpiry) : null as any;
     if (dto.tachoCardExpiry !== undefined) driver.tachoCardExpiry = dto.tachoCardExpiry ? new Date(dto.tachoCardExpiry) : null as any;
+    if (dto.dailyRate !== undefined) driver.dailyRate = dto.dailyRate ? Number(dto.dailyRate) : null as any;
     if (dto.status !== undefined) driver.status = dto.status;
 
     return this.repo.save(driver);

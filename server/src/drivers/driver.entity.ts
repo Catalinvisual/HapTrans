@@ -38,6 +38,9 @@ export class Driver {
   @Column({ type: 'enum', enum: DriverStatus, default: DriverStatus.AVAILABLE })
   status: DriverStatus;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  dailyRate: number;
+
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
   currentLat: number;
 

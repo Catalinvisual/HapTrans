@@ -523,10 +523,25 @@ export default function TripsPage() {
                 weightKg={form.weightKg ? Number(form.weightKg) : undefined}
                 dieselPricePerL={dieselPrice}
                 onApply={({ distanceKm, estimatedCost }) => {
+                  let extraCost = 0;
+                  if (form.driverId && form.pickupDate && form.dropoffDate) {
+                    const dr = drivers.find((d: any) => d.id === form.driverId);
+                    if (dr && dr.dailyRate) {
+                      const pDate = new Date(`${form.pickupDate}T${form.pickupTime || '00:00'}:00`);
+                      const dDate = new Date(`${form.dropoffDate}T${form.dropoffTime || '23:59'}:00`);
+                      const hours = (dDate.getTime() - pDate.getTime()) / (1000 * 60 * 60);
+                      const days = Math.max(1, Math.ceil(hours / 24));
+                      extraCost = days * Number(dr.dailyRate);
+                      if (extraCost > 0) {
+                        toast.success(`S-au adăugat €${extraCost.toFixed(2)} pentru costul șoferului (${days} zile)`);
+                      }
+                    }
+                  }
+                  
                   setForm((f: any) => ({
                     ...f,
                     distanceKm: distanceKm.toString(),
-                    ...(estimatedCost !== undefined ? { estimatedCost: estimatedCost.toString() } : {}),
+                    ...(estimatedCost !== undefined ? { estimatedCost: (estimatedCost + extraCost).toFixed(2) } : {}),
                   }));
                   toast.success('✅ Datele rutei au fost aplicate!');
                 }}
