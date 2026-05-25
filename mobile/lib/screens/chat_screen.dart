@@ -215,13 +215,13 @@ class _ChatScreenState extends State<ChatScreen> {
       Future.delayed(const Duration(milliseconds: 50), () => _scrollToBottom(instant: instant));
       return;
     }
-    Future.delayed(const Duration(milliseconds: 100), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _scroll.hasClients) {
         if (instant) {
-          _scroll.jumpTo(_scroll.position.maxScrollExtent);
+          _scroll.jumpTo(0);
         } else {
           _scroll.animateTo(
-            _scroll.position.maxScrollExtent,
+            0,
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeOut,
           );
@@ -274,11 +274,11 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(children: [
         Expanded(child: ListView.builder(
           controller: _scroll,
-          reverse: false,
+          reverse: true,
           padding: const EdgeInsets.all(16),
           itemCount: chat.messages.length,
           itemBuilder: (ctx, i) {
-            final msg = chat.messages[i];
+            final msg = chat.messages[chat.messages.length - 1 - i];
             final isMe = msg['sender']?['id'] == myId;
             return Align(
               alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,

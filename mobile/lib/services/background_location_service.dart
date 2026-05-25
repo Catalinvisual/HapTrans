@@ -13,11 +13,17 @@ class BackgroundLocationService {
   static Future<bool> requestAlwaysLocationPermission(BuildContext context) async {
     // 1. Request foreground permission first
     var status = await Permission.location.status;
+    bool justRequestedForeground = false;
     if (!status.isGranted) {
       status = await Permission.location.request();
+      justRequestedForeground = true;
       if (!status.isGranted) {
         return false;
       }
+    }
+
+    if (justRequestedForeground) {
+      await Future.delayed(const Duration(milliseconds: 1000));
     }
 
     // 2. Request background permission
@@ -77,7 +83,10 @@ class BackgroundLocationService {
               TextButton(
                 onPressed: () async {
                   Navigator.of(ctx).pop();
-                  await openAppSettings();
+                  final res = await Permission.locationAlways.request();
+                  if (!res.isGranted) {
+                    await openAppSettings();
+                  }
                 },
                 child: Text(buttonText),
               ),
@@ -233,7 +242,7 @@ void onStart(ServiceInstance service) async {
       });
 
       if (service is AndroidServiceInstance) {
-        service.setNotificationInfo(
+        service.setForegroundNotificationInfo(
           title: "HapTrans - Tracking Activ",
           content: "Locația ta este monitorizată pentru dispecerat în timpul cursei.",
         );

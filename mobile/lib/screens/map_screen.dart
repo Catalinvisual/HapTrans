@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -25,20 +26,26 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _getLocation();
+      _getLocation(forcePrompt: false);
     });
   }
 
-  Future<void> _getLocation() async {
+  Future<void> _getLocation({bool forcePrompt = false}) async {
     try {
       LocationPermission perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
+        if (forcePrompt) {
+          perm = await Geolocator.requestPermission();
+        } else {
+          return;
+        }
       }
       if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) return;
 
       if (mounted) {
-        await BackgroundLocationService.requestAlwaysLocationPermission(context);
+        if (forcePrompt) {
+          await BackgroundLocationService.requestAlwaysLocationPermission(context);
+        }
       }
 
       // Fetch last known location instantly for zero delay centering
@@ -143,7 +150,7 @@ class _MapScreenState extends State<MapScreen> {
         // Recenter Button
         Positioned(bottom: 24, left: 16, child: FloatingActionButton(
           heroTag: 'recenter_btn',
-          onPressed: _getLocation,
+          onPressed: () => _getLocation(forcePrompt: true),
           backgroundColor: Colors.white,
           child: const Icon(Icons.my_location, color: kPrimary),
         )),

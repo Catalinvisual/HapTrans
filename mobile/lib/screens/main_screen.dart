@@ -94,11 +94,17 @@ class _MainScreenState extends State<MainScreen> {
 
       // 1. Check foreground location permission
       var status = await Permission.location.status;
+      bool requested = false;
       if (!status.isGranted) {
         status = await Permission.location.request();
+        requested = true;
         if (!status.isGranted) {
           return;
         }
+      }
+      
+      if (requested) {
+        await Future.delayed(const Duration(milliseconds: 1000));
       }
       
       // 2. Request background location permission (always)
