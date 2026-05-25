@@ -190,6 +190,7 @@ export default function TripsPage() {
     let availableHours = 0;
     let minDropoffFormattedDate = '';
     let minDropoffFormattedTime = '';
+    let conflictWarning = '';
 
     if (dist > 0 && hasDates) {
       const pStr = `${form.pickupDate}T${form.pickupTime || '00:00'}:00`;
@@ -211,9 +212,26 @@ export default function TripsPage() {
         minDropoffFormattedDate = formatDate(minDropoffDateObj.toISOString().slice(0, 10));
         minDropoffFormattedTime = minDropoffDateObj.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
       }
+
+      // Conflict Detection (Overlap)
+      const overlappingTrip = trips.find(t => {
+        if (t.id === editId) return false;
+        if (t.status === 'cancelled' || t.status === 'completed') return false;
+        if ((t.driver?.id && t.driver.id === form.driverId) || (t.truck?.id && t.truck.id === form.truckId)) {
+           const tpDate = new Date(`${t.pickupDate}T${t.pickupTime || '00:00'}:00`);
+           const tdDate = new Date(`${t.dropoffDate}T${t.dropoffTime || '23:59'}:00`);
+           return pDate < tdDate && tpDate < dDate; // Overlap logic
+        }
+        return false;
+      });
+
+      if (overlappingTrip) {
+        const isDriver = overlappingTrip.driver?.id === form.driverId;
+        conflictWarning = `⚠️ Atenție: Suprapunere detectată!\n${isDriver ? 'Șoferul' : 'Camionul'} este deja alocat pe o altă cursă activă în acea perioadă (${overlappingTrip.pickupAddress?.split(',')[0] || ''} -> ${overlappingTrip.dropoffAddress?.split(',')[0] || ''}).\n\n`;
+      }
     }
 
-    if (priceWarning || marginWarning || timeWarning || weightWarning || palletsWarning || volumeWarning) {
+    if (priceWarning || marginWarning || timeWarning || weightWarning || palletsWarning || volumeWarning || conflictWarning) {
       const texts: Record<string, any> = {
         ro: {
           priceWarn: `⚠️ Prețul cursei (€${priceNum}) este mai mic decât costul estimat (€${costNum})!\nSalvarea va genera o pierdere de €${(costNum - priceNum).toFixed(2)}.\n\n`,
@@ -264,6 +282,7 @@ export default function TripsPage() {
 
       const langObj = texts[i18n.language] || texts['en'];
       let msg = '';
+      if (conflictWarning) msg += conflictWarning; // This is raw since we only did it in Ro mostly, but we can just use the string.
       if (priceWarning) msg += langObj.priceWarn;
       if (marginWarning) msg += langObj.marginWarn;
       if (timeWarning) msg += langObj.timeWarn;
