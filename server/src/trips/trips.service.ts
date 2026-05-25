@@ -101,7 +101,7 @@ export class TripsService {
           await this.notificationsService.create({
             type: 'trip',
             title: 'notif_trip_title',
-            message: `${id}|||${dto.status}`,
+            message: `${id}|||${dto.status}|||${updatedTrip.pickupAddress}|||${updatedTrip.dropoffAddress}`,
             relatedId: id,
           });
         }
@@ -135,7 +135,8 @@ export class TripsService {
       this.chatGateway.broadcastTripUpdate(
         id,
         updatedTrip?.status ?? dto.status ?? '',
-        updatedTrip?.driver?.user?.id
+        updatedTrip?.driver?.user?.id,
+        isDriver
       );
     } catch (e) { /* gateway might not be ready */ }
     

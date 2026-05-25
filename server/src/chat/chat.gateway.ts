@@ -98,21 +98,35 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('updateTripStatus')
-  handleTripStatus(@ConnectedSocket() client: Socket, @MessageBody() data: { tripId: string; status: string; driverId: string }) {
+  async handleTripStatus(@ConnectedSocket() client: Socket, @MessageBody() data: { tripId: string; status: string; driverId: string }) {
     this.server.emit('tripStatusUpdate', data);
     // Also broadcast tripUpdated so mobile apps in background catch it
-    this.server.emit('tripUpdated', { tripId: data.tripId, status: data.status });
+    this.server.emit('tripUpdated', { tripId: data.tripId, status: data.status, isDriver: true });
     
-    this.notificationsService.create({
-      type: 'trip',
-      title: 'notif_trip_title',
-      message: `${data.tripId}|||${data.status}`,
-      relatedId: data.tripId,
-    });
+    try {
+      const trip = await this.tripsService.findOne(data.tripId);
+      const msg = trip 
+        ? `${data.tripId}|||${data.status}|||${trip.pickupAddress}|||${trip.dropoffAddress}`
+        : `${data.tripId}|||${data.status}`;
+
+      await this.notificationsService.create({
+        type: 'trip',
+        title: 'notif_trip_title',
+        message: msg,
+        relatedId: data.tripId,
+      });
+    } catch (e) {
+      await this.notificationsService.create({
+        type: 'trip',
+        title: 'notif_trip_title',
+        message: `${data.tripId}|||${data.status}`,
+        relatedId: data.tripId,
+      });
+    }
   }
 
   // Called by TripsService when a trip is updated via REST API (not socket)
-  broadcastTripUpdate(tripId: string, status: string, driverUserId?: string) {
-    this.server.emit('tripUpdated', { tripId, status, driverUserId });
+  broadcastTripUpdate(tripId: string, status: string, driverUserId?: string, isDriver: boolean = false) {
+    this.server.emit('tripUpdated', { tripId, status, driverUserId, isDriver });
   }
 }

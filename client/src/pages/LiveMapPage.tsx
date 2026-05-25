@@ -45,6 +45,7 @@ export default function LiveMapPage() {
   const trucksStateRef = useRef<any[]>([]);
   const driversStateRef = useRef<any[]>([]);
   const focusedTruckRef = useRef<any>(null);
+  const lastRouteCalcRef = useRef<Record<string, { lat: number; lng: number; time: number }>>({});
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -306,7 +307,43 @@ export default function LiveMapPage() {
       return;
     }
 
-    const loadToast = toast.loading(etaLabels.calcRoute);
+    // Check throttle for real-time updates
+    if (preventFitBounds && hasTruckGps) {
+      const lastCalc = lastRouteCalcRef.current[truck.id];
+      const now = Date.now();
+      if (lastCalc) {
+        const timeDiff = now - lastCalc.time;
+        // Helper for quick distance calculation (Haversine approx)
+        const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+          const R = 6371e3; // meters
+          const phi1 = lat1 * Math.PI / 180;
+          const phi2 = lat2 * Math.PI / 180;
+          const deltaPhi = (lat2 - lat1) * Math.PI / 180;
+          const deltaLambda = (lon2 - lon1) * Math.PI / 180;
+          const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+                    Math.cos(phi1) * Math.cos(phi2) *
+                    Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          return R * c; // meters
+        };
+        const dist = getDistance(
+          parseFloat(truck.currentLat), 
+          parseFloat(truck.currentLng), 
+          lastCalc.lat, 
+          lastCalc.lng
+        );
+        // Throttle: if they moved less than 400 meters AND it has been less than 45 seconds, skip recalculation
+        if (dist < 400 && timeDiff < 45000) {
+          return;
+        }
+      }
+    }
+
+    let loadToast = null;
+    if (!preventFitBounds) {
+      loadToast = toast.loading(etaLabels.calcRoute);
+    }
+
     try {
       const payload: any = { destAddress };
       if (hasTruckGps) {
@@ -319,9 +356,18 @@ export default function LiveMapPage() {
       const res = await api.post('/routing/calculate', payload);
       const data = res.data;
       if (data.error) {
-        throw new Error(`${data.error}. Date trimise: ${JSON.stringify(payload)}`);
+        throw new Error(`${data.error}`);
       }
       if (!data?.coordinates?.length) throw new Error(etaLabels.errNoCoords);
+
+      // Save calculation info
+      if (hasTruckGps) {
+        lastRouteCalcRef.current[truck.id] = {
+          lat: parseFloat(truck.currentLat),
+          lng: parseFloat(truck.currentLng),
+          time: Date.now()
+        };
+      }
 
       const coords = data.coordinates.map((c: number[]) => [c[0], c[1]]);
       const sourceId = 'route-source';
@@ -410,10 +456,12 @@ export default function LiveMapPage() {
           `)
           .addTo(mapInstance.current);
       }
-      toast.dismiss(loadToast);
+      if (loadToast) toast.dismiss(loadToast);
     } catch (err: any) {
-      toast.dismiss(loadToast);
-      toast.error(`${etaLabels.errRoute} ${err.message || etaLabels.errUnknown}`);
+      if (loadToast) toast.dismiss(loadToast);
+      if (!preventFitBounds) {
+        toast.error(`${etaLabels.errRoute} ${err.message || etaLabels.errUnknown}`);
+      }
       console.error(err);
     }
   };

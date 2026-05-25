@@ -138,9 +138,20 @@ export default function Layout() {
                           const [docType, tripId] = n.message.split('|||');
                           translatedMessage = t('notif_document_msg', { type: docType, tripId });
                         } else if (n.type === 'trip' && n.message?.includes('|||')) {
-                          const [tripId, status] = n.message.split('|||');
+                          const parts = n.message.split('|||');
+                          const tripId = parts[0];
+                          const status = parts[1];
+                          const pickup = parts[2] || '';
+                          const dropoff = parts[3] || '';
                           const statusKey = `notif_status_${status}`;
-                          translatedMessage = t('notif_trip_msg', { tripId, status: t(statusKey) });
+                          if (pickup && dropoff) {
+                            const routeText = `${pickup} → ${dropoff}`;
+                            translatedMessage = lang === 'ro' 
+                              ? `Cursa ${routeText} a fost schimbată în: ${t(statusKey) || status}`
+                              : `Trip ${routeText} has been changed to: ${t(statusKey) || status}`;
+                          } else {
+                            translatedMessage = t('notif_trip_msg', { tripId, status: t(statusKey) || status });
+                          }
                         } else if (n.message === 'notif_chat_file') {
                           translatedMessage = t('notif_chat_file');
                         }
