@@ -541,7 +541,7 @@ export default function TripsPage() {
                 dropoffAddress={form.dropoffAddress}
                 weightKg={form.weightKg ? Number(form.weightKg) : undefined}
                 dieselPricePerL={dieselPrice}
-                onApply={({ distanceKm, estimatedCost }) => {
+                onApply={async ({ distanceKm, estimatedCost }) => {
                   let extraCost = 0;
                   if (form.driverId && form.pickupDate && form.dropoffDate) {
                     const dr = drivers.find((d: any) => d.id === form.driverId);
@@ -556,11 +556,38 @@ export default function TripsPage() {
                       }
                     }
                   }
+
+                  let deadheadCost = 0;
+                  let deadheadDist = 0;
+                  if (form.truckId && form.pickupAddress) {
+                    const truckTrips = trips.filter(t => t.truck?.id === form.truckId && t.id !== editId).sort((a,b) => new Date(b.dropoffDate).getTime() - new Date(a.dropoffDate).getTime());
+                    const lastTrip = truckTrips.length > 0 ? truckTrips[0] : null;
+                    if (lastTrip && lastTrip.dropoffAddress) {
+                      try {
+                        const res = await api.post('/routing/calculate', {
+                          originAddress: lastTrip.dropoffAddress,
+                          destAddress: form.pickupAddress,
+                          weightKg: 0
+                        });
+                        if (res.data && res.data.distanceKm) {
+                          deadheadDist = res.data.distanceKm;
+                          // consum mediu 28L/100km pt mers pe gol
+                          deadheadCost = (deadheadDist / 100) * 28 * dieselPrice; 
+                          if (deadheadDist > 50) { // Doar daca e peste 50km avertizam puternic
+                            toast.success(`🚚 Calculat ${deadheadDist.toFixed(0)}km pe gol (de la ${lastTrip.dropoffAddress.split(',')[0]}). Cost adițional estimat: €${deadheadCost.toFixed(2)}`);
+                          }
+                        }
+                      } catch(e) {
+                        console.error('Deadhead calculation failed', e);
+                      }
+                    }
+                  }
                   
+                  const finalCost = (estimatedCost || 0) + extraCost + deadheadCost;
                   setForm((f: any) => ({
                     ...f,
                     distanceKm: distanceKm.toString(),
-                    ...(estimatedCost !== undefined ? { estimatedCost: (estimatedCost + extraCost).toFixed(2) } : {}),
+                    ...(estimatedCost !== undefined ? { estimatedCost: finalCost.toFixed(2) } : {}),
                   }));
                   toast.success('✅ Datele rutei au fost aplicate!');
                 }}
