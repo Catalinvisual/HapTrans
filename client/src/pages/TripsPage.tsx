@@ -176,7 +176,12 @@ export default function TripsPage() {
     };
 
     const priceWarning = priceNum > 0 && costNum > 0 && priceNum < costNum;
+    const marginWarning = priceNum > 0 && costNum > 0 && !priceWarning && ((priceNum - costNum) / priceNum < 0.10);
     
+    const weightWarning = Number(form.weightKg) > 24000;
+    const palletsWarning = Number(form.pallets) > 33;
+    const volumeWarning = Number(form.volumeCbm) > 90;
+
     const dist = Number(form.distanceKm) || 0;
     const hasDates = form.pickupDate && form.dropoffDate;
     
@@ -208,31 +213,51 @@ export default function TripsPage() {
       }
     }
 
-    if (priceWarning || timeWarning) {
+    if (priceWarning || marginWarning || timeWarning || weightWarning || palletsWarning || volumeWarning) {
       const texts: Record<string, any> = {
         ro: {
           priceWarn: `⚠️ Prețul cursei (€${priceNum}) este mai mic decât costul estimat (€${costNum})!\nSalvarea va genera o pierdere de €${(costNum - priceNum).toFixed(2)}.\n\n`,
+          marginWarn: `⚠️ Marja de profit este sub 10%! Profit estimat: €${(priceNum - costNum).toFixed(2)}.\n\n`,
           timeWarn: `⏱️ Timp insuficient pentru livrare!\nPe baza orelor de condus și a pauzelor legale, cea mai rapidă livrare posibilă este pe:\n📅 ${minDropoffFormattedDate} la ora ${minDropoffFormattedTime}\n\n`,
+          weightWarn: `⚖️ Greutatea (${form.weightKg} kg) depășește limita legală europeană de 24,000 kg!\n\n`,
+          palletsWarn: `📦 Numărul de paleți (${form.pallets}) depășește capacitatea standard de 33 paleți EUR!\n\n`,
+          volumeWarn: `📐 Volumul (${form.volumeCbm} m³) depășește capacitatea standard de 90 m³!\n\n`,
           sure: `Ești sigur că vrei să salvezi cursa în aceste condiții?`
         },
         en: {
           priceWarn: `⚠️ Price (€${priceNum}) is lower than estimated cost (€${costNum})!\nSaving will result in a loss of €${(costNum - priceNum).toFixed(2)}.\n\n`,
+          marginWarn: `⚠️ Profit margin is below 10%! Estimated profit: €${(priceNum - costNum).toFixed(2)}.\n\n`,
           timeWarn: `⏱️ Insufficient time for delivery!\nBased on driving hours and legal rests, the earliest possible delivery is on:\n📅 ${minDropoffFormattedDate} at ${minDropoffFormattedTime}\n\n`,
+          weightWarn: `⚖️ Weight (${form.weightKg} kg) exceeds European legal limit of 24,000 kg!\n\n`,
+          palletsWarn: `📦 Pallet count (${form.pallets}) exceeds standard capacity of 33 EUR pallets!\n\n`,
+          volumeWarn: `📐 Volume (${form.volumeCbm} m³) exceeds standard capacity of 90 m³!\n\n`,
           sure: `Are you sure you want to save the trip under these conditions?`
         },
         nl: {
           priceWarn: `⚠️ Prijs (€${priceNum}) is lager dan de geschatte kosten (€${costNum})!\nOpslaan leidt tot een verlies van €${(costNum - priceNum).toFixed(2)}.\n\n`,
+          marginWarn: `⚠️ Winstmarge is lager dan 10%! Geschatte winst: €${(priceNum - costNum).toFixed(2)}.\n\n`,
           timeWarn: `⏱️ Onvoldoende tijd voor levering!\nOp basis van rijtijden en wettelijke rusttijden is de vroegst mogelijke levering op:\n📅 ${minDropoffFormattedDate} om ${minDropoffFormattedTime}\n\n`,
+          weightWarn: `⚖️ Gewicht (${form.weightKg} kg) overschrijdt de Europese wettelijke limiet van 24.000 kg!\n\n`,
+          palletsWarn: `📦 Aantal pallets (${form.pallets}) overschrijdt de standaardcapaciteit van 33 EUR-pallets!\n\n`,
+          volumeWarn: `📐 Volume (${form.volumeCbm} m³) overschrijdt de standaardcapaciteit van 90 m³!\n\n`,
           sure: `Weet u zeker dat u de rit onder deze omstandigheden wilt opslaan?`
         },
         de: {
           priceWarn: `⚠️ Preis (€${priceNum}) ist niedriger als die geschätzten Kosten (€${costNum})!\nDas Speichern führt zu einem Verlust von €${(costNum - priceNum).toFixed(2)}.\n\n`,
+          marginWarn: `⚠️ Gewinnmarge liegt unter 10%! Geschätzter Gewinn: €${(priceNum - costNum).toFixed(2)}.\n\n`,
           timeWarn: `⏱️ Unzureichende Zeit für die Lieferung!\nBasierend auf Fahrzeiten und gesetzlichen Ruhezeiten ist die frühestmögliche Lieferung am:\n📅 ${minDropoffFormattedDate} um ${minDropoffFormattedTime}\n\n`,
+          weightWarn: `⚖️ Gewicht (${form.weightKg} kg) überschreitet das europäische gesetzliche Limit von 24.000 kg!\n\n`,
+          palletsWarn: `📦 Anzahl der Paletten (${form.pallets}) überschreitet die Standardkapazität von 33 EUR-Paletten!\n\n`,
+          volumeWarn: `📐 Volumen (${form.volumeCbm} m³) überschreitet die Standardkapazität von 90 m³!\n\n`,
           sure: `Sind Sie sicher, dass Sie die Fahrt unter diesen Bedingungen speichern möchten?`
         },
         fr: {
           priceWarn: `⚠️ Le prix (€${priceNum}) est inférieur au coût estimé (€${costNum})!\nL'enregistrement entraînera une perte de €${(costNum - priceNum).toFixed(2)}.\n\n`,
+          marginWarn: `⚠️ La marge bénéficiaire est inférieure à 10 % ! Bénéfice estimé : €${(priceNum - costNum).toFixed(2)}.\n\n`,
           timeWarn: `⏱️ Temps insuffisant pour la livraison!\nSur la base des heures de conduite et des pauses légales, la livraison la plus rapide possible est le:\n📅 ${minDropoffFormattedDate} à ${minDropoffFormattedTime}\n\n`,
+          weightWarn: `⚖️ Le poids (${form.weightKg} kg) dépasse la limite légale européenne de 24 000 kg!\n\n`,
+          palletsWarn: `📦 Le nombre de palettes (${form.pallets}) dépasse la capacité standard de 33 palettes EUR!\n\n`,
+          volumeWarn: `📐 Le volume (${form.volumeCbm} m³) dépasse la capacité standard de 90 m³!\n\n`,
           sure: `Êtes-vous sûr de vouloir enregistrer le trajet dans ces conditions ?`
         }
       };
@@ -240,7 +265,11 @@ export default function TripsPage() {
       const langObj = texts[i18n.language] || texts['en'];
       let msg = '';
       if (priceWarning) msg += langObj.priceWarn;
+      if (marginWarning) msg += langObj.marginWarn;
       if (timeWarning) msg += langObj.timeWarn;
+      if (weightWarning) msg += langObj.weightWarn;
+      if (palletsWarning) msg += langObj.palletsWarn;
+      if (volumeWarning) msg += langObj.volumeWarn;
       msg += langObj.sure;
 
       setConfirmModal({
