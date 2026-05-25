@@ -45,7 +45,26 @@ export class DashboardService {
         const extractCountry = (address: string) => {
           if (!address) return '?';
           const parts = address.split(',');
-          return parts[parts.length - 1].trim().slice(-2).toUpperCase(); // naive approach, getting last 2 chars
+          let lastPart = parts[parts.length - 1].trim().toUpperCase();
+          
+          const map: Record<string, string> = {
+            'ROMÂNIA': 'RO', 'ROMANIA': 'RO', 'RO': 'RO',
+            'NEDERLAND': 'NL', 'NETHERLANDS': 'NL', 'OLANDA': 'NL', 'NL': 'NL',
+            'DEUTSCHLAND': 'DE', 'GERMANY': 'DE', 'GERMANIA': 'DE', 'DE': 'DE',
+            'FRANCE': 'FR', 'FRANȚA': 'FR', 'FRANTA': 'FR', 'FR': 'FR',
+            'BELGIQUE': 'BE', 'BELGIUM': 'BE', 'BELGIA': 'BE', 'BE': 'BE',
+            'POLSKA': 'PL', 'POLAND': 'PL', 'POLONIA': 'PL', 'PL': 'PL',
+            'MAGYARORSZÁG': 'HU', 'HUNGARY': 'HU', 'UNGARIA': 'HU', 'HU': 'HU',
+            'ÖSTERREICH': 'AT', 'AUSTRIA': 'AT', 'AT': 'AT'
+          };
+
+          if (map[lastPart]) return map[lastPart];
+
+          const words = lastPart.split(' ');
+          const lastWord = words[words.length - 1];
+          if (map[lastWord]) return map[lastWord];
+
+          return lastWord.substring(0, 3);
         };
 
         let oC = t.pickupCountry || extractCountry(t.pickupAddress);
