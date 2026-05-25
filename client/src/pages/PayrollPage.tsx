@@ -26,50 +26,52 @@ export default function PayrollPage() {
       const res = await api.get(`/payrolls?month=${selectedMonth}&year=${selectedYear}`);
       setPayrolls(res.data);
     } catch (err) {
-      toast.error('Eroare la încărcarea salariilor.');
+      toast.error(t('errLoadPayrolls'));
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadPayrolls();
-  }, [selectedMonth, selectedYear]);
+    if (i18n.language) {
+      loadPayrolls();
+    }
+  }, [selectedMonth, selectedYear, i18n.language, t]);
 
   const handleGenerate = async () => {
-    const loadingToast = toast.loading('Calculăm salariile pentru luna selectată...');
+    const loadingToast = toast.loading(t('toast_calcPayrolls'));
     try {
       await api.post('/payrolls/generate', { month: selectedMonth, year: selectedYear });
-      toast.success('Salariile au fost calculate cu succes!', { id: loadingToast });
+      toast.success(t('toast_calcSuccess'), { id: loadingToast });
       loadPayrolls();
     } catch (err) {
-      toast.error('Eroare la generarea salariilor.', { id: loadingToast });
+      toast.error(t('errGenPayrolls'), { id: loadingToast });
     }
   };
 
   const handleUpdate = async (id: string, field: string, value: any) => {
     try {
       await api.patch(`/payrolls/${id}`, { [field]: value });
-      toast.success('Actualizat cu succes!');
+      toast.success(t('toast_updateSuccess'));
       loadPayrolls();
     } catch {
-      toast.error('Eroare la actualizare.');
+      toast.error(t('errUpdate'));
     }
   };
 
   const handleDownloadPdf = async (p: any) => {
-    const loadingToast = toast.loading(t('generatingPdf') || 'Generăm fluturașul...');
+    const loadingToast = toast.loading(t('generatingPdf'));
     try {
       const base64 = await generatePayrollPdfBase64(p, t);
       const link = document.createElement('a');
-      link.href = base64;
-      link.download = `Loonstrook_${p.user?.name?.replace(/\s+/g, '_')}_${p.month}_${p.year}.pdf`;
+      link.href = `data:application/pdf;base64,${base64}`;
+      link.download = `Fluturas_Salariu_${p.user?.name}_${p.month}_${p.year}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success('Fluturaș descărcat!', { id: loadingToast });
+      toast.success(t('toast_downloadSuccess'), { id: loadingToast });
     } catch (err) {
-      toast.error('Eroare la generare.', { id: loadingToast });
+      toast.error(t('errGenerate'), { id: loadingToast });
     }
   };
 
