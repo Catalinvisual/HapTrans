@@ -88,6 +88,10 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _checkAndRequestPermissions() async {
     if (!mounted) return;
     try {
+      // Add a 1-second delay to let the screen transitions settle down
+      await Future.delayed(const Duration(milliseconds: 1000));
+      if (!mounted) return;
+
       // 1. Check foreground location permission
       var status = await Permission.location.status;
       if (!status.isGranted) {

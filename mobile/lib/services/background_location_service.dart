@@ -86,8 +86,14 @@ class BackgroundLocationService {
         );
       }
       
-      // Wait for user to return from settings and check status again
-      alwaysStatus = await Permission.locationAlways.status;
+      // Wait for user to return and select permission by checking status periodically
+      for (int i = 0; i < 30; i++) {
+        await Future.delayed(const Duration(seconds: 1));
+        alwaysStatus = await Permission.locationAlways.status;
+        if (alwaysStatus.isGranted) {
+          break;
+        }
+      }
     }
 
     return alwaysStatus.isGranted;

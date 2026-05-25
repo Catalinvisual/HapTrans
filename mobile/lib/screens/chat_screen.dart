@@ -194,37 +194,38 @@ class _ChatScreenState extends State<ChatScreen> {
     _chatProvider.addListener(_onChatUpdate);
     
     _chatProvider.loadMessages(widget.token, widget.trip['id']).then((_) {
-      _scrollDown();
+      _scrollToBottom(instant: true);
     });
     _chatProvider.connect(widget.token, widget.trip['id'], auth.user?['id'] ?? '');
     
-    // Scroll down immediately for cached messages
-    _scrollDown();
+    _scrollToBottom(instant: true);
   }
 
   void _onChatUpdate() {
     if (!mounted) return;
     if (_chatProvider.messages.length != _messageCount) {
       _messageCount = _chatProvider.messages.length;
-      _scrollDown();
+      _scrollToBottom(instant: false);
     }
   }
 
-  void _scrollDown() {
+  void _scrollToBottom({bool instant = false}) {
     if (!mounted) return;
     if (!_scroll.hasClients) {
-      // Retry in 50ms if ScrollController is not attached yet
-      Future.delayed(const Duration(milliseconds: 50), _scrollDown);
+      Future.delayed(const Duration(milliseconds: 50), () => _scrollToBottom(instant: instant));
       return;
     }
-    // Tiny delay to let ListView calculate layout dimensions of new items
     Future.delayed(const Duration(milliseconds: 100), () {
       if (mounted && _scroll.hasClients) {
-        _scroll.animateTo(
-          0.0,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
+        if (instant) {
+          _scroll.jumpTo(_scroll.position.maxScrollExtent);
+        } else {
+          _scroll.animateTo(
+            _scroll.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+          );
+        }
       }
     });
   }
@@ -235,7 +236,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final auth = context.read<AuthProvider>();
     _chatProvider.sendMessage(widget.trip['id'], auth.user!['id'], text);
     _ctrl.clear();
-    _scrollDown();
+    _scrollToBottom(instant: false);
   }
 
   @override
@@ -273,11 +274,11 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(children: [
         Expanded(child: ListView.builder(
           controller: _scroll,
-          reverse: true,
+          reverse: false,
           padding: const EdgeInsets.all(16),
           itemCount: chat.messages.length,
           itemBuilder: (ctx, i) {
-            final msg = chat.messages[chat.messages.length - 1 - i];
+            final msg = chat.messages[i];
             final isMe = msg['sender']?['id'] == myId;
             return Align(
               alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,

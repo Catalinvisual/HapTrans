@@ -97,8 +97,9 @@ class ChatProvider extends ChangeNotifier {
     // Listen for trip status updates from admin (via REST → Socket.IO broadcast)
     _socket!.on('tripUpdated', (data) {
       final driverUserId = data['driverUserId'];
-      // Only notify if this update is for the current driver
-      if (driverUserId == null || driverUserId == currentUserId) {
+      final isDriver = data['isDriver'] ?? false;
+      // Only notify if this update is for the current driver and was NOT initiated by a driver
+      if (!isDriver && (driverUserId == null || driverUserId == currentUserId)) {
         final status = data['status'] ?? '';
         final statusLabels = {
           'ro': {'pending': 'În așteptare', 'confirmed': 'Confirmată', 'in_progress': 'În curs', 'completed': 'Finalizată', 'cancelled': 'Anulată!', 'delayed': 'Întârziată'},
