@@ -27,7 +27,9 @@ export class DriversService {
       name: dto.name,
       email: dto.email,
       password: hashed,
-      role: 'driver' as any
+      role: 'driver' as any,
+      grossSalary: dto.grossSalary ? Number(dto.grossSalary) : null as any,
+      dailyRate: dto.dailyRate ? Number(dto.dailyRate) : null as any
     });
     const savedUser = await this.usersRepo.save(user);
 
@@ -38,8 +40,6 @@ export class DriversService {
       licenseExpiry: dto.licenseExpiry ? new Date(dto.licenseExpiry) : null as any,
       medicalExpiry: dto.medicalExpiry ? new Date(dto.medicalExpiry) : null as any,
       tachoCardExpiry: dto.tachoCardExpiry ? new Date(dto.tachoCardExpiry) : null as any,
-      dailyRate: dto.dailyRate ? Number(dto.dailyRate) : null as any,
-      grossSalary: dto.grossSalary ? Number(dto.grossSalary) : null as any,
       status: dto.status || 'available'
     } as any);
     return this.repo.save(driver);
@@ -61,6 +61,8 @@ export class DriversService {
       if (dto.password) {
         driver.user.password = await bcrypt.hash(dto.password, 10);
       }
+      if (dto.grossSalary !== undefined) driver.user.grossSalary = dto.grossSalary ? Number(dto.grossSalary) : null as any;
+      if (dto.dailyRate !== undefined) driver.user.dailyRate = dto.dailyRate ? Number(dto.dailyRate) : null as any;
       await this.usersRepo.save(driver.user);
     }
 
@@ -69,8 +71,6 @@ export class DriversService {
     if (dto.licenseExpiry !== undefined) driver.licenseExpiry = dto.licenseExpiry ? new Date(dto.licenseExpiry) : null as any;
     if (dto.medicalExpiry !== undefined) driver.medicalExpiry = dto.medicalExpiry ? new Date(dto.medicalExpiry) : null as any;
     if (dto.tachoCardExpiry !== undefined) driver.tachoCardExpiry = dto.tachoCardExpiry ? new Date(dto.tachoCardExpiry) : null as any;
-    if (dto.dailyRate !== undefined) driver.dailyRate = dto.dailyRate ? Number(dto.dailyRate) : null as any;
-    if (dto.grossSalary !== undefined) driver.grossSalary = dto.grossSalary ? Number(dto.grossSalary) : null as any;
     if (dto.status !== undefined) driver.status = dto.status;
 
     return this.repo.save(driver);

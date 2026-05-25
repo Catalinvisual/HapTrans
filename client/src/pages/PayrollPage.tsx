@@ -58,12 +58,12 @@ export default function PayrollPage() {
   };
 
   const handleDownloadPdf = async (p: any) => {
-    const loadingToast = toast.loading('Generăm fluturașul (Loonstrook)...');
+    const loadingToast = toast.loading(t('generatingPdf') || 'Generăm fluturașul...');
     try {
-      const base64 = await generatePayrollPdfBase64(p);
+      const base64 = await generatePayrollPdfBase64(p, t);
       const link = document.createElement('a');
       link.href = base64;
-      link.download = `Loonstrook_${p.driver?.user?.name?.replace(/\s+/g, '_')}_${p.month}_${p.year}.pdf`;
+      link.download = `Loonstrook_${p.user?.name?.replace(/\s+/g, '_')}_${p.month}_${p.year}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -75,7 +75,7 @@ export default function PayrollPage() {
 
   const filtered = payrolls.filter(p => {
     const q = search.toLowerCase();
-    return (p.driver?.user?.name || '').toLowerCase().includes(q);
+    return (p.user?.name || '').toLowerCase().includes(q);
   });
 
   return (
@@ -147,7 +147,7 @@ export default function PayrollPage() {
               : filtered.map(p => (
                 <tr key={p.id} className="hover:bg-surface/60 transition-colors border-b border-border/50 last:border-0">
                   <td className="table-cell font-bold text-text">
-                    {p.driver?.user?.name || 'Necunoscut'}
+                    {p.user?.name || 'Necunoscut'}
                     <div className="text-[10px] font-normal text-text-secondary mt-0.5">Vakantiegeld: €{Number(p.holidayAllowance).toFixed(2)}</div>
                   </td>
                   <td className="table-cell font-semibold">€{Number(p.grossSalary).toFixed(2)}</td>

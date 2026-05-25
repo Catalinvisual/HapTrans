@@ -38,11 +38,7 @@ export class Driver {
   @Column({ type: 'enum', enum: DriverStatus, default: DriverStatus.AVAILABLE })
   status: DriverStatus;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  dailyRate: number; // This acts as the Onbelaste vergoeding (Daily Allowance)
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  grossSalary: number; // Bruto Salaris
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
   currentLat: number;

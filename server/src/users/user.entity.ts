@@ -24,6 +24,12 @@ export class User {
   @Column({ type: 'enum', enum: UserRole, default: UserRole.DISPATCHER })
   role: UserRole;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  grossSalary: number; // Bruto Salaris
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  dailyRate: number; // Onbelaste vergoeding (for drivers or dispatchers who travel)
+
   @Column({ default: 'ro' })
   language: string;
 

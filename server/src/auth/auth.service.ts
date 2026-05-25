@@ -14,7 +14,7 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async register(dto: { email: string; password: string; name: string; role?: UserRole }) {
+  async register(dto: { email: string; password: string; name: string; role?: UserRole; grossSalary?: number; dailyRate?: number }) {
     const exists = await this.usersRepo.findOne({ where: { email: dto.email } });
     if (exists) throw new ConflictException('Email already in use');
     const hashed = await bcrypt.hash(dto.password, 10);

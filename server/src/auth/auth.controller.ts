@@ -14,6 +14,8 @@ class RegisterDto {
   @IsString() @MinLength(6) password: string;
   @IsString() name: string;
   @IsOptional() @IsEnum(UserRole) role?: UserRole;
+  @IsOptional() grossSalary?: number;
+  @IsOptional() dailyRate?: number;
 }
 
 @Controller('auth')

@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
-import { Driver } from '../drivers/driver.entity';
+import { User } from '../users/user.entity';
 
 export enum PayrollStatus {
   DRAFT = 'draft',
@@ -12,9 +12,9 @@ export class Payroll {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Driver)
-  @JoinColumn({ name: 'driverId' })
-  driver: Driver;
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'userId' })
+  user: User;
 
   @Column()
   month: number; // 1-12

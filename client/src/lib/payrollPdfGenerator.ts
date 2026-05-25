@@ -3,15 +3,15 @@ import autoTable from 'jspdf-autotable';
 import { getCompanySettings } from '../pages/SettingsPage';
 import { formatDate } from './dateUtils';
 
-export const generatePayrollPdfBase64 = async (payroll: any): Promise<string> => {
+export const generatePayrollPdfBase64 = async (payroll: any, t: any): Promise<string> => {
   const doc = new jsPDF({ format: 'a4', unit: 'mm' });
   const co = getCompanySettings();
   
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const monthName = monthNames[payroll.month - 1];
-  const driverName = payroll.driver?.user?.name || 'Driver';
-  const driverEmail = payroll.driver?.user?.email || '';
-  const driverPhone = payroll.driver?.phone || '';
+  const driverName = payroll.user?.name || 'Angajat';
+  const driverEmail = payroll.user?.email || '';
+  const driverPhone = payroll.user?.phone || '';
 
   // HEADER: Company Info
   if (co.logo) {
@@ -47,38 +47,38 @@ export const generatePayrollPdfBase64 = async (payroll: any): Promise<string> =>
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(33, 37, 41);
-  doc.text('Werknemer (Employee)', 18, 62);
+  doc.text(t('employee') || 'Werknemer (Employee)', 18, 62);
   
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Naam: ${driverName}`, 18, 69);
+  doc.text(`${t('name') || 'Naam'}: ${driverName}`, 18, 69);
   doc.text(`E-mail: ${driverEmail}`, 18, 74);
-  doc.text(`Telefoon: ${driverPhone}`, 18, 79);
+  doc.text(`${t('phone') || 'Telefoon'}: ${driverPhone}`, 18, 79);
 
   // PAYROLL DETAILS TABLE
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('Salarisspecificatie (Salary Details)', 14, 95);
+  doc.text(t('salaryDetails') || 'Salarisspecificatie', 14, 95);
 
   const formatEuro = (val: number) => `€ ${Number(val || 0).toFixed(2)}`;
 
   autoTable(doc, {
     startY: 100,
-    head: [['Omschrijving (Description)', 'Bedrag (Amount)']],
+    head: [[t('description') || 'Omschrijving', t('amount') || 'Bedrag']],
     body: [
-      ['Brutosalaris (Gross Salary)', formatEuro(payroll.grossSalary)],
-      ['Loonheffing (Income Tax / Social Security)', `-${formatEuro(payroll.taxAmount)}`],
-      [{ content: 'Nettosalaris (Net Salary)', styles: { fontStyle: 'bold' } }, { content: formatEuro(payroll.netSalary), styles: { fontStyle: 'bold' } }],
+      [t('payroll_gross') || 'Brutosalaris', formatEuro(payroll.grossSalary)],
+      [t('payroll_tax') || 'Loonheffing', `-${formatEuro(payroll.taxAmount)}`],
+      [{ content: t('payroll_net') || 'Nettosalaris', styles: { fontStyle: 'bold' } }, { content: formatEuro(payroll.netSalary), styles: { fontStyle: 'bold' } }],
       
       ['', ''], // empty row
 
-      ['Dagen gewerkt in buitenland (Days worked)', `${payroll.daysWorked} days`],
-      [`Onbelaste vergoeding (Per Diem @ ${formatEuro(payroll.dailyAllowance)}/day)`, formatEuro(payroll.totalAllowance)],
+      [t('daysWorked') || 'Dagen gewerkt', `${payroll.daysWorked} ${t('days') || 'days'}`],
+      [`${t('payroll_allowance') || 'Onbelaste vergoeding'} (@ ${formatEuro(payroll.dailyAllowance)}/${t('day') || 'day'})`, formatEuro(payroll.totalAllowance)],
       
       ['', ''], // empty row
       
-      ['Netto Bonussen (Bonuses)', formatEuro(payroll.bonuses)],
-      ['Netto Inhoudingen (Deductions)', `-${formatEuro(payroll.deductions)}`]
+      [t('bonuses') || 'Netto Bonussen', formatEuro(payroll.bonuses)],
+      [t('deductions') || 'Netto Inhoudingen', `-${formatEuro(payroll.deductions)}`]
     ],
     theme: 'grid',
     headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
@@ -103,9 +103,9 @@ export const generatePayrollPdfBase64 = async (payroll: any): Promise<string> =>
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(80, 80, 80);
-  doc.text('Opbouw Vakantiegeld (Holiday Allowance)', 18, finalY + 16);
+  doc.text(t('payroll_holiday') || 'Opbouw Vakantiegeld', 18, finalY + 16);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Deze maand (8%): ${formatEuro(payroll.holidayAllowance)}`, 18, finalY + 22);
+  doc.text(`${t('thisMonth') || 'Deze maand'} (8%): ${formatEuro(payroll.holidayAllowance)}`, 18, finalY + 22);
 
   // TOTAL NET TO PAY
   doc.setFillColor(46, 204, 113); // Success Green
@@ -113,7 +113,7 @@ export const generatePayrollPdfBase64 = async (payroll: any): Promise<string> =>
   doc.setFontSize(12);
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.text('Netto Uitbetaling', 120, finalY + 18); // Net to pay
+  doc.text(t('payroll_totalNet') || 'Netto Uitbetaling', 120, finalY + 18); // Net to pay
   doc.setFontSize(14);
   doc.text(formatEuro(payroll.totalNetToPay), 190, finalY + 24, { align: 'right' });
 
@@ -121,7 +121,7 @@ export const generatePayrollPdfBase64 = async (payroll: any): Promise<string> =>
   doc.setFontSize(9);
   doc.setTextColor(150, 150, 150);
   doc.setFont('helvetica', 'italic');
-  doc.text('Dit is een geautomatiseerde loonstrook. (This is an automated payslip.)', 105, 280, { align: 'center' });
+  doc.text(t('automatedPayslip') || 'Dit is een geautomatiseerde loonstrook.', 105, 280, { align: 'center' });
 
   // Convert to Base64
   return doc.output('datauristring');

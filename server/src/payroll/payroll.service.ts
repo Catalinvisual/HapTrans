@@ -3,57 +3,61 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { Payroll, PayrollStatus } from './payroll.entity';
 import { Trip, TripStatus } from '../trips/trip.entity';
-import { Driver } from '../drivers/driver.entity';
+import { User } from '../users/user.entity';
 
 @Injectable()
 export class PayrollService {
   constructor(
     @InjectRepository(Payroll) private readonly repo: Repository<Payroll>,
     @InjectRepository(Trip) private readonly tripsRepo: Repository<Trip>,
-    @InjectRepository(Driver) private readonly driversRepo: Repository<Driver>,
+    @InjectRepository(User) private readonly usersRepo: Repository<User>,
   ) {}
 
   async findAll(month?: number, year?: number) {
     const where: any = {};
     if (month) where.month = month;
     if (year) where.year = year;
-    return this.repo.find({ where, relations: ['driver', 'driver.user'], order: { createdAt: 'DESC' } });
+    return this.repo.find({ where, relations: ['user'], order: { createdAt: 'DESC' } });
   }
 
   async generateForMonth(month: number, year: number) {
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
 
-    const drivers = await this.driversRepo.find({ relations: ['user'] });
+    const users = await this.usersRepo.find();
     const results = [];
 
-    for (const driver of drivers) {
-      // Find trips completed by this driver in the given month
-      const trips = await this.tripsRepo.find({
-        where: {
-          driver: { id: driver.id },
-          status: TripStatus.COMPLETED,
-          dropoffDate: Between(startDate, endDate)
-        }
-      });
-
-      // Calculate total days worked in trips
+    for (const user of users) {
+      // Find trips completed by this user if they are a driver
       let totalDaysWorked = 0;
-      trips.forEach(t => {
-         const pDate = new Date(`${t.pickupDate}T${t.pickupTime || '00:00'}:00`);
-         const dDate = new Date(`${t.dropoffDate}T${t.dropoffTime || '23:59'}:00`);
-         const hours = (dDate.getTime() - pDate.getTime()) / (1000 * 60 * 60);
-         const days = Math.max(1, Math.ceil(hours / 24));
-         totalDaysWorked += days;
-      });
+      
+      if (user.role === 'driver') {
+        const trips = await this.tripsRepo.find({
+          where: {
+            driver: { user: { id: user.id } },
+            status: TripStatus.COMPLETED,
+            dropoffDate: Between(startDate, endDate)
+          },
+          relations: ['driver', 'driver.user']
+        });
 
-      // We generate payroll only if the driver has a grossSalary or has worked trips
-      if (!driver.grossSalary && totalDaysWorked === 0) continue;
+        // Calculate total days worked in trips
+        trips.forEach(t => {
+           const pDate = new Date(`${t.pickupDate}T${t.pickupTime || '00:00'}:00`);
+           const dDate = new Date(`${t.dropoffDate}T${t.dropoffTime || '23:59'}:00`);
+           const hours = (dDate.getTime() - pDate.getTime()) / (1000 * 60 * 60);
+           const days = Math.max(1, Math.ceil(hours / 24));
+           totalDaysWorked += days;
+        });
+      }
 
-      let payroll = await this.repo.findOne({ where: { driver: { id: driver.id }, month, year } });
+      // We generate payroll only if the user has a grossSalary or has worked trips
+      if (!user.grossSalary && totalDaysWorked === 0) continue;
+
+      let payroll = await this.repo.findOne({ where: { user: { id: user.id }, month, year } });
       if (!payroll) {
         payroll = this.repo.create({
-          driver: { id: driver.id } as any,
+          user: { id: user.id } as any,
           month,
           year,
           bonuses: 0,
@@ -61,8 +65,8 @@ export class PayrollService {
         });
       }
 
-      const grossSalary = Number(driver.grossSalary) || 0;
-      const dailyAllowanceRate = Number(driver.dailyRate) || 0;
+      const grossSalary = Number(user.grossSalary) || 0;
+      const dailyAllowanceRate = Number(user.dailyRate) || 0;
       
       // Loonheffing ~36.97%
       const taxAmount = grossSalary * 0.3697;

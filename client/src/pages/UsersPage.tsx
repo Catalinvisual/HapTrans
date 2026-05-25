@@ -15,7 +15,7 @@ export default function UsersPage() {
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ email: '', password: '', name: '', role: 'dispatcher' });
+  const [form, setForm] = useState({ email: '', password: '', name: '', role: 'dispatcher', grossSalary: '', dailyRate: '' });
 
   const load = () => api.get('/users').then(r => {
     const sorted = r.data.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
@@ -49,7 +49,7 @@ export default function UsersPage() {
       }
       setShowForm(false);
       setEditId(null);
-      setForm({ email: '', password: '', name: '', role: 'dispatcher' });
+      setForm({ email: '', password: '', name: '', role: 'dispatcher', grossSalary: '', dailyRate: '' });
       load();
     } catch {
       toast.error(t('saveError'));
@@ -62,6 +62,8 @@ export default function UsersPage() {
       email: u.email,
       password: '',
       role: u.role,
+      grossSalary: u.grossSalary || '',
+      dailyRate: u.dailyRate || '',
     });
     setEditId(u.id);
     setShowForm(true);
@@ -121,7 +123,7 @@ export default function UsersPage() {
           <h1 className="text-2xl font-bold text-text">{t('users')}</h1>
           <p className="text-text-secondary text-sm">{users.length} {t('usersCount')}</p>
         </div>
-        <button onClick={() => { setEditId(null); setForm({ email: '', password: '', name: '', role: 'dispatcher' }); setShowForm(!showForm); }} className="btn-primary flex items-center gap-2">
+        <button onClick={() => { setEditId(null); setForm({ email: '', password: '', name: '', role: 'dispatcher', grossSalary: '', dailyRate: '' }); setShowForm(!showForm); }} className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" /> {t('newUser')}
         </button>
       </div>
@@ -161,6 +163,14 @@ export default function UsersPage() {
                 ]}
               />
             </div>
+            <div>
+              <label className="label font-semibold">{t('payroll_gross') || 'Bruto Salaris (€)'}</label>
+              <input type="number" className="input bg-surface" value={form.grossSalary} onChange={e => setForm({...form, grossSalary: e.target.value})} placeholder="0.00" />
+            </div>
+            <div>
+              <label className="label font-semibold">{t('payroll_allowance') || 'Vergoeding / Zi (€)'}</label>
+              <input type="number" className="input bg-surface" value={form.dailyRate} onChange={e => setForm({...form, dailyRate: e.target.value})} placeholder="0.00" />
+            </div>
             <div className="flex gap-3 col-span-1 md:col-span-2 lg:col-span-4 pt-3 border-t border-border mt-2">
               <button type="submit" className="btn-primary px-6 py-2.5 font-bold shadow-md shadow-primary/20">{t('save')}</button>
               <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="btn-secondary px-6 py-2.5 font-bold">{t('cancel')}</button>
@@ -183,8 +193,8 @@ export default function UsersPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-surface border-b border-border">
-                {[t('name'), t('email'), t('role'), t('language'), t('status'), t('actions')].map(h => (
-                  <th key={h} className="table-header">{h}</th>
+                {[t('name'), t('email'), t('role'), t('payroll_gross') || 'Bruto', t('status'), t('actions')].map((h, i) => (
+                  <th key={i} className="table-header">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -198,7 +208,9 @@ export default function UsersPage() {
                   <td className="table-cell font-bold text-text">{u.name}</td>
                   <td className="table-cell text-xs text-text-secondary">{u.email}</td>
                   <td className="table-cell"><span className={ROLE_BADGE[u.role] || 'badge-gray'}>{t(u.role)}</span></td>
-                  <td className="table-cell uppercase text-xs font-semibold text-text-secondary">{u.language}</td>
+                  <td className="table-cell text-sm font-semibold text-text">
+                    {u.grossSalary ? `€${Number(u.grossSalary).toFixed(2)}` : '-'}
+                  </td>
                   <td className="table-cell">
                     <span className={u.isActive ? 'badge-success' : 'badge-gray'}>{u.isActive ? t('active') : t('inactive')}</span>
                   </td>
