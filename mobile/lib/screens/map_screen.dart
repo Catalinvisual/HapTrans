@@ -53,6 +53,10 @@ class _MapScreenState extends State<MapScreen> {
       final ll = LatLng(p.latitude, p.longitude);
       setState(() => _pos = ll);
       _mapCtrl.move(ll, 15);
+
+      if (mounted) {
+        await BackgroundLocationService.requestAlwaysLocationPermission(context);
+      }
     } catch (e) {
       debugPrint('Error getting location: $e');
     }
