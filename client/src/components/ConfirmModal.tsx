@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, X, Info, CheckCircle, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -64,7 +65,7 @@ export default function ConfirmModal({
     }
   };
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 animate-fade-in">
       <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl flex flex-col items-center text-center">
         <div className={`w-12 h-12 rounded-full ${getIconBg()} flex items-center justify-center mb-4`}>
@@ -91,4 +92,6 @@ export default function ConfirmModal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null;
 }

@@ -696,11 +696,23 @@ export default function TripsPage() {
                     <td className="table-cell font-bold text-text">{trip.client?.name || '—'}</td>
                     <td className="table-cell text-xs max-w-[140px] truncate">
                       <div className="font-medium text-text">{trip.pickupAddress}</div>
-                      {trip.pickupTime && <span className="text-[10px] text-text-secondary">{t('hourPrefix')}: {trip.pickupTime}</span>}
+                      {(trip.pickupDate || trip.pickupTime) && (
+                        <div className="text-[10px] text-text-secondary mt-0.5">
+                          {trip.pickupDate ? formatDate(trip.pickupDate) : ''}
+                          {trip.pickupDate && trip.pickupTime ? ' • ' : ''}
+                          {trip.pickupTime ? `${t('hourPrefix')}: ${trip.pickupTime}` : ''}
+                        </div>
+                      )}
                     </td>
                     <td className="table-cell text-xs max-w-[140px] truncate">
                       <div className="font-medium text-text">{trip.dropoffAddress}</div>
-                      {trip.dropoffTime && <span className="text-[10px] text-text-secondary">{t('hourPrefix')}: {trip.dropoffTime}</span>}
+                      {(trip.dropoffDate || trip.dropoffTime) && (
+                        <div className="text-[10px] text-text-secondary mt-0.5">
+                          {trip.dropoffDate ? formatDate(trip.dropoffDate) : ''}
+                          {trip.dropoffDate && trip.dropoffTime ? ' • ' : ''}
+                          {trip.dropoffTime ? `${t('hourPrefix')}: ${trip.dropoffTime}` : ''}
+                        </div>
+                      )}
                     </td>
                     <td className="table-cell text-xs font-semibold whitespace-nowrap">
                       {trip.distanceKm ? (
