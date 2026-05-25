@@ -188,7 +188,7 @@ class _MainScreenState extends State<MainScreen> {
 
     final screens = [
       const TripsScreen(),
-      const MapScreen(),
+      MapScreen(isActive: _selectedIndex == 1),
       const DocumentsScreen(),
       ChatScreen(
         trip: {

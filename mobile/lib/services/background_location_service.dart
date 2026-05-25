@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
@@ -31,10 +32,10 @@ class BackgroundLocationService {
     if (!alwaysStatus.isGranted) {
       String locale = 'ro';
       try {
-        locale = Localizations.localeOf(context).languageCode;
+        locale = Provider.of<AuthProvider>(context, listen: false).locale.languageCode;
       } catch (_) {
         try {
-          locale = Provider.of<AuthProvider>(context, listen: false).locale.languageCode;
+          locale = Localizations.localeOf(context).languageCode;
         } catch (_) {}
       }
       
@@ -170,6 +171,8 @@ Future<bool> onIosBackground(ServiceInstance service) async {
 
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  DartPluginRegistrant.ensureInitialized();
   Timer? timer;
 
   if (service is AndroidServiceInstance) {

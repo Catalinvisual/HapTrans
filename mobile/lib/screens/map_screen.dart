@@ -11,7 +11,8 @@ import '../utils/constants.dart';
 import '../services/background_location_service.dart';
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  final bool isActive;
+  const MapScreen({super.key, this.isActive = false});
   @override
   State<MapScreen> createState() => _MapScreenState();
 }
@@ -28,6 +29,14 @@ class _MapScreenState extends State<MapScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _getLocation(forcePrompt: false);
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant MapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) {
+      _getLocation(forcePrompt: false);
+    }
   }
 
   Future<void> _getLocation({bool forcePrompt = false}) async {
