@@ -235,6 +235,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final auth = context.read<AuthProvider>();
     _chatProvider.sendMessage(widget.trip['id'], auth.user!['id'], text);
     _ctrl.clear();
+    _scrollDown();
   }
 
   @override

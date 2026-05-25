@@ -37,6 +37,10 @@ class _MapScreenState extends State<MapScreen> {
       }
       if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) return;
 
+      if (mounted) {
+        await BackgroundLocationService.requestAlwaysLocationPermission(context);
+      }
+
       // Fetch last known location instantly for zero delay centering
       final lastPos = await Geolocator.getLastKnownPosition();
       if (lastPos != null) {
@@ -53,10 +57,6 @@ class _MapScreenState extends State<MapScreen> {
       final ll = LatLng(p.latitude, p.longitude);
       setState(() => _pos = ll);
       _mapCtrl.move(ll, 15);
-
-      if (mounted) {
-        await BackgroundLocationService.requestAlwaysLocationPermission(context);
-      }
     } catch (e) {
       debugPrint('Error getting location: $e');
     }

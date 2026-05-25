@@ -471,37 +471,35 @@ export default function TripsPage() {
             </div>
 
             {/* Financial Details */}
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className={`label font-semibold text-xs ${Number(form.price) > 0 && Number(form.estimatedCost) > 0 && Number(form.price) < Number(form.estimatedCost) ? 'text-red-600' : ''}`}>{t('price')} (€)</label>
-                <input type="number" className={`input text-xs ${Number(form.price) > 0 && Number(form.estimatedCost) > 0 && Number(form.price) < Number(form.estimatedCost) ? 'border-red-400 focus:border-red-500 focus:ring-red-200 bg-red-50/30' : ''}`} value={form.price} onChange={e => setForm({...form, price: e.target.value})} />
-              </div>
-              <div>
-                <label className="label font-semibold text-xs">{t('estimatedCost')} (€)</label>
-                <input type="number" className="input text-xs" value={form.estimatedCost} onChange={e => setForm({...form, estimatedCost: e.target.value})} />
-              </div>
-              <div>
-                <label className="label font-semibold text-xs">{t('realCost')} (€)</label>
-                <input type="number" className="input text-xs" value={form.realCost} onChange={e => setForm({...form, realCost: e.target.value})} />
-              </div>
-            </div>
-
-            {Number(form.price) > 0 && Number(form.estimatedCost) > 0 && Number(form.price) < Number(form.estimatedCost) && (
-              <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-800 text-xs">
-                <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+            <div className="border-t border-dashed border-border pt-4 md:col-span-2 lg:col-span-3">
+              <span className="text-xs font-bold text-primary uppercase tracking-wider block mb-3">{i18n.language === 'ro' ? 'Detalii Financiare' : 'Financial Details'}</span>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <span className="font-bold">
-                    {i18n.language === 'ro' ? 'Risc de pierdere!' : 'Loss Warning!'}
-                  </span>{' '}
-                  {i18n.language === 'ro'
-                    ? `Prețul cursei (€${form.price}) este mai mic decât costul estimat al traseului (€${form.estimatedCost}). Pierdere estimată: `
-                    : `The price (€${form.price}) is lower than the estimated cost (€${form.estimatedCost}). Estimated loss: `}
-                  <span className="font-bold text-red-700 underline text-sm ml-1">
-                    €{(Number(form.estimatedCost) - Number(form.price)).toFixed(2)}
-                  </span>
+                  <label className={`label font-semibold text-xs ${Number(form.price) > 0 && Number(form.estimatedCost) > 0 && Number(form.price) < Number(form.estimatedCost) ? 'text-red-600 font-bold' : ''}`}>{t('price')} (€)</label>
+                  <input type="number" className={`input text-xs ${Number(form.price) > 0 && Number(form.estimatedCost) > 0 && Number(form.price) < Number(form.estimatedCost) ? 'border-red-400 focus:border-red-500 focus:ring-red-200 bg-red-50/30 font-bold text-red-700' : ''}`} value={form.price} onChange={e => setForm({...form, price: e.target.value})} />
+                  {Number(form.price) > 0 && Number(form.estimatedCost) > 0 && Number(form.price) < Number(form.estimatedCost) && (
+                    <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2 text-xs text-red-800 leading-tight shadow-sm animate-pulse">
+                      <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold text-red-700">{i18n.language === 'ro' ? 'Atenție: Preț sub costul estimat!' : 'Warning: Price below estimated cost!'}</div>
+                        <div className="text-[11px] mt-0.5 text-red-600 font-medium">
+                          {i18n.language === 'ro' ? 'Salvarea va genera o pierdere de ' : 'Saving will result in a loss of '}
+                          <span className="font-bold text-red-700 text-xs">€{(Number(form.estimatedCost) - Number(form.price)).toFixed(2)}</span>.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="label font-semibold text-xs">{t('estimatedCost')} (€)</label>
+                  <input type="number" className="input text-xs" value={form.estimatedCost} onChange={e => setForm({...form, estimatedCost: e.target.value})} />
+                </div>
+                <div>
+                  <label className="label font-semibold text-xs">{t('realCost')} (€)</label>
+                  <input type="number" className="input text-xs" value={form.realCost} onChange={e => setForm({...form, realCost: e.target.value})} />
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Optional Cargo Details (Pallets, Weight, Volume) */}
             <div className="border-t border-dashed border-border pt-4 md:col-span-2 lg:col-span-3">

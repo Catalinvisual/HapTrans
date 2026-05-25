@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/trip_provider.dart';
 import 'providers/chat_provider.dart';
@@ -14,7 +16,18 @@ import 'services/background_location_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Clear preferences on fresh installation (ignore Android Auto-Backup data)
+  final tempDir = await getTemporaryDirectory();
+  final flagFile = File('${tempDir.path}/.has_run');
   final prefs = await SharedPreferences.getInstance();
+  if (!await flagFile.exists()) {
+    await prefs.clear();
+    try {
+      await flagFile.create();
+    } catch (_) {}
+  }
+
   // NotificationService.init() will internally sync the FCM token to server
   await NotificationService().init();
   await BackgroundLocationService.initialize();

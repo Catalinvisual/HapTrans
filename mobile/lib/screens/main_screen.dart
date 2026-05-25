@@ -3,6 +3,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:badges/badges.dart' as badges;
+import 'package:permission_handler/permission_handler.dart';
 import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
 import '../providers/chat_provider.dart';
@@ -35,6 +36,9 @@ class _MainScreenState extends State<MainScreen> {
       final auth = context.read<AuthProvider>();
       final tripProv = context.read<TripProvider>();
       final chatProv = context.read<ChatProvider>();
+
+      // Check and request location permissions on startup (foreground + background always)
+      _checkAndRequestPermissions();
 
       tripProv.addListener(() {
         if (mounted) {
@@ -81,7 +85,28 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
-  void _updateAutomaticTracking(AuthProvider auth, TripProvider tripProv, ChatProvider chatProv) async {
+  Future<void> _checkAndRequestPermissions() async {
+    if (!mounted) return;
+    try {
+      // 1. Check foreground location permission
+      var status = await Permission.location.status;
+      if (!status.isGranted) {
+        status = await Permission.location.request();
+        if (!status.isGranted) {
+          return;
+        }
+      }
+      
+      // 2. Request background location permission (always)
+      if (mounted) {
+        await BackgroundLocationService.requestAlwaysLocationPermission(context);
+      }
+    } catch (e) {
+      debugPrint('Error checking permissions on startup: $e');
+    }
+  }
+
+  void _updateAutomaticTracking(AuthProvider auth, TripProvider tripProv, ChatProvider chatProv) {
     // Check if there is an active (in_progress) or confirmed trip
     final activeTrip = tripProv.trips.firstWhere(
       (t) => t['status'] == 'in_progress',
@@ -95,32 +120,33 @@ class _MainScreenState extends State<MainScreen> {
 
     if (shouldTrack && !_isAutoTracking) {
       _isAutoTracking = true;
-      try {
-        if (mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        try {
           final granted = await BackgroundLocationService.requestAlwaysLocationPermission(context);
           if (!granted) {
-            _isAutoTracking = false;
+            setState(() => _isAutoTracking = false);
             return;
           }
-        }
 
-        String? activeTruckId;
-        if (activeTrip['truck'] != null) {
-          activeTruckId = activeTrip['truck']['id'];
-        }
+          String? activeTruckId;
+          if (activeTrip['truck'] != null) {
+            activeTruckId = activeTrip['truck']['id'];
+          }
 
-        await BackgroundLocationService.start(
-          token: auth.token!,
-          userId: auth.user!['id'],
-          truckId: activeTruckId,
-        );
-      } catch (e) {
-        debugPrint('Error starting auto-tracking: $e');
-        _isAutoTracking = false;
-      }
+          await BackgroundLocationService.start(
+            token: auth.token!,
+            userId: auth.user!['id'],
+            truckId: activeTruckId,
+          );
+        } catch (e) {
+          debugPrint('Error starting auto-tracking: $e');
+          setState(() => _isAutoTracking = false);
+        }
+      });
     } else if (!shouldTrack && _isAutoTracking) {
       _isAutoTracking = false;
-      await BackgroundLocationService.stop();
+      BackgroundLocationService.stop();
     }
   }
 
