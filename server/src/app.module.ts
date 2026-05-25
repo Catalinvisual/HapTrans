@@ -16,6 +16,7 @@ import { LocationModule } from './location/location.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { FirebaseModule } from './firebase/firebase.module';
 import { RoutingModule } from './routing/routing.module';
+import { PayrollModule } from './payroll/payroll.module';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -54,6 +55,7 @@ import { AppService } from './app.service';
     NotificationsModule,
     FirebaseModule,
     RoutingModule,
+    PayrollModule,
   ],
   controllers: [AppController],
   providers: [AppService],

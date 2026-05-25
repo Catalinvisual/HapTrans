@@ -39,7 +39,10 @@ export class Driver {
   status: DriverStatus;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  dailyRate: number;
+  dailyRate: number; // This acts as the Onbelaste vergoeding (Daily Allowance)
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  grossSalary: number; // Bruto Salaris
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
   currentLat: number;

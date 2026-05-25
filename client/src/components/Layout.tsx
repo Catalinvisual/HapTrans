@@ -19,6 +19,7 @@ const PAGE_TITLES: Record<string, Record<string, string>> = {
   '/documents': { ro: 'Documente', en: 'Documents', nl: 'Documenten' },
   '/invoices': { ro: 'Facturi', en: 'Invoices', nl: 'Facturen' },
   '/financial': { ro: 'Financiar', en: 'Financial', nl: 'Financieel' },
+  '/payroll': { ro: 'Salarii (NL)', en: 'Payroll (NL)', nl: 'Salarissen' },
   '/maintenance': { ro: 'Mentenanță', en: 'Maintenance', nl: 'Onderhoud' },
   '/settings': { ro: 'Setări', en: 'Settings', nl: 'Instellingen' },
   '/users': { ro: 'Utilizatori', en: 'Users', nl: 'Gebruikers' },

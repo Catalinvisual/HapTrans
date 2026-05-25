@@ -78,10 +78,7 @@ export default function SettingsPage() {
     { key: 'regNo',      labelKey: 'company_reg_no' },
     { key: 'phone',      labelKey: 'company_phone' },
     { key: 'email',      labelKey: 'company_email' },
-    { key: 'address',    labelKey: 'company_address' },
-    { key: 'postalCode', labelKey: 'company_postal_code' },
-    { key: 'city',       labelKey: 'company_city' },
-    { key: 'country',    labelKey: 'company_country' },
+    { key: 'address',    labelKey: 'company_address', colSpan: true },
     { key: 'bank',       labelKey: 'company_bank' },
     { key: 'iban',       labelKey: 'company_iban', colSpan: true },
   ];

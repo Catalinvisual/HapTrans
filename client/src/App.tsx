@@ -12,6 +12,7 @@ import LiveMapPage from './pages/LiveMapPage';
 import DocumentsPage from './pages/DocumentsPage';
 import InvoicesPage from './pages/InvoicesPage';
 import FinancialPage from './pages/FinancialPage';
+import PayrollPage from './pages/PayrollPage';
 import MaintenancePage from './pages/MaintenancePage';
 import SettingsPage from './pages/SettingsPage';
 import UsersPage from './pages/UsersPage';
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="documents" element={<DocumentsPage />} />
           <Route path="invoices" element={<InvoicesPage />} />
           <Route path="financial" element={<FinancialPage />} />
+          <Route path="payroll" element={<PayrollPage />} />
           <Route path="maintenance" element={<MaintenancePage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="users" element={<UsersPage />} />

@@ -45,6 +45,7 @@ export default function DriversPage() {
     phone: '',
     licenseNumber: '',
     dailyRate: '',
+    grossSalary: '',
     licenseExpiry: '',
     medicalExpiry: '',
     tachoCardExpiry: '',
@@ -100,7 +101,7 @@ export default function DriversPage() {
       setEditId(null);
       setForm({
         name: '', email: '', password: '', phone: '',
-        licenseNumber: '', dailyRate: '', licenseExpiry: '', medicalExpiry: '', tachoCardExpiry: '',
+        licenseNumber: '', dailyRate: '', grossSalary: '', licenseExpiry: '', medicalExpiry: '', tachoCardExpiry: '',
         status: 'available',
       });
       loadDrivers();
@@ -118,6 +119,7 @@ export default function DriversPage() {
       phone: d.phone || '',
       licenseNumber: d.licenseNumber || '',
       dailyRate: d.dailyRate || '',
+      grossSalary: d.grossSalary || '',
       licenseExpiry: d.licenseExpiry ? d.licenseExpiry.slice(0, 10) : '',
       medicalExpiry: d.medicalExpiry ? d.medicalExpiry.slice(0, 10) : '',
       tachoCardExpiry: d.tachoCardExpiry ? d.tachoCardExpiry.slice(0, 10) : '',
@@ -260,17 +262,31 @@ export default function DriversPage() {
               />
             </div>
 
-            {/* Daily Rate */}
+            {/* Daily Rate (Onbelaste vergoeding) */}
             <div>
               <label className="label font-semibold flex items-center gap-1">
-                <span className="w-4 h-4 text-primary font-bold text-center">€</span> Diurnă / Zi (€)
+                <span className="w-4 h-4 text-primary font-bold text-center">€</span> Onbelaste vergoeding (€/zi)
               </label>
               <input
                 type="number"
                 className="input"
                 value={form.dailyRate}
                 onChange={e => setForm({ ...form, dailyRate: e.target.value })}
-                placeholder="Ex: 85"
+                placeholder="Ex: 55"
+              />
+            </div>
+
+            {/* Gross Salary (Bruto Salaris) */}
+            <div>
+              <label className="label font-semibold flex items-center gap-1">
+                <span className="w-4 h-4 text-primary font-bold text-center">€</span> Bruto Salaris (€/lună)
+              </label>
+              <input
+                type="number"
+                className="input"
+                value={form.grossSalary}
+                onChange={e => setForm({ ...form, grossSalary: e.target.value })}
+                placeholder="Ex: 2500"
               />
             </div>
 
@@ -375,7 +391,7 @@ export default function DriversPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-surface border-b border-border">
-                {[t('name'), t('email'), t('phone'), t('licenseNumber'), 'Diurnă (€)', t('expLicense'), t('expMedical'), t('expTacho'), t('status'), t('documents'), t('actions')].map(h => (
+                {[t('name'), t('email'), t('phone'), t('licenseNumber'), 'Bruto Salaris', 'Vergoeding/zi', t('expLicense'), t('expMedical'), t('expTacho'), t('status'), t('documents'), t('actions')].map(h => (
                   <th key={h} className="table-header whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -391,6 +407,9 @@ export default function DriversPage() {
                   <td className="table-cell text-xs">{d.user?.email || '—'}</td>
                   <td className="table-cell text-xs font-medium text-text-secondary">{d.phone || '—'}</td>
                   <td className="table-cell text-xs font-semibold text-text-secondary">{d.licenseNumber || '—'}</td>
+                  <td className="table-cell text-xs font-semibold text-text-secondary">
+                    {d.grossSalary ? `€${Number(d.grossSalary).toFixed(2)}` : '—'}
+                  </td>
                   <td className="table-cell text-xs font-semibold text-primary">
                     {d.dailyRate ? `€${Number(d.dailyRate).toFixed(2)}` : '—'}
                   </td>
@@ -462,7 +481,8 @@ export default function DriversPage() {
           { key: 'email', label: 'Email', transform: (_, item) => item?.user?.email || '' },
           { key: 'phone', label: 'Telefon' },
           { key: 'licenseNumber', label: 'Numar Permis' },
-          { key: 'dailyRate', label: 'Cost Zilnic (€)' },
+          { key: 'grossSalary', label: 'Bruto Salaris (€)' },
+          { key: 'dailyRate', label: 'Vergoeding (€)' },
           { key: 'licenseExpiry', label: 'Expirare Permis', transform: val => val ? formatDate(val) : '' },
           { key: 'medicalExpiry', label: 'Expirare Aviz Medical', transform: val => val ? formatDate(val) : '' },
           { key: 'tachoCardExpiry', label: 'Expirare Cartela Tacho', transform: val => val ? formatDate(val) : '' },
