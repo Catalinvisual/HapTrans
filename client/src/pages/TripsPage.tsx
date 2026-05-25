@@ -175,13 +175,57 @@ export default function TripsPage() {
       } catch { toast.error(t('saveError')); }
     };
 
-    if (priceNum > 0 && costNum > 0 && priceNum < costNum) {
+    const priceWarning = priceNum > 0 && costNum > 0 && priceNum < costNum;
+    
+    const dist = Number(form.distanceKm) || 0;
+    const hasDates = form.pickupDate && form.dropoffDate;
+    
+    let timeWarning = false;
+    let requiredHours = 0;
+    let availableHours = 0;
+
+    if (dist > 0 && hasDates) {
+      const pStr = `${form.pickupDate}T${form.pickupTime || '00:00'}:00`;
+      const dStr = `${form.dropoffDate}T${form.dropoffTime || '23:59'}:00`;
+      const pDate = new Date(pStr);
+      const dDate = new Date(dStr);
+      
+      availableHours = (dDate.getTime() - pDate.getTime()) / (1000 * 60 * 60);
+
+      const driveHours = dist / 75;
+      const restStops = Math.floor(driveHours / 4.5);
+      const nightRests = Math.floor(driveHours / 9);
+      requiredHours = driveHours + (restStops * 0.75) + (nightRests * 11);
+
+      if (availableHours > 0 && requiredHours > availableHours) {
+        timeWarning = true;
+      }
+    }
+
+    if (priceWarning || timeWarning) {
+      let msg = '';
+      if (i18n.language === 'ro') {
+        if (priceWarning) {
+          msg += `⚠️ Prețul cursei (€${priceNum}) este mai mic decât costul estimat (€${costNum})!\nSalvarea va genera o pierdere de €${(costNum - priceNum).toFixed(2)}.\n\n`;
+        }
+        if (timeWarning) {
+          msg += `⏱️ Timp insuficient pentru livrare!\nAi alocat ${Math.round(availableHours)} ore, dar cursa necesită aprox. ${Math.round(requiredHours)} ore (incluzând pauzele legale).\n\n`;
+        }
+        msg += `Ești sigur că vrei să salvezi cursa în aceste condiții?`;
+      } else {
+        if (priceWarning) {
+          msg += `⚠️ Price (€${priceNum}) is lower than estimated cost (€${costNum})!\nSaving will result in a loss of €${(costNum - priceNum).toFixed(2)}.\n\n`;
+        }
+        if (timeWarning) {
+          msg += `⏱️ Insufficient time for delivery!\nYou allocated ${Math.round(availableHours)} hours, but the trip requires approx. ${Math.round(requiredHours)} hours (including legal rests).\n\n`;
+        }
+        msg += `Are you sure you want to save the trip under these conditions?`;
+      }
+
       setConfirmModal({
         isOpen: true,
         title: t('warning') || 'Atenție!',
-        message: i18n.language === 'ro'
-          ? `Prețul cursei (€${priceNum}) este mai mic decât costul estimat (€${costNum})!\n\nSalvarea acestei curse va genera o pierdere de €${(costNum - priceNum).toFixed(2)} pentru companie.\n\nSigur vrei să continui?`
-          : `Warning: The price (€${priceNum}) is lower than the estimated cost (€${costNum})!\n\nSaving this trip will result in a loss of €${(costNum - priceNum).toFixed(2)} for the company.\n\nAre you sure you want to continue?`,
+        message: msg,
         confirmText: t('continue') || 'Continuă',
         cancelText: t('cancel') || 'Anulează',
         type: 'warning',
