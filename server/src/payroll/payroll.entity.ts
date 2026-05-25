@@ -55,7 +55,7 @@ export class Payroll {
   @Column({ type: 'enum', enum: PayrollStatus, default: PayrollStatus.DRAFT })
   status: PayrollStatus;
 
-  @Column({ type: 'longtext', nullable: true })
+  @Column({ type: 'text', nullable: true })
   pdfData: string; // Base64 stored paystub
 
   @CreateDateColumn()
