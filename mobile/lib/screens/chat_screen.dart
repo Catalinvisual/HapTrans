@@ -193,26 +193,40 @@ class _ChatScreenState extends State<ChatScreen> {
     _messageCount = _chatProvider.messages.length;
     _chatProvider.addListener(_onChatUpdate);
     
-    _chatProvider.loadMessages(widget.token, widget.trip['id']);
+    _chatProvider.loadMessages(widget.token, widget.trip['id']).then((_) {
+      _scrollDown();
+    });
     _chatProvider.connect(widget.token, widget.trip['id'], auth.user?['id'] ?? '');
+    
+    // Scroll down immediately for cached messages
+    _scrollDown();
   }
 
   void _onChatUpdate() {
     if (!mounted) return;
     if (_chatProvider.messages.length != _messageCount) {
       _messageCount = _chatProvider.messages.length;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollDown());
+      _scrollDown();
     }
   }
 
   void _scrollDown() {
-    if (_scroll.hasClients) {
-      _scroll.animateTo(
-        _scroll.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+    if (!mounted) return;
+    if (!_scroll.hasClients) {
+      // Retry in 50ms if ScrollController is not attached yet
+      Future.delayed(const Duration(milliseconds: 50), _scrollDown);
+      return;
     }
+    // Tiny delay to let ListView calculate layout dimensions of new items
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted && _scroll.hasClients) {
+        _scroll.animateTo(
+          _scroll.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   void _send() {

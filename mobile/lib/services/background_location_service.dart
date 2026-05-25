@@ -5,6 +5,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
 
 class BackgroundLocationService {
@@ -21,33 +23,40 @@ class BackgroundLocationService {
     // 2. Request background permission
     var alwaysStatus = await Permission.locationAlways.status;
     if (!alwaysStatus.isGranted) {
-      final locale = Localizations.localeOf(context).languageCode;
+      String locale = 'ro';
+      try {
+        locale = Localizations.localeOf(context).languageCode;
+      } catch (_) {
+        try {
+          locale = Provider.of<AuthProvider>(context, listen: false).locale.languageCode;
+        } catch (_) {}
+      }
       
       final Map<String, Map<String, String>> translations = {
         'ro': {
           'title': 'Permisiune Locație Fundal',
-          'content': 'Pentru a monitoriza corect camionul când aplicația este închisă sau ecranul este stins, te rugăm ca pe ecranul următor să selectezi opțiunea:\n\n→ „Permiteți tot timpul”',
-          'button': 'OK',
+          'content': 'Pentru a monitoriza corect camionul când aplicația este închisă sau ecranul este stins, te rugăm ca în setările ce se vor deschide să mergi la Permisiuni -> Locație și să selectezi:\n\n→ „Permiteți tot timpul”',
+          'button': 'Deschide Setări',
         },
         'en': {
           'title': 'Background Location Permission',
-          'content': 'To monitor the truck correctly when the app is closed or the screen is off, please select the following option on the next screen:\n\n→ "Allow all the time"',
-          'button': 'OK',
+          'content': 'To monitor the truck correctly when the app is closed or the screen is off, please go to Settings -> Permissions -> Location and select:\n\n→ "Allow all the time"',
+          'button': 'Open Settings',
         },
         'nl': {
           'title': 'Locatiepermissie op de achtergrond',
-          'content': 'Om de vrachtwagen correct te volgen wanneer de app gesloten is of het scherm uit staat, selecteert u de volgende optie in het volgende scherm:\n\n→ "Altijd toestaan"',
-          'button': 'OK',
+          'content': 'Om de vrachtwagen correct te volgen wanneer de app gesloten is of het scherm uit staat, ga naar Instellingen -> Machtigingen -> Locatie en selecteer:\n\n→ "Altijd toestaan"',
+          'button': 'Open Instellingen',
         },
         'de': {
           'title': 'Hintergrund-Standortberechtigung',
-          'content': 'Um den Lkw korrekt zu überwachen, wenn die App geschlossen oder der Bildschirm ausgeschaltet ist, wählen Sie bitte auf dem nächsten Bildschirm folgende Option:\n\n→ "Immer zulassen"',
-          'button': 'OK',
+          'content': 'Um den Lkw korrekt zu überwachen, wenn die App geschlossen oder der Bildschirm ausgeschaltet ist, gehen Sie bitte zu Einstellungen -> Berechtigungen -> Standort und wählen Sie:\n\n→ "Immer zulassen"',
+          'button': 'Einstellungen öffnen',
         },
         'fr': {
           'title': 'Autorisation de localisation en arrière-plan',
-          'content': 'Pour suivre correctement le camion lorsque l\'application est fermée ou que l\'écran est éteint, veuillez sélectionner l\'option suivante sur l\'écran suivant :\n\n→ "Toujours autoriser"',
-          'button': 'OK',
+          'content': 'Pour suivre correctement le camion lorsque l\'application est fermée ou que l\'écran est éteint, veuillez aller dans Paramètres -> Autorisations -> Localisation et sélectionner:\n\n→ "Toujours autoriser"',
+          'button': 'Ouvrir les paramètres',
         },
       };
 
@@ -66,7 +75,10 @@ class BackgroundLocationService {
             content: Text(contentText),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
+                onPressed: () async {
+                  Navigator.of(ctx).pop();
+                  await openAppSettings();
+                },
                 child: Text(buttonText),
               ),
             ],
@@ -74,7 +86,8 @@ class BackgroundLocationService {
         );
       }
       
-      alwaysStatus = await Permission.locationAlways.request();
+      // Wait for user to return from settings and check status again
+      alwaysStatus = await Permission.locationAlways.status;
     }
 
     return alwaysStatus.isGranted;
