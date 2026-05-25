@@ -183,6 +183,8 @@ export default function TripsPage() {
     let timeWarning = false;
     let requiredHours = 0;
     let availableHours = 0;
+    let minDropoffFormattedDate = '';
+    let minDropoffFormattedTime = '';
 
     if (dist > 0 && hasDates) {
       const pStr = `${form.pickupDate}T${form.pickupTime || '00:00'}:00`;
@@ -199,6 +201,10 @@ export default function TripsPage() {
 
       if (availableHours > 0 && requiredHours > availableHours) {
         timeWarning = true;
+        const minDropoffTimestamp = pDate.getTime() + (requiredHours * 60 * 60 * 1000);
+        const minDropoffDateObj = new Date(minDropoffTimestamp);
+        minDropoffFormattedDate = formatDate(minDropoffDateObj.toISOString().slice(0, 10));
+        minDropoffFormattedTime = minDropoffDateObj.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
       }
     }
 
@@ -206,27 +212,27 @@ export default function TripsPage() {
       const texts: Record<string, any> = {
         ro: {
           priceWarn: `⚠️ Prețul cursei (€${priceNum}) este mai mic decât costul estimat (€${costNum})!\nSalvarea va genera o pierdere de €${(costNum - priceNum).toFixed(2)}.\n\n`,
-          timeWarn: `⏱️ Timp insuficient pentru livrare!\nAi alocat ${Math.round(availableHours)} ore, dar cursa necesită aprox. ${Math.round(requiredHours)} ore (incluzând pauzele legale).\n\n`,
+          timeWarn: `⏱️ Timp insuficient pentru livrare!\nPe baza orelor de condus și a pauzelor legale, cea mai rapidă livrare posibilă este pe:\n📅 ${minDropoffFormattedDate} la ora ${minDropoffFormattedTime}\n\n`,
           sure: `Ești sigur că vrei să salvezi cursa în aceste condiții?`
         },
         en: {
           priceWarn: `⚠️ Price (€${priceNum}) is lower than estimated cost (€${costNum})!\nSaving will result in a loss of €${(costNum - priceNum).toFixed(2)}.\n\n`,
-          timeWarn: `⏱️ Insufficient time for delivery!\nYou allocated ${Math.round(availableHours)} hours, but the trip requires approx. ${Math.round(requiredHours)} hours (including legal rests).\n\n`,
+          timeWarn: `⏱️ Insufficient time for delivery!\nBased on driving hours and legal rests, the earliest possible delivery is on:\n📅 ${minDropoffFormattedDate} at ${minDropoffFormattedTime}\n\n`,
           sure: `Are you sure you want to save the trip under these conditions?`
         },
         nl: {
           priceWarn: `⚠️ Prijs (€${priceNum}) is lager dan de geschatte kosten (€${costNum})!\nOpslaan leidt tot een verlies van €${(costNum - priceNum).toFixed(2)}.\n\n`,
-          timeWarn: `⏱️ Onvoldoende tijd voor levering!\nU heeft ${Math.round(availableHours)} uur toegewezen, maar de rit vereist ongeveer ${Math.round(requiredHours)} uur (inclusief wettelijke rusttijden).\n\n`,
+          timeWarn: `⏱️ Onvoldoende tijd voor levering!\nOp basis van rijtijden en wettelijke rusttijden is de vroegst mogelijke levering op:\n📅 ${minDropoffFormattedDate} om ${minDropoffFormattedTime}\n\n`,
           sure: `Weet u zeker dat u de rit onder deze omstandigheden wilt opslaan?`
         },
         de: {
           priceWarn: `⚠️ Preis (€${priceNum}) ist niedriger als die geschätzten Kosten (€${costNum})!\nDas Speichern führt zu einem Verlust von €${(costNum - priceNum).toFixed(2)}.\n\n`,
-          timeWarn: `⏱️ Unzureichende Zeit für die Lieferung!\nSie haben ${Math.round(availableHours)} Stunden zugewiesen, aber die Fahrt erfordert ca. ${Math.round(requiredHours)} Stunden (inkl. gesetzlicher Ruhezeiten).\n\n`,
+          timeWarn: `⏱️ Unzureichende Zeit für die Lieferung!\nBasierend auf Fahrzeiten und gesetzlichen Ruhezeiten ist die frühestmögliche Lieferung am:\n📅 ${minDropoffFormattedDate} um ${minDropoffFormattedTime}\n\n`,
           sure: `Sind Sie sicher, dass Sie die Fahrt unter diesen Bedingungen speichern möchten?`
         },
         fr: {
           priceWarn: `⚠️ Le prix (€${priceNum}) est inférieur au coût estimé (€${costNum})!\nL'enregistrement entraînera une perte de €${(costNum - priceNum).toFixed(2)}.\n\n`,
-          timeWarn: `⏱️ Temps insuffisant pour la livraison!\nVous avez alloué ${Math.round(availableHours)} heures, mais le trajet nécessite env. ${Math.round(requiredHours)} heures (pauses légales incluses).\n\n`,
+          timeWarn: `⏱️ Temps insuffisant pour la livraison!\nSur la base des heures de conduite et des pauses légales, la livraison la plus rapide possible est le:\n📅 ${minDropoffFormattedDate} à ${minDropoffFormattedTime}\n\n`,
           sure: `Êtes-vous sûr de vouloir enregistrer le trajet dans ces conditions ?`
         }
       };
