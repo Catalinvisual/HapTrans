@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import { Save, Building2, User, Server, Upload, X, ImageIcon } from 'lucide-react';
+import AddressAutocomplete from '../components/AddressAutocomplete';
 
 const COMPANY_KEY = 'haptrans_company_settings';
 
@@ -151,20 +152,29 @@ export default function SettingsPage() {
         {/* Company Fields Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {companyFields.map(f => (
-            <div key={f.key} className={f.colSpan ? 'lg:col-span-2' : ''}>
+            <div key={f.key} className={f.colSpan || f.key === 'address' ? 'lg:col-span-2' : ''}>
               <label className="label font-semibold text-xs">
                 {t(f.labelKey)}{f.required && <span className="text-error ml-0.5">*</span>}
               </label>
-              <input
-                className="input text-sm"
-                value={company[f.key]}
-                onChange={e => {
-                  let val = e.target.value;
-                  if (f.key === 'iban' || f.key === 'cui' || f.key === 'regNo') val = val.toUpperCase();
-                  setCompany(prev => ({ ...prev, [f.key]: val }));
-                }}
-                placeholder={t(f.labelKey)}
-              />
+              {f.key === 'address' ? (
+                <AddressAutocomplete
+                  value={company.address}
+                  onChange={val => setCompany(prev => ({ ...prev, address: val }))}
+                  placeholder={t(f.labelKey)}
+                  className="input text-sm w-full"
+                />
+              ) : (
+                <input
+                  className="input text-sm"
+                  value={company[f.key]}
+                  onChange={e => {
+                    let val = e.target.value;
+                    if (f.key === 'iban' || f.key === 'cui' || f.key === 'regNo') val = val.toUpperCase();
+                    setCompany(prev => ({ ...prev, [f.key]: val }));
+                  }}
+                  placeholder={t(f.labelKey)}
+                />
+              )}
             </div>
           ))}
         </div>

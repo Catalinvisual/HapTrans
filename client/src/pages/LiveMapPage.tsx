@@ -31,6 +31,134 @@ const ETA_TRANSLATIONS: Record<string, any> = {
   fr: { pickup: 'Chargement', dropoff: 'Déchargement', arrivesAt: 'Arrive à:', liveEta: 'Live ETA • incl.', breaks: 'pauses', today: "Aujourd'hui", tomorrow: 'Demain', calcRoute: 'Calcul de l\'itinéraire en direct...', errRoute: 'Erreur d\'itinéraire:', errNoCoords: 'Aucune coordonnée retournée', errUnknown: 'Inconnue' }
 };
 
+// Helper for distance calculation (Haversine formula)
+const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371e3; // meters
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+    Math.cos(phi1) *
+      Math.cos(phi2) *
+      Math.sin(deltaLambda / 2) *
+      Math.sin(deltaLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // meters
+};
+
+// Find the closest point on segment AB to point P
+const getClosestPointOnSegment = (p: [number, number], a: [number, number], b: [number, number]) => {
+  const ax = a[0], ay = a[1];
+  const bx = b[0], by = b[1];
+  const px = p[0], py = p[1];
+  
+  const dx = bx - ax;
+  const dy = by - ay;
+  
+  if (dx === 0 && dy === 0) {
+    return { point: a, t: 0 };
+  }
+  
+  let t = ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy);
+  t = Math.max(0, Math.min(1, t));
+  
+  return {
+    point: [ax + t * dx, ay + t * dy] as [number, number],
+    t: t
+  };
+};
+
+// Find the closest point on the route polyline to point P
+const findClosestPointOnRoute = (p: [number, number], route: [number, number][]) => {
+  if (!route || route.length === 0) return null;
+  if (route.length === 1) {
+    const dist = getDistance(p[1], p[0], route[0][1], route[0][0]);
+    return { point: route[0], index: 0, t: 0, distance: dist };
+  }
+  
+  let minDistance = Infinity;
+  let closestPoint = route[0];
+  let closestIndex = 0;
+  let closestT = 0;
+  
+  for (let i = 0; i < route.length - 1; i++) {
+    const { point, t } = getClosestPointOnSegment(p, route[i], route[i+1]);
+    const dist = getDistance(p[1], p[0], point[1], point[0]);
+    if (dist < minDistance) {
+      minDistance = dist;
+      closestPoint = point;
+      closestIndex = i;
+      closestT = t;
+    }
+  }
+  
+  return { point: closestPoint, index: closestIndex, t: closestT, distance: minDistance };
+};
+
+// Construct the sub-polyline from start snap to end snap along the route
+const getSubPolyline = (route: [number, number][], startSnap: any, endSnap: any): [number, number][] => {
+  if (startSnap.index === endSnap.index) {
+    return [startSnap.point, endSnap.point];
+  }
+  if (startSnap.index < endSnap.index) {
+    return [
+      startSnap.point,
+      ...route.slice(startSnap.index + 1, endSnap.index + 1),
+      endSnap.point
+    ];
+  } else {
+    const sub = route.slice(endSnap.index + 1, startSnap.index + 1);
+    return [
+      startSnap.point,
+      ...[...sub].reverse(),
+      endSnap.point
+    ];
+  }
+};
+
+// Pre-calculate polyline lengths
+const getPolylineLengthAndSegments = (polyline: [number, number][]) => {
+  const segmentLengths: number[] = [];
+  let totalLength = 0;
+  for (let i = 0; i < polyline.length - 1; i++) {
+    const dist = getDistance(polyline[i][1], polyline[i][0], polyline[i+1][1], polyline[i+1][0]);
+    segmentLengths.push(dist);
+    totalLength += dist;
+  }
+  return { totalLength, segmentLengths };
+};
+
+// Find the point at a specific distance along the polyline
+const getPointAtLength = (
+  polyline: [number, number][],
+  targetDist: number,
+  totalLength: number,
+  segmentLengths: number[]
+): [number, number] => {
+  if (polyline.length === 0) return [0, 0];
+  if (polyline.length === 1 || targetDist <= 0) return polyline[0];
+  if (targetDist >= totalLength) return polyline[polyline.length - 1];
+  
+  let accumulated = 0;
+  for (let i = 0; i < polyline.length - 1; i++) {
+    const segLen = segmentLengths[i];
+    if (accumulated + segLen >= targetDist) {
+      const remaining = targetDist - accumulated;
+      const t = segLen === 0 ? 0 : remaining / segLen;
+      const a = polyline[i];
+      const b = polyline[i+1];
+      return [
+        a[0] + (b[0] - a[0]) * t,
+        a[1] + (b[1] - a[1]) * t
+      ];
+    }
+    accumulated += segLen;
+  }
+  return polyline[polyline.length - 1];
+};
+
 export default function LiveMapPage() {
   const { t, i18n } = useTranslation();
   const mapRef = useRef<HTMLDivElement>(null);
@@ -46,6 +174,8 @@ export default function LiveMapPage() {
   const driversStateRef = useRef<any[]>([]);
   const focusedTruckRef = useRef<any>(null);
   const lastRouteCalcRef = useRef<Record<string, { lat: number; lng: number; time: number }>>({});
+  const activeRoutesRef = useRef<Record<string, [number, number][]>>({});
+  const animationFramesRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -63,6 +193,8 @@ export default function LiveMapPage() {
         mapInstance.current = null;
       }
       markersRef.current = {};
+      Object.values(animationFramesRef.current).forEach(cancelAnimationFrame);
+      animationFramesRef.current = {};
     };
   }, []);
 
@@ -179,22 +311,94 @@ export default function LiveMapPage() {
     } catch (e) { console.error(e); }
   };
 
-  const animateMarker = (marker: any, start: [number, number], end: [number, number], durationMs: number = 1500) => {
+  const animateMarker = (
+    truckId: string,
+    marker: any,
+    startGPS: [number, number],
+    endGPS: [number, number],
+    durationMs: number = 14500
+  ) => {
+    if (animationFramesRef.current[truckId]) {
+      cancelAnimationFrame(animationFramesRef.current[truckId]);
+    }
+
+    const routeCoords = activeRoutesRef.current[truckId];
+    let subPolyline: [number, number][] | null = null;
+    let polyLengthInfo: { totalLength: number; segmentLengths: number[] } | null = null;
+
+    if (routeCoords && routeCoords.length > 1) {
+      const startSnap = findClosestPointOnRoute(startGPS, routeCoords);
+      const endSnap = findClosestPointOnRoute(endGPS, routeCoords);
+
+      const isStartSnapped = startSnap && startSnap.distance <= 150;
+      const isEndSnapped = endSnap && endSnap.distance <= 150;
+
+      if (isStartSnapped && isEndSnapped) {
+        subPolyline = getSubPolyline(routeCoords, startSnap, endSnap);
+        polyLengthInfo = getPolylineLengthAndSegments(subPolyline);
+      }
+    }
+
     const startTime = performance.now();
+
     const step = (now: number) => {
       const elapsed = now - startTime;
       const progress = Math.min(elapsed / durationMs, 1);
       
-      const lng = start[0] + (end[0] - start[0]) * progress;
-      const lat = start[1] + (end[1] - start[1]) * progress;
-      
-      marker.setLngLat([lng, lat]);
-      
+      let currentPos: [number, number];
+
+      if (subPolyline && polyLengthInfo && polyLengthInfo.totalLength > 0) {
+        const targetDist = progress * polyLengthInfo.totalLength;
+        currentPos = getPointAtLength(subPolyline, targetDist, polyLengthInfo.totalLength, polyLengthInfo.segmentLengths);
+      } else {
+        const lng = startGPS[0] + (endGPS[0] - startGPS[0]) * progress;
+        const lat = startGPS[1] + (endGPS[1] - startGPS[1]) * progress;
+        currentPos = [lng, lat];
+      }
+
+      marker.setLngLat(currentPos);
+
+      // Trim route line dynamically if this is the focused truck
+      if (focusedTruckRef.current && focusedTruckRef.current.id === truckId && routeCoords) {
+        updateTrimmedRouteLine(truckId, currentPos, routeCoords);
+      }
+
       if (progress < 1) {
-        requestAnimationFrame(step);
+        animationFramesRef.current[truckId] = requestAnimationFrame(step);
+      } else {
+        delete animationFramesRef.current[truckId];
       }
     };
-    requestAnimationFrame(step);
+
+    animationFramesRef.current[truckId] = requestAnimationFrame(step);
+  };
+
+  const updateTrimmedRouteLine = (truckId: string, currentPos: [number, number], routeCoords: [number, number][]) => {
+    if (!mapInstance.current) return;
+    const snap = findClosestPointOnRoute(currentPos, routeCoords);
+    if (!snap) return;
+    
+    const remainingCoords = [
+      snap.point,
+      ...routeCoords.slice(snap.index + 1)
+    ];
+    
+    const sourceId = 'route-source';
+    try {
+      const source = mapInstance.current.getSource(sourceId);
+      if (source) {
+        source.setData({
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: remainingCoords
+          },
+          properties: {}
+        });
+      }
+    } catch (e) {
+      console.warn('Error updating route line data', e);
+    }
   };
 
   const addMarker = (id: string, lng: number, lat: number, label: string, popupText: string) => {
@@ -203,7 +407,7 @@ export default function LiveMapPage() {
     const existingMarker = markersRef.current[id];
     if (existingMarker) {
       const startLngLat = existingMarker.getLngLat();
-      animateMarker(existingMarker, [startLngLat.lng, startLngLat.lat], [lng, lat], 1500);
+      animateMarker(id, existingMarker, [startLngLat.lng, startLngLat.lat], [lng, lat], 1500);
       
       const el = existingMarker.getElement();
       if (el) {
@@ -281,6 +485,16 @@ export default function LiveMapPage() {
   const drawRoute = async (truck: any, preventFitBounds: boolean = false) => {
     if (!mapInstance.current) return;
 
+    // Clear existing route layer and source, and destination popup
+    const sourceId = 'route-source';
+    const layerId = 'route-layer';
+    if (mapInstance.current.getLayer(layerId)) mapInstance.current.removeLayer(layerId);
+    if (mapInstance.current.getSource(sourceId)) mapInstance.current.removeSource(sourceId);
+    if ((window as any).etaPopup) {
+      (window as any).etaPopup.remove();
+      (window as any).etaPopup = null;
+    }
+
     // Find active trip for this truck
     const activeTrip = tripsRef.current.find((t: any) =>
       t.truck?.id === truck.id &&
@@ -313,19 +527,6 @@ export default function LiveMapPage() {
       const now = Date.now();
       if (lastCalc) {
         const timeDiff = now - lastCalc.time;
-        // Helper for quick distance calculation (Haversine approx)
-        const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-          const R = 6371e3; // meters
-          const phi1 = lat1 * Math.PI / 180;
-          const phi2 = lat2 * Math.PI / 180;
-          const deltaPhi = (lat2 - lat1) * Math.PI / 180;
-          const deltaLambda = (lon2 - lon1) * Math.PI / 180;
-          const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-                    Math.cos(phi1) * Math.cos(phi2) *
-                    Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          return R * c; // meters
-        };
         const dist = getDistance(
           parseFloat(truck.currentLat), 
           parseFloat(truck.currentLng), 
@@ -334,6 +535,11 @@ export default function LiveMapPage() {
         );
         // Throttle: if they moved less than 400 meters AND it has been less than 45 seconds, skip recalculation
         if (dist < 400 && timeDiff < 45000) {
+          const routeCoords = activeRoutesRef.current[truck.id];
+          if (routeCoords) {
+            const currentPos: [number, number] = [parseFloat(truck.currentLng), parseFloat(truck.currentLat)];
+            updateTrimmedRouteLine(truck.id, currentPos, routeCoords);
+          }
           return;
         }
       }
@@ -370,16 +576,20 @@ export default function LiveMapPage() {
       }
 
       const coords = data.coordinates.map((c: number[]) => [c[0], c[1]]);
-      const sourceId = 'route-source';
-      const layerId = 'route-layer';
+      activeRoutesRef.current[truck.id] = coords;
 
-      // Remove existing route layer
-      if (mapInstance.current.getLayer(layerId)) mapInstance.current.removeLayer(layerId);
-      if (mapInstance.current.getSource(sourceId)) mapInstance.current.removeSource(sourceId);
+      let coordsToDraw = coords;
+      if (hasTruckGps) {
+        const truckPos: [number, number] = [parseFloat(truck.currentLng), parseFloat(truck.currentLat)];
+        const snap = findClosestPointOnRoute(truckPos, coords);
+        if (snap && snap.distance <= 150) {
+          coordsToDraw = [snap.point, ...coords.slice(snap.index + 1)];
+        }
+      }
 
       mapInstance.current.addSource(sourceId, {
         type: 'geojson',
-        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords }, properties: {} },
+        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coordsToDraw }, properties: {} },
       });
       mapInstance.current.addLayer({
         id: layerId,
@@ -628,10 +838,11 @@ export default function LiveMapPage() {
       if (existingMarker) {
         const startLngLat = existingMarker.getLngLat();
         animateMarker(
+          finalTruckId,
           existingMarker,
           [startLngLat.lng, startLngLat.lat],
           [parseFloat(data.lng), parseFloat(data.lat)],
-          1500
+          14500
         );
 
         // Update the label DOM text

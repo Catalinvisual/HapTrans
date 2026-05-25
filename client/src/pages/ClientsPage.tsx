@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Pencil, Search, Download, Trash2 } from 'lucide-react';
+import AddressAutocomplete from '../components/AddressAutocomplete';
 import api from '../lib/api';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
@@ -16,7 +17,7 @@ export default function ClientsPage() {
   const [search, setSearch] = useState('');
   const [showExport, setShowExport] = useState(false);
   
-  const [form, setForm] = useState({ name: '', cui: '', address: '', postalCode: '', contactName: '', contactEmail: '', phone: '', country: '' });
+  const [form, setForm] = useState({ name: '', cui: '', address: '', postalCode: '', contactName: '', contactEmail: '', phone: '' });
   const [editId, setEditId] = useState<string | null>(null);
 
   const load = () => api.get('/clients').then(r => { setClients(r.data); setLoading(false); });
@@ -27,7 +28,7 @@ export default function ClientsPage() {
     try {
       if (editId) { await api.patch(`/clients/${editId}`, form); toast.success(t('clientUpdated')); }
       else { await api.post('/clients', form); toast.success(t('clientAdded')); }
-      setShowForm(false); setEditId(null); setForm({ name: '', cui: '', address: '', postalCode: '', contactName: '', contactEmail: '', phone: '', country: '' });
+      setShowForm(false); setEditId(null); setForm({ name: '', cui: '', address: '', postalCode: '', contactName: '', contactEmail: '', phone: '' });
       load();
       } catch {
  toast.error(t('error'));
@@ -57,7 +58,6 @@ export default function ClientsPage() {
     return (
       (c.name || '').toLowerCase().includes(query) ||
       (c.cui || '').toLowerCase().includes(query) ||
-      (c.country || '').toLowerCase().includes(query) ||
       (c.address || '').toLowerCase().includes(query) ||
       (c.contactName || '').toLowerCase().includes(query) ||
       (c.contactEmail || '').toLowerCase().includes(query) ||
@@ -87,7 +87,6 @@ export default function ClientsPage() {
             {[
               { key: 'name',         label: t('name'),             required: true },
               { key: 'cui',          label: t('cui') || 'CUI / VAT' },
-              { key: 'country',      label: t('country') },
               { key: 'contactName',  label: t('contact') || 'Contact' },
               { key: 'contactEmail', label: t('email') || 'Email contact' },
               { key: 'phone',        label: t('phone') },
@@ -106,10 +105,9 @@ export default function ClientsPage() {
             {/* Address — wider */}
             <div className="md:col-span-2">
               <label className="label font-semibold">{t('address')}</label>
-              <input
-                className="input"
+              <AddressAutocomplete
                 value={form.address}
-                onChange={e => setForm({ ...form, address: e.target.value })}
+                onChange={val => setForm({ ...form, address: val })}
                 placeholder="Stradă, Nr., Bloc..."
               />
             </div>
@@ -157,7 +155,7 @@ export default function ClientsPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-surface border-b border-border">
-                {[t('name'), t('cui') || 'CUI', t('country'), t('address'), t('contact') || 'Contact', t('email'), t('phone'), t('actions')].map(h => (
+                {[t('name'), t('cui') || 'CUI', t('address'), t('contact') || 'Contact', t('email'), t('phone'), t('actions')].map(h => (
                   <th key={h} className="table-header">{h}</th>
                 ))}
               </tr>
@@ -171,13 +169,12 @@ export default function ClientsPage() {
                 <tr key={c.id} className="hover:bg-surface/60 transition-colors">
                   <td className="table-cell font-bold text-text">{c.name}</td>
                   <td className="table-cell text-xs font-semibold text-text-secondary">{c.cui || '—'}</td>
-                  <td className="table-cell font-medium text-text-secondary">{c.country || '—'}</td>
                   <td className="table-cell text-xs max-w-[150px] truncate">{c.address || '—'}</td>
                   <td className="table-cell text-xs font-medium text-text">{c.contactName || '—'}</td>
                   <td className="table-cell text-xs text-text-secondary">{c.contactEmail || '—'}</td>
                   <td className="table-cell text-xs font-medium text-text-secondary">{c.phone || '—'}</td>
                   <td className="table-cell">
-                    <button onClick={() => { setForm({ name: c.name, cui: c.cui, address: c.address, postalCode: c.postalCode || '', contactName: c.contactName, contactEmail: c.contactEmail, phone: c.phone, country: c.country }); setEditId(c.id); setShowForm(true); }} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary-light transition-all">
+                    <button onClick={() => { setForm({ name: c.name, cui: c.cui, address: c.address, postalCode: c.postalCode || '', contactName: c.contactName, contactEmail: c.contactEmail, phone: c.phone }); setEditId(c.id); setShowForm(true); }} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary-light transition-all">
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button onClick={() => handleDelete(c.id)} className="p-1.5 text-text-secondary hover:text-error rounded-lg hover:bg-error/10 transition-all ml-1">
@@ -201,7 +198,6 @@ export default function ClientsPage() {
           { key: 'createdAt', label: 'Data Inregistrare', transform: val => val ? formatDate(val) : '' },
           { key: 'name', label: 'Nume Client' },
           { key: 'cui', label: 'CUI / VAT' },
-          { key: 'country', label: 'Tara' },
           { key: 'address', label: 'Adresa' },
           { key: 'contactName', label: 'Persoana Contact' },
           { key: 'contactEmail', label: 'Email Contact' },
