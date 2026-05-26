@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useLanguage } from '../lib/i18n';
+import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import { Plus, Trash2, Edit2, Upload, FileText, Loader2, Image as ImageIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function ExpensesPage() {
-  const { t } = useLanguage();
+  const { t } = useTranslation();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
