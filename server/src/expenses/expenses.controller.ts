@@ -31,20 +31,36 @@ export class ExpensesController {
   @Post('upload-and-parse')
   @UseInterceptors(FileInterceptor('file'))
   async uploadAndParse(@UploadedFile() file: Express.Multer.File) {
-    // file.path is the Cloudinary URL (from multer-storage-cloudinary)
-    const fileUrl = file.path;
+    let fileUrl = '';
     let parsedData = null;
     
+    // 1. Upload to Cloudinary manually
     try {
-      parsedData = await this.service.parseReceiptWithAI(fileUrl);
+      const cloudinary = require('cloudinary').v2;
+      const uploadResult = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: 'haptrans_expenses', resource_type: 'auto' },
+          (error, result) => error ? reject(error) : resolve(result)
+        );
+        const { Readable } = require('stream');
+        const readableStream = new Readable();
+        readableStream.push(file.buffer);
+        readableStream.push(null);
+        readableStream.pipe(stream);
+      });
+      fileUrl = (uploadResult as any).secure_url;
     } catch (e) {
-      // If AI fails, still return the file URL so the user can manually fill out the rest
-      console.error('AI parsing failed, returning URL only', e);
+      console.error('Failed to upload to Cloudinary', e);
+      // If Cloudinary fails, we can still try to parse!
     }
 
-    return {
-      fileUrl,
-      parsedData,
-    };
+    // 2. Parse using AI directly from buffer
+    try {
+      parsedData = await this.service.parseReceiptWithAI(file.buffer, file.mimetype);
+    } catch (e) {
+      console.error('AI parsing failed', e);
+    }
+
+    return { fileUrl, parsedData };
   }
 }

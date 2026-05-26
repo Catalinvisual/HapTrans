@@ -23,13 +23,12 @@ export class TripsController {
   @Post('scan-document')
   @UseInterceptors(FileInterceptor('file'))
   async scanDocument(@UploadedFile() file: Express.Multer.File) {
-    const fileUrl = (file as any).path; // Cloudinary URL from multer-storage-cloudinary
     try {
-      const parsed = await this.scanner.scanTripDocument(fileUrl);
-      return { fileUrl, parsed };
+      const parsed = await this.scanner.scanTripDocument(file.buffer, file.mimetype);
+      return { fileUrl: null, parsed };
     } catch (e) {
       console.error('Trip scan failed:', e);
-      return { fileUrl, parsed: null, error: e.message };
+      return { fileUrl: null, parsed: null, error: e.message };
     }
   }
 }
