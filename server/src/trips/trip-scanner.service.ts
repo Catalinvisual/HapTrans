@@ -25,9 +25,9 @@ export class TripScannerService {
       mimeType = 'image/jpeg'; // fallback
     }
 
-    // Upgrade to Pro for much better complex document reasoning and adherence to strict logical rules
+    // Revert to Flash to avoid free-tier quota limits (429 errors) on Pro
     const model = this.genAI.getGenerativeModel({ 
-      model: 'gemini-2.5-pro',
+      model: 'gemini-2.5-flash',
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
