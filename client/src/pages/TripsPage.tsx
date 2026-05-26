@@ -213,7 +213,14 @@ export default function TripsPage() {
         setScanSuccess(true);
         toast.success(t('scannerExtracted'), { id: toastId, duration: 4000 });
       } else {
-        toast.error(t('scannerFailed'), { id: toastId });
+        const backendErr = res.data?.error || '';
+        const isKeyMissing = backendErr.includes('GEMINI_API_KEY');
+        toast.error(
+          isKeyMissing
+            ? '⚠️ GEMINI_API_KEY nu este configurată pe server. Adaugă variabila în Railway.'
+            : `${t('scannerFailed')}${backendErr ? ` (${backendErr})` : ''}`,
+          { id: toastId, duration: 6000 }
+        );
       }
     } catch (err) {
       toast.error(t('scannerError'), { id: toastId });
