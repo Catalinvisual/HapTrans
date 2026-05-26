@@ -686,12 +686,13 @@ export default function TripsPage() {
             </div>
             
             {/* Pickup Details */}
+            {/* Pickup Details */}
             <div className="border-t border-dashed border-border pt-4 md:col-span-2 lg:col-span-3">
-              <h3 className="text-sm font-bold text-primary mb-3">Preluare (Pickup)</h3>
+              <h3 className="text-sm font-bold text-primary mb-3">{t('pickup')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="label text-xs font-semibold">{t('pickupCompanyName')}</label>
-                  <input type="text" className="input" value={form.pickupCompanyName} onChange={e => setForm({...form, pickupCompanyName: e.target.value})} placeholder="e.g. Depozit Logistic SRL" />
+                  <input type="text" className="input" value={form.pickupCompanyName} onChange={e => setForm({...form, pickupCompanyName: e.target.value})} placeholder="e.g. Logistics Warehouse Ltd" />
                 </div>
                 <div>
                   <label className="label text-xs font-semibold">{t('pickupAddress')}</label>
@@ -703,18 +704,18 @@ export default function TripsPage() {
                 </div>
                 <div>
                   <label className="label text-xs font-semibold">{t('loadingReference')}</label>
-                  <input className="input" placeholder="ex: REF-12345" value={form.loadingReference || ''} onChange={e => setForm({...form, loadingReference: e.target.value.toUpperCase()})} />
+                  <input className="input" placeholder="e.g. REF-12345" value={form.loadingReference || ''} onChange={e => setForm({...form, loadingReference: e.target.value.toUpperCase()})} />
                 </div>
               </div>
             </div>
 
             {/* Delivery Details */}
             <div className="border-t border-dashed border-border pt-4 md:col-span-2 lg:col-span-3">
-              <h3 className="text-sm font-bold text-primary mb-3">Livrare (Delivery)</h3>
+              <h3 className="text-sm font-bold text-primary mb-3">{t('dropoff')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="label text-xs font-semibold">{t('dropoffCompanyName')}</label>
-                  <input type="text" className="input" value={form.dropoffCompanyName} onChange={e => setForm({...form, dropoffCompanyName: e.target.value})} placeholder="e.g. Client Destinatar SA" />
+                  <input type="text" className="input" value={form.dropoffCompanyName} onChange={e => setForm({...form, dropoffCompanyName: e.target.value})} placeholder="e.g. Recipient Client Inc" />
                 </div>
                 <div>
                   <label className="label text-xs font-semibold">{t('dropoffAddress')}</label>
@@ -726,7 +727,7 @@ export default function TripsPage() {
                 </div>
                 <div>
                   <label className="label text-xs font-semibold">{t('unloadingReference')}</label>
-                  <input className="input" placeholder="ex: REF-67890" value={form.unloadingReference || ''} onChange={e => setForm({...form, unloadingReference: e.target.value.toUpperCase()})} />
+                  <input className="input" placeholder="e.g. REF-67890" value={form.unloadingReference || ''} onChange={e => setForm({...form, unloadingReference: e.target.value.toUpperCase()})} />
                 </div>
               </div>
             </div>
