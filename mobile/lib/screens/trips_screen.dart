@@ -367,10 +367,16 @@ class TripDetailSheet extends StatelessWidget {
             const SizedBox(height: 20),
             _InfoRow(Icons.person_outline, 'Client', trip['client']?['name'] ?? '—'),
             _InfoRow(Icons.local_shipping_outlined, 'Camion', trip['truck']?['plateNumber'] ?? '—'),
-            _InfoRow(Icons.my_location, {'ro':'Preluare','en':'Pickup','nl':'Ophalen'}[locale]!, trip['pickupAddress'] ?? '-'),
+            _InfoRow(Icons.my_location, {'ro':'Preluare','en':'Pickup','nl':'Ophalen'}[locale]!, 
+              (trip['pickupCompanyName'] != null && trip['pickupCompanyName'].toString().isNotEmpty) 
+                ? '${trip['pickupCompanyName']}\n${trip['pickupAddress'] ?? '-'}' 
+                : (trip['pickupAddress'] ?? '-')),
             if (trip['pickupTime'] != null && trip['pickupTime'].toString().isNotEmpty)
               _InfoRow(Icons.access_time, {'ro':'Ora Preluare','en':'Pickup Time','nl':'Ophaaltijd'}[locale]!, trip['pickupTime']),
-            _InfoRow(Icons.location_on_outlined, {'ro':'Predare','en':'Dropoff','nl':'Afleveren'}[locale]!, trip['dropoffAddress'] ?? '-'),
+            _InfoRow(Icons.location_on_outlined, {'ro':'Predare','en':'Dropoff','nl':'Afleveren'}[locale]!, 
+              (trip['dropoffCompanyName'] != null && trip['dropoffCompanyName'].toString().isNotEmpty) 
+                ? '${trip['dropoffCompanyName']}\n${trip['dropoffAddress'] ?? '-'}' 
+                : (trip['dropoffAddress'] ?? '-')),
             if (trip['dropoffTime'] != null && trip['dropoffTime'].toString().isNotEmpty)
               _InfoRow(Icons.access_time_filled, {'ro':'Ora Livrare','en':'Delivery Time','nl':'Aflevertijd'}[locale]!, trip['dropoffTime']),
             

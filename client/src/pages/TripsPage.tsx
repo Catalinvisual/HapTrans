@@ -45,7 +45,9 @@ export default function TripsPage() {
   const [deadheadWarning, setDeadheadWarning] = useState<any>(null);
   
   const [form, setForm] = useState<any>({
-    clientId: '', truckId: '', driverId: '', pickupAddress: '', dropoffAddress: '',
+    clientId: '', truckId: '', driverId: '', 
+    pickupCompanyName: '', pickupAddress: '', 
+    dropoffCompanyName: '', dropoffAddress: '',
     pickupDate: '', dropoffDate: '', price: '', estimatedCost: '', realCost: '', distanceKm: '', notes: '',
     pickupTime: '', dropoffTime: '', pallets: '', palletType: '', weightKg: '', volumeCbm: '',
     loadingReference: '', unloadingReference: '',
@@ -195,7 +197,9 @@ export default function TripsPage() {
         let newFormState: any = {};
         setForm((prev: any) => {
           const updated = { ...prev };
+          if (parsed.pickupCompanyName) updated.pickupCompanyName = parsed.pickupCompanyName;
           if (parsed.pickupAddress) updated.pickupAddress = parsed.pickupAddress;
+          if (parsed.dropoffCompanyName) updated.dropoffCompanyName = parsed.dropoffCompanyName;
           if (parsed.dropoffAddress) updated.dropoffAddress = parsed.dropoffAddress;
           if (parsed.pickupDate) updated.pickupDate = parsed.pickupDate;
           if (parsed.dropoffDate) updated.dropoffDate = parsed.dropoffDate;
@@ -683,6 +687,14 @@ export default function TripsPage() {
             
             {/* Addresses */}
             <div>
+              <label className="label font-semibold">{t('pickupCompanyName')}</label>
+              <input type="text" className="input" value={form.pickupCompanyName} onChange={e => setForm({...form, pickupCompanyName: e.target.value})} placeholder="e.g. Depozit Logistic SRL" />
+            </div>
+            <div>
+              <label className="label font-semibold">{t('dropoffCompanyName')}</label>
+              <input type="text" className="input" value={form.dropoffCompanyName} onChange={e => setForm({...form, dropoffCompanyName: e.target.value})} placeholder="e.g. Client Destinatar SA" />
+            </div>
+            <div>
               <label className="label font-semibold">{t('pickupAddress')}</label>
               <AddressAutocomplete 
                 value={form.pickupAddress} 
@@ -1038,6 +1050,7 @@ export default function TripsPage() {
                     </td>
                     <td className="table-cell font-bold text-text">{trip.client?.name || '—'}</td>
                     <td className="table-cell text-xs max-w-[140px] truncate">
+                      {trip.pickupCompanyName && <div className="font-bold text-primary text-[11px] truncate mb-0.5">{trip.pickupCompanyName}</div>}
                       <div className="font-medium text-text">{trip.pickupAddress}</div>
                       {(trip.pickupDate || trip.pickupTime) && (
                         <div className="text-[10px] text-text-secondary mt-0.5">
@@ -1048,6 +1061,7 @@ export default function TripsPage() {
                       )}
                     </td>
                     <td className="table-cell text-xs max-w-[140px] truncate">
+                      {trip.dropoffCompanyName && <div className="font-bold text-primary text-[11px] truncate mb-0.5">{trip.dropoffCompanyName}</div>}
                       <div className="font-medium text-text">{trip.dropoffAddress}</div>
                       {(trip.dropoffDate || trip.dropoffTime) && (
                         <div className="text-[10px] text-text-secondary mt-0.5">

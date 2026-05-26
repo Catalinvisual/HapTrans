@@ -33,8 +33,14 @@ export class Trip {
   @Column()
   pickupAddress: string;
 
+  @Column({ nullable: true })
+  pickupCompanyName: string;
+
   @Column()
   dropoffAddress: string;
+
+  @Column({ nullable: true })
+  dropoffCompanyName: string;
 
   @Column({ nullable: true })
   pickupCountry: string;
