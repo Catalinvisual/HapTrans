@@ -58,7 +58,9 @@ export class TripsService {
       client: { id: dto.clientId },
       truck: { id: dto.truckId },
       driver: { id: dto.driverId },
+      pickupCompanyName: dto.pickupCompanyName,
       pickupAddress: dto.pickupAddress,
+      dropoffCompanyName: dto.dropoffCompanyName,
       dropoffAddress: dto.dropoffAddress,
       pickupDate: dto.pickupDate,
       dropoffDate: dto.dropoffDate,
@@ -111,8 +113,11 @@ export class TripsService {
     if (dto.clientId !== undefined) updateData.client = { id: dto.clientId };
     if (dto.truckId !== undefined) updateData.truck = { id: dto.truckId };
     if (dto.driverId !== undefined) updateData.driver = { id: dto.driverId };
+    if (dto.pickupCompanyName !== undefined) updateData.pickupCompanyName = dto.pickupCompanyName;
     if (dto.pickupAddress !== undefined) updateData.pickupAddress = dto.pickupAddress;
+    if (dto.dropoffCompanyName !== undefined) updateData.dropoffCompanyName = dto.dropoffCompanyName;
     if (dto.dropoffAddress !== undefined) updateData.dropoffAddress = dto.dropoffAddress;
+
     if (dto.pickupDate !== undefined) updateData.pickupDate = dto.pickupDate;
     if (dto.dropoffDate !== undefined) updateData.dropoffDate = dto.dropoffDate;
     if (dto.price !== undefined) updateData.price = dto.price;
