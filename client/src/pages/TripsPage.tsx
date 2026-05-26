@@ -231,6 +231,8 @@ export default function TripsPage() {
             if (routeRes.data && routeRes.data.distanceKm) {
               setForm((prev: any) => ({ ...prev, distanceKm: routeRes.data.distanceKm.toString() }));
               toast.success(`Distanța calculată automat: ${routeRes.data.distanceKm} km`, { duration: 4000 });
+            } else if (routeRes.data && routeRes.data.error) {
+              toast.error(`Nu s-a putut calcula distanța automat: ${routeRes.data.error}. Te rugăm să verifici sau să completezi adresele manual.`, { duration: 6000 });
             }
           } catch (e) {
             console.error('Auto route calc failed', e);
