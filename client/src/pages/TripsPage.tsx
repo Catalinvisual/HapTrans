@@ -42,6 +42,7 @@ export default function TripsPage() {
   const [isScanLoading, setIsScanLoading] = useState(false);
   const [scanSuccess, setScanSuccess] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
+  const [deadheadWarning, setDeadheadWarning] = useState<any>(null);
   
   const [form, setForm] = useState<any>({
     clientId: '', truckId: '', driverId: '', pickupAddress: '', dropoffAddress: '',
