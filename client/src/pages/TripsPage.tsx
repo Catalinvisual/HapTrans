@@ -685,30 +685,50 @@ export default function TripsPage() {
               />
             </div>
             
-            {/* Addresses */}
-            <div>
-              <label className="label font-semibold">{t('pickupCompanyName')}</label>
-              <input type="text" className="input" value={form.pickupCompanyName} onChange={e => setForm({...form, pickupCompanyName: e.target.value})} placeholder="e.g. Depozit Logistic SRL" />
+            {/* Pickup Details */}
+            <div className="border-t border-dashed border-border pt-4 md:col-span-2 lg:col-span-3">
+              <h3 className="text-sm font-bold text-primary mb-3">Preluare (Pickup)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="label text-xs font-semibold">{t('pickupCompanyName')}</label>
+                  <input type="text" className="input" value={form.pickupCompanyName} onChange={e => setForm({...form, pickupCompanyName: e.target.value})} placeholder="e.g. Depozit Logistic SRL" />
+                </div>
+                <div>
+                  <label className="label text-xs font-semibold">{t('pickupAddress')}</label>
+                  <AddressAutocomplete 
+                    value={form.pickupAddress} 
+                    onChange={(val) => setForm({...form, pickupAddress: val})} 
+                    required 
+                  />
+                </div>
+                <div>
+                  <label className="label text-xs font-semibold">{t('loadingReference')}</label>
+                  <input className="input" placeholder="ex: REF-12345" value={form.loadingReference || ''} onChange={e => setForm({...form, loadingReference: e.target.value.toUpperCase()})} />
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="label font-semibold">{t('dropoffCompanyName')}</label>
-              <input type="text" className="input" value={form.dropoffCompanyName} onChange={e => setForm({...form, dropoffCompanyName: e.target.value})} placeholder="e.g. Client Destinatar SA" />
-            </div>
-            <div>
-              <label className="label font-semibold">{t('pickupAddress')}</label>
-              <AddressAutocomplete 
-                value={form.pickupAddress} 
-                onChange={(val) => setForm({...form, pickupAddress: val})} 
-                required 
-              />
-            </div>
-            <div>
-              <label className="label font-semibold">{t('dropoffAddress')}</label>
-              <AddressAutocomplete 
-                value={form.dropoffAddress} 
-                onChange={(val) => setForm({...form, dropoffAddress: val})} 
-                required 
-              />
+
+            {/* Delivery Details */}
+            <div className="border-t border-dashed border-border pt-4 md:col-span-2 lg:col-span-3">
+              <h3 className="text-sm font-bold text-primary mb-3">Livrare (Delivery)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="label text-xs font-semibold">{t('dropoffCompanyName')}</label>
+                  <input type="text" className="input" value={form.dropoffCompanyName} onChange={e => setForm({...form, dropoffCompanyName: e.target.value})} placeholder="e.g. Client Destinatar SA" />
+                </div>
+                <div>
+                  <label className="label text-xs font-semibold">{t('dropoffAddress')}</label>
+                  <AddressAutocomplete 
+                    value={form.dropoffAddress} 
+                    onChange={(val) => setForm({...form, dropoffAddress: val})} 
+                    required 
+                  />
+                </div>
+                <div>
+                  <label className="label text-xs font-semibold">{t('unloadingReference')}</label>
+                  <input className="input" placeholder="ex: REF-67890" value={form.unloadingReference || ''} onChange={e => setForm({...form, unloadingReference: e.target.value.toUpperCase()})} />
+                </div>
+              </div>
             </div>
             <div>
               <label className="label font-semibold">{t('distance')}</label>
@@ -943,19 +963,7 @@ export default function TripsPage() {
               </div>
             </div>
 
-            {/* References (Loading, Unloading) */}
-            <div className="border-t border-dashed border-border pt-4 md:col-span-2 lg:col-span-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="label text-xs font-semibold">{t('loadingReference')}</label>
-                  <input className="input" placeholder="ex: REF-12345" value={form.loadingReference || ''} onChange={e => setForm({...form, loadingReference: e.target.value.toUpperCase()})} />
-                </div>
-                <div>
-                  <label className="label text-xs font-semibold">{t('unloadingReference')}</label>
-                  <input className="input" placeholder="ex: REF-67890" value={form.unloadingReference || ''} onChange={e => setForm({...form, unloadingReference: e.target.value.toUpperCase()})} />
-                </div>
-              </div>
-            </div>
+
  
             <div className="md:col-span-2 lg:col-span-3">
               <label className="label font-semibold">{t('notes')}</label>
