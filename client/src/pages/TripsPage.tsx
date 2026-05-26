@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Zap, Plus, Pencil, Trash2, Search, ChevronDown, Scale, Layers, Download, FileText, Clock, Box, AlertTriangle } from 'lucide-react';
+import { Zap, Plus, Pencil, Trash2, Search, ChevronDown, Scale, Layers, Download, FileText, Clock, Box, AlertTriangle, ScanLine, Loader2, CheckCircle2 } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import Flatpickr from 'react-flatpickr';
@@ -39,6 +39,9 @@ export default function TripsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [isDispatching, setIsDispatching] = useState(false);
   const [palletDropdownOpen, setPalletDropdownOpen] = useState(false);
+  const [isScanLoading, setIsScanLoading] = useState(false);
+  const [scanSuccess, setScanSuccess] = useState(false);
+  const scanInputRef = useRef<HTMLInputElement>(null);
   
   const [form, setForm] = useState<any>({
     clientId: '', truckId: '', driverId: '', pickupAddress: '', dropoffAddress: '',
@@ -166,6 +169,57 @@ export default function TripsPage() {
     } finally {
       toast.dismiss(toastId);
       setIsDispatching(false);
+    }
+  };
+
+  const handleScanDocument = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setIsScanLoading(true);
+    setScanSuccess(false);
+    const toastId = toast.loading('🤖 AI scanează documentul...');
+
+    try {
+      const res = await api.post('/trips/scan-document', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const { parsed } = res.data;
+
+      if (parsed) {
+        setForm((prev: any) => {
+          const updated = { ...prev };
+          if (parsed.pickupAddress) updated.pickupAddress = parsed.pickupAddress;
+          if (parsed.dropoffAddress) updated.dropoffAddress = parsed.dropoffAddress;
+          if (parsed.pickupDate) updated.pickupDate = parsed.pickupDate;
+          if (parsed.dropoffDate) updated.dropoffDate = parsed.dropoffDate;
+          if (parsed.pickupTime) updated.pickupTime = parsed.pickupTime;
+          if (parsed.dropoffTime) updated.dropoffTime = parsed.dropoffTime;
+          if (parsed.price) updated.price = parsed.price.toString();
+          if (parsed.weightKg) updated.weightKg = parsed.weightKg.toString();
+          if (parsed.pallets) updated.pallets = parsed.pallets.toString();
+          if (parsed.palletType) updated.palletType = parsed.palletType;
+          if (parsed.volumeCbm) updated.volumeCbm = parsed.volumeCbm.toString();
+          if (parsed.loadingReference) updated.loadingReference = parsed.loadingReference;
+          if (parsed.unloadingReference) updated.unloadingReference = parsed.unloadingReference;
+          if (parsed.notes) updated.notes = parsed.notes;
+          return updated;
+        });
+        setScanSuccess(true);
+        toast.success('✨ Datele cursei au fost extrase automat!', { id: toastId, duration: 4000 });
+      } else {
+        toast.error('Nu am putut extrage date din document. Completați manual.', { id: toastId });
+      }
+    } catch (err) {
+      toast.error('Eroare la scanarea documentului.', { id: toastId });
+    } finally {
+      setIsScanLoading(false);
+      // reset input so same file can be re-uploaded
+      if (scanInputRef.current) scanInputRef.current.value = '';
     }
   };
 
@@ -485,9 +539,65 @@ export default function TripsPage() {
 
       {showForm && (
         <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md">
-          <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">
+          <h3 className="font-bold text-lg text-text mb-4 text-primary border-b border-border pb-3">
             {editId ? t('editTrip') : t('addTrip')}
           </h3>
+
+          {/* ─── AI Smart Scanner Banner ─── */}
+          <div className={`mb-5 rounded-xl border-2 p-4 transition-all duration-500 ${
+            scanSuccess 
+              ? 'bg-green-50 border-green-300' 
+              : 'bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/20'
+          }`}>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${
+                  scanSuccess ? 'bg-green-500' : 'bg-gradient-to-br from-primary to-secondary'
+                }`}>
+                  {isScanLoading 
+                    ? <Loader2 className="w-5 h-5 text-white animate-spin" />
+                    : scanSuccess 
+                      ? <CheckCircle2 className="w-5 h-5 text-white" />
+                      : <ScanLine className="w-5 h-5 text-white" />
+                  }
+                </div>
+                <div>
+                  <p className="font-bold text-sm text-text">
+                    {scanSuccess ? '✅ Document scanat cu succes!' : '🤖 Smart AI Scanner'}
+                  </p>
+                  <p className="text-xs text-text-secondary">
+                    {scanSuccess 
+                      ? 'Verificați câmpurile completate automat mai jos.'
+                      : 'Încarcă o comandă de transport sau CMR — AI completează automat formularul.'
+                    }
+                  </p>
+                </div>
+              </div>
+              <label className={`cursor-pointer flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${
+                isScanLoading 
+                  ? 'opacity-50 cursor-not-allowed border-gray-200 text-gray-400'
+                  : scanSuccess
+                    ? 'border-green-400 text-green-700 hover:bg-green-100'
+                    : 'border-primary/40 text-primary hover:bg-primary/10'
+              }`}>
+                <input 
+                  ref={scanInputRef}
+                  type="file" 
+                  className="hidden" 
+                  accept="image/*,.pdf" 
+                  onChange={handleScanDocument} 
+                  disabled={isScanLoading} 
+                />
+                {isScanLoading 
+                  ? 'Se procesează...'
+                  : scanSuccess 
+                    ? '🔄 Rescanează alt document'
+                    : '📄 Încarcă Document'
+                }
+              </label>
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {/* Client, Truck, Driver */}
             <div>
