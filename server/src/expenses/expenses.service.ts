@@ -55,7 +55,7 @@ export class ExpensesService {
       const mimeType = response.headers.get('content-type') || 'image/jpeg';
 
       // 2. Use Gemini Vision (gemini-1.5-flash) to parse
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
       
       const prompt = `
 You are an AI assistant parsing a receipt or invoice image.

@@ -21,7 +21,7 @@ export class TripScannerService {
     const buffer = Buffer.from(arrayBuffer);
     const mimeType = response.headers.get('content-type') || 'image/jpeg';
 
-    const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const prompt = `
 You are an expert transport logistics AI that reads shipping orders, CMR documents, freight orders, or delivery notes from transport companies.
