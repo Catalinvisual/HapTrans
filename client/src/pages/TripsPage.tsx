@@ -290,7 +290,15 @@ export default function TripsPage() {
           loadingReference: '', unloadingReference: '',
         });
         load();
-      } catch (err: any) { toast.error(err.response?.data?.message || t('saveError')); }
+      } catch (err: any) {
+        const msg = err.response?.data?.message;
+        if (typeof msg === 'string' && msg.startsWith('err_trip_overlap:')) {
+          const tripId = msg.split(':')[1];
+          toast.error(t('err_trip_overlap', { id: tripId }));
+        } else {
+          toast.error(msg || t('saveError'));
+        }
+      }
     };
 
     const priceWarning = priceNum > 0 && costNum > 0 && priceNum < costNum;

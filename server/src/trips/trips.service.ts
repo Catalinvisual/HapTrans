@@ -48,7 +48,7 @@ export class TripsService {
 
     const conflict = await query.getOne();
     if (conflict) {
-      throw new ConflictException(`Suprapunere detectată! Există deja o cursă programată (ID: ${conflict.id}) în acest interval de timp pentru șoferul sau camionul selectat.`);
+      throw new ConflictException(`err_trip_overlap:${conflict.id}`);
     }
   }
 

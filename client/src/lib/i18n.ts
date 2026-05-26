@@ -5,7 +5,8 @@ const resources = {
   ro: {
     translation: {
       
-                  conflict_warning_message: "⚠️ Atenție: Suprapunere detectată!\n{{resource}} este deja alocat pe o altă cursă activă în acea perioadă ({{from}} -> {{to}}).",
+                        err_trip_overlap: "Suprapunere detectată! Există deja o cursă programată (ID: {{id}}) în acest interval de timp pentru șoferul sau camionul selectat.",
+conflict_warning_message: "⚠️ Atenție: Suprapunere detectată!\n{{resource}} este deja alocat pe o altă cursă activă în acea perioadă ({{from}} -> {{to}}).",
 smartDispatchSuccessDetail: "S-a auto-selectat {{plate}} (aprox. {{dist}} km distanță pe gol)",
 smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
       noAvailableTrucks: "Nu există camioane disponibile cu locație GPS cunoscută.",
@@ -385,7 +386,8 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
   fr: {
     translation: {
       
-                  conflict_warning_message: "⚠️ Attention : Chevauchement détecté !\nLe {{resource}} est déjà affecté à un autre trajet actif durant cette période ({{from}} -> {{to}}).",
+                        err_trip_overlap: "Chevauchement détecté ! Il y a déjà un trajet planifié (ID : {{id}}) dans cette plage horaire pour le chauffeur ou le camion sélectionné.",
+conflict_warning_message: "⚠️ Attention : Chevauchement détecté !\nLe {{resource}} est déjà affecté à un autre trajet actif durant cette période ({{from}} -> {{to}}).",
 smartDispatchSuccessDetail: "Auto-sélectionné {{plate}} (environ {{dist}} km de distance à vide)",
 smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pickup) !",
       noAvailableTrucks: "Aucun camion disponible avec une localisation GPS connue.",
@@ -415,7 +417,8 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
   en: {
     translation: {
       
-                  conflict_warning_message: "⚠️ Attention: Overlap detected!\n{{resource}} is already assigned to another active trip during this period ({{from}} -> {{to}}).",
+                        err_trip_overlap: "Overlap detected! There is already a scheduled trip (ID: {{id}}) in this time frame for the selected driver or truck.",
+conflict_warning_message: "⚠️ Attention: Overlap detected!\n{{resource}} is already assigned to another active trip during this period ({{from}} -> {{to}}).",
 smartDispatchSuccessDetail: "Auto-selected {{plate}} (approx. {{dist}} km empty distance)",
 smartDispatchAddressError: "Please enter the pickup address first!",
       noAvailableTrucks: "No available trucks with known GPS location.",
@@ -796,7 +799,8 @@ smartDispatchAddressError: "Please enter the pickup address first!",
   nl: {
     translation: {
       
-                  conflict_warning_message: "⚠️ Let op: Overlap gedetecteerd!\n{{resource}} is al toegewezen aan een andere actieve rit in deze periode ({{from}} -> {{to}}).",
+                        err_trip_overlap: "Overlap gedetecteerd! Er is al een rit gepland (ID: {{id}}) in dit tijdsbestek voor de geselecteerde chauffeur of vrachtwagen.",
+conflict_warning_message: "⚠️ Let op: Overlap gedetecteerd!\n{{resource}} is al toegewezen aan een andere actieve rit in deze periode ({{from}} -> {{to}}).",
 smartDispatchSuccessDetail: "Automatisch {{plate}} geselecteerd (ongeveer {{dist}} km lege afstand)",
 smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
       noAvailableTrucks: "Geen vrachtwagens beschikbaar met bekende GPS-locatie.",
@@ -1177,7 +1181,8 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
   de: {
     translation: {
       
-                  conflict_warning_message: "⚠️ Achtung: Überschneidung erkannt!\n{{resource}} ist in diesem Zeitraum bereits einer anderen aktiven Fahrt zugewiesen ({{from}} -> {{to}}).",
+                        err_trip_overlap: "Überschneidung erkannt! Es gibt bereits eine geplante Fahrt (ID: {{id}}) in diesem Zeitraum für den ausgewählten Fahrer oder LKW.",
+conflict_warning_message: "⚠️ Achtung: Überschneidung erkannt!\n{{resource}} ist in diesem Zeitraum bereits einer anderen aktiven Fahrt zugewiesen ({{from}} -> {{to}}).",
 smartDispatchSuccessDetail: "Automatisch {{plate}} ausgewählt (ca. {{dist}} km Leerfahrt)",
 smartDispatchAddressError: "Bitte geben Sie zuerst die Abholadresse (Pickup) ein!",
       noAvailableTrucks: "Keine LKWs mit bekannter GPS-Position verfügbar.",
@@ -1555,7 +1560,8 @@ smartDispatchAddressError: "Bitte geben Sie zuerst die Abholadresse (Pickup) ein
   fr: {
     translation: {
       
-                  conflict_warning_message: "⚠️ Attention : Chevauchement détecté !\nLe {{resource}} est déjà affecté à un autre trajet actif durant cette période ({{from}} -> {{to}}).",
+                        err_trip_overlap: "Chevauchement détecté ! Il y a déjà un trajet planifié (ID : {{id}}) dans cette plage horaire pour le chauffeur ou le camion sélectionné.",
+conflict_warning_message: "⚠️ Attention : Chevauchement détecté !\nLe {{resource}} est déjà affecté à un autre trajet actif durant cette période ({{from}} -> {{to}}).",
 smartDispatchSuccessDetail: "Auto-sélectionné {{plate}} (environ {{dist}} km de distance à vide)",
 smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pickup) !",
       noAvailableTrucks: "Aucun camion disponible avec une localisation GPS connue.",
