@@ -17,9 +17,23 @@ export class TripScannerService {
     }
 
     const response = await fetch(fileUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch file from Cloudinary: ${response.statusText}`);
+    }
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    const mimeType = response.headers.get('content-type') || 'image/jpeg';
+    
+    let mimeType = response.headers.get('content-type') || 'image/jpeg';
+    console.log('Fetching Cloudinary URL:', fileUrl, 'Status:', response.status, 'Mime:', mimeType);
+    
+    // Cloudinary might return application/octet-stream for PDFs. Trust the URL extension.
+    if (fileUrl.toLowerCase().includes('.pdf')) {
+      mimeType = 'application/pdf';
+    } else if (mimeType === 'image/jpg') {
+      mimeType = 'image/jpeg';
+    } else if (!mimeType.startsWith('image/') && mimeType !== 'application/pdf') {
+      mimeType = 'image/jpeg'; // fallback
+    }
 
     const model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
