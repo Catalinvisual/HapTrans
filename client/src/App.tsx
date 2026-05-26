@@ -44,6 +44,7 @@ export default function App() {
           <Route path="financial" element={<FinancialPage />} />
           <Route path="payroll" element={<PayrollPage />} />
           <Route path="maintenance" element={<MaintenancePage />} />
+          <Route path="expenses" element={<ExpensesPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="chat" element={<ChatPage />} />
