@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { Expense } from './expense.entity';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 
 @Injectable()
 export class ExpensesService {
@@ -47,49 +47,57 @@ export class ExpensesService {
       throw new Error('GEMINI_API_KEY not configured. Cannot perform AI extraction.');
     }
 
-    try {
-      let mimeType = originalMimeType || 'image/jpeg';
-      
-      // Gemini supports specific mime types. Normalize common ones:
-      if (mimeType === 'image/jpg') mimeType = 'image/jpeg';
-      if (mimeType.includes('pdf')) mimeType = 'application/pdf';
-      if (!mimeType.startsWith('image/') && mimeType !== 'application/pdf') {
-        mimeType = 'image/jpeg';
+    let mimeType = originalMimeType || 'image/jpeg';
+    
+    // Gemini supports specific mime types. Normalize common ones:
+    if (mimeType === 'image/jpg') mimeType = 'image/jpeg';
+    if (mimeType.includes('pdf')) mimeType = 'application/pdf';
+    if (!mimeType.startsWith('image/') && mimeType !== 'application/pdf') {
+      mimeType = 'image/jpeg';
+    }
+
+    const generationConfig = {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: SchemaType.OBJECT,
+        properties: {
+          amount: { type: SchemaType.NUMBER, description: "The total price or amount as a number, without currency symbols." },
+          currency: { type: SchemaType.STRING, description: "The currency symbol or code e.g. EUR, USD, RON. Default to EUR if not specified." },
+          description: { type: SchemaType.STRING, description: "A short 2-5 word description of what the receipt/invoice is for e.g. Fuel Station OMV, Truck parts, Accounting." },
+          date: { type: SchemaType.STRING, description: "The date of the expense/receipt in YYYY-MM-DD format." }
+        },
+        required: ["amount", "currency", "description", "date"]
       }
+    };
 
-      // 2. Use Gemini Vision (gemini-1.5-flash) to parse
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-      
-      const prompt = `
-You are an AI assistant parsing a receipt or invoice image.
-Extract the following details from the receipt:
-- amount: The total price/amount (as a number, without currency symbols).
-- currency: The currency symbol or code (e.g., EUR, USD, RON). If not found, guess based on context or default to EUR.
-- description: A short 2-5 word description of what the receipt is for (e.g., Fuel Station OMV, Truck parts, Accounting).
-- date: The date on the receipt in YYYY-MM-DD format.
-
-Respond ONLY with a valid JSON object with the keys "amount", "currency", "description", and "date". Do not wrap it in markdown block quotes.
+    const prompt = `
+You are an expert financial logistics AI assistant parsing a receipt or invoice image.
+Extract the details perfectly into the requested JSON schema.
+Ensure amount is a clean number, currency is standard, description is a clear summary, and date matches YYYY-MM-DD.
 `;
 
-      const result = await model.generateContent([
-        prompt,
-        {
-          inlineData: {
-            data: buffer.toString('base64'),
-            mimeType,
-          },
-        },
-      ]);
-      
-      const text = result.response.text();
-      // Safely parse JSON from the response text
-      const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-      const data = JSON.parse(cleanText);
-      
-      return data;
-    } catch (e) {
-      console.error('AI Parse Error:', e);
-      throw new Error('Failed to parse receipt with AI');
+    const request = {
+      contents: [{
+        role: 'user',
+        parts: [
+          { text: prompt },
+          { inlineData: { data: buffer.toString('base64'), mimeType } }
+        ]
+      }],
+      generationConfig: generationConfig as any,
+    };
+
+    try {
+      // Try Pro first for maximum accuracy
+      const modelPro = this.genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+      const result = await modelPro.generateContent(request);
+      return JSON.parse(result.response.text());
+    } catch (error) {
+      console.warn("gemini-2.5-pro failed for expenses parsing, falling back to gemini-2.5-flash. Error:", error.message);
+      // Fallback to Flash
+      const modelFlash = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      const fallbackResult = await modelFlash.generateContent(request);
+      return JSON.parse(fallbackResult.response.text());
     }
   }
 }
