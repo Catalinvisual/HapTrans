@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Route, Truck, Users, UserCheck, Map, MessageSquare, FileText,
-  Receipt, BarChart3, Wrench, Settings, UserCog, X, Banknote
+  Receipt, BarChart3, Wrench, Settings, UserCog, X, Banknote, Wallet
 } from 'lucide-react';
 
 const navItems = [
@@ -18,6 +18,7 @@ const navItems = [
   { to: '/financial', icon: BarChart3, key: 'financial' },
   { to: '/payroll', icon: Banknote, key: 'payroll' },
   { to: '/maintenance', icon: Wrench, key: 'maintenance' },
+  { to: '/expenses', icon: Wallet, key: 'expenses' },
   { to: '/users', icon: UserCog, key: 'users' },
   { to: '/settings', icon: Settings, key: 'settings' },
 ];
