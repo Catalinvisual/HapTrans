@@ -192,6 +192,7 @@ export default function TripsPage() {
       const { parsed } = res.data;
 
       if (parsed) {
+        let newFormState: any = {};
         setForm((prev: any) => {
           const updated = { ...prev };
           if (parsed.pickupAddress) updated.pickupAddress = parsed.pickupAddress;
@@ -208,10 +209,29 @@ export default function TripsPage() {
           if (parsed.loadingReference) updated.loadingReference = parsed.loadingReference;
           if (parsed.unloadingReference) updated.unloadingReference = parsed.unloadingReference;
           if (parsed.notes) updated.notes = parsed.notes;
+          newFormState = updated;
           return updated;
         });
+        
         setScanSuccess(true);
         toast.success(t('scannerExtracted'), { id: toastId, duration: 4000 });
+
+        // Auto calculate distance if we have both addresses
+        if (newFormState.pickupAddress && newFormState.dropoffAddress) {
+          try {
+            const routeRes = await api.post('/routing/calculate', {
+              originAddress: newFormState.pickupAddress,
+              destAddress: newFormState.dropoffAddress,
+              weightKg: newFormState.weightKg ? Number(newFormState.weightKg) : 0
+            });
+            if (routeRes.data && routeRes.data.distanceKm) {
+              setForm((prev: any) => ({ ...prev, distanceKm: routeRes.data.distanceKm.toString() }));
+              toast.success(`Distanța calculată automat: ${routeRes.data.distanceKm} km`, { duration: 4000 });
+            }
+          } catch (e) {
+            console.error('Auto route calc failed', e);
+          }
+        }
       } else {
         const backendErr = res.data?.error || '';
         const isKeyMissing = backendErr.includes('GEMINI_API_KEY');
@@ -679,7 +699,7 @@ export default function TripsPage() {
               />
             </div>
             <div>
-              <label className="label font-semibold">{t('distance')} (km)</label>
+              <label className="label font-semibold">{t('distance')}</label>
               <input type="number" className="input" value={form.distanceKm} onChange={e => setForm({...form, distanceKm: e.target.value})} />
             </div>
             {/* ─── Route Calculator (spans full width) ─── */}
