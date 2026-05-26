@@ -897,7 +897,7 @@ export default function TripsPage() {
                   <label className="label text-xs flex items-center gap-1 font-semibold">
                     <Layers className="w-3.5 h-3.5 text-primary" /> {t('pallets')}
                   </label>
-                  <input type="number" placeholder="ex: 33" className="input" value={form.pallets} onChange={e => setForm({...form, pallets: e.target.value})} />
+                  <input type="number" placeholder="e.g. 33" className="input" value={form.pallets} onChange={e => setForm({...form, pallets: e.target.value})} />
                 </div>
                 <div>
                   <label className="label text-xs flex items-center gap-1 font-semibold">
@@ -953,13 +953,13 @@ export default function TripsPage() {
                   <label className="label text-xs flex items-center gap-1 font-semibold">
                     <Scale className="w-3.5 h-3.5 text-primary" /> {t('weightKg')}
                   </label>
-                  <input type="number" placeholder="ex: 24000" className="input" value={form.weightKg} onChange={e => setForm({...form, weightKg: e.target.value})} />
+                  <input type="number" placeholder="e.g. 24000" className="input" value={form.weightKg} onChange={e => setForm({...form, weightKg: e.target.value})} />
                 </div>
                 <div>
                   <label className="label text-xs flex items-center gap-1 font-semibold">
                     <Box className="w-3.5 h-3.5 text-primary" /> {t('volumeCbm')}
                   </label>
-                  <input type="number" step="0.01" placeholder="ex: 86.5" className="input" value={form.volumeCbm} onChange={e => setForm({...form, volumeCbm: e.target.value})} />
+                  <input type="number" step="0.01" placeholder="e.g. 86.5" className="input" value={form.volumeCbm} onChange={e => setForm({...form, volumeCbm: e.target.value})} />
                 </div>
               </div>
             </div>

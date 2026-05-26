@@ -206,7 +206,7 @@ export default function DriversPage() {
                 className="input"
                 value={form.email}
                 onChange={e => setForm({ ...form, email: e.target.value })}
-                placeholder="sofer@haptrans.ro"
+                placeholder="driver@company.com"
                 required
               />
             </div>
@@ -245,7 +245,7 @@ export default function DriversPage() {
                 className="input"
                 value={form.phone}
                 onChange={e => setForm({ ...form, phone: e.target.value })}
-                placeholder="+40 7xx xxx xxx"
+                placeholder="+1 234 567 8900"
               />
             </div>
 
@@ -258,7 +258,7 @@ export default function DriversPage() {
                 className="input"
                 value={form.licenseNumber}
                 onChange={e => setForm({ ...form, licenseNumber: e.target.value })}
-                placeholder="RO0090099..."
+                placeholder="ID-123456..."
               />
             </div>
 
@@ -272,7 +272,7 @@ export default function DriversPage() {
                 className="input"
                 value={form.dailyRate}
                 onChange={e => setForm({ ...form, dailyRate: e.target.value })}
-                placeholder="Ex: 55"
+                placeholder="e.g. 55"
               />
             </div>
 
@@ -286,7 +286,7 @@ export default function DriversPage() {
                 className="input"
                 value={form.grossSalary}
                 onChange={e => setForm({ ...form, grossSalary: e.target.value })}
-                placeholder="Ex: 2500"
+                placeholder="e.g. 2500"
               />
             </div>
 

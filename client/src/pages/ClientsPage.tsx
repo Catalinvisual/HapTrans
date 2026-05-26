@@ -108,7 +108,7 @@ export default function ClientsPage() {
               <AddressAutocomplete
                 value={form.address}
                 onChange={val => setForm({ ...form, address: val })}
-                placeholder="Stradă, Nr., Bloc..."
+                placeholder="Street, No., Building..."
               />
             </div>
 

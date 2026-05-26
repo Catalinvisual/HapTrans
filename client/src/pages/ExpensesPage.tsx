@@ -214,7 +214,7 @@ export default function ExpensesPage() {
 
             <div className="lg:col-span-3">
               <label className="label font-semibold text-xs">{t('expenseDescription')}</label>
-              <input type="text" className="input" value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Ex: Motorină, Servicii contabile mai..." required />
+              <input type="text" className="input" value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="e.g. Fuel, Accounting services etc..." required />
             </div>
 
             {form.receiptUrl && (
