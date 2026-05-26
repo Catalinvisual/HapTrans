@@ -8,6 +8,7 @@ import { TrucksModule } from './trucks/trucks.module';
 import { DriversModule } from './drivers/drivers.module';
 import { TripsModule } from './trips/trips.module';
 import { InvoicesModule } from './invoices/invoices.module';
+import { ExpensesModule } from './expenses/expenses.module';
 import { DocumentsModule } from './documents/documents.module';
 import { MaintenanceModule } from './maintenance/maintenance.module';
 import { ChatModule } from './chat/chat.module';
@@ -47,6 +48,7 @@ import { AppService } from './app.service';
     DriversModule,
     TripsModule,
     InvoicesModule,
+    ExpensesModule,
     DocumentsModule,
     MaintenanceModule,
     ChatModule,

@@ -15,6 +15,7 @@ import FinancialPage from './pages/FinancialPage';
 import PayrollPage from './pages/PayrollPage';
 import MaintenancePage from './pages/MaintenancePage';
 import SettingsPage from './pages/SettingsPage';
+import ExpensesPage from './pages/ExpensesPage';
 import UsersPage from './pages/UsersPage';
 import ChatPage from './pages/ChatPage';
 

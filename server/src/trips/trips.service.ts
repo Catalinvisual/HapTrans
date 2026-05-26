@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, In, LessThanOrEqual, MoreThanOrEqual, Not } from 'typeorm';
 import { Trip, TripStatus } from './trip.entity';
 import { Truck } from '../trucks/truck.entity';
+import { Expense } from '../expenses/expense.entity';
 import { TripCost } from './trip-cost.entity';
 import { FirebaseService } from '../firebase/firebase.service';
 import { ChatGateway } from '../chat/chat.gateway';

@@ -25,6 +25,7 @@ export default function FinancialPage() {
 
   const totalRevenue = monthly.reduce((s, m) => s + (m.totalRevenue || 0), 0);
   const totalCost = monthly.reduce((s, m) => s + (m.totalCost || 0), 0);
+  const totalExpenses = monthly.reduce((s, m) => s + (m.totalExpenses || 0), 0);
   const totalProfit = monthly.reduce((s, m) => s + (m.profit || 0), 0);
 
   return (
@@ -58,7 +59,8 @@ export default function FinancialPage() {
               <Tooltip formatter={(v: any) => [`€${Number(v || 0).toLocaleString(i18n.language)}`, '']} />
               <Legend />
               <Bar dataKey="totalRevenue" fill="#16A34A" name={t('revenue')} radius={[4,4,0,0]} />
-              <Bar dataKey="totalCost" fill="#DC2626" name={t('costs')} radius={[4,4,0,0]} />
+              <Bar dataKey="totalCost" fill="#DC2626" name={t('costs')} stackId="a" radius={[0,0,0,0]} />
+              <Bar dataKey="totalExpenses" fill="#991B1B" name="Cheltuieli" stackId="a" radius={[4,4,0,0]} />
               <Bar dataKey="profit" fill="#FF7A1A" name={t('profit')} radius={[4,4,0,0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -67,7 +69,7 @@ export default function FinancialPage() {
       <div className="card p-0 overflow-x-auto">
         <table className="w-full">
           <thead><tr className="bg-surface border-b border-border">
-            {[t('monthTable'), t('trips'), t('revenue'), t('costs'), t('profit'), t('costPerKm')].map(h => <th key={h} className="table-header">{h}</th>)}
+            {[t('monthTable'), t('trips'), t('revenue'), t('costs'), 'Cheltuieli (Exp)', t('profit'), t('costPerKm')].map(h => <th key={h} className="table-header">{h}</th>)}
           </tr></thead>
           <tbody>
             {monthly.map(m => (
