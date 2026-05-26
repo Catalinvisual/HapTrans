@@ -111,7 +111,7 @@ export default function TripsPage() {
 
   const handleSmartDispatch = async () => {
     if (!form.pickupAddress) {
-      toast.error(t('smartDispatchAddressError') || 'Introdu mai întâi adresa de preluare (Pickup)!');
+      toast.error(t('smartDispatchAddressError'));
       return;
     }
     
@@ -121,12 +121,12 @@ export default function TripsPage() {
     );
 
     if (availableTrucks.length === 0) {
-      toast.error(t('noAvailableTrucks') || 'Nu există camioane disponibile cu locație GPS cunoscută.');
+      toast.error(t('noAvailableTrucks'));
       return;
     }
 
     setIsDispatching(true);
-    const toastId = toast.loading(t('calculatingSmartDispatch') || 'Calculăm cel mai apropiat camion...');
+    const toastId = toast.loading(t('calculatingSmartDispatch'));
 
     try {
       const geoRes = await api.get('/routing/geocode', { params: { address: form.pickupAddress } });
@@ -164,11 +164,11 @@ export default function TripsPage() {
           driverId: closestTruck.driver?.id || prev.driverId,
         }));
         toast.success(
-          `${t('smartDispatchSuccess') || 'S-a auto-selectat'} ${closestTruck.plateNumber} (aprox. ${Math.round(minDistance)} km distanță pe gol)`
+          t('smartDispatchSuccessDetail', { plate: closestTruck.plateNumber, dist: Math.round(minDistance) })
         );
       }
     } catch (err) {
-      toast.error(t('smartDispatchError') || 'Eroare la calcularea distanțelor.');
+      toast.error(t('smartDispatchError'));
     } finally {
       toast.dismiss(toastId);
       setIsDispatching(false);
@@ -230,9 +230,9 @@ export default function TripsPage() {
             });
             if (routeRes.data && routeRes.data.distanceKm) {
               setForm((prev: any) => ({ ...prev, distanceKm: routeRes.data.distanceKm.toString() }));
-              toast.success(`Distanța calculată automat: ${routeRes.data.distanceKm} km`, { duration: 4000 });
+              toast.success(t('toast_auto_distance_success', { dist: routeRes.data.distanceKm }), { duration: 4000 });
             } else if (routeRes.data && routeRes.data.error) {
-              toast.error(`Nu s-a putut calcula distanța automat: ${routeRes.data.error}. Te rugăm să verifici sau să completezi adresele manual.`, { duration: 6000 });
+              toast.error(t('toast_auto_distance_error', { error: routeRes.data.error }), { duration: 6000 });
             }
           } catch (e) {
             console.error('Auto route calc failed', e);
@@ -243,7 +243,7 @@ export default function TripsPage() {
         const isKeyMissing = backendErr.includes('GEMINI_API_KEY');
         toast.error(
           isKeyMissing
-            ? '⚠️ GEMINI_API_KEY nu este configurată pe server. Adaugă variabila în Railway.'
+            ? t('toast_gemini_key_missing')
             : `${t('scannerFailed')}${backendErr ? ` (${backendErr})` : ''}`,
           { id: toastId, duration: 6000 }
         );
@@ -342,10 +342,12 @@ export default function TripsPage() {
         }
         return false;
       });
-
       if (overlappingTrip) {
         const isDriver = overlappingTrip.driver?.id === form.driverId;
-        conflictWarning = `⚠️ Atenție: Suprapunere detectată!\n${isDriver ? 'Șoferul' : 'Camionul'} este deja alocat pe o altă cursă activă în acea perioadă (${overlappingTrip.pickupAddress?.split(',')[0] || ''} -> ${overlappingTrip.dropoffAddress?.split(',')[0] || ''}).\n\n`;
+        const resourceName = isDriver ? t('driver').toLowerCase() : t('truck').toLowerCase();
+        const fromCity = overlappingTrip.pickupAddress?.split(',')[0] || '';
+        const toCity = overlappingTrip.dropoffAddress?.split(',')[0] || '';
+        conflictWarning = t('conflict_warning_message', { resource: resourceName, from: fromCity, to: toCity }) + '\n\n';
       }
     }
 
@@ -755,7 +757,7 @@ export default function TripsPage() {
                       const days = Math.max(1, Math.ceil(hours / 24));
                       extraCost = days * Number(dr.dailyRate);
                       if (extraCost > 0) {
-                        toast.success(`S-au adăugat €${extraCost.toFixed(2)} pentru costul șoferului (${days} zile)`);
+                        toast.success(t('toast_driver_cost_added', { cost: extraCost.toFixed(2), days }));
                       }
                     }
                   }
@@ -777,7 +779,7 @@ export default function TripsPage() {
                           // consum mediu 28L/100km pt mers pe gol
                           deadheadCost = (deadheadDist / 100) * 28 * dieselPrice; 
                           if (deadheadDist > 50) { // Doar daca e peste 50km avertizam puternic
-                            toast.success(`🚚 Calculat ${deadheadDist.toFixed(0)}km pe gol (de la ${lastTrip.dropoffAddress.split(',')[0]}). Cost adițional estimat: €${deadheadCost.toFixed(2)}`);
+                            toast.success(t('toast_deadhead_calculated', { dist: deadheadDist.toFixed(0), from: lastTrip.dropoffAddress.split(',')[0], cost: deadheadCost.toFixed(2) }));
                           }
                         }
                       } catch(e) {
@@ -792,7 +794,7 @@ export default function TripsPage() {
                     distanceKm: distanceKm.toString(),
                     ...(estimatedCost !== undefined ? { estimatedCost: finalCost.toFixed(2) } : {}),
                   }));
-                  toast.success('✅ Datele rutei au fost aplicate!');
+                  toast.success(t('toast_route_applied'));
                 }}
               />
             </div>
@@ -803,8 +805,8 @@ export default function TripsPage() {
                   <div className="flex items-center gap-3 text-orange-800">
                     <AlertTriangle className="w-6 h-6 text-orange-500" />
                     <div>
-                      <p className="font-bold">Atenție: Camionul va rula pe gol {Math.round(deadheadWarning.dist)} km!</p>
-                      <p className="text-sm opacity-90">De la <b>{deadheadWarning.from}</b> până la punctul de încărcare. Cost suplimentar estimat: <b>€{deadheadWarning.cost.toFixed(2)}</b>.</p>
+                      <p className="font-bold">{t('deadhead_warning_title', { dist: Math.round(deadheadWarning.dist) })}</p>
+                      <p className="text-sm opacity-90">{t('deadhead_warning_desc', { from: deadheadWarning.from, cost: deadheadWarning.cost.toFixed(2) })}</p>
                     </div>
                   </div>
                   <button type="button" className="btn-secondary py-1.5 px-3 text-sm border-orange-200 text-orange-700 hover:bg-orange-100" onClick={() => {
@@ -812,7 +814,7 @@ export default function TripsPage() {
                     setForm({...form, estimatedCost: (currentEst + deadheadWarning.cost).toFixed(2)});
                     setDeadheadWarning(null);
                   }}>
-                    Adaugă la cost estimat
+                    {t('deadhead_warning_btn')}
                   </button>
                 </div>
               )}
