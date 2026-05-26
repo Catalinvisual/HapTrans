@@ -182,7 +182,7 @@ export default function TripsPage() {
 
     setIsScanLoading(true);
     setScanSuccess(false);
-    const toastId = toast.loading('🤖 AI scanează documentul...');
+    const toastId = toast.loading(t('scannerTitle'));
 
     try {
       const res = await api.post('/trips/scan-document', formData, {
@@ -211,12 +211,12 @@ export default function TripsPage() {
           return updated;
         });
         setScanSuccess(true);
-        toast.success('✨ Datele cursei au fost extrase automat!', { id: toastId, duration: 4000 });
+        toast.success(t('scannerExtracted'), { id: toastId, duration: 4000 });
       } else {
-        toast.error('Nu am putut extrage date din document. Completați manual.', { id: toastId });
+        toast.error(t('scannerFailed'), { id: toastId });
       }
     } catch (err) {
-      toast.error('Eroare la scanarea documentului.', { id: toastId });
+      toast.error(t('scannerError'), { id: toastId });
     } finally {
       setIsScanLoading(false);
       // reset input so same file can be re-uploaded
@@ -564,12 +564,12 @@ export default function TripsPage() {
                 </div>
                 <div>
                   <p className="font-bold text-sm text-text">
-                    {scanSuccess ? '✅ Document scanat cu succes!' : '🤖 Smart AI Scanner'}
+                    {scanSuccess ? t('scannerSuccessTitle') : t('scannerTitle')}
                   </p>
                   <p className="text-xs text-text-secondary">
                     {scanSuccess 
-                      ? 'Verificați câmpurile completate automat mai jos.'
-                      : 'Încarcă o comandă de transport sau CMR — AI completează automat formularul.'
+                      ? t('scannerSuccessSubtitle')
+                      : t('scannerSubtitle')
                     }
                   </p>
                 </div>
@@ -590,10 +590,10 @@ export default function TripsPage() {
                   disabled={isScanLoading} 
                 />
                 {isScanLoading 
-                  ? 'Se procesează...'
+                  ? t('scannerProcessing')
                   : scanSuccess 
-                    ? '🔄 Rescanează alt document'
-                    : '📄 Încarcă Document'
+                    ? t('scannerRescan')
+                    : t('scannerUpload')
                 }
               </label>
             </div>
