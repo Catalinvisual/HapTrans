@@ -260,22 +260,70 @@ class _TripsScreenState extends State<TripsScreen> {
                                     ),
                                   ]),
                                   const SizedBox(height: 12),
-                                  Row(children: [
-                                    const Icon(Icons.circle, size: 8, color: kSuccess),
-                                    const SizedBox(width: 8),
-                                    Expanded(child: Text(trip['pickupAddress'] ?? '—',
-                                      style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14))),
-                                  ]),
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 4),
-                                    child: Container(width: 1, height: 16, color: kBorder),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Padding(
+                                        padding: EdgeInsets.only(top: 4),
+                                        child: Icon(Icons.circle, size: 8, color: kSuccess),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            if (trip['pickupCompanyName'] != null && trip['pickupCompanyName'].toString().isNotEmpty)
+                                              Text(
+                                                trip['pickupCompanyName'],
+                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: kText),
+                                              ),
+                                            Text(
+                                              trip['pickupAddress'] ?? '—',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w500,
+                                                fontSize: 13,
+                                                color: (trip['pickupCompanyName'] != null && trip['pickupCompanyName'].toString().isNotEmpty) ? kTextSecondary : kText,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  Row(children: [
-                                    const Icon(Icons.location_on, size: 10, color: kError),
-                                    const SizedBox(width: 6),
-                                    Expanded(child: Text(trip['dropoffAddress'] ?? '—',
-                                      style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14))),
-                                  ]),
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 3, top: 4, bottom: 4),
+                                    child: Container(width: 2, height: 16, color: kBorder),
+                                  ),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Padding(
+                                        padding: EdgeInsets.only(top: 3),
+                                        child: Icon(Icons.location_on, size: 10, color: kError),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            if (trip['dropoffCompanyName'] != null && trip['dropoffCompanyName'].toString().isNotEmpty)
+                                              Text(
+                                                trip['dropoffCompanyName'],
+                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: kText),
+                                              ),
+                                            Text(
+                                              trip['dropoffAddress'] ?? '—',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w500,
+                                                fontSize: 13,
+                                                color: (trip['dropoffCompanyName'] != null && trip['dropoffCompanyName'].toString().isNotEmpty) ? kTextSecondary : kText,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                   const SizedBox(height: 12),
                                   Row(children: [
                                     const Icon(Icons.calendar_today_outlined, size: 14, color: kTextSecondary),
