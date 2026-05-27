@@ -4,8 +4,8 @@ Am finalizat modificările solicitate în aplicația mobilă Flutter a șoferilo
 
 ## Modificări Efectuate
 
-### 1. Ascunderea Clientului SaaS
-- **În lista de curse (`trips_screen.dart`):** Am eliminat câmpul text în care era afișat numele clientului SaaS adăugat din platformă.
+### 1. Ascunderea Clientului SaaS și Îmbunătățirea Listei de Curse
+- **În lista de curse (`trips_screen.dart`):** Am eliminat numele clientului SaaS adăugat din platformă. În locul lui, pentru o experiență mai bună a șoferilor, am adăugat afișarea numelui clientului/companiei fizice de încărcare (`pickupCompanyName`) și predare (`dropoffCompanyName`) deasupra adreselor din cardurile de cursă (cu text îngroșat, exact cum ați solicitat).
 - **În ecranul de detalii al cursei (`trips_screen.dart`):** Am eliminat rândul corespunzător clientului SaaS (`person_outline`).
 
 ### 2. Reordonarea câmpurilor din Detalii Cursă
