@@ -28,7 +28,8 @@ Am reordonat elementele din modalul de detalii al cursei (`TripDetailSheet` în 
 - **Serviciu de Fundal (`background_location_service.dart` & `notification_service.dart`):**
   - Am modificat nivelul de importanță a canalului de notificare de tracking la `Importance.min`.
   - Am redenumit ID-ul canalului de notificare la `'haptrans_location_service_v2'`. Acest pas garantează că dispozitivele pe care aplicația era deja instalată vor recrea canalul de la zero, aplicând importanța minimă.
-  - **Rezultat:** Notificarea de tracking activ nu va mai afișa iconița persistentă în bara de stare de sus a telefonului, rămânând ascunsă/minimizată și silențioasă în meniul de notificări (fără ca Android să închidă serviciul).
+  - **Înlocuire Pictogramă (Frunză):** Pentru că nu era definită o imagine custom în resurse, sistemul afișa pictograma implicită a librăriei de fundal (o frunză). Am creat și adăugat resursa vector `ic_bg_service_small.xml` (reprezentând un camion) în resursele Android, înlocuind acea frunză cu o pictogramă de camion asortată aplicației.
+  - **Rezultat:** Notificarea de tracking activ nu va mai afișa iconița persistentă în bara de stare de sus a telefonului, rămânând ascunsă/minimizată și silențioasă în meniul de notificări (fără ca Android să închidă serviciul), afișând acum pictograma de camion în loc de frunză.
 - **Notificări normale (mesaje chat și status):**
   - Canalul principal `'haptrans_channel_id'` a rămas neatins, configurat la `Importance.max`.
   - **Rezultat:** Notificările pentru mesaje de chat noi sau schimbări de status ale curselor vor continua să aibă sunet, vibrație, să apară în partea de sus a ecranului (heads-up) și vor fi complet ștergibile prin glisare.
