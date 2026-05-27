@@ -123,7 +123,7 @@ class BackgroundLocationService {
         onStart: onStart,
         autoStart: false,
         isForegroundMode: true,
-        notificationChannelId: 'haptrans_location_service',
+        notificationChannelId: 'haptrans_location_service_v2',
         initialNotificationTitle: 'HapTrans - Tracking Activ',
         initialNotificationContent: 'Locația ta este monitorizată pentru dispecerat în timpul cursei.',
         foregroundServiceNotificationId: 888,
@@ -182,10 +182,10 @@ void onStart(ServiceInstance service) async {
 
   final FlutterLocalNotificationsPlugin localNotif = FlutterLocalNotificationsPlugin();
   const locationChannel = AndroidNotificationChannel(
-    'haptrans_location_service',
+    'haptrans_location_service_v2',
     'HapTrans Tracking',
     description: 'Locația ta este monitorizată pentru dispecerat în timpul cursei.',
-    importance: Importance.low,
+    importance: Importance.min,
     playSound: false,
     enableVibration: false,
   );

@@ -92,10 +92,10 @@ class NotificationService {
           ?.createNotificationChannel(channel);
 
       const locationChannel = AndroidNotificationChannel(
-        'haptrans_location_service',
+        'haptrans_location_service_v2',
         'HapTrans Tracking',
         description: 'Locația ta este monitorizată pentru dispecerat în timpul cursei.',
-        importance: Importance.low,
+        importance: Importance.min,
         playSound: false,
         enableVibration: false,
       );

@@ -258,9 +258,6 @@ class _TripsScreenState extends State<TripsScreen> {
                                       child: Text(_statusLabel(status, locale),
                                         style: TextStyle(color: _statusColor(status), fontSize: 12, fontWeight: FontWeight.w600)),
                                     ),
-                                    const Spacer(),
-                                    Text(trip['client']?['name'] ?? '—',
-                                      style: const TextStyle(color: kTextSecondary, fontSize: 12)),
                                   ]),
                                   const SizedBox(height: 12),
                                   Row(children: [
@@ -365,28 +362,9 @@ class TripDetailSheet extends StatelessWidget {
             Text({'ro':'Detalii cursă','en':'Trip details','nl':'Rit details'}[locale] ?? 'Trip details',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
-            _InfoRow(Icons.person_outline, 'Client', trip['client']?['name'] ?? '—'),
-            _InfoRow(Icons.local_shipping_outlined, 'Camion', trip['truck']?['plateNumber'] ?? '—'),
-            _InfoRow(Icons.my_location, {'ro':'Preluare','en':'Pickup','nl':'Ophalen'}[locale]!, 
-              (trip['pickupCompanyName'] != null && trip['pickupCompanyName'].toString().isNotEmpty) 
-                ? '${trip['pickupCompanyName']}\n${trip['pickupAddress'] ?? '-'}' 
-                : (trip['pickupAddress'] ?? '-')),
-            if (trip['pickupTime'] != null && trip['pickupTime'].toString().isNotEmpty)
-              _InfoRow(Icons.access_time, {'ro':'Ora Preluare','en':'Pickup Time','nl':'Ophaaltijd'}[locale]!, trip['pickupTime']),
-            _InfoRow(Icons.location_on_outlined, {'ro':'Predare','en':'Dropoff','nl':'Afleveren'}[locale]!, 
-              (trip['dropoffCompanyName'] != null && trip['dropoffCompanyName'].toString().isNotEmpty) 
-                ? '${trip['dropoffCompanyName']}\n${trip['dropoffAddress'] ?? '-'}' 
-                : (trip['dropoffAddress'] ?? '-')),
-            if (trip['dropoffTime'] != null && trip['dropoffTime'].toString().isNotEmpty)
-              _InfoRow(Icons.access_time_filled, {'ro':'Ora Livrare','en':'Delivery Time','nl':'Aflevertijd'}[locale]!, trip['dropoffTime']),
-            
-            // Logistics Details (Without Price!)
-            if (trip['pallets'] != null)
-              _InfoRow(Icons.inventory_2_outlined, {'ro':'Număr Paleți','en':'Pallets Number','nl':'Aantal Pallets'}[locale]!, '${trip['pallets']} EPAL'),
-            if (trip['weightKg'] != null)
-              _InfoRow(Icons.scale_outlined, {'ro':'Greutate (Kg)','en':'Weight (Kg)','nl':'Gewicht (Kg)'}[locale]!, '${double.tryParse(trip['weightKg'].toString())?.toStringAsFixed(0)} kg'),
-            if (trip['volumeCbm'] != null)
-              _InfoRow(Icons.view_in_ar_outlined, {'ro':'Volum (Mc)','en':'Volume (Cbm)','nl':'Volume (Mc)'}[locale]!, '${double.tryParse(trip['volumeCbm'].toString())?.toStringAsFixed(1)} m³'),
+            _InfoRow(Icons.local_shipping_outlined, {'ro':'Camion','en':'Truck','nl':'Vrachtwagen'}[locale] ?? 'Camion', trip['truck']?['plateNumber'] ?? '—'),
+            _InfoRow(Icons.business_outlined, {'ro':'Nume client încărcare','en':'Pickup Company','nl':'Naam laadklant'}[locale] ?? 'Nume client încărcare', (trip['pickupCompanyName'] != null && trip['pickupCompanyName'].toString().isNotEmpty) ? trip['pickupCompanyName'] : '—'),
+            _InfoRow(Icons.my_location, {'ro':'Adresă de încărcare','en':'Pickup Address','nl':'Laadadres'}[locale] ?? 'Adresă de încărcare', trip['pickupAddress'] ?? '—'),
             if (trip['loadingReference'] != null && trip['loadingReference'].toString().isNotEmpty)
               _InfoRow(Icons.input_rounded, {
                 'ro': 'Referință încărcare',
@@ -395,6 +373,10 @@ class TripDetailSheet extends StatelessWidget {
                 'de': 'Ladereferenz',
                 'fr': 'Référence de chargement'
               }[locale] ?? 'Loading Reference', trip['loadingReference']),
+            _InfoRow(Icons.calendar_today_outlined, {'ro':'Data și ora de încărcare','en':'Pickup Date & Time','nl':'Laaddatum en -tijd'}[locale] ?? 'Data și ora de încărcare', 
+              '${trip['pickupDate'] != null ? formatAppDate(trip['pickupDate']) : '—'}${trip['pickupTime'] != null && trip['pickupTime'].toString().isNotEmpty ? ' (${trip['pickupTime']})' : ''}'),
+            _InfoRow(Icons.business_outlined, {'ro':'Client predare marfă','en':'Dropoff Company','nl':'Naam losklant'}[locale] ?? 'Client predare marfă', (trip['dropoffCompanyName'] != null && trip['dropoffCompanyName'].toString().isNotEmpty) ? trip['dropoffCompanyName'] : '—'),
+            _InfoRow(Icons.location_on_outlined, {'ro':'Adresă predare marfă','en':'Dropoff Address','nl':'Losadres'}[locale] ?? 'Adresă predare marfă', trip['dropoffAddress'] ?? '—'),
             if (trip['unloadingReference'] != null && trip['unloadingReference'].toString().isNotEmpty)
               _InfoRow(Icons.output_rounded, {
                 'ro': 'Referință descărcare',
@@ -403,6 +385,14 @@ class TripDetailSheet extends StatelessWidget {
                 'de': 'Entladereferenz',
                 'fr': 'Référence de déchargement'
               }[locale] ?? 'Unloading Reference', trip['unloadingReference']),
+            _InfoRow(Icons.calendar_today_rounded, {'ro':'Data și ora de predare','en':'Dropoff Date & Time','nl':'Losdatum en -tijd'}[locale] ?? 'Data și ora de predare', 
+              '${trip['dropoffDate'] != null ? formatAppDate(trip['dropoffDate']) : '—'}${trip['dropoffTime'] != null && trip['dropoffTime'].toString().isNotEmpty ? ' (${trip['dropoffTime']})' : ''}'),
+            if (trip['pallets'] != null)
+              _InfoRow(Icons.inventory_2_outlined, {'ro':'Număr Paleți','en':'Pallets Number','nl':'Aantal Pallets'}[locale]!, '${trip['pallets']} EPAL'),
+            if (trip['weightKg'] != null)
+              _InfoRow(Icons.scale_outlined, {'ro':'Greutate (Kg)','en':'Weight (Kg)','nl':'Gewicht (Kg)'}[locale]!, '${double.tryParse(trip['weightKg'].toString())?.toStringAsFixed(0)} kg'),
+            if (trip['volumeCbm'] != null)
+              _InfoRow(Icons.view_in_ar_outlined, {'ro':'Volum marfă (Mc)','en':'Volume (Cbm)','nl':'Volume (Mc)'}[locale]!, '${double.tryParse(trip['volumeCbm'].toString())?.toStringAsFixed(1)} m³'),
             if (trip['notes'] != null && trip['notes'].toString().isNotEmpty)
               _InfoRow(Icons.notes, {'ro':'Observații','en':'Notes','nl':'Notities'}[locale]!, trip['notes']),
             
