@@ -72,7 +72,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
             >
               <Icon className="w-5 h-5 md:w-4 md:h-4 flex-shrink-0" />
-              <span className="truncate text-base md:text-sm">{t(key)}</span>
+              <span className="truncate text-base md:text-sm capitalize">{t(key)}</span>
             </NavLink>
           ))}
         </nav>

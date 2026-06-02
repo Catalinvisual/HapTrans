@@ -123,7 +123,7 @@ export default function TrucksPage() {
             <thead>
               <tr className="bg-surface border-b border-border">
                 {[t('plateNumber'), t('brand'), t('model'), t('year'), 'Capacitate', 'Consum', t('status'), t('documents'), t('actions')].map(h => (
-                  <th key={h} className="table-header">{h}</th>
+                  <th key={h} className={`table-header ${h === t('actions') ? 'text-right pr-4' : ''}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -152,7 +152,7 @@ export default function TrucksPage() {
                     ) : '—'}
                   </td>
                   <td className="table-cell">
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center justify-end gap-1 pr-2">
                       <button onClick={() => { setForm({ plateNumber: truck.plateNumber, brand: truck.brand, model: truck.model, year: truck.year, payloadCapacity: truck.payloadCapacity, fuelConsumption: truck.fuelConsumption, totalMileage: truck.totalMileage || '', nextMaintenanceMileage: truck.nextMaintenanceMileage || '' }); setEditId(truck.id); setShowForm(true); }} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary-light transition-all">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>

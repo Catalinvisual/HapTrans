@@ -74,7 +74,7 @@ export default function PlanningPage() {
             <CalendarDays className="w-6 h-6 text-primary" />
             {t('planning') || 'Planificare (Disponibilitate)'}
           </h1>
-          <p className="text-text-secondary text-sm">Vizualizare curse pe interval de zile</p>
+          <p className="text-text-secondary text-sm">{t('planningSubtitle') || 'Vizualizare curse pe interval de zile'}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -97,7 +97,7 @@ export default function PlanningPage() {
               <ChevronLeft className="w-5 h-5" />
             </button>
             <button onClick={handleToday} className="px-4 py-2 rounded-xl border border-border hover:bg-surface text-sm font-semibold transition-all">
-              Azi
+              {t('todayBtn') || 'Azi'}
             </button>
             <button onClick={handleNext} className="p-2 rounded-xl border border-border hover:bg-surface text-text-secondary transition-all">
               <ChevronRight className="w-5 h-5" />
@@ -114,13 +114,13 @@ export default function PlanningPage() {
       {/* Gantt Chart Area */}
       <div className="flex-1 card p-0 overflow-hidden bg-white border border-border rounded-2xl shadow-sm flex flex-col">
         {loading ? (
-          <div className="flex-1 flex items-center justify-center text-text-secondary">Se încarcă...</div>
+          <div className="flex-1 flex items-center justify-center text-text-secondary">{t('loading')}</div>
         ) : (
           <div className="flex flex-1 overflow-hidden relative">
             {/* Left Sidebar (Trucks) */}
             <div className="w-48 sm:w-64 flex-shrink-0 border-r border-border bg-surface z-10 flex flex-col">
               <div className="h-12 border-b border-border flex items-center px-4 font-bold text-sm text-text-secondary">
-                Camion
+                {t('truck')}
               </div>
               <div className="flex-1 overflow-y-auto custom-scrollbar">
                 {filteredTrucks.map(truck => (
@@ -174,7 +174,7 @@ export default function PlanningPage() {
                                 ? 'bg-red-500 text-white border border-red-600' 
                                 : 'bg-emerald-500 text-white border border-emerald-600'
                             }`}
-                            title={isBusy ? `Client: ${activeTrip.client?.name || 'Intern'}` : t('free')}
+                            title={isBusy ? `${t('client') || 'Client'}: ${activeTrip.client?.name || 'Intern'}` : t('free')}
                           >
                             {isBusy ? t('busy') : t('free')}
                           </div>
