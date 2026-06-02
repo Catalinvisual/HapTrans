@@ -167,12 +167,12 @@ export default function PlanningPage() {
                       const isBusy = !!activeTrip;
 
                       return (
-                        <div key={day.toISOString()} className="flex-1 min-w-[100px] border-r border-border/30 h-full flex items-center justify-center p-1">
+                        <div key={day.toISOString()} className={`flex-1 min-w-[100px] border-r border-border/30 h-full flex items-center justify-center p-1.5 ${isBusy ? 'bg-red-50/30' : 'bg-emerald-50/30'}`}>
                           <div 
-                            className={`w-full py-1.5 rounded text-center text-xs font-bold transition-all shadow-sm ${
+                            className={`w-full py-1.5 rounded-md text-center text-xs font-bold transition-all shadow-sm ${
                               isBusy 
-                                ? 'bg-error-light text-error-dark border border-error/20' 
-                                : 'bg-success-light text-success-dark border border-success/20'
+                                ? 'bg-red-500 text-white border border-red-600' 
+                                : 'bg-emerald-500 text-white border border-emerald-600'
                             }`}
                             title={isBusy ? `Client: ${activeTrip.client?.name || 'Intern'}` : t('free')}
                           >

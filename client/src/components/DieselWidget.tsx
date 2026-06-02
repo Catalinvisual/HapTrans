@@ -24,7 +24,7 @@ const COUNTRY_NAMES: Record<string, Record<string, string>> = {
   fr: { RO: 'Roumanie', NL: 'Pays-Bas', DE: 'Allemagne', FR: 'France', BE: 'Belgique', PL: 'Pologne', HU: 'Hongrie', AT: 'Autriche' },
 };
 
-const CACHE_KEY = 'haptrans_diesel_prices_v3';
+const CACHE_KEY = 'haptrans_diesel_prices_v4';
 const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
 
 export default function DieselWidget({ avgConsumptionL100 = 32 }: { avgConsumptionL100?: number }) {
@@ -67,11 +67,11 @@ export default function DieselWidget({ avgConsumptionL100 = 32 }: { avgConsumpti
   useEffect(() => { loadPrices(); }, []);
 
   const TEXTS: Record<string, any> = {
-    ro: { title: 'Prețuri Diesel EU', extErr: 'Date estimative — server extern indisponibil', calcTitle: 'Calculator cost combustibil (consum', est: 'Preț estimat' },
-    en: { title: 'EU Diesel Prices', extErr: 'Estimated data — external server unavailable', calcTitle: 'Fuel cost calculator (consumption', est: 'Estimated price' },
-    nl: { title: 'EU Dieselprijzen', extErr: 'Geschatte gegevens - externe server onbeschikbaar', calcTitle: 'Brandstofkostencalculator (verbruik', est: 'Geschatte prijs' },
-    de: { title: 'EU Dieselpreise', extErr: 'Geschätzte Daten — externer Server nicht verfügbar', calcTitle: 'Kraftstoffkostenrechner (Verbrauch', est: 'Schätzpreis' },
-    fr: { title: 'Prix du Diesel UE', extErr: 'Données estimées - serveur externe indisponible', calcTitle: 'Calculateur de coût de carburant (consommation', est: 'Prix estimé' },
+    ro: { title: 'Prețuri Diesel EU', extErr: 'Date estimative curente (preț net mediu)', calcTitle: 'Calculator cost combustibil (consum', est: 'Preț estimat' },
+    en: { title: 'EU Diesel Prices', extErr: 'Current estimated data (avg net price)', calcTitle: 'Fuel cost calculator (consumption', est: 'Estimated price' },
+    nl: { title: 'EU Dieselprijzen', extErr: 'Huidige geschatte gegevens (gem. nettoprijs)', calcTitle: 'Brandstofkostencalculator (verbruik', est: 'Geschatte prijs' },
+    de: { title: 'EU Dieselpreise', extErr: 'Aktuelle Schätzdaten (durchschn. Nettopreis)', calcTitle: 'Kraftstoffkostenrechner (Verbrauch', est: 'Schätzpreis' },
+    fr: { title: 'Prix du Diesel UE', extErr: 'Données estimées actuelles (prix net moyen)', calcTitle: 'Calculateur de coût de carburant (consommation', est: 'Prix estimé' },
   };
   const L = TEXTS[lang] || TEXTS['en'];
 

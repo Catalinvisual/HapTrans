@@ -422,12 +422,15 @@ export default function LiveMapPage() {
       if (popup) {
         const lang = i18n.language || 'ro';
         const driverWord = DRIVER_TRANSLATIONS[lang] || DRIVER_TRANSLATIONS['ro'];
+        const subtextHtml = (label !== popupText && popupText) ? 
+          `<div style="font-size:11px;color:#475569;display:flex;align-items:center;gap:4px">
+             <span style="font-weight:bold;color:#FF7A1A">${driverWord}:</span> ${popupText}
+           </div>` : '';
+           
         popup.setHTML(`
           <div style="font-family:sans-serif;padding:6px 8px;min-width:140px">
             <div style="font-size:12px;font-weight:bold;color:#0F172A;margin-bottom:4px;border-bottom:1px solid #E2E8F0;padding-bottom:4px">${label}</div>
-            <div style="font-size:11px;color:#475569;display:flex;align-items:center;gap:4px">
-              <span style="font-weight:bold;color:#FF7A1A">${driverWord}:</span> ${popupText}
-            </div>
+            ${subtextHtml}
           </div>
         `);
       }
@@ -471,14 +474,17 @@ export default function LiveMapPage() {
       }
     }, true);
 
+    const subtextHtml = (label !== popupText && popupText) ? 
+      `<div style="font-size:11px;color:#475569;display:flex;align-items:center;gap:4px">
+         <span style="font-weight:bold;color:#FF7A1A">${driverWord}:</span> ${popupText}
+       </div>` : '';
+
     const marker = new window.maplibregl.Marker({ element: el })
       .setLngLat([lng, lat])
       .setPopup(new window.maplibregl.Popup({ offset: 30 }).setHTML(`
         <div style="font-family:sans-serif;padding:6px 8px;min-width:140px">
           <div style="font-size:12px;font-weight:bold;color:#0F172A;margin-bottom:4px;border-bottom:1px solid #E2E8F0;padding-bottom:4px">${label}</div>
-          <div style="font-size:11px;color:#475569;display:flex;align-items:center;gap:4px">
-            <span style="font-weight:bold;color:#FF7A1A">${driverWord}:</span> ${popupText}
-          </div>
+          ${subtextHtml}
         </div>
       `))
       .addTo(mapInstance.current);
