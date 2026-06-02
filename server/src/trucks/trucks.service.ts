@@ -3,7 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Truck } from './truck.entity';
 import { TruckDocument } from './truck-document.entity';
-
+import { Not } from 'typeorm';
+import { TruckStatus } from './truck.entity';
 @Injectable()
 export class TrucksService {
   constructor(
@@ -30,6 +31,14 @@ export class TrucksService {
       .where('d.expiryDate <= :future', { future })
       .orderBy('d.expiryDate', 'ASC')
       .getMany();
+  }
+
+  getAvailability() {
+    return this.repo.find({
+      where: { status: Not(TruckStatus.INACTIVE) },
+      relations: ['trips', 'trips.client'],
+      order: { plateNumber: 'ASC' },
+    });
   }
 
   updateLocation(id: string, lat: number, lng: number) {

@@ -18,6 +18,7 @@ import SettingsPage from './pages/SettingsPage';
 import ExpensesPage from './pages/ExpensesPage';
 import UsersPage from './pages/UsersPage';
 import ChatPage from './pages/ChatPage';
+import PlanningPage from './pages/PlanningPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore();
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="settings" element={<SettingsPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="chat" element={<ChatPage />} />
+          <Route path="planning" element={<PlanningPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

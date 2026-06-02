@@ -7,6 +7,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class TrucksController {
   constructor(private service: TrucksService) {}
   @Get() findAll() { return this.service.findAll(); }
+  @Get('availability') getAvailability() { return this.service.getAvailability(); }
   @Get('expiring') getExpiring() { return this.service.getExpiringDocuments(); }
   @Get(':id') findOne(@Param('id') id: string) { return this.service.findOne(id); }
   @Post() create(@Body() dto: any) { return this.service.create(dto); }
