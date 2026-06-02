@@ -135,7 +135,7 @@ export default function Dashboard() {
       {/* Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="card">
-          <h3 className="text-sm font-semibold text-text mb-4">Top Rute Profitabile</h3>
+          <h3 className="text-sm font-semibold text-text mb-4">{t('topProfitableRoutes') || 'Top Rute Profitabile'}</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={data?.profitByRoute ?? []} layout="vertical" margin={{ left: 20 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={true} stroke="rgba(0,0,0,0.05)" />
@@ -148,7 +148,7 @@ export default function Dashboard() {
         </div>
 
         <div className="card">
-          <h3 className="text-sm font-semibold text-text mb-4">Top Clienți (Profit)</h3>
+          <h3 className="text-sm font-semibold text-text mb-4">{t('topClientsProfit') || 'Top Clienți (Profit)'}</h3>
           <div className="space-y-4 mt-2">
             {(data?.topClients ?? []).map((client, idx) => (
               <div key={idx} className="flex items-center justify-between">

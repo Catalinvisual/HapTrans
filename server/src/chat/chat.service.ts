@@ -21,13 +21,14 @@ export class ChatService {
   async saveMessage(tripId: string, senderId: string, content: string, fileUrl?: string) {
     const isGeneral = !tripId || tripId === 'general' || tripId === '00000000-0000-0000-0000-000000000000';
     const isDriverChat = tripId && tripId.startsWith('driver_');
-    const msg = this.repo.create({
-      trip: (isGeneral || isDriverChat) ? null : ({ id: tripId } as any),
-      sender: { id: senderId } as any,
+    const msg = this.repo.create();
+    Object.assign(msg, {
+      trip: (isGeneral || isDriverChat) ? null : { id: tripId },
+      sender: { id: senderId },
       content,
       fileUrl,
       driverId: isDriverChat ? tripId.replace('driver_', '') : null,
-    } as any);
+    });
     const saved = await this.repo.save(msg);
     return this.repo.findOne({ where: { id: saved.id }, relations: ['sender'] });
   }

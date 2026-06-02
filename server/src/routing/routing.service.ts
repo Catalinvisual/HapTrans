@@ -252,14 +252,14 @@ export class RoutingService {
       this.logger.warn(`EC diesel API failed: ${e.message}. Using fallback static prices.`);
       // Fallback: reasonable static EU diesel prices (updated manually)
       return [
-        { country: 'RO', flag: '🇷🇴', price: 1.82, currency: 'EUR', unit: 'L', source: 'static' },
-        { country: 'NL', flag: '🇳🇱', price: 2.12, currency: 'EUR', unit: 'L', source: 'static' },
-        { country: 'DE', flag: '🇩🇪', price: 1.95, currency: 'EUR', unit: 'L', source: 'static' },
-        { country: 'FR', flag: '🇫🇷', price: 1.89, currency: 'EUR', unit: 'L', source: 'static' },
-        { country: 'BE', flag: '🇧🇪', price: 1.94, currency: 'EUR', unit: 'L', source: 'static' },
-        { country: 'PL', flag: '🇵🇱', price: 1.72, currency: 'EUR', unit: 'L', source: 'static' },
-        { country: 'HU', flag: '🇭🇺', price: 1.78, currency: 'EUR', unit: 'L', source: 'static' },
-        { country: 'AT', flag: '🇦🇹', price: 1.86, currency: 'EUR', unit: 'L', source: 'static' },
+        { country: 'RO', flag: '🇷🇴', price: 1.45, currency: 'EUR', unit: 'L', source: 'static' },
+        { country: 'NL', flag: '🇳🇱', price: 1.85, currency: 'EUR', unit: 'L', source: 'static' },
+        { country: 'DE', flag: '🇩🇪', price: 1.62, currency: 'EUR', unit: 'L', source: 'static' },
+        { country: 'FR', flag: '🇫🇷', price: 1.70, currency: 'EUR', unit: 'L', source: 'static' },
+        { country: 'BE', flag: '🇧🇪', price: 1.74, currency: 'EUR', unit: 'L', source: 'static' },
+        { country: 'PL', flag: '🇵🇱', price: 1.49, currency: 'EUR', unit: 'L', source: 'static' },
+        { country: 'HU', flag: '🇭🇺', price: 1.58, currency: 'EUR', unit: 'L', source: 'static' },
+        { country: 'AT', flag: '🇦🇹', price: 1.62, currency: 'EUR', unit: 'L', source: 'static' },
       ];
     }
   }

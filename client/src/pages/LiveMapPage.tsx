@@ -291,7 +291,7 @@ export default function LiveMapPage() {
         }
 
         if (lat && lng) {
-          const label = `${truckWord} (${t.plateNumber})`;
+          const label = t.plateNumber || truckWord;
           addMarker(t.id, parseFloat(lng), parseFloat(lat), label, driverName);
         }
       });
@@ -304,9 +304,9 @@ export default function LiveMapPage() {
             // Already plotted as part of the truck loop, skip duplicate marker
             return;
           }
-          const label = `${t('driver') || 'Șofer'}: ${d.user?.name || 'Șofer'}`;
+          const label = d.user?.name || t('driver') || 'Șofer';
           const driverName = d.user?.name || 'Șofer';
-          addMarker(d.id, parseFloat(d.currentLng), parseFloat(d.currentLat), label, driverName);
+          addMarker(d.id, parseFloat(d.currentLng), parseFloat(d.currentLat), label, driverName, false);
         }
       });
     } catch (e) { console.error(e); }
@@ -402,7 +402,7 @@ export default function LiveMapPage() {
     }
   };
 
-  const addMarker = (id: string, lng: number, lat: number, label: string, popupText: string) => {
+  const addMarker = (id: string, lng: number, lat: number, label: string, popupText: string, isTruck: boolean = true) => {
     if (!mapInstance.current || !window.maplibregl) return;
     
     const existingMarker = markersRef.current[id];
@@ -414,7 +414,7 @@ export default function LiveMapPage() {
       if (el) {
         const labelEl = el.querySelector('.marker-label');
         if (labelEl) {
-          labelEl.innerHTML = `<span style="color:#FF7A1A">🚚</span> ${label}`;
+          labelEl.innerHTML = isTruck ? `<span style="color:#FF7A1A">🚚</span> ${label}` : `👤 ${label}`;
         }
       }
       
@@ -435,7 +435,9 @@ export default function LiveMapPage() {
     }
 
     const color = '#FF7A1A'; 
-    const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:white;margin:auto"><path d="M14 18H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v10"/><path d="M14 2v16"/><path d="M14 10h5l3 3v3h-8"/><circle cx="7.5" cy="18.5" r="2.5"/><circle cx="17.5" cy="18.5" r="2.5"/></svg>`;
+    const svgIcon = isTruck
+      ? `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:white;margin:auto"><path d="M14 18H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v10"/><path d="M14 2v16"/><path d="M14 10h5l3 3v3h-8"/><circle cx="7.5" cy="18.5" r="2.5"/><circle cx="17.5" cy="18.5" r="2.5"/></svg>`
+      : `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:white;margin:auto"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
 
     const lang = i18n.language || 'ro';
     const driverWord = DRIVER_TRANSLATIONS[lang] || DRIVER_TRANSLATIONS['ro'];
@@ -444,7 +446,7 @@ export default function LiveMapPage() {
     el.style.cssText = `display:flex;flex-direction:column;align-items:center;cursor:pointer`;
     el.innerHTML = `
       <div class="marker-label" style="background:#0F172A;color:#FFFFFF;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:bold;white-space:nowrap;box-shadow:0 4px 10px rgba(0,0,0,0.3);margin-bottom:6px;border:1.5px solid #FF7A1A;display:flex;align-items:center;gap:6px">
-        <span style="color:#FF7A1A">🚚</span> ${label}
+        ${isTruck ? '<span style="color:#FF7A1A">🚚</span>' : '👤'} ${label}
       </div>
       <div style="width:38px;height:38px;background:${color};border-radius:50%;display:flex;align-items:center;justify-content:center;border:2.5px solid white;box-shadow:0 0 15px rgba(255,122,26,0.6)">
         ${svgIcon}
