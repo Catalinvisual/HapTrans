@@ -4,6 +4,11 @@ import { initReactI18next } from 'react-i18next';
 const resources = {
   ro: {
     translation: {
+      planning: 'Planificare',
+      planningSubtitle: 'Vizualizare curse pe interval de zile',
+      free: 'Liber',
+      busy: 'Ocupat',
+      todayBtn: 'Azi',
       
                         err_trip_overlap: "Suprapunere detectată! Există deja o cursă programată (ID: {{id}}) în acest interval de timp pentru șoferul sau camionul selectat.",
 conflict_warning_message: "⚠️ Atenție: Suprapunere detectată!\n{{resource}} este deja alocat pe o altă cursă activă în acea perioadă ({{from}} -> {{to}}).",
@@ -385,6 +390,11 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
   },
   fr: {
     translation: {
+      planning: 'Planification',
+      planningSubtitle: 'Visualisation des trajets par intervalle',
+      free: 'Libre',
+      busy: 'Occupé',
+      todayBtn: 'Aujourd\'hui',
       
                         err_trip_overlap: "Chevauchement détecté ! Il y a déjà un trajet planifié (ID : {{id}}) dans cette plage horaire pour le chauffeur ou le camion sélectionné.",
 conflict_warning_message: "⚠️ Attention : Chevauchement détecté !\nLe {{resource}} est déjà affecté à un autre trajet actif durant cette période ({{from}} -> {{to}}).",
@@ -416,6 +426,11 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
   },
   en: {
     translation: {
+      planning: 'Planning',
+      planningSubtitle: 'Trip visualization by day interval',
+      free: 'Free',
+      busy: 'Busy',
+      todayBtn: 'Today',
       
                         err_trip_overlap: "Overlap detected! There is already a scheduled trip (ID: {{id}}) in this time frame for the selected driver or truck.",
 conflict_warning_message: "⚠️ Attention: Overlap detected!\n{{resource}} is already assigned to another active trip during this period ({{from}} -> {{to}}).",
@@ -798,6 +813,11 @@ smartDispatchAddressError: "Please enter the pickup address first!",
   },
   nl: {
     translation: {
+      planning: 'Planning',
+      planningSubtitle: 'Rit visualisatie per dag interval',
+      free: 'Vrij',
+      busy: 'Bezet',
+      todayBtn: 'Vandaag',
       
                         err_trip_overlap: "Overlap gedetecteerd! Er is al een rit gepland (ID: {{id}}) in dit tijdsbestek voor de geselecteerde chauffeur of vrachtwagen.",
 conflict_warning_message: "⚠️ Let op: Overlap gedetecteerd!\n{{resource}} is al toegewezen aan een andere actieve rit in deze periode ({{from}} -> {{to}}).",
@@ -1180,6 +1200,11 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
   },
   de: {
     translation: {
+      planning: 'Planung',
+      planningSubtitle: 'Reisevisualisierung nach Tagesintervall',
+      free: 'Frei',
+      busy: 'Belegt',
+      todayBtn: 'Heute',
       
                         err_trip_overlap: "Überschneidung erkannt! Es gibt bereits eine geplante Fahrt (ID: {{id}}) in diesem Zeitraum für den ausgewählten Fahrer oder LKW.",
 conflict_warning_message: "⚠️ Achtung: Überschneidung erkannt!\n{{resource}} ist in diesem Zeitraum bereits einer anderen aktiven Fahrt zugewiesen ({{from}} -> {{to}}).",

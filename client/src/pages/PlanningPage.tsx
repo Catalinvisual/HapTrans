@@ -151,45 +151,32 @@ export default function PlanningPage() {
               <div className="flex-1 min-w-max">
                 {filteredTrucks.map(truck => (
                   <div key={truck.id} className="h-16 border-b border-border/50 flex relative group hover:bg-surface/30">
-                    {/* Background Day Columns */}
-                    {days.map(day => (
-                      <div key={day.toISOString()} className="flex-1 min-w-[100px] border-r border-border/30 h-full"></div>
-                    ))}
-                    
-                    {/* Trip Bars */}
-                    {truck.trips?.map((trip: any) => {
-                      if (!trip.pickupDate || trip.status === 'cancelled') return null;
+                    {/* Day Cells */}
+                    {days.map(day => {
+                      const dayStart = startOfDay(day);
+                      const dayEnd = endOfDay(day);
                       
-                      const tStart = new Date(trip.pickupDate);
-                      const tEnd = trip.dropoffDate ? new Date(trip.dropoffDate) : addDays(tStart, 1);
-                      
-                      // Check if trip overlaps with view
-                      if (isAfter(tStart, viewEnd) || isBefore(tEnd, viewStart)) return null;
+                      // Check if truck has any active trip on this specific day
+                      const activeTrip = truck.trips?.find((trip: any) => {
+                        if (!trip.pickupDate || trip.status === 'cancelled') return false;
+                        const tStart = new Date(trip.pickupDate);
+                        const tEnd = trip.dropoffDate ? new Date(trip.dropoffDate) : addDays(tStart, 1);
+                        return isBefore(tStart, dayEnd) && isAfter(tEnd, dayStart);
+                      });
 
-                      // Clamp values for rendering
-                      const renderStart = isBefore(tStart, viewStart) ? viewStart : tStart;
-                      const renderEnd = isAfter(tEnd, viewEnd) ? viewEnd : tEnd;
-
-                      const leftPercent = (differenceInMilliseconds(renderStart, viewStart) / viewDurationMs) * 100;
-                      const widthPercent = (differenceInMilliseconds(renderEnd, renderStart) / viewDurationMs) * 100;
+                      const isBusy = !!activeTrip;
 
                       return (
-                        <div 
-                          key={trip.id}
-                          className={`absolute top-2 bottom-2 rounded-lg border shadow-sm flex flex-col justify-center px-2 text-white overflow-hidden cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md ${getTripColor(trip.status)}`}
-                          style={{ 
-                            left: `${leftPercent}%`, 
-                            width: `max(${widthPercent}%, 4px)`, // Ensure visible minimum width
-                            opacity: trip.status === 'completed' ? 0.7 : 1
-                          }}
-                          title={`Client: ${trip.client?.name || 'N/A'}\nRuta: ${trip.pickupAddress} -> ${trip.dropoffAddress}`}
-                        >
-                          <div className="text-xs font-bold truncate">
-                            {trip.client?.name || 'Client Intern'}
-                          </div>
-                          <div className="text-[10px] truncate opacity-90 flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            {trip.pickupCountry} - {trip.dropoffCountry}
+                        <div key={day.toISOString()} className="flex-1 min-w-[100px] border-r border-border/30 h-full flex items-center justify-center p-1">
+                          <div 
+                            className={`w-full py-1.5 rounded text-center text-xs font-bold transition-all shadow-sm ${
+                              isBusy 
+                                ? 'bg-error-light text-error-dark border border-error/20' 
+                                : 'bg-success-light text-success-dark border border-success/20'
+                            }`}
+                            title={isBusy ? `Client: ${activeTrip.client?.name || 'Intern'}` : t('free')}
+                          >
+                            {isBusy ? t('busy') : t('free')}
                           </div>
                         </div>
                       );
