@@ -36,19 +36,6 @@ export default function DieselWidget({ avgConsumptionL100 = 32 }: { avgConsumpti
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const loadPrices = async (force = false) => {
-    // Check cache first
-    if (!force) {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        const { data, ts } = JSON.parse(cached);
-        if (Date.now() - ts < CACHE_TTL) {
-          setPrices(data);
-          setLastUpdated(new Date(ts));
-          setLoading(false);
-          return;
-        }
-      }
-    }
     setLoading(true);
     setError(false);
     try {
@@ -56,7 +43,6 @@ export default function DieselWidget({ avgConsumptionL100 = 32 }: { avgConsumpti
       const data = res.data.map((p: any) => ({ ...p, flag: COUNTRY_FLAGS[p.country] || '🏳️' }));
       setPrices(data);
       setLastUpdated(new Date());
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
     } catch {
       setError(true);
     } finally {

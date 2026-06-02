@@ -78,6 +78,7 @@ export default function FinancialPage() {
                 <td className="table-cell">{m.tripsCount}</td>
                 <td className="table-cell font-semibold text-success">€{(m.totalRevenue || 0).toLocaleString(i18n.language)}</td>
                 <td className="table-cell text-error">€{(m.totalCost || 0).toLocaleString(i18n.language)}</td>
+                <td className="table-cell text-error">€{(m.totalExpenses || 0).toLocaleString(i18n.language)}</td>
                 <td className={`table-cell font-semibold ${(m.profit || 0) >= 0 ? 'text-success' : 'text-error'}`}>€{(m.profit || 0).toLocaleString(i18n.language)}</td>
                 <td className="table-cell">€{(m.costPerKm || 0).toFixed(2)}/km</td>
               </tr>

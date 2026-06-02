@@ -251,12 +251,13 @@ export class TripsService {
   }
 
   async getStats(month?: number, year?: number) {
-    const now = new Date();
-    const m = month ?? now.getMonth() + 1;
-    const y = year ?? now.getFullYear();
-    const start = new Date(y, m - 1, 1);
-    const end = new Date(y, m, 0, 23, 59, 59);
-    const trips = await this.repo.find({ where: { pickupDate: Between(start, end) }, relations: ['costs'] });
+    let where: any = {};
+    if (month && year) {
+      const start = new Date(year, month - 1, 1);
+      const end = new Date(year, month, 0, 23, 59, 59);
+      where.pickupDate = Between(start, end);
+    }
+    const trips = await this.repo.find({ where, relations: ['costs'] });
     const totalRevenue = trips.reduce((s, t) => s + Number(t.price || 0), 0);
     const totalCost = trips.reduce((s, t) => {
       const addedCosts = t.costs?.reduce((sc, c) => sc + Number(c.amount), 0) || 0;

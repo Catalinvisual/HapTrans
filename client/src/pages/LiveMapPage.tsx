@@ -306,9 +306,11 @@ export default function LiveMapPage() {
           if (assignedTruck && tr.data.some((t: any) => t.id === assignedTruck.id && (t.currentLat || t.currentLng))) {
             return;
           }
-          const label = d.user?.name || t('driver') || 'Șofer';
+          const assignedTruck2 = d.truck;
+          const plateStr = assignedTruck2?.plateNumber || 'SV 19 HAP';
+          const label = `${truckWord} (${plateStr})`;
           const driverName = d.user?.name || 'Șofer';
-          addMarker(d.id, parseFloat(d.currentLng), parseFloat(d.currentLat), label, driverName, false);
+          addMarker(d.id, parseFloat(d.currentLng), parseFloat(d.currentLat), label, driverName, true);
         }
       });
     } catch (e) { console.error(e); }
