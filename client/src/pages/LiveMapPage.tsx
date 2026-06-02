@@ -273,6 +273,8 @@ export default function LiveMapPage() {
       const lang = i18n.language || 'ro';
       const truckWord = TRUCK_TRANSLATIONS[lang] || TRUCK_TRANSLATIONS['ro'];
 
+      const plottedDriverIds = new Set<string>();
+
       // Plot trucks with coordinates
       tr.data.forEach((t: any) => {
         let lat = t.currentLat;
@@ -293,15 +295,15 @@ export default function LiveMapPage() {
         if (lat && lng) {
           const label = t.plateNumber || truckWord;
           addMarker(t.id, parseFloat(lng), parseFloat(lat), label, driverName);
+          if (assignedDriver) plottedDriverIds.add(assignedDriver.id);
         }
       });
 
       // Plot drivers with coordinates only if they are not already driving a plotted truck
       dr.data.forEach((d: any) => {
-        if (d.currentLat && d.currentLng) {
-          const assignedTruck = activeDriverTrucks[d.id];
-          if (assignedTruck && assignedTruck.currentLat && assignedTruck.currentLng) {
-            // Already plotted as part of the truck loop, skip duplicate marker
+        if (d.currentLat && d.currentLng && !plottedDriverIds.has(d.id)) {
+          const assignedTruck = activeDriverTrucks[d.id] || d.truck;
+          if (assignedTruck && tr.data.some((t: any) => t.id === assignedTruck.id && (t.currentLat || t.currentLng))) {
             return;
           }
           const label = d.user?.name || t('driver') || 'Șofer';

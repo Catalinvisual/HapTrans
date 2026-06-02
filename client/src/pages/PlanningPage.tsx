@@ -139,7 +139,7 @@ export default function PlanningPage() {
                 {days.map(day => {
                   const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
                   return (
-                    <div key={day.toISOString()} className={`flex-1 min-w-[100px] border-r border-border flex flex-col items-center justify-center ${isToday ? 'bg-primary/5 text-primary' : 'text-text-secondary'}`}>
+                    <div key={day.toISOString()} className={`flex-1 min-w-[100px] border-r border-border flex flex-col items-center justify-center ${isToday ? 'bg-orange-50 text-primary' : 'bg-slate-50 text-text-secondary'}`}>
                       <span className="text-xs font-semibold">{format(day, 'EEE')}</span>
                       <span className={`text-sm font-bold ${isToday ? 'text-primary' : 'text-text'}`}>{format(day, 'dd MMM')}</span>
                     </div>
@@ -156,6 +156,20 @@ export default function PlanningPage() {
                       const dayStart = startOfDay(day);
                       const dayEnd = endOfDay(day);
                       
+                      const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+                      const isSunday = day.getDay() === 0;
+                      const isSaturday = day.getDay() === 6;
+
+                      if (isSunday) {
+                        return (
+                          <div key={day.toISOString()} className="flex-1 min-w-[100px] border-r border-border/30 h-full flex items-center justify-center p-1.5 bg-gray-100/50">
+                            <div className="w-full py-1.5 rounded-md text-center text-xs font-bold transition-all shadow-sm bg-gray-400 text-white border border-gray-500" title="Zile nelucrătoare">
+                              X
+                            </div>
+                          </div>
+                        );
+                      }
+
                       // Check if truck has any active trip on this specific day
                       const activeTrip = truck.trips?.find((trip: any) => {
                         if (!trip.pickupDate || trip.status === 'cancelled') return false;
@@ -165,15 +179,21 @@ export default function PlanningPage() {
                       });
 
                       const isBusy = !!activeTrip;
+                      let badgeColor = isBusy 
+                          ? 'bg-red-500 text-white border border-red-600' 
+                          : 'bg-emerald-500 text-white border border-emerald-600';
+                      
+                      // Different green for Saturday Free
+                      if (isSaturday && !isBusy) {
+                        badgeColor = 'bg-lime-500 text-white border border-lime-600';
+                      }
+
+                      const cellBg = isToday ? 'bg-orange-50/40' : (isBusy ? 'bg-red-50/20' : 'bg-slate-50/50');
 
                       return (
-                        <div key={day.toISOString()} className={`flex-1 min-w-[100px] border-r border-border/30 h-full flex items-center justify-center p-1.5 ${isBusy ? 'bg-red-50/30' : 'bg-emerald-50/30'}`}>
+                        <div key={day.toISOString()} className={`flex-1 min-w-[100px] border-r border-border/30 h-full flex items-center justify-center p-1.5 ${cellBg}`}>
                           <div 
-                            className={`w-full py-1.5 rounded-md text-center text-xs font-bold transition-all shadow-sm ${
-                              isBusy 
-                                ? 'bg-red-500 text-white border border-red-600' 
-                                : 'bg-emerald-500 text-white border border-emerald-600'
-                            }`}
+                            className={`w-full py-1.5 rounded-md text-center text-xs font-bold transition-all shadow-sm ${badgeColor}`}
                             title={isBusy ? `${t('client') || 'Client'}: ${activeTrip.client?.name || 'Intern'}` : t('free')}
                           >
                             {isBusy ? t('busy') : t('free')}
