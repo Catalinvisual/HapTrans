@@ -225,8 +225,7 @@ export class RoutingService {
 
   // ─── Diesel prices via EuroOilWatch (no key needed) ───────────────────────
   async getDieselPrices() {
-    try {
-      // Cargopedia provides real-time fuel prices. Scrape it!
+    // Cargopedia provides real-time fuel prices. Scrape it!
       try {
         const cp = await axios.get('https://www.cargopedia.ro/preturi-carburanti-europa', { timeout: 8000 });
         const html = cp.data;
@@ -262,6 +261,5 @@ export class RoutingService {
         { country: 'HU', flag: '🇭🇺', price: 1.72, currency: 'EUR', unit: 'L', source: 'static' },
         { country: 'AT', flag: '🇦🇹', price: 1.90, currency: 'EUR', unit: 'L', source: 'static' },
       ];
-    }
   }
 }
