@@ -122,7 +122,7 @@ export default function TrucksPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-surface border-b border-border">
-                {[t('plateNumber'), t('brand'), t('model'), t('year'), 'Mentenanță', t('status'), t('documents'), t('actions')].map(h => (
+                {[t('plateNumber'), t('brand'), t('model'), t('year'), 'Capacitate', 'Consum', t('status'), t('documents'), t('actions')].map(h => (
                   <th key={h} className="table-header">{h}</th>
                 ))}
               </tr>

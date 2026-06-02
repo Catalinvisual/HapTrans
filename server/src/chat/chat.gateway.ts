@@ -61,7 +61,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
             const body = data.content ? data.content : 'Fișier atașat / Attached file';
             await this.firebaseService.sendPushNotification(
               trip.driver.user.fcmToken,
-              'Mesaj nou (Chat)',
+              `Mesaj de la ${msg?.sender?.name || 'Dispecerat'}`,
               body,
               { type: 'chat', tripId: data.tripId }
             );
@@ -74,7 +74,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           const body = data.content ? data.content : 'Fișier atașat / Attached file';
           await this.firebaseService.sendPushNotification(
             driver.user.fcmToken,
-            'Mesaj nou (Chat)',
+            `Mesaj de la ${msg?.sender?.name || 'Dispecerat'}`,
             body,
             { type: 'chat', tripId: data.tripId }
           );

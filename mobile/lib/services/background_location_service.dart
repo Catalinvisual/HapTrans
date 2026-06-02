@@ -122,7 +122,7 @@ class BackgroundLocationService {
       androidConfiguration: AndroidConfiguration(
         onStart: onStart,
         autoStart: false,
-        isForegroundMode: true,
+        isForegroundMode: false,
         notificationChannelId: 'haptrans_location_service_v2',
         initialNotificationTitle: 'HapTrans - Tracking Activ',
         initialNotificationContent: 'Locația ta este monitorizată pentru dispecerat în timpul cursei.',

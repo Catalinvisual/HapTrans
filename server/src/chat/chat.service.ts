@@ -28,6 +28,7 @@ export class ChatService {
       fileUrl,
       driverId: isDriverChat ? tripId.replace('driver_', '') : null,
     } as any);
-    return this.repo.save(msg);
+    const saved = await this.repo.save(msg);
+    return this.repo.findOne({ where: { id: saved.id }, relations: ['sender'] });
   }
 }
