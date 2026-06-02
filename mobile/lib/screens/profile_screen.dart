@@ -229,7 +229,7 @@ class ProfileScreen extends StatelessWidget {
                       if (err != null) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(err), backgroundColor: kError),
+                            SnackBar(content: Text({'ro': 'Eroare: $err', 'en': 'Error: $err', 'nl': 'Fout: $err', 'de': 'Fehler: $err', 'fr': 'Erreur: $err'}[locale] ?? err), backgroundColor: kError),
                           );
                         }
                       } else {

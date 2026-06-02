@@ -295,7 +295,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4)],
                 ),
-                child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   if (!isMe) Text(msg['sender']?['name'] ?? 'Dispecer', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kPrimary)),
                   Text(msg['content'] ?? '', style: TextStyle(color: isMe ? Colors.white : kText, fontSize: 14)),
                   const SizedBox(height: 2),

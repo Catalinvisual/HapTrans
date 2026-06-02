@@ -82,7 +82,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: kError),
+        SnackBar(content: Text({'ro': 'Eroare: $e', 'en': 'Error: $e', 'nl': 'Fout: $e', 'de': 'Fehler: $e', 'fr': 'Erreur: $e'}[locale] ?? 'Error: $e'), backgroundColor: kError),
       );
     }
   }
@@ -91,7 +91,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     try {
       if (!await Permission.camera.request().isGranted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Camera permission is required'), backgroundColor: Colors.red),
+          const SnackBar(content: Text({'ro': 'Permisiunea camerei este necesară', 'en': 'Camera permission is required', 'nl': 'Cameratoestemming is vereist', 'de': 'Kameraberechtigung ist erforderlich', 'fr': 'Autorisation caméra requise'}[locale] ?? 'Camera permission is required'), backgroundColor: Colors.red),
         );
         return;
       }
@@ -114,7 +114,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     } catch (e) {
       if (e.toString().toLowerCase().contains('cancelled')) return; // Ignore user cancellation
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Scan Error: $e'), backgroundColor: kError),
+        SnackBar(content: Text({'ro': 'Eroare scanare: $e', 'en': 'Scan Error: $e', 'nl': 'Scanfout: $e', 'de': 'Scan-Fehler: $e', 'fr': 'Erreur de scan: $e'}[locale] ?? 'Scan Error: $e'), backgroundColor: kError),
       );
     }
   }
@@ -129,7 +129,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: kError),
+        SnackBar(content: Text({'ro': 'Eroare: $e', 'en': 'Error: $e', 'nl': 'Fout: $e', 'de': 'Fehler: $e', 'fr': 'Erreur: $e'}[locale] ?? 'Error: $e'), backgroundColor: kError),
       );
     }
   }
@@ -173,7 +173,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       _fetchDocuments();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: $e'), backgroundColor: kError),
+        SnackBar(content: Text({'ro': 'Încărcare eșuată: $e', 'en': 'Upload failed: $e', 'nl': 'Upload mislukt: $e', 'de': 'Hochladen fehlgeschlagen: $e', 'fr': 'Échec du téléchargement: $e'}[locale] ?? 'Upload failed: $e'), backgroundColor: kError),
       );
     } finally {
       setState(() => _loading = false);
@@ -226,7 +226,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         );
       } catch (err) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Download failed: $err'), backgroundColor: kError),
+          SnackBar(content: Text({'ro': 'Descărcare eșuată: $err', 'en': 'Download failed: $err', 'nl': 'Download mislukt: $err', 'de': 'Download fehlgeschlagen: $err', 'fr': 'Échec du téléchargement: $err'}[locale] ?? 'Download failed: $err'), backgroundColor: kError),
         );
       }
     }
@@ -244,7 +244,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       await Share.shareXFiles([xFile], text: fileName);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sharing failed: $e'), backgroundColor: kError),
+        SnackBar(content: Text({'ro': 'Partajare eșuată: $e', 'en': 'Sharing failed: $e', 'nl': 'Delen mislukt: $e', 'de': 'Teilen fehlgeschlagen: $e', 'fr': 'Échec du partage: $e'}[locale] ?? 'Sharing failed: $e'), backgroundColor: kError),
       );
     }
   }

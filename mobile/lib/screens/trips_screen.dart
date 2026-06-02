@@ -452,7 +452,7 @@ class TripDetailSheet extends StatelessWidget {
               children: statuses.map((s) => GestureDetector(
                 onTap: () async {
                   final ok = await context.read<TripProvider>().updateStatus(token, trip['id'], s);
-                  if (ok && context.mounted) { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text({'ro':'Status actualizat!','en':'Status updated!','nl':'Status bijgewerkt!'}[locale]!), backgroundColor: kSuccess)); }
+                  if (ok && context.mounted) { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text({'ro':'Status actualizat!','en':'Status updated!','nl':'Status bijgewerkt!','de':'Status aktualisiert!','fr':'Statut mis à jour!'}[locale]!), backgroundColor: kSuccess)); }
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
