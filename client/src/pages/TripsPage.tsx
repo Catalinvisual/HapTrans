@@ -486,8 +486,21 @@ export default function TripsPage() {
       // Generate base64 PDF
       const base64Pdf = generateInvoicePdfBase64(invoiceWithFullRelations);
 
-      // Save PDF to database
-      await api.patch(`/invoices/${savedInvoice.id}`, { pdfData: base64Pdf });
+      // Convert to File
+      const arr = base64Pdf.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while(n--) { u8arr[n] = bstr.charCodeAt(n); }
+      const file = new File([u8arr], `Factura_${savedInvoice.invoiceNumber}.pdf`, { type: mime });
+      
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Upload PDF to Cloudinary
+      const uploadRes = await api.post(`/invoices/upload-pdf/${savedInvoice.id}`, formData);
+      const finalPdfUrl = uploadRes.data.pdfUrl || base64Pdf;
 
       toast.dismiss(loadId);
       toast.success(t('invoiceGenerated'));
@@ -505,12 +518,12 @@ export default function TripsPage() {
           const newTab = window.open();
           if (newTab) {
             newTab.document.write(
-              `<iframe src="${base64Pdf}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%; position: fixed;" allowfullscreen></iframe>`
+              `<iframe src="${finalPdfUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%; position: fixed;" allowfullscreen></iframe>`
             );
           } else {
             // Fallback to download
             const link = document.createElement("a");
-            link.href = base64Pdf;
+            link.href = finalPdfUrl;
             link.download = `Factura_${savedInvoice.invoiceNumber}.pdf`;
             document.body.appendChild(link);
             link.click();

@@ -33,7 +33,7 @@ export default function InvoicesPage() {
     const newTab = window.open();
     if (newTab) {
       newTab.document.write(
-        `<iframe src="${invoice.pdfData}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%; position: fixed;" allowfullscreen></iframe>`
+        `<iframe src="${invoice.pdfUrl || invoice.pdfData}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%; position: fixed;" allowfullscreen></iframe>`
       );
     } else {
       toast.error(t('allowPopups'));
@@ -42,7 +42,7 @@ export default function InvoicesPage() {
 
   const handleDownload = (invoice: any) => {
     const link = document.createElement("a");
-    link.href = invoice.pdfData;
+    link.href = invoice.pdfUrl || invoice.pdfData;
     link.download = `Factura_${invoice.invoiceNumber}.pdf`;
     document.body.appendChild(link);
     link.click();
@@ -53,21 +53,29 @@ export default function InvoicesPage() {
   const handleShare = async (invoice: any) => {
     if (navigator.share) {
       try {
-        const arr = invoice.pdfData.split(',');
-        const mime = arr[0].match(/:(.*?);/)[1];
-        const bstr = atob(arr[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while(n--){
-            u8arr[n] = bstr.charCodeAt(n);
+        if (invoice.pdfUrl) {
+          await navigator.share({
+            title: `Factură ${invoice.invoiceNumber}`,
+            text: `Bună ziua, vă transmitem factura ${invoice.invoiceNumber} emisă de HapTrans. Link:`,
+            url: invoice.pdfUrl
+          });
+        } else {
+          const arr = invoice.pdfData.split(',');
+          const mime = arr[0].match(/:(.*?);/)[1];
+          const bstr = atob(arr[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while(n--){
+              u8arr[n] = bstr.charCodeAt(n);
+          }
+          const file = new File([u8arr], `Factura_${invoice.invoiceNumber}.pdf`, { type: mime });
+          
+          await navigator.share({
+            files: [file],
+            title: `Factură ${invoice.invoiceNumber}`,
+            text: `Bună ziua, vă transmitem factura ${invoice.invoiceNumber} emisă de HapTrans.`,
+          });
         }
-        const file = new File([u8arr], `Factura_${invoice.invoiceNumber}.pdf`, { type: mime });
-        
-        await navigator.share({
-          files: [file],
-          title: `Factură ${invoice.invoiceNumber}`,
-          text: `Bună ziua, vă transmitem factura ${invoice.invoiceNumber} emisă de HapTrans.`,
-        });
         toast.success(t('invoiceShared'));
       } catch (err: any) {
         if (err.name !== 'AbortError') {
@@ -81,14 +89,25 @@ export default function InvoicesPage() {
   };
 
   const ensurePdfAndExecute = async (invoice: any, action: (inv: any) => void) => {
-    if (invoice.pdfData) {
+    if (invoice.pdfUrl || invoice.pdfData) {
       action(invoice);
     } else {
       const loadId = toast.loading(t('generatingPdf'));
       try {
         const base64Pdf = generateInvoicePdfBase64(invoice);
-        await api.patch(`/invoices/${invoice.id}`, { pdfData: base64Pdf });
-        invoice.pdfData = base64Pdf;
+        const arr = base64Pdf.split(',');
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while(n--) { u8arr[n] = bstr.charCodeAt(n); }
+        const file = new File([u8arr], `Factura_${invoice.invoiceNumber}.pdf`, { type: mime });
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await api.post(`/invoices/upload-pdf/${invoice.id}`, formData);
+        
+        invoice.pdfUrl = res.data.pdfUrl;
         toast.dismiss(loadId);
         action(invoice);
         load();
@@ -111,7 +130,18 @@ export default function InvoicesPage() {
       const res = await api.post('/invoices', dataToSubmit);
       const savedInvoice = res.data;
       const base64Pdf = generateInvoicePdfBase64(savedInvoice);
-      await api.patch(`/invoices/${savedInvoice.id}`, { pdfData: base64Pdf });
+      const arr = base64Pdf.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while(n--) { u8arr[n] = bstr.charCodeAt(n); }
+      const file = new File([u8arr], `Factura_${savedInvoice.invoiceNumber}.pdf`, { type: mime });
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      await api.post(`/invoices/upload-pdf/${savedInvoice.id}`, formData);
+
       toast.success(t('invoiceCreatedWithPdf'));
       setShowForm(false);
       load();

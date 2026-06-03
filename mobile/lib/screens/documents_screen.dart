@@ -28,6 +28,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   List<File> _selectedFiles = [];
   List<Map<String, dynamic>> _documentsList = [];
   bool _loading = false;
+  String get locale => context.read<AuthProvider>().locale.languageCode;
   bool _fetching = false;
 
   @override
@@ -91,7 +92,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     try {
       if (!await Permission.camera.request().isGranted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text({'ro': 'Permisiunea camerei este necesară', 'en': 'Camera permission is required', 'nl': 'Cameratoestemming is vereist', 'de': 'Kameraberechtigung ist erforderlich', 'fr': 'Autorisation caméra requise'}[locale] ?? 'Camera permission is required'), backgroundColor: Colors.red),
+          SnackBar(content: Text({'ro': 'Permisiunea camerei este necesară', 'en': 'Camera permission is required', 'nl': 'Cameratoestemming is vereist', 'de': 'Kameraberechtigung ist erforderlich', 'fr': 'Autorisation caméra requise'}[locale] ?? 'Camera permission is required'), backgroundColor: Colors.red),
         );
         return;
       }
