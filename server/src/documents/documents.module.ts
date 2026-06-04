@@ -20,7 +20,7 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'haptrans_documents',
-    resource_type: 'auto', // Important for non-image files (PDFs, docs)
+    resource_type: 'raw', // Important for non-image files (PDFs, docs)
   } as any,
 });
 

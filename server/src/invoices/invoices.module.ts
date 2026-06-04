@@ -19,7 +19,7 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'haptrans_invoices',
-    resource_type: 'auto',
+    resource_type: 'raw',
   } as any,
 });
 
