@@ -53,13 +53,5 @@ export class AuthController {
     return { success: true };
   }
 
-  // Public endpoint - no JWT required - saves FCM token by userId
-  @Post('fcm-token-public')
-  async saveFcmTokenPublic(@Body() body: { userId: string; fcmToken: string }) {
-    if (!body.userId || !body.fcmToken) return { success: false };
-    const logger = new Logger('FCMToken');
-    logger.log(`Public FCM token save for userId ${body.userId}: ${body.fcmToken?.substring(0, 20)}...`);
-    await this.authService.saveFcmToken(body.userId, body.fcmToken);
-    return { success: true };
-  }
+
 }

@@ -9,25 +9,26 @@ export default {
           dark: '#E86405',
           light: '#FFF0E6',
         },
-        success: '#16A34A',
-        error: '#DC2626',
+        success: '#10B981', // More modern green
+        error: '#EF4444', // Softer red
         warning: '#F59E0B',
-        surface: '#F5F7FA',
+        surface: '#F9FAFB', // Softer gray background
         card: '#FFFFFF',
         text: {
-          DEFAULT: '#1F2933',
+          DEFAULT: '#111827', // Darker richer text
           secondary: '#6B7280',
           light: '#9CA3AF',
         },
-        border: '#E5E7EB',
+        border: '#F3F4F6', // More subtle borders
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        card: '0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07)',
-        'card-hover': '0 4px 12px 0 rgb(0 0 0 / 0.10), 0 2px 4px -1px rgb(0 0 0 / 0.06)',
-        'sidebar': '4px 0 24px 0 rgb(0 0 0 / 0.06)',
+        card: '0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)',
+        'card-hover': '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+        'sidebar': '4px 0 24px 0 rgb(0 0 0 / 0.03)',
+        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
       },
       animation: {
         'fade-in': 'fadeIn 0.2s ease-out',

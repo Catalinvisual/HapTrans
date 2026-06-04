@@ -4,6 +4,8 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import * as express from 'express';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { join } from 'path';
 
 async function bootstrap() {
@@ -15,6 +17,16 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
   });
+  
+  app.use(helmet());
+  app.use(
+    rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 500, // limit each IP to 500 requests per windowMs
+      message: 'Too many requests from this IP, please try again later.',
+    }),
+  );
+
   app.useWebSocketAdapter(new IoAdapter(app));
   
   // Serve uploaded files statically at /uploads prefix
