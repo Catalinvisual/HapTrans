@@ -23,7 +23,8 @@ const storage = new CloudinaryStorage({
     if (isPdf) {
       return {
         folder: 'haptrans_documents',
-        resource_type: 'raw'
+        resource_type: 'raw',
+        format: 'pdf'
       };
     }
     if (file.mimetype && file.mimetype.startsWith('image/')) {
