@@ -122,7 +122,7 @@ export default function TrucksPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-surface border-b border-border">
-                {[t('plateNumber'), t('brand'), t('model'), t('year'), 'Capacitate', 'Consum', t('status'), t('documents'), t('actions')].map(h => (
+                {[t('plateNumber'), t('brand'), t('model'), t('year'), 'Capacitate', 'Consum', 'Mentenanță', t('status'), t('documents'), t('actions')].map(h => (
                   <th key={h} className={`table-header ${h === t('actions') ? 'text-right pr-4' : ''}`}>{h}</th>
                 ))}
               </tr>
@@ -140,6 +140,24 @@ export default function TrucksPage() {
                   <td className="table-cell text-text-secondary">{truck.year || '—'}</td>
                   <td className="table-cell text-text-secondary">{truck.payloadCapacity ? `${truck.payloadCapacity}t` : '—'}</td>
                   <td className="table-cell text-text-secondary">{truck.fuelConsumption ? `${truck.fuelConsumption}l` : '—'}</td>
+                  <td className="table-cell">
+                    {truck.totalMileage && truck.nextMaintenanceMileage ? (() => {
+                      const current = Number(truck.totalMileage);
+                      const threshold = Number(truck.nextMaintenanceMileage);
+                      const diff = threshold - current;
+                      const isOverdue = diff <= 0;
+                      const isWarning = diff > 0 && diff <= 3000;
+                      return (
+                        <div className={`flex flex-col text-xs font-semibold ${isOverdue ? 'text-error' : isWarning ? 'text-warning' : 'text-text-secondary'}`}>
+                          <div className="flex items-center gap-1">
+                            {isOverdue || isWarning ? <AlertCircle className="w-3 h-3" /> : null}
+                            {current.toLocaleString()} km
+                          </div>
+                          <div className="text-[10px] opacity-80 font-normal">Revizie la: {threshold.toLocaleString()} km</div>
+                        </div>
+                      );
+                    })() : <span className="text-xs text-text-light">—</span>}
+                  </td>
                   <td className="table-cell"><span className={statusBadge(truck.status)}>{t(truck.status)}</span></td>
                   <td className="table-cell">
                     {truck.documents?.length > 0 ? (

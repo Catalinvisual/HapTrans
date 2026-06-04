@@ -1139,7 +1139,19 @@ export default function TripsPage() {
                     </td>
                     <td className="table-cell text-xs font-bold text-primary whitespace-nowrap">{trip.loadingReference || '—'}</td>
                     <td className="table-cell text-xs font-bold text-primary whitespace-nowrap">{trip.unloadingReference || '—'}</td>
-                    <td className="table-cell font-semibold text-success whitespace-nowrap">€{Number(trip.price || 0).toLocaleString(i18n.language)}</td>
+                    <td className="table-cell font-semibold text-success whitespace-nowrap">
+                      <div>€{Number(trip.price || 0).toLocaleString(i18n.language)}</div>
+                      {trip.invoices && trip.invoices.length > 0 && (
+                        <div className={`mt-1 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded inline-block ${
+                          trip.invoices[0].status === 'paid' ? 'bg-green-100 text-green-800' :
+                          trip.invoices[0].status === 'overdue' ? 'bg-red-100 text-red-800 animate-pulse' :
+                          trip.invoices[0].status === 'sent' ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {t(trip.invoices[0].status) || trip.invoices[0].status}
+                        </div>
+                      )}
+                    </td>
                     <td className="table-cell whitespace-nowrap">€{totalCost.toLocaleString(i18n.language)}</td>
                     <td className={`table-cell font-bold whitespace-nowrap ${profit >= 0 ? 'text-success' : 'text-error'}`}>
                       €{profit.toLocaleString(i18n.language)}

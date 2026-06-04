@@ -217,13 +217,13 @@ export default function InvoicesPage() {
               {loading ? <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
                 : filtered.length === 0 ? <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
                 : filtered.map(inv => (
-                  <tr key={inv.id} className="hover:bg-surface/60 transition-colors">
+                  <tr key={inv.id} className={`transition-colors ${inv.status === 'overdue' ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-surface/60'}`}>
                     <td className="table-cell font-mono text-sm font-bold">{inv.invoiceNumber}</td>
                     <td className="table-cell font-bold text-text">{inv.client?.name}</td>
                     <td className="table-cell font-semibold text-success">€{Number(inv.amount).toLocaleString(i18n.language)}</td>
                     <td className="table-cell font-semibold text-text-secondary">{inv.vatPercent}%</td>
                     <td className="table-cell text-xs font-medium text-text-secondary">{formatDate(inv.issueDate)}</td>
-                    <td className="table-cell text-xs font-medium text-text-secondary">{formatDate(inv.dueDate)}</td>
+                    <td className={`table-cell text-xs font-bold ${inv.status === 'overdue' ? 'text-red-600 animate-pulse' : 'text-text-secondary'}`}>{formatDate(inv.dueDate)}</td>
                     <td className="table-cell"><span className={STATUS_COLORS[inv.status] || 'badge-gray'}>{t(inv.status)}</span></td>
                     <td className="table-cell">
                       <div className="flex items-center gap-3">
