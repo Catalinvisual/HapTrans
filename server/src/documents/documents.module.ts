@@ -19,14 +19,14 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => {
-    if (file.mimetype === 'application/pdf') {
+    const isPdf = file.mimetype === 'application/pdf' || (file.originalname && file.originalname.toLowerCase().endsWith('.pdf'));
+    if (isPdf) {
       return {
         folder: 'haptrans_documents',
-        resource_type: 'raw',
-        format: 'pdf'
+        resource_type: 'raw'
       };
     }
-    if (file.mimetype.startsWith('image/')) {
+    if (file.mimetype && file.mimetype.startsWith('image/')) {
       return {
         folder: 'haptrans_documents',
         resource_type: 'image'
