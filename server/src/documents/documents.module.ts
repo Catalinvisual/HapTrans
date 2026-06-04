@@ -18,10 +18,25 @@ cloudinary.config({
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
-  params: {
-    folder: 'haptrans_documents',
-    resource_type: 'raw', // Important for non-image files (PDFs, docs)
-  } as any,
+  params: async (req, file) => {
+    if (file.mimetype === 'application/pdf') {
+      return {
+        folder: 'haptrans_documents',
+        resource_type: 'raw',
+        format: 'pdf'
+      };
+    }
+    if (file.mimetype.startsWith('image/')) {
+      return {
+        folder: 'haptrans_documents',
+        resource_type: 'image'
+      };
+    }
+    return {
+      folder: 'haptrans_documents',
+      resource_type: 'raw'
+    };
+  },
 });
 
 @Module({

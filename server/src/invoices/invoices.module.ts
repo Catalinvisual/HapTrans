@@ -17,10 +17,11 @@ cloudinary.config({
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
-  params: {
+  params: async (req, file) => ({
     folder: 'haptrans_invoices',
     resource_type: 'raw',
-  } as any,
+    format: 'pdf'
+  }),
 });
 
 @Module({
