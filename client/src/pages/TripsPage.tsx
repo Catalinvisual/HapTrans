@@ -1106,7 +1106,15 @@ export default function TripsPage() {
                       )}
                     </td>
                     <td className="table-cell text-xs font-semibold whitespace-nowrap">
-                      {trip.distanceKm ? (
+                      {trip.status === 'completed' ? (
+                        <div className="flex items-center gap-1.5 bg-green-50/80 px-2 py-1 rounded-md text-green-700 border border-green-100 w-fit">
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                          <div className="flex flex-col">
+                            <span className="font-bold uppercase text-[10px] tracking-wider">{i18n.language === 'ro' ? 'Livrat' : 'Delivered'}</span>
+                            <span className="text-[11px] font-bold opacity-90">{new Date(trip.updatedAt).toLocaleDateString('en-GB')} {new Date(trip.updatedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                        </div>
+                      ) : trip.distanceKm ? (
                         <div className="flex flex-col gap-0.5" title="Calculat la 75km/h + 45min pauză (la 4.5h) + 11h repaus (la 9h)">
                           {(() => {
                             const d = Number(trip.distanceKm);
