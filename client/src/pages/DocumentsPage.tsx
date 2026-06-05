@@ -122,7 +122,7 @@ export default function DocumentsPage() {
               onChange={val => setDocType(val)}
               options={[
                 { value: 'CMR', label: 'CMR' },
-                { value: 'Aviz', label: t('aviz') },
+                { value: 'Aviz', label: t('aviz') !== 'aviz' ? t('aviz').charAt(0).toUpperCase() + t('aviz').slice(1) : 'Aviz' },
                 { value: 'Factură', label: t('invoices') },
                 { value: 'Foto marfă', label: t('cargoPhoto') },
                 { value: 'Altele', label: t('other') }
@@ -134,7 +134,7 @@ export default function DocumentsPage() {
             <input 
               type="text" 
               className="input py-2" 
-              placeholder={t('notesPlaceholder') || 'Detalii opționale...'} 
+              placeholder={t('notesPlaceholder') !== 'notesPlaceholder' ? t('notesPlaceholder') : 'Detalii opționale...'} 
               value={notes} 
               onChange={e => setNotes(e.target.value)} 
             />
@@ -173,16 +173,16 @@ export default function DocumentsPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-surface border-b border-border">
-                {[t('file'), t('type'), t('trip'), t('uploadedBy'), t('date'), t('actions')].map(h => (
+                {[t('file'), t('type'), t('notes') !== 'notes' ? t('notes') : 'Notițe', t('trip'), t('uploadedBy'), t('date'), t('actions')].map(h => (
                   <th key={h} className="table-header">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
+                <tr><td colSpan={7} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
               ) : docs.length === 0 ? (
-                <tr><td colSpan={6} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
+                <tr><td colSpan={7} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
               ) : docs.map(doc => {
                 const serverUrl = api.defaults.baseURL?.replace('/api', '') || 'http://localhost:3001';
                 return (
@@ -196,16 +196,16 @@ export default function DocumentsPage() {
                       </div>
                     </td>
                     <td className="table-cell">
-                      <div className="flex flex-col gap-1 items-start">
-                        <span className="badge-primary">
-                          {doc.type === 'CMR' ? 'CMR' :
-                           doc.type === 'Aviz' ? t('aviz') :
-                           doc.type === 'Factură' ? t('invoices') :
-                           doc.type === 'Foto marfă' ? t('cargoPhoto') :
-                           doc.type === 'Altele' ? t('other') : doc.type}
-                        </span>
-                        {doc.notes && <span className="text-[11px] text-text-secondary italic max-w-[150px] truncate" title={doc.notes}>{doc.notes}</span>}
-                      </div>
+                      <span className="badge-primary">
+                        {doc.type === 'CMR' ? 'CMR' :
+                         doc.type === 'Aviz' ? (t('aviz') !== 'aviz' ? t('aviz').charAt(0).toUpperCase() + t('aviz').slice(1) : 'Aviz') :
+                         doc.type === 'Factură' ? t('invoices') :
+                         doc.type === 'Foto marfă' ? t('cargoPhoto') :
+                         doc.type === 'Altele' ? t('other') : doc.type}
+                      </span>
+                    </td>
+                    <td className="table-cell text-xs italic text-text-secondary max-w-[150px] truncate" title={doc.notes || ''}>
+                      {doc.notes || '—'}
                     </td>
                     <td className="table-cell text-xs">{doc.trip?.pickupAddress?.slice(0,20) || '—'}</td>
                     <td className="table-cell text-xs">{doc.uploadedBy?.name || '—'}</td>
