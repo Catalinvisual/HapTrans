@@ -76,7 +76,7 @@ export default function ConfirmModal({
           {message || t('confirmDelete') || 'Ești sigur că vrei să continui?'}
         </p>
         <div className="flex gap-3 w-full">
-          <button onClick={handleClose} className="btn-secondary flex-1 py-2.5 font-semibold">
+          <button onClick={handleClose} className="btn-secondary flex-1 py-2.5 font-semibold capitalize">
             {cancelText || t('cancel')}
           </button>
           <button 
@@ -84,7 +84,7 @@ export default function ConfirmModal({
               onConfirm();
               handleClose();
             }} 
-            className={`flex-1 py-2.5 font-semibold rounded-xl transition-all shadow-md ${getConfirmBtnClass()}`}
+            className={`flex-1 py-2.5 font-semibold rounded-xl transition-all shadow-md capitalize ${getConfirmBtnClass()}`}
           >
             {confirmText || (type === 'danger' ? t('delete') : t('confirm'))}
           </button>
