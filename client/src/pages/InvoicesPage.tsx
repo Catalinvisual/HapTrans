@@ -19,6 +19,7 @@ export default function InvoicesPage() {
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showExport, setShowExport] = useState(false);
   const [invoiceLangModal, setInvoiceLangModal] = useState<any>({ isOpen: false, data: null, type: '', cb: null });
@@ -95,6 +96,16 @@ export default function InvoicesPage() {
     } else {
       setInvoiceLangModal({ isOpen: true, data: invoice, type: 'ensure', cb: action });
     }
+  };
+
+  const executeDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await api.delete(`/invoices/${deleteId}`);
+      toast.success(t('statusUpdated') || 'Factura ștearsă');
+      setDeleteId(null);
+      load();
+    } catch { toast.error(t('saveError')); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -254,6 +265,9 @@ export default function InvoicesPage() {
                           <button onClick={() => ensurePdfAndExecute(inv, handleShare)} className="p-1 text-text-secondary hover:text-warning rounded hover:bg-yellow-50 transition-all" title="Partajare Factură">
                             <Share2 className="w-4 h-4" />
                           </button>
+                          <button onClick={() => setDeleteId(inv.id)} className="p-1 text-text-secondary hover:text-error rounded hover:bg-red-50 transition-all" title="Ștergere Factură">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     </td>
@@ -316,6 +330,14 @@ export default function InvoicesPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!deleteId}
+        title={t('deleteInvoice') || 'Sterge Factura'}
+        message={t('deleteConfirm') || 'Sunteti sigur? Aceasta actiune este ireversibila.'}
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteId(null)}
+      />
     </div>
   );
 }

@@ -106,11 +106,13 @@ export default function DocumentsPage() {
       </div>
 
       {showForm && (
-        <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md">
-          <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">{t('uploadDocument')}</h3>
-          <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+        <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md mb-6">
+          <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">
+            {t('uploadDocument')}
+          </h3>
+          <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-end">
           <div>
-            <label className="label">{t('trip')}</label>
+            <label className="label">{t('reference') || 'Referinta'}</label>
             <CustomSelect
               value={tripId}
               onChange={val => setTripId(val)}
@@ -169,11 +171,14 @@ export default function DocumentsPage() {
               </label>
             </div>
           </div>
-          <div className="md:col-span-2 lg:col-span-4 flex justify-end mt-2">
-            <button type="submit" className="btn-primary">
-              <Upload className="w-4 h-4" /> {t('uploadDocument')}
-            </button>
-          </div>
+            <div className="flex gap-3 col-span-1 md:col-span-2 lg:col-span-4 pt-3 border-t border-border mt-2">
+              <button type="submit" disabled={!file || uploading} className="btn-primary px-6 py-2.5 font-bold shadow-md shadow-primary/20">
+                <Upload className="w-4 h-4" /> {t('save') || 'Salveaza'}
+              </button>
+              <button type="button" onClick={() => { setShowForm(false); setFile(null); setTripId(''); setNotes(''); }} className="btn-secondary px-6 py-2.5 font-bold">
+                {t('cancel') || 'Anuleaza'}
+              </button>
+            </div>
           </form>
         </div>
       )}
