@@ -15,6 +15,7 @@ export default function DocumentsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [tripId, setTripId] = useState('');
   const [docType, setDocType] = useState('CMR');
   const [notes, setNotes] = useState('');
@@ -51,6 +52,7 @@ export default function DocumentsPage() {
     fd.append('tripId', tripId);
     fd.append('type', docType);
     if (notes) fd.append('notes', notes);
+    setUploading(true);
     try {
       await api.post('/documents/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       toast.success(t('success') || 'Document încărcat!'); 
@@ -59,6 +61,7 @@ export default function DocumentsPage() {
       setShowForm(false);
       load();
     } catch { toast.error(t('uploadError')); }
+    finally { setUploading(false); }
   };
 
   const handleDownload = (doc: any) => {
