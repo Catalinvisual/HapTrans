@@ -23,7 +23,7 @@ const storage = new CloudinaryStorage({
       folder: 'haptrans_invoices',
       resource_type: 'raw',
       format: 'pdf',
-      public_id: `${cleanName}_${Date.now()}`
+      public_id: cleanName
     };
   },
 });

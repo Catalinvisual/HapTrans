@@ -21,7 +21,7 @@ const storage = new CloudinaryStorage({
   params: async (req, file) => {
     const isPdf = file.mimetype === 'application/pdf' || (file.originalname && file.originalname.toLowerCase().endsWith('.pdf'));
     const cleanName = file.originalname.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
-    const publicId = `${cleanName}_${Date.now()}`;
+    const publicId = cleanName;
 
     if (isPdf) {
       return {
