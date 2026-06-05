@@ -82,46 +82,40 @@ export default function PayrollPage() {
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text">{t('payroll')}</h1>
-          <p className="text-text-secondary text-sm">{t('payrollDesc')}</p>
-        </div>
-        
-        <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-border shadow-sm">
-          <div className="flex items-center gap-2 px-2">
-            <Filter className="w-4 h-4 text-text-secondary" />
-            <span className="text-sm font-semibold text-text-secondary">Luna:</span>
-          </div>
-          <select 
-            className="input py-1.5 px-3 text-sm font-semibold bg-surface border-none"
-            value={selectedMonth}
-            onChange={e => setSelectedMonth(Number(e.target.value))}
-          >
-            {MONTHS.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
-          </select>
-          <select 
-            className="input py-1.5 px-3 text-sm font-semibold bg-surface border-none"
-            value={selectedYear}
-            onChange={e => setSelectedYear(Number(e.target.value))}
-          >
-            {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-          <button 
-            onClick={handleGenerate}
-            className="btn-primary py-1.5 px-4 text-sm font-bold flex items-center gap-2 ml-2 shadow-md shadow-primary/20"
-          >
-            <RefreshCw className="w-4 h-4" /> {t('generatePayroll')} {MONTHS[selectedMonth-1]}
-          </button>
-        </div>
-      </div>
-
       <div className="card p-0 overflow-hidden bg-white border border-border rounded-2xl shadow-sm">
-        <div className="p-4 border-b border-border flex items-center justify-between gap-3">
+        <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
             <input className="input pl-9 py-2 text-sm" placeholder={t('searchEmployee')} value={search} onChange={e => setSearch(e.target.value)} />
           </div>
+          
+          <div className="flex items-center gap-3 bg-white p-2 rounded-xl border border-border shadow-sm flex-wrap">
+            <div className="flex items-center gap-2 px-2">
+              <Filter className="w-4 h-4 text-text-secondary" />
+              <span className="text-sm font-semibold text-text-secondary">Luna:</span>
+            </div>
+            <select 
+              className="input py-1.5 px-3 text-sm font-semibold bg-surface border-none"
+              value={selectedMonth}
+              onChange={e => setSelectedMonth(Number(e.target.value))}
+            >
+              {MONTHS.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
+            </select>
+            <select 
+              className="input py-1.5 px-3 text-sm font-semibold bg-surface border-none"
+              value={selectedYear}
+              onChange={e => setSelectedYear(Number(e.target.value))}
+            >
+              {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <button 
+              onClick={handleGenerate}
+              className="btn-primary py-1.5 px-4 text-sm font-bold flex items-center gap-2 ml-2 shadow-md shadow-primary/20"
+            >
+              <RefreshCw className="w-4 h-4" /> {t('generatePayroll')} {MONTHS[selectedMonth-1]}
+            </button>
+          </div>
+
           <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
             {filtered.length} {t('records')}
           </span>

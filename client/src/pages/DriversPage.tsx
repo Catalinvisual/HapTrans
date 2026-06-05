@@ -155,26 +155,6 @@ export default function DriversPage() {
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text">{t('drivers')}</h1>
-          <p className="text-text-secondary text-sm">{drivers.length} {t('registeredDrivers')}</p>
-        </div>
-        <button
-          onClick={() => {
-            setEditId(null);
-            setForm({
-              name: '', email: '', password: '', phone: '',
-              licenseNumber: '', dailyRate: '', licenseExpiry: '', medicalExpiry: '', tachoCardExpiry: '',
-              status: 'available',
-            });
-            setShowForm(!showForm);
-          }}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" /> {t('addDriver')}
-        </button>
-      </div>
 
       {showForm && (
         <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md">
@@ -383,9 +363,25 @@ export default function DriversPage() {
               <Download className="w-4 h-4" /> {t('export')}
             </button>
           </div>
-          <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
-            {filtered.length} {t('results')}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
+              {filtered.length} {t('results')}
+            </span>
+            <button
+              onClick={() => {
+                setEditId(null);
+                setForm({
+                  name: '', email: '', password: '', phone: '',
+                  licenseNumber: '', dailyRate: '', grossSalary: '', licenseExpiry: '', medicalExpiry: '', tachoCardExpiry: '',
+                  status: 'available',
+                });
+                setShowForm(!showForm);
+              }}
+              className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold"
+            >
+              <Plus className="w-4 h-4" /> {t('addDriver')}
+            </button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">

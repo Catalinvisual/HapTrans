@@ -53,13 +53,6 @@ export default function MaintenancePage() {
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text">{t('maintenance')}</h1>
-          <p className="text-text-secondary text-sm">{records.length} {t('recordsCount')}</p>
-        </div>
-        <button onClick={() => setShowForm(!showForm)} className="btn-primary"><Plus className="w-4 h-4" /> {t('addMaintenance')}</button>
-      </div>
       {showForm && (
         <div className="card animate-fade-in">
           <form onSubmit={handleSubmit} className="grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -85,9 +78,10 @@ export default function MaintenancePage() {
         </div>
       )}
       <div className="card p-0 overflow-hidden">
-        <div className="p-4 border-b border-border flex items-center gap-3">
+        <div className="p-4 border-b border-border flex items-center justify-between gap-3">
           <div className="relative flex-1 max-w-xs"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-            <input className="input pl-9" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} /></div>
+            <input className="input pl-9 py-2 text-sm" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} /></div>
+          <button onClick={() => setShowForm(!showForm)} className="btn-primary text-sm py-2 px-4 font-semibold"><Plus className="w-4 h-4 mr-1" /> {t('addMaintenance')}</button>
         </div>
         <div className="overflow-x-auto"><table className="w-full">
           <thead><tr className="bg-surface border-b border-border">

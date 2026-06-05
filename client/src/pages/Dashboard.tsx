@@ -68,10 +68,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold text-text">{t('dashboard')}</h1>
-        <p className="text-text-secondary text-sm mt-0.5">{t('operationalSummaryCurrentMonth')}</p>
-      </div>
 
       {/* Diesel Prices Widget */}
       <DieselWidget avgConsumptionL100={32} />

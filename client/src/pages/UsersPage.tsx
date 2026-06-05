@@ -118,15 +118,6 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text">{t('users')}</h1>
-          <p className="text-text-secondary text-sm">{users.length} {t('usersCount')}</p>
-        </div>
-        <button onClick={() => { setEditId(null); setForm({ email: '', password: '', name: '', role: 'dispatcher', grossSalary: '', dailyRate: '' }); setShowForm(!showForm); }} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" /> {t('newUser')}
-        </button>
-      </div>
 
       {showForm && (
         <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md">
@@ -185,9 +176,14 @@ export default function UsersPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
             <input className="input pl-9 py-2 text-sm" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
-            {filtered.length} {t('results')}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
+              {filtered.length} {t('results')}
+            </span>
+            <button onClick={() => { setEditId(null); setForm({ email: '', password: '', name: '', role: 'dispatcher', grossSalary: '', dailyRate: '' }); setShowForm(!showForm); }} className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold">
+              <Plus className="w-4 h-4" /> {t('newUser')}
+            </button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">

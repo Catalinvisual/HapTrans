@@ -85,10 +85,6 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl">
-      <div>
-        <h1 className="text-2xl font-bold text-text">{t('settings')}</h1>
-        <p className="text-text-secondary text-sm">{t('configureAccountPreferences')}</p>
-      </div>
 
       {/* ─── COMPANY DETAILS ─── */}
       <div className="bg-white border border-border rounded-2xl p-6 shadow-sm space-y-5">

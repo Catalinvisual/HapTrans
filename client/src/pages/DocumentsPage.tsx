@@ -98,15 +98,6 @@ export default function DocumentsPage() {
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text">{t('documents')}</h1>
-          <p className="text-text-secondary text-sm">{docs.length} {t('documents').toLowerCase()}</p>
-        </div>
-        <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2">
-          <Upload className="w-4 h-4" /> {t('uploadDocument')}
-        </button>
-      </div>
 
       {showForm && (
         <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md mb-6">
@@ -186,6 +177,11 @@ export default function DocumentsPage() {
         </div>
       )}
       <div className="card p-0 overflow-hidden bg-white border border-border rounded-2xl shadow-sm">
+        <div className="p-4 border-b border-border flex items-center justify-end">
+          <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold">
+            <Upload className="w-4 h-4" /> {t('uploadDocument')}
+          </button>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>

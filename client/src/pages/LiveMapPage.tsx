@@ -916,12 +916,8 @@ export default function LiveMapPage() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text">{t('liveMap')}</h1>
-          <p className="text-text-secondary text-sm mt-0.5">{t('realTimePositions')}</p>
-        </div>
-        <span className="flex items-center gap-1.5 text-sm text-success font-medium">
+      <div className="flex items-center justify-end">
+        <span className="flex items-center gap-1.5 text-sm text-success font-medium bg-success/10 px-3 py-1.5 rounded-full">
           <span className="w-2 h-2 bg-success rounded-full animate-pulse-dot" /> Live
         </span>
       </div>

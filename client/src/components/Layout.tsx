@@ -23,6 +23,7 @@ const PAGE_TITLES: Record<string, Record<string, string>> = {
   '/maintenance': { ro: 'Mentenanță', en: 'Maintenance', nl: 'Onderhoud' },
   '/settings': { ro: 'Setări', en: 'Settings', nl: 'Instellingen' },
   '/users': { ro: 'Utilizatori', en: 'Users', nl: 'Gebruikers' },
+  '/planning': { ro: 'Planificare', en: 'Planning', nl: 'Planning' },
   '/chat': { ro: 'Chat Dispecerat', en: 'Dispatch Chat', nl: 'Dispatch Chat' },
 };
 

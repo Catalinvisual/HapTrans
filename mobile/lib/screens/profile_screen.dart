@@ -228,14 +228,14 @@ class ProfileScreen extends StatelessWidget {
                       setState(() => loading = false);
                       if (err != null) {
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          showTopSnackBar(context, 
                             SnackBar(content: Text({'ro': 'Eroare: $err', 'en': 'Error: $err', 'nl': 'Fout: $err', 'de': 'Fehler: $err', 'fr': 'Erreur: $err'}[locale] ?? err), backgroundColor: kError),
                           );
                         }
                       } else {
                         if (context.mounted) {
                           Navigator.pop(ctx);
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          showTopSnackBar(context, 
                             SnackBar(
                               content: Text({
                                 'ro': 'Parolă schimbată cu succes!',

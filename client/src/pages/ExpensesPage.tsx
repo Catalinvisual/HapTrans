@@ -127,16 +127,6 @@ export default function ExpensesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex justify-between items-end">
-        <div>
-          <h1 className="text-2xl font-bold text-text mb-1">{t('expensesTitle')}</h1>
-          <p className="text-text-secondary text-sm">{t('expensesSubtitle')}</p>
-        </div>
-        <button onClick={() => { setShowForm(!showForm); setEditId(null); }} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          {t('addExpense')}
-        </button>
-      </div>
 
       {showForm && (
         <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md relative overflow-hidden">
@@ -237,6 +227,12 @@ export default function ExpensesPage() {
       )}
 
       <div className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm">
+        <div className="p-4 border-b border-border flex items-center justify-end">
+          <button onClick={() => { setShowForm(!showForm); setEditId(null); }} className="btn-primary flex items-center gap-2 text-sm font-semibold py-2 px-4">
+            <Plus className="w-4 h-4" />
+            {t('addExpense')}
+          </button>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>

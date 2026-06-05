@@ -67,52 +67,43 @@ export default function PlanningPage() {
 
   return (
     <div className="space-y-5 animate-fade-in flex flex-col h-[calc(100vh-6rem)]">
-      {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-border shadow-sm">
-        <div>
-          <h1 className="text-2xl font-bold text-text flex items-center gap-2">
-            <CalendarDays className="w-6 h-6 text-primary" />
-            {t('planning') || 'Planificare (Disponibilitate)'}
-          </h1>
-          <p className="text-text-secondary text-sm">{t('planningSubtitle') || 'Vizualizare curse pe interval de zile'}</p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex bg-surface p-1 rounded-xl border border-border">
-            {[7, 14, 30].map(days => (
-              <button
-                key={days}
-                onClick={() => setViewDays(days)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                  viewDays === days ? 'bg-white text-primary shadow-sm' : 'text-text-secondary hover:text-text'
-                }`}
-              >
-                {days} {t('days') || 'zile'}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button onClick={handlePrev} className="p-2 rounded-xl border border-border hover:bg-surface text-text-secondary transition-all">
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button onClick={handleToday} className="px-4 py-2 rounded-xl border border-border hover:bg-surface text-sm font-semibold transition-all">
-              {t('todayBtn') || 'Azi'}
-            </button>
-            <button onClick={handleNext} className="p-2 rounded-xl border border-border hover:bg-surface text-text-secondary transition-all">
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-          
-          <div className="relative">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-             <input className="input pl-9 py-2 text-sm w-48" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-        </div>
-      </div>
-
       {/* Gantt Chart Area */}
       <div className="flex-1 card p-0 overflow-hidden bg-white border border-border rounded-2xl shadow-sm flex flex-col">
+        {/* Controls Toolbar */}
+        <div className="p-4 border-b border-border flex items-center justify-end flex-wrap gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex bg-surface p-1 rounded-xl border border-border">
+              {[7, 14, 30].map(days => (
+                <button
+                  key={days}
+                  onClick={() => setViewDays(days)}
+                  className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                    viewDays === days ? 'bg-white text-primary shadow-sm' : 'text-text-secondary hover:text-text'
+                  }`}
+                >
+                  {days} {t('days') || 'zile'}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button onClick={handlePrev} className="p-2 rounded-xl border border-border hover:bg-surface text-text-secondary transition-all">
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button onClick={handleToday} className="px-4 py-2 rounded-xl border border-border hover:bg-surface text-sm font-semibold transition-all">
+                {t('todayBtn') || 'Azi'}
+              </button>
+              <button onClick={handleNext} className="p-2 rounded-xl border border-border hover:bg-surface text-text-secondary transition-all">
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="relative">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
+               <input className="input pl-9 py-2 text-sm w-48" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+          </div>
+        </div>
         {loading ? (
           <div className="flex-1 flex items-center justify-center text-text-secondary">{t('loading')}</div>
         ) : (

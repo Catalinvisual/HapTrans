@@ -57,3 +57,33 @@ class AppTheme {
     ),
   );
 }
+
+void showTopSnackBar(BuildContext context, SnackBar snackBar) {
+  final overlay = Overlay.of(context);
+  late OverlayEntry overlayEntry;
+  overlayEntry = OverlayEntry(
+    builder: (context) => Positioned(
+      top: MediaQuery.of(context).padding.top + kToolbarHeight + 16,
+      left: 16,
+      right: 16,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: snackBar.backgroundColor ?? Colors.grey[800],
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: const [
+              BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
+            ],
+          ),
+          child: snackBar.content,
+        ),
+      ),
+    ),
+  );
+  overlay.insert(overlayEntry);
+  Future.delayed(const Duration(seconds: 3), () {
+    overlayEntry.remove();
+  });
+}

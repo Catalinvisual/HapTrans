@@ -594,15 +594,6 @@ export default function TripsPage() {
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text">{t('trips')}</h1>
-          <p className="text-text-secondary text-sm">{trips.length} {t('trips').toLowerCase()}</p>
-        </div>
-        <button onClick={() => { setShowForm(!showForm); setEditId(null); }} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" /> {t('addTrip')}
-        </button>
-      </div>
 
       {showForm && (
         <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md">
@@ -1020,32 +1011,37 @@ export default function TripsPage() {
           <div className="flex items-center gap-3 flex-1 max-w-md">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-              <input className="input pl-9 py-2 text-sm" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} />
+              <input
+                className="input pl-9 py-2 text-sm"
+                placeholder={t('search')}
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
             </div>
+            <CustomSelect
+              className="w-40"
+              value={statusFilter}
+              onChange={val => setStatusFilter(val)}
+              options={[
+                { value: 'all', label: t('all') },
+                { value: 'pending', label: t('pending') },
+                { value: 'confirmed', label: t('confirmed') },
+                { value: 'in_progress', label: t('in_progress') },
+                { value: 'completed', label: t('completed') },
+                { value: 'cancelled', label: t('cancelled') },
+              ]}
+            />
             <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold border-primary/20 hover:border-primary/50 text-primary transition-all">
               <Download className="w-4 h-4" /> {t('export')}
             </button>
           </div>
-          
-          <div className="flex flex-col md:flex-row md:items-center justify-between w-full mt-3 gap-3">
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar flex-nowrap w-full">
-              {['all', 'pending', 'confirmed', 'in_progress', 'completed', 'cancelled'].map(s => (
-                <button
-                  key={s}
-                  onClick={() => setStatusFilter(s)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                    statusFilter === s 
-                      ? 'bg-primary text-white shadow-sm' 
-                      : 'bg-surface text-text-secondary hover:bg-orange-50 hover:text-primary'
-                  }`}
-                >
-                  {t(s === 'all' ? 'allTrips' : s === 'in_progress' ? 'inProgress' : s)}
-                </button>
-              ))}
-            </div>
-            <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg ml-auto">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
               {filtered.length} {t('results')}
             </span>
+            <button onClick={() => { setShowForm(!showForm); setEditId(null); }} className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold">
+              <Plus className="w-4 h-4" /> {t('addTrip')}
+            </button>
           </div>
         </div>
         <div className="overflow-x-auto">

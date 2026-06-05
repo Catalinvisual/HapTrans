@@ -30,10 +30,6 @@ export default function FinancialPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold text-text">{t('financial')}</h1>
-        <p className="text-text-secondary text-sm">{t('financialReport6Months')}</p>
-      </div>
       {/* Diesel Prices Widget */}
       <DieselWidget avgConsumptionL100={32} />
       <div className="grid grid-cols-3 gap-4">

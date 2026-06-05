@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/trip_provider.dart';
 import '../utils/constants.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
@@ -83,7 +84,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      showTopSnackBar(context, 
         SnackBar(content: Text({'ro': 'Eroare: $e', 'en': 'Error: $e', 'nl': 'Fout: $e', 'de': 'Fehler: $e', 'fr': 'Erreur: $e'}[locale] ?? 'Error: $e'), backgroundColor: kError),
       );
     }
@@ -92,7 +93,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   Future<void> _scanDocument() async {
     try {
       if (!await Permission.camera.request().isGranted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        showTopSnackBar(context, 
           SnackBar(content: Text({'ro': 'Permisiunea camerei este necesară', 'en': 'Camera permission is required', 'nl': 'Cameratoestemming is vereist', 'de': 'Kameraberechtigung ist erforderlich', 'fr': 'Autorisation caméra requise'}[locale] ?? 'Camera permission is required'), backgroundColor: Colors.red),
         );
         return;
@@ -115,7 +116,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       documentScanner.close();
     } catch (e) {
       if (e.toString().toLowerCase().contains('cancelled')) return; // Ignore user cancellation
-      ScaffoldMessenger.of(context).showSnackBar(
+      showTopSnackBar(context, 
         SnackBar(content: Text({'ro': 'Eroare scanare: $e', 'en': 'Scan Error: $e', 'nl': 'Scanfout: $e', 'de': 'Scan-Fehler: $e', 'fr': 'Erreur de scan: $e'}[locale] ?? 'Scan Error: $e'), backgroundColor: kError),
       );
     }
@@ -130,7 +131,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      showTopSnackBar(context, 
         SnackBar(content: Text({'ro': 'Eroare: $e', 'en': 'Error: $e', 'nl': 'Fout: $e', 'de': 'Fehler: $e', 'fr': 'Erreur: $e'}[locale] ?? 'Error: $e'), backgroundColor: kError),
       );
     }
@@ -138,14 +139,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   Future<void> _uploadDocument(Map<String, String> l) async {
     if (_selectedFiles.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      showTopSnackBar(context, 
         SnackBar(content: Text(l['selectFile']!), backgroundColor: kWarning),
       );
       return;
     }
     
     if (_selectedTypeKey != 'fuel' && _selectedTripId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      showTopSnackBar(context, 
         SnackBar(content: Text(l['selectTripErr']!), backgroundColor: kWarning),
       );
       return;
@@ -188,7 +189,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         await dio.post('/documents/upload', data: formData);
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      showTopSnackBar(context, 
         SnackBar(content: Text(l['uploadSuccess']!), backgroundColor: kSuccess),
       );
       setState(() {
@@ -197,7 +198,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       });
       _fetchDocuments();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      showTopSnackBar(context, 
         SnackBar(content: Text({'ro': 'Încărcare eșuată: $e', 'en': 'Upload failed: $e', 'nl': 'Upload mislukt: $e', 'de': 'Hochladen fehlgeschlagen: $e', 'fr': 'Échec du téléchargement: $e'}[locale] ?? 'Upload failed: $e'), backgroundColor: kError),
       );
     } finally {
@@ -224,7 +225,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       final file = File(savePath);
       await file.writeAsBytes(response.data);
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      showTopSnackBar(context, 
         SnackBar(
           content: Text('${l['downloadSuccess']!} -> Downloads/$fileName'),
           backgroundColor: kSuccess,
@@ -243,14 +244,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         );
         await file.writeAsBytes(response.data);
         
-        ScaffoldMessenger.of(context).showSnackBar(
+        showTopSnackBar(context, 
           SnackBar(
             content: Text('${l['downloadSuccess']!} (Documents/$fileName)'),
             backgroundColor: kSuccess,
           ),
         );
       } catch (err) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        showTopSnackBar(context, 
           SnackBar(content: Text({'ro': 'Descărcare eșuată: $err', 'en': 'Download failed: $err', 'nl': 'Download mislukt: $err', 'de': 'Download fehlgeschlagen: $err', 'fr': 'Échec du téléchargement: $err'}[locale] ?? 'Download failed: $err'), backgroundColor: kError),
         );
       }
@@ -268,10 +269,161 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       final xFile = XFile(tempPath);
       await Share.shareXFiles([xFile], text: fileName);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      showTopSnackBar(context, 
         SnackBar(content: Text({'ro': 'Partajare eșuată: $e', 'en': 'Sharing failed: $e', 'nl': 'Delen mislukt: $e', 'de': 'Teilen fehlgeschlagen: $e', 'fr': 'Échec du partage: $e'}[locale] ?? 'Sharing failed: $e'), backgroundColor: kError),
       );
     }
+  }
+
+  void _showTripSelectionSheet(List<Map<String, dynamic>> trips, Map<String, String> l) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        builder: (_, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: kSurface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, -5)),
+            ],
+          ),
+          child: Column(
+            children: [
+              // Modern handle
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 16),
+                  width: 48,
+                  height: 5,
+                  decoration: BoxDecoration(color: Colors.grey[400], borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.route, color: kPrimary, size: 28),
+                    const SizedBox(width: 12),
+                    Text(l['selectTrip']!, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: kText)),
+                  ],
+                ),
+              ),
+              const Divider(height: 24, thickness: 1),
+              // List
+              Expanded(
+                child: trips.isEmpty
+                    ? Center(child: Text(l['noTrip']!, style: const TextStyle(fontSize: 16, color: kTextSecondary)))
+                    : ListView.separated(
+                        controller: scrollController,
+                        itemCount: trips.length,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (ctx, i) {
+                          final t = trips[i];
+                          final ref = t['referenceNumber'] ?? 'No Ref';
+                          final pickup = t['pickupAddress'] ?? '';
+                          final dropoff = t['dropoffAddress'] ?? '';
+                          final isSelected = _selectedTripId == t['id'];
+                          
+                          return InkWell(
+                            onTap: () {
+                              setState(() => _selectedTripId = t['id']);
+                              Navigator.pop(ctx);
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: isSelected ? kPrimary.withOpacity(0.05) : Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isSelected ? kPrimary : Colors.grey[200]!,
+                                  width: isSelected ? 2 : 1,
+                                ),
+                                boxShadow: isSelected ? [
+                                  BoxShadow(color: kPrimary.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))
+                                ] : [
+                                  BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  // Icon side
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? kPrimary : kPrimaryLight,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.local_shipping_rounded,
+                                      color: isSelected ? Colors.white : kPrimary,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  // Content side
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          ref,
+                                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: kText),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Column(
+                                              children: [
+                                                const SizedBox(height: 2),
+                                                Container(width: 8, height: 8, decoration: BoxDecoration(color: Colors.blue[400], shape: BoxShape.circle)),
+                                                Container(width: 2, height: 16, color: Colors.grey[300]),
+                                                Container(width: 8, height: 8, decoration: BoxDecoration(color: Colors.green[500], shape: BoxShape.circle)),
+                                              ],
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(pickup.split(',').first, style: const TextStyle(fontSize: 13, color: kTextSecondary, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                                                  const SizedBox(height: 6),
+                                                  Text(dropoff.split(',').first, style: const TextStyle(fontSize: 13, color: kTextSecondary, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    const Padding(
+                                      padding: EdgeInsets.only(left: 12),
+                                      child: Icon(Icons.check_circle_rounded, color: kPrimary, size: 28),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _showPreviewDialog(Map<String, dynamic> doc, Map<String, String> l) {
@@ -586,27 +738,56 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                       const SizedBox(height: 16),
                       Text(l['selectTrip']!, style: const TextStyle(fontWeight: FontWeight.bold, color: kText)),
                       const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        value: _selectedTripId,
-                        decoration: InputDecoration(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        hint: Text(l['selectTrip']!),
-                        items: context.watch<TripProvider>().trips
-                            .where((t) => t['driver']?['user']?['id'] == context.read<AuthProvider>().user?['id'])
-                            .map<DropdownMenuItem<String>>((t) {
-                          final ref = t['referenceNumber'] != null ? '${t['referenceNumber']} | ' : '';
-                          final pickup = t['pickupAddress'] ?? '';
-                          final dropoff = t['dropoffAddress'] ?? '';
-                          final shortLabel = '$ref${pickup.split(',').first} -> ${dropoff.split(',').first}';
-                          return DropdownMenuItem<String>(
-                            value: t['id'],
-                            child: Text(shortLabel, overflow: TextOverflow.ellipsis),
+                      Builder(
+                        builder: (context) {
+                          final availableTrips = context.watch<TripProvider>().trips
+                              .where((t) => t['driver']?['user']?['id'] == context.read<AuthProvider>().user?['id'])
+                              .toList();
+                          final selectedTrip = availableTrips.firstWhere((t) => t['id'] == _selectedTripId, orElse: () => <String, dynamic>{});
+                          final selectedRef = selectedTrip.isNotEmpty ? (selectedTrip['referenceNumber'] ?? 'Ref') : l['selectTrip']!;
+                          final selectedPickup = selectedTrip.isNotEmpty ? (selectedTrip['pickupAddress'] ?? '').split(',').first : '';
+                          final selectedDropoff = selectedTrip.isNotEmpty ? (selectedTrip['dropoffAddress'] ?? '').split(',').first : '';
+
+                          return GestureDetector(
+                            onTap: () => _showTripSelectionSheet(availableTrips, l),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: _selectedTripId != null ? kPrimary.withOpacity(0.5) : kBorder),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          selectedRef,
+                                          style: TextStyle(
+                                            fontWeight: _selectedTripId != null ? FontWeight.bold : FontWeight.normal,
+                                            color: _selectedTripId != null ? kText : kTextSecondary,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                        if (_selectedTripId != null) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '$selectedPickup ➔ $selectedDropoff',
+                                            style: const TextStyle(fontSize: 12, color: kTextSecondary),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ]
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(Icons.arrow_drop_down, color: kTextSecondary),
+                                ],
+                              ),
+                            ),
                           );
-                        }).toList(),
-                        onChanged: (val) => setState(() => _selectedTripId = val),
-                        isExpanded: true,
+                        }
                       ),
                       const SizedBox(height: 16),
                       Text(l['comment']!, style: const TextStyle(fontWeight: FontWeight.bold, color: kText)),
