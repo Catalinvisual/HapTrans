@@ -124,6 +124,7 @@ export default function DocumentsPage() {
                 { value: 'CMR', label: 'CMR' },
                 { value: 'Aviz', label: t('aviz') !== 'aviz' ? t('aviz').charAt(0).toUpperCase() + t('aviz').slice(1) : 'Aviz' },
                 { value: 'Factură', label: t('invoices') },
+                { value: 'Foto încărcare', label: t('loadingPhoto') },
                 { value: 'Foto marfă', label: t('cargoPhoto') },
                 { value: 'Altele', label: t('other') }
               ]}
@@ -197,9 +198,10 @@ export default function DocumentsPage() {
                     </td>
                     <td className="table-cell">
                       <span className="badge-primary">
-                        {doc.type === 'CMR' ? 'CMR' :
+                        {doc.type === 'CMR' ? 'CMR' : 
                          doc.type === 'Aviz' ? (t('aviz') !== 'aviz' ? t('aviz').charAt(0).toUpperCase() + t('aviz').slice(1) : 'Aviz') :
                          doc.type === 'Factură' ? t('invoices') :
+                         doc.type === 'Foto încărcare' ? t('loadingPhoto') :
                          doc.type === 'Foto marfă' ? t('cargoPhoto') :
                          doc.type === 'Altele' ? t('other') : doc.type}
                       </span>

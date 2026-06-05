@@ -373,6 +373,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'cmr': 'CMR',
         'aviz': 'Aviz',
         'fuel': 'Bon Combustibil',
+        'loadingPhoto': 'Foto Încărcare',
+        'cargoPhoto': 'Foto Marfă',
         'other': 'Altele',
         'comment': 'Comentarii / Detalii',
         'selectFile': 'Alege Fișier / Fă O Foto',
@@ -395,6 +397,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'cmr': 'CMR',
         'aviz': 'Waybill',
         'fuel': 'Fuel Receipt',
+        'loadingPhoto': 'Loading Photo',
+        'cargoPhoto': 'Cargo Photo',
         'other': 'Other',
         'comment': 'Comments / Details',
         'selectFile': 'Choose File / Take A Photo',
@@ -417,6 +421,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'cmr': 'CMR',
         'aviz': 'Vrachtbrief',
         'fuel': 'Brandstofbon',
+        'loadingPhoto': 'Foto Lading',
+        'cargoPhoto': 'Foto Vracht',
         'other': 'Overig',
         'comment': 'Opmerkingen / Details',
         'selectFile': 'Kies bestand / Maak foto',
@@ -439,6 +445,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'cmr': 'CMR',
         'aviz': 'Frachtbrief',
         'fuel': 'Tankbeleg',
+        'loadingPhoto': 'Foto Beladung',
+        'cargoPhoto': 'Foto Fracht',
         'other': 'Sonstiges',
         'comment': 'Kommentare / Details',
         'selectFile': 'Datei auswählen / Foto aufnehmen',
@@ -461,6 +469,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'cmr': 'CMR',
         'aviz': 'Lettre de voiture',
         'fuel': 'Reçu de carburant',
+        'loadingPhoto': 'Photo Chargement',
+        'cargoPhoto': 'Photo Cargaison',
         'other': 'Autre',
         'comment': 'Commentaires / Détails',
         'selectFile': 'Choisir un fichier / Prendre une photo',
@@ -507,32 +517,27 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                       Text(l['type']!, style: const TextStyle(fontWeight: FontWeight.bold, color: kText)),
                       const SizedBox(height: 8),
                       // Dropdown/Selector
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
-                          for (final type in ['CMR', 'Aviz', 'Fuel', 'Other'])
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => setState(() => _selectedType = type),
-                                child: Container(
-                                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                                  padding: const EdgeInsets.symmetric(vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: _selectedType == type ? kPrimary : Colors.white,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: _selectedType == type ? kPrimary : kBorder),
-                                  ),
-                                  child: Text(
-                                    type == 'Fuel'
-                                        ? 'Fuel'
-                                        : type == 'Other'
-                                            ? 'Other'
-                                            : type,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: _selectedType == type ? Colors.white : kTextSecondary,
-                                    ),
+                          for (final typeKey in ['cmr', 'aviz', 'fuel', 'loadingPhoto', 'cargoPhoto', 'other'])
+                            GestureDetector(
+                              onTap: () => setState(() => _selectedType = l[typeKey]!),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: _selectedType == l[typeKey] ? kPrimary : Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: _selectedType == l[typeKey] ? kPrimary : kBorder),
+                                ),
+                                child: Text(
+                                  l[typeKey]!,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: _selectedType == l[typeKey] ? Colors.white : kTextSecondary,
                                   ),
                                 ),
                               ),
