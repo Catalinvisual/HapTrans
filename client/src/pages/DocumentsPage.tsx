@@ -17,6 +17,7 @@ export default function DocumentsPage() {
   const [file, setFile] = useState<File | null>(null);
   const [tripId, setTripId] = useState('');
   const [docType, setDocType] = useState('CMR');
+  const [notes, setNotes] = useState('');
 
   const executeDelete = async () => {
     if (!deleteId) return;
@@ -43,9 +44,14 @@ export default function DocumentsPage() {
     fd.append('file', file);
     fd.append('tripId', tripId);
     fd.append('type', docType);
+    if (notes) fd.append('notes', notes);
     try {
       await api.post('/documents/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success(t('success') || 'Document încărcat!'); setFile(null); load();
+      toast.success(t('success') || 'Document încărcat!'); 
+      setFile(null); 
+      setNotes('');
+      setShowForm(false);
+      load();
     } catch { toast.error(t('uploadError')); }
   };
 
@@ -96,7 +102,7 @@ export default function DocumentsPage() {
       {showForm && (
         <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md">
           <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">{t('uploadDocument')}</h3>
-          <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           <div>
             <label className="label">{t('trip')}</label>
             <CustomSelect
@@ -124,6 +130,16 @@ export default function DocumentsPage() {
             />
           </div>
           <div>
+            <label className="label">{t('notes') || 'Comentarii'}</label>
+            <input 
+              type="text" 
+              className="input py-2" 
+              placeholder={t('notesPlaceholder') || 'Detalii opționale...'} 
+              value={notes} 
+              onChange={e => setNotes(e.target.value)} 
+            />
+          </div>
+          <div>
             <label className="label">{t('file')}</label>
             <div className="relative">
               <input 
@@ -146,7 +162,7 @@ export default function DocumentsPage() {
               </label>
             </div>
           </div>
-          <button type="submit" className="btn-primary md:col-span-3 justify-center">
+          <button type="submit" className="btn-primary md:col-span-2 lg:col-span-4 justify-center mt-2">
             <Upload className="w-4 h-4" /> {t('uploadDocument')}
           </button>
           </form>
@@ -180,13 +196,16 @@ export default function DocumentsPage() {
                       </div>
                     </td>
                     <td className="table-cell">
-                      <span className="badge-primary">
-                        {doc.type === 'CMR' ? 'CMR' :
-                         doc.type === 'Aviz' ? t('aviz') :
-                         doc.type === 'Factură' ? t('invoices') :
-                         doc.type === 'Foto marfă' ? t('cargoPhoto') :
-                         doc.type === 'Altele' ? t('other') : doc.type}
-                      </span>
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className="badge-primary">
+                          {doc.type === 'CMR' ? 'CMR' :
+                           doc.type === 'Aviz' ? t('aviz') :
+                           doc.type === 'Factură' ? t('invoices') :
+                           doc.type === 'Foto marfă' ? t('cargoPhoto') :
+                           doc.type === 'Altele' ? t('other') : doc.type}
+                        </span>
+                        {doc.notes && <span className="text-[11px] text-text-secondary italic max-w-[150px] truncate" title={doc.notes}>{doc.notes}</span>}
+                      </div>
                     </td>
                     <td className="table-cell text-xs">{doc.trip?.pickupAddress?.slice(0,20) || '—'}</td>
                     <td className="table-cell text-xs">{doc.uploadedBy?.name || '—'}</td>
