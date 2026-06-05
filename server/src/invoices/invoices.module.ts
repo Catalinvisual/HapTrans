@@ -17,11 +17,15 @@ cloudinary.config({
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
-  params: async (req, file) => ({
-    folder: 'haptrans_invoices',
-    resource_type: 'raw',
-    format: 'pdf'
-  }),
+  params: async (req, file) => {
+    const cleanName = file.originalname.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
+    return {
+      folder: 'haptrans_invoices',
+      resource_type: 'raw',
+      format: 'pdf',
+      public_id: `${cleanName}_${Date.now()}`
+    };
+  },
 });
 
 @Module({

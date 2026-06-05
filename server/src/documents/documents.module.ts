@@ -20,22 +20,28 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => {
     const isPdf = file.mimetype === 'application/pdf' || (file.originalname && file.originalname.toLowerCase().endsWith('.pdf'));
+    const cleanName = file.originalname.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
+    const publicId = `${cleanName}_${Date.now()}`;
+
     if (isPdf) {
       return {
         folder: 'haptrans_documents',
         resource_type: 'raw',
-        format: 'pdf'
+        format: 'pdf',
+        public_id: publicId
       };
     }
     if (file.mimetype && file.mimetype.startsWith('image/')) {
       return {
         folder: 'haptrans_documents',
-        resource_type: 'image'
+        resource_type: 'image',
+        public_id: publicId
       };
     }
     return {
       folder: 'haptrans_documents',
-      resource_type: 'raw'
+      resource_type: 'raw',
+      public_id: publicId
     };
   },
 });
