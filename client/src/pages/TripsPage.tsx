@@ -498,7 +498,7 @@ export default function TripsPage() {
       let n = bstr.length;
       const u8arr = new Uint8Array(n);
       while(n--) { u8arr[n] = bstr.charCodeAt(n); }
-      const file = new File([u8arr], `Factura_${savedInvoice.invoiceNumber}.pdf`, { type: mime });
+      const file = new File([u8arr], `Invoice_${savedInvoice.invoiceNumber}.pdf`, { type: mime });
       
       const formData = new FormData();
       formData.append('file', file);
@@ -529,7 +529,7 @@ export default function TripsPage() {
             // Fallback to download
             const link = document.createElement("a");
             link.href = finalPdfUrl;
-            link.download = `Factura_${savedInvoice.invoiceNumber}.pdf`;
+            link.download = `Invoice_${savedInvoice.invoiceNumber}.pdf`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);

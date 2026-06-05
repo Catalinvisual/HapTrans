@@ -42,9 +42,9 @@ export default function InvoicesPage() {
   };
 
   const handleDownload = (invoice: any) => {
-    const link = document.createElement("a");
+    const link = document.createElement('a');
     link.href = invoice.pdfUrl || invoice.pdfData;
-    link.download = `Factura_${invoice.invoiceNumber}.pdf`;
+    link.download = `Invoice_${invoice.invoiceNumber}.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -56,8 +56,8 @@ export default function InvoicesPage() {
       try {
         if (invoice.pdfUrl) {
           await navigator.share({
-            title: `Factură ${invoice.invoiceNumber}`,
-            text: `Bună ziua, vă transmitem factura ${invoice.invoiceNumber} emisă de HapTrans. Link:`,
+            title: `Invoice ${invoice.invoiceNumber}`,
+            text: `Hello, here is the invoice ${invoice.invoiceNumber} from HapTrans. Link:`,
             url: invoice.pdfUrl
           });
         } else {
@@ -69,12 +69,12 @@ export default function InvoicesPage() {
           while(n--){
               u8arr[n] = bstr.charCodeAt(n);
           }
-          const file = new File([u8arr], `Factura_${invoice.invoiceNumber}.pdf`, { type: mime });
+          const file = new File([u8arr], `Invoice_${invoice.invoiceNumber}.pdf`, { type: mime });
           
           await navigator.share({
             files: [file],
-            title: `Factură ${invoice.invoiceNumber}`,
-            text: `Bună ziua, vă transmitem factura ${invoice.invoiceNumber} emisă de HapTrans.`,
+            title: `Invoice ${invoice.invoiceNumber}`,
+            text: `Hello, here is the invoice ${invoice.invoiceNumber} from HapTrans.`,
           });
         }
         toast.success(t('invoiceShared'));
@@ -84,7 +84,7 @@ export default function InvoicesPage() {
         }
       }
     } else {
-      navigator.clipboard.writeText(`Factura ${invoice.invoiceNumber} - Client: ${invoice.client?.name} - Suma: EUR ${invoice.amount}`);
+      navigator.clipboard.writeText(`Invoice ${invoice.invoiceNumber} - Client: ${invoice.client?.name} - Amount: EUR ${invoice.amount}`);
       toast.success(t('copiedToClipboard'));
     }
   };
@@ -120,7 +120,7 @@ export default function InvoicesPage() {
         let n = bstr.length;
         const u8arr = new Uint8Array(n);
         while(n--) { u8arr[n] = bstr.charCodeAt(n); }
-        const file = new File([u8arr], `Factura_${savedInvoice.invoiceNumber}.pdf`, { type: mime });
+        const file = new File([u8arr], `Invoice_${savedInvoice.invoiceNumber}.pdf`, { type: mime });
         
         const formData = new FormData();
         formData.append('file', file);
@@ -143,7 +143,7 @@ export default function InvoicesPage() {
         let n = bstr.length;
         const u8arr = new Uint8Array(n);
         while(n--) { u8arr[n] = bstr.charCodeAt(n); }
-        const file = new File([u8arr], `Factura_${invoice.invoiceNumber}.pdf`, { type: mime });
+        const file = new File([u8arr], `Invoice_${invoice.invoiceNumber}.pdf`, { type: mime });
         
         const formData = new FormData();
         formData.append('file', file);
