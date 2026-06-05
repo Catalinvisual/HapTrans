@@ -43,7 +43,10 @@ export default function DocumentsPage() {
     const fd = new FormData();
     const selectedTrip = trips.find((t: any) => t.id === tripId);
     const refPrefix = selectedTrip?.referenceNumber ? `${selectedTrip.referenceNumber}_` : '';
-    const newFile = new File([file], `${refPrefix}${file.name}`, { type: file.type });
+    const extension = file.name.split('.').pop() || 'pdf';
+    const cleanType = docType.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const finalName = selectedTrip?.referenceNumber ? `${selectedTrip.referenceNumber}_${cleanType}.${extension}` : `${cleanType}.${extension}`;
+    const newFile = new File([file], finalName, { type: file.type });
     fd.append('file', newFile);
     fd.append('tripId', tripId);
     fd.append('type', docType);

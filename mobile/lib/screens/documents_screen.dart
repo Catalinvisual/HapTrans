@@ -165,13 +165,17 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       ));
 
       for (final file in _selectedFiles) {
+        final extension = file.path.split('.').last;
+        final cleanType = _selectedType.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
+        final finalName = _selectedTripId != null ? '$refPrefix$cleanType.$extension' : '$cleanType.$extension';
+        
         final formData = FormData.fromMap({
           'type': _selectedType,
           if (_selectedTripId != null) 'tripId': _selectedTripId,
           'notes': _commentCtrl.text.trim(),
           'file': await MultipartFile.fromFile(
             file.path,
-            filename: '$refPrefix${file.path.split('/').last}',
+            filename: finalName,
           ),
         });
         await dio.post('/documents/upload', data: formData);
