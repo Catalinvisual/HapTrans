@@ -21,6 +21,7 @@ export default function InvoicesPage() {
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
   const [showExport, setShowExport] = useState(false);
+  const [invoiceLangModal, setInvoiceLangModal] = useState<any>({ isOpen: false, data: null, type: '', cb: null });
   const [form, setForm] = useState({ clientId: '', tripId: '', amount: '', vatPercent: '19', issueDate: '', dueDate: '', notes: '' });
 
   const load = async () => {
@@ -92,9 +93,50 @@ export default function InvoicesPage() {
     if (invoice.pdfUrl || invoice.pdfData) {
       action(invoice);
     } else {
+      setInvoiceLangModal({ isOpen: true, data: invoice, type: 'ensure', cb: action });
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInvoiceLangModal({ isOpen: true, data: form, type: 'submit' });
+  };
+
+  const executeLangAction = async (lang: 'en' | 'nl') => {
+    if (invoiceLangModal.type === 'submit') {
+      try {
+        const dataToSubmit = {
+          ...invoiceLangModal.data,
+          tripId: invoiceLangModal.data.tripId === '' ? null : invoiceLangModal.data.tripId,
+          amount: invoiceLangModal.data.amount === '' ? null : Number(invoiceLangModal.data.amount),
+          vatPercent: invoiceLangModal.data.vatPercent === '' ? null : Number(invoiceLangModal.data.vatPercent),
+        };
+        const res = await api.post('/invoices', dataToSubmit);
+        const savedInvoice = res.data;
+        const base64Pdf = generateInvoicePdfBase64(savedInvoice, lang);
+        const arr = base64Pdf.split(',');
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while(n--) { u8arr[n] = bstr.charCodeAt(n); }
+        const file = new File([u8arr], `Factura_${savedInvoice.invoiceNumber}.pdf`, { type: mime });
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        await api.post(`/invoices/upload-pdf/${savedInvoice.id}`, formData);
+
+        toast.success(t('invoiceCreatedWithPdf'));
+        setShowForm(false);
+        load();
+      } catch {
+        toast.error(t('error'));
+      }
+    } else if (invoiceLangModal.type === 'ensure') {
+      const invoice = invoiceLangModal.data;
       const loadId = toast.loading(t('generatingPdf'));
       try {
-        const base64Pdf = generateInvoicePdfBase64(invoice);
+        const base64Pdf = generateInvoicePdfBase64(invoice, lang);
         const arr = base64Pdf.split(',');
         const mime = arr[0].match(/:(.*?);/)[1];
         const bstr = atob(arr[1]);
@@ -109,44 +151,12 @@ export default function InvoicesPage() {
         
         invoice.pdfUrl = res.data.pdfUrl;
         toast.dismiss(loadId);
-        action(invoice);
+        if (invoiceLangModal.cb) invoiceLangModal.cb(invoice);
         load();
       } catch {
         toast.dismiss(loadId);
         toast.error(t('pdfGenerateError'));
       }
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const dataToSubmit = {
-        ...form,
-        tripId: form.tripId === '' ? null : form.tripId,
-        amount: form.amount === '' ? null : Number(form.amount),
-        vatPercent: form.vatPercent === '' ? null : Number(form.vatPercent),
-      };
-      const res = await api.post('/invoices', dataToSubmit);
-      const savedInvoice = res.data;
-      const base64Pdf = generateInvoicePdfBase64(savedInvoice);
-      const arr = base64Pdf.split(',');
-      const mime = arr[0].match(/:(.*?);/)[1];
-      const bstr = atob(arr[1]);
-      let n = bstr.length;
-      const u8arr = new Uint8Array(n);
-      while(n--) { u8arr[n] = bstr.charCodeAt(n); }
-      const file = new File([u8arr], `Factura_${savedInvoice.invoiceNumber}.pdf`, { type: mime });
-      
-      const formData = new FormData();
-      formData.append('file', file);
-      await api.post(`/invoices/upload-pdf/${savedInvoice.id}`, formData);
-
-      toast.success(t('invoiceCreatedWithPdf'));
-      setShowForm(false);
-      load();
-    } catch {
-      toast.error(t('error'));
     }
   };
 
@@ -271,6 +281,41 @@ export default function InvoicesPage() {
           { key: 'status', label: 'Status' },
         ]}
       />
+
+      {invoiceLangModal.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4">
+            <h3 className="text-xl font-bold mb-2">{t('invoiceLanguageTitle') || 'Invoice Language'}</h3>
+            <p className="text-sm text-text-secondary mb-6">{t('invoiceLanguageSub') || 'Choose the language for the generated PDF'}</p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setInvoiceLangModal({ isOpen: false, data: null, type: '', cb: null });
+                  executeLangAction('en');
+                }}
+                className="w-full py-3 px-4 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors flex items-center justify-center gap-2"
+              >
+                {t('generateEn') || 'English (EN)'}
+              </button>
+              <button
+                onClick={() => {
+                  setInvoiceLangModal({ isOpen: false, data: null, type: '', cb: null });
+                  executeLangAction('nl');
+                }}
+                className="w-full py-3 px-4 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors flex items-center justify-center gap-2"
+              >
+                {t('generateNl') || 'Dutch (NL)'}
+              </button>
+              <button
+                onClick={() => setInvoiceLangModal({ isOpen: false, data: null, type: '', cb: null })}
+                className="w-full py-2 px-4 mt-2 text-text-secondary hover:text-text font-medium transition-colors"
+              >
+                {t('cancel')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

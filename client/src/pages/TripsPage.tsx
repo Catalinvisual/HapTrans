@@ -43,6 +43,7 @@ export default function TripsPage() {
   const [scanSuccess, setScanSuccess] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const [deadheadWarning, setDeadheadWarning] = useState<any>(null);
+  const [invoiceLangModal, setInvoiceLangModal] = useState<any>({ isOpen: false, trip: null });
   
   const [form, setForm] = useState<any>({
     clientId: '', truckId: '', driverId: '', 
@@ -453,7 +454,11 @@ export default function TripsPage() {
     });
   };
 
-  const handleGenerateInvoice = async (trip: any) => {
+  const handleGenerateInvoice = (trip: any) => {
+    setInvoiceLangModal({ isOpen: true, trip });
+  };
+
+  const executeGenerateInvoice = async (trip: any, lang: 'en' | 'nl') => {
     const loadId = toast.loading(t('generatingInvoice'));
     try {
       const issueDate = new Date().toISOString().slice(0, 10);
@@ -484,7 +489,7 @@ export default function TripsPage() {
       };
 
       // Generate base64 PDF
-      const base64Pdf = generateInvoicePdfBase64(invoiceWithFullRelations);
+      const base64Pdf = generateInvoicePdfBase64(invoiceWithFullRelations, lang);
 
       // Convert to File
       const arr = base64Pdf.split(',');
@@ -1293,6 +1298,41 @@ export default function TripsPage() {
           { key: 'notes', label: 'Note' },
         ]}
       />
+
+      {invoiceLangModal.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4">
+            <h3 className="text-xl font-bold mb-2">{t('invoiceLanguageTitle') || 'Invoice Language'}</h3>
+            <p className="text-sm text-text-secondary mb-6">{t('invoiceLanguageSub') || 'Choose the language for the generated PDF'}</p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setInvoiceLangModal({ isOpen: false, trip: null });
+                  executeGenerateInvoice(invoiceLangModal.trip, 'en');
+                }}
+                className="w-full py-3 px-4 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors flex items-center justify-center gap-2"
+              >
+                {t('generateEn') || 'English (EN)'}
+              </button>
+              <button
+                onClick={() => {
+                  setInvoiceLangModal({ isOpen: false, trip: null });
+                  executeGenerateInvoice(invoiceLangModal.trip, 'nl');
+                }}
+                className="w-full py-3 px-4 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors flex items-center justify-center gap-2"
+              >
+                {t('generateNl') || 'Dutch (NL)'}
+              </button>
+              <button
+                onClick={() => setInvoiceLangModal({ isOpen: false, trip: null })}
+                className="w-full py-2 px-4 mt-2 text-text-secondary hover:text-text font-medium transition-colors"
+              >
+                {t('cancel')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={confirmModal.isOpen}
