@@ -41,7 +41,10 @@ export default function DocumentsPage() {
     e.preventDefault();
     if (!file) return;
     const fd = new FormData();
-    fd.append('file', file);
+    const selectedTrip = trips.find((t: any) => t.id === tripId);
+    const refPrefix = selectedTrip?.referenceNumber ? `${selectedTrip.referenceNumber}_` : '';
+    const newFile = new File([file], `${refPrefix}${file.name}`, { type: file.type });
+    fd.append('file', newFile);
     fd.append('tripId', tripId);
     fd.append('type', docType);
     if (notes) fd.append('notes', notes);
@@ -111,7 +114,7 @@ export default function DocumentsPage() {
               placeholder={t('noTrip')}
               options={trips.map((tr: any) => ({
                 value: tr.id,
-                label: `${tr.pickupAddress?.slice(0,20)} → ${tr.dropoffAddress?.slice(0,20)}`
+                label: tr.referenceNumber ? `${tr.referenceNumber} | ${tr.pickupAddress?.slice(0,20)} → ${tr.dropoffAddress?.slice(0,20)}` : `${tr.pickupAddress?.slice(0,20)} → ${tr.dropoffAddress?.slice(0,20)}`
               }))}
             />
           </div>

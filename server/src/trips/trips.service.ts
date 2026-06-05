@@ -54,7 +54,21 @@ export class TripsService {
 
   async create(dto: any) {
     await this.checkConflict(dto.driverId, dto.truckId, dto.pickupDate, dto.dropoffDate);
+    
+    const year = new Date().getFullYear();
+    const startOfYear = new Date(year, 0, 1);
+    const endOfYear = new Date(year, 11, 31, 23, 59, 59);
+
+    const count = await this.repo.count({
+      where: {
+        createdAt: Between(startOfYear, endOfYear),
+      },
+    });
+
+    const referenceNumber = `REF-${year}-${String(count + 1).padStart(4, '0')}`;
+
     const trip = this.repo.create({
+      referenceNumber,
       client: { id: dto.clientId },
       truck: { id: dto.truckId },
       driver: { id: dto.driverId },

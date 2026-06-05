@@ -21,6 +21,9 @@ export class Trip {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ nullable: true, unique: true })
+  referenceNumber: string;
+
   @ManyToOne(() => Client, (client) => client.trips, { eager: true })
   client: Client;
 

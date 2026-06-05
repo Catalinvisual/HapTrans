@@ -25,6 +25,7 @@ class DocumentsScreen extends StatefulWidget {
 class _DocumentsScreenState extends State<DocumentsScreen> {
   final _commentCtrl = TextEditingController();
   String _selectedType = 'CMR';
+  String? _selectedTripId;
   List<File> _selectedFiles = [];
   List<Map<String, dynamic>> _documentsList = [];
   bool _loading = false;
@@ -142,11 +143,22 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       );
       return;
     }
+    
+    final fuelLabels = ['Bon Combustibil', 'Fuel Receipt', 'Brandstofbon', 'Tankbeleg', 'Reçu de Carburant'];
+    if (!fuelLabels.contains(_selectedType) && _selectedTripId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l['selectTripErr']!), backgroundColor: kWarning),
+      );
+      return;
+    }
 
     setState(() => _loading = true);
 
     try {
       final auth = context.read<AuthProvider>();
+      final tripProv = context.read<TripProvider>();
+      final selectedTrip = tripProv.trips.firstWhere((t) => t['id'] == _selectedTripId, orElse: () => {});
+      final refPrefix = selectedTrip['referenceNumber'] != null ? '${selectedTrip['referenceNumber']}_' : '';
       final dio = Dio(BaseOptions(
         baseUrl: kApiUrl,
         headers: {'Authorization': 'Bearer ${auth.token}'},
@@ -155,10 +167,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       for (final file in _selectedFiles) {
         final formData = FormData.fromMap({
           'type': _selectedType,
+          if (_selectedTripId != null) 'tripId': _selectedTripId,
           'notes': _commentCtrl.text.trim(),
           'file': await MultipartFile.fromFile(
             file.path,
-            filename: file.path.split('/').last,
+            filename: '$refPrefix${file.path.split('/').last}',
           ),
         });
         await dio.post('/documents/upload', data: formData);
@@ -390,6 +403,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'camera': 'Scanare',
         'gallery': 'Galerie Foto',
         'files': 'Fișiere',
+        'selectTrip': 'Selectează Cursa',
+        'noTrip': 'Nicio cursă',
+        'selectTripErr': 'Te rog să selectezi o cursă!',
       },
       'en': {
         'title': 'Documents',
@@ -414,6 +430,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'camera': 'Scan',
         'gallery': 'Gallery',
         'files': 'Files',
+        'selectTrip': 'Select Trip',
+        'noTrip': 'No trip',
+        'selectTripErr': 'Please select a trip!',
       },
       'nl': {
         'title': 'Documenten',
@@ -438,6 +457,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'camera': 'Scannen',
         'gallery': 'Galerij',
         'files': 'Bestanden',
+        'selectTrip': 'Selecteer Rit',
+        'noTrip': 'Geen rit',
+        'selectTripErr': 'Selecteer alstublieft een rit!',
       },
       'de': {
         'title': 'Dokumente',
@@ -462,6 +484,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'camera': 'Scannen',
         'gallery': 'Galerie',
         'files': 'Dateien',
+        'selectTrip': 'Tour auswählen',
+        'noTrip': 'Keine Tour',
+        'selectTripErr': 'Bitte wählen Sie eine Tour aus!',
       },
       'fr': {
         'title': 'Documents',
@@ -486,6 +511,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'camera': 'Scanner',
         'gallery': 'Galerie',
         'files': 'Fichiers',
+        'selectTrip': 'Sélectionner la Course',
+        'noTrip': 'Aucune course',
+        'selectTripErr': 'Veuillez sélectionner une course !',
       },
     };
 
@@ -543,6 +571,31 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                               ),
                             ),
                         ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(l['selectTrip']!, style: const TextStyle(fontWeight: FontWeight.bold, color: kText)),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: _selectedTripId,
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        hint: Text(l['selectTrip']!),
+                        items: context.watch<TripProvider>().trips
+                            .where((t) => t['driver']?['user']?['id'] == context.read<AuthProvider>().user?['id'])
+                            .map<DropdownMenuItem<String>>((t) {
+                          final ref = t['referenceNumber'] != null ? '${t['referenceNumber']} | ' : '';
+                          final pickup = t['pickupAddress'] ?? '';
+                          final dropoff = t['dropoffAddress'] ?? '';
+                          final shortLabel = '$ref${pickup.split(',').first} -> ${dropoff.split(',').first}';
+                          return DropdownMenuItem<String>(
+                            value: t['id'],
+                            child: Text(shortLabel, overflow: TextOverflow.ellipsis),
+                          );
+                        }).toList(),
+                        onChanged: (val) => setState(() => _selectedTripId = val),
+                        isExpanded: true,
                       ),
                       const SizedBox(height: 16),
                       Text(l['comment']!, style: const TextStyle(fontWeight: FontWeight.bold, color: kText)),

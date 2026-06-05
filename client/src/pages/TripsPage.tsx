@@ -1048,6 +1048,7 @@ export default function TripsPage() {
             <thead>
               <tr className="bg-surface border-b border-border">
                 {[
+                  t('reference'),
                   t('created'),
                   t('client'),
                   t('pickup'),
@@ -1079,6 +1080,9 @@ export default function TripsPage() {
                 const profit = Number(trip.price || 0) - totalCost;
                 return (
                   <tr key={trip.id} className="hover:bg-surface/60 transition-colors">
+                    <td className="table-cell whitespace-nowrap text-xs font-bold text-primary">
+                      {trip.referenceNumber || '—'}
+                    </td>
                     <td className="table-cell whitespace-nowrap text-xs">
                       <div className="font-bold text-text">{trip.createdAt ? formatDate(trip.createdAt) : '—'}</div>
                       {trip.createdAt && (

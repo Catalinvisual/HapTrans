@@ -25,6 +25,7 @@ export function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' = 'en')
     en: {
       invoice: 'INVOICE',
       invoiceNo: 'Invoice No:',
+      tripRef: 'Trip Ref:',
       issueDate: 'Issue Date:',
       dueDate: 'Due Date:',
       from: 'FROM:',
@@ -59,6 +60,7 @@ export function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' = 'en')
     nl: {
       invoice: 'FACTUUR',
       invoiceNo: 'Factuurnummer:',
+      tripRef: 'Rit Ref:',
       issueDate: 'Factuurdatum:',
       dueDate: 'Vervaldatum:',
       from: 'VAN:',
@@ -141,6 +143,9 @@ export function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' = 'en')
   doc.text(`${t.invoiceNo} ${safeText(invoice.invoiceNumber)}`, 145, 18);
   doc.text(`${t.issueDate} ${fmtDate(invoice.issueDate)}`, 145, 24);
   doc.text(`${t.dueDate}   ${fmtDate(invoice.dueDate)}`, 145, 30);
+  if (invoice.trip && invoice.trip.referenceNumber) {
+    doc.text(`${t.tripRef} ${invoice.trip.referenceNumber}`, 145, 36);
+  }
 
   // Decorative separator
   doc.setDrawColor(226, 232, 240);

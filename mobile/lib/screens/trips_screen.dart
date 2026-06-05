@@ -248,17 +248,31 @@ class _TripsScreenState extends State<TripsScreen> {
                               child: Padding(
                                 padding: const EdgeInsets.all(16),
                                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Row(children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: _statusColor(status).withOpacity(0.12),
-                                        borderRadius: BorderRadius.circular(20),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: _statusColor(status).withOpacity(0.12),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Text(_statusLabel(status, locale),
+                                          style: TextStyle(color: _statusColor(status), fontSize: 12, fontWeight: FontWeight.w600)),
                                       ),
-                                      child: Text(_statusLabel(status, locale),
-                                        style: TextStyle(color: _statusColor(status), fontSize: 12, fontWeight: FontWeight.w600)),
-                                    ),
-                                  ]),
+                                      if (trip['referenceNumber'] != null)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: kPrimary.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            trip['referenceNumber'],
+                                            style: const TextStyle(color: kPrimary, fontSize: 12, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                    ]),
                                   const SizedBox(height: 12),
                                   Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -409,6 +423,11 @@ class TripDetailSheet extends StatelessWidget {
           Expanded(child: ListView(controller: ctrl, padding: const EdgeInsets.all(20), children: [
             Text({'ro':'Detalii cursă','en':'Trip details','nl':'Rit details'}[locale] ?? 'Trip details',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            if (trip['referenceNumber'] != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(trip['referenceNumber'], style: const TextStyle(fontSize: 14, color: kPrimary, fontWeight: FontWeight.bold)),
+              ),
             const SizedBox(height: 20),
             _InfoRow(Icons.local_shipping_outlined, {'ro':'Camion','en':'Truck','nl':'Vrachtwagen'}[locale] ?? 'Camion', trip['truck']?['plateNumber'] ?? '—'),
             _InfoRow(Icons.business_outlined, {'ro':'Nume client încărcare','en':'Pickup Company','nl':'Naam laadklant'}[locale] ?? 'Nume client încărcare', (trip['pickupCompanyName'] != null && trip['pickupCompanyName'].toString().isNotEmpty) ? trip['pickupCompanyName'] : '—'),

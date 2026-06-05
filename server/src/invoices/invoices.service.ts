@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between } from 'typeorm';
 import { Invoice, InvoiceStatus } from './invoice.entity';
 import { v2 as cloudinary } from 'cloudinary';
 
@@ -34,8 +34,17 @@ export class InvoicesService {
   findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['client', 'trip'] }); }
 
   async create(dto: any) {
-    const count = await this.repo.count();
-    const invoiceNumber = `HT-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
+    const year = new Date().getFullYear();
+    const startOfYear = new Date(year, 0, 1);
+    const endOfYear = new Date(year, 11, 31, 23, 59, 59);
+    
+    const count = await this.repo.count({
+      where: {
+        createdAt: Between(startOfYear, endOfYear),
+      },
+    });
+
+    const invoiceNumber = `HT-${year}-${String(count + 1).padStart(4, '0')}`;
     const inv = this.repo.create({
       ...dto,
       invoiceNumber,
