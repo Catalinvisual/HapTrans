@@ -187,7 +187,7 @@ export default function DocumentsPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-surface border-b border-border">
-                {[t('file'), t('type'), t('notes') !== 'notes' ? t('notes') : 'Notițe', t('trip'), t('uploadedBy'), t('date'), t('actions')].map(h => (
+                {[t('file'), t('type'), t('notes') !== 'notes' ? t('notes') : 'Notițe', t('reference') || 'Referinta', t('uploadedBy'), t('date'), t('actions')].map(h => (
                   <th key={h} className="table-header">{h}</th>
                 ))}
               </tr>

@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Eye, Download, Share2 } from 'lucide-react';
+import { Plus, Search, Eye, Download, Share2, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import ExportModal from '../components/ExportModal';
 import { generateInvoicePdfBase64 } from '../lib/invoicePdfGenerator';
 import { formatDate } from '../lib/dateUtils';
 import CustomSelect from '../components/CustomSelect';
+import ConfirmModal from '../components/ConfirmModal';
 
 const STATUS_COLORS: Record<string, string> = { draft:'badge-gray', sent:'badge-primary', paid:'badge-success', overdue:'badge-error', cancelled:'badge-error' };
 
