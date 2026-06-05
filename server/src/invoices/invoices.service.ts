@@ -2,6 +2,29 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Invoice, InvoiceStatus } from './invoice.entity';
+import { v2 as cloudinary } from 'cloudinary';
+
+async function deleteFromCloudinary(fileUrl: string) {
+  if (!fileUrl || !fileUrl.includes('cloudinary.com')) return;
+  try {
+    const parts = fileUrl.split('/');
+    const uploadIndex = parts.findIndex(p => p === 'upload');
+    if (uploadIndex === -1) return;
+    
+    const resourceType = parts[uploadIndex - 1]; 
+    let publicIdParts = parts.slice(uploadIndex + 2); 
+    let publicIdWithExt = publicIdParts.join('/');
+    
+    let publicId = publicIdWithExt;
+    if (resourceType === 'image' || resourceType === 'video') {
+       publicId = publicIdWithExt.replace(/\.[^/.]+$/, "");
+    }
+    
+    await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+  } catch (e) {
+    console.error('Failed to delete from Cloudinary:', e);
+  }
+}
 
 @Injectable()
 export class InvoicesService {
@@ -23,7 +46,13 @@ export class InvoicesService {
   }
 
   update(id: string, dto: Partial<Invoice>) { return this.repo.update(id, dto); }
-  remove(id: string) { return this.repo.delete(id); }
+  async remove(id: string) {
+    const inv = await this.repo.findOne({ where: { id } });
+    if (inv && inv.pdfUrl) {
+      await deleteFromCloudinary(inv.pdfUrl);
+    }
+    return this.repo.delete(id); 
+  }
 
   getOverdue() {
     return this.repo.createQueryBuilder('inv')
