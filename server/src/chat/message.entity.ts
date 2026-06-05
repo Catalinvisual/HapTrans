@@ -7,7 +7,7 @@ export class Message {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Trip, (trip) => trip.messages)
+  @ManyToOne(() => Trip, (trip) => trip.messages, { onDelete: 'CASCADE' })
   trip: Trip;
 
   @ManyToOne(() => User, { eager: true })

@@ -18,7 +18,7 @@ export class Invoice {
   @Column({ unique: true })
   invoiceNumber: string;
 
-  @ManyToOne(() => Trip, (trip) => trip.invoices)
+  @ManyToOne(() => Trip, (trip) => trip.invoices, { onDelete: 'CASCADE' })
   trip: Trip;
 
   @ManyToOne(() => Client, (client) => client.invoices, { eager: true })

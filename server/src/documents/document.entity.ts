@@ -7,7 +7,7 @@ export class Document {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Trip, (trip) => trip.documents)
+  @ManyToOne(() => Trip, (trip) => trip.documents, { onDelete: 'CASCADE' })
   trip: Trip;
 
   @ManyToOne(() => User)

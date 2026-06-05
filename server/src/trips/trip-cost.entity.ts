@@ -14,7 +14,7 @@ export class TripCost {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Trip, (trip) => trip.costs)
+  @ManyToOne(() => Trip, (trip) => trip.costs, { onDelete: 'CASCADE' })
   trip: Trip;
 
   @Column({ type: 'enum', enum: CostType, default: CostType.EXTRA })

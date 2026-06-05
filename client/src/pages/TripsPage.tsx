@@ -448,8 +448,13 @@ export default function TripsPage() {
       type: 'danger',
       onConfirm: async () => {
         setConfirmModal((prev: any) => ({ ...prev, isOpen: false }));
-        await api.delete(`/trips/${id}`);
-        toast.success(t('tripDeleted')); load();
+        try {
+          await api.delete(`/trips/${id}`);
+          toast.success(t('tripDeleted') || 'Cursa ștearsă.'); 
+          load();
+        } catch (err) {
+          toast.error(t('error') || 'Eroare la ștergerea cursei.');
+        }
       }
     });
   };
