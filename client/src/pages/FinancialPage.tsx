@@ -60,7 +60,7 @@ export default function FinancialPage() {
               <Legend />
               <Bar dataKey="totalRevenue" fill="#16A34A" name={t('revenue')} radius={[4,4,0,0]} />
               <Bar dataKey="totalCost" fill="#DC2626" name={t('costs')} stackId="a" radius={[0,0,0,0]} />
-              <Bar dataKey="totalExpenses" fill="#991B1B" name="Cheltuieli" stackId="a" radius={[4,4,0,0]} />
+              <Bar dataKey="totalExpenses" fill="#991B1B" name={t('expenses')} stackId="a" radius={[4,4,0,0]} />
               <Bar dataKey="profit" fill="#FF7A1A" name={t('profit')} radius={[4,4,0,0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -69,7 +69,7 @@ export default function FinancialPage() {
       <div className="card p-0 overflow-x-auto">
         <table className="w-full">
           <thead><tr className="bg-surface border-b border-border">
-            {[t('monthTable'), t('trips'), t('revenue'), t('costs'), 'Cheltuieli (Exp)', t('profit'), t('costPerKm')].map(h => <th key={h} className="table-header">{h}</th>)}
+            {[t('monthTable'), t('trips'), t('revenue'), t('costs'), t('expenses'), t('profit'), t('costPerKm')].map(h => <th key={h} className="table-header">{h}</th>)}
           </tr></thead>
           <tbody>
             {monthly.map(m => (

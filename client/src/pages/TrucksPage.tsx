@@ -153,7 +153,7 @@ export default function TrucksPage() {
                             {isOverdue || isWarning ? <AlertCircle className="w-3 h-3" /> : null}
                             {current.toLocaleString()} km
                           </div>
-                          <div className="text-[10px] opacity-80 font-normal">Revizie la: {threshold.toLocaleString()} km</div>
+                          <div className="text-[10px] opacity-80 font-normal">{t('maintenanceAt') || 'Revizie la:'} {threshold.toLocaleString()} km</div>
                         </div>
                       );
                     })() : <span className="text-xs text-text-light">—</span>}

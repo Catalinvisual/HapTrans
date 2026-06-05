@@ -265,7 +265,7 @@ export default function DriversPage() {
             {/* Daily Rate (Onbelaste vergoeding) */}
             <div>
               <label className="label font-semibold flex items-center gap-1">
-                <span className="w-4 h-4 text-primary font-bold text-center">€</span> Onbelaste vergoeding (€/zi)
+                <span className="w-4 h-4 text-primary font-bold text-center">€</span> {t('dailyAllowance') || 'Onbelaste vergoeding (€/zi)'}
               </label>
               <input
                 type="number"
@@ -279,7 +279,7 @@ export default function DriversPage() {
             {/* Gross Salary (Bruto Salaris) */}
             <div>
               <label className="label font-semibold flex items-center gap-1">
-                <span className="w-4 h-4 text-primary font-bold text-center">€</span> Bruto Salaris (€/lună)
+                <span className="w-4 h-4 text-primary font-bold text-center">€</span> {t('grossSalary') || 'Bruto Salaris (€/luna)'}
               </label>
               <input
                 type="number"
@@ -391,7 +391,7 @@ export default function DriversPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-surface border-b border-border">
-                {[t('name'), t('email'), t('phone'), t('licenseNumber'), 'Bruto Salaris', 'Vergoeding/zi', t('expLicense'), t('expMedical'), t('expTacho'), t('status'), t('documents'), t('actions')].map(h => (
+                {[t('name'), t('email'), t('phone'), t('licenseNumber'), t('grossSalary') || 'Bruto Salaris', t('dailyAllowance') || 'Vergoeding/zi', t('expLicense'), t('expMedical'), t('expTacho'), t('status'), t('documents'), t('actions')].map(h => (
                   <th key={h} className="table-header whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -481,8 +481,8 @@ export default function DriversPage() {
           { key: 'email', label: 'Email', transform: (_, item) => item?.user?.email || '' },
           { key: 'phone', label: 'Telefon' },
           { key: 'licenseNumber', label: 'Numar Permis' },
-          { key: 'grossSalary', label: 'Bruto Salaris (€)' },
-          { key: 'dailyRate', label: 'Vergoeding (€)' },
+          { key: 'grossSalary', label: t('grossSalary') || 'Bruto Salaris (€)' },
+          { key: 'dailyRate', label: t('dailyAllowance') || 'Vergoeding (€)' },
           { key: 'licenseExpiry', label: 'Expirare Permis', transform: val => val ? formatDate(val) : '' },
           { key: 'medicalExpiry', label: 'Expirare Aviz Medical', transform: val => val ? formatDate(val) : '' },
           { key: 'tachoCardExpiry', label: 'Expirare Cartela Tacho', transform: val => val ? formatDate(val) : '' },

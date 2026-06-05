@@ -286,6 +286,10 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
       aviz: 'Aviz',
       deleteInvoice: 'Sterge Factura',
       deleteConfirm: 'Sunteti sigur? Aceasta actiune este ireversibila.',
+      all: 'Toate',
+      maintenanceAt: 'Revizie la:',
+      grossSalary: 'Salariu brut',
+      dailyAllowance: 'Diurna/zi',
       realTimePositions: 'Poziții în timp real ale camioanelor',
       noActiveLocations: 'Niciun șofer nu transmite locația momentan.',
       operationalSummaryCurrentMonth: 'Rezumat operațional — luna curentă',
@@ -438,7 +442,7 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
       otherPallets: 'Altele',
     },
   },
-  fr: {
+  frBase: {
     translation: {
       planning: 'Planification',
       planningSubtitle: 'Visualisation des trajets par intervalle',
@@ -743,6 +747,10 @@ smartDispatchAddressError: "Please enter the pickup address first!",
       aviz: 'Waybill',
       deleteInvoice: 'Delete Invoice',
       deleteConfirm: 'Are you sure? This action cannot be undone.',
+      all: 'All',
+      maintenanceAt: 'Maintenance at:',
+      grossSalary: 'Gross Salary',
+      dailyAllowance: 'Daily Allowance',
       realTimePositions: 'Real-time positions of trucks',
       noActiveLocations: 'No drivers are currently transmitting their location.',
       operationalSummaryCurrentMonth: 'Operational summary — current month',
@@ -1145,6 +1153,10 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
       aviz: 'Vrachtbrief',
       deleteInvoice: 'Factuur Verwijderen',
       deleteConfirm: 'Weet u het zeker? Deze actie kan niet ongedaan worden gemaakt.',
+      all: 'Alle',
+      maintenanceAt: 'Onderhoud bij:',
+      grossSalary: 'Bruto Salaris',
+      dailyAllowance: 'Vergoeding/dag',
       realTimePositions: 'Realtime posities van vrachtwagens',
       noActiveLocations: 'Er sturen momenteel geen chauffeurs hun locatie door.',
       operationalSummaryCurrentMonth: 'Operationeel overzicht — huidige maand',
@@ -1547,6 +1559,10 @@ smartDispatchAddressError: "Bitte geben Sie zuerst die Abholadresse (Pickup) ein
       aviz: 'Lieferschein',
       deleteInvoice: 'Rechnung loschen',
       deleteConfirm: 'Sind Sie sicher? Diese Aktion ist irreversibel.',
+      all: 'Alle',
+      maintenanceAt: 'Wartung bei:',
+      grossSalary: 'Bruttogehalt',
+      dailyAllowance: 'Tagegeld',
       realTimePositions: 'Echtzeit-Positionen von LKWs',
       noActiveLocations: 'Derzeit senden keine Fahrer ihren Standort.',
       operationalSummaryCurrentMonth: 'Operative Zusammenfassung — aktueller Monat',
@@ -1696,7 +1712,7 @@ smartDispatchAddressError: "Bitte geben Sie zuerst die Abholadresse (Pickup) ein
       otherPallets: 'Sonstige',
 },
   },
-  fr: {
+  frExtra: {
     translation: {
       
                         err_trip_overlap: "Chevauchement détecté ! Il y a déjà un trajet planifié (ID : {{id}}) dans cette plage horaire pour le chauffeur ou le camion sélectionné.",
@@ -1885,6 +1901,24 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
       aviz: 'Bon de livraison',
       deleteInvoice: 'Supprimer la facture',
       deleteConfirm: 'Etes-vous sur ? Cette action est irreversible.',
+      profit: 'Bénéfice',
+      revenue: 'Revenus',
+      costs: 'Coûts',
+      activeTrips: 'Courses actives',
+      activeTrucks: 'Camions actifs',
+      costPerKm: 'Coût/km moy.',
+      all: 'Tout',
+      maintenanceAt: 'Révision à :',
+      grossSalary: 'Salaire brut',
+      dailyAllowance: 'Indemnité/jour',
+      expenses: 'Dépenses',
+      loadingReference: 'Référence chargement',
+      unloadingReference: 'Référence déchargement',
+      pickupTime: 'Heure enlèvement',
+      dropoffTime: 'Heure livraison',
+      pallets: 'Nombre de palettes',
+      weightKg: 'Poids (kg)',
+      volumeCbm: 'Volume (m³)',
       realTimePositions: 'Positions en temps réel des camions',
       noActiveLocations: 'Aucun chauffeur ne transmet sa position actuellement.',
       operationalSummaryCurrentMonth: 'Résumé opérationnel — mois en cours',
@@ -2028,6 +2062,15 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
 },
   },
 };
+
+resources.fr = {
+  translation: {
+    ...((resources as any).frBase?.translation || {}),
+    ...((resources as any).frExtra?.translation || {})
+  }
+};
+delete (resources as any).frBase;
+delete (resources as any).frExtra;
 
 i18n.use(initReactI18next).init({
   resources,
