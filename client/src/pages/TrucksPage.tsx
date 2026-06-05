@@ -122,7 +122,7 @@ export default function TrucksPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-surface border-b border-border">
-                {[t('plateNumber'), t('brand'), t('model'), t('year'), 'Capacitate', 'Consum', 'Mentenanță', t('status'), t('documents'), t('actions')].map(h => (
+                {[t('plateNumber'), t('brand'), t('model'), t('year'), t('capacity'), t('consumption'), t('maintenance'), t('status'), t('documents'), t('actions')].map(h => (
                   <th key={h} className={`table-header ${h === t('actions') ? 'text-right pr-4' : ''}`}>{h}</th>
                 ))}
               </tr>
@@ -197,9 +197,9 @@ export default function TrucksPage() {
           { key: 'plateNumber', label: 'Numar Inmatriculare' },
           { key: 'brand', label: 'Marca' },
           { key: 'model', label: 'Model' },
-          { key: 'year', label: 'An Fabricatie' },
-          { key: 'payloadCapacity', label: 'Capacitate (t)' },
-          { key: 'fuelConsumption', label: 'Consum Mediu (l/100km)' },
+          { key: 'year', label: t('year') },
+          { key: 'payloadCapacity', label: `${t('capacity')} (t)` },
+          { key: 'fuelConsumption', label: `${t('consumption')} (l/100km)` },
           { key: 'status', label: 'Status' },
         ]}
       />

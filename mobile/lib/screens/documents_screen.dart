@@ -24,7 +24,7 @@ class DocumentsScreen extends StatefulWidget {
 
 class _DocumentsScreenState extends State<DocumentsScreen> {
   final _commentCtrl = TextEditingController();
-  String _selectedType = 'CMR';
+  String _selectedTypeKey = 'cmr';
   String? _selectedTripId;
   List<File> _selectedFiles = [];
   List<Map<String, dynamic>> _documentsList = [];
@@ -144,8 +144,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       return;
     }
     
-    final fuelLabels = ['Bon Combustibil', 'Fuel Receipt', 'Brandstofbon', 'Tankbeleg', 'Reçu de Carburant'];
-    if (!fuelLabels.contains(_selectedType) && _selectedTripId == null) {
+    if (_selectedTypeKey != 'fuel' && _selectedTripId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l['selectTripErr']!), backgroundColor: kWarning),
       );
@@ -166,11 +165,19 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
       for (final file in _selectedFiles) {
         final extension = file.path.split('.').last;
-        final cleanType = _selectedType.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
+        final englishNames = {
+          'cmr': 'CMR',
+          'aviz': 'Waybill',
+          'fuel': 'Fuel_Receipt',
+          'loadingPhoto': 'Loading_Photo',
+          'cargoPhoto': 'Cargo_Photo',
+          'other': 'Other',
+        };
+        final cleanType = englishNames[_selectedTypeKey] ?? 'Document';
         final finalName = _selectedTripId != null ? '$refPrefix$cleanType.$extension' : '$cleanType.$extension';
         
         final formData = FormData.fromMap({
-          'type': _selectedType,
+          'type': l[_selectedTypeKey] ?? 'CMR',
           if (_selectedTripId != null) 'tripId': _selectedTripId,
           'notes': _commentCtrl.text.trim(),
           'file': await MultipartFile.fromFile(
@@ -555,13 +562,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         children: [
                           for (final typeKey in ['cmr', 'aviz', 'fuel', 'loadingPhoto', 'cargoPhoto', 'other'])
                             GestureDetector(
-                              onTap: () => setState(() => _selectedType = l[typeKey]!),
+                              onTap: () => setState(() => _selectedTypeKey = typeKey),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: _selectedType == l[typeKey] ? kPrimary : Colors.white,
+                                  color: _selectedTypeKey == typeKey ? kPrimary : Colors.white,
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: _selectedType == l[typeKey] ? kPrimary : kBorder),
+                                  border: Border.all(color: _selectedTypeKey == typeKey ? kPrimary : kBorder),
                                 ),
                                 child: Text(
                                   l[typeKey]!,
@@ -569,7 +576,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: _selectedType == l[typeKey] ? Colors.white : kTextSecondary,
+                                    color: _selectedTypeKey == typeKey ? Colors.white : kTextSecondary,
                                   ),
                                 ),
                               ),

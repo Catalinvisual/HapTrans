@@ -942,7 +942,7 @@ export default function LiveMapPage() {
           </div>
         ))}
       </div>
-      <div className="card p-0 overflow-hidden bg-white border border-border rounded-2xl shadow-sm" style={{ height: '520px' }}>
+      <div className="card p-0 overflow-hidden bg-white border border-border rounded-2xl shadow-sm" style={{ minHeight: '520px', height: 'calc(100vh - 280px)' }}>
         <div ref={mapRef} className="w-full h-full" />
       </div>
       {drivers.filter(d => d.currentLat).length === 0 && trucks.filter(t => t.currentLat).length === 0 && (

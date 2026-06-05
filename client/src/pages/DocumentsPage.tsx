@@ -117,7 +117,7 @@ export default function DocumentsPage() {
               placeholder={t('noTrip')}
               options={trips.map((tr: any) => ({
                 value: tr.id,
-                label: tr.referenceNumber ? `${tr.referenceNumber} | ${tr.pickupAddress?.slice(0,20)} → ${tr.dropoffAddress?.slice(0,20)}` : `${tr.pickupAddress?.slice(0,20)} → ${tr.dropoffAddress?.slice(0,20)}`
+                label: tr.referenceNumber ? `${tr.referenceNumber} | ${tr.pickupAddress?.slice(0,20)}...` : `${tr.pickupAddress?.slice(0,20)}...`
               }))}
             />
           </div>
@@ -169,9 +169,11 @@ export default function DocumentsPage() {
               </label>
             </div>
           </div>
-          <button type="submit" className="btn-primary md:col-span-2 lg:col-span-4 justify-center mt-2">
-            <Upload className="w-4 h-4" /> {t('uploadDocument')}
-          </button>
+          <div className="md:col-span-2 lg:col-span-4 flex justify-end mt-2">
+            <button type="submit" className="btn-primary">
+              <Upload className="w-4 h-4" /> {t('uploadDocument')}
+            </button>
+          </div>
           </form>
         </div>
       )}
@@ -215,7 +217,7 @@ export default function DocumentsPage() {
                     <td className="table-cell text-xs italic text-text-secondary max-w-[150px] truncate" title={doc.notes || ''}>
                       {doc.notes || '—'}
                     </td>
-                    <td className="table-cell text-xs">{doc.trip?.pickupAddress?.slice(0,20) || '—'}</td>
+                    <td className="table-cell text-xs">{doc.trip?.referenceNumber || '-'}</td>
                     <td className="table-cell text-xs">{doc.uploadedBy?.name || '—'}</td>
                     <td className="table-cell text-xs">{formatDate(doc.createdAt)}</td>
                     <td className="table-cell">
