@@ -16,6 +16,11 @@ export class DocumentsController {
     return this.service.getDebugDocs();
   }
 
+  @Get('fix-tnas')
+  fixTnasDocs() {
+    return this.service.fixTnasDocs();
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get() 
   findAll() { return this.service.findAll(); }

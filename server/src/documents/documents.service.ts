@@ -22,6 +22,12 @@ export class DocumentsService {
     });
   }
   
+  async fixTnasDocs() {
+    // Seteaza manual tnasDownloaded = false pentru documentele cu true
+    const res = await this.repo.update({ tnasDownloaded: true }, { tnasDownloaded: false });
+    return { success: true, updated: res.affected };
+  }
+
   findByTrip(tripId: string) { return this.repo.find({ where: { trip: { id: tripId } }, relations: ['uploadedBy'] }); }
   
   async create(dto: any): Promise<Document> {
