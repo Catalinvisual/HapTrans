@@ -20,31 +20,28 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => {
-    const isPdf = file.mimetype === 'application/pdf' || (file.originalname && file.originalname.toLowerCase().endsWith('.pdf'));
-    const cleanName = file.originalname.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
-    const publicId = cleanName;
+    const isImage = file.mimetype && file.mimetype.startsWith('image/');
+    const extMatch = file.originalname.match(/\\.([^/.]+)$/);
+    const ext = extMatch ? extMatch[1].toLowerCase() : '';
+    const isImageExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
+    const treatAsImage = isImage || isImageExt;
 
-    if (isPdf) {
-      return {
-        folder: 'haptrans_documents',
-        resource_type: 'raw',
-        format: 'pdf',
-        public_id: publicId,
-        type: 'authenticated'
-      };
-    }
-    if (file.mimetype && file.mimetype.startsWith('image/')) {
+    if (treatAsImage) {
+      const cleanName = file.originalname.replace(/\\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
       return {
         folder: 'haptrans_documents',
         resource_type: 'image',
-        public_id: publicId,
+        public_id: cleanName,
         type: 'authenticated'
       };
     }
+
+    // For raw files (PDF, docx), keep the extension in the public_id
+    const publicIdWithExt = file.originalname.replace(/[^a-zA-Z0-9_.-]/g, "_");
     return {
       folder: 'haptrans_documents',
       resource_type: 'raw',
-      public_id: publicId,
+      public_id: publicIdWithExt,
       type: 'authenticated'
     };
   },

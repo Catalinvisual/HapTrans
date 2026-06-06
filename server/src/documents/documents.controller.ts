@@ -62,17 +62,38 @@ export class DocumentsController {
   @UseInterceptors(FileInterceptor('file'))
   async upload(@UploadedFile() file: Express.Multer.File, @Body() body: any, @Request() req: any) {
     const f = file as any; // multer-storage-cloudinary appends extra fields
-    const resourceType = file.mimetype.startsWith('image/') ? 'image' : 'raw';
+
+    let actualResourceType = 'raw';
+    let actualType = 'authenticated';
+    let actualFormat = 'pdf';
+
+    // Parse Cloudinary URL (e.g. https://res.cloudinary.com/cloudName/image/authenticated/...)
+    if (f.path && f.path.includes('res.cloudinary.com')) {
+      try {
+        const urlObj = new URL(f.path);
+        const parts = urlObj.pathname.split('/'); 
+        // parts[0] = "", parts[1] = "cloudName", parts[2] = "image", parts[3] = "authenticated"
+        if (parts.length > 3) {
+          actualResourceType = parts[2];
+          actualType = parts[3];
+        }
+      } catch (e) {}
+    }
+
+    if (file.originalname) {
+      const ext = file.originalname.split('.').pop();
+      if (ext) actualFormat = ext.toLowerCase();
+    }
     
     const doc = await this.service.create({
       tripId: body.tripId,
       type: body.type,
       fileName: file.originalname,
       fileUrl: f.path, // For fallback
-      publicId: f.filename || f.public_id,
-      resourceType: resourceType,
-      cloudinaryType: 'authenticated',
-      format: f.format || (resourceType === 'raw' ? 'pdf' : 'jpg'),
+      publicId: f.public_id || f.filename,
+      resourceType: actualResourceType,
+      cloudinaryType: actualType,
+      format: f.format || actualFormat,
       originalFilename: file.originalname,
       bytes: f.bytes,
       cloudinaryAssetId: f.asset_id,
