@@ -128,14 +128,14 @@ export class TnasService {
       return {
         ...rest,
         clientName: client?.name || '',
-        truckPlate: truck?.plate || '',
+        truckPlate: truck?.plateNumber || '',
         driverName: driver?.user ? `${driver.user.firstName} ${driver.user.lastName}` : '',
       };
     }) || [];
   }
 
   async backupTrucks() {
-    const data = await this.trucksRepo.find({ order: { plate: 'ASC' } });
+    const data = await this.trucksRepo.find({ order: { plateNumber: 'ASC' } });
     return data.map(t => {
       const { trips, maintenanceRecords, documents, ...rest } = t as any;
       return rest;
@@ -175,7 +175,7 @@ export class TnasService {
       const { truck, ...rest } = m as any;
       return {
         ...rest,
-        truckPlate: truck?.plate || '',
+        truckPlate: truck?.plateNumber || '',
       };
     }) || [];
   }
