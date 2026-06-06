@@ -204,7 +204,7 @@ export default function LiveMapPage() {
     if (!mapRef.current || !window.maplibregl) return;
     mapInstance.current = new window.maplibregl.Map({
       container: mapRef.current,
-      style: 'https://tiles.openfreemap.org/styles/liberty',
+      style: 'https://tiles.openfreemap.org/styles/positron',
       center: [5.2913, 52.1326], 
       zoom: 8,
       pitch: 45, // Set pitch for 3D effect
@@ -336,10 +336,16 @@ export default function LiveMapPage() {
             return;
           }
           const assignedTruck2 = d.truck;
-          const plateStr = assignedTruck2?.plateNumber || 'SV 19 HAP';
-          const label = `${truckWord} (${plateStr})`;
-          const driverName = d.user?.name || 'Șofer';
-          addMarker(d.id, parseFloat(d.currentLng), parseFloat(d.currentLat), label, driverName, true);
+          let label;
+          let isTruckMarker = true;
+          if (assignedTruck2 && assignedTruck2.plateNumber) {
+            label = `${truckWord} (${assignedTruck2.plateNumber})`;
+          } else {
+            label = d.user?.name || driverWord;
+            isTruckMarker = false;
+          }
+          const driverName = d.user?.name || driverWord;
+          addMarker(d.id, parseFloat(d.currentLng), parseFloat(d.currentLat), label, driverName, isTruckMarker);
         }
       });
     } catch (e) { console.error(e); }
