@@ -20,13 +20,18 @@ export default function ExpensesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<any>({
     amount: '',
     currency: 'EUR',
     category: 'other',
     description: '',
     date: new Date().toISOString().slice(0, 10),
     receiptUrl: '',
+    publicId: '',
+    resourceType: '',
+    cloudinaryType: '',
+    format: '',
+    originalFilename: '',
   });
 
   const [aiLoading, setAiLoading] = useState(false);
@@ -47,10 +52,10 @@ export default function ExpensesPage() {
   };
 
   const resetForm = () => {
-    setForm({ amount: '', currency: 'EUR', category: 'other', description: '', date: new Date().toISOString().slice(0, 10), receiptUrl: '' });
-    setAiSuccess(false);
-    setShowForm(false);
+    setForm({ amount: '', currency: 'EUR', category: 'other', description: '', date: new Date().toISOString().slice(0, 10), receiptUrl: '', publicId: '', resourceType: '', cloudinaryType: '', format: '', originalFilename: '' });
     setEditId(null);
+    setShowForm(false);
+    setAiSuccess(false);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,10 +73,14 @@ export default function ExpensesPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      const { fileUrl, parsedData } = res.data;
+      const { fileUrl, cloudinaryMetadata, parsedData } = res.data;
 
       setForm(prev => {
-        const newData = { ...prev, receiptUrl: fileUrl };
+        const newData = { 
+          ...prev, 
+          receiptUrl: fileUrl,
+          ...(cloudinaryMetadata || {})
+        };
         if (parsedData) {
           if (parsedData.amount) newData.amount = parsedData.amount.toString();
           if (parsedData.currency) newData.currency = parsedData.currency.toUpperCase();
@@ -85,7 +94,7 @@ export default function ExpensesPage() {
         return newData;
       });
 
-    } catch {
+    } catch (err) {
       toast.error(t('aiScanError'), { id: toastId });
     } finally {
       setAiLoading(false);

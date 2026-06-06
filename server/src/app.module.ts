@@ -18,6 +18,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { FirebaseModule } from './firebase/firebase.module';
 import { RoutingModule } from './routing/routing.module';
 import { PayrollModule } from './payroll/payroll.module';
+import { TnasModule } from './tnas/tnas.module';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -58,6 +59,7 @@ import { AppService } from './app.service';
     FirebaseModule,
     RoutingModule,
     PayrollModule,
+    TnasModule,
   ],
   controllers: [AppController],
   providers: [AppService],

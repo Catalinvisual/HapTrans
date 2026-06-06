@@ -42,6 +42,24 @@ export class Invoice {
   @Column({ nullable: true })
   pdfUrl: string;
 
+  @Column({ nullable: true })
+  publicId: string;
+
+  @Column({ nullable: true })
+  resourceType: string;
+
+  @Column({ nullable: true })
+  cloudinaryType: string;
+
+  @Column({ nullable: true })
+  format: string;
+
+  @Column({ nullable: true })
+  originalFilename: string;
+
+  @Column({ default: false })
+  tnasDownloaded: boolean;
+
   @Column({ nullable: true, type: 'text' })
   pdfData: string;
 

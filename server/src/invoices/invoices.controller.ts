@@ -17,8 +17,18 @@ export class InvoicesController {
   @Post('upload-pdf/:id')
   @UseInterceptors(FileInterceptor('file'))
   async uploadPdf(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+    const f = file as any;
     // Save new pdfUrl and clear the old pdfData to save database space
-    await this.service.update(id, { pdfUrl: file.path, pdfData: null } as any);
+    await this.service.update(id, { 
+      pdfUrl: file.path, 
+      pdfData: null,
+      publicId: f.filename || f.public_id,
+      resourceType: f.resource_type || 'raw',
+      cloudinaryType: f.type || 'upload',
+      format: f.format || 'pdf',
+      originalFilename: file.originalname,
+      tnasDownloaded: false
+    } as any);
     return this.service.findOne(id);
   }
 }

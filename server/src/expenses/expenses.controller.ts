@@ -15,7 +15,7 @@ export class ExpensesController {
 
   @Post()
   create(@Body() body: any, @Request() req: any) {
-    return this.service.create({ ...body, uploadedById: req.user.id });
+    return this.service.create({ ...body, uploadedById: req.user.id, tnasDownloaded: false });
   }
 
   @Patch(':id')
@@ -32,6 +32,7 @@ export class ExpensesController {
   @UseInterceptors(FileInterceptor('file'))
   async uploadAndParse(@UploadedFile() file: Express.Multer.File) {
     let fileUrl = '';
+    let cloudinaryMetadata: any = null;
     let parsedData = null;
     
     // 1. Upload to Cloudinary manually
@@ -49,6 +50,13 @@ export class ExpensesController {
         readableStream.pipe(stream);
       });
       fileUrl = (uploadResult as any).secure_url;
+      cloudinaryMetadata = {
+        publicId: (uploadResult as any).public_id,
+        resourceType: (uploadResult as any).resource_type,
+        cloudinaryType: (uploadResult as any).type,
+        format: (uploadResult as any).format,
+        originalFilename: file.originalname,
+      };
     } catch (e) {
       console.error('Failed to upload to Cloudinary', e);
       // If Cloudinary fails, we can still try to parse!
@@ -61,6 +69,6 @@ export class ExpensesController {
       console.error('AI parsing failed', e);
     }
 
-    return { fileUrl, parsedData };
+    return { fileUrl, cloudinaryMetadata, parsedData };
   }
 }
