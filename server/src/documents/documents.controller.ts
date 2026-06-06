@@ -97,6 +97,7 @@ export class DocumentsController {
       originalFilename: file.originalname,
       bytes: f.bytes,
       cloudinaryAssetId: f.asset_id,
+      tnasDownloaded: false,
       notes: body.notes,
       uploadedById: req.user.id,
     });

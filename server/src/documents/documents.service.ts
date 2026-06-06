@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull, Not } from 'typeorm';
 import { Document } from './document.entity';
 import { DocumentShare } from './document-share.entity';
 import { v2 as cloudinary } from 'cloudinary';
@@ -93,7 +93,12 @@ export class DocumentsService {
   }
 
   async getPendingTnasDocuments() {
-    const documents = await this.repo.find({ where: { tnasDownloaded: false } });
+    const documents = await this.repo.find({ 
+      where: [
+        { tnasDownloaded: false, publicId: Not(IsNull()) },
+        { tnasDownloaded: IsNull() as any, publicId: Not(IsNull()) }
+      ] 
+    });
     return documents.map(doc => ({
       id: doc.id,
       filename: doc.originalFilename || doc.fileName,

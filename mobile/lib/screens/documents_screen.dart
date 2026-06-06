@@ -122,6 +122,61 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     }
   }
 
+  void _handleCameraPress() {
+    if (_selectedTypeKey == 'cmr' || _selectedTypeKey == 'aviz') {
+      _scanDocument();
+    } else {
+      _pickImage(ImageSource.camera);
+    }
+  }
+
+  Future<void> _deleteDocument(String docId, Map<String, String> l) async {
+    setState(() => _loading = true);
+    try {
+      final auth = context.read<AuthProvider>();
+      final dio = Dio(BaseOptions(
+        baseUrl: kApiUrl,
+        headers: {'Authorization': 'Bearer ${auth.token}'},
+      ));
+      await dio.delete('/documents/$docId');
+      showTopSnackBar(context, 
+        SnackBar(content: Text(l['deleteSuccess']!), backgroundColor: kSuccess),
+      );
+      _fetchDocuments();
+    } catch (e) {
+      showTopSnackBar(context, 
+        SnackBar(content: Text('Error: $e'), backgroundColor: kError),
+      );
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  void _confirmDelete(String docId, Map<String, String> l, BuildContext parentCtx) {
+    showDialog(
+      context: parentCtx,
+      builder: (ctx) => AlertDialog(
+        title: Text(l['delete']!),
+        content: Text(l['deleteConfirm']!),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l['cancel']!, style: const TextStyle(color: kTextSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx); // close alert
+              Navigator.pop(parentCtx); // close preview
+              _deleteDocument(docId, l);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: kError),
+            child: Text(l['delete']!, style: const TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _pickFile() async {
     try {
       final result = await FilePicker.platform.pickFiles(type: FileType.any, allowMultiple: true);
@@ -450,9 +505,17 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     '${doc['type']}',
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kText),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: kTextSecondary),
-                    onPressed: () => Navigator.pop(ctx),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: kError),
+                        onPressed: () => _confirmDelete(doc['id'], l, ctx),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: kTextSecondary),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -563,12 +626,16 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'share': 'Trimite',
         'downloadSuccess': 'Document descărcat cu succes în galerie!',
         'shareSuccess': 'Document pregătit pentru partajare!',
-        'camera': 'Scanare',
+        'camera': 'Scanare / Cameră',
         'gallery': 'Galerie Foto',
         'files': 'Fișiere',
         'selectTrip': 'Selectează Cursa',
         'noTrip': 'Nicio cursă',
         'selectTripErr': 'Te rog să selectezi o cursă!',
+        'deleteConfirm': 'Sigur dorești să ștergi acest document?',
+        'delete': 'Șterge',
+        'cancel': 'Anulează',
+        'deleteSuccess': 'Document șters cu succes!',
       },
       'en': {
         'title': 'Documents',
@@ -590,12 +657,16 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'share': 'Share',
         'downloadSuccess': 'Document downloaded successfully!',
         'shareSuccess': 'Document prepared for sharing!',
-        'camera': 'Scan',
+        'camera': 'Scan / Camera',
         'gallery': 'Gallery',
         'files': 'Files',
         'selectTrip': 'Select Trip',
         'noTrip': 'No trip',
         'selectTripErr': 'Please select a trip!',
+        'deleteConfirm': 'Are you sure you want to delete this document?',
+        'delete': 'Delete',
+        'cancel': 'Cancel',
+        'deleteSuccess': 'Document deleted successfully!',
       },
       'nl': {
         'title': 'Documenten',
@@ -617,12 +688,16 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'share': 'Delen',
         'downloadSuccess': 'Document succesvol gedownload!',
         'shareSuccess': 'Document gereed voor delen!',
-        'camera': 'Scannen',
+        'camera': 'Scannen / Camera',
         'gallery': 'Galerij',
         'files': 'Bestanden',
         'selectTrip': 'Selecteer Rit',
         'noTrip': 'Geen rit',
         'selectTripErr': 'Selecteer alstublieft een rit!',
+        'deleteConfirm': 'Weet u zeker dat u dit document wilt verwijderen?',
+        'delete': 'Verwijderen',
+        'cancel': 'Annuleren',
+        'deleteSuccess': 'Document succesvol verwijderd!',
       },
       'de': {
         'title': 'Dokumente',
@@ -644,12 +719,16 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'share': 'Teilen',
         'downloadSuccess': 'Dokument erfolgreich heruntergeladen!',
         'shareSuccess': 'Dokument bereit zum Teilen!',
-        'camera': 'Scannen',
+        'camera': 'Scannen / Kamera',
         'gallery': 'Galerie',
         'files': 'Dateien',
         'selectTrip': 'Tour auswählen',
         'noTrip': 'Keine Tour',
         'selectTripErr': 'Bitte wählen Sie eine Tour aus!',
+        'deleteConfirm': 'Möchten Sie dieses Dokument wirklich löschen?',
+        'delete': 'Löschen',
+        'cancel': 'Abbrechen',
+        'deleteSuccess': 'Dokument erfolgreich gelöscht!',
       },
       'fr': {
         'title': 'Documents',
@@ -671,12 +750,16 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'share': 'Partager',
         'downloadSuccess': 'Document téléchargé avec succès !',
         'shareSuccess': 'Document prêt pour le partage !',
-        'camera': 'Scanner',
+        'camera': 'Scanner / Caméra',
         'gallery': 'Galerie',
         'files': 'Fichiers',
         'selectTrip': 'Sélectionner la Course',
         'noTrip': 'Aucune course',
         'selectTripErr': 'Veuillez sélectionner une course !',
+        'deleteConfirm': 'Voulez-vous vraiment supprimer ce document?',
+        'delete': 'Supprimer',
+        'cancel': 'Annuler',
+        'deleteSuccess': 'Document supprimé avec succès !',
       },
     };
 
@@ -807,7 +890,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         children: [
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: _scanDocument,
+                              onPressed: _handleCameraPress,
                               icon: const Icon(Icons.document_scanner, size: 18),
                               label: Text(l['camera']!),
                               style: ElevatedButton.styleFrom(
