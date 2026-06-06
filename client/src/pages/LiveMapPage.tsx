@@ -204,7 +204,7 @@ export default function LiveMapPage() {
     if (!mapRef.current || !window.maplibregl) return;
     mapInstance.current = new window.maplibregl.Map({
       container: mapRef.current,
-      style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+      style: 'https://tiles.openfreemap.org/styles/bright',
       center: [5.2913, 52.1326], 
       zoom: 8,
       pitch: 45, // Set pitch for 3D effect
@@ -915,14 +915,8 @@ export default function LiveMapPage() {
         addMarker(finalTruckId, parseFloat(data.lng), parseFloat(data.lat), label, driverName);
       }
 
-      // If this is the currently focused truck, auto-center and update the routing line in real-time
+      // Update the routing line in real-time without forcing the camera center
       if (focusedTruckRef.current && focusedTruckRef.current.id === finalTruckId) {
-        if (mapInstance.current) {
-          mapInstance.current.easeTo({
-            center: [parseFloat(data.lng), parseFloat(data.lat)],
-            duration: 1000,
-          });
-        }
         if (matchedTruck) {
           drawRoute(matchedTruck, true); // update routing line without resetting zoom bounds
         }
