@@ -129,7 +129,7 @@ export class TnasService {
         ...rest,
         clientName: client?.name || '',
         truckPlate: truck?.plateNumber || '',
-        driverName: driver?.user ? `${driver.user.firstName} ${driver.user.lastName}` : '',
+        driverName: driver?.user ? `${driver.user.firstName || ''} ${driver.user.lastName || ''}`.trim() : '',
       };
     }) || [];
   }
