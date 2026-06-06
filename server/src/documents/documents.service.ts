@@ -32,13 +32,19 @@ export class DocumentsService {
       return document.fileUrl; // fallback for old files
     }
 
-    return cloudinary.url(document.publicId, {
+    const options: any = {
       secure: true,
       sign_url: true,
       type: document.cloudinaryType || 'authenticated',
       resource_type: document.resourceType || 'raw',
       expires_at: Math.floor(Date.now() / 1000) + expiresInSeconds,
-    });
+    };
+    
+    if (document.resourceType === 'image' && document.format) {
+      options.format = document.format;
+    }
+
+    return cloudinary.url(document.publicId, options);
   }
 
   async getPreviewUrl(documentId: string) {

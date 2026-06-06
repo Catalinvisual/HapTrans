@@ -62,15 +62,17 @@ export class DocumentsController {
   @UseInterceptors(FileInterceptor('file'))
   async upload(@UploadedFile() file: Express.Multer.File, @Body() body: any, @Request() req: any) {
     const f = file as any; // multer-storage-cloudinary appends extra fields
+    const resourceType = file.mimetype.startsWith('image/') ? 'image' : 'raw';
+    
     const doc = await this.service.create({
       tripId: body.tripId,
       type: body.type,
       fileName: file.originalname,
       fileUrl: f.path, // For fallback
       publicId: f.filename || f.public_id,
-      resourceType: f.resource_type || 'raw',
+      resourceType: resourceType,
       cloudinaryType: 'authenticated',
-      format: f.format || 'pdf',
+      format: f.format || (resourceType === 'raw' ? 'pdf' : 'jpg'),
       originalFilename: file.originalname,
       bytes: f.bytes,
       cloudinaryAssetId: f.asset_id,
