@@ -211,16 +211,26 @@ export default function LiveMapPage() {
               "type": "raster",
               "tiles": ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
               "tileSize": 256,
-              "attribution": "Esri"
+              "attribution": "Esri",
+              "maxzoom": 19
+            },
+            "esri-labels": {
+              "type": "raster",
+              "tiles": ["https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"],
+              "tileSize": 256,
+              "maxzoom": 19
             }
           },
           "layers": [
             {
               "id": "satellite",
               "type": "raster",
-              "source": "esri-satellite",
-              "minzoom": 0,
-              "maxzoom": 19
+              "source": "esri-satellite"
+            },
+            {
+              "id": "labels",
+              "type": "raster",
+              "source": "esri-labels"
             }
           ]
         }
