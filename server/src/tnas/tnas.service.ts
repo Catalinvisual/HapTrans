@@ -4,6 +4,12 @@ import { Repository, IsNull, Not } from 'typeorm';
 import { Document } from '../documents/document.entity';
 import { Invoice } from '../invoices/invoice.entity';
 import { Expense } from '../expenses/expense.entity';
+import { Trip } from '../trips/trip.entity';
+import { Truck } from '../trucks/truck.entity';
+import { Driver } from '../drivers/driver.entity';
+import { Client } from '../clients/client.entity';
+import { Maintenance } from '../maintenance/maintenance.entity';
+import { User } from '../users/user.entity';
 import { v2 as cloudinary } from 'cloudinary';
 
 @Injectable()
@@ -12,6 +18,12 @@ export class TnasService {
     @InjectRepository(Document) private docsRepo: Repository<Document>,
     @InjectRepository(Invoice) private invoicesRepo: Repository<Invoice>,
     @InjectRepository(Expense) private expensesRepo: Repository<Expense>,
+    @InjectRepository(Trip) private tripsRepo: Repository<Trip>,
+    @InjectRepository(Truck) private trucksRepo: Repository<Truck>,
+    @InjectRepository(Driver) private driversRepo: Repository<Driver>,
+    @InjectRepository(Client) private clientsRepo: Repository<Client>,
+    @InjectRepository(Maintenance) private maintenanceRepo: Repository<Maintenance>,
+    @InjectRepository(User) private usersRepo: Repository<User>,
   ) {}
 
   generateSignedUrl(entity: any, expiresInSeconds: number) {
@@ -94,5 +106,104 @@ export class TnasService {
     await repo.save(entity);
 
     return { success: true };
+  }
+
+  // ---- BACKUP LOGIC ----
+
+  backupHealth() {
+    return {
+      ok: true,
+      service: 'tnas-excel-backup',
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  async backupTrips() {
+    const data = await this.tripsRepo.find({
+      order: { createdAt: 'DESC' },
+      relations: ['client', 'truck', 'driver', 'driver.user']
+    });
+    return data.map(t => {
+      const { client, truck, driver, costs, invoices, documents, messages, ...rest } = t as any;
+      return {
+        ...rest,
+        clientName: client?.name || '',
+        truckPlate: truck?.plate || '',
+        driverName: driver?.user ? `${driver.user.firstName} ${driver.user.lastName}` : '',
+      };
+    }) || [];
+  }
+
+  async backupTrucks() {
+    const data = await this.trucksRepo.find({ order: { plate: 'ASC' } });
+    return data.map(t => {
+      const { trips, maintenanceRecords, documents, ...rest } = t as any;
+      return rest;
+    }) || [];
+  }
+
+  async backupDrivers() {
+    const data = await this.driversRepo.find({
+      order: { createdAt: 'DESC' },
+      relations: ['user']
+    });
+    return data.map(d => {
+      const { user, trips, documents, ...rest } = d as any;
+      return {
+        ...rest,
+        firstName: user?.firstName || '',
+        lastName: user?.lastName || '',
+        email: user?.email || '',
+      };
+    }) || [];
+  }
+
+  async backupClients() {
+    const data = await this.clientsRepo.find({ order: { name: 'ASC' } });
+    return data.map(c => {
+      const { trips, invoices, ...rest } = c as any;
+      return rest;
+    }) || [];
+  }
+
+  async backupMaintenance() {
+    const data = await this.maintenanceRepo.find({
+      order: { createdAt: 'DESC' },
+      relations: ['truck']
+    });
+    return data.map(m => {
+      const { truck, ...rest } = m as any;
+      return {
+        ...rest,
+        truckPlate: truck?.plate || '',
+      };
+    }) || [];
+  }
+
+  async backupUsers() {
+    const data = await this.usersRepo.find({ order: { createdAt: 'DESC' } });
+    return data.map(u => {
+      const { password, ...rest } = u as any;
+      return rest;
+    }) || [];
+  }
+
+  async backupInvoices() {
+    const data = await this.invoicesRepo.find({
+      order: { createdAt: 'DESC' },
+      relations: ['client']
+    });
+    return data.map(i => {
+      const { client, trip, ...rest } = i as any;
+      return {
+        ...rest,
+        clientName: client?.name || '',
+      };
+    }) || [];
+  }
+
+  async backupExpenses() {
+    const data = await this.expensesRepo.find({ order: { createdAt: 'DESC' } });
+    return data || [];
   }
 }
