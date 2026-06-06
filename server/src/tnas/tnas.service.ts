@@ -129,7 +129,7 @@ export class TnasService {
         ...rest,
         clientName: client?.name || '',
         truckPlate: truck?.plateNumber || '',
-        driverName: driver?.user ? `${driver.user.firstName || ''} ${driver.user.lastName || ''}`.trim() : '',
+        driverName: driver?.user?.name || '',
       };
     }) || [];
   }
@@ -151,8 +151,7 @@ export class TnasService {
       const { user, trips, documents, ...rest } = d as any;
       return {
         ...rest,
-        firstName: user?.firstName || '',
-        lastName: user?.lastName || '',
+        name: user?.name || '',
         email: user?.email || '',
       };
     }) || [];
