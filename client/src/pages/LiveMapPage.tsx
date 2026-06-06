@@ -168,6 +168,7 @@ export default function LiveMapPage() {
   const [trucks, setTrucks] = useState<any[]>([]);
   const [tripsList, setTripsList] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSatellite, setIsSatellite] = useState(false);
 
   // Refs to avoid stale closures in the WebSocket listener
   const tripsRef = useRef<any[]>([]);
@@ -199,6 +200,41 @@ export default function LiveMapPage() {
       animationFramesRef.current = {};
     };
   }, []);
+
+  useEffect(() => {
+    if (!mapInstance.current) return;
+    const style = isSatellite 
+      ? {
+          "version": 8,
+          "sources": {
+            "esri-satellite": {
+              "type": "raster",
+              "tiles": ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+              "tileSize": 256,
+              "attribution": "Esri"
+            }
+          },
+          "layers": [
+            {
+              "id": "satellite",
+              "type": "raster",
+              "source": "esri-satellite",
+              "minzoom": 0,
+              "maxzoom": 19
+            }
+          ]
+        }
+      : 'https://tiles.openfreemap.org/styles/bright';
+      
+    mapInstance.current.setStyle(style);
+    
+    // Re-draw route layer if we had a focused truck, since changing style clears custom layers
+    mapInstance.current.once('styledata', () => {
+      if (focusedTruckRef.current) {
+        drawRoute(focusedTruckRef.current, true);
+      }
+    });
+  }, [isSatellite]);
 
   const initMap = () => {
     if (!mapRef.current || !window.maplibregl) return;
@@ -939,9 +975,22 @@ export default function LiveMapPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </form>
-        <span className="flex items-center gap-1.5 text-sm text-success font-medium bg-success/10 px-3 py-1.5 rounded-full whitespace-nowrap shrink-0">
-          <span className="w-2 h-2 bg-success rounded-full animate-pulse-dot" /> Live
-        </span>
+        <div className="flex items-center gap-3 shrink-0">
+          <button 
+            type="button"
+            onClick={() => setIsSatellite(!isSatellite)}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-border rounded-xl text-sm font-medium hover:bg-surface transition-colors shadow-sm"
+          >
+            {isSatellite ? (
+              <><MapIcon className="w-4 h-4 text-primary" /> Hartă Standard</>
+            ) : (
+              <><MapIcon className="w-4 h-4 text-primary" /> Satelit</>
+            )}
+          </button>
+          <span className="flex items-center gap-1.5 text-sm text-success font-medium bg-success/10 px-3 py-1.5 rounded-full whitespace-nowrap">
+            <span className="w-2 h-2 bg-success rounded-full animate-pulse-dot" /> Live
+          </span>
+        </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {trucks.slice(0, 8).map((truck: any) => (
