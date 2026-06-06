@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Navigation, Truck, Play, Pause, Square, Map as MapIcon, Layers } from 'lucide-react';
+import { Navigation, Truck, Play, Pause, Square, Map as MapIcon, Layers, Search } from 'lucide-react';
 import api from '../lib/api';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
@@ -166,7 +166,8 @@ export default function LiveMapPage() {
   const markersRef = useRef<Record<string, any>>({});
   const [drivers, setDrivers] = useState<any[]>([]);
   const [trucks, setTrucks] = useState<any[]>([]);
-  const [_, setTrips] = useState<any[]>([]);
+  const [tripsList, setTripsList] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Refs to avoid stale closures in the WebSocket listener
   const tripsRef = useRef<any[]>([]);
@@ -241,12 +242,40 @@ export default function LiveMapPage() {
       visualizePitch: true,
     }), 'top-right');
     
-    // Add OpenFreeMap attribution manually
-    mapInstance.current.addControl(new window.maplibregl.AttributionControl({
-      customAttribution: '© OpenStreetMap contributors',
-      compact: true,
-    }), 'bottom-right');
+    // mapInstance.current.addControl(new window.maplibregl.AttributionControl({
+    //   customAttribution: '© OpenStreetMap contributors',
+    //   compact: true,
+    // }), 'bottom-right');
     loadLocations();
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return;
+
+    let foundTruck = trucks.find(t => t.plateNumber?.toLowerCase().includes(query));
+
+    if (!foundTruck) {
+      const foundTrip = tripsList.find(t => {
+        if (t.status !== 'in_progress' && t.status !== 'confirmed') return false;
+        const ref = t.referenceNumber?.toLowerCase() || '';
+        const pickupCity = t.pickup?.city?.toLowerCase() || '';
+        const dropoffCity = t.dropoff?.city?.toLowerCase() || '';
+        return ref.includes(query) || pickupCity.includes(query) || dropoffCity.includes(query);
+      });
+      if (foundTrip && foundTrip.truck) {
+        foundTruck = trucks.find(tr => tr.id === foundTrip.truck.id) || foundTrip.truck;
+      }
+    }
+
+    if (foundTruck) {
+      focusOnTruck(foundTruck);
+      drawRoute(foundTruck);
+      toast.success(t('truckFound') || 'Camion găsit pe hartă.');
+    } else {
+      toast.error(t('notFound') || 'Nu s-a găsit niciun rezultat.');
+    }
   };
 
   const loadLocations = async () => {
@@ -256,7 +285,7 @@ export default function LiveMapPage() {
         api.get('/trucks'),
         api.get('/trips')
       ]);
-      setDrivers(dr.data); setTrucks(tr.data); setTrips(tripsRes.data);
+      setDrivers(dr.data); setTrucks(tr.data); setTripsList(tripsRes.data);
       driversStateRef.current = dr.data;
       trucksStateRef.current = tr.data;
       tripsRef.current = tripsRes.data;
@@ -916,8 +945,18 @@ export default function LiveMapPage() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center justify-end">
-        <span className="flex items-center gap-1.5 text-sm text-success font-medium bg-success/10 px-3 py-1.5 rounded-full">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <form onSubmit={handleSearch} className="relative w-full sm:max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
+          <input 
+            type="text" 
+            className="input pl-9 pr-4 py-2 w-full bg-white border border-border rounded-xl shadow-sm focus:ring-2 focus:ring-primary/20 text-sm"
+            placeholder={t('searchTruckRefCity') || "Caută camion, oraș sau referință..."}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </form>
+        <span className="flex items-center gap-1.5 text-sm text-success font-medium bg-success/10 px-3 py-1.5 rounded-full whitespace-nowrap shrink-0">
           <span className="w-2 h-2 bg-success rounded-full animate-pulse-dot" /> Live
         </span>
       </div>
