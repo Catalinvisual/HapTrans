@@ -204,7 +204,7 @@ export default function LiveMapPage() {
     if (!mapRef.current || !window.maplibregl) return;
     mapInstance.current = new window.maplibregl.Map({
       container: mapRef.current,
-      style: 'https://tiles.openfreemap.org/styles/bright',
+      style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
       center: [5.2913, 52.1326], 
       zoom: 8,
       pitch: 45, // Set pitch for 3D effect
@@ -492,7 +492,8 @@ export default function LiveMapPage() {
       }
     }, true);
 
-    const subtextHtml = (label !== popupText && popupText) ? 
+    const isPlaceholder = popupText === '?ofer' || popupText === 'Șofer';
+    const subtextHtml = (label !== popupText && popupText && !isPlaceholder) ? 
       `<div style="font-size:11px;color:#475569;display:flex;align-items:center;gap:4px">
          <span style="font-weight:bold;color:#FF7A1A">${driverWord}:</span> ${popupText}
        </div>` : '';
@@ -898,12 +899,15 @@ export default function LiveMapPage() {
         const popup = existingMarker.getPopup();
         if (popup) {
           const driverWord = DRIVER_TRANSLATIONS[lang] || DRIVER_TRANSLATIONS['ro'];
+          const isPlaceholder = driverName === '?ofer' || driverName === 'Șofer';
+          const subHtml = (!isPlaceholder && driverName) ? 
+            `<div style="font-size:11px;color:#475569;display:flex;align-items:center;gap:4px">
+               <span style="font-weight:bold;color:#FF7A1A">${driverWord}:</span> ${driverName}
+             </div>` : '';
           popup.setHTML(`
             <div style="font-family:sans-serif;padding:6px 8px;min-width:140px">
               <div style="font-size:12px;font-weight:bold;color:#0F172A;margin-bottom:4px;border-bottom:1px solid #E2E8F0;padding-bottom:4px">${label}</div>
-              <div style="font-size:11px;color:#475569;display:flex;align-items:center;gap:4px">
-                <span style="font-weight:bold;color:#FF7A1A">${driverWord}:</span> ${driverName}
-              </div>
+              ${subHtml}
             </div>
           `);
         }
