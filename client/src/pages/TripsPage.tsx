@@ -80,6 +80,7 @@ export default function TripsPage() {
 
   
   useEffect(() => {
+    let active = true;
     const calcDeadhead = async () => {
       if (!form.truckId || !form.pickupAddress) {
         setDeadheadWarning(null);
@@ -94,18 +95,27 @@ export default function TripsPage() {
             destAddress: form.pickupAddress,
             weightKg: 0
           });
+          if (!active) return;
           if (res.data && res.data.distanceKm && res.data.distanceKm > 10) {
             const cost = (res.data.distanceKm / 100) * 28 * dieselPrice;
             setDeadheadWarning({ dist: res.data.distanceKm, cost, from: lastTrip.dropoffAddress.split(',')[0] });
           } else {
             setDeadheadWarning(null);
           }
-        } catch(e) { setDeadheadWarning(null); }
+        } catch(e) { if(active) setDeadheadWarning(null); }
       } else {
         setDeadheadWarning(null);
       }
     };
-    calcDeadhead();
+    
+    const timeoutId = setTimeout(() => {
+      calcDeadhead();
+    }, 500);
+
+    return () => {
+      active = false;
+      clearTimeout(timeoutId);
+    };
   }, [form.truckId, form.pickupAddress, trips, editId, dieselPrice]);
 
   useEffect(() => { load(); }, []);

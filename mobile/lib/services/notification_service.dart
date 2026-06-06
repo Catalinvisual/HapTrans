@@ -31,8 +31,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(channel);
 
-  final title = message.notification?.title ?? message.data['title'] ?? 'HapTrans';
-  final body = message.notification?.body ?? message.data['body'] ?? '';
+  // If the message has a notification block, the OS automatically displays it in the background.
+  // We only need to manually show it if it's a data-only message.
+  if (message.notification != null) {
+    return;
+  }
+
+  final title = message.data['title'] ?? 'HapTrans';
+  final body = message.data['body'] ?? '';
 
   if (title.isNotEmpty || body.isNotEmpty) {
     await plugin.show(
@@ -136,6 +142,10 @@ class NotificationService {
 
       // Foreground messages
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        if (Platform.isIOS && message.notification != null) {
+          // iOS automatically shows foreground notifications if setForegroundNotificationPresentationOptions is true.
+          return;
+        }
         final title = message.notification?.title ?? message.data['title'] ?? 'HapTrans';
         final body = message.notification?.body ?? message.data['body'] ?? '';
         if (title.isNotEmpty || body.isNotEmpty) {
