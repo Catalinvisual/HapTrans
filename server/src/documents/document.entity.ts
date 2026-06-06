@@ -19,8 +19,32 @@ export class Document {
   @Column()
   fileName: string;
 
-  @Column()
+  @Column({ nullable: true })
   fileUrl: string;
+
+  @Column({ nullable: true })
+  publicId: string;
+
+  @Column({ nullable: true })
+  resourceType: string;
+
+  @Column({ nullable: true })
+  cloudinaryType: string;
+
+  @Column({ nullable: true })
+  format: string;
+
+  @Column({ nullable: true })
+  originalFilename: string;
+
+  @Column({ type: 'int', nullable: true })
+  bytes: number;
+
+  @Column({ nullable: true })
+  cloudinaryAssetId: string;
+
+  @Column({ default: false })
+  tnasDownloaded: boolean;
 
   @Column({ nullable: true })
   notes: string;

@@ -19,6 +19,7 @@ import ExpensesPage from './pages/ExpensesPage';
 import UsersPage from './pages/UsersPage';
 import ChatPage from './pages/ChatPage';
 import PlanningPage from './pages/PlanningPage';
+import SharedDocumentPage from './pages/SharedDocumentPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore();
@@ -32,6 +33,9 @@ export default function App() {
       <AppToaster />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        {/* Public route for shared documents */}
+        <Route path="/shared/documents/:token" element={<SharedDocumentPage />} />
+        
         <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />

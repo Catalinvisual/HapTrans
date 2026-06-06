@@ -64,35 +64,54 @@ export default function DocumentsPage() {
     finally { setUploading(false); }
   };
 
-  const handleDownload = (doc: any) => {
-    const serverUrl = api.defaults.baseURL?.replace('/api', '') || 'http://localhost:3001';
-    const link = document.createElement("a");
-    link.href = doc.fileUrl.startsWith('http') ? doc.fileUrl : `${serverUrl}${doc.fileUrl}`;
-    link.download = doc.fileName;
-    link.target = "_blank";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success(t('documentDownloaded'));
+  const handlePreview = async (doc: any) => {
+    try {
+      const res = await api.get(`/documents/${doc.id}/preview-url`);
+      window.open(res.data.url, '_blank');
+    } catch {
+      toast.error('Error loading document preview');
+    }
+  };
+
+  const handleDownload = async (doc: any) => {
+    try {
+      const res = await api.get(`/documents/${doc.id}/preview-url`);
+      const link = document.createElement("a");
+      link.href = res.data.url;
+      link.download = doc.fileName;
+      link.target = "_blank";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(t('documentDownloaded'));
+    } catch {
+      toast.error('Error downloading document');
+    }
   };
 
   const handleShare = async (doc: any) => {
-    const serverUrl = api.defaults.baseURL?.replace('/api', '') || 'http://localhost:3001';
-    const fileUrl = doc.fileUrl.startsWith('http') ? doc.fileUrl : `${serverUrl}${doc.fileUrl}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: doc.fileName,
-          text: `Document: ${doc.fileName}`,
-          url: fileUrl,
-        });
-        toast.success(t('documentShared'));
-      } catch (err: any) {
-        if (err.name !== 'AbortError') toast.error(t('shareFailed'));
+    try {
+      const res = await api.post(`/documents/${doc.id}/share`);
+      const origin = window.location.origin;
+      const shareUrl = `${origin}/shared/documents/${res.data.token}`;
+      
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: doc.fileName,
+            text: `Document: ${doc.fileName}`,
+            url: shareUrl,
+          });
+          toast.success(t('documentShared'));
+        } catch (err: any) {
+          if (err.name !== 'AbortError') toast.error(t('shareFailed'));
+        }
+      } else {
+        navigator.clipboard.writeText(shareUrl);
+        toast.success(t('copiedToClipboard') || 'Link copiat!');
       }
-    } else {
-      navigator.clipboard.writeText(fileUrl);
-      toast.success(t('copiedToClipboard'));
+    } catch {
+      toast.error('Error generating share link');
     }
   };
 
@@ -197,15 +216,14 @@ export default function DocumentsPage() {
               ) : docs.length === 0 ? (
                 <tr><td colSpan={7} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
               ) : docs.map(doc => {
-                const serverUrl = api.defaults.baseURL?.replace('/api', '') || 'http://localhost:3001';
                 return (
                   <tr key={doc.id} className="hover:bg-surface/60 transition-colors">
                     <td className="table-cell">
                       <div className="flex items-center gap-2">
                         <FileText className="w-4 h-4 text-primary flex-shrink-0" />
-                        <a href={doc.fileUrl.startsWith('http') ? doc.fileUrl : `${serverUrl}${doc.fileUrl}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm font-medium" title={doc.fileName}>
+                        <button onClick={() => handlePreview(doc)} className="text-primary hover:underline text-sm font-medium text-left" title={doc.fileName}>
                           {doc.fileName?.length > 25 ? doc.fileName.substring(0, 15) + '...' + doc.fileName.slice(-7) : doc.fileName}
-                        </a>
+                        </button>
                       </div>
                     </td>
                     <td className="table-cell">

@@ -3,6 +3,7 @@ dotenv.config();
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Document } from './document.entity';
+import { DocumentShare } from './document-share.entity';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 import { MulterModule } from '@nestjs/platform-express';
@@ -28,27 +29,30 @@ const storage = new CloudinaryStorage({
         folder: 'haptrans_documents',
         resource_type: 'raw',
         format: 'pdf',
-        public_id: publicId
+        public_id: publicId,
+        type: 'authenticated'
       };
     }
     if (file.mimetype && file.mimetype.startsWith('image/')) {
       return {
         folder: 'haptrans_documents',
         resource_type: 'image',
-        public_id: publicId
+        public_id: publicId,
+        type: 'authenticated'
       };
     }
     return {
       folder: 'haptrans_documents',
       resource_type: 'raw',
-      public_id: publicId
+      public_id: publicId,
+      type: 'authenticated'
     };
   },
 });
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Document]),
+    TypeOrmModule.forFeature([Document, DocumentShare]),
     NotificationsModule,
     MulterModule.register({
       storage: storage,
