@@ -11,6 +11,11 @@ export class DocumentsController {
     private notificationsService: NotificationsService,
   ) {}
 
+  @Get('debug')
+  getDebugDocs() {
+    return this.service.getDebugDocs();
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get() 
   findAll() { return this.service.findAll(); }

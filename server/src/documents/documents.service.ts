@@ -15,6 +15,13 @@ export class DocumentsService {
 
   findAll() { return this.repo.find({ relations: ['trip', 'uploadedBy'] }); }
   
+  getDebugDocs() {
+    return this.repo.find({
+      order: { createdAt: 'DESC' },
+      take: 10,
+    });
+  }
+  
   findByTrip(tripId: string) { return this.repo.find({ where: { trip: { id: tripId } }, relations: ['uploadedBy'] }); }
   
   async create(dto: any): Promise<Document> {
