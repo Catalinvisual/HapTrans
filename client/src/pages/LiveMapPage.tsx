@@ -204,7 +204,7 @@ export default function LiveMapPage() {
     if (!mapRef.current || !window.maplibregl) return;
     mapInstance.current = new window.maplibregl.Map({
       container: mapRef.current,
-      style: 'https://tiles.openfreemap.org/styles/positron',
+      style: 'https://tiles.openfreemap.org/styles/bright',
       center: [5.2913, 52.1326], 
       zoom: 8,
       pitch: 45, // Set pitch for 3D effect
@@ -322,30 +322,9 @@ export default function LiveMapPage() {
         }
 
         if (lat && lng) {
-          const label = t.plateNumber || truckWord;
+          const label = t.plateNumber || 'Necunoscut';
           addMarker(t.id, parseFloat(lng), parseFloat(lat), label, driverName);
           if (assignedDriver) plottedDriverIds.add(assignedDriver.id);
-        }
-      });
-
-      // Plot drivers with coordinates only if they are not already driving a plotted truck
-      dr.data.forEach((d: any) => {
-        if (d.currentLat && d.currentLng && !plottedDriverIds.has(d.id)) {
-          const assignedTruck = activeDriverTrucks[d.id] || d.truck;
-          if (assignedTruck && tr.data.some((t: any) => t.id === assignedTruck.id && (t.currentLat || t.currentLng))) {
-            return;
-          }
-          const assignedTruck2 = d.truck;
-          let label;
-          let isTruckMarker = true;
-          if (assignedTruck2 && assignedTruck2.plateNumber) {
-            label = `${truckWord} (${assignedTruck2.plateNumber})`;
-          } else {
-            label = d.user?.name || driverWord;
-            isTruckMarker = false;
-          }
-          const driverName = d.user?.name || driverWord;
-          addMarker(d.id, parseFloat(d.currentLng), parseFloat(d.currentLat), label, driverName, isTruckMarker);
         }
       });
     } catch (e) { console.error(e); }
@@ -879,7 +858,7 @@ export default function LiveMapPage() {
 
       const lang = i18n.language || 'ro';
       const truckWord = TRUCK_TRANSLATIONS[lang] || TRUCK_TRANSLATIONS['ro'];
-      const label = `${truckWord} (${plateNumber})`;
+      const label = plateNumber;
 
       // Smoothly update the marker coordinate
       const existingMarker = markersRef.current[finalTruckId];
