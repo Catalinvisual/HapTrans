@@ -52,8 +52,9 @@ export default function LoginPage() {
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-10 shadow-2xl animate-fade-in-up">
           <div className="flex flex-col items-center mb-10">
             <div className="flex items-center gap-2 mb-2">
-              <svg viewBox="0 0 24 24" fill="currentColor" className="w-9 h-9 text-primary">
-                <path d="M5 3l-1 18h4l1-18H5zm9 0l-1 18h4l1-18h-4zm-8 7l1 4h9l-1-4H6z" />
+              <svg viewBox="0 0 100 100" fill="currentColor" className="w-10 h-10 text-primary">
+                <path d="M32 10 L46 10 L30 90 L16 90 L25.6 42 L9.6 42 L12 30 L28 30 Z" />
+                <path d="M68 90 L54 90 L70 10 L84 10 L74.4 58 L90.4 58 L88 70 L72 70 Z" />
               </svg>
               <div className="flex items-center text-3xl tracking-tight italic">
                 <span className="font-black text-primary">HAP</span>

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
@@ -155,6 +156,7 @@ class _TripsScreenState extends State<TripsScreen> {
                   Container(
                     width: 44,
                     height: 44,
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: kPrimary,
                       borderRadius: BorderRadius.circular(12),
@@ -166,7 +168,13 @@ class _TripsScreenState extends State<TripsScreen> {
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 24),
+                    child: SvgPicture.string(
+                      '''<svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M32 10 L46 10 L30 90 L16 90 L25.6 42 L9.6 42 L12 30 L28 30 Z" />
+                        <path d="M68 90 L54 90 L70 10 L84 10 L74.4 58 L90.4 58 L88 70 L72 70 Z" />
+                      </svg>''',
+                      colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -174,13 +182,18 @@ class _TripsScreenState extends State<TripsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
-                          'HapCargo',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            color: kText,
-                            letterSpacing: 0.5,
+                        RichText(
+                          text: const TextSpan(
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              fontStyle: FontStyle.italic,
+                              letterSpacing: 0.5,
+                            ),
+                            children: [
+                              TextSpan(text: 'HAP', style: TextStyle(color: kPrimary)),
+                              TextSpan(text: 'CARGO', style: TextStyle(color: kText)),
+                            ],
                           ),
                         ),
                         Text(
