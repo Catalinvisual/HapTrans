@@ -6,7 +6,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import styles from './ContactPage.module.css';
 
 export default function ContactPage() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [content, setContent] = useState<string>('Se încarcă...');
   
   const [formData, setFormData] = useState({
