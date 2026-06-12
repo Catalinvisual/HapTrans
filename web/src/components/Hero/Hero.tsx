@@ -62,7 +62,7 @@ const Hero = () => {
         {/* Left Content */}
         <div className={styles.content}>
           <div className={styles.badge}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
             </svg>
             {t('badge')}
@@ -75,46 +75,42 @@ const Hero = () => {
           </p>
         </div>
 
-        {/* Right Form */}
-        <div className={styles.calculator}>
-          {step === 1 && (
-            <form onSubmit={handleCalculate}>
+        <div className={styles.calculatorWrapper}>
+          <div className={styles.calculator}>
+            <div className={styles.calcHeader}>
               <h3 className={styles.calcTitle}>{t('calcTitle')}</h3>
               <p className={styles.calcDesc}>{t('calcDesc')}</p>
-              
-              <div className={styles.formGroup}>
-                <label>{t('calcFrom')}</label>
-                <input required type="text" name="from" className={styles.input} placeholder="ex: București, RO" value={formData.from} onChange={handleChange} />
-              </div>
-              
-              <div className={styles.formGroup}>
-                <label>{t('calcTo')}</label>
-                <input required type="text" name="to" className={styles.input} placeholder="ex: Munchen, DE" value={formData.to} onChange={handleChange} />
-              </div>
-              
-              <div className={styles.row}>
-                <div className={styles.formGroup}>
-                  <label>{t('calcWeight')}</label>
-                  <input required type="text" name="weight" className={styles.input} placeholder="ex: 21 tone" value={formData.weight} onChange={handleChange} />
+            </div>
+            
+            <form className={styles.calcForm} onSubmit={handleCalculate}>
+              {step === 1 ? (
+                <div className={styles.horizontalFields}>
+                  <div className={styles.formGroup}>
+                    <label>{t('calcFrom')}</label>
+                    <input type="text" name="from" placeholder="ex: București, RO" required value={formData.from} onChange={handleChange} />
+                  </div>
+                  
+                  <div className={styles.formGroup}>
+                    <label>{t('calcTo')}</label>
+                    <input type="text" name="to" placeholder="ex: Munchen, DE" required value={formData.to} onChange={handleChange} />
+                  </div>
+
+                  <div className={styles.formGroupRow}>
+                    <div className={styles.formGroup}>
+                      <label>{t('calcWeight')}</label>
+                      <input type="text" name="weight" placeholder="ex: 21 tone" required value={formData.weight} onChange={handleChange} />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>{t('calcType')}</label>
+                      <input type="text" name="type" placeholder="ex: Paleți generali" required value={formData.type} onChange={handleChange} />
+                    </div>
+                  </div>
+                  
+                  <button type="submit" className={`btn btn-primary ${styles.calcBtn}`} disabled={isSubmitting}>
+                    {isSubmitting ? t('calcLoading') : t('calcSubmit')}
+                  </button>
                 </div>
-                <div className={styles.formGroup}>
-                  <label>{t('calcType')}</label>
-                  <input type="text" name="type" className={styles.input} placeholder="ex: Paleți generali" value={formData.type} onChange={handleChange} />
-                </div>
-              </div>
-
-              <div className={styles.formGroup}>
-                <label>{t('calcNotes')}</label>
-                <textarea name="notes" className={styles.input} placeholder="..." rows={2} value={formData.notes} onChange={handleChange}></textarea>
-              </div>
-
-              <button type="submit" className={`btn btn-primary ${styles.submitBtn}`} disabled={isSubmitting}>
-                {isSubmitting ? t('calcLoading') : t('calcSubmit')}
-              </button>
-            </form>
-          )}
-
-          {step === 2 && (
+              ) : step === 2 ? (
             <form onSubmit={handleSubmitLead} className={styles.successBox}>
               <div className={styles.successIcon}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
