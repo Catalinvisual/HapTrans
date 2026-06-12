@@ -36,7 +36,8 @@ const Hero = () => {
     
     // Simulating API Call to /api/leads
     try {
-      await fetch('/api/leads', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://joyful-exploration-production.up.railway.app/api';
+      await fetch(`${apiUrl}/leads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...formData, source: 'website' })
