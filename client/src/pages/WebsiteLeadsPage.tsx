@@ -28,9 +28,10 @@ const WebsiteLeadsPage = () => {
   const fetchLeads = async () => {
     try {
       const { data } = await api.get('/leads');
-      setLeads(data);
+      setLeads(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to fetch leads', error);
+      setLeads([]);
     } finally {
       setLoading(false);
     }
@@ -66,9 +67,10 @@ const WebsiteLeadsPage = () => {
       rejected: 'bg-red-100 text-red-800 border-red-200'
     };
     
+    const displayStatus = status || 'new';
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${colors[status] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>
-        {status.toUpperCase()}
+      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${colors[displayStatus] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>
+        {displayStatus.toUpperCase()}
       </span>
     );
   };
@@ -167,7 +169,7 @@ const WebsiteLeadsPage = () => {
                   )}
                   
                   <div className="text-center text-xs text-gray-400 mt-auto pt-4">
-                    Primită: {new Date(lead.createdAt).toLocaleString('ro-RO')}
+                    Primită: {lead.createdAt ? new Date(lead.createdAt).toLocaleString('ro-RO') : ''}
                   </div>
                 </div>
               </div>

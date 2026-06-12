@@ -109,7 +109,27 @@ export default function GenericPage({ slug, titleKey }: { slug: string, titleKey
       .catch(() => {
         setContent(defaultContent[slug] || '<p>Eroare la încărcarea conținutului.</p>');
       });
-  }, [slug]);
+  }, [slug, lang]); // added lang dependency to update when lang changes
+
+  // Helper to parse basic HTML content by <h3> elements into grid cards
+  const parseContent = (html: string) => {
+    if (!html || !html.includes('<h3>')) {
+      return { hasCards: false, introHtml: html, cards: [] };
+    }
+
+    const parts = html.split('<h3>');
+    const introHtml = parts[0];
+    const cards = parts.slice(1).map(part => {
+      const subParts = part.split('</h3>');
+      const title = subParts[0] || '';
+      const rest = subParts[1] || '';
+      return { title, contentHtml: rest };
+    });
+
+    return { hasCards: true, introHtml, cards };
+  };
+
+  const { hasCards, introHtml, cards } = parseContent(content);
 
   return (
     <main className={styles.main}>
@@ -117,10 +137,33 @@ export default function GenericPage({ slug, titleKey }: { slug: string, titleKey
       <div className={styles.content}>
         <div className={styles.card}>
           <h1 className={styles.title}>{t(titleKey)}</h1>
-          <div 
-            className={styles.bodyText}
-            dangerouslySetInnerHTML={{ __html: content }}
-          />
+          
+          {hasCards ? (
+            <div className={styles.modernLayout}>
+              <div 
+                className={styles.introText}
+                dangerouslySetInnerHTML={{ __html: introHtml }}
+              />
+              <div className={styles.grid}>
+                {cards.map((card, idx) => (
+                  <div key={idx} className={styles.cardItem}>
+                    <div className={styles.cardHeader}>
+                      <h3 className={styles.cardItemTitle}>{card.title}</h3>
+                    </div>
+                    <div 
+                      className={styles.cardItemContent}
+                      dangerouslySetInnerHTML={{ __html: card.contentHtml }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div 
+              className={styles.bodyText}
+              dangerouslySetInnerHTML={{ __html: content }}
+            />
+          )}
         </div>
       </div>
       <Footer />

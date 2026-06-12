@@ -27,38 +27,55 @@ const Header = () => {
     <header className={styles.header}>
       <div className={styles.container}>
         <Link href="/" className={styles.logo}>
-          <svg viewBox="0 0 100 100" fill="#FF5A00" width="36" height="36" className={styles.logoIcon}>
-            <path d="M32 10 L46 10 L38 50 L48 50 L45.2 64 L35.2 64 L30 90 L16 90 L21.2 64 L5.2 64 L8 50 L24 50 Z" />
-            <path d="M68 90 L54 90 L62 50 L52 50 L54.8 36 L64.8 36 L70 10 L84 10 L78.8 36 L94.8 36 L92 50 L76 50 Z" />
+          <svg viewBox="0 0 24 24" fill="none" stroke="#FF5A00" strokeWidth="3.2" strokeLinecap="round" width="36" height="36" className={styles.logoIcon}>
+            <line x1="10" y1="3" x2="6" y2="21" />
+            <line x1="16" y1="3" x2="12" y2="21" />
+            <line x1="3" y1="9" x2="20" y2="7" />
+            <line x1="3" y1="16" x2="20" y2="14" />
           </svg>
           <div style={{ display: 'flex' }}>
             <span style={{ color: '#000000', fontWeight: 900, letterSpacing: '-0.5px', fontSize: '1.6rem', fontStyle: 'italic', marginLeft: '0.2rem' }}>HAPCARGO</span>
           </div>
         </Link>
 
-        <button className={styles.mobileMenuBtn} onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            {mobileMenuOpen ? (
-              <>
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </>
-            ) : (
-              <>
-                <line x1="3" y1="12" x2="21" y2="12"></line>
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <line x1="3" y1="18" x2="21" y2="18"></line>
-              </>
-            )}
-          </svg>
-        </button>
-
         <nav className={`${styles.nav} ${mobileMenuOpen ? styles.mobileNavOpen : ''}`}>
-          <Link href="/" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('home')}</Link>
-          <Link href="/despre-noi" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('about')}</Link>
-          <Link href="/servicii" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('services')}</Link>
-          <Link href="/flota" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('fleet')}</Link>
-          <Link href="/contact" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('contact')}</Link>
+          {mobileMenuOpen && (
+            <div className={styles.mobileNavHeader}>
+              <Link href="/" className={styles.logo} onClick={() => setMobileMenuOpen(false)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#FF5A00" strokeWidth="3.2" strokeLinecap="round" width="36" height="36" className={styles.logoIcon}>
+                  <line x1="10" y1="3" x2="6" y2="21" />
+                  <line x1="16" y1="3" x2="12" y2="21" />
+                  <line x1="3" y1="9" x2="20" y2="7" />
+                  <line x1="3" y1="16" x2="20" y2="14" />
+                </svg>
+                <div style={{ display: 'flex' }}>
+                  <span style={{ color: '#000000', fontWeight: 900, letterSpacing: '-0.5px', fontSize: '1.6rem', fontStyle: 'italic', marginLeft: '0.2rem' }}>HAPCARGO</span>
+                </div>
+              </Link>
+              <button className={styles.mobileCloseBtn} onClick={() => setMobileMenuOpen(false)}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          )}
+
+          <div className={styles.navLinksWrapper}>
+            <Link href="/" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('home')}</Link>
+            <Link href="/despre-noi" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('about')}</Link>
+            <Link href="/servicii" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('services')}</Link>
+            <Link href="/flota" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('fleet')}</Link>
+            <Link href="/contact" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('contact')}</Link>
+          </div>
+
+          {mobileMenuOpen && (
+            <div className={styles.mobileNavFooter}>
+              <Link href="/track" className="btn btn-primary" style={{ width: '100%', padding: '0.9rem', fontSize: '1rem', backgroundColor: '#FF5A00' }} onClick={() => setMobileMenuOpen(false)}>
+                {t('clientLogin') || 'PORTAL CLIENȚI'}
+              </Link>
+            </div>
+          )}
         </nav>
 
         <div className={styles.actions}>
@@ -82,9 +99,17 @@ const Header = () => {
             )}
           </div>
           
-          <Link href="/track" className="btn btn-primary" style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#FF5A00' }}>
+          <Link href="/track" className={`btn btn-primary ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#FF5A00' }}>
             {t('clientLogin') || 'PORTAL CLIENȚI'}
           </Link>
+
+          <button className={styles.mobileMenuBtn} onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
         </div>
       </div>
     </header>

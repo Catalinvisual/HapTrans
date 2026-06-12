@@ -79,7 +79,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             >
               <item.icon className={`w-5 h-5 ${item.key === 'websiteCms' ? 'text-primary' : ''}`} />
               <span className="truncate text-base md:text-sm capitalize">
-                {item.key === 'websiteCms' ? 'Conținut Website' : t(item.key)}
+                {t(item.key)}
               </span>
             </NavLink>
           ))}

@@ -1,6 +1,22 @@
-# Task Checklist - Mobile Notifications & Layout Changes
+# Task Checklist: SaaS & Website Upgrades
 
-- [x] Update notification channel ID and settings in `background_location_service.dart`
-- [x] Update notification channel ID and settings in `notification_service.dart`
-- [x] Run automated compile/build verify on the Flutter mobile app
-- [x] Commit and push the changes to GitHub
+- [x] Fix SaaS Leads blank screen page
+  - [x] Modify `leads.controller.ts` in the NestJS backend
+  - [x] Modify `WebsiteLeadsPage.tsx` in the React frontend
+- [x] Enable translations for SaaS Website Hub
+  - [x] Translate Sidebar and Layout titles
+  - [x] Implement language dropdown editor in `WebsiteHubPage.tsx`
+  - [x] Add translation strings to `client/src/lib/i18n.ts`
+- [x] Correct website logo
+  - [x] Update Header logo SVG in `Header.tsx`
+- [x] Redesign mobile header & hamburger menu
+  - [x] Position language switcher in mobile header
+  - [x] Implement glassmorphic full-screen mobile menu drawer
+- [x] Overhaul website generic pages
+  - [x] Implement HTML cards parser in `GenericPage.tsx`
+  - [x] Design card layout styles in `GenericPage.module.css`
+  - [x] Refactor Contact page and its styles
+- [/] Verify build & compile
+  - [x] Build React client (`npm run build`)
+  - [x] Build NestJS server (`npm run build`)
+  - [/] Build Next.js website (`npm run build`)
