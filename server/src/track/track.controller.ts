@@ -32,8 +32,8 @@ export class TrackController {
       // filter documents to only show relevant public ones, e.g. CMR, invoice (if paid), pictures
       documents: trip.documents?.map(doc => ({
         id: doc.id,
-        name: doc.name,
-        url: doc.url,
+        name: doc.fileName,
+        url: doc.fileUrl,
         type: doc.type,
       })) || []
     };

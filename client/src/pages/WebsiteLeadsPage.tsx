@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { api } from '../lib/api';
+import api from '../lib/api';
 import { useNavigate } from 'react-router-dom';
 
 interface Lead {
@@ -84,14 +82,14 @@ const WebsiteLeadsPage = () => {
 
       <div className="grid gap-6">
         {leads.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center text-gray-500">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div className="p-8 text-center text-gray-500">
               Nu există nicio cerere momentan.
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ) : (
           leads.map((lead) => (
-            <Card key={lead.id} className="overflow-hidden border-gray-200">
+            <div key={lead.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
               <div className="flex flex-col lg:flex-row">
                 <div className="p-6 flex-1 border-b lg:border-b-0 lg:border-r border-gray-100">
                   <div className="flex items-center justify-between mb-4">
@@ -137,27 +135,27 @@ const WebsiteLeadsPage = () => {
                   <p className="text-xs text-gray-500 text-center mb-2">Acțiuni Rapide</p>
                   
                   {lead.status === 'new' && (
-                    <Button onClick={() => updateStatus(lead.id, 'contacted')} className="w-full bg-blue-600 hover:bg-blue-700">
+                    <button onClick={() => updateStatus(lead.id, 'contacted')} className="w-full py-2 px-4 rounded font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors">
                       📞 Marchează "Sunat"
-                    </Button>
+                    </button>
                   )}
                   
                   {['new', 'contacted'].includes(lead.status) && (
-                    <Button onClick={() => updateStatus(lead.id, 'quoted')} className="w-full bg-purple-600 hover:bg-purple-700">
+                    <button onClick={() => updateStatus(lead.id, 'quoted')} className="w-full py-2 px-4 rounded font-medium text-white bg-purple-600 hover:bg-purple-700 transition-colors">
                       📝 Trimite Ofertă
-                    </Button>
+                    </button>
                   )}
                   
                   {['contacted', 'quoted'].includes(lead.status) && (
-                    <Button onClick={() => updateStatus(lead.id, 'accepted')} className="w-full bg-green-600 hover:bg-green-700">
+                    <button onClick={() => updateStatus(lead.id, 'accepted')} className="w-full py-2 px-4 rounded font-medium text-white bg-green-600 hover:bg-green-700 transition-colors">
                       ✅ Transformă în Comandă
-                    </Button>
+                    </button>
                   )}
 
                   {!['accepted', 'rejected'].includes(lead.status) && (
-                    <Button onClick={() => updateStatus(lead.id, 'rejected')} variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50">
+                    <button onClick={() => updateStatus(lead.id, 'rejected')} className="w-full py-2 px-4 rounded font-medium border border-red-200 text-red-600 hover:bg-red-50 transition-colors">
                       ❌ Respins
-                    </Button>
+                    </button>
                   )}
 
                   {['accepted', 'rejected'].includes(lead.status) && (
@@ -171,7 +169,7 @@ const WebsiteLeadsPage = () => {
                   </div>
                 </div>
               </div>
-            </Card>
+            </div>
           ))
         )}
       </div>

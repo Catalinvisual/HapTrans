@@ -22,7 +22,7 @@ export class LeadsService {
       ...createLeadDto,
       trackingToken: 'hc_' + nanoid(14)
     });
-    return this.leadRepo.save(lead);
+    return this.leadRepo.save(lead as any);
   }
 
   async findAll(): Promise<Lead[]> {
@@ -30,12 +30,12 @@ export class LeadsService {
   }
 
   async findOne(id: string): Promise<Lead> {
-    return this.leadRepo.findOneBy({ id });
+    return this.leadRepo.findOneBy({ id }) as Promise<Lead>;
   }
 
   async update(id: string, updateLeadDto: any): Promise<Lead> {
     await this.leadRepo.update(id, updateLeadDto);
-    return this.leadRepo.findOneBy({ id });
+    return this.leadRepo.findOneBy({ id }) as Promise<Lead>;
   }
 
   async remove(id: string): Promise<void> {
@@ -51,11 +51,9 @@ export class LeadsService {
     if (!client) {
       client = await this.clientsService.create({
         name: lead.name,
-        email: lead.email,
+        contactEmail: lead.email,
         phone: lead.phone,
         address: lead.from, // best guess
-        type: 'COMPANY',
-        status: 'ACTIVE'
       });
     }
 
