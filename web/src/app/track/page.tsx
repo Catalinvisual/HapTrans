@@ -12,8 +12,16 @@ export default function TrackPage() {
 
   const handleTrack = (e: React.FormEvent) => {
     e.preventDefault();
-    if (token.trim()) {
-      router.push(`/track/${token.trim()}`);
+    let cleanToken = token.trim();
+    if (cleanToken.includes('/track/')) {
+      const parts = cleanToken.split('/track/');
+      cleanToken = parts[parts.length - 1] || '';
+    }
+    // Clean query parameters or trailing slashes
+    cleanToken = cleanToken.split('?')[0].split('#')[0].replace(/\/$/, '');
+
+    if (cleanToken) {
+      router.push(`/track/${cleanToken}`);
     }
   };
 

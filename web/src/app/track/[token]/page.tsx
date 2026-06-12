@@ -21,12 +21,28 @@ export default function TrackPage({ params }: { params: any }) {
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    if (params) {
-      if (typeof params.then === 'function') {
-        params.then((p: any) => setToken(p?.token || ''));
-      } else {
-        setToken(params.token || '');
-      }
+    if (!params) {
+      setLoading(false);
+      setError(true);
+      return;
+    }
+    if (typeof params.then === 'function') {
+      params.then((p: any) => {
+        if (p?.token) {
+          setToken(p.token);
+        } else {
+          setLoading(false);
+          setError(true);
+        }
+      }).catch(() => {
+        setLoading(false);
+        setError(true);
+      });
+    } else if (params.token) {
+      setToken(params.token);
+    } else {
+      setLoading(false);
+      setError(true);
     }
   }, [params]);
 
