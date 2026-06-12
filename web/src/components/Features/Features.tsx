@@ -1,3 +1,4 @@
+'use client';
 import React from 'react';
 import styles from './Features.module.css';
 import { useLanguage } from '@/context/LanguageContext';
