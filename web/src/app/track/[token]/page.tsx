@@ -22,7 +22,8 @@ export default function TrackPage({ params }: { params: { token: string } }) {
   useEffect(() => {
     const fetchTracking = async () => {
       try {
-        const res = await fetch(`http://localhost:3001/api/track/${params.token}`);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://joyful-exploration-production.up.railway.app/api';
+        const res = await fetch(`${apiUrl}/track/${params.token}`);
         if (!res.ok) throw new Error('Invalid token');
         const json = await res.json();
         setData(json);

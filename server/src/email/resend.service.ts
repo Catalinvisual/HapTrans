@@ -10,7 +10,8 @@ export class ResendService {
   }
 
   async sendTrackingEmail(email: string, trackingToken: string) {
-    const trackingUrl = `https://hapcargo.com/track/${trackingToken}`;
+    const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://joyful-exploration-production.up.railway.app';
+    const trackingUrl = `${baseUrl}/track/${trackingToken}`;
     
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
