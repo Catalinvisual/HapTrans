@@ -4,11 +4,14 @@ import Header from '@/components/Header/Header';
 import Footer from '@/components/Footer/Footer';
 import styles from './GenericPage.module.css';
 
-export default function GenericPage({ slug, title }: { slug: string, title: string }) {
+import { useLanguage } from '@/context/LanguageContext';
+
+export default function GenericPage({ slug, titleKey }: { slug: string, titleKey: string }) {
+  const { lang, t } = useLanguage();
   const [content, setContent] = useState<string>('Se încarcă...');
 
   useEffect(() => {
-    const defaultContent: Record<string, string> = {
+    const defaultContentRO: Record<string, string> = {
       about: `
         <h2>Cine suntem noi?</h2>
         <p><strong>HapCargo</strong> s-a născut din pasiunea pentru un transport de marfă bine făcut, la timp și în deplină siguranță. Suntem o echipă tânără, extrem de ambițioasă, cu o abordare proaspătă a industriei logistice europene.</p>
@@ -47,12 +50,57 @@ export default function GenericPage({ slug, title }: { slug: string, title: stri
       `
     };
 
+    const defaultContentEN: Record<string, string> = {
+      about: `
+        <h2>Who are we?</h2>
+        <p><strong>HapCargo</strong> was born out of a passion for well-done freight transport, on time and in complete safety. We are a young, highly ambitious team with a fresh approach to the European logistics industry.</p>
+        <p>Our goal is not just to move freight from point A to point B, but to be that reliable partner you can trust blindly. Whether you have one pallet or a full truck, we ensure it arrives flawlessly at its destination.</p>
+        <br/>
+        <h3>Our Mission</h3>
+        <ul>
+          <li>To offer 100% transparency in every stage of transport.</li>
+          <li>To build a modern, environmentally friendly fleet.</li>
+          <li>To develop trust-based relationships with our clients and drivers.</li>
+        </ul>
+      `,
+      services: `
+        <h2>Complete Logistics Solutions</h2>
+        <p>At <strong>HapCargo</strong>, we understand that every business is unique. That's why we have developed a flexible service portfolio, ready to meet the most demanding transport requirements in Europe.</p>
+        <br/>
+        <h3>🚚 FTL Transport (Full Truck Load)</h3>
+        <p>Ideal for large quantities. You have an entire truck dedicated exclusively to your freight, ensuring the shortest transit time.</p>
+        <br/>
+        <h3>📦 LTL Transport (Groupage)</h3>
+        <p>The economical solution for smaller shipments. You only pay for the space your freight occupies on the truck.</p>
+        <br/>
+        <h3>⚡ Express Transport</h3>
+        <p>When time is critical, we use crew vans with 2 drivers to deliver goods anywhere in Europe in maximum urgency mode.</p>
+      `,
+      fleet: `
+        <h2>Our Modern Fleet</h2>
+        <p>We are proud of our fleet equipped to the highest European standards. We constantly invest in new equipment to ensure not only transport reliability but also the comfort of our driver colleagues and the reduction of environmental impact.</p>
+        <br/>
+        <h3>Available Configurations:</h3>
+        <ul>
+          <li><strong>🚛 Mega Trailers (100cbm):</strong> Ideal for bulky goods and the automotive industry.</li>
+          <li><strong>🚚 Standard Semi-trailers (Tautliner):</strong> Perfect for general pallets.</li>
+          <li><strong>🚐 Express Vans 3.5t:</strong> For urgent, door-to-door transport without stopovers.</li>
+        </ul>
+      `
+    };
+    
+    const defaultContent = lang === 'RO' ? defaultContentRO : defaultContentEN;
+
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://joyful-exploration-production.up.railway.app/api';
     
-    fetch(\`\${apiUrl}/website-cms\`)
+    fetch(apiUrl + '/website-cms')
       .then(res => res.json())
       .then(data => {
-        if (data[slug]) {
+        // Fetch language specific key, e.g. about_EN
+        const langKey = `${slug}_${lang}`;
+        if (data[langKey]) {
+          setContent(data[langKey]);
+        } else if (data[slug]) {
           setContent(data[slug]);
         } else {
           setContent(defaultContent[slug] || '<p>Conținutul pentru această pagină nu a fost definit încă.</p>');
@@ -68,7 +116,7 @@ export default function GenericPage({ slug, title }: { slug: string, title: stri
       <Header />
       <div className={styles.content}>
         <div className={styles.card}>
-          <h1 className={styles.title}>{title}</h1>
+          <h1 className={styles.title}>{t(titleKey)}</h1>
           <div 
             className={styles.bodyText}
             dangerouslySetInnerHTML={{ __html: content }}

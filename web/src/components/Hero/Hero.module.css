@@ -14,8 +14,7 @@
 .heroOverlay {
   position: absolute;
   inset: 0;
-  /* background: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 40%, rgba(0, 0, 0, 0.4) 100%); */
-  background: rgba(0,0,0,0.1); /* O umbră extrem de subtilă doar ca să existe contrast pentru text */
+  /* background: rgba(0,0,0,0.1); */
   z-index: 1;
 }
 
@@ -224,9 +223,9 @@
   
   .hero {
     min-height: 100vh;
-    background-size: contain;
-    background-position: bottom;
-    padding-bottom: 200px;
+    background-size: cover;
+    background-position: center;
+    padding-bottom: 50px;
     align-items: flex-start;
     padding-top: 2rem;
   }

@@ -1,5 +1,5 @@
 import GenericPage from '@/components/GenericPage/GenericPage';
 
 export default function ServicesPage() {
-  return <GenericPage slug="services" title="Serviciile Noastre" />;
+  return <GenericPage slug="services" titleKey="services" />;
 }
