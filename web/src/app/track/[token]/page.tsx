@@ -14,16 +14,28 @@ interface TrackData {
   documents: any[];
 }
 
-export default function TrackPage({ params }: { params: { token: string } }) {
+export default function TrackPage({ params }: { params: any }) {
   const [data, setData] = useState<TrackData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
+    if (params) {
+      if (typeof params.then === 'function') {
+        params.then((p: any) => setToken(p?.token || ''));
+      } else {
+        setToken(params.token || '');
+      }
+    }
+  }, [params]);
+
+  useEffect(() => {
+    if (!token) return;
     const fetchTracking = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://joyful-exploration-production.up.railway.app/api';
-        const res = await fetch(`${apiUrl}/track/${params.token}`);
+        const res = await fetch(`${apiUrl}/track/${token}`);
         if (!res.ok) throw new Error('Invalid token');
         const json = await res.json();
         setData(json);
@@ -34,7 +46,7 @@ export default function TrackPage({ params }: { params: { token: string } }) {
       }
     };
     fetchTracking();
-  }, [params.token]);
+  }, [token]);
 
   const renderStatusLine = (currentStatus: string) => {
     const statuses = ['pending', 'confirmed', 'in_progress', 'completed'];

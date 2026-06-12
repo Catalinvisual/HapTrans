@@ -1021,12 +1021,16 @@ export default function TripsPage() {
             {editId && currentToken && (
               <div className="md:col-span-2 lg:col-span-3 bg-blue-50 border border-blue-100 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <span className="text-xs font-bold text-blue-800 uppercase tracking-wider block">Portal Client & Link de Urmărire</span>
+                  <span className="text-xs font-bold text-blue-800 uppercase tracking-wider block">{t('clientPortalTitle')}</span>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-slate-700">Token:</span>
                     <code className="bg-white px-2 py-1 rounded border border-slate-200 text-xs font-mono select-all text-slate-800">{currentToken}</code>
                   </div>
-                  <p className="text-xs text-slate-500">Folosește acest link pentru a trimite clientului statusul live al expediției și documentele.</p>
+                  <p className="text-xs text-slate-500">
+                    {i18n.language === 'ro' ? 'Folosește acest link pentru a trimite clientului statusul live al expediției și documentele.' :
+                     i18n.language === 'nl' ? 'Gebruik deze link om de klant de live status van de verzending te sturen.' :
+                     'Use this link to send the client the live status of the shipment and documents.'}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2 w-full md:w-auto">
                   <button
@@ -1046,7 +1050,7 @@ export default function TripsPage() {
                       <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                     </svg>
-                    Copiază Link
+                    {i18n.language === 'ro' ? 'Copiază Link' : i18n.language === 'nl' ? 'Kopieer Link' : 'Copy Link'}
                   </button>
                   <button
                     type="button"
@@ -1059,7 +1063,7 @@ export default function TripsPage() {
                     }}
                     className="btn-secondary py-2 px-4 text-xs font-bold w-full md:w-auto flex items-center justify-center gap-2"
                   >
-                    Deschide Portal
+                    {i18n.language === 'ro' ? 'Deschide Portal' : i18n.language === 'nl' ? 'Open Portaal' : 'Open Portal'}
                   </button>
                 </div>
               </div>
@@ -1068,9 +1072,9 @@ export default function TripsPage() {
             {editId && !currentToken && (
               <div className="md:col-span-2 lg:col-span-3 bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <span className="text-xs font-bold text-amber-800 uppercase tracking-wider block">Portal Client & Link de Urmărire</span>
-                  <p className="text-sm text-amber-700 font-semibold">Această cursă nu are încă un token de urmărire generat.</p>
-                  <p className="text-xs text-slate-500">Apasă pe butonul din dreapta pentru a genera unul instantaneu și a activa portalul client.</p>
+                  <span className="text-xs font-bold text-amber-800 uppercase tracking-wider block">{t('clientPortalTitle')}</span>
+                  <p className="text-sm text-amber-700 font-semibold">{t('noTrackingToken')}</p>
+                  <p className="text-xs text-slate-500">{t('generateTokenInstructions')}</p>
                 </div>
                 <button
                   type="button"
@@ -1085,7 +1089,7 @@ export default function TripsPage() {
                   }}
                   className="btn-primary bg-amber-500 hover:bg-amber-600 border-amber-500 hover:border-amber-600 py-2.5 px-4 text-xs font-bold w-full md:w-auto text-center"
                 >
-                  Generează Link
+                  {t('generateLink')}
                 </button>
               </div>
             )}

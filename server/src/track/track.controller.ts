@@ -2,7 +2,7 @@ import { Controller, Get, Param, NotFoundException } from '@nestjs/common';
 import { TripsService } from '../trips/trips.service';
 import { TripStatus } from '../trips/trip.entity';
 
-@Controller('api/track')
+@Controller('track')
 export class TrackController {
   constructor(private readonly tripsService: TripsService) {}
 
