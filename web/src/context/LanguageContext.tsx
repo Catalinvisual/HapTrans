@@ -73,6 +73,17 @@ const translations: Translations = {
   feat2Desc: { RO: 'Știi mereu unde este marfa ta, 24/7.', EN: 'You always know where your freight is, 24/7.', NL: 'U weet altijd waar uw vracht is, 24/7.', DE: 'Sie wissen immer, wo Ihre Fracht ist, rund um die Uhr.', FR: 'Vous savez toujours où se trouve votre fret, 24/7.', ES: 'Siempre sabe dónde está su carga, 24/7.' },
   feat3Title: { RO: 'Suport Dedicat', EN: 'Dedicated Support', NL: 'Toegewijde Ondersteuning', DE: 'Engagierter Support', FR: 'Support Dédicacé', ES: 'Soporte Dedicado' },
   feat3Desc: { RO: 'Echipa noastră de dispeceri este mereu la dispoziția ta.', EN: 'Our dispatcher team is always at your disposal.', NL: 'Ons team van expediteurs staat altijd tot uw beschikking.', DE: 'Unser Disponenten-Team steht Ihnen jederzeit zur Verfügung.', FR: 'Notre équipe de répartiteurs est toujours à votre disposition.', ES: 'Nuestro equipo de despachadores está siempre a su disposición.' },
+
+  // Contact Page
+  contactPageTitle: { RO: 'Contactați-ne', EN: 'Contact Us', NL: 'Neem contact met ons op', DE: 'Kontakt', FR: 'Contactez-nous', ES: 'Contáctenos' },
+  contactPageSubtitle: { RO: 'Suntem aici pentru orice întrebare sau solicitare.', EN: 'We are here for any question or request.', NL: 'Wij zijn hier voor elke vraag of verzoek.', DE: 'Wir sind für alle Fragen und Wünsche da.', FR: 'Nous sommes là pour toute question ou demande.', ES: 'Estamos aquí para cualquier duda o petición.' },
+  contactName: { RO: 'Nume Complet', EN: 'Full Name', NL: 'Volledige Naam', DE: 'Vollständiger Name', FR: 'Nom Complet', ES: 'Nombre Completo' },
+  contactEmail: { RO: 'Adresă de Email', EN: 'Email Address', NL: 'E-mailadres', DE: 'E-Mail-Adresse', FR: 'Adresse Email', ES: 'Correo Electrónico' },
+  contactSubject: { RO: 'Subiect', EN: 'Subject', NL: 'Onderwerp', DE: 'Betreff', FR: 'Sujet', ES: 'Asunto' },
+  contactMessage: { RO: 'Mesajul Tău', EN: 'Your Message', NL: 'Uw Bericht', DE: 'Ihre Nachricht', FR: 'Votre Message', ES: 'Tu Mensaje' },
+  contactSend: { RO: 'Trimite Mesajul', EN: 'Send Message', NL: 'Verstuur Bericht', DE: 'Nachricht Senden', FR: 'Envoyer le Message', ES: 'Enviar Mensaje' },
+  contactSending: { RO: 'Se trimite...', EN: 'Sending...', NL: 'Verzenden...', DE: 'Senden...', FR: 'Envoi...', ES: 'Enviando...' },
+  contactSuccess: { RO: 'Mesajul a fost trimis cu succes! Vă vom contacta în curând.', EN: 'Message sent successfully! We will contact you soon.', NL: 'Bericht succesvol verzonden! Wij nemen spoedig contact met u op.', DE: 'Nachricht erfolgreich gesendet! Wir werden Sie in Kürze kontaktieren.', FR: 'Message envoyé avec succès! Nous vous contacterons bientôt.', ES: '¡Mensaje enviado con éxito! Nos pondremos en contacto pronto.' },
 };
 
 interface LanguageContextType {

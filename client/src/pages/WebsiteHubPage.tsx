@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Globe, MousePointerClick, FileText, Map, Phone, Briefcase, Truck } from 'lucide-react';
+import { Globe, MousePointerClick, FileText, Map, Phone, Briefcase, Truck, Mail } from 'lucide-react';
 import WebsiteLeadsPage from './WebsiteLeadsPage';
+import ContactInbox from './ContactInbox';
 import api from '../lib/api';
 
 const WebsiteHubPage = () => {
@@ -31,6 +32,7 @@ const WebsiteHubPage = () => {
 
   const tabs = [
     { id: 'leads', label: 'Cereri (Leads)', icon: MousePointerClick },
+    { id: 'inbox', label: 'Inbox Contact', icon: Mail },
     { id: 'map', label: 'Harta & Țări', icon: Map },
     { id: 'about', label: 'Despre Noi', icon: FileText },
     { id: 'services', label: 'Servicii', icon: Briefcase },
@@ -79,6 +81,10 @@ const WebsiteHubPage = () => {
             <div className="-m-8">
               <WebsiteLeadsPage />
             </div>
+          )}
+
+          {activeTab === 'inbox' && (
+            <ContactInbox />
           )}
           
           {activeTab === 'map' && (
