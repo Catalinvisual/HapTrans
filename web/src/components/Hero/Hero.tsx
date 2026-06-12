@@ -82,7 +82,7 @@ const Hero = () => {
             </div>
             
             <form className={styles.calcForm} onSubmit={handleCalculate}>
-              {step === 1 ? (
+              {step === 1 && (
                 <div className={styles.horizontalFields}>
                   <div className={styles.formGroup}>
                     <label>{t('calcFrom')}</label>
@@ -109,8 +109,8 @@ const Hero = () => {
                     {isSubmitting ? t('calcLoading') : t('calcSubmit')}
                   </button>
                 </div>
-              </form>
-            )}
+              )}
+            </form>
 
             {step === 2 && (
               <form onSubmit={handleSubmitLead} className={styles.successBox}>
