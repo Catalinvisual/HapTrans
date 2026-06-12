@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import styles from './Footer.module.css';
 
 const Footer = () => {
@@ -6,9 +7,15 @@ const Footer = () => {
     <footer className={styles.footer}>
       <div className={styles.container}>
         <div className={styles.column}>
-          <h3 className={styles.brand}>
-            <span className={styles.brandHap}>HAP</span>CARGO
-          </h3>
+          <Link href="/" className={styles.logo}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="#FF5A00" width="42" height="42" className={styles.logoIcon}>
+              <path d="M32 10 L46 10 L38 50 L48 50 L45.2 64 L35.2 64 L30 90 L16 90 L21.2 64 L5.2 64 L8 50 L24 50 Z" />
+              <path d="M68 90 L54 90 L62 50 L52 50 L54.8 36 L64.8 36 L70 10 L84 10 L78.8 36 L94.8 36 L92 50 L76 50 Z" />
+            </svg>
+            <div className={styles.logoTextGroup}>
+              <span className={styles.logoHap}>HAP</span><span className={styles.logoCargo}>CARGO</span>
+            </div>
+          </Link>
           <p className={styles.desc}>
             Livrăm marfa dumneavoastră la timp, în siguranță și cu transparență totală pe întreg teritoriul Europei.
           </p>

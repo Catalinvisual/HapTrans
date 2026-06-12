@@ -22,16 +22,34 @@
   }
 }
 
-.brand {
-  font-size: 1.5rem;
-  font-weight: 900;
-  font-style: italic;
-  letter-spacing: -0.5px;
-  margin-bottom: 1rem;
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  flex-shrink: 0;
 }
 
-.brandHap {
+.logoIcon {
+  flex-shrink: 0;
+}
+
+.logoTextGroup {
+  display: flex;
+  align-items: baseline;
+  font-style: italic;
+  font-size: 1.55rem;
+  letter-spacing: -0.02em;
+}
+
+.logoHap {
   color: #FF5A00;
+  font-weight: 900;
+}
+
+.logoCargo {
+  color: #ffffff;
+  font-weight: 900;
 }
 
 .desc {
