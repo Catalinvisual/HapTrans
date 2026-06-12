@@ -33,7 +33,7 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const lang = i18n.language as string;
-  const title = PAGE_TITLES[location.pathname]?.[lang] ?? 'HapTrans';
+  const title = PAGE_TITLES[location.pathname]?.[lang] ?? 'HapCargo';
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);

@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const basePath = 'c:/Users/hapen/Desktop/New folder/Saas HapTrans';
+const basePath = 'c:/Users/hapen/Desktop/New folder/Saas HapCargo';
 
 // 1. Dashboard.tsx - clickable card + scroll
 const dashPath = path.join(basePath, 'client/src/pages/Dashboard.tsx');

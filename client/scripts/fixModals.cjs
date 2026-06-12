@@ -3,7 +3,7 @@ const path = require('path');
 
 const filesToFix = [
   {
-    path: 'c:/Users/hapen/Desktop/New folder/Saas HapTrans/client/src/pages/DriversPage.tsx',
+    path: 'c:/Users/hapen/Desktop/New folder/Saas HapCargo/client/src/pages/DriversPage.tsx',
     stateStr: 'const [deleteId, setDeleteId] = useState<string | null>(null);',
     modalJSX: `
       <ConfirmModal
@@ -24,7 +24,7 @@ const filesToFix = [
   };`
   },
   {
-    path: 'c:/Users/hapen/Desktop/New folder/Saas HapTrans/client/src/pages/TrucksPage.tsx',
+    path: 'c:/Users/hapen/Desktop/New folder/Saas HapCargo/client/src/pages/TrucksPage.tsx',
     stateStr: 'const [deleteId, setDeleteId] = useState<string | null>(null);',
     modalJSX: `
       <ConfirmModal
@@ -40,7 +40,7 @@ const filesToFix = [
     replaceWith: `onClick={() => setDeleteId(truck.id)}`
   },
   {
-    path: 'c:/Users/hapen/Desktop/New folder/Saas HapTrans/client/src/pages/DocumentsPage.tsx',
+    path: 'c:/Users/hapen/Desktop/New folder/Saas HapCargo/client/src/pages/DocumentsPage.tsx',
     stateStr: 'const [deleteId, setDeleteId] = useState<string | null>(null);',
     modalJSX: `
       <ConfirmModal
@@ -56,7 +56,7 @@ const filesToFix = [
     replaceWith: `onClick={() => setDeleteId(doc.id)}`
   },
   {
-    path: 'c:/Users/hapen/Desktop/New folder/Saas HapTrans/client/src/pages/UsersPage.tsx',
+    path: 'c:/Users/hapen/Desktop/New folder/Saas HapCargo/client/src/pages/UsersPage.tsx',
     stateStr: 'const [deactivateUser, setDeactivateUser] = useState<any>(null);\n  const [deleteUser, setDeleteUser] = useState<string | null>(null);',
     modalJSX: `
       <ConfirmModal

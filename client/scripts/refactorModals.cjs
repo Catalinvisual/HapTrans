@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const basePath = 'c:/Users/hapen/Desktop/New folder/Saas HapTrans/client/src/pages';
+const basePath = 'c:/Users/hapen/Desktop/New folder/Saas HapCargo/client/src/pages';
 const files = [
   'ClientsPage.tsx',
   'TripsPage.tsx',

@@ -5,21 +5,23 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#FF7A1A',
-          dark: '#E86405',
+          DEFAULT: '#FF5A00', // HapCargo Orange
+          dark: '#E04D00',
           light: '#FFF0E6',
         },
-        success: '#10B981', // More modern green
-        error: '#EF4444', // Softer red
+        secondary: '#0D1B2A', // HapCargo Dark Blue
+        accent: '#1976D2', // HapCargo Bright Blue
+        success: '#10B981', 
+        error: '#EF4444',
         warning: '#F59E0B',
-        surface: '#F9FAFB', // Softer gray background
+        surface: '#F2F4F7', // HapCargo Background
         card: '#FFFFFF',
         text: {
-          DEFAULT: '#111827', // Darker richer text
+          DEFAULT: '#0D1B2A', // Using secondary as main dark text
           secondary: '#6B7280',
           light: '#9CA3AF',
         },
-        border: '#F3F4F6', // More subtle borders
+        border: '#F3F4F6', 
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

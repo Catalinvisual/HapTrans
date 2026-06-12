@@ -9,7 +9,7 @@ function walkDir(dir, callback) {
   });
 }
 
-walkDir('C:/Users/hapen/Desktop/New folder/Saas HapTrans/client/src', function(filePath) {
+walkDir('C:/Users/hapen/Desktop/New folder/Saas HapCargo/client/src', function(filePath) {
   if (filePath.endsWith('.tsx') || filePath.endsWith('.ts')) {
     let content = fs.readFileSync(filePath, 'utf8');
     let original = content;
@@ -28,7 +28,7 @@ walkDir('C:/Users/hapen/Desktop/New folder/Saas HapTrans/client/src', function(f
         text = text.replace(/RO0090099/g, 'ID-123456');
         text = text.replace(/J40\/1234\/2020/g, 'REG-2020-123');
         text = text.replace(/\+40 7xx xxx xxx/g, '+1 234 567 8900');
-        text = text.replace(/sofer@haptrans\.ro/g, 'driver@company.com');
+        text = text.replace(/sofer@hapcargo\.ro/g, 'driver@company.com');
         text = text.replace(/Motorină, Servicii contabile mai\.\.\./g, 'Fuel, Accounting services etc...');
         return `placeholder="${text}"`;
     });

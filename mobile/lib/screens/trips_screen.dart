@@ -175,7 +175,7 @@ class _TripsScreenState extends State<TripsScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Text(
-                          'HapTrans',
+                          'HapCargo',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w900,

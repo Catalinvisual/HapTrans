@@ -35,7 +35,7 @@ export const generatePayrollPdfBase64 = async (payroll: any, t: any): Promise<st
   doc.setFontSize(10);
   doc.setTextColor(50, 50, 50);
   doc.setFont('helvetica', 'bold');
-  doc.text(co.name || 'HapTrans', 14, 38);
+  doc.text(co.name || 'HapCargo', 14, 38);
   doc.setFont('helvetica', 'normal');
   doc.text(co.address || '', 14, 43);
   if (co.cui) doc.text(`CUI/KVK: ${co.cui}`, 14, 48);

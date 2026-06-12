@@ -29,7 +29,7 @@ const storage = new CloudinaryStorage({
     if (treatAsImage) {
       const cleanName = file.originalname.replace(/\\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
       return {
-        folder: 'haptrans_documents',
+        folder: 'hapcargo_documents',
         resource_type: 'image',
         public_id: cleanName,
         type: 'authenticated'
@@ -39,7 +39,7 @@ const storage = new CloudinaryStorage({
     // For raw files (PDF, docx), keep the extension in the public_id
     const publicIdWithExt = file.originalname.replace(/[^a-zA-Z0-9_.-]/g, "_");
     return {
-      folder: 'haptrans_documents',
+      folder: 'hapcargo_documents',
       resource_type: 'raw',
       public_id: publicIdWithExt,
       type: 'authenticated'

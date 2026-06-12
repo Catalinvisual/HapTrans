@@ -5,7 +5,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('haptrans_token');
+  const token = localStorage.getItem('hapcargo_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -14,8 +14,8 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('haptrans_token');
-      localStorage.removeItem('haptrans_user');
+      localStorage.removeItem('hapcargo_token');
+      localStorage.removeItem('hapcargo_user');
       window.location.href = '/login';
     }
     return Promise.reject(err);

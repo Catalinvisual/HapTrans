@@ -31,12 +31,12 @@ void main() async {
   // NotificationService.init() will internally sync the FCM token to server
   await NotificationService().init();
   await BackgroundLocationService.initialize();
-  runApp(HapTransApp(prefs: prefs));
+  runApp(HapCargoApp(prefs: prefs));
 }
 
-class HapTransApp extends StatelessWidget {
+class HapCargoApp extends StatelessWidget {
   final SharedPreferences prefs;
-  const HapTransApp({super.key, required this.prefs});
+  const HapCargoApp({super.key, required this.prefs});
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +48,7 @@ class HapTransApp extends StatelessWidget {
       ],
       child: Consumer<AuthProvider>(
         builder: (ctx, auth, _) => MaterialApp(
-          title: 'HapTrans Driver',
+          title: 'HapCargo Driver',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.theme,
           locale: auth.locale,

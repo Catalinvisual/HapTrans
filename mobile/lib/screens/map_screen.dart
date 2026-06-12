@@ -146,7 +146,7 @@ class _MapScreenState extends State<MapScreen> {
           children: [
             TileLayer(
               urlTemplate: 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.haptrans.driver'
+              userAgentPackageName: 'com.hapcargo.driver'
             ),
             if (_pos != null) MarkerLayer(markers: [
               Marker(point: _pos!, width: 48, height: 48, child: Container(

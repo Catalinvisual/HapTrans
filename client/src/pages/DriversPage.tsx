@@ -469,7 +469,7 @@ export default function DriversPage() {
         isOpen={showExport}
         onClose={() => setShowExport(false)}
         data={filtered}
-        filename="Soferi_HapTrans"
+        filename="Soferi_HapCargo"
         getDateField={item => item.createdAt}
         headers={[
           { key: 'createdAt', label: 'Data Inregistrare', transform: val => val ? formatDate(val) : '' },

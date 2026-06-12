@@ -11,7 +11,7 @@ class AppLocalizations {
 
   static final Map<String, Map<String, String>> _localizedValues = {
     'ro': {
-      'app_name': 'HapTrans Șofer',
+      'app_name': 'HapCargo Șofer',
       'trips': 'Curse',
       'map': 'Hartă',
       'chat': 'Chat',
@@ -20,7 +20,7 @@ class AppLocalizations {
       'logout': 'Deconectare',
     },
     'en': {
-      'app_name': 'HapTrans Driver',
+      'app_name': 'HapCargo Driver',
       'trips': 'Trips',
       'map': 'Map',
       'chat': 'Chat',
@@ -29,7 +29,7 @@ class AppLocalizations {
       'logout': 'Logout',
     },
     'nl': {
-      'app_name': 'HapTrans Chauffeur',
+      'app_name': 'HapCargo Chauffeur',
       'trips': 'Ritten',
       'map': 'Kaart',
       'chat': 'Chat',
@@ -38,7 +38,7 @@ class AppLocalizations {
       'logout': 'Uitloggen',
     },
     'de': {
-      'app_name': 'HapTrans Fahrer',
+      'app_name': 'HapCargo Fahrer',
       'trips': 'Touren',
       'map': 'Karte',
       'chat': 'Chat',
@@ -47,7 +47,7 @@ class AppLocalizations {
       'logout': 'Abmelden',
     },
     'fr': {
-      'app_name': 'HapTrans Chauffeur',
+      'app_name': 'HapCargo Chauffeur',
       'trips': 'Courses',
       'map': 'Carte',
       'chat': 'Chat',

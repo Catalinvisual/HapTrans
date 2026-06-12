@@ -59,7 +59,7 @@ export default function InvoicesPage() {
         if (invoice.pdfUrl) {
           await navigator.share({
             title: `Invoice ${invoice.invoiceNumber}`,
-            text: `Hello, here is the invoice ${invoice.invoiceNumber} from HapTrans. Link:`,
+            text: `Hello, here is the invoice ${invoice.invoiceNumber} from HapCargo. Link:`,
             url: invoice.pdfUrl
           });
         } else {
@@ -76,7 +76,7 @@ export default function InvoicesPage() {
           await navigator.share({
             files: [file],
             title: `Invoice ${invoice.invoiceNumber}`,
-            text: `Hello, here is the invoice ${invoice.invoiceNumber} from HapTrans.`,
+            text: `Hello, here is the invoice ${invoice.invoiceNumber} from HapCargo.`,
           });
         }
         toast.success(t('invoiceShared'));
@@ -281,7 +281,7 @@ export default function InvoicesPage() {
         isOpen={showExport}
         onClose={() => setShowExport(false)}
         data={filtered}
-        filename="Facturi_HapTrans"
+        filename="Facturi_HapCargo"
         getDateField={item => item.issueDate || item.createdAt}
         headers={[
           { key: 'createdAt', label: 'Data Inregistrare', transform: val => val ? formatDate(val) : '' },

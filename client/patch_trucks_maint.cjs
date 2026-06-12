@@ -1,5 +1,5 @@
 const fs = require('fs');
-const path = 'C:/Users/hapen/Desktop/New folder/Saas HapTrans/client/src/pages/TrucksPage.tsx';
+const path = 'C:/Users/hapen/Desktop/New folder/Saas HapCargo/client/src/pages/TrucksPage.tsx';
 let c = fs.readFileSync(path, 'utf8');
 
 c = c.replace(

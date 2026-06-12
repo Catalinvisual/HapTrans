@@ -24,7 +24,7 @@ const COUNTRY_NAMES: Record<string, Record<string, string>> = {
   fr: { RO: 'Roumanie', NL: 'Pays-Bas', DE: 'Allemagne', FR: 'France', BE: 'Belgique', PL: 'Pologne', HU: 'Hongrie', AT: 'Autriche' },
 };
 
-const CACHE_KEY = 'haptrans_diesel_prices_v4';
+const CACHE_KEY = 'hapcargo_diesel_prices_v4';
 const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
 
 export default function DieselWidget({ avgConsumptionL100 = 32 }: { avgConsumptionL100?: number }) {

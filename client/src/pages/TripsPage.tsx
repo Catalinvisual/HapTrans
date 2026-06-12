@@ -1289,7 +1289,7 @@ export default function TripsPage() {
         isOpen={showExport}
         onClose={() => setShowExport(false)}
         data={filtered}
-        filename="Curse_HapTrans"
+        filename="Curse_HapCargo"
         getDateField={item => item.pickupDate || item.createdAt}
         headers={[
           { key: 'createdAt', label: 'Data Creare', transform: val => val ? formatDate(val) : '' },

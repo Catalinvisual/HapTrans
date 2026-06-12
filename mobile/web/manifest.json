@@ -1,6 +1,6 @@
 {
-    "name": "haptrans_driver",
-    "short_name": "haptrans_driver",
+    "name": "hapcargo_driver",
+    "short_name": "hapcargo_driver",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

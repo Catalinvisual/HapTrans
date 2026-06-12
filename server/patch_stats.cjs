@@ -1,5 +1,5 @@
 const fs = require('fs');
-const path = 'C:/Users/hapen/Desktop/New folder/Saas HapTrans/server/src/trips/trips.service.ts';
+const path = 'C:/Users/hapen/Desktop/New folder/Saas HapCargo/server/src/trips/trips.service.ts';
 let c = fs.readFileSync(path, 'utf8');
 
 if (!c.includes('import { Expense }')) {

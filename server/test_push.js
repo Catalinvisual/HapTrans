@@ -24,7 +24,7 @@ async function testPush() {
         priority: 'high',
         notification: {
           sound: 'default',
-          channelId: 'haptrans_channel_id',
+          channelId: 'hapcargo_channel_id',
         },
       },
     };

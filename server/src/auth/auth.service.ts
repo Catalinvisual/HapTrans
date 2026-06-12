@@ -68,10 +68,10 @@ export class AuthService {
   }
 
   async seedAdmin() {
-    const exists = await this.usersRepo.findOne({ where: { email: 'admin@haptrans.ro' } });
+    const exists = await this.usersRepo.findOne({ where: { email: 'admin@hapcargo.ro' } });
     if (!exists) {
-      await this.register({ email: 'admin@haptrans.ro', password: 'Admin2024!', name: 'Administrator', role: UserRole.ADMIN });
-      console.log('✅ Admin seed: admin@haptrans.ro / Admin2024!');
+      await this.register({ email: 'admin@hapcargo.ro', password: 'Admin2024!', name: 'Administrator', role: UserRole.ADMIN });
+      console.log('✅ Admin seed: admin@hapcargo.ro / Admin2024!');
     }
   }
 }

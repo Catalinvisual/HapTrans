@@ -9,7 +9,7 @@ function walkDir(dir, callback) {
   });
 }
 
-walkDir('C:/Users/hapen/Desktop/New folder/Saas HapTrans/client/src', function(filePath) {
+walkDir('C:/Users/hapen/Desktop/New folder/Saas HapCargo/client/src', function(filePath) {
   if (filePath.endsWith('.tsx') || filePath.endsWith('.ts')) {
     let content = fs.readFileSync(filePath, 'utf8');
     let original = content;

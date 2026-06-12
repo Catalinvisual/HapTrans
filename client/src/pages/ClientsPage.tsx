@@ -173,7 +173,7 @@ export default function ClientsPage() {
         isOpen={showExport}
         onClose={() => setShowExport(false)}
         data={filtered}
-        filename="Clienti_HapTrans"
+        filename="Clienti_HapCargo"
         getDateField={item => item.createdAt}
         headers={[
           { key: 'createdAt', label: 'Data Inregistrare', transform: val => val ? formatDate(val) : '' },

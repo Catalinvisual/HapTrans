@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 
 // ─── Colors ───
-const kPrimary = Color(0xFFFF7A1A);
-const kPrimaryDark = Color(0xFFE86405);
+const kPrimary = Color(0xFFFF5A00);
+const kPrimaryDark = Color(0xFFE04D00);
 const kPrimaryLight = Color(0xFFFFF0E6);
 const kSuccess = Color(0xFF16A34A);
 const kError = Color(0xFFDC2626);
 const kWarning = Color(0xFFF59E0B);
-const kSurface = Color(0xFFF5F7FA);
+const kSurface = Color(0xFFF2F4F7);
 const kCard = Color(0xFFFFFFFF);
-const kText = Color(0xFF1F2933);
+const kText = Color(0xFF0D1B2A);
 const kTextSecondary = Color(0xFF6B7280);
 const kBorder = Color(0xFFE5E7EB);
 
 // ─── API ───
-const kApiUrl = 'https://haptrans-production.up.railway.app/api';
-const kWsUrl = 'https://haptrans-production.up.railway.app';
+const kApiUrl = 'https://hapcargo-production.up.railway.app/api';
+const kWsUrl = 'https://hapcargo-production.up.railway.app';
 
 class AppTheme {
   static ThemeData get theme => ThemeData(

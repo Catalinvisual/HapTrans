@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { Save, Building2, User, Server, Upload, X, ImageIcon } from 'lucide-react';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 
-const COMPANY_KEY = 'haptrans_company_settings';
+const COMPANY_KEY = 'hapcargo_company_settings';
 
 export interface CompanySettings {
   name: string;

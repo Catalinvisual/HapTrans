@@ -9,7 +9,7 @@ function walkDir(dir, callback) {
   });
 }
 
-walkDir('C:/Users/hapen/Desktop/New folder/Saas HapTrans/client/src', function(filePath) {
+walkDir('C:/Users/hapen/Desktop/New folder/Saas HapCargo/client/src', function(filePath) {
   if (filePath.endsWith('.tsx') || filePath.endsWith('.ts')) {
     let content = fs.readFileSync(filePath, 'utf8');
     let original = content;
@@ -21,7 +21,7 @@ walkDir('C:/Users/hapen/Desktop/New folder/Saas HapTrans/client/src', function(f
     content = content.replace(/placeholder='Ex:/g, "placeholder='e.g. ");
     
     // Romanian specific placeholders
-    content = content.replace(/sofer@haptrans\.ro/g, 'driver@company.com');
+    content = content.replace(/sofer@hapcargo\.ro/g, 'driver@company.com');
     content = content.replace(/\+40 7xx xxx xxx/g, '+1 234 567 8900');
     content = content.replace(/\+40/g, '+1'); // Generic
     content = content.replace(/RO0090099/g, 'ID-123456');

@@ -1,18 +1,18 @@
-# HapTrans - Instrucțiuni Start
+# HapCargo - Instrucțiuni Start
 
 ## 🚀 Pornire rapidă
 
 ### 1. SERVER (Backend NestJS)
 ```powershell
-cd "Saas HapTrans\server"
+cd "Saas HapCargo\server"
 npm run start:dev
 ```
 - Rulează pe: http://localhost:3001/api
-- Admin: admin@haptrans.ro / Admin2024!
+- Admin: admin@hapcargo.ro / Admin2024!
 
 ### 2. CLIENT (Frontend React)
 ```powershell
-cd "Saas HapTrans\client"
+cd "Saas HapCargo\client"
 npm run dev
 ```
 - Rulează pe: http://localhost:5173
@@ -20,7 +20,7 @@ npm run dev
 ### 3. MOBILE (Flutter APK) — necesită Flutter SDK
 ```powershell
 # Instalare Flutter: https://docs.flutter.dev/get-started/install/windows
-cd "Saas HapTrans\mobile"
+cd "Saas HapCargo\mobile"
 flutter pub get
 flutter build apk --release
 # APK se găsește în: build/app/outputs/flutter-apk/app-release.apk
@@ -33,7 +33,7 @@ flutter build apk --release
 
 ## 🗄️ Baza de date
 - PostgreSQL pe localhost:5432
-- Database: haptrans
+- Database: hapcargo
 - User: postgres / Laptophp20242019.
 - Tabelele se creează automat la pornirea serverului (TypeORM synchronize: true)
 
@@ -44,7 +44,7 @@ flutter build apk --release
 
 ## 📁 Structura proiect
 ```
-Saas HapTrans/
+Saas HapCargo/
 ├── server/    → NestJS + TypeORM + PostgreSQL (port 3001)
 ├── client/    → React + Vite + Tailwind CSS (port 5173)
 └── mobile/    → Flutter (APK pentru șoferi)

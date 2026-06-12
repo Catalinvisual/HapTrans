@@ -22,14 +22,14 @@ export const useAuthStore = create<AuthStore>()(
       user: null,
       token: null,
       setAuth: (user, token) => {
-        localStorage.setItem('haptrans_token', token);
+        localStorage.setItem('hapcargo_token', token);
         set({ user, token });
       },
       logout: () => {
-        localStorage.removeItem('haptrans_token');
+        localStorage.removeItem('hapcargo_token');
         set({ user: null, token: null });
       },
     }),
-    { name: 'haptrans_auth' }
+    { name: 'hapcargo_auth' }
   )
 );

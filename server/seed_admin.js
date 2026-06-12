@@ -13,7 +13,7 @@ async function seedAdmin() {
     await client.connect();
     console.log('Connected to DB');
 
-    const email = 'admin@haptrans.com';
+    const email = 'admin@hapcargo.com';
     const password = 'Haplogic2019.';
     const name = 'Admin';
     const role = 'admin';

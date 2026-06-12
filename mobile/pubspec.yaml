@@ -1,5 +1,5 @@
-name: haptrans_driver
-description: HapTrans Driver Mobile App
+name: hapcargo_driver
+description: HapCargo Driver Mobile App
 publish_to: 'none'
 version: 1.0.1+2
 

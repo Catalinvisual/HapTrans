@@ -28,7 +28,7 @@ export default function LanguageDropdown() {
 
   const changeLang = (code: string) => {
     i18n.changeLanguage(code);
-    localStorage.setItem('haptrans_lang', code);
+    localStorage.setItem('hapcargo_lang', code);
     setOpen(false);
   };
 

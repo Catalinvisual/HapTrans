@@ -4,7 +4,7 @@ const client = new Client({
   port: 5432,
   user: 'postgres',
   password: 'Laptophp20242019.',
-  database: 'haptrans',
+  database: 'hapcargo',
 });
 client.connect().then(() => {
   return client.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");

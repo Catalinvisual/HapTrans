@@ -186,7 +186,7 @@ export default function TrucksPage() {
         isOpen={showExport}
         onClose={() => setShowExport(false)}
         data={filtered}
-        filename="Camioane_HapTrans"
+        filename="Camioane_HapCargo"
         getDateField={item => item.createdAt}
         headers={[
           { key: 'createdAt', label: 'Data Inregistrare', transform: val => val ? formatDate(val) : '' },

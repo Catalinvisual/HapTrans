@@ -13,7 +13,7 @@ export default function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
-  const [email, setEmail] = useState('admin@haptrans.ro');
+  const [email, setEmail] = useState('admin@hapcargo.ro');
   const [password, setPassword] = useState('Admin2024!');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -44,9 +44,11 @@ export default function LoginPage() {
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-12">
             <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center">
-              <Truck className="w-6 h-6 text-white" />
+              <svg viewBox="0 0 24 24" fill="white" className="w-6 h-6">
+                <path d="M5 3l-1 18h4l1-18H5zm9 0l-1 18h4l1-18h-4zm-8 7l1 4h9l-1-4H6z" />
+              </svg>
             </div>
-            <span className="text-2xl font-bold">HapTrans</span>
+            <span className="text-2xl font-bold">HapCargo</span>
           </div>
           <h1 className="text-4xl font-bold leading-tight mb-4">
             Gestionați-vă<br />flota cu<br />încredere
@@ -82,7 +84,7 @@ export default function LoginPage() {
             <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
               <Truck className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-text">HapTrans</span>
+            <span className="text-xl font-bold text-text">HapCargo</span>
           </div>
 
           <h2 className="text-3xl font-bold text-text mb-2">{t('welcome')}</h2>
@@ -96,7 +98,7 @@ export default function LoginPage() {
                 className="input"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@haptrans.ro"
+                placeholder="admin@hapcargo.ro"
                 required
               />
             </div>
@@ -139,7 +141,7 @@ export default function LoginPage() {
 
           <div className="mt-8 p-4 bg-primary-light rounded-xl border border-primary/20">
             <p className="text-xs text-primary-dark font-medium mb-1">🔑 Credențiale demo</p>
-            <p className="text-xs text-text-secondary">Email: <span className="font-mono font-semibold text-text">admin@haptrans.ro</span></p>
+            <p className="text-xs text-text-secondary">Email: <span className="font-mono font-semibold text-text">admin@hapcargo.ro</span></p>
             <p className="text-xs text-text-secondary">Parolă: <span className="font-mono font-semibold text-text">Admin2024!</span></p>
           </div>
         </div>

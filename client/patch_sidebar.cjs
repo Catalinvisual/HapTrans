@@ -1,5 +1,5 @@
 const fs = require('fs');
-const path = 'C:/Users/hapen/Desktop/New folder/Saas HapTrans/client/src/components/Sidebar.tsx';
+const path = 'C:/Users/hapen/Desktop/New folder/Saas HapCargo/client/src/components/Sidebar.tsx';
 let c = fs.readFileSync(path, 'utf8');
 
 if (!c.includes('Wallet,')) {

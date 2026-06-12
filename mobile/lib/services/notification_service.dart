@@ -20,8 +20,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
   // Re-create channel in background isolate
   const channel = AndroidNotificationChannel(
-    'haptrans_channel_id',
-    'HapTrans Notifications',
+    'hapcargo_channel_id',
+    'HapCargo Notifications',
     description: 'Notifications for trips and messages',
     importance: Importance.max,
     playSound: true,
@@ -37,7 +37,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     return;
   }
 
-  final title = message.data['title'] ?? 'HapTrans';
+  final title = message.data['title'] ?? 'HapCargo';
   final body = message.data['body'] ?? '';
 
   if (title.isNotEmpty || body.isNotEmpty) {
@@ -47,8 +47,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       body,
       const NotificationDetails(
         android: AndroidNotificationDetails(
-          'haptrans_channel_id',
-          'HapTrans Notifications',
+          'hapcargo_channel_id',
+          'HapCargo Notifications',
           channelDescription: 'Notifications for trips and messages',
           importance: Importance.max,
           priority: Priority.high,
@@ -85,8 +85,8 @@ class NotificationService {
       await Permission.notification.request();
 
       const channel = AndroidNotificationChannel(
-        'haptrans_channel_id',
-        'HapTrans Notifications',
+        'hapcargo_channel_id',
+        'HapCargo Notifications',
         description: 'Notifications for trips and messages',
         importance: Importance.max,
         playSound: true,
@@ -98,8 +98,8 @@ class NotificationService {
           ?.createNotificationChannel(channel);
 
       const locationChannel = AndroidNotificationChannel(
-        'haptrans_location_service_v2',
-        'HapTrans Tracking',
+        'hapcargo_location_service_v2',
+        'HapCargo Tracking',
         description: 'Locația ta este monitorizată pentru dispecerat în timpul cursei.',
         importance: Importance.min,
         playSound: false,
@@ -146,7 +146,7 @@ class NotificationService {
           // iOS automatically shows foreground notifications if setForegroundNotificationPresentationOptions is true.
           return;
         }
-        final title = message.notification?.title ?? message.data['title'] ?? 'HapTrans';
+        final title = message.notification?.title ?? message.data['title'] ?? 'HapCargo';
         final body = message.notification?.body ?? message.data['body'] ?? '';
         if (title.isNotEmpty || body.isNotEmpty) {
           showNotification(id: message.hashCode, title: title, body: body);
@@ -209,8 +209,8 @@ class NotificationService {
     required String body,
   }) async {
     const androidDetails = AndroidNotificationDetails(
-      'haptrans_channel_id',
-      'HapTrans Notifications',
+      'hapcargo_channel_id',
+      'HapCargo Notifications',
       channelDescription: 'Notifications for trips and messages',
       importance: Importance.max,
       priority: Priority.high,

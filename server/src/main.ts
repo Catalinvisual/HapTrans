@@ -37,6 +37,6 @@ async function bootstrap() {
   // Seed admin user on first run
   const authService = app.get(AuthService);
   await authService.seedAdmin();
-  console.log(`🚀 HapTrans Server running on http://localhost:${port}/api`);
+  console.log(`🚀 HapCargo Server running on http://localhost:${port}/api`);
 }
 bootstrap();

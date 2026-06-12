@@ -20,7 +20,7 @@ const storage = new CloudinaryStorage({
   params: async (req, file) => {
     const cleanName = file.originalname.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
     return {
-      folder: 'haptrans_invoices',
+      folder: 'hapcargo_invoices',
       resource_type: 'raw',
       format: 'pdf',
       public_id: cleanName

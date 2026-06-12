@@ -40,7 +40,7 @@ export class ExpensesController {
       const cloudinary = require('cloudinary').v2;
       const uploadResult = await new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
-          { folder: 'haptrans_expenses', resource_type: 'auto' },
+          { folder: 'hapcargo_expenses', resource_type: 'auto' },
           (error: any, result: any) => error ? reject(error) : resolve(result)
         );
         const { Readable } = require('stream');
