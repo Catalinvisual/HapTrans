@@ -13,7 +13,7 @@ export class WebsiteCmsService {
   async findAll() {
     const items = await this.repo.find();
     // transform to object { [key]: value }
-    return items.reduce((acc, curr) => {
+    return items.reduce((acc: Record<string, string>, curr) => {
       acc[curr.key] = curr.value;
       return acc;
     }, {});
