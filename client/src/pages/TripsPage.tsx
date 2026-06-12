@@ -1064,6 +1064,31 @@ export default function TripsPage() {
                 </div>
               </div>
             )}
+
+            {editId && !currentToken && (
+              <div className="md:col-span-2 lg:col-span-3 bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <span className="text-xs font-bold text-amber-800 uppercase tracking-wider block">Portal Client & Link de Urmărire</span>
+                  <p className="text-sm text-amber-700 font-semibold">Această cursă nu are încă un token de urmărire generat.</p>
+                  <p className="text-xs text-slate-500">Apasă pe butonul din dreapta pentru a genera unul instantaneu și a activa portalul client.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await api.patch(`/trips/${editId}`, {});
+                      toast.success(t('trackingTokenGenerated') || 'Link urmărire generat cu succes!');
+                      load();
+                    } catch (e) {
+                      toast.error('Eroare la generare token.');
+                    }
+                  }}
+                  className="btn-primary bg-amber-500 hover:bg-amber-600 border-amber-500 hover:border-amber-600 py-2.5 px-4 text-xs font-bold w-full md:w-auto text-center"
+                >
+                  Generează Link
+                </button>
+              </div>
+            )}
             
             <div className="flex gap-3 md:col-span-2 lg:col-span-3 pt-3 border-t border-border mt-2">
               <button type="submit" className="btn-primary px-6 py-2.5 font-bold shadow-md shadow-primary/20">{t('save')}</button>

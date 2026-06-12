@@ -158,6 +158,13 @@ export class TripsService {
     if (dto.unloadingReference !== undefined) updateData.unloadingReference = dto.unloadingReference;
     if (dto.realCost !== undefined) updateData.realCost = dto.realCost;
 
+    if (!existingTrip?.trackingToken) {
+      const crypto = require('crypto');
+      updateData.trackingToken = crypto.randomBytes(16).toString('hex');
+    } else if (dto.trackingToken !== undefined) {
+      updateData.trackingToken = dto.trackingToken;
+    }
+
     await this.repo.update(id, updateData);
     const updatedTrip = await this.findOne(id);
 
