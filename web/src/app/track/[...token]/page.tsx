@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Header from '@/components/Header/Header';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface TrackData {
   referenceNumber: string;
@@ -15,6 +16,7 @@ interface TrackData {
 }
 
 export default function TrackPage({ params }: { params: any }) {
+  const { t } = useLanguage();
   const [data, setData] = useState<TrackData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -72,7 +74,12 @@ export default function TrackPage({ params }: { params: any }) {
 
   const renderStatusLine = (currentStatus: string) => {
     const statuses = ['pending', 'confirmed', 'in_progress', 'completed'];
-    const labels = ['Ofertă Trimisă', 'Acceptată (Camion Alocat)', 'În Tranzit', 'Livrată'];
+    const labels = [
+      t('statusPending') || 'Ofertă Trimisă',
+      t('statusConfirmed') || 'Acceptată (Camion Alocat)',
+      t('statusInProgress') || 'În Tranzit',
+      t('statusCompleted') || 'Livrată'
+    ];
     
     const currentIndex = statuses.indexOf(currentStatus) === -1 ? 0 : statuses.indexOf(currentStatus);
 
@@ -107,45 +114,45 @@ export default function TrackPage({ params }: { params: any }) {
       <Header />
       <div className="container" style={{ paddingTop: '10rem', paddingBottom: '4rem', maxWidth: '800px' }}>
         
-        {loading && <div style={{ textAlign: 'center', padding: '3rem' }}>Se încarcă detaliile cursei...</div>}
+        {loading && <div style={{ textAlign: 'center', padding: '3rem' }}>{t('loadingTrackingDetails')}</div>}
         
         {error && !loading && (
           <div style={{ textAlign: 'center', padding: '3rem', background: 'white', borderRadius: '1rem', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
-            <h2 style={{ color: 'red', marginBottom: '1rem' }}>Eroare</h2>
-            <p>Linkul de urmărire este invalid sau a expirat.</p>
+            <h2 style={{ color: 'red', marginBottom: '1rem' }}>{t('errorTitle')}</h2>
+            <p>{t('invalidTrackingLink')}</p>
           </div>
         )}
 
         {data && !loading && (
           <div style={{ background: 'white', borderRadius: '1rem', padding: '2rem', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.5rem', color: 'var(--secondary)' }}>Portal Client</h1>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>Urmărește statusul și documentele pentru comanda ta.</p>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.5rem', color: 'var(--secondary)' }}>{t('clientPortal')}</h1>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>{t('trackStatusDesc')}</p>
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem', padding: '1rem', background: 'var(--surface-alt)', borderRadius: '0.5rem' }}>
               <div>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Ruta</p>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{t('route')}</p>
                 <p style={{ fontWeight: 600 }}>{data.pickupCountry} ➔ {data.dropoffCountry}</p>
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>De la: {data.pickupAddress}<br/>Până la: {data.dropoffAddress}</p>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t('fromLabel')}: {data.pickupAddress}<br/>{t('toLabel')}: {data.dropoffAddress}</p>
               </div>
               <div>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Referință / Data</p>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{t('referenceDate')}</p>
                 <p style={{ fontWeight: 600 }}>#{data.referenceNumber || 'N/A'}</p>
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{new Date(data.pickupDate).toLocaleDateString('ro-RO')}</p>
               </div>
             </div>
 
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>Status Transport</h3>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>{t('transportStatus')}</h3>
             {renderStatusLine(data.status)}
 
             {data.documents && data.documents.length > 0 && (
               <div style={{ marginTop: '3rem' }}>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>Documente Cursă</h3>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>{t('tripDocuments')}</h3>
                 <div style={{ display: 'grid', gap: '1rem' }}>
                   {data.documents.map(doc => (
                     <div key={doc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid var(--border)', borderRadius: '0.5rem' }}>
                       <span style={{ fontWeight: 500 }}>📄 {doc.name || 'Document'}</span>
                       <a href={doc.url} target="_blank" rel="noreferrer" style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 600 }}>
-                        Descarcă / Vizualizează
+                        {t('downloadView')}
                       </a>
                     </div>
                   ))}

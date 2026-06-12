@@ -58,9 +58,9 @@ const translations: Translations = {
   review3: { RO: 'Un partener de încredere pentru cursele din Germania spre Europa de Est. Recomand cu încredere serviciile HapCargo.', EN: 'A reliable partner for trips from Germany to Eastern Europe. I highly recommend HapCargo services.', NL: 'Een betrouwbare partner voor ritten van Duitsland naar Oost-Europa. Ik raad de diensten van HapCargo ten zeerste aan.', DE: 'Ein zuverlässiger Partner für Fahrten von Deutschland nach Osteuropa. Ich empfehle die Dienste von HapCargo wärmstens.', FR: 'Un partenaire de confiance pour les trajets de l\'Allemagne vers l\'Europe de l\'Est. Je recommande vivement les services HapCargo.', ES: 'Un socio de confianza para viajes desde Alemania a Europa del Este. Recomiendo encarecidamente los servicios de HapCargo.' },
 
   // Track Portal
-  trackTitle: { RO: 'Portal Urmărire Client', EN: 'Client Tracking Portal', NL: 'Klant Volgportaal', DE: 'Kunden-Tracking-Portal', FR: 'Portail de Suivi Client', ES: 'Portal de Seguimiento de Clientes' },
-  trackDesc: { RO: 'Introduceți AWB-ul sau Token-ul cursei pentru a vizualiza statusul live al mărfii.', EN: 'Enter the AWB or Trip Token to view the live status of your freight.', NL: 'Voer de AWB of Trip Token in om de live status van uw vracht te bekijken.', DE: 'Geben Sie die AWB oder das Trip Token ein, um den Live-Status Ihrer Fracht anzuzeigen.', FR: 'Entrez l\'AWB ou le Token de trajet pour voir le statut en direct de votre fret.', ES: 'Ingrese el AWB o el Token de viaje para ver el estado en vivo de su carga.' },
-  trackButton: { RO: 'Urmărește Cursa', EN: 'Track Trip', NL: 'Volg Rit', DE: 'Fahrt Verfolgen', FR: 'Suivre le Trajet', ES: 'Rastrear Viaje' },
+  trackTitle: { RO: 'Portal Clienți - Urmărire Comandă', EN: 'Client Portal - Order Tracking', NL: 'Klantenportaal - Bestelling Volgen', DE: 'Kundenportal - Bestellungsverfolgung', FR: 'Portail Client - Suivi de Commande', ES: 'Portal de Clientes - Seguimiento de Pedido' },
+  trackDesc: { RO: 'Introduceți codul de urmărire (Tracking Token) primit pe email sau WhatsApp pentru a vedea statusul comenzii dumneavoastră.', EN: 'Enter the tracking token received by email or WhatsApp to view your order status.', NL: 'Voer de trackingcode in die u per e-mail of WhatsApp heeft ontvangen om de status van uw bestelling te bekijken.', DE: 'Geben Sie das per E-Mail oder WhatsApp erhaltene Tracking-Token ein, um Ihren Bestellstatus anzuzeigen.', FR: 'Saisissez le jeton de suivi reçu par e-mail ou WhatsApp pour consulter le statut de votre commande.', ES: 'Ingrese el token de seguimiento recibido por correo electrónico o WhatsApp para ver el estado de su pedido.' },
+  trackButton: { RO: 'Urmărește Comanda', EN: 'Track Order', NL: 'Bestelling Volgen', DE: 'Bestellung Verfolgen', FR: 'Suivre la Commande', ES: 'Rastrear Pedido' },
 
   // Features
   featuresTitle: { RO: 'Servicii de Top', EN: 'Top Services', NL: 'Top Diensten', DE: 'Top Dienstleistungen', FR: 'Services de Premier Plan', ES: 'Servicios Principales' },
@@ -84,6 +84,47 @@ const translations: Translations = {
   contactSend: { RO: 'Trimite Mesajul', EN: 'Send Message', NL: 'Verstuur Bericht', DE: 'Nachricht Senden', FR: 'Envoyer le Message', ES: 'Enviar Mensaje' },
   contactSending: { RO: 'Se trimite...', EN: 'Sending...', NL: 'Verzenden...', DE: 'Senden...', FR: 'Envoi...', ES: 'Enviando...' },
   contactSuccess: { RO: 'Mesajul a fost trimis cu succes! Vă vom contacta în curând.', EN: 'Message sent successfully! We will contact you soon.', NL: 'Bericht succesvol verzonden! Wij nemen spoedig contact met u op.', DE: 'Nachricht erfolgreich gesendet! Wir werden Sie in Kürze kontaktieren.', FR: 'Message envoyé avec succès! Nous vous contacterons bientôt.', ES: '¡Mensaje enviado con éxito! Nos pondremos en contacto pronto.' },
+  
+  // Tracking Errors & Loading states
+  errorTitle: { RO: 'Eroare', EN: 'Error', NL: 'Fout', DE: 'Fehler', FR: 'Erreur', ES: 'Error' },
+  invalidTrackingLink: { RO: 'Linkul de urmărire este invalid sau a expirat.', EN: 'The tracking link is invalid or expired.', NL: 'De trackinglink is ongeldig of verlopen.', DE: 'Der Tracking-Link ist ungültig oder abgelaufen.', FR: 'Le lien de suivi este invalide ou expiré.', ES: 'El enlace de seguimiento no es válido o ha caducado.' },
+  loadingTrackingDetails: { RO: 'Se încarcă detaliile cursei...', EN: 'Loading trip details...', NL: 'Laden van rit details...', DE: 'Laden der Fahrtdetails...', FR: 'Chargement des détails du trajet...', ES: 'Cargando detalles del viaje...' },
+  
+  // Tracking Details page
+  clientPortal: { RO: 'Portal Client', EN: 'Client Portal', NL: 'Klantenportaal', DE: 'Kundenportal', FR: 'Portail Client', ES: 'Portal del Cliente' },
+  trackStatusDesc: { RO: 'Urmărește statusul și documentele pentru comanda ta.', EN: 'Track the status and documents for your order.', NL: 'Volg de status en documenten voor uw bestelling.', DE: 'Verfolgen Sie den Status und die Dokumente für Ihre Bestellung.', FR: 'Suivez le statut et les documents de votre commande.', ES: 'Siga el estado y los documentos de su pedido.' },
+  route: { RO: 'Ruta', EN: 'Route', NL: 'Route', DE: 'Route', FR: 'Itinéraire', ES: 'Ruta' },
+  fromLabel: { RO: 'De la', EN: 'From', NL: 'Van', DE: 'Von', FR: 'De', ES: 'Desde' },
+  toLabel: { RO: 'Până la', EN: 'To', NL: 'Naar', DE: 'Nach', FR: 'À', ES: 'A' },
+  referenceDate: { RO: 'Referință / Data', EN: 'Reference / Date', NL: 'Referentie / Datum', DE: 'Referenz / Datum', FR: 'Référence / Date', ES: 'Referencia / Fecha' },
+  transportStatus: { RO: 'Status Transport', EN: 'Transport Status', NL: 'Transportstatus', DE: 'Transportstatus', FR: 'Statut du Transport', ES: 'Estado del Transporte' },
+  tripDocuments: { RO: 'Documente Cursă', EN: 'Trip Documents', NL: 'Ritdocumenten', DE: 'Fahrtdokumente', FR: 'Documents de Trajet', ES: 'Documentos del Viaje' },
+  downloadView: { RO: 'Descarcă / Vizualizează', EN: 'Download / View', NL: 'Downloaden / Weergeven', DE: 'Herunterladen / Ansehen', FR: 'Télécharger / Voir', ES: 'Descargar / Ver' },
+  
+  // Status Steps
+  statusPending: { RO: 'Ofertă Trimisă', EN: 'Quote Sent', NL: 'Offerte Verzonden', DE: 'Angebot Gesendet', FR: 'Devis Envoyé', ES: 'Presupuesto Enviado' },
+  statusConfirmed: { RO: 'Acceptată (Camion Alocat)', EN: 'Accepted (Truck Allocated)', NL: 'Geaccepteerd (Vrachtwagen Toegewezen)', DE: 'Akzeptiert (LKW Zugewiesen)', FR: 'Accepté (Camion Alloué)', ES: 'Aceptado (Camión Asignado)' },
+  statusInProgress: { RO: 'În Tranzit', EN: 'In Transit', NL: 'Onderweg', DE: 'In Transit', FR: 'En Transit', ES: 'En Tránsito' },
+  statusCompleted: { RO: 'Livrată', EN: 'Delivered', NL: 'Geleverd', DE: 'Geliefert', FR: 'Livré', ES: 'Entregado' },
+
+  // Calculator step 2 & 3
+  calcStep2Title: { RO: 'Oferta estimativă este gata!', EN: 'Estimated quote is ready!', NL: 'Geschatte offerte is klaar!', DE: 'Geschätztes Angebot ist bereit!', FR: 'Le devis estimatif est prêt!', ES: '¡El presupuesto estimado está listo!' },
+  calcStep2Desc: { RO: 'Introduceți datele de contact pentru a primi oferta personalizată pe email și WhatsApp.', EN: 'Enter your contact details to receive the personalized quote by email and WhatsApp.', NL: 'Voer uw contactgegevens in om de gepersonaliseerde offerte per e-mail en WhatsApp te ontvangen.', DE: 'Geben Sie Ihre Kontaktdaten ein, um das personalisierte Angebot per E-Mail und WhatsApp zu erhalten.', FR: 'Saisissez vos coordonnées pour recevoir le devis personnalisé par e-mail et WhatsApp.', ES: 'Ingrese sus datos de contacto para recibir el presupuesto personalizado por correo electrónico y WhatsApp.' },
+  calcFullName: { RO: 'Nume Complet', EN: 'Full Name', NL: 'Volledige naam', DE: 'Vollständiger Name', FR: 'Nom complet', ES: 'Nombre completo' },
+  calcPhone: { RO: 'Telefon', EN: 'Phone', NL: 'Telefoon', DE: 'Telefon', FR: 'Téléphone', ES: 'Teléfono' },
+  calcEmail: { RO: 'Email', EN: 'Email', NL: 'E-mail', DE: 'E-Mail', FR: 'E-mail', ES: 'Correo electrónico' },
+  calcBack: { RO: 'Înapoi', EN: 'Back', NL: 'Terug', DE: 'Zurück', FR: 'Retour', ES: 'Atrás' },
+  calcSendQuote: { RO: 'Trimite Oferta', EN: 'Send Quote', NL: 'Offerte Verzenden', DE: 'Angebot Senden', FR: 'Envoyer le devis', ES: 'Enviar Presupuesto' },
+  calcSending: { RO: 'Se trimite...', EN: 'Sending...', NL: 'Verzenden...', DE: 'Senden...', FR: 'Envoi...', ES: 'Enviando...' },
+  calcStep3Title: { RO: 'Cerere Trimisă cu Succes!', EN: 'Request Sent Successfully!', NL: 'Verzoek succesvol verzonden!', DE: 'Anfrage erfolgreich gesendet!', FR: 'Demande envoyée avec succès!', ES: '¡Solicitud enviada con éxito!' },
+  calcStep3Desc: { RO: 'Echipa noastră analizează cererea dumneavoastră și veți primi oferta în cel mai scurt timp.', EN: 'Our team is analyzing your request and you will receive the quote as soon as possible.', NL: 'Ons team analyseert uw verzoek en u ontvangt de offerte zo snel mogelijk.', DE: 'Unser Team analysiert Ihre Anfrage und Sie erhalten das Angebot so schnell wie möglich.', FR: 'Notre équipe analyse votre demande et vous recevrez le devis dans les plus brefs délais.', ES: 'Nuestro equipo está analizando su solicitud y recibirá el presupuesto lo antes posible.' },
+  calcHome: { RO: 'Acasă', EN: 'Home', NL: 'Home', DE: 'Home', FR: 'Accueil', ES: 'Inicio' },
+
+  // Contact status page
+  contactMessageSent: { RO: 'Mesaj Trimis!', EN: 'Message Sent!', NL: 'Bericht verzonden!', DE: 'Nachricht gesendet!', FR: 'Message envoyé!', ES: '¡Mensaje enviado!' },
+  contactSendAnother: { RO: 'Trimite alt mesaj', EN: 'Send another message', NL: 'Stuur nog een bericht', DE: 'Andere Nachricht senden', FR: 'Envoyer un autre message', ES: 'Enviar otro mensaje' },
+  contactError: { RO: 'A apărut o eroare la trimiterea mesajului. Încearcă din nou.', EN: 'An error occurred while sending the message. Please try again.', NL: 'Er is een fout opgetreden bij het verzenden van het bericht. Probeer het opnieuw.', DE: 'Beim Senden der Nachricht ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.', FR: 'Une erreur est survenue lors de l\'envoi du message. Veuillez réessayer.', ES: 'Ocurrió un error al enviar el mensaje. Por favor, inténtelo de nuevo.' },
+  loading: { RO: 'Se încarcă...', EN: 'Loading...', NL: 'Laden...', DE: 'Wird geladen...', FR: 'Chargement...', ES: 'Cargando...' },
 };
 
 interface LanguageContextType {

@@ -9,7 +9,12 @@ export class TrackController {
   @Get('*')
   async trackTrip(@Req() req: any) {
     const urlParts = req.url.split('/track/');
-    const token = urlParts[urlParts.length - 1];
+    let token = urlParts[urlParts.length - 1] || '';
+    
+    // Clean any leading/trailing slashes from wildcard token
+    if (token) {
+      token = token.replace(/^\/+|\/+$/g, '');
+    }
     
     const trip = await this.tripsService.findByTrackingToken(token);
     

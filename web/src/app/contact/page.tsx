@@ -3,11 +3,12 @@ import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header/Header';
 import Footer from '@/components/Footer/Footer';
 import { useLanguage } from '@/context/LanguageContext';
+import { toast } from 'react-hot-toast';
 import styles from './ContactPage.module.css';
 
 export default function ContactPage() {
   const { t, lang } = useLanguage();
-  const [content, setContent] = useState<string>('Se încarcă...');
+  const [content, setContent] = useState<string>('');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -19,6 +20,7 @@ export default function ContactPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   useEffect(() => {
+    setContent(t('loading') || 'Se încarcă...');
     const defaultContactHTML_RO = `
       <div style="margin-bottom: 2rem;">
         <h3 style="color: #0f172a; font-size: 1.4rem; font-weight: 700; margin-bottom: 0.5rem;">Date de Identificare</h3>
@@ -107,13 +109,16 @@ export default function ContactPage() {
       
       if (res.ok) {
         setStatus('success');
+        toast.success(t('contactSuccess') || 'Mesajul a fost trimis cu succes!');
         setFormData({ name: '', email: '', subject: '', message: '' });
       } else {
         setStatus('error');
+        toast.error(t('contactError') || 'Eroare la trimiterea mesajului.');
       }
     } catch (err) {
       console.error(err);
       setStatus('error');
+      toast.error(t('contactError') || 'A apărut o eroare de conexiune.');
     }
   };
 
@@ -143,10 +148,10 @@ export default function ContactPage() {
                     <polyline points="20 6 9 17 4 12"></polyline>
                   </svg>
                 </div>
-                <h3 className={styles.successTitle}>Mesaj Trimis!</h3>
+                <h3 className={styles.successTitle}>{t('contactMessageSent')}</h3>
                 <p>{t('contactSuccess')}</p>
                 <button onClick={() => setStatus('idle')} className={styles.submitBtn} style={{ marginTop: '2rem', width: 'auto', padding: '0.75rem 2rem' }}>
-                  Trimite alt mesaj
+                  {t('contactSendAnother')}
                 </button>
               </div>
             ) : (
@@ -217,7 +222,7 @@ export default function ContactPage() {
                 </button>
                 
                 {status === 'error' && (
-                  <p className={styles.errorMsg}>A apărut o eroare la trimiterea mesajului. Încearcă din nou.</p>
+                  <p className={styles.errorMsg}>{t('contactError')}</p>
                 )}
               </form>
             )}
