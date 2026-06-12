@@ -64,9 +64,9 @@ const Header = () => {
             )}
           </div>
           
-          <a href="https://joyful-exploration-production.up.railway.app/track" className="btn btn-primary" style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#FF5A00' }}>
+          <Link href="/track" className="btn btn-primary" style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#FF5A00' }}>
             {t('clientLogin') || 'PORTAL CLIENȚI'}
-          </a>
+          </Link>
         </div>
       </div>
     </header>

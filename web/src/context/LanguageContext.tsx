@@ -1,5 +1,5 @@
 'use client';
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 export type Language = 'RO' | 'EN' | 'NL' | 'DE' | 'FR' | 'ES';
 
@@ -33,6 +33,11 @@ const translations: Translations = {
   calcNotes: { RO: 'Observații (Opțional)', EN: 'Notes (Optional)', NL: 'Opmerkingen (Optioneel)', DE: 'Bemerkungen (Optional)', FR: 'Remarques (Optionnel)', ES: 'Notas (Opcional)' },
   calcSubmit: { RO: 'Calculează Oferta', EN: 'Calculate Quote', NL: 'Offerte berekenen', DE: 'Angebot berechnen', FR: 'Calculer l\'offre', ES: 'Calcular oferta' },
   calcLoading: { RO: 'Se calculează...', EN: 'Calculating...', NL: 'Berekenen...', DE: 'Wird berechnet...', FR: 'Calcul en cours...', ES: 'Calculando...' },
+
+  // Map
+  mapTitle: { RO: 'Unde transportăm?', EN: 'Where do we transport?', NL: 'Waar transporteren we?', DE: 'Wo transportieren wir?', FR: 'Où transportons-nous?', ES: '¿Dónde transportamos?' },
+  mapDesc: { RO: 'Acoperim rutele principale din Europa cu o flotă modernă și șoferi profesioniști. Oferim transport sigur și punctual pentru clienții noștri pe următoarele piețe cheie:', EN: 'We cover the main routes in Europe with a modern fleet and professional drivers. We offer safe and punctual transport for our clients in the following key markets:', NL: 'Wij bestrijken de belangrijkste routes in Europa met een modern wagenpark en professionele chauffeurs. Wij bieden veilig en stipt transport voor onze klanten in de volgende belangrijke markten:', DE: 'Wir decken die wichtigsten Routen in Europa mit einer modernen Flotte und professionellen Fahrern ab. Wir bieten unseren Kunden sicheren und pünktlichen Transport auf den folgenden Schlüsselmärkten:', FR: 'Nous couvrons les principaux itinéraires en Europe avec une flotte moderne et des chauffeurs professionnels. Nous offrons un transport sûr et ponctuel pour nos clients sur les marchés clés suivants:', ES: 'Cubrimos las principales rutas de Europa con una flota moderna y conductores profesionales. Ofrecemos transporte seguro y puntual para nuestros clientes en los siguientes mercados clave:' },
+  mapPlaceholder: { RO: 'Harta Interactivă Europa', EN: 'Interactive Map of Europe', NL: 'Interactieve kaart van Europa', DE: 'Interaktive Europakarte', FR: 'Carte interactive de l\'Europe', ES: 'Mapa interactivo de Europa' },
 };
 
 interface LanguageContextType {
@@ -44,7 +49,19 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
-  const [lang, setLang] = useState<Language>('RO');
+  const [lang, setLangState] = useState<Language>('RO');
+
+  useEffect(() => {
+    const savedLang = localStorage.getItem('hapcargo_lang') as Language;
+    if (savedLang && translations.home[savedLang]) {
+      setLangState(savedLang);
+    }
+  }, []);
+
+  const setLang = (newLang: Language) => {
+    setLangState(newLang);
+    localStorage.setItem('hapcargo_lang', newLang);
+  };
 
   const t = (key: string): string => {
     if (translations[key] && translations[key][lang]) {

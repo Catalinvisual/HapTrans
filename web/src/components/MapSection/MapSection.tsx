@@ -1,7 +1,10 @@
+'use client';
 import React from 'react';
 import styles from './MapSection.module.css';
+import { useLanguage } from '@/context/LanguageContext';
 
 const MapSection = () => {
+  const { t } = useLanguage();
   const countries = [
     { code: 'RO', name: 'România' },
     { code: 'DE', name: 'Germania' },
@@ -16,9 +19,9 @@ const MapSection = () => {
       <div className={`container ${styles.container}`}>
         
         <div className={styles.content}>
-          <h2 className={styles.title}>Unde <span>transportăm?</span></h2>
+          <h2 className={styles.title}>{t('mapTitle')}</h2>
           <p className={styles.desc}>
-            Acoperim rutele principale din Europa cu o flotă modernă și șoferi profesioniști. Oferim transport sigur și punctual pentru clienții noștri pe următoarele piețe cheie:
+            {t('mapDesc')}
           </p>
           
           <div className={styles.countriesGrid}>
@@ -39,7 +42,7 @@ const MapSection = () => {
               <line x1="9" y1="3" x2="9" y2="21"></line>
               <line x1="15" y1="3" x2="15" y2="21"></line>
             </svg>
-            <p>Harta Interactivă Europa</p>
+            <p>{t('mapPlaceholder')}</p>
           </div>
         </div>
 
