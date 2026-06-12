@@ -34,80 +34,50 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50 flex">
-      {/* Left panel */}
-      <div className="hidden lg:flex flex-col justify-between w-[45%] bg-gradient-to-br from-primary to-primary-dark p-12 text-white relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-white rounded-full blur-3xl" />
-          <div className="absolute bottom-20 right-10 w-56 h-56 bg-white rounded-full blur-3xl" />
-        </div>
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-12">
-            <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center">
-              <svg viewBox="0 0 24 24" fill="white" className="w-6 h-6">
+    <div className="min-h-screen bg-secondary flex flex-col justify-center items-center relative overflow-hidden">
+      {/* Background Abstract Shapes */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary opacity-20 rounded-full blur-[100px]" />
+        <div className="absolute top-1/2 -left-20 w-72 h-72 bg-accent opacity-20 rounded-full blur-[100px]" />
+        <div className="absolute bottom-10 right-1/4 w-80 h-80 bg-primary opacity-10 rounded-full blur-[100px]" />
+      </div>
+
+      {/* Language switcher - top right dropdown */}
+      <div className="absolute top-6 right-6 z-50">
+        <LanguageDropdown />
+      </div>
+
+      {/* Login Card */}
+      <div className="relative z-10 w-full max-w-[420px] px-6">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-10 shadow-2xl animate-fade-in-up">
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary-dark rounded-2xl flex items-center justify-center shadow-lg shadow-primary/30 mb-4">
+              <svg viewBox="0 0 24 24" fill="white" className="w-8 h-8">
                 <path d="M5 3l-1 18h4l1-18H5zm9 0l-1 18h4l1-18h-4zm-8 7l1 4h9l-1-4H6z" />
               </svg>
             </div>
-            <span className="text-2xl font-bold">HapCargo</span>
+            <h1 className="text-2xl font-bold text-white tracking-tight">HapCargo Workspace</h1>
+            <p className="text-white/50 text-sm mt-1">{t('loginSubtitle')}</p>
           </div>
-          <h1 className="text-4xl font-bold leading-tight mb-4">
-            Gestionați-vă<br />flota cu<br />încredere
-          </h1>
-          <p className="text-white/80 text-lg">
-            Platforma SaaS completă pentru administrarea firmei de transport.
-          </p>
-        </div>
-        <div className="relative z-10 grid grid-cols-2 gap-4">
-          {[
-            { label: 'Curse monitorizate', value: '24/7' },
-            { label: 'Camioane live', value: '100%' },
-            { label: 'Reducere costuri', value: '30%' },
-            { label: 'Clienți satisfăcuți', value: '★ 4.9' },
-          ].map((s) => (
-            <div key={s.label} className="bg-white/10 backdrop-blur rounded-xl p-4">
-              <div className="text-2xl font-bold">{s.value}</div>
-              <div className="text-white/70 text-sm mt-1">{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Right panel */}
-      <div className="flex-1 flex flex-col justify-center items-center p-8">
-        {/* Language switcher - top right dropdown */}
-        <div className="absolute top-5 right-6">
-          <LanguageDropdown />
-        </div>
-
-        <div className="w-full max-w-md">
-          <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-              <Truck className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-text">HapCargo</span>
-          </div>
-
-          <h2 className="text-3xl font-bold text-text mb-2">{t('welcome')}</h2>
-          <p className="text-text-secondary mb-8">{t('loginSubtitle')}</p>
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="label">{t('email')}</label>
+              <label className="block text-xs font-semibold text-white/70 uppercase tracking-wider mb-2">{t('email')}</label>
               <input
                 type="email"
-                className="input"
+                className="w-full bg-white/5 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent placeholder:text-white/30 transition-all"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@hapcargo.ro"
+                placeholder="nume@hapcargo.ro"
                 required
               />
             </div>
             <div>
-              <label className="label">{t('password')}</label>
+              <label className="block text-xs font-semibold text-white/70 uppercase tracking-wider mb-2">{t('password')}</label>
               <div className="relative">
                 <input
                   type={showPass ? 'text' : 'password'}
-                  className="input pr-11"
+                  className="w-full bg-white/5 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent placeholder:text-white/30 transition-all pr-11"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
@@ -116,20 +86,20 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
                 >
-                  {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPass ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full justify-center py-3 text-base"
+              className="w-full bg-gradient-to-r from-primary to-primary-dark hover:opacity-90 text-white font-bold rounded-xl py-3.5 transition-all shadow-lg shadow-primary/25 disabled:opacity-50 mt-4"
             >
               {loading ? (
-                <span className="flex items-center gap-2">
-                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
@@ -139,11 +109,16 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-8 p-4 bg-primary-light rounded-xl border border-primary/20">
-            <p className="text-xs text-primary-dark font-medium mb-1">🔑 Credențiale demo</p>
-            <p className="text-xs text-text-secondary">Email: <span className="font-mono font-semibold text-text">admin@hapcargo.ro</span></p>
-            <p className="text-xs text-text-secondary">Parolă: <span className="font-mono font-semibold text-text">Admin2024!</span></p>
+          <div className="mt-8 p-4 bg-white/5 rounded-xl border border-white/5">
+            <p className="text-[11px] text-white/40 font-medium uppercase tracking-wider mb-2">🔑 Credențiale Administrator</p>
+            <p className="text-sm text-white/60">Email: <span className="font-mono font-medium text-white/90">{email}</span></p>
+            <p className="text-sm text-white/60">Parolă: <span className="font-mono font-medium text-white/90">Admin2024!</span></p>
           </div>
+        </div>
+        
+        {/* Footer text */}
+        <div className="text-center mt-8 text-white/30 text-xs">
+          &copy; {new Date().getFullYear()} HapCargo Transport S.R.L. Toate drepturile rezervate.
         </div>
       </div>
     </div>
