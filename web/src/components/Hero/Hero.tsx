@@ -109,55 +109,61 @@ const Hero = () => {
                     {isSubmitting ? t('calcLoading') : t('calcSubmit')}
                   </button>
                 </div>
-              ) : null}
-            </form>
+              </form>
+            )}
+
+            {step === 2 && (
+              <form onSubmit={handleSubmitLead} className={styles.successBox}>
+                <div className={styles.successIcon}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <h3 className={styles.successTitle}>Oferta estimativă este gata!</h3>
+                <p className={styles.successDesc}>Introduceți datele de contact pentru a primi oferta personalizată pe email și WhatsApp.</p>
+                
+                <div className={styles.horizontalFields} style={{ marginBottom: '1.5rem', gridTemplateColumns: '1fr 1fr 1.5fr' }}>
+                  <div className={styles.formGroup} style={{ textAlign: 'left' }}>
+                    <label>Nume Complet</label>
+                    <input required type="text" name="name" placeholder="Numele dvs." value={formData.name} onChange={handleChange} />
+                  </div>
+                  <div className={styles.formGroup} style={{ textAlign: 'left' }}>
+                    <label>Telefon</label>
+                    <input required type="tel" name="phone" placeholder="+40 700 000 000" value={formData.phone} onChange={handleChange} />
+                  </div>
+                  <div className={styles.formGroup} style={{ textAlign: 'left' }}>
+                    <label>Email</label>
+                    <input required type="email" name="email" placeholder="email@companie.ro" value={formData.email} onChange={handleChange} />
+                  </div>
+                </div>
+
+                <div className="flex gap-4 justify-center">
+                  <button type="button" onClick={() => setStep(1)} className={`btn btn-outline ${styles.calcBtn}`} style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)', background: 'white' }}>
+                    Înapoi
+                  </button>
+                  <button type="submit" className={`btn btn-primary ${styles.calcBtn}`} disabled={isSubmitting}>
+                    {isSubmitting ? 'Se trimite...' : 'Trimite Oferta'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {step === 3 && (
+              <div className={styles.successBox}>
+                <div className={styles.successIcon}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
+                </div>
+                <h3 className={styles.successTitle}>Cerere Trimisă cu Succes!</h3>
+                <p className={styles.successDesc}>Echipa noastră analizează cererea dumneavoastră și veți primi oferta în cel mai scurt timp.</p>
+                <button onClick={() => setStep(1)} className={`btn btn-primary ${styles.calcBtn}`} style={{ margin: '0 auto' }}>
+                  Acasă
+                </button>
+              </div>
+            )}
           </div>
-          
-          {step === 2 && (
-            <form onSubmit={handleSubmitLead} className={styles.successBox}>
-              <div className={styles.successIcon}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-              </div>
-              <h3 className={styles.successTitle}>Oferta estimativă este gata!</h3>
-              <p className={styles.successDesc}>Introduceți datele de contact pentru a primi oferta personalizată pe email și WhatsApp.</p>
-              
-              <div className={styles.formGroup} style={{ textAlign: 'left' }}>
-                <label>Nume Complet</label>
-                <input required type="text" name="name" className={styles.input} placeholder="Numele dvs." value={formData.name} onChange={handleChange} />
-              </div>
-              <div className={styles.formGroup} style={{ textAlign: 'left' }}>
-                <label>Telefon</label>
-                <input required type="tel" name="phone" className={styles.input} placeholder="+40 700 000 000" value={formData.phone} onChange={handleChange} />
-              </div>
-              <div className={styles.formGroup} style={{ textAlign: 'left' }}>
-                <label>Email</label>
-                <input required type="email" name="email" className={styles.input} placeholder="email@companie.ro" value={formData.email} onChange={handleChange} />
-              </div>
-
-              <button type="submit" className={`btn btn-primary ${styles.submitBtn}`} disabled={isSubmitting}>
-                {isSubmitting ? 'Se trimite...' : 'Trimite Oferta'}
-              </button>
-              
-              <button type="button" onClick={() => setStep(1)} className="btn btn-outline" style={{ width: '100%', marginTop: '1rem', color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}>
-                Înapoi
-              </button>
-            </form>
-          )}
-
-          {step === 3 && (
-            <div className={styles.successBox}>
-               <div className={styles.successIcon}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                </svg>
-              </div>
-              <h3 className={styles.successTitle}>Cerere Trimisă cu Succes!</h3>
-              <p className={styles.successDesc}>Un reprezentant HapCargo va lua legătura cu dvs. în cel mai scurt timp posibil.</p>
-            </div>
-          )}
         </div>
       </div>
     </section>
