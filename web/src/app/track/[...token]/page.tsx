@@ -28,8 +28,10 @@ export default function TrackPage({ params }: { params: any }) {
     }
     if (typeof params.then === 'function') {
       params.then((p: any) => {
-        if (p?.token) {
-          setToken(p.token);
+        const rawToken = p?.token;
+        const resolved = Array.isArray(rawToken) ? rawToken.join('/') : rawToken;
+        if (resolved) {
+          setToken(resolved);
         } else {
           setLoading(false);
           setError(true);
@@ -38,11 +40,15 @@ export default function TrackPage({ params }: { params: any }) {
         setLoading(false);
         setError(true);
       });
-    } else if (params.token) {
-      setToken(params.token);
     } else {
-      setLoading(false);
-      setError(true);
+      const rawToken = params.token;
+      const resolved = Array.isArray(rawToken) ? rawToken.join('/') : rawToken;
+      if (resolved) {
+        setToken(resolved);
+      } else {
+        setLoading(false);
+        setError(true);
+      }
     }
   }, [params]);
 

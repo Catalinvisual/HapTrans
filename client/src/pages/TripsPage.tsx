@@ -66,6 +66,17 @@ export default function TripsPage() {
 
   const currentToken = editId ? trips.find((t: any) => t.id === editId)?.trackingToken : null;
 
+  const getWebsiteUrl = () => {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://localhost:3000';
+    }
+    if (host === 'joyful-exploration-production.up.railway.app') {
+      return 'https://exemplary-balance-production-c473.up.railway.app';
+    }
+    return window.location.origin.replace('saas.', '').replace('5173', '3000').replace('5174', '3000');
+  };
+
   const load = async () => {
     try {
       const [tr, cl, tk, dr, dp] = await Promise.all([
@@ -295,10 +306,7 @@ export default function TripsPage() {
           const res = await api.post('/trips', data);
           toast.success(t('tripAdded'));
           if (res.data && res.data.trackingToken) {
-            const domain = window.location.hostname === 'localhost'
-              ? 'http://localhost:3000'
-              : window.location.origin.replace('saas.', '').replace('5173', '3000').replace('5174', '3000');
-            const trackingLink = `${domain}/track/${res.data.trackingToken}`;
+            const trackingLink = `${getWebsiteUrl()}/track/${res.data.trackingToken}`;
             navigator.clipboard.writeText(trackingLink).then(() => {
               toast.success(`${t('trackingLinkCopied') || 'Link de urmărire client copiat:'} ${trackingLink}`, { duration: 6000 });
             }).catch(() => {});
@@ -1036,10 +1044,7 @@ export default function TripsPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      const domain = window.location.hostname === 'localhost'
-                        ? 'http://localhost:3000'
-                        : window.location.origin.replace('saas.', '').replace('5173', '3000').replace('5174', '3000');
-                      const trackingLink = `${domain}/track/${currentToken}`;
+                      const trackingLink = `${getWebsiteUrl()}/track/${currentToken}`;
                       navigator.clipboard.writeText(trackingLink).then(() => {
                         toast.success(t('trackingLinkCopied') || 'Link de urmărire copiat!');
                       });
@@ -1055,10 +1060,7 @@ export default function TripsPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      const domain = window.location.hostname === 'localhost'
-                        ? 'http://localhost:3000'
-                        : window.location.origin.replace('saas.', '').replace('5173', '3000').replace('5174', '3000');
-                      const trackingLink = `${domain}/track/${currentToken}`;
+                      const trackingLink = `${getWebsiteUrl()}/track/${currentToken}`;
                       window.open(trackingLink, '_blank');
                     }}
                     className="btn-secondary py-2 px-4 text-xs font-bold w-full md:w-auto flex items-center justify-center gap-2"
@@ -1354,10 +1356,7 @@ export default function TripsPage() {
                         {trip.trackingToken && (
                           <button
                             onClick={() => {
-                              const domain = window.location.hostname === 'localhost'
-                                ? 'http://localhost:3000'
-                                : window.location.origin.replace('saas.', '').replace('5173', '3000').replace('5174', '3000');
-                              const webUrl = `${domain}/track/${trip.trackingToken}`;
+                              const webUrl = `${getWebsiteUrl()}/track/${trip.trackingToken}`;
                               navigator.clipboard.writeText(webUrl).then(() => {
                                 toast.success(t('trackingLinkCopied') || 'Link urmărire copiat!');
                               }).catch(() => {
