@@ -19,18 +19,44 @@ export default function ContactPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   useEffect(() => {
+    const defaultContactHTML = `
+      <div style="margin-bottom: 2rem;">
+        <h3 style="color: #0f172a; font-size: 1.4rem; font-weight: 700; margin-bottom: 0.5rem;">Date de Identificare</h3>
+        <p style="color: #475569; font-size: 1.05rem; margin-bottom: 0.2rem;"><strong>SC HAPCARGO SRL</strong></p>
+        <p style="color: #475569; font-size: 1.05rem; margin-bottom: 0.2rem;">Cod Unic de Înregistrare: RO12345678</p>
+        <p style="color: #475569; font-size: 1.05rem;">Nr. Reg. Comerțului: J40/1234/2026</p>
+      </div>
+
+      <div style="margin-bottom: 2rem;">
+        <h3 style="color: #0f172a; font-size: 1.4rem; font-weight: 700; margin-bottom: 0.5rem;">Sediul Central</h3>
+        <p style="color: #475569; font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
+          📍 București, România<br/>
+          Strada Transportatorilor Nr. 10
+        </p>
+      </div>
+
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 1.5rem; border-radius: 1rem;">
+        <h3 style="color: #0f172a; font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem;">Contact Direct</h3>
+        <p style="color: #475569; font-size: 1.05rem; margin-bottom: 0.5rem;">📞 <strong>Telefon:</strong> +40 700 000 000</p>
+        <p style="color: #475569; font-size: 1.05rem; margin-bottom: 0.5rem;">📧 <strong>Email:</strong> office@hapcargo.ro</p>
+        <p style="color: #475569; font-size: 1.05rem;">🕒 <strong>Program:</strong> Luni - Vineri: 08:00 - 18:00</p>
+      </div>
+    `;
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://joyful-exploration-production.up.railway.app/api';
+    
     // Fetch left column content from CMS
-    fetch('http://localhost:3001/api/website-cms')
+    fetch(\`\${apiUrl}/website-cms\`)
       .then(res => res.json())
       .then(data => {
         if (data['contact']) {
           setContent(data['contact']);
         } else {
-          setContent('<p>Detaliile de contact nu au fost setate încă.</p>');
+          setContent(defaultContactHTML);
         }
       })
       .catch(() => {
-        setContent('<p>Eroare la încărcarea conținutului.</p>');
+        setContent(defaultContactHTML);
       });
   }, []);
 
