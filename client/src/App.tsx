@@ -20,6 +20,7 @@ import UsersPage from './pages/UsersPage';
 import ChatPage from './pages/ChatPage';
 import PlanningPage from './pages/PlanningPage';
 import SharedDocumentPage from './pages/SharedDocumentPage';
+import WebsiteLeadsPage from './pages/WebsiteLeadsPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore();
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="invoices" element={<InvoicesPage />} />
           <Route path="financial" element={<FinancialPage />} />
           <Route path="payroll" element={<PayrollPage />} />
+          <Route path="leads" element={<WebsiteLeadsPage />} />
           <Route path="maintenance" element={<MaintenancePage />} />
           <Route path="expenses" element={<ExpensesPage />} />
           <Route path="settings" element={<SettingsPage />} />

@@ -29,6 +29,10 @@ export class TripsService {
     return this.repo.findOne({ where: { id }, relations: ['client', 'truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'messages'] });
   }
 
+  findByTrackingToken(trackingToken: string) {
+    return this.repo.findOne({ where: { trackingToken }, relations: ['documents'] });
+  }
+
   async checkConflict(driverId: string, truckId: string, pickupDate: Date | string, dropoffDate: Date | string, excludeTripId?: string) {
     if (!pickupDate || !dropoffDate) return;
     

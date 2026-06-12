@@ -78,6 +78,9 @@ export class Trip {
   @Column({ nullable: true, type: 'text' })
   driverNotes: string;
 
+  @Column({ nullable: true, unique: true })
+  trackingToken: string;
+
   @Column({ nullable: true })
   pickupTime: string;
 

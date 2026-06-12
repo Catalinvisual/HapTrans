@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Route, Truck, Users, UserCheck, Map, MessageSquare, FileText,
-  Receipt, BarChart3, Wrench, Settings, UserCog, X, Banknote, Wallet, CalendarDays
+  Receipt, BarChart3, Wrench, Settings, UserCog, X, Banknote, Wallet, CalendarDays, Globe
 } from 'lucide-react';
 
 const navItems = [
@@ -20,6 +20,7 @@ const navItems = [
   { to: '/payroll', icon: Banknote, key: 'payroll' },
   { to: '/maintenance', icon: Wrench, key: 'maintenance' },
   { to: '/expenses', icon: Wallet, key: 'expenses' },
+  { to: '/leads', icon: Globe, key: 'websiteLeads' },
   { to: '/users', icon: UserCog, key: 'users' },
   { to: '/settings', icon: Settings, key: 'settings' },
 ];
@@ -63,15 +64,21 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-          {navItems.map(({ to, icon: Icon, key }) => (
+          {navItems.map((item) => (
             <NavLink
-              key={to}
-              to={to}
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                  isActive 
+                    ? 'bg-primary/10 text-primary font-medium' 
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                }`
+              }
               onClick={onClose}
-              className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
             >
-              <Icon className="w-5 h-5 md:w-4 md:h-4 flex-shrink-0" />
-              <span className="truncate text-base md:text-sm capitalize">{t(key)}</span>
+              <item.icon className={`w-5 h-5 ${item.key === 'websiteLeads' ? 'text-primary' : ''}`} />
+              <span className="truncate text-base md:text-sm capitalize">{item.key === 'websiteLeads' ? 'Cereri Web' : t(item.key)}</span>
             </NavLink>
           ))}
         </nav>
