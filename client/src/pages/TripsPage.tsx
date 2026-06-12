@@ -64,6 +64,8 @@ export default function TripsPage() {
     onConfirm: () => {},
   });
 
+  const currentToken = editId ? trips.find((t: any) => t.id === editId)?.trackingToken : null;
+
   const load = async () => {
     try {
       const [tr, cl, tk, dr, dp] = await Promise.all([
@@ -1015,6 +1017,53 @@ export default function TripsPage() {
               <label className="label font-semibold">{t('notes')}</label>
               <textarea className="input resize-none" rows={2} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} />
             </div>
+
+            {editId && currentToken && (
+              <div className="md:col-span-2 lg:col-span-3 bg-blue-50 border border-blue-100 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <span className="text-xs font-bold text-blue-800 uppercase tracking-wider block">Portal Client & Link de Urmărire</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-slate-700">Token:</span>
+                    <code className="bg-white px-2 py-1 rounded border border-slate-200 text-xs font-mono select-all text-slate-800">{currentToken}</code>
+                  </div>
+                  <p className="text-xs text-slate-500">Folosește acest link pentru a trimite clientului statusul live al expediției și documentele.</p>
+                </div>
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const domain = window.location.hostname === 'localhost'
+                        ? 'http://localhost:3000'
+                        : window.location.origin.replace('saas.', '').replace('5173', '3000').replace('5174', '3000');
+                      const trackingLink = `${domain}/track/${currentToken}`;
+                      navigator.clipboard.writeText(trackingLink).then(() => {
+                        toast.success(t('trackingLinkCopied') || 'Link de urmărire copiat!');
+                      });
+                    }}
+                    className="btn-primary py-2 px-4 text-xs font-bold w-full md:w-auto flex items-center justify-center gap-2"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    Copiază Link
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const domain = window.location.hostname === 'localhost'
+                        ? 'http://localhost:3000'
+                        : window.location.origin.replace('saas.', '').replace('5173', '3000').replace('5174', '3000');
+                      const trackingLink = `${domain}/track/${currentToken}`;
+                      window.open(trackingLink, '_blank');
+                    }}
+                    className="btn-secondary py-2 px-4 text-xs font-bold w-full md:w-auto flex items-center justify-center gap-2"
+                  >
+                    Deschide Portal
+                  </button>
+                </div>
+              </div>
+            )}
             
             <div className="flex gap-3 md:col-span-2 lg:col-span-3 pt-3 border-t border-border mt-2">
               <button type="submit" className="btn-primary px-6 py-2.5 font-bold shadow-md shadow-primary/20">{t('save')}</button>
