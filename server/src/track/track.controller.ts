@@ -1,14 +1,13 @@
 import { Controller, Get, Req, NotFoundException } from '@nestjs/common';
 import { TripsService } from '../trips/trips.service';
 import { TripStatus } from '../trips/trip.entity';
-import { Request } from 'express';
 
 @Controller('track')
 export class TrackController {
   constructor(private readonly tripsService: TripsService) {}
 
   @Get('*')
-  async trackTrip(@Req() req: Request) {
+  async trackTrip(@Req() req: any) {
     const urlParts = req.url.split('/track/');
     const token = urlParts[urlParts.length - 1];
     
