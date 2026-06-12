@@ -38,7 +38,7 @@ const Hero = () => {
     setIsSubmitting(true);
     
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://joyful-exploration-production.up.railway.app/api';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
       const res = await fetch(`${apiUrl}/leads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

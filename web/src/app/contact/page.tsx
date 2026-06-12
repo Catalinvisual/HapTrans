@@ -72,7 +72,7 @@ export default function ContactPage() {
     const defaultContactHTML = lang === 'RO' ? defaultContactHTML_RO : defaultContactHTML_EN;
 
     // Fetch left column content from CMS
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://joyful-exploration-production.up.railway.app/api';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
     
     fetch(apiUrl + '/website-cms')
       .then(res => res.json())
@@ -100,7 +100,7 @@ export default function ContactPage() {
     setStatus('loading');
     
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://joyful-exploration-production.up.railway.app/api';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
       const res = await fetch(`${apiUrl}/contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

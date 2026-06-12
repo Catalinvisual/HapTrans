@@ -10,7 +10,7 @@ export class ResendService {
   }
 
   async sendTrackingEmail(email: string, trackingToken: string) {
-    const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://joyful-exploration-production.up.railway.app';
+    const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
     const trackingUrl = `${baseUrl}/track/${trackingToken}`;
     
     const htmlContent = `

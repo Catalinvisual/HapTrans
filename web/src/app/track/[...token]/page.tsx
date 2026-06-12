@@ -58,7 +58,7 @@ export default function TrackPage({ params }: { params: any }) {
     if (!token) return;
     const fetchTracking = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://joyful-exploration-production.up.railway.app/api';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
         const res = await fetch(`${apiUrl}/track/${token}`);
         if (!res.ok) throw new Error('Invalid token');
         const json = await res.json();

@@ -8,7 +8,7 @@ const MapSection = () => {
   const [countries, setCountries] = React.useState<string[]>(['RO', 'DE', 'FR', 'IT', 'BE', 'NL']);
 
   React.useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://joyful-exploration-production.up.railway.app/api';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
     fetch(`${apiUrl}/website-cms`)
       .then(res => res.json())
       .then(data => {

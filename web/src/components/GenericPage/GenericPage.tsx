@@ -146,7 +146,7 @@ export default function GenericPage({ slug, titleKey }: { slug: string, titleKey
     const defaultContent = defaultContentMap[lang] || defaultContentEN;
 
     setLoading(true);
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://joyful-exploration-production.up.railway.app/api';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
 
     fetch(apiUrl + '/website-cms')
       .then(res => res.json())
