@@ -16,7 +16,7 @@
   - [x] Implement HTML cards parser in `GenericPage.tsx`
   - [x] Design card layout styles in `GenericPage.module.css`
   - [x] Refactor Contact page and its styles
-- [/] Verify build & compile
+- [x] Verify build & compile
   - [x] Build React client (`npm run build`)
   - [x] Build NestJS server (`npm run build`)
-  - [/] Build Next.js website (`npm run build`)
+  - [x] Build Next.js website (`npm run build`)

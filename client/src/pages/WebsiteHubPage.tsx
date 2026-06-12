@@ -4,6 +4,7 @@ import { Globe, MousePointerClick, FileText, Map, Phone, Briefcase, Truck, Mail 
 import WebsiteLeadsPage from './WebsiteLeadsPage';
 import ContactInbox from './ContactInbox';
 import api from '../lib/api';
+import toast from 'react-hot-toast';
 
 const WebsiteHubPage = () => {
   const { t } = useTranslation();
@@ -23,9 +24,10 @@ const WebsiteHubPage = () => {
     try {
       await api.post('/website-cms', { [key]: value });
       setCmsData(prev => ({ ...prev, [key]: value }));
-      // Optional: add toast notification here
+      toast.success(t('website_hub_saved_success', 'Modificările au fost salvate cu succes!'));
     } catch (e) {
       console.error(e);
+      toast.error(t('website_hub_saved_error', 'Eroare la salvarea modificărilor.'));
     } finally {
       setSaving(false);
     }

@@ -290,8 +290,17 @@ export default function TripsPage() {
           await api.patch(`/trips/${editId}`, data);
           toast.success(t('tripUpdated'));
         } else {
-          await api.post('/trips', data);
+          const res = await api.post('/trips', data);
           toast.success(t('tripAdded'));
+          if (res.data && res.data.trackingToken) {
+            const domain = window.location.hostname === 'localhost'
+              ? 'http://localhost:3000'
+              : window.location.origin.replace('saas.', '').replace('5173', '3000').replace('5174', '3000');
+            const trackingLink = `${domain}/track/${res.data.trackingToken}`;
+            navigator.clipboard.writeText(trackingLink).then(() => {
+              toast.success(`${t('trackingLinkCopied') || 'Link de urmărire client copiat:'} ${trackingLink}`, { duration: 6000 });
+            }).catch(() => {});
+          }
         }
         setShowForm(false); setEditId(null); 
         setForm({ 
@@ -1267,14 +1276,13 @@ export default function TripsPage() {
                         {trip.trackingToken && (
                           <button
                             onClick={() => {
-                              const url = `${window.location.origin.replace('5173', '3000').replace('localhost:5173', 'localhost:3000')}/track/${trip.trackingToken}`;
-                              // Open website tracking URL
-                              const webUrl = `https://hapcargo.ro/track/${trip.trackingToken}`;
-                              // Try to copy to clipboard
+                              const domain = window.location.hostname === 'localhost'
+                                ? 'http://localhost:3000'
+                                : window.location.origin.replace('saas.', '').replace('5173', '3000').replace('5174', '3000');
+                              const webUrl = `${domain}/track/${trip.trackingToken}`;
                               navigator.clipboard.writeText(webUrl).then(() => {
-                                toast.success('Link urmărire copiat!');
+                                toast.success(t('trackingLinkCopied') || 'Link urmărire copiat!');
                               }).catch(() => {
-                                // Fallback: open in new tab
                                 window.open(webUrl, '_blank');
                               });
                             }}
