@@ -50,13 +50,16 @@ export default function LoginPage() {
       {/* Login Card */}
       <div className="relative z-10 w-full max-w-[420px] px-6">
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-10 shadow-2xl animate-fade-in-up">
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary-dark rounded-2xl flex items-center justify-center shadow-lg shadow-primary/30 mb-4">
-              <svg viewBox="0 0 24 24" fill="white" className="w-8 h-8">
+          <div className="flex flex-col items-center mb-10">
+            <div className="flex items-center gap-2 mb-2">
+              <svg viewBox="0 0 24 24" fill="currentColor" className="w-9 h-9 text-primary">
                 <path d="M5 3l-1 18h4l1-18H5zm9 0l-1 18h4l1-18h-4zm-8 7l1 4h9l-1-4H6z" />
               </svg>
+              <div className="flex items-center text-3xl tracking-tight italic">
+                <span className="font-black text-primary">HAP</span>
+                <span className="font-black text-white">CARGO</span>
+              </div>
             </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">HapCargo Workspace</h1>
             <p className="text-white/50 text-sm mt-1">{t('loginSubtitle')}</p>
           </div>
 

@@ -46,15 +46,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 md:w-48 bg-white border-r border-border flex flex-col h-full transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         {/* Logo */}
         <div className="px-5 py-5 border-b border-border flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-sm">
-              <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5">
-                <path d="M5 3l-1 18h4l1-18H5zm9 0l-1 18h4l1-18h-4zm-8 7l1 4h9l-1-4H6z" />
-              </svg>
-            </div>
-            <div>
-              <span className="font-bold text-base text-text tracking-tight">HapCargo</span>
-              <div className="text-[10px] text-text-secondary font-medium uppercase tracking-wider">Transport SaaS</div>
+          <div className="flex items-center gap-2">
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-primary">
+              <path d="M5 3l-1 18h4l1-18H5zm9 0l-1 18h4l1-18h-4zm-8 7l1 4h9l-1-4H6z" />
+            </svg>
+            <div className="flex items-center text-xl tracking-tight italic">
+              <span className="font-black text-primary">HAP</span>
+              <span className="font-black text-secondary">CARGO</span>
             </div>
           </div>
           <button className="md:hidden text-text-secondary hover:bg-surface p-1 rounded-md" onClick={onClose}>
