@@ -45,7 +45,7 @@ export default function TrackPage({ params }: { params: { token: string } }) {
     return (
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2rem', marginBottom: '2rem', position: 'relative' }}>
         <div style={{ position: 'absolute', top: '15px', left: '0', right: '0', height: '4px', background: '#eee', zIndex: 0 }}></div>
-        <div style={{ position: 'absolute', top: '15px', left: '0', width: \`\${(currentIndex / (statuses.length - 1)) * 100}%\`, height: '4px', background: 'var(--primary)', zIndex: 1, transition: 'width 0.5s ease' }}></div>
+        <div style={{ position: 'absolute', top: '15px', left: '0', width: `${(currentIndex / (statuses.length - 1)) * 100}%`, height: '4px', background: 'var(--primary)', zIndex: 1, transition: 'width 0.5s ease' }}></div>
         
         {statuses.map((s, idx) => {
           const isActive = idx <= currentIndex;
