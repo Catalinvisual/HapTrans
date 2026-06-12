@@ -137,3 +137,41 @@
   background-color: #fffaf5;
   color: var(--primary);
 }
+
+.mobileMenuBtn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+@media (max-width: 992px) {
+  .mobileMenuBtn {
+    display: block;
+  }
+  
+  .nav {
+    position: fixed;
+    top: 80px;
+    left: 0;
+    width: 100%;
+    background: white;
+    flex-direction: column;
+    padding: 2rem;
+    gap: 1.5rem;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    transform: translateY(-150%);
+    transition: transform 0.3s ease-in-out;
+    z-index: 999;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mobileNavOpen {
+    transform: translateY(0);
+  }
+
+  .actions {
+    display: none;
+  }
+}

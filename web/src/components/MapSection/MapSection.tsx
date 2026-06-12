@@ -27,7 +27,12 @@ const MapSection = () => {
           <div className={styles.countriesGrid}>
             {countries.map(country => (
               <div key={country.code} className={styles.countryItem}>
-                <span style={{ fontSize: '1.25rem' }}>📍</span>
+                <img 
+                  src={`https://flagcdn.com/w40/${country.code.toLowerCase()}.png`} 
+                  width="24" 
+                  style={{ borderRadius: '2px', objectFit: 'cover' }} 
+                  alt={country.code} 
+                />
                 {country.name}
               </div>
             ))}

@@ -87,22 +87,22 @@ const Hero = () => {
                 <div className={styles.horizontalFields}>
                   <div className={styles.formGroup}>
                     <label>{t('calcFrom')}</label>
-                    <input type="text" name="from" placeholder="ex: București, RO" required value={formData.from} onChange={handleChange} />
+                    <input type="text" name="from" placeholder={t('calcFromPlaceholder') || 'ex: București, RO'} required value={formData.from} onChange={handleChange} />
                   </div>
                   
                   <div className={styles.formGroup}>
                     <label>{t('calcTo')}</label>
-                    <input type="text" name="to" placeholder="ex: Munchen, DE" required value={formData.to} onChange={handleChange} />
+                    <input type="text" name="to" placeholder={t('calcToPlaceholder') || 'ex: Munchen, DE'} required value={formData.to} onChange={handleChange} />
                   </div>
 
                   <div className={styles.formGroupRow}>
                     <div className={styles.formGroup}>
                       <label>{t('calcWeight')}</label>
-                      <input type="text" name="weight" placeholder="ex: 21 tone" required value={formData.weight} onChange={handleChange} />
+                      <input type="text" name="weight" placeholder={t('calcWeightPlaceholder') || 'ex: 21 tone'} required value={formData.weight} onChange={handleChange} />
                     </div>
                     <div className={styles.formGroup}>
                       <label>{t('calcType')}</label>
-                      <input type="text" name="type" placeholder="ex: Paleți generali" required value={formData.type} onChange={handleChange} />
+                      <input type="text" name="type" placeholder={t('calcTypePlaceholder') || 'ex: Paleți generali'} required value={formData.type} onChange={handleChange} />
                     </div>
                   </div>
                   

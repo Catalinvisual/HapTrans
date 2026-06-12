@@ -23,6 +23,7 @@ import { TnasModule } from './tnas/tnas.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { LeadsModule } from './leads/leads.module';
+import { WebsiteCmsModule } from './website-cms/website-cms.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
@@ -63,6 +64,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
     PayrollModule,
     TnasModule,
     LeadsModule,
+    WebsiteCmsModule,
     ThrottlerModule.forRoot([{
       ttl: 60000,
       limit: 10,

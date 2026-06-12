@@ -8,6 +8,7 @@ import { useLanguage } from '@/context/LanguageContext';
 const Header = () => {
   const { lang, setLang, t } = useLanguage();
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const languages: import('@/context/LanguageContext').Language[] = ['RO', 'EN', 'NL', 'DE', 'FR', 'ES'];
 
@@ -35,12 +36,29 @@ const Header = () => {
           </div>
         </Link>
 
-        <nav className={styles.nav}>
-          <Link href="/" className={styles.navLink}>{t('home')}</Link>
-          <Link href="#despre" className={styles.navLink}>{t('about')}</Link>
-          <Link href="#servicii" className={styles.navLink}>{t('services')}</Link>
-          <Link href="#flota" className={styles.navLink}>{t('fleet')}</Link>
-          <Link href="#contact" className={styles.navLink}>{t('contact')}</Link>
+        <button className={styles.mobileMenuBtn} onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            {mobileMenuOpen ? (
+              <>
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </>
+            ) : (
+              <>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </>
+            )}
+          </svg>
+        </button>
+
+        <nav className={`${styles.nav} ${mobileMenuOpen ? styles.mobileNavOpen : ''}`}>
+          <Link href="/" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('home')}</Link>
+          <Link href="/despre-noi" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('about')}</Link>
+          <Link href="/servicii" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('services')}</Link>
+          <Link href="/flota" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('fleet')}</Link>
+          <Link href="/contact" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('contact')}</Link>
         </nav>
 
         <div className={styles.actions}>

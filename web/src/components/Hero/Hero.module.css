@@ -204,3 +204,34 @@
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+@media (max-width: 992px) {
+  .horizontalFields {
+    grid-template-columns: 1fr;
+  }
+  
+  .formGroupRow {
+    grid-template-columns: 1fr;
+  }
+
+  .title {
+    font-size: 2.5rem;
+  }
+
+  .subtitle {
+    font-size: 1.1rem;
+  }
+  
+  .hero {
+    min-height: 100vh;
+    background-size: contain;
+    background-position: bottom;
+    padding-bottom: 200px;
+    align-items: flex-start;
+    padding-top: 2rem;
+  }
+  
+  .calculator {
+    padding: 1.25rem;
+  }
+}
