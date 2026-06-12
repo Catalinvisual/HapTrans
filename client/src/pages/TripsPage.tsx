@@ -1264,6 +1264,29 @@ export default function TripsPage() {
                     </td>
                     <td className="table-cell">
                       <div className="flex items-center gap-1">
+                        {trip.trackingToken && (
+                          <button
+                            onClick={() => {
+                              const url = `${window.location.origin.replace('5173', '3000').replace('localhost:5173', 'localhost:3000')}/track/${trip.trackingToken}`;
+                              // Open website tracking URL
+                              const webUrl = `https://hapcargo.ro/track/${trip.trackingToken}`;
+                              // Try to copy to clipboard
+                              navigator.clipboard.writeText(webUrl).then(() => {
+                                toast.success('Link urmărire copiat!');
+                              }).catch(() => {
+                                // Fallback: open in new tab
+                                window.open(webUrl, '_blank');
+                              });
+                            }}
+                            className="p-1.5 text-blue-500 hover:text-blue-700 rounded-lg hover:bg-blue-50 transition-all"
+                            title="Copiază link urmărire client"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                            </svg>
+                          </button>
+                        )}
                         {trip.status === 'completed' && (
                           <button onClick={() => handleGenerateInvoice(trip)} className="p-1.5 text-success hover:text-success-dark rounded-lg hover:bg-green-50 transition-all" title={t('generateInvoice') || 'Generează factură'}>
                             <FileText className="w-3.5 h-3.5" />

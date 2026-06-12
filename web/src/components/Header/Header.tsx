@@ -1,14 +1,15 @@
 'use client';
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import styles from './Header.module.css';
-
 import { useLanguage } from '@/context/LanguageContext';
 
 const Header = () => {
   const { lang, setLang, t } = useLanguage();
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
 
   const languages: import('@/context/LanguageContext').Language[] = ['RO', 'EN', 'NL', 'DE', 'FR', 'ES'];
 
@@ -27,14 +28,12 @@ const Header = () => {
     <header className={styles.header}>
       <div className={styles.container}>
         <Link href="/" className={styles.logo}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="#FF5A00" strokeWidth="3.2" strokeLinecap="round" width="36" height="36" className={styles.logoIcon}>
-            <line x1="10" y1="3" x2="6" y2="21" />
-            <line x1="16" y1="3" x2="12" y2="21" />
-            <line x1="3" y1="9" x2="20" y2="7" />
-            <line x1="3" y1="16" x2="20" y2="14" />
+          <svg viewBox="0 0 48 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="48" height="40" className={styles.logoIcon}>
+            <path d="M4 4 L4 36 M4 20 L16 20 M16 4 L16 36" stroke="#FF5A00" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M22 4 L22 36 M22 20 L34 20 M34 4 L34 36" stroke="#FF5A00" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          <div style={{ display: 'flex' }}>
-            <span style={{ color: '#000000', fontWeight: 900, letterSpacing: '-0.5px', fontSize: '1.6rem', fontStyle: 'italic', marginLeft: '0.2rem' }}>HAPCARGO</span>
+          <div className={styles.logoTextGroup}>
+            <span className={styles.logoHap}>HAP</span><span className={styles.logoCargo}>CARGO</span>
           </div>
         </Link>
 
@@ -42,14 +41,12 @@ const Header = () => {
           {mobileMenuOpen && (
             <div className={styles.mobileNavHeader}>
               <Link href="/" className={styles.logo} onClick={() => setMobileMenuOpen(false)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#FF5A00" strokeWidth="3.2" strokeLinecap="round" width="36" height="36" className={styles.logoIcon}>
-                  <line x1="10" y1="3" x2="6" y2="21" />
-                  <line x1="16" y1="3" x2="12" y2="21" />
-                  <line x1="3" y1="9" x2="20" y2="7" />
-                  <line x1="3" y1="16" x2="20" y2="14" />
+                <svg viewBox="0 0 48 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="48" height="40" className={styles.logoIcon}>
+                  <path d="M4 4 L4 36 M4 20 L16 20 M16 4 L16 36" stroke="#FF5A00" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M22 4 L22 36 M22 20 L34 20 M34 4 L34 36" stroke="#FF5A00" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                <div style={{ display: 'flex' }}>
-                  <span style={{ color: '#000000', fontWeight: 900, letterSpacing: '-0.5px', fontSize: '1.6rem', fontStyle: 'italic', marginLeft: '0.2rem' }}>HAPCARGO</span>
+                <div className={styles.logoTextGroup}>
+                  <span className={styles.logoHap}>HAP</span><span className={styles.logoCargo}>CARGO</span>
                 </div>
               </Link>
               <button className={styles.mobileCloseBtn} onClick={() => setMobileMenuOpen(false)}>
@@ -62,11 +59,11 @@ const Header = () => {
           )}
 
           <div className={styles.navLinksWrapper}>
-            <Link href="/" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('home')}</Link>
-            <Link href="/despre-noi" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('about')}</Link>
-            <Link href="/servicii" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('services')}</Link>
-            <Link href="/flota" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('fleet')}</Link>
-            <Link href="/contact" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>{t('contact')}</Link>
+            <Link href="/" className={`${styles.navLink} ${pathname === '/' ? styles.navLinkActive : ''}`} onClick={() => setMobileMenuOpen(false)}>{t('home')}</Link>
+            <Link href="/despre-noi" className={`${styles.navLink} ${pathname === '/despre-noi' ? styles.navLinkActive : ''}`} onClick={() => setMobileMenuOpen(false)}>{t('about')}</Link>
+            <Link href="/servicii" className={`${styles.navLink} ${pathname === '/servicii' ? styles.navLinkActive : ''}`} onClick={() => setMobileMenuOpen(false)}>{t('services')}</Link>
+            <Link href="/flota" className={`${styles.navLink} ${pathname === '/flota' ? styles.navLinkActive : ''}`} onClick={() => setMobileMenuOpen(false)}>{t('fleet')}</Link>
+            <Link href="/contact" className={`${styles.navLink} ${pathname === '/contact' ? styles.navLinkActive : ''}`} onClick={() => setMobileMenuOpen(false)}>{t('contact')}</Link>
           </div>
 
           {mobileMenuOpen && (

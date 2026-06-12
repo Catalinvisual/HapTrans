@@ -54,13 +54,13 @@
 }
 
 .title {
-  font-size: 3.5rem;
+  font-size: 3.75rem;
   font-weight: 900;
   line-height: 1.1;
   letter-spacing: -0.02em;
   margin-bottom: 1.5rem;
   color: #0B1B2A;
-  text-shadow: 0 2px 10px rgba(255,255,255,0.8);
+  text-shadow: 0 2px 20px rgba(255,255,255,0.9), 0 0 40px rgba(255,255,255,0.5);
 }
 
 .title span {
@@ -68,11 +68,15 @@
 }
 
 .subtitle {
-  font-size: 1.25rem;
-  color: #1A202C;
+  font-size: 1.2rem;
+  color: #0B1B2A;
   line-height: 1.6;
   font-weight: 600;
-  text-shadow: 0 1px 4px rgba(255,255,255,0.8);
+  text-shadow: 0 1px 8px rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.7);
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.5rem;
 }
 
 /* Horizontal Calculator */

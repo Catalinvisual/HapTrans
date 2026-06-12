@@ -71,8 +71,13 @@ export class TripsService {
 
     const referenceNumber = `REF-${year}-${String(count + 1).padStart(4, '0')}`;
 
+    // Generate a unique tracking token for this trip
+    const crypto = require('crypto');
+    const trackingToken = crypto.randomBytes(16).toString('hex');
+
     const trip = this.repo.create({
       referenceNumber,
+      trackingToken,
       client: { id: dto.clientId },
       truck: { id: dto.truckId },
       driver: { id: dto.driverId },

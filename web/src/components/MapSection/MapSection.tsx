@@ -8,11 +8,11 @@ const MapSection = () => {
   const [countries, setCountries] = React.useState<string[]>(['RO', 'DE', 'FR', 'IT', 'BE', 'NL']);
 
   React.useEffect(() => {
-    fetch('http://localhost:3001/api/website-cms')
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://joyful-exploration-production.up.railway.app/api';
+    fetch(`${apiUrl}/website-cms`)
       .then(res => res.json())
       .then(data => {
         if (data.countries) {
-          // split by comma and trim
           const codes = data.countries.split(',').map((c: string) => c.trim().toUpperCase());
           setCountries(codes);
         }
@@ -30,10 +30,11 @@ const MapSection = () => {
   };
 
   return (
-    <section className={styles.section} id="servicii">
-      <div className={`container ${styles.container}`}>
+    <section className={styles.section} id="harta">
+      <div className={styles.container}>
         
         <div className={styles.content}>
+          <div className={styles.label}>🌍 Acoperire Europeană</div>
           <h2 className={styles.title}>{t('mapTitle')}</h2>
           <p className={styles.desc}>
             {t('mapDesc')}
@@ -45,7 +46,7 @@ const MapSection = () => {
                 <img 
                   src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`} 
                   width="24" 
-                  style={{ borderRadius: '2px', objectFit: 'cover' }} 
+                  style={{ borderRadius: '3px', objectFit: 'cover', height: '16px' }} 
                   alt={code} 
                 />
                 {getCountryName(code)}
@@ -55,11 +56,11 @@ const MapSection = () => {
         </div>
 
         <div className={styles.mapContainer}>
+          <div className={styles.mapGlow} />
           <img 
             src="/europe_map.png" 
             alt="Map of Europe" 
             className={styles.realMap}
-            style={{ width: '100%', height: 'auto', borderRadius: '1rem', objectFit: 'cover', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}
           />
         </div>
 
