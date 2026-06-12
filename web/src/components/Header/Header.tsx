@@ -28,9 +28,9 @@ const Header = () => {
     <header className={styles.header}>
       <div className={styles.container}>
         <Link href="/" className={styles.logo}>
-          <svg viewBox="0 0 48 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="48" height="40" className={styles.logoIcon}>
-            <path d="M4 4 L4 36 M4 20 L16 20 M16 4 L16 36" stroke="#FF5A00" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M22 4 L22 36 M22 20 L34 20 M34 4 L34 36" stroke="#FF5A00" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="#FF5A00" width="42" height="42" className={styles.logoIcon}>
+            <path d="M32 10 L46 10 L38 50 L48 50 L45.2 64 L35.2 64 L30 90 L16 90 L21.2 64 L5.2 64 L8 50 L24 50 Z" />
+            <path d="M68 90 L54 90 L62 50 L52 50 L54.8 36 L64.8 36 L70 10 L84 10 L78.8 36 L94.8 36 L92 50 L76 50 Z" />
           </svg>
           <div className={styles.logoTextGroup}>
             <span className={styles.logoHap}>HAP</span><span className={styles.logoCargo}>CARGO</span>
@@ -41,9 +41,9 @@ const Header = () => {
           {mobileMenuOpen && (
             <div className={styles.mobileNavHeader}>
               <Link href="/" className={styles.logo} onClick={() => setMobileMenuOpen(false)}>
-                <svg viewBox="0 0 48 40" fill="none" xmlns="http://www.w3.org/2000/svg" width="48" height="40" className={styles.logoIcon}>
-                  <path d="M4 4 L4 36 M4 20 L16 20 M16 4 L16 36" stroke="#FF5A00" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M22 4 L22 36 M22 20 L34 20 M34 4 L34 36" stroke="#FF5A00" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="#FF5A00" width="42" height="42" className={styles.logoIcon}>
+                  <path d="M32 10 L46 10 L38 50 L48 50 L45.2 64 L35.2 64 L30 90 L16 90 L21.2 64 L5.2 64 L8 50 L24 50 Z" />
+                  <path d="M68 90 L54 90 L62 50 L52 50 L54.8 36 L64.8 36 L70 10 L84 10 L78.8 36 L94.8 36 L92 50 L76 50 Z" />
                 </svg>
                 <div className={styles.logoTextGroup}>
                   <span className={styles.logoHap}>HAP</span><span className={styles.logoCargo}>CARGO</span>
