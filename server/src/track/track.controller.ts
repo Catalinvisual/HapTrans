@@ -1,4 +1,4 @@
-import { Controller, Get, Req, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Req, Param, NotFoundException } from '@nestjs/common';
 import { TripsService } from '../trips/trips.service';
 import { TripStatus } from '../trips/trip.entity';
 
@@ -7,13 +7,16 @@ export class TrackController {
   constructor(private readonly tripsService: TripsService) {}
 
   @Get('*')
-  async trackTrip(@Req() req: any) {
-    const urlParts = req.url.split('/track/');
-    let token = urlParts[urlParts.length - 1] || '';
+  async trackTrip(@Req() req: any, @Param() params: any) {
+    let token = params['0'] || '';
+    if (!token) {
+      const urlParts = req.url.split('/track/');
+      token = urlParts[urlParts.length - 1] || '';
+    }
     
-    // Clean any leading/trailing slashes from wildcard token
+    // Clean any leading/trailing slashes and query parameters/hashes from wildcard token
     if (token) {
-      token = token.replace(/^\/+|\/+$/g, '');
+      token = token.replace(/^\/+|\/+$/g, '').split('?')[0].split('#')[0];
     }
     
     const trip = await this.tripsService.findByTrackingToken(token);

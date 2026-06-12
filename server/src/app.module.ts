@@ -25,6 +25,7 @@ import { AppService } from './app.service';
 import { LeadsModule } from './leads/leads.module';
 import { ContactModule } from './contact/contact.module';
 import { WebsiteCmsModule } from './website-cms/website-cms.module';
+import { TrackModule } from './track/track.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
@@ -67,6 +68,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
     LeadsModule,
     ContactModule,
     WebsiteCmsModule,
+    TrackModule,
     ThrottlerModule.forRoot([{
       ttl: 60000,
       limit: 10,
