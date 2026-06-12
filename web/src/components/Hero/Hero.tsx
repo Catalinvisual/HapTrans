@@ -110,7 +110,11 @@ const Hero = () => {
                     {isSubmitting ? t('calcLoading') : t('calcSubmit')}
                   </button>
                 </div>
-              ) : step === 2 ? (
+              ) : null}
+            </form>
+          </div>
+          
+          {step === 2 && (
             <form onSubmit={handleSubmitLead} className={styles.successBox}>
               <div className={styles.successIcon}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
