@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Header from '@/components/Header/Header';
 import Footer from '@/components/Footer/Footer';
+import styles from './GenericPage.module.css';
 
 export default function GenericPage({ slug, title }: { slug: string, title: string }) {
   const [content, setContent] = useState<string>('Se încarcă...');
@@ -24,13 +25,13 @@ export default function GenericPage({ slug, title }: { slug: string, title: stri
   }, [slug]);
 
   return (
-    <main className="min-h-screen flex flex-col bg-slate-50">
+    <main className={styles.main}>
       <Header />
-      <div className="flex-grow pt-32 pb-20 px-6">
-        <div className="max-w-4xl mx-auto bg-white p-10 rounded-2xl shadow-sm border border-slate-200">
-          <h1 className="text-4xl font-bold text-slate-900 mb-8">{title}</h1>
+      <div className={styles.content}>
+        <div className={styles.card}>
+          <h1 className={styles.title}>{title}</h1>
           <div 
-            className="prose prose-lg max-w-none text-slate-700"
+            className={styles.bodyText}
             dangerouslySetInnerHTML={{ __html: content }}
           />
         </div>

@@ -1,0 +1,52 @@
+.main {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f8fafc;
+}
+
+.content {
+  flex-grow: 1;
+  padding: 8rem 1.5rem 5rem;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.card {
+  background: white;
+  padding: 3rem;
+  border-radius: 1.5rem;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.05);
+  border: 1px solid #e2e8f0;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: #0f172a;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.bodyText {
+  font-size: 1.125rem;
+  line-height: 1.8;
+  color: #334155;
+}
+
+.bodyText h1, .bodyText h2, .bodyText h3 {
+  color: #0f172a;
+  font-weight: 700;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.bodyText ul, .bodyText ol {
+  margin-left: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.bodyText p {
+  margin-bottom: 1.5rem;
+}
