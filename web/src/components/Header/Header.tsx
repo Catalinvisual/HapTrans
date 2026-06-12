@@ -62,8 +62,8 @@ const Header = () => {
         </nav>
 
         <div className={styles.actions}>
-          <div className={styles.langWrapper} onMouseLeave={() => setShowLangMenu(false)}>
-            <button className={styles.langSwitch} onMouseEnter={() => setShowLangMenu(true)}>
+          <div className={styles.langWrapper}>
+            <button className={styles.langSwitch} onClick={() => setShowLangMenu(!showLangMenu)}>
               <img src={currentLang.flag} alt={currentLang.code} style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }} />
               <span>{currentLang.code}</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: showLangMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>

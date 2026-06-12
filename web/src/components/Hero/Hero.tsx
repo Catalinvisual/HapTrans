@@ -56,7 +56,6 @@ const Hero = () => {
 
   return (
     <section className={styles.hero}>
-      <div className={styles.heroOverlay}></div>
       <div className={styles.container}>
         
         {/* Left Content */}
