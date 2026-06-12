@@ -9,7 +9,18 @@ const Header = () => {
   const { lang, setLang, t } = useLanguage();
   const [showLangMenu, setShowLangMenu] = useState(false);
 
-  const languages: import('@/context/LanguageContext').Language[] = ['RO', 'EN', 'DE', 'FR', 'ES'];
+  const languages: import('@/context/LanguageContext').Language[] = ['RO', 'EN', 'NL', 'DE', 'FR', 'ES'];
+
+  const LANGS = [
+    { code: 'RO', label: 'Română', flag: 'https://flagcdn.com/w40/ro.png' },
+    { code: 'EN', label: 'English', flag: 'https://flagcdn.com/w40/gb.png' },
+    { code: 'NL', label: 'Nederlands', flag: 'https://flagcdn.com/w40/nl.png' },
+    { code: 'DE', label: 'Deutsch', flag: 'https://flagcdn.com/w40/de.png' },
+    { code: 'FR', label: 'Français', flag: 'https://flagcdn.com/w40/fr.png' },
+    { code: 'ES', label: 'Español', flag: 'https://flagcdn.com/w40/es.png' },
+  ];
+
+  const currentLang = LANGS.find(l => l.code === lang) || LANGS[0];
 
   return (
     <header className={styles.header}>
@@ -35,32 +46,26 @@ const Header = () => {
         <div className={styles.actions}>
           <div className={styles.langWrapper} onMouseLeave={() => setShowLangMenu(false)}>
             <button className={styles.langSwitch} onMouseEnter={() => setShowLangMenu(true)}>
-              {lang === 'RO' && '🇷🇴 RO'}
-              {lang === 'EN' && '🇬🇧 EN'}
-              {lang === 'DE' && '🇩🇪 DE'}
-              {lang === 'FR' && '🇫🇷 FR'}
-              {lang === 'ES' && '🇪🇸 ES'}
+              <img src={currentLang.flag} alt={currentLang.code} style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }} />
+              <span>{currentLang.code}</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: showLangMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </button>
             {showLangMenu && (
               <div className={styles.langDropdown}>
-                {languages.filter(l => l !== lang).map(l => (
-                  <button key={l} className={styles.langOption} onClick={() => { setLang(l); setShowLangMenu(false); }}>
-                    {l === 'RO' && '🇷🇴 Română'}
-                    {l === 'EN' && '🇬🇧 English'}
-                    {l === 'DE' && '🇩🇪 Deutsch'}
-                    {l === 'FR' && '🇫🇷 Français'}
-                    {l === 'ES' && '🇪🇸 Español'}
+                {LANGS.map(l => (
+                  <button key={l.code} className={styles.langOption} onClick={() => { setLang(l.code as import('@/context/LanguageContext').Language); setShowLangMenu(false); }}>
+                    <img src={l.flag} alt={l.code} style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }} />
+                    <span>{l.label}</span>
                   </button>
                 ))}
               </div>
             )}
           </div>
           
-          <a href="https://joyful-exploration-production.up.railway.app/login" className="btn btn-primary" style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#FF5A00' }}>
-            {t('clientLogin')}
+          <a href="https://joyful-exploration-production.up.railway.app/track" className="btn btn-primary" style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#FF5A00' }}>
+            {t('clientLogin') || 'PORTAL CLIENȚI'}
           </a>
         </div>
       </div>
