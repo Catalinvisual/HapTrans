@@ -1,8 +1,10 @@
 'use client';
 import React, { useState } from 'react';
 import styles from './Hero.module.css';
+import { useLanguage } from '@/context/LanguageContext';
 
 const Hero = () => {
+  const { t } = useLanguage();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     from: '',
@@ -63,13 +65,13 @@ const Hero = () => {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
             </svg>
-            Rapid & Sigur
+            {t('badge')}
           </div>
           <h1 className={styles.title}>
-            Transport internațional, la standarde <span>profesionale</span>.
+            {t('heroTitle')}
           </h1>
           <p className={styles.subtitle}>
-            Livrăm marfa dumneavoastră la timp, în siguranță și cu transparență totală. Suntem o echipă tânără, cu o poftă imensă de creștere și inovație în logistică.
+            {t('heroSubtitle')}
           </p>
         </div>
 
@@ -77,37 +79,37 @@ const Hero = () => {
         <div className={styles.calculator}>
           {step === 1 && (
             <form onSubmit={handleCalculate}>
-              <h3 className={styles.calcTitle}>Calculator de Preț</h3>
-              <p className={styles.calcDesc}>Obține instant o estimare de cost pentru cursa ta.</p>
+              <h3 className={styles.calcTitle}>{t('calcTitle')}</h3>
+              <p className={styles.calcDesc}>{t('calcDesc')}</p>
               
               <div className={styles.formGroup}>
-                <label>De la (Adresă / Oraș / Țară)</label>
+                <label>{t('calcFrom')}</label>
                 <input required type="text" name="from" className={styles.input} placeholder="ex: București, RO" value={formData.from} onChange={handleChange} />
               </div>
               
               <div className={styles.formGroup}>
-                <label>Până la (Adresă / Oraș / Țară)</label>
+                <label>{t('calcTo')}</label>
                 <input required type="text" name="to" className={styles.input} placeholder="ex: Munchen, DE" value={formData.to} onChange={handleChange} />
               </div>
               
               <div className={styles.row}>
                 <div className={styles.formGroup}>
-                  <label>Greutate</label>
+                  <label>{t('calcWeight')}</label>
                   <input required type="text" name="weight" className={styles.input} placeholder="ex: 21 tone" value={formData.weight} onChange={handleChange} />
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Tip Marfă</label>
+                  <label>{t('calcType')}</label>
                   <input type="text" name="type" className={styles.input} placeholder="ex: Paleți generali" value={formData.type} onChange={handleChange} />
                 </div>
               </div>
 
               <div className={styles.formGroup}>
-                <label>Observații (Opțional)</label>
-                <textarea name="notes" className={styles.input} placeholder="Detalii adiționale..." rows={2} value={formData.notes} onChange={handleChange}></textarea>
+                <label>{t('calcNotes')}</label>
+                <textarea name="notes" className={styles.input} placeholder="..." rows={2} value={formData.notes} onChange={handleChange}></textarea>
               </div>
 
               <button type="submit" className={`btn btn-primary ${styles.submitBtn}`} disabled={isSubmitting}>
-                {isSubmitting ? 'Se calculează...' : 'Calculează Oferta'}
+                {isSubmitting ? t('calcLoading') : t('calcSubmit')}
               </button>
             </form>
           )}

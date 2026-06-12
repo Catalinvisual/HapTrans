@@ -4,7 +4,7 @@
   display: flex;
   align-items: center;
   margin-top: 80px; /* Header offset */
-  background-image: url('https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?q=80&w=2070&auto=format&fit=crop');
+  background-image: url('/hero-bg.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -13,7 +13,7 @@
 .heroOverlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(13, 27, 42, 0.9) 0%, rgba(13, 27, 42, 0.6) 50%, rgba(13, 27, 42, 0.2) 100%);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.7) 40%, rgba(255, 255, 255, 0) 100%);
   z-index: 1;
 }
 
@@ -40,7 +40,7 @@
 }
 
 .content {
-  color: var(--text-inverse);
+  color: var(--text-primary);
   max-width: 600px;
 }
 
@@ -66,6 +66,7 @@
   line-height: 1.1;
   letter-spacing: -0.02em;
   margin-bottom: 1.5rem;
+  color: #0B1B2A;
 }
 
 .title span {
@@ -73,23 +74,23 @@
 }
 
 .subtitle {
-  font-size: 1.25rem;
-  color: rgba(255, 255, 255, 0.8);
+  font-size: 1.15rem;
+  color: var(--text-secondary);
   line-height: 1.6;
   margin-bottom: 2rem;
-  font-weight: 400;
+  font-weight: 500;
 }
 
 /* Calculator Form */
 .calculator {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 1.5rem;
   padding: 2.5rem;
-  color: white;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  color: var(--text-primary);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
 }
 
 .calcTitle {
@@ -99,8 +100,8 @@
 }
 
 .calcDesc {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
   margin-bottom: 2rem;
 }
 
@@ -111,30 +112,30 @@
 .formGroup label {
   display: block;
   font-size: 0.85rem;
-  font-weight: 500;
+  font-weight: 600;
   margin-bottom: 0.5rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
 }
 
 .input {
   width: 100%;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: white;
+  border: 1px solid var(--border);
   border-radius: 0.5rem;
   padding: 0.875rem 1rem;
-  color: white;
+  color: var(--text-primary);
   font-size: 1rem;
   outline: none;
   transition: all 0.2s ease;
 }
 
 .input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
 }
 
 .input:focus {
   border-color: var(--primary);
-  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 0 3px rgba(255, 90, 0, 0.1);
 }
 
 .row {
@@ -172,11 +173,11 @@
   font-size: 1.25rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
-  color: white;
+  color: var(--text-primary);
 }
 
 .successDesc {
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-secondary);
   font-size: 0.95rem;
   margin-bottom: 1.5rem;
 }

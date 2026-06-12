@@ -1,7 +1,9 @@
 import React from 'react';
 import styles from './Features.module.css';
+import { useLanguage } from '@/context/LanguageContext';
 
 const Features = () => {
+  const { t } = useLanguage();
   const cards = [
     {
       icon: (
@@ -48,14 +50,18 @@ const Features = () => {
 
   return (
     <section className={styles.section} id="despre">
-      <div className={`container ${styles.gridContainer}`}>
-        <h2 className={styles.title}>De ce <span>HapCargo?</span></h2>
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <h2 className={styles.title}>{t('featuresTitle') || 'De ce HapCargo?'}</h2>
+          <p className={styles.subtitle}>{t('featuresSubtitle') || 'Ne diferențiem prin calitatea serviciilor și atenția la detalii.'}</p>
+        </div>
+        
         <div className={styles.grid}>
           {cards.map((card, idx) => (
             <div key={idx} className={styles.card}>
-              <div className={styles.iconWrapper}>{card.icon}</div>
-              <h3 className={styles.cardTitle}>{card.title}</h3>
-              <p className={styles.cardDesc}>{card.desc}</p>
+              <div className={styles.icon}>{card.icon}</div>
+              <h3 className={styles.cardTitle}>{t(`feat${idx}Title`) || card.title}</h3>
+              <p className={styles.cardDesc}>{t(`feat${idx}Desc`) || card.desc}</p>
             </div>
           ))}
         </div>

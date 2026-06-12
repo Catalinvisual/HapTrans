@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
+import { Providers } from './Providers';
 
 export const metadata: Metadata = {
   title: "HapCargo - Transport internațional, la standarde profesionale.",
@@ -21,7 +22,9 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
       </head>
       <body>
-        {children}
+        <Providers>
+          {children}
+        </Providers>
         <Script src="https://www.googletagmanager.com/gtag/js?id=G-MOCKTRACKING" strategy="afterInteractive" />
         <Script id="google-analytics" strategy="afterInteractive">
           {`

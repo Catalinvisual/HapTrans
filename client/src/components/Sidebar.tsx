@@ -21,6 +21,7 @@ const navItems = [
   { to: '/maintenance', icon: Wrench, key: 'maintenance' },
   { to: '/expenses', icon: Wallet, key: 'expenses' },
   { to: '/leads', icon: Globe, key: 'websiteLeads' },
+  { to: '/website-cms', icon: Globe, key: 'websiteCms' },
   { to: '/users', icon: UserCog, key: 'users' },
   { to: '/settings', icon: Settings, key: 'settings' },
 ];
@@ -77,8 +78,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               }
               onClick={onClose}
             >
-              <item.icon className={`w-5 h-5 ${item.key === 'websiteLeads' ? 'text-primary' : ''}`} />
-              <span className="truncate text-base md:text-sm capitalize">{item.key === 'websiteLeads' ? 'Cereri Web' : t(item.key)}</span>
+              <item.icon className={`w-5 h-5 ${['websiteLeads', 'websiteCms'].includes(item.key) ? 'text-primary' : ''}`} />
+              <span className="truncate text-base md:text-sm capitalize">
+                {item.key === 'websiteLeads' ? 'Cereri Web' : item.key === 'websiteCms' ? 'Conținut Website' : t(item.key)}
+              </span>
             </NavLink>
           ))}
         </nav>

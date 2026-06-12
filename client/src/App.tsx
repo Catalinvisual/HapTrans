@@ -21,6 +21,7 @@ import ChatPage from './pages/ChatPage';
 import PlanningPage from './pages/PlanningPage';
 import SharedDocumentPage from './pages/SharedDocumentPage';
 import WebsiteLeadsPage from './pages/WebsiteLeadsPage';
+import WebsiteCmsPage from './pages/WebsiteCmsPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore();
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="financial" element={<FinancialPage />} />
           <Route path="payroll" element={<PayrollPage />} />
           <Route path="leads" element={<WebsiteLeadsPage />} />
+          <Route path="website-cms" element={<WebsiteCmsPage />} />
           <Route path="maintenance" element={<MaintenancePage />} />
           <Route path="expenses" element={<ExpensesPage />} />
           <Route path="settings" element={<SettingsPage />} />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 interface Lead {
   id: string;
@@ -20,6 +21,7 @@ interface Lead {
 const WebsiteLeadsPage = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
 
   const navigate = useNavigate();
 
@@ -71,20 +73,20 @@ const WebsiteLeadsPage = () => {
     );
   };
 
-  if (loading) return <div className="p-8">Se încarcă cererile...</div>;
+  if (loading) return <div className="p-8">{t('common.loading', 'Se încarcă cererile...')}</div>;
 
   return (
     <div className="p-8 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Cereri Website (Leads)</h1>
-        <p className="text-gray-500 mt-2">Gestionează cererile de ofertă venite de pe site-ul public hapcargo.com.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">{t('leads.title', 'Cereri Website (Leads)')}</h1>
+        <p className="text-gray-500 mt-2">{t('leads.subtitle', 'Gestionează cererile de ofertă venite de pe site-ul public hapcargo.com.')}</p>
       </div>
 
       <div className="grid gap-6">
         {leads.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
             <div className="p-8 text-center text-gray-500">
-              Nu există nicio cerere momentan.
+              {t('leads.noLeads', 'Nu există nicio cerere momentan.')}
             </div>
           </div>
         ) : (
@@ -99,26 +101,26 @@ const WebsiteLeadsPage = () => {
                   
                   <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
                     <div>
-                      <p className="text-gray-500 mb-1">Contact</p>
+                      <p className="text-gray-500 mb-1">{t('common.contact', 'Contact')}</p>
                       <p className="font-medium">📞 {lead.phone}</p>
                       <p className="font-medium">📧 {lead.email}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500 mb-1">Detalii Marfă</p>
+                      <p className="text-gray-500 mb-1">{t('leads.freightDetails', 'Detalii Marfă')}</p>
                       <p className="font-medium">⚖️ {lead.weight}</p>
-                      <p className="font-medium">📦 {lead.type || 'Nespecificat'}</p>
+                      <p className="font-medium">📦 {lead.type || t('common.unspecified', 'Nespecificat')}</p>
                     </div>
                   </div>
 
                   <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
                     <div className="flex items-center gap-3">
                       <div className="flex-1">
-                        <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">De la</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">{t('common.from', 'De la')}</p>
                         <p className="font-medium">{lead.from}</p>
                       </div>
                       <div className="text-gray-400">➔</div>
                       <div className="flex-1">
-                        <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Până la</p>
+                        <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">{t('common.to', 'Până la')}</p>
                         <p className="font-medium">{lead.to}</p>
                       </div>
                     </div>
@@ -126,35 +128,35 @@ const WebsiteLeadsPage = () => {
 
                   {lead.notes && (
                     <div className="mt-4 p-3 bg-blue-50 text-blue-900 rounded-md text-sm border border-blue-100">
-                      <strong>Observații:</strong> {lead.notes}
+                      <strong>{t('common.notes', 'Observații')}:</strong> {lead.notes}
                     </div>
                   )}
                 </div>
                 
                 <div className="p-6 lg:w-64 bg-gray-50 flex flex-col justify-center gap-3">
-                  <p className="text-xs text-gray-500 text-center mb-2">Acțiuni Rapide</p>
+                  <p className="text-xs text-gray-500 text-center mb-2">{t('common.quickActions', 'Acțiuni Rapide')}</p>
                   
                   {lead.status === 'new' && (
                     <button onClick={() => updateStatus(lead.id, 'contacted')} className="w-full py-2 px-4 rounded font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors">
-                      📞 Marchează "Sunat"
+                      📞 {t('leads.markCalled', 'Marchează "Sunat"')}
                     </button>
                   )}
                   
                   {['new', 'contacted'].includes(lead.status) && (
                     <button onClick={() => updateStatus(lead.id, 'quoted')} className="w-full py-2 px-4 rounded font-medium text-white bg-purple-600 hover:bg-purple-700 transition-colors">
-                      📝 Trimite Ofertă
+                      📝 {t('leads.sendQuote', 'Trimite Ofertă')}
                     </button>
                   )}
                   
                   {['contacted', 'quoted'].includes(lead.status) && (
                     <button onClick={() => updateStatus(lead.id, 'accepted')} className="w-full py-2 px-4 rounded font-medium text-white bg-green-600 hover:bg-green-700 transition-colors">
-                      ✅ Transformă în Comandă
+                      ✅ {t('leads.convertToOrder', 'Transformă în Comandă')}
                     </button>
                   )}
 
                   {!['accepted', 'rejected'].includes(lead.status) && (
                     <button onClick={() => updateStatus(lead.id, 'rejected')} className="w-full py-2 px-4 rounded font-medium border border-red-200 text-red-600 hover:bg-red-50 transition-colors">
-                      ❌ Respins
+                      ❌ {t('leads.reject', 'Respins')}
                     </button>
                   )}
 
