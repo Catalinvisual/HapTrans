@@ -11,6 +11,8 @@ export enum TripStatus {
   PENDING = 'pending',
   CONFIRMED = 'confirmed',
   IN_PROGRESS = 'in_progress',
+  LOADING = 'loading',
+  UNLOADING = 'unloading',
   COMPLETED = 'completed',
   CANCELLED = 'cancelled',
   DELAYED = 'delayed',

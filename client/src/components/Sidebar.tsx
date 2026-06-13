@@ -30,8 +30,21 @@ interface SidebarProps {
   onClose: () => void;
 }
 
+import { useAuthStore } from '../store/authStore';
+
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { t } = useTranslation();
+  const { user } = useAuthStore();
+
+  const isDispatcher = user?.role === 'dispatcher';
+  const restrictedKeys = ['financial', 'payroll', 'expenses', 'websiteCms', 'users', 'settings'];
+
+  const filteredNavItems = navItems.filter(item => {
+    if (isDispatcher && restrictedKeys.includes(item.key)) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <>
@@ -64,7 +77,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-          {navItems.map((item) => (
+          {filteredNavItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

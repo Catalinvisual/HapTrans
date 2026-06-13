@@ -28,6 +28,15 @@ export class ResendService {
     } else if (trip.status === 'in_progress') {
       emailTitle = "Your shipment is in transit";
       emailText = "Your shipment has been picked up and is currently in transit to its destination.";
+    } else if (trip.status === 'loading') {
+      emailTitle = "Your shipment is being loaded";
+      emailText = "The truck has arrived at the pickup location and the cargo is currently being loaded.";
+    } else if (trip.status === 'unloading') {
+      emailTitle = "Your shipment is being unloaded";
+      emailText = "The truck has arrived at the destination and the cargo is currently being unloaded.";
+    } else if (trip.status === 'delayed') {
+      emailTitle = "Your shipment has been delayed";
+      emailText = "We are writing to inform you that your shipment has encountered a delay. The ETA is being updated.";
     } else if (trip.status === 'completed') {
       emailTitle = "Your shipment has been delivered!";
       emailText = "We are happy to inform you that your shipment has been successfully delivered.";

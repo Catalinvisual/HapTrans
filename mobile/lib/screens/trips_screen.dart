@@ -21,6 +21,8 @@ class _TripsScreenState extends State<TripsScreen> {
   Color _statusColor(String status) {
     return switch (status) {
       'in_progress' => kPrimary,
+      'loading' => Colors.orange,
+      'unloading' => Colors.deepOrange,
       'completed' => kSuccess,
       'cancelled' => kError,
       'delayed' => kError,
@@ -31,11 +33,11 @@ class _TripsScreenState extends State<TripsScreen> {
 
   String _statusLabel(String status, String lang) {
     final labels = {
-      'ro': {'pending':'În așteptare','confirmed':'Confirmat','in_progress':'În curs','completed':'Finalizat','cancelled':'Anulat','delayed':'Întârziat'},
-      'en': {'pending':'Pending','confirmed':'Confirmed','in_progress':'In Progress','completed':'Completed','cancelled':'Cancelled','delayed':'Delayed'},
-      'nl': {'pending':'In afwachting','confirmed':'Bevestigd','in_progress':'Bezig','completed':'Voltooid','cancelled':'Geannuleerd','delayed':'Vertraagd'},
-      'de': {'pending':'In Wartestellung','confirmed':'Bestätigt','in_progress':'Unterwegs','completed':'Abgeschlossen','cancelled':'Storniert','delayed':'Verspätet'},
-      'fr': {'pending':'En attente','confirmed':'Confirmé','in_progress':'En cours','completed':'Terminé','cancelled':'Annulé','delayed':'Retardé'},
+      'ro': {'pending':'În așteptare','confirmed':'Confirmat','in_progress':'În curs','loading':'La Încărcare','unloading':'La Descărcare','completed':'Finalizat','cancelled':'Anulat','delayed':'Întârziat'},
+      'en': {'pending':'Pending','confirmed':'Confirmed','in_progress':'In Progress','loading':'Loading','unloading':'Unloading','completed':'Completed','cancelled':'Cancelled','delayed':'Delayed'},
+      'nl': {'pending':'In afwachting','confirmed':'Bevestigd','in_progress':'Bezig','loading':'Laden','unloading':'Lossen','completed':'Voltooid','cancelled':'Geannuleerd','delayed':'Vertraagd'},
+      'de': {'pending':'In Wartestellung','confirmed':'Bestätigt','in_progress':'Unterwegs','loading':'Beladen','unloading':'Entladen','completed':'Abgeschlossen','cancelled':'Storniert','delayed':'Verspätet'},
+      'fr': {'pending':'En attente','confirmed':'Confirmé','in_progress':'En cours','loading':'Chargement','unloading':'Déchargement','completed':'Terminé','cancelled':'Annulé','delayed':'Retardé'},
     };
     return labels[lang]?[status] ?? status;
   }
@@ -414,13 +416,13 @@ class TripDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statuses = ['pending', 'confirmed', 'in_progress', 'completed', 'delayed'];
+    final statuses = ['in_progress', 'loading', 'unloading', 'delayed', 'completed'];
     final statusLabels = {
-      'ro': {'pending':'În așteptare','confirmed':'Confirmat','in_progress':'În curs','completed':'Finalizat','delayed':'Întârziat','cancelled':'Anulat'},
-      'en': {'pending':'Pending','confirmed':'Confirmed','in_progress':'In Progress','completed':'Completed','delayed':'Delayed','cancelled':'Cancelled'},
-      'nl': {'pending':'In afwachting','confirmed':'Bevestigd','in_progress':'Bezig','completed':'Voltooid','delayed':'Vertraagd','cancelled':'Geannuleerd'},
-      'de': {'pending':'In Wartestellung','confirmed':'Bestätigt','in_progress':'Unterwegs','completed':'Abgeschlossen','delayed':'Verspätet','cancelled':'Storniert'},
-      'fr': {'pending':'En attente','confirmed':'Confirmé','in_progress':'En cours','completed':'Terminé','delayed':'Retardé','cancelled':'Annulé'},
+      'ro': {'pending':'În așteptare','confirmed':'Confirmat','in_progress':'În curs','loading':'La Încărcare','unloading':'La Descărcare','completed':'Finalizat','delayed':'Întârziat','cancelled':'Anulat'},
+      'en': {'pending':'Pending','confirmed':'Confirmed','in_progress':'In Progress','loading':'Loading','unloading':'Unloading','completed':'Completed','delayed':'Delayed','cancelled':'Cancelled'},
+      'nl': {'pending':'In afwachting','confirmed':'Bevestigd','in_progress':'Bezig','loading':'Laden','unloading':'Lossen','completed':'Voltooid','delayed':'Vertraagd','cancelled':'Geannuleerd'},
+      'de': {'pending':'In Wartestellung','confirmed':'Bestätigt','in_progress':'Unterwegs','loading':'Beladen','unloading':'Entladen','completed':'Abgeschlossen','delayed':'Verspätet','cancelled':'Storniert'},
+      'fr': {'pending':'En attente','confirmed':'Confirmé','in_progress':'En cours','loading':'Chargement','unloading':'Déchargement','completed':'Terminé','delayed':'Retardé','cancelled':'Annulé'},
     };
     final sl = statusLabels[locale] ?? statusLabels['ro']!;
 

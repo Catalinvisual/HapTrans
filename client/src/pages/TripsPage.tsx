@@ -22,7 +22,11 @@ const STATUS_COLORS: Record<string, string> = {
   completed: 'badge-success', cancelled: 'badge-error', delayed: 'badge-error',
 };
 
+import { useAuthStore } from '../store/authStore';
+
 export default function TripsPage() {
+  const { user } = useAuthStore();
+  const isDispatcher = user?.role === 'dispatcher';
   const { t, i18n } = useTranslation();
   const [trips, setTrips] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
@@ -1179,16 +1183,16 @@ export default function TripsPage() {
                   t('profit'),
                   t('status'),
                   t('actions')
-                ].map(h => (
+                ].filter(h => !isDispatcher || (h !== t('realCost') && h !== t('profit'))).map(h => (
                   <th key={h} className="table-header whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={14} className="table-cell text-center text-text-secondary py-8">{t('loading')}</td></tr>
+                <tr><td colSpan={isDispatcher ? 12 : 14} className="table-cell text-center text-text-secondary py-8">{t('loading')}</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={14} className="table-cell text-center text-text-secondary py-8">{t('noData')}</td></tr>
+                <tr><td colSpan={isDispatcher ? 12 : 14} className="table-cell text-center text-text-secondary py-8">{t('noData')}</td></tr>
               ) : filtered.map((trip) => {
                 const addedCosts = trip.costs?.reduce((s: number, c: any) => s + Number(c.amount), 0) || 0;
                 const totalCost = addedCosts > 0 ? addedCosts : (Number(trip.realCost) || Number(trip.estimatedCost) || 0);
@@ -1303,10 +1307,14 @@ export default function TripsPage() {
                         </div>
                       )}
                     </td>
-                    <td className="table-cell whitespace-nowrap">€{totalCost.toLocaleString(i18n.language)}</td>
-                    <td className={`table-cell font-bold whitespace-nowrap ${profit >= 0 ? 'text-success' : 'text-error'}`}>
-                      €{profit.toLocaleString(i18n.language)}
-                    </td>
+                    {!isDispatcher && (
+                      <>
+                        <td className="table-cell whitespace-nowrap">€{totalCost.toLocaleString(i18n.language)}</td>
+                        <td className={`table-cell font-bold whitespace-nowrap ${profit >= 0 ? 'text-success' : 'text-error'}`}>
+                          €{profit.toLocaleString(i18n.language)}
+                        </td>
+                      </>
+                    )}
                     <td className="table-cell">
                       <div className="relative group">
                         <button
@@ -1337,7 +1345,9 @@ export default function TripsPage() {
                             {[
                               { value: 'pending', label: t('pending') },
                               { value: 'confirmed', label: t('confirmed') },
+                              { value: 'loading', label: t('loading') || 'La Încărcare' },
                               { value: 'in_progress', label: t('inProgress') },
+                              { value: 'unloading', label: t('unloading') || 'La Descărcare' },
                               { value: 'completed', label: t('completed') },
                               { value: 'cancelled', label: t('cancelled') },
                               { value: 'delayed', label: t('delayed') }

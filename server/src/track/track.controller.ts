@@ -36,6 +36,7 @@ export class TrackController {
       pallets: trip.pallets,
       distanceKm: trip.distanceKm,
       status: trip.status,
+      updatedAt: trip.updatedAt,
       // filter documents to only show relevant public ones, e.g. CMR, invoice (if paid), pictures
       documents: trip.documents?.map(doc => ({
         id: doc.id,

@@ -19,6 +19,7 @@ interface TrackData {
   distanceKm: number;
   status: string;
   documents: any[];
+  updatedAt: string;
 }
 
 export default function TrackPage({ params }: { params: any }) {
@@ -75,19 +76,29 @@ export default function TrackPage({ params }: { params: any }) {
         setLoading(false);
       }
     };
+    
     fetchTracking();
-  }, [token]);
+    const intervalId = setInterval(() => {
+      if (!error && data?.status !== 'completed' && data?.status !== 'cancelled') {
+        fetchTracking();
+      }
+    }, 15000); // Polling every 15s
+
+    return () => clearInterval(intervalId);
+  }, [token, error, data?.status]);
 
   const renderStatusLine = (currentStatus: string) => {
-    const statuses = ['pending', 'confirmed', 'in_progress', 'completed'];
+    const statuses = ['pending', 'confirmed', 'loading', 'in_progress', 'unloading', 'completed'];
     const labels = [
       t('statusPending') || 'Ofertă Trimisă',
-      t('statusConfirmed') || 'Acceptată (Camion Alocat)',
+      t('statusConfirmed') || 'Acceptată',
+      t('statusLoading') || 'La Încărcare',
       t('statusInProgress') || 'În Tranzit',
+      t('statusUnloading') || 'La Descărcare',
       t('statusCompleted') || 'Livrată'
     ];
     
-    const currentIndex = statuses.indexOf(currentStatus) === -1 ? 0 : statuses.indexOf(currentStatus);
+    const currentIndex = statuses.indexOf(currentStatus) === -1 ? (currentStatus === 'delayed' ? 3 : 0) : statuses.indexOf(currentStatus);
 
     return (
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2rem', marginBottom: '2rem', position: 'relative' }}>
@@ -145,10 +156,24 @@ export default function TrackPage({ params }: { params: any }) {
               </div>
               <div>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{t('etaLabel') || 'ETA (Timp Estimat)'}</p>
-                <p style={{ fontWeight: 600, color: 'var(--primary)' }}>
-                  {data.dropoffDate ? new Date(data.dropoffDate).toLocaleDateString('ro-RO') : 'N/A'}
-                  {data.dropoffTime ? ` la ${data.dropoffTime}` : ''}
-                </p>
+                {data.status === 'completed' ? (
+                  <p style={{ fontWeight: 600, color: '#10b981' }}>
+                    {t('deliveredOn') || 'Livrat pe'} {new Date(data.updatedAt || new Date()).toLocaleDateString('ro-RO')} la {new Date(data.updatedAt || new Date()).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                ) : data.status === 'delayed' ? (
+                  <>
+                    <p style={{ fontWeight: 600, color: 'var(--primary)', display: 'inline-block' }}>
+                      <span style={{ backgroundColor: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, marginRight: '6px', verticalAlign: 'middle' }}>ÎNTÂRZIAT</span>
+                      {data.dropoffDate ? new Date(data.dropoffDate).toLocaleDateString('ro-RO') : 'N/A'}
+                      {data.dropoffTime ? ` la ${data.dropoffTime}` : ''}
+                    </p>
+                  </>
+                ) : (
+                  <p style={{ fontWeight: 600, color: 'var(--primary)' }}>
+                    {data.dropoffDate ? new Date(data.dropoffDate).toLocaleDateString('ro-RO') : 'N/A'}
+                    {data.dropoffTime ? ` la ${data.dropoffTime}` : ''}
+                  </p>
+                )}
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>Ref: #{data.referenceNumber || 'N/A'}</p>
               </div>
             </div>
