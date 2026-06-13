@@ -124,11 +124,12 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
             ctx.drawImage(img, 0, 0);
             const jpegData = canvas.toDataURL('image/jpeg', 0.9);
             // aspect ratio logic
-            const maxW = 60;
-            const maxH = 22;
+            const maxW = 90;
+            const maxH = 35;
             const ratio = Math.min(maxW / img.width, maxH / img.height);
-            doc.addImage(jpegData, 'JPEG', 14, 10, img.width * ratio, img.height * ratio);
-            headerY = Math.max(30, 10 + (img.height * ratio) + 6);
+            const finalLogoHeight = img.height * ratio;
+            doc.addImage(jpegData, 'JPEG', 14, 10, img.width * ratio, finalLogoHeight);
+            headerY = Math.max(30, 10 + finalLogoHeight + 4);
           }
           resolve();
         };
@@ -150,10 +151,11 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   }
 
   // Title
+  const invoiceTitleY = headerY + 8;
   doc.setFontSize(14);
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
-  doc.text(t.invoice, 14, headerY + 12);
+  doc.text(t.invoice, 14, invoiceTitleY);
 
   // ─── 2. INVOICE META (right) ─────────────────────────────────────────
   doc.setFontSize(10);
@@ -173,12 +175,13 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   doc.text(`${t.paymentTerms} ${termsStr}`, 145, 36);
 
   // Decorative separator
+  const lineY = invoiceTitleY + 4;
   doc.setDrawColor(226, 232, 240);
   doc.setLineWidth(0.5);
-  doc.line(14, 46, 196, 46);
+  doc.line(14, lineY, 196, lineY);
 
   // ─── 3. FROM / TO ────────────────────────────────────────────────────
-  const addrY = 54;
+  const addrY = lineY + 8;
 
   // FROM (left)
   doc.setFontSize(9);
