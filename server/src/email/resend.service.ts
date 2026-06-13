@@ -9,6 +9,8 @@ export class ResendService {
     this.resend = new Resend(process.env.RESEND_API_KEY || 're_mock_key');
   }
 
+  public lastStatus: any = null;
+
   async sendTrackingEmail(email: string, trackingToken: string) {
     const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
     const trackingUrl = `${baseUrl}/track/${trackingToken}`;
@@ -75,6 +77,7 @@ export class ResendService {
           html: htmlContent,
         });
         
+        this.lastStatus = response;
         if (response.error) {
           console.error('Resend Error:', response.error);
         } else {
@@ -84,6 +87,7 @@ export class ResendService {
         console.log('[MOCK EMAIL] Send to:', email, 'Link:', trackingUrl);
       }
     } catch (error) {
+      this.lastStatus = { error: error.message };
       console.error('Failed to send email with Resend:', error);
     }
   }

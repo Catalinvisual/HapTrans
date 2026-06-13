@@ -1,12 +1,14 @@
 import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
 import { FirebaseService } from './firebase/firebase.service';
+import { ResendService } from './email/resend.service';
 
 @Controller()
 export class AppController {
   constructor(
     private readonly appService: AppService,
     private readonly firebaseService: FirebaseService,
+    private readonly resendService: ResendService,
   ) {}
 
   @Get()
@@ -36,6 +38,7 @@ export class AppController {
       resendKeyStart: resend ? resend.substring(0, 5) + '...' + resend.substring(resend.length - 5) : '',
       RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
       NODE_ENV: process.env.NODE_ENV,
+      resendLastStatus: this.resendService.lastStatus,
     };
   }
 

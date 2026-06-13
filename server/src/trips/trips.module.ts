@@ -37,6 +37,6 @@ const storage = multer.memoryStorage();
   ],
   controllers: [TripsController],
   providers: [TripsService, TripScannerService, ResendService],
-  exports: [TripsService],
+  exports: [TripsService, ResendService],
 })
 export class TripsModule {}
