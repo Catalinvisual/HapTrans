@@ -124,8 +124,8 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
             ctx.drawImage(img, 0, 0);
             const jpegData = canvas.toDataURL('image/jpeg', 0.9);
             // aspect ratio logic
-            const maxW = 120;
-            const maxH = 45;
+            const maxW = 100;
+            const maxH = 38;
             const ratio = Math.min(maxW / img.width, maxH / img.height);
             const finalLogoHeight = img.height * ratio;
             doc.addImage(jpegData, 'JPEG', 14, 10, img.width * ratio, finalLogoHeight);
@@ -159,7 +159,7 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
 
   // ─── 2. INVOICE META (right) ─────────────────────────────────────────
   doc.setFontSize(10);
-  doc.setTextColor(15, 23, 42);
+  doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'normal');
   doc.text(`${t.invoiceNo} ${safeText(invoice.invoiceNumber)}`, 145, 18);
   doc.text(`${t.issueDate} ${fmtDate(invoice.issueDate)}`, 145, 24);
@@ -188,20 +188,20 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   const addrY = lineY + 8;
 
   // FROM (left)
-  doc.setFontSize(9);
-  doc.setTextColor(100, 116, 139);
+  doc.setFontSize(9.5);
+  doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'bold');
   doc.text(t.from, 14, addrY);
 
-  doc.setFontSize(10);
-  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(9.5);
+  doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'bold');
   const fromNameLines = doc.splitTextToSize(coName, 80);
   doc.text(fromNameLines, 14, addrY + 5);
   const fromNameHeight = fromNameLines.length * 4.5;
 
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(71, 85, 105);
+  doc.setTextColor(51, 51, 51);
   let fromContent = [
     `${t.taxId}: ${coCui}`,
     coRegNo ? `${t.regNo}: ${coRegNo}` : null,
@@ -215,20 +215,20 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   doc.text(fromLinesSplit, 14, addrY + 5 + fromNameHeight);
 
   // TO (right)
-  doc.setFontSize(9);
-  doc.setTextColor(100, 116, 139);
+  doc.setFontSize(9.5);
+  doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'bold');
   doc.text(t.toClient, 110, addrY);
 
-  doc.setFontSize(10);
-  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(9.5);
+  doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'bold');
   const clientNameLines = doc.splitTextToSize(safeText(invoice.client?.name || 'Client'), 80);
   doc.text(clientNameLines, 110, addrY + 5);
   const clientNameHeight = clientNameLines.length * 4.5;
 
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(71, 85, 105);
+  doc.setTextColor(51, 51, 51);
   const clientAddrRaw = [
     invoice.client?.address,
     invoice.client?.postalCode,
@@ -252,18 +252,18 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   doc.rect(14, tableY, 182, 8, 'F');
 
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
+  doc.setTextColor(0, 0, 0);
   doc.text(t.description, 16, tableY + 5.5);
   doc.text(t.vat, 115, tableY + 5.5);
   doc.text(t.qty, 142, tableY + 5.5);
   doc.text(t.amount, 163, tableY + 5.5);
 
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
+  doc.setTextColor(0, 0, 0);
   doc.text(t.serviceName, 16, tableY + 14);
 
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(71, 85, 105);
+  doc.setTextColor(51, 51, 51);
   doc.text(`${invoice.vatPercent}%`, 115, tableY + 14);
   doc.text('1', 142, tableY + 14);
   doc.text(`EUR ${Number(invoice.amount).toFixed(2)}`, 163, tableY + 14);
@@ -271,41 +271,59 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   // ─── 5. TRIP DETAILS ────────────────────────────────────────────────
   const detailY = tableY + 20;
   doc.setFontSize(8.5);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 116, 139);
 
   const routeText = `${safeText(trip.pickupAddress || '—')} - ${safeText(trip.dropoffAddress || '—')}`;
   
   let currY = detailY;
   
-  doc.setFont('helvetica', 'normal');
-  doc.text('Route:', 18, currY);
+  const drawLabel = (lbl: string) => {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text(lbl, 18, currY);
+  };
+  
+  const setNormal = () => {
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 51, 51);
+  };
+
+  drawLabel('Route:');
+  setNormal();
   const wrappedRoute = doc.splitTextToSize(routeText, 175);
   doc.text(wrappedRoute, 18, currY + 4);
   currY += 4 + (wrappedRoute.length * 4) + 2;
 
-  doc.text('Pickup Date:', 18, currY);
+  drawLabel('Pickup Date:');
+  setNormal();
   doc.text(fmtDate(trip.pickupDate), 18, currY + 4);
   currY += 10;
 
-  doc.text('Delivery Date:', 18, currY);
+  drawLabel('Delivery Date:');
+  setNormal();
   doc.text(fmtDate(trip.dropoffDate), 18, currY + 4);
   currY += 10;
 
   if (trip.loadingReference) {
-    doc.text(`Loading Ref: ${safeText(trip.loadingReference)}`, 18, currY);
+    drawLabel('Loading Ref:');
+    setNormal();
+    doc.text(` ${safeText(trip.loadingReference)}`, 35, currY);
     currY += 5;
   }
   if (trip.unloadingReference) {
-    doc.text(`Unloading Ref: ${safeText(trip.unloadingReference)}`, 18, currY);
+    drawLabel('Unloading Ref:');
+    setNormal();
+    doc.text(` ${safeText(trip.unloadingReference)}`, 39, currY);
     currY += 5;
   }
   if (trip.cmrReference) {
-    doc.text(`CMR Reference: ${safeText(trip.cmrReference)}`, 18, currY);
+    drawLabel('CMR Reference:');
+    setNormal();
+    doc.text(` ${safeText(trip.cmrReference)}`, 41, currY);
     currY += 5;
   }
 
   currY += 2;
+  setNormal();
   const palletTypeStr = trip.palletType ? ` (${safeText(trip.palletType)})` : '';
   const cargoText = `• Cargo: ${trip.pallets || '0'} ${t.pallets}${palletTypeStr}  |  ${trip.weightKg || '0.00'} kg  |  ${trip.volumeCbm || '0.00'} m³`;
   doc.text(cargoText, 18, currY);
@@ -324,7 +342,7 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   const calcY = afterDetailsY + 8;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(71, 85, 105);
+  doc.setTextColor(51, 51, 51);
   doc.text(t.subtotal, 120, calcY);
   doc.text(`EUR ${subtotal.toFixed(2)}`, 165, calcY);
 
@@ -332,24 +350,24 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   doc.text(`EUR ${vatAmount.toFixed(2)}`, 165, calcY + 6);
 
   doc.setLineWidth(1.0);
-  doc.setDrawColor(15, 23, 42);
+  doc.setDrawColor(0, 0, 0);
   doc.line(120, calcY + 10, 196, calcY + 10);
 
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.setFontSize(11);
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(12);
   doc.text(t.total, 120, calcY + 16);
   doc.text(`EUR ${total.toFixed(2)}`, 165, calcY + 16);
 
   // ─── 7. NOTES ────────────────────────────────────────────────────────
   const notesY = calcY + 30;
   if (invoice.notes || trip.notes) {
-    doc.setFontSize(9);
+    doc.setFontSize(9.5);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(15, 23, 42);
+    doc.setTextColor(0, 0, 0);
     doc.text(t.notes, 14, notesY);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(71, 85, 105);
+    doc.setTextColor(51, 51, 51);
     const notesStr = safeText(invoice.notes || trip.notes);
     const splitNotes = doc.splitTextToSize(notesStr, 180);
     doc.text(splitNotes, 14, notesY + 5);
