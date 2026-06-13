@@ -6,12 +6,12 @@ import { UserRole } from '../users/user.entity';
 
 class LoginDto {
   @IsEmail() email: string;
-  @IsString() @MinLength(6) password: string;
+  @IsString() @MinLength(8) password: string;
 }
 
 class RegisterDto {
   @IsEmail() email: string;
-  @IsString() @MinLength(6) password: string;
+  @IsString() @MinLength(8) password: string;
   @IsString() name: string;
   @IsOptional() @IsEnum(UserRole) role?: UserRole;
   @IsOptional() grossSalary?: number;

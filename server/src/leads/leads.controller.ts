@@ -1,6 +1,8 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { LeadsService } from './leads.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CreateLeadDto } from './dto/create-lead.dto';
+import { UpdateLeadDto } from './dto/update-lead.dto';
 
 @Controller('leads')
 @UseGuards(JwtAuthGuard)
@@ -8,7 +10,7 @@ export class LeadsController {
   constructor(private readonly leadsService: LeadsService) {}
 
   @Post()
-  create(@Body() createLeadDto: any) {
+  create(@Body() createLeadDto: CreateLeadDto) {
     return this.leadsService.create(createLeadDto);
   }
 
@@ -28,7 +30,7 @@ export class LeadsController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateLeadDto: any) {
+  update(@Param('id') id: string, @Body() updateLeadDto: UpdateLeadDto) {
     return this.leadsService.update(id, updateLeadDto);
   }
 

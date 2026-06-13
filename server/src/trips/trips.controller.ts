@@ -3,6 +3,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { TripsService } from './trips.service';
 import { TripScannerService } from './trip-scanner.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CreateTripDto } from './dto/create-trip.dto';
+import { UpdateTripDto } from './dto/update-trip.dto';
 
 @Controller('trips')
 @UseGuards(JwtAuthGuard)
@@ -15,8 +17,8 @@ export class TripsController {
   @Get('stats') getStats(@Query('month') m: number, @Query('year') y: number) { return this.service.getStats(m, y); }
   @Get('monthly-profits') getMonthly() { return this.service.getMonthlyProfits(); }
   @Get(':id') findOne(@Param('id') id: string) { return this.service.findOne(id); }
-  @Post() create(@Body() dto: any) { return this.service.create(dto); }
-  @Patch(':id') update(@Param('id') id: string, @Body() dto: any, @Request() req: any) { return this.service.update(id, dto, req.user); }
+  @Post() create(@Body() dto: CreateTripDto) { return this.service.create(dto); }
+  @Patch(':id') update(@Param('id') id: string, @Body() dto: UpdateTripDto, @Request() req: any) { return this.service.update(id, dto, req.user); }
   @Delete(':id') remove(@Param('id') id: string) { return this.service.remove(id); }
   @Get('debug/:ref') async getDebug(@Param('ref') ref: string) { return this.service.findOneByRef(ref); }
   @Post(':id/costs') addCost(@Param('id') id: string, @Body() dto: any) { return this.service.addCost(id, dto); }

@@ -3,6 +3,7 @@ import { DocumentsService } from './documents.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { NotificationsService } from '../notifications/notifications.service';
+import { UploadDocumentDto } from './dto/upload-document.dto';
 
 @Controller('documents')
 export class DocumentsController {
@@ -72,7 +73,7 @@ export class DocumentsController {
   @UseGuards(JwtAuthGuard)
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
-  async upload(@UploadedFile() file: Express.Multer.File, @Body() body: any, @Request() req: any) {
+  async upload(@UploadedFile() file: Express.Multer.File, @Body() body: UploadDocumentDto, @Request() req: any) {
     const f = file as any; // multer-storage-cloudinary appends extra fields
 
     let actualResourceType = 'raw';

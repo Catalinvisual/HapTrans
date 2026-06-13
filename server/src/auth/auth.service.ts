@@ -47,8 +47,8 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('User not found');
     const valid = await bcrypt.compare(oldPass, user.password);
     if (!valid) throw new UnauthorizedException('Invalid old password');
-    if (!newPass || newPass.length < 6) {
-      throw new UnauthorizedException('New password must be at least 6 characters');
+    if (!newPass || newPass.length < 8) {
+      throw new UnauthorizedException('New password must be at least 8 characters');
     }
     user.password = await bcrypt.hash(newPass, 10);
     await this.usersRepo.save(user);

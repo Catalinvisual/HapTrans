@@ -37,6 +37,16 @@ async function bootstrap() {
     }),
   );
 
+  // Rate limit on public tracking route (enumeration protection)
+  app.use(
+    '/api/track',
+    rateLimit({
+      windowMs: 60 * 1000, // 1 minute
+      max: 30, // max 30 tracking requests per minute
+      message: 'Prea multe cereri de urmărire. Vă rugăm să așteptați 1 minut.',
+    }),
+  );
+
   // General rate limit for all other routes
   app.use(
     rateLimit({
@@ -48,8 +58,13 @@ async function bootstrap() {
 
   app.useWebSocketAdapter(new IoAdapter(app));
   
-  // Serve uploaded files statically at /uploads prefix
-  app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
+  // Serve uploaded files statically at /uploads prefix with basic protection
+  app.use('/uploads', (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (!req.headers.authorization && !req.query.token) {
+      return res.status(401).send('Unauthorized');
+    }
+    next();
+  }, express.static(join(__dirname, '..', 'uploads')));
 
   const port = process.env.PORT || 3001;
   await app.listen(port, '0.0.0.0');
