@@ -256,7 +256,7 @@ export class TripsService {
       }
     }
     
-    if (dto.status !== undefined && dto.status !== existingTrip.status && updatedTrip?.client?.contactEmail) {
+    if (dto.status !== undefined && dto.status !== existingTrip?.status && updatedTrip?.client?.contactEmail) {
       await this.resendService.sendTripStatusEmail(updatedTrip, updatedTrip.trackingToken);
     }
     

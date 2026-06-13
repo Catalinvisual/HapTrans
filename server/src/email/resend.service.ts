@@ -11,7 +11,11 @@ export class ResendService {
 
   public lastStatus: any = null;
 
-  async sendTripStatusEmail(trip: any, trackingToken: string) {
+  async sendTripStatusEmail(tripOrEmail: any, trackingToken: string) {
+    const isString = typeof tripOrEmail === 'string';
+    const email = isString ? tripOrEmail : (tripOrEmail?.client?.contactEmail || 'test@example.com');
+    const trip = isString ? { status: 'pending', pickupAddress: 'N/A', dropoffAddress: 'N/A' } : tripOrEmail;
+
     const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
     const trackingUrl = `${baseUrl}/track/${trackingToken}`;
     

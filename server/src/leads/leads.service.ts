@@ -74,7 +74,7 @@ export class LeadsService {
     await this.update(id, { status: LeadStatus.ACCEPTED });
 
     // Send email to client
-    await this.resendService.sendTrackingEmail(lead.email, trip.trackingToken);
+    await this.resendService.sendTripStatusEmail(lead.email, trip.trackingToken);
 
     return { tripId: trip.id, clientId: client.id, trackingToken: trip.trackingToken };
   }
