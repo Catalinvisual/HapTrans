@@ -119,7 +119,7 @@ export class TripsService {
     }
     
     if (fullTrip && fullTrip.client && fullTrip.client.contactEmail) {
-      await this.resendService.sendTrackingEmail(fullTrip.client.contactEmail, trackingToken);
+      await this.resendService.sendTripStatusEmail(fullTrip, trackingToken);
     }
     
     return saved;
@@ -254,6 +254,10 @@ export class TripsService {
           );
         }
       }
+    }
+    
+    if (dto.status !== undefined && dto.status !== existingTrip.status && updatedTrip?.client?.contactEmail) {
+      await this.resendService.sendTripStatusEmail(updatedTrip, updatedTrip.trackingToken);
     }
     
     // Broadcast via Socket.IO so mobile app catches it even in background

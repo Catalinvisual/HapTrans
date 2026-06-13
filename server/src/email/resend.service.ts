@@ -11,9 +11,26 @@ export class ResendService {
 
   public lastStatus: any = null;
 
-  async sendTrackingEmail(email: string, trackingToken: string) {
+  async sendTripStatusEmail(trip: any, trackingToken: string) {
     const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
     const trackingUrl = `${baseUrl}/track/${trackingToken}`;
+    
+    let emailTitle = "Your transport request has been created";
+    let emailText = "We are pleased to inform you that your transport request has been processed and successfully assigned. Your new trip has been registered in our system and is ready to go.";
+    
+    if (trip.status === 'confirmed') {
+      emailTitle = "Your shipment has been confirmed!";
+      emailText = "Your transport request has been confirmed and a driver/truck has been assigned.";
+    } else if (trip.status === 'in_progress') {
+      emailTitle = "Your shipment is in transit";
+      emailText = "Your shipment has been picked up and is currently in transit to its destination.";
+    } else if (trip.status === 'completed') {
+      emailTitle = "Your shipment has been delivered!";
+      emailText = "We are happy to inform you that your shipment has been successfully delivered.";
+    } else if (trip.status === 'cancelled') {
+      emailTitle = "Your shipment has been cancelled";
+      emailText = "Your transport request has been cancelled. Please contact us for more details.";
+    }
     
     const htmlContent = `
       <!DOCTYPE html>
@@ -25,11 +42,14 @@ export class ResendService {
           body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7fa; margin: 0; padding: 0; }
           .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
           .header { background-color: #0f172a; padding: 30px; text-align: center; }
-          .header h1 { color: #ffffff; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+          .header .logo { display: inline-flex; align-items: center; text-decoration: none; }
+          .header h1 { color: #ffffff; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-left: 10px; }
           .header h1 span { color: #f59e0b; }
           .content { padding: 40px 30px; color: #334155; line-height: 1.6; }
           .content h2 { color: #0f172a; margin-top: 0; font-size: 22px; font-weight: 700; }
           .content p { font-size: 16px; margin-bottom: 24px; }
+          .info-box { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px 20px; margin-bottom: 24px; }
+          .info-box p { margin: 5px 0; font-size: 15px; }
           .button-container { text-align: center; margin: 40px 0; }
           .btn { background-color: #f59e0b; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-size: 16px; font-weight: 600; display: inline-block; transition: background-color 0.2s; box-shadow: 0 4px 6px rgba(245, 158, 11, 0.2); }
           .btn:hover { background-color: #d97706; }
@@ -42,13 +62,24 @@ export class ResendService {
       <body>
         <div class="container">
           <div class="header">
-            <h1>Hap<span>Cargo</span></h1>
+            <div class="logo">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="#FF5A00" width="42" height="42">
+                <path d="M32 10 L46 10 L38 50 L48 50 L45.2 64 L35.2 64 L30 90 L16 90 L21.2 64 L5.2 64 L8 50 L24 50 Z" />
+                <path d="M68 90 L54 90 L62 50 L52 50 L54.8 36 L64.8 36 L70 10 L84 10 L78.8 36 L94.8 36 L92 50 L76 50 Z" />
+              </svg>
+              <h1>HAP<span>CARGO</span></h1>
+            </div>
           </div>
           <div class="content">
-            <h2>Your shipment has been confirmed!</h2>
+            <h2>${emailTitle}</h2>
             <p>Hello,</p>
-            <p>We are pleased to inform you that your transport request has been processed and successfully assigned. Your new trip has been registered in our system and is ready to go.</p>
-            <p>You can track the real-time status of your transport, view estimated arrival times, and access all associated documents directly through our dedicated Client Portal.</p>
+            <p>${emailText}</p>
+            
+            <div class="info-box">
+              <p><strong>Reference:</strong> ${trip.referenceNumber || 'N/A'}</p>
+              <p><strong>From:</strong> ${trip.pickupAddress}</p>
+              <p><strong>To:</strong> ${trip.dropoffAddress}</p>
+            </div>
             
             <div class="button-container">
               <a href="${trackingUrl}" class="btn">Track Your Shipment</a>
