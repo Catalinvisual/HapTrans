@@ -108,13 +108,14 @@ export class EtaCronService {
       let etaStatus = 'on_time';
       let shouldSendEmail = false;
 
-      if (trip.appointmentTo) {
-        const appointmentToTime = trip.appointmentTo.getTime();
+      const deadline = trip.appointmentTo || trip.appointmentFrom || trip.dropoffDate;
+      if (deadline) {
+        const deadlineTime = deadline.getTime();
         const liveEtaTime = liveEta.getTime();
 
-        if (liveEtaTime <= appointmentToTime) {
+        if (liveEtaTime <= deadlineTime) {
           etaStatus = 'on_time';
-        } else if (liveEtaTime <= appointmentToTime + (60 * 60000)) { // Up to 60 min late
+        } else if (liveEtaTime <= deadlineTime + (60 * 60000)) { // Up to 60 min late
           etaStatus = 'at_risk';
         } else {
           etaStatus = 'delayed_risk';

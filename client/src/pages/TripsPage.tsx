@@ -1258,8 +1258,12 @@ export default function TripsPage() {
                           <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md border w-fit ${trip.etaStatus === 'on_time' ? 'bg-green-50/80 text-green-700 border-green-100' : trip.etaStatus === 'at_risk' ? 'bg-yellow-50/80 text-yellow-700 border-yellow-100' : 'bg-red-50/80 text-red-700 border-red-100'}`}>
                             <Clock className="w-3.5 h-3.5 shrink-0" />
                             <div className="flex flex-col">
-                              <span>{new Date(trip.lastLiveEta).toLocaleDateString('en-GB')}</span>
-                              <span className="text-[10px] opacity-80 font-bold">{new Date(trip.lastLiveEta).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                              <span>{new Date(trip.lastLiveEta).toLocaleDateString('ro-RO')}</span>
+                              <span className="text-[10px] opacity-80 font-bold">
+                                {new Date(trip.lastLiveEta).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
+                                {' - '}
+                                {new Date(new Date(trip.lastLiveEta).getTime() + 45 * 60000).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
                             </div>
                           </div>
                         </div>

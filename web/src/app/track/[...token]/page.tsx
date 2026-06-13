@@ -185,8 +185,8 @@ export default function TrackPage({ params }: { params: any }) {
                     <>
                       {new Date(data.appointmentFrom).toLocaleDateString('ro-RO')}
                       <br/>
-                      {new Date(data.appointmentFrom).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                      {data.appointmentTo && ` ${t('betweenTime') || '–'} ${new Date(data.appointmentTo).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`}
+                      {new Date(data.appointmentFrom).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
+                      {data.appointmentTo && ` ${t('betweenTime') || '–'} ${new Date(data.appointmentTo).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}`}
                     </>
                   ) : data.dropoffDate ? (
                     `${new Date(data.dropoffDate).toLocaleDateString('ro-RO')} ${data.dropoffTime ? data.dropoffTime : ''}`
@@ -200,7 +200,7 @@ export default function TrackPage({ params }: { params: any }) {
                   
                   {data.status === 'completed' ? (
                     <p style={{ fontWeight: 600, color: '#10b981' }}>
-                      {t('deliveredOn') || 'Livrat pe'} {new Date(data.updatedAt || new Date()).toLocaleDateString('ro-RO')} la ora {new Date(data.updatedAt || new Date()).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                      {t('deliveredOn') || 'Livrat pe'} {new Date(data.updatedAt || new Date()).toLocaleDateString('ro-RO')} la ora {new Date(data.updatedAt || new Date()).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   ) : (
                     <div>
@@ -209,9 +209,9 @@ export default function TrackPage({ params }: { params: any }) {
                           <p style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: '0.2rem' }}>
                             {t('arrivalEstimated') || 'Sosire estimată:'} {new Date(data.lastLiveEta).toLocaleDateString('ro-RO')}
                             <br/>
-                            {new Date(data.lastLiveEta).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(data.lastLiveEta).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
                             {` ${t('betweenTime') || '–'} `}
-                            {new Date(new Date(data.lastLiveEta).getTime() + 45 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(new Date(data.lastLiveEta).getTime() + 45 * 60000).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
                           </p>
                           <span style={{ 
                             backgroundColor: data.etaStatus === 'on_time' ? '#dcfce7' : data.etaStatus === 'at_risk' ? '#fef3c7' : '#fee2e2', 
