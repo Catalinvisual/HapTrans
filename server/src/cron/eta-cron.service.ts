@@ -113,16 +113,20 @@ export class EtaCronService {
         const deadlineTime = deadline.getTime();
         const liveEtaTime = liveEta.getTime();
 
-        if (liveEtaTime <= deadlineTime) {
-          etaStatus = 'on_time';
-        } else if (liveEtaTime <= deadlineTime + (60 * 60000)) { // Up to 60 min late
-          etaStatus = 'at_risk';
+        if (now.getTime() > deadlineTime) {
+          etaStatus = 'delayed';
         } else {
-          etaStatus = 'delayed_risk';
+          if (liveEtaTime <= deadlineTime) {
+            etaStatus = 'on_time';
+          } else if (liveEtaTime <= deadlineTime + (60 * 60000)) { // Up to 60 min late
+            etaStatus = 'at_risk';
+          } else {
+            etaStatus = 'delayed_risk';
+          }
         }
       }
 
-      if (etaStatus === 'delayed_risk' && !trip.delayedRiskEmailSent) {
+      if ((etaStatus === 'delayed_risk' || etaStatus === 'delayed') && !trip.delayedRiskEmailSent) {
         shouldSendEmail = true;
       }
 
@@ -138,15 +142,17 @@ export class EtaCronService {
       });
 
       // 9. Actions
-      if (etaStatus === 'at_risk' || etaStatus === 'delayed_risk') {
-        // Create dashboard notification for dispatcher
-        // Only if it changed or periodically? Let's just create it if we send email or maybe log it.
-        // We'll create a single dashboard notification when it first hits delayed_risk to avoid spam.
+      if (etaStatus === 'at_risk' || etaStatus === 'delayed_risk' || etaStatus === 'delayed') {
         if (shouldSendEmail) {
+          const title = etaStatus === 'delayed' ? 'Întârziat' : 'Risc Întârziere';
+          const msg = etaStatus === 'delayed' 
+            ? `Cursa ${trip.referenceNumber} a depășit timpul limită programat pentru livrare.` 
+            : `Cursa ${trip.referenceNumber} are risc major de întârziere (ETA depășește cu >60min).`;
+            
           await this.notificationsService.create({
             type: 'trip',
-            title: 'Risc Întârziere',
-            message: `Cursa ${trip.referenceNumber} are risc major de întârziere (ETA depășește cu >60min).`,
+            title: title,
+            message: msg,
             relatedId: trip.id,
           });
 

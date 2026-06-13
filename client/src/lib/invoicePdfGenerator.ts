@@ -328,7 +328,7 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   currY += 2;
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
-  const cargoLbl = '• Cargo:';
+  const cargoLbl = 'Cargo:';
   doc.text(cargoLbl, 18, currY);
   const cargoLblWidth = doc.getTextWidth(cargoLbl);
   
