@@ -6,18 +6,14 @@ import { TripStatus } from '../trips/trip.entity';
 export class TrackController {
   constructor(private readonly tripsService: TripsService) {}
 
-  @Get('*')
-  async trackTrip(@Req() req: any, @Param() params: any) {
-    let token = params['0'] || '';
+  @Get(':token')
+  async trackTrip(@Param('token') token: string) {
     if (!token) {
-      const urlParts = req.url.split('/track/');
-      token = urlParts[urlParts.length - 1] || '';
+      throw new NotFoundException('Tracking link invalid or expired.');
     }
     
-    // Clean any leading/trailing slashes and query parameters/hashes from wildcard token
-    if (token) {
-      token = token.replace(/^\/+|\/+$/g, '').split('?')[0].split('#')[0];
-    }
+    // Clean any leading/trailing slashes and query parameters/hashes
+    token = token.replace(/^\/+|\/+$/g, '').split('?')[0].split('#')[0];
     
     const trip = await this.tripsService.findByTrackingToken(token);
     
