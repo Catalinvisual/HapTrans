@@ -59,7 +59,7 @@ export default function TrackPage({ params }: { params: any }) {
     const fetchTracking = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
-        const res = await fetch(`${apiUrl}/track/${token}`);
+        const res = await fetch(`${apiUrl}/track/${token}`, { cache: 'no-store' });
         if (!res.ok) throw new Error('Invalid token');
         const json = await res.json();
         setData(json);
