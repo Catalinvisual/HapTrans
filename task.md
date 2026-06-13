@@ -14,11 +14,17 @@
 - [x] 9. Adaugă verificare rol pe Users PATCH/DELETE
 - [x] 10. Rate limit strict pe /auth/login
 
+## MODERATE / ALTELE DIN RAPORTUL COMPLET
+- [x] 11. Lipsă validare input pe rute (DTOs create pentru leads, trips, documents)
+- [x] 12. Lipsă examinare token de tracking pentru enumerare (Rate limit de 30req/min adăugat pe `/api/track`)
+- [x] 13. Parola minimă crescută de la 6 la 8 caractere (auth.controller.ts & auth.service.ts)
+- [x] 14. Fișiere uploadate servite static protejate cu filtru de autorizare de bază.
+
 ## NOUĂ FUNCȚIONALITATE
-- [x] 11. Adaugă în Settings > secțiune editare email și parolă admin
-- [x] 12. Adaugă endpoint server pentru editare email/parolă admin
+- [x] 15. Adaugă în Settings > secțiune editare email și parolă admin
+- [x] 16. Adaugă endpoint server pentru editare email/parolă admin
 
 ## VERIFICARE
-- [x] 13. Build client
-- [x] 14. Build server
-- [x] 15. Git commit & push
+- [x] 17. Build client
+- [x] 18. Build server
+- [x] 19. Git commit & push

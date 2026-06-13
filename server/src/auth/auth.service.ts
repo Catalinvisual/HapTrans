@@ -61,8 +61,13 @@ export class AuthService {
 
   generateToken(user: User) {
     const payload = { sub: user.id, email: user.email, role: user.role };
+    
+    // Web SaaS (Admin/Dispatcher) -> 24 hours
+    // Mobile App (Driver) -> 30 days
+    const expiresIn = user.role === UserRole.DRIVER ? '30d' : '24h';
+    
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: this.jwtService.sign(payload, { expiresIn }),
       user: { id: user.id, email: user.email, name: user.name, role: user.role, language: user.language },
     };
   }
