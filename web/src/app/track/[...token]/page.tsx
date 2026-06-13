@@ -20,6 +20,12 @@ interface TrackData {
   status: string;
   documents: any[];
   updatedAt: string;
+  appointmentFrom?: string;
+  appointmentTo?: string;
+  lastLiveEta?: string;
+  etaConfidence?: string;
+  etaStatus?: string;
+  etaSource?: string;
 }
 
 export default function TrackPage({ params }: { params: any }) {

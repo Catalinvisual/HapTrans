@@ -73,8 +73,7 @@ export class EtaCronService {
         trip.dropoffLng
       );
 
-      let routeDurationSec = route?.summary?.duration || 0;
-      let routeDurationMins = Math.floor(routeDurationSec / 60);
+      let routeDurationMins = route?.durationMin || 0;
 
       // 3. Calculate Loading Time if status is LOADING
       let remainingLoadingMins = 0;
