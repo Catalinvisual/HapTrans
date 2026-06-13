@@ -67,6 +67,9 @@ export default function TripsPage() {
   const currentToken = editId ? trips.find((t: any) => t.id === editId)?.trackingToken : null;
 
   const getWebsiteUrl = () => {
+    if (import.meta.env.VITE_WEB_URL) {
+      return import.meta.env.VITE_WEB_URL;
+    }
     const host = window.location.hostname;
     if (host === 'localhost' || host === '127.0.0.1') {
       return 'http://localhost:3000';
