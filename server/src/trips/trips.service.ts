@@ -60,7 +60,7 @@ export class TripsService {
     }
   }
 
-  async findOneByRef(referenceNumber: string): Promise<Trip> {
+  async findOneByRef(referenceNumber: string): Promise<Trip | null> {
     return this.repo.findOne({
       where: { referenceNumber },
       relations: ['client', 'truck', 'driver', 'costs'],
