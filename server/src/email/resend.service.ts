@@ -54,10 +54,11 @@ export class ResendService {
         <style>
           body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7fa; margin: 0; padding: 0; }
           .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
-          .header { background-color: #0f172a; padding: 30px; text-align: center; }
+          .header { background-color: #ffffff; padding: 30px; text-align: center; border-bottom: 1px solid #e2e8f0; }
           .header .logo { display: inline-flex; align-items: center; text-decoration: none; }
-          .header h1 { color: #ffffff; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-left: 10px; }
-          .header h1 span { color: #ff5a00; }
+          .header h1 { color: #0d1b2a; margin: 0; font-size: 28px; font-weight: 900; letter-spacing: -0.5px; margin-left: 10px; font-style: italic; }
+          .header h1 span.hap { color: #ff5a00; }
+          .header h1 span.cargo { color: #0d1b2a; }
           .content { padding: 40px 30px; color: #334155; line-height: 1.6; }
           .content h2 { color: #0f172a; margin-top: 0; font-size: 22px; font-weight: 700; }
           .content p { font-size: 16px; margin-bottom: 24px; }
@@ -80,7 +81,7 @@ export class ResendService {
                 <path d="M32 10 L46 10 L38 50 L48 50 L45.2 64 L35.2 64 L30 90 L16 90 L21.2 64 L5.2 64 L8 50 L24 50 Z" />
                 <path d="M68 90 L54 90 L62 50 L52 50 L54.8 36 L64.8 36 L70 10 L84 10 L78.8 36 L94.8 36 L92 50 L76 50 Z" />
               </svg>
-              <h1>HAP<span>CARGO</span></h1>
+              <h1><span class="hap">HAP</span><span class="cargo">CARGO</span></h1>
             </div>
           </div>
           <div class="content">

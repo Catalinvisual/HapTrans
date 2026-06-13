@@ -237,7 +237,10 @@ export class TripsService {
           let title = 'Cursă modificată';
           let body = `Cursa ${updatedTrip.pickupAddress} -> ${updatedTrip.dropoffAddress} a fost modificată.`;
           
-          if (dto.status !== undefined) {
+          if (dto.driverId !== undefined && existingTrip?.driver?.id !== dto.driverId) {
+            title = 'Cursă nouă alocată';
+            body = `V-a fost alocată o nouă cursă: ${updatedTrip.pickupAddress} -> ${updatedTrip.dropoffAddress}`;
+          } else if (dto.status !== undefined && dto.status !== existingTrip?.status) {
             title = 'Status cursă modificat';
             body = `Cursa ${updatedTrip.pickupAddress} -> ${updatedTrip.dropoffAddress} este acum: ${dto.status}.`;
             if (dto.status === 'cancelled') {

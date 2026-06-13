@@ -166,12 +166,12 @@ export default function TrackPage({ params }: { params: any }) {
                   <>
                     <p style={{ fontWeight: 600, color: 'var(--primary)', display: 'inline-block' }}>
                       <span style={{ backgroundColor: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, marginRight: '6px', verticalAlign: 'middle' }}>ÎNTÂRZIAT</span>
-                      {data.dropoffDate ? `${new Date(data.dropoffDate).toLocaleDateString('ro-RO')} la ${data.dropoffTime ? data.dropoffTime : new Date(data.dropoffDate).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}` : 'N/A'}
+                      {data.dropoffDate ? `${new Date(data.dropoffDate).toLocaleDateString('ro-RO')} la ora ${data.dropoffTime ? data.dropoffTime : new Date(data.dropoffDate).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}` : 'N/A'}
                     </p>
                   </>
                 ) : (
                   <p style={{ fontWeight: 600, color: 'var(--primary)' }}>
-                    {data.dropoffDate ? `${new Date(data.dropoffDate).toLocaleDateString('ro-RO')} la ${data.dropoffTime ? data.dropoffTime : new Date(data.dropoffDate).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}` : 'N/A'}
+                    {data.dropoffDate ? `${new Date(data.dropoffDate).toLocaleDateString('ro-RO')} la ora ${data.dropoffTime ? data.dropoffTime : new Date(data.dropoffDate).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}` : 'N/A'}
                   </p>
                 )}
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>Ref: #{data.referenceNumber || 'N/A'}</p>
