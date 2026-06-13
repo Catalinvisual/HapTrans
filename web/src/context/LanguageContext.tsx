@@ -16,7 +16,7 @@ const translations: Translations = {
   services: { RO: 'Servicii', EN: 'Services', NL: 'Diensten', DE: 'Dienstleistungen', FR: 'Services', ES: 'Servicios' },
   fleet: { RO: 'Flotă', EN: 'Fleet', NL: 'Vloot', DE: 'Flotte', FR: 'Flotte', ES: 'Flota' },
   contact: { RO: 'Contact', EN: 'Contact', NL: 'Contact', DE: 'Kontakt', FR: 'Contact', ES: 'Contacto' },
-  clientLogin: { RO: 'CLIENT LOGIN', EN: 'CLIENT LOGIN', NL: 'KLANTEN LOGIN', DE: 'KUNDEN-LOGIN', FR: 'ESPACE CLIENT', ES: 'ACCESO CLIENTES' },
+  clientLogin: { RO: 'URMĂREȘTE COMANDA', EN: 'TRACK ORDER', NL: 'BESTELLING VOLGEN', DE: 'BESTELLUNG VERFOLGEN', FR: 'SUIVRE COMMANDE', ES: 'RASTREAR PEDIDO' },
   
   // Hero
   heroTitle: { RO: 'Transport internațional, la standarde profesionale.', EN: 'International transport, at professional standards.', NL: 'Internationaal transport, op professioneel niveau.', DE: 'Internationaler Transport, nach professionellen Standards.', FR: 'Transport international, selon des normes professionnelles.', ES: 'Transporte internacional, con estándares profesionales.' },
