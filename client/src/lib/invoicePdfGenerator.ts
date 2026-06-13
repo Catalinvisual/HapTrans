@@ -124,8 +124,8 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
             ctx.drawImage(img, 0, 0);
             const jpegData = canvas.toDataURL('image/jpeg', 0.9);
             // aspect ratio logic
-            const maxW = 90;
-            const maxH = 35;
+            const maxW = 120;
+            const maxH = 45;
             const ratio = Math.min(maxW / img.width, maxH / img.height);
             const finalLogoHeight = img.height * ratio;
             doc.addImage(jpegData, 'JPEG', 14, 10, img.width * ratio, finalLogoHeight);
@@ -174,8 +174,12 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   }
   doc.text(`${t.paymentTerms} ${termsStr}`, 145, 36);
 
+  if (invoice.trip && invoice.trip.referenceNumber) {
+    doc.text(`${t.tripRef} ${safeText(invoice.trip.referenceNumber)}`, 145, 42);
+  }
+
   // Decorative separator
-  const lineY = invoiceTitleY + 4;
+  const lineY = Math.max(invoiceTitleY + 4, invoice.trip?.referenceNumber ? 46 : 40);
   doc.setDrawColor(226, 232, 240);
   doc.setLineWidth(0.5);
   doc.line(14, lineY, 196, lineY);
