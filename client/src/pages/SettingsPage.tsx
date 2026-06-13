@@ -76,7 +76,10 @@ export default function SettingsPage() {
       }
       localStorage.setItem(COMPANY_KEY, JSON.stringify(company));
       toast.success(t('settingsSaved'));
-    } catch { toast.error(t('error')); }
+    } catch (err: any) { 
+      const errorMsg = err.response?.data?.message;
+      toast.error(Array.isArray(errorMsg) ? errorMsg[0] : errorMsg || t('error'));
+    }
   };
 
   const companyFields: Array<{ key: keyof CompanySettings; labelKey: string; required?: boolean; colSpan?: boolean }> = [

@@ -1,6 +1,7 @@
 import { Controller, Get, Patch, Delete, Param, Body, UseGuards, Request, ForbiddenException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -18,7 +19,7 @@ export class UsersController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: any, @Request() req: any) {
+  update(@Param('id') id: string, @Body() dto: UpdateUserDto, @Request() req: any) {
     // Only admin or the user themselves can update their profile
     if (req.user.role !== 'admin' && req.user.id !== id) {
       throw new ForbiddenException('You can only edit your own profile.');
