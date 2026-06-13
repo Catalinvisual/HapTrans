@@ -29,7 +29,12 @@ export class TrackController {
       dropoffCountry: trip.dropoffCountry,
       dropoffAddress: trip.dropoffAddress,
       pickupDate: trip.pickupDate,
+      pickupTime: trip.pickupTime,
       dropoffDate: trip.dropoffDate,
+      dropoffTime: trip.dropoffTime,
+      weightKg: trip.weightKg,
+      pallets: trip.pallets,
+      distanceKm: trip.distanceKm,
       status: trip.status,
       // filter documents to only show relevant public ones, e.g. CMR, invoice (if paid), pictures
       documents: trip.documents?.map(doc => ({

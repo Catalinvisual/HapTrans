@@ -11,6 +11,12 @@ interface TrackData {
   dropoffCountry: string;
   dropoffAddress: string;
   pickupDate: string;
+  pickupTime: string;
+  dropoffDate: string;
+  dropoffTime: string;
+  weightKg: number;
+  pallets: number;
+  distanceKm: number;
   status: string;
   documents: any[];
 }
@@ -128,34 +134,62 @@ export default function TrackPage({ params }: { params: any }) {
             <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.5rem', color: 'var(--secondary)' }}>{t('clientPortal')}</h1>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>{t('trackStatusDesc')}</p>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem', padding: '1rem', background: 'var(--surface-alt)', borderRadius: '0.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem', padding: '1rem', background: 'var(--surface-alt)', borderRadius: '0.5rem' }}>
               <div>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{t('route')}</p>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{t('route') || 'Rută'}</p>
                 <p style={{ fontWeight: 600 }}>{data.pickupCountry} ➔ {data.dropoffCountry}</p>
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t('fromLabel')}: {data.pickupAddress}<br/>{t('toLabel')}: {data.dropoffAddress}</p>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t('fromLabel') || 'De la'}: {data.pickupAddress}<br/>{t('toLabel') || 'Până la'}: {data.dropoffAddress}</p>
               </div>
               <div>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{t('referenceDate')}</p>
-                <p style={{ fontWeight: 600 }}>#{data.referenceNumber || 'N/A'}</p>
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{new Date(data.pickupDate).toLocaleDateString('ro-RO')}</p>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{t('etaLabel') || 'ETA (Timp Estimat)'}</p>
+                <p style={{ fontWeight: 600, color: 'var(--primary)' }}>
+                  {data.dropoffDate ? new Date(data.dropoffDate).toLocaleDateString('ro-RO') : 'N/A'}
+                  {data.dropoffTime ? ` la ${data.dropoffTime}` : ''}
+                </p>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>Ref: #{data.referenceNumber || 'N/A'}</p>
               </div>
             </div>
 
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>{t('transportStatus')}</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem', padding: '1rem', background: 'var(--surface-alt)', borderRadius: '0.5rem' }}>
+              <div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{t('cargoDetailsLabel') || 'Detalii Marfă'}</p>
+                <p style={{ fontWeight: 600 }}>{data.pallets ? `${data.pallets} Paleți` : '-'} • {data.weightKg ? `${data.weightKg} kg` : '-'}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{t('distanceLabel') || 'Distanță Cursă'}</p>
+                <p style={{ fontWeight: 600 }}>{data.distanceKm ? `${data.distanceKm} km` : '-'}</p>
+              </div>
+            </div>
+
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>{t('transportStatus') || 'Status Transport'}</h3>
             {renderStatusLine(data.status)}
 
             {data.documents && data.documents.length > 0 && (
               <div style={{ marginTop: '3rem' }}>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>{t('tripDocuments')}</h3>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>{t('tripDocuments') || 'Documente Cursă'}</h3>
                 <div style={{ display: 'grid', gap: '1rem' }}>
-                  {data.documents.map(doc => (
-                    <div key={doc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid var(--border)', borderRadius: '0.5rem' }}>
-                      <span style={{ fontWeight: 500 }}>📄 {doc.name || 'Document'}</span>
-                      <a href={doc.url} target="_blank" rel="noreferrer" style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 600 }}>
-                        {t('downloadView')}
-                      </a>
-                    </div>
-                  ))}
+                  {data.documents.map(doc => {
+                    const getDownloadUrl = (url: string) => {
+                      if (url.includes('/upload/')) {
+                        return url.replace('/upload/', '/upload/fl_attachment/');
+                      }
+                      return url;
+                    };
+                    
+                    return (
+                      <div key={doc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid var(--border)', borderRadius: '0.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                        <span style={{ fontWeight: 500 }}>📄 {doc.name || 'Document'}</span>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <a href={doc.url} target="_blank" rel="noreferrer" style={{ background: 'transparent', color: 'var(--primary)', border: '1px solid var(--primary)', padding: '0.5rem 1rem', borderRadius: '0.35rem', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 600 }}>
+                            {t('previewLabel') || 'Vizualizare'}
+                          </a>
+                          <a href={getDownloadUrl(doc.url)} target="_blank" rel="noreferrer" download style={{ background: 'var(--primary)', color: 'white', border: '1px solid var(--primary)', padding: '0.5rem 1rem', borderRadius: '0.35rem', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 600 }}>
+                            {t('downloadLabel') || 'Descarcă'}
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
