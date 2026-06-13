@@ -13,8 +13,8 @@ export default function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
-  const [email, setEmail] = useState('admin@hapcargo.ro');
-  const [password, setPassword] = useState('Admin2024!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -113,11 +113,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-8 p-4 bg-white/5 rounded-xl border border-white/5">
-            <p className="text-[11px] text-white/40 font-medium uppercase tracking-wider mb-2">🔑 Credențiale Administrator</p>
-            <p className="text-sm text-white/60">Email: <span className="font-mono font-medium text-white/90">{email}</span></p>
-            <p className="text-sm text-white/60">Parolă: <span className="font-mono font-medium text-white/90">Admin2024!</span></p>
-          </div>
+
         </div>
         
         {/* Footer text */}

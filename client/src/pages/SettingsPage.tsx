@@ -39,6 +39,8 @@ export default function SettingsPage() {
   const { t } = useTranslation();
   const { user } = useAuthStore();
   const [name, setName] = useState(user?.name || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [newPassword, setNewPassword] = useState('');
   const [company, setCompany] = useState<CompanySettings>(getCompanySettings);
   const [logoPreview, setLogoPreview] = useState<string>(getCompanySettings().logo || '');
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -65,7 +67,12 @@ export default function SettingsPage() {
   const handleSave = async () => {
     try {
       if (user) {
-        await api.patch(`/users/${user.id}`, { name });
+        const updatePayload: any = { name };
+        if (user.role === 'admin') {
+          if (email !== user.email) updatePayload.email = email;
+          if (newPassword) updatePayload.password = newPassword;
+        }
+        await api.patch(`/users/${user.id}`, updatePayload);
       }
       localStorage.setItem(COMPANY_KEY, JSON.stringify(company));
       toast.success(t('settingsSaved'));
@@ -191,12 +198,29 @@ export default function SettingsPage() {
           </div>
           <div>
             <label className="label font-semibold">{t('email')}</label>
-            <input className="input bg-surface text-text-secondary" value={user?.email || ''} disabled />
+            <input 
+              className={`input ${user?.role !== 'admin' ? 'bg-surface text-text-secondary' : ''}`} 
+              value={email} 
+              onChange={e => setEmail(e.target.value)} 
+              disabled={user?.role !== 'admin'} 
+            />
           </div>
           <div>
             <label className="label font-semibold">{t('role')}</label>
             <input className="input capitalize bg-surface text-text-secondary" value={user?.role || ''} disabled />
           </div>
+          {user?.role === 'admin' && (
+            <div>
+              <label className="label font-semibold">Schimbă Parola (opțional)</label>
+              <input 
+                type="password" 
+                placeholder="Lasă gol pentru a nu schimba" 
+                className="input" 
+                value={newPassword} 
+                onChange={e => setNewPassword(e.target.value)} 
+              />
+            </div>
+          )}
         </div>
       </div>
 

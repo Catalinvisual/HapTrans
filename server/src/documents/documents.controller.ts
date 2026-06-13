@@ -11,11 +11,13 @@ export class DocumentsController {
     private notificationsService: NotificationsService,
   ) {}
 
+  @UseGuards(JwtAuthGuard)
   @Get('debug')
   getDebugDocs() {
     return this.service.getDebugDocs();
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('fix-tnas')
   fixTnasDocs() {
     return this.service.fixTnasDocs();
