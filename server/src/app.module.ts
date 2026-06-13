@@ -28,6 +28,7 @@ import { WebsiteCmsModule } from './website-cms/website-cms.module';
 import { TrackModule } from './track/track.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
+import { CronModule } from './cron/cron.module';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     ContactModule,
     WebsiteCmsModule,
     TrackModule,
+    CronModule,
     ThrottlerModule.forRoot([{
       ttl: 60000,
       limit: 10,
