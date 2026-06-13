@@ -218,7 +218,7 @@ export default function TrackPage({ params }: { params: any }) {
                             color: data.etaStatus === 'on_time' ? '#166534' : data.etaStatus === 'at_risk' ? '#92400e' : '#991b1b',
                             padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-block' 
                           }}>
-                            {data.etaStatus === 'on_time' ? (t('etaOnTime') || '🟢 La timp') : data.etaStatus === 'at_risk' ? (t('etaUpdated') || '🟡 ETA actualizat') : (t('etaRisk') || '🔴 Risc de întârziere')}
+                            {data.etaStatus === 'on_time' ? (t('etaOnTime') || '🟢 La timp') : data.etaStatus === 'at_risk' ? (t('etaUpdated') || '🟡 ETA actualizat') : data.etaStatus === 'delayed_risk' ? (t('etaRisk') || '🔴 Risc de întârziere') : (t('etaDelayed') || '🔴 Întârziat')}
                           </span>
                         </>
                       ) : (

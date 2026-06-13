@@ -109,6 +109,7 @@ const translations: Translations = {
   etaOnTime: { RO: '🟢 La timp', EN: '🟢 On Time', NL: '🟢 Op Tijd', DE: '🟢 Pünktlich', FR: '🟢 À l\'heure', ES: '🟢 A tiempo' },
   etaUpdated: { RO: '🟡 ETA actualizat', EN: '🟡 ETA Updated', NL: '🟡 ETA Bijgewerkt', DE: '🟡 ETA Aktualisiert', FR: '🟡 ETA Mis à jour', ES: '🟡 ETA Actualizado' },
   etaRisk: { RO: '🔴 Risc de întârziere', EN: '🔴 Delay Risk', NL: '🔴 Risico op vertraging', DE: '🔴 Verspätungsrisiko', FR: '🔴 Risque de retard', ES: '🔴 Riesgo de retraso' },
+  etaDelayed: { RO: '🔴 Întârziat', EN: '🔴 Delayed', NL: '🔴 Vertraagd', DE: '🔴 Verspätet', FR: '🔴 En retard', ES: '🔴 Retrasado' },
   arrivalEstimated: { RO: 'Sosire estimată:', EN: 'Estimated arrival:', NL: 'Verwachte aankomst:', DE: 'Voraussichtliche Ankunft:', FR: 'Arrivée estimée:', ES: 'Llegada estimada:' },
   betweenTime: { RO: 'între', EN: 'between', NL: 'tussen', DE: 'zwischen', FR: 'entre', ES: 'entre' },
   
