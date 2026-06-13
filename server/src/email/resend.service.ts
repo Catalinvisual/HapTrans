@@ -133,4 +133,42 @@ export class ResendService {
       console.error('Failed to send email with Resend:', error);
     }
   }
+
+  async sendDelayedRiskEmail(trip: any, trackingToken: string, liveEta: Date) {
+    if (!trip.client?.contactEmail) return;
+    
+    const trackingUrl = `${process.env.FRONTEND_URL}/track/${trackingToken}`;
+    const formattedAppt = trip.appointmentFrom ? new Date(trip.appointmentFrom).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' }) : 'N/A';
+    const formattedEta = liveEta.toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
+
+    const htmlContent = `
+      <html>
+      <body style="font-family: Arial, sans-serif; color: #333;">
+        <h2>HapCargo Transportation Update</h2>
+        <p>We would like to inform you that the current estimated time of arrival has been updated for your shipment.</p>
+        <p><strong>Delivery Appointment:</strong><br/>${formattedAppt}</p>
+        <p><strong>Current ETA:</strong><br/>${formattedEta}</p>
+        <p>You can track the live status here:</p>
+        <a href="${trackingUrl}" style="background-color: #ff5a00; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Track Shipment</a>
+        <p>For more information, please contact the HapCargo team.</p>
+      </body>
+      </html>
+    `;
+
+    try {
+      if (process.env.RESEND_API_KEY) {
+        const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+        await this.resend.emails.send({
+          from: `HapCargo <${fromEmail}>`,
+          to: trip.client.contactEmail,
+          subject: 'HapCargo Transportation Update - ETA Risk',
+          html: htmlContent,
+        });
+      } else {
+        console.log('[MOCK EMAIL] Delayed Risk Email to:', trip.client.contactEmail);
+      }
+    } catch (e) {
+      console.error('Error sending delayed risk email:', e);
+    }
+  }
 }

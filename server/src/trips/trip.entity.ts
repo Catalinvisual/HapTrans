@@ -107,6 +107,48 @@ export class Trip {
   @Column({ nullable: true })
   unloadingReference: string;
 
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
+  dropoffLat: number;
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
+  dropoffLng: number;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  appointmentFrom: Date;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  appointmentTo: Date;
+
+  @Column({ nullable: true, type: 'integer' })
+  estimatedLoadingMinutes: number;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  loadingStartedAt: Date;
+
+  @Column({ nullable: true, type: 'integer', default: 0 })
+  manualDelayMinutes: number;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  lastLiveEta: Date;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  lastLiveEtaUpdatedAt: Date;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  lastGpsAt: Date;
+
+  @Column({ nullable: true })
+  etaConfidence: string;
+
+  @Column({ nullable: true })
+  etaStatus: string;
+
+  @Column({ nullable: true })
+  etaSource: string;
+
+  @Column({ type: 'boolean', default: false })
+  delayedRiskEmailSent: boolean;
+
   @OneToMany(() => TripCost, (cost) => cost.trip, { eager: true })
   costs: TripCost[];
 

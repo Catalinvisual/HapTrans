@@ -27,9 +27,11 @@ import { ContactModule } from './contact/contact.module';
 import { WebsiteCmsModule } from './website-cms/website-cms.module';
 import { TrackModule } from './track/track.module';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],

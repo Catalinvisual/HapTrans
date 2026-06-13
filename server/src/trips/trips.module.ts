@@ -13,6 +13,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { v2 as cloudinary } from 'cloudinary';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import { RoutingModule } from '../routing/routing.module';
 
 import { ResendService } from '../email/resend.service';
 import * as multer from 'multer';
@@ -34,6 +35,7 @@ const storage = multer.memoryStorage();
     forwardRef(() => ChatModule),
     NotificationsModule,
     InvoicesModule,
+    RoutingModule,
   ],
   controllers: [TripsController],
   providers: [TripsService, TripScannerService, ResendService],

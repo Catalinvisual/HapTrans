@@ -173,24 +173,57 @@ export default function TrackPage({ params }: { params: any }) {
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t('fromLabel') || 'De la'}: {data.pickupAddress}<br/>{t('toLabel') || 'Până la'}: {data.dropoffAddress}</p>
               </div>
               <div>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{t('etaLabel') || 'ETA (Timp Estimat)'}</p>
-                {data.status === 'completed' ? (
-                  <p style={{ fontWeight: 600, color: '#10b981' }}>
-                    {t('deliveredOn') || 'Livrat pe'} {new Date(data.updatedAt || new Date()).toLocaleDateString('ro-RO')} la ora {new Date(data.updatedAt || new Date()).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{t('deliveryAppointment') || 'Programare descărcare'}</p>
+                <p style={{ fontWeight: 600, color: 'var(--secondary)' }}>
+                  {data.appointmentFrom ? (
+                    <>
+                      {new Date(data.appointmentFrom).toLocaleDateString('ro-RO')}
+                      <br/>
+                      {new Date(data.appointmentFrom).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                      {data.appointmentTo && ` ${t('betweenTime') || '–'} ${new Date(data.appointmentTo).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`}
+                    </>
+                  ) : data.dropoffDate ? (
+                    `${new Date(data.dropoffDate).toLocaleDateString('ro-RO')} ${data.dropoffTime ? data.dropoffTime : ''}`
+                  ) : 'N/A'}
+                </p>
+                
+                <div style={{ marginTop: '1rem' }}>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                    {data.etaConfidence === 'low' || !data.lastLiveEta ? (t('etaPlanned') || 'ETA planificat / estimativ') : (t('etaLive') || 'ETA Live')}
                   </p>
-                ) : data.status === 'delayed' ? (
-                  <>
-                    <p style={{ fontWeight: 600, color: 'var(--primary)', display: 'inline-block' }}>
-                      <span style={{ backgroundColor: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, marginRight: '6px', verticalAlign: 'middle' }}>ÎNTÂRZIAT</span>
-                      {data.dropoffDate ? `${new Date(data.dropoffDate).toLocaleDateString('ro-RO')} la ora ${formatTimeWithAMPM(data.dropoffTime, data.dropoffDate)}` : 'N/A'}
+                  
+                  {data.status === 'completed' ? (
+                    <p style={{ fontWeight: 600, color: '#10b981' }}>
+                      {t('deliveredOn') || 'Livrat pe'} {new Date(data.updatedAt || new Date()).toLocaleDateString('ro-RO')} la ora {new Date(data.updatedAt || new Date()).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                     </p>
-                  </>
-                ) : (
-                  <p style={{ fontWeight: 600, color: 'var(--primary)' }}>
-                    {data.dropoffDate ? `${new Date(data.dropoffDate).toLocaleDateString('ro-RO')} la ora ${formatTimeWithAMPM(data.dropoffTime, data.dropoffDate)}` : 'N/A'}
-                  </p>
-                )}
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>Ref: #{data.referenceNumber || 'N/A'}</p>
+                  ) : (
+                    <div>
+                      {data.lastLiveEta ? (
+                        <>
+                          <p style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: '0.2rem' }}>
+                            {t('arrivalEstimated') || 'Sosire estimată:'} {new Date(data.lastLiveEta).toLocaleDateString('ro-RO')}
+                            <br/>
+                            {new Date(data.lastLiveEta).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                            {` ${t('betweenTime') || '–'} `}
+                            {new Date(new Date(data.lastLiveEta).getTime() + 45 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          <span style={{ 
+                            backgroundColor: data.etaStatus === 'on_time' ? '#dcfce7' : data.etaStatus === 'at_risk' ? '#fef3c7' : '#fee2e2', 
+                            color: data.etaStatus === 'on_time' ? '#166534' : data.etaStatus === 'at_risk' ? '#92400e' : '#991b1b',
+                            padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-block' 
+                          }}>
+                            {data.etaStatus === 'on_time' ? (t('etaOnTime') || '🟢 La timp') : data.etaStatus === 'at_risk' ? (t('etaUpdated') || '🟡 ETA actualizat') : (t('etaRisk') || '🔴 Risc de întârziere')}
+                          </span>
+                        </>
+                      ) : (
+                        <p style={{ fontWeight: 600, color: 'var(--primary)' }}>
+                          {data.dropoffDate ? `${new Date(data.dropoffDate).toLocaleDateString('ro-RO')} la ora ${formatTimeWithAMPM(data.dropoffTime, data.dropoffDate)}` : 'N/A'}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Ref: #{data.referenceNumber || 'N/A'}</p>
               </div>
             </div>
 

@@ -10,6 +10,7 @@ import { ChatGateway } from '../chat/chat.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { ResendService } from '../email/resend.service';
+import { RoutingService } from '../routing/routing.service';
 
 @Injectable()
 export class TripsService {
@@ -21,6 +22,7 @@ export class TripsService {
     private notificationsService: NotificationsService,
     private invoicesService: InvoicesService,
     private resendService: ResendService,
+    private routingService: RoutingService,
   ) {}
 
   findAll() {
@@ -77,6 +79,18 @@ export class TripsService {
     const crypto = require('crypto');
     const trackingToken = crypto.randomBytes(16).toString('hex');
 
+    let dropoffLat: number | undefined;
+    let dropoffLng: number | undefined;
+    if (dto.dropoffAddress) {
+      try {
+        const geo = await this.routingService.geocode(dto.dropoffAddress);
+        if (geo) {
+          dropoffLat = geo.lat;
+          dropoffLng = geo.lng;
+        }
+      } catch (e) {}
+    }
+
     const trip = this.repo.create({
       referenceNumber,
       trackingToken,
@@ -103,6 +117,13 @@ export class TripsService {
       loadingReference: dto.loadingReference,
       unloadingReference: dto.unloadingReference,
       status: TripStatus.PENDING,
+      appointmentFrom: dto.appointmentFrom || dto.dropoffDate,
+      appointmentTo: dto.appointmentTo,
+      estimatedLoadingMinutes: dto.estimatedLoadingMinutes,
+      manualDelayMinutes: dto.manualDelayMinutes || 0,
+      dropoffLat,
+      dropoffLng,
+      etaSource: 'planned',
     });
     const saved = await this.repo.save(trip);
     
@@ -146,7 +167,18 @@ export class TripsService {
     if (dto.pickupCompanyName !== undefined) updateData.pickupCompanyName = dto.pickupCompanyName;
     if (dto.pickupAddress !== undefined) updateData.pickupAddress = dto.pickupAddress;
     if (dto.dropoffCompanyName !== undefined) updateData.dropoffCompanyName = dto.dropoffCompanyName;
-    if (dto.dropoffAddress !== undefined) updateData.dropoffAddress = dto.dropoffAddress;
+    if (dto.dropoffAddress !== undefined) {
+      updateData.dropoffAddress = dto.dropoffAddress;
+      if (dto.dropoffAddress !== existingTrip?.dropoffAddress) {
+        try {
+          const geo = await this.routingService.geocode(dto.dropoffAddress);
+          if (geo) {
+            updateData.dropoffLat = geo.lat;
+            updateData.dropoffLng = geo.lng;
+          }
+        } catch (e) {}
+      }
+    }
 
     if (dto.pickupDate !== undefined) updateData.pickupDate = dto.pickupDate;
     if (dto.dropoffDate !== undefined) updateData.dropoffDate = dto.dropoffDate;
@@ -163,6 +195,16 @@ export class TripsService {
     if (dto.volumeCbm !== undefined) updateData.volumeCbm = dto.volumeCbm;
     if (dto.loadingReference !== undefined) updateData.loadingReference = dto.loadingReference;
     if (dto.unloadingReference !== undefined) updateData.unloadingReference = dto.unloadingReference;
+    if (dto.appointmentFrom !== undefined) updateData.appointmentFrom = dto.appointmentFrom;
+    if (dto.appointmentTo !== undefined) updateData.appointmentTo = dto.appointmentTo;
+    if (dto.estimatedLoadingMinutes !== undefined) updateData.estimatedLoadingMinutes = dto.estimatedLoadingMinutes;
+    if (dto.manualDelayMinutes !== undefined) updateData.manualDelayMinutes = dto.manualDelayMinutes;
+    
+    // Reset delayed risk if manually changed
+    if (dto.appointmentTo !== undefined || dto.dropoffDate !== undefined) {
+      updateData.delayedRiskEmailSent = false;
+    }
+
     if (dto.realCost !== undefined) updateData.realCost = dto.realCost;
 
     if (!existingTrip?.trackingToken) {

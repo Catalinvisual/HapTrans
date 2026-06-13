@@ -103,6 +103,15 @@ const translations: Translations = {
   
   // Tracking Details Additions
   etaLabel: { RO: 'ETA (Timp Estimat)', EN: 'ETA (Estimated Time)', NL: 'ETA (Verwachte Tijd)', DE: 'ETA (Voraussichtliche Zeit)', FR: 'ETA (Heure Estimée)', ES: 'ETA (Tiempo Estimado)' },
+  deliveryAppointment: { RO: 'Programare descărcare', EN: 'Delivery Appointment', NL: 'Leveringsafspraak', DE: 'Liefertermin', FR: 'Rendez-vous de livraison', ES: 'Cita de entrega' },
+  etaLive: { RO: 'ETA Live', EN: 'Live ETA', NL: 'Live ETA', DE: 'Live-ETA', FR: 'ETA en direct', ES: 'ETA en vivo' },
+  etaPlanned: { RO: 'ETA planificat / estimativ', EN: 'Planned / Estimated ETA', NL: 'Geplande / Geschatte ETA', DE: 'Geplante / Geschätzte ETA', FR: 'ETA prévue / estimée', ES: 'ETA planificada / estimada' },
+  etaOnTime: { RO: '🟢 La timp', EN: '🟢 On Time', NL: '🟢 Op Tijd', DE: '🟢 Pünktlich', FR: '🟢 À l\'heure', ES: '🟢 A tiempo' },
+  etaUpdated: { RO: '🟡 ETA actualizat', EN: '🟡 ETA Updated', NL: '🟡 ETA Bijgewerkt', DE: '🟡 ETA Aktualisiert', FR: '🟡 ETA Mis à jour', ES: '🟡 ETA Actualizado' },
+  etaRisk: { RO: '🔴 Risc de întârziere', EN: '🔴 Delay Risk', NL: '🔴 Risico op vertraging', DE: '🔴 Verspätungsrisiko', FR: '🔴 Risque de retard', ES: '🔴 Riesgo de retraso' },
+  arrivalEstimated: { RO: 'Sosire estimată:', EN: 'Estimated arrival:', NL: 'Verwachte aankomst:', DE: 'Voraussichtliche Ankunft:', FR: 'Arrivée estimée:', ES: 'Llegada estimada:' },
+  betweenTime: { RO: 'între', EN: 'between', NL: 'tussen', DE: 'zwischen', FR: 'entre', ES: 'entre' },
+  
   cargoDetailsLabel: { RO: 'Detalii Marfă', EN: 'Cargo Details', NL: 'Vrachtdetails', DE: 'Frachtdetails', FR: 'Détails de la Cargaison', ES: 'Detalles de Carga' },
   distanceLabel: { RO: 'Distanță Cursă', EN: 'Trip Distance', NL: 'Rijafstand', DE: 'Fahrtstrecke', FR: 'Distance du Trajet', ES: 'Distancia del Viaje' },
   previewLabel: { RO: 'Vizualizare', EN: 'Preview', NL: 'Voorbeeld', DE: 'Vorschau', FR: 'Aperçu', ES: 'Vista Previa' },

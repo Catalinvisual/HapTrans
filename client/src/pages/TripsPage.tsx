@@ -1253,38 +1253,25 @@ export default function TripsPage() {
                             <span className="text-[11px] font-bold opacity-90">{new Date(trip.updatedAt).toLocaleDateString('en-GB')} {new Date(trip.updatedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
                         </div>
-                      ) : trip.distanceKm ? (
-                        <div className="flex flex-col gap-0.5" title="Calculat la 75km/h + 45min pauză (la 4.5h) + 11h repaus (la 9h)">
-                          {(() => {
-                            const d = Number(trip.distanceKm);
-                            const hours = d / 75;
-                            const restStops = Math.floor(hours / 4.5);
-                            const nightRests = Math.floor(hours / 9);
-                            const total = hours + (restStops * 0.75) + (nightRests * 11);
-                            
-                            if (trip.pickupDate) {
-                              const pickup = new Date(`${trip.pickupDate.split('T')[0]}T${trip.pickupTime || '08:00'}:00`);
-                              const arrival = new Date(pickup.getTime() + total * 60 * 60 * 1000);
-                              return (
-                                <div className="flex items-center gap-1.5 bg-blue-50/80 px-2 py-1 rounded-md text-blue-700 border border-blue-100 w-fit">
-                                  <Clock className="w-3.5 h-3.5 shrink-0" />
-                                  <div className="flex flex-col">
-                                    <span>{arrival.toLocaleDateString('en-GB')}</span>
-                                    <span className="text-[10px] opacity-80">{arrival.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
-                                  </div>
-                                </div>
-                              );
-                            }
-                            
-                            const h = Math.floor(total);
-                            const m = Math.round((total - h) * 60);
-                            return (
-                              <div className="flex items-center gap-1.5 bg-blue-50/80 px-2 py-1 rounded-md text-blue-700 border border-blue-100 w-fit">
-                                <Clock className="w-3.5 h-3.5 shrink-0" />
-                                <span>{`${h}h ${m}m`}</span>
-                              </div>
-                            );
-                          })()}
+                      ) : trip.lastLiveEta ? (
+                        <div className="flex flex-col gap-0.5">
+                          <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md border w-fit ${trip.etaStatus === 'on_time' ? 'bg-green-50/80 text-green-700 border-green-100' : trip.etaStatus === 'at_risk' ? 'bg-yellow-50/80 text-yellow-700 border-yellow-100' : 'bg-red-50/80 text-red-700 border-red-100'}`}>
+                            <Clock className="w-3.5 h-3.5 shrink-0" />
+                            <div className="flex flex-col">
+                              <span>{new Date(trip.lastLiveEta).toLocaleDateString('en-GB')}</span>
+                              <span className="text-[10px] opacity-80 font-bold">{new Date(trip.lastLiveEta).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : trip.appointmentTo ? (
+                        <div className="flex flex-col gap-0.5" title="ETA Planificat">
+                          <div className="flex items-center gap-1.5 bg-gray-50/80 px-2 py-1 rounded-md text-gray-700 border border-gray-200 w-fit">
+                            <Clock className="w-3.5 h-3.5 shrink-0" />
+                            <div className="flex flex-col">
+                              <span>{new Date(trip.appointmentTo).toLocaleDateString('en-GB')}</span>
+                              <span className="text-[10px] opacity-80">{new Date(trip.appointmentTo).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                          </div>
                         </div>
                       ) : (
                         <span className="text-text-secondary">—</span>

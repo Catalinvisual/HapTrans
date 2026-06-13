@@ -37,6 +37,12 @@ export class TrackController {
       distanceKm: trip.distanceKm,
       status: trip.status,
       updatedAt: trip.updatedAt,
+      appointmentFrom: trip.appointmentFrom,
+      appointmentTo: trip.appointmentTo,
+      lastLiveEta: trip.lastLiveEta,
+      etaConfidence: trip.etaConfidence,
+      etaStatus: trip.etaStatus,
+      etaSource: trip.etaSource,
       // filter documents to only show relevant public ones, e.g. CMR, invoice (if paid), pictures
       documents: trip.documents?.map(doc => ({
         id: doc.id,
