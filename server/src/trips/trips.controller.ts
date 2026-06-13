@@ -18,6 +18,7 @@ export class TripsController {
   @Post() create(@Body() dto: any) { return this.service.create(dto); }
   @Patch(':id') update(@Param('id') id: string, @Body() dto: any, @Request() req: any) { return this.service.update(id, dto, req.user); }
   @Delete(':id') remove(@Param('id') id: string) { return this.service.remove(id); }
+  @Get('debug/:ref') async getDebug(@Param('ref') ref: string) { return this.service.findOneByRef(ref); }
   @Post(':id/costs') addCost(@Param('id') id: string, @Body() dto: any) { return this.service.addCost(id, dto); }
 
   @Post('scan-document')

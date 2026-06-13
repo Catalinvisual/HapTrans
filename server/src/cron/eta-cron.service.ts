@@ -39,14 +39,11 @@ export class EtaCronService {
   }
 
   private async processTripEta(trip: Trip) {
-    if (!trip.truck) return; // Need a truck to track GPS
-    if (!trip.dropoffLat || !trip.dropoffLng) return; // Need destination coords
-
     const now = new Date();
     let etaConfidence = 'low';
 
     // 1. Determine Confidence
-    if (trip.truck.updatedAt) {
+    if (trip.truck?.updatedAt) {
       const diffMins = (now.getTime() - trip.truck.updatedAt.getTime()) / 60000;
       if (diffMins <= 30) {
         etaConfidence = 'high';
@@ -55,7 +52,7 @@ export class EtaCronService {
       }
     }
 
-    if (!trip.truck.currentLat || !trip.truck.currentLng || trip.status === TripStatus.CONFIRMED) {
+    if (!trip.truck?.currentLat || !trip.truck?.currentLng || trip.status === TripStatus.CONFIRMED) {
       etaConfidence = 'low';
     }
 
@@ -63,7 +60,7 @@ export class EtaCronService {
       // 2. Calculate Route Duration (seconds)
       let routeDurationMins = 0;
 
-      if (trip.status !== TripStatus.CONFIRMED && trip.truck.currentLat && trip.truck.currentLng) {
+      if (trip.status !== TripStatus.CONFIRMED && trip.truck?.currentLat && trip.truck?.currentLng && trip.dropoffLat && trip.dropoffLng) {
         const route = await this.routingService.calculateRoute(
           trip.truck.currentLat,
           trip.truck.currentLng,

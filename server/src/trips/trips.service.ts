@@ -60,6 +60,13 @@ export class TripsService {
     }
   }
 
+  async findOneByRef(referenceNumber: string): Promise<Trip> {
+    return this.repo.findOne({
+      where: { referenceNumber },
+      relations: ['client', 'truck', 'driver', 'costs'],
+    });
+  }
+
   async create(dto: any) {
     await this.checkConflict(dto.driverId, dto.truckId, dto.pickupDate, dto.dropoffDate);
     
