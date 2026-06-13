@@ -286,6 +286,18 @@ export default function TripsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!form.clientId || !form.truckId || !form.driverId) {
+      toast(t('missingRequiredFields'), {
+        icon: '⚠️',
+        style: {
+          background: '#f59e0b',
+          color: '#fff',
+        },
+      });
+      return;
+    }
+
     const priceNum = form.price === '' ? 0 : Number(form.price);
     const costNum = form.estimatedCost === '' ? 0 : Number(form.estimatedCost);
 

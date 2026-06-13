@@ -14,6 +14,7 @@ import { InvoicesModule } from '../invoices/invoices.module';
 import { v2 as cloudinary } from 'cloudinary';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 
+import { ResendService } from '../email/resend.service';
 import * as multer from 'multer';
 
 // We don't need CloudinaryStorage anymore since we process in-memory first
@@ -35,7 +36,7 @@ const storage = multer.memoryStorage();
     InvoicesModule,
   ],
   controllers: [TripsController],
-  providers: [TripsService, TripScannerService],
+  providers: [TripsService, TripScannerService, ResendService],
   exports: [TripsService],
 })
 export class TripsModule {}

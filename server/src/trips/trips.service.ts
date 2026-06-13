@@ -9,6 +9,7 @@ import { FirebaseService } from '../firebase/firebase.service';
 import { ChatGateway } from '../chat/chat.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { InvoicesService } from '../invoices/invoices.service';
+import { ResendService } from '../email/resend.service';
 
 @Injectable()
 export class TripsService {
@@ -19,6 +20,7 @@ export class TripsService {
     @Inject(forwardRef(() => ChatGateway)) private chatGateway: ChatGateway,
     private notificationsService: NotificationsService,
     private invoicesService: InvoicesService,
+    private resendService: ResendService,
   ) {}
 
   findAll() {
@@ -52,7 +54,7 @@ export class TripsService {
 
     const conflict = await query.getOne();
     if (conflict) {
-      throw new ConflictException(`err_trip_overlap:${conflict.id}`);
+      throw new ConflictException(`err_trip_overlap:${conflict.referenceNumber || conflict.id}`);
     }
   }
 
@@ -104,8 +106,9 @@ export class TripsService {
     });
     const saved = await this.repo.save(trip);
     
-    // Fetch full trip with driver.user to get FCM token
+    // Fetch full trip with driver.user to get FCM token and client to get email
     const fullTrip = await this.findOne(saved.id);
+    
     if (fullTrip && fullTrip.driver && fullTrip.driver.user && fullTrip.driver.user.fcmToken) {
       await this.firebaseService.sendPushNotification(
         fullTrip.driver.user.fcmToken,
@@ -113,6 +116,10 @@ export class TripsService {
         `Ați primit o cursă nouă: ${fullTrip.pickupAddress} -> ${fullTrip.dropoffAddress}`,
         { type: 'trip', tripId: fullTrip.id }
       );
+    }
+    
+    if (fullTrip && fullTrip.client && fullTrip.client.contactEmail) {
+      await this.resendService.sendTrackingEmail(fullTrip.client.contactEmail, trackingToken);
     }
     
     return saved;
