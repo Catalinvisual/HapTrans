@@ -124,11 +124,11 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
             ctx.drawImage(img, 0, 0);
             const jpegData = canvas.toDataURL('image/jpeg', 0.9);
             // aspect ratio logic
-            const maxW = 40;
-            const maxH = 14;
+            const maxW = 60;
+            const maxH = 22;
             const ratio = Math.min(maxW / img.width, maxH / img.height);
             doc.addImage(jpegData, 'JPEG', 14, 10, img.width * ratio, img.height * ratio);
-            headerY = 30;
+            headerY = Math.max(30, 10 + (img.height * ratio) + 6);
           }
           resolve();
         };
@@ -175,10 +175,10 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   // Decorative separator
   doc.setDrawColor(226, 232, 240);
   doc.setLineWidth(0.5);
-  doc.line(14, 42, 196, 42);
+  doc.line(14, 46, 196, 46);
 
   // ─── 3. FROM / TO ────────────────────────────────────────────────────
-  const addrY = 50;
+  const addrY = 54;
 
   // FROM (left)
   doc.setFontSize(9);
@@ -267,28 +267,43 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
 
-  const routeText = `${safeText(trip.pickupAddress || '—')} → ${safeText(trip.dropoffAddress || '—')}`;
+  const routeText = `${safeText(trip.pickupAddress || '—')} - ${safeText(trip.dropoffAddress || '—')}`;
   
-  const cmrText = trip.cmrReference ? `\nCMR Reference:\n${safeText(trip.cmrReference)}` : '';
-  const loadingRefText = trip.loadingReference ? `\nLoading Ref: ${safeText(trip.loadingReference)}` : '';
-  const unloadingRefText = trip.unloadingReference ? `\nUnloading Ref: ${safeText(trip.unloadingReference)}` : '';
-
-  const descriptionLines = [
-    `Route:\n${routeText}`,
-    `\nPickup Date:\n${fmtDate(trip.pickupDate)}`,
-    `\nDelivery Date:\n${fmtDate(trip.dropoffDate)}${loadingRefText}${unloadingRefText}${cmrText}`
-  ].join('\n');
-
-  const wrappedDesc = doc.splitTextToSize(descriptionLines, 175);
-  doc.text(wrappedDesc, 18, detailY);
+  let currY = detailY;
   
-  const nextY = detailY + (wrappedDesc.length * 4) + 6;
+  doc.setFont('helvetica', 'normal');
+  doc.text('Route:', 18, currY);
+  const wrappedRoute = doc.splitTextToSize(routeText, 175);
+  doc.text(wrappedRoute, 18, currY + 4);
+  currY += 4 + (wrappedRoute.length * 4) + 2;
 
+  doc.text('Pickup Date:', 18, currY);
+  doc.text(fmtDate(trip.pickupDate), 18, currY + 4);
+  currY += 10;
+
+  doc.text('Delivery Date:', 18, currY);
+  doc.text(fmtDate(trip.dropoffDate), 18, currY + 4);
+  currY += 10;
+
+  if (trip.loadingReference) {
+    doc.text(`Loading Ref: ${safeText(trip.loadingReference)}`, 18, currY);
+    currY += 5;
+  }
+  if (trip.unloadingReference) {
+    doc.text(`Unloading Ref: ${safeText(trip.unloadingReference)}`, 18, currY);
+    currY += 5;
+  }
+  if (trip.cmrReference) {
+    doc.text(`CMR Reference: ${safeText(trip.cmrReference)}`, 18, currY);
+    currY += 5;
+  }
+
+  currY += 2;
   const palletTypeStr = trip.palletType ? ` (${safeText(trip.palletType)})` : '';
   const cargoText = `• Cargo: ${trip.pallets || '0'} ${t.pallets}${palletTypeStr}  |  ${trip.weightKg || '0.00'} kg  |  ${trip.volumeCbm || '0.00'} m³`;
-  doc.text(cargoText, 18, nextY);
+  doc.text(cargoText, 18, currY);
 
-  const afterDetailsY = nextY + 12;
+  const afterDetailsY = currY + 12;
 
   doc.setDrawColor(203, 213, 225);
   doc.setLineWidth(0.5);
