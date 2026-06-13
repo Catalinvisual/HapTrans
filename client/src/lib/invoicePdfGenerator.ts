@@ -303,30 +303,40 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   doc.text(fmtDate(trip.dropoffDate), 18, currY + 4);
   currY += 10;
 
-  if (trip.loadingReference) {
-    drawLabel('Loading Ref:');
-    setNormal();
-    doc.text(` ${safeText(trip.loadingReference)}`, 35, currY);
+  const drawInline = (lbl: string, val: string) => {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text(lbl, 18, currY);
+    const lblWidth = doc.getTextWidth(lbl);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 51, 51);
+    doc.text(` ${safeText(val)}`, 18 + lblWidth, currY);
     currY += 5;
+  };
+
+  if (trip.loadingReference) {
+    drawInline('Loading Ref:', trip.loadingReference);
   }
   if (trip.unloadingReference) {
-    drawLabel('Unloading Ref:');
-    setNormal();
-    doc.text(` ${safeText(trip.unloadingReference)}`, 39, currY);
-    currY += 5;
+    drawInline('Unloading Ref:', trip.unloadingReference);
   }
   if (trip.cmrReference) {
-    drawLabel('CMR Reference:');
-    setNormal();
-    doc.text(` ${safeText(trip.cmrReference)}`, 41, currY);
-    currY += 5;
+    drawInline('CMR Reference:', trip.cmrReference);
   }
 
   currY += 2;
-  setNormal();
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  const cargoLbl = '• Cargo:';
+  doc.text(cargoLbl, 18, currY);
+  const cargoLblWidth = doc.getTextWidth(cargoLbl);
+  
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(51, 51, 51);
   const palletTypeStr = trip.palletType ? ` (${safeText(trip.palletType)})` : '';
-  const cargoText = `• Cargo: ${trip.pallets || '0'} ${t.pallets}${palletTypeStr}  |  ${trip.weightKg || '0.00'} kg  |  ${trip.volumeCbm || '0.00'} m³`;
-  doc.text(cargoText, 18, currY);
+  const cargoText = ` ${trip.pallets || '0'} ${t.pallets}${palletTypeStr}  |  ${trip.weightKg || '0.00'} kg  |  ${trip.volumeCbm || '0.00'} m³`;
+  doc.text(cargoText, 18 + cargoLblWidth, currY);
 
   const afterDetailsY = currY + 12;
 
