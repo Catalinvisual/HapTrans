@@ -67,12 +67,18 @@ export class ResendService {
 
     try {
       if (process.env.RESEND_API_KEY) {
-        await this.resend.emails.send({
+        const response = await this.resend.emails.send({
           from: 'HapCargo <office@hapcargo.com>',
           to: email,
           subject: 'Track your HapCargo Shipment',
           html: htmlContent,
         });
+        
+        if (response.error) {
+          console.error('Resend Error:', response.error);
+        } else {
+          console.log('Email sent successfully:', response.data);
+        }
       } else {
         console.log('[MOCK EMAIL] Send to:', email, 'Link:', trackingUrl);
       }
