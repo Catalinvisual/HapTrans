@@ -69,7 +69,7 @@ export class ResendService {
 
     try {
       if (process.env.RESEND_API_KEY) {
-        const fromEmail = process.env.RESEND_FROM_EMAIL || 'office@hapcargo.com';
+        const fromEmail = process.env.RESEND_FROM_EMAIL || 'office@haplogic.com';
         const response = await this.resend.emails.send({
           from: `HapCargo <${fromEmail}>`,
           to: email,
