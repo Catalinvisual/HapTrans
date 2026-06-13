@@ -107,6 +107,9 @@ export class Trip {
   @Column({ nullable: true })
   unloadingReference: string;
 
+  @Column({ nullable: true })
+  cmrReference: string;
+
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
   dropoffLat: number;
 

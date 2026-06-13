@@ -44,7 +44,7 @@ export class InvoicesService {
       },
     });
 
-    const invoiceNumber = `HT-${year}-${String(count + 1).padStart(4, '0')}`;
+    const invoiceNumber = `HC-${year}-${String(count + 1).padStart(4, '0')}`;
     const inv = this.repo.create({
       ...dto,
       invoiceNumber,

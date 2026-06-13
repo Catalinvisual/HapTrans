@@ -11,7 +11,7 @@ function fmtDate(dateStr: string | null | undefined): string {
   return `${dd}/${mm}/${yyyy}`;
 }
 
-export function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' = 'en') {
+export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' = 'en'): Promise<string> {
   const doc = new jsPDF();
   const trip = invoice.trip || {};
   const co = getCompanySettings();
@@ -55,6 +55,7 @@ export function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' = 'en')
       bank: 'Bank',
       iban: 'IBAN',
       vatId: 'VAT / Tax ID',
+      paymentTerms: 'Payment Terms:',
       address: 'Address'
     },
     nl: {
@@ -90,6 +91,7 @@ export function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' = 'en')
       bank: 'Bank',
       iban: 'IBAN',
       vatId: 'BTW / Tax ID',
+      paymentTerms: 'Betalingsvoorwaarden:',
       address: 'Adres'
     }
   };
@@ -110,12 +112,29 @@ export function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' = 'en')
 
   if (co.logo) {
     try {
-      // Detect image type from data URL
-      const ext = co.logo.startsWith('data:image/png') ? 'PNG'
-        : co.logo.startsWith('data:image/svg') ? 'SVG'
-        : 'JPEG';
-      doc.addImage(co.logo, ext, 14, 10, 40, 14);
-      headerY = 30;
+      await new Promise<void>((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            const jpegData = canvas.toDataURL('image/jpeg', 0.9);
+            // aspect ratio logic
+            const maxW = 40;
+            const maxH = 14;
+            const ratio = Math.min(maxW / img.width, maxH / img.height);
+            doc.addImage(jpegData, 'JPEG', 14, 10, img.width * ratio, img.height * ratio);
+            headerY = 30;
+          }
+          resolve();
+        };
+        img.onerror = () => reject(new Error('Failed to load logo'));
+        img.src = co.logo;
+      });
     } catch {
       // Fall back to text brand if logo fails
       doc.setFontSize(22);
@@ -143,17 +162,23 @@ export function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' = 'en')
   doc.text(`${t.invoiceNo} ${safeText(invoice.invoiceNumber)}`, 145, 18);
   doc.text(`${t.issueDate} ${fmtDate(invoice.issueDate)}`, 145, 24);
   doc.text(`${t.dueDate}   ${fmtDate(invoice.dueDate)}`, 145, 30);
-  if (invoice.trip && invoice.trip.referenceNumber) {
-    doc.text(`${t.tripRef} ${invoice.trip.referenceNumber}`, 145, 36);
+  
+  // calculate payment terms
+  let termsStr = '30 days net';
+  if (invoice.issueDate && invoice.dueDate) {
+    const diffTime = Math.abs(new Date(invoice.dueDate).getTime() - new Date(invoice.issueDate).getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    termsStr = `${diffDays} days net`;
   }
+  doc.text(`${t.paymentTerms} ${termsStr}`, 145, 36);
 
   // Decorative separator
   doc.setDrawColor(226, 232, 240);
   doc.setLineWidth(0.5);
-  doc.line(14, 38, 196, 38);
+  doc.line(14, 42, 196, 42);
 
   // ─── 3. FROM / TO ────────────────────────────────────────────────────
-  const addrY = 46;
+  const addrY = 50;
 
   // FROM (left)
   doc.setFontSize(9);
@@ -242,27 +267,28 @@ export function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' = 'en')
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
 
-  const pickupDateFmt  = fmtDate(trip.pickupDate);
-  const dropoffDateFmt = fmtDate(trip.dropoffDate);
-
-  const routeText   = `${t.route} ${safeText(trip.pickupAddress || '—')} - ${safeText(trip.dropoffAddress || '—')}`;
-  const datesText   = `${t.dates} ${pickupDateFmt}${trip.pickupTime ? ' at ' + trip.pickupTime : ''} - ${dropoffDateFmt}${trip.dropoffTime ? ' at ' + trip.dropoffTime : ''}`;
+  const routeText = `${safeText(trip.pickupAddress || '—')} → ${safeText(trip.dropoffAddress || '—')}`;
   
+  const cmrText = trip.cmrReference ? `\nCMR Reference:\n${safeText(trip.cmrReference)}` : '';
+  const loadingRefText = trip.loadingReference ? `\nLoading Ref: ${safeText(trip.loadingReference)}` : '';
+  const unloadingRefText = trip.unloadingReference ? `\nUnloading Ref: ${safeText(trip.unloadingReference)}` : '';
+
+  const descriptionLines = [
+    `Route:\n${routeText}`,
+    `\nPickup Date:\n${fmtDate(trip.pickupDate)}`,
+    `\nDelivery Date:\n${fmtDate(trip.dropoffDate)}${loadingRefText}${unloadingRefText}${cmrText}`
+  ].join('\n');
+
+  const wrappedDesc = doc.splitTextToSize(descriptionLines, 175);
+  doc.text(wrappedDesc, 18, detailY);
+  
+  const nextY = detailY + (wrappedDesc.length * 4) + 6;
+
   const palletTypeStr = trip.palletType ? ` (${safeText(trip.palletType)})` : '';
-  const cargoText   = `${t.cargo} ${trip.pallets || '0'} ${t.pallets}${palletTypeStr}  |  ${trip.weightKg || '0'} kg  |  ${trip.volumeCbm || '0'} m³`;
-  const vehicleText = `${t.vehicle} ${safeText(trip.truck?.plateNumber || '—')}  |  ${t.driver} ${safeText(trip.driver?.user?.name || '—')}`;
-  const refsText    = `${t.refs} ${safeText(trip.loadingReference || '—')}  |  ${t.unloading} ${safeText(trip.unloadingReference || '—')}`;
+  const cargoText = `• Cargo: ${trip.pallets || '0'} ${t.pallets}${palletTypeStr}  |  ${trip.weightKg || '0.00'} kg  |  ${trip.volumeCbm || '0.00'} m³`;
+  doc.text(cargoText, 18, nextY);
 
-  const wrappedRoute = doc.splitTextToSize(`• ${routeText}`, 175);
-  doc.text(wrappedRoute, 18, detailY);
-  const nextY = detailY + wrappedRoute.length * 4;
-
-  doc.text(`• ${datesText}`,   18, nextY + 1);
-  doc.text(`• ${cargoText}`,   18, nextY + 6);
-  doc.text(`• ${vehicleText}`, 18, nextY + 11);
-  doc.text(`• ${refsText}`,    18, nextY + 16);
-
-  const afterDetailsY = nextY + 22;
+  const afterDetailsY = nextY + 12;
 
   doc.setDrawColor(203, 213, 225);
   doc.setLineWidth(0.5);
@@ -311,7 +337,6 @@ export function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' = 'en')
   doc.setFontSize(8);
   doc.setTextColor(148, 163, 184);
   doc.text(t.footer1, 14, 280);
-  doc.text(t.footer2, 125, 280);
 
   return doc.output('datauristring');
 }

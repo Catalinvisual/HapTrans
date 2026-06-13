@@ -125,7 +125,7 @@ export default function InvoicesPage() {
         };
         const res = await api.post('/invoices', dataToSubmit);
         const savedInvoice = res.data;
-        const base64Pdf = generateInvoicePdfBase64(savedInvoice, lang);
+        const base64Pdf = await generateInvoicePdfBase64(savedInvoice, lang);
         const arr = base64Pdf.split(',');
         const mime = arr[0].match(/:(.*?);/)[1];
         const bstr = atob(arr[1]);
@@ -148,7 +148,7 @@ export default function InvoicesPage() {
       const invoice = invoiceLangModal.data;
       const loadId = toast.loading(t('generatingPdf'));
       try {
-        const base64Pdf = generateInvoicePdfBase64(invoice, lang);
+        const base64Pdf = await generateInvoicePdfBase64(invoice, lang);
         const arr = base64Pdf.split(',');
         const mime = arr[0].match(/:(.*?);/)[1];
         const bstr = atob(arr[1]);

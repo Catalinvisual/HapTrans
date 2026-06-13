@@ -254,6 +254,7 @@ export default function TripsPage() {
           if (parsed.volumeCbm) updated.volumeCbm = parsed.volumeCbm.toString();
           if (parsed.loadingReference) updated.loadingReference = parsed.loadingReference;
           if (parsed.unloadingReference) updated.unloadingReference = parsed.unloadingReference;
+          if (parsed.cmrReference) updated.cmrReference = parsed.cmrReference;
           if (parsed.notes) updated.notes = parsed.notes;
           newFormState = updated;
           return updated;
@@ -347,7 +348,7 @@ export default function TripsPage() {
           clientId:'', truckId:'', driverId:'', pickupAddress:'', dropoffAddress:'', 
           pickupDate:'', dropoffDate:'', price:'', estimatedCost:'', realCost:'', distanceKm:'', notes:'',
           pickupTime: '', dropoffTime: '', pallets: '', weightKg: '', volumeCbm: '',
-          loadingReference: '', unloadingReference: '',
+          loadingReference: '', unloadingReference: '', cmrReference: '', palletType: 'Euro paleti'
         });
         load();
       } catch (err: any) {
@@ -529,7 +530,6 @@ export default function TripsPage() {
       const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       const amount = Number(trip.price) || 0;
       const vatPercent = 19;
-      const notes = `Invoice automatically generated for trip ${trip.pickupAddress} to ${trip.dropoffAddress}`;
 
       // Create invoice record on server
       const res = await api.post('/invoices', {
@@ -539,8 +539,7 @@ export default function TripsPage() {
         vatPercent,
         issueDate,
         dueDate,
-        status: 'sent',
-        notes
+        status: 'sent'
       });
 
       const savedInvoice = res.data;
@@ -553,7 +552,7 @@ export default function TripsPage() {
       };
 
       // Generate base64 PDF
-      const base64Pdf = generateInvoicePdfBase64(invoiceWithFullRelations, lang);
+      const base64Pdf = await generateInvoicePdfBase64(invoiceWithFullRelations, lang);
 
       // Convert to File
       const arr = base64Pdf.split(',');
@@ -628,6 +627,7 @@ export default function TripsPage() {
       volumeCbm: trip.volumeCbm || '',
       loadingReference: trip.loadingReference || '',
       unloadingReference: trip.unloadingReference || '',
+      cmrReference: trip.cmrReference || '',
       status: trip.status || 'pending',
     });
     setEditId(trip.id); setShowForm(true);
@@ -642,6 +642,7 @@ export default function TripsPage() {
       (t.dropoffAddress || '').toLowerCase().includes(query) ||
       (t.loadingReference || '').toLowerCase().includes(query) ||
       (t.unloadingReference || '').toLowerCase().includes(query) ||
+      (t.cmrReference || '').toLowerCase().includes(query) ||
       (t.truck?.plateNumber || '').toLowerCase().includes(query) ||
       (t.truck?.brand || '').toLowerCase().includes(query) ||
       (t.driver?.user?.name || '').toLowerCase().includes(query) ||
@@ -771,7 +772,6 @@ export default function TripsPage() {
             </div>
             
             {/* Pickup Details */}
-            {/* Pickup Details */}
             <div className="border-t border-dashed border-border pt-4 md:col-span-2 lg:col-span-3">
               <h3 className="text-sm font-bold text-primary mb-3">{t('pickup')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -797,12 +797,12 @@ export default function TripsPage() {
             {/* Delivery Details */}
             <div className="border-t border-dashed border-border pt-4 md:col-span-2 lg:col-span-3">
               <h3 className="text-sm font-bold text-primary mb-3">{t('dropoff')}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="md:col-span-2">
                   <label className="label text-xs font-semibold">{t('dropoffCompanyName')}</label>
                   <input type="text" className="input" value={form.dropoffCompanyName} onChange={e => setForm({...form, dropoffCompanyName: e.target.value})} placeholder="e.g. Recipient Client Inc" />
                 </div>
-                <div>
+                <div className="md:col-span-2">
                   <label className="label text-xs font-semibold">{t('dropoffAddress')}</label>
                   <AddressAutocomplete 
                     value={form.dropoffAddress} 
@@ -810,9 +810,13 @@ export default function TripsPage() {
                     required 
                   />
                 </div>
-                <div>
+                <div className="md:col-span-2">
                   <label className="label text-xs font-semibold">{t('unloadingReference')}</label>
                   <input className="input" placeholder="e.g. REF-67890" value={form.unloadingReference || ''} onChange={e => setForm({...form, unloadingReference: e.target.value.toUpperCase()})} />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="label text-xs font-semibold">CMR Reference</label>
+                  <input className="input" placeholder="e.g. CMR-2026-001" value={form.cmrReference || ''} onChange={e => setForm({...form, cmrReference: e.target.value.toUpperCase()})} />
                 </div>
               </div>
             </div>
