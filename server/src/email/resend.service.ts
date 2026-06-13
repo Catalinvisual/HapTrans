@@ -57,15 +57,15 @@ export class ResendService {
           .header { background-color: #0f172a; padding: 30px; text-align: center; }
           .header .logo { display: inline-flex; align-items: center; text-decoration: none; }
           .header h1 { color: #ffffff; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-left: 10px; }
-          .header h1 span { color: #f59e0b; }
+          .header h1 span { color: #ff5a00; }
           .content { padding: 40px 30px; color: #334155; line-height: 1.6; }
           .content h2 { color: #0f172a; margin-top: 0; font-size: 22px; font-weight: 700; }
           .content p { font-size: 16px; margin-bottom: 24px; }
           .info-box { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px 20px; margin-bottom: 24px; }
           .info-box p { margin: 5px 0; font-size: 15px; }
           .button-container { text-align: center; margin: 40px 0; }
-          .btn { background-color: #f59e0b; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-size: 16px; font-weight: 600; display: inline-block; transition: background-color 0.2s; box-shadow: 0 4px 6px rgba(245, 158, 11, 0.2); }
-          .btn:hover { background-color: #d97706; }
+          .btn { background-color: #ff5a00; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-size: 16px; font-weight: 600; display: inline-block; transition: background-color 0.2s; box-shadow: 0 4px 6px rgba(255, 90, 0, 0.2); }
+          .btn:hover { background-color: #e04d00; }
           .footer { background-color: #f8fafc; padding: 20px 30px; text-align: center; border-top: 1px solid #e2e8f0; }
           .footer p { color: #64748b; font-size: 13px; margin: 0; }
           .fallback { font-size: 13px; color: #94a3b8; word-break: break-all; margin-top: 30px; text-align: center; }

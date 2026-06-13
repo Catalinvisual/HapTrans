@@ -10,7 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
+
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -90,44 +90,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     }
   }
 
-  Future<void> _scanDocument() async {
-    try {
-      if (!await Permission.camera.request().isGranted) {
-        showTopSnackBar(context, 
-          SnackBar(content: Text({'ro': 'Permisiunea camerei este necesară', 'en': 'Camera permission is required', 'nl': 'Cameratoestemming is vereist', 'de': 'Kameraberechtigung ist erforderlich', 'fr': 'Autorisation caméra requise'}[locale] ?? 'Camera permission is required'), backgroundColor: Colors.red),
-        );
-        return;
-      }
-      
-      DocumentScannerOptions options = DocumentScannerOptions(
-        documentFormats: const {DocumentFormat.jpeg},
-        mode: ScannerMode.full,
-        pageLimit: 1,
-        isGalleryImport: true,
-      );
-      final documentScanner = DocumentScanner(options: options);
-      
-      DocumentScanningResult? result = await documentScanner.scanDocument();
-      if (result != null && result.images != null && result.images!.isNotEmpty) {
-        setState(() {
-          _selectedFiles.add(File(result.images!.first));
-        });
-      }
-      documentScanner.close();
-    } catch (e) {
-      if (e.toString().toLowerCase().contains('cancelled')) return; // Ignore user cancellation
-      showTopSnackBar(context, 
-        SnackBar(content: Text({'ro': 'Eroare scanare: $e', 'en': 'Scan Error: $e', 'nl': 'Scanfout: $e', 'de': 'Scan-Fehler: $e', 'fr': 'Erreur de scan: $e'}[locale] ?? 'Scan Error: $e'), backgroundColor: kError),
-      );
-    }
-  }
-
   void _handleCameraPress() {
-    if (_selectedTypeKey == 'cmr' || _selectedTypeKey == 'aviz') {
-      _scanDocument();
-    } else {
-      _pickImage(ImageSource.camera);
-    }
+    _pickImage(ImageSource.camera);
   }
 
   Future<void> _deleteDocument(String docId, Map<String, String> l) async {
@@ -626,7 +590,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'share': 'Trimite',
         'downloadSuccess': 'Document descărcat cu succes în galerie!',
         'shareSuccess': 'Document pregătit pentru partajare!',
-        'camera': 'Scanare / Cameră',
+        'camera': 'Cameră',
         'gallery': 'Galerie Foto',
         'files': 'Fișiere',
         'selectTrip': 'Selectează Cursa',
@@ -657,7 +621,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'share': 'Share',
         'downloadSuccess': 'Document downloaded successfully!',
         'shareSuccess': 'Document prepared for sharing!',
-        'camera': 'Scan / Camera',
+        'camera': 'Camera',
         'gallery': 'Gallery',
         'files': 'Files',
         'selectTrip': 'Select Trip',
@@ -688,7 +652,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'share': 'Delen',
         'downloadSuccess': 'Document succesvol gedownload!',
         'shareSuccess': 'Document gereed voor delen!',
-        'camera': 'Scannen / Camera',
+        'camera': 'Camera',
         'gallery': 'Galerij',
         'files': 'Bestanden',
         'selectTrip': 'Selecteer Rit',
@@ -719,7 +683,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'share': 'Teilen',
         'downloadSuccess': 'Dokument erfolgreich heruntergeladen!',
         'shareSuccess': 'Dokument bereit zum Teilen!',
-        'camera': 'Scannen / Kamera',
+        'camera': 'Kamera',
         'gallery': 'Galerie',
         'files': 'Dateien',
         'selectTrip': 'Tour auswählen',
@@ -750,7 +714,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         'share': 'Partager',
         'downloadSuccess': 'Document téléchargé avec succès !',
         'shareSuccess': 'Document prêt pour le partage !',
-        'camera': 'Scanner / Caméra',
+        'camera': 'Caméra',
         'gallery': 'Galerie',
         'files': 'Fichiers',
         'selectTrip': 'Sélectionner la Course',

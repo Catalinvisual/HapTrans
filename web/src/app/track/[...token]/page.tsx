@@ -101,7 +101,8 @@ export default function TrackPage({ params }: { params: any }) {
     const currentIndex = statuses.indexOf(currentStatus) === -1 ? (currentStatus === 'delayed' ? 3 : 0) : statuses.indexOf(currentStatus);
 
     return (
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2rem', marginBottom: '2rem', position: 'relative' }}>
+      <div style={{ overflowX: 'auto', paddingBottom: '1rem', margin: '0 -1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem', position: 'relative', minWidth: '600px', padding: '0 1rem' }}>
         <div style={{ position: 'absolute', top: '14px', left: '12.5%', width: '75%', height: '4px', background: '#eee', zIndex: 0 }}></div>
         <div style={{ position: 'absolute', top: '14px', left: '12.5%', width: `${(currentIndex / (statuses.length - 1)) * 75}%`, height: '4px', background: 'var(--primary)', zIndex: 1, transition: 'width 0.5s ease' }}></div>
         
@@ -125,6 +126,7 @@ export default function TrackPage({ params }: { params: any }) {
             </div>
           )
         })}
+        </div>
       </div>
     );
   };
@@ -164,14 +166,12 @@ export default function TrackPage({ params }: { params: any }) {
                   <>
                     <p style={{ fontWeight: 600, color: 'var(--primary)', display: 'inline-block' }}>
                       <span style={{ backgroundColor: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, marginRight: '6px', verticalAlign: 'middle' }}>ÎNTÂRZIAT</span>
-                      {data.dropoffDate ? new Date(data.dropoffDate).toLocaleDateString('ro-RO') : 'N/A'}
-                      {data.dropoffTime ? ` la ${data.dropoffTime}` : ''}
+                      {data.dropoffDate ? `${new Date(data.dropoffDate).toLocaleDateString('ro-RO')} la ${data.dropoffTime ? data.dropoffTime : new Date(data.dropoffDate).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}` : 'N/A'}
                     </p>
                   </>
                 ) : (
                   <p style={{ fontWeight: 600, color: 'var(--primary)' }}>
-                    {data.dropoffDate ? new Date(data.dropoffDate).toLocaleDateString('ro-RO') : 'N/A'}
-                    {data.dropoffTime ? ` la ${data.dropoffTime}` : ''}
+                    {data.dropoffDate ? `${new Date(data.dropoffDate).toLocaleDateString('ro-RO')} la ${data.dropoffTime ? data.dropoffTime : new Date(data.dropoffDate).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}` : 'N/A'}
                   </p>
                 )}
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>Ref: #{data.referenceNumber || 'N/A'}</p>

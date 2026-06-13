@@ -111,7 +111,9 @@ const translations: Translations = {
   // Status Steps
   statusPending: { RO: 'Ofertă Trimisă', EN: 'Quote Sent', NL: 'Offerte Verzonden', DE: 'Angebot Gesendet', FR: 'Devis Envoyé', ES: 'Presupuesto Enviado' },
   statusConfirmed: { RO: 'Acceptată (Camion Alocat)', EN: 'Accepted (Truck Allocated)', NL: 'Geaccepteerd (Vrachtwagen Toegewezen)', DE: 'Akzeptiert (LKW Zugewiesen)', FR: 'Accepté (Camion Alloué)', ES: 'Aceptado (Camión Asignado)' },
+  statusLoading: { RO: 'La Încărcare', EN: 'Loading', NL: 'Laden', DE: 'Beladen', FR: 'Chargement', ES: 'Cargando' },
   statusInProgress: { RO: 'În Tranzit', EN: 'In Transit', NL: 'Onderweg', DE: 'In Transit', FR: 'En Transit', ES: 'En Tránsito' },
+  statusUnloading: { RO: 'La Descărcare', EN: 'Unloading', NL: 'Lossen', DE: 'Entladen', FR: 'Déchargement', ES: 'Descargando' },
   statusCompleted: { RO: 'Livrată', EN: 'Delivered', NL: 'Geleverd', DE: 'Geliefert', FR: 'Livré', ES: 'Entregado' },
 
   // Calculator step 2 & 3
