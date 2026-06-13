@@ -101,6 +101,13 @@ const translations: Translations = {
   tripDocuments: { RO: 'Documente Cursă', EN: 'Trip Documents', NL: 'Ritdocumenten', DE: 'Fahrtdokumente', FR: 'Documents de Trajet', ES: 'Documentos del Viaje' },
   downloadView: { RO: 'Descarcă / Vizualizează', EN: 'Download / View', NL: 'Downloaden / Weergeven', DE: 'Herunterladen / Ansehen', FR: 'Télécharger / Voir', ES: 'Descargar / Ver' },
   
+  // Tracking Details Additions
+  etaLabel: { RO: 'ETA (Timp Estimat)', EN: 'ETA (Estimated Time)', NL: 'ETA (Verwachte Tijd)', DE: 'ETA (Voraussichtliche Zeit)', FR: 'ETA (Heure Estimée)', ES: 'ETA (Tiempo Estimado)' },
+  cargoDetailsLabel: { RO: 'Detalii Marfă', EN: 'Cargo Details', NL: 'Vrachtdetails', DE: 'Frachtdetails', FR: 'Détails de la Cargaison', ES: 'Detalles de Carga' },
+  distanceLabel: { RO: 'Distanță Cursă', EN: 'Trip Distance', NL: 'Rijafstand', DE: 'Fahrtstrecke', FR: 'Distance du Trajet', ES: 'Distancia del Viaje' },
+  previewLabel: { RO: 'Vizualizare', EN: 'Preview', NL: 'Voorbeeld', DE: 'Vorschau', FR: 'Aperçu', ES: 'Vista Previa' },
+  downloadLabel: { RO: 'Descarcă', EN: 'Download', NL: 'Downloaden', DE: 'Herunterladen', FR: 'Télécharger', ES: 'Descargar' },
+  
   // Status Steps
   statusPending: { RO: 'Ofertă Trimisă', EN: 'Quote Sent', NL: 'Offerte Verzonden', DE: 'Angebot Gesendet', FR: 'Devis Envoyé', ES: 'Presupuesto Enviado' },
   statusConfirmed: { RO: 'Acceptată (Camion Alocat)', EN: 'Accepted (Truck Allocated)', NL: 'Geaccepteerd (Vrachtwagen Toegewezen)', DE: 'Akzeptiert (LKW Zugewiesen)', FR: 'Accepté (Camion Alloué)', ES: 'Aceptado (Camión Asignado)' },

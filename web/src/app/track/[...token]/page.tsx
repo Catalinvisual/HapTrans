@@ -96,16 +96,19 @@ export default function TrackPage({ params }: { params: any }) {
         
         {statuses.map((s, idx) => {
           const isActive = idx <= currentIndex;
+          const isLastAndActive = isActive && idx === statuses.length - 1;
+          const circleBg = isLastAndActive ? '#10b981' : (isActive ? 'var(--primary)' : '#eee');
+
           return (
             <div key={s} style={{ position: 'relative', zIndex: 2, textAlign: 'center', width: '25%' }}>
               <div style={{ 
-                width: '32px', height: '32px', borderRadius: '50%', background: isActive ? 'var(--primary)' : '#eee', 
+                width: '32px', height: '32px', borderRadius: '50%', background: circleBg, 
                 color: isActive ? 'white' : '#999', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto',
                 fontWeight: 'bold', border: '4px solid white'
               }}>
                 {isActive ? '✓' : idx + 1}
               </div>
-              <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', fontWeight: isActive ? 'bold' : 'normal', color: isActive ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+              <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', fontWeight: isActive ? 'bold' : 'normal', color: isLastAndActive ? '#10b981' : (isActive ? 'var(--text-primary)' : 'var(--text-muted)') }}>
                 {labels[idx]}
               </div>
             </div>
