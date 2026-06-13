@@ -223,7 +223,13 @@ export default function TrackPage({ params }: { params: any }) {
                         </>
                       ) : (
                         <p style={{ fontWeight: 600, color: 'var(--primary)' }}>
-                          {data.dropoffDate ? `${new Date(data.dropoffDate).toLocaleDateString('ro-RO')} la ora ${formatTimeWithAMPM(data.dropoffTime, data.dropoffDate)}` : 'N/A'}
+                          {(() => {
+                            if (!data.dropoffDate) return 'N/A';
+                            const dateStr = `${data.dropoffDate.split('T')[0]}T${data.dropoffTime || '23:59'}:00`;
+                            const isPast = new Date(dateStr).getTime() < new Date().getTime();
+                            if (isPast) return 'În curs de actualizare...';
+                            return `${new Date(data.dropoffDate).toLocaleDateString('ro-RO')} la ora ${formatTimeWithAMPM(data.dropoffTime, data.dropoffDate)}`;
+                          })()}
                         </p>
                       )}
                     </div>

@@ -58,22 +58,27 @@ export class EtaCronService {
       etaConfidence = 'low';
     }
 
-    // Only update ETA if we have some form of GPS location
-    if (etaConfidence === 'low') {
-      await this.tripRepo.update(trip.id, { etaConfidence });
-      return;
-    }
-
     try {
       // 2. Calculate Route Duration (seconds)
-      const route = await this.routingService.calculateRoute(
-        trip.truck.currentLat,
-        trip.truck.currentLng,
-        trip.dropoffLat,
-        trip.dropoffLng
-      );
+      let routeDurationMins = 0;
 
-      let routeDurationMins = route?.durationMin || 0;
+      if (trip.truck.currentLat && trip.truck.currentLng) {
+        const route = await this.routingService.calculateRoute(
+          trip.truck.currentLat,
+          trip.truck.currentLng,
+          trip.dropoffLat,
+          trip.dropoffLng
+        );
+        routeDurationMins = route?.durationMin || 0;
+      } else if (trip.distanceKm) {
+        // Fallback: Calculate from total distance if no GPS
+        const hours = trip.distanceKm / 75;
+        routeDurationMins = Math.round(hours * 60);
+      } else {
+        // If we absolutely have no GPS and no distance, we cannot calculate an ETA.
+        await this.tripRepo.update(trip.id, { etaConfidence });
+        return;
+      }
 
       // 3. Calculate Loading Time if status is LOADING
       let remainingLoadingMins = 0;
