@@ -25,6 +25,7 @@ export class EtaCronService {
 
     const activeTrips = await this.tripRepo.find({
       where: [
+        { status: TripStatus.CONFIRMED },
         { status: TripStatus.LOADING },
         { status: TripStatus.IN_PROGRESS },
         { status: TripStatus.DELAYED },
@@ -54,7 +55,7 @@ export class EtaCronService {
       }
     }
 
-    if (!trip.truck.currentLat || !trip.truck.currentLng) {
+    if (!trip.truck.currentLat || !trip.truck.currentLng || trip.status === TripStatus.CONFIRMED) {
       etaConfidence = 'low';
     }
 
@@ -62,7 +63,7 @@ export class EtaCronService {
       // 2. Calculate Route Duration (seconds)
       let routeDurationMins = 0;
 
-      if (trip.truck.currentLat && trip.truck.currentLng) {
+      if (trip.status !== TripStatus.CONFIRMED && trip.truck.currentLat && trip.truck.currentLng) {
         const route = await this.routingService.calculateRoute(
           trip.truck.currentLat,
           trip.truck.currentLng,
@@ -71,7 +72,7 @@ export class EtaCronService {
         );
         routeDurationMins = route?.durationMin || 0;
       } else if (trip.distanceKm) {
-        // Fallback: Calculate from total distance if no GPS
+        // Fallback: Calculate from total distance if no GPS or if trip hasn't started yet
         const hours = trip.distanceKm / 75;
         routeDurationMins = Math.round(hours * 60);
       } else {
