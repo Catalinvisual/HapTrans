@@ -87,6 +87,22 @@ export default function TrackPage({ params }: { params: any }) {
     return () => clearInterval(intervalId);
   }, [token, error, data?.status]);
 
+  const formatTimeWithAMPM = (timeStr?: string, dateObj?: string) => {
+    if (timeStr) {
+      const parts = timeStr.split(':');
+      if (parts.length >= 2) {
+        const hour = parseInt(parts[0], 10);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        return `${timeStr} (${ampm})`;
+      }
+      return timeStr;
+    }
+    if (dateObj) {
+      return new Date(dateObj).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    }
+    return '';
+  };
+
   const renderStatusLine = (currentStatus: string) => {
     const statuses = ['pending', 'confirmed', 'loading', 'in_progress', 'unloading', 'completed'];
     const labels = [
@@ -160,18 +176,18 @@ export default function TrackPage({ params }: { params: any }) {
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{t('etaLabel') || 'ETA (Timp Estimat)'}</p>
                 {data.status === 'completed' ? (
                   <p style={{ fontWeight: 600, color: '#10b981' }}>
-                    {t('deliveredOn') || 'Livrat pe'} {new Date(data.updatedAt || new Date()).toLocaleDateString('ro-RO')} la {new Date(data.updatedAt || new Date()).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
+                    {t('deliveredOn') || 'Livrat pe'} {new Date(data.updatedAt || new Date()).toLocaleDateString('ro-RO')} la ora {new Date(data.updatedAt || new Date()).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 ) : data.status === 'delayed' ? (
                   <>
                     <p style={{ fontWeight: 600, color: 'var(--primary)', display: 'inline-block' }}>
                       <span style={{ backgroundColor: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, marginRight: '6px', verticalAlign: 'middle' }}>ÎNTÂRZIAT</span>
-                      {data.dropoffDate ? `${new Date(data.dropoffDate).toLocaleDateString('ro-RO')} la ora ${data.dropoffTime ? data.dropoffTime : new Date(data.dropoffDate).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}` : 'N/A'}
+                      {data.dropoffDate ? `${new Date(data.dropoffDate).toLocaleDateString('ro-RO')} la ora ${formatTimeWithAMPM(data.dropoffTime, data.dropoffDate)}` : 'N/A'}
                     </p>
                   </>
                 ) : (
                   <p style={{ fontWeight: 600, color: 'var(--primary)' }}>
-                    {data.dropoffDate ? `${new Date(data.dropoffDate).toLocaleDateString('ro-RO')} la ora ${data.dropoffTime ? data.dropoffTime : new Date(data.dropoffDate).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}` : 'N/A'}
+                    {data.dropoffDate ? `${new Date(data.dropoffDate).toLocaleDateString('ro-RO')} la ora ${formatTimeWithAMPM(data.dropoffTime, data.dropoffDate)}` : 'N/A'}
                   </p>
                 )}
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>Ref: #{data.referenceNumber || 'N/A'}</p>

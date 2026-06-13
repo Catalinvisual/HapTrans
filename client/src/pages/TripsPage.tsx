@@ -138,7 +138,18 @@ export default function TripsPage() {
     };
   }, [form.truckId, form.pickupAddress, trips, editId, dieselPrice]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { 
+    load(); 
+    const intv = setInterval(async () => {
+      if (!showForm && !editId) {
+        try {
+          const res = await api.get('/trips');
+          setTrips(res.data);
+        } catch(e) {}
+      }
+    }, 5000);
+    return () => clearInterval(intv);
+  }, [showForm, editId]);
 
   const handleSmartDispatch = async () => {
     if (!form.pickupAddress) {

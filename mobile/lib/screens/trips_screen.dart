@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
@@ -17,6 +18,24 @@ class TripsScreen extends StatefulWidget {
 
 class _TripsScreenState extends State<TripsScreen> {
   String _selectedFilter = 'active';
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+      final auth = context.read<AuthProvider>();
+      if (auth.token != null) {
+        context.read<TripProvider>().silentReloadTrips(auth.token!);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   Color _statusColor(String status) {
     return switch (status) {
@@ -134,7 +153,7 @@ class _TripsScreenState extends State<TripsScreen> {
     final filteredTrips = myTrips.where((t) {
       final status = t['status'] ?? 'pending';
       if (_selectedFilter == 'active') {
-        return status == 'pending' || status == 'confirmed' || status == 'in_progress' || status == 'delayed';
+        return status == 'pending' || status == 'confirmed' || status == 'in_progress' || status == 'loading' || status == 'unloading' || status == 'delayed';
       } else if (_selectedFilter == 'completed') {
         return status == 'completed';
       } else if (_selectedFilter == 'cancelled') {
