@@ -274,11 +274,11 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   doc.text(`${t.dueDate}   ${fmtDate(invoice.dueDate)}`, 145, 30);
   
   // calculate payment terms
-  let termsStr = '30 days net';
+  let termsStr = '30 days';
   if (invoice.issueDate && invoice.dueDate) {
     const diffTime = Math.abs(new Date(invoice.dueDate).getTime() - new Date(invoice.issueDate).getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    termsStr = `${diffDays} days net`;
+    termsStr = `${diffDays} days`;
   }
   doc.text(`${t.paymentTerms} ${termsStr}`, 145, 36);
 
@@ -415,7 +415,7 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   }
 
   // ─── 5. TRIP DETAILS ────────────────────────────────────────────────
-  const detailY = currentItemY + 4;
+  const detailY = currentItemY + 2;
   doc.setFontSize(8.5);
 
   const routeText = `${safeText(trip.pickupAddress || '—')} - ${safeText(trip.dropoffAddress || '—')}`;
@@ -425,7 +425,7 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   const drawLabel = (lbl: string) => {
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
-    doc.text(lbl, 18, currY);
+    doc.text(lbl, 16, currY);
   };
   
   const setNormal = () => {
@@ -436,25 +436,25 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   const drawInline = (lbl: string, val: string) => {
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
-    doc.text(lbl, 18, currY);
+    doc.text(lbl, 16, currY);
     const lblWidth = doc.getTextWidth(lbl);
     
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(51, 51, 51);
-    doc.text(` ${safeText(val)}`, 18 + lblWidth, currY);
+    doc.text(` ${safeText(val)}`, 16 + lblWidth, currY);
     currY += 5;
   };
 
   const drawInlineMulti = (lbl: string, val: string, maxWidth: number) => {
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
-    doc.text(lbl, 18, currY);
+    doc.text(lbl, 16, currY);
     const lblWidth = doc.getTextWidth(lbl);
     
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(51, 51, 51);
     const lines = doc.splitTextToSize(safeText(val), maxWidth);
-    doc.text(lines, 18 + lblWidth + 2, currY);
+    doc.text(lines, 16 + lblWidth + 2, currY);
     currY += (lines.length * 4) + 1;
   };
 
@@ -472,18 +472,18 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
     drawInline('CMR Reference:', trip.cmrReference);
   }
 
-  currY += 2;
+  currY += 1;
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
   const cargoLbl = 'Cargo:';
-  doc.text(cargoLbl, 18, currY);
+  doc.text(cargoLbl, 16, currY);
   const cargoLblWidth = doc.getTextWidth(cargoLbl);
   
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(51, 51, 51);
   const palletTypeStr = trip.palletType ? ` (${safeText(trip.palletType)})` : '';
   const cargoText = ` ${trip.pallets || '0'} ${t.pallets}${palletTypeStr}  |  ${trip.weightKg || '0.00'} kg  |  ${trip.volumeCbm || '0.00'} m³`;
-  doc.text(cargoText, 18 + cargoLblWidth, currY);
+  doc.text(cargoText, 16 + cargoLblWidth, currY);
 
   const afterDetailsY = currY + 12;
 
@@ -528,14 +528,14 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
 
   // ─── 7. NOTES ────────────────────────────────────────────────────────
   const notesY = Math.max(afterDetailsY + 10, totalsY + 30);
-  if (invoice.notes || trip.notes) {
+  if (invoice.notes) {
     doc.setFontSize(9.5);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
     doc.text(t.notes, 14, notesY);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(51, 51, 51);
-    const notesStr = safeText(invoice.notes || trip.notes);
+    const notesStr = safeText(invoice.notes);
     const splitNotes = doc.splitTextToSize(notesStr, 180);
     doc.text(splitNotes, 14, notesY + 5);
   }

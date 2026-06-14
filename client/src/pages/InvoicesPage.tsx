@@ -28,6 +28,8 @@ export default function InvoicesPage() {
   const [invoiceLangModal, setInvoiceLangModal] = useState<any>({ isOpen: false, data: null, type: '', cb: null });
   const [form, setForm] = useState({ clientId: '', tripId: '', amount: '', vatPercent: '19', issueDate: '', dueDate: '', notes: '' });
 
+  const filteredTrips = form.clientId ? trips.filter((t: any) => t.client?.id === form.clientId) : trips;
+
   const load = async () => {
     const [inv, cl, tr] = await Promise.all([api.get('/invoices'), api.get('/clients'), api.get('/trips')]);
     setInvoices(inv.data); setClients(cl.data); setTrips(tr.data); setLoading(false);
@@ -223,7 +225,7 @@ export default function InvoicesPage() {
       await api.post(`/invoices/upload-pdf/${officialInvoice.id}?sendEmail=${sendEmail}`, formData);
 
       toast.dismiss(loadId);
-      toast.success(sendEmail ? 'Factură aprobată și trimisă!' : 'Factură aprobată!');
+      toast.success(sendEmail ? t('invoiceApprovedAndSent') : t('invoiceApproved'));
       load();
     } catch (err: any) {
       toast.dismiss();
@@ -324,7 +326,18 @@ export default function InvoicesPage() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('trip')} (optional)</label>
-                  <CustomSelect value={form.tripId} onChange={val => setForm({...form, tripId: val})} placeholder={t('noTrip')} options={trips.map((t: any) => ({ value: t.id, label: `${t.pickupAddress} → ${t.dropoffAddress}` }))} />
+                  <CustomSelect 
+                    value={form.tripId} 
+                    onChange={val => setForm({...form, tripId: val})} 
+                    placeholder={t('noTrip')} 
+                    options={[
+                      { value: '', label: t('noTrip') },
+                      ...filteredTrips.map((t: any) => ({ 
+                        value: t.id, 
+                        label: t.referenceNumber || `REF-${t.id.slice(0, 8).toUpperCase()}` 
+                      }))
+                    ]} 
+                  />
                 </div>
                 
                 <div className="space-y-1">
@@ -336,20 +349,20 @@ export default function InvoicesPage() {
                   <input type="number" className="input py-3 text-lg font-bold text-orange-600" value={form.fuelSurcharge} onChange={e => setForm({...form, fuelSurcharge: e.target.value})} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Tip TVA</label>
+                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('vatType')}</label>
                   <CustomSelect 
                     value={form.vatType} 
                     onChange={v => setForm(f => ({...f, vatType: v, vatPercent: v !== 'NORMAL' ? '0' : '19'}))} 
                     options={[
-                      { value: 'NORMAL', label: 'TVA Normal (ex. 19%)' },
-                      { value: 'REVERSE_CHARGE', label: 'Taxare Inversă (Reverse Charge 0%)' },
-                      { value: 'EXEMPT', label: 'Scutit (Exempt 0%)' }
+                      { value: 'NORMAL', label: t('vatNormal') },
+                      { value: 'REVERSE_CHARGE', label: t('vatReverseCharge') },
+                      { value: 'EXEMPT', label: t('vatExempt') }
                     ]} 
                   />
                 </div>
                 {form.vatType === 'NORMAL' && (
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">TVA (%)</label>
+                    <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('tvaPercent')}</label>
                     <input type="number" className="input py-3 text-lg font-bold" value={form.vatPercent} onChange={e => setForm({...form, vatPercent: e.target.value})} required />
                   </div>
                 )}
@@ -363,9 +376,9 @@ export default function InvoicesPage() {
                   <Flatpickr value={form.dueDate} onChange={(dates, dateStr) => setForm({...form, dueDate: dateStr})} className="input py-3 bg-white" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }} placeholder="DD/MM/YYYY" />
                 </div>
                 
-                <div className="md:col-span-2 space-y-1">
+                <div className="space-y-1 md:col-span-2 mt-2">
                   <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('notes')}</label>
-                  <textarea className="input resize-none py-3" rows={4} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="Adaugă detalii, servicii prestate, observații pentru factură..." />
+                  <textarea className="input py-3 text-sm min-h-[80px]" placeholder={t('notesPlaceholder')} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} />
                 </div>
                 
                 <div className="md:col-span-2 pt-6 border-t border-border mt-2 flex items-center justify-end gap-3 sticky bottom-0 bg-white">
