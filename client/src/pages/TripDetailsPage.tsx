@@ -34,18 +34,27 @@ export default function TripDetailsPage() {
   const isDispatcher = user?.role === 'dispatcher';
 
   useEffect(() => {
-    const fetchTrip = async () => {
+    const fetchTrip = async (isInitial = false) => {
       try {
         const { data } = await api.get(`/trips/${id}`);
         setTrip(data);
       } catch (err) {
-        toast.error(t('errorLoadingTrip', 'Cursa nu a putut fi încărcată'));
-        navigate('/trips');
+        if (isInitial) {
+          toast.error(t('errorLoadingTrip', 'Cursa nu a putut fi încărcată'));
+          navigate('/trips');
+        }
       } finally {
-        setLoading(false);
+        if (isInitial) {
+          setLoading(false);
+        }
       }
     };
-    if (id) fetchTrip();
+    
+    if (id) {
+      fetchTrip(true);
+      const intervalId = setInterval(() => fetchTrip(false), 5000);
+      return () => clearInterval(intervalId);
+    }
   }, [id, navigate, t]);
 
   if (loading) {
