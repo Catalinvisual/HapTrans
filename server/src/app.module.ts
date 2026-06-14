@@ -45,7 +45,7 @@ import { CronModule } from './cron/cron.module';
         password: config.get('DB_PASSWORD'),
         database: config.get('DB_DATABASE'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: process.env.NODE_ENV !== 'production',
+        synchronize: true, // TEMPORARY: force sync to add draftReminderLevel column
         logging: false,
       }),
       inject: [ConfigService],
