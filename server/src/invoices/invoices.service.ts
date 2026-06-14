@@ -68,15 +68,27 @@ export class InvoicesService implements OnModuleInit {
     let invoiceNumber = '';
     
     if (dto.status === InvoiceStatus.DRAFT || dto.status === 'draft') {
-      const draftCount = await this.repo.count({
+      const lastDraft = await this.repo.findOne({
         where: { createdAt: Between(startOfYear, endOfYear), invoiceNumber: Like('DRAFT-%') },
+        order: { invoiceNumber: 'DESC' },
       });
-      invoiceNumber = `DRAFT-${year}-${String(draftCount + 1).padStart(6, '0')}`;
+      let nextDraft = 1;
+      if (lastDraft) {
+        const parts = lastDraft.invoiceNumber.split('-');
+        if (parts.length === 3) nextDraft = parseInt(parts[2], 10) + 1;
+      }
+      invoiceNumber = `DRAFT-${year}-${String(nextDraft).padStart(6, '0')}`;
     } else {
-      const count = await this.repo.count({
+      const lastInv = await this.repo.findOne({
         where: { createdAt: Between(startOfYear, endOfYear), invoiceNumber: Like('HC-%') },
+        order: { invoiceNumber: 'DESC' },
       });
-      invoiceNumber = `HC-${year}-${String(count + 1).padStart(4, '0')}`;
+      let nextInv = 1;
+      if (lastInv) {
+        const parts = lastInv.invoiceNumber.split('-');
+        if (parts.length === 3) nextInv = parseInt(parts[2], 10) + 1;
+      }
+      invoiceNumber = `HC-${year}-${String(nextInv).padStart(4, '0')}`;
     }
 
     const payload: any = {
@@ -100,11 +112,18 @@ export class InvoicesService implements OnModuleInit {
     const startOfYear = new Date(year, 0, 1);
     const endOfYear = new Date(year, 11, 31, 23, 59, 59);
 
-    const count = await this.repo.count({
+    const lastInv = await this.repo.findOne({
       where: { createdAt: Between(startOfYear, endOfYear), invoiceNumber: Like('HC-%') },
+      order: { invoiceNumber: 'DESC' },
     });
     
-    inv.invoiceNumber = `HC-${year}-${String(count + 1).padStart(4, '0')}`;
+    let nextInv = 1;
+    if (lastInv) {
+      const parts = lastInv.invoiceNumber.split('-');
+      if (parts.length === 3) nextInv = parseInt(parts[2], 10) + 1;
+    }
+    
+    inv.invoiceNumber = `HC-${year}-${String(nextInv).padStart(4, '0')}`;
     inv.status = InvoiceStatus.SENT;
     
     return this.repo.save(inv);

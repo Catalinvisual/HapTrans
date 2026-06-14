@@ -396,6 +396,20 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
     currentItemY += 10;
   }
 
+  if (Number(invoice.fuelSurcharge) > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    const fsLabel = t.fuelSurcharge ? t.fuelSurcharge.replace(' (%)', '') : 'Fuel Surcharge';
+    doc.text(fsLabel, 16, currentItemY);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 51, 51);
+    doc.text(`${invoice.vatPercent}%`, 115, currentItemY);
+    doc.text('1', 142, currentItemY);
+    doc.text(`EUR ${Number(invoice.fuelSurcharge).toFixed(2)}`, 163, currentItemY);
+    currentItemY += 10;
+  }
+
   // ─── 5. TRIP DETAILS ────────────────────────────────────────────────
   const detailY = currentItemY + 10;
   doc.setFontSize(8.5);
@@ -477,9 +491,13 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   const totalsY = currentItemY + 10;
   doc.setFontSize(9.5);
   
-  const subtotal = invoice.subtotal !== undefined ? invoice.subtotal : invoice.amount;
-  const vatAmt = invoice.vatAmount !== undefined ? invoice.vatAmount : (invoice.amount * (invoice.vatPercent / 100));
-  const finalTotal = invoice.total !== undefined ? invoice.total : (Number(subtotal) + Number(vatAmt));
+  const itemsSubtotal = invoice.items && invoice.items.length > 0 
+    ? invoice.items.reduce((acc: number, item: any) => acc + Number(item.total || item.unitPrice), 0)
+    : Number(invoice.amount || 0);
+
+  const subtotal = itemsSubtotal + Number(invoice.fuelSurcharge || 0);
+  const vatAmt = subtotal * (Number(invoice.vatPercent) / 100);
+  const finalTotal = subtotal + vatAmt;
 
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(51, 51, 51);
