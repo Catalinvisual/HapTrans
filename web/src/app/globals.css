@@ -123,3 +123,12 @@ button {
   border-color: var(--secondary);
   color: var(--secondary);
 }
+
+/* Phone Input Overrides */
+.react-international-phone-country-selector-button__button-content {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.react-international-phone-country-selector-button {
+  padding: 0 0.5rem !important;
+}

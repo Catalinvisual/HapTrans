@@ -4,7 +4,7 @@ import styles from './MapSection.module.css';
 import { useLanguage } from '@/context/LanguageContext';
 import { ComposableMap, Geographies, Geography, Marker, Line } from 'react-simple-maps';
 
-const geoUrl = "/world-110m.json";
+const geoUrl = "https://raw.githubusercontent.com/deldersveld/topojson/master/continents/europe.json";
 
 const countryCoordinates: Record<string, [number, number]> = {
   NL: [5.2913, 52.1326],
@@ -96,8 +96,8 @@ const MapSection = () => {
                 projection="geoAzimuthalEqualArea"
                 projectionConfig={{
                   rotate: [-10.0, -52.0, 0],
-                  center: [5, 0],
-                  scale: 800
+                  center: [5, -3],
+                  scale: 1100
                 }}
                 width={800}
                 height={600}

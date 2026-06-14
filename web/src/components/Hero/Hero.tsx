@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import styles from './Hero.module.css';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'react-hot-toast';
+import AddressAutocomplete from '../AddressAutocomplete/AddressAutocomplete';
 
 const Hero = () => {
   const { t } = useLanguage();
@@ -90,12 +91,22 @@ const Hero = () => {
                 <div className={styles.horizontalFields}>
                   <div className={styles.formGroup}>
                     <label>{t('calcFrom')}</label>
-                    <input type="text" name="from" placeholder={t('calcFromPlaceholder') || 'ex: București, RO'} required value={formData.from} onChange={handleChange} />
+                    <AddressAutocomplete 
+                      value={formData.from} 
+                      onChange={(val) => setFormData({ ...formData, from: val })}
+                      placeholder={t('calcFromPlaceholder') || 'ex: București, RO'}
+                      required
+                    />
                   </div>
                   
                   <div className={styles.formGroup}>
                     <label>{t('calcTo')}</label>
-                    <input type="text" name="to" placeholder={t('calcToPlaceholder') || 'ex: Munchen, DE'} required value={formData.to} onChange={handleChange} />
+                    <AddressAutocomplete 
+                      value={formData.to} 
+                      onChange={(val) => setFormData({ ...formData, to: val })}
+                      placeholder={t('calcToPlaceholder') || 'ex: Munchen, DE'}
+                      required
+                    />
                   </div>
 
                   <div className={styles.formGroupRow}>

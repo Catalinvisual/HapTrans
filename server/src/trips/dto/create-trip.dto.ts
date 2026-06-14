@@ -74,8 +74,68 @@ export class CreateTripDto {
   agreedPrice?: number;
 
   @IsOptional()
+  @IsNumber()
+  fuelSurchargePercent?: number;
+
+  @IsOptional()
+  @IsNumber()
+  tollCosts?: number;
+
+  @IsOptional()
+  @IsNumber()
+  extraCosts?: number;
+
+  @IsOptional()
+  @IsNumber()
+  price?: number;
+
+  @IsOptional()
+  @IsNumber()
+  estimatedCost?: number;
+
+  @IsOptional()
+  @IsNumber()
+  realCost?: number;
+
+  @IsOptional()
+  @IsString()
+  clientRateId?: string;
+
+  @IsOptional()
   @IsString()
   currency?: string;
+
+  @IsOptional()
+  @IsString()
+  pickupCompanyName?: string;
+
+  @IsOptional()
+  @IsString()
+  dropoffCompanyName?: string;
+
+  @IsOptional()
+  @IsString()
+  palletType?: string;
+
+  @IsOptional()
+  @IsString()
+  loadingReference?: string;
+
+  @IsOptional()
+  @IsString()
+  unloadingReference?: string;
+
+  @IsOptional()
+  @IsString()
+  cmrReference?: string;
+
+  @IsOptional()
+  @IsNumber()
+  estimatedLoadingMinutes?: number;
+
+  @IsOptional()
+  @IsNumber()
+  manualDelayMinutes?: number;
 
   @IsOptional()
   @IsEnum(TripStatus)
