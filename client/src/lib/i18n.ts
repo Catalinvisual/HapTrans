@@ -4,6 +4,7 @@ import { initReactI18next } from 'react-i18next';
 const resources = {
   ro: {
     translation: {
+      editDraft: "Editare Draft / Detalii Complete",
       errorLoadingTrip: "Cursa nu a putut fi încărcată",
       noReference: "RIT Fără Referință",
       createdBy: "Creat de",
@@ -560,6 +561,7 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
   },
   en: {
     translation: {
+      editDraft: "Edit Draft / Full Details",
       errorLoadingTrip: "Trip could not be loaded",
       noReference: "TRIP Without Reference",
       createdBy: "Created by",

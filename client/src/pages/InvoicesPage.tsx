@@ -24,6 +24,7 @@ export default function InvoicesPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showExport, setShowExport] = useState(false);
+  const [previewData, setPreviewData] = useState<string | null>(null);
   const [invoiceLangModal, setInvoiceLangModal] = useState<any>({ isOpen: false, data: null, type: '', cb: null });
   const [form, setForm] = useState({ clientId: '', tripId: '', amount: '', vatPercent: '19', issueDate: '', dueDate: '', notes: '' });
 
@@ -32,6 +33,48 @@ export default function InvoicesPage() {
     setInvoices(inv.data); setClients(cl.data); setTrips(tr.data); setLoading(false);
   };
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (!showForm) {
+      setPreviewData(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      const mockClient = clients.find(c => c.id === form.clientId);
+      const mockTrip = trips.find(t => t.id === form.tripId);
+      const mockInvoice = {
+        invoiceNumber: editId ? invoices.find(i => i.id === editId)?.invoiceNumber : 'DRAFT',
+        client: mockClient || { name: '...' },
+        trip: mockTrip || {},
+        amount: Number(form.amount) || 0,
+        vatPercent: Number(form.vatPercent) || 0,
+        issueDate: form.issueDate || new Date().toISOString(),
+        dueDate: form.dueDate || new Date().toISOString(),
+        notes: form.notes || '',
+        status: 'draft'
+      };
+      try {
+        const base64 = await generateInvoicePdfBase64(mockInvoice, i18n.language === 'ro' ? 'en' : i18n.language as any);
+        setPreviewData(base64);
+      } catch (e) {
+        console.error(e);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [form, showForm, editId, clients, trips, invoices, i18n.language]);
+
+  const handlePreviewDraft = async (inv: any) => {
+    const loadId = toast.loading(t('generatingPdf'));
+    try {
+      const base64 = await generateInvoicePdfBase64(inv, i18n.language === 'ro' ? 'en' : i18n.language as any);
+      toast.dismiss(loadId);
+      const newTab = window.open();
+      if (newTab) newTab.document.write(`<iframe src="${base64}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%; position: fixed;" allowfullscreen></iframe>`);
+    } catch {
+      toast.dismiss(loadId);
+      toast.error(t('pdfGenerateError'));
+    }
+  };
 
   const handlePreview = (invoice: any) => {
     const newTab = window.open();
@@ -249,56 +292,70 @@ export default function InvoicesPage() {
     <div className="space-y-5 animate-fade-in">
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-white border border-border rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto flex flex-col">
-            <div className="p-6 border-b border-border flex justify-between items-center bg-surface sticky top-0 z-10">
-              <h3 className="font-bold text-xl text-primary">{editId ? 'Editare Draft / Detalii Complete' : t('newInvoice')}</h3>
+          <div className="bg-white border border-border rounded-2xl shadow-2xl max-w-[90rem] w-full h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-6 border-b border-border flex justify-between items-center bg-surface shrink-0">
+              <h3 className="font-bold text-xl text-primary">{editId ? t('editDraft', 'Editare Draft / Detalii Complete') : t('newInvoice')}</h3>
               <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="text-text-secondary hover:text-red-500 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('client')}</label>
-                <CustomSelect value={form.clientId} onChange={val => setForm({...form, clientId: val})} placeholder={t('selectClient')} options={clients.map((c: any) => ({ value: c.id, label: c.name }))} />
+            <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+              <form onSubmit={handleSubmit} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 overflow-y-auto border-r border-border">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('client')}</label>
+                  <CustomSelect value={form.clientId} onChange={val => setForm({...form, clientId: val})} placeholder={t('selectClient')} options={clients.map((c: any) => ({ value: c.id, label: c.name }))} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('trip')} (optional)</label>
+                  <CustomSelect value={form.tripId} onChange={val => setForm({...form, tripId: val})} placeholder={t('noTrip')} options={trips.map((t: any) => ({ value: t.id, label: `${t.pickupAddress} → ${t.dropoffAddress}` }))} />
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('amount')} (€)</label>
+                  <input type="number" className="input py-3 text-lg font-bold" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} required />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('tva')} (%)</label>
+                  <input type="number" className="input py-3 text-lg font-bold" value={form.vatPercent} onChange={e => setForm({...form, vatPercent: e.target.value})} />
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('issueDate')}</label>
+                  <Flatpickr value={form.issueDate} onChange={(dates, dateStr) => setForm({...form, issueDate: dateStr})} className="input py-3 bg-white" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }} placeholder="DD/MM/YYYY" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('dueDate')}</label>
+                  <Flatpickr value={form.dueDate} onChange={(dates, dateStr) => setForm({...form, dueDate: dateStr})} className="input py-3 bg-white" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }} placeholder="DD/MM/YYYY" />
+                </div>
+                
+                <div className="md:col-span-2 space-y-1">
+                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('notes')}</label>
+                  <textarea className="input resize-none py-3" rows={4} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="Adaugă detalii, servicii prestate, observații pentru factură..." />
+                </div>
+                
+                <div className="md:col-span-2 pt-6 border-t border-border mt-2 flex items-center justify-end gap-3 sticky bottom-0 bg-white">
+                  <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="btn-secondary px-6 py-3 font-bold text-sm">
+                    {t('cancel')}
+                  </button>
+                  <button type="submit" className="btn-primary px-8 py-3 font-bold text-sm shadow-lg shadow-primary/30">
+                    {t('save')} Draft
+                  </button>
+                </div>
+              </form>
+
+              <div className="flex-1 bg-surface flex flex-col p-6 hidden md:flex">
+                <h4 className="text-sm font-bold text-text-secondary uppercase mb-3 flex items-center gap-2"><Eye className="w-4 h-4"/> Live Preview</h4>
+                {previewData ? (
+                  <iframe src={previewData} className="w-full h-full rounded-xl border border-border shadow-sm bg-white" />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-text-secondary bg-white rounded-xl border border-border">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+                    {t('generatingPdf')}...
+                  </div>
+                )}
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('trip')} (optional)</label>
-                <CustomSelect value={form.tripId} onChange={val => setForm({...form, tripId: val})} placeholder={t('noTrip')} options={trips.map((t: any) => ({ value: t.id, label: `${t.pickupAddress} → ${t.dropoffAddress}` }))} />
-              </div>
-              
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('amount')} (€)</label>
-                <input type="number" className="input py-3 text-lg font-bold" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} required />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('tva')} (%)</label>
-                <input type="number" className="input py-3 text-lg font-bold" value={form.vatPercent} onChange={e => setForm({...form, vatPercent: e.target.value})} />
-              </div>
-              
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('issueDate')}</label>
-                <Flatpickr value={form.issueDate} onChange={(dates, dateStr) => setForm({...form, issueDate: dateStr})} className="input py-3 bg-white" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }} placeholder="DD/MM/YYYY" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('dueDate')}</label>
-                <Flatpickr value={form.dueDate} onChange={(dates, dateStr) => setForm({...form, dueDate: dateStr})} className="input py-3 bg-white" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }} placeholder="DD/MM/YYYY" />
-              </div>
-              
-              <div className="md:col-span-2 space-y-1">
-                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('notes')}</label>
-                <textarea className="input resize-none py-3" rows={4} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="Adaugă detalii, servicii prestate, observații pentru factură..." />
-              </div>
-              
-              <div className="md:col-span-2 pt-6 border-t border-border mt-2 flex items-center justify-end gap-3 sticky bottom-0 bg-white">
-                <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="btn-secondary px-6 py-3 font-bold text-sm">
-                  {t('cancel')}
-                </button>
-                <button type="submit" className="btn-primary px-8 py-3 font-bold text-sm shadow-lg shadow-primary/30">
-                  {t('save')} Draft
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
@@ -343,6 +400,9 @@ export default function InvoicesPage() {
                     <td className="table-cell">
                       {inv.status === 'draft' ? (
                         <div className="flex items-center gap-2">
+                          <button onClick={() => handlePreviewDraft(inv)} className="btn-secondary py-1.5 px-2 text-xs font-bold" title="Vizualizare Draft">
+                            <Eye className="w-4 h-4" />
+                          </button>
                           <button onClick={() => handleEditClick(inv)} className="btn-secondary py-1.5 px-3 text-xs font-bold" title="Editare Draft">Edit</button>
                           <button onClick={() => handleApprove(inv, false)} className="bg-primary/10 text-primary hover:bg-primary/20 py-1.5 px-3 rounded-lg font-bold text-xs transition-all" title="Aprobare (fără trimitere)">Approve</button>
                           <button onClick={() => handleApprove(inv, true)} className="bg-primary text-white hover:bg-primary-dark py-1.5 px-3 rounded-lg font-bold text-xs transition-all shadow-sm" title="Aprobare și Trimitere Email">Approve & Send</button>
