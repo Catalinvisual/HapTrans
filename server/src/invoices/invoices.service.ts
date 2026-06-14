@@ -126,7 +126,8 @@ export class InvoicesService implements OnModuleInit {
     inv.invoiceNumber = `HC-${year}-${String(nextInv).padStart(4, '0')}`;
     inv.status = InvoiceStatus.SENT;
     
-    return this.repo.save(inv);
+    await this.repo.save(inv);
+    return this.findOne(id);
   }
 
   async update(id: string, dto: any) {
@@ -154,7 +155,8 @@ export class InvoicesService implements OnModuleInit {
     }
 
     Object.assign(inv, payload);
-    return this.repo.save(inv);
+    await this.repo.save(inv);
+    return this.findOne(id);
   }
   async remove(id: string) {
     const inv = await this.repo.findOne({ where: { id } });
