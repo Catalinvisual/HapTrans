@@ -1,6 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { Resend } from 'resend';
 
+const formatDMY = (dateInput: any) => {
+  if (!dateInput) return 'N/A';
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return 'N/A';
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+};
+
+const formatDMYTime = (dateInput: any) => {
+  if (!dateInput) return 'N/A';
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return 'N/A';
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
 @Injectable()
 export class ResendService {
   private resend: Resend;
@@ -138,8 +152,8 @@ export class ResendService {
     if (!trip.client?.contactEmail) return;
     
     const trackingUrl = `${process.env.FRONTEND_URL}/track/${trackingToken}`;
-    const formattedAppt = trip.appointmentFrom ? new Date(trip.appointmentFrom).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' }) : 'N/A';
-    const formattedEta = liveEta.toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
+    const formattedAppt = trip.appointmentFrom ? formatDMYTime(trip.appointmentFrom) : 'N/A';
+    const formattedEta = formatDMYTime(liveEta);
 
     const htmlContent = `
       <html>
@@ -187,7 +201,7 @@ export class ResendService {
         <p>Hello,</p>
         <p>Please find attached the invoice <strong>${invoice.invoiceNumber}</strong> for transport services.</p>
         <p><strong>Total Amount:</strong> &euro;${Number(invoice.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-        <p><strong>Due Date:</strong> ${new Date(invoice.dueDate).toLocaleDateString('en-US')}</p>
+        <p><strong>Due Date:</strong> ${formatDMY(invoice.dueDate)}</p>
         <br/>
         <p>You can download the PDF copy of your invoice using the link below:</p>
         <a href="${downloadUrl}" style="background-color: #ff5a00; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Download Invoice PDF</a>
