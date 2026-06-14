@@ -11,6 +11,9 @@ export class ContactMessage {
   @Column()
   email: string;
 
+  @Column({ nullable: true })
+  phone: string;
+
   @Column()
   subject: string;
 

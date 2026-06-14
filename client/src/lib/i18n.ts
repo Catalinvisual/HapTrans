@@ -2529,8 +2529,8 @@ delete (resources as any).frExtra;
 
 i18n.use(initReactI18next).init({
   resources,
-  lng: localStorage.getItem('hapcargo_lang') || 'ro',
-  fallbackLng: 'ro',
+  lng: localStorage.getItem('hapcargo_lang') || 'nl',
+  fallbackLng: 'nl',
   interpolation: { escapeValue: false },
 });
 

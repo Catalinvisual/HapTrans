@@ -7,6 +7,7 @@ interface ContactMessage {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   subject: string;
   message: string;
   isRead: boolean;
@@ -74,7 +75,9 @@ export default function ContactInbox() {
                   </div>
                   <div>
                     <h4 className={`text-base ${msg.isRead ? 'font-medium text-gray-800' : 'font-bold text-gray-900'}`}>{msg.name}</h4>
-                    <p className="text-sm text-gray-500">{msg.email} • {new Date(msg.createdAt).toLocaleString()}</p>
+                    <p className="text-sm text-gray-500">
+                      {msg.email} {msg.phone && `• ${msg.phone}`} • {new Date(msg.createdAt).toLocaleString()}
+                    </p>
                   </div>
                 </div>
                 {!msg.isRead && (

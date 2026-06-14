@@ -4,6 +4,8 @@ import Header from '@/components/Header/Header';
 import Footer from '@/components/Footer/Footer';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'react-hot-toast';
+import { PhoneInput } from 'react-international-phone';
+import 'react-international-phone/style.css';
 import styles from './ContactPage.module.css';
 
 export default function ContactPage() {
@@ -13,6 +15,7 @@ export default function ContactPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
     subject: '',
     message: ''
   });
@@ -110,7 +113,7 @@ export default function ContactPage() {
       if (res.ok) {
         setStatus('success');
         toast.success(t('contactSuccess') || 'Mesajul a fost trimis cu succes!');
-        setFormData({ name: '', email: '', subject: '', message: '' });
+        setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
       } else {
         setStatus('error');
         toast.error(t('contactError') || 'Eroare la trimiterea mesajului.');
@@ -177,6 +180,38 @@ export default function ContactPage() {
                     value={formData.email}
                     onChange={handleChange}
                     className={styles.input}
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>{t('contactPhone') || 'Telefon'}</label>
+                  <PhoneInput
+                    defaultCountry="ro"
+                    value={formData.phone}
+                    onChange={(phone) => setFormData({ ...formData, phone })}
+                    inputStyle={{
+                      width: '100%',
+                      padding: '0.75rem 1rem',
+                      borderRadius: '0.5rem',
+                      border: '1px solid #cbd5e1',
+                      borderLeft: 'none',
+                      borderTopLeftRadius: 0,
+                      borderBottomLeftRadius: 0,
+                      backgroundColor: '#f8fafc',
+                      fontSize: '1rem',
+                      fontFamily: 'inherit'
+                    }}
+                    countrySelectorStyleProps={{
+                      buttonStyle: {
+                        padding: '0.75rem',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '0.5rem',
+                        borderRight: 'none',
+                        borderTopRightRadius: 0,
+                        borderBottomRightRadius: 0,
+                        backgroundColor: '#f8fafc'
+                      }
+                    }}
                   />
                 </div>
 

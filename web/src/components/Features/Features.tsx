@@ -53,7 +53,7 @@ const Features = () => {
     <section className={styles.section} id="despre">
       <div className={styles.container}>
         <div className={styles.header}>
-          <div className={styles.label}>✦ De ce HapCargo?</div>
+          <div className={styles.label}>✦ {t('whyHapCargo') || 'De ce HapCargo?'}</div>
           <h2 className={styles.title}>{t('featuresTitle') || 'Servicii de Top'}</h2>
           <p className={styles.subtitle}>{t('featuresSubtitle') || 'Ne diferențiem prin calitatea serviciilor și atenția la detalii.'}</p>
         </div>

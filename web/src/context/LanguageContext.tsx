@@ -10,6 +10,19 @@ interface Translations {
 }
 
 const translations: Translations = {
+  whyHapCargo: { RO: 'De ce HapCargo?', EN: 'Why HapCargo?', NL: 'Waarom HapCargo?', DE: 'Warum HapCargo?', FR: 'Pourquoi HapCargo?', ES: '¿Por qué HapCargo?' },
+  mapCoverage: { RO: 'Acoperire Europeană', EN: 'European Coverage', NL: 'Europese Dekking', DE: 'Europäische Abdeckung', FR: 'Couverture Européenne', ES: 'Cobertura Europea' },
+  testimonialsLabel: { RO: 'Testimoniale', EN: 'Testimonials', NL: 'Getuigenissen', DE: 'Referenzen', FR: 'Témoignages', ES: 'Testimonios' },
+  footerDesc: { RO: 'Livrăm marfa dumneavoastră la timp, în siguranță și cu transparență totală pe întreg teritoriul Europei.', EN: 'We deliver your goods on time, safely and with full transparency across Europe.', NL: 'Wij leveren uw goederen op tijd, veilig en met volledige transparantie in heel Europa.', DE: 'Wir liefern Ihre Waren pünktlich, sicher und mit voller Transparenz in ganz Europa.', FR: 'Nous livrons vos marchandises à temps, en toute sécurité et avec une transparence totale à travers l\'Europe.', ES: 'Entregamos su mercancía a tiempo, de forma segura y con total transparencia en toda Europa.' },
+  companyTitle: { RO: 'Companie', EN: 'Company', NL: 'Bedrijf', DE: 'Unternehmen', FR: 'Entreprise', ES: 'Empresa' },
+  legalTitle: { RO: 'Legal', EN: 'Legal', NL: 'Juridisch', DE: 'Rechtlich', FR: 'Juridique', ES: 'Legal' },
+  contactTitle: { RO: 'Contact', EN: 'Contact', NL: 'Contact', DE: 'Kontakt', FR: 'Contact', ES: 'Contacto' },
+  termsLink: { RO: 'Termeni și Condiții', EN: 'Terms and Conditions', NL: 'Algemene Voorwaarden', DE: 'Allgemeine Geschäftsbedingungen', FR: 'Termes et Conditions', ES: 'Términos y Condiciones' },
+  privacyLink: { RO: 'Politica de Confidențialitate', EN: 'Privacy Policy', NL: 'Privacybeleid', DE: 'Datenschutzrichtlinie', FR: 'Politique de Confidentialité', ES: 'Política de Privacidad' },
+  cookiesLink: { RO: 'Politica Cookies', EN: 'Cookies Policy', NL: 'Cookiebeleid', DE: 'Cookie-Richtlinie', FR: 'Politique des Cookies', ES: 'Política de Cookies' },
+  rightsReserved: { RO: 'Toate drepturile rezervate.', EN: 'All rights reserved.', NL: 'Alle rechten voorbehouden.', DE: 'Alle Rechte vorbehalten.', FR: 'Tous droits réservés.', ES: 'Todos los derechos reservados.' },
+  headquarters: { RO: 'Sediu Central', EN: 'Headquarters', NL: 'Hoofdkantoor', DE: 'Hauptsitz', FR: 'Siège Social', ES: 'Sede' },
+  
   // Header
   home: { RO: 'Acasă', EN: 'Home', NL: 'Startpagina', DE: 'Startseite', FR: 'Accueil', ES: 'Inicio' },
   about: { RO: 'Despre noi', EN: 'About us', NL: 'Over ons', DE: 'Über uns', FR: 'À propos', ES: 'Sobre nosotros' },
@@ -155,7 +168,7 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
-  const [lang, setLangState] = useState<Language>('RO');
+  const [lang, setLangState] = useState<Language>('NL');
 
   useEffect(() => {
     const savedLang = localStorage.getItem('hapcargo_lang') as Language;

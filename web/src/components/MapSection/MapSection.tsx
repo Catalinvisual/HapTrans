@@ -34,7 +34,7 @@ const MapSection = () => {
       <div className={styles.container}>
         
         <div className={styles.content}>
-          <div className={styles.label}>🌍 Acoperire Europeană</div>
+          <div className={styles.label}>🌍 {t('mapCoverage') || 'Acoperire Europeană'}</div>
           <h2 className={styles.title}>{t('mapTitle')}</h2>
           <p className={styles.desc}>
             {t('mapDesc')}

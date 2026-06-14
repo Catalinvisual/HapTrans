@@ -26,7 +26,7 @@ export default function TrucksPage() {
       toast.success(t('truckDeleted'));
       load();
     } catch {
-      toast.error('Error');
+      toast.error(t('error') || 'Error');
     } finally {
       setDeleteId(null);
     }

@@ -1,8 +1,11 @@
+'use client';
 import React from 'react';
 import Link from 'next/link';
 import styles from './Footer.module.css';
+import { useLanguage } from '@/context/LanguageContext';
 
 const Footer = () => {
+  const { t } = useLanguage();
   return (
     <footer className={styles.footer}>
       <div className={styles.container}>
@@ -17,41 +20,41 @@ const Footer = () => {
             </div>
           </Link>
           <p className={styles.desc}>
-            Livrăm marfa dumneavoastră la timp, în siguranță și cu transparență totală pe întreg teritoriul Europei.
+            {t('footerDesc') || 'Livrăm marfa dumneavoastră la timp, în siguranță și cu transparență totală pe întreg teritoriul Europei.'}
           </p>
         </div>
         
         <div className={styles.column}>
-          <h4 className={styles.title}>Companie</h4>
+          <h4 className={styles.title}>{t('companyTitle') || 'Companie'}</h4>
           <ul className={styles.links}>
-            <li><a href="#despre">Despre Noi</a></li>
-            <li><a href="#servicii">Servicii</a></li>
-            <li><a href="#flota">Flotă</a></li>
-            <li><a href="#cariere">Cariere</a></li>
+            <li><a href="#despre">{t('about') || 'Despre Noi'}</a></li>
+            <li><a href="#servicii">{t('services') || 'Servicii'}</a></li>
+            <li><a href="#flota">{t('fleet') || 'Flotă'}</a></li>
+            <li><a href="#cariere">{t('careers') || 'Cariere'}</a></li>
           </ul>
         </div>
         
         <div className={styles.column}>
-          <h4 className={styles.title}>Legal</h4>
+          <h4 className={styles.title}>{t('legalTitle') || 'Legal'}</h4>
           <ul className={styles.links}>
-            <li><a href="/termeni">Termeni și Condiții</a></li>
-            <li><a href="/politica">Politica de Confidențialitate</a></li>
-            <li><a href="/cookies">Politica Cookies</a></li>
+            <li><a href="/termeni">{t('termsLink') || 'Termeni și Condiții'}</a></li>
+            <li><a href="/politica">{t('privacyLink') || 'Politica de Confidențialitate'}</a></li>
+            <li><a href="/cookies">{t('cookiesLink') || 'Politica Cookies'}</a></li>
           </ul>
         </div>
         
         <div className={styles.column}>
-          <h4 className={styles.title}>Contact</h4>
+          <h4 className={styles.title}>{t('contactTitle') || 'Contact'}</h4>
           <ul className={styles.links}>
             <li>📞 +40 700 000 000</li>
             <li>📧 office@hapcargo.com</li>
-            <li>📍 București, România</li>
+            <li>📍 {t('headquarters') || 'Sediu Central'}</li>
           </ul>
         </div>
       </div>
       
       <div className={styles.bottom}>
-        <p>&copy; {new Date().getFullYear()} HapCargo. Toate drepturile rezervate.</p>
+        <p>&copy; {new Date().getFullYear()} HapCargo. {t('rightsReserved') || 'Toate drepturile rezervate.'}</p>
       </div>
     </footer>
   );

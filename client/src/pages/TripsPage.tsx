@@ -1176,7 +1176,7 @@ export default function TripsPage() {
                       toast.success(t('trackingTokenGenerated') || 'Link urmărire generat cu succes!');
                       load();
                     } catch (e) {
-                      toast.error('Eroare la generare token.');
+                      toast.error(t('tokenGenError') || 'Eroare la generare token.');
                     }
                   }}
                   className="btn-primary bg-amber-500 hover:bg-amber-600 border-amber-500 hover:border-amber-600 py-2.5 px-4 text-xs font-bold w-full md:w-auto text-center"
