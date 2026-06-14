@@ -327,7 +327,7 @@ export default function InvoicesPage() {
                   <input type="number" className="input py-3 text-lg font-bold" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} required />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('fuelSurcharge')} (€)</label>
+                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('fuelSurcharge')} (%)</label>
                   <input type="number" className="input py-3 text-lg font-bold text-orange-600" value={form.fuelSurcharge} onChange={e => setForm({...form, fuelSurcharge: e.target.value})} />
                 </div>
                 <div className="space-y-1">
