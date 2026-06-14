@@ -82,9 +82,10 @@ export class InvoicesService implements OnModuleInit {
     const payload: any = {
       ...dto,
       invoiceNumber,
-      client: { id: dto.clientId },
-      trip: dto.tripId ? { id: dto.tripId } : null,
     };
+    if (dto.clientId) payload.client = { id: dto.clientId };
+    if (dto.tripId) payload.trip = { id: dto.tripId };
+    
     const inv = this.repo.create(payload) as any;
     const saved = await this.repo.save(inv);
     return this.findOne(saved.id);
@@ -122,7 +123,19 @@ export class InvoicesService implements OnModuleInit {
       }
     }
 
-    return this.repo.update(id, dto);
+    const payload = { ...dto };
+    if (payload.clientId !== undefined) {
+      if (payload.clientId) payload.client = { id: payload.clientId };
+      delete payload.clientId;
+    }
+    if (payload.tripId !== undefined) {
+      if (payload.tripId) payload.trip = { id: payload.tripId };
+      else payload.trip = null;
+      delete payload.tripId;
+    }
+
+    Object.assign(inv, payload);
+    return this.repo.save(inv);
   }
   async remove(id: string) {
     const inv = await this.repo.findOne({ where: { id } });

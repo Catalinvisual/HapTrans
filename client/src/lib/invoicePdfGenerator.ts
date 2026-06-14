@@ -415,22 +415,6 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
     doc.setTextColor(51, 51, 51);
   };
 
-  drawLabel('Route:');
-  setNormal();
-  const wrappedRoute = doc.splitTextToSize(routeText, 175);
-  doc.text(wrappedRoute, 18, currY + 4);
-  currY += 4 + (wrappedRoute.length * 4) + 2;
-
-  drawLabel('Pickup Date:');
-  setNormal();
-  doc.text(fmtDate(trip.pickupDate), 18, currY + 4);
-  currY += 10;
-
-  drawLabel('Delivery Date:');
-  setNormal();
-  doc.text(fmtDate(trip.dropoffDate), 18, currY + 4);
-  currY += 10;
-
   const drawInline = (lbl: string, val: string) => {
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
@@ -442,6 +426,23 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
     doc.text(` ${safeText(val)}`, 18 + lblWidth, currY);
     currY += 5;
   };
+
+  const drawInlineMulti = (lbl: string, val: string, maxWidth: number) => {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text(lbl, 18, currY);
+    const lblWidth = doc.getTextWidth(lbl);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 51, 51);
+    const lines = doc.splitTextToSize(safeText(val), maxWidth);
+    doc.text(lines, 18 + lblWidth + 2, currY);
+    currY += (lines.length * 4) + 1;
+  };
+
+  drawInlineMulti('Route:', routeText, 160);
+  drawInline('Pickup Date:', fmtDate(trip.pickupDate));
+  drawInline('Delivery Date:', fmtDate(trip.dropoffDate));
 
   if (trip.loadingReference) {
     drawInline('Loading Ref:', trip.loadingReference);
@@ -498,7 +499,7 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   doc.text(`EUR ${Number(finalTotal).toFixed(2)}`, 170, totalsY + 14);
 
   // ─── 7. NOTES ────────────────────────────────────────────────────────
-  const notesY = totalsY + 30;
+  const notesY = Math.max(afterDetailsY + 10, totalsY + 30);
   if (invoice.notes || trip.notes) {
     doc.setFontSize(9.5);
     doc.setFont('helvetica', 'bold');

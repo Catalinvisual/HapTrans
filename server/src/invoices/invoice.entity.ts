@@ -46,10 +46,10 @@ export class Invoice {
   @OneToMany(() => InvoiceItem, item => item.invoice, { cascade: true, eager: true })
   items: InvoiceItem[];
 
-  @Column({ type: 'date' })
+  @Column({ type: 'date', nullable: true })
   issueDate: Date;
 
-  @Column({ type: 'date' })
+  @Column({ type: 'date', nullable: true })
   dueDate: Date;
 
   @Column({ type: 'enum', enum: InvoiceStatus, default: InvoiceStatus.DRAFT })
