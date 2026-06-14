@@ -131,7 +131,7 @@ const WebsiteHubPage = () => {
                   <select 
                     value={editLang} 
                     onChange={(e) => setEditLang(e.target.value)}
-                    className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="input w-auto px-3 py-1.5"
                   >
                     {editLangs.map(l => (
                       <option key={l} value={l}>{l}</option>

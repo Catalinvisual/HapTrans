@@ -4,6 +4,8 @@ import { initReactI18next } from 'react-i18next';
 const resources = {
   ro: {
     translation: {
+      comingSoon: "În curând",
+      viewDesc: "Vizualizarea de {{tab}} va fi implementată în faza următoare, conectându-se direct la modulele principale de {{tab}}, dar filtrată pentru acest client.",
       clientProfile: "Profil Client & Tarife",
       generalInfoSettings: "Informații Generale & Setări Facturare",
       companyName: "Nume Companie",
@@ -604,6 +606,8 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
   },
   en: {
     translation: {
+      comingSoon: "Coming soon",
+      viewDesc: "The {{tab}} view will be implemented in the next phase, connecting directly to the main {{tab}} modules but filtered for this client.",
       clientProfile: "Client Profile & Tariffs",
       generalInfoSettings: "General Information & Billing Settings",
       companyName: "Company Name",
@@ -1145,6 +1149,8 @@ smartDispatchAddressError: "Please enter the pickup address first!",
   },
   nl: {
     translation: {
+      comingSoon: "Binnenkort",
+      viewDesc: "De {{tab}} weergave wordt in de volgende fase geïmplementeerd en direct gekoppeld aan de hoofdmodules voor {{tab}}, maar gefilterd voor deze klant.",
       clientProfile: "Klantprofiel & Tarieven",
       generalInfoSettings: "Algemene Informatie & Factureringsinstellingen",
       companyName: "Bedrijfsnaam",
@@ -1654,6 +1660,8 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
   },
   de: {
     translation: {
+      comingSoon: "Demnächst",
+      viewDesc: "Die {{tab}}-Ansicht wird in der nächsten Phase implementiert und direkt mit den {{tab}}-Hauptmodulen verbunden, jedoch für diesen Kunden gefiltert.",
       clientProfile: "Kundenprofil & Tarife",
       generalInfoSettings: "Allgemeine Informationen & Abrechnungseinstellungen",
       companyName: "Firmenname",

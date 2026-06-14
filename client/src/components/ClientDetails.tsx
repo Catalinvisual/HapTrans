@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Building2, Save, Plus, Trash2, Edit } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
+import AddressAutocomplete from './AddressAutocomplete';
 
 export default function ClientDetails({ client, onBack }: { client: any, onBack: () => void }) {
   const { t } = useTranslation();
@@ -114,7 +115,7 @@ export default function ClientDetails({ client, onBack }: { client: any, onBack:
               </div>
               <div className="md:col-span-2">
                 <label className="label">{t('address')}</label>
-                <input className="input" value={generalForm.address} onChange={e => setGeneralForm({ ...generalForm, address: e.target.value })} />
+                <AddressAutocomplete value={generalForm.address || ''} onChange={val => setGeneralForm({ ...generalForm, address: val })} placeholder="Street, No., Building..." />
               </div>
               <div>
                 <label className="label">{t('contactName')}</label>
@@ -171,11 +172,11 @@ export default function ClientDetails({ client, onBack }: { client: any, onBack:
                 </div>
                 <div>
                   <label className="label text-xs">{t('originCity')}</label>
-                  <input className="input" value={rateForm.originCity} onChange={e => setRateForm({ ...rateForm, originCity: e.target.value })} required />
+                  <AddressAutocomplete value={rateForm.originCity || ''} onChange={val => setRateForm({ ...rateForm, originCity: val })} placeholder="Origin..." />
                 </div>
                 <div>
                   <label className="label text-xs">{t('destCity')}</label>
-                  <input className="input" value={rateForm.destinationCity} onChange={e => setRateForm({ ...rateForm, destinationCity: e.target.value })} required />
+                  <AddressAutocomplete value={rateForm.destinationCity || ''} onChange={val => setRateForm({ ...rateForm, destinationCity: val })} placeholder="Destination..." />
                 </div>
                 <div>
                   <label className="label text-xs">{t('basePrice')}</label>
@@ -249,10 +250,9 @@ export default function ClientDetails({ client, onBack }: { client: any, onBack:
             <div className="bg-surface w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
               <Building2 className="w-8 h-8 text-text-secondary opacity-50" />
             </div>
-            <p className="font-semibold text-lg">Coming soon</p>
+            <p className="font-semibold text-lg">{t('comingSoon')}</p>
             <p className="text-sm max-w-md mx-auto mt-2">
-              The {activeTab} view will be implemented in the next phase, 
-              connecting directly to the main {activeTab} modules but filtered for this client.
+              {t('viewDesc', { tab: activeTab })}
             </p>
           </div>
         )}

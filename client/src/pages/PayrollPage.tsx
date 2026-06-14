@@ -101,14 +101,14 @@ export default function PayrollPage() {
                 <span className="text-sm font-semibold text-text-secondary">Luna:</span>
               </div>
               <select 
-                className="py-1.5 px-3 text-sm font-semibold bg-white border border-border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-text"
+                className="input py-1.5 px-3 text-sm font-semibold w-auto shadow-sm"
                 value={selectedMonth}
                 onChange={e => setSelectedMonth(Number(e.target.value))}
               >
                 {MONTHS.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
               </select>
               <select 
-                className="py-1.5 px-3 text-sm font-semibold bg-white border border-border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-text"
+                className="input py-1.5 px-3 text-sm font-semibold w-auto shadow-sm"
                 value={selectedYear}
                 onChange={e => setSelectedYear(Number(e.target.value))}
               >

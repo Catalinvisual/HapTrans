@@ -184,11 +184,14 @@ export default function ExpensesPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            <div>
-              <label className="label font-semibold text-xs">{t('expenseAmount')}</label>
-              <div className="relative">
-                <input type="number" step="0.01" className="input pr-16" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} required />
-                <select className="absolute right-0 top-0 bottom-0 bg-transparent border-l border-border px-2 text-sm font-bold text-text-secondary focus:outline-none rounded-r-xl" value={form.currency} onChange={e => setForm({...form, currency: e.target.value})}>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label font-semibold text-xs">{t('expenseAmount')}</label>
+                <input type="number" step="0.01" className="input" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} required />
+              </div>
+              <div>
+                <label className="label font-semibold text-xs">Currency</label>
+                <select className="input" value={form.currency} onChange={e => setForm({...form, currency: e.target.value})}>
                   <option value="EUR">EUR</option>
                   <option value="USD">USD</option>
                   <option value="RON">RON</option>
