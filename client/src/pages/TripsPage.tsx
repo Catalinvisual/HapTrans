@@ -355,6 +355,10 @@ export default function TripsPage() {
           price: form.price === '' ? null : Number(form.price),
           estimatedCost: form.estimatedCost === '' ? null : Number(form.estimatedCost),
           realCost: form.realCost === '' ? null : Number(form.realCost),
+          agreedPrice: form.agreedPrice === '' ? null : Number(form.agreedPrice),
+          fuelSurchargePercent: form.fuelSurchargePercent === '' ? null : Number(form.fuelSurchargePercent),
+          tollCosts: form.tollCosts === '' ? null : Number(form.tollCosts),
+          extraCosts: form.extraCosts === '' ? null : Number(form.extraCosts),
           distanceKm: form.distanceKm === '' ? null : Number(form.distanceKm),
           pallets: form.pallets === '' ? null : Number(form.pallets),
           weightKg: form.weightKg === '' ? null : Number(form.weightKg),
@@ -387,6 +391,8 @@ export default function TripsPage() {
         if (typeof msg === 'string' && msg.startsWith('err_trip_overlap:')) {
           const tripId = msg.split(':')[1];
           toast.error(t('err_trip_overlap', { id: tripId }));
+        } else if (Array.isArray(msg)) {
+          toast.error(msg.join(', '));
         } else {
           toast.error(msg || t('saveError'));
         }

@@ -138,6 +138,10 @@ export class CreateTripDto {
   manualDelayMinutes?: number;
 
   @IsOptional()
+  @IsBoolean()
+  tollIncluded?: boolean;
+
+  @IsOptional()
   @IsEnum(TripStatus)
   status?: TripStatus;
 
