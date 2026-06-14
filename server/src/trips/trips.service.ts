@@ -67,7 +67,7 @@ export class TripsService {
     });
   }
 
-  async create(dto: any) {
+  async create(dto: any, user?: any) {
     await this.checkConflict(dto.driverId, dto.truckId, dto.pickupDate, dto.dropoffDate);
     
     const year = new Date().getFullYear();
@@ -98,9 +98,11 @@ export class TripsService {
       } catch (e) {}
     }
 
-    const trip = this.repo.create({
+    const tripPayload: any = {
+      ...dto,
       referenceNumber,
       trackingToken,
+      createdBy: user ? { id: user.id } : null,
       client: { id: dto.clientId },
       truck: { id: dto.truckId },
       driver: { id: dto.driverId },
@@ -131,7 +133,9 @@ export class TripsService {
       dropoffLat,
       dropoffLng,
       etaSource: 'planned',
-    });
+    };
+
+    const trip: Trip = this.repo.create(tripPayload) as any;
     const saved = await this.repo.save(trip);
     
     // Fetch full trip with driver.user to get FCM token and client to get email

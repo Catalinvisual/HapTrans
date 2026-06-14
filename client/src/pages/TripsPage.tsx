@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Zap, Plus, Pencil, Trash2, Search, ChevronDown, Scale, Layers, Download, FileText, Clock, Box, AlertTriangle, ScanLine, Loader2, CheckCircle2 } from 'lucide-react';
@@ -25,6 +26,7 @@ const STATUS_COLORS: Record<string, string> = {
 import { useAuthStore } from '../store/authStore';
 
 export default function TripsPage() {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const isDispatcher = user?.role === 'dispatcher';
   const { t, i18n } = useTranslation();
@@ -1190,30 +1192,29 @@ export default function TripsPage() {
                   'ETA (Smart)',
                   t('truck'),
                   t('driver'),
-                  t('cargoDetails'),
-                  t('loadingReference'),
-                  t('unloadingReference'),
                   t('price'),
-                  t('realCost'),
-                  t('profit'),
                   t('status'),
                   t('actions')
-                ].filter(h => !isDispatcher || (h !== t('realCost') && h !== t('profit'))).map(h => (
+                ].map(h => (
                   <th key={h} className="table-header whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={isDispatcher ? 12 : 14} className="table-cell text-center text-text-secondary py-8">{t('loading')}</td></tr>
+                <tr><td colSpan={11} className="table-cell text-center text-text-secondary py-8">{t('loading')}</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={isDispatcher ? 12 : 14} className="table-cell text-center text-text-secondary py-8">{t('noData')}</td></tr>
+                <tr><td colSpan={11} className="table-cell text-center text-text-secondary py-8">{t('noData')}</td></tr>
               ) : filtered.map((trip) => {
                 const addedCosts = trip.costs?.reduce((s: number, c: any) => s + Number(c.amount), 0) || 0;
                 const totalCost = addedCosts > 0 ? addedCosts : (Number(trip.realCost) || Number(trip.estimatedCost) || 0);
                 const profit = Number(trip.price || 0) - totalCost;
                 return (
-                  <tr key={trip.id} className="hover:bg-surface/60 transition-colors">
+                  <tr key={trip.id} onClick={(e) => {
+                    // Prevent row click if clicking on an interactive element like select or button
+                    if ((e.target as HTMLElement).closest('button, select, input, a, .interactive-click')) return;
+                    navigate(`/trips/${trip.id}`);
+                  }} className="hover:bg-surface/60 transition-colors cursor-pointer">
                     <td className="table-cell whitespace-nowrap text-xs font-bold text-primary">
                       {trip.referenceNumber || '—'}
                     </td>
@@ -1287,19 +1288,6 @@ export default function TripsPage() {
                     </td>
                     <td className="table-cell text-xs font-semibold text-text-secondary whitespace-nowrap">{trip.truck?.plateNumber || '—'}</td>
                     <td className="table-cell text-xs font-medium text-text">{trip.driver?.user?.name || '—'}</td>
-                    <td className="table-cell text-xs whitespace-nowrap">
-                      {(trip.pallets || trip.weightKg || trip.volumeCbm) ? (
-                        <div className="space-y-0.5 text-[10px] bg-orange-50/50 p-1.5 rounded-lg border border-orange-100 max-w-[130px]">
-                          {trip.pallets && <div className="text-text font-medium flex items-center gap-1"><Layers className="w-2.5 h-2.5 text-primary" /> {trip.pallets} {t('palletsLabel')}</div>}
-                          {trip.weightKg && <div className="text-text font-medium flex items-center gap-1"><Scale className="w-2.5 h-2.5 text-primary" /> {trip.weightKg} kg</div>}
-                          {trip.volumeCbm && <div className="text-text font-medium flex items-center gap-1"><Box className="w-2.5 h-2.5 text-primary" /> {trip.volumeCbm} m³</div>}
-                        </div>
-                      ) : (
-                        <span className="text-text-secondary">—</span>
-                      )}
-                    </td>
-                    <td className="table-cell text-xs font-bold text-primary whitespace-nowrap">{trip.loadingReference || '—'}</td>
-                    <td className="table-cell text-xs font-bold text-primary whitespace-nowrap">{trip.unloadingReference || '—'}</td>
                     <td className="table-cell font-semibold text-success whitespace-nowrap">
                       <div>€{Number(trip.price || 0).toLocaleString(i18n.language)}</div>
                       {trip.invoices && trip.invoices.length > 0 && (
@@ -1313,14 +1301,6 @@ export default function TripsPage() {
                         </div>
                       )}
                     </td>
-                    {!isDispatcher && (
-                      <>
-                        <td className="table-cell whitespace-nowrap">€{totalCost.toLocaleString(i18n.language)}</td>
-                        <td className={`table-cell font-bold whitespace-nowrap ${profit >= 0 ? 'text-success' : 'text-error'}`}>
-                          €{profit.toLocaleString(i18n.language)}
-                        </td>
-                      </>
-                    )}
                     <td className="table-cell">
                       <div className="relative group">
                         <button

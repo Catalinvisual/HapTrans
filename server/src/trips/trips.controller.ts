@@ -17,7 +17,7 @@ export class TripsController {
   @Get('stats') getStats(@Query('month') m: number, @Query('year') y: number) { return this.service.getStats(m, y); }
   @Get('monthly-profits') getMonthly() { return this.service.getMonthlyProfits(); }
   @Get(':id') findOne(@Param('id') id: string) { return this.service.findOne(id); }
-  @Post() create(@Body() dto: CreateTripDto) { return this.service.create(dto); }
+  @Post() create(@Body() dto: CreateTripDto, @Request() req: any) { return this.service.create(dto, req.user); }
   @Patch(':id') update(@Param('id') id: string, @Body() dto: UpdateTripDto, @Request() req: any) { return this.service.update(id, dto, req.user); }
   @Delete(':id') remove(@Param('id') id: string) { return this.service.remove(id); }
   @Get('debug/:ref') async getDebug(@Param('ref') ref: string) { return this.service.findOneByRef(ref); }

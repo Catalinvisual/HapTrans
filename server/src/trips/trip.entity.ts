@@ -6,6 +6,7 @@ import { TripCost } from './trip-cost.entity';
 import { Invoice } from '../invoices/invoice.entity';
 import { Document } from '../documents/document.entity';
 import { Message } from '../chat/message.entity';
+import { User } from '../users/user.entity';
 
 export enum TripStatus {
   PENDING = 'pending',
@@ -163,6 +164,9 @@ export class Trip {
 
   @OneToMany(() => Message, (msg) => msg.trip)
   messages: Message[];
+
+  @ManyToOne(() => User, { nullable: true, eager: true })
+  createdBy: User;
 
   @CreateDateColumn()
   createdAt: Date;

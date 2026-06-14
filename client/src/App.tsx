@@ -21,6 +21,7 @@ import ChatPage from './pages/ChatPage';
 import PlanningPage from './pages/PlanningPage';
 import SharedDocumentPage from './pages/SharedDocumentPage';
 import WebsiteHubPage from './pages/WebsiteHubPage';
+import TripDetailsPage from './pages/TripDetailsPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore();
@@ -41,6 +42,7 @@ export default function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="trips" element={<TripsPage />} />
+          <Route path="trips/:id" element={<TripDetailsPage />} />
           <Route path="trucks" element={<TrucksPage />} />
           <Route path="drivers" element={<DriversPage />} />
           <Route path="clients" element={<ClientsPage />} />
