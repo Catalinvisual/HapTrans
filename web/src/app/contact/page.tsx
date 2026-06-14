@@ -203,7 +203,8 @@ export default function ContactPage() {
                     }}
                     countrySelectorStyleProps={{
                       buttonStyle: {
-                        padding: '0.75rem',
+                        padding: '0 0.5rem',
+                        height: '100%',
                         border: '1px solid #cbd5e1',
                         borderRadius: '0.5rem',
                         borderRight: 'none',

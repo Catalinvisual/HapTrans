@@ -92,6 +92,7 @@ const translations: Translations = {
   contactPageSubtitle: { RO: 'Suntem aici pentru orice întrebare sau solicitare.', EN: 'We are here for any question or request.', NL: 'Wij zijn hier voor elke vraag of verzoek.', DE: 'Wir sind für alle Fragen und Wünsche da.', FR: 'Nous sommes là pour toute question ou demande.', ES: 'Estamos aquí para cualquier duda o petición.' },
   contactName: { RO: 'Nume Complet', EN: 'Full Name', NL: 'Volledige Naam', DE: 'Vollständiger Name', FR: 'Nom Complet', ES: 'Nombre Completo' },
   contactEmail: { RO: 'Adresă de Email', EN: 'Email Address', NL: 'E-mailadres', DE: 'E-Mail-Adresse', FR: 'Adresse Email', ES: 'Correo Electrónico' },
+  contactPhone: { RO: 'Telefon', EN: 'Phone Number', NL: 'Telefoonnummer', DE: 'Telefonnummer', FR: 'Numéro de Téléphone', ES: 'Número de Teléfono' },
   contactSubject: { RO: 'Subiect', EN: 'Subject', NL: 'Onderwerp', DE: 'Betreff', FR: 'Sujet', ES: 'Asunto' },
   contactMessage: { RO: 'Mesajul Tău', EN: 'Your Message', NL: 'Uw Bericht', DE: 'Ihre Nachricht', FR: 'Votre Message', ES: 'Tu Mensaje' },
   contactSend: { RO: 'Trimite Mesajul', EN: 'Send Message', NL: 'Verstuur Bericht', DE: 'Nachricht Senden', FR: 'Envoyer le Message', ES: 'Enviar Mensaje' },

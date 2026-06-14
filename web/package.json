@@ -26,5 +26,11 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "typescript": "^5"
+  },
+  "overrides": {
+    "react-simple-maps": {
+      "react": "$react",
+      "react-dom": "$react-dom"
+    }
   }
 }
