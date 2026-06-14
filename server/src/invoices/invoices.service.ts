@@ -110,7 +110,7 @@ export class InvoicesService implements OnModuleInit {
     return this.repo.save(inv);
   }
 
-  async update(id: string, dto: Partial<Invoice>) {
+  async update(id: string, dto: any) {
     const inv = await this.repo.findOne({ where: { id } });
     if (!inv) throw new BadRequestException('Invoice not found');
 
@@ -123,7 +123,7 @@ export class InvoicesService implements OnModuleInit {
       }
     }
 
-    const payload = { ...dto };
+    const payload: any = { ...dto };
     if (payload.clientId !== undefined) {
       if (payload.clientId) payload.client = { id: payload.clientId };
       delete payload.clientId;
