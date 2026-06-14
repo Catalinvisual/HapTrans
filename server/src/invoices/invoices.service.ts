@@ -1,7 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Like } from 'typeorm';
 import { Invoice, InvoiceStatus } from './invoice.entity';
+import { InvoiceItem } from './invoice-item.entity';
 import { v2 as cloudinary } from 'cloudinary';
 
 async function deleteFromCloudinary(fileUrl: string) {
@@ -27,8 +28,34 @@ async function deleteFromCloudinary(fileUrl: string) {
 }
 
 @Injectable()
-export class InvoicesService {
+export class InvoicesService implements OnModuleInit {
   constructor(@InjectRepository(Invoice) private repo: Repository<Invoice>) {}
+
+  async onModuleInit() {
+    const invoices = await this.repo.find({ relations: ['items'] });
+    let migratedCount = 0;
+    for (const inv of invoices) {
+      if (inv.amount > 0 && (!inv.items || inv.items.length === 0)) {
+        const item = new InvoiceItem();
+        item.description = 'Transport service';
+        item.quantity = 1;
+        item.unitPrice = Number(inv.amount);
+        item.vatRate = Number(inv.vatPercent || 19);
+        item.total = Number(inv.amount);
+        
+        inv.subtotal = Number(inv.amount);
+        inv.vatAmount = Number((inv.amount * (inv.vatPercent || 19)) / 100);
+        inv.total = Number(inv.subtotal) + Number(inv.vatAmount);
+        inv.items = [item];
+        
+        await this.repo.save(inv);
+        migratedCount++;
+      }
+    }
+    if (migratedCount > 0) {
+      console.log(`Migrated ${migratedCount} old invoices to the new InvoiceItem structure.`);
+    }
+  }
 
   findAll() { return this.repo.find({ relations: ['client', 'trip'] }); }
   findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['client', 'trip'] }); }
@@ -52,13 +79,15 @@ export class InvoicesService {
       invoiceNumber = `HC-${year}-${String(count + 1).padStart(4, '0')}`;
     }
 
-    const inv = this.repo.create({
+    const payload: any = {
       ...dto,
       invoiceNumber,
       client: { id: dto.clientId },
       trip: dto.tripId ? { id: dto.tripId } : null,
-    });
-    return this.repo.save(inv);
+    };
+    const inv = this.repo.create(payload) as any;
+    const saved = await this.repo.save(inv);
+    return this.findOne(saved.id);
   }
 
   async approve(id: string) {

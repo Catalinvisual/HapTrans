@@ -57,8 +57,10 @@ export default function TripsPage() {
     dropoffCompanyName: '', dropoffAddress: '',
     pickupDate: '', dropoffDate: '', price: '', estimatedCost: '', realCost: '', distanceKm: '', notes: '',
     pickupTime: '', dropoffTime: '', pallets: '', palletType: '', weightKg: '', volumeCbm: '',
-    loadingReference: '', unloadingReference: '',
+    loadingReference: '', unloadingReference: '', cmrReference: '', status: 'pending',
+    clientRateId: '', agreedPrice: '', fuelSurchargePercent: '', tollCosts: '', extraCosts: '', tollIncluded: false
   });
+  const [clientRates, setClientRates] = useState<any[]>([]);
   const [dieselPrice, setDieselPrice] = useState<number>(1.68);
   const [confirmModal, setConfirmModal] = useState<any>({
     isOpen: false,
@@ -139,6 +141,33 @@ export default function TripsPage() {
       clearTimeout(timeoutId);
     };
   }, [form.truckId, form.pickupAddress, trips, editId, dieselPrice]);
+
+  useEffect(() => {
+    if (form.clientId) {
+      api.get(`/clients/${form.clientId}/rates`).then(res => setClientRates(res.data)).catch(() => setClientRates([]));
+    } else {
+      setClientRates([]);
+    }
+  }, [form.clientId]);
+
+  useEffect(() => {
+    if (!editId && form.pickupAddress && form.dropoffAddress && clientRates.length > 0) {
+      const match = clientRates.find(r => 
+        form.pickupAddress.toLowerCase().includes(r.originCity.toLowerCase()) && 
+        form.dropoffAddress.toLowerCase().includes(r.destinationCity.toLowerCase())
+      );
+      if (match && !form.clientRateId) {
+        setForm((prev: any) => ({
+          ...prev,
+          clientRateId: match.id,
+          agreedPrice: match.basePrice,
+          fuelSurchargePercent: match.fuelSurchargePercent,
+          tollIncluded: match.tollIncluded
+        }));
+        toast.success(`S-a aplicat tariful automat: ${match.rateName}`);
+      }
+    }
+  }, [form.pickupAddress, form.dropoffAddress, clientRates]);
 
   useEffect(() => { 
     load(); 
@@ -951,31 +980,58 @@ export default function TripsPage() {
 
             {/* Financial Details */}
             <div className="border-t border-dashed border-border pt-4 md:col-span-2 lg:col-span-3">
-              <span className="text-xs font-bold text-primary uppercase tracking-wider block mb-3">{i18n.language === 'ro' ? 'Detalii Financiare' : 'Financial Details'}</span>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider block">{t('financialDetails')}</span>
+                {clientRates.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-text-secondary">{t('rateCard')}</span>
+                    <select 
+                      className="input py-1 text-xs" 
+                      value={form.clientRateId || ''} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        const match = clientRates.find(r => r.id === val);
+                        if (match) {
+                          setForm({...form, clientRateId: val, agreedPrice: match.basePrice, fuelSurchargePercent: match.fuelSurchargePercent, tollIncluded: match.tollIncluded});
+                        } else {
+                          setForm({...form, clientRateId: val});
+                        }
+                      }}
+                    >
+                      <option value="">{t('manualPrice')}</option>
+                      {clientRates.map(r => (
+                        <option key={r.id} value={r.id}>{r.rateName} (€{r.basePrice})</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div>
-                  <label className={`label font-semibold text-xs ${Number(form.price) > 0 && Number(form.estimatedCost) > 0 && Number(form.price) < Number(form.estimatedCost) ? 'text-red-600 font-bold' : ''}`}>{t('price')} (€)</label>
-                  <input type="number" className={`input text-xs ${Number(form.price) > 0 && Number(form.estimatedCost) > 0 && Number(form.price) < Number(form.estimatedCost) ? 'border-red-400 focus:border-red-500 focus:ring-red-200 bg-red-50/30 font-bold text-red-700' : ''}`} value={form.price} onChange={e => setForm({...form, price: e.target.value})} />
-                  {Number(form.price) > 0 && Number(form.estimatedCost) > 0 && Number(form.price) < Number(form.estimatedCost) && (
-                    <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2 text-xs text-red-800 leading-tight shadow-sm animate-pulse">
-                      <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                      <div>
-                        <div className="font-bold text-red-700">{i18n.language === 'ro' ? 'Atenție: Preț sub costul estimat!' : 'Warning: Price below estimated cost!'}</div>
-                        <div className="text-[11px] mt-0.5 text-red-600 font-medium">
-                          {i18n.language === 'ro' ? 'Salvarea va genera o pierdere de ' : 'Saving will result in a loss of '}
-                          <span className="font-bold text-red-700 text-xs">€{(Number(form.estimatedCost) - Number(form.price)).toFixed(2)}</span>.
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <label className="label font-semibold text-xs text-primary">{t('agreedPrice')}</label>
+                  <input type="number" className="input text-xs font-bold" value={form.agreedPrice} onChange={e => setForm({...form, agreedPrice: e.target.value})} />
                 </div>
                 <div>
-                  <label className="label font-semibold text-xs">{t('estimatedCost')} (€)</label>
-                  <input type="number" className="input text-xs" value={form.estimatedCost} onChange={e => setForm({...form, estimatedCost: e.target.value})} />
+                  <label className="label font-semibold text-xs">{t('fuelSurcharge')}</label>
+                  <input type="number" step="0.1" className="input text-xs" value={form.fuelSurchargePercent} onChange={e => setForm({...form, fuelSurchargePercent: e.target.value})} />
                 </div>
                 <div>
-                  <label className="label font-semibold text-xs">{t('realCost')} (€)</label>
-                  <input type="number" className="input text-xs" value={form.realCost} onChange={e => setForm({...form, realCost: e.target.value})} />
+                  <label className="label font-semibold text-xs">{t('extraCosts')}</label>
+                  <input type="number" className="input text-xs" value={form.extraCosts} onChange={e => setForm({...form, extraCosts: e.target.value})} />
+                </div>
+                <div>
+                  <label className="label font-semibold text-xs">{t('tollCosts')}</label>
+                  <input type="number" className="input text-xs" value={form.tollCosts} onChange={e => setForm({...form, tollCosts: e.target.value})} disabled={form.tollIncluded} />
+                  {form.tollIncluded && <span className="text-[10px] text-green-600 font-bold">{t('tollIncluded')}</span>}
+                </div>
+                <div>
+                  <label className="label font-semibold text-xs">{t('totalEstimatedCost')}</label>
+                  <input type="number" className="input text-xs bg-slate-50" value={form.estimatedCost} onChange={e => setForm({...form, estimatedCost: e.target.value})} />
+                </div>
+                {/* Legacy realCost hidden for now or kept for backward comp */}
+                <div className="hidden">
+                  <input type="number" value={form.price} onChange={e => setForm({...form, price: e.target.value})} />
+                  <input type="number" value={form.realCost} onChange={e => setForm({...form, realCost: e.target.value})} />
                 </div>
               </div>
             </div>

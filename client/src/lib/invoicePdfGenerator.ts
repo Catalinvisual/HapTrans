@@ -93,6 +93,114 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
       vatId: 'BTW / Tax ID',
       paymentTerms: 'Betalingsvoorwaarden:',
       address: 'Adres'
+    },
+    ro: {
+      invoice: 'FACTURĂ',
+      invoiceNo: 'Nr. Factură:',
+      tripRef: 'Ref. Cursă:',
+      issueDate: 'Data emiterii:',
+      dueDate: 'Scadență:',
+      from: 'FURNIZOR:',
+      toClient: 'CLIENT:',
+      description: 'Descrierea serviciilor',
+      vat: 'TVA',
+      qty: 'Cant.',
+      amount: 'Suma (EUR)',
+      serviceName: 'Servicii de transport rutier de marfă',
+      route: 'Ruta:',
+      dates: 'Încărcare/Descărcare:',
+      cargo: 'Marfă:',
+      pallets: 'Palți',
+      vehicle: 'Vehicul:',
+      driver: 'Șofer:',
+      refs: 'Ref: Încărcare',
+      unloading: 'Descărcare',
+      subtotal: 'Subtotal:',
+      total: 'TOTAL:',
+      notes: 'Note:',
+      footer1: 'Vă mulțumim pentru colaborare!',
+      footer2: 'Factură generată automat prin HapCargo SaaS',
+      taxId: 'CUI',
+      regNo: 'Reg. Com.',
+      phone: 'Tel',
+      email: 'Email',
+      bank: 'Banca',
+      iban: 'IBAN',
+      vatId: 'CUI / CIF',
+      paymentTerms: 'Termen de plată:',
+      address: 'Adresa'
+    },
+    de: {
+      invoice: 'RECHNUNG',
+      invoiceNo: 'Rechnungs-Nr:',
+      tripRef: 'Fahrt Ref:',
+      issueDate: 'Rechnungsdatum:',
+      dueDate: 'Fälligkeitsdatum:',
+      from: 'VON:',
+      toClient: 'KUNDE:',
+      description: 'Beschreibung der Leistungen',
+      vat: 'MwSt.',
+      qty: 'Menge',
+      amount: 'Betrag (EUR)',
+      serviceName: 'Straßengüterverkehr',
+      route: 'Route:',
+      dates: 'Laden/Entladen:',
+      cargo: 'Fracht:',
+      pallets: 'Paletten',
+      vehicle: 'Fahrzeug:',
+      driver: 'Fahrer:',
+      refs: 'Ref: Laden',
+      unloading: 'Entladen',
+      subtotal: 'Zwischensumme:',
+      total: 'GESAMT:',
+      notes: 'Notizen:',
+      footer1: 'Vielen Dank für Ihre Zusammenarbeit!',
+      footer2: 'Rechnung automatisch generiert durch HapCargo SaaS',
+      taxId: 'Steuer-Nr.',
+      regNo: 'Reg-Nr.',
+      phone: 'Tel',
+      email: 'E-Mail',
+      bank: 'Bank',
+      iban: 'IBAN',
+      vatId: 'USt-IdNr.',
+      paymentTerms: 'Zahlungsbedingungen:',
+      address: 'Adresse'
+    },
+    fr: {
+      invoice: 'FACTURE',
+      invoiceNo: 'N° Facture:',
+      tripRef: 'Réf. Trajet:',
+      issueDate: 'Date d\'émission:',
+      dueDate: 'Date d\'échéance:',
+      from: 'DE:',
+      toClient: 'À / CLIENT:',
+      description: 'Description des services',
+      vat: 'TVA',
+      qty: 'Qté',
+      amount: 'Montant (EUR)',
+      serviceName: 'Services de transport routier de fret',
+      route: 'Itinéraire:',
+      dates: 'Chargement/Déchargement:',
+      cargo: 'Marchandise:',
+      pallets: 'Palettes',
+      vehicle: 'Véhicule:',
+      driver: 'Chauffeur:',
+      refs: 'Réf: Chargement',
+      unloading: 'Déchargement',
+      subtotal: 'Sous-total:',
+      total: 'TOTAL:',
+      notes: 'Notes:',
+      footer1: 'Merci pour votre confiance !',
+      footer2: 'Facture générée automatiquement par HapCargo SaaS',
+      taxId: 'N° TVA',
+      regNo: 'N° Reg',
+      phone: 'Tél',
+      email: 'Email',
+      bank: 'Banque',
+      iban: 'IBAN',
+      vatId: 'TVA Intracommunautaire',
+      paymentTerms: 'Conditions de paiement:',
+      address: 'Adresse'
     }
   };
   const t = dict[lang] || dict['en'];
@@ -258,18 +366,38 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   doc.text(t.qty, 142, tableY + 5.5);
   doc.text(t.amount, 163, tableY + 5.5);
 
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 0, 0);
-  doc.text(t.serviceName, 16, tableY + 14);
+  let currentItemY = tableY + 14;
+  
+  if (invoice.items && invoice.items.length > 0) {
+    invoice.items.forEach((item: any) => {
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      const descLines = doc.splitTextToSize(safeText(item.description), 90);
+      doc.text(descLines, 16, currentItemY);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(51, 51, 51);
+      doc.text(`${item.vatRate}%`, 115, currentItemY);
+      doc.text(String(item.quantity || 1), 142, currentItemY);
+      doc.text(`EUR ${Number(item.total || item.unitPrice).toFixed(2)}`, 163, currentItemY);
+      
+      currentItemY += (descLines.length * 5) + 2;
+    });
+  } else {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text(t.serviceName, 16, currentItemY);
 
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(51, 51, 51);
-  doc.text(`${invoice.vatPercent}%`, 115, tableY + 14);
-  doc.text('1', 142, tableY + 14);
-  doc.text(`EUR ${Number(invoice.amount).toFixed(2)}`, 163, tableY + 14);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 51, 51);
+    doc.text(`${invoice.vatPercent}%`, 115, currentItemY);
+    doc.text('1', 142, currentItemY);
+    doc.text(`EUR ${Number(invoice.amount).toFixed(2)}`, 163, currentItemY);
+    currentItemY += 10;
+  }
 
   // ─── 5. TRIP DETAILS ────────────────────────────────────────────────
-  const detailY = tableY + 20;
+  const detailY = currentItemY + 10;
   doc.setFontSize(8.5);
 
   const routeText = `${safeText(trip.pickupAddress || '—')} - ${safeText(trip.dropoffAddress || '—')}`;
@@ -345,32 +473,32 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   doc.line(14, afterDetailsY, 196, afterDetailsY);
 
   // ─── 6. TOTALS ───────────────────────────────────────────────────────
-  const subtotal  = Number(invoice.amount);
-  const vatAmount = (subtotal * Number(invoice.vatPercent)) / 100;
-  const total     = subtotal + vatAmount;
-
-  const calcY = afterDetailsY + 8;
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(51, 51, 51);
-  doc.text(t.subtotal, 120, calcY);
-  doc.text(`EUR ${subtotal.toFixed(2)}`, 165, calcY);
-
-  doc.text(`${t.vat} (${invoice.vatPercent}%):`, 120, calcY + 6);
-  doc.text(`EUR ${vatAmount.toFixed(2)}`, 165, calcY + 6);
-
-  doc.setLineWidth(1.0);
-  doc.setDrawColor(0, 0, 0);
-  doc.line(120, calcY + 10, 196, calcY + 10);
+  const totalsY = currentItemY + 10;
+  doc.setFontSize(9.5);
+  
+  const subtotal = invoice.subtotal !== undefined ? invoice.subtotal : invoice.amount;
+  const vatAmt = invoice.vatAmount !== undefined ? invoice.vatAmount : (invoice.amount * (invoice.vatPercent / 100));
+  const finalTotal = invoice.total !== undefined ? invoice.total : (Number(subtotal) + Number(vatAmt));
 
   doc.setFont('helvetica', 'bold');
+  doc.setTextColor(51, 51, 51);
+  doc.text(t.subtotal, 140, totalsY);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`EUR ${Number(subtotal).toFixed(2)}`, 170, totalsY);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${t.vat} (${invoice.vatPercent}%)`, 140, totalsY + 6);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`EUR ${Number(vatAmt).toFixed(2)}`, 170, totalsY + 6);
+
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
-  doc.setFontSize(12);
-  doc.text(t.total, 120, calcY + 16);
-  doc.text(`EUR ${total.toFixed(2)}`, 165, calcY + 16);
+  doc.text(t.total, 140, totalsY + 14);
+  doc.text(`EUR ${Number(finalTotal).toFixed(2)}`, 170, totalsY + 14);
 
   // ─── 7. NOTES ────────────────────────────────────────────────────────
-  const notesY = calcY + 30;
+  const notesY = totalsY + 30;
   if (invoice.notes || trip.notes) {
     doc.setFontSize(9.5);
     doc.setFont('helvetica', 'bold');

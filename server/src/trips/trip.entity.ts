@@ -7,6 +7,7 @@ import { Invoice } from '../invoices/invoice.entity';
 import { Document } from '../documents/document.entity';
 import { Message } from '../chat/message.entity';
 import { User } from '../users/user.entity';
+import { ClientRate } from '../clients/client-rate.entity';
 
 export enum TripStatus {
   PENDING = 'pending',
@@ -59,6 +60,21 @@ export class Trip {
 
   @Column({ nullable: true, type: 'timestamp' })
   dropoffDate: Date;
+
+  @ManyToOne(() => ClientRate, { nullable: true })
+  clientRate: ClientRate;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  agreedPrice: number;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
+  fuelSurchargePercent: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  tollCosts: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  extraCosts: number;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
   price: number;

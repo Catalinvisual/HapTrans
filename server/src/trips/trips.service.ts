@@ -30,7 +30,7 @@ export class TripsService {
   }
 
   findOne(id: string) {
-    return this.repo.findOne({ where: { id }, relations: ['client', 'truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'messages'] });
+    return this.repo.findOne({ where: { id }, relations: ['client', 'truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'messages', 'clientRate'] });
   }
 
   findByTrackingToken(trackingToken: string) {
@@ -106,15 +106,19 @@ export class TripsService {
       client: { id: dto.clientId },
       truck: { id: dto.truckId },
       driver: { id: dto.driverId },
+      clientRate: dto.clientRateId ? { id: dto.clientRateId } : null,
       pickupCompanyName: dto.pickupCompanyName,
       pickupAddress: dto.pickupAddress,
       dropoffCompanyName: dto.dropoffCompanyName,
       dropoffAddress: dto.dropoffAddress,
       pickupDate: dto.pickupDate,
-      dropoffDate: dto.dropoffDate,
       price: dto.price,
       estimatedCost: dto.estimatedCost,
       realCost: dto.realCost,
+      agreedPrice: dto.agreedPrice,
+      fuelSurchargePercent: dto.fuelSurchargePercent,
+      tollCosts: dto.tollCosts,
+      extraCosts: dto.extraCosts,
       distanceKm: dto.distanceKm,
       notes: dto.notes,
       pickupTime: dto.pickupTime,
@@ -175,6 +179,7 @@ export class TripsService {
     if (dto.clientId !== undefined) updateData.client = { id: dto.clientId };
     if (dto.truckId !== undefined) updateData.truck = { id: dto.truckId };
     if (dto.driverId !== undefined) updateData.driver = { id: dto.driverId };
+    if (dto.clientRateId !== undefined) updateData.clientRate = dto.clientRateId ? { id: dto.clientRateId } : null;
     if (dto.pickupCompanyName !== undefined) updateData.pickupCompanyName = dto.pickupCompanyName;
     if (dto.pickupAddress !== undefined) updateData.pickupAddress = dto.pickupAddress;
     if (dto.dropoffCompanyName !== undefined) updateData.dropoffCompanyName = dto.dropoffCompanyName;
@@ -210,6 +215,10 @@ export class TripsService {
     if (dto.appointmentTo !== undefined) updateData.appointmentTo = dto.appointmentTo;
     if (dto.estimatedLoadingMinutes !== undefined) updateData.estimatedLoadingMinutes = dto.estimatedLoadingMinutes;
     if (dto.manualDelayMinutes !== undefined) updateData.manualDelayMinutes = dto.manualDelayMinutes;
+    if (dto.agreedPrice !== undefined) updateData.agreedPrice = dto.agreedPrice;
+    if (dto.fuelSurchargePercent !== undefined) updateData.fuelSurchargePercent = dto.fuelSurchargePercent;
+    if (dto.tollCosts !== undefined) updateData.tollCosts = dto.tollCosts;
+    if (dto.extraCosts !== undefined) updateData.extraCosts = dto.extraCosts;
     
     // Reset delayed risk if manually changed
     if (dto.appointmentTo !== undefined || dto.dropoffDate !== undefined) {
@@ -231,12 +240,71 @@ export class TripsService {
     // Auto-generate invoice if trip completed
     if (dto.status === TripStatus.COMPLETED && updatedTrip?.client) {
       if (!updatedTrip.invoices || updatedTrip.invoices.length === 0) {
+        const items = [];
+        let subtotal = 0;
+
+        const basePrice = Number(updatedTrip.agreedPrice) || Number(updatedTrip.price) || 0;
+        if (basePrice > 0) {
+          items.push({
+            description: `Transport: ${updatedTrip.pickupAddress.split(',')[0]} - ${updatedTrip.dropoffAddress.split(',')[0]}`,
+            quantity: 1,
+            unitPrice: basePrice,
+            vatRate: 19,
+            total: basePrice
+          });
+          subtotal += basePrice;
+        }
+
+        const fuelPercent = Number(updatedTrip.fuelSurchargePercent) || 0;
+        if (fuelPercent > 0) {
+          const fuelCost = (basePrice * fuelPercent) / 100;
+          items.push({
+            description: `Fuel Surcharge (${fuelPercent}%)`,
+            quantity: 1,
+            unitPrice: fuelCost,
+            vatRate: 19,
+            total: fuelCost
+          });
+          subtotal += fuelCost;
+        }
+
+        const tollIncluded = updatedTrip.clientRate ? updatedTrip.clientRate.tollIncluded : false;
+        const tollCosts = Number(updatedTrip.tollCosts) || 0;
+        if (!tollIncluded && tollCosts > 0) {
+          items.push({
+            description: `Road tolls / Toll charges`,
+            quantity: 1,
+            unitPrice: tollCosts,
+            vatRate: 19,
+            total: tollCosts
+          });
+          subtotal += tollCosts;
+        }
+
+        const extraCosts = Number(updatedTrip.extraCosts) || 0;
+        if (extraCosts > 0) {
+          items.push({
+            description: `Extra charges`,
+            quantity: 1,
+            unitPrice: extraCosts,
+            vatRate: 19,
+            total: extraCosts
+          });
+          subtotal += extraCosts;
+        }
+
+        const vatAmount = (subtotal * 19) / 100;
+        const total = subtotal + vatAmount;
+
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + 30); // Net 30 default
         await this.invoicesService.create({
           clientId: updatedTrip.client.id,
           tripId: updatedTrip.id,
-          amount: updatedTrip.price || 0,
+          subtotal,
+          vatAmount,
+          total,
+          items,
           status: 'draft',
           issueDate: new Date(),
           dueDate: dueDate,

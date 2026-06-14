@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Trip } from '../trips/trip.entity';
 import { Client } from '../clients/client.entity';
+import { InvoiceItem } from './invoice-item.entity';
 
 export enum InvoiceStatus {
   DRAFT = 'draft',
@@ -24,11 +25,23 @@ export class Invoice {
   @ManyToOne(() => Client, (client) => client.invoices, { eager: true })
   client: Client;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   amount: number;
 
   @Column({ nullable: true, type: 'decimal', precision: 5, scale: 2, default: 19 })
   vatPercent: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  subtotal: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  vatAmount: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  total: number;
+
+  @OneToMany(() => InvoiceItem, item => item.invoice, { cascade: true, eager: true })
+  items: InvoiceItem[];
 
   @Column({ type: 'date' })
   issueDate: Date;

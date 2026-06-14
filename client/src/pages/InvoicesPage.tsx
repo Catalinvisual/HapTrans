@@ -155,6 +155,10 @@ export default function InvoicesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.clientId) {
+      toast.error(t('selectClient') || 'Vă rugăm să selectați un client!');
+      return;
+    }
     if (editId) {
       try {
         const dataToSubmit = {

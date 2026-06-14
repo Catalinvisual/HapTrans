@@ -7,6 +7,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import ExportModal from '../components/ExportModal';
 import { formatDate } from '../lib/dateUtils';
+import ClientDetails from '../components/ClientDetails';
 
 export default function ClientsPage() {
   const { t } = useTranslation();
@@ -19,6 +20,7 @@ export default function ClientsPage() {
   
   const [form, setForm] = useState({ name: '', cui: '', address: '', contactName: '', contactEmail: '', phone: '' });
   const [editId, setEditId] = useState<string | null>(null);
+  const [selectedClient, setSelectedClient] = useState<any | null>(null);
 
   const load = () => api.get('/clients').then(r => { setClients(r.data); setLoading(false); });
   useEffect(() => { load(); }, []);
@@ -64,6 +66,10 @@ export default function ClientsPage() {
       (c.phone || '').toLowerCase().includes(query)
     );
   }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+  if (selectedClient) {
+    return <ClientDetails client={selectedClient} onBack={() => { setSelectedClient(null); load(); }} />;
+  }
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -154,14 +160,30 @@ export default function ClientsPage() {
                   <td className="table-cell text-xs font-medium text-text">{c.contactName || '—'}</td>
                   <td className="table-cell text-xs text-text-secondary">{c.contactEmail || '—'}</td>
                   <td className="table-cell text-xs font-medium text-text-secondary">{c.phone || '—'}</td>
-                  <td className="table-cell">
-                    <button onClick={() => { setForm({ name: c.name, cui: c.cui, address: c.address, contactName: c.contactName, contactEmail: c.contactEmail, phone: c.phone }); setEditId(c.id); setShowForm(true); }} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary-light transition-all">
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => handleDelete(c.id)} className="p-1.5 text-text-secondary hover:text-error rounded-lg hover:bg-error/10 transition-all ml-1">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
+                    <td className="table-cell">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setSelectedClient(c)} className="btn-secondary py-1.5 px-3 text-xs font-bold bg-primary/5 text-primary hover:bg-primary/10 border-transparent">
+                          View Details
+                        </button>
+                        <button onClick={() => {
+                          setEditId(c.id);
+                          setForm({
+                            name: c.name || '',
+                            cui: c.cui || '',
+                            address: c.address || '',
+                            contactName: c.contactName || '',
+                            contactEmail: c.contactEmail || '',
+                            phone: c.phone || '',
+                          });
+                          setShowForm(true);
+                        }} className="p-1.5 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-colors" title={t('edit')}>
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDelete(c.id)} className="p-1.5 text-text-secondary hover:text-error rounded hover:bg-red-50 transition-colors" title={t('delete')}>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
                 </tr>
               ))}
             </tbody>
