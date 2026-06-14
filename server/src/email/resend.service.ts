@@ -171,4 +171,46 @@ export class ResendService {
       console.error('Error sending delayed risk email:', e);
     }
   }
+
+  async sendInvoiceEmail(invoice: any) {
+    if (!invoice.client?.contactEmail) return;
+
+    const downloadUrl = invoice.pdfUrl || '#'; 
+
+    const htmlContent = `
+      <html>
+      <body style="font-family: Arial, sans-serif; color: #333;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h1 style="color: #0d1b2a; font-style: italic;"><span style="color: #ff5a00;">HAP</span>CARGO</h1>
+        </div>
+        <h2>Your Invoice is Ready</h2>
+        <p>Hello,</p>
+        <p>Please find attached the invoice <strong>${invoice.invoiceNumber}</strong> for transport services.</p>
+        <p><strong>Total Amount:</strong> &euro;${Number(invoice.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+        <p><strong>Due Date:</strong> ${new Date(invoice.dueDate).toLocaleDateString('en-US')}</p>
+        <br/>
+        <p>You can download the PDF copy of your invoice using the link below:</p>
+        <a href="${downloadUrl}" style="background-color: #ff5a00; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Download Invoice PDF</a>
+        <br/><br/>
+        <p>Thank you for choosing HapCargo.</p>
+      </body>
+      </html>
+    `;
+
+    try {
+      if (process.env.RESEND_API_KEY) {
+        const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+        await this.resend.emails.send({
+          from: `HapCargo <${fromEmail}>`,
+          to: invoice.client.contactEmail,
+          subject: `Invoice ${invoice.invoiceNumber} from HapCargo`,
+          html: htmlContent,
+        });
+      } else {
+        console.log('[MOCK EMAIL] Invoice Email to:', invoice.client.contactEmail);
+      }
+    } catch (e) {
+      console.error('Error sending invoice email:', e);
+    }
+  }
 }

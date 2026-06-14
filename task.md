@@ -1,30 +1,17 @@
-# Security Fixes + Settings Task List
+# Invoice Workflow Task List
 
-## CRITICE
-- [x] 1. Elimină credențialele admin afișate pe pagina de Login
-- [x] 2. Elimină parola admin hardcodată din auth.service.ts + log
-- [x] 3. Protejează/șterge rutele debug publice (app.controller.ts)
-- [x] 4. Elimină token FCM hardcodat din app.controller.ts
-- [x] 5. Protejează LEADS cu JWT
-- [x] 6. Protejează rutele debug Documents cu JWT
+## Backend
+- [x] 1. Update `InvoicesService.create()` to generate `DRAFT-YYYY-XXXX` invoice numbers for new draft invoices.
+- [x] 2. Update `InvoicesService.update()` to block editing if `status !== 'draft'` (unless the change is strictly status transitions like SENT -> PAID).
+- [x] 3. Create `PATCH /invoices/:id/approve` endpoint in `InvoicesController` and `approve(id)` logic in `InvoicesService` (assigns `HC-YYYY-XXXX`).
+- [x] 4. Create `ResendService.sendInvoiceEmail(invoice)` to send a beautiful English email with the invoice attached/linked.
+- [x] 5. Update `/invoices/upload-pdf/:id` to accept `?sendEmail=true` flag. If true, send email to client.
+- [x] 6. Create `InvoicesCronService` with a daily cron job at 10 AM:
+      - 3+ days old drafts -> Add DB Notification
+      - 7+ days old drafts -> Add DB Notification & Send Email to Admin
 
-## MAJORE
-- [x] 7. Restrânge CORS la domenii specifice
-- [x] 8. Dezactivează synchronize: true în producție
-- [x] 9. Adaugă verificare rol pe Users PATCH/DELETE
-- [x] 10. Rate limit strict pe /auth/login
-
-## MODERATE / ALTELE DIN RAPORTUL COMPLET
-- [x] 11. Lipsă validare input pe rute (DTOs create pentru leads, trips, documents)
-- [x] 12. Lipsă examinare token de tracking pentru enumerare (Rate limit de 30req/min adăugat pe `/api/track`)
-- [x] 13. Parola minimă crescută de la 6 la 8 caractere (auth.controller.ts & auth.service.ts)
-- [x] 14. Fișiere uploadate servite static protejate cu filtru de autorizare de bază.
-
-## NOUĂ FUNCȚIONALITATE
-- [x] 15. Adaugă în Settings > secțiune editare email și parolă admin
-- [x] 16. Adaugă endpoint server pentru editare email/parolă admin
-
-## VERIFICARE
-- [x] 17. Build client
-- [x] 18. Build server
-- [x] 19. Git commit & push
+## Frontend
+- [x] 7. Update `InvoicesPage.tsx` to conditionally disable the `Edit` button and inputs for non-draft invoices.
+- [x] 8. Add `Approve` button (generates number, generates PDF, uploads, NO email).
+- [x] 9. Add `Approve & Send` button (generates number, generates PDF, uploads, YES email).
+- [x] 10. Test UI logic visually.

@@ -20,6 +20,7 @@ export default function InvoicesPage() {
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showExport, setShowExport] = useState(false);
@@ -111,7 +112,68 @@ export default function InvoicesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setInvoiceLangModal({ isOpen: true, data: form, type: 'submit' });
+    if (editId) {
+      try {
+        const dataToSubmit = {
+          ...form,
+          tripId: form.tripId === '' ? null : form.tripId,
+          amount: form.amount === '' ? null : Number(form.amount),
+          vatPercent: form.vatPercent === '' ? null : Number(form.vatPercent),
+        };
+        await api.patch(`/invoices/${editId}`, dataToSubmit);
+        toast.success(t('statusUpdated') || 'Factura actualizată');
+        setShowForm(false);
+        setEditId(null);
+        load();
+      } catch {
+        toast.error(t('error'));
+      }
+    } else {
+      setInvoiceLangModal({ isOpen: true, data: form, type: 'submit' });
+    }
+  };
+
+  const handleEditClick = (inv: any) => {
+    setForm({
+      clientId: inv.client?.id || '',
+      tripId: inv.trip?.id || '',
+      amount: inv.amount || '',
+      vatPercent: inv.vatPercent || '19',
+      issueDate: inv.issueDate || '',
+      dueDate: inv.dueDate || '',
+      notes: inv.notes || '',
+    });
+    setEditId(inv.id);
+    setShowForm(true);
+  };
+
+  const handleApprove = async (invoice: any, sendEmail: boolean) => {
+    try {
+      const loadId = toast.loading(sendEmail ? 'Aprobare și Trimitere...' : 'Aprobare...');
+      
+      const approveRes = await api.patch(`/invoices/${invoice.id}/approve`);
+      const officialInvoice = approveRes.data;
+
+      const base64Pdf = await generateInvoicePdfBase64(officialInvoice, 'en'); 
+      const arr = base64Pdf.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while(n--) { u8arr[n] = bstr.charCodeAt(n); }
+      const file = new File([u8arr], `Invoice_${officialInvoice.invoiceNumber}.pdf`, { type: mime });
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      await api.post(`/invoices/upload-pdf/${officialInvoice.id}?sendEmail=${sendEmail}`, formData);
+
+      toast.dismiss(loadId);
+      toast.success(sendEmail ? 'Factură aprobată și trimisă!' : 'Factură aprobată!');
+      load();
+    } catch (err: any) {
+      toast.dismiss();
+      toast.error(err.response?.data?.message || t('error'));
+    }
   };
 
   const executeLangAction = async (lang: 'en' | 'nl') => {
@@ -187,7 +249,7 @@ export default function InvoicesPage() {
     <div className="space-y-5 animate-fade-in">
       {showForm && (
         <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md">
-          <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">{t('newInvoice')}</h3>
+          <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">{editId ? 'Editare Draft' : t('newInvoice')}</h3>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             <div><label className="label font-semibold">{t('client')}</label>
               <CustomSelect value={form.clientId} onChange={val => setForm({...form, clientId: val})} placeholder={t('selectClient')} options={clients.map((c: any) => ({ value: c.id, label: c.name }))} />
@@ -202,7 +264,7 @@ export default function InvoicesPage() {
             <div className="md:col-span-2 lg:col-span-3"><label className="label font-semibold">{t('notes')}</label><textarea className="input resize-none" rows={2} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} /></div>
             <div className="flex gap-3 md:col-span-2 lg:col-span-3 pt-3 border-t border-border mt-2">
               <button type="submit" className="btn-primary px-6 py-2.5 font-bold shadow-md shadow-primary/20">{t('save')}</button>
-              <button type="button" onClick={() => setShowForm(false)} className="btn-secondary px-6 py-2.5 font-bold">{t('cancel')}</button>
+              <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="btn-secondary px-6 py-2.5 font-bold">{t('cancel')}</button>
             </div>
           </form>
         </div>
@@ -222,7 +284,7 @@ export default function InvoicesPage() {
             <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
               {filtered.length} {t('results')}
             </span>
-            <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold">
+            <button onClick={() => { setEditId(null); setForm({ clientId: '', tripId: '', amount: '', vatPercent: '19', issueDate: '', dueDate: '', notes: '' }); setShowForm(!showForm); }} className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold">
               <Plus className="w-4 h-4" /> {t('newInvoice')}
             </button>
           </div>
@@ -246,29 +308,39 @@ export default function InvoicesPage() {
                     <td className={`table-cell text-xs font-bold ${inv.status === 'overdue' ? 'text-red-600 animate-pulse' : 'text-text-secondary'}`}>{formatDate(inv.dueDate)}</td>
                     <td className="table-cell"><span className={STATUS_COLORS[inv.status] || 'badge-gray'}>{t(inv.status)}</span></td>
                     <td className="table-cell">
-                      <div className="flex items-center gap-3">
-                        <CustomSelect className="w-32 text-xs" value={inv.status} onChange={async val => { await api.patch(`/invoices/${inv.id}`, { status: val }); toast.success(t('statusUpdated')); load(); }} options={[
-                          { value: 'draft', label: t('draft'), color: 'text-gray-500' },
-                          { value: 'sent', label: t('sent'), color: 'text-primary' },
-                          { value: 'paid', label: t('paid'), color: 'text-success' },
-                          { value: 'overdue', label: t('overdue'), color: 'text-error' },
-                          { value: 'cancelled', label: t('cancelled'), color: 'text-gray-400' },
-                        ]} />
-                        <div className="flex items-center gap-1 border-l border-border pl-3">
-                          <button onClick={() => ensurePdfAndExecute(inv, handlePreview)} className="p-1 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-all" title="Previzualizare PDF">
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => ensurePdfAndExecute(inv, handleDownload)} className="p-1 text-text-secondary hover:text-success rounded hover:bg-green-50 transition-all" title="Descărcare PDF">
-                            <Download className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => ensurePdfAndExecute(inv, handleShare)} className="p-1 text-text-secondary hover:text-warning rounded hover:bg-yellow-50 transition-all" title="Partajare Factură">
-                            <Share2 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => setDeleteId(inv.id)} className="p-1 text-text-secondary hover:text-error rounded hover:bg-red-50 transition-all" title="Ștergere Factură">
+                      {inv.status === 'draft' ? (
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleEditClick(inv)} className="btn-secondary py-1.5 px-3 text-xs font-bold" title="Editare Draft">Edit</button>
+                          <button onClick={() => handleApprove(inv, false)} className="bg-primary/10 text-primary hover:bg-primary/20 py-1.5 px-3 rounded-lg font-bold text-xs transition-all" title="Aprobare (fără trimitere)">Approve</button>
+                          <button onClick={() => handleApprove(inv, true)} className="bg-primary text-white hover:bg-primary-dark py-1.5 px-3 rounded-lg font-bold text-xs transition-all shadow-sm" title="Aprobare și Trimitere Email">Approve & Send</button>
+                          <button onClick={() => setDeleteId(inv.id)} className="p-1 ml-1 text-text-secondary hover:text-error rounded hover:bg-red-50 transition-all" title="Ștergere Draft">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <CustomSelect className="w-32 text-xs" value={inv.status} onChange={async val => { await api.patch(`/invoices/${inv.id}`, { status: val }); toast.success(t('statusUpdated')); load(); }} options={[
+                            { value: 'sent', label: t('sent'), color: 'text-primary' },
+                            { value: 'paid', label: t('paid'), color: 'text-success' },
+                            { value: 'overdue', label: t('overdue'), color: 'text-error' },
+                            { value: 'cancelled', label: t('cancelled'), color: 'text-gray-400' },
+                          ]} />
+                          <div className="flex items-center gap-1 border-l border-border pl-3">
+                            <button onClick={() => ensurePdfAndExecute(inv, handlePreview)} className="p-1 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-all" title="Previzualizare PDF">
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => ensurePdfAndExecute(inv, handleDownload)} className="p-1 text-text-secondary hover:text-success rounded hover:bg-green-50 transition-all" title="Descărcare PDF">
+                              <Download className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => ensurePdfAndExecute(inv, handleShare)} className="p-1 text-text-secondary hover:text-warning rounded hover:bg-yellow-50 transition-all" title="Partajare Factură">
+                              <Share2 className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => setDeleteId(inv.id)} className="p-1 text-text-secondary hover:text-error rounded hover:bg-red-50 transition-all" title="Ștergere Factură">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

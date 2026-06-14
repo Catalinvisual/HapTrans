@@ -66,6 +66,9 @@ export class Invoice {
   @Column({ nullable: true, type: 'text' })
   notes: string;
 
+  @Column({ default: 0 })
+  draftReminderLevel: number; // 0 = none, 1 = 3 days notified, 2 = 7 days notified & emailed
+
   @CreateDateColumn()
   createdAt: Date;
 
