@@ -248,25 +248,58 @@ export default function InvoicesPage() {
   return (
     <div className="space-y-5 animate-fade-in">
       {showForm && (
-        <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md">
-          <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">{editId ? 'Editare Draft' : t('newInvoice')}</h3>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            <div><label className="label font-semibold">{t('client')}</label>
-              <CustomSelect value={form.clientId} onChange={val => setForm({...form, clientId: val})} placeholder={t('selectClient')} options={clients.map((c: any) => ({ value: c.id, label: c.name }))} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white border border-border rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto flex flex-col">
+            <div className="p-6 border-b border-border flex justify-between items-center bg-surface sticky top-0 z-10">
+              <h3 className="font-bold text-xl text-primary">{editId ? 'Editare Draft / Detalii Complete' : t('newInvoice')}</h3>
+              <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="text-text-secondary hover:text-red-500 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
             </div>
-            <div><label className="label font-semibold">{t('trip')} (optional)</label>
-              <CustomSelect value={form.tripId} onChange={val => setForm({...form, tripId: val})} placeholder={t('noTrip')} options={trips.map((t: any) => ({ value: t.id, label: `${t.pickupAddress} → ${t.dropoffAddress}` }))} />
-            </div>
-            <div><label className="label font-semibold">{t('amount')} (€)</label><input type="number" className="input" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} required /></div>
-            <div><label className="label font-semibold">{t('tva')} (%)</label><input type="number" className="input" value={form.vatPercent} onChange={e => setForm({...form, vatPercent: e.target.value})} /></div>
-            <div><label className="label font-semibold">{t('issueDate')}</label><Flatpickr value={form.issueDate} onChange={(dates, dateStr) => setForm({...form, issueDate: dateStr})} className="input bg-white" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }} placeholder="DD/MM/YYYY" /></div>
-            <div><label className="label font-semibold">{t('dueDate')}</label><Flatpickr value={form.dueDate} onChange={(dates, dateStr) => setForm({...form, dueDate: dateStr})} className="input bg-white" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }} placeholder="DD/MM/YYYY" /></div>
-            <div className="md:col-span-2 lg:col-span-3"><label className="label font-semibold">{t('notes')}</label><textarea className="input resize-none" rows={2} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} /></div>
-            <div className="flex gap-3 md:col-span-2 lg:col-span-3 pt-3 border-t border-border mt-2">
-              <button type="submit" className="btn-primary px-6 py-2.5 font-bold shadow-md shadow-primary/20">{t('save')}</button>
-              <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="btn-secondary px-6 py-2.5 font-bold">{t('cancel')}</button>
-            </div>
-          </form>
+            
+            <form onSubmit={handleSubmit} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('client')}</label>
+                <CustomSelect value={form.clientId} onChange={val => setForm({...form, clientId: val})} placeholder={t('selectClient')} options={clients.map((c: any) => ({ value: c.id, label: c.name }))} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('trip')} (optional)</label>
+                <CustomSelect value={form.tripId} onChange={val => setForm({...form, tripId: val})} placeholder={t('noTrip')} options={trips.map((t: any) => ({ value: t.id, label: `${t.pickupAddress} → ${t.dropoffAddress}` }))} />
+              </div>
+              
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('amount')} (€)</label>
+                <input type="number" className="input py-3 text-lg font-bold" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} required />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('tva')} (%)</label>
+                <input type="number" className="input py-3 text-lg font-bold" value={form.vatPercent} onChange={e => setForm({...form, vatPercent: e.target.value})} />
+              </div>
+              
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('issueDate')}</label>
+                <Flatpickr value={form.issueDate} onChange={(dates, dateStr) => setForm({...form, issueDate: dateStr})} className="input py-3 bg-white" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }} placeholder="DD/MM/YYYY" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('dueDate')}</label>
+                <Flatpickr value={form.dueDate} onChange={(dates, dateStr) => setForm({...form, dueDate: dateStr})} className="input py-3 bg-white" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }} placeholder="DD/MM/YYYY" />
+              </div>
+              
+              <div className="md:col-span-2 space-y-1">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('notes')}</label>
+                <textarea className="input resize-none py-3" rows={4} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="Adaugă detalii, servicii prestate, observații pentru factură..." />
+              </div>
+              
+              <div className="md:col-span-2 pt-6 border-t border-border mt-2 flex items-center justify-end gap-3 sticky bottom-0 bg-white">
+                <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="btn-secondary px-6 py-3 font-bold text-sm">
+                  {t('cancel')}
+                </button>
+                <button type="submit" className="btn-primary px-8 py-3 font-bold text-sm shadow-lg shadow-primary/30">
+                  {t('save')} Draft
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
       <div className="card p-0 overflow-hidden bg-white border border-border rounded-2xl shadow-sm">
