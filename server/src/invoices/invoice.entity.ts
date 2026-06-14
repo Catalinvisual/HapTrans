@@ -11,6 +11,12 @@ export enum InvoiceStatus {
   CANCELLED = 'cancelled',
 }
 
+export enum VatType {
+  NORMAL = 'NORMAL',
+  REVERSE_CHARGE = 'REVERSE_CHARGE',
+  EXEMPT = 'EXEMPT',
+}
+
 @Entity('invoices')
 export class Invoice {
   @PrimaryGeneratedColumn('uuid')
@@ -39,6 +45,9 @@ export class Invoice {
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   fuelSurcharge: number;
+
+  @Column({ type: 'enum', enum: VatType, default: VatType.NORMAL })
+  vatType: VatType;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   total: number;

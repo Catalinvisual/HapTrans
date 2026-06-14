@@ -362,8 +362,7 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
   doc.text(t.description, 16, tableY + 5.5);
-  doc.text(t.vat, 115, tableY + 5.5);
-  doc.text(t.qty, 142, tableY + 5.5);
+  doc.text(t.qty, 130, tableY + 5.5);
   doc.text(t.amount, 163, tableY + 5.5);
 
   let currentItemY = tableY + 14;
@@ -380,8 +379,7 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
       
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(51, 51, 51);
-      doc.text(`${item.vatRate}%`, 115, currentItemY);
-      doc.text(String(item.quantity || 1), 142, currentItemY);
+      doc.text(String(item.quantity || 1), 130, currentItemY);
       doc.text(`EUR ${Number(item.total || item.unitPrice).toFixed(2)}`, 163, currentItemY);
       
       itemsSubtotal += Number(item.total || item.unitPrice);
@@ -394,8 +392,7 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
 
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(51, 51, 51);
-    doc.text(`${invoice.vatPercent}%`, 115, currentItemY);
-    doc.text('1', 142, currentItemY);
+    doc.text('1', 130, currentItemY);
     doc.text(`EUR ${baseAmount.toFixed(2)}`, 163, currentItemY);
     itemsSubtotal += baseAmount;
     currentItemY += 8;
@@ -412,8 +409,7 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
 
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(51, 51, 51);
-    doc.text(`${invoice.vatPercent}%`, 115, currentItemY);
-    doc.text('1', 142, currentItemY);
+    doc.text('1', 130, currentItemY);
     doc.text(`EUR ${fsAmt.toFixed(2)}`, 163, currentItemY);
     currentItemY += 8;
   }
@@ -500,7 +496,17 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   doc.setFontSize(9.5);
   
   const subtotal = itemsSubtotal + fsAmt;
-  const vatAmt = subtotal * (Number(invoice.vatPercent) / 100);
+  let vatAmt = subtotal * (Number(invoice.vatPercent) / 100);
+
+  let vatLabel = `${t.vat} (${invoice.vatPercent}%)`;
+  if (invoice.vatType === 'REVERSE_CHARGE') {
+    vatLabel = 'VAT 0% (Reverse Charge)';
+    vatAmt = 0;
+  } else if (invoice.vatType === 'EXEMPT') {
+    vatLabel = 'VAT 0% (Exempt)';
+    vatAmt = 0;
+  }
+  
   const finalTotal = subtotal + vatAmt;
 
   doc.setFont('helvetica', 'bold');
@@ -510,7 +516,7 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   doc.text(`EUR ${Number(subtotal).toFixed(2)}`, 170, totalsY);
 
   doc.setFont('helvetica', 'bold');
-  doc.text(`${t.vat} (${invoice.vatPercent}%)`, 140, totalsY + 6);
+  doc.text(vatLabel, 140, totalsY + 6);
   doc.setFont('helvetica', 'normal');
   doc.text(`EUR ${Number(vatAmt).toFixed(2)}`, 170, totalsY + 6);
 

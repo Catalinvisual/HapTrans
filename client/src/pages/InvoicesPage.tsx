@@ -47,7 +47,9 @@ export default function InvoicesPage() {
         client: mockClient || { name: '...' },
         trip: mockTrip || {},
         amount: Number(form.amount) || 0,
+        fuelSurcharge: Number(form.fuelSurcharge) || 0,
         vatPercent: Number(form.vatPercent) || 0,
+        vatType: form.vatType || 'NORMAL',
         issueDate: form.issueDate || new Date().toISOString(),
         dueDate: form.dueDate || new Date().toISOString(),
         notes: form.notes || '',
@@ -167,6 +169,7 @@ export default function InvoicesPage() {
           amount: form.amount === '' ? null : Number(form.amount),
           fuelSurcharge: form.fuelSurcharge === '' ? null : Number(form.fuelSurcharge),
           vatPercent: form.vatPercent === '' ? null : Number(form.vatPercent),
+          vatType: form.vatType,
           issueDate: form.issueDate === '' ? null : form.issueDate,
           dueDate: form.dueDate === '' ? null : form.dueDate,
         };
@@ -190,8 +193,9 @@ export default function InvoicesPage() {
       amount: inv.amount || '',
       fuelSurcharge: inv.fuelSurcharge || '',
       vatPercent: inv.vatPercent || '19',
-      issueDate: inv.issueDate || '',
-      dueDate: inv.dueDate || '',
+      vatType: inv.vatType || 'NORMAL',
+      issueDate: inv.issueDate ? new Date(inv.issueDate).toISOString().split('T')[0] : '',
+      dueDate: inv.dueDate ? new Date(inv.dueDate).toISOString().split('T')[0] : '',
       notes: inv.notes || '',
     });
     setEditId(inv.id);
@@ -236,6 +240,7 @@ export default function InvoicesPage() {
           amount: invoiceLangModal.data.amount === '' ? null : Number(invoiceLangModal.data.amount),
           fuelSurcharge: invoiceLangModal.data.fuelSurcharge === '' ? null : Number(invoiceLangModal.data.fuelSurcharge),
           vatPercent: invoiceLangModal.data.vatPercent === '' ? null : Number(invoiceLangModal.data.vatPercent),
+          vatType: invoiceLangModal.data.vatType,
           issueDate: invoiceLangModal.data.issueDate === '' ? null : invoiceLangModal.data.issueDate,
           dueDate: invoiceLangModal.data.dueDate === '' ? null : invoiceLangModal.data.dueDate,
         };
@@ -327,13 +332,27 @@ export default function InvoicesPage() {
                   <input type="number" className="input py-3 text-lg font-bold" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} required />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('fuelSurcharge')} (%)</label>
+                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('fuelSurcharge')}</label>
                   <input type="number" className="input py-3 text-lg font-bold text-orange-600" value={form.fuelSurcharge} onChange={e => setForm({...form, fuelSurcharge: e.target.value})} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('tva')} (%)</label>
-                  <input type="number" className="input py-3 text-lg font-bold" value={form.vatPercent} onChange={e => setForm({...form, vatPercent: e.target.value})} />
+                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">Tip TVA</label>
+                  <CustomSelect 
+                    value={form.vatType} 
+                    onChange={v => setForm(f => ({...f, vatType: v, vatPercent: v !== 'NORMAL' ? '0' : '19'}))} 
+                    options={[
+                      { value: 'NORMAL', label: 'TVA Normal (ex. 19%)' },
+                      { value: 'REVERSE_CHARGE', label: 'Taxare Inversă (Reverse Charge 0%)' },
+                      { value: 'EXEMPT', label: 'Scutit (Exempt 0%)' }
+                    ]} 
+                  />
                 </div>
+                {form.vatType === 'NORMAL' && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">TVA (%)</label>
+                    <input type="number" className="input py-3 text-lg font-bold" value={form.vatPercent} onChange={e => setForm({...form, vatPercent: e.target.value})} required />
+                  </div>
+                )}
                 
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('issueDate')}</label>
