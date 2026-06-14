@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { RoutingController } from './routing.controller';
+import { RoutingController, PublicRoutingController } from './routing.controller';
 import { RoutingService } from './routing.service';
 
 @Module({
-  controllers: [RoutingController],
+  controllers: [RoutingController, PublicRoutingController],
   providers: [RoutingService],
   exports: [RoutingService],
 })

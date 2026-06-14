@@ -4,7 +4,7 @@ import styles from './MapSection.module.css';
 import { useLanguage } from '@/context/LanguageContext';
 import { ComposableMap, Geographies, Geography, Marker, Line } from 'react-simple-maps';
 
-const geoUrl = "https://raw.githubusercontent.com/deldersveld/topojson/master/continents/europe.json";
+const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
 
 const countryCoordinates: Record<string, [number, number]> = {
   NL: [5.2913, 52.1326],

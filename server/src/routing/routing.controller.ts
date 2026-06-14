@@ -64,3 +64,14 @@ export class RoutingController {
     return this.routingService.getDieselPrices();
   }
 }
+
+@Controller('routing-public')
+export class PublicRoutingController {
+  constructor(private readonly routingService: RoutingService) {}
+
+  @Get('autocomplete')
+  async autocomplete(@Query('q') query: string) {
+    if (!query) return [];
+    return this.routingService.autocompleteAddress(query);
+  }
+}

@@ -191,7 +191,7 @@ export default function ContactPage() {
                     onChange={(phone) => setFormData({ ...formData, phone })}
                     inputStyle={{
                       width: '100%',
-                      padding: '0.75rem 1rem',
+                      padding: '0.75rem 1rem 0.75rem 0.25rem',
                       borderRadius: '0.5rem',
                       border: '1px solid #cbd5e1',
                       borderLeft: 'none',

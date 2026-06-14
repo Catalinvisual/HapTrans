@@ -43,7 +43,7 @@ export default function AddressAutocomplete({ value, onChange, placeholder, clas
     setLoading(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
-      const res = await fetch(`${apiUrl}/routing/autocomplete?q=${encodeURIComponent(searchText)}`);
+      const res = await fetch(`${apiUrl}/routing-public/autocomplete?q=${encodeURIComponent(searchText)}`);
       if (res.ok) {
         const data = await res.json();
         setSuggestions(data || []);
