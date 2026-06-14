@@ -985,11 +985,10 @@ export default function TripsPage() {
                 {clientRates.length > 0 && (
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-text-secondary">{t('rateCard')}</span>
-                    <select 
-                      className="input py-1 text-xs" 
+                    <CustomSelect 
+                      className="w-48 text-xs" 
                       value={form.clientRateId || ''} 
-                      onChange={e => {
-                        const val = e.target.value;
+                      onChange={val => {
                         const match = clientRates.find(r => r.id === val);
                         if (match) {
                           setForm({...form, clientRateId: val, agreedPrice: match.basePrice, fuelSurchargePercent: match.fuelSurchargePercent, tollIncluded: match.tollIncluded});
@@ -997,12 +996,11 @@ export default function TripsPage() {
                           setForm({...form, clientRateId: val});
                         }
                       }}
-                    >
-                      <option value="">{t('manualPrice')}</option>
-                      {clientRates.map(r => (
-                        <option key={r.id} value={r.id}>{r.rateName} (€{r.basePrice})</option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: '', label: t('manualPrice') },
+                        ...clientRates.map(r => ({ value: r.id, label: `${r.rateName} (€${r.basePrice})` }))
+                      ]}
+                    />
                   </div>
                 )}
               </div>

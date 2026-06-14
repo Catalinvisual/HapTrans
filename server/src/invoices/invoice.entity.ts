@@ -38,6 +38,9 @@ export class Invoice {
   vatAmount: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  fuelSurcharge: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   total: number;
 
   @OneToMany(() => InvoiceItem, item => item.invoice, { cascade: true, eager: true })

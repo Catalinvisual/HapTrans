@@ -531,6 +531,8 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
   },
   frBase: {
     translation: {
+      fuelSurcharge: "Supplément carburant (%)",
+      editDraft: "Modifier le brouillon / Détails complets",
       planning: 'Planification',
       planningSubtitle: 'Visualisation des trajets par intervalle',
       free: 'Libre',

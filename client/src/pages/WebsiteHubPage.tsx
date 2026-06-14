@@ -5,6 +5,7 @@ import WebsiteLeadsPage from './WebsiteLeadsPage';
 import ContactInbox from './ContactInbox';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
+import CustomSelect from '../components/CustomSelect';
 
 const WebsiteHubPage = () => {
   const { t } = useTranslation();
@@ -128,15 +129,12 @@ const WebsiteHubPage = () => {
                 </div>
                 <div className="flex items-center gap-3">
                   <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">{t('website_hub_edit_language', 'Limba de Editare')}:</label>
-                  <select 
+                  <CustomSelect 
                     value={editLang} 
-                    onChange={(e) => setEditLang(e.target.value)}
-                    className="input w-auto px-3 py-1.5"
-                  >
-                    {editLangs.map(l => (
-                      <option key={l} value={l}>{l}</option>
-                    ))}
-                  </select>
+                    onChange={val => setEditLang(val)}
+                    className="w-32 text-sm font-semibold shadow-sm"
+                    options={editLangs.map(l => ({ value: l, label: l }))}
+                  />
                 </div>
               </div>
 

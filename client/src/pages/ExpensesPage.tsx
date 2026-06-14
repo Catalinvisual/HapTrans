@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import { Plus, Trash2, Edit2, Upload, FileText, Loader2, Image as ImageIcon, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import CustomSelect from '../components/CustomSelect';
 
 const CATEGORIES = [
   { value: 'fuel',        labelKey: 'cat_fuel' },
@@ -191,22 +192,26 @@ export default function ExpensesPage() {
               </div>
               <div>
                 <label className="label font-semibold text-xs">Currency</label>
-                <select className="input" value={form.currency} onChange={e => setForm({...form, currency: e.target.value})}>
-                  <option value="EUR">EUR</option>
-                  <option value="USD">USD</option>
-                  <option value="RON">RON</option>
-                  <option value="GBP">GBP</option>
-                </select>
+                <CustomSelect 
+                  value={form.currency} 
+                  onChange={val => setForm({...form, currency: val})}
+                  options={[
+                    { value: 'EUR', label: 'EUR' },
+                    { value: 'USD', label: 'USD' },
+                    { value: 'RON', label: 'RON' },
+                    { value: 'GBP', label: 'GBP' }
+                  ]}
+                />
               </div>
             </div>
 
             <div>
               <label className="label font-semibold text-xs">{t('expenseCategory')}</label>
-              <select className="input" value={form.category} onChange={e => setForm({...form, category: e.target.value})} required>
-                {CATEGORIES.map(cat => (
-                  <option key={cat.value} value={cat.value}>{t(cat.labelKey)}</option>
-                ))}
-              </select>
+              <CustomSelect 
+                value={form.category} 
+                onChange={val => setForm({...form, category: val})}
+                options={CATEGORIES.map(cat => ({ value: cat.value, label: t(cat.labelKey) }))}
+              />
             </div>
 
             <div>

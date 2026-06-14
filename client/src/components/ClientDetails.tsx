@@ -4,6 +4,7 @@ import { ArrowLeft, Building2, Save, Plus, Trash2, Edit } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import AddressAutocomplete from './AddressAutocomplete';
+import CustomSelect from './CustomSelect';
 
 export default function ClientDetails({ client, onBack }: { client: any, onBack: () => void }) {
   const { t } = useTranslation();
@@ -135,12 +136,17 @@ export default function ClientDetails({ client, onBack }: { client: any, onBack:
               </div>
               <div>
                 <label className="label">{t('invoiceLanguage')}</label>
-                <select className="input" value={generalForm.invoiceLanguage || 'en'} onChange={e => setGeneralForm({ ...generalForm, invoiceLanguage: e.target.value })}>
-                  <option value="en">English</option>
-                  <option value="nl">Dutch</option>
-                  <option value="ro">Romanian</option>
-                  <option value="fr">French</option>
-                </select>
+                <CustomSelect 
+                  value={generalForm.invoiceLanguage || 'en'} 
+                  onChange={val => setGeneralForm({ ...generalForm, invoiceLanguage: val })}
+                  options={[
+                    { value: 'en', label: 'English' },
+                    { value: 'nl', label: 'Dutch' },
+                    { value: 'ro', label: 'Romanian' },
+                    { value: 'de', label: 'German' },
+                    { value: 'fr', label: 'French' },
+                  ]}
+                />
               </div>
             </div>
             <button type="submit" className="btn-primary py-2 px-6 flex items-center gap-2">

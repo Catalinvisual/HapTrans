@@ -165,7 +165,10 @@ export default function InvoicesPage() {
           ...form,
           tripId: form.tripId === '' ? null : form.tripId,
           amount: form.amount === '' ? null : Number(form.amount),
+          fuelSurcharge: form.fuelSurcharge === '' ? null : Number(form.fuelSurcharge),
           vatPercent: form.vatPercent === '' ? null : Number(form.vatPercent),
+          issueDate: form.issueDate === '' ? null : form.issueDate,
+          dueDate: form.dueDate === '' ? null : form.dueDate,
         };
         await api.patch(`/invoices/${editId}`, dataToSubmit);
         toast.success(t('statusUpdated') || 'Factura actualizată');
@@ -185,6 +188,7 @@ export default function InvoicesPage() {
       clientId: inv.client?.id || '',
       tripId: inv.trip?.id || '',
       amount: inv.amount || '',
+      fuelSurcharge: inv.fuelSurcharge || '',
       vatPercent: inv.vatPercent || '19',
       issueDate: inv.issueDate || '',
       dueDate: inv.dueDate || '',
@@ -230,7 +234,10 @@ export default function InvoicesPage() {
           ...invoiceLangModal.data,
           tripId: invoiceLangModal.data.tripId === '' ? null : invoiceLangModal.data.tripId,
           amount: invoiceLangModal.data.amount === '' ? null : Number(invoiceLangModal.data.amount),
+          fuelSurcharge: invoiceLangModal.data.fuelSurcharge === '' ? null : Number(invoiceLangModal.data.fuelSurcharge),
           vatPercent: invoiceLangModal.data.vatPercent === '' ? null : Number(invoiceLangModal.data.vatPercent),
+          issueDate: invoiceLangModal.data.issueDate === '' ? null : invoiceLangModal.data.issueDate,
+          dueDate: invoiceLangModal.data.dueDate === '' ? null : invoiceLangModal.data.dueDate,
         };
         const res = await api.post('/invoices', dataToSubmit);
         const savedInvoice = res.data;
@@ -318,6 +325,10 @@ export default function InvoicesPage() {
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('amount')} (€)</label>
                   <input type="number" className="input py-3 text-lg font-bold" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} required />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('fuelSurcharge')} (€)</label>
+                  <input type="number" className="input py-3 text-lg font-bold text-orange-600" value={form.fuelSurcharge} onChange={e => setForm({...form, fuelSurcharge: e.target.value})} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('tva')} (%)</label>

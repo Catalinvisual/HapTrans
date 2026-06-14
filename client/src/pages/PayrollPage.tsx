@@ -100,20 +100,18 @@ export default function PayrollPage() {
                 <Filter className="w-4 h-4 text-text-secondary" />
                 <span className="text-sm font-semibold text-text-secondary">Luna:</span>
               </div>
-              <select 
-                className="input py-1.5 px-3 text-sm font-semibold w-auto shadow-sm"
-                value={selectedMonth}
-                onChange={e => setSelectedMonth(Number(e.target.value))}
-              >
-                {MONTHS.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
-              </select>
-              <select 
-                className="input py-1.5 px-3 text-sm font-semibold w-auto shadow-sm"
-                value={selectedYear}
-                onChange={e => setSelectedYear(Number(e.target.value))}
-              >
-                {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
+              <CustomSelect 
+                className="w-28 text-sm font-semibold shadow-sm"
+                value={String(selectedMonth)}
+                onChange={val => setSelectedMonth(Number(val))}
+                options={MONTHS.map((m, i) => ({ value: String(i+1), label: m }))}
+              />
+              <CustomSelect 
+                className="w-24 text-sm font-semibold shadow-sm"
+                value={String(selectedYear)}
+                onChange={val => setSelectedYear(Number(val))}
+                options={[2024, 2025, 2026, 2027].map(y => ({ value: String(y), label: String(y) }))}
+              />
             </div>
 
             <button 
