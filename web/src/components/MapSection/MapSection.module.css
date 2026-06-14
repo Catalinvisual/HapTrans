@@ -129,3 +129,19 @@
 .mapContainer:hover .realMap {
   transform: scale(1.02);
 }
+
+.mapWrapper {
+  width: 100%;
+  height: auto;
+  display: block;
+  background-color: #0B1B2A;
+}
+
+@keyframes dash {
+  from {
+    stroke-dashoffset: 8;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
