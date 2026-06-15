@@ -573,14 +573,62 @@ export default function TripsPage() {
     try {
       const issueDate = new Date().toISOString().slice(0, 10);
       const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-      const amount = Number(trip.agreedPrice) || Number(trip.price) || 0;
+      const basePrice = Number(trip.agreedPrice) || Number(trip.price) || 0;
       const vatPercent = 19;
+      
+      const items = [];
+      if (basePrice > 0) {
+        items.push({
+          description: `Transport: ${trip.pickupAddress?.split(',')[0] || ''} - ${trip.dropoffAddress?.split(',')[0] || ''}`,
+          quantity: 1,
+          unitPrice: basePrice,
+          vatRate: vatPercent,
+          total: basePrice
+        });
+      }
+      
+      const fuelSurchargePercent = Number(trip.fuelSurchargePercent) || 0;
+      if (fuelSurchargePercent > 0 && basePrice > 0) {
+         const fuelAmt = (basePrice * fuelSurchargePercent) / 100;
+         items.push({
+           description: `Fuel Surcharge (${fuelSurchargePercent}%)`,
+           quantity: 1,
+           unitPrice: fuelAmt,
+           vatRate: vatPercent,
+           total: fuelAmt
+         });
+      }
+
+      const tollCosts = Number(trip.tollCosts) || 0;
+      if (tollCosts > 0) {
+         items.push({
+           description: 'Toll Costs',
+           quantity: 1,
+           unitPrice: tollCosts,
+           vatRate: vatPercent,
+           total: tollCosts
+         });
+      }
+
+      const extraCosts = Number(trip.extraCosts) || 0;
+      if (extraCosts > 0) {
+         items.push({
+           description: 'Extra Costs',
+           quantity: 1,
+           unitPrice: extraCosts,
+           vatRate: vatPercent,
+           total: extraCosts
+         });
+      }
+
+      const amount = items.reduce((sum, it) => sum + it.total, 0) || basePrice;
 
       // Create invoice record on server
       const res = await api.post('/invoices', {
         clientId: trip.client?.id,
         tripId: trip.id,
         amount,
+        items,
         vatPercent,
         issueDate,
         dueDate,
