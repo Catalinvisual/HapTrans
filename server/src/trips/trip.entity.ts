@@ -64,16 +64,16 @@ export class Trip {
   @ManyToOne(() => ClientRate, { nullable: true })
   clientRate: ClientRate;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, nullable: true })
   agreedPrice: number;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0, nullable: true })
   fuelSurchargePercent: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, nullable: true })
   tollCosts: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, nullable: true })
   extraCosts: number;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
