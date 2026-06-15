@@ -367,8 +367,44 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
 
   let currentItemY = tableY + 14;
   
-  const baseAmount = Number(invoice.amount) || 0;
+  const items = invoice.items || [];
   let itemsSubtotal = 0;
+
+  doc.setFontSize(9.5);
+  doc.setFont('helvetica', 'normal');
+  
+  if (items.length > 0) {
+    items.forEach((item: any) => {
+      const desc = safeText(item.description || 'Transport service');
+      const qty = Number(item.quantity) || 1;
+      const uPrice = Number(item.unitPrice) || 0;
+      const lineTotal = Number(item.total) || (qty * uPrice);
+      
+      itemsSubtotal += lineTotal;
+
+      const descLines = doc.splitTextToSize(desc, 110);
+      doc.text(descLines, 16, currentItemY);
+      doc.text(String(qty), 130, currentItemY);
+      doc.text(`EUR ${uPrice.toFixed(2)}`, 163, currentItemY);
+      
+      currentItemY += descLines.length * 5 + 2;
+    });
+  } else {
+    // Fallback if no items
+    const baseAmount = Number(invoice.amount) || 0;
+    itemsSubtotal = baseAmount;
+    doc.text(t.serviceName, 16, currentItemY);
+    doc.text('1', 130, currentItemY);
+    doc.text(`EUR ${baseAmount.toFixed(2)}`, 163, currentItemY);
+    currentItemY += 8;
+  }
+
+  const afterDetailsY = currentItemY;
+  const totalsY = afterDetailsY + 10;
+  
+  let subtotal = Number(invoice.subtotal) || itemsSubtotal;
+  let vatLabel = `VAT ${invoice.vatPercent || 19}%`;
+  let vatAmt = Number(invoice.vatAmount) || (subtotal * (invoice.vatPercent || 19)) / 100;
 
   if (invoice.vatType === 'REVERSE_CHARGE') {
     vatLabel = 'VAT 0% (Reverse Charge)';

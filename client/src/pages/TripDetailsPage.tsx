@@ -69,7 +69,8 @@ export default function TripDetailsPage() {
 
   const addedCosts = trip.costs?.reduce((s: number, c: any) => s + Number(c.amount), 0) || 0;
   const totalCost = addedCosts > 0 ? addedCosts : (Number(trip.realCost) || Number(trip.estimatedCost) || 0);
-  const profit = Number(trip.price || 0) - totalCost;
+  const basePrice = Number(trip.agreedPrice || trip.price || 0);
+  const profit = basePrice - totalCost;
 
   const handleShare = async (url: string, title: string) => {
     if (navigator.share) {
@@ -303,7 +304,7 @@ export default function TripDetailsPage() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 bg-surface rounded-xl border border-border">
                   <span className="text-sm font-semibold text-text-secondary">{t('clientPrice', 'Preț Client')}</span>
-                  <span className="font-black text-lg text-success">€{Number(trip.price || 0).toLocaleString(i18n.language)}</span>
+                  <span className="font-black text-lg text-success">€{basePrice.toLocaleString(i18n.language)}</span>
                 </div>
                 
                 <div className="flex items-center justify-between p-3 bg-surface rounded-xl border border-border">

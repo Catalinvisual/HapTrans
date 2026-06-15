@@ -573,7 +573,7 @@ export default function TripsPage() {
     try {
       const issueDate = new Date().toISOString().slice(0, 10);
       const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-      const amount = Number(trip.price) || 0;
+      const amount = Number(trip.agreedPrice) || Number(trip.price) || 0;
       const vatPercent = 19;
 
       // Create invoice record on server
@@ -584,7 +584,7 @@ export default function TripsPage() {
         vatPercent,
         issueDate,
         dueDate,
-        status: 'sent'
+        status: 'draft'
       });
 
       const savedInvoice = res.data;
@@ -674,6 +674,10 @@ export default function TripsPage() {
       unloadingReference: trip.unloadingReference || '',
       cmrReference: trip.cmrReference || '',
       status: trip.status || 'pending',
+      agreedPrice: trip.agreedPrice ?? '',
+      fuelSurchargePercent: trip.fuelSurchargePercent ?? '',
+      tollCosts: trip.tollCosts ?? '',
+      extraCosts: trip.extraCosts ?? '',
     });
     setEditId(trip.id); setShowForm(true);
   };
@@ -1357,7 +1361,7 @@ export default function TripsPage() {
                     <td className="table-cell text-xs font-semibold text-text-secondary whitespace-nowrap">{trip.truck?.plateNumber || '—'}</td>
                     <td className="table-cell text-xs font-medium text-text">{trip.driver?.user?.name || '—'}</td>
                     <td className="table-cell font-semibold text-success whitespace-nowrap">
-                      <div>€{Number(trip.price || 0).toLocaleString(i18n.language)}</div>
+                      <div>€{Number(trip.agreedPrice || trip.price || 0).toLocaleString(i18n.language)}</div>
                       {trip.invoices && trip.invoices.length > 0 && (
                         <div className={`mt-1 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded inline-block ${
                           trip.invoices[0].status === 'paid' ? 'bg-green-100 text-green-800' :

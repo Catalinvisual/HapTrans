@@ -112,14 +112,14 @@ export class TripsService {
       dropoffCompanyName: dto.dropoffCompanyName,
       dropoffAddress: dto.dropoffAddress,
       pickupDate: dto.pickupDate,
-      price: dto.price,
-      estimatedCost: dto.estimatedCost,
-      realCost: dto.realCost,
-      agreedPrice: dto.agreedPrice,
-      fuelSurchargePercent: dto.fuelSurchargePercent,
-      tollCosts: dto.tollCosts,
-      extraCosts: dto.extraCosts,
-      distanceKm: dto.distanceKm,
+      price: dto.price ?? 0,
+      estimatedCost: dto.estimatedCost ?? 0,
+      realCost: dto.realCost ?? 0,
+      agreedPrice: dto.agreedPrice ?? 0,
+      fuelSurchargePercent: dto.fuelSurchargePercent ?? 0,
+      tollCosts: dto.tollCosts ?? 0,
+      extraCosts: dto.extraCosts ?? 0,
+      distanceKm: dto.distanceKm ?? 0,
       notes: dto.notes,
       pickupTime: dto.pickupTime,
       dropoffTime: dto.dropoffTime,
@@ -198,9 +198,10 @@ export class TripsService {
 
     if (dto.pickupDate !== undefined) updateData.pickupDate = dto.pickupDate;
     if (dto.dropoffDate !== undefined) updateData.dropoffDate = dto.dropoffDate;
-    if (dto.price !== undefined) updateData.price = dto.price;
-    if (dto.estimatedCost !== undefined) updateData.estimatedCost = dto.estimatedCost;
-    if (dto.distanceKm !== undefined) updateData.distanceKm = dto.distanceKm;
+    if (dto.price !== undefined) updateData.price = dto.price ?? 0;
+    if (dto.estimatedCost !== undefined) updateData.estimatedCost = dto.estimatedCost ?? 0;
+    if (dto.realCost !== undefined) updateData.realCost = dto.realCost ?? 0;
+    if (dto.distanceKm !== undefined) updateData.distanceKm = dto.distanceKm ?? 0;
     if (dto.notes !== undefined) updateData.notes = dto.notes;
     if (dto.status !== undefined) updateData.status = dto.status;
     if (dto.pickupTime !== undefined) updateData.pickupTime = dto.pickupTime;
@@ -215,10 +216,10 @@ export class TripsService {
     if (dto.appointmentTo !== undefined) updateData.appointmentTo = dto.appointmentTo;
     if (dto.estimatedLoadingMinutes !== undefined) updateData.estimatedLoadingMinutes = dto.estimatedLoadingMinutes;
     if (dto.manualDelayMinutes !== undefined) updateData.manualDelayMinutes = dto.manualDelayMinutes;
-    if (dto.agreedPrice !== undefined) updateData.agreedPrice = dto.agreedPrice;
-    if (dto.fuelSurchargePercent !== undefined) updateData.fuelSurchargePercent = dto.fuelSurchargePercent;
-    if (dto.tollCosts !== undefined) updateData.tollCosts = dto.tollCosts;
-    if (dto.extraCosts !== undefined) updateData.extraCosts = dto.extraCosts;
+    if (dto.agreedPrice !== undefined) updateData.agreedPrice = dto.agreedPrice ?? 0;
+    if (dto.fuelSurchargePercent !== undefined) updateData.fuelSurchargePercent = dto.fuelSurchargePercent ?? 0;
+    if (dto.tollCosts !== undefined) updateData.tollCosts = dto.tollCosts ?? 0;
+    if (dto.extraCosts !== undefined) updateData.extraCosts = dto.extraCosts ?? 0;
     
     // Reset delayed risk if manually changed
     if (dto.appointmentTo !== undefined || dto.dropoffDate !== undefined) {
@@ -416,15 +417,15 @@ export class TripsService {
   }
 
   async getStats(month?: number, year?: number) {
-    let where: any = {};
-    if (month && year) {
-      const start = new Date(year, month - 1, 1);
-      const end = new Date(year, month, 0, 23, 59, 59);
-      where.pickupDate = Between(start, end);
-    }
-    const trips = await this.repo.find({ where, relations: ['costs'] });
-    const totalRevenue = trips.reduce((s, t) => s + Number(t.price || 0), 0);
-    const totalCost = trips.reduce((s, t) => {
+    const trips = await this.findAll();
+    const filtered = trips.filter(t => {
+      if (!month || !year) return true;
+      const d = new Date(t.createdAt);
+      return d.getMonth() + 1 === Number(month) && d.getFullYear() === Number(year);
+    });
+
+    const totalRevenue = filtered.reduce((s, t) => s + (Number(t.agreedPrice) || Number(t.price) || 0), 0);
+    const totalCost = filtered.reduce((s, t) => {
       const addedCosts = t.costs?.reduce((sc, c) => sc + Number(c.amount), 0) || 0;
       return s + (addedCosts > 0 ? addedCosts : (Number(t.realCost) || Number(t.estimatedCost) || 0));
     }, 0);

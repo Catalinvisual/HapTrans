@@ -35,10 +35,11 @@ export class DashboardService {
       // Calculate true cost
       const addedCosts = t.costs?.reduce((sc, c) => sc + Number(c.amount), 0) || 0;
       const tripCost = addedCosts > 0 ? addedCosts : (Number(t.realCost) || Number(t.estimatedCost) || 0);
-      const tripProfit = Number(t.price || 0) - tripCost;
+      const basePrice = Number(t.agreedPrice) || Number(t.price) || 0;
+      const tripProfit = basePrice - tripCost;
 
       // Only count if there's actual data
-      if (tripProfit !== 0 || Number(t.price) > 0) {
+      if (tripProfit !== 0 || basePrice > 0) {
         // By Route (e.g., "RO -> DE")
         // Use regex to extract Country Code if formatted as "Strada, 12345 Oras, DE"
         // Since we don't strictly have dropoffCountry populated, we'll try to extract the last word from the address as Country
