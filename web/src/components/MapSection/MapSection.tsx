@@ -109,12 +109,12 @@ const MapSection = () => {
                       <Geography
                         key={geo.rsmKey}
                         geography={geo}
-                        fill="#0B1B2A"
-                        stroke="#1E293B"
+                        fill="#e2e8f0"
+                        stroke="#cbd5e1"
                         strokeWidth={0.5}
                         style={{
                           default: { outline: "none" },
-                          hover: { fill: "#0F263C", outline: "none" },
+                          hover: { fill: "#cbd5e1", outline: "none" },
                           pressed: { outline: "none" },
                         }}
                       />
@@ -143,6 +143,13 @@ const MapSection = () => {
                   <Marker key={`marker-${code}`} coordinates={countryCoordinates[code]}>
                     <circle r={code === 'NL' ? 6 : 4} fill={code === 'NL' ? "#FF5A00" : "#FDBA74"} />
                     <circle r={code === 'NL' ? 12 : 8} fill={code === 'NL' ? "#FF5A00" : "#FDBA74"} opacity={0.3} />
+                    <text
+                      textAnchor="middle"
+                      y={code === 'NL' ? -15 : 18}
+                      style={{ fontFamily: "Inter, system-ui, sans-serif", fill: "#334155", fontSize: "14px", fontWeight: "600", textShadow: "0px 0px 4px rgba(255,255,255,0.8)" }}
+                    >
+                      {getCountryName(code)}
+                    </text>
                   </Marker>
                 ))}
               </ComposableMap>

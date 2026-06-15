@@ -348,21 +348,29 @@ export default function TripsPage() {
     const priceNum = form.price === '' ? 0 : Number(form.price);
     const costNum = form.estimatedCost === '' ? 0 : Number(form.estimatedCost);
 
+    const parseNum = (val: any) => {
+      if (val === '' || val === null || val === undefined) return null;
+      if (typeof val === 'number') return val;
+      const clean = String(val).replace(',', '.').replace(/[^0-9.-]/g, '');
+      const num = Number(clean);
+      return isNaN(num) ? null : num;
+    };
+
     const performSave = async () => {
       try {
         const data = {
           ...form,
-          price: form.price === '' ? null : Number(form.price),
-          estimatedCost: form.estimatedCost === '' ? null : Number(form.estimatedCost),
-          realCost: form.realCost === '' ? null : Number(form.realCost),
-          agreedPrice: form.agreedPrice === '' ? null : Number(form.agreedPrice),
-          fuelSurchargePercent: form.fuelSurchargePercent === '' ? null : Number(form.fuelSurchargePercent),
-          tollCosts: form.tollCosts === '' ? null : Number(form.tollCosts),
-          extraCosts: form.extraCosts === '' ? null : Number(form.extraCosts),
-          distanceKm: form.distanceKm === '' ? null : Number(form.distanceKm),
-          pallets: form.pallets === '' ? null : Number(form.pallets),
-          weightKg: form.weightKg === '' ? null : Number(form.weightKg),
-          volumeCbm: form.volumeCbm === '' ? null : Number(form.volumeCbm),
+          price: parseNum(form.price),
+          estimatedCost: parseNum(form.estimatedCost),
+          realCost: parseNum(form.realCost),
+          agreedPrice: parseNum(form.agreedPrice),
+          fuelSurchargePercent: parseNum(form.fuelSurchargePercent),
+          tollCosts: parseNum(form.tollCosts),
+          extraCosts: parseNum(form.extraCosts),
+          distanceKm: parseNum(form.distanceKm),
+          pallets: parseNum(form.pallets),
+          weightKg: parseNum(form.weightKg),
+          volumeCbm: parseNum(form.volumeCbm),
         };
 
         if (editId) {
