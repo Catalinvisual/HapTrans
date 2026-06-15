@@ -56,7 +56,11 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
       iban: 'IBAN',
       vatId: 'VAT / Tax ID',
       paymentTerms: 'Payment Terms:',
-      address: 'Address'
+      address: 'Address',
+      loadingDate: 'Loading date:',
+      loadingRef: 'Loading reference:',
+      deliveryDate: 'Delivery date:',
+      unloadingRef: 'Unloading reference:'
     },
     nl: {
       invoice: 'FACTUUR',
@@ -92,7 +96,11 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
       iban: 'IBAN',
       vatId: 'BTW / Tax ID',
       paymentTerms: 'Betalingsvoorwaarden:',
-      address: 'Adres'
+      address: 'Adres',
+      loadingDate: 'Laaddatum:',
+      loadingRef: 'Laadreferentie:',
+      deliveryDate: 'Leverdatum:',
+      unloadingRef: 'Losreferentie:'
     },
     ro: {
       invoice: 'FACTURĂ',
@@ -128,7 +136,11 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
       iban: 'IBAN',
       vatId: 'CUI / CIF',
       paymentTerms: 'Termen de plată:',
-      address: 'Adresa'
+      address: 'Adresa',
+      loadingDate: 'Data încărcare:',
+      loadingRef: 'Ref. încărcare:',
+      deliveryDate: 'Data descărcare:',
+      unloadingRef: 'Ref. descărcare:'
     },
     de: {
       invoice: 'RECHNUNG',
@@ -164,7 +176,11 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
       iban: 'IBAN',
       vatId: 'USt-IdNr.',
       paymentTerms: 'Zahlungsbedingungen:',
-      address: 'Adresse'
+      address: 'Adresse',
+      loadingDate: 'Ladedatum:',
+      loadingRef: 'Ladereferenz:',
+      deliveryDate: 'Lieferdatum:',
+      unloadingRef: 'Entladereferenz:'
     },
     fr: {
       invoice: 'FACTURE',
@@ -198,9 +214,13 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
       email: 'Email',
       bank: 'Banque',
       iban: 'IBAN',
-      vatId: 'TVA Intracommunautaire',
+      vatId: 'N° TVA',
       paymentTerms: 'Conditions de paiement:',
-      address: 'Adresse'
+      address: 'Adresse',
+      loadingDate: 'Date de chargement:',
+      loadingRef: 'Réf. chargement:',
+      deliveryDate: 'Date de livraison:',
+      unloadingRef: 'Réf. déchargement:'
     }
   };
   const t = dict[lang] || dict['en'];
@@ -401,6 +421,67 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
 
   const afterDetailsY = currentItemY;
   const totalsY = afterDetailsY + 10;
+  
+  // ─── 6. TRIP DETAILS (LEFT) & TOTALS (RIGHT) ──────────────────────────
+  if (invoice.trip) {
+    let ty = totalsY;
+    const labelX = 14;
+    const valX = 48;
+
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+
+    if (invoice.trip.pickupAddress || invoice.trip.dropoffAddress) {
+      doc.setFont('helvetica', 'bold');
+      doc.text(t.route || 'Route:', labelX, ty);
+      doc.setFont('helvetica', 'normal');
+      doc.text(safeText(`${invoice.trip.pickupAddress?.split(',')[0] || ''} - ${invoice.trip.dropoffAddress?.split(',')[0] || ''}`), valX, ty);
+      ty += 5;
+    }
+    
+    if (invoice.trip.pickupDate) {
+      doc.setFont('helvetica', 'bold');
+      doc.text(t.loadingDate || 'Loading date:', labelX, ty);
+      doc.setFont('helvetica', 'normal');
+      doc.text(safeText(fmtDate(invoice.trip.pickupDate)), valX, ty);
+      ty += 5;
+    }
+
+    if (invoice.trip.loadingReference) {
+      doc.setFont('helvetica', 'bold');
+      doc.text(t.loadingRef || 'Loading reference:', labelX, ty);
+      doc.setFont('helvetica', 'normal');
+      doc.text(safeText(invoice.trip.loadingReference), valX, ty);
+      ty += 5;
+    }
+
+    if (invoice.trip.dropoffDate) {
+      doc.setFont('helvetica', 'bold');
+      doc.text(t.deliveryDate || 'Delivery date:', labelX, ty);
+      doc.setFont('helvetica', 'normal');
+      doc.text(safeText(fmtDate(invoice.trip.dropoffDate)), valX, ty);
+      ty += 5;
+    }
+
+    if (invoice.trip.unloadingReference) {
+      doc.setFont('helvetica', 'bold');
+      doc.text(t.unloadingRef || 'Unloading reference:', labelX, ty);
+      doc.setFont('helvetica', 'normal');
+      doc.text(safeText(invoice.trip.unloadingReference), valX, ty);
+      ty += 5;
+    }
+
+    const cargo = [];
+    if (invoice.trip.pallets) cargo.push(`${invoice.trip.pallets} pallets`);
+    if (invoice.trip.weightKg) cargo.push(`${invoice.trip.weightKg} kg`);
+    if (invoice.trip.volumeCbm) cargo.push(`${invoice.trip.volumeCbm} m3`);
+    if (cargo.length > 0) {
+      doc.setFont('helvetica', 'bold');
+      doc.text(t.cargo || 'Cargo:', labelX, ty);
+      doc.setFont('helvetica', 'normal');
+      doc.text(safeText(cargo.join(', ')), valX, ty);
+    }
+  }
   
   let subtotal = Number(invoice.subtotal) || itemsSubtotal;
   let vatLabel = `VAT ${invoice.vatPercent || 19}%`;

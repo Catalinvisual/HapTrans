@@ -578,26 +578,8 @@ export default function TripsPage() {
       
       const items = [];
       if (basePrice > 0) {
-        let desc = `Transport: ${trip.pickupAddress?.split(',')[0] || ''} - ${trip.dropoffAddress?.split(',')[0] || ''}`;
-        
-        const details = [];
-        if (trip.pickupDate) details.push(`Incărcare: ${trip.pickupDate}`);
-        if (trip.dropoffDate) details.push(`Descărcare: ${trip.dropoffDate}`);
-        if (trip.loadingReference) details.push(`Ref. Incărcare: ${trip.loadingReference}`);
-        if (trip.unloadingReference) details.push(`Ref. Descărcare: ${trip.unloadingReference}`);
-        
-        const cargo = [];
-        if (trip.pallets) cargo.push(`${trip.pallets} paleți`);
-        if (trip.weightKg) cargo.push(`${trip.weightKg} kg`);
-        if (trip.volumeCbm) cargo.push(`${trip.volumeCbm} m³`);
-        if (cargo.length > 0) details.push(`Marfă: ${cargo.join(', ')}`);
-
-        if (details.length > 0) {
-           desc += '\n' + details.join(' | ');
-        }
-
         items.push({
-          description: desc,
+          description: `Transport: ${trip.pickupAddress?.split(',')[0] || ''} - ${trip.dropoffAddress?.split(',')[0] || ''}`,
           quantity: 1,
           unitPrice: basePrice,
           vatRate: vatPercent,
