@@ -57,7 +57,7 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
       vatId: 'VAT / Tax ID',
       paymentTerms: 'Payment Terms:',
       address: 'Address',
-      loadingDate: 'Loading date:',
+      loadingDate: 'Pickup date:',
       loadingRef: 'Loading reference:',
       deliveryDate: 'Delivery date:',
       unloadingRef: 'Unloading reference:'
@@ -420,55 +420,43 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
   }
 
   const afterDetailsY = currentItemY;
-  const totalsY = afterDetailsY + 10;
+  const totalsY = afterDetailsY + 8;
   
   // ─── 6. TRIP DETAILS (LEFT) & TOTALS (RIGHT) ──────────────────────────
   if (invoice.trip) {
     let ty = totalsY;
-    const labelX = 14;
-    const valX = 48;
+    const labelX = 16;
 
     doc.setFontSize(9);
     doc.setTextColor(0, 0, 0);
 
-    if (invoice.trip.pickupAddress || invoice.trip.dropoffAddress) {
+    const renderLine = (label: string, value: string) => {
       doc.setFont('helvetica', 'bold');
-      doc.text(t.route || 'Route:', labelX, ty);
+      doc.text(label, labelX, ty);
+      const lw = doc.getTextWidth(label);
       doc.setFont('helvetica', 'normal');
-      doc.text(safeText(`${invoice.trip.pickupAddress?.split(',')[0] || ''} - ${invoice.trip.dropoffAddress?.split(',')[0] || ''}`), valX, ty);
+      doc.text(` ${value}`, labelX + lw, ty);
       ty += 5;
+    };
+
+    if (invoice.trip.pickupAddress || invoice.trip.dropoffAddress) {
+      renderLine(t.route || 'Route:', safeText(`${invoice.trip.pickupAddress || ''} - ${invoice.trip.dropoffAddress || ''}`));
     }
     
     if (invoice.trip.pickupDate) {
-      doc.setFont('helvetica', 'bold');
-      doc.text(t.loadingDate || 'Loading date:', labelX, ty);
-      doc.setFont('helvetica', 'normal');
-      doc.text(safeText(fmtDate(invoice.trip.pickupDate)), valX, ty);
-      ty += 5;
+      renderLine(t.loadingDate || 'Pickup date:', safeText(fmtDate(invoice.trip.pickupDate)));
     }
 
     if (invoice.trip.loadingReference) {
-      doc.setFont('helvetica', 'bold');
-      doc.text(t.loadingRef || 'Loading reference:', labelX, ty);
-      doc.setFont('helvetica', 'normal');
-      doc.text(safeText(invoice.trip.loadingReference), valX, ty);
-      ty += 5;
+      renderLine(t.loadingRef || 'Loading reference:', safeText(invoice.trip.loadingReference));
     }
 
     if (invoice.trip.dropoffDate) {
-      doc.setFont('helvetica', 'bold');
-      doc.text(t.deliveryDate || 'Delivery date:', labelX, ty);
-      doc.setFont('helvetica', 'normal');
-      doc.text(safeText(fmtDate(invoice.trip.dropoffDate)), valX, ty);
-      ty += 5;
+      renderLine(t.deliveryDate || 'Delivery date:', safeText(fmtDate(invoice.trip.dropoffDate)));
     }
 
     if (invoice.trip.unloadingReference) {
-      doc.setFont('helvetica', 'bold');
-      doc.text(t.unloadingRef || 'Unloading reference:', labelX, ty);
-      doc.setFont('helvetica', 'normal');
-      doc.text(safeText(invoice.trip.unloadingReference), valX, ty);
-      ty += 5;
+      renderLine(t.unloadingRef || 'Unloading reference:', safeText(invoice.trip.unloadingReference));
     }
 
     const cargo = [];
@@ -476,10 +464,7 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
     if (invoice.trip.weightKg) cargo.push(`${invoice.trip.weightKg} kg`);
     if (invoice.trip.volumeCbm) cargo.push(`${invoice.trip.volumeCbm} m3`);
     if (cargo.length > 0) {
-      doc.setFont('helvetica', 'bold');
-      doc.text(t.cargo || 'Cargo:', labelX, ty);
-      doc.setFont('helvetica', 'normal');
-      doc.text(safeText(cargo.join(', ')), valX, ty);
+      renderLine(t.cargo || 'Cargo:', safeText(cargo.join(', ')));
     }
   }
   
