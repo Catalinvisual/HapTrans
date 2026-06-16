@@ -181,8 +181,8 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
     `;
   }
 
-  const logoHtml = co.logoBase64 ? 
-    `<img src="${co.logoBase64}" alt="Logo" style="height:48px; object-fit:contain;" />` : 
+  const logoHtml = co.logo ? 
+    `<img src="${co.logo}" alt="Logo" style="height:48px; object-fit:contain;" />` : 
     `<div class="logo">
       <span class="logo-mark">#</span>
       <span class="logo-orange">${(co.name || 'HAPCARGO').substring(0, 3).toUpperCase()}</span><span class="logo-blue">${(co.name || 'HAPCARGO').substring(3).toUpperCase()}</span>
@@ -416,7 +416,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
 
   .detail-row {
     display: grid;
-    grid-template-columns: 145px 1fr;
+    grid-template-columns: 110px 1fr;
     border-bottom: 1px dashed #d9e0ea;
     padding: 5px 0;
     font-size: 12px;
@@ -580,9 +580,9 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
       <div class="company-name">${co.name || 'HapCargo BV'}</div>
       <div class="info-line">${t.taxId}: ${co.cui || 'NL442452452145'}</div>
       ${co.regNumber ? `<div class="info-line">${t.regNo}: ${co.regNumber}</div>` : ''}
-      <div class="info-line">${co.address || 'Lange Brink 15, 8315 AH Luttelgeest, Nederland'}</div>
-      <br />
-      ${co.phone ? `<div class="info-line">${t.phone}: ${co.phone}</div>` : ''}
+      <div class="info-line">${t.address}: ${co.address || 'Lange Brink 15, 8315 AH Luttelgeest, Nederland'}</div>
+      
+      ${co.phone ? `<div class="info-line" style="margin-top: 8px">${t.phone}: ${co.phone}</div>` : ''}
       ${co.email ? `<div class="info-line">${t.email}: ${co.email}</div>` : ''}
       ${co.bank ? `<div class="info-line">${t.bank}: ${co.bank}</div>` : ''}
       ${co.iban ? `<div class="info-line"><strong>IBAN:</strong> ${co.iban}</div>` : ''}
@@ -593,8 +593,8 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
       <div class="company-name">${invoice.client?.name || 'Client'}</div>
       <div class="info-line">${t.vatId}: ${invoice.client?.cui || '—'}</div>
       <div class="info-line">${t.address}: ${[invoice.client?.address, invoice.client?.postalCode, invoice.client?.country].filter(Boolean).join(', ') || '—'}</div>
-      <br />
-      ${invoice.client?.contactEmail ? `<div class="info-line">${t.email}: ${invoice.client?.contactEmail}</div>` : ''}
+      
+      ${invoice.client?.contactEmail ? `<div class="info-line" style="margin-top: 8px">${t.email}: ${invoice.client?.contactEmail}</div>` : ''}
       ${invoice.client?.phone ? `<div class="info-line">${t.phone}: ${invoice.client?.phone}</div>` : ''}
     </div>
   </div>
@@ -708,7 +708,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
 
   <div class="footer">
     <div class="footer-contact">
-      ${co.website ? `<span>${co.website}</span>` : ''}
+      ${co.website ? `<span>${co.website}</span>` : `<span>www.hapcargo.com</span>`}
       ${co.email ? `<span>${co.email}</span>` : ''}
       ${co.phone ? `<span>${co.phone}</span>` : ''}
     </div>

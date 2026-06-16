@@ -579,7 +579,7 @@ export default function TripsPage() {
       const items = [];
       if (basePrice > 0) {
         items.push({
-          description: `Transport: ${trip.pickupAddress?.split(',')[0] || ''} - ${trip.dropoffAddress?.split(',')[0] || ''}`,
+          description: `International road freight transport services: ${trip.pickupAddress?.split(',')[0] || ''} - ${trip.dropoffAddress?.split(',')[0] || ''}`,
           quantity: 1,
           unitPrice: basePrice,
           vatRate: vatPercent,
