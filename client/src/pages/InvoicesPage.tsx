@@ -10,6 +10,7 @@ import { generateInvoicePdfBase64 } from '../lib/invoicePdfGenerator';
 import { formatDate } from '../lib/dateUtils';
 import CustomSelect from '../components/CustomSelect';
 import ConfirmModal from '../components/ConfirmModal';
+import { getCompanySettings } from './SettingsPage';
 
 const STATUS_COLORS: Record<string, string> = { draft:'badge-gray', sent:'badge-primary', paid:'badge-success', overdue:'badge-error', cancelled:'badge-error' };
 
