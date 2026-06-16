@@ -182,7 +182,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
   }
 
   const logoHtml = co.logo ? 
-    `<img src="${co.logo}" alt="Logo" style="height:48px; object-fit:contain;" />` : 
+    `<img src="${co.logo}" alt="Logo" style="height:76px; max-width: 300px; object-fit:contain;" />` : 
     `<div class="logo">
       <span class="logo-mark">#</span>
       <span class="logo-orange">${(co.name || 'HAPCARGO').substring(0, 3).toUpperCase()}</span><span class="logo-blue">${(co.name || 'HAPCARGO').substring(3).toUpperCase()}</span>
@@ -219,12 +219,15 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
 
   .invoice-page {
     width: 794px;
-    min-height: 1123px;
+    height: 1122px;
+    max-height: 1122px;
     margin: 0 auto;
     background: #ffffff;
-    padding: 24px 34px 20px;
+    padding: 16px 30px 14px;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
   }
 
   .top {
@@ -234,14 +237,14 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
   }
 
   .logo {
-    font-size: 42px;
+    font-size: 52px;
     font-weight: 900;
     letter-spacing: -2px;
   }
 
   .logo-mark {
     color: #ff4b00;
-    font-size: 58px;
+    font-size: 68px;
     vertical-align: middle;
     margin-right: 8px;
   }
@@ -280,7 +283,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
   }
 
   .title-row {
-    margin-top: 24px;
+    margin-top: 16px;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
@@ -288,7 +291,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
 
   h1 {
     margin: 0;
-    font-size: 28px;
+    font-size: 26px;
     letter-spacing: 1px;
     color: #061a3a;
   }
@@ -319,15 +322,15 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
   .cards {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    margin-bottom: 14px;
+    gap: 12px;
+    margin-bottom: 12px;
   }
 
   .card {
     border: 1px solid #d9e0ea;
     border-radius: 6px;
-    padding: 14px 16px;
-    min-height: 150px;
+    padding: 12px 14px;
+    min-height: 140px;
   }
 
   .card-title {
@@ -396,14 +399,14 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
   .main-bottom {
     display: grid;
     grid-template-columns: 1.1fr 0.9fr;
-    gap: 14px;
-    margin-top: 14px;
+    gap: 12px;
+    margin-top: 12px;
   }
 
   .section-box {
     border: 1px solid #d9e0ea;
     border-radius: 6px;
-    padding: 14px;
+    padding: 12px;
   }
 
   .section-title {
@@ -411,12 +414,13 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
     font-weight: 800;
     text-transform: uppercase;
     font-size: 13px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
 
   .detail-row {
     display: grid;
-    grid-template-columns: 110px 1fr;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
     border-bottom: 1px dashed #d9e0ea;
     padding: 5px 0;
     font-size: 12px;
@@ -438,14 +442,14 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
   .summary-header {
     background: #061a3a;
     color: white;
-    padding: 10px 14px;
+    padding: 10px 12px;
     font-weight: 800;
     text-transform: uppercase;
     font-size: 13px;
   }
 
   .summary-body {
-    padding: 14px;
+    padding: 12px;
   }
 
   .summary-row {
@@ -484,13 +488,13 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
   }
 
   .payment-box {
-    margin-top: 14px;
+    margin-top: 12px;
     border: 1px solid #d9e0ea;
     border-radius: 6px;
-    padding: 14px;
+    padding: 12px;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    gap: 14px;
     background: #fbfcfe;
   }
 
@@ -501,7 +505,8 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
 
   .payment-table div {
     display: grid;
-    grid-template-columns: 110px 1fr;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
   }
 
   .payment-note {
@@ -582,7 +587,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
       ${co.regNumber ? `<div class="info-line">${t.regNo}: ${co.regNumber}</div>` : ''}
       <div class="info-line">${t.address}: ${co.address || 'Lange Brink 15, 8315 AH Luttelgeest, Nederland'}</div>
       
-      ${co.phone ? `<div class="info-line" style="margin-top: 8px">${t.phone}: ${co.phone}</div>` : ''}
+      ${co.phone ? `<div class="info-line">${t.phone}: ${co.phone}</div>` : ''}
       ${co.email ? `<div class="info-line">${t.email}: ${co.email}</div>` : ''}
       ${co.bank ? `<div class="info-line">${t.bank}: ${co.bank}</div>` : ''}
       ${co.iban ? `<div class="info-line"><strong>IBAN:</strong> ${co.iban}</div>` : ''}
@@ -594,7 +599,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
       <div class="info-line">${t.vatId}: ${invoice.client?.cui || '—'}</div>
       <div class="info-line">${t.address}: ${[invoice.client?.address, invoice.client?.postalCode, invoice.client?.country].filter(Boolean).join(', ') || '—'}</div>
       
-      ${invoice.client?.contactEmail ? `<div class="info-line" style="margin-top: 8px">${t.email}: ${invoice.client?.contactEmail}</div>` : ''}
+      ${invoice.client?.contactEmail ? `<div class="info-line">${t.email}: ${invoice.client?.contactEmail}</div>` : ''}
       ${invoice.client?.phone ? `<div class="info-line">${t.phone}: ${invoice.client?.phone}</div>` : ''}
     </div>
   </div>
