@@ -182,7 +182,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
   }
 
   const logoHtml = co.logo ? 
-    `<img src="${co.logo}" alt="Logo" style="height:76px; max-width: 300px; object-fit:contain;" />` : 
+    `<img src="${co.logo}" alt="Logo" style="height:90px; max-width: 320px; object-fit:contain;" />` : 
     `<div class="logo">
       <span class="logo-mark">#</span>
       <span class="logo-orange">${(co.name || 'HAPCARGO').substring(0, 3).toUpperCase()}</span><span class="logo-blue">${(co.name || 'HAPCARGO').substring(3).toUpperCase()}</span>
@@ -237,14 +237,14 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
   }
 
   .logo {
-    font-size: 52px;
+    font-size: 64px;
     font-weight: 900;
     letter-spacing: -2px;
   }
 
   .logo-mark {
     color: #ff4b00;
-    font-size: 68px;
+    font-size: 80px;
     vertical-align: middle;
     margin-right: 8px;
   }
@@ -349,7 +349,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
 
   .info-line {
     font-size: 13px;
-    line-height: 1.55;
+    line-height: 1.4;
   }
 
   .service-table {
@@ -420,7 +420,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
   .detail-row {
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: 12px;
+    gap: 8px;
     border-bottom: 1px dashed #d9e0ea;
     padding: 5px 0;
     font-size: 12px;
@@ -506,7 +506,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
   .payment-table div {
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: 12px;
+    gap: 8px;
   }
 
   .payment-note {
@@ -713,9 +713,18 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
 
   <div class="footer">
     <div class="footer-contact">
-      ${co.website ? `<span>${co.website}</span>` : `<span>www.hapcargo.com</span>`}
-      ${co.email ? `<span>${co.email}</span>` : ''}
-      ${co.phone ? `<span>${co.phone}</span>` : ''}
+      <span style="display:flex; align-items:center; gap:4px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+        ${co.website || 'www.hapcargo.com'}
+      </span>
+      ${co.email ? `<span style="display:flex; align-items:center; gap:4px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+        ${co.email}
+      </span>` : ''}
+      ${co.phone ? `<span style="display:flex; align-items:center; gap:4px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+        ${co.phone}
+      </span>` : ''}
     </div>
 
     <div class="thank-you">${t.footer1}</div>
