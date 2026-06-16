@@ -222,7 +222,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
     min-height: 1123px;
     margin: 0 auto;
     background: #ffffff;
-    padding: 34px 44px 28px;
+    padding: 24px 34px 20px;
     display: flex;
     flex-direction: column;
   }
@@ -280,7 +280,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
   }
 
   .title-row {
-    margin-top: 50px;
+    margin-top: 24px;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
@@ -288,7 +288,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
 
   h1 {
     margin: 0;
-    font-size: 34px;
+    font-size: 28px;
     letter-spacing: 1px;
     color: #061a3a;
   }
@@ -313,21 +313,21 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
 
   .divider {
     border-top: 1px solid #d6dce5;
-    margin: 20px 0;
+    margin: 14px 0;
   }
 
   .cards {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 18px;
-    margin-bottom: 20px;
+    gap: 14px;
+    margin-bottom: 14px;
   }
 
   .card {
     border: 1px solid #d9e0ea;
     border-radius: 6px;
-    padding: 18px 20px;
-    min-height: 190px;
+    padding: 14px 16px;
+    min-height: 150px;
   }
 
   .card-title {
@@ -352,16 +352,16 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
   .service-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 10px;
-    font-size: 14px;
+    margin-top: 8px;
+    font-size: 13px;
   }
 
   .service-table th {
     background: #061a3a;
     color: white;
     text-align: left;
-    padding: 11px 12px;
-    font-size: 13px;
+    padding: 9px 10px;
+    font-size: 12px;
   }
 
   .service-table th:nth-child(2),
@@ -372,7 +372,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
 
   .service-table td {
     border: 1px solid #e2e7ef;
-    padding: 14px 12px;
+    padding: 10px 10px;
     vertical-align: middle;
   }
 
@@ -396,30 +396,30 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
   .main-bottom {
     display: grid;
     grid-template-columns: 1.1fr 0.9fr;
-    gap: 18px;
-    margin-top: 20px;
+    gap: 14px;
+    margin-top: 14px;
   }
 
   .section-box {
     border: 1px solid #d9e0ea;
     border-radius: 6px;
-    padding: 18px;
+    padding: 14px;
   }
 
   .section-title {
     color: #ff4b00;
     font-weight: 800;
     text-transform: uppercase;
-    font-size: 14px;
-    margin-bottom: 14px;
+    font-size: 13px;
+    margin-bottom: 10px;
   }
 
   .detail-row {
     display: grid;
     grid-template-columns: 145px 1fr;
     border-bottom: 1px dashed #d9e0ea;
-    padding: 7px 0;
-    font-size: 13px;
+    padding: 5px 0;
+    font-size: 12px;
   }
 
   .detail-row:last-child {
@@ -438,26 +438,26 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
   .summary-header {
     background: #061a3a;
     color: white;
-    padding: 12px 16px;
+    padding: 10px 14px;
     font-weight: 800;
     text-transform: uppercase;
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .summary-body {
-    padding: 18px;
+    padding: 14px;
   }
 
   .summary-row {
     display: flex;
     justify-content: space-between;
-    font-size: 14px;
-    margin-bottom: 14px;
+    font-size: 13px;
+    margin-bottom: 10px;
   }
 
   .summary-line {
     border-top: 1px solid #bfc8d5;
-    margin: 14px 0;
+    margin: 10px 0;
   }
 
   .total-row {
@@ -465,37 +465,37 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
     justify-content: space-between;
     align-items: center;
     font-weight: 900;
-    font-size: 18px;
+    font-size: 16px;
   }
 
   .total-amount {
     color: #ff4b00;
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .vat-info {
     background: #f3f6fa;
     border-radius: 8px;
-    padding: 14px;
-    margin-top: 18px;
-    font-size: 12px;
+    padding: 10px;
+    margin-top: 14px;
+    font-size: 11px;
     color: #30415d;
     line-height: 1.5;
   }
 
   .payment-box {
-    margin-top: 20px;
+    margin-top: 14px;
     border: 1px solid #d9e0ea;
     border-radius: 6px;
-    padding: 18px;
+    padding: 14px;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 22px;
+    gap: 16px;
     background: #fbfcfe;
   }
 
   .payment-table {
-    font-size: 13px;
+    font-size: 12px;
     line-height: 1.8;
   }
 
@@ -506,9 +506,9 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
 
   .payment-note {
     border-left: 1px solid #cbd3df;
-    padding-left: 24px;
-    font-size: 14px;
-    line-height: 1.6;
+    padding-left: 18px;
+    font-size: 13px;
+    line-height: 1.5;
     display: flex;
     align-items: center;
   }
@@ -516,9 +516,9 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
   .footer {
     margin-top: auto;
     border-top: 1px solid #d6dce5;
-    padding-top: 14px;
+    padding-top: 10px;
     text-align: center;
-    font-size: 12px;
+    font-size: 11px;
     color: #51627c;
   }
 
