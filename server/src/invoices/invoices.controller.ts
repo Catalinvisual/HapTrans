@@ -1,13 +1,15 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, UseInterceptors, UploadedFile, Query } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InvoicesService } from './invoices.service';
+import { PdfService } from './pdf.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ResendService } from '../email/resend.service';
+import { generateInvoiceHtml } from './pdf-template';
 
 @Controller('invoices')
 @UseGuards(JwtAuthGuard)
 export class InvoicesController {
-  constructor(private service: InvoicesService, private resendService: ResendService) {}
+  constructor(private service: InvoicesService, private resendService: ResendService, private pdfService: PdfService) {}
   @Get() findAll() { return this.service.findAll(); }
   @Get('overdue') getOverdue() { return this.service.getOverdue(); }
   @Get(':id') findOne(@Param('id') id: string) { return this.service.findOne(id); }
@@ -15,6 +17,13 @@ export class InvoicesController {
   @Patch(':id') update(@Param('id') id: string, @Body() dto: any) { return this.service.update(id, dto); }
   @Patch(':id/approve') approve(@Param('id') id: string) { return this.service.approve(id); }
   @Delete(':id') remove(@Param('id') id: string) { return this.service.remove(id); }
+
+  @Post('generate-pdf')
+  async generatePdf(@Body() body: { invoice: any, company: any, lang: 'en' | 'nl' }) {
+    const html = generateInvoiceHtml(body.invoice, body.company, body.lang);
+    const pdfBuffer = await this.pdfService.generatePdfFromHtml(html);
+    return { base64: pdfBuffer.toString('base64') };
+  }
 
   @Post('upload-pdf/:id')
   @UseInterceptors(FileInterceptor('file'))

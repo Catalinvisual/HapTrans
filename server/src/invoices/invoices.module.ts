@@ -6,6 +6,7 @@ import { Invoice } from './invoice.entity';
 import { InvoiceItem } from './invoice-item.entity';
 import { InvoicesController } from './invoices.controller';
 import { InvoicesService } from './invoices.service';
+import { PdfService } from './pdf.service';
 import { MulterModule } from '@nestjs/platform-express';
 import { v2 as cloudinary } from 'cloudinary';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
@@ -37,7 +38,7 @@ import { ResendService } from '../email/resend.service';
     MulterModule.register({ storage }),
   ],
   controllers: [InvoicesController],
-  providers: [InvoicesService, ResendService],
-  exports: [InvoicesService],
+  providers: [InvoicesService, ResendService, PdfService],
+  exports: [InvoicesService, PdfService],
 })
 export class InvoicesModule {}
