@@ -168,26 +168,27 @@ export const InvoiceTemplate: React.FC<Props> = ({ invoice, lang }) => {
 
   const getIcon = (desc: string) => {
     const l = desc.toLowerCase();
-    if (l.includes('transport')) return <Truck className="w-5 h-5 text-slate-800" />;
-    if (l.includes('fuel')) return <Droplets className="w-5 h-5 text-slate-800" />;
-    return <Receipt className="w-5 h-5 text-slate-800" />;
+    if (l.includes('transport')) return <Truck className="w-4 h-4 text-slate-800" />;
+    if (l.includes('fuel')) return <Droplets className="w-4 h-4 text-slate-800" />;
+    return <Receipt className="w-4 h-4 text-slate-800" />;
   };
 
   return (
-    <div className="w-[794px] h-[1123px] bg-white text-slate-800 font-sans p-10 box-border overflow-hidden relative">
+    <div className="w-[794px] h-[1123px] bg-white text-slate-800 font-sans p-8 box-border overflow-hidden relative flex flex-col">
+      
       {/* Header */}
-      <div className="flex justify-between items-start mb-8">
+      <div className="flex justify-between items-start mb-5">
         <div>
           {co.logoBase64 ? (
-            <img src={co.logoBase64} alt="Logo" className="h-12 object-contain mb-4" />
+            <img src={co.logoBase64} alt="Logo" className="h-10 object-contain mb-3" />
           ) : (
-            <div className="text-3xl font-bold text-orange-500 mb-4">{co.name || 'HapCargo BV'}</div>
+            <div className="text-2xl font-bold text-orange-500 mb-3">{co.name || 'HapCargo BV'}</div>
           )}
-          <h1 className="text-2xl font-bold text-slate-900 tracking-wider">{t.invoice}</h1>
+          <h1 className="text-xl font-bold text-slate-900 tracking-wider">{t.invoice}</h1>
         </div>
         
-        <div className="flex flex-col items-end gap-3">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-right">
+        <div className="flex flex-col items-end gap-2">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[12px] text-right">
             <span className="font-semibold">{t.invoiceNo}</span>
             <span className={invoice.status === 'draft' ? 'text-orange-500 font-semibold' : 'text-slate-500'}>{invoice.invoiceNumber}</span>
             
@@ -209,60 +210,60 @@ export const InvoiceTemplate: React.FC<Props> = ({ invoice, lang }) => {
           </div>
 
           {invoice.status === 'draft' && (
-            <div className="flex flex-col items-end">
-              <div className="bg-slate-900 text-white px-4 py-2 rounded-md flex items-center gap-2 font-bold text-sm">
-                <FileText className="w-4 h-4" />
+            <div className="flex flex-col items-end mt-1">
+              <div className="bg-slate-900 text-white px-3 py-1.5 rounded flex items-center gap-1.5 font-bold text-[12px]">
+                <FileText className="w-3.5 h-3.5" />
                 {t.draftTitle}
               </div>
-              <span className="text-xs text-slate-500 mt-1">{t.draftSub}</span>
+              <span className="text-[10px] text-slate-500 mt-0.5">{t.draftSub}</span>
             </div>
           )}
         </div>
       </div>
 
-      <hr className="border-t border-slate-200 mb-6" />
+      <hr className="border-t border-slate-200 mb-5" />
 
       {/* From / To */}
-      <div className="grid grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-2 gap-4 mb-5 shrink-0">
         {/* FROM */}
-        <div className="border border-slate-200 rounded-lg p-5">
-          <div className="flex items-center gap-2 text-orange-500 font-bold mb-4">
-            <Building className="w-5 h-5" />
+        <div className="border border-slate-200 rounded-lg p-4">
+          <div className="flex items-center gap-1.5 text-orange-500 font-bold mb-3 text-[12px]">
+            <Building className="w-4 h-4" />
             {t.from}
           </div>
-          <div className="font-bold text-slate-900 mb-2">{co.name || 'HapCargo BV'}</div>
-          <div className="text-sm text-slate-500 space-y-1">
+          <div className="font-bold text-slate-900 mb-1.5 text-[12px]">{co.name || 'HapCargo BV'}</div>
+          <div className="text-[11px] text-slate-500 space-y-0.5">
             <p>{t.taxId}: {co.cui || 'NL442452452145'}</p>
             {co.regNumber && <p>{t.regNo}: {co.regNumber}</p>}
             <p>{co.address || 'Lange Brink 15, 8315 AH Luttelgeest, Nederland'}</p>
-            <div className="h-2"></div>
-            {co.phone && <div className="flex items-center gap-2"><Phone className="w-4 h-4" /> {co.phone}</div>}
-            {co.email && <div className="flex items-center gap-2"><Mail className="w-4 h-4" /> {co.email}</div>}
-            {co.bank && <div className="flex items-center gap-2"><Landmark className="w-4 h-4" /> {t.bank}: {co.bank}</div>}
+            <div className="h-1.5"></div>
+            {co.phone && <div className="flex items-center gap-1.5"><Phone className="w-3 h-3" /> {co.phone}</div>}
+            {co.email && <div className="flex items-center gap-1.5"><Mail className="w-3 h-3" /> {co.email}</div>}
+            {co.bank && <div className="flex items-center gap-1.5"><Landmark className="w-3 h-3" /> {t.bank}: {co.bank}</div>}
             {co.iban && <div className="font-bold text-slate-800">IBAN: {co.iban}</div>}
           </div>
         </div>
 
         {/* TO */}
-        <div className="border border-slate-200 rounded-lg p-5">
-          <div className="flex items-center gap-2 text-orange-500 font-bold mb-4">
-            <User className="w-5 h-5" />
+        <div className="border border-slate-200 rounded-lg p-4">
+          <div className="flex items-center gap-1.5 text-orange-500 font-bold mb-3 text-[12px]">
+            <User className="w-4 h-4" />
             {t.toClient}
           </div>
-          <div className="font-bold text-slate-900 mb-2">{invoice.client?.name || 'Client'}</div>
-          <div className="text-sm text-slate-500 space-y-1">
+          <div className="font-bold text-slate-900 mb-1.5 text-[12px]">{invoice.client?.name || 'Client'}</div>
+          <div className="text-[11px] text-slate-500 space-y-0.5">
             <p>{t.vatId}: {invoice.client?.cui || '—'}</p>
             <p>{t.address}: {[invoice.client?.address, invoice.client?.postalCode, invoice.client?.country].filter(Boolean).join(', ') || '—'}</p>
-            <div className="h-2"></div>
-            {invoice.client?.contactEmail && <div className="flex items-center gap-2"><Mail className="w-4 h-4" /> {invoice.client.contactEmail}</div>}
-            {invoice.client?.phone && <div className="flex items-center gap-2"><Phone className="w-4 h-4" /> {invoice.client.phone}</div>}
+            <div className="h-1.5"></div>
+            {invoice.client?.contactEmail && <div className="flex items-center gap-1.5"><Mail className="w-3 h-3" /> {invoice.client.contactEmail}</div>}
+            {invoice.client?.phone && <div className="flex items-center gap-1.5"><Phone className="w-3 h-3" /> {invoice.client.phone}</div>}
           </div>
         </div>
       </div>
 
       {/* Services Table */}
-      <div className="mb-8">
-        <div className="bg-slate-900 text-white rounded-t-lg px-4 py-3 grid grid-cols-12 font-bold text-sm">
+      <div className="mb-5 shrink-0">
+        <div className="bg-slate-900 text-white rounded-t-lg px-4 py-2 grid grid-cols-12 font-bold text-[12px]">
           <div className="col-span-6">{t.description}</div>
           <div className="col-span-2 text-center">{t.qty}</div>
           <div className="col-span-2 text-center">{t.unitPrice}</div>
@@ -271,9 +272,9 @@ export const InvoiceTemplate: React.FC<Props> = ({ invoice, lang }) => {
         <div className="border border-t-0 border-slate-200 rounded-b-lg">
           {items.length > 0 ? (
             items.map((item: any, i: number) => (
-              <div key={i} className="px-4 py-4 grid grid-cols-12 items-center border-b border-slate-100 last:border-b-0 text-sm">
-                <div className="col-span-6 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+              <div key={i} className="px-4 py-2.5 grid grid-cols-12 items-center border-b border-slate-100 last:border-b-0 text-[12px]">
+                <div className="col-span-6 flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
                     {getIcon(item.description || '')}
                   </div>
                   <span className="font-medium text-slate-800 leading-tight">{item.description}</span>
@@ -284,10 +285,10 @@ export const InvoiceTemplate: React.FC<Props> = ({ invoice, lang }) => {
               </div>
             ))
           ) : (
-            <div className="px-4 py-4 grid grid-cols-12 items-center text-sm">
-              <div className="col-span-6 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-                  <Truck className="w-5 h-5 text-slate-800" />
+            <div className="px-4 py-2.5 grid grid-cols-12 items-center text-[12px]">
+              <div className="col-span-6 flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                  <Truck className="w-4 h-4 text-slate-800" />
                 </div>
                 <span className="font-medium text-slate-800">{t.serviceName}</span>
               </div>
@@ -300,50 +301,50 @@ export const InvoiceTemplate: React.FC<Props> = ({ invoice, lang }) => {
       </div>
 
       {/* Details & Summary */}
-      <div className="grid grid-cols-12 gap-6 mb-8">
+      <div className="grid grid-cols-12 gap-4 mb-5 shrink-0">
         {/* Transport Details */}
-        <div className="col-span-7 border border-slate-200 rounded-lg p-5">
-          <div className="flex items-center gap-2 text-orange-500 font-bold mb-4">
-            <MapPin className="w-5 h-5" />
+        <div className="col-span-7 border border-slate-200 rounded-lg p-4">
+          <div className="flex items-center gap-1.5 text-orange-500 font-bold mb-3 text-[12px]">
+            <MapPin className="w-4 h-4" />
             {t.transportDetails}
           </div>
-          <div className="text-sm space-y-3">
+          <div className="text-[11px] space-y-2">
             {(trip.pickupAddress || trip.dropoffAddress) && (
-              <div className="grid grid-cols-12 gap-2 border-b border-slate-100 pb-2">
-                <div className="col-span-4 flex items-center gap-2 text-slate-600">
-                  <MapPin className="w-4 h-4 text-slate-400" />
+              <div className="grid grid-cols-12 gap-2 border-b border-slate-100 pb-1.5">
+                <div className="col-span-4 flex items-center gap-1.5 text-slate-600">
+                  <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   {t.route}
                 </div>
                 <div className="col-span-8 text-slate-900">{trip.pickupAddress || ''} - {trip.dropoffAddress || ''}</div>
               </div>
             )}
-            <div className="grid grid-cols-12 gap-2 border-b border-slate-100 pb-2">
-              <div className="col-span-4 flex items-center gap-2 text-slate-600">
-                <Calendar className="w-4 h-4 text-slate-400" />
+            <div className="grid grid-cols-12 gap-2 border-b border-slate-100 pb-1.5">
+              <div className="col-span-4 flex items-center gap-1.5 text-slate-600">
+                <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                 {t.pickupDate}
               </div>
               <div className="col-span-8 text-slate-900">{fmtDate(trip.pickupDate)}</div>
             </div>
             {trip.loadingReference && (
-              <div className="grid grid-cols-12 gap-2 border-b border-slate-100 pb-2">
-                <div className="col-span-4 flex items-center gap-2 text-slate-600">
-                  <FileText className="w-4 h-4 text-slate-400" />
+              <div className="grid grid-cols-12 gap-2 border-b border-slate-100 pb-1.5">
+                <div className="col-span-4 flex items-center gap-1.5 text-slate-600">
+                  <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   {t.loadingRef}
                 </div>
                 <div className="col-span-8 text-slate-900">{trip.loadingReference}</div>
               </div>
             )}
-            <div className="grid grid-cols-12 gap-2 border-b border-slate-100 pb-2">
-              <div className="col-span-4 flex items-center gap-2 text-slate-600">
-                <Clock className="w-4 h-4 text-slate-400" />
+            <div className="grid grid-cols-12 gap-2 border-b border-slate-100 pb-1.5">
+              <div className="col-span-4 flex items-center gap-1.5 text-slate-600">
+                <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                 {t.deliveryDate}
               </div>
               <div className="col-span-8 text-slate-900">{fmtDate(trip.dropoffDate)}</div>
             </div>
             {trip.unloadingReference && (
-              <div className="grid grid-cols-12 gap-2 border-b border-slate-100 pb-2">
-                <div className="col-span-4 flex items-center gap-2 text-slate-600">
-                  <FileText className="w-4 h-4 text-slate-400" />
+              <div className="grid grid-cols-12 gap-2 border-b border-slate-100 pb-1.5">
+                <div className="col-span-4 flex items-center gap-1.5 text-slate-600">
+                  <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   {t.unloadingRef}
                 </div>
                 <div className="col-span-8 text-slate-900">{trip.unloadingReference}</div>
@@ -351,8 +352,8 @@ export const InvoiceTemplate: React.FC<Props> = ({ invoice, lang }) => {
             )}
             {cargoStr && (
               <div className="grid grid-cols-12 gap-2">
-                <div className="col-span-4 flex items-center gap-2 text-slate-600">
-                  <Receipt className="w-4 h-4 text-slate-400" />
+                <div className="col-span-4 flex items-center gap-1.5 text-slate-600">
+                  <Receipt className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   {t.cargo}
                 </div>
                 <div className="col-span-8 text-slate-900">{cargoStr}</div>
@@ -362,27 +363,29 @@ export const InvoiceTemplate: React.FC<Props> = ({ invoice, lang }) => {
         </div>
 
         {/* Summary */}
-        <div className="col-span-5 border border-slate-200 rounded-lg">
-          <div className="bg-slate-900 text-white px-5 py-3 rounded-t-lg font-bold text-sm">
+        <div className="col-span-5 border border-slate-200 rounded-lg flex flex-col">
+          <div className="bg-slate-900 text-white px-4 py-2 rounded-t-lg font-bold text-[12px]">
             {t.summary}
           </div>
-          <div className="p-5">
-            <div className="flex justify-between text-sm mb-3">
-              <span className="text-slate-600">{t.subtotal}</span>
-              <span className="text-slate-900">EUR {subtotal.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-sm mb-4 border-b border-slate-200 pb-4">
-              <span className="text-slate-600">{vatLabel}</span>
-              <span className="text-slate-900">EUR {vatAmt.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between items-center mb-6">
-              <span className="font-bold text-slate-900">{t.total}</span>
-              <span className="text-xl font-bold text-orange-500">EUR {finalTotal.toFixed(2)}</span>
+          <div className="p-4 flex flex-col justify-between flex-1">
+            <div>
+              <div className="flex justify-between text-[12px] mb-2.5">
+                <span className="text-slate-600">{t.subtotal}</span>
+                <span className="text-slate-900">EUR {subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-[12px] mb-3 border-b border-slate-200 pb-3">
+                <span className="text-slate-600">{vatLabel}</span>
+                <span className="text-slate-900">EUR {vatAmt.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center mb-4">
+                <span className="font-bold text-slate-900 text-[12px]">{t.total}</span>
+                <span className="text-lg font-bold text-orange-500">EUR {finalTotal.toFixed(2)}</span>
+              </div>
             </div>
 
-            <div className="bg-blue-50 rounded-lg p-3 text-xs">
-              <div className="flex items-center gap-1.5 font-bold text-slate-800 mb-1">
-                <Info className="w-4 h-4 text-slate-600" />
+            <div className="bg-blue-50 rounded p-2.5 text-[10px]">
+              <div className="flex items-center gap-1 font-bold text-slate-800 mb-0.5">
+                <Info className="w-3.5 h-3.5 text-slate-600 shrink-0" />
                 {t.vatInfo}
               </div>
               <p className="text-slate-600">The VAT rate applied is {invoice.vatPercent || 19}%.</p>
@@ -393,13 +396,13 @@ export const InvoiceTemplate: React.FC<Props> = ({ invoice, lang }) => {
       </div>
 
       {/* Payment Info */}
-      <div className="border border-slate-200 rounded-lg p-5 flex">
-        <div className="flex-1 border-r border-slate-100 pr-5">
-          <div className="flex items-center gap-2 text-orange-500 font-bold mb-4 text-sm">
-            <Landmark className="w-5 h-5" />
+      <div className="border border-slate-200 rounded-lg p-4 flex shrink-0">
+        <div className="flex-1 border-r border-slate-100 pr-4">
+          <div className="flex items-center gap-1.5 text-orange-500 font-bold mb-3 text-[12px]">
+            <Landmark className="w-4 h-4" />
             {t.paymentInfo}
           </div>
-          <div className="grid grid-cols-12 gap-x-2 gap-y-1.5 text-xs">
+          <div className="grid grid-cols-12 gap-x-2 gap-y-1 text-[11px]">
             <div className="col-span-3 text-slate-500">{t.bank}:</div>
             <div className="col-span-9 text-slate-900">{co.bank || 'ING'}</div>
             
@@ -414,27 +417,30 @@ export const InvoiceTemplate: React.FC<Props> = ({ invoice, lang }) => {
           </div>
         </div>
         
-        <div className="flex-1 pl-5 flex items-center justify-center">
-          <div className="flex items-start gap-3">
+        <div className="flex-1 pl-4 flex items-center justify-center">
+          <div className="flex items-start gap-2.5">
             <AlertCircle className="w-5 h-5 text-slate-600 shrink-0" />
             <div>
-              <div className="font-bold text-slate-900 text-sm">{t.lateWarning} {termsStr}</div>
-              <div className="text-xs text-slate-500 mt-0.5">{t.lateWarningSub}</div>
+              <div className="font-bold text-slate-900 text-[12px]">{t.lateWarning} {termsStr}</div>
+              <div className="text-[10px] text-slate-500 mt-0.5">{t.lateWarningSub}</div>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Spacer to push footer to bottom if needed, though absolute positioning works if height is constrained */}
+      <div className="flex-1"></div>
+
       {/* Footer */}
-      <div className="absolute bottom-6 left-0 right-0 px-10">
-        <div className="flex justify-center items-center gap-4 text-xs text-slate-500 mb-2">
-          {co.website && <span className="flex items-center gap-1.5"><Globe className="w-3 h-3" /> {co.website}</span>}
+      <div className="mt-4 shrink-0">
+        <div className="flex justify-center items-center gap-3 text-[11px] text-slate-500 mb-1.5">
+          {co.website && <span className="flex items-center gap-1"><Globe className="w-3 h-3" /> {co.website}</span>}
           {co.website && co.email && <span className="text-slate-300">|</span>}
-          {co.email && <span className="flex items-center gap-1.5"><Mail className="w-3 h-3" /> {co.email}</span>}
+          {co.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {co.email}</span>}
           {co.email && co.phone && <span className="text-slate-300">|</span>}
-          {co.phone && <span className="flex items-center gap-1.5"><Phone className="w-3 h-3" /> {co.phone}</span>}
+          {co.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {co.phone}</span>}
         </div>
-        <div className="text-center italic text-slate-600 text-xs font-bold">{t.footer1}</div>
+        <div className="text-center italic text-slate-600 text-[11px] font-bold">{t.footer1}</div>
       </div>
     </div>
   );
