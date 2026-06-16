@@ -75,6 +75,15 @@ export default function SettingsPage() {
         await api.patch(`/users/${user.id}`, updatePayload);
       }
       localStorage.setItem(COMPANY_KEY, JSON.stringify(company));
+        
+        if (company.logo) {
+          try {
+            await api.post('/settings/logo', { logo: company.logo });
+          } catch (e) {
+            console.error('Failed to sync logo to backend', e);
+          }
+        }
+
       toast.success(t('settingsSaved'));
     } catch (err: any) { 
       const errorMsg = err.response?.data?.message;

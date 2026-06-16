@@ -222,6 +222,7 @@ export default function InvoicesPage() {
       
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('company', JSON.stringify(getCompanySettings()));
       await api.post(`/invoices/upload-pdf/${officialInvoice.id}?sendEmail=${sendEmail}`, formData);
 
       toast.dismiss(loadId);
@@ -259,6 +260,7 @@ export default function InvoicesPage() {
         
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('company', JSON.stringify(getCompanySettings()));
         await api.post(`/invoices/upload-pdf/${savedInvoice.id}`, formData);
 
         toast.success(t('invoiceCreatedWithPdf'));
@@ -282,6 +284,7 @@ export default function InvoicesPage() {
         
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('company', JSON.stringify(getCompanySettings()));
         const res = await api.post(`/invoices/upload-pdf/${invoice.id}`, formData);
         
         invoice.pdfUrl = res.data.pdfUrl;

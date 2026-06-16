@@ -91,9 +91,7 @@ export class ResendService {
         <div class="container">
           <div class="header">
             <div class="logo">
-              <h1 style="color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; margin: 0; font-size: 32px;">
-                <span style="color: #ff5a00; margin-right: 8px;">#</span><span style="color: #ff5a00;">HAP</span>CARGO
-              </h1>
+              <img src="${baseUrl}/uploads/company-logo.png" style="height:48px; max-width: 250px; object-fit:contain; margin-right: 4px; vertical-align: middle;" alt="HapCargo Logo" onerror="this.outerHTML='<h1 style=\\'color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; margin: 0; font-size: 32px;\\'><span style=\\'color: #ff5a00; margin-right: 8px;\\'>H</span><span style=\\'color: #ff5a00;\\'>HAP</span>CARGO</h1>'" />
             </div>
           </div>
           <div class="content">
@@ -156,13 +154,12 @@ export class ResendService {
     const formattedAppt = trip.appointmentFrom ? formatDMYTime(trip.appointmentFrom) : 'N/A';
     const formattedEta = formatDMYTime(liveEta);
 
+    const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
     const htmlContent = `
       <html>
       <body style="font-family: Arial, sans-serif; color: #333;">
         <div style="text-align: left; margin-bottom: 20px;">
-          <h1 style="color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; font-size: 28px; margin: 0;">
-            <span style="color: #ff5a00; margin-right: 8px;">#</span><span style="color: #ff5a00;">HAP</span>CARGO
-          </h1>
+          <img src="${baseUrl}/uploads/company-logo.png" style="height:40px; max-width: 250px; object-fit:contain;" alt="HapCargo Logo" onerror="this.outerHTML='<h1 style=\\'color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; font-size: 28px; margin: 0;\\'><span style=\\'color: #ff5a00; margin-right: 8px;\\'>H</span><span style=\\'color: #ff5a00;\\'>HAP</span>CARGO</h1>'" />
         </div>
         <h2>HapCargo Transportation Update</h2>
         <p>We would like to inform you that the current estimated time of arrival has been updated for your shipment.</p>
@@ -192,18 +189,20 @@ export class ResendService {
     }
   }
 
-  async sendInvoiceEmail(invoice: any) {
+  async sendInvoiceEmail(invoice: any, company?: any) {
     if (!invoice.client?.contactEmail) return;
 
     const downloadUrl = invoice.pdfUrl || '#'; 
+    const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
+    const logoHtml = company?.logo 
+      ? `<img src="${company.logo}" style="height:48px; max-width: 250px; object-fit:contain;" alt="Logo" />`
+      : `<img src="${baseUrl}/uploads/company-logo.png" style="height:48px; max-width: 250px; object-fit:contain;" alt="Logo" onerror="this.outerHTML='<h1 style=\\'color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; font-size: 32px; margin: 0;\\'><span style=\\'color: #ff5a00; margin-right: 8px;\\'>H</span><span style=\\'color: #ff5a00;\\'>HAP</span>CARGO</h1>'" />`;
 
     const htmlContent = `
       <html>
       <body style="font-family: Arial, sans-serif; color: #333;">
         <div style="text-align: center; margin-bottom: 24px; margin-top: 10px;">
-          <h1 style="color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; font-size: 32px; margin: 0;">
-            <span style="color: #ff5a00; margin-right: 8px;">#</span><span style="color: #ff5a00;">HAP</span>CARGO
-          </h1>
+          ${logoHtml}
         </div>
         <h2>Your Invoice is Ready</h2>
         <p>Hello,</p>

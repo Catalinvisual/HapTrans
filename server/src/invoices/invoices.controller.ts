@@ -27,7 +27,7 @@ export class InvoicesController {
 
   @Post('upload-pdf/:id')
   @UseInterceptors(FileInterceptor('file'))
-  async uploadPdf(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @Query('sendEmail') sendEmail?: string) {
+  async uploadPdf(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @Query('sendEmail') sendEmail?: string, @Body('company') companyStr?: string) {
     const f = file as any;
     // Save new pdfUrl and clear the old pdfData to save database space
     await this.service.update(id, { 
@@ -43,7 +43,11 @@ export class InvoicesController {
     
     const inv = await this.service.findOne(id);
     if (sendEmail === 'true' && inv) {
-      await this.resendService.sendInvoiceEmail(inv);
+      let company = null;
+      try {
+        if (companyStr) company = JSON.parse(companyStr);
+      } catch (e) {}
+      await this.resendService.sendInvoiceEmail(inv, company);
     }
     return inv;
   }
