@@ -435,8 +435,14 @@ export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' =
       doc.text(label, labelX, ty);
       const lw = doc.getTextWidth(label);
       doc.setFont('helvetica', 'normal');
-      doc.text(` ${value}`, labelX + lw, ty);
-      ty += 5;
+      
+      const textX = labelX + lw + 1.5;
+      const availableWidth = 135 - textX;
+      
+      const splitLines = doc.splitTextToSize(` ${value}`, availableWidth);
+      doc.text(splitLines, labelX + lw, ty);
+      
+      ty += splitLines.length * 4.5 + 0.5;
     };
 
     if (invoice.trip.pickupAddress || invoice.trip.dropoffAddress) {
