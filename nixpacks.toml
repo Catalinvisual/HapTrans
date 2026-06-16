@@ -1,0 +1,8 @@
+[providers.node]
+nodeVersion = "20"
+
+[phases.setup]
+nixPkgs = ["...", "chromium", "nss", "freetype", "harfbuzz", "pango", "libglvnd", "glib"]
+
+[variables]
+PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "false"
