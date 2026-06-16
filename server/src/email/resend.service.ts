@@ -91,8 +91,9 @@ export class ResendService {
         <div class="container">
           <div class="header">
             <div class="logo">
-              <img src="${process.env.FRONTEND_URL}/logo-icon.png" width="42" height="42" alt="HapCargo Logo" style="margin-right: 4px; vertical-align: middle;" />
-              <h1><span class="hap">HAP</span><span class="cargo">CARGO</span></h1>
+              <h1 style="color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; margin: 0; font-size: 32px;">
+                <span style="color: #ff5a00; margin-right: 8px;">#</span><span style="color: #ff5a00;">HAP</span>CARGO
+              </h1>
             </div>
           </div>
           <div class="content">
@@ -158,6 +159,11 @@ export class ResendService {
     const htmlContent = `
       <html>
       <body style="font-family: Arial, sans-serif; color: #333;">
+        <div style="text-align: left; margin-bottom: 20px;">
+          <h1 style="color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; font-size: 28px; margin: 0;">
+            <span style="color: #ff5a00; margin-right: 8px;">#</span><span style="color: #ff5a00;">HAP</span>CARGO
+          </h1>
+        </div>
         <h2>HapCargo Transportation Update</h2>
         <p>We would like to inform you that the current estimated time of arrival has been updated for your shipment.</p>
         <p><strong>Delivery Appointment:</strong><br/>${formattedAppt}</p>
@@ -194,8 +200,10 @@ export class ResendService {
     const htmlContent = `
       <html>
       <body style="font-family: Arial, sans-serif; color: #333;">
-        <div style="text-align: center; margin-bottom: 20px;">
-          <h1 style="color: #0d1b2a; font-style: italic;"><span style="color: #ff5a00;">HAP</span>CARGO</h1>
+        <div style="text-align: center; margin-bottom: 24px; margin-top: 10px;">
+          <h1 style="color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; font-size: 32px; margin: 0;">
+            <span style="color: #ff5a00; margin-right: 8px;">#</span><span style="color: #ff5a00;">HAP</span>CARGO
+          </h1>
         </div>
         <h2>Your Invoice is Ready</h2>
         <p>Hello,</p>
