@@ -1,8 +1,7 @@
 import { Controller, Get, UseGuards, Post, Body } from '@nestjs/common';
 import { AppService } from './app.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
-import * as fs from 'fs';
-import * as path from 'path';
+import { v2 as cloudinary } from 'cloudinary';
 
 @Controller()
 export class AppController {
@@ -17,17 +16,22 @@ export class AppController {
 
   @Post('settings/logo')
   @UseGuards(JwtAuthGuard)
-  saveLogo(@Body() body: { logo: string }) {
+  async saveLogo(@Body() body: { logo: string }) {
     if (body.logo) {
       try {
-        const base64Data = body.logo.replace(/^data:image\/\w+;base64,/, "");
-        const uploadDir = path.join(__dirname, '..', '..', 'uploads');
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        fs.writeFileSync(path.join(uploadDir, 'company-logo.png'), base64Data, 'base64');
+        cloudinary.config({
+          cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+          api_key: process.env.CLOUDINARY_API_KEY,
+          api_secret: process.env.CLOUDINARY_API_SECRET,
+        });
+        const result = await cloudinary.uploader.upload(body.logo, {
+          folder: 'hapcargo_settings',
+          public_id: 'company_logo',
+          overwrite: true,
+        });
+        return { success: true, url: result.secure_url };
       } catch (e) {
-        console.error('Failed to save logo', e);
+        console.error('Failed to save logo to cloudinary', e);
       }
     }
     return { success: true };

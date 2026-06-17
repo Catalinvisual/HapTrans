@@ -74,15 +74,19 @@ export default function SettingsPage() {
         }
         await api.patch(`/users/${user.id}`, updatePayload);
       }
-      localStorage.setItem(COMPANY_KEY, JSON.stringify(company));
-        
-        if (company.logo) {
+        let finalCompany = { ...company };
+        if (company.logo && company.logo.startsWith('data:image')) {
           try {
-            await api.post('/settings/logo', { logo: company.logo });
+            const res = await api.post('/settings/logo', { logo: company.logo });
+            if (res.data?.url) {
+              finalCompany.logo = res.data.url;
+              setCompany(finalCompany);
+            }
           } catch (e) {
             console.error('Failed to sync logo to backend', e);
           }
         }
+        localStorage.setItem(COMPANY_KEY, JSON.stringify(finalCompany));
 
       toast.success(t('settingsSaved'));
     } catch (err: any) { 

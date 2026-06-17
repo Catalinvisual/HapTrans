@@ -59,24 +59,19 @@ export class ResendService {
       emailText = "Your transport request has been cancelled. Please contact us for more details.";
     }
     
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dfqfj88k7';
+    const logoUrl = `https://res.cloudinary.com/${cloudName}/image/upload/hapcargo_settings/company_logo.png`;
     const htmlContent = `
-      <!DOCTYPE html>
       <html>
       <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7fa; margin: 0; padding: 0; }
-          .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
-          .header { background-color: #ffffff; padding: 30px; text-align: center; border-bottom: 1px solid #e2e8f0; }
-          .header .logo { display: inline-flex; align-items: center; text-decoration: none; }
-          .header h1 { color: #0d1b2a; margin: 0; font-size: 28px; font-weight: 900; letter-spacing: -0.5px; margin-left: 10px; font-style: italic; }
-          .header h1 span.hap { color: #ff5a00; }
-          .header h1 span.cargo { color: #0d1b2a; }
-          .content { padding: 40px 30px; color: #334155; line-height: 1.6; }
-          .content h2 { color: #0f172a; margin-top: 0; font-size: 22px; font-weight: 700; }
-          .content p { font-size: 16px; margin-bottom: 24px; }
-          .info-box { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px 20px; margin-bottom: 24px; }
+          body { font-family: 'Inter', Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+          .header { background-color: #ffffff; padding: 25px 30px; border-bottom: 2px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; }
+          .logo { text-align: left; }
+          .content { padding: 30px; }
+          .content h2 { color: #0d1b2a; margin-top: 0; font-size: 22px; }
+          .info-box { background-color: #f8fafc; border-left: 4px solid #ff5a00; padding: 15px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
           .info-box p { margin: 5px 0; font-size: 15px; }
           .button-container { text-align: center; margin: 40px 0; }
           .btn { background-color: #ff5a00; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-size: 16px; font-weight: 600; display: inline-block; transition: background-color 0.2s; box-shadow: 0 4px 6px rgba(255, 90, 0, 0.2); }
@@ -91,7 +86,7 @@ export class ResendService {
         <div class="container">
           <div class="header">
             <div class="logo">
-              <img src="${baseUrl}/uploads/company-logo.png" style="height:48px; max-width: 250px; object-fit:contain; margin-right: 4px; vertical-align: middle;" alt="HapCargo Logo" onerror="this.outerHTML='<h1 style=\\'color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; margin: 0; font-size: 32px;\\'><span style=\\'color: #ff5a00; margin-right: 8px;\\'>H</span><span style=\\'color: #ff5a00;\\'>HAP</span>CARGO</h1>'" />
+              <img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; margin-right: 4px; vertical-align: middle;" alt="HapCargo Logo" onerror="this.outerHTML='<h1 style=\\'color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; margin: 0; font-size: 32px;\\'><span style=\\'color: #ff5a00; margin-right: 8px;\\'>H</span><span style=\\'color: #ff5a00;\\'>HAP</span>CARGO</h1>'" />
             </div>
           </div>
           <div class="content">
@@ -154,12 +149,13 @@ export class ResendService {
     const formattedAppt = trip.appointmentFrom ? formatDMYTime(trip.appointmentFrom) : 'N/A';
     const formattedEta = formatDMYTime(liveEta);
 
-    const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dfqfj88k7';
+    const logoUrl = `https://res.cloudinary.com/${cloudName}/image/upload/hapcargo_settings/company_logo.png`;
     const htmlContent = `
       <html>
       <body style="font-family: Arial, sans-serif; color: #333;">
         <div style="text-align: left; margin-bottom: 20px;">
-          <img src="${baseUrl}/uploads/company-logo.png" style="height:40px; max-width: 250px; object-fit:contain;" alt="HapCargo Logo" onerror="this.outerHTML='<h1 style=\\'color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; font-size: 28px; margin: 0;\\'><span style=\\'color: #ff5a00; margin-right: 8px;\\'>H</span><span style=\\'color: #ff5a00;\\'>HAP</span>CARGO</h1>'" />
+          <img src="${logoUrl}" style="height:40px; max-width: 250px; object-fit:contain;" alt="HapCargo Logo" onerror="this.outerHTML='<h1 style=\\'color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; font-size: 28px; margin: 0;\\'><span style=\\'color: #ff5a00; margin-right: 8px;\\'>H</span><span style=\\'color: #ff5a00;\\'>HAP</span>CARGO</h1>'" />
         </div>
         <h2>HapCargo Transportation Update</h2>
         <p>We would like to inform you that the current estimated time of arrival has been updated for your shipment.</p>
@@ -193,8 +189,9 @@ export class ResendService {
     if (!invoice.client?.contactEmail) return;
 
     const downloadUrl = invoice.pdfUrl || '#'; 
-    const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
-    const logoHtml = `<img src="${baseUrl}/uploads/company-logo.png" style="height:48px; max-width: 250px; object-fit:contain;" alt="Logo" onerror="this.outerHTML='<h1 style=\\'color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; font-size: 32px; margin: 0;\\'><span style=\\'color: #ff5a00; margin-right: 8px;\\'>H</span><span style=\\'color: #ff5a00;\\'>HAP</span>CARGO</h1>'" />`;
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dfqfj88k7';
+    const logoUrl = `https://res.cloudinary.com/${cloudName}/image/upload/hapcargo_settings/company_logo.png`;
+    const logoHtml = `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain;" alt="Logo" onerror="this.outerHTML='<h1 style=\\'color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; font-size: 32px; margin: 0;\\'><span style=\\'color: #ff5a00; margin-right: 8px;\\'>H</span><span style=\\'color: #ff5a00;\\'>HAP</span>CARGO</h1>'" />`;
 
     const htmlContent = `
       <html>
