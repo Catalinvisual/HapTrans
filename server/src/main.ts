@@ -65,6 +65,10 @@ async function bootstrap() {
   
   // Serve uploaded files statically at /uploads prefix with basic protection
   app.use('/uploads', (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    // Allow public access to the company logo for emails
+    if (req.path === '/company-logo.png') {
+      return next();
+    }
     if (!req.headers.authorization && !req.query.token) {
       return res.status(401).send('Unauthorized');
     }
