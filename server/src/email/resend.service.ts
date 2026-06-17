@@ -194,9 +194,7 @@ export class ResendService {
 
     const downloadUrl = invoice.pdfUrl || '#'; 
     const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
-    const logoHtml = company?.logo 
-      ? `<img src="${company.logo}" style="height:48px; max-width: 250px; object-fit:contain;" alt="Logo" />`
-      : `<img src="${baseUrl}/uploads/company-logo.png" style="height:48px; max-width: 250px; object-fit:contain;" alt="Logo" onerror="this.outerHTML='<h1 style=\\'color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; font-size: 32px; margin: 0;\\'><span style=\\'color: #ff5a00; margin-right: 8px;\\'>H</span><span style=\\'color: #ff5a00;\\'>HAP</span>CARGO</h1>'" />`;
+    const logoHtml = `<img src="${baseUrl}/uploads/company-logo.png" style="height:48px; max-width: 250px; object-fit:contain;" alt="Logo" onerror="this.outerHTML='<h1 style=\\'color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; font-size: 32px; margin: 0;\\'><span style=\\'color: #ff5a00; margin-right: 8px;\\'>H</span><span style=\\'color: #ff5a00;\\'>HAP</span>CARGO</h1>'" />`;
 
     const htmlContent = `
       <html>
