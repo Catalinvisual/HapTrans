@@ -45,7 +45,45 @@ export default function InvoicesPage() {
     const timer = setTimeout(async () => {
       const mockClient = clients.find(c => c.id === form.clientId);
       const mockTrip = trips.find(t => t.id === form.tripId);
-      const mockInvoice = {
+              let routeDesc = 'Road freight transport services';
+        if (mockTrip && mockTrip.pickupAddress && mockTrip.dropoffAddress) {
+          routeDesc = 'Transport: ' + mockTrip.pickupAddress.split(',')[0] + ' - ' + mockTrip.dropoffAddress.split(',')[0];
+        }
+
+        const items = [];
+        let subtotal = 0;
+        const amount = Number(form.amount) || 0;
+        const vatP = Number(form.vatPercent) || 19;
+        const isVat = form.vatType === 'NORMAL';
+
+        if (amount > 0) {
+          items.push({ description: routeDesc, quantity: 1, unitPrice: amount, vatRate: isVat ? vatP : 0, total: amount });
+          subtotal += amount;
+        }
+
+        const fuel = Number(form.fuelSurcharge) || 0;
+        if (fuel > 0) {
+          const fuelCost = Number(((amount * fuel) / 100).toFixed(2));
+          items.push({ description: 'Fuel Surcharge (' + fuel + '%)', quantity: 1, unitPrice: fuelCost, vatRate: isVat ? vatP : 0, total: fuelCost });
+          subtotal += fuelCost;
+        }
+
+        const toll = Number(form.tollCosts) || 0;
+        if (toll > 0) {
+          items.push({ description: 'Road tolls / Toll charges', quantity: 1, unitPrice: toll, vatRate: isVat ? vatP : 0, total: toll });
+          subtotal += toll;
+        }
+
+        const extra = Number(form.extraCosts) || 0;
+        if (extra > 0) {
+          items.push({ description: 'Extra charges', quantity: 1, unitPrice: extra, vatRate: isVat ? vatP : 0, total: extra });
+          subtotal += extra;
+        }
+
+        let vatAmount = isVat ? Number(((subtotal * vatP) / 100).toFixed(2)) : 0;
+        let total = subtotal + vatAmount;
+
+        const mockInvoice = {
         invoiceNumber: editId ? invoices.find(i => i.id === editId)?.invoiceNumber : 'DRAFT',
         client: mockClient || { name: '...' },
         trip: mockTrip || {},
@@ -58,7 +96,11 @@ export default function InvoicesPage() {
         issueDate: form.issueDate || new Date().toISOString(),
         dueDate: form.dueDate || new Date().toISOString(),
         notes: form.notes || '',
-        status: 'draft'
+        status: 'draft',
+          items,
+          subtotal,
+          vatAmount,
+          total
       };
       try {
         const base64 = await generateInvoicePdfBase64(mockInvoice, i18n.language === 'ro' ? 'en' : i18n.language as any);
@@ -581,4 +623,8 @@ export default function InvoicesPage() {
     </div>
   );
 }
+
+
+
+
 
