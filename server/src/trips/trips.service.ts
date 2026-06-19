@@ -241,71 +241,21 @@ export class TripsService {
     // Auto-generate invoice if trip completed
     if (dto.status === TripStatus.COMPLETED && updatedTrip?.client) {
       if (!updatedTrip.invoices || updatedTrip.invoices.length === 0) {
-        const items = [];
-        let subtotal = 0;
-
         const basePrice = Number(updatedTrip.agreedPrice) || Number(updatedTrip.price) || 0;
-        if (basePrice > 0) {
-          items.push({
-            description: `Transport: ${updatedTrip.pickupAddress.split(',')[0]} - ${updatedTrip.dropoffAddress.split(',')[0]}`,
-            quantity: 1,
-            unitPrice: basePrice,
-            vatRate: 19,
-            total: basePrice
-          });
-          subtotal += basePrice;
-        }
-
         const fuelPercent = Number(updatedTrip.fuelSurchargePercent) || 0;
-        if (fuelPercent > 0) {
-          const fuelCost = (basePrice * fuelPercent) / 100;
-          items.push({
-            description: `Fuel Surcharge (${fuelPercent}%)`,
-            quantity: 1,
-            unitPrice: fuelCost,
-            vatRate: 19,
-            total: fuelCost
-          });
-          subtotal += fuelCost;
-        }
-
         const tollIncluded = updatedTrip.clientRate ? updatedTrip.clientRate.tollIncluded : false;
-        const tollCosts = Number(updatedTrip.tollCosts) || 0;
-        if (!tollIncluded && tollCosts > 0) {
-          items.push({
-            description: `Road tolls / Toll charges`,
-            quantity: 1,
-            unitPrice: tollCosts,
-            vatRate: 19,
-            total: tollCosts
-          });
-          subtotal += tollCosts;
-        }
-
+        const tollCosts = !tollIncluded ? (Number(updatedTrip.tollCosts) || 0) : 0;
         const extraCosts = Number(updatedTrip.extraCosts) || 0;
-        if (extraCosts > 0) {
-          items.push({
-            description: `Extra charges`,
-            quantity: 1,
-            unitPrice: extraCosts,
-            vatRate: 19,
-            total: extraCosts
-          });
-          subtotal += extraCosts;
-        }
-
-        const vatAmount = (subtotal * 19) / 100;
-        const total = subtotal + vatAmount;
 
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + 30); // Net 30 default
         await this.invoicesService.create({
           clientId: updatedTrip.client.id,
           tripId: updatedTrip.id,
-          subtotal,
-          vatAmount,
-          total,
-          items,
+          amount: basePrice,
+          fuelSurcharge: fuelPercent,
+          tollCosts,
+          extraCosts,
           status: 'draft',
           issueDate: new Date(),
           dueDate: dueDate,

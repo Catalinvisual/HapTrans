@@ -2,11 +2,13 @@ import { Controller, Get, UseGuards, Post, Body } from '@nestjs/common';
 import { AppService } from './app.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { v2 as cloudinary } from 'cloudinary';
+import { UsersService } from './users/users.service';
 
 @Controller()
 export class AppController {
   constructor(
     private readonly appService: AppService,
+    private readonly usersService: UsersService,
   ) {}
 
   @Get()
@@ -29,6 +31,17 @@ export class AppController {
           public_id: 'company_logo',
           overwrite: true,
         });
+        
+        try {
+          const users = await this.usersService.findAll();
+          const admin = users.find(u => u.role === 'admin');
+          if (admin) {
+            await this.usersService.update(admin.id, { companyLogoUrl: result.secure_url } as any);
+          }
+        } catch (dbErr) {
+          console.error('Failed to save logo URL to admin user', dbErr);
+        }
+
         return { success: true, url: result.secure_url };
       } catch (e) {
         console.error('Failed to save logo to cloudinary', e);

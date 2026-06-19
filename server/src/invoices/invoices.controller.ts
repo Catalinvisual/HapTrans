@@ -20,6 +20,20 @@ export class InvoicesController {
 
   @Post('generate-pdf')
   async generatePdf(@Body() body: { invoice: any, company: any, lang: 'en' | 'nl' }) {
+    if (body.company?.logo && body.company.logo.startsWith('http')) {
+      try {
+        const response = await fetch(body.company.logo);
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          const contentType = response.headers.get('content-type') || 'image/png';
+          body.company.logo = `data:${contentType};base64,${buffer.toString('base64')}`;
+        }
+      } catch (err) {
+        console.error('Failed to convert remote logo to base64 in backend', err);
+      }
+    }
+
     const html = generateInvoiceHtml(body.invoice, body.company, body.lang);
     const pdfBuffer = await this.pdfService.generatePdfFromHtml(html);
     return { base64: pdfBuffer.toString('base64') };

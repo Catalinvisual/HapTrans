@@ -46,6 +46,12 @@ export class Invoice {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   fuelSurcharge: number;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  extraCosts: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  tollCosts: number;
+
   @Column({ type: 'enum', enum: VatType, default: VatType.NORMAL })
   vatType: VatType;
 

@@ -6,12 +6,14 @@ import { Lead } from './lead.entity';
 import { TripsModule } from '../trips/trips.module';
 import { ClientsModule } from '../clients/clients.module';
 import { ResendService } from '../email/resend.service';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Lead]),
     TripsModule,
-    ClientsModule
+    ClientsModule,
+    UsersModule
   ],
   controllers: [LeadsController],
   providers: [LeadsService, ResendService],

@@ -31,11 +31,13 @@ const storage = new CloudinaryStorage({
 });
 
 import { ResendService } from '../email/resend.service';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Invoice, InvoiceItem]),
     MulterModule.register({ storage }),
+    UsersModule,
   ],
   controllers: [InvoicesController],
   providers: [InvoicesService, ResendService, PdfService],

@@ -1,9 +1,31 @@
 import { getCompanySettings } from '../pages/SettingsPage';
 import api from './api';
 
+// Convert a remote URL to a base64 data URL so Puppeteer can render it without external network access
+async function urlToBase64(url: string): Promise<string> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return url;
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return url; // fallback to original URL if fetch fails
+  }
+}
+
 export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' = 'en'): Promise<string> {
   const co = getCompanySettings();
-  
+
+  // If logo is a remote URL (not base64), convert it to base64 so Puppeteer can render it
+  if (co.logo && co.logo.startsWith('http')) {
+    co.logo = await urlToBase64(co.logo);
+  }
+
   const token = localStorage.getItem('hapcargo_token');
   if (!token) throw new Error('Not authenticated');
 

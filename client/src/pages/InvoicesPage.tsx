@@ -27,7 +27,7 @@ export default function InvoicesPage() {
   const [showExport, setShowExport] = useState(false);
   const [previewData, setPreviewData] = useState<string | null>(null);
   const [invoiceLangModal, setInvoiceLangModal] = useState<any>({ isOpen: false, data: null, type: '', cb: null });
-  const [form, setForm] = useState({ clientId: '', tripId: '', amount: '', vatPercent: '19', issueDate: '', dueDate: '', notes: '' });
+  const [form, setForm] = useState({ clientId: '', tripId: '', amount: '', fuelSurcharge: '', extraCosts: '', tollCosts: '', vatPercent: '19', vatType: 'NORMAL', issueDate: '', dueDate: '', notes: '' });
 
   const filteredTrips = form.clientId ? trips.filter((t: any) => t.client?.id === form.clientId) : trips;
 
@@ -51,6 +51,8 @@ export default function InvoicesPage() {
         trip: mockTrip || {},
         amount: Number(form.amount) || 0,
         fuelSurcharge: Number(form.fuelSurcharge) || 0,
+        extraCosts: Number(form.extraCosts) || 0,
+        tollCosts: Number(form.tollCosts) || 0,
         vatPercent: Number(form.vatPercent) || 0,
         vatType: form.vatType || 'NORMAL',
         issueDate: form.issueDate || new Date().toISOString(),
@@ -152,7 +154,7 @@ export default function InvoicesPage() {
     if (!deleteId) return;
     try {
       await api.delete(`/invoices/${deleteId}`);
-      toast.success(t('statusUpdated') || 'Factura ștearsă');
+      toast.success(t('invoiceDeleted') || t('statusUpdated'));
       setDeleteId(null);
       load();
     } catch { toast.error(t('saveError')); }
@@ -161,41 +163,21 @@ export default function InvoicesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.clientId) {
-      toast.error(t('selectClient') || 'Vă rugăm să selectați un client!');
+      toast.error(t('selectClient'));
       return;
     }
-    if (editId) {
-      try {
-        const dataToSubmit = {
-          ...form,
-          tripId: form.tripId === '' ? null : form.tripId,
-          amount: form.amount === '' ? null : Number(form.amount),
-          fuelSurcharge: form.fuelSurcharge === '' ? null : Number(form.fuelSurcharge),
-          vatPercent: form.vatPercent === '' ? null : Number(form.vatPercent),
-          vatType: form.vatType,
-          issueDate: form.issueDate === '' ? null : form.issueDate,
-          dueDate: form.dueDate === '' ? null : form.dueDate,
-        };
-        await api.patch(`/invoices/${editId}`, dataToSubmit);
-        toast.success(t('statusUpdated') || 'Factura actualizată');
-        setShowForm(false);
-        setEditId(null);
-        load();
-      } catch {
-        toast.error(t('error'));
-      }
-    } else {
-      setInvoiceLangModal({ isOpen: true, data: form, type: 'submit' });
-    }
+    setInvoiceLangModal({ isOpen: true, data: form, type: 'submit' });
   };
 
   const handleEditClick = (inv: any) => {
     setForm({
       clientId: inv.client?.id || '',
       tripId: inv.trip?.id || '',
-      amount: inv.amount || '',
-      fuelSurcharge: inv.fuelSurcharge || '',
-      vatPercent: inv.vatPercent || '19',
+      amount: String(inv.amount ?? inv.trip?.price ?? inv.trip?.agreedPrice ?? ''),
+      fuelSurcharge: String(inv.fuelSurcharge != null ? inv.fuelSurcharge : (inv.trip?.fuelSurchargePercent ?? inv.trip?.fuelSurcharge ?? '')),
+      extraCosts: String(inv.extraCosts != null ? inv.extraCosts : (inv.trip?.extraCosts ?? '')),
+      tollCosts: String(inv.tollCosts != null ? inv.tollCosts : (inv.trip?.tollCosts ?? '')),
+      vatPercent: String(inv.vatPercent ?? '19'),
       vatType: inv.vatType || 'NORMAL',
       issueDate: inv.issueDate ? new Date(inv.issueDate).toISOString().split('T')[0] : '',
       dueDate: inv.dueDate ? new Date(inv.dueDate).toISOString().split('T')[0] : '',
@@ -207,7 +189,7 @@ export default function InvoicesPage() {
 
   const handleApprove = async (invoice: any, sendEmail: boolean) => {
     try {
-      const loadId = toast.loading(sendEmail ? t('approvingAndSending', 'Aprobare și Trimitere...') : t('approving', 'Aprobare...'));
+      const loadId = toast.loading(sendEmail ? t('approvingAndSending') : t('approving'));
       
       const approveRes = await api.patch(`/invoices/${invoice.id}/approve`);
       const officialInvoice = approveRes.data;
@@ -223,6 +205,7 @@ export default function InvoicesPage() {
       
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('company', JSON.stringify(getCompanySettings()));
       await api.post(`/invoices/upload-pdf/${officialInvoice.id}?sendEmail=${sendEmail}`, formData);
 
       toast.dismiss(loadId);
@@ -242,13 +225,22 @@ export default function InvoicesPage() {
           tripId: invoiceLangModal.data.tripId === '' ? null : invoiceLangModal.data.tripId,
           amount: invoiceLangModal.data.amount === '' ? null : Number(invoiceLangModal.data.amount),
           fuelSurcharge: invoiceLangModal.data.fuelSurcharge === '' ? null : Number(invoiceLangModal.data.fuelSurcharge),
+          extraCosts: invoiceLangModal.data.extraCosts === '' ? null : Number(invoiceLangModal.data.extraCosts),
+          tollCosts: invoiceLangModal.data.tollCosts === '' ? null : Number(invoiceLangModal.data.tollCosts),
           vatPercent: invoiceLangModal.data.vatPercent === '' ? null : Number(invoiceLangModal.data.vatPercent),
           vatType: invoiceLangModal.data.vatType,
           issueDate: invoiceLangModal.data.issueDate === '' ? null : invoiceLangModal.data.issueDate,
           dueDate: invoiceLangModal.data.dueDate === '' ? null : invoiceLangModal.data.dueDate,
         };
-        const res = await api.post('/invoices', dataToSubmit);
-        const savedInvoice = res.data;
+        
+        let savedInvoice;
+        if (editId) {
+          const res = await api.patch(`/invoices/${editId}`, dataToSubmit);
+          savedInvoice = res.data;
+        } else {
+          const res = await api.post('/invoices', dataToSubmit);
+          savedInvoice = res.data;
+        }
         const base64Pdf = await generateInvoicePdfBase64(savedInvoice, lang);
         const arr = base64Pdf.split(',');
         const mime = arr[0].match(/:(.*?);/)[1];
@@ -260,10 +252,16 @@ export default function InvoicesPage() {
         
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('company', JSON.stringify(getCompanySettings()));
         await api.post(`/invoices/upload-pdf/${savedInvoice.id}`, formData);
 
-        toast.success(t('invoiceCreatedWithPdf'));
+        if (editId) {
+          toast.success(t('draftUpdated') || t('statusUpdated'));
+        } else {
+          toast.success(t('invoiceCreatedWithPdf'));
+        }
         setShowForm(false);
+        setEditId(null);
         load();
       } catch {
         toast.error(t('error'));
@@ -283,6 +281,7 @@ export default function InvoicesPage() {
         
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('company', JSON.stringify(getCompanySettings()));
         const res = await api.post(`/invoices/upload-pdf/${invoice.id}`, formData);
         
         invoice.pdfUrl = res.data.pdfUrl;
@@ -329,7 +328,28 @@ export default function InvoicesPage() {
                   <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('trip')} (optional)</label>
                   <CustomSelect 
                     value={form.tripId} 
-                    onChange={val => setForm({...form, tripId: val})} 
+                    onChange={val => {
+                      const trip = trips.find((t: any) => t.id === val);
+                      if (trip) {
+                        setForm({
+                          ...form,
+                          tripId: val,
+                          amount: String(trip.price ?? trip.agreedPrice ?? ''),
+                          fuelSurcharge: String(trip.fuelSurchargePercent ?? trip.fuelSurcharge ?? ''),
+                          extraCosts: String(trip.extraCosts ?? ''),
+                          tollCosts: String(trip.clientRate?.tollIncluded ? '0' : (trip.tollCosts ?? ''))
+                        });
+                      } else {
+                        setForm({
+                          ...form,
+                          tripId: val,
+                          amount: '',
+                          fuelSurcharge: '',
+                          extraCosts: '',
+                          tollCosts: ''
+                        });
+                      }
+                    }} 
                     placeholder={t('noTrip')} 
                     options={[
                       { value: '', label: t('noTrip') },
@@ -348,6 +368,14 @@ export default function InvoicesPage() {
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('fuelSurcharge')}</label>
                   <input type="number" className="input py-3 text-lg font-bold text-orange-600" value={form.fuelSurcharge} onChange={e => setForm({...form, fuelSurcharge: e.target.value})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('extraCosts', 'Extra Costs')} (€)</label>
+                  <input type="number" className="input py-3 text-lg font-bold text-blue-600" value={form.extraCosts} onChange={e => setForm({...form, extraCosts: e.target.value})} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('tollCosts', 'Toll Costs')} (€)</label>
+                  <input type="number" className="input py-3 text-lg font-bold text-teal-600" value={form.tollCosts} onChange={e => setForm({...form, tollCosts: e.target.value})} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('vatType')}</label>
@@ -422,7 +450,7 @@ export default function InvoicesPage() {
             <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
               {filtered.length} {t('results')}
             </span>
-            <button onClick={() => { setEditId(null); setForm({ clientId: '', tripId: '', amount: '', vatPercent: '19', issueDate: '', dueDate: '', notes: '' }); setShowForm(!showForm); }} className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold">
+            <button onClick={() => { setEditId(null); setForm({ clientId: '', tripId: '', amount: '', fuelSurcharge: '', extraCosts: '', tollCosts: '', vatPercent: '19', vatType: 'NORMAL', issueDate: '', dueDate: '', notes: '' }); setShowForm(!showForm); }} className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold">
               <Plus className="w-4 h-4" /> {t('newInvoice')}
             </button>
           </div>

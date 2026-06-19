@@ -36,6 +36,9 @@ export class User {
   @Column({ nullable: true })
   fcmToken: string;
 
+  @Column({ nullable: true })
+  companyLogoUrl: string;
+
   @Column({ default: true })
   isActive: boolean;
 
