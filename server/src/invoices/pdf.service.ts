@@ -10,7 +10,7 @@ export class PdfService implements OnModuleDestroy {
     if (!this.browser) {
       this.logger.log('Launching Puppeteer browser instance...');
       this.browser = await puppeteer.launch({
-        headless: true, 
+        headless: true, executablePath: '/usr/bin/chromium', 
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -68,5 +68,6 @@ export class PdfService implements OnModuleDestroy {
     }
   }
 }
+
 
 
