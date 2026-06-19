@@ -32,7 +32,7 @@ export class ResendService {
     }
     try {
       const users = await this.usersService.findAll();
-      const admin = users.find(u => u.role === 'admin');
+      const admin: any = users.find(u => u.role === 'admin');
       if (admin && admin.companyLogoUrl) {
         return admin.companyLogoUrl;
       }

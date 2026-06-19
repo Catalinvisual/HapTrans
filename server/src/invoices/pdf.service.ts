@@ -38,7 +38,7 @@ export class PdfService implements OnModuleDestroy {
       page = await browser.newPage();
       
       // Set the content with the provided HTML, waiting for images to load
-      await page.setContent(html, { waitUntil: 'networkidle0' });
+      await page.setContent(html, { waitUntil: 'load' });
       
       // Generate PDF buffer
       const pdfBuffer = await page.pdf({
