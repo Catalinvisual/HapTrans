@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Resend } from 'resend';
+import { UsersService } from '../users/users.service';
 
 const formatDMY = (dateInput: any) => {
   if (!dateInput) return 'N/A';
@@ -19,11 +20,28 @@ const formatDMYTime = (dateInput: any) => {
 export class ResendService {
   private resend: Resend;
 
-  constructor() {
+  constructor(private readonly usersService: UsersService) {
     this.resend = new Resend(process.env.RESEND_API_KEY || 're_mock_key');
   }
 
   public lastStatus: any = null;
+
+  private async getLogoUrl(company?: any): Promise<string> {
+    if (company && company.logo && company.logo.startsWith('http')) {
+      return company.logo;
+    }
+    try {
+      const users = await this.usersService.findAll();
+      const admin = users.find(u => u.role === 'admin');
+      if (admin && admin.companyLogoUrl) {
+        return admin.companyLogoUrl;
+      }
+    } catch (e) {
+      console.error('Error fetching admin logo URL', e);
+    }
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dfqfj88k7';
+    return `https://res.cloudinary.com/${cloudName}/image/upload/hapcargo_settings/company_logo.png`;
+  }
 
   async sendTripStatusEmail(tripOrEmail: any, trackingToken: string) {
     const isString = typeof tripOrEmail === 'string';
@@ -58,9 +76,9 @@ export class ResendService {
       emailTitle = "Your shipment has been cancelled";
       emailText = "Your transport request has been cancelled. Please contact us for more details.";
     }
+
+    const logoUrl = await this.getLogoUrl();
     
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dfqfj88k7';
-    const logoUrl = `https://res.cloudinary.com/${cloudName}/image/upload/hapcargo_settings/company_logo.png`;
     const htmlContent = `
       <html>
       <head>
@@ -86,7 +104,7 @@ export class ResendService {
         <div class="container">
           <div class="header">
             <div class="logo">
-              <img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; margin-right: 4px; vertical-align: middle;" alt="HapCargo Logo" onerror="this.outerHTML='<h1 style=\\'color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; margin: 0; font-size: 32px;\\'><span style=\\'color: #ff5a00; margin-right: 8px;\\'>H</span><span style=\\'color: #ff5a00;\\'>HAP</span>CARGO</h1>'" />
+              <img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; margin-right: 4px; vertical-align: middle;" alt="HapCargo Logo" />
             </div>
           </div>
           <div class="content">
@@ -149,13 +167,12 @@ export class ResendService {
     const formattedAppt = trip.appointmentFrom ? formatDMYTime(trip.appointmentFrom) : 'N/A';
     const formattedEta = formatDMYTime(liveEta);
 
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dfqfj88k7';
-    const logoUrl = `https://res.cloudinary.com/${cloudName}/image/upload/hapcargo_settings/company_logo.png`;
+    const logoUrl = await this.getLogoUrl();
     const htmlContent = `
       <html>
       <body style="font-family: Arial, sans-serif; color: #333;">
         <div style="text-align: left; margin-bottom: 20px;">
-          <img src="${logoUrl}" style="height:40px; max-width: 250px; object-fit:contain;" alt="HapCargo Logo" onerror="this.outerHTML='<h1 style=\\'color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; font-size: 28px; margin: 0;\\'><span style=\\'color: #ff5a00; margin-right: 8px;\\'>H</span><span style=\\'color: #ff5a00;\\'>HAP</span>CARGO</h1>'" />
+          <img src="${logoUrl}" style="height:40px; max-width: 250px; object-fit:contain;" alt="HapCargo Logo" />
         </div>
         <h2>HapCargo Transportation Update</h2>
         <p>We would like to inform you that the current estimated time of arrival has been updated for your shipment.</p>
@@ -189,9 +206,8 @@ export class ResendService {
     if (!invoice.client?.contactEmail) return;
 
     const downloadUrl = invoice.pdfUrl || '#'; 
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dfqfj88k7';
-    const logoUrl = `https://res.cloudinary.com/${cloudName}/image/upload/hapcargo_settings/company_logo.png`;
-    const logoHtml = `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain;" alt="Logo" onerror="this.outerHTML='<h1 style=\\'color: #0d1b2a; font-style: italic; font-weight: 900; letter-spacing: -1px; font-size: 32px; margin: 0;\\'><span style=\\'color: #ff5a00; margin-right: 8px;\\'>H</span><span style=\\'color: #ff5a00;\\'>HAP</span>CARGO</h1>'" />`;
+    const logoUrl = await this.getLogoUrl(company);
+    const logoHtml = `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain;" alt="HapCargo Logo" />`;
 
     const htmlContent = `
       <html>
