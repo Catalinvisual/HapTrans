@@ -627,7 +627,7 @@ export default function TripsPage() {
       const res = await api.post('/invoices', {
         clientId: trip.client?.id,
         tripId: trip.id,
-        amount,
+        amount: basePrice,
         fuelSurcharge: trip.fuelSurchargePercent || 0,
         extraCosts: trip.extraCosts || 0,
         tollCosts: trip.tollCosts || 0,
