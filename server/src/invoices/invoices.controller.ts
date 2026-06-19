@@ -10,6 +10,26 @@ import { generateInvoiceHtml } from './pdf-template';
 @UseGuards(JwtAuthGuard)
 export class InvoicesController {
   constructor(private service: InvoicesService, private resendService: ResendService, private pdfService: PdfService) {}
+    @Get('test-pdf')
+  async testPdf() {
+    try {
+      const { execSync } = require('child_process');
+      const which = execSync('which chromium || which chromium-browser || echo not_found').toString().trim();
+      const ls = execSync('ls -l /usr/bin/chromium || echo no_usr_bin').toString().trim();
+      
+      let puppeteerError = 'none';
+      try {
+        const browser = await require('puppeteer').launch({ headless: true, executablePath: 'chromium', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+        await browser.close();
+      } catch (e) {
+        puppeteerError = e.message;
+      }
+      
+      return { which, ls, puppeteerError };
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
   @Get() findAll() { return this.service.findAll(); }
   @Get('overdue') getOverdue() { return this.service.getOverdue(); }
   @Get(':id') findOne(@Param('id') id: string) { return this.service.findOne(id); }
@@ -66,3 +86,4 @@ export class InvoicesController {
     return inv;
   }
 }
+

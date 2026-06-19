@@ -10,13 +10,13 @@ export class PdfService implements OnModuleDestroy {
     if (!this.browser) {
       this.logger.log('Launching Puppeteer browser instance...');
       this.browser = await puppeteer.launch({
-        headless: true, executablePath: '/usr/bin/chromium',
+        headless: true, executablePath: 'chromium',
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-gpu',
-          '--single-process'
+          // '--single-process'
         ],
       });
     }
@@ -59,7 +59,7 @@ export class PdfService implements OnModuleDestroy {
         }
       }
       
-      throw new Error('Failed to generate PDF');
+      throw new (require('@nestjs/common').InternalServerErrorException)('PDF Error: ' + error.message);
     } finally {
       // Close only the page, keep the browser open for next requests
       if (page) {
@@ -68,3 +68,4 @@ export class PdfService implements OnModuleDestroy {
     }
   }
 }
+

@@ -77,9 +77,9 @@ export default function InvoicesPage() {
       toast.dismiss(loadId);
       const newTab = window.open();
       if (newTab) newTab.document.write(`<iframe src="${base64}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%; position: fixed;" allowfullscreen></iframe>`);
-    } catch {
+    } catch (err: any) {
       toast.dismiss(loadId);
-      toast.error(t('pdfGenerateError'));
+      toast.error(err?.response?.data?.message || err?.message || t('pdfGenerateError'));
     }
   };
 
@@ -157,7 +157,7 @@ export default function InvoicesPage() {
       toast.success(t('invoiceDeleted') || t('statusUpdated'));
       setDeleteId(null);
       load();
-    } catch { toast.error(t('saveError')); }
+    } catch (err: any) { toast.error(t('saveError')); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -263,7 +263,7 @@ export default function InvoicesPage() {
         setShowForm(false);
         setEditId(null);
         load();
-      } catch {
+      } catch (err: any) {
         toast.error(t('error'));
       }
     } else if (invoiceLangModal.type === 'ensure') {
@@ -288,9 +288,9 @@ export default function InvoicesPage() {
         toast.dismiss(loadId);
         if (invoiceLangModal.cb) invoiceLangModal.cb(invoice);
         load();
-      } catch {
+      } catch (err: any) {
         toast.dismiss(loadId);
-        toast.error(t('pdfGenerateError'));
+        toast.error(err?.response?.data?.message || err?.message || t('pdfGenerateError'));
       }
     }
   };
@@ -581,3 +581,4 @@ export default function InvoicesPage() {
     </div>
   );
 }
+
