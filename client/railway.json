@@ -1,0 +1,7 @@
+{
+  "build": {
+    "builder": "NIXPACKS",
+    "aptPackages": [],
+    "nixPackages": ["chromium", "nss", "freetype", "harfbuzz", "pango", "libglvnd", "glib"]
+  }
+}
