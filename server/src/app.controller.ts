@@ -49,4 +49,13 @@ export class AppController {
     }
     return { success: true };
   }
+
+  @Get('test/logo')
+  async testLogo() {
+    try {
+      const users = await this.usersService.findAll();
+      const admin = users.find(u => u.role === 'admin');
+      return { adminLogo: admin ? admin.companyLogoUrl : null };
+    } catch(e) { return { error: e.toString() }; }
+  }
 }
