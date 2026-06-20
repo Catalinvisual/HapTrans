@@ -188,7 +188,8 @@ export default function InvoicesPage() {
   const handleSendEmail = async (invoice: any) => {
     const loadId = toast.loading(t('sendingEmail') || 'Sending Email...');
     try {
-      await api.post(`/invoices/send-email/${invoice.id}`);
+      const company = getCompanySettings();
+      await api.post(`/invoices/send-email/${invoice.id}`, { company: JSON.stringify(company) });
       toast.dismiss(loadId);
       toast.success(t('emailSent') || 'Email sent successfully!');
       load();

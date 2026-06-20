@@ -104,7 +104,7 @@ export class ResendService {
         <div class="container">
           <div class="header">
             <div class="logo">
-              <img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; margin-right: 4px; vertical-align: middle;" alt="HapCargo Logo" />
+              ${logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; margin-right: 4px; vertical-align: middle;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`}
             </div>
           </div>
           <div class="content">
@@ -172,7 +172,7 @@ export class ResendService {
       <html>
       <body style="font-family: Arial, sans-serif; color: #333;">
         <div style="text-align: left; margin-bottom: 20px;">
-          <img src="${logoUrl}" style="height:40px; max-width: 250px; object-fit:contain;" alt="HapCargo Logo" />
+          ${logoUrl ? `<img src="${logoUrl}" style="height:40px; max-width: 250px; object-fit:contain;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`}
         </div>
         <h2>HapCargo Transportation Update</h2>
         <p>We would like to inform you that the current estimated time of arrival has been updated for your shipment.</p>
@@ -207,7 +207,7 @@ export class ResendService {
 
     const downloadUrl = invoice.pdfUrl || '#'; 
     const logoUrl = await this.getLogoUrl(company);
-    const logoHtml = `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain;" alt="HapCargo Logo" />`;
+    const logoHtml = logoUrl ? `${logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`}` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
 
     const htmlContent = `
       <html>
