@@ -65,9 +65,9 @@ export class AppController {
   @Get('public/stats')
   async getPublicStats() {
     try {
-      const trucks = await this.em.query('SELECT COUNT(*) as count FROM truck');
-      const trips = await this.em.query('SELECT COUNT(*) as count FROM trip');
-      const clients = await this.em.query('SELECT COUNT(*) as count FROM client');
+      const trucks = await this.em.query('SELECT COUNT(*) as count FROM trucks');
+      const trips = await this.em.query('SELECT COUNT(*) as count FROM trips');
+      const clients = await this.em.query('SELECT COUNT(*) as count FROM clients');
       const cms = await this.em.query('SELECT data FROM website_cms WHERE id = 1');
       let countriesCount = 24;
       if (cms.length > 0 && cms[0].data && cms[0].data.countries) {

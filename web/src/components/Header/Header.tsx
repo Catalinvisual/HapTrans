@@ -59,10 +59,10 @@ const Header = () => {
           )}
 
           <div className={styles.navLinksWrapper}>
-            <Link href="#diensten" className={`${styles.navLink}`} onClick={() => setMobileMenuOpen(false)}>{t('services')}</Link>
-            <Link href="#harta" className={`${styles.navLink}`} onClick={() => setMobileMenuOpen(false)}>Routes</Link>
-            <Link href="#flota" className={`${styles.navLink}`} onClick={() => setMobileMenuOpen(false)}>{t('fleet')}</Link>
-            <Link href="#despre" className={`${styles.navLink}`} onClick={() => setMobileMenuOpen(false)}>{t('about')}</Link>
+            <Link href="/diensten" className={`${styles.navLink}`} onClick={() => setMobileMenuOpen(false)}>{t('services')}</Link>
+            <Link href="/routes" className={`${styles.navLink}`} onClick={() => setMobileMenuOpen(false)}>Routes</Link>
+            <Link href="/vloot" className={`${styles.navLink}`} onClick={() => setMobileMenuOpen(false)}>{t('fleet')}</Link>
+            <Link href="/over-ons" className={`${styles.navLink}`} onClick={() => setMobileMenuOpen(false)}>{t('about')}</Link>
             <Link href="/contact" className={`${styles.navLink} ${pathname === '/contact' ? styles.navLinkActive : ''}`} onClick={() => setMobileMenuOpen(false)}>{t('contact')}</Link>
           </div>
 

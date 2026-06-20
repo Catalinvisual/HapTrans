@@ -1,32 +1,34 @@
 'use client';
 import React from 'react';
 import { useLanguage } from '@/context/LanguageContext';
+import styles from './ServicesSection.module.css';
 
 export default function ServicesSection() {
   const { t } = useLanguage();
   
   const services = [
-    t('svc1') || 'Full Truck Load transport',
-    t('svc2') || 'Groupage transport',
-    t('svc3') || 'Express transport',
-    t('svc4') || 'Pallet transport',
-    t('svc5') || 'Geconditioneerd transport',
-    t('svc6') || 'Internationale distributie',
+    { title: t('svc1') || 'Full Truck Load transport', icon: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg> },
+    { title: t('svc2') || 'Groupage transport', icon: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg> },
+    { title: t('svc3') || 'Express transport', icon: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg> },
+    { title: t('svc4') || 'Pallet transport', icon: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg> },
+    { title: t('svc5') || 'Geconditioneerd transport', icon: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path></svg> },
+    { title: t('svc6') || 'Internationale distributie', icon: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg> },
   ];
 
   return (
-    <section style={{ padding: '5rem 1.5rem', background: '#f8fafc' }} id="diensten">
-      <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-        <h2 style={{ fontSize: '2.5rem', fontWeight: '800', textAlign: 'center', marginBottom: '3rem', color: '#0f172a' }}>
+    <section className={styles.section} id="diensten">
+      <div className={styles.bgGlow}></div>
+      <div className={styles.container}>
+        <h2 className={styles.title}>
           {t('realServicesTitle') || 'Onze diensten'}
         </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+        <div className={styles.grid}>
           {services.map((svc, i) => (
-            <div key={i} style={{ background: '#fff', padding: '2rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <div style={{ color: '#ff5a00' }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <div key={i} className={styles.card}>
+              <div className={styles.iconWrapper}>
+                {svc.icon}
               </div>
-              <span style={{ fontSize: '1.1rem', fontWeight: '600', color: '#1e293b' }}>{svc}</span>
+              <h3 className={styles.cardTitle}>{svc.title}</h3>
             </div>
           ))}
         </div>

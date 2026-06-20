@@ -1,0 +1,122 @@
+
+.section {
+  padding: 6rem 1.5rem;
+  background: linear-gradient(to bottom, #ffffff, #f8fafc);
+  position: relative;
+  overflow: hidden;
+}
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: 3rem;
+  font-weight: 800;
+  text-align: center;
+  margin-bottom: 5rem;
+  color: #0f172a;
+}
+
+.stepsWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+  position: relative;
+}
+
+@media (min-width: 1024px) {
+  .stepsWrapper {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  
+  .stepsWrapper::before {
+    content: '';
+    position: absolute;
+    top: 40px;
+    left: 50px;
+    right: 50px;
+    height: 4px;
+    background: linear-gradient(90deg, rgba(226,232,240,0) 0%, rgba(255,90,0,0.2) 50%, rgba(226,232,240,0) 100%);
+    z-index: 0;
+    border-radius: 4px;
+  }
+}
+
+.step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+  padding: 1rem;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.step:hover {
+  transform: translateY(-15px);
+}
+
+.iconBox {
+  width: 84px;
+  height: 84px;
+  background: #fff;
+  border: 3px solid #e2e8f0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 900;
+  color: #94a3b8;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+  transition: all 0.4s ease;
+  position: relative;
+}
+
+.step:hover .iconBox {
+  border-color: #ff5a00;
+  background: #ff5a00;
+  color: #fff;
+  box-shadow: 0 20px 40px -5px rgba(255, 90, 0, 0.4);
+  transform: scale(1.1);
+}
+
+.stepTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  max-width: 200px;
+  line-height: 1.4;
+}
+
+.stepNumber {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background: #0f172a;
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.3s ease;
+}
+
+.step:hover .stepNumber {
+  opacity: 1;
+  transform: scale(1);
+}

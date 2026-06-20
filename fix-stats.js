@@ -1,29 +1,12 @@
 const fs = require('fs');
 const path = require('path');
-const file = path.join(__dirname, 'server/src/app.controller.ts');
+const file = path.join(__dirname, 'web/src/components/StatsSection/StatsSection.tsx');
 let code = fs.readFileSync(file, 'utf8');
 
-code = code.replace(/import \{ Controller/g, "import { EntityManager } from 'typeorm';\nimport { Controller");
-
-code = code.replace(/constructor\(/, `constructor(
-    private readonly em: EntityManager,
-`);
-
-code = code.replace(/const trucks = await this\.trucksService\.findAll\(\);([\s\S]*?)const clients = await this\.clientsService\.findAll\(\);/, 
-`const trucks = await this.em.query('SELECT COUNT(*) as count FROM truck');
-      const trips = await this.em.query('SELECT COUNT(*) as count FROM trip');
-      const clients = await this.em.query('SELECT COUNT(*) as count FROM client');
-      const cms = await this.em.query('SELECT data FROM website_cms WHERE id = 1');
-      let countriesCount = 24;
-      if (cms.length > 0 && cms[0].data && cms[0].data.countries) {
-        const c = cms[0].data.countries;
-        countriesCount = c.split(',').filter(x => x.trim().length > 0).length;
-      }
-`);
-
-code = code.replace(/trucks: trucks\.length,/, "trucks: parseInt(trucks[0].count, 10),");
-code = code.replace(/trips: trips\.length,/, "trips: parseInt(trips[0].count, 10),");
-code = code.replace(/clients: clients\.length,/, "clients: parseInt(clients[0].count, 10),\n        countries: countriesCount,");
+code = code.replace("trucks: json.trucks || 50", "trucks: json.trucks !== undefined ? json.trucks : 50");
+code = code.replace("trips: json.trips || 15000", "trips: json.trips !== undefined ? json.trips : 15000");
+code = code.replace("clients: json.clients || 250", "clients: json.clients !== undefined ? json.clients : 250");
+code = code.replace("countries: json.countries || 24", "countries: json.countries !== undefined ? json.countries : 24");
 
 fs.writeFileSync(file, code);
-console.log('Fixed public stats endpoint');
+console.log("Fixed StatsSection variables");

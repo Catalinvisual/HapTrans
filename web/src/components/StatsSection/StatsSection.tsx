@@ -15,10 +15,10 @@ export default function StatsSection() {
           const json = await res.json();
           if (json && !json.error) {
             setData({
-              trucks: json.trucks || 50,
-              trips: json.trips || 15000,
-              clients: json.clients || 250,
-              countries: json.countries || 24,
+              trucks: json.trucks !== undefined ? json.trucks : 50,
+              trips: json.trips !== undefined ? json.trips : 15000,
+              clients: json.clients !== undefined ? json.clients : 250,
+              countries: json.countries !== undefined ? json.countries : 24,
             });
           }
         }
