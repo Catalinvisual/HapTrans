@@ -158,7 +158,7 @@ const translations: Translations = {
   contactSendAnother: { RO: 'Trimite alt mesaj', EN: 'Send another message', NL: 'Stuur nog een bericht', DE: 'Andere Nachricht senden', FR: 'Envoyer un autre message', ES: 'Enviar otro mensaje' },
   contactError: { RO: 'A apărut o eroare la trimiterea mesajului. Încearcă din nou.', EN: 'An error occurred while sending the message. Please try again.', NL: 'Er is een fout opgetreden bij het verzenden van het bericht. Probeer het opnieuw.', DE: 'Beim Senden der Nachricht ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.', FR: 'Une erreur est survenue lors de l\'envoi du message. Veuillez réessayer.', ES: 'Ocurrió un error al enviar el mensaje. Por favor, inténtelo de nuevo.' },
   loading: { RO: 'Se încarcă...', EN: 'Loading...', NL: 'Laden...', DE: 'Wird geladen...', FR: 'Chargement...', ES: 'Cargando...' },
-,
+
 
   // Services
   realServicesTitle: { RO: 'Serviciile noastre', EN: 'Our services', NL: 'Onze diensten', DE: 'Unsere Dienstleistungen', FR: 'Nos services', ES: 'Nuestros servicios' },
