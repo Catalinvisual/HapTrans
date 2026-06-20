@@ -223,12 +223,12 @@
   }
   
   .hero {
-    min-height: 100vh;
+    min-height: unset; /* Permite imaginii să se 'dea mai în spate' reducând înălțimea forțată */
     background-size: cover;
-    background-position: center;
-    padding-bottom: 50px;
+    background-position: center bottom; /* Axează pe camion */
+    padding-bottom: 60px;
     align-items: flex-start;
-    padding-top: 2rem;
+    padding-top: 3rem;
   }
   
   .calculator {
