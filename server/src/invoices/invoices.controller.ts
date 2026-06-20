@@ -59,6 +59,20 @@ export class InvoicesController {
     return { base64: pdfBuffer.toString('base64') };
   }
 
+  @Post('send-email/:id')
+  async sendEmail(@Param('id') id: string, @Body('company') companyStr?: string) {
+    const inv = await this.service.findOne(id);
+    if (inv) {
+      let company = null;
+      try {
+        if (companyStr) company = JSON.parse(companyStr);
+      } catch (e) {}
+      await this.resendService.sendInvoiceEmail(inv, company);
+      return { success: true };
+    }
+    return { success: false, message: 'Invoice not found' };
+  }
+
   @Post('upload-pdf/:id')
   @UseInterceptors(FileInterceptor('file'))
   async uploadPdf(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @Query('sendEmail') sendEmail?: string, @Body('company') companyStr?: string) {

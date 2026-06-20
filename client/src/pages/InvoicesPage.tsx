@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Eye, Download, Share2, Trash2 } from 'lucide-react';
+import { Plus, Search, Eye, Download, Share2, Trash2, Mail } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import ExportModal from '../components/ExportModal';
@@ -182,6 +182,19 @@ export default function InvoicesPage() {
     } else {
       navigator.clipboard.writeText(`Invoice ${invoice.invoiceNumber} - Client: ${invoice.client?.name} - Amount: EUR ${invoice.amount}`);
       toast.success(t('copiedToClipboard'));
+    }
+  };
+
+  const handleSendEmail = async (invoice: any) => {
+    const loadId = toast.loading(t('sendingEmail') || 'Sending Email...');
+    try {
+      await api.post(`/invoices/send-email/${invoice.id}`);
+      toast.dismiss(loadId);
+      toast.success(t('emailSent') || 'Email sent successfully!');
+      load();
+    } catch (err: any) {
+      toast.dismiss(loadId);
+      toast.error(err.response?.data?.message || t('error'));
     }
   };
 
@@ -547,6 +560,9 @@ export default function InvoicesPage() {
                             </button>
                             <button onClick={() => ensurePdfAndExecute(inv, handleShare)} className="p-1 text-text-secondary hover:text-warning rounded hover:bg-yellow-50 transition-all" title="Partajare Factură">
                               <Share2 className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => ensurePdfAndExecute(inv, handleSendEmail)} className="p-1 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-all" title="Trimite Email">
+                              <Mail className="w-4 h-4" />
                             </button>
                             <button onClick={() => setDeleteId(inv.id)} className="p-1 text-text-secondary hover:text-error rounded hover:bg-red-50 transition-all" title="Ștergere Factură">
                               <Trash2 className="w-4 h-4" />
