@@ -189,8 +189,6 @@ const translations: Translations = {
   navQuote: { RO: 'Cere oferta', EN: 'Request quote', NL: 'Offerte aanvragen', DE: 'Angebot anfordern', FR: 'Demander un devis', ES: 'Solicitar cotizaci�n' }
 };
 
-};
-
 interface LanguageContextType {
   lang: Language;
   setLang: (lang: Language) => void;
