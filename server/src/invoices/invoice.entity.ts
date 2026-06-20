@@ -5,6 +5,7 @@ import { InvoiceItem } from './invoice-item.entity';
 
 export enum InvoiceStatus {
   DRAFT = 'draft',
+  APPROVED = 'approved',
   SENT = 'sent',
   PAID = 'paid',
   OVERDUE = 'overdue',

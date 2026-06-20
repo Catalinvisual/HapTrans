@@ -240,7 +240,7 @@ export class InvoicesService implements OnModuleInit {
     }
     
     inv.invoiceNumber = `HC-${year}-${String(nextInv).padStart(4, '0')}`;
-    inv.status = InvoiceStatus.SENT;
+    inv.status = InvoiceStatus.APPROVED;
     
     await this.repo.save(inv);
     return this.findOne(id);

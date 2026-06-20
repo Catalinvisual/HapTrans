@@ -4,6 +4,8 @@ import { initReactI18next } from 'react-i18next';
 const resources = {
   ro: {
     translation: {
+        sendEmailAction: "Trimite Email",
+        approved: "Aprobata",
         approvingAndSending: "Aprobare ?i Trimitere...",
         approving: "Aprobare �n curs...",
         generatingPdf: "Generare PDF...",
@@ -637,6 +639,8 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
   },
   en: {
     translation: {
+        sendEmailAction: "Send Email",
+        approved: "Approved",
         approvingAndSending: "Approving and Sending...",
         approving: "Approving...",
         generatingPdf: "Generating PDF...",
@@ -1209,6 +1213,8 @@ smartDispatchAddressError: "Please enter the pickup address first!",
   },
   nl: {
     translation: {
+        sendEmailAction: "E-mail verzenden",
+        approved: "Goedgekeurd",
         approvingAndSending: "Goedkeuren en Verzenden...",
         approving: "Goedkeuren...",
         generatingPdf: "PDF Genereren...",
@@ -1749,6 +1755,8 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
   },
   de: {
     translation: {
+        sendEmailAction: "E-Mail senden",
+        approved: "Genehmigt",
         approvingAndSending: "Genehmigen und Senden...",
         approving: "Genehmigen...",
         generatingPdf: "PDF wird generiert...",

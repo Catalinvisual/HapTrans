@@ -1417,6 +1417,7 @@ export default function TripsPage() {
                         <div className={`mt-1 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded inline-block ${
                           trip.invoices[0].status === 'paid' ? 'bg-green-100 text-green-800' :
                           trip.invoices[0].status === 'overdue' ? 'bg-red-100 text-red-800 animate-pulse' :
+                          trip.invoices[0].status === 'approved' ? 'bg-indigo-100 text-indigo-800' :
                           trip.invoices[0].status === 'sent' ? 'bg-blue-100 text-blue-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>

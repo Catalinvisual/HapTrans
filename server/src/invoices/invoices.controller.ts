@@ -68,6 +68,7 @@ export class InvoicesController {
         if (companyStr) company = JSON.parse(companyStr);
       } catch (e) {}
       await this.resendService.sendInvoiceEmail(inv, company);
+      await this.service.update(inv.id, { status: 'sent' } as any);
       return { success: true };
     }
     return { success: false, message: 'Invoice not found' };
@@ -96,8 +97,8 @@ export class InvoicesController {
         if (companyStr) company = JSON.parse(companyStr);
       } catch (e) {}
       await this.resendService.sendInvoiceEmail(inv, company);
+      await this.service.update(inv.id, { status: 'sent' } as any);
     }
     return inv;
   }
 }
-

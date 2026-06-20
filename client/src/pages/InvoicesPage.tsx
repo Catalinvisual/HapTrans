@@ -12,7 +12,7 @@ import CustomSelect from '../components/CustomSelect';
 import ConfirmModal from '../components/ConfirmModal';
 import { getCompanySettings } from './SettingsPage';
 
-const STATUS_COLORS: Record<string, string> = { draft:'badge-gray', sent:'badge-primary', paid:'badge-success', overdue:'badge-error', cancelled:'badge-error' };
+const STATUS_COLORS: Record<string, string> = { draft:'badge-gray', approved:'bg-indigo-100 text-indigo-700', sent:'badge-primary', paid:'badge-success', overdue:'badge-error', cancelled:'badge-error' };
 
 export default function InvoicesPage() {
   const { t, i18n } = useTranslation();
@@ -546,6 +546,7 @@ export default function InvoicesPage() {
                       ) : (
                         <div className="flex items-center gap-3">
                           <CustomSelect className="w-32 text-xs" value={inv.status} onChange={async val => { await api.patch(`/invoices/${inv.id}`, { status: val }); toast.success(t('statusUpdated')); load(); }} options={[
+                            { value: 'approved', label: t('approved') || 'Approved', color: 'text-indigo-600' },
                             { value: 'sent', label: t('sent'), color: 'text-primary' },
                             { value: 'paid', label: t('paid'), color: 'text-success' },
                             { value: 'overdue', label: t('overdue'), color: 'text-error' },
@@ -561,7 +562,7 @@ export default function InvoicesPage() {
                             <button onClick={() => ensurePdfAndExecute(inv, handleShare)} className="p-1 text-text-secondary hover:text-warning rounded hover:bg-yellow-50 transition-all" title="Partajare Factură">
                               <Share2 className="w-4 h-4" />
                             </button>
-                            <button onClick={() => ensurePdfAndExecute(inv, handleSendEmail)} className="p-1 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-all" title="Trimite Email">
+                            <button onClick={() => ensurePdfAndExecute(inv, handleSendEmail)} className="p-1 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-all" title={t('sendEmailAction') || 'Trimite Email'}>
                               <Mail className="w-4 h-4" />
                             </button>
                             <button onClick={() => setDeleteId(inv.id)} className="p-1 text-text-secondary hover:text-error rounded hover:bg-red-50 transition-all" title="Ștergere Factură">
