@@ -52,8 +52,9 @@ export default function InvoicesPage() {
 
         const items = [];
         let subtotal = 0;
-        const amount = Number(form.amount) || 0;
-        const vatP = Number(form.vatPercent) || 19;
+        const pN = (v: string | number) => Number(String(v).replace(',', '.')) || 0;
+        const amount = pN(form.amount);
+        const vatP = pN(form.vatPercent) || 19;
         const isVat = form.vatType === 'NORMAL';
 
         if (amount > 0) {
@@ -61,20 +62,20 @@ export default function InvoicesPage() {
           subtotal += amount;
         }
 
-        const fuel = Number(form.fuelSurcharge) || 0;
+        const fuel = pN(form.fuelSurcharge);
         if (fuel > 0) {
           const fuelCost = Number(((amount * fuel) / 100).toFixed(2));
           items.push({ description: 'Fuel Surcharge (' + fuel + '%)', quantity: 1, unitPrice: fuelCost, vatRate: isVat ? vatP : 0, total: fuelCost });
           subtotal += fuelCost;
         }
 
-        const toll = Number(form.tollCosts) || 0;
+        const toll = pN(form.tollCosts);
         if (toll > 0) {
           items.push({ description: 'Road tolls / Toll charges', quantity: 1, unitPrice: toll, vatRate: isVat ? vatP : 0, total: toll });
           subtotal += toll;
         }
 
-        const extra = Number(form.extraCosts) || 0;
+        const extra = pN(form.extraCosts);
         if (extra > 0) {
           items.push({ description: 'Extra charges', quantity: 1, unitPrice: extra, vatRate: isVat ? vatP : 0, total: extra });
           subtotal += extra;
@@ -87,11 +88,11 @@ export default function InvoicesPage() {
         invoiceNumber: editId ? invoices.find(i => i.id === editId)?.invoiceNumber : 'DRAFT',
         client: mockClient || { name: '...' },
         trip: mockTrip || {},
-        amount: Number(form.amount) || 0,
-        fuelSurcharge: Number(form.fuelSurcharge) || 0,
-        extraCosts: Number(form.extraCosts) || 0,
-        tollCosts: Number(form.tollCosts) || 0,
-        vatPercent: Number(form.vatPercent) || 0,
+        amount: pN(form.amount),
+        fuelSurcharge: pN(form.fuelSurcharge),
+        extraCosts: pN(form.extraCosts),
+        tollCosts: pN(form.tollCosts),
+        vatPercent: pN(form.vatPercent),
         vatType: form.vatType || 'NORMAL',
         issueDate: form.issueDate || new Date().toISOString(),
         dueDate: form.dueDate || new Date().toISOString(),
@@ -262,14 +263,15 @@ export default function InvoicesPage() {
   const executeLangAction = async (lang: 'en' | 'nl') => {
     if (invoiceLangModal.type === 'submit') {
       try {
+        const pN = (v: string | number) => Number(String(v).replace(',', '.')) || 0;
         const dataToSubmit = {
           ...invoiceLangModal.data,
           tripId: invoiceLangModal.data.tripId === '' ? null : invoiceLangModal.data.tripId,
-          amount: invoiceLangModal.data.amount === '' ? null : Number(invoiceLangModal.data.amount),
-          fuelSurcharge: invoiceLangModal.data.fuelSurcharge === '' ? null : Number(invoiceLangModal.data.fuelSurcharge),
-          extraCosts: invoiceLangModal.data.extraCosts === '' ? null : Number(invoiceLangModal.data.extraCosts),
-          tollCosts: invoiceLangModal.data.tollCosts === '' ? null : Number(invoiceLangModal.data.tollCosts),
-          vatPercent: invoiceLangModal.data.vatPercent === '' ? null : Number(invoiceLangModal.data.vatPercent),
+          amount: invoiceLangModal.data.amount === '' ? null : pN(invoiceLangModal.data.amount),
+          fuelSurcharge: invoiceLangModal.data.fuelSurcharge === '' ? null : pN(invoiceLangModal.data.fuelSurcharge),
+          extraCosts: invoiceLangModal.data.extraCosts === '' ? null : pN(invoiceLangModal.data.extraCosts),
+          tollCosts: invoiceLangModal.data.tollCosts === '' ? null : pN(invoiceLangModal.data.tollCosts),
+          vatPercent: invoiceLangModal.data.vatPercent === '' ? null : pN(invoiceLangModal.data.vatPercent),
           vatType: invoiceLangModal.data.vatType,
           issueDate: invoiceLangModal.data.issueDate === '' ? null : invoiceLangModal.data.issueDate,
           dueDate: invoiceLangModal.data.dueDate === '' ? null : invoiceLangModal.data.dueDate,
@@ -457,7 +459,7 @@ export default function InvoicesPage() {
                     {t('cancel')}
                   </button>
                   <button type="submit" className="btn-primary px-8 py-3 font-bold text-sm shadow-lg shadow-primary/30">
-                    {t('save')} Draft
+                    {t('saveDraft') || 'Save Draft'}
                   </button>
                 </div>
               </form>
@@ -521,9 +523,9 @@ export default function InvoicesPage() {
                           <button onClick={() => handlePreviewDraft(inv)} className="btn-secondary py-1.5 px-2 text-xs font-bold" title="Vizualizare Draft">
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button onClick={() => handleEditClick(inv)} className="btn-secondary py-1.5 px-3 text-xs font-bold" title="Editare Draft">Edit</button>
-                          <button onClick={() => handleApprove(inv, false)} className="bg-primary/10 text-primary hover:bg-primary/20 py-1.5 px-3 rounded-lg font-bold text-xs transition-all" title="Aprobare (fără trimitere)">Approve</button>
-                          <button onClick={() => handleApprove(inv, true)} className="bg-primary text-white hover:bg-primary-dark py-1.5 px-3 rounded-lg font-bold text-xs transition-all shadow-sm" title="Aprobare și Trimitere Email">Approve & Send</button>
+                          <button onClick={() => handleEditClick(inv)} className="btn-secondary py-1.5 px-3 text-xs font-bold" title="Editare Draft">{t('edit') || 'Edit'}</button>
+                          <button onClick={() => handleApprove(inv, false)} className="bg-primary/10 text-primary hover:bg-primary/20 py-1.5 px-3 rounded-lg font-bold text-xs transition-all" title="Aprobare (fără trimitere)">{t('approve') || 'Approve'}</button>
+                          <button onClick={() => handleApprove(inv, true)} className="bg-primary text-white hover:bg-primary-dark py-1.5 px-3 rounded-lg font-bold text-xs transition-all shadow-sm" title="Aprobare și Trimitere Email">{t('approveAndSend') || 'Approve & Send'}</button>
                           <button onClick={() => setDeleteId(inv.id)} className="p-1 ml-1 text-text-secondary hover:text-error rounded hover:bg-red-50 transition-all" title="Ștergere Draft">
                             <Trash2 className="w-4 h-4" />
                           </button>
