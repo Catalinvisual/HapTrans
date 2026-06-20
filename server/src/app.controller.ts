@@ -72,7 +72,7 @@ export class AppController {
       let countriesCount = 24;
       if (cms.length > 0 && cms[0].data && cms[0].data.countries) {
         const c = cms[0].data.countries;
-        countriesCount = c.split(',').filter(x => x.trim().length > 0).length;
+        countriesCount = c.split(',').filter((x: string) => x.trim().length > 0).length;
       }
 
       

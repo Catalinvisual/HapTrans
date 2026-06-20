@@ -158,6 +158,37 @@ const translations: Translations = {
   contactSendAnother: { RO: 'Trimite alt mesaj', EN: 'Send another message', NL: 'Stuur nog een bericht', DE: 'Andere Nachricht senden', FR: 'Envoyer un autre message', ES: 'Enviar otro mensaje' },
   contactError: { RO: 'A apărut o eroare la trimiterea mesajului. Încearcă din nou.', EN: 'An error occurred while sending the message. Please try again.', NL: 'Er is een fout opgetreden bij het verzenden van het bericht. Probeer het opnieuw.', DE: 'Beim Senden der Nachricht ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.', FR: 'Une erreur est survenue lors de l\'envoi du message. Veuillez réessayer.', ES: 'Ocurrió un error al enviar el mensaje. Por favor, inténtelo de nuevo.' },
   loading: { RO: 'Se încarcă...', EN: 'Loading...', NL: 'Laden...', DE: 'Wird geladen...', FR: 'Chargement...', ES: 'Cargando...' },
+,
+
+  // Services
+  realServicesTitle: { RO: 'Serviciile noastre', EN: 'Our services', NL: 'Onze diensten', DE: 'Unsere Dienstleistungen', FR: 'Nos services', ES: 'Nuestros servicios' },
+  svc1: { RO: 'Transport Full Truck Load', EN: 'Full Truck Load transport', NL: 'Full Truck Load transport', DE: 'Komplettladungsverkehr', FR: 'Transport de lots complets', ES: 'Transporte de carga completa' },
+  svc2: { RO: 'Transport Grupaj', EN: 'Groupage transport', NL: 'Groupage transport', DE: 'Sammelguttransport', FR: 'Transport de groupage', ES: 'Transporte de grupaje' },
+  svc3: { RO: 'Transport Expres', EN: 'Express transport', NL: 'Express transport', DE: 'Express-Transport', FR: 'Transport express', ES: 'Transporte expr�s' },
+  svc4: { RO: 'Transport Pale?i', EN: 'Pallet transport', NL: 'Pallet transport', DE: 'Palettentransport', FR: 'Transport de palettes', ES: 'Transporte de palets' },
+  svc5: { RO: 'Transport Frigorific', EN: 'Conditioned transport', NL: 'Geconditioneerd transport', DE: 'K�hltransport', FR: 'Transport frigorifique', ES: 'Transporte a temperatura controlada' },
+  svc6: { RO: 'Distribu?ie Interna?ionala', EN: 'International distribution', NL: 'Internationale distributie', DE: 'Internationale Verteilung', FR: 'Distribution internationale', ES: 'Distribuci�n internacional' },
+
+  // How it works
+  howItWorksTitle: { RO: 'Cum func?ioneaza', EN: 'How it works', NL: 'Zo werkt het', DE: 'Wie es funktioniert', FR: 'Comment �a marche', ES: 'C�mo funciona' },
+  step1: { RO: 'Solicita o oferta', EN: 'Request a quote', NL: 'Vraag een offerte aan', DE: 'Angebot anfordern', FR: 'Demandez un devis', ES: 'Solicita una cotizaci�n' },
+  step2: { RO: 'Noi planificam cursa', EN: 'We plan the trip', NL: 'Wij plannen de rit', DE: 'Wir planen die Fahrt', FR: 'Nous planifions le trajet', ES: 'Planificamos el viaje' },
+  step3: { RO: 'Marfa este preluata', EN: 'Your freight is picked up', NL: 'Uw vracht wordt opgehaald', DE: 'Ihre Fracht wird abgeholt', FR: 'Votre fret est r�cup�r�', ES: 'Se recoge su carga' },
+  step4: { RO: 'Urmare?ti livrarea live', EN: 'You follow the delivery live', NL: 'U volgt de levering live', DE: 'Sie verfolgen die Lieferung live', FR: 'Vous suivez la livraison en direct', ES: 'Sigue la entrega en vivo' },
+  step5: { RO: 'Livrare cu dovada', EN: 'Delivery with proof', NL: 'Levering met bewijs van aflevering', DE: 'Lieferung mit Nachweis', FR: 'Livraison avec preuve', ES: 'Entrega con comprobante' },
+
+  // Trust
+  trustTitle: { RO: 'Companie de transport de �ncredere', EN: 'Reliable transport company', NL: 'Betrouwbaar transportbedrijf', DE: 'Zuverl�ssiges Transportunternehmen', FR: 'Entreprise de transport fiable', ES: 'Empresa de transporte confiable' },
+  trust1: { RO: 'Documente CMR', EN: 'CMR documents', NL: 'CMR-documenten', DE: 'CMR-Dokumente', FR: 'Documents CMR', ES: 'Documentos CMR' },
+  trust2: { RO: 'Transport asigurat', EN: 'Insured transport', NL: 'Verzekerde transporten', DE: 'Versicherte Transporte', FR: 'Transports assur�s', ES: 'Transportes asegurados' },
+  trust3: { RO: '?oferi profesioni?ti', EN: 'Professional drivers', NL: 'Professionele chauffeurs', DE: 'Professionelle Fahrer', FR: 'Chauffeurs professionnels', ES: 'Conductores profesionales' },
+  trust4: { RO: 'Urmarire live', EN: 'Live tracking', NL: 'Live tracking', DE: 'Live-Tracking', FR: 'Suivi en direct', ES: 'Seguimiento en vivo' },
+  trust5: { RO: 'Comunicare clara', EN: 'Clear communication', NL: 'Duidelijke communicatie', DE: 'Klare Kommunikation', FR: 'Communication claire', ES: 'Comunicaci�n clara' },
+
+  // Menu
+  navQuote: { RO: 'Cere oferta', EN: 'Request quote', NL: 'Offerte aanvragen', DE: 'Angebot anfordern', FR: 'Demander un devis', ES: 'Solicitar cotizaci�n' }
+};
+
 };
 
 interface LanguageContextType {
