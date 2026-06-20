@@ -76,7 +76,7 @@ const translations: Translations = {
   trackButton: { RO: 'Urmărește Comanda', EN: 'Track Order', NL: 'Bestelling Volgen', DE: 'Bestellung Verfolgen', FR: 'Suivre la Commande', ES: 'Rastrear Pedido' },
 
   // Features
-  featuresTitle: { RO: 'Servicii de Top', EN: 'Top Services', NL: 'Top Diensten', DE: 'Top Dienstleistungen', FR: 'Services de Premier Plan', ES: 'Servicios Principales' },
+  featuresTitle: { RO: 'De ce sa alegi HapCargo?', EN: 'Why choose HapCargo?', NL: 'Waarom kiezen voor HapCargo?', DE: 'Warum HapCargo w�hlen?', FR: 'Pourquoi choisir HapCargo ?', ES: '�Por qu� elegir HapCargo?' },
   featuresSubtitle: { RO: 'De ce să alegi HapCargo pentru transportul tău.', EN: 'Why choose HapCargo for your transport.', NL: 'Waarom kiezen voor HapCargo voor uw transport.', DE: 'Warum HapCargo für Ihren Transport wählen.', FR: 'Pourquoi choisir HapCargo pour votre transport.', ES: 'Por qué elegir HapCargo para su transporte.' },
   feat0Title: { RO: 'Acoperire Europeană', EN: 'European Coverage', NL: 'Europese Dekking', DE: 'Europäische Abdeckung', FR: 'Couverture Européenne', ES: 'Cobertura Europea' },
   feat0Desc: { RO: 'Curse regulate pe cele mai importante rute din Europa.', EN: 'Regular trips on the most important routes in Europe.', NL: 'Regelmatige ritten op de belangrijkste routes in Europa.', DE: 'Regelmäßige Fahrten auf den wichtigsten Routen in Europa.', FR: 'Trajets réguliers sur les routes les plus importantes d\'Europe.', ES: 'Viajes regulares en las rutas más importantes de Europa.' },

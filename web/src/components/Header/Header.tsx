@@ -59,10 +59,10 @@ const Header = () => {
           )}
 
           <div className={styles.navLinksWrapper}>
-            <Link href="/" className={`${styles.navLink} ${pathname === '/' ? styles.navLinkActive : ''}`} onClick={() => setMobileMenuOpen(false)}>{t('home')}</Link>
-            <Link href="/despre-noi" className={`${styles.navLink} ${pathname === '/despre-noi' ? styles.navLinkActive : ''}`} onClick={() => setMobileMenuOpen(false)}>{t('about')}</Link>
-            <Link href="/servicii" className={`${styles.navLink} ${pathname === '/servicii' ? styles.navLinkActive : ''}`} onClick={() => setMobileMenuOpen(false)}>{t('services')}</Link>
-            <Link href="/flota" className={`${styles.navLink} ${pathname === '/flota' ? styles.navLinkActive : ''}`} onClick={() => setMobileMenuOpen(false)}>{t('fleet')}</Link>
+            <Link href="#diensten" className={`${styles.navLink}`} onClick={() => setMobileMenuOpen(false)}>{t('services')}</Link>
+            <Link href="#harta" className={`${styles.navLink}`} onClick={() => setMobileMenuOpen(false)}>Routes</Link>
+            <Link href="#flota" className={`${styles.navLink}`} onClick={() => setMobileMenuOpen(false)}>{t('fleet')}</Link>
+            <Link href="#despre" className={`${styles.navLink}`} onClick={() => setMobileMenuOpen(false)}>{t('about')}</Link>
             <Link href="/contact" className={`${styles.navLink} ${pathname === '/contact' ? styles.navLinkActive : ''}`} onClick={() => setMobileMenuOpen(false)}>{t('contact')}</Link>
           </div>
 
@@ -96,8 +96,11 @@ const Header = () => {
             )}
           </div>
           
+          <Link href="#quote" className={`btn btn-primary ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#fff', color: '#FF5A00', border: '2px solid #FF5A00' }}>
+            {t('navQuote') || 'Cere oferta'}
+          </Link>
           <Link href="/track" className={`btn btn-primary ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#FF5A00' }}>
-            {t('clientLogin') || 'PORTAL CLIENȚI'}
+            {t('clientLogin') || 'PORTAL CLIEN?I'}
           </Link>
 
           <button className={styles.mobileMenuBtn} onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>

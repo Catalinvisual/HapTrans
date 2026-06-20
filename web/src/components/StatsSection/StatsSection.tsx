@@ -1,15 +1,40 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 
 export default function StatsSection() {
   const { t } = useLanguage();
+  const [data, setData] = useState({ trucks: 50, trips: 15000, clients: 250, countries: 24 });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
+        const res = await fetch(`${apiUrl}/public/stats`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json && !json.error) {
+            setData({
+              trucks: json.trucks || 50,
+              trips: json.trips || 15000,
+              clients: json.clients || 250,
+              countries: json.countries || 24,
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch public stats', e);
+      }
+    };
+    fetchStats();
+  }, []);
+
 
   const stats = [
-    { label: t('statsTrucks') || 'Camioane Moderne', value: '50+', icon: '🚛' },
-    { label: t('statsClients') || 'Clienți Mulțumiți', value: '250+', icon: '🤝' },
-    { label: t('statsTrips') || 'Curse Efectuate', value: '15.000+', icon: '📦' },
-    { label: t('statsCountries') || 'Țări Acoperite', value: '24', icon: '🌍' },
+    { label: t('statsTrucks') || 'Camioane Moderne', value: `${data.trucks}+`, icon: '🚛' },
+    { label: t('statsClients') || 'Clienți Mulțumiți', value: `${data.clients}+`, icon: '🤝' },
+    { label: t('statsTrips') || 'Curse Efectuate', value: `${data.trips.toLocaleString('nl-NL')}+`, icon: '📦' },
+    { label: t('statsCountries') || 'Țări Acoperite', value: `${data.countries}`, icon: '🌍' },
   ];
 
   return (

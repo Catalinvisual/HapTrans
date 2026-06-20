@@ -1,3 +1,4 @@
+import { EntityManager } from 'typeorm';
 import { Controller, Get, UseGuards, Post, Body } from '@nestjs/common';
 import { AppService } from './app.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
@@ -7,6 +8,8 @@ import { UsersService } from './users/users.service';
 @Controller()
 export class AppController {
   constructor(
+    private readonly em: EntityManager,
+
     private readonly appService: AppService,
     private readonly usersService: UsersService,
   ) {}
@@ -57,5 +60,30 @@ export class AppController {
       const admin = users.find(u => u.role === 'admin');
       return { adminLogo: admin ? admin.companyLogoUrl : null };
     } catch(e) { return { error: e.toString() }; }
+  }
+
+  @Get('public/stats')
+  async getPublicStats() {
+    try {
+      const trucks = await this.em.query('SELECT COUNT(*) as count FROM truck');
+      const trips = await this.em.query('SELECT COUNT(*) as count FROM trip');
+      const clients = await this.em.query('SELECT COUNT(*) as count FROM client');
+      const cms = await this.em.query('SELECT data FROM website_cms WHERE id = 1');
+      let countriesCount = 24;
+      if (cms.length > 0 && cms[0].data && cms[0].data.countries) {
+        const c = cms[0].data.countries;
+        countriesCount = c.split(',').filter(x => x.trim().length > 0).length;
+      }
+
+      
+      return {
+        trucks: parseInt(trucks[0].count, 10),
+        trips: parseInt(trips[0].count, 10),
+        clients: parseInt(clients[0].count, 10),
+        countries: countriesCount,
+      };
+    } catch (e) {
+      return { error: e.toString() };
+    }
   }
 }

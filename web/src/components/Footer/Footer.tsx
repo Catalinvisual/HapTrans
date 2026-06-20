@@ -45,10 +45,13 @@ const Footer = () => {
         
         <div className={styles.column}>
           <h4 className={styles.title}>{t('contactTitle') || 'Contact'}</h4>
-          <ul className={styles.links}>
-            <li>📞 +40 700 000 000</li>
-            <li>📧 office@hapcargo.com</li>
-            <li>📍 {t('headquarters') || 'Sediu Central'}</li>
+          <ul className={styles.links} style={{ lineHeight: '1.8' }}>
+            <li>📍 Adres: Transportweg 1, 1000 AA Amsterdam, Nederland</li>
+            <li>📞 Tel: +31 20 000 0000</li>
+            <li>✉️ E-mail: office@hapcargo.com</li>
+            <li>🏢 KvK nummer: 12345678</li>
+            <li>💶 BTW nummer: NL123456789B01</li>
+            <li>⏰ Openingstijden: Ma - Vr, 08:00 - 18:00</li>
           </ul>
         </div>
       </div>
