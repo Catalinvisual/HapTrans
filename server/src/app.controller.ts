@@ -68,10 +68,10 @@ export class AppController {
       const trucks = await this.em.query('SELECT COUNT(*) as count FROM trucks');
       const trips = await this.em.query('SELECT COUNT(*) as count FROM trips');
       const clients = await this.em.query('SELECT COUNT(*) as count FROM clients');
-      const cms = await this.em.query('SELECT data FROM website_cms WHERE id = 1');
+      const cms = await this.em.query("SELECT value FROM website_cms WHERE key = 'countries'");
       let countriesCount = 24;
-      if (cms.length > 0 && cms[0].data && cms[0].data.countries) {
-        const c = cms[0].data.countries;
+      if (cms.length > 0 && cms[0].value) {
+        const c = cms[0].value;
         countriesCount = c.split(',').filter((x: string) => x.trim().length > 0).length;
       }
 

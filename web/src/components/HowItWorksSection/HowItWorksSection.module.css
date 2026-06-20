@@ -1,122 +1,126 @@
 
 .section {
-  padding: 6rem 1.5rem;
-  background: linear-gradient(to bottom, #ffffff, #f8fafc);
+  padding: 8rem 1.5rem;
+  background-color: #040814;
   position: relative;
   overflow: hidden;
+}
+
+.bgGlow {
+  position: absolute;
+  width: 800px;
+  height: 800px;
+  background: radial-gradient(circle, rgba(255,90,0,0.08) 0%, transparent 60%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .container {
   max-width: 1280px;
   margin: 0 auto;
+  position: relative;
+  z-index: 1;
 }
 
 .title {
-  font-size: 3rem;
-  font-weight: 800;
+  font-size: 3.5rem;
+  font-weight: 900;
   text-align: center;
   margin-bottom: 5rem;
-  color: #0f172a;
+  color: #ffffff;
+  letter-spacing: -0.03em;
 }
 
-.stepsWrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 3rem;
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  counter-reset: step-counter;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 1.5rem;
+  padding: 3rem 2rem;
+  transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
   position: relative;
-}
-
-@media (min-width: 1024px) {
-  .stepsWrapper {
-    flex-direction: row;
-    justify-content: space-between;
-    gap: 1rem;
-  }
-  
-  .stepsWrapper::before {
-    content: '';
-    position: absolute;
-    top: 40px;
-    left: 50px;
-    right: 50px;
-    height: 4px;
-    background: linear-gradient(90deg, rgba(226,232,240,0) 0%, rgba(255,90,0,0.2) 50%, rgba(226,232,240,0) 100%);
-    z-index: 0;
-    border-radius: 4px;
-  }
-}
-
-.step {
-  flex: 1;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  position: relative;
-  z-index: 1;
-  padding: 1rem;
-  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.step:hover {
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255,90,0,0.1) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.card:hover {
   transform: translateY(-15px);
+  border-color: rgba(255, 90, 0, 0.4);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 30px rgba(255, 90, 0, 0.15);
+  background: rgba(255, 255, 255, 0.04);
 }
 
-.iconBox {
-  width: 84px;
-  height: 84px;
-  background: #fff;
-  border: 3px solid #e2e8f0;
+.card:hover::before {
+  opacity: 1;
+}
+
+.iconWrapper {
+  width: 80px;
+  height: 80px;
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
-  font-weight: 900;
-  color: #94a3b8;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
-  transition: all 0.4s ease;
+  color: #ff5a00;
+  margin-bottom: 2rem;
+  transition: all 0.5s ease;
   position: relative;
+  z-index: 2;
+  box-shadow: 0 0 0 0 rgba(255, 90, 0, 0);
 }
 
-.step:hover .iconBox {
-  border-color: #ff5a00;
+.card:hover .iconWrapper {
   background: #ff5a00;
   color: #fff;
-  box-shadow: 0 20px 40px -5px rgba(255, 90, 0, 0.4);
-  transform: scale(1.1);
+  transform: scale(1.15);
+  box-shadow: 0 0 20px 0 rgba(255, 90, 0, 0.4);
 }
 
-.stepTitle {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0;
-  max-width: 200px;
-  line-height: 1.4;
-}
-
-.stepNumber {
+.cardNumber {
   position: absolute;
-  top: -10px;
-  right: -10px;
-  background: #0f172a;
-  color: #fff;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  font-size: 0.8rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  opacity: 0;
-  transform: scale(0);
-  transition: all 0.3s ease;
+  top: 1.5rem;
+  right: 1.5rem;
+  font-size: 4rem;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.03);
+  line-height: 1;
+  transition: color 0.5s ease;
+  z-index: 1;
 }
 
-.step:hover .stepNumber {
-  opacity: 1;
-  transform: scale(1);
+.card:hover .cardNumber {
+  color: rgba(255, 90, 0, 0.1);
+}
+
+.cardTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  position: relative;
+  z-index: 2;
+  line-height: 1.4;
 }
