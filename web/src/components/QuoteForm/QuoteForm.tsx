@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import styles from './QuoteForm.module.css';
-import api from '../../lib/api';
+
 
 const truckOptions = [
   "Tautliner / Curtainsider",
@@ -71,9 +71,15 @@ const QuoteForm = () => {
         data.append('attachment', attachment);
       }
       
-      await api.post('/quotes', data, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
+      const res = await fetch(`${apiUrl}/quotes`, {
+        method: 'POST',
+        body: data,
       });
+
+      if (!res.ok) {
+        throw new Error('Failed to submit quote');
+      }
       
       setStatus('success');
       setFormData({
