@@ -96,8 +96,8 @@ const Header = () => {
             )}
           </div>
           
-          <Link href="#quote" className={`btn btn-primary ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#fff', color: '#FF5A00', border: '2px solid #FF5A00' }}>
-            {t('navQuote') || 'Cere oferta'}
+          <Link href="/cere-oferta" className={`btn btn-primary ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#fff', color: '#FF5A00', border: '2px solid #FF5A00' }}>
+            {t('navQuote') || 'Cere ofertă'}
           </Link>
           <Link href="/track" className={`btn btn-primary ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#FF5A00' }}>
             {t('clientLogin') || 'PORTAL CLIEN?I'}

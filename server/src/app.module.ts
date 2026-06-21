@@ -29,6 +29,7 @@ import { TrackModule } from './track/track.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CronModule } from './cron/cron.module';
+import { QuotesModule } from './quotes/quotes.module';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { CronModule } from './cron/cron.module';
       ttl: 60000,
       limit: 10,
     }]),
+    QuotesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

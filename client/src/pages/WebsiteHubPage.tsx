@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Globe, MousePointerClick, FileText, Map, Phone, Briefcase, Truck, Mail } from 'lucide-react';
 import WebsiteLeadsPage from './WebsiteLeadsPage';
+import WebsiteQuotesPage from './WebsiteQuotesPage';
 import ContactInbox from './ContactInbox';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
@@ -35,7 +36,8 @@ const WebsiteHubPage = () => {
   };
 
   const tabs = [
-    { id: 'leads', label: t('website_hub_tabs_leads', 'Cereri (Leads)'), icon: MousePointerClick },
+    { id: 'quotes', label: t('website_hub_tabs_quotes', 'Cereri Ofertă'), icon: FileText },
+    { id: 'leads', label: t('website_hub_tabs_leads', 'Contact Simplu (Leads)'), icon: MousePointerClick },
     { id: 'inbox', label: t('website_hub_tabs_inbox', 'Inbox Contact'), icon: Mail },
     { id: 'map', label: t('website_hub_tabs_map', 'Harta & Țări'), icon: Map },
     { id: 'about', label: t('website_hub_tabs_about', 'Despre Noi'), icon: FileText },
@@ -87,6 +89,12 @@ const WebsiteHubPage = () => {
 
         {/* Tab Content */}
         <div className="p-4 md:p-6 bg-white min-h-[500px]">
+          {activeTab === 'quotes' && (
+            <div className="-m-4 md:-m-6">
+              <WebsiteQuotesPage />
+            </div>
+          )}
+
           {activeTab === 'leads' && (
             <div className="-m-4 md:-m-6">
               <WebsiteLeadsPage />

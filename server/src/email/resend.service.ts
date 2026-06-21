@@ -245,4 +245,39 @@ export class ResendService {
       console.error('Error sending invoice email:', e);
     }
   }
+
+  async sendQuoteConfirmationEmail(email: string, name: string) {
+    const logoUrl = await this.getLogoUrl();
+    const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
+
+    const htmlContent = `
+      <html>
+      <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+        <div style="text-align: center; margin-bottom: 24px; margin-top: 10px;">
+          ${logoHtml}
+        </div>
+        <p>Dear ${name},</p>
+        <p>We have received your transport quote request. Our team will review the details and get back to you as soon as possible with a tailored offer.</p>
+        <br/>
+        <p>Thank you for choosing HapCargo.</p>
+      </body>
+      </html>
+    `;
+
+    try {
+      if (process.env.RESEND_API_KEY) {
+        const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+        await this.resend.emails.send({
+          from: `HapCargo <${fromEmail}>`,
+          to: email,
+          subject: 'Quote Request Received - HapCargo',
+          html: htmlContent,
+        });
+      } else {
+        console.log('[MOCK EMAIL] Quote Confirmation to:', email);
+      }
+    } catch (e) {
+      console.error('Error sending quote confirmation email:', e);
+    }
+  }
 }
