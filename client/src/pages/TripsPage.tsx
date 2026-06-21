@@ -73,8 +73,11 @@ export default function TripsPage() {
     onConfirm: () => {},
   });
 
+  const hasPrefilled = useRef(false);
+
   useEffect(() => {
-    if (location.state?.createFromQuote) {
+    if (location.state?.createFromQuote && !hasPrefilled.current) {
+      hasPrefilled.current = true;
       const qData = location.state.createFromQuote;
       setForm((prev: any) => ({
         ...prev,
@@ -82,9 +85,9 @@ export default function TripsPage() {
         pickupAddress: qData.pickupAddress || '',
         dropoffCompanyName: qData.dropoffCompanyName || '',
         dropoffAddress: qData.dropoffAddress || '',
-        pickupDate: qData.pickupDate || '',
+        pickupDate: qData.pickupDate ? String(qData.pickupDate).slice(0, 10) : '',
         pickupTime: qData.pickupTime || '',
-        dropoffDate: qData.dropoffDate || '',
+        dropoffDate: qData.dropoffDate ? String(qData.dropoffDate).slice(0, 10) : '',
         dropoffTime: qData.dropoffTime || '',
         pallets: qData.pallets || '',
         weightKg: qData.weightKg || '',
@@ -93,10 +96,9 @@ export default function TripsPage() {
         price: qData.price || '',
       }));
       setShowForm(true);
-      // Clear state so it doesn't re-trigger on refresh
-      navigate(location.pathname, { replace: true, state: {} });
+      // Removed navigate() clear to prevent page transition crash
     }
-  }, [location, navigate]);
+  }, [location.state]);
 
   const currentToken = editId ? trips.find((t: any) => t.id === editId)?.trackingToken : null;
 
