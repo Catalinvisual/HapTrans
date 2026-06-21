@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
+import Flatpickr from 'react-flatpickr';
+import 'flatpickr/dist/themes/light.css';
+import { Calendar } from 'lucide-react';
 
 export const QuoteReplyForm = ({ quoteId, replies, tLocal, onReplyAdded }: any) => {
   const [showForm, setShowForm] = useState(false);
@@ -69,17 +72,38 @@ export const QuoteReplyForm = ({ quoteId, replies, tLocal, onReplyAdded }: any) 
               <label className="block text-xs font-semibold text-gray-600 mb-1">{tLocal('price_eur')}</label>
               <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} placeholder="e.g. 1200" />
             </div>
-            <div>
+            <div className="relative">
               <label className="block text-xs font-semibold text-gray-600 mb-1">{tLocal('valid_until')}</label>
-              <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary" value={formData.validUntil} onChange={e => setFormData({...formData, validUntil: e.target.value})} />
+              <Flatpickr
+                value={formData.validUntil}
+                onChange={(dates, dateStr) => setFormData({...formData, validUntil: dateStr})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary pl-9"
+                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }}
+                placeholder="dd/mm/yyyy"
+              />
+              <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-8 pointer-events-none" />
             </div>
-            <div>
+            <div className="relative">
               <label className="block text-xs font-semibold text-gray-600 mb-1">Pickup Date</label>
-              <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary" value={formData.pickupDate} onChange={e => setFormData({...formData, pickupDate: e.target.value})} />
+              <Flatpickr
+                value={formData.pickupDate}
+                onChange={(dates, dateStr) => setFormData({...formData, pickupDate: dateStr})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary pl-9"
+                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }}
+                placeholder="dd/mm/yyyy"
+              />
+              <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-8 pointer-events-none" />
             </div>
-            <div>
+            <div className="relative">
               <label className="block text-xs font-semibold text-gray-600 mb-1">Delivery Date</label>
-              <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary" value={formData.deliveryDate} onChange={e => setFormData({...formData, deliveryDate: e.target.value})} />
+              <Flatpickr
+                value={formData.deliveryDate}
+                onChange={(dates, dateStr) => setFormData({...formData, deliveryDate: dateStr})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary pl-9"
+                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }}
+                placeholder="dd/mm/yyyy"
+              />
+              <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-8 pointer-events-none" />
             </div>
           </div>
           <div className="mb-4">

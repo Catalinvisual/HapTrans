@@ -34,6 +34,10 @@ export class ResendService {
       const users = await this.usersService.findAll();
       const admin: any = users.find(u => u.role === 'admin');
       if (admin && admin.companyLogoUrl) {
+        if (admin.companyLogoUrl.startsWith('/')) {
+          const baseUrl = process.env.API_URL || 'http://localhost:3001';
+          return `${baseUrl}${admin.companyLogoUrl}`;
+        }
         return admin.companyLogoUrl;
       }
     } catch (e) {
