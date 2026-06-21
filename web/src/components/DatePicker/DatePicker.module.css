@@ -1,0 +1,35 @@
+.wrapper {
+  width: 100%;
+  transition: all 0.15s;
+  border-radius: 8px;
+  background-color: white;
+}
+
+.wrapperFocused {
+  box-shadow: 0 0 0 2px rgba(255, 90, 0, 0.2);
+}
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  outline: none;
+  font-size: 14px;
+  transition: border-color 0.15s, color 0.15s;
+  color: #9ca3af;
+  box-sizing: border-box;
+}
+
+.input:hover:not(.inputFocused) {
+  border-color: rgba(255, 90, 0, 0.5);
+}
+
+.inputFocused {
+  border-color: #FF5A00;
+}
+
+.inputHasValue {
+  color: #111827;
+  font-weight: 500;
+}

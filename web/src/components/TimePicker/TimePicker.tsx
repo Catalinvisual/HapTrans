@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Clock, ChevronUp, ChevronDown, Check } from 'lucide-react';
+import styles from './TimePicker.module.css';
 
 interface TimePickerProps {
   value: string; // "HH:mm" format
@@ -82,49 +83,37 @@ export default function TimePicker({ value, onChange, label, className = '', pla
   const options = HOURS.map(h => ({ h, label: formatHour(h) }));
 
   return (
-    <div ref={containerRef} className={`relative w-full ${className}`}>
+    <div ref={containerRef} className={`${styles.container} ${className}`}>
       {/* Input trigger */}
-      <div
-        className={`
-          flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-text select-none
-          transition-all duration-150 w-full bg-white
-          ${open
-            ? 'border-[#FF5A00] ring-2 ring-[#FF5A00]/20'
-            : 'border-gray-300 hover:border-[#FF5A00]/50'
-          }
-        `}
-      >
-        <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+      <div className={`${styles.trigger} ${open ? styles.triggerOpen : ''}`}>
+        <Clock className={styles.icon} />
         <input
           type="text"
           value={inputValue}
           onChange={handleInputChange}
           onClick={() => setOpen(true)}
-          className={`flex-1 outline-none bg-transparent w-full ${inputValue ? 'text-gray-900 font-medium' : 'text-gray-400'}`}
+          className={`${styles.input} ${inputValue ? styles.inputActive : ''}`}
           placeholder={placeholder}
         />
         <ChevronDown
           onClick={() => setOpen(!open)}
-          className={`w-4 h-4 text-gray-400 cursor-pointer transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`}
         />
       </div>
 
       {/* Dropdown */}
       {open && (
-        <div className="
-          absolute z-50 mt-1 w-full bg-white rounded-xl shadow-xl border border-gray-200
-          overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150
-        ">
+        <div className={styles.dropdown}>
           {/* Header */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gray-50">
-            <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+          <div className={styles.header}>
+            <span className={styles.headerTitle}>
               {label || 'Time'}
             </span>
-            <ChevronUp className="w-3 h-3 text-gray-400 cursor-pointer" onClick={() => setOpen(false)} />
+            <ChevronUp className={styles.headerIcon} onClick={() => setOpen(false)} />
           </div>
 
           {/* Scrollable list */}
-          <div ref={listRef} className="overflow-y-auto max-h-52 py-1 scrollbar-thin">
+          <div ref={listRef} className={styles.list}>
             {options.map(({ h, label: optLabel }) => {
               const isSelected = selectedHour === h;
               return (
@@ -134,18 +123,10 @@ export default function TimePicker({ value, onChange, label, className = '', pla
                   onClick={() => handleSelectHour(h)}
                   onMouseEnter={() => setHoveredHour(h)}
                   onMouseLeave={() => setHoveredHour(null)}
-                  className={`
-                    flex items-center justify-between px-4 py-2 cursor-pointer text-sm transition-colors
-                    ${isSelected
-                      ? 'text-[#FF5A00] font-semibold bg-[#FF5A00]/5'
-                      : hoveredHour === h
-                        ? 'text-gray-900 bg-gray-50'
-                        : 'text-gray-700'
-                    }
-                  `}
+                  className={`${styles.option} ${isSelected ? styles.optionSelected : ''} ${!isSelected && hoveredHour === h ? styles.optionHovered : ''}`}
                 >
                   <span>{optLabel}</span>
-                  {isSelected && <Check className="w-4 h-4 text-[#FF5A00]" />}
+                  {isSelected && <Check className={styles.checkIcon} />}
                 </div>
               );
             })}

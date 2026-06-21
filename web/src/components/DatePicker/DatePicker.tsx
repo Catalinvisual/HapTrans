@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
+import styles from './DatePicker.module.css';
 
 interface DatePickerProps {
   value: string; // "YYYY-MM-DD"
@@ -14,12 +15,7 @@ export default function DatePicker({ value, onChange, placeholder = 'DD/MM/YYYY'
   const [isFocused, setIsFocused] = useState(false);
 
   return (
-    <div 
-      className={`
-        w-full transition-all duration-150 rounded-lg bg-white
-        ${isFocused ? 'ring-2 ring-[#FF5A00]/20' : ''}
-      `}
-    >
+    <div className={`${styles.wrapper} ${isFocused ? styles.wrapperFocused : ''}`}>
       <Flatpickr
         value={value}
         onChange={(dates, dateStr) => {
@@ -27,12 +23,7 @@ export default function DatePicker({ value, onChange, placeholder = 'DD/MM/YYYY'
         }}
         onOpen={() => setIsFocused(true)}
         onClose={() => setIsFocused(false)}
-        className={`
-          w-full px-3 py-2.5 rounded-lg border outline-none text-sm transition-colors
-          ${isFocused ? 'border-[#FF5A00]' : 'border-gray-300 hover:border-[#FF5A00]/50'}
-          ${value ? 'text-gray-900 font-medium' : 'text-gray-400'}
-          ${className}
-        `}
+        className={`${styles.input} ${isFocused ? styles.inputFocused : ''} ${value ? styles.inputHasValue : ''} ${className}`}
         options={{
           altInput: true,
           altFormat: 'd/m/Y',
