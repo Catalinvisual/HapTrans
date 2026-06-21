@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import CustomSelect from '../components/CustomSelect';
 
 const WebsiteHubPage = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState('leads');
   const [editLang, setEditLang] = useState('RO');
   const [cmsData, setCmsData] = useState<Record<string, string>>({});
@@ -35,8 +35,20 @@ const WebsiteHubPage = () => {
     }
   };
 
+  const getQuotesTitle = () => {
+    const lang = i18n.language?.substring(0, 2).toLowerCase();
+    switch(lang) {
+      case 'en': return 'Requests (Leads)';
+      case 'nl': return 'Aanvragen (Leads)';
+      case 'de': return 'Anfragen (Leads)';
+      case 'fr': return 'Demandes (Leads)';
+      case 'es': return 'Solicitudes (Leads)';
+      default: return 'Cereri Ofertă';
+    }
+  };
+
   const tabs = [
-    { id: 'quotes', label: t('website_hub_tabs_quotes', 'Cereri Ofertă'), icon: FileText },
+    { id: 'quotes', label: t('website_hub_tabs_quotes', getQuotesTitle()), icon: FileText },
     { id: 'leads', label: t('website_hub_tabs_leads', 'Contact Simplu (Leads)'), icon: MousePointerClick },
     { id: 'inbox', label: t('website_hub_tabs_inbox', 'Inbox Contact'), icon: Mail },
     { id: 'map', label: t('website_hub_tabs_map', 'Harta & Țări'), icon: Map },

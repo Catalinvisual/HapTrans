@@ -41,13 +41,206 @@ const formatDate = (dateString: string) => {
   return dateString;
 };
 
+// Local translations for the Quotes Page
+const translations: Record<string, Record<string, string>> = {
+  ro: {
+    filter_requests: 'Filtrează cererile:',
+    all_statuses: 'Toate statusurile',
+    status_new: 'Nou',
+    status_reviewing: 'În analiză',
+    status_contacted: 'Contactat',
+    status_quoted: 'Ofertat',
+    status_accepted: 'Acceptat',
+    status_rejected: 'Respins',
+    clear_filters: 'Șterge filtre',
+    no_requests_found: 'Nu a fost găsită nicio cerere cu aceste filtre.',
+    urgent: 'URGENT',
+    contact: 'Contact',
+    preference: 'Preferință',
+    unspecified: 'Nespecificat',
+    cargo_details: 'Detalii Marfă',
+    type: 'Tip',
+    weight: 'Greutate',
+    pallets: 'Paleți',
+    volume: 'Volum',
+    required_truck: 'Camion Necesar',
+    temp: 'Temp',
+    loading: 'Încărcare',
+    unloading: 'Descărcare',
+    client_notes: 'Observații client',
+    view_file: 'Vizualizare',
+    download_file: 'Descarcă',
+    modify_status: 'Modifică Status',
+    received_at: 'Primită la:',
+    loading_requests: 'Se încarcă cererile...'
+  },
+  en: {
+    filter_requests: 'Filter requests:',
+    all_statuses: 'All statuses',
+    status_new: 'New',
+    status_reviewing: 'Reviewing',
+    status_contacted: 'Contacted',
+    status_quoted: 'Quoted',
+    status_accepted: 'Accepted',
+    status_rejected: 'Rejected',
+    clear_filters: 'Clear filters',
+    no_requests_found: 'No requests found with these filters.',
+    urgent: 'URGENT',
+    contact: 'Contact',
+    preference: 'Preference',
+    unspecified: 'Unspecified',
+    cargo_details: 'Cargo Details',
+    type: 'Type',
+    weight: 'Weight',
+    pallets: 'Pallets',
+    volume: 'Volume',
+    required_truck: 'Required Truck',
+    temp: 'Temp',
+    loading: 'Loading',
+    unloading: 'Unloading',
+    client_notes: 'Client notes',
+    view_file: 'View',
+    download_file: 'Download',
+    modify_status: 'Modify Status',
+    received_at: 'Received at:',
+    loading_requests: 'Loading requests...'
+  },
+  nl: {
+    filter_requests: 'Verzoeken filteren:',
+    all_statuses: 'Alle statussen',
+    status_new: 'Nieuw',
+    status_reviewing: 'Beoordelen',
+    status_contacted: 'Gecontacteerd',
+    status_quoted: 'Geoffreerd',
+    status_accepted: 'Geaccepteerd',
+    status_rejected: 'Geweigerd',
+    clear_filters: 'Filters wissen',
+    no_requests_found: 'Geen verzoeken gevonden met deze filters.',
+    urgent: 'URGENT',
+    contact: 'Contact',
+    preference: 'Voorkeur',
+    unspecified: 'Niet gespecificeerd',
+    cargo_details: 'Ladinggegevens',
+    type: 'Type',
+    weight: 'Gewicht',
+    pallets: 'Pallets',
+    volume: 'Volume',
+    required_truck: 'Benodigd voertuig',
+    temp: 'Temp',
+    loading: 'Laden',
+    unloading: 'Lossen',
+    client_notes: 'Klant opmerkingen',
+    view_file: 'Bekijken',
+    download_file: 'Downloaden',
+    modify_status: 'Status wijzigen',
+    received_at: 'Ontvangen op:',
+    loading_requests: 'Verzoeken laden...'
+  },
+  de: {
+    filter_requests: 'Anfragen filtern:',
+    all_statuses: 'Alle Status',
+    status_new: 'Neu',
+    status_reviewing: 'In Prüfung',
+    status_contacted: 'Kontaktiert',
+    status_quoted: 'Angeboten',
+    status_accepted: 'Akzeptiert',
+    status_rejected: 'Abgelehnt',
+    clear_filters: 'Filter löschen',
+    no_requests_found: 'Keine Anfragen mit diesen Filtern gefunden.',
+    urgent: 'DRINGEND',
+    contact: 'Kontakt',
+    preference: 'Präferenz',
+    unspecified: 'Nicht angegeben',
+    cargo_details: 'Frachtdetails',
+    type: 'Typ',
+    weight: 'Gewicht',
+    pallets: 'Paletten',
+    volume: 'Volumen',
+    required_truck: 'Erforderlicher LKW',
+    temp: 'Temp',
+    loading: 'Beladung',
+    unloading: 'Entladung',
+    client_notes: 'Kundennotizen',
+    view_file: 'Ansehen',
+    download_file: 'Herunterladen',
+    modify_status: 'Status ändern',
+    received_at: 'Erhalten am:',
+    loading_requests: 'Anfragen werden geladen...'
+  },
+  fr: {
+    filter_requests: 'Filtrer les demandes:',
+    all_statuses: 'Tous les statuts',
+    status_new: 'Nouveau',
+    status_reviewing: 'En révision',
+    status_contacted: 'Contacté',
+    status_quoted: 'Coté',
+    status_accepted: 'Accepté',
+    status_rejected: 'Rejeté',
+    clear_filters: 'Effacer les filtres',
+    no_requests_found: 'Aucune demande trouvée avec ces filtres.',
+    urgent: 'URGENT',
+    contact: 'Contact',
+    preference: 'Préférence',
+    unspecified: 'Non spécifié',
+    cargo_details: 'Détails de la cargaison',
+    type: 'Type',
+    weight: 'Poids',
+    pallets: 'Palettes',
+    volume: 'Volume',
+    required_truck: 'Camion requis',
+    temp: 'Temp',
+    loading: 'Chargement',
+    unloading: 'Déchargement',
+    client_notes: 'Notes du client',
+    view_file: 'Voir',
+    download_file: 'Télécharger',
+    modify_status: 'Modifier le statut',
+    received_at: 'Reçu à:',
+    loading_requests: 'Chargement des demandes...'
+  },
+  es: {
+    filter_requests: 'Filtrar solicitudes:',
+    all_statuses: 'Todos los estados',
+    status_new: 'Nuevo',
+    status_reviewing: 'En revisión',
+    status_contacted: 'Contactado',
+    status_quoted: 'Cotizado',
+    status_accepted: 'Aceptado',
+    status_rejected: 'Rechazado',
+    clear_filters: 'Borrar filtros',
+    no_requests_found: 'No se encontraron solicitudes con estos filtros.',
+    urgent: 'URGENTE',
+    contact: 'Contacto',
+    preference: 'Preferencia',
+    unspecified: 'No especificado',
+    cargo_details: 'Detalles de carga',
+    type: 'Tipo',
+    weight: 'Peso',
+    pallets: 'Palets',
+    volume: 'Volumen',
+    required_truck: 'Camión requerido',
+    temp: 'Temp',
+    loading: 'Carga',
+    unloading: 'Descarga',
+    client_notes: 'Notas del cliente',
+    view_file: 'Ver',
+    download_file: 'Descargar',
+    modify_status: 'Modificar estado',
+    received_at: 'Recibido en:',
+    loading_requests: 'Cargando solicitudes...'
+  }
+};
+
 const WebsiteQuotesPage = () => {
   const [quotes, setQuotes] = useState<QuoteRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('');
   const [expandedQuoteId, setExpandedQuoteId] = useState<string | null>(null);
-  const { t } = useTranslation();
+  const { i18n } = useTranslation();
+  
+  const currentLang = i18n.language?.substring(0, 2).toLowerCase() || 'ro';
+  const tLocal = (key: string) => translations[currentLang]?.[key] || translations['en'][key] || key;
 
   const fetchQuotes = async () => {
     try {
@@ -85,18 +278,10 @@ const WebsiteQuotesPage = () => {
     };
     
     const displayStatus = status || 'new';
-    const statusTranslations: Record<string, string> = {
-      new: t('status_new', 'Nou'),
-      reviewing: t('status_reviewing', 'În analiză'),
-      contacted: t('status_contacted', 'Contactat'),
-      quoted: t('status_quoted', 'Ofertat'),
-      accepted: t('status_accepted', 'Acceptat'),
-      rejected: t('status_rejected', 'Respins'),
-    };
 
     return (
       <span className={`px-3 py-1 rounded-full text-xs font-medium border ${colors[displayStatus] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>
-        {statusTranslations[displayStatus]?.toUpperCase() || displayStatus.toUpperCase()}
+        {tLocal(`status_${displayStatus}`).toUpperCase()}
       </span>
     );
   };
@@ -111,23 +296,23 @@ const WebsiteQuotesPage = () => {
   });
 
   const statusOptions = [
-    { value: 'all', label: t('all_statuses', 'Toate statusurile') },
-    { value: 'new', label: t('status_new', 'Nou') },
-    { value: 'reviewing', label: t('status_reviewing', 'În analiză') },
-    { value: 'contacted', label: t('status_contacted', 'Contactat') },
-    { value: 'quoted', label: t('status_quoted', 'Ofertat') },
-    { value: 'accepted', label: t('status_accepted', 'Acceptat') },
-    { value: 'rejected', label: t('status_rejected', 'Respins') },
+    { value: 'all', label: tLocal('all_statuses') },
+    { value: 'new', label: tLocal('status_new') },
+    { value: 'reviewing', label: tLocal('status_reviewing') },
+    { value: 'contacted', label: tLocal('status_contacted') },
+    { value: 'quoted', label: tLocal('status_quoted') },
+    { value: 'accepted', label: tLocal('status_accepted') },
+    { value: 'rejected', label: tLocal('status_rejected') },
   ];
 
-  if (loading) return <div className="p-8">{t('common.loading', 'Se încarcă cererile...')}</div>;
+  if (loading) return <div className="p-8">{tLocal('loading_requests')}</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
         <div className="flex items-center gap-2">
           <Filter className="w-5 h-5 text-gray-500" />
-          <span className="font-medium text-gray-700">{t('filter_requests', 'Filtrează cererile:')}</span>
+          <span className="font-medium text-gray-700">{tLocal('filter_requests')}</span>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
           <div className="w-full sm:w-48 relative z-50">
@@ -159,7 +344,7 @@ const WebsiteQuotesPage = () => {
               onClick={() => { setStatusFilter('all'); setDateFilter(''); }}
               className="text-sm text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap px-2"
             >
-              {t('clear_filters', 'Șterge filtre')}
+              {tLocal('clear_filters')}
             </button>
           )}
         </div>
@@ -169,12 +354,14 @@ const WebsiteQuotesPage = () => {
         {filteredQuotes.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
             <div className="p-8 text-center text-gray-500">
-              {t('no_requests_found', 'Nu a fost găsită nicio cerere cu aceste filtre.')}
+              {tLocal('no_requests_found')}
             </div>
           </div>
         ) : (
           filteredQuotes.map((quote) => {
             const isExpanded = expandedQuoteId === quote.id;
+            const createdAtDate = quote.createdAt ? new Date(quote.createdAt) : null;
+            
             return (
               <div key={quote.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200 transition-all">
                 {/* Header Row (Clickable) */}
@@ -188,12 +375,12 @@ const WebsiteQuotesPage = () => {
                         <h3 className="text-lg font-semibold">{quote.companyName}</h3>
                         {quote.isUrgent && (
                           <span className="bg-red-100 text-red-800 text-xs font-bold px-2 py-0.5 rounded uppercase border border-red-200">
-                            {t('urgent', 'URGENT')}
+                            {tLocal('urgent')}
                           </span>
                         )}
                       </div>
                       <p className="text-sm text-gray-500 mt-1">
-                        {formatDate(new Date(quote.createdAt).toISOString().split('T')[0])} • {quote.loadingLocation.split(',')[0]} ➔ {quote.unloadingLocation.split(',')[0]}
+                        {createdAtDate ? formatDate(createdAtDate.toISOString().split('T')[0]) : '-'} {createdAtDate ? createdAtDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''} • {quote.loadingLocation} ➔ {quote.unloadingLocation}
                       </p>
                     </div>
                   </div>
@@ -212,26 +399,26 @@ const WebsiteQuotesPage = () => {
                       <div className="p-6 flex-1 border-b lg:border-b-0 lg:border-r border-gray-100">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 text-sm">
                           <div>
-                            <p className="text-gray-500 mb-1 text-xs uppercase font-semibold">{t('contact', 'Contact')}</p>
+                            <p className="text-gray-500 mb-1 text-xs uppercase font-semibold">{tLocal('contact')}</p>
                             <p className="font-medium">👤 {quote.contactPerson || quote.companyName}</p>
                             <p className="font-medium">📞 {quote.phone}</p>
                             <p className="font-medium">📧 {quote.email}</p>
-                            <p className="text-gray-500 mt-1">{t('preference', 'Preferință')}: <span className="font-medium text-gray-700 capitalize">{quote.preferredContactMethod || t('unspecified', 'Nespecificat')}</span></p>
+                            <p className="text-gray-500 mt-1">{tLocal('preference')}: <span className="font-medium text-gray-700 capitalize">{quote.preferredContactMethod || tLocal('unspecified')}</span></p>
                           </div>
                           
                           <div>
-                            <p className="text-gray-500 mb-1 text-xs uppercase font-semibold">{t('cargo_details', 'Detalii Marfă')}</p>
-                            <p className="font-medium">📦 {t('type', 'Tip')}: {quote.cargoType || '-'}</p>
-                            <p className="font-medium">⚖️ {t('weight', 'Greutate')}: {quote.cargoWeightKg ? `${quote.cargoWeightKg} kg` : '-'}</p>
-                            <p className="font-medium">🏢 {t('pallets', 'Paleți')}: {quote.numberOfPallets || '-'}</p>
-                            <p className="font-medium">📐 {t('volume', 'Volum')}: {quote.cargoVolumeM3 ? `${quote.cargoVolumeM3} m³` : '-'}</p>
+                            <p className="text-gray-500 mb-1 text-xs uppercase font-semibold">{tLocal('cargo_details')}</p>
+                            <p className="font-medium">📦 {tLocal('type')}: {quote.cargoType || '-'}</p>
+                            <p className="font-medium">⚖️ {tLocal('weight')}: {quote.cargoWeightKg ? `${quote.cargoWeightKg} kg` : '-'}</p>
+                            <p className="font-medium">🏢 {tLocal('pallets')}: {quote.numberOfPallets || '-'}</p>
+                            <p className="font-medium">📐 {tLocal('volume')}: {quote.cargoVolumeM3 ? `${quote.cargoVolumeM3} m³` : '-'}</p>
                           </div>
 
                           <div>
-                            <p className="text-gray-500 mb-1 text-xs uppercase font-semibold">{t('required_truck', 'Camion Necesar')}</p>
-                            <p className="font-medium">🚚 {t('type', 'Tip')}: {quote.truckType || '-'}</p>
+                            <p className="text-gray-500 mb-1 text-xs uppercase font-semibold">{tLocal('required_truck')}</p>
+                            <p className="font-medium">🚚 {tLocal('type')}: {quote.truckType || '-'}</p>
                             {quote.temperatureRequired && (
-                              <p className="font-medium text-blue-600">❄️ {t('temp', 'Temp')}: {quote.temperatureRequired}</p>
+                              <p className="font-medium text-blue-600">❄️ {tLocal('temp')}: {quote.temperatureRequired}</p>
                             )}
                           </div>
                         </div>
@@ -240,7 +427,7 @@ const WebsiteQuotesPage = () => {
                           <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-200">
                             <div className="p-4">
                               <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2 flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-blue-500"></span> {t('loading', 'Încărcare')}
+                                <span className="w-2 h-2 rounded-full bg-blue-500"></span> {tLocal('loading')}
                               </p>
                               <p className="font-medium text-base mb-1">{quote.loadingLocation}</p>
                               {(quote.loadingDate || quote.loadingTime) && (
@@ -251,7 +438,7 @@ const WebsiteQuotesPage = () => {
                             </div>
                             <div className="p-4">
                               <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2 flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-green-500"></span> {t('unloading', 'Descărcare')}
+                                <span className="w-2 h-2 rounded-full bg-green-500"></span> {tLocal('unloading')}
                               </p>
                               <p className="font-medium text-base mb-1">{quote.unloadingLocation}</p>
                               {(quote.unloadingDate || quote.unloadingTime) && (
@@ -265,7 +452,7 @@ const WebsiteQuotesPage = () => {
 
                         {quote.notes && (
                           <div className="p-3 bg-blue-50 text-blue-900 rounded-md text-sm border border-blue-100 mb-4">
-                            <strong>{t('client_notes', 'Observații client')}:</strong> {quote.notes}
+                            <strong>{tLocal('client_notes')}:</strong> {quote.notes}
                           </div>
                         )}
 
@@ -279,7 +466,7 @@ const WebsiteQuotesPage = () => {
                               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg transition-colors border border-blue-200"
                             >
                               <Eye className="w-4 h-4" />
-                              {t('view_file', 'Vizualizare')}
+                              {tLocal('view_file')}
                             </a>
                             <a 
                               href={quote.attachmentUrl} 
@@ -288,14 +475,14 @@ const WebsiteQuotesPage = () => {
                               className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors border border-gray-200"
                             >
                               <Download className="w-4 h-4" />
-                              {t('download_file', 'Descarcă')}
+                              {tLocal('download_file')}
                             </a>
                           </div>
                         )}
                       </div>
                       
                       <div className="p-6 lg:w-64 bg-white flex flex-col gap-2 relative z-10" onClick={(e) => e.stopPropagation()}>
-                        <p className="text-xs text-gray-500 text-center mb-1 font-semibold uppercase">{t('modify_status', 'Modifică Status')}</p>
+                        <p className="text-xs text-gray-500 text-center mb-1 font-semibold uppercase">{tLocal('modify_status')}</p>
                         
                         <CustomSelect 
                           value={quote.status}
@@ -304,9 +491,9 @@ const WebsiteQuotesPage = () => {
                         />
 
                         <div className="mt-auto pt-4 border-t border-gray-200 text-center">
-                          <p className="text-xs text-gray-400">{t('received_at', 'Primită la:')}</p>
+                          <p className="text-xs text-gray-400">{tLocal('received_at')}</p>
                           <p className="text-sm font-medium text-gray-600">
-                            {quote.createdAt ? `${new Date(quote.createdAt).toLocaleDateString('en-GB')} ${new Date(quote.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                            {createdAtDate ? `${createdAtDate.toLocaleDateString('en-GB')} ${createdAtDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}
                           </p>
                         </div>
                       </div>
