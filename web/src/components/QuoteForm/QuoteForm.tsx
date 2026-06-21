@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
-import { ChevronDown, Calendar, Clock, UploadCloud, CheckCircle } from 'lucide-react';
+import { ChevronDown, UploadCloud, CheckCircle } from 'lucide-react';
 import AddressAutocomplete from '../AddressAutocomplete/AddressAutocomplete';
+import DatePicker from '../DatePicker/DatePicker';
+import TimePicker from '../TimePicker/TimePicker';
 import styles from './QuoteForm.module.css';
 
 
@@ -199,34 +201,36 @@ const QuoteForm = () => {
         <div className={styles.rowTwo}>
           <div className={styles.inputGroup}>
             <label>{t('loadingDate')} *</label>
-            <div className={styles.inputWithIcon}>
-              <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input type="date" name="loadingDate" required value={formData.loadingDate} onChange={handleChange} className="pl-10" />
-            </div>
+            <DatePicker 
+              value={formData.loadingDate} 
+              onChange={(val) => setFormData(prev => ({ ...prev, loadingDate: val }))} 
+              required 
+            />
           </div>
           <div className={styles.inputGroup}>
             <label>{t('loadingTime')}</label>
-            <div className={styles.inputWithIcon}>
-              <Clock className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input type="time" name="loadingTime" value={formData.loadingTime} onChange={handleChange} className="pl-10" />
-            </div>
+            <TimePicker 
+              value={formData.loadingTime} 
+              onChange={(val) => setFormData(prev => ({ ...prev, loadingTime: val }))} 
+            />
           </div>
         </div>
         
         <div className={styles.rowTwo}>
           <div className={styles.inputGroup}>
             <label>{t('unloadingDate')} *</label>
-            <div className={styles.inputWithIcon}>
-              <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input type="date" name="unloadingDate" required value={formData.unloadingDate} onChange={handleChange} className="pl-10" />
-            </div>
+            <DatePicker 
+              value={formData.unloadingDate} 
+              onChange={(val) => setFormData(prev => ({ ...prev, unloadingDate: val }))} 
+              required 
+            />
           </div>
           <div className={styles.inputGroup}>
             <label>{t('unloadingTime')}</label>
-            <div className={styles.inputWithIcon}>
-              <Clock className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input type="time" name="unloadingTime" value={formData.unloadingTime} onChange={handleChange} className="pl-10" />
-            </div>
+            <TimePicker 
+              value={formData.unloadingTime} 
+              onChange={(val) => setFormData(prev => ({ ...prev, unloadingTime: val }))} 
+            />
           </div>
         </div>
       </div>

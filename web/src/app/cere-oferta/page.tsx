@@ -14,7 +14,7 @@ export default function RequestQuotePage() {
       
       <div className="flex-1">
         {/* Banner Section */}
-        <div className="pt-32 pb-16 lg:pt-40 lg:pb-20 bg-slate-900 w-full flex justify-center text-center">
+        <div className="pt-48 pb-16 lg:pt-56 lg:pb-24 bg-slate-900 w-full flex justify-center text-center">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
               {t('quotePageTitle')}
