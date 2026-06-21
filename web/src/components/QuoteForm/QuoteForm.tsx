@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { ChevronDown, Calendar, Clock, UploadCloud, CheckCircle } from 'lucide-react';
+import AddressAutocomplete from '../AddressAutocomplete/AddressAutocomplete';
 import styles from './QuoteForm.module.css';
 
 
@@ -22,12 +23,14 @@ const QuoteForm = () => {
   const { t } = useLanguage();
   const [formData, setFormData] = useState({
     companyName: '',
+    contactPerson: '',
     phone: '',
     email: '',
+    preferredContactMethod: 'email',
     loadingLocation: '',
-    unloadingLocation: '',
     loadingDate: '',
     loadingTime: '',
+    unloadingLocation: '',
     unloadingDate: '',
     unloadingTime: '',
     cargoType: '',
@@ -37,7 +40,6 @@ const QuoteForm = () => {
     truckType: '',
     temperatureRequired: '',
     isUrgent: false,
-    preferredContactMethod: 'email',
     notes: ''
   });
   const [attachment, setAttachment] = useState<File | null>(null);
@@ -90,10 +92,10 @@ const QuoteForm = () => {
       
       setStatus('success');
       setFormData({
-        companyName: '', phone: '', email: '', loadingLocation: '', unloadingLocation: '',
+        companyName: '', contactPerson: '', phone: '', email: '', preferredContactMethod: 'email', loadingLocation: '', unloadingLocation: '',
         loadingDate: '', loadingTime: '', unloadingDate: '', unloadingTime: '',
         cargoType: '', cargoWeightKg: '', numberOfPallets: '', cargoVolumeM3: '',
-        truckType: '', temperatureRequired: '', isUrgent: false, preferredContactMethod: 'email', notes: ''
+        truckType: '', temperatureRequired: '', isUrgent: false, notes: ''
       });
       setAttachment(null);
     } catch (err) {
@@ -129,6 +131,10 @@ const QuoteForm = () => {
         <div className={styles.inputGroup}>
           <label>{t('companyName')} *</label>
           <input type="text" name="companyName" required value={formData.companyName} onChange={handleChange} />
+        </div>
+        <div className={styles.inputGroup}>
+          <label>{t('contactPerson')} *</label>
+          <input type="text" name="contactPerson" required value={formData.contactPerson} onChange={handleChange} />
         </div>
         <div className={styles.inputGroup}>
           <label>{t('phone')} *</label>
@@ -175,11 +181,19 @@ const QuoteForm = () => {
       <div className={styles.formGrid}>
         <div className={styles.inputGroup}>
           <label>{t('loadingLocation')} *</label>
-          <input type="text" name="loadingLocation" required value={formData.loadingLocation} onChange={handleChange} />
+          <AddressAutocomplete 
+            value={formData.loadingLocation} 
+            onChange={(val) => setFormData(prev => ({ ...prev, loadingLocation: val }))} 
+            required 
+          />
         </div>
         <div className={styles.inputGroup}>
           <label>{t('unloadingLocation')} *</label>
-          <input type="text" name="unloadingLocation" required value={formData.unloadingLocation} onChange={handleChange} />
+          <AddressAutocomplete 
+            value={formData.unloadingLocation} 
+            onChange={(val) => setFormData(prev => ({ ...prev, unloadingLocation: val }))} 
+            required 
+          />
         </div>
         
         <div className={styles.rowTwo}>
@@ -221,7 +235,7 @@ const QuoteForm = () => {
       <div className={styles.formGrid}>
         <div className={styles.inputGroup}>
           <label>{t('cargoType')} *</label>
-          <input type="text" name="cargoType" required value={formData.cargoType} onChange={handleChange} />
+          <input type="text" name="cargoType" required value={formData.cargoType} onChange={handleChange} placeholder={t('cargoTypePlaceholder')} />
         </div>
         
         <div className={styles.inputGroup}>
@@ -300,6 +314,7 @@ const QuoteForm = () => {
           </label>
           <span className={styles.fileName}>{attachment ? attachment.name : t('quoteNoFile')}</span>
         </div>
+        <p className={styles.uploadHelperText}>{t('uploadHelper')}</p>
       </div>
 
       {status === 'error' && <p className={styles.errorText}>{t('quoteError')}</p>}

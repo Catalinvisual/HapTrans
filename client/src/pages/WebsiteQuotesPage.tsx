@@ -6,6 +6,7 @@ import { Download, Filter, Calendar } from 'lucide-react';
 interface QuoteRequest {
   id: string;
   companyName: string;
+  contactPerson?: string;
   phone: string;
   email: string;
   preferredContactMethod: string;
@@ -159,6 +160,7 @@ const WebsiteQuotesPage = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 text-sm">
                     <div>
                       <p className="text-gray-500 mb-1 text-xs uppercase font-semibold">Contact</p>
+                      <p className="font-medium">👤 {quote.contactPerson || quote.companyName}</p>
                       <p className="font-medium">📞 {quote.phone}</p>
                       <p className="font-medium">📧 {quote.email}</p>
                       <p className="text-gray-500 mt-1">Preferință: <span className="font-medium text-gray-700 capitalize">{quote.preferredContactMethod || 'Nespecificat'}</span></p>

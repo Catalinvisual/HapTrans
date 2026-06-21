@@ -304,3 +304,16 @@
   font-size: 0.9rem;
   color: #6b7280;
 }
+
+.uploadHelperText {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-top: 8px;
+}
+
+/* Hide native date picker icon for modern look since we have lucide icons */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  display: none;
+  -webkit-appearance: none;
+}

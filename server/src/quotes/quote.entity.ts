@@ -17,6 +17,9 @@ export class QuoteRequest {
   @Column()
   companyName: string;
 
+  @Column({ nullable: true })
+  contactPerson: string;
+
   @Column()
   phone: string;
 
