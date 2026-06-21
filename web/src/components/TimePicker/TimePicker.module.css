@@ -122,7 +122,7 @@
   background: transparent;
 }
 .list::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: #FF5A00;
   border-radius: 10px;
 }
 

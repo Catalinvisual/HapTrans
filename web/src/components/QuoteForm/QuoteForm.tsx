@@ -187,6 +187,7 @@ const QuoteForm = () => {
             value={formData.loadingLocation} 
             onChange={(val) => setFormData(prev => ({ ...prev, loadingLocation: val }))} 
             required 
+            className={styles.autocompleteInput}
           />
         </div>
         <div className={styles.inputGroup}>
@@ -195,6 +196,7 @@ const QuoteForm = () => {
             value={formData.unloadingLocation} 
             onChange={(val) => setFormData(prev => ({ ...prev, unloadingLocation: val }))} 
             required 
+            className={styles.autocompleteInput}
           />
         </div>
         
