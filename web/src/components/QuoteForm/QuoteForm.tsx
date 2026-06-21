@@ -114,7 +114,7 @@ const QuoteForm = () => {
         </div>
         <h3>{t('quoteSuccess')}</h3>
         <button onClick={() => setStatus('idle')} className={styles.btnSecondary}>
-          Trimite altă cerere
+          {t('sendAnotherQuote')}
         </button>
       </div>
     );
@@ -283,7 +283,19 @@ const QuoteForm = () => {
         {formData.truckType === 'truckFrigo' && (
           <div className={styles.inputGroup}>
             <label>{t('temperatureRequired')}</label>
-            <input type="text" name="temperatureRequired" placeholder="-18°C" value={formData.temperatureRequired} onChange={handleChange} />
+            <div style={{ position: 'relative', width: '100%' }}>
+              <input 
+                type="text" 
+                name="temperatureRequired" 
+                placeholder="+10 sau -15" 
+                value={formData.temperatureRequired} 
+                onChange={handleChange} 
+                style={{ paddingRight: '40px' }}
+              />
+              <span style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', color: '#6b7280', fontWeight: '500' }}>
+                °C
+              </span>
+            </div>
           </div>
         )}
 
