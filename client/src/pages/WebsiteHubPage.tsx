@@ -68,7 +68,7 @@ const WebsiteHubPage = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900 flex items-center gap-3">
-            <Globe className="w-8 h-8 text-blue-600" />
+            <Globe className="w-8 h-8 text-primary" />
             {t('websiteHub', 'Website Hub')}
           </h1>
           <p className="text-gray-500 mt-2">{t('websiteHubSubtitle', 'Gestionează toate setările, paginile și cererile venite de pe site-ul public.')}</p>
@@ -87,11 +87,11 @@ const WebsiteHubPage = () => {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   isActive
-                    ? 'border-blue-600 text-blue-600 bg-white'
+                    ? 'border-primary text-primary bg-white'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-gray-400'}`} />
                 {tab.label}
               </button>
             );
@@ -121,7 +121,7 @@ const WebsiteHubPage = () => {
               <h3 className="text-lg font-semibold mb-4">{t('website_hub_countries_title', 'Țări Acoperite')}</h3>
               <p className="text-sm text-gray-500 mb-4">{t('website_hub_countries_desc', 'Adaugă codurile țărilor (ex: RO, DE, FR) separate prin virgulă pentru a afișa steagurile pe hartă.')}</p>
               <textarea
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary"
                 rows={3}
                 placeholder="RO, DE, FR, IT, NL..."
                 value={cmsData['countries'] || ''}
@@ -130,7 +130,7 @@ const WebsiteHubPage = () => {
               <button 
                 onClick={() => handleSave('countries', cmsData['countries'])}
                 disabled={saving}
-                className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="mt-4 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark disabled:opacity-50"
               >
                 {saving ? t('website_hub_saving', 'Se salvează...') : t('website_hub_save_countries', 'Salvează Țările')}
               </button>
@@ -158,7 +158,7 @@ const WebsiteHubPage = () => {
               </div>
 
               <textarea
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary font-mono text-sm"
                 rows={12}
                 placeholder={t('website_hub_placeholder_html', '<h1>Titlu Pagină</h1><p>Conținutul tău aici...</p>')}
                 value={cmsData[getCmsKey(activeTab, editLang)] || ''}
@@ -167,7 +167,7 @@ const WebsiteHubPage = () => {
               <button 
                 onClick={() => handleSave(getCmsKey(activeTab, editLang), cmsData[getCmsKey(activeTab, editLang)])}
                 disabled={saving}
-                className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="mt-4 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark disabled:opacity-50"
               >
                 {saving ? t('website_hub_saving', 'Se salvează...') : t('website_hub_save_content', 'Salvează Conținutul')}
               </button>

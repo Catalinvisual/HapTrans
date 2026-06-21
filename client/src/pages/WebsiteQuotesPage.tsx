@@ -269,7 +269,7 @@ const WebsiteQuotesPage = () => {
 
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
-      new: 'bg-blue-100 text-blue-800 border-blue-200',
+      new: 'bg-orange-100 text-orange-800 border-orange-200',
       reviewing: 'bg-indigo-100 text-indigo-800 border-indigo-200',
       contacted: 'bg-yellow-100 text-yellow-800 border-yellow-200',
       quoted: 'bg-purple-100 text-purple-800 border-purple-200',
@@ -327,7 +327,7 @@ const WebsiteQuotesPage = () => {
             <Flatpickr
               value={dateFilter}
               onChange={(dates, dateStr) => setDateFilter(dateStr)}
-              className="w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm bg-white cursor-pointer pl-10"
+              className="w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary text-sm bg-white cursor-pointer pl-10"
               options={{
                 altInput: true,
                 altFormat: 'd/m/Y',
@@ -342,7 +342,7 @@ const WebsiteQuotesPage = () => {
           {(statusFilter !== 'all' || dateFilter) && (
             <button 
               onClick={() => { setStatusFilter('all'); setDateFilter(''); }}
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap px-2"
+              className="text-sm text-primary hover:text-primary-dark font-medium whitespace-nowrap px-2"
             >
               {tLocal('clear_filters')}
             </button>
@@ -418,7 +418,7 @@ const WebsiteQuotesPage = () => {
                             <p className="text-gray-500 mb-1 text-xs uppercase font-semibold">{tLocal('required_truck')}</p>
                             <p className="font-medium">🚚 {tLocal('type')}: {quote.truckType || '-'}</p>
                             {quote.temperatureRequired && (
-                              <p className="font-medium text-blue-600">❄️ {tLocal('temp')}: {quote.temperatureRequired}</p>
+                              <p className="font-medium text-primary">❄️ {tLocal('temp')}: {quote.temperatureRequired}</p>
                             )}
                           </div>
                         </div>
@@ -427,7 +427,7 @@ const WebsiteQuotesPage = () => {
                           <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-200">
                             <div className="p-4">
                               <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2 flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-blue-500"></span> {tLocal('loading')}
+                                <span className="w-2 h-2 rounded-full bg-primary"></span> {tLocal('loading')}
                               </p>
                               <p className="font-medium text-base mb-1">{quote.loadingLocation}</p>
                               {(quote.loadingDate || quote.loadingTime) && (
@@ -451,7 +451,7 @@ const WebsiteQuotesPage = () => {
                         </div>
 
                         {quote.notes && (
-                          <div className="p-3 bg-blue-50 text-blue-900 rounded-md text-sm border border-blue-100 mb-4">
+                          <div className="p-3 bg-orange-50 text-orange-900 rounded-md text-sm border border-orange-100 mb-4">
                             <strong>{tLocal('client_notes')}:</strong> {quote.notes}
                           </div>
                         )}
@@ -463,7 +463,7 @@ const WebsiteQuotesPage = () => {
                               target="_blank" 
                               rel="noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg transition-colors border border-blue-200"
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 text-primary text-sm font-medium rounded-lg transition-colors border border-orange-200"
                             >
                               <Eye className="w-4 h-4" />
                               {tLocal('view_file')}
