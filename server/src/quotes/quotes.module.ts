@@ -46,9 +46,11 @@ const storage = new CloudinaryStorage({
   },
 });
 
+import { QuoteReply } from './quote-reply.entity';
+
 @Module({
   imports: [
-    TypeOrmModule.forFeature([QuoteRequest]),
+    TypeOrmModule.forFeature([QuoteRequest, QuoteReply]),
     UsersModule,
     MulterModule.register({
       storage: storage,

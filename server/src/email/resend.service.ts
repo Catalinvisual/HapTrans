@@ -280,4 +280,48 @@ export class ResendService {
       console.error('Error sending quote confirmation email:', e);
     }
   }
+
+  async sendQuoteReplyEmail(email: string, name: string, reply: any) {
+    const logoUrl = await this.getLogoUrl();
+    const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
+
+    const htmlContent = `
+      <html>
+      <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+        <div style="text-align: center; margin-bottom: 24px; margin-top: 10px;">
+          ${logoHtml}
+        </div>
+        <p>Dear ${name},</p>
+        <p>We have processed your quote request and are pleased to offer you the following details for your transport:</p>
+        <div style="background-color: #f8fafc; border-left: 4px solid #ff5a00; padding: 15px 20px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+          ${reply.price ? `<p style="margin: 5px 0;"><strong>Price / Offer:</strong> &euro;${reply.price}</p>` : ''}
+          ${reply.pickupDate ? `<p style="margin: 5px 0;"><strong>Pickup Date:</strong> ${formatDMY(reply.pickupDate)}</p>` : ''}
+          ${reply.deliveryDate ? `<p style="margin: 5px 0;"><strong>Delivery Date:</strong> ${formatDMY(reply.deliveryDate)}</p>` : ''}
+          ${reply.validUntil ? `<p style="margin: 5px 0;"><strong>Offer valid until:</strong> ${formatDMY(reply.validUntil)}</p>` : ''}
+        </div>
+        ${reply.message ? `<div style="margin: 20px 0; padding: 15px; border: 1px solid #e2e8f0; border-radius: 8px;"><p style="white-space: pre-wrap; margin: 0;">${reply.message}</p></div>` : ''}
+        <br/>
+        <p>If you have any questions or wish to proceed, please reply to this email or contact us directly.</p>
+        <br/>
+        <p>Best regards,<br/>The HapCargo Team</p>
+      </body>
+      </html>
+    `;
+
+    try {
+      if (process.env.RESEND_API_KEY) {
+        const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+        await this.resend.emails.send({
+          from: `HapCargo <${fromEmail}>`,
+          to: email,
+          subject: 'Your Transport Quote Offer - HapCargo',
+          html: htmlContent,
+        });
+      } else {
+        console.log('[MOCK EMAIL] Quote Reply to:', email, reply);
+      }
+    } catch (e) {
+      console.error('Error sending quote reply email:', e);
+    }
+  }
 }

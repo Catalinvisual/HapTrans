@@ -38,4 +38,15 @@ export class QuotesController {
   async updateStatus(@Param('id') id: string, @Body('status') status: string) {
     return this.quotesService.updateStatus(id, status);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/reply')
+  async replyToQuote(
+    @Param('id') id: string,
+    @Body() replyData: any,
+    @Body('sentBy') sentBy?: string
+  ) {
+    // In a real app we might get the admin user from Req().user, but for now we accept it in the body
+    return this.quotesService.replyToQuote(id, replyData);
+  }
 }

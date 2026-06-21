@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { QuoteReply } from './quote-reply.entity';
 
 export enum QuoteStatus {
   NEW = 'new',
@@ -82,4 +83,7 @@ export class QuoteRequest {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @OneToMany(() => QuoteReply, reply => reply.quoteRequest)
+  replies: QuoteReply[];
 }

@@ -5,6 +5,19 @@ import { Download, Filter, Calendar, Eye, ChevronDown, ChevronUp } from 'lucide-
 import CustomSelect from '../components/CustomSelect';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
+import { QuoteReplyForm } from './QuoteReplyForm';
+
+interface QuoteReply {
+  id: string;
+  quoteRequestId: string;
+  message?: string;
+  price?: number;
+  pickupDate?: string;
+  deliveryDate?: string;
+  validUntil?: string;
+  sentBy?: string;
+  sentAt: string;
+}
 
 interface QuoteRequest {
   id: string;
@@ -30,6 +43,7 @@ interface QuoteRequest {
   attachmentUrl: string;
   status: 'new' | 'reviewing' | 'contacted' | 'quoted' | 'accepted' | 'rejected';
   createdAt: string;
+  replies?: QuoteReply[];
 }
 
 const formatDate = (dateString: string) => {
@@ -72,7 +86,8 @@ const translations: Record<string, Record<string, string>> = {
     download_file: 'Descarcă',
     modify_status: 'Modifică Status',
     received_at: 'Primită la:',
-    loading_requests: 'Se încarcă cererile...'
+    loading_requests: 'Se încarcă cererile...',
+    reply: 'Răspunde', send_reply: 'Trimite Oferta', price_eur: 'Preț (€)', valid_until: 'Valabil până la', reply_history: 'Istoric Răspunsuri', reply_message: 'Mesaj / Ofertă', reply_success: 'Răspuns trimis cu succes!'
   },
   en: {
     filter_requests: 'Filter requests:',
@@ -103,7 +118,8 @@ const translations: Record<string, Record<string, string>> = {
     download_file: 'Download',
     modify_status: 'Modify Status',
     received_at: 'Received at:',
-    loading_requests: 'Loading requests...'
+    loading_requests: 'Loading requests...',
+    reply: 'Reply', send_reply: 'Send Offer', price_eur: 'Price (€)', valid_until: 'Valid until', reply_history: 'Reply History', reply_message: 'Message / Offer', reply_success: 'Reply sent successfully!'
   },
   nl: {
     filter_requests: 'Verzoeken filteren:',
@@ -134,7 +150,8 @@ const translations: Record<string, Record<string, string>> = {
     download_file: 'Downloaden',
     modify_status: 'Status wijzigen',
     received_at: 'Ontvangen op:',
-    loading_requests: 'Verzoeken laden...'
+    loading_requests: 'Verzoeken laden...',
+    reply: 'Beantwoorden', send_reply: 'Offerte verzenden', price_eur: 'Prijs (€)', valid_until: 'Geldig tot', reply_history: 'Antwoordgeschiedenis', reply_message: 'Bericht / Offerte', reply_success: 'Antwoord succesvol verzonden!'
   },
   de: {
     filter_requests: 'Anfragen filtern:',
@@ -165,7 +182,8 @@ const translations: Record<string, Record<string, string>> = {
     download_file: 'Herunterladen',
     modify_status: 'Status ändern',
     received_at: 'Erhalten am:',
-    loading_requests: 'Anfragen werden geladen...'
+    loading_requests: 'Lade Anfragen...',
+    reply: 'Antworten', send_reply: 'Angebot senden', price_eur: 'Preis (€)', valid_until: 'Gültig bis', reply_history: 'Antwortverlauf', reply_message: 'Nachricht / Angebot', reply_success: 'Antwort erfolgreich gesendet!'
   },
   fr: {
     filter_requests: 'Filtrer les demandes:',
@@ -195,8 +213,9 @@ const translations: Record<string, Record<string, string>> = {
     view_file: 'Voir',
     download_file: 'Télécharger',
     modify_status: 'Modifier le statut',
-    received_at: 'Reçu à:',
-    loading_requests: 'Chargement des demandes...'
+    received_at: 'Reçu le :',
+    loading_requests: 'Chargement des demandes...',
+    reply: 'Répondre', send_reply: 'Envoyer l\'offre', price_eur: 'Prix (€)', valid_until: 'Valable jusqu\'au', reply_history: 'Historique des réponses', reply_message: 'Message / Offre', reply_success: 'Réponse envoyée avec succès !'
   },
   es: {
     filter_requests: 'Filtrar solicitudes:',
@@ -227,7 +246,8 @@ const translations: Record<string, Record<string, string>> = {
     download_file: 'Descargar',
     modify_status: 'Modificar estado',
     received_at: 'Recibido en:',
-    loading_requests: 'Cargando solicitudes...'
+    loading_requests: 'Cargando solicitudes...',
+    reply: 'Responder', send_reply: 'Enviar Oferta', price_eur: 'Precio (€)', valid_until: 'Válido hasta', reply_history: 'Historial de Respuestas', reply_message: 'Mensaje / Oferta', reply_success: '¡Respuesta enviada con éxito!'
   }
 };
 
@@ -479,6 +499,13 @@ const WebsiteQuotesPage = () => {
                             </a>
                           </div>
                         )}
+
+                        <QuoteReplyForm 
+                          quoteId={quote.id} 
+                          replies={quote.replies} 
+                          tLocal={tLocal} 
+                          onReplyAdded={fetchQuotes} 
+                        />
                       </div>
                       
                       <div className="p-6 lg:w-64 bg-white flex flex-col gap-2 relative z-10" onClick={(e) => e.stopPropagation()}>
