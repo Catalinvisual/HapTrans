@@ -287,9 +287,10 @@ const QuoteForm = () => {
               <input 
                 type="text" 
                 name="temperatureRequired" 
-                placeholder="+10 sau -15" 
+                placeholder="-18, +4" 
                 value={formData.temperatureRequired} 
                 onChange={handleChange} 
+                className={styles.autocompleteInput}
                 style={{ paddingRight: '40px' }}
               />
               <span style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', color: '#6b7280', fontWeight: '500' }}>

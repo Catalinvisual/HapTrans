@@ -10,7 +10,7 @@ import CustomSelect from '../components/CustomSelect';
 
 const WebsiteHubPage = () => {
   const { t, i18n } = useTranslation();
-  const [activeTab, setActiveTab] = useState('leads');
+  const [activeTab, setActiveTab] = useState('quotes');
   const [editLang, setEditLang] = useState('RO');
   const [cmsData, setCmsData] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -49,7 +49,6 @@ const WebsiteHubPage = () => {
 
   const tabs = [
     { id: 'quotes', label: t('website_hub_tabs_quotes', getQuotesTitle()), icon: FileText },
-    { id: 'leads', label: t('website_hub_tabs_leads', 'Contact Simplu (Leads)'), icon: MousePointerClick },
     { id: 'inbox', label: t('website_hub_tabs_inbox', 'Inbox Contact'), icon: Mail },
     { id: 'map', label: t('website_hub_tabs_map', 'Harta & Țări'), icon: Map },
     { id: 'about', label: t('website_hub_tabs_about', 'Despre Noi'), icon: FileText },
