@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
+import { ChevronDown, Calendar, Clock, UploadCloud, CheckCircle } from 'lucide-react';
 import styles from './QuoteForm.module.css';
 
 
 const truckOptions = [
-  "Tautliner / Curtainsider",
-  "Frigorific",
-  "Dubă / Box truck",
-  "Mega trailer",
-  "Prelată",
-  "Platformă deschisă",
-  "Container chassis",
-  "Walking floor",
-  "Low loader / Agabaritic",
-  "Express van / Sprinter",
-  "Other / Nu știu sigur"
+  "truckTautliner",
+  "truckFrigo",
+  "truckBox",
+  "truckMega",
+  "truckTarpaulin",
+  "truckOpen",
+  "truckContainer",
+  "truckWalking",
+  "truckLow",
+  "truckExpress",
+  "truckOther"
 ];
 
 const QuoteForm = () => {
@@ -41,6 +42,7 @@ const QuoteForm = () => {
   });
   const [attachment, setAttachment] = useState<File | null>(null);
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [openSelect, setOpenSelect] = useState<'truckType' | 'contactMethod' | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -65,7 +67,12 @@ const QuoteForm = () => {
     try {
       const data = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
-        data.append(key, value.toString());
+        // Translate the truck type value before sending, or just send the translated string
+        if (key === 'truckType' && value) {
+          data.append(key, t(value as any));
+        } else {
+          data.append(key, value.toString());
+        }
       });
       if (attachment) {
         data.append('attachment', attachment);
@@ -98,7 +105,9 @@ const QuoteForm = () => {
   if (status === 'success') {
     return (
       <div className={styles.successMessage}>
-        <div className={styles.successIcon}>✓</div>
+        <div className={styles.successIcon}>
+          <CheckCircle className="w-12 h-12 text-white" />
+        </div>
         <h3>{t('quoteSuccess')}</h3>
         <button onClick={() => setStatus('idle')} className={styles.btnSecondary}>
           Trimite altă cerere
@@ -107,9 +116,15 @@ const QuoteForm = () => {
     );
   }
 
+  // Helper for custom select outside click
+  const handleOutsideClick = () => {
+    if (openSelect) setOpenSelect(null);
+  };
+
   return (
-    <form className={styles.formContainer} onSubmit={handleSubmit}>
-      <h2 className={styles.sectionTitle}>Detalii Companie / Contact</h2>
+    <div onClick={handleOutsideClick}>
+      <form className={styles.formContainer} onSubmit={handleSubmit} onClick={(e) => e.stopPropagation()}>
+      <h2 className={styles.sectionTitle}>{t('quoteSecCompany')}</h2>
       <div className={styles.formGrid}>
         <div className={styles.inputGroup}>
           <label>{t('companyName')} *</label>
@@ -125,15 +140,38 @@ const QuoteForm = () => {
         </div>
         <div className={styles.inputGroup}>
           <label>{t('preferredContactMethod')}</label>
-          <select name="preferredContactMethod" value={formData.preferredContactMethod} onChange={handleChange}>
-            <option value="email">Email</option>
-            <option value="phone">Phone / Telefon</option>
-            <option value="whatsapp">WhatsApp</option>
-          </select>
+          <div className={styles.customSelectWrapper}>
+            <div 
+              className={`${styles.customSelect} ${openSelect === 'contactMethod' ? styles.open : ''}`}
+              onClick={() => setOpenSelect(openSelect === 'contactMethod' ? null : 'contactMethod')}
+            >
+              <span>
+                {formData.preferredContactMethod === 'email' ? t('quoteEmail') : 
+                 formData.preferredContactMethod === 'phone' ? t('quotePhone') : t('quoteWhatsapp')}
+              </span>
+              <ChevronDown className="w-4 h-4 text-gray-500" />
+            </div>
+            {openSelect === 'contactMethod' && (
+              <div className={styles.customSelectDropdown}>
+                {['email', 'phone', 'whatsapp'].map(opt => (
+                  <div 
+                    key={opt} 
+                    className={styles.customSelectOption}
+                    onClick={() => {
+                      setFormData(prev => ({ ...prev, preferredContactMethod: opt }));
+                      setOpenSelect(null);
+                    }}
+                  >
+                    {opt === 'email' ? t('quoteEmail') : opt === 'phone' ? t('quotePhone') : t('quoteWhatsapp')}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      <h2 className={styles.sectionTitle}>Ruta și Datele de Transport</h2>
+      <h2 className={styles.sectionTitle}>{t('quoteSecRoute')}</h2>
       <div className={styles.formGrid}>
         <div className={styles.inputGroup}>
           <label>{t('loadingLocation')} *</label>
@@ -147,27 +185,39 @@ const QuoteForm = () => {
         <div className={styles.rowTwo}>
           <div className={styles.inputGroup}>
             <label>{t('loadingDate')} *</label>
-            <input type="date" name="loadingDate" required value={formData.loadingDate} onChange={handleChange} />
+            <div className={styles.inputWithIcon}>
+              <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input type="date" name="loadingDate" required value={formData.loadingDate} onChange={handleChange} className="pl-10" />
+            </div>
           </div>
           <div className={styles.inputGroup}>
             <label>{t('loadingTime')}</label>
-            <input type="time" name="loadingTime" value={formData.loadingTime} onChange={handleChange} />
+            <div className={styles.inputWithIcon}>
+              <Clock className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input type="time" name="loadingTime" value={formData.loadingTime} onChange={handleChange} className="pl-10" />
+            </div>
           </div>
         </div>
         
         <div className={styles.rowTwo}>
           <div className={styles.inputGroup}>
             <label>{t('unloadingDate')} *</label>
-            <input type="date" name="unloadingDate" required value={formData.unloadingDate} onChange={handleChange} />
+            <div className={styles.inputWithIcon}>
+              <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input type="date" name="unloadingDate" required value={formData.unloadingDate} onChange={handleChange} className="pl-10" />
+            </div>
           </div>
           <div className={styles.inputGroup}>
             <label>{t('unloadingTime')}</label>
-            <input type="time" name="unloadingTime" value={formData.unloadingTime} onChange={handleChange} />
+            <div className={styles.inputWithIcon}>
+              <Clock className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input type="time" name="unloadingTime" value={formData.unloadingTime} onChange={handleChange} className="pl-10" />
+            </div>
           </div>
         </div>
       </div>
 
-      <h2 className={styles.sectionTitle}>Detalii Marfă și Camion</h2>
+      <h2 className={styles.sectionTitle}>{t('quoteSecCargo')}</h2>
       <div className={styles.formGrid}>
         <div className={styles.inputGroup}>
           <label>{t('cargoType')} *</label>
@@ -176,10 +226,33 @@ const QuoteForm = () => {
         
         <div className={styles.inputGroup}>
           <label>{t('truckType')} *</label>
-          <select name="truckType" required value={formData.truckType} onChange={handleChange}>
-            <option value="">-- Alege --</option>
-            {truckOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-          </select>
+          <div className={styles.customSelectWrapper}>
+            <div 
+              className={`${styles.customSelect} ${openSelect === 'truckType' ? styles.open : ''}`}
+              onClick={() => setOpenSelect(openSelect === 'truckType' ? null : 'truckType')}
+            >
+              <span>{formData.truckType ? t(formData.truckType as any) : t('quoteChoose')}</span>
+              <ChevronDown className="w-4 h-4 text-gray-500" />
+            </div>
+            {openSelect === 'truckType' && (
+              <div className={styles.customSelectDropdown}>
+                {truckOptions.map(opt => (
+                  <div 
+                    key={opt} 
+                    className={styles.customSelectOption}
+                    onClick={() => {
+                      setFormData(prev => ({ ...prev, truckType: opt }));
+                      setOpenSelect(null);
+                    }}
+                  >
+                    {t(opt as any)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {/* Hidden input to ensure required validation passes */}
+          <input type="text" style={{ opacity: 0, height: 0, position: 'absolute' }} required value={formData.truckType} onChange={() => {}} />
         </div>
 
         <div className={styles.inputGroup}>
@@ -187,7 +260,7 @@ const QuoteForm = () => {
           <input type="number" name="cargoWeightKg" required min="1" value={formData.cargoWeightKg} onChange={handleChange} />
         </div>
 
-        {formData.truckType.includes('Frigorific') && (
+        {formData.truckType === 'truckFrigo' && (
           <div className={styles.inputGroup}>
             <label>{t('temperatureRequired')}</label>
             <input type="text" name="temperatureRequired" placeholder="-18°C" value={formData.temperatureRequired} onChange={handleChange} />
@@ -219,7 +292,14 @@ const QuoteForm = () => {
 
       <div className={styles.fullWidth}>
         <label>{t('attachmentUrl')}</label>
-        <input type="file" onChange={handleFileChange} className={styles.fileInput} />
+        <div className={styles.fileUploadWrapper}>
+          <input type="file" onChange={handleFileChange} className={styles.hiddenFileInput} id="fileUpload" />
+          <label htmlFor="fileUpload" className={styles.fileUploadBtn}>
+            <UploadCloud className="w-5 h-5 text-gray-600" />
+            <span>{t('quoteChoose')}</span>
+          </label>
+          <span className={styles.fileName}>{attachment ? attachment.name : t('quoteNoFile')}</span>
+        </div>
       </div>
 
       {status === 'error' && <p className={styles.errorText}>{t('quoteError')}</p>}
@@ -228,6 +308,7 @@ const QuoteForm = () => {
         {status === 'submitting' ? '...' : t('submitQuote')}
       </button>
     </form>
+    </div>
   );
 };
 

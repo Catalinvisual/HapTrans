@@ -14,15 +14,15 @@ export default function RequestQuotePage() {
       
       <div className="flex-1">
         {/* Banner Section */}
-        <div className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 overflow-hidden bg-slate-900">
-          <div className="absolute inset-0 z-0 opacity-40 mix-blend-overlay">
+        <div className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 overflow-hidden bg-slate-900 w-full flex justify-center">
+          <div className="absolute inset-0 z-0 opacity-40">
             <img 
-              src="/truck-bg.jpg" 
+              src="/hero-nou.png" 
               alt="HapCargo Trucks" 
               className="w-full h-full object-cover object-center"
             />
           </div>
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-900/90 to-transparent z-10"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-transparent z-10"></div>
           
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20">
             <div className="max-w-3xl">

@@ -179,7 +179,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40px;
   margin: 0 auto 20px;
 }
 
@@ -203,4 +202,105 @@
 .btnSecondary:hover {
   background: #e5e7eb;
   color: #1f2937;
+}
+
+/* Custom Select */
+.customSelectWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.customSelect {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: #f9fafb;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.customSelect:hover {
+  border-color: #a1a1aa;
+}
+
+.customSelect.open {
+  border-color: #ff5a00;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(255, 90, 0, 0.1);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.customSelectDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-top: none;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 50;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.customSelectOption {
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.customSelectOption:hover {
+  background: #fff5f0;
+  color: #ff5a00;
+}
+
+/* Input with Icon */
+.inputWithIcon {
+  position: relative;
+  width: 100%;
+}
+
+/* File Upload custom */
+.fileUploadWrapper {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-top: 5px;
+}
+
+.hiddenFileInput {
+  display: none;
+}
+
+.fileUploadBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #374151;
+  transition: all 0.2s;
+}
+
+.fileUploadBtn:hover {
+  background: #e5e7eb;
+}
+
+.fileName {
+  font-size: 0.9rem;
+  color: #6b7280;
 }
