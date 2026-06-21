@@ -294,9 +294,6 @@ const WebsiteQuotesPage = () => {
     if (quote.truckType) {
       finalNotes += (finalNotes ? '\n' : '') + `Requested Truck: ${quote.truckType}`;
     }
-    if (quote.attachmentUrl) {
-      finalNotes += (finalNotes ? '\n' : '') + `Attachment: ${quote.attachmentUrl}`;
-    }
 
     const prefilledData = {
       pickupCompanyName: quote.companyName,

@@ -13,9 +13,7 @@ interface TimePickerProps {
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 function formatHour(h: number) {
-  const period = h >= 12 ? 'p.m.' : 'a.m.';
-  const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${display}:00 ${period}`;
+  return `${h.toString().padStart(2, '0')}:00`;
 }
 
 export default function TimePicker({ value, onChange, label, className = '', placeholder = '-- : --' }: TimePickerProps) {
