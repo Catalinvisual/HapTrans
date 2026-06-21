@@ -316,7 +316,7 @@ const WebsiteQuotesPage = () => {
       phone: quote.phone,
       email: quote.email
     };
-    navigate('/dashboard/trips', { state: { createFromQuote: prefilledData } });
+    navigate('/trips', { state: { createFromQuote: prefilledData } });
   };
 
   const getStatusBadge = (status: string) => {
