@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Zap, Plus, Pencil, Trash2, Search, ChevronDown, Scale, Layers, Download, FileText, Clock, Box, AlertTriangle, ScanLine, Loader2, CheckCircle2 } from 'lucide-react';
@@ -27,6 +27,7 @@ import { useAuthStore } from '../store/authStore';
 
 export default function TripsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuthStore();
   const isDispatcher = user?.role === 'dispatcher';
   const { t, i18n } = useTranslation();
@@ -71,6 +72,31 @@ export default function TripsPage() {
     type: 'info',
     onConfirm: () => {},
   });
+
+  useEffect(() => {
+    if (location.state?.createFromQuote) {
+      const qData = location.state.createFromQuote;
+      setForm((prev: any) => ({
+        ...prev,
+        pickupCompanyName: qData.pickupCompanyName || '',
+        pickupAddress: qData.pickupAddress || '',
+        dropoffCompanyName: qData.dropoffCompanyName || '',
+        dropoffAddress: qData.dropoffAddress || '',
+        pickupDate: qData.pickupDate || '',
+        pickupTime: qData.pickupTime || '',
+        dropoffDate: qData.dropoffDate || '',
+        dropoffTime: qData.dropoffTime || '',
+        pallets: qData.pallets || '',
+        weightKg: qData.weightKg || '',
+        volumeCbm: qData.volumeCbm || '',
+        notes: qData.notes || '',
+        price: qData.price || '',
+      }));
+      setShowForm(true);
+      // Clear state so it doesn't re-trigger on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
 
   const currentToken = editId ? trips.find((t: any) => t.id === editId)?.trackingToken : null;
 

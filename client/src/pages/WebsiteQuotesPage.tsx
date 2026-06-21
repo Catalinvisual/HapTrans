@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { useTranslation } from 'react-i18next';
-import { Download, Filter, Calendar, Eye, ChevronDown, ChevronUp } from 'lucide-react';
+import { Download, Filter, Calendar, Eye, ChevronDown, ChevronUp, Truck } from 'lucide-react';
 import CustomSelect from '../components/CustomSelect';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import { QuoteReplyForm } from './QuoteReplyForm';
+import { useNavigate } from 'react-router-dom';
 
 interface QuoteReply {
   id: string;
@@ -87,7 +88,7 @@ const translations: Record<string, Record<string, string>> = {
     modify_status: 'Modifică Status',
     received_at: 'Primită la:',
     loading_requests: 'Se încarcă cererile...',
-    reply: 'Răspunde', send_reply: 'Trimite Oferta', price_eur: 'Preț (€)', valid_until: 'Valabil până la', reply_history: 'Istoric Răspunsuri', reply_message: 'Mesaj / Ofertă', reply_success: 'Răspuns trimis cu succes!'
+    reply: 'Răspunde', send_reply: 'Trimite Oferta', price_eur: 'Preț (€)', valid_until: 'Valabil până la', reply_history: 'Istoric Răspunsuri', reply_message: 'Mesaj / Ofertă', reply_success: 'Răspuns trimis cu succes!', create_transport: 'Creează cursă din ofertă'
   },
   en: {
     filter_requests: 'Filter requests:',
@@ -119,7 +120,7 @@ const translations: Record<string, Record<string, string>> = {
     modify_status: 'Modify Status',
     received_at: 'Received at:',
     loading_requests: 'Loading requests...',
-    reply: 'Reply', send_reply: 'Send Offer', price_eur: 'Price (€)', valid_until: 'Valid until', reply_history: 'Reply History', reply_message: 'Message / Offer', reply_success: 'Reply sent successfully!'
+    reply: 'Reply', send_reply: 'Send Offer', price_eur: 'Price (€)', valid_until: 'Valid until', reply_history: 'Reply History', reply_message: 'Message / Offer', reply_success: 'Reply sent successfully!', create_transport: 'Create transport from quote'
   },
   nl: {
     filter_requests: 'Verzoeken filteren:',
@@ -151,7 +152,7 @@ const translations: Record<string, Record<string, string>> = {
     modify_status: 'Status wijzigen',
     received_at: 'Ontvangen op:',
     loading_requests: 'Verzoeken laden...',
-    reply: 'Beantwoorden', send_reply: 'Offerte verzenden', price_eur: 'Prijs (€)', valid_until: 'Geldig tot', reply_history: 'Antwoordgeschiedenis', reply_message: 'Bericht / Offerte', reply_success: 'Antwoord succesvol verzonden!'
+    reply: 'Beantwoorden', send_reply: 'Offerte verzenden', price_eur: 'Prijs (€)', valid_until: 'Geldig tot', reply_history: 'Antwoordgeschiedenis', reply_message: 'Bericht / Offerte', reply_success: 'Antwoord succesvol verzonden!', create_transport: 'Maak transport van offerte'
   },
   de: {
     filter_requests: 'Anfragen filtern:',
@@ -183,7 +184,7 @@ const translations: Record<string, Record<string, string>> = {
     modify_status: 'Status ändern',
     received_at: 'Erhalten am:',
     loading_requests: 'Lade Anfragen...',
-    reply: 'Antworten', send_reply: 'Angebot senden', price_eur: 'Preis (€)', valid_until: 'Gültig bis', reply_history: 'Antwortverlauf', reply_message: 'Nachricht / Angebot', reply_success: 'Antwort erfolgreich gesendet!'
+    reply: 'Antworten', send_reply: 'Angebot senden', price_eur: 'Preis (€)', valid_until: 'Gültig bis', reply_history: 'Antwortverlauf', reply_message: 'Nachricht / Angebot', reply_success: 'Antwort erfolgreich gesendet!', create_transport: 'Transport aus Angebot erstellen'
   },
   fr: {
     filter_requests: 'Filtrer les demandes:',
@@ -215,7 +216,7 @@ const translations: Record<string, Record<string, string>> = {
     modify_status: 'Modifier le statut',
     received_at: 'Reçu le :',
     loading_requests: 'Chargement des demandes...',
-    reply: 'Répondre', send_reply: 'Envoyer l\'offre', price_eur: 'Prix (€)', valid_until: 'Valable jusqu\'au', reply_history: 'Historique des réponses', reply_message: 'Message / Offre', reply_success: 'Réponse envoyée avec succès !'
+    reply: 'Répondre', send_reply: 'Envoyer l\'offre', price_eur: 'Prix (€)', valid_until: 'Valable jusqu\'au', reply_history: 'Historique des réponses', reply_message: 'Message / Offre', reply_success: 'Réponse envoyée avec succès !', create_transport: 'Créer un transport à partir du devis'
   },
   es: {
     filter_requests: 'Filtrar solicitudes:',
@@ -247,7 +248,7 @@ const translations: Record<string, Record<string, string>> = {
     modify_status: 'Modificar estado',
     received_at: 'Recibido en:',
     loading_requests: 'Cargando solicitudes...',
-    reply: 'Responder', send_reply: 'Enviar Oferta', price_eur: 'Precio (€)', valid_until: 'Válido hasta', reply_history: 'Historial de Respuestas', reply_message: 'Mensaje / Oferta', reply_success: '¡Respuesta enviada con éxito!'
+    reply: 'Responder', send_reply: 'Enviar Oferta', price_eur: 'Precio (€)', valid_until: 'Válido hasta', reply_history: 'Historial de Respuestas', reply_message: 'Mensaje / Oferta', reply_success: '¡Respuesta enviada con éxito!', create_transport: 'Crear transporte a partir de cotización'
   }
 };
 
@@ -258,6 +259,7 @@ const WebsiteQuotesPage = () => {
   const [dateFilter, setDateFilter] = useState<string>('');
   const [expandedQuoteId, setExpandedQuoteId] = useState<string | null>(null);
   const { i18n } = useTranslation();
+  const navigate = useNavigate();
   
   const currentLang = i18n.language?.substring(0, 2).toLowerCase() || 'ro';
   const tLocal = (key: string) => translations[currentLang]?.[key] || translations['en'][key] || key;
@@ -285,6 +287,36 @@ const WebsiteQuotesPage = () => {
     } catch (error) {
       console.error('Failed to update quote status', error);
     }
+  };
+
+  const handleCreateTripFromQuote = (quote: QuoteRequest) => {
+    let finalNotes = quote.notes || '';
+    if (quote.truckType) {
+      finalNotes += (finalNotes ? '\n' : '') + `Requested Truck: ${quote.truckType}`;
+    }
+    if (quote.attachmentUrl) {
+      finalNotes += (finalNotes ? '\n' : '') + `Attachment: ${quote.attachmentUrl}`;
+    }
+
+    const prefilledData = {
+      pickupCompanyName: quote.companyName,
+      pickupAddress: quote.loadingLocation,
+      dropoffAddress: quote.unloadingLocation,
+      pickupDate: quote.loadingDate,
+      pickupTime: quote.loadingTime,
+      dropoffDate: quote.unloadingDate,
+      dropoffTime: quote.unloadingTime,
+      pallets: quote.numberOfPallets,
+      weightKg: quote.cargoWeightKg,
+      volumeCbm: quote.cargoVolumeM3,
+      notes: finalNotes,
+      price: quote.replies && quote.replies.length > 0 ? quote.replies[quote.replies.length - 1].price : '',
+      clientName: quote.companyName, // if we want to try matching or saving it
+      contactPerson: quote.contactPerson,
+      phone: quote.phone,
+      email: quote.email
+    };
+    navigate('/dashboard/trips', { state: { createFromQuote: prefilledData } });
   };
 
   const getStatusBadge = (status: string) => {
@@ -516,6 +548,19 @@ const WebsiteQuotesPage = () => {
                           onChange={(val) => updateStatus(quote.id, val)}
                           options={statusOptions.filter(o => o.value !== 'all')}
                         />
+
+                        {quote.status === 'accepted' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCreateTripFromQuote(quote);
+                            }}
+                            className="mt-4 w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                          >
+                            <Truck className="w-4 h-4" />
+                            {tLocal('create_transport')}
+                          </button>
+                        )}
 
                         <div className="mt-auto pt-4 border-t border-gray-200 text-center">
                           <p className="text-xs text-gray-400">{tLocal('received_at')}</p>
