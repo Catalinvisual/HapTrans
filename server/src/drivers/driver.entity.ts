@@ -16,7 +16,7 @@ export class Driver {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @OneToOne(() => User, (user) => user.driver)
+  @OneToOne(() => User, (user) => user.driver, { onDelete: 'CASCADE' })
   @JoinColumn()
   user: User;
 

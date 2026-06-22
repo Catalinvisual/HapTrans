@@ -181,7 +181,7 @@ export class Trip {
   @OneToMany(() => Message, (msg) => msg.trip)
   messages: Message[];
 
-  @ManyToOne(() => User, { nullable: true, eager: true })
+  @ManyToOne(() => User, { nullable: true, eager: true, onDelete: 'SET NULL' })
   createdBy: User;
 
   @CreateDateColumn()

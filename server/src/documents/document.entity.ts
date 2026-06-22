@@ -10,7 +10,7 @@ export class Document {
   @ManyToOne(() => Trip, (trip) => trip.documents, { onDelete: 'CASCADE' })
   trip: Trip;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
   uploadedBy: User;
 
   @Column()

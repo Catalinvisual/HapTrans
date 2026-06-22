@@ -10,7 +10,7 @@ export class Message {
   @ManyToOne(() => Trip, (trip) => trip.messages, { onDelete: 'CASCADE' })
   trip: Trip;
 
-  @ManyToOne(() => User, { eager: true })
+  @ManyToOne(() => User, { eager: true, onDelete: 'SET NULL', nullable: true })
   sender: User;
 
   @Column({ type: 'text' })
