@@ -33,6 +33,9 @@ export class User {
   @Column({ default: 'ro' })
   language: string;
 
+  @Column('simple-array', { nullable: true })
+  allowedPages: string[];
+
   @Column({ nullable: true })
   fcmToken: string;
 

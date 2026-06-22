@@ -7,6 +7,7 @@ interface User {
   name: string;
   role: 'admin' | 'dispatcher' | 'driver';
   language: string;
+  allowedPages?: string[];
 }
 
 interface AuthStore {

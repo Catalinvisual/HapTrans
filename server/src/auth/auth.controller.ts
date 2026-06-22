@@ -16,6 +16,7 @@ class RegisterDto {
   @IsOptional() @IsEnum(UserRole) role?: UserRole;
   @IsOptional() grossSalary?: number;
   @IsOptional() dailyRate?: number;
+  @IsOptional() allowedPages?: string[];
 }
 
 @Controller('auth')

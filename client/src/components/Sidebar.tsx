@@ -5,7 +5,7 @@ import {
   Receipt, BarChart3, Wrench, Settings, UserCog, X, Banknote, Wallet, CalendarDays, Globe
 } from 'lucide-react';
 
-const navItems = [
+export const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, key: 'dashboard' },
   { to: '/trips', icon: Route, key: 'trips' },
   { to: '/map', icon: Map, key: 'liveMap' },
@@ -40,6 +40,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const restrictedKeys = ['financial', 'payroll', 'expenses', 'websiteCms', 'users', 'settings'];
 
   const filteredNavItems = navItems.filter(item => {
+    if (user?.allowedPages && user.allowedPages.length > 0) {
+      return user.allowedPages.includes(item.key);
+    }
     if (isDispatcher && restrictedKeys.includes(item.key)) {
       return false;
     }

@@ -5,6 +5,7 @@ import api from '../lib/api';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import CustomSelect from '../components/CustomSelect';
+import { navItems } from '../components/Sidebar';
 
 export default function UsersPage() {
   const { t } = useTranslation();
@@ -15,7 +16,8 @@ export default function UsersPage() {
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ email: '', password: '', name: '', role: 'dispatcher', grossSalary: '', dailyRate: '' });
+  const [form, setForm] = useState<{ email: string, password: string, name: string, role: string, grossSalary: string, dailyRate: string, allowedPages: string[] }>({ email: '', password: '', name: '', role: 'dispatcher', grossSalary: '', dailyRate: '', allowedPages: [] });
+  const [showPageSelect, setShowPageSelect] = useState(false);
 
   const load = () => api.get('/users').then(r => {
     const sorted = r.data.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
@@ -49,7 +51,7 @@ export default function UsersPage() {
       }
       setShowForm(false);
       setEditId(null);
-      setForm({ email: '', password: '', name: '', role: 'dispatcher', grossSalary: '', dailyRate: '' });
+      setForm({ email: '', password: '', name: '', role: 'dispatcher', grossSalary: '', dailyRate: '', allowedPages: [] });
       load();
     } catch {
       toast.error(t('saveError'));
@@ -64,6 +66,7 @@ export default function UsersPage() {
       role: u.role,
       grossSalary: u.grossSalary || '',
       dailyRate: u.dailyRate || '',
+      allowedPages: u.allowedPages || [],
     });
     setEditId(u.id);
     setShowForm(true);
@@ -162,6 +165,58 @@ export default function UsersPage() {
               <label className="label font-semibold">{t('payroll_allowance') || 'Vergoeding / Zi (€)'}</label>
               <input type="number" className="input bg-surface" value={form.dailyRate} onChange={e => setForm({...form, dailyRate: e.target.value})} placeholder="0.00" />
             </div>
+
+            {(form.role === 'admin' || form.role === 'dispatcher') && (
+              <div className="col-span-1 md:col-span-2 lg:col-span-4 mt-2">
+                <label className="label font-semibold">{t('allowedPages') || 'Acces Pagini (Lăsați gol pentru acces complet)'}</label>
+                <div className="relative">
+                  <div 
+                    className="input cursor-pointer min-h-[42px] flex flex-wrap gap-2 items-center bg-white"
+                    onClick={() => setShowPageSelect(!showPageSelect)}
+                  >
+                    {form.allowedPages.length === 0 ? (
+                      <span className="text-text-secondary">Toate paginile...</span>
+                    ) : (
+                      form.allowedPages.map(p => (
+                        <span key={p} className="badge-primary px-2 py-0.5 text-xs rounded-md">
+                          {t(p)}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                  {showPageSelect && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-border rounded-xl shadow-lg max-h-64 overflow-y-auto p-2">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {navItems.map(item => {
+                          const isSelected = form.allowedPages.includes(item.key);
+                          return (
+                            <label key={item.key} className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors border ${isSelected ? 'border-primary bg-primary/5 text-primary' : 'border-transparent hover:bg-surface'}`}>
+                              <input 
+                                type="checkbox" 
+                                className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setForm({ ...form, allowedPages: [...form.allowedPages, item.key] });
+                                  } else {
+                                    setForm({ ...form, allowedPages: form.allowedPages.filter(p => p !== item.key) });
+                                  }
+                                }}
+                              />
+                              <span className="text-sm font-medium">{t(item.key)}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-3 flex justify-end border-t border-border pt-2">
+                        <button type="button" onClick={() => setShowPageSelect(false)} className="btn-secondary text-xs px-3 py-1">Închide</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-3 col-span-1 md:col-span-2 lg:col-span-4 pt-3 border-t border-border mt-2">
               <button type="submit" className="btn-primary px-6 py-2.5 font-bold shadow-md shadow-primary/20">{t('save')}</button>
               <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="btn-secondary px-6 py-2.5 font-bold">{t('cancel')}</button>
@@ -180,7 +235,7 @@ export default function UsersPage() {
             <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
               {filtered.length} {t('results')}
             </span>
-            <button onClick={() => { setEditId(null); setForm({ email: '', password: '', name: '', role: 'dispatcher', grossSalary: '', dailyRate: '' }); setShowForm(!showForm); }} className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold">
+            <button onClick={() => { setEditId(null); setForm({ email: '', password: '', name: '', role: 'dispatcher', grossSalary: '', dailyRate: '', allowedPages: [] }); setShowForm(!showForm); setShowPageSelect(false); }} className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold">
               <Plus className="w-4 h-4" /> {t('newUser')}
             </button>
           </div>
