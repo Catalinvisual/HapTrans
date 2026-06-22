@@ -125,7 +125,7 @@ export default function UsersPage() {
       {showForm && (
         <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md">
           <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">
-            {editId ? t('editUser') || 'Editare utilizator' : t('newUser')}
+            {editId ? t('editUser', 'Editare utilizator') : t('newUser', 'Utilizator nou')}
           </h3>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             <div>
@@ -137,10 +137,10 @@ export default function UsersPage() {
               <input type="email" className="input" value={form.email} onChange={e => setForm({...form, email: e.target.value})} required />
             </div>
             <div>
-              <label className="label font-semibold">{editId ? t('newPasswordOptional') || 'Parolă nouă (opțională)' : t('password')}</label>
+              <label className="label font-semibold">{editId ? t('newPasswordOptional', 'Parolă nouă (opțională)') : t('password', 'Parolă')}</label>
               <div className="relative">
-                <input type="text" className="input pr-10" value={form.password} onChange={e => setForm({...form, password: e.target.value})} required={!editId} minLength={editId ? undefined : 6} placeholder={editId ? t('leaveBlankToKeepUnchanged') || 'Lăsați gol' : ''} />
-                <button type="button" onClick={generatePassword} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-primary hover:text-primary-dark rounded transition-colors" title={t('generatePasswordBtn') || 'Generează parolă'}>
+                <input type="text" className="input pr-10" value={form.password} onChange={e => setForm({...form, password: e.target.value})} required={!editId} minLength={editId ? undefined : 6} placeholder={editId ? t('leaveBlankToKeepUnchanged', 'Lăsați gol') : ''} />
+                <button type="button" onClick={generatePassword} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-primary hover:text-primary-dark rounded transition-colors" title={t('generatePasswordBtn', 'Generează parolă')}>
                   <Key className="w-4 h-4" />
                 </button>
               </div>
@@ -168,14 +168,14 @@ export default function UsersPage() {
 
             {(form.role === 'admin' || form.role === 'dispatcher') && (
               <div className="col-span-1 md:col-span-2 lg:col-span-4 mt-2">
-                <label className="label font-semibold">{t('allowedPages') || 'Acces Pagini (Lăsați gol pentru acces complet)'}</label>
+                <label className="label font-semibold">{t('allowedPages', 'Acces Pagini (Lăsați gol pentru acces complet)')}</label>
                 <div className="relative">
                   <div 
                     className="input cursor-pointer min-h-[42px] flex flex-wrap gap-2 items-center bg-white"
                     onClick={() => setShowPageSelect(!showPageSelect)}
                   >
                     {form.allowedPages.length === 0 ? (
-                      <span className="text-text-secondary">Toate paginile...</span>
+                      <span className="text-text-secondary">{t('allPages', 'Toate paginile...')}</span>
                     ) : (
                       form.allowedPages.map(p => (
                         <span key={p} className="badge-primary px-2 py-0.5 text-xs rounded-md">
@@ -209,7 +209,7 @@ export default function UsersPage() {
                         })}
                       </div>
                       <div className="mt-3 flex justify-end border-t border-border pt-2">
-                        <button type="button" onClick={() => setShowPageSelect(false)} className="btn-secondary text-xs px-3 py-1">Închide</button>
+                        <button type="button" onClick={() => setShowPageSelect(false)} className="btn-secondary text-xs px-3 py-1">{t('close', 'Închide')}</button>
                       </div>
                     </div>
                   )}
