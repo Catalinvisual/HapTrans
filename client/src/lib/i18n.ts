@@ -3,6 +3,8 @@ import { initReactI18next } from 'react-i18next';
 
 const resources = {
   ro: { translation: {
+      userDeleted: "Utilizator șters cu succes",
+      confirmDeleteUser: "Sunteți sigur că doriți să ștergeți acest utilizator? Această acțiune este ireversibilă.",
       editUser: "Editare utilizator",
       allowedPages: "Acces Pagini (Lăsați gol pentru acces complet)",
       allPages: "Toate paginile...",
@@ -563,6 +565,8 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
     },
   },
   frBase: { translation: {
+      userDeleted: "Utilisateur supprimé avec succès",
+      confirmDeleteUser: "Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.",
       editUser: "Modifier l'utilisateur",
       allowedPages: "Accès aux pages (Laisser vide pour un accès complet)",
       allPages: "Toutes les pages...",
@@ -642,6 +646,8 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
     }
   },
   en: { translation: {
+      userDeleted: "User deleted successfully",
+      confirmDeleteUser: "Are you sure you want to delete this user? This action is irreversible.",
       editUser: "Edit user",
       allowedPages: "Page Access (Leave blank for full access)",
       allPages: "All pages...",
@@ -1187,6 +1193,8 @@ smartDispatchAddressError: "Please enter the pickup address first!",
     },
   },
   pl: { translation: {
+      userDeleted: "Użytkownik pomyślnie usunięty",
+      confirmDeleteUser: "Czy na pewno chcesz usunąć tego użytkownika? Ta akcja jest nieodwracalna.",
       editUser: "Edytuj użytkownika",
       allowedPages: "Dostęp do stron (Pozostaw puste dla pełnego dostępu)",
       allPages: "Wszystkie strony...",
@@ -1220,6 +1228,8 @@ smartDispatchAddressError: "Please enter the pickup address first!",
     },
   },
   nl: { translation: {
+      userDeleted: "Gebruiker succesvol verwijderd",
+      confirmDeleteUser: "Weet u zeker dat u deze gebruiker wilt verwijderen? Deze actie is onomkeerbaar.",
       editUser: "Gebruiker bewerken",
       allowedPages: "Paginatoegang (Laat leeg voor volledige toegang)",
       allPages: "Alle pagina's...",
@@ -1764,6 +1774,8 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
 },
   },
   de: { translation: {
+      userDeleted: "Benutzer erfolgreich gelöscht",
+      confirmDeleteUser: "Möchten Sie diesen Benutzer wirklich löschen? Diese Aktion ist unwiderruflich.",
       editUser: "Benutzer bearbeiten",
       allowedPages: "Seitenzugriff (Leer lassen für vollen Zugriff)",
       allPages: "Alle Seiten...",
