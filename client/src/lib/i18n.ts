@@ -2,8 +2,10 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
 const resources = {
-  ro: {
-    translation: {
+  ro: { translation: {
+      editUser: "Editare utilizator",
+      allowedPages: "Acces Pagini (Lăsați gol pentru acces complet)",
+      allPages: "Toate paginile...",
         sendEmailAction: "Trimite Email",
         approved: "Aprobata",
         approvingAndSending: "Aprobare ?i Trimitere...",
@@ -560,8 +562,10 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
       otherPallets: 'Altele',
     },
   },
-  frBase: {
-    translation: {
+  frBase: { translation: {
+      editUser: "Modifier l'utilisateur",
+      allowedPages: "Accès aux pages (Laisser vide pour un accès complet)",
+      allPages: "Toutes les pages...",
       fuelSurcharge: "Supplément carburant (%)",
       editDraft: "Modifier le brouillon / Détails complets",
       planning: 'Planification',
@@ -637,8 +641,10 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
       website_hub_tabs_contact: 'Contact',
     }
   },
-  en: {
-    translation: {
+  en: { translation: {
+      editUser: "Edit user",
+      allowedPages: "Page Access (Leave blank for full access)",
+      allPages: "All pages...",
         sendEmailAction: "Send Email",
         approved: "Approved",
         approvingAndSending: "Approving and Sending...",
@@ -1180,8 +1186,10 @@ smartDispatchAddressError: "Please enter the pickup address first!",
       website_hub_tabs_contact: 'Contact',
     },
   },
-  pl: {
-    translation: {
+  pl: { translation: {
+      editUser: "Edytuj użytkownika",
+      allowedPages: "Dostęp do stron (Pozostaw puste dla pełnego dostępu)",
+      allPages: "Wszystkie strony...",
       errorLoadingTrip: "Nie udało się załadować trasy",
       noReference: "Trasa Bez Referencji",
       createdBy: "Utworzone przez",
@@ -1211,8 +1219,10 @@ smartDispatchAddressError: "Please enter the pickup address first!",
       noInvoicesAttached: "Brak faktur",
     },
   },
-  nl: {
-    translation: {
+  nl: { translation: {
+      editUser: "Gebruiker bewerken",
+      allowedPages: "Paginatoegang (Laat leeg voor volledige toegang)",
+      allPages: "Alle pagina's...",
         sendEmailAction: "E-mail verzenden",
         approved: "Goedgekeurd",
         approvingAndSending: "Goedkeuren en Verzenden...",
@@ -1753,8 +1763,10 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
       website_hub_tabs_contact: 'Contact',
 },
   },
-  de: {
-    translation: {
+  de: { translation: {
+      editUser: "Benutzer bearbeiten",
+      allowedPages: "Seitenzugriff (Leer lassen für vollen Zugriff)",
+      allPages: "Alle Seiten...",
         sendEmailAction: "E-Mail senden",
         approved: "Genehmigt",
         approvingAndSending: "Genehmigen und Senden...",
