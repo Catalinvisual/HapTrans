@@ -94,14 +94,14 @@ export default function UsersPage() {
     }
   };
 
-  const executeDeactivate = async () => {
+  const executeDelete = async () => {
     if (!deactivateUser) return;
     try {
-      await api.patch(`/users/${deactivateUser.id}`, { isActive: !deactivateUser.isActive });
-      toast.success(t('updated') || 'Utilizator actualizat cu succes');
+      await api.delete(`/users/${deactivateUser.id}`);
+      toast.success(t('userDeleted', 'Utilizator șters cu succes'));
       load();
     } catch {
-      toast.error(t('error') || 'Eroare la actualizarea utilizatorului');
+      toast.error(t('error') || 'Eroare la ștergerea utilizatorului');
     } finally {
       setDeactivateUser(null);
     }
@@ -297,9 +297,9 @@ export default function UsersPage() {
       <ConfirmModal
         isOpen={!!deactivateUser}
         onClose={() => setDeactivateUser(null)}
-        onConfirm={executeDeactivate}
-        title={t('confirm')}
-        message={t('confirmDeactivateUser') || 'Dezactivati utilizatorul?'}
+        onConfirm={executeDelete}
+        title={t('confirm', 'Confirmare')}
+        message={t('confirmDeleteUser', 'Sunteți sigur că doriți să ștergeți acest utilizator? Această acțiune este ireversibilă.')}
       />
     </div>
   );
