@@ -49,33 +49,33 @@ export default function ContactInbox() {
     <div className="max-w-5xl">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-xl font-semibold flex items-center gap-2">
-          <Mail className="w-5 h-5 text-blue-600" />
-          Inbox Mesaje Contact
+          <Mail className="w-5 h-5 text-primary" />
+          {t('contactInboxTitle') || 'Inbox Mesaje Contact'}
         </h3>
-        <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
-          {messages.filter(m => !m.isRead).length} Necitite
+        <span className="bg-primary/10 text-primary-dark text-xs font-semibold px-2.5 py-0.5 rounded-full">
+          {messages.filter(m => !m.isRead).length} {t('unreadMessages') || 'Necitite'}
         </span>
       </div>
 
       {messages.length === 0 ? (
-        <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl text-gray-500">
-          Nu ai primit niciun mesaj încă.
+        <div className="text-center py-12 border-2 border-dashed border-border rounded-xl text-text-secondary">
+          {t('noContactMessages') || 'Nu ai primit niciun mesaj încă.'}
         </div>
       ) : (
         <div className="space-y-4">
           {messages.map(msg => (
             <div 
               key={msg.id} 
-              className={`p-5 rounded-xl border transition-all ${msg.isRead ? 'bg-white border-gray-200' : 'bg-blue-50/50 border-blue-200 shadow-sm'}`}
+              className={`p-5 rounded-xl border transition-all ${msg.isRead ? 'bg-white border-border' : 'bg-primary/5 border-primary/20 shadow-sm'}`}
             >
               <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${msg.isRead ? 'bg-gray-100' : 'bg-blue-100 text-blue-600'}`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${msg.isRead ? 'bg-background' : 'bg-primary/10 text-primary'}`}>
                     <User className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className={`text-base ${msg.isRead ? 'font-medium text-gray-800' : 'font-bold text-gray-900'}`}>{msg.name}</h4>
-                    <p className="text-sm text-gray-500">
+                    <h4 className={`text-base ${msg.isRead ? 'font-medium text-text' : 'font-bold text-text'}`}>{msg.name}</h4>
+                    <p className="text-sm text-text-secondary">
                       {msg.email} {msg.phone && `• ${msg.phone}`} • {new Date(msg.createdAt).toLocaleString()}
                     </p>
                   </div>
@@ -83,15 +83,15 @@ export default function ContactInbox() {
                 {!msg.isRead && (
                   <button 
                     onClick={() => markAsRead(msg.id)}
-                    className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 bg-blue-100 px-3 py-1 rounded-full font-medium transition-colors"
+                    className="flex items-center gap-1 text-sm text-primary hover:text-primary-dark bg-primary/10 px-3 py-1 rounded-full font-medium transition-colors"
                   >
-                    <Check className="w-4 h-4" /> Marchează citit
+                    <Check className="w-4 h-4" /> {t('markAsRead') || 'Marchează citit'}
                   </button>
                 )}
               </div>
               <div className="pl-13 ml-13">
-                <p className="font-semibold text-gray-800 mb-1">Subiect: {msg.subject}</p>
-                <p className="text-gray-700 whitespace-pre-wrap">{msg.message}</p>
+                <p className="font-semibold text-text mb-1">Subiect: {msg.subject}</p>
+                <p className="text-text-secondary whitespace-pre-wrap">{msg.message}</p>
               </div>
             </div>
           ))}

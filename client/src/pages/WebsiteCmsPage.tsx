@@ -66,7 +66,7 @@ const WebsiteCmsPage = () => {
       const res = await api.get('/website-cms');
       setData(res.data || {});
     } catch (err) {
-      toast.error('Eroare la încărcarea datelor CMS');
+      toast.error(t('cmsLoadError', 'Eroare la încărcarea datelor CMS'));
     } finally {
       setLoading(false);
     }
@@ -76,9 +76,9 @@ const WebsiteCmsPage = () => {
     setSaving(true);
     try {
       await api.post('/website-cms', data);
-      toast.success('Setările site-ului au fost salvate cu succes!');
+      toast.success(t('cmsSaved', 'Setările site-ului au fost salvate cu succes!'));
     } catch (err) {
-      toast.error('Eroare la salvare');
+      toast.error(t('cmsSaveError', 'Eroare la salvare'));
     } finally {
       setSaving(false);
     }
