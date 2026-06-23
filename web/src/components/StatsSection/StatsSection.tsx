@@ -4,7 +4,7 @@ import { useLanguage } from '@/context/LanguageContext';
 
 export default function StatsSection() {
   const { t } = useLanguage();
-  const [data, setData] = useState({ trucks: 50, trips: 15000, clients: 250, countries: 24 });
+  const [data, setData] = useState({ trucks: 0, trips: 0, clients: 0, countries: 0 });
 
   useEffect(() => {
     const fetchStats = async () => {
