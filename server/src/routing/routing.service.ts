@@ -226,16 +226,16 @@ export class RoutingService {
   private cachedPrices: any[] = [];
   private lastPricesFetch: number = 0;
 
-  // ─── Diesel prices via EuroOilWatch (no key needed) ───────────────────────
+  // ─── Diesel prices via fuel-prices.eu (European Commission Weekly Oil Bulletin) ──
   async getDieselPrices() {
     // Return cached prices if fetched within the last 4 hours
     if (this.cachedPrices.length > 0 && Date.now() - this.lastPricesFetch < 4 * 60 * 60 * 1000) {
       return this.cachedPrices;
     }
 
-    // Cargopedia provides real-time fuel prices. Scrape it!
+    // fuel-prices.eu aggregates the official EC Weekly Oil Bulletin data
     try {
-      const cp = await axios.get('https://www.cargopedia.ro/preturi-carburanti-europa', { 
+      const fp = await axios.get('https://www.fuel-prices.eu/', { 
         timeout: 10000,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
@@ -243,30 +243,44 @@ export class RoutingService {
           'Accept-Language': 'en-US,en;q=0.5'
         }
       });
-      const html = cp.data;
+      const html = fp.data;
       const prices: any[] = [];
       
-      const map = {
-        'RO': 'Rom', 'NL': 'Jos', 'DE': 'Germania', 'FR': 'Fran', 'BE': 'Belgia', 'PL': 'Polonia', 'HU': 'Ungaria', 'AT': 'Austria'
-      };
-
-      for (const [code, searchStr] of Object.entries(map)) {
-        // A very rudimentary regex to find the country and its diesel price (which is the 4th td in the row)
-        const regex = new RegExp(`>\\s*[^<]*${searchStr}[^<]*<\\/td>\\s*<td[^>]*>[\\d,]+<\\/td>\\s*<td[^>]*>[\\d,]+<\\/td>\\s*<td[^>]*>([\\d,]+)<\\/td>`, 'i');
-        const match = html.match(regex);
-        if (match && match[1]) {
-          const price = parseFloat(match[1].replace(',', '.'));
-          prices.push({ country: code, price, currency: 'EUR', unit: 'L', source: 'cargopedia' });
+      const targetCountries = ['RO', 'NL', 'DE', 'FR', 'BE', 'PL', 'HU', 'AT'];
+      
+      const rx = /const rawData = (\[.*?\]);/;
+      const match = html.match(rx);
+      
+      if (match && match[1]) {
+        const rawData = JSON.parse(match[1]);
+        
+        for (const item of rawData) {
+          const code = item.country_code;
+          if (targetCountries.includes(code) && item.cur_dsl) {
+            const price = parseFloat(item.cur_dsl);
+            prices.push({ country: code, price, currency: 'EUR', unit: 'L', source: 'fuel-prices.eu' });
+          }
         }
       }
       
       if (prices.length > 0) {
+        // Ensure all target countries are present, fallback to static if some are missing
+        const staticFallback: Record<string, number> = {
+          'RO': 1.81, 'NL': 2.27, 'DE': 1.92, 'FR': 2.12, 'BE': 2.07, 'PL': 1.57, 'HU': 1.72, 'AT': 1.90
+        };
+        
+        for (const code of targetCountries) {
+          if (!prices.find(p => p.country === code)) {
+             prices.push({ country: code, price: staticFallback[code], currency: 'EUR', unit: 'L', source: 'static-fallback' });
+          }
+        }
+
         this.cachedPrices = prices;
         this.lastPricesFetch = Date.now();
         return prices;
       }
     } catch (e) {
-      this.logger.warn(`Cargopedia scrape failed: ${e.message}.`);
+      this.logger.warn(`fuel-prices.eu scrape failed: ${e.message}.`);
       // If we have stale cached prices, better to return them than the hardcoded static ones
       if (this.cachedPrices.length > 0) {
         this.logger.log('Using stale cached prices as fallback.');
