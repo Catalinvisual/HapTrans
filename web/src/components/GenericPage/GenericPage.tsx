@@ -148,12 +148,14 @@ export default function GenericPage({ slug, titleKey }: { slug: string, titleKey
     setLoading(true);
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
 
-    fetch(apiUrl + '/website-cms')
+    fetch(apiUrl + '/website-cms?t=' + Date.now())
       .then(res => res.json())
       .then(data => {
-        const langKey = `${slug}_${lang}`;
+        const langKey = `${slug}_${lang.toUpperCase()}`;
         if (data[langKey]) {
           setContent(data[langKey]);
+        } else if (data[`${slug}_RO`]) {
+          setContent(data[`${slug}_RO`]);
         } else if (data[slug]) {
           setContent(data[slug]);
         } else {
