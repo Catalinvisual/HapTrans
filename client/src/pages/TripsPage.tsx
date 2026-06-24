@@ -952,87 +952,6 @@ export default function TripsPage() {
               <label className="label font-semibold">{t('distance')}</label>
               <input type="number" className="input" value={form.distanceKm} onChange={e => setForm({...form, distanceKm: e.target.value})} />
             </div>
-            {/* ─── Route Calculator (spans full width) ─── */}
-            <div className="col-span-full">
-              <RouteCalculator
-                pickupAddress={form.pickupAddress}
-                dropoffAddress={form.dropoffAddress}
-                weightKg={form.weightKg ? Number(form.weightKg) : undefined}
-                pallets={form.pallets ? Number(form.pallets) : undefined}
-                dieselPricePerL={dieselPrice}
-                onApply={async ({ distanceKm, estimatedCost, recommendedPrice }) => {
-                  let extraCost = 0;
-                  if (form.driverId && form.pickupDate && form.dropoffDate) {
-                    const dr = drivers.find((d: any) => d.id === form.driverId);
-                    if (dr && dr.dailyRate) {
-                      const pDate = new Date(`${form.pickupDate}T${form.pickupTime || '00:00'}:00`);
-                      const dDate = new Date(`${form.dropoffDate}T${form.dropoffTime || '23:59'}:00`);
-                      const hours = (dDate.getTime() - pDate.getTime()) / (1000 * 60 * 60);
-                      const days = Math.max(1, Math.ceil(hours / 24));
-                      extraCost = days * Number(dr.dailyRate);
-                      if (extraCost > 0) {
-                        toast.success(t('toast_driver_cost_added', { cost: extraCost.toFixed(2), days }));
-                      }
-                    }
-                  }
-
-                  let deadheadCost = 0;
-                  let deadheadDist = 0;
-                  if (form.truckId && form.pickupAddress) {
-                    const truckTrips = trips.filter(t => t.truck?.id === form.truckId && t.id !== editId).sort((a,b) => new Date(b.dropoffDate).getTime() - new Date(a.dropoffDate).getTime());
-                    const lastTrip = truckTrips.length > 0 ? truckTrips[0] : null;
-                    if (lastTrip && lastTrip.dropoffAddress) {
-                      try {
-                        const res = await api.post('/routing/calculate', {
-                          originAddress: lastTrip.dropoffAddress,
-                          destAddress: form.pickupAddress,
-                          weightKg: 0
-                        });
-                        if (res.data && res.data.distanceKm) {
-                          deadheadDist = res.data.distanceKm;
-                          // consum mediu 28L/100km pt mers pe gol
-                          deadheadCost = (deadheadDist / 100) * 28 * dieselPrice; 
-                          if (deadheadDist > 50) { // Doar daca e peste 50km avertizam puternic
-                            toast.success(t('toast_deadhead_calculated', { dist: deadheadDist.toFixed(0), from: lastTrip.dropoffAddress.split(',')[0], cost: deadheadCost.toFixed(2) }));
-                          }
-                        }
-                      } catch(e) {
-                        console.error('Deadhead calculation failed', e);
-                      }
-                    }
-                  }
-                  
-                  const finalCost = (estimatedCost || 0) + extraCost + deadheadCost;
-                  setForm((f: any) => ({
-                    ...f,
-                    distanceKm: distanceKm.toString(),
-                    ...(estimatedCost !== undefined ? { estimatedCost: finalCost.toFixed(2) } : {}),
-                    ...(recommendedPrice !== undefined ? { agreedPrice: recommendedPrice.toString(), price: recommendedPrice.toString() } : {}),
-                  }));
-                  toast.success(t('toast_route_applied'));
-                }}
-              />
-            </div>
-
-            
-              {deadheadWarning && (
-                <div className="col-span-full bg-orange-50 border border-orange-200 p-4 rounded-xl flex items-center justify-between shadow-sm">
-                  <div className="flex items-center gap-3 text-orange-800">
-                    <AlertTriangle className="w-6 h-6 text-orange-500" />
-                    <div>
-                      <p className="font-bold">{t('deadhead_warning_title', { dist: Math.round(deadheadWarning.dist) })}</p>
-                      <p className="text-sm opacity-90">{t('deadhead_warning_desc', { from: deadheadWarning.from, cost: deadheadWarning.cost.toFixed(2) })}</p>
-                    </div>
-                  </div>
-                  <button type="button" className="btn-secondary py-1.5 px-3 text-sm border-orange-200 text-orange-700 hover:bg-orange-100" onClick={() => {
-                    const currentEst = Number(form.estimatedCost) || 0;
-                    setForm({...form, estimatedCost: (currentEst + deadheadWarning.cost).toFixed(2)});
-                    setDeadheadWarning(null);
-                  }}>
-                    {t('deadhead_warning_btn')}
-                  </button>
-                </div>
-              )}
 
               {/* Dates & Times */}
             <div className="grid grid-cols-2 gap-2">
@@ -1285,7 +1204,88 @@ export default function TripsPage() {
               </div>
             )}
             
-            <div className="flex gap-3 md:col-span-2 lg:col-span-3 pt-3 border-t border-border mt-2">
+            {/* ─── Route Calculator (spans full width at bottom of form) ─── */}
+            <div className="md:col-span-2 lg:col-span-3 mt-4">
+              <RouteCalculator
+                pickupAddress={form.pickupAddress}
+                dropoffAddress={form.dropoffAddress}
+                weightKg={form.weightKg ? Number(form.weightKg) : undefined}
+                pallets={form.pallets ? Number(form.pallets) : undefined}
+                dieselPricePerL={dieselPrice}
+                onApply={async ({ distanceKm, estimatedCost, recommendedPrice }) => {
+                  let extraCost = 0;
+                  if (form.driverId && form.pickupDate && form.dropoffDate) {
+                    const dr = drivers.find((d: any) => d.id === form.driverId);
+                    if (dr && dr.dailyRate) {
+                      const pDate = new Date(`${form.pickupDate}T${form.pickupTime || '00:00'}:00`);
+                      const dDate = new Date(`${form.dropoffDate}T${form.dropoffTime || '23:59'}:00`);
+                      const hours = (dDate.getTime() - pDate.getTime()) / (1000 * 60 * 60);
+                      const days = Math.max(1, Math.ceil(hours / 24));
+                      extraCost = days * Number(dr.dailyRate);
+                      if (extraCost > 0) {
+                        toast.success(t('toast_driver_cost_added', { cost: extraCost.toFixed(2), days }));
+                      }
+                    }
+                  }
+
+                  let deadheadCost = 0;
+                  let deadheadDist = 0;
+                  if (form.truckId && form.pickupAddress) {
+                    const truckTrips = trips.filter(t => t.truck?.id === form.truckId && t.id !== editId).sort((a,b) => new Date(b.dropoffDate).getTime() - new Date(a.dropoffDate).getTime());
+                    const lastTrip = truckTrips.length > 0 ? truckTrips[0] : null;
+                    if (lastTrip && lastTrip.dropoffAddress) {
+                      try {
+                        const res = await api.post('/routing/calculate', {
+                          originAddress: lastTrip.dropoffAddress,
+                          destAddress: form.pickupAddress,
+                          weightKg: 0
+                        });
+                        if (res.data && res.data.distanceKm) {
+                          deadheadDist = res.data.distanceKm;
+                          // consum mediu 28L/100km pt mers pe gol
+                          deadheadCost = (deadheadDist / 100) * 28 * dieselPrice; 
+                          if (deadheadDist > 50) { // Doar daca e peste 50km avertizam puternic
+                            toast.success(t('toast_deadhead_calculated', { dist: deadheadDist.toFixed(0), from: lastTrip.dropoffAddress.split(',')[0], cost: deadheadCost.toFixed(2) }));
+                          }
+                        }
+                      } catch(e) {
+                        console.error('Deadhead calculation failed', e);
+                      }
+                    }
+                  }
+                  
+                  const finalCost = (estimatedCost || 0) + extraCost + deadheadCost;
+                  setForm((f: any) => ({
+                    ...f,
+                    distanceKm: distanceKm.toString(),
+                    ...(estimatedCost !== undefined ? { estimatedCost: finalCost.toFixed(2) } : {}),
+                    ...(recommendedPrice !== undefined ? { agreedPrice: recommendedPrice.toString(), price: recommendedPrice.toString() } : {}),
+                  }));
+                  toast.success(t('toast_route_applied'));
+                }}
+              />
+            </div>
+
+            {deadheadWarning && (
+              <div className="md:col-span-2 lg:col-span-3 bg-orange-50 border border-orange-200 p-4 rounded-xl flex items-center justify-between shadow-sm mt-2">
+                <div className="flex items-center gap-3 text-orange-800">
+                  <AlertTriangle className="w-6 h-6 text-orange-500" />
+                  <div>
+                    <p className="font-bold">{t('deadhead_warning_title', { dist: Math.round(deadheadWarning.dist) })}</p>
+                    <p className="text-sm opacity-90">{t('deadhead_warning_desc', { from: deadheadWarning.from, cost: deadheadWarning.cost.toFixed(2) })}</p>
+                  </div>
+                </div>
+                <button type="button" className="btn-secondary py-1.5 px-3 text-sm border-orange-200 text-orange-700 hover:bg-orange-100" onClick={() => {
+                  const currentEst = Number(form.estimatedCost) || 0;
+                  setForm({...form, estimatedCost: (currentEst + deadheadWarning.cost).toFixed(2)});
+                  setDeadheadWarning(null);
+                }}>
+                  {t('deadhead_warning_btn')}
+                </button>
+              </div>
+            )}
+
+            <div className="flex gap-3 md:col-span-2 lg:col-span-3 pt-3 border-t border-border mt-4">
               <button type="submit" className="btn-primary px-6 py-2.5 font-bold shadow-md shadow-primary/20">{t('save')}</button>
               <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="btn-secondary px-6 py-2.5 font-bold">{t('cancel')}</button>
             </div>
