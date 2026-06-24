@@ -133,6 +133,9 @@ const QuoteForm = () => {
       }
       
       setStatus('success');
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
       setFormData({
         companyName: '', contactPerson: '', phone: '', email: '', preferredContactMethod: 'email', loadingLocation: '', unloadingLocation: '',
         loadingDate: '', loadingTime: '', unloadingDate: '', unloadingTime: '',
