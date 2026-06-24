@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 
 interface Lead {
   id: string;
@@ -13,6 +14,8 @@ interface Lead {
   weight: string;
   type: string;
   notes: string;
+  pallets?: string;
+  estimatedPrice?: string;
   status: 'new' | 'contacted' | 'quoted' | 'accepted' | 'rejected';
   source: string;
   createdAt: string;
@@ -21,9 +24,18 @@ interface Lead {
 const WebsiteLeadsPage = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
-  const { t } = useTranslation();
-
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+
+  const getLabel = (enText: string, roText: string, nlText: string, deText: string, frText: string, plText: string) => {
+    const lang = i18n.language;
+    if (lang === 'ro') return roText;
+    if (lang === 'nl') return nlText;
+    if (lang === 'de') return deText;
+    if (lang === 'fr') return frText;
+    if (lang === 'pl') return plText;
+    return enText;
+  };
 
   const fetchLeads = async () => {
     try {
@@ -41,13 +53,23 @@ const WebsiteLeadsPage = () => {
     fetchLeads();
   }, []);
 
+  const convertToQuote = async (id: string) => {
+    try {
+      await api.post(`/leads/${id}/convert-quote`);
+      toast.success(getLabel("Successfully converted to Quote!", "Transformat în Ofertă cu succes!", "Succesvol omgezet naar Offerte!", "Erfolgreich in Angebot umgewandelt!", "Converti en devis avec succès !", "Pomyślnie przekonwertowano na wycenę!"));
+      fetchLeads();
+    } catch (error) {
+      console.error('Failed to convert to quote', error);
+      toast.error('Failed to convert to quote');
+    }
+  };
+
   const updateStatus = async (id: string, status: string) => {
     try {
       if (status === 'accepted') {
         const { data } = await api.post(`/leads/${id}/convert`);
         if (data && data.tripId) {
           navigate(`/trips`); // the trip is created, go to trips list or edit
-          // navigate(`/trips/edit/${data.tripId}`); // if edit page exists
         }
       } else {
         await api.patch(`/leads/${id}`, { status });
@@ -111,6 +133,7 @@ const WebsiteLeadsPage = () => {
                       <p className="text-gray-500 mb-1">{t('leads.freightDetails', 'Detalii Marfă')}</p>
                       <p className="font-medium">⚖️ {lead.weight}</p>
                       <p className="font-medium">📦 {lead.type || t('common.unspecified', 'Nespecificat')}</p>
+                      {lead.pallets && <p className="font-medium">🏢 {getLabel("Pallets", "Paleți", "Pallets", "Paletten", "Palettes", "Palety")}: {lead.pallets}</p>}
                     </div>
                   </div>
 
@@ -127,6 +150,12 @@ const WebsiteLeadsPage = () => {
                       </div>
                     </div>
                   </div>
+
+                  {lead.estimatedPrice && (
+                    <div className="mt-4 p-3 bg-green-50 text-green-900 rounded-md text-sm border border-green-200 flex items-center gap-2">
+                      <span className="font-bold">📊 {getLabel("Estimated Price seen by client", "Preț estimat văzut de client", "Geschatte prijs gezien door klant", "Vom Kunden gesehener geschätzter Preis", "Prix estimé vu par le client", "Szacowana cena widzana przez klienta")}:</span> {lead.estimatedPrice}
+                    </div>
+                  )}
 
                   {lead.notes && (
                     <div className="mt-4 p-3 bg-blue-50 text-blue-900 rounded-md text-sm border border-blue-100">
@@ -145,8 +174,8 @@ const WebsiteLeadsPage = () => {
                   )}
                   
                   {['new', 'contacted'].includes(lead.status) && (
-                    <button onClick={() => updateStatus(lead.id, 'quoted')} className="w-full py-2 px-4 rounded font-medium text-white bg-purple-600 hover:bg-purple-700 transition-colors">
-                      📝 {t('leads.sendQuote', 'Trimite Ofertă')}
+                    <button onClick={() => convertToQuote(lead.id)} className="w-full py-2 px-4 rounded font-medium text-white bg-purple-600 hover:bg-purple-700 transition-colors flex items-center justify-center gap-2">
+                      📝 {getLabel("Convert to Quote", "Transformă în Ofertă", "Omzetten naar Offerte", "In Angebot umwandeln", "Convertir en devis", "Konwertuj na wycenę")}
                     </button>
                   )}
                   

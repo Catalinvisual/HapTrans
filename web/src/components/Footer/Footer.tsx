@@ -5,8 +5,18 @@ import styles from './Footer.module.css';
 import { useLanguage } from '@/context/LanguageContext';
 
 const Footer = () => {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [company, setCompany] = useState<any>({});
+
+  const getLabel = (roText: string, enText: string, nlText: string, deText: string, frText: string, esText: string) => {
+    if (lang === 'RO') return roText;
+    if (lang === 'EN') return enText;
+    if (lang === 'NL') return nlText;
+    if (lang === 'DE') return deText;
+    if (lang === 'FR') return frText;
+    if (lang === 'ES') return esText;
+    return enText;
+  };
 
   useEffect(() => {
     const fetchCompany = async () => {
@@ -66,12 +76,12 @@ const Footer = () => {
         <div className={styles.column}>
           <h4 className={styles.title}>{t('contactTitle') || 'Contact'}</h4>
           <ul className={styles.links} style={{ lineHeight: '1.8' }}>
-            <li>📍 Adres: {company.address || 'Transportweg 1, 1000 AA Amsterdam, Nederland'}</li>
-            <li>📞 Tel: {company.phone || '+31 20 000 0000'}</li>
-            <li>✉️ E-mail: {company.email || 'office@hapcargo.com'}</li>
-            <li>🏢 KvK nummer: {company.regNo || '12345678'}</li>
-            <li>💶 BTW nummer: {company.cui || 'NL123456789B01'}</li>
-            <li>⏰ Openingstijden: {company.workingHours || 'Ma - Vr, 08:00 - 18:00'}</li>
+            <li>📍 {getLabel("Adresă", "Address", "Adres", "Adresse", "Adresse", "Dirección")}: {company.address || 'Transportweg 1, 1000 AA Amsterdam, Nederland'}</li>
+            <li>📞 {getLabel("Tel", "Tel", "Tel", "Tel", "Tél", "Tel")}: {company.phone || '+31 20 000 0000'}</li>
+            <li>✉️ {getLabel("Email", "Email", "E-mail", "E-Mail", "E-mail", "Correo")}: {company.email || 'office@hapcargo.com'}</li>
+            <li>🏢 {getLabel("Nr. Reg", "Reg No", "KvK nummer", "Reg.-Nr.", "N° RCS", "Nº Reg")}: {company.regNo || '12345678'}</li>
+            <li>💶 {getLabel("CUI / CIF", "VAT No", "BTW nummer", "USt-IdNr.", "N° TVA", "NIF / IVA")}: {company.cui || 'NL123456789B01'}</li>
+            <li>⏰ {getLabel("Program de lucru", "Working Hours", "Openingstijden", "Arbeitszeiten", "Horaires de travail", "Horario de trabajo")}: {company.workingHours || getLabel('Ma - Vr, 08:00 - 18:00', 'Mon - Fri, 08:00 - 18:00', 'Ma - Vr, 08:00 - 18:00', 'Mo - Fr, 08:00 - 18:00', 'Lun - Ven, 08:00 - 18:00', 'Lun - Vie, 08:00 - 18:00')}</li>
           </ul>
         </div>
       </div>

@@ -49,4 +49,10 @@ export class QuotesController {
     // In a real app we might get the admin user from Req().user, but for now we accept it in the body
     return this.quotesService.replyToQuote(id, replyData);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/convert')
+  async convertToTrip(@Param('id') id: string) {
+    return this.quotesService.convertToTrip(id);
+  }
 }

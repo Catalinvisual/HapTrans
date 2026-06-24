@@ -7,13 +7,15 @@ import { TripsModule } from '../trips/trips.module';
 import { ClientsModule } from '../clients/clients.module';
 import { ResendService } from '../email/resend.service';
 import { UsersModule } from '../users/users.module';
+import { QuotesModule } from '../quotes/quotes.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Lead]),
     TripsModule,
     ClientsModule,
-    UsersModule
+    UsersModule,
+    QuotesModule
   ],
   controllers: [LeadsController],
   providers: [LeadsService, ResendService],

@@ -40,6 +40,12 @@ export class Lead {
   @Column({ default: 'website' })
   source: string;
 
+  @Column({ nullable: true })
+  pallets: string;
+
+  @Column({ nullable: true })
+  estimatedPrice: string;
+
   @Column({ type: 'enum', enum: LeadStatus, default: LeadStatus.NEW })
   status: LeadStatus;
 

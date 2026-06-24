@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
-import { Save, Building2, User, Server, Upload, X, ImageIcon } from 'lucide-react';
+import { Save, Building2, User, Server, Upload, X, ImageIcon, Calculator } from 'lucide-react';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 
 const COMPANY_KEY = 'hapcargo_company_settings';
@@ -37,7 +37,7 @@ export function getCompanySettings(): CompanySettings {
 }
 
 export default function SettingsPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuthStore();
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
@@ -45,6 +45,29 @@ export default function SettingsPage() {
   const [company, setCompany] = useState<CompanySettings>(getCompanySettings);
   const [logoPreview, setLogoPreview] = useState<string>(getCompanySettings().logo || '');
   const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const [tariffs, setTariffs] = useState({
+    minPricePerKm: 1.30,
+    minTripPrice: 250,
+    fuelSurchargePercent: 8,
+    profitMarginPercent: 15,
+    handlingFee: 50,
+    weightSurchargePercent: 8,
+    weightThresholdKg: 20000,
+    palletFactorSmall: 0.6,
+    palletFactorMedium: 0.85,
+    palletFactorFull: 1.0
+  });
+
+  const getLabel = (enText: string, roText: string, nlText: string, deText: string, frText: string, plText: string) => {
+    const lang = i18n.language;
+    if (lang === 'ro') return roText;
+    if (lang === 'nl') return nlText;
+    if (lang === 'de') return deText;
+    if (lang === 'fr') return frText;
+    if (lang === 'pl') return plText;
+    return enText;
+  };
 
   useEffect(() => {
     api.get('/public/company-settings').then(res => {
@@ -55,6 +78,12 @@ export default function SettingsPage() {
         localStorage.setItem(COMPANY_KEY, JSON.stringify(merged));
       }
     }).catch(e => console.error('Failed to load company settings from server', e));
+
+    api.get('/public/tariff-settings').then(res => {
+      if (res.data && Object.keys(res.data).length > 0) {
+        setTariffs(res.data);
+      }
+    }).catch(e => console.error('Failed to load tariff settings from server', e));
   }, []);
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,7 +134,13 @@ export default function SettingsPage() {
           console.error('Failed to sync company settings to backend', e);
         }
 
-      toast.success(t('settingsSaved'));
+        try {
+          await api.post('/settings/tariffs', tariffs);
+        } catch (e) {
+          console.error('Failed to sync tariff settings to backend', e);
+        }
+
+      toast.success(t('settingsSaved') || 'Settings saved successfully!');
     } catch (err: any) { 
       const errorMsg = err.response?.data?.message;
       toast.error(Array.isArray(errorMsg) ? errorMsg[0] : errorMsg || t('error'));
@@ -188,7 +223,7 @@ export default function SettingsPage() {
           {companyFields.map(f => (
             <div key={f.key} className={f.colSpan || f.key === 'address' ? 'lg:col-span-2' : ''}>
               <label className="label font-semibold text-xs">
-                {f.key === 'workingHours' ? 'Program de lucru' : t(f.labelKey)}{f.required && <span className="text-error ml-0.5">*</span>}
+                {f.key === 'workingHours' ? getLabel("Working Hours", "Program de lucru", "Werktijden", "Arbeitszeiten", "Horaires de travail", "Godziny pracy") : t(f.labelKey)}{f.required && <span className="text-error ml-0.5">*</span>}
               </label>
               {f.key === 'address' ? (
                 <AddressAutocomplete
@@ -206,7 +241,7 @@ export default function SettingsPage() {
                     if (f.key === 'iban' || f.key === 'cui' || f.key === 'regNo') val = val.toUpperCase();
                     setCompany(prev => ({ ...prev, [f.key]: val }));
                   }}
-                  placeholder={f.key === 'workingHours' ? 'ex: Ma - Vr, 08:00 - 18:00' : t(f.labelKey)}
+                  placeholder={f.key === 'workingHours' ? getLabel("e.g. Mon - Fri, 08:00 - 18:00", "ex: Ma - Vr, 08:00 - 18:00", "bijv. Ma - Vr, 08:00 - 18:00", "z.B. Mo - Fr, 08:00 - 18:00", "ex: Lun - Ven, 08:00 - 18:00", "np. Pon - Pt, 08:00 - 18:00") : t(f.labelKey)}
                 />
               )}
             </div>
@@ -216,6 +251,147 @@ export default function SettingsPage() {
         <div className="rounded-xl bg-primary/5 border border-primary/20 p-3 text-xs text-primary flex items-start gap-2">
           <Building2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
           <span className="text-xs text-text-secondary">{t('company_from_note')}</span>
+        </div>
+      </div>
+
+      {/* ─── TARIFFS & CALCULATOR ENGINE ─── */}
+      <div className="bg-white border border-border rounded-2xl p-6 shadow-sm space-y-5">
+        <div className="flex items-center gap-2 border-b border-border pb-3">
+          <Calculator className="w-5 h-5 text-primary" />
+          <div>
+            <h3 className="font-semibold text-lg text-primary">
+              {getLabel("Smart Tariffs & Calculator Engine", "Tarife & Calculator Engine", "Tarieven & Calculator Engine", "Tarife & Rechner-Engine", "Tarifs & Moteur de calcul", "Taryfy i silnik kalkulatora")}
+            </h3>
+            <p className="text-xs text-text-secondary">
+              {getLabel("Configure the pricing rules and modifiers used by the system and website calculator.", "Configurează regulile de preț folosite de sistem și calculatorul web.", "Configureer de prijsregels die door het systeem en de websitecalculator worden gebruikt.", "Konfigurieren Sie die Preisregeln für das System und den Website-Rechner.", "Configurez les règles de tarification utilisées par le système et le calculateur web.", "Skonfiguruj zasady wyceny używane przez system i kalkulator internetowy.")}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <label className="label font-semibold text-xs">
+              {getLabel("Min price per km (€)", "Preț minim pe km (€)", "Min. prijs per km (€)", "Min. Preis pro km (€)", "Prix min par km (€)", "Min. cena za km (€)")}
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              className="input text-sm"
+              value={tariffs.minPricePerKm}
+              onChange={e => setTariffs(prev => ({ ...prev, minPricePerKm: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+
+          <div>
+            <label className="label font-semibold text-xs">
+              {getLabel("Minimum trip price (€)", "Preț minim per cursă (€)", "Minimale ritprijs (€)", "Mindestfahrtpreis (€)", "Prix min du trajet (€)", "Minimalna cena trasy (€)")}
+            </label>
+            <input
+              type="number"
+              className="input text-sm"
+              value={tariffs.minTripPrice}
+              onChange={e => setTariffs(prev => ({ ...prev, minTripPrice: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+
+          <div>
+            <label className="label font-semibold text-xs">
+              {getLabel("Handling fee (€)", "Cost manipulare (€)", "Afhandelingskosten (€)", "Bearbeitungsgebühr (€)", "Frais de manutention (€)", "Opłata operacyjna (€)")}
+            </label>
+            <input
+              type="number"
+              className="input text-sm"
+              value={tariffs.handlingFee}
+              onChange={e => setTariffs(prev => ({ ...prev, handlingFee: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+
+          <div>
+            <label className="label font-semibold text-xs">
+              {getLabel("Fuel surcharge (%)", "Supliment combustibil (%)", "Brandstoftoeslag (%)", "Treibstoffzuschlag (%)", "Surcharge carburant (%)", "Dopłata paliwowa (%)")}
+            </label>
+            <input
+              type="number"
+              className="input text-sm"
+              value={tariffs.fuelSurchargePercent}
+              onChange={e => setTariffs(prev => ({ ...prev, fuelSurchargePercent: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+
+          <div>
+            <label className="label font-semibold text-xs">
+              {getLabel("Profit margin (%)", "Marjă de profit (%)", "Winstmarge (%)", "Gewinnmarge (%)", "Marge bénéficiaire (%)", "Marża zysku (%)")}
+            </label>
+            <input
+              type="number"
+              className="input text-sm"
+              value={tariffs.profitMarginPercent}
+              onChange={e => setTariffs(prev => ({ ...prev, profitMarginPercent: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+
+          <div>
+            <label className="label font-semibold text-xs">
+              {getLabel("Weight surcharge (%)", "Spor greutate (%)", "Gewichtstoeslag (%)", "Gewichtszuschlag (%)", "Surcharge de poids (%)", "Dopłata za wagę (%)")}
+            </label>
+            <input
+              type="number"
+              className="input text-sm"
+              value={tariffs.weightSurchargePercent}
+              onChange={e => setTariffs(prev => ({ ...prev, weightSurchargePercent: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+
+          <div>
+            <label className="label font-semibold text-xs">
+              {getLabel("Weight threshold (kg)", "Prag greutate (kg)", "Gewichtsdrempel (kg)", "Gewichtsgrenze (kg)", "Seuil de poids (kg)", "Próg wagi (kg)")}
+            </label>
+            <input
+              type="number"
+              className="input text-sm"
+              value={tariffs.weightThresholdKg}
+              onChange={e => setTariffs(prev => ({ ...prev, weightThresholdKg: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+
+          <div>
+            <label className="label font-semibold text-xs">
+              {getLabel("0-5 pallets modifier (e.g. 0.6)", "Factor 0-5 paleți (ex: 0.6)", "0-5 pallets modifier (bijv. 0.6)", "0-5 Paletten-Faktor (z.B. 0.6)", "Facteur 0-5 palettes (ex: 0.6)", "Mnożnik 0-5 palet (np. 0.6)")}
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              className="input text-sm"
+              value={tariffs.palletFactorSmall}
+              onChange={e => setTariffs(prev => ({ ...prev, palletFactorSmall: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+
+          <div>
+            <label className="label font-semibold text-xs">
+              {getLabel("6-15 pallets modifier (e.g. 0.85)", "Factor 6-15 paleți (ex: 0.85)", "6-15 pallets modifier (bijv. 0.85)", "6-15 Paletten-Faktor (z.B. 0.85)", "Facteur 6-15 palettes (ex: 0.85)", "Mnożnik 6-15 palet (np. 0.85)")}
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              className="input text-sm"
+              value={tariffs.palletFactorMedium}
+              onChange={e => setTariffs(prev => ({ ...prev, palletFactorMedium: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+
+          <div>
+            <label className="label font-semibold text-xs">
+              {getLabel("16-33 pallets modifier (e.g. 1.0)", "Factor 16-33 paleți (ex: 1.0)", "16-33 pallets modifier (bijv. 1.0)", "16-33 Paletten-Faktor (z.B. 1.0)", "Facteur 16-33 palettes (ex: 1.0)", "Mnożnik 16-33 palet (np. 1.0)")}
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              className="input text-sm"
+              value={tariffs.palletFactorFull}
+              onChange={e => setTariffs(prev => ({ ...prev, palletFactorFull: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
         </div>
       </div>
 

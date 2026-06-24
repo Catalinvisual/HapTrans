@@ -117,4 +117,116 @@ export class AppController {
       return { error: e.toString() };
     }
   }
+
+  @Post('settings/tariffs')
+  @UseGuards(JwtAuthGuard)
+  async saveTariffSettings(@Body() body: any) {
+    try {
+      const jsonStr = JSON.stringify(body);
+      const existing = await this.em.query("SELECT * FROM website_cms WHERE `key` = 'tariff_settings'");
+      if (existing.length > 0) {
+        await this.em.query("UPDATE website_cms SET `value` = ? WHERE `key` = 'tariff_settings'", [jsonStr]);
+      } else {
+        await this.em.query("INSERT INTO website_cms (`key`, `value`) VALUES ('tariff_settings', ?)", [jsonStr]);
+      }
+      return { success: true };
+    } catch (e) {
+      console.error('Failed to save tariff settings', e);
+      return { success: false, error: e.toString() };
+    }
+  }
+
+  @Get('public/tariff-settings')
+  async getTariffSettings() {
+    try {
+      const res = await this.em.query("SELECT `value` FROM website_cms WHERE `key` = 'tariff_settings'");
+      if (res.length > 0 && res[0].value) {
+        return JSON.parse(res[0].value);
+      }
+      // Return default tariff settings
+      return {
+        minPricePerKm: 1.30,
+        minTripPrice: 250,
+        fuelSurchargePercent: 8,
+        profitMarginPercent: 15,
+        handlingFee: 50,
+        weightSurchargePercent: 8,
+        weightThresholdKg: 20000,
+        palletFactorSmall: 0.6,
+        palletFactorMedium: 0.85,
+        palletFactorFull: 1.0
+      };
+    } catch (e) {
+      return { error: e.toString() };
+    }
+  }
+
+  @Post('public/calculate-quote')
+  async calculateQuote(@Body() body: { distanceKm?: number; weightKg?: number; pallets?: number }) {
+    try {
+      const settings = await this.getTariffSettings();
+      const dist = body.distanceKm || 500;
+      const weight = body.weightKg || 5000;
+      const pallets = body.pallets || 10;
+
+      const minPricePerKm = Number(settings.minPricePerKm) || 1.30;
+      const minTripPrice = Number(settings.minTripPrice) || 250;
+      const fuelSurchargePercent = Number(settings.fuelSurchargePercent) || 8;
+      const profitMarginPercent = Number(settings.profitMarginPercent) || 15;
+      const handlingFee = Number(settings.handlingFee) || 50;
+      const weightSurchargePercent = Number(settings.weightSurchargePercent) || 8;
+      const weightThresholdKg = Number(settings.weightThresholdKg) || 20000;
+      const palletFactorSmall = Number(settings.palletFactorSmall) || 0.6;
+      const palletFactorMedium = Number(settings.palletFactorMedium) || 0.85;
+      const palletFactorFull = Number(settings.palletFactorFull) || 1.0;
+
+      // Base price calculation
+      let basePrice = dist * minPricePerKm;
+      if (basePrice < minTripPrice) {
+        basePrice = minTripPrice;
+      }
+
+      // Pallet volume modifier (LTL vs FTL)
+      if (pallets <= 5) {
+        basePrice *= palletFactorSmall;
+      } else if (pallets <= 15) {
+        basePrice *= palletFactorMedium;
+      } else {
+        basePrice *= palletFactorFull;
+      }
+
+      // Handling fee
+      basePrice += handlingFee;
+
+      // Weight surcharge
+      if (weight > weightThresholdKg) {
+        basePrice *= (1 + weightSurchargePercent / 100);
+      }
+
+      // Fuel surcharge
+      basePrice *= (1 + fuelSurchargePercent / 100);
+
+      // Profit margin
+      const finalPrice = basePrice * (1 + profitMarginPercent / 100);
+
+      // Estimate range for website (rounded to nearest 10)
+      const minEstimate = Math.round((finalPrice * 0.92) / 10) * 10;
+      const maxEstimate = Math.round((finalPrice * 1.08) / 10) * 10;
+
+      return {
+        success: true,
+        recommendedPrice: Math.round(finalPrice),
+        minEstimate,
+        maxEstimate,
+        currency: 'EUR',
+        calculationDetails: {
+          distanceKm: dist,
+          weightKg: weight,
+          pallets: pallets
+        }
+      };
+    } catch (e) {
+      return { success: false, error: e.toString() };
+    }
+  }
 }

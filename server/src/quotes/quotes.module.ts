@@ -47,16 +47,21 @@ const storage = new CloudinaryStorage({
 });
 
 import { QuoteReply } from './quote-reply.entity';
+import { TripsModule } from '../trips/trips.module';
+import { ClientsModule } from '../clients/clients.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([QuoteRequest, QuoteReply]),
     UsersModule,
+    TripsModule,
+    ClientsModule,
     MulterModule.register({
       storage: storage,
     }),
   ],
   controllers: [QuotesController],
   providers: [QuotesService, ResendService],
+  exports: [QuotesService],
 })
 export class QuotesModule {}
