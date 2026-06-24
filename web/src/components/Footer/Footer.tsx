@@ -77,7 +77,7 @@ const Footer = () => {
       </div>
       
       <div className={styles.bottom}>
-        <p>&copy; {new Date().getFullYear()} HapCargo. {t('rightsReserved') || 'Toate drepturile rezervate.'}</p>
+        <p>&copy; 2026-{new Date().getFullYear()} HapCargo Transport S.R.L. {t('rightsReserved') || 'Toate drepturile rezervate.'}</p>
       </div>
     </footer>
   );

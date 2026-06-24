@@ -2689,7 +2689,7 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
       documentDeleted: 'Document supprimé.',
       noMessagesInRoom: 'Aucun message dans cette salle.',
       sendMessageToStartConversation: 'Envoyez un message pour démarrer la conversation.',
-          company_section_title: "Détails de l'entreprise (Factures)",
+      company_section_title: "Détails de l'entreprise (Factures)",
       company_logo_label: "Logo de l'entreprise",
       logo_click_to_upload: "Cliquez pour télécharger",
       logo_upload_button: "Télécharger le logo",

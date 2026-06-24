@@ -10,7 +10,7 @@ import LanguageDropdown from '../components/LanguageDropdown';
 
 
 export default function LoginPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
   const [email, setEmail] = useState('');
@@ -32,6 +32,8 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  const rightsReservedText = i18n.language === 'en' ? 'All rights reserved.' : i18n.language === 'nl' ? 'Alle rechten voorbehouden.' : i18n.language === 'de' ? 'Alle Rechte vorbehalten.' : i18n.language === 'fr' ? 'Tous droits réservés.' : i18n.language === 'pl' ? 'Wszelkie prawa zastrzeżone.' : 'Toate drepturile rezervate.';
 
   return (
     <div className="min-h-screen bg-secondary flex flex-col justify-center items-center relative overflow-hidden">
@@ -118,7 +120,7 @@ export default function LoginPage() {
         
         {/* Footer text */}
         <div className="text-center mt-8 text-white/30 text-xs">
-          &copy; 2026-{new Date().getFullYear()} HapCargo Transport S.R.L. Toate drepturile rezervate.
+          &copy; 2026-{new Date().getFullYear()} HapCargo Transport S.R.L. {rightsReservedText}
         </div>
       </div>
     </div>
