@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Navigation2, Loader2, RouteIcon, Clock, Gauge, Banknote, ChevronDown, ChevronUp, Zap } from 'lucide-react';
+import { Navigation2, Loader2, RouteIcon, Clock, Gauge, Banknote, ChevronDown, ChevronUp, Zap, Calculator } from 'lucide-react';
 import api from '../lib/api';
 
 interface RouteResult {
@@ -16,7 +16,8 @@ interface Props {
   pickupAddress: string;
   dropoffAddress: string;
   weightKg?: number;
-  onApply: (result: { distanceKm: number; estimatedCost?: number }) => void;
+  pallets?: number;
+  onApply: (result: { distanceKm: number; estimatedCost?: number; recommendedPrice?: number }) => void;
   dieselPricePerL?: number;
   avgConsumptionL100?: number;
 }
@@ -25,6 +26,7 @@ export default function RouteCalculator({
   pickupAddress,
   dropoffAddress,
   weightKg,
+  pallets,
   onApply,
   dieselPricePerL = 1.68,
   avgConsumptionL100 = 32,
@@ -33,6 +35,7 @@ export default function RouteCalculator({
   const lang = i18n.language || 'ro';
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<RouteResult | null>(null);
+  const [quoteResult, setQuoteResult] = useState<any | null>(null);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(true);
 
@@ -44,6 +47,7 @@ export default function RouteCalculator({
     setLoading(true);
     setError('');
     setResult(null);
+    setQuoteResult(null);
     try {
       const res = await api.post('/routing/calculate', {
         originAddress: pickupAddress,
@@ -57,6 +61,18 @@ export default function RouteCalculator({
       } else {
         setResult(res.data);
         setExpanded(true);
+        try {
+          const qRes = await api.post('/public/calculate-quote', {
+            distanceKm: res.data.distanceKm,
+            weightKg: weightKg || 5000,
+            pallets: pallets || 10
+          });
+          if (qRes.data?.success) {
+            setQuoteResult(qRes.data);
+          }
+        } catch(qe) {
+          console.error('Failed to calculate quote estimate', qe);
+        }
       }
     } catch {
       setError(L.errFail);
@@ -69,11 +85,11 @@ export default function RouteCalculator({
   const totalEstimated = result ? fuelCost + (result.tollCost || 0) : 0;
 
   const labels: Record<string, any> = {
-    ro: { calc: 'Calculează rută', apply: 'Aplică în cursă', distance: 'Distanță', duration: 'Durata', tolls: 'Taxe drum', fuel: 'Combustibil estimat', total: 'Total estimat', source: 'Sursă date', errEmpty: 'Introduceți adresele de pickup și dropoff', errCalc: 'Nu s-a putut calcula ruta. Verificați adresele.', errFail: 'Eroare la calculul rutei', estCostTitle: 'Cost Estimat Rută', pressCalc: '↑ Apasă "Calculează rută" pentru distanță reală + ETA + costuri', calcLoading: 'Se calculează ruta camionului...' },
-    en: { calc: 'Calculate route', apply: 'Apply to trip', distance: 'Distance', duration: 'Duration', tolls: 'Toll costs', fuel: 'Est. fuel cost', total: 'Total estimate', source: 'Data source', errEmpty: 'Enter pickup and dropoff addresses', errCalc: 'Could not calculate route. Check addresses.', errFail: 'Route calculation error', estCostTitle: 'Estimated Route Cost', pressCalc: '↑ Press "Calculate route" for real distance + ETA + costs', calcLoading: 'Calculating truck route...' },
-    nl: { calc: 'Route berekenen', apply: 'Toepassen', distance: 'Afstand', duration: 'Duur', tolls: 'Tolkosten', fuel: 'Brandstofkosten', total: 'Totaal', source: 'Databron', errEmpty: 'Voer ophaal- en afleveradressen in', errCalc: 'Kon route niet berekenen. Controleer adressen.', errFail: 'Fout bij routeberekening', estCostTitle: 'Geschatte Routekosten', pressCalc: '↑ Druk op "Route berekenen" voor afstand + ETA + kosten', calcLoading: 'Vrachtwagenroute berekenen...' },
-    de: { calc: 'Route berechnen', apply: 'Anwenden', distance: 'Distanz', duration: 'Dauer', tolls: 'Mautgebühren', fuel: 'Kraftstoffkosten', total: 'Gesamtschätzung', source: 'Datenquelle', errEmpty: 'Abhol- und Lieferadressen eingeben', errCalc: 'Route konnte nicht berechnet werden.', errFail: 'Routenberechnungsfehler', estCostTitle: 'Geschätzte Routenkosten', pressCalc: '↑ "Route berechnen" drücken für Distanz + ETA + Kosten', calcLoading: 'LKW-Route wird berechnet...' },
-    fr: { calc: 'Calculer itinéraire', apply: 'Appliquer', distance: 'Distance', duration: 'Durée', tolls: 'Péages', fuel: 'Carburant estimé', total: 'Total estimé', source: 'Source', errEmpty: 'Entrez les adresses de départ et d\'arrivée', errCalc: 'Impossible de calculer l\'itinéraire.', errFail: 'Erreur de calcul', estCostTitle: 'Coût Estimé Itinéraire', pressCalc: '↑ Cliquez sur "Calculer itinéraire" pour distance + ETA + coûts', calcLoading: 'Calcul de l\'itinéraire camion...' },
+    ro: { calc: 'Calculează rută', apply: 'Aplică în cursă', distance: 'Distanță', duration: 'Durata', tolls: 'Taxe drum', fuel: 'Combustibil estimat', total: 'Total estimat', source: 'Sursă date', errEmpty: 'Introduceți adresele de pickup și dropoff', errCalc: 'Nu s-a putut calcula ruta. Verificați adresele.', errFail: 'Eroare la calculul rutei', estCostTitle: 'Cost Estimat Rută', pressCalc: '↑ Apasă "Calculează rută" pentru distanță reală + ETA + costuri și preț recomandat', calcLoading: 'Se calculează ruta și tarifele...' },
+    en: { calc: 'Calculate route', apply: 'Apply to trip', distance: 'Distance', duration: 'Duration', tolls: 'Toll costs', fuel: 'Est. fuel cost', total: 'Total estimate', source: 'Data source', errEmpty: 'Enter pickup and dropoff addresses', errCalc: 'Could not calculate route. Check addresses.', errFail: 'Route calculation error', estCostTitle: 'Estimated Route Cost', pressCalc: '↑ Press "Calculate route" for real distance + ETA + costs and recommended price', calcLoading: 'Calculating truck route and tariffs...' },
+    nl: { calc: 'Route berekenen', apply: 'Toepassen', distance: 'Afstand', duration: 'Duur', tolls: 'Tolkosten', fuel: 'Brandstofkosten', total: 'Totaal', source: 'Databron', errEmpty: 'Voer ophaal- en afleveradressen in', errCalc: 'Kon route niet berekenen. Controleer adressen.', errFail: 'Fout bij routeberekening', estCostTitle: 'Geschatte Routekosten', pressCalc: '↑ Druk op "Route berekenen" voor afstand + ETA + kosten en aanbevolen prijs', calcLoading: 'Vrachtwagenroute en tarieven berekenen...' },
+    de: { calc: 'Route berechnen', apply: 'Anwenden', distance: 'Distanz', duration: 'Dauer', tolls: 'Mautgebühren', fuel: 'Kraftstoffkosten', total: 'Gesamtschätzung', source: 'Datenquelle', errEmpty: 'Abhol- und Lieferadressen eingeben', errCalc: 'Route konnte nicht berechnet werden.', errFail: 'Routenberechnungsfehler', estCostTitle: 'Geschätzte Routenkosten', pressCalc: '↑ "Route berechnen" drücken für Distanz + ETA + Kosten und empfohlenen Preis', calcLoading: 'LKW-Route und Tarife werden berechnet...' },
+    fr: { calc: 'Calculer itinéraire', apply: 'Appliquer', distance: 'Distance', duration: 'Durée', tolls: 'Péages', fuel: 'Carburant estimé', total: 'Total estimé', source: 'Source', errEmpty: 'Entrez les adresses de départ et d\'arrivée', errCalc: 'Impossible de calculer l\'itinéraire.', errFail: 'Erreur de calcul', estCostTitle: 'Coût Estimé Itinéraire', pressCalc: '↑ Cliquez sur "Calculer itinéraire" pour distance + ETA + coûts et prix recommandé', calcLoading: 'Calcul de l\'itinéraire et tarifs...' },
   };
   const L = labels[lang] || labels['en'];
 
@@ -163,8 +179,43 @@ export default function RouteCalculator({
                 </div>
               </div>
 
+              {/* Recommended Client Price */}
+              {quoteResult && (
+                <div className="bg-white rounded-xl border border-border overflow-hidden mt-2">
+                  <div className="px-3 py-2 border-b border-border/50 flex items-center justify-between bg-emerald-50/50">
+                    <div className="flex items-center gap-1.5">
+                      <Calculator className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">
+                        {lang === 'ro' ? 'Preț Recomandat Client (SaaS Tarif Settings)' : 'Recommended Client Price (SaaS Tariff Settings)'}
+                      </span>
+                    </div>
+                    <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full font-bold">
+                      {pallets || 10} {lang === 'ro' ? 'paleți' : 'pallets'} · {weightKg || 5000} kg
+                    </span>
+                  </div>
+                  <div className="divide-y divide-border/50">
+                    <div className="px-3 py-2 flex justify-between items-center">
+                      <span className="text-xs text-text-secondary">
+                        {lang === 'ro' ? 'Interval estimat recomandat' : 'Suggested estimated range'}
+                      </span>
+                      <span className="text-xs font-semibold text-text">
+                        €{quoteResult.minEstimate} — €{quoteResult.maxEstimate}
+                      </span>
+                    </div>
+                    <div className="px-3 py-2.5 flex justify-between items-center bg-emerald-500/10">
+                      <span className="text-xs font-bold text-emerald-700 uppercase">
+                        {lang === 'ro' ? 'PREȚ DE BAZĂ RECOMANDAT' : 'RECOMMENDED BASE PRICE'}
+                      </span>
+                      <span className="text-base font-bold text-emerald-700">
+                        €{quoteResult.recommendedPrice}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Source Badge */}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between pt-1">
                 <span className="text-[10px] text-text-secondary">
                   {L.source}: {result.source === 'here' ? '📍 HERE Maps (truck routing)' : '🗺️ OpenRouteService'}
                 </span>
@@ -174,8 +225,9 @@ export default function RouteCalculator({
                   onClick={() => onApply({
                     distanceKm: result.distanceKm,
                     estimatedCost: parseFloat(totalEstimated.toFixed(2)),
+                    recommendedPrice: quoteResult?.recommendedPrice
                   })}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-success text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-colors"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-success text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-colors shadow-sm"
                 >
                   <Navigation2 className="w-3.5 h-3.5" />
                   {L.apply}

@@ -2,6 +2,7 @@ import { IsString, IsOptional, IsDateString, IsNumber, IsBoolean, IsEnum } from 
 import { TripStatus } from '../trip.entity';
 
 export class CreateTripDto {
+  @IsOptional()
   @IsString()
   referenceNumber: string;
 
@@ -17,27 +18,35 @@ export class CreateTripDto {
   @IsString()
   driverId?: string;
 
+  @IsOptional()
   @IsString()
   pickupCountry: string;
 
+  @IsOptional()
   @IsString()
   pickupAddress: string;
 
+  @IsOptional()
   @IsString()
   dropoffCountry: string;
 
+  @IsOptional()
   @IsString()
   dropoffAddress: string;
 
+  @IsOptional()
   @IsDateString()
   pickupDate: string;
 
+  @IsOptional()
   @IsString()
   pickupTime: string;
 
+  @IsOptional()
   @IsDateString()
   dropoffDate: string;
 
+  @IsOptional()
   @IsString()
   dropoffTime: string;
 

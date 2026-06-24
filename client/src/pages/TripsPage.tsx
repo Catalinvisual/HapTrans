@@ -958,8 +958,9 @@ export default function TripsPage() {
                 pickupAddress={form.pickupAddress}
                 dropoffAddress={form.dropoffAddress}
                 weightKg={form.weightKg ? Number(form.weightKg) : undefined}
+                pallets={form.pallets ? Number(form.pallets) : undefined}
                 dieselPricePerL={dieselPrice}
-                onApply={async ({ distanceKm, estimatedCost }) => {
+                onApply={async ({ distanceKm, estimatedCost, recommendedPrice }) => {
                   let extraCost = 0;
                   if (form.driverId && form.pickupDate && form.dropoffDate) {
                     const dr = drivers.find((d: any) => d.id === form.driverId);
@@ -1006,6 +1007,7 @@ export default function TripsPage() {
                     ...f,
                     distanceKm: distanceKm.toString(),
                     ...(estimatedCost !== undefined ? { estimatedCost: finalCost.toFixed(2) } : {}),
+                    ...(recommendedPrice !== undefined ? { agreedPrice: recommendedPrice.toString(), price: recommendedPrice.toString() } : {}),
                   }));
                   toast.success(t('toast_route_applied'));
                 }}
