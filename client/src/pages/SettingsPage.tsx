@@ -356,12 +356,13 @@ export default function SettingsPage() {
 
           <div>
             <label className="label font-semibold text-xs">
-              {getLabel("0-5 pallets modifier (e.g. 0.6)", "Factor 0-5 paleți (ex: 0.6)", "0-5 pallets modifier (bijv. 0.6)", "0-5 Paletten-Faktor (z.B. 0.6)", "Facteur 0-5 palettes (ex: 0.6)", "Mnożnik 0-5 palet (np. 0.6)")}
+              {getLabel("0-5 pallets rate / modifier (%) (e.g. 60)", "Tarif / Factor 0-5 paleți (%) (ex: 60)", "0-5 pallets tarief / modifier (%) (bijv. 60)", "0-5 Paletten-Tarif / Faktor (%) (z.B. 60)", "Tarif / Facteur 0-5 palettes (%) (ex: 60)", "Stawka / Mnożnik 0-5 palet (%) (np. 60)")}
             </label>
             <input
               type="number"
-              step="0.01"
+              step="1"
               className="input text-sm"
+              placeholder="60"
               value={tariffs.palletFactorSmall}
               onChange={e => setTariffs(prev => ({ ...prev, palletFactorSmall: parseFloat(e.target.value) || 0 }))}
             />
@@ -369,12 +370,13 @@ export default function SettingsPage() {
 
           <div>
             <label className="label font-semibold text-xs">
-              {getLabel("6-15 pallets modifier (e.g. 0.85)", "Factor 6-15 paleți (ex: 0.85)", "6-15 pallets modifier (bijv. 0.85)", "6-15 Paletten-Faktor (z.B. 0.85)", "Facteur 6-15 palettes (ex: 0.85)", "Mnożnik 6-15 palet (np. 0.85)")}
+              {getLabel("6-15 pallets rate / modifier (%) (e.g. 85)", "Tarif / Factor 6-15 paleți (%) (ex: 85)", "6-15 pallets tarief / modifier (%) (bijv. 85)", "6-15 Paletten-Tarif / Faktor (%) (z.B. 85)", "Tarif / Facteur 6-15 palettes (%) (ex: 85)", "Stawka / Mnożnik 6-15 palet (%) (np. 85)")}
             </label>
             <input
               type="number"
-              step="0.01"
+              step="1"
               className="input text-sm"
+              placeholder="85"
               value={tariffs.palletFactorMedium}
               onChange={e => setTariffs(prev => ({ ...prev, palletFactorMedium: parseFloat(e.target.value) || 0 }))}
             />
@@ -382,12 +384,13 @@ export default function SettingsPage() {
 
           <div>
             <label className="label font-semibold text-xs">
-              {getLabel("16-33 pallets modifier (e.g. 1.0)", "Factor 16-33 paleți (ex: 1.0)", "16-33 pallets modifier (bijv. 1.0)", "16-33 Paletten-Faktor (z.B. 1.0)", "Facteur 16-33 palettes (ex: 1.0)", "Mnożnik 16-33 palet (np. 1.0)")}
+              {getLabel("16-33 pallets rate / modifier (%) (e.g. 100)", "Tarif / Factor 16-33 paleți (%) (ex: 100)", "16-33 pallets tarief / modifier (%) (bijv. 100)", "16-33 Paletten-Tarif / Faktor (%) (z.B. 100)", "Tarif / Facteur 16-33 palettes (%) (ex: 100)", "Stawka / Mnożnik 16-33 palet (%) (np. 100)")}
             </label>
             <input
               type="number"
-              step="0.01"
+              step="1"
               className="input text-sm"
+              placeholder="100"
               value={tariffs.palletFactorFull}
               onChange={e => setTariffs(prev => ({ ...prev, palletFactorFull: parseFloat(e.target.value) || 0 }))}
             />

@@ -152,9 +152,9 @@ export class AppController {
         handlingFee: 50,
         weightSurchargePercent: 8,
         weightThresholdKg: 20000,
-        palletFactorSmall: 0.6,
-        palletFactorMedium: 0.85,
-        palletFactorFull: 1.0
+        palletFactorSmall: 60,
+        palletFactorMedium: 85,
+        palletFactorFull: 100
       };
     } catch (e) {
       return { error: e.toString() };
@@ -176,9 +176,14 @@ export class AppController {
       const handlingFee = Number(settings.handlingFee) || 50;
       const weightSurchargePercent = Number(settings.weightSurchargePercent) || 8;
       const weightThresholdKg = Number(settings.weightThresholdKg) || 20000;
-      const palletFactorSmall = Number(settings.palletFactorSmall) || 0.6;
-      const palletFactorMedium = Number(settings.palletFactorMedium) || 0.85;
-      const palletFactorFull = Number(settings.palletFactorFull) || 1.0;
+      let palletFactorSmall = Number(settings.palletFactorSmall) || 60;
+      let palletFactorMedium = Number(settings.palletFactorMedium) || 85;
+      let palletFactorFull = Number(settings.palletFactorFull) || 100;
+
+      // If user entered as percentage (e.g. 60, 85, 100), convert to multiplier (0.6, 0.85, 1.0). If they entered 0.6, keep it.
+      if (palletFactorSmall > 2) palletFactorSmall /= 100;
+      if (palletFactorMedium > 2) palletFactorMedium /= 100;
+      if (palletFactorFull > 2) palletFactorFull /= 100;
 
       // Base price calculation
       let basePrice = dist * minPricePerKm;
