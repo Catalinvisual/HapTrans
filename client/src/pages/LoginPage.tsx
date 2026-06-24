@@ -118,7 +118,7 @@ export default function LoginPage() {
         
         {/* Footer text */}
         <div className="text-center mt-8 text-white/30 text-xs">
-          &copy; {new Date().getFullYear()} HapCargo Transport S.R.L. Toate drepturile rezervate.
+          &copy; 2026-{new Date().getFullYear()} HapCargo Transport S.R.L. Toate drepturile rezervate.
         </div>
       </div>
     </div>

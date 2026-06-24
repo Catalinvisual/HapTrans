@@ -21,11 +21,12 @@ export interface CompanySettings {
   bank: string;
   iban: string;
   logo: string; // base64 data URL
+  workingHours?: string;
 }
 
 const defaultCompany: CompanySettings = {
   name: '', cui: '', regNo: '', address: '', postalCode: '',
-  city: '', country: '', phone: '', email: '', bank: '', iban: '', logo: '',
+  city: '', country: '', phone: '', email: '', bank: '', iban: '', logo: '', workingHours: '',
 };
 
 export function getCompanySettings(): CompanySettings {
@@ -44,6 +45,17 @@ export default function SettingsPage() {
   const [company, setCompany] = useState<CompanySettings>(getCompanySettings);
   const [logoPreview, setLogoPreview] = useState<string>(getCompanySettings().logo || '');
   const logoInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    api.get('/public/company-settings').then(res => {
+      if (res.data && Object.keys(res.data).length > 0) {
+        const merged = { ...defaultCompany, ...getCompanySettings(), ...res.data };
+        setCompany(merged);
+        if (merged.logo) setLogoPreview(merged.logo);
+        localStorage.setItem(COMPANY_KEY, JSON.stringify(merged));
+      }
+    }).catch(e => console.error('Failed to load company settings from server', e));
+  }, []);
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -87,6 +99,11 @@ export default function SettingsPage() {
           }
         }
         localStorage.setItem(COMPANY_KEY, JSON.stringify(finalCompany));
+        try {
+          await api.post('/settings/company', finalCompany);
+        } catch (e) {
+          console.error('Failed to sync company settings to backend', e);
+        }
 
       toast.success(t('settingsSaved'));
     } catch (err: any) { 
@@ -101,6 +118,7 @@ export default function SettingsPage() {
     { key: 'regNo',      labelKey: 'company_reg_no' },
     { key: 'phone',      labelKey: 'company_phone' },
     { key: 'email',      labelKey: 'company_email' },
+    { key: 'workingHours', labelKey: 'company_working_hours' },
     { key: 'address',    labelKey: 'company_address', colSpan: true },
     { key: 'bank',       labelKey: 'company_bank' },
     { key: 'iban',       labelKey: 'company_iban', colSpan: true },
@@ -170,7 +188,7 @@ export default function SettingsPage() {
           {companyFields.map(f => (
             <div key={f.key} className={f.colSpan || f.key === 'address' ? 'lg:col-span-2' : ''}>
               <label className="label font-semibold text-xs">
-                {t(f.labelKey)}{f.required && <span className="text-error ml-0.5">*</span>}
+                {f.key === 'workingHours' ? 'Program de lucru' : t(f.labelKey)}{f.required && <span className="text-error ml-0.5">*</span>}
               </label>
               {f.key === 'address' ? (
                 <AddressAutocomplete
@@ -182,13 +200,13 @@ export default function SettingsPage() {
               ) : (
                 <input
                   className="input text-sm"
-                  value={company[f.key]}
+                  value={company[f.key] || ''}
                   onChange={e => {
                     let val = e.target.value;
                     if (f.key === 'iban' || f.key === 'cui' || f.key === 'regNo') val = val.toUpperCase();
                     setCompany(prev => ({ ...prev, [f.key]: val }));
                   }}
-                  placeholder={t(f.labelKey)}
+                  placeholder={f.key === 'workingHours' ? 'ex: Ma - Vr, 08:00 - 18:00' : t(f.labelKey)}
                 />
               )}
             </div>

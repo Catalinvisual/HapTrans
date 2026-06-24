@@ -1,11 +1,31 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import styles from './Footer.module.css';
 import { useLanguage } from '@/context/LanguageContext';
 
 const Footer = () => {
   const { t } = useLanguage();
+  const [company, setCompany] = useState<any>({});
+
+  useEffect(() => {
+    const fetchCompany = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
+        const res = await fetch(`${apiUrl}/public/company-settings`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && !data.error) {
+            setCompany(data);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch company settings', e);
+      }
+    };
+    fetchCompany();
+  }, []);
+
   return (
     <footer className={styles.footer}>
       <div className={styles.container}>
@@ -46,12 +66,12 @@ const Footer = () => {
         <div className={styles.column}>
           <h4 className={styles.title}>{t('contactTitle') || 'Contact'}</h4>
           <ul className={styles.links} style={{ lineHeight: '1.8' }}>
-            <li>📍 Adres: Transportweg 1, 1000 AA Amsterdam, Nederland</li>
-            <li>📞 Tel: +31 20 000 0000</li>
-            <li>✉️ E-mail: office@hapcargo.com</li>
-            <li>🏢 KvK nummer: 12345678</li>
-            <li>💶 BTW nummer: NL123456789B01</li>
-            <li>⏰ Openingstijden: Ma - Vr, 08:00 - 18:00</li>
+            <li>📍 Adres: {company.address || 'Transportweg 1, 1000 AA Amsterdam, Nederland'}</li>
+            <li>📞 Tel: {company.phone || '+31 20 000 0000'}</li>
+            <li>✉️ E-mail: {company.email || 'office@hapcargo.com'}</li>
+            <li>🏢 KvK nummer: {company.regNo || '12345678'}</li>
+            <li>💶 BTW nummer: {company.cui || 'NL123456789B01'}</li>
+            <li>⏰ Openingstijden: {company.workingHours || 'Ma - Vr, 08:00 - 18:00'}</li>
           </ul>
         </div>
       </div>

@@ -62,7 +62,8 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
       lateWarning: 'Please make payment within',
       lateWarningSub: 'Late payments may incur additional charges.',
       draftTitle: 'DRAFT',
-      draftSub: 'This is not a final invoice.'
+      draftSub: 'This is not a final invoice.',
+      workingHours: 'Opening hours'
     },
     nl: {
       invoice: 'FACTUUR',
@@ -114,7 +115,8 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
       lateWarning: 'Gelieve te betalen binnen',
       lateWarningSub: 'Te late betalingen kunnen leiden tot extra kosten.',
       draftTitle: 'CONCEPT',
-      draftSub: 'Dit is geen definitieve factuur.'
+      draftSub: 'Dit is geen definitieve factuur.',
+      workingHours: 'Openingstijden'
     }
   };
   
@@ -584,11 +586,12 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
       <div class="card-title">${t.from}</div>
       <div class="company-name">${co.name || 'HapCargo BV'}</div>
       <div class="info-line">${t.taxId}: ${co.cui || 'NL442452452145'}</div>
-      ${co.regNumber ? `<div class="info-line">${t.regNo}: ${co.regNumber}</div>` : ''}
+      ${(co.regNumber || co.regNo) ? `<div class="info-line">${t.regNo}: ${co.regNumber || co.regNo}</div>` : ''}
       <div class="info-line">${t.address}: ${co.address || 'Lange Brink 15, 8315 AH Luttelgeest, Nederland'}</div>
       
       ${co.phone ? `<div class="info-line">${t.phone}: ${co.phone}</div>` : ''}
       ${co.email ? `<div class="info-line">${t.email}: ${co.email}</div>` : ''}
+      ${co.workingHours ? `<div class="info-line"><strong>${t.workingHours}:</strong> ${co.workingHours}</div>` : ''}
       ${co.bank ? `<div class="info-line">${t.bank}: ${co.bank}</div>` : ''}
       ${co.iban ? `<div class="info-line"><strong>IBAN:</strong> ${co.iban}</div>` : ''}
     </div>

@@ -86,4 +86,35 @@ export class AppController {
       return { error: e.toString() };
     }
   }
+
+  @Post('settings/company')
+  @UseGuards(JwtAuthGuard)
+  async saveCompanySettings(@Body() body: any) {
+    try {
+      const jsonStr = JSON.stringify(body);
+      const existing = await this.em.query("SELECT * FROM website_cms WHERE `key` = 'company_settings'");
+      if (existing.length > 0) {
+        await this.em.query("UPDATE website_cms SET `value` = ? WHERE `key` = 'company_settings'", [jsonStr]);
+      } else {
+        await this.em.query("INSERT INTO website_cms (`key`, `value`) VALUES ('company_settings', ?)", [jsonStr]);
+      }
+      return { success: true };
+    } catch (e) {
+      console.error('Failed to save company settings', e);
+      return { success: false, error: e.toString() };
+    }
+  }
+
+  @Get('public/company-settings')
+  async getCompanySettings() {
+    try {
+      const res = await this.em.query("SELECT `value` FROM website_cms WHERE `key` = 'company_settings'");
+      if (res.length > 0 && res[0].value) {
+        return JSON.parse(res[0].value);
+      }
+      return {};
+    } catch (e) {
+      return { error: e.toString() };
+    }
+  }
 }
