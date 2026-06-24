@@ -19,6 +19,12 @@ export class QuotesController {
       data.isUrgent = false;
     }
 
+    if (data.hasCalculation === 'true' || data.hasCalculation === true) {
+      data.hasCalculation = true;
+    } else {
+      data.hasCalculation = false;
+    }
+
     if (file) {
       const f = file as any;
       data.attachmentUrl = f.secure_url || f.path;

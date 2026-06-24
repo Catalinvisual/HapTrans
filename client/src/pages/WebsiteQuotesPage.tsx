@@ -44,6 +44,9 @@ interface QuoteRequest {
   attachmentUrl: string;
   status: 'new' | 'reviewing' | 'contacted' | 'quoted' | 'accepted' | 'rejected';
   createdAt: string;
+  estimatedPrice?: string;
+  distanceKm?: string;
+  hasCalculation?: boolean;
   replies?: QuoteReply[];
 }
 
@@ -420,11 +423,16 @@ const WebsiteQuotesPage = () => {
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex flex-col">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <h3 className="text-lg font-semibold">{quote.companyName}</h3>
                         {quote.isUrgent && (
                           <span className="bg-red-100 text-red-800 text-xs font-bold px-2 py-0.5 rounded uppercase border border-red-200">
                             {tLocal('urgent')}
+                          </span>
+                        )}
+                        {quote.estimatedPrice && (
+                          <span className="bg-green-100 text-green-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-green-200 flex items-center gap-1 shadow-sm">
+                            ⚡ Calculator: {quote.estimatedPrice}
                           </span>
                         )}
                       </div>
@@ -446,6 +454,15 @@ const WebsiteQuotesPage = () => {
                   <div className="border-t border-gray-100 bg-gray-50/30">
                     <div className="flex flex-col lg:flex-row">
                       <div className="p-6 flex-1 border-b lg:border-b-0 lg:border-r border-gray-100">
+                        {quote.estimatedPrice && (
+                          <div className="p-4 bg-green-50 text-green-900 rounded-xl text-sm border border-green-200 mb-6 flex items-center justify-between shadow-sm">
+                            <div>
+                              <span className="font-bold uppercase text-xs text-green-700 tracking-wider block mb-1">⚡ Estimare preț prin calculatorul de pe site</span>
+                              <span className="text-xl font-extrabold text-green-800">{quote.estimatedPrice}</span>
+                              {quote.distanceKm && <span className="text-gray-600 ml-2 font-medium">(Distanță rută: {quote.distanceKm} km)</span>}
+                            </div>
+                          </div>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 text-sm">
                           <div>
                             <p className="text-gray-500 mb-1 text-xs uppercase font-semibold">{tLocal('contact')}</p>

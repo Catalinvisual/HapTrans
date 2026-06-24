@@ -54,9 +54,9 @@ export default function SettingsPage() {
     handlingFee: 50,
     weightSurchargePercent: 8,
     weightThresholdKg: 20000,
-    palletFactorSmall: 0.6,
-    palletFactorMedium: 0.85,
-    palletFactorFull: 1.0
+    palletFactorSmall: 60,
+    palletFactorMedium: 85,
+    palletFactorFull: 100
   });
 
   const getLabel = (enText: string, roText: string, nlText: string, deText: string, frText: string, plText: string) => {
@@ -81,7 +81,11 @@ export default function SettingsPage() {
 
     api.get('/public/tariff-settings').then(res => {
       if (res.data && Object.keys(res.data).length > 0) {
-        setTariffs(res.data);
+        const data = { ...res.data };
+        if (data.palletFactorSmall <= 2) data.palletFactorSmall = Math.round(data.palletFactorSmall * 100);
+        if (data.palletFactorMedium <= 2) data.palletFactorMedium = Math.round(data.palletFactorMedium * 100);
+        if (data.palletFactorFull <= 2) data.palletFactorFull = Math.round(data.palletFactorFull * 100);
+        setTariffs(data);
       }
     }).catch(e => console.error('Failed to load tariff settings from server', e));
   }, []);
@@ -356,7 +360,7 @@ export default function SettingsPage() {
 
           <div>
             <label className="label font-semibold text-xs">
-              {getLabel("0-5 pallets rate / modifier (%) (e.g. 60)", "Tarif / Factor 0-5 paleți (%) (ex: 60)", "0-5 pallets tarief / modifier (%) (bijv. 60)", "0-5 Paletten-Tarif / Faktor (%) (z.B. 60)", "Tarif / Facteur 0-5 palettes (%) (ex: 60)", "Stawka / Mnożnik 0-5 palet (%) (np. 60)")}
+              {getLabel("0-5 pallets rate modifier (%) (e.g. 60)", "Modificator tarif 0-5 paleți (%) (ex: 60)", "0-5 pallets tarief modifier (%) (bijv. 60)", "0-5 Paletten-Tarif Modifikator (%) (z.B. 60)", "Modificateur tarif 0-5 palettes (%) (ex: 60)", "Mnożnik stawki 0-5 palet (%) (np. 60)")}
             </label>
             <input
               type="number"
@@ -370,7 +374,7 @@ export default function SettingsPage() {
 
           <div>
             <label className="label font-semibold text-xs">
-              {getLabel("6-15 pallets rate / modifier (%) (e.g. 85)", "Tarif / Factor 6-15 paleți (%) (ex: 85)", "6-15 pallets tarief / modifier (%) (bijv. 85)", "6-15 Paletten-Tarif / Faktor (%) (z.B. 85)", "Tarif / Facteur 6-15 palettes (%) (ex: 85)", "Stawka / Mnożnik 6-15 palet (%) (np. 85)")}
+              {getLabel("6-15 pallets rate modifier (%) (e.g. 85)", "Modificator tarif 6-15 paleți (%) (ex: 85)", "6-15 pallets tarief modifier (%) (bijv. 85)", "6-15 Paletten-Tarif Modifikator (%) (z.B. 85)", "Modificateur tarif 6-15 palettes (%) (ex: 85)", "Mnożnik stawki 6-15 palet (%) (np. 85)")}
             </label>
             <input
               type="number"
@@ -384,7 +388,7 @@ export default function SettingsPage() {
 
           <div>
             <label className="label font-semibold text-xs">
-              {getLabel("16-33 pallets rate / modifier (%) (e.g. 100)", "Tarif / Factor 16-33 paleți (%) (ex: 100)", "16-33 pallets tarief / modifier (%) (bijv. 100)", "16-33 Paletten-Tarif / Faktor (%) (z.B. 100)", "Tarif / Facteur 16-33 palettes (%) (ex: 100)", "Stawka / Mnożnik 16-33 palet (%) (np. 100)")}
+              {getLabel("16-33 pallets rate modifier (%) (e.g. 100)", "Modificator tarif 16-33 paleți (%) (ex: 100)", "16-33 pallets tarief modifier (%) (bijv. 100)", "16-33 Paletten-Tarif Modifikator (%) (z.B. 100)", "Modificateur tarif 16-33 palettes (%) (ex: 100)", "Mnożnik stawki 16-33 palet (%) (np. 100)")}
             </label>
             <input
               type="number"

@@ -49,7 +49,6 @@ const WebsiteHubPage = () => {
 
   const tabs = [
     { id: 'quotes', label: t('website_hub_tabs_quotes', getQuotesTitle()), icon: FileText },
-    { id: 'leads', label: i18n.language === 'en' ? 'Calculator Leads' : i18n.language === 'nl' ? 'Calculator Leads' : i18n.language === 'de' ? 'Rechner-Leads' : i18n.language === 'fr' ? 'Leads Calculateur' : i18n.language === 'pl' ? 'Kalkulator Leads' : 'Cereri Calculator', icon: MousePointerClick },
     { id: 'inbox', label: t('website_hub_tabs_inbox', 'Inbox Contact'), icon: Mail },
     { id: 'map', label: t('website_hub_tabs_map', 'Harta & Țări'), icon: Map },
     { id: 'about', label: t('website_hub_tabs_about', 'Despre Noi'), icon: FileText },
@@ -105,12 +104,6 @@ const WebsiteHubPage = () => {
           {activeTab === 'quotes' && (
             <div className="-m-4 md:-m-6">
               <WebsiteQuotesPage />
-            </div>
-          )}
-
-          {activeTab === 'leads' && (
-            <div className="-m-4 md:-m-6">
-              <WebsiteLeadsPage />
             </div>
           )}
 

@@ -4,9 +4,11 @@ import styles from './Hero.module.css';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'react-hot-toast';
 import AddressAutocomplete from '../AddressAutocomplete/AddressAutocomplete';
+import { useRouter } from 'next/navigation';
 
 const Hero = () => {
   const { t, lang } = useLanguage();
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     from: '',
@@ -21,6 +23,7 @@ const Hero = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [estimatedPriceRange, setEstimatedPriceRange] = useState('');
+  const [calculatedDistance, setCalculatedDistance] = useState(850);
 
   const getLabel = (roText: string, enText: string, nlText: string, deText: string, frText: string, esText: string) => {
     if (lang === 'RO') return roText;
@@ -66,6 +69,7 @@ const Hero = () => {
       } else if (fromLower.includes('france') || toLower.includes('france') || fromLower.includes(', fr') || toLower.includes(', fr')) {
         distanceKm = 1650;
       }
+      setCalculatedDistance(distanceKm);
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
       const res = await fetch(`${apiUrl}/public/calculate-quote`, {
@@ -93,35 +97,6 @@ const Hero = () => {
     }
   };
 
-  const handleSubmitLead = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
-      const res = await fetch(`${apiUrl}/leads`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          ...formData, 
-          estimatedPrice: estimatedPriceRange,
-          source: 'Website Calculator Lead' 
-        })
-      });
-      if (res.ok) {
-        toast.success(getLabel("Cerere Trimisă cu Succes!", "Request Sent Successfully!", "Verzoek succesvol verzonden!", "Anfrage erfolgreich gesendet!", "Demande envoyée avec succès!", "¡Solicitud enviada con éxito!"));
-        setStep(3); // Success
-      } else {
-        toast.error(getLabel("Eroare la trimiterea cererii.", "Error sending request.", "Fout bij verzenden verzoek.", "Fehler beim Senden der Anfrage.", "Erreur lors de l'envoi de la demande.", "Error al enviar la solicitud."));
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error(getLabel("A apărut o eroare de conexiune.", "A connection error occurred.", "Er is een verbindingsfout opgetreden.", "Ein Verbindungsfehler ist aufgetreten.", "Une erreur de connexion est survenue.", "Se produjo un error de conexión."));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <section className={styles.hero}>
       <div className={styles.container}>
@@ -140,6 +115,14 @@ const Hero = () => {
           <p className={styles.subtitle}>
             {t('heroSubtitle')}
           </p>
+          <div className={styles.ctaGroup}>
+            <a href="/cere-oferta" className="btn btn-primary">
+              {t('ctaPrimary')}
+            </a>
+            <a href="/contact" className="btn btn-outline">
+              {t('ctaSecondary')}
+            </a>
+          </div>
         </div>
 
         <div className={styles.calculatorWrapper}>
@@ -195,7 +178,7 @@ const Hero = () => {
             </form>
 
             {step === 2 && (
-              <form onSubmit={handleSubmitLead} className={styles.successBox}>
+              <div className={styles.successBox}>
                 <div className={styles.successIcon}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="20 6 9 17 4 12"></polyline>
@@ -215,33 +198,25 @@ const Hero = () => {
                 </div>
 
                 <p className={styles.successDesc}>
-                  {getLabel("Introduceți datele de contact pentru a primi oferta personalizată pe email și WhatsApp.", "Enter your contact details to receive the personalized quote by email and WhatsApp.", "Voer uw contactgegevens in om de gepersonaliseerde offerte per e-mail en WhatsApp te ontvangen.", "Geben Sie Ihre Kontaktdaten ein, um das personalisierte Angebot per E-Mail und WhatsApp zu erhalten.", "Saisissez vos coordonnées pour recevoir le devis personnalisé par e-mail et WhatsApp.", "Ingrese sus datos de contacto para recibir el presupuesto personalizado por correo electrónico y WhatsApp.")}
+                  {getLabel("Continuă spre formularul complet de cerere de ofertă. Datele tale și prețul estimat vor fi transferate automat!", "Continue to the full quote request form. Your data and estimated price will be transferred automatically!", "Ga naar het volledige offerteformulier. Uw gegevens en geschatte prijs worden automatisch overgedragen!", "Weiter zum vollständigen Angebotsformular. Ihre Daten und der geschätzte Preis werden automatisch übernommen!", "Passez au formulaire complet de demande de devis. Vos données et le prix estimé seront transférés automatiquement !", "Continúe con el formulario de solicitud de cotización completo. ¡Sus datos y precio estimado se transferirán automáticamente!")}
                 </p>
-                
-                <div className={styles.step2Grid}>
-                  <div className={styles.formGroup}>
-                    <label>{t('calcFullName')}</label>
-                    <input required type="text" name="name" placeholder={getLabel("Numele dvs. / Companie", "Your Name / Company", "Uw naam / Bedrijf", "Ihr Name / Firma", "Votre Nom / Entreprise", "Su Nombre / Empresa")} value={formData.name} onChange={handleChange} />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>{t('calcPhone')}</label>
-                    <input required type="tel" name="phone" placeholder="+40 700 000 000" value={formData.phone} onChange={handleChange} />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>{t('calcEmail')}</label>
-                    <input required type="email" name="email" placeholder="email@companie.ro" value={formData.email} onChange={handleChange} />
-                  </div>
-                </div>
 
                 <div className={styles.btnGroup}>
                   <button type="button" onClick={() => setStep(1)} className={`btn btn-outline ${styles.calcBtn}`} style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)', background: 'white', minWidth: '140px' }}>
                     {t('calcBack')}
                   </button>
-                  <button type="submit" className={`btn btn-primary ${styles.calcBtn}`} disabled={isSubmitting} style={{ minWidth: '160px' }}>
-                    {isSubmitting ? t('calcSending') : t('calcSendQuote')}
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      router.push(`/cere-oferta?from=${encodeURIComponent(formData.from)}&to=${encodeURIComponent(formData.to)}&weight=${encodeURIComponent(formData.weight)}&type=${encodeURIComponent(formData.type)}&pallets=${encodeURIComponent(formData.pallets)}&est=${encodeURIComponent(estimatedPriceRange)}&dist=${encodeURIComponent(calculatedDistance)}`);
+                    }} 
+                    className={`btn btn-primary ${styles.calcBtn}`} 
+                    style={{ minWidth: '220px' }}
+                  >
+                    {getLabel("Continuă spre cererea de ofertă ➔", "Continue to Quote Request ➔", "Ga naar offerteaanvraag ➔", "Weiter zur Angebotsanfrage ➔", "Continuer vers la demande de devis ➔", "Continuar a la solicitud de cotización ➔")}
                   </button>
                 </div>
-              </form>
+              </div>
             )}
 
             {step === 3 && (
@@ -267,4 +242,3 @@ const Hero = () => {
 };
 
 export default Hero;
-

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { ChevronDown, UploadCloud, CheckCircle } from 'lucide-react';
 import AddressAutocomplete from '../AddressAutocomplete/AddressAutocomplete';
@@ -22,7 +22,7 @@ const truckOptions = [
 ];
 
 const QuoteForm = () => {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [formData, setFormData] = useState({
     companyName: '',
     contactPerson: '',
@@ -42,11 +42,51 @@ const QuoteForm = () => {
     truckType: '',
     temperatureRequired: '',
     isUrgent: false,
-    notes: ''
+    notes: '',
+    estimatedPrice: '',
+    distanceKm: '',
+    hasCalculation: false
   });
   const [attachment, setAttachment] = useState<File | null>(null);
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [openSelect, setOpenSelect] = useState<'truckType' | 'contactMethod' | null>(null);
+
+  const getLabel = (roText: string, enText: string, nlText: string, deText: string, frText: string, esText: string) => {
+    if (lang === 'RO') return roText;
+    if (lang === 'EN') return enText;
+    if (lang === 'NL') return nlText;
+    if (lang === 'DE') return deText;
+    if (lang === 'FR') return frText;
+    if (lang === 'ES') return esText;
+    return enText;
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const from = params.get('from');
+      const to = params.get('to');
+      const weight = params.get('weight');
+      const type = params.get('type');
+      const pallets = params.get('pallets');
+      const est = params.get('est');
+      const dist = params.get('dist');
+
+      if (from || to || est) {
+        setFormData(prev => ({
+          ...prev,
+          loadingLocation: from || prev.loadingLocation,
+          unloadingLocation: to || prev.unloadingLocation,
+          cargoWeightKg: weight ? weight.replace(/[^0-9.]/g, '') : prev.cargoWeightKg,
+          cargoType: type || prev.cargoType,
+          numberOfPallets: pallets ? pallets.replace(/[^0-9]/g, '') : prev.numberOfPallets,
+          estimatedPrice: est || '',
+          distanceKm: dist || '',
+          hasCalculation: !!est
+        }));
+      }
+    }
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -97,7 +137,7 @@ const QuoteForm = () => {
         companyName: '', contactPerson: '', phone: '', email: '', preferredContactMethod: 'email', loadingLocation: '', unloadingLocation: '',
         loadingDate: '', loadingTime: '', unloadingDate: '', unloadingTime: '',
         cargoType: '', cargoWeightKg: '', numberOfPallets: '', cargoVolumeM3: '',
-        truckType: '', temperatureRequired: '', isUrgent: false, notes: ''
+        truckType: '', temperatureRequired: '', isUrgent: false, notes: '', estimatedPrice: '', distanceKm: '', hasCalculation: false
       });
       setAttachment(null);
     } catch (err) {
@@ -128,6 +168,17 @@ const QuoteForm = () => {
   return (
     <div onClick={handleOutsideClick}>
       <form className={styles.formContainer} onSubmit={handleSubmit} onClick={(e) => e.stopPropagation()}>
+      {formData.hasCalculation && formData.estimatedPrice && (
+        <div style={{ marginBottom: '2rem', padding: '1.25rem 1.5rem', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.15rem' }}>
+            <span>⚡ {getLabel("Estimare de preț calculată:", "Estimated price calculated:", "Geschatte prijs berekend:", "Geschätzter Preis berechnet:", "Prix estimé calculé :", "Precio estimado calculado:")}</span>
+            <span style={{ color: 'var(--primary)', fontSize: '1.35rem' }}>{formData.estimatedPrice}</span>
+          </div>
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+            {getLabel("Am precompletat detaliile rutei și ale mărfii din calculator. Finalizați cererea completând datele de mai jos pentru a primi oferta exactă!", "We have prefilled the route and cargo details from the calculator. Complete the request by filling in the details below to get the exact offer!", "We hebben de route- en ladingsgegevens uit de calculator vooraf ingevuld. Voltooi de aanvraag door de onderstaande gegevens in te vullen om de exacte offerte te ontvangen!", "Wir haben die Routen- und Frachtdetails aus dem Rechner vorausgefüllt. Schließen Sie die Anfrage ab, indem Sie die untenstehenden Daten eingeben, um das genaue Angebot zu erhalten!", "Nous avons prérempli les détails de l'itinéraire et de la cargaison du calculateur. Finalisez la demande en remplissant les coordonnées ci-dessous pour recevoir l'offre exacte !", "Hemos precompletado los detalles de la ruta y la carga de la calculadora. ¡Complete la solicitud ingresando los datos a continuación para recibir la oferta exacta!")}
+          </p>
+        </div>
+      )}
       <h2 className={styles.sectionTitle}>{t('quoteSecCompany')}</h2>
       <div className={styles.formGrid}>
         <div className={styles.inputGroup}>

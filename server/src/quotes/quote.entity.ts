@@ -75,6 +75,15 @@ export class QuoteRequest {
   @Column({ nullable: true })
   attachmentUrl: string;
 
+  @Column({ nullable: true })
+  estimatedPrice: string;
+
+  @Column({ nullable: true })
+  distanceKm: string;
+
+  @Column({ default: false })
+  hasCalculation: boolean;
+
   @Column({ type: 'enum', enum: QuoteStatus, default: QuoteStatus.NEW })
   status: QuoteStatus;
 
