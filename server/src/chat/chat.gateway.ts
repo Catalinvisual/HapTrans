@@ -42,10 +42,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       const senderDriver = await this.driversService.findByUserId(data.senderId);
       if (senderDriver) {
+        let tripContext = '';
+        if (data.tripId && !data.tripId.startsWith('driver_') && data.tripId !== 'general') {
+          try {
+            const tObj = await this.tripsService.findOne(data.tripId);
+            if (tObj) {
+              const ref = tObj.cmrReference || tObj.loadingReference || `${tObj.pickupCompanyName || tObj.pickupAddress || ''} -> ${tObj.dropoffCompanyName || tObj.dropoffAddress || ''}`;
+              tripContext = ` (Cursa: ${ref})`;
+            }
+          } catch (e) {}
+        }
+        const msgText = data.content || (data.fileUrl ? 'Fișier atașat / Attached file' : '');
         await this.notificationsService.create({
           type: 'chat',
-          title: 'notif_chat_title',
-          message: data.content || (data.fileUrl ? 'notif_chat_file' : ''),
+          title: `Mesaj de la Șofer: ${senderDriver.name}`,
+          message: `${msgText}${tripContext}`,
           relatedId: data.tripId,
         });
       }
@@ -105,21 +116,31 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     
     try {
       const trip = await this.tripsService.findOne(data.tripId);
-      const msg = trip 
-        ? `${data.tripId}|||${data.status}|||${trip.pickupAddress}|||${trip.dropoffAddress}`
-        : `${data.tripId}|||${data.status}`;
+      const driverName = trip?.driver?.name || 'Șofer';
+      const tripRef = trip?.cmrReference || trip?.loadingReference || `${trip?.pickupCompanyName || trip?.pickupAddress || ''} -> ${trip?.dropoffCompanyName || trip?.dropoffAddress || ''}`;
+      
+      const statusMap: Record<string, string> = {
+        pending: 'În Așteptare (Pending)',
+        confirmed: 'Confirmată (Confirmed)',
+        in_progress: 'În Desfășurare (In Progress)',
+        completed: 'Finalizată (Completed)',
+        cancelled: 'Anulată (Cancelled)',
+        delayed: 'Întârziată (Delayed)'
+      };
+      const displayStatus = statusMap[data.status] || data.status.toUpperCase();
+      const msg = `Cursa ${tripRef} a fost schimbată în statusul: ${displayStatus} de către ${driverName}`;
 
       await this.notificationsService.create({
         type: 'trip',
-        title: 'notif_trip_title',
+        title: `Status Cursă: ${displayStatus}`,
         message: msg,
         relatedId: data.tripId,
       });
     } catch (e) {
       await this.notificationsService.create({
         type: 'trip',
-        title: 'notif_trip_title',
-        message: `${data.tripId}|||${data.status}`,
+        title: `Status Cursă: ${data.status.toUpperCase()}`,
+        message: `Cursa ${data.tripId} a fost schimbată în statusul: ${data.status.toUpperCase()}`,
         relatedId: data.tripId,
       });
     }

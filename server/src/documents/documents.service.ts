@@ -37,7 +37,8 @@ export class DocumentsService {
       trip: hasTrip ? ({ id: dto.tripId } as any) : null,
       uploadedBy: { id: dto.uploadedById } as any,
     });
-    return this.repo.save(doc) as unknown as Promise<Document>;
+    const saved = await this.repo.save(doc);
+    return this.repo.findOne({ where: { id: saved.id }, relations: ['trip', 'uploadedBy'] }) as unknown as Promise<Document>;
   }
 
   generateSignedUrl(document: Document, expiresInSeconds: number) {

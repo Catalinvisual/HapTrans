@@ -116,10 +116,15 @@ export class DocumentsController {
     });
 
     if (req.user && req.user.role === 'driver') {
+      const driverName = req.user.name || doc.uploadedBy?.name || 'Șofer';
+      let tripRef = body.tripId || 'N/A';
+      if (doc.trip) {
+        tripRef = doc.trip.cmrReference || doc.trip.loadingReference || `${doc.trip.pickupCompanyName || doc.trip.pickupAddress || ''} -> ${doc.trip.dropoffCompanyName || doc.trip.dropoffAddress || ''}`;
+      }
       await this.notificationsService.create({
         type: 'document',
-        title: 'notif_document_title',
-        message: `${body.type}|||${body.tripId || 'N/A'}`,
+        title: `Document Nou de la ${driverName}`,
+        message: `Fișier ${body.type} încărcat pentru Cursa: ${tripRef}`,
         relatedId: doc.id,
       });
     }
