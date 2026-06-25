@@ -65,7 +65,7 @@ export default function DatePicker({ value, onChange, placeholder = 'DD/MM/YYYY'
             altInput: true,
             altFormat: 'd/m/Y',
             dateFormat: 'Y-m-d',
-            allowInput: true,
+            allowInput: false,
             minDate: 'today',
           }}
           placeholder={placeholder}

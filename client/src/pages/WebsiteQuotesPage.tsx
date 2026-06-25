@@ -384,7 +384,7 @@ const WebsiteQuotesPage = () => {
                 altInput: true,
                 altFormat: 'd/m/Y',
                 dateFormat: 'Y-m-d',
-                allowInput: true,
+                allowInput: false,
               }}
               placeholder="dd/mm/yyyy"
             />

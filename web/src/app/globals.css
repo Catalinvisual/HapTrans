@@ -132,3 +132,37 @@ button {
 .react-international-phone-country-selector-button {
   padding: 0 0.5rem !important;
 }
+
+/* Custom premium styling for disabled past dates in Flatpickr */
+.flatpickr-day.flatpickr-disabled,
+.flatpickr-day.flatpickr-disabled:hover {
+  color: #cbd5e1 !important; /* Slate 300 - elegant muted gray */
+  background: #f8fafc !important; /* Slate 50 - subtle distinct background */
+  border: 1px solid #e2e8f0 !important; /* Slate 200 border */
+  text-decoration: line-through !important; /* Clearly shows the day is unavailable/blocked */
+  opacity: 0.7 !important;
+  cursor: not-allowed !important;
+  border-radius: 0.5rem !important; /* rounded-lg to match modern aesthetic */
+  transform: none !important;
+}
+
+/* Enhance the overall Flatpickr calendar popover popup to look extremely premium */
+.flatpickr-calendar {
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 1rem !important;
+  padding: 8px !important;
+  font-family: inherit !important;
+  animation: fpFadeInDown 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+@keyframes fpFadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

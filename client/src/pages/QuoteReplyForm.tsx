@@ -104,7 +104,7 @@ export const QuoteReplyForm = ({ quoteId, replies, tLocal, onReplyAdded }: any) 
                 value={formData.validUntil}
                 onChange={(dates, dateStr) => setFormData({...formData, validUntil: dateStr})}
                 className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-primary focus:border-primary pl-9 ${isPastDate(formData.validUntil) ? 'border-red-500 text-red-600 bg-red-50/20' : 'border-gray-300'}`}
-                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true, minDate: 'today' }}
+                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: 'today' }}
                 placeholder="dd/mm/yyyy"
               />
               <Calendar className={`w-4 h-4 absolute left-3 top-8 pointer-events-none ${isPastDate(formData.validUntil) ? 'text-red-500' : 'text-gray-400'}`} />
@@ -116,7 +116,7 @@ export const QuoteReplyForm = ({ quoteId, replies, tLocal, onReplyAdded }: any) 
                 value={formData.pickupDate}
                 onChange={(dates, dateStr) => setFormData({...formData, pickupDate: dateStr})}
                 className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-primary focus:border-primary pl-9 ${isPastDate(formData.pickupDate) ? 'border-red-500 text-red-600 bg-red-50/20' : 'border-gray-300'}`}
-                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true, minDate: 'today' }}
+                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: 'today' }}
                 placeholder="dd/mm/yyyy"
               />
               <Calendar className={`w-4 h-4 absolute left-3 top-8 pointer-events-none ${isPastDate(formData.pickupDate) ? 'text-red-500' : 'text-gray-400'}`} />
@@ -128,7 +128,7 @@ export const QuoteReplyForm = ({ quoteId, replies, tLocal, onReplyAdded }: any) 
                 value={formData.deliveryDate}
                 onChange={(dates, dateStr) => setFormData({...formData, deliveryDate: dateStr})}
                 className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-primary focus:border-primary pl-9 ${isPastDate(formData.deliveryDate) ? 'border-red-500 text-red-600 bg-red-50/20' : 'border-gray-300'}`}
-                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true, minDate: 'today' }}
+                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: 'today' }}
                 placeholder="dd/mm/yyyy"
               />
               <Calendar className={`w-4 h-4 absolute left-3 top-8 pointer-events-none ${isPastDate(formData.deliveryDate) ? 'text-red-500' : 'text-gray-400'}`} />

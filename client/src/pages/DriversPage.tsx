@@ -319,7 +319,7 @@ export default function DriversPage() {
                 value={form.licenseExpiry}
                 onChange={(dates, dateStr) => setForm({...form, licenseExpiry: dateStr})}
                 className={`input bg-white ${isPastDate(form.licenseExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
-                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true, minDate: editId ? undefined : 'today' }}
+                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: editId ? undefined : 'today' }}
                 placeholder="DD/MM/YYYY"
               />
               {isPastDate(form.licenseExpiry) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
@@ -333,7 +333,7 @@ export default function DriversPage() {
                 value={form.medicalExpiry}
                 onChange={(dates, dateStr) => setForm({...form, medicalExpiry: dateStr})}
                 className={`input bg-white ${isPastDate(form.medicalExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
-                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true, minDate: editId ? undefined : 'today' }}
+                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: editId ? undefined : 'today' }}
                 placeholder="DD/MM/YYYY"
               />
               {isPastDate(form.medicalExpiry) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
@@ -347,7 +347,7 @@ export default function DriversPage() {
                 value={form.tachoCardExpiry}
                 onChange={(dates, dateStr) => setForm({...form, tachoCardExpiry: dateStr})}
                 className={`input bg-white ${isPastDate(form.tachoCardExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
-                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true, minDate: editId ? undefined : 'today' }}
+                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: editId ? undefined : 'today' }}
                 placeholder="DD/MM/YYYY"
               />
               {isPastDate(form.tachoCardExpiry) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
