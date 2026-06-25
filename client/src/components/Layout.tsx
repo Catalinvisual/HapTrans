@@ -188,10 +188,14 @@ export default function Layout() {
                         }
                         if (n.type === 'document' && n.message?.includes('|||')) {
                           const [docType, tripId] = n.message.split('|||');
-                          translatedMessage = t('notif_document_msg', { type: docType, tripId });
+                          const cleanTripId = tripId.includes('-') ? tripId.slice(0, 8).toUpperCase() : tripId;
+                          translatedMessage = lang === 'ro' 
+                            ? `Document nou (${docType}) pentru cursa #${cleanTripId}`
+                            : `New document (${docType}) for trip #${cleanTripId}`;
                         } else if (n.type === 'trip' && n.message?.includes('|||')) {
                           const parts = n.message.split('|||');
                           const tripId = parts[0];
+                          const cleanTripId = tripId.includes('-') ? tripId.slice(0, 8).toUpperCase() : tripId;
                           const status = parts[1];
                           const pickup = parts[2] || '';
                           const dropoff = parts[3] || '';
@@ -202,7 +206,9 @@ export default function Layout() {
                               ? `Cursa ${routeText} a fost schimbată în: ${t(statusKey) || status}`
                               : `Trip ${routeText} has been changed to: ${t(statusKey) || status}`;
                           } else {
-                            translatedMessage = t('notif_trip_msg', { tripId, status: t(statusKey) || status });
+                            translatedMessage = lang === 'ro'
+                              ? `Cursa #${cleanTripId} a fost schimbată în: ${t(statusKey) || status}`
+                              : `Trip #${cleanTripId} has been changed to: ${t(statusKey) || status}`;
                           }
                         } else if (n.message === 'notif_chat_file') {
                           translatedMessage = t('notif_chat_file');
@@ -304,10 +310,14 @@ export default function Layout() {
         }
         if (n.type === 'document' && n.message?.includes('|||')) {
           const [docType, tripId] = n.message.split('|||');
-          translatedMessage = t('notif_document_msg', { type: docType, tripId });
+          const cleanTripId = tripId.includes('-') ? tripId.slice(0, 8).toUpperCase() : tripId;
+          translatedMessage = lang === 'ro' 
+            ? `Document nou (${docType}) pentru cursa #${cleanTripId}`
+            : `New document (${docType}) for trip #${cleanTripId}`;
         } else if (n.type === 'trip' && n.message?.includes('|||')) {
           const parts = n.message.split('|||');
           const tripId = parts[0];
+          const cleanTripId = tripId.includes('-') ? tripId.slice(0, 8).toUpperCase() : tripId;
           const status = parts[1];
           const pickup = parts[2] || '';
           const dropoff = parts[3] || '';
@@ -318,7 +328,9 @@ export default function Layout() {
               ? `Cursa ${routeText} a fost schimbată în: ${t(statusKey) || status}`
               : `Trip ${routeText} has been changed to: ${t(statusKey) || status}`;
           } else {
-            translatedMessage = t('notif_trip_msg', { tripId, status: t(statusKey) || status });
+            translatedMessage = lang === 'ro'
+              ? `Cursa #${cleanTripId} a fost schimbată în: ${t(statusKey) || status}`
+              : `Trip #${cleanTripId} has been changed to: ${t(statusKey) || status}`;
           }
         } else if (n.message === 'notif_chat_file') {
           translatedMessage = t('notif_chat_file');

@@ -41,7 +41,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // Create dashboard notification for admin ONLY if sender is a driver
     try {
       const senderDriver = await this.driversService.findByUserId(data.senderId);
-      if (senderDriver) {
+      if (senderDriver || (msg?.sender && msg.sender.role !== 'admin' && msg.sender.role !== 'dispatcher')) {
+        const senderName = senderDriver?.name || msg?.sender?.name || 'Utilizator';
+        const roleLabel = msg?.sender?.role === 'client' ? 'Client' : 'Șofer';
         let tripContext = '';
         if (data.tripId && !data.tripId.startsWith('driver_') && data.tripId !== 'general') {
           try {
@@ -55,7 +57,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         const msgText = data.content || (data.fileUrl ? 'Fișier atașat / Attached file' : '');
         await this.notificationsService.create({
           type: 'chat',
-          title: `Mesaj de la Șofer: ${senderDriver.name}`,
+          title: `Mesaj de la ${roleLabel}: ${senderName}`,
           message: `${msgText}${tripContext}`,
           relatedId: data.tripId,
         });
