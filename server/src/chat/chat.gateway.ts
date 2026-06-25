@@ -41,8 +41,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // Create dashboard notification for admin
     try {
       const senderDriver = await this.driversService.findByUserId(data.senderId);
-      const senderName = senderDriver?.name || msg?.sender?.name || 'Utilizator';
-      const roleLabel = senderDriver ? 'Șofer' : (msg?.sender?.role === 'client' ? 'Client' : (msg?.sender?.role === 'driver' ? 'Șofer' : 'Dispecerat / Admin'));
+      const senderName = senderDriver?.user?.name || msg?.sender?.name || 'Utilizator';
+      const roleLabel = senderDriver || msg?.sender?.role === 'driver' ? 'Șofer' : 'Dispecerat / Admin';
       let tripContext = '';
       if (data.tripId && !data.tripId.startsWith('driver_') && data.tripId !== 'general') {
         try {
@@ -116,7 +116,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     
     try {
       const trip = await this.tripsService.findOne(data.tripId);
-      const driverName = trip?.driver?.name || 'Șofer';
+      const driverName = trip?.driver?.user?.name || 'Șofer';
       const tripRef = trip?.referenceNumber || trip?.cmrReference || trip?.loadingReference || `${trip?.pickupCompanyName || trip?.pickupAddress || ''} -> ${trip?.dropoffCompanyName || trip?.dropoffAddress || ''}`;
       
       const statusMap: Record<string, string> = {
