@@ -115,15 +115,16 @@ export class DocumentsController {
       uploadedById: req.user.id,
     });
 
-    if (req.user && req.user.role === 'driver') {
-      const driverName = req.user.name || doc.uploadedBy?.name || 'Șofer';
+    if (req.user) {
+      const uName = req.user.name || doc.uploadedBy?.name || 'Utilizator';
+      const roleLabel = req.user.role === 'driver' ? 'Șofer' : (req.user.role === 'client' ? 'Client' : 'Dispecerat / Admin');
       let tripRef = body.tripId || 'N/A';
       if (doc.trip) {
-        tripRef = doc.trip.cmrReference || doc.trip.loadingReference || `${doc.trip.pickupCompanyName || doc.trip.pickupAddress || ''} -> ${doc.trip.dropoffCompanyName || doc.trip.dropoffAddress || ''}`;
+        tripRef = doc.trip.referenceNumber || doc.trip.cmrReference || doc.trip.loadingReference || `${doc.trip.pickupCompanyName || doc.trip.pickupAddress || ''} -> ${doc.trip.dropoffCompanyName || doc.trip.dropoffAddress || ''}`;
       }
       await this.notificationsService.create({
         type: 'document',
-        title: `Document Nou de la ${driverName}`,
+        title: `Document Nou de la ${roleLabel}: ${uName}`,
         message: `Fișier ${body.type} încărcat pentru Cursa: ${tripRef}`,
         relatedId: doc.id,
       });

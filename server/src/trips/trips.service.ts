@@ -299,7 +299,7 @@ export class TripsService {
           await this.notificationsService.create({
             type: 'trip',
             title: 'notif_trip_title',
-            message: `${id}|||${dto.status}|||${updatedTrip.pickupAddress}|||${updatedTrip.dropoffAddress}`,
+            message: `${updatedTrip.referenceNumber || id}|||${dto.status}|||${updatedTrip.pickupAddress}|||${updatedTrip.dropoffAddress}`,
             relatedId: id,
           });
         }
