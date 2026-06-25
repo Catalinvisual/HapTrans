@@ -96,6 +96,8 @@ export default function MaintenancePage() {
               <Flatpickr 
                 value={form.scheduledDate} 
                 onChange={(dates, dateStr) => setForm({...form, scheduledDate: dateStr})} 
+                onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
+                onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                 className={`input bg-white ${isPastDate(form.scheduledDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} 
                 options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: 'today' }} 
                 placeholder="DD/MM/YYYY" 

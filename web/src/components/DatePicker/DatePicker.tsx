@@ -18,7 +18,8 @@ export default function DatePicker({ value, onChange, placeholder = 'DD/MM/YYYY'
   const fpRef = useRef<any>(null);
   const { lang } = useLanguage();
 
-  const handleWrapperClick = () => {
+  const handleWrapperClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (fpRef.current && fpRef.current.flatpickr) {
       fpRef.current.flatpickr.open();
     }
@@ -60,6 +61,8 @@ export default function DatePicker({ value, onChange, placeholder = 'DD/MM/YYYY'
           }}
           onOpen={() => setIsFocused(true)}
           onClose={() => setIsFocused(false)}
+          onClick={(e) => { e.stopPropagation(); if (fpRef.current?.flatpickr) fpRef.current.flatpickr.open(); }}
+          onFocus={() => { if (fpRef.current?.flatpickr) fpRef.current.flatpickr.open(); }}
           className={`${styles.input} ${value ? styles.inputHasValue : ''} ${pastError ? 'text-red-600 font-semibold' : ''}`}
           options={{
             altInput: true,

@@ -83,6 +83,7 @@ export function TimePicker({ value, onChange, label, className = '', placeholder
     <div ref={containerRef} className={`relative ${className}`}>
       {/* Input trigger */}
       <div
+        onClick={() => setOpen(true)}
         className={`
           flex items-center gap-2 px-3 py-2 rounded-lg border cursor-text select-none
           transition-all duration-150
@@ -97,12 +98,13 @@ export function TimePicker({ value, onChange, label, className = '', placeholder
           type="text"
           value={inputValue}
           onChange={handleInputChange}
-          onClick={() => setOpen(true)}
+          onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+          onFocus={() => setOpen(true)}
           className={`flex-1 text-xs outline-none bg-transparent ${inputValue ? 'text-text font-medium' : 'text-text-secondary'}`}
           placeholder={placeholder}
         />
         <ChevronDown
-          onClick={() => setOpen(!open)}
+          onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
           className={`w-3.5 h-3.5 text-text-secondary cursor-pointer transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
       </div>

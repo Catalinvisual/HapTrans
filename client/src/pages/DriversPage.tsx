@@ -318,6 +318,8 @@ export default function DriversPage() {
               <Flatpickr
                 value={form.licenseExpiry}
                 onChange={(dates, dateStr) => setForm({...form, licenseExpiry: dateStr})}
+                onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
+                onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                 className={`input bg-white ${isPastDate(form.licenseExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
                 options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: editId ? undefined : 'today' }}
                 placeholder="DD/MM/YYYY"
@@ -332,6 +334,8 @@ export default function DriversPage() {
               <Flatpickr
                 value={form.medicalExpiry}
                 onChange={(dates, dateStr) => setForm({...form, medicalExpiry: dateStr})}
+                onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
+                onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                 className={`input bg-white ${isPastDate(form.medicalExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
                 options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: editId ? undefined : 'today' }}
                 placeholder="DD/MM/YYYY"
@@ -346,6 +350,8 @@ export default function DriversPage() {
               <Flatpickr
                 value={form.tachoCardExpiry}
                 onChange={(dates, dateStr) => setForm({...form, tachoCardExpiry: dateStr})}
+                onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
+                onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                 className={`input bg-white ${isPastDate(form.tachoCardExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
                 options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: editId ? undefined : 'today' }}
                 placeholder="DD/MM/YYYY"

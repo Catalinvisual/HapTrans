@@ -98,11 +98,13 @@ export const QuoteReplyForm = ({ quoteId, replies, tLocal, onReplyAdded }: any) 
               <label className="block text-xs font-semibold text-gray-600 mb-1">{tLocal('price_eur')}</label>
               <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} placeholder="e.g. 1200" />
             </div>
-            <div className="relative">
+            <div className="relative" onClick={(e) => { const inp = e.currentTarget.querySelector('input'); if (inp) { const fp = (inp as any)._flatpickr; if (fp) fp.open(); else inp.focus(); } }}>
               <label className="block text-xs font-semibold text-gray-600 mb-1">{tLocal('valid_until')}</label>
               <Flatpickr
                 value={formData.validUntil}
                 onChange={(dates, dateStr) => setFormData({...formData, validUntil: dateStr})}
+                onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
+                onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                 className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-primary focus:border-primary pl-9 ${isPastDate(formData.validUntil) ? 'border-red-500 text-red-600 bg-red-50/20' : 'border-gray-300'}`}
                 options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: 'today' }}
                 placeholder="dd/mm/yyyy"
@@ -110,11 +112,13 @@ export const QuoteReplyForm = ({ quoteId, replies, tLocal, onReplyAdded }: any) 
               <Calendar className={`w-4 h-4 absolute left-3 top-8 pointer-events-none ${isPastDate(formData.validUntil) ? 'text-red-500' : 'text-gray-400'}`} />
               {isPastDate(formData.validUntil) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
-            <div className="relative">
+            <div className="relative" onClick={(e) => { const inp = e.currentTarget.querySelector('input'); if (inp) { const fp = (inp as any)._flatpickr; if (fp) fp.open(); else inp.focus(); } }}>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Pickup Date</label>
               <Flatpickr
                 value={formData.pickupDate}
                 onChange={(dates, dateStr) => setFormData({...formData, pickupDate: dateStr})}
+                onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
+                onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                 className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-primary focus:border-primary pl-9 ${isPastDate(formData.pickupDate) ? 'border-red-500 text-red-600 bg-red-50/20' : 'border-gray-300'}`}
                 options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: 'today' }}
                 placeholder="dd/mm/yyyy"
@@ -122,11 +126,13 @@ export const QuoteReplyForm = ({ quoteId, replies, tLocal, onReplyAdded }: any) 
               <Calendar className={`w-4 h-4 absolute left-3 top-8 pointer-events-none ${isPastDate(formData.pickupDate) ? 'text-red-500' : 'text-gray-400'}`} />
               {isPastDate(formData.pickupDate) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
-            <div className="relative">
+            <div className="relative" onClick={(e) => { const inp = e.currentTarget.querySelector('input'); if (inp) { const fp = (inp as any)._flatpickr; if (fp) fp.open(); else inp.focus(); } }}>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Delivery Date</label>
               <Flatpickr
                 value={formData.deliveryDate}
                 onChange={(dates, dateStr) => setFormData({...formData, deliveryDate: dateStr})}
+                onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
+                onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                 className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-primary focus:border-primary pl-9 ${isPastDate(formData.deliveryDate) ? 'border-red-500 text-red-600 bg-red-50/20' : 'border-gray-300'}`}
                 options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: 'today' }}
                 placeholder="dd/mm/yyyy"

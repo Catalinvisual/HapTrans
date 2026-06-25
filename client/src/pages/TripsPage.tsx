@@ -984,6 +984,8 @@ export default function TripsPage() {
                 <Flatpickr
                   value={form.pickupDate}
                   onChange={(dates, dateStr) => setForm({...form, pickupDate: dateStr})}
+                  onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
+                  onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                   className={`input text-xs bg-white ${isPastDate(form.pickupDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
                   options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: editId ? undefined : 'today' }}
                   placeholder="DD/MM/YYYY"
@@ -1006,6 +1008,8 @@ export default function TripsPage() {
                 <Flatpickr
                   value={form.dropoffDate}
                   onChange={(dates, dateStr) => setForm({...form, dropoffDate: dateStr})}
+                  onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
+                  onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                   className={`input text-xs bg-white ${isPastDate(form.dropoffDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
                   options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: editId ? undefined : 'today' }}
                   placeholder="DD/MM/YYYY"

@@ -375,10 +375,12 @@ const WebsiteQuotesPage = () => {
             />
           </div>
           
-          <div className="relative w-full sm:w-auto z-40">
+          <div className="relative w-full sm:w-auto z-40" onClick={(e) => { const inp = e.currentTarget.querySelector('input'); if (inp) { const fp = (inp as any)._flatpickr; if (fp) fp.open(); else inp.focus(); } }}>
             <Flatpickr
               value={dateFilter}
               onChange={(dates, dateStr) => setDateFilter(dateStr)}
+              onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
+              onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
               className="w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary text-sm bg-white cursor-pointer pl-10"
               options={{
                 altInput: true,

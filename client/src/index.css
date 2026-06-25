@@ -110,14 +110,12 @@
 /* Custom premium styling for disabled past dates in Flatpickr */
 .flatpickr-day.flatpickr-disabled,
 .flatpickr-day.flatpickr-disabled:hover {
-  color: #cbd5e1 !important; /* Slate 300 - elegant muted gray */
-  background: #f8fafc !important; /* Slate 50 - subtle distinct background */
-  border: 1px solid #e2e8f0 !important; /* Slate 200 border */
+  color: #94a3b8 !important; /* Slate 400 - clean, readable but muted */
+  background: transparent !important; /* No background to keep it clean and avoid layout shift */
+  border: none !important; /* NO BORDER to preserve exact 14.28% flex width! */
   text-decoration: line-through !important; /* Clearly shows the day is unavailable/blocked */
-  opacity: 0.7 !important;
+  opacity: 0.5 !important;
   cursor: not-allowed !important;
-  border-radius: 0.5rem !important; /* rounded-lg to match modern aesthetic */
-  transform: none !important;
 }
 
 /* Enhance the overall Flatpickr calendar popover popup to look extremely premium */
