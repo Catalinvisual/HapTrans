@@ -41,8 +41,8 @@ export default function DriversPage() {
     altFormat: 'd/m/Y',
     dateFormat: 'Y-m-d',
     allowInput: false,
-    minDate: editId ? undefined : 'today'
-  }), [editId]);
+    minDate: 'today'
+  }), []);
 
   const [showExport, setShowExport] = useState(false);
 

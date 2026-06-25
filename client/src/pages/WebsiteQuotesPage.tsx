@@ -272,6 +272,7 @@ const WebsiteQuotesPage = () => {
     altFormat: 'd/m/Y',
     dateFormat: 'Y-m-d',
     allowInput: false,
+    minDate: 'today'
   }), []);
 
   const fetchQuotes = async () => {

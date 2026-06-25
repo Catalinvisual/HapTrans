@@ -50,8 +50,8 @@ export default function TripsPage() {
     altFormat: 'd/m/Y',
     dateFormat: 'Y-m-d',
     allowInput: false,
-    minDate: editId ? undefined : 'today'
-  }), [editId]);
+    minDate: 'today'
+  }), []);
 
   const [isDispatching, setIsDispatching] = useState(false);
   const [palletDropdownOpen, setPalletDropdownOpen] = useState(false);

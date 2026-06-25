@@ -28,8 +28,8 @@ export default function InvoicesPage() {
     altFormat: 'd/m/Y',
     dateFormat: 'Y-m-d',
     allowInput: false,
-    minDate: editId ? undefined : 'today'
-  }), [editId]);
+    minDate: 'today'
+  }), []);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
