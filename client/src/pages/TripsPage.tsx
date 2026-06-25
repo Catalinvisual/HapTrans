@@ -359,8 +359,32 @@ export default function TripsPage() {
     }
   };
 
+  const isPastDate = (val: string) => {
+    if (editId || !val) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selected = new Date(val);
+    selected.setHours(0, 0, 0, 0);
+    return selected < today;
+  };
+
+  const getErrorMessage = () => {
+    const lg = i18n?.language || 'en';
+    if (lg === 'ro') return 'Data nu poate fi în trecut.';
+    if (lg === 'nl') return 'Datum mag niet in het verleden liggen.';
+    if (lg === 'de') return 'Datum darf nicht in der Vergangenheit liegen.';
+    if (lg === 'fr') return 'La date ne peut pas être dans le passé.';
+    if (lg === 'es') return 'La fecha no puede estar en el pasado.';
+    if (lg === 'pl') return 'Data nie może być w przeszłości.';
+    return 'Date cannot be in the past.';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isPastDate(form.pickupDate) || isPastDate(form.dropoffDate)) {
+      toast.error(getErrorMessage());
+      return;
+    }
     
     if (!form.clientId || !form.truckId || !form.driverId) {
       toast(t('missingRequiredFields'), {
@@ -960,10 +984,11 @@ export default function TripsPage() {
                 <Flatpickr
                   value={form.pickupDate}
                   onChange={(dates, dateStr) => setForm({...form, pickupDate: dateStr})}
-                  className="input text-xs bg-white"
-                  options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }}
+                  className={`input text-xs bg-white ${isPastDate(form.pickupDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
+                  options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true, minDate: editId ? undefined : 'today' }}
                   placeholder="DD/MM/YYYY"
                 />
+                {isPastDate(form.pickupDate) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
               </div>
               <div>
                 <label className="label font-semibold text-xs">{t('pickupTime')}</label>
@@ -981,10 +1006,11 @@ export default function TripsPage() {
                 <Flatpickr
                   value={form.dropoffDate}
                   onChange={(dates, dateStr) => setForm({...form, dropoffDate: dateStr})}
-                  className="input text-xs bg-white"
-                  options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }}
+                  className={`input text-xs bg-white ${isPastDate(form.dropoffDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
+                  options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true, minDate: editId ? undefined : 'today' }}
                   placeholder="DD/MM/YYYY"
                 />
+                {isPastDate(form.dropoffDate) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
               </div>
               <div>
                 <label className="label font-semibold text-xs">{t('dropoffTime')}</label>

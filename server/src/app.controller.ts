@@ -4,6 +4,8 @@ import { AppService } from './app.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { v2 as cloudinary } from 'cloudinary';
 import { UsersService } from './users/users.service';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Controller()
 export class AppController {
@@ -23,6 +25,31 @@ export class AppController {
   @UseGuards(JwtAuthGuard)
   async saveLogo(@Body() body: { logo: string }) {
     if (body.logo) {
+      // 1. Salvare automata in web/public/email-logo.png (pentru medii locale sau VPS unde server si web impartasesc sistemul de fisiere)
+      try {
+        const matches = body.logo.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (matches && matches.length === 3) {
+          const buffer = Buffer.from(matches[2], 'base64');
+          // Incercam ambele rute posibile (pornind de la process.cwd() sau __dirname) spre web/public
+          const possiblePaths = [
+            path.join(process.cwd(), '..', 'web', 'public', 'email-logo.png'),
+            path.join(__dirname, '..', '..', '..', 'web', 'public', 'email-logo.png'),
+            path.join(process.cwd(), 'web', 'public', 'email-logo.png'),
+          ];
+          for (const targetPath of possiblePaths) {
+            const dir = path.dirname(targetPath);
+            if (fs.existsSync(dir)) {
+              fs.writeFileSync(targetPath, buffer);
+              console.log(`Logo salvat automat cu succes in: ${targetPath}`);
+              break;
+            }
+          }
+        }
+      } catch (localErr) {
+        console.error('Failed to save logo locally to web/public', localErr);
+      }
+
+      // 2. Salvare in Cloudinary (pentru baze de date, setari si generare facturi)
       try {
         cloudinary.config({
           cloud_name: process.env.CLOUDINARY_CLOUD_NAME,

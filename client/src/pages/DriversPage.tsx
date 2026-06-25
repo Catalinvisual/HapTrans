@@ -81,8 +81,32 @@ export default function DriversPage() {
     toast.success(t('passwordGenerated'));
   };
 
+  const isPastDate = (val: string) => {
+    if (editId || !val) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selected = new Date(val);
+    selected.setHours(0, 0, 0, 0);
+    return selected < today;
+  };
+
+  const getErrorMessage = () => {
+    const lg = i18n?.language || 'en';
+    if (lg === 'ro') return 'Data nu poate fi în trecut.';
+    if (lg === 'nl') return 'Datum mag niet in het verleden liggen.';
+    if (lg === 'de') return 'Datum darf nicht in der Vergangenheit liegen.';
+    if (lg === 'fr') return 'La date ne peut pas être dans le passé.';
+    if (lg === 'es') return 'La fecha no puede estar en el pasado.';
+    if (lg === 'pl') return 'Data nie może być w przeszłości.';
+    return 'Date cannot be in the past.';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isPastDate(form.licenseExpiry) || isPastDate(form.medicalExpiry) || isPastDate(form.tachoCardExpiry)) {
+      toast.error(getErrorMessage());
+      return;
+    }
     try {
       if (editId) {
         // Edit driver
@@ -294,10 +318,11 @@ export default function DriversPage() {
               <Flatpickr
                 value={form.licenseExpiry}
                 onChange={(dates, dateStr) => setForm({...form, licenseExpiry: dateStr})}
-                className="input bg-white"
-                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }}
+                className={`input bg-white ${isPastDate(form.licenseExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
+                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true, minDate: editId ? undefined : 'today' }}
                 placeholder="DD/MM/YYYY"
               />
+              {isPastDate(form.licenseExpiry) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
 
             <div>
@@ -307,10 +332,11 @@ export default function DriversPage() {
               <Flatpickr
                 value={form.medicalExpiry}
                 onChange={(dates, dateStr) => setForm({...form, medicalExpiry: dateStr})}
-                className="input bg-white"
-                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }}
+                className={`input bg-white ${isPastDate(form.medicalExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
+                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true, minDate: editId ? undefined : 'today' }}
                 placeholder="DD/MM/YYYY"
               />
+              {isPastDate(form.medicalExpiry) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
 
             <div>
@@ -320,10 +346,11 @@ export default function DriversPage() {
               <Flatpickr
                 value={form.tachoCardExpiry}
                 onChange={(dates, dateStr) => setForm({...form, tachoCardExpiry: dateStr})}
-                className="input bg-white"
-                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }}
+                className={`input bg-white ${isPastDate(form.tachoCardExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
+                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true, minDate: editId ? undefined : 'today' }}
                 placeholder="DD/MM/YYYY"
               />
+              {isPastDate(form.tachoCardExpiry) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
 
             {/* Actions */}

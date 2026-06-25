@@ -27,24 +27,10 @@ export class ResendService {
   public lastStatus: any = null;
 
   private async getLogoUrl(company?: any): Promise<string> {
-    if (company && company.logo && company.logo.startsWith('http')) {
-      return company.logo;
-    }
-    try {
-      const users = await this.usersService.findAll();
-      const admin: any = users.find(u => u.role === 'admin');
-      if (admin && admin.companyLogoUrl) {
-        if (admin.companyLogoUrl.startsWith('/')) {
-          const baseUrl = process.env.API_URL || 'http://localhost:3001';
-          return `${baseUrl}${admin.companyLogoUrl}`;
-        }
-        return admin.companyLogoUrl;
-      }
-    } catch (e) {
-      console.error('Error fetching admin logo URL', e);
-    }
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dfqfj88k7';
-    return `https://res.cloudinary.com/${cloudName}/image/upload/hapcargo_settings/company_logo.png`;
+    // Solutie definitiva: nu mai preluam logo-ul din Cloudinary (company.logo sau admin.companyLogoUrl)
+    // pentru a evita expirarea URL-urilor temporare / signed si blocarea de catre proxy-urile de email (ex. Google Image Proxy).
+    // Folosim un URL public permanent, servit direct de pe website:
+    return 'https://hapcargo.com/email-logo.png';
   }
 
   async sendTripStatusEmail(tripOrEmail: any, trackingToken: string) {

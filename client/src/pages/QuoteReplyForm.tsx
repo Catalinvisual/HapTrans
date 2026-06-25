@@ -4,9 +4,11 @@ import toast from 'react-hot-toast';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import { Calendar } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export const QuoteReplyForm = ({ quoteId, replies, tLocal, onReplyAdded }: any) => {
   const [showForm, setShowForm] = useState(false);
+  const { i18n } = useTranslation();
   const [formData, setFormData] = useState({
     price: '',
     pickupDate: '',
@@ -16,8 +18,32 @@ export const QuoteReplyForm = ({ quoteId, replies, tLocal, onReplyAdded }: any) 
   });
   const [sending, setSending] = useState(false);
 
+  const isPastDate = (val: string) => {
+    if (!val) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selected = new Date(val);
+    selected.setHours(0, 0, 0, 0);
+    return selected < today;
+  };
+
+  const getErrorMessage = () => {
+    const lg = i18n?.language || 'en';
+    if (lg === 'ro') return 'Data nu poate fi în trecut.';
+    if (lg === 'nl') return 'Datum mag niet in het verleden liggen.';
+    if (lg === 'de') return 'Datum darf nicht in der Vergangenheit liegen.';
+    if (lg === 'fr') return 'La date ne peut pas être dans le passé.';
+    if (lg === 'es') return 'La fecha no puede estar en el pasado.';
+    if (lg === 'pl') return 'Data nie może być w przeszłości.';
+    return 'Date cannot be in the past.';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isPastDate(formData.validUntil) || isPastDate(formData.pickupDate) || isPastDate(formData.deliveryDate)) {
+      toast.error(getErrorMessage());
+      return;
+    }
     setSending(true);
     try {
       const res = await api.post('/quotes/' + quoteId + '/reply', formData);
@@ -77,33 +103,36 @@ export const QuoteReplyForm = ({ quoteId, replies, tLocal, onReplyAdded }: any) 
               <Flatpickr
                 value={formData.validUntil}
                 onChange={(dates, dateStr) => setFormData({...formData, validUntil: dateStr})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary pl-9"
-                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }}
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-primary focus:border-primary pl-9 ${isPastDate(formData.validUntil) ? 'border-red-500 text-red-600 bg-red-50/20' : 'border-gray-300'}`}
+                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true, minDate: 'today' }}
                 placeholder="dd/mm/yyyy"
               />
-              <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-8 pointer-events-none" />
+              <Calendar className={`w-4 h-4 absolute left-3 top-8 pointer-events-none ${isPastDate(formData.validUntil) ? 'text-red-500' : 'text-gray-400'}`} />
+              {isPastDate(formData.validUntil) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
             <div className="relative">
               <label className="block text-xs font-semibold text-gray-600 mb-1">Pickup Date</label>
               <Flatpickr
                 value={formData.pickupDate}
                 onChange={(dates, dateStr) => setFormData({...formData, pickupDate: dateStr})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary pl-9"
-                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }}
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-primary focus:border-primary pl-9 ${isPastDate(formData.pickupDate) ? 'border-red-500 text-red-600 bg-red-50/20' : 'border-gray-300'}`}
+                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true, minDate: 'today' }}
                 placeholder="dd/mm/yyyy"
               />
-              <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-8 pointer-events-none" />
+              <Calendar className={`w-4 h-4 absolute left-3 top-8 pointer-events-none ${isPastDate(formData.pickupDate) ? 'text-red-500' : 'text-gray-400'}`} />
+              {isPastDate(formData.pickupDate) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
             <div className="relative">
               <label className="block text-xs font-semibold text-gray-600 mb-1">Delivery Date</label>
               <Flatpickr
                 value={formData.deliveryDate}
                 onChange={(dates, dateStr) => setFormData({...formData, deliveryDate: dateStr})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary pl-9"
-                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }}
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-primary focus:border-primary pl-9 ${isPastDate(formData.deliveryDate) ? 'border-red-500 text-red-600 bg-red-50/20' : 'border-gray-300'}`}
+                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true, minDate: 'today' }}
                 placeholder="dd/mm/yyyy"
               />
-              <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-8 pointer-events-none" />
+              <Calendar className={`w-4 h-4 absolute left-3 top-8 pointer-events-none ${isPastDate(formData.deliveryDate) ? 'text-red-500' : 'text-gray-400'}`} />
+              {isPastDate(formData.deliveryDate) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
           </div>
           <div className="mb-4">

@@ -33,8 +33,32 @@ export default function MaintenancePage() {
     return t(key);
   };
 
+  const isPastDate = (val: string) => {
+    if (!val) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selected = new Date(val);
+    selected.setHours(0, 0, 0, 0);
+    return selected < today;
+  };
+
+  const getErrorMessage = () => {
+    const lg = i18n?.language || 'en';
+    if (lg === 'ro') return 'Data nu poate fi în trecut.';
+    if (lg === 'nl') return 'Datum mag niet in het verleden liggen.';
+    if (lg === 'de') return 'Datum darf nicht in der Vergangenheit liegen.';
+    if (lg === 'fr') return 'La date ne peut pas être dans le passé.';
+    if (lg === 'es') return 'La fecha no puede estar en el pasado.';
+    if (lg === 'pl') return 'Data nie może być w przeszłości.';
+    return 'Date cannot be in the past.';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isPastDate(form.scheduledDate)) {
+      toast.error(getErrorMessage());
+      return;
+    }
     try { 
       const dataToSubmit = {
         ...form,
@@ -67,7 +91,17 @@ export default function MaintenancePage() {
               ]} />
             </div>
             <div><label className="label">{t('description')}</label><input className="input" value={form.description} onChange={e => setForm({...form, description: e.target.value})} required /></div>
-            <div><label className="label">{t('planned')}</label><Flatpickr value={form.scheduledDate} onChange={(dates, dateStr) => setForm({...form, scheduledDate: dateStr})} className="input bg-white" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true }} placeholder="DD/MM/YYYY" /></div>
+            <div>
+              <label className="label">{t('planned')}</label>
+              <Flatpickr 
+                value={form.scheduledDate} 
+                onChange={(dates, dateStr) => setForm({...form, scheduledDate: dateStr})} 
+                className={`input bg-white ${isPastDate(form.scheduledDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} 
+                options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: true, minDate: 'today' }} 
+                placeholder="DD/MM/YYYY" 
+              />
+              {isPastDate(form.scheduledDate) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
+            </div>
             <div><label className="label">{t('costs')} (€)</label><input type="number" className="input" value={form.cost} onChange={e => setForm({...form, cost: e.target.value})} /></div>
             <div><label className="label">{t('service')}</label><input className="input" value={form.serviceProvider} onChange={e => setForm({...form, serviceProvider: e.target.value})} /></div>
             <div className="flex gap-3 col-span-2 lg:col-span-3">

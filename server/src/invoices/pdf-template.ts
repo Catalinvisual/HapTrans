@@ -200,6 +200,26 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
     `<span class="draft-no">${invoice.invoiceNumber}</span>` : 
     `<span>${invoice.invoiceNumber}</span>`;
 
+  let workingHoursStr = co.workingHours || '';
+  if (workingHoursStr) {
+    if (lang === 'nl') {
+      workingHoursStr = workingHoursStr
+        .replace(/\b(Ma|Mon|Luni|Mo|Pon)\b/gi, 'Ma')
+        .replace(/\b(Fri|Vineri|Fr|Vr|Pt)\b/gi, 'Vr')
+        .replace(/\b(Luni\s*-\s*Vineri)\b/gi, 'Ma - Vr')
+        .replace(/\b(Mon\s*-\s*Fri)\b/gi, 'Ma - Vr')
+        .replace(/\b(Ma\s*-\s*Fri)\b/gi, 'Ma - Vr');
+    } else {
+      // default en
+      workingHoursStr = workingHoursStr
+        .replace(/\b(Ma|Luni|Mo|Pon)\b/gi, 'Mon')
+        .replace(/\b(Vineri|Fr|Vr|Pt)\b/gi, 'Fri')
+        .replace(/\b(Luni\s*-\s*Vineri)\b/gi, 'Mon - Fri')
+        .replace(/\b(Ma\s*-\s*Vr)\b/gi, 'Mon - Fri')
+        .replace(/\b(Ma\s*-\s*Fri)\b/gi, 'Mon - Fri');
+    }
+  }
+
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -591,7 +611,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
       
       ${co.phone ? `<div class="info-line">${t.phone}: ${co.phone}</div>` : ''}
       ${co.email ? `<div class="info-line">${t.email}: ${co.email}</div>` : ''}
-      ${co.workingHours ? `<div class="info-line"><strong>${t.workingHours}:</strong> ${co.workingHours}</div>` : ''}
+      ${workingHoursStr ? `<div class="info-line"><strong>${t.workingHours}:</strong> ${workingHoursStr}</div>` : ''}
       ${co.bank ? `<div class="info-line">${t.bank}: ${co.bank}</div>` : ''}
       ${co.iban ? `<div class="info-line"><strong>IBAN:</strong> ${co.iban}</div>` : ''}
     </div>

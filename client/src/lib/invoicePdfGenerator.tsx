@@ -21,6 +21,16 @@ async function urlToBase64(url: string): Promise<string> {
 export async function generateInvoicePdfBase64(invoice: any, lang: 'en' | 'nl' = 'en'): Promise<string> {
   const co = getCompanySettings();
 
+  try {
+    const res = await api.get('/public/company-settings');
+    if (res.data && Object.keys(res.data).length > 0) {
+      Object.assign(co, res.data);
+      localStorage.setItem('hapcargo_company_settings', JSON.stringify(co));
+    }
+  } catch (e) {
+    console.error('Failed to fetch latest company settings', e);
+  }
+
   // If logo is a remote URL (not base64), convert it to base64 so Puppeteer can render it
   if (co.logo && co.logo.startsWith('http')) {
     co.logo = await urlToBase64(co.logo);
