@@ -151,3 +151,8 @@ input[readonly] {
     transform: translateY(0);
   }
 }
+
+@keyframes progress {
+  from { width: 100%; }
+  to { width: 0%; }
+}

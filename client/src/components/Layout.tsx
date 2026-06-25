@@ -1,6 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { formatDate } from '../lib/dateUtils';
 import Sidebar from './Sidebar';
 import LanguageDropdown from './LanguageDropdown';
@@ -40,6 +40,41 @@ export default function Layout() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [popupNotif, setPopupNotif] = useState<any | null>(null);
+  const lastNotifIdRef = useRef<string | null>(null);
+
+  const playNotificationSound = () => {
+    try {
+      // @ts-ignore
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+      gain1.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(ctx.currentTime);
+      osc1.stop(ctx.currentTime + 0.4);
+
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(659.25, ctx.currentTime + 0.12); // E5
+      gain2.gain.setValueAtTime(0.12, ctx.currentTime + 0.12);
+      gain2.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.6);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(ctx.currentTime + 0.12);
+      osc2.stop(ctx.currentTime + 0.6);
+    } catch (e) {
+      console.error('Audio playback error:', e);
+    }
+  };
 
   useEffect(() => {
     fetchNotifications();
@@ -53,6 +88,20 @@ export default function Layout() {
       if (res.data) {
         setNotifications(res.data.data);
         setUnreadCount(res.data.unreadCount);
+
+        if (res.data.data && res.data.data.length > 0) {
+          const latest = res.data.data[0];
+          if (lastNotifIdRef.current !== null && latest.id !== lastNotifIdRef.current && !latest.isRead) {
+            lastNotifIdRef.current = latest.id;
+            setPopupNotif(latest);
+            playNotificationSound();
+            setTimeout(() => {
+              setPopupNotif((current: any) => current?.id === latest.id ? null : current);
+            }, 6000);
+          } else if (lastNotifIdRef.current === null) {
+            lastNotifIdRef.current = latest.id;
+          }
+        }
       }
     } catch (e) {
       console.error(e);
@@ -238,6 +287,85 @@ export default function Layout() {
           </div>
         </main>
       </div>
+
+      {/* Bottom-right Real-time Notification Popup Card */}
+      {popupNotif && (() => {
+        const n = popupNotif;
+        let translatedTitle = n.title?.startsWith('notif_') ? t(n.title) : n.title;
+        if (n.title === 'Document Expirat / Expiră Curând' || n.title === 'Document Expiring Soon') {
+          translatedTitle = t('notif_doc_expiring_title') || n.title;
+        }
+
+        let translatedMessage = n.message;
+        if (translatedMessage) {
+          translatedMessage = translatedMessage.replace('Permis', t('doc_permis') || 'Permis')
+                                               .replace('Aviz Medical', t('doc_medical') || 'Aviz Medical')
+                                               .replace('Card Tahograf', t('doc_tacho') || 'Card Tahograf');
+        }
+        if (n.type === 'document' && n.message?.includes('|||')) {
+          const [docType, tripId] = n.message.split('|||');
+          translatedMessage = t('notif_document_msg', { type: docType, tripId });
+        } else if (n.type === 'trip' && n.message?.includes('|||')) {
+          const parts = n.message.split('|||');
+          const tripId = parts[0];
+          const status = parts[1];
+          const pickup = parts[2] || '';
+          const dropoff = parts[3] || '';
+          const statusKey = `notif_status_${status}`;
+          if (pickup && dropoff) {
+            const routeText = `${pickup} → ${dropoff}`;
+            translatedMessage = lang === 'ro' 
+              ? `Cursa ${routeText} a fost schimbată în: ${t(statusKey) || status}`
+              : `Trip ${routeText} has been changed to: ${t(statusKey) || status}`;
+          } else {
+            translatedMessage = t('notif_trip_msg', { tripId, status: t(statusKey) || status });
+          }
+        } else if (n.message === 'notif_chat_file') {
+          translatedMessage = t('notif_chat_file');
+        }
+
+        const NotifIcon = n.type === 'document' ? FileText
+          : n.type === 'chat' ? MessageSquare
+          : n.type === 'trip' ? Truck
+          : AlertTriangle;
+
+        const iconColor = n.type === 'document' ? 'text-blue-500'
+          : n.type === 'chat' ? 'text-green-500'
+          : n.type === 'trip' ? 'text-orange-500'
+          : 'text-red-500';
+
+        return (
+          <div 
+            className="fixed bottom-6 right-6 z-[9999] w-80 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-border p-4 animate-slide-in flex flex-col gap-2 cursor-pointer hover:scale-[1.02] transition-all duration-200"
+            onClick={() => {
+              if (!n.isRead) markAsRead(n.id);
+              if (n.type === 'document') navigate('/documents');
+              else if (n.type === 'chat') navigate('/chat');
+              else if (n.type === 'trip') navigate('/trips');
+              setPopupNotif(null);
+            }}
+          >
+            <div className="flex items-center justify-between border-b border-border/50 pb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-surface flex items-center justify-center border border-border">
+                  <NotifIcon className={`w-4 h-4 ${iconColor}`} />
+                </div>
+                <span className="font-bold text-text text-xs tracking-wide uppercase">{translatedTitle}</span>
+              </div>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setPopupNotif(null); }}
+                className="text-text-secondary hover:text-text p-1 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-text-secondary leading-relaxed font-medium">{translatedMessage}</p>
+            <div className="w-full bg-surface h-1 rounded-full overflow-hidden mt-1">
+              <div className="bg-primary h-full w-full animate-[progress_6s_linear]" />
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
