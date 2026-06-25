@@ -28,6 +28,145 @@ const PAGE_TITLES: Record<string, Record<string, string>> = {
   '/website-cms': { ro: 'Conținut Website', en: 'Website Content', nl: 'Website Content' },
 };
 
+// Shared AudioContext to perfectly bypass browser autoplay restrictions
+let sharedAudioCtx: AudioContext | null = null;
+if (typeof window !== 'undefined') {
+  const initAudio = () => {
+    try {
+      // @ts-ignore
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!sharedAudioCtx && AudioContextClass) {
+        sharedAudioCtx = new AudioContextClass();
+      } else if (sharedAudioCtx && sharedAudioCtx.state === 'suspended') {
+        sharedAudioCtx.resume();
+      }
+    } catch (e) {}
+  };
+  window.addEventListener('pointerdown', initAudio, { passive: true });
+  window.addEventListener('keydown', initAudio, { passive: true });
+}
+
+const formatNotification = (n: any, lang: string, t: any) => {
+  if (!n) return { title: '', message: '' };
+  let title = n.title || '';
+  let message = n.message || '';
+
+  // 1. Translate Title
+  if (title.startsWith('notif_')) {
+    title = t(title) || title;
+  } else if (title === 'Document Expirat / Expiră Curând' || title === 'Document Expiring Soon') {
+    title = t('notif_doc_expiring_title') || title;
+  } else if (title.includes('Document Nou de la')) {
+    const parts = title.split(':');
+    const name = parts.length > 1 ? parts[1].trim() : '';
+    if (lang === 'ro') title = `Document Nou • ${name}`;
+    else if (lang === 'en') title = `New Document • ${name}`;
+    else if (lang === 'nl') title = `Nieuw Document • ${name}`;
+    else if (lang === 'de') title = `Neues Dokument • ${name}`;
+    else if (lang === 'fr') title = `Nouveau Document • ${name}`;
+    else title = `New Document • ${name}`;
+  } else if (title.includes('Mesaj de la')) {
+    const parts = title.split(':');
+    const name = parts.length > 1 ? parts[1].trim() : '';
+    if (lang === 'ro') title = `Mesaj Nou • ${name}`;
+    else if (lang === 'en') title = `New Message • ${name}`;
+    else if (lang === 'nl') title = `Nieuw Bericht • ${name}`;
+    else if (lang === 'de') title = `Neue Nachricht • ${name}`;
+    else if (lang === 'fr') title = `Nouveau Message • ${name}`;
+    else title = `New Message • ${name}`;
+  } else if (title.startsWith('Status Cursă:')) {
+    const statusPart = title.replace('Status Cursă:', '').trim();
+    if (lang === 'ro') title = `Actualizare Cursă • ${statusPart}`;
+    else if (lang === 'en') title = `Trip Update • ${statusPart}`;
+    else if (lang === 'nl') title = `Rit Update • ${statusPart}`;
+    else if (lang === 'de') title = `Fahrt Update • ${statusPart}`;
+    else if (lang === 'fr') title = `Mise à jour du Trajet • ${statusPart}`;
+    else title = `Trip Update • ${statusPart}`;
+  }
+
+  // 2. Translate Message
+  if (message) {
+    message = message.replace('Permis', t('doc_permis') || 'Permis')
+                     .replace('Aviz Medical', t('doc_medical') || 'Aviz Medical')
+                     .replace('Card Tahograf', t('doc_tacho') || 'Card Tahograf');
+  }
+
+  if (n.type === 'document' && message?.includes('|||')) {
+    const [docType, tripId] = message.split('|||');
+    const cleanTripId = tripId.length > 20 ? tripId.slice(0, 8).toUpperCase() : tripId;
+    if (lang === 'ro') message = `Document nou (${docType}) pentru cursa #${cleanTripId}`;
+    else if (lang === 'en') message = `New document (${docType}) for trip #${cleanTripId}`;
+    else if (lang === 'nl') message = `Nieuw document (${docType}) voor rit #${cleanTripId}`;
+    else if (lang === 'de') message = `Neues Dokument (${docType}) für Fahrt #${cleanTripId}`;
+    else if (lang === 'fr') message = `Nouveau document (${docType}) pour le trajet #${cleanTripId}`;
+    else message = `New document (${docType}) for trip #${cleanTripId}`;
+  } else if (n.type === 'document' && message?.includes('Fișier') && message?.includes('încărcat pentru Cursa:')) {
+    const match = message.match(/Fișier (.*?) încărcat pentru Cursa: (.*)/);
+    if (match) {
+      const docType = match[1];
+      const tripRef = match[2];
+      if (lang === 'ro') message = `Fișier ${docType} încărcat (Cursa: ${tripRef})`;
+      else if (lang === 'en') message = `${docType} file uploaded (Trip: ${tripRef})`;
+      else if (lang === 'nl') message = `${docType} bestand geüpload (Rit: ${tripRef})`;
+      else if (lang === 'de') message = `${docType}-Datei hochgeladen (Fahrt: ${tripRef})`;
+      else if (lang === 'fr') message = `Fichier ${docType} téléversé (Course: ${tripRef})`;
+      else message = `${docType} file uploaded (Trip: ${tripRef})`;
+    }
+  } else if (n.type === 'chat' && message?.includes('(Cursa:')) {
+    const parts = message.split('(Cursa:');
+    const msgText = parts[0].trim();
+    const tripRef = parts[1].replace(')', '').trim();
+    if (lang === 'ro') message = `${msgText} (Cursa: ${tripRef})`;
+    else if (lang === 'en') message = `${msgText} (Trip: ${tripRef})`;
+    else if (lang === 'nl') message = `${msgText} (Rit: ${tripRef})`;
+    else if (lang === 'de') message = `${msgText} (Fahrt: ${tripRef})`;
+    else if (lang === 'fr') message = `${msgText} (Course: ${tripRef})`;
+    else message = `${msgText} (Trip: ${tripRef})`;
+  } else if (n.type === 'trip' && message?.includes('|||')) {
+    const parts = message.split('|||');
+    const tripId = parts[0];
+    const cleanTripId = tripId.length > 20 ? tripId.slice(0, 8).toUpperCase() : tripId;
+    const status = parts[1];
+    const pickup = parts[2] || '';
+    const dropoff = parts[3] || '';
+    const statusKey = `notif_status_${status}`;
+    const translatedStatus = t(statusKey) || status;
+    if (pickup && dropoff) {
+      const routeText = `${pickup} → ${dropoff}`;
+      if (lang === 'ro') message = `Cursa ${routeText} a fost schimbată în: ${translatedStatus}`;
+      else if (lang === 'en') message = `Trip ${routeText} has been changed to: ${translatedStatus}`;
+      else if (lang === 'nl') message = `Rit ${routeText} is gewijzigd naar: ${translatedStatus}`;
+      else if (lang === 'de') message = `Fahrt ${routeText} wurde geändert in: ${translatedStatus}`;
+      else if (lang === 'fr') message = `Trajet ${routeText} a été changé en: ${translatedStatus}`;
+      else message = `Trip ${routeText} has been changed to: ${translatedStatus}`;
+    } else {
+      if (lang === 'ro') message = `Cursa #${cleanTripId} a fost schimbată în: ${translatedStatus}`;
+      else if (lang === 'en') message = `Trip #${cleanTripId} has been changed to: ${translatedStatus}`;
+      else if (lang === 'nl') message = `Rit #${cleanTripId} is gewijzigd naar: ${translatedStatus}`;
+      else if (lang === 'de') message = `Fahrt #${cleanTripId} wurde geändert in: ${translatedStatus}`;
+      else if (lang === 'fr') message = `Trajet #${cleanTripId} a été changé en: ${translatedStatus}`;
+      else message = `Trip #${cleanTripId} has been changed to: ${translatedStatus}`;
+    }
+  } else if (n.type === 'trip' && message?.includes('a fost schimbată în statusul:')) {
+    const match = message.match(/Cursa (.*?) a fost schimbată în statusul: (.*?) de către (.*)/);
+    if (match) {
+      const tripRef = match[1];
+      const statusPart = match[2];
+      const driverName = match[3];
+      if (lang === 'ro') message = `Cursa ${tripRef} a devenit: ${statusPart} (${driverName})`;
+      else if (lang === 'en') message = `Trip ${tripRef} is now: ${statusPart} (${driverName})`;
+      else if (lang === 'nl') message = `Rit ${tripRef} is nu: ${statusPart} (${driverName})`;
+      else if (lang === 'de') message = `Fahrt ${tripRef} ist jetzt: ${statusPart} (${driverName})`;
+      else if (lang === 'fr') message = `Course ${tripRef} est mtn: ${statusPart} (${driverName})`;
+      else message = `Trip ${tripRef} is now: ${statusPart} (${driverName})`;
+    }
+  } else if (message === 'notif_chat_file') {
+    message = t('notif_chat_file') || message;
+  }
+
+  return { title, message };
+};
+
 export default function Layout() {
   const { i18n, t } = useTranslation();
   const { user, logout } = useAuthStore();
@@ -45,16 +184,22 @@ export default function Layout() {
 
   const playNotificationSound = () => {
     try {
-      // @ts-ignore
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
+      if (!sharedAudioCtx) {
+        // @ts-ignore
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) sharedAudioCtx = new AudioContextClass();
+      }
+      if (!sharedAudioCtx) return;
+      if (sharedAudioCtx.state === 'suspended') {
+        sharedAudioCtx.resume();
+      }
       
+      const ctx = sharedAudioCtx;
       const osc1 = ctx.createOscillator();
       const gain1 = ctx.createGain();
       osc1.type = 'sine';
       osc1.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
-      gain1.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain1.gain.setValueAtTime(0.25, ctx.currentTime);
       gain1.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
       osc1.connect(gain1);
       gain1.connect(ctx.destination);
@@ -65,7 +210,7 @@ export default function Layout() {
       const gain2 = ctx.createGain();
       osc2.type = 'sine';
       osc2.frequency.setValueAtTime(659.25, ctx.currentTime + 0.12); // E5
-      gain2.gain.setValueAtTime(0.12, ctx.currentTime + 0.12);
+      gain2.gain.setValueAtTime(0.25, ctx.currentTime + 0.12);
       gain2.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.6);
       osc2.connect(gain2);
       gain2.connect(ctx.destination);
@@ -173,46 +318,7 @@ export default function Layout() {
                       </div>
                     ) : (
                       notifications.map(n => {
-                        // Translate title key
-                        let translatedTitle = n.title?.startsWith('notif_') ? t(n.title) : n.title;
-                        if (n.title === 'Document Expirat / Expiră Curând' || n.title === 'Document Expiring Soon') {
-                          translatedTitle = t('notif_doc_expiring_title') || n.title;
-                        }
-
-                        // Smart message parsing: type|||param1|||param2
-                        let translatedMessage = n.message;
-                        if (translatedMessage) {
-                          translatedMessage = translatedMessage.replace('Permis', t('doc_permis') || 'Permis')
-                                                               .replace('Aviz Medical', t('doc_medical') || 'Aviz Medical')
-                                                               .replace('Card Tahograf', t('doc_tacho') || 'Card Tahograf');
-                        }
-                        if (n.type === 'document' && n.message?.includes('|||')) {
-                          const [docType, tripId] = n.message.split('|||');
-                          const cleanTripId = tripId.length > 20 ? tripId.slice(0, 8).toUpperCase() : tripId;
-                          translatedMessage = lang === 'ro' 
-                            ? `Document nou (${docType}) pentru cursa #${cleanTripId}`
-                            : `New document (${docType}) for trip #${cleanTripId}`;
-                        } else if (n.type === 'trip' && n.message?.includes('|||')) {
-                          const parts = n.message.split('|||');
-                          const tripId = parts[0];
-                          const cleanTripId = tripId.length > 20 ? tripId.slice(0, 8).toUpperCase() : tripId;
-                          const status = parts[1];
-                          const pickup = parts[2] || '';
-                          const dropoff = parts[3] || '';
-                          const statusKey = `notif_status_${status}`;
-                          if (pickup && dropoff) {
-                            const routeText = `${pickup} → ${dropoff}`;
-                            translatedMessage = lang === 'ro' 
-                              ? `Cursa ${routeText} a fost schimbată în: ${t(statusKey) || status}`
-                              : `Trip ${routeText} has been changed to: ${t(statusKey) || status}`;
-                          } else {
-                            translatedMessage = lang === 'ro'
-                              ? `Cursa #${cleanTripId} a fost schimbată în: ${t(statusKey) || status}`
-                              : `Trip #${cleanTripId} has been changed to: ${t(statusKey) || status}`;
-                          }
-                        } else if (n.message === 'notif_chat_file') {
-                          translatedMessage = t('notif_chat_file');
-                        }
+                        const { title: translatedTitle, message: translatedMessage } = formatNotification(n, lang, t);
 
                         // Icon by type
                         const NotifIcon = n.type === 'document' ? FileText
@@ -297,44 +403,7 @@ export default function Layout() {
       {/* Bottom-right Real-time Notification Popup Card */}
       {popupNotif && (() => {
         const n = popupNotif;
-        let translatedTitle = n.title?.startsWith('notif_') ? t(n.title) : n.title;
-        if (n.title === 'Document Expirat / Expiră Curând' || n.title === 'Document Expiring Soon') {
-          translatedTitle = t('notif_doc_expiring_title') || n.title;
-        }
-
-        let translatedMessage = n.message;
-        if (translatedMessage) {
-          translatedMessage = translatedMessage.replace('Permis', t('doc_permis') || 'Permis')
-                                               .replace('Aviz Medical', t('doc_medical') || 'Aviz Medical')
-                                               .replace('Card Tahograf', t('doc_tacho') || 'Card Tahograf');
-        }
-        if (n.type === 'document' && n.message?.includes('|||')) {
-          const [docType, tripId] = n.message.split('|||');
-          const cleanTripId = tripId.length > 20 ? tripId.slice(0, 8).toUpperCase() : tripId;
-          translatedMessage = lang === 'ro' 
-            ? `Document nou (${docType}) pentru cursa #${cleanTripId}`
-            : `New document (${docType}) for trip #${cleanTripId}`;
-        } else if (n.type === 'trip' && n.message?.includes('|||')) {
-          const parts = n.message.split('|||');
-          const tripId = parts[0];
-          const cleanTripId = tripId.length > 20 ? tripId.slice(0, 8).toUpperCase() : tripId;
-          const status = parts[1];
-          const pickup = parts[2] || '';
-          const dropoff = parts[3] || '';
-          const statusKey = `notif_status_${status}`;
-          if (pickup && dropoff) {
-            const routeText = `${pickup} → ${dropoff}`;
-            translatedMessage = lang === 'ro' 
-              ? `Cursa ${routeText} a fost schimbată în: ${t(statusKey) || status}`
-              : `Trip ${routeText} has been changed to: ${t(statusKey) || status}`;
-          } else {
-            translatedMessage = lang === 'ro'
-              ? `Cursa #${cleanTripId} a fost schimbată în: ${t(statusKey) || status}`
-              : `Trip #${cleanTripId} has been changed to: ${t(statusKey) || status}`;
-          }
-        } else if (n.message === 'notif_chat_file') {
-          translatedMessage = t('notif_chat_file');
-        }
+        const { title: translatedTitle, message: translatedMessage } = formatNotification(n, lang, t);
 
         const NotifIcon = n.type === 'document' ? FileText
           : n.type === 'chat' ? MessageSquare
