@@ -85,7 +85,7 @@ export function TimePicker({ value, onChange, label, className = '', placeholder
       <div
         onClick={() => setOpen(true)}
         className={`
-          flex items-center gap-2 px-3 py-2 rounded-lg border cursor-text select-none
+          flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer select-none
           transition-all duration-150
           ${open
             ? 'border-primary ring-2 ring-primary/20 bg-white'
@@ -100,7 +100,7 @@ export function TimePicker({ value, onChange, label, className = '', placeholder
           onChange={handleInputChange}
           onClick={(e) => { e.stopPropagation(); setOpen(true); }}
           onFocus={() => setOpen(true)}
-          className={`flex-1 text-xs outline-none bg-transparent ${inputValue ? 'text-text font-medium' : 'text-text-secondary'}`}
+          className={`flex-1 text-xs outline-none bg-transparent cursor-pointer ${inputValue ? 'text-text font-medium' : 'text-text-secondary'}`}
           placeholder={placeholder}
         />
         <ChevronDown

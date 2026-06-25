@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import { useTranslation } from 'react-i18next';
@@ -22,6 +22,15 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+
+  const fpOptions = useMemo(() => ({
+    altInput: true,
+    altFormat: 'd/m/Y',
+    dateFormat: 'Y-m-d',
+    allowInput: false,
+    minDate: editId ? undefined : 'today'
+  }), [editId]);
+
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showExport, setShowExport] = useState(false);
@@ -480,12 +489,12 @@ export default function InvoicesPage() {
                 
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('issueDate')}</label>
-                  <Flatpickr value={form.issueDate} onChange={(dates, dateStr) => setForm({...form, issueDate: dateStr})} onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} className={`input py-3 bg-white ${isPastDate(form.issueDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: editId ? undefined : 'today' }} placeholder="DD/MM/YYYY" />
+                  <Flatpickr value={form.issueDate} onChange={(dates, dateStr) => setForm({...form, issueDate: dateStr})} onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} className={`input py-3 bg-white ${isPastDate(form.issueDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={fpOptions} placeholder="DD/MM/YYYY" />
                   {isPastDate(form.issueDate) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('dueDate')}</label>
-                  <Flatpickr value={form.dueDate} onChange={(dates, dateStr) => setForm({...form, dueDate: dateStr})} onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} className={`input py-3 bg-white ${isPastDate(form.dueDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: editId ? undefined : 'today' }} placeholder="DD/MM/YYYY" />
+                  <Flatpickr value={form.dueDate} onChange={(dates, dateStr) => setForm({...form, dueDate: dateStr})} onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} className={`input py-3 bg-white ${isPastDate(form.dueDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={fpOptions} placeholder="DD/MM/YYYY" />
                   {isPastDate(form.dueDate) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
                 </div>
                 

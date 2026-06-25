@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import api from '../lib/api';
 import { useTranslation } from 'react-i18next';
 import { Download, Filter, Calendar, Eye, ChevronDown, ChevronUp, Truck } from 'lucide-react';
@@ -267,6 +267,13 @@ const WebsiteQuotesPage = () => {
   const currentLang = i18n.language?.substring(0, 2).toLowerCase() || 'ro';
   const tLocal = (key: string) => translations[currentLang]?.[key] || translations['en'][key] || key;
 
+  const fpOptions = useMemo(() => ({
+    altInput: true,
+    altFormat: 'd/m/Y',
+    dateFormat: 'Y-m-d',
+    allowInput: false,
+  }), []);
+
   const fetchQuotes = async () => {
     try {
       const { data } = await api.get('/quotes');
@@ -382,12 +389,7 @@ const WebsiteQuotesPage = () => {
               onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
               onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
               className="w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary text-sm bg-white cursor-pointer pl-10"
-              options={{
-                altInput: true,
-                altFormat: 'd/m/Y',
-                dateFormat: 'Y-m-d',
-                allowInput: false,
-              }}
+              options={fpOptions}
               placeholder="dd/mm/yyyy"
             />
             <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />

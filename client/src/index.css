@@ -107,6 +107,17 @@
 
 .leaflet-container { z-index: 10 !important; }
 
+/* Ensure mouse cursor is perfectly visible as a pointer hand on all calendar and time inputs */
+.flatpickr-input,
+.flatpickr-input ~ input,
+.flatpickr-wrapper,
+.flatpickr-wrapper *,
+.flatpickr-calendar,
+.flatpickr-calendar *,
+input[readonly] {
+  cursor: pointer !important;
+}
+
 /* Custom premium styling for disabled past dates in Flatpickr */
 .flatpickr-day.flatpickr-disabled,
 .flatpickr-day.flatpickr-disabled:hover {
@@ -118,12 +129,14 @@
   cursor: not-allowed !important;
 }
 
-/* Enhance the overall Flatpickr calendar popover popup to look extremely premium */
+/* Enhance the overall Flatpickr calendar popover popup to look extremely premium without cutting off days */
 .flatpickr-calendar {
   border: 1px solid #e2e8f0 !important;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
   border-radius: 1rem !important;
-  padding: 8px !important;
+  padding: 0 !important; /* NO PADDING so inner days grid fits perfectly without cutting off! */
+  width: auto !important;
+  box-sizing: border-box !important;
   font-family: inherit !important;
   animation: fpFadeInDown 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }

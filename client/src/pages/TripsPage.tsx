@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -44,6 +44,15 @@ export default function TripsPage() {
   const [openStatusId, setOpenStatusId] = useState<string | null>(null);
   const [statusCoords, setStatusCoords] = useState({ left: 0, top: 0, width: 0 });
   const [editId, setEditId] = useState<string | null>(null);
+
+  const fpOptions = useMemo(() => ({
+    altInput: true,
+    altFormat: 'd/m/Y',
+    dateFormat: 'Y-m-d',
+    allowInput: false,
+    minDate: editId ? undefined : 'today'
+  }), [editId]);
+
   const [isDispatching, setIsDispatching] = useState(false);
   const [palletDropdownOpen, setPalletDropdownOpen] = useState(false);
   const [isScanLoading, setIsScanLoading] = useState(false);
@@ -987,7 +996,7 @@ export default function TripsPage() {
                   onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                   onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                   className={`input text-xs bg-white ${isPastDate(form.pickupDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
-                  options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: editId ? undefined : 'today' }}
+                  options={fpOptions}
                   placeholder="DD/MM/YYYY"
                 />
                 {isPastDate(form.pickupDate) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
@@ -1011,7 +1020,7 @@ export default function TripsPage() {
                   onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                   onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                   className={`input text-xs bg-white ${isPastDate(form.dropoffDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
-                  options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: editId ? undefined : 'today' }}
+                  options={fpOptions}
                   placeholder="DD/MM/YYYY"
                 />
                 {isPastDate(form.dropoffDate) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}

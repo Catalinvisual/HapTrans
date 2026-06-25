@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import Flatpickr from 'react-flatpickr';
 import { Calendar, ChevronDown } from 'lucide-react';
 import 'flatpickr/dist/themes/light.css';
@@ -17,6 +17,14 @@ export default function DatePicker({ value, onChange, placeholder = 'DD/MM/YYYY'
   const [isFocused, setIsFocused] = useState(false);
   const fpRef = useRef<any>(null);
   const { lang } = useLanguage();
+
+  const fpOptions = useMemo(() => ({
+    altInput: true,
+    altFormat: 'd/m/Y',
+    dateFormat: 'Y-m-d',
+    allowInput: false,
+    minDate: 'today',
+  }), []);
 
   const handleWrapperClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -64,13 +72,7 @@ export default function DatePicker({ value, onChange, placeholder = 'DD/MM/YYYY'
           onClick={(e) => { e.stopPropagation(); if (fpRef.current?.flatpickr) fpRef.current.flatpickr.open(); }}
           onFocus={() => { if (fpRef.current?.flatpickr) fpRef.current.flatpickr.open(); }}
           className={`${styles.input} ${value ? styles.inputHasValue : ''} ${pastError ? 'text-red-600 font-semibold' : ''}`}
-          options={{
-            altInput: true,
-            altFormat: 'd/m/Y',
-            dateFormat: 'Y-m-d',
-            allowInput: false,
-            minDate: 'today',
-          }}
+          options={fpOptions}
           placeholder={placeholder}
           required={required}
         />
