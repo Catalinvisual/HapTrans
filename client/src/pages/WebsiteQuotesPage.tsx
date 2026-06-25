@@ -384,6 +384,7 @@ const WebsiteQuotesPage = () => {
           
           <div className="relative w-full sm:w-auto z-40" onClick={(e) => { const inp = e.currentTarget.querySelector('input'); if (inp) { const fp = (inp as any)._flatpickr; if (fp) fp.open(); else inp.focus(); } }}>
             <Flatpickr
+              type="hidden"
               value={dateFilter}
               onChange={(dates, dateStr) => setDateFilter(dateStr)}
               onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}

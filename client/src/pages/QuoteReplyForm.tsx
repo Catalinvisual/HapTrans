@@ -109,6 +109,7 @@ export const QuoteReplyForm = ({ quoteId, replies, tLocal, onReplyAdded }: any) 
             <div className="relative" onClick={(e) => { const inp = e.currentTarget.querySelector('input'); if (inp) { const fp = (inp as any)._flatpickr; if (fp) fp.open(); else inp.focus(); } }}>
               <label className="block text-xs font-semibold text-gray-600 mb-1">{tLocal('valid_until')}</label>
               <Flatpickr
+                type="hidden"
                 value={formData.validUntil}
                 onChange={(dates, dateStr) => setFormData({...formData, validUntil: dateStr})}
                 onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
@@ -123,6 +124,7 @@ export const QuoteReplyForm = ({ quoteId, replies, tLocal, onReplyAdded }: any) 
             <div className="relative" onClick={(e) => { const inp = e.currentTarget.querySelector('input'); if (inp) { const fp = (inp as any)._flatpickr; if (fp) fp.open(); else inp.focus(); } }}>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Pickup Date</label>
               <Flatpickr
+                type="hidden"
                 value={formData.pickupDate}
                 onChange={(dates, dateStr) => setFormData({...formData, pickupDate: dateStr})}
                 onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
@@ -137,6 +139,7 @@ export const QuoteReplyForm = ({ quoteId, replies, tLocal, onReplyAdded }: any) 
             <div className="relative" onClick={(e) => { const inp = e.currentTarget.querySelector('input'); if (inp) { const fp = (inp as any)._flatpickr; if (fp) fp.open(); else inp.focus(); } }}>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Delivery Date</label>
               <Flatpickr
+                type="hidden"
                 value={formData.deliveryDate}
                 onChange={(dates, dateStr) => setFormData({...formData, deliveryDate: dateStr})}
                 onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}

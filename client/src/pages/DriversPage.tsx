@@ -325,6 +325,7 @@ export default function DriversPage() {
                 <Calendar className="w-4 h-4 text-primary" /> {t('licenseExpiry')}
               </label>
               <Flatpickr
+                type="hidden"
                 value={form.licenseExpiry}
                 onChange={(dates, dateStr) => setForm({...form, licenseExpiry: dateStr})}
                 onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
@@ -341,6 +342,7 @@ export default function DriversPage() {
                 <Calendar className="w-4 h-4 text-primary" /> {t('medicalExpiry')}
               </label>
               <Flatpickr
+                type="hidden"
                 value={form.medicalExpiry}
                 onChange={(dates, dateStr) => setForm({...form, medicalExpiry: dateStr})}
                 onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
@@ -357,6 +359,7 @@ export default function DriversPage() {
                 <Calendar className="w-4 h-4 text-primary" /> {t('tachoCardExpiry')}
               </label>
               <Flatpickr
+                type="hidden"
                 value={form.tachoCardExpiry}
                 onChange={(dates, dateStr) => setForm({...form, tachoCardExpiry: dateStr})}
                 onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}

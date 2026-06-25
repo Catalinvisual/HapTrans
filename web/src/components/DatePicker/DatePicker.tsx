@@ -63,6 +63,7 @@ export default function DatePicker({ value, onChange, placeholder = 'DD/MM/YYYY'
         <Calendar className={styles.icon} style={pastError ? { color: '#ef4444' } : {}} />
         <Flatpickr
           ref={fpRef}
+          type="hidden"
           value={value}
           onChange={(dates, dateStr) => {
             onChange(dateStr);

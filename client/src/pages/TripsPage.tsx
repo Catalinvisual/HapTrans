@@ -991,6 +991,7 @@ export default function TripsPage() {
               <div>
                 <label className="label font-semibold text-xs">{t('pickupDate')}</label>
                 <Flatpickr
+                  type="hidden"
                   value={form.pickupDate}
                   onChange={(dates, dateStr) => setForm({...form, pickupDate: dateStr})}
                   onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
@@ -1015,6 +1016,7 @@ export default function TripsPage() {
               <div>
                 <label className="label font-semibold text-xs">{t('dropoffDate')}</label>
                 <Flatpickr
+                  type="hidden"
                   value={form.dropoffDate}
                   onChange={(dates, dateStr) => setForm({...form, dropoffDate: dateStr})}
                   onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
