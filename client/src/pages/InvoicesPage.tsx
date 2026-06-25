@@ -11,17 +11,19 @@ import { formatDate } from '../lib/dateUtils';
 import CustomSelect from '../components/CustomSelect';
 import ConfirmModal from '../components/ConfirmModal';
 import { getCompanySettings } from './SettingsPage';
+import { useFormStore } from '../store/formStore';
 
 const STATUS_COLORS: Record<string, string> = { draft:'badge-gray', approved:'bg-indigo-100 text-indigo-700', sent:'badge-primary', paid:'badge-success', overdue:'badge-error', cancelled:'badge-error' };
 
 export default function InvoicesPage() {
+  const formStore = useFormStore();
   const { t, i18n } = useTranslation();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(formStore.invoicesShowForm);
+  const [editId, setEditId] = useState<string | null>(formStore.invoicesEditId);
 
   const fpOptions = useMemo(() => ({
     altInput: true,
@@ -36,7 +38,11 @@ export default function InvoicesPage() {
   const [showExport, setShowExport] = useState(false);
   const [previewData, setPreviewData] = useState<string | null>(null);
   const [invoiceLangModal, setInvoiceLangModal] = useState<any>({ isOpen: false, data: null, type: '', cb: null });
-  const [form, setForm] = useState({ clientId: '', tripId: '', amount: '', fuelSurcharge: '', extraCosts: '', tollCosts: '', vatPercent: '19', vatType: 'NORMAL', issueDate: '', dueDate: '', notes: '' });
+  const [form, setForm] = useState(formStore.invoicesForm || { clientId: '', tripId: '', amount: '', fuelSurcharge: '', extraCosts: '', tollCosts: '', vatPercent: '19', vatType: 'NORMAL', issueDate: '', dueDate: '', notes: '' });
+
+  useEffect(() => {
+    formStore.setFormState('invoices', { showForm, editId, form });
+  }, [showForm, editId, form]);
 
   const filteredTrips = form.clientId ? trips.filter((t: any) => t.client?.id === form.clientId) : trips;
 

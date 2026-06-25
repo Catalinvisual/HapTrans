@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useFormStore } from './formStore';
 
 interface User {
   id: string;
@@ -28,6 +29,7 @@ export const useAuthStore = create<AuthStore>()(
       },
       logout: () => {
         localStorage.removeItem('hapcargo_token');
+        useFormStore.getState().clearAllForms();
         set({ user: null, token: null });
       },
     }),

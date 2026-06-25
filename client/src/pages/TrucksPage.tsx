@@ -7,17 +7,24 @@ import toast from 'react-hot-toast';
 import ExportModal from '../components/ExportModal';
 import { formatDate } from '../lib/dateUtils';
 
+import { useFormStore } from '../store/formStore';
+
 export default function TrucksPage() {
+  const formStore = useFormStore();
   const { t } = useTranslation();
   const [trucks, setTrucks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(formStore.trucksShowForm);
   const [search, setSearch] = useState('');
   const [showExport, setShowExport] = useState(false);
   
-  const [form, setForm] = useState({ plateNumber: '', brand: '', model: '', year: '', payloadCapacity: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '' });
-  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState(formStore.trucksForm || { plateNumber: '', brand: '', model: '', year: '', payloadCapacity: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '' });
+  const [editId, setEditId] = useState<string | null>(formStore.trucksEditId);
+
+  useEffect(() => {
+    formStore.setFormState('trucks', { showForm, editId, form });
+  }, [showForm, editId, form]);
 
   const executeDelete = async () => {
     if (!deleteId) return;

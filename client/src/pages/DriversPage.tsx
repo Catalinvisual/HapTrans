@@ -27,14 +27,17 @@ const STATUS_LABELS: Record<string, string> = {
   vacation: 'vacation',
 };
 
+import { useFormStore } from '../store/formStore';
+
 export default function DriversPage() {
+  const formStore = useFormStore();
   const { t, i18n } = useTranslation();
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(formStore.driversShowForm);
+  const [editId, setEditId] = useState<string | null>(formStore.driversEditId);
 
   const fpOptions = useMemo(() => ({
     altInput: true,
@@ -47,7 +50,7 @@ export default function DriversPage() {
   const [showExport, setShowExport] = useState(false);
 
   // Form State
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(formStore.driversForm || {
     name: '',
     email: '',
     password: '',
@@ -60,6 +63,10 @@ export default function DriversPage() {
     tachoCardExpiry: '',
     status: 'available',
   });
+
+  useEffect(() => {
+    formStore.setFormState('drivers', { showForm, editId, form });
+  }, [showForm, editId, form]);
 
   const loadDrivers = async () => {
     setLoading(true);

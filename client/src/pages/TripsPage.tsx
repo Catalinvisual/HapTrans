@@ -24,8 +24,10 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 import { useAuthStore } from '../store/authStore';
+import { useFormStore } from '../store/formStore';
 
 export default function TripsPage() {
+  const formStore = useFormStore();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuthStore();
@@ -37,13 +39,13 @@ export default function TripsPage() {
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(formStore.tripsShowForm);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showExport, setShowExport] = useState(false);
   const [openStatusId, setOpenStatusId] = useState<string | null>(null);
   const [statusCoords, setStatusCoords] = useState({ left: 0, top: 0, width: 0 });
-  const [editId, setEditId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(formStore.tripsEditId);
 
   const fpOptions = useMemo(() => ({
     altInput: true,
@@ -61,7 +63,7 @@ export default function TripsPage() {
   const [deadheadWarning, setDeadheadWarning] = useState<any>(null);
   const [invoiceLangModal, setInvoiceLangModal] = useState<any>({ isOpen: false, trip: null });
   
-  const [form, setForm] = useState<any>({
+  const [form, setForm] = useState<any>(formStore.tripsForm || {
     clientId: '', truckId: '', driverId: '', 
     pickupCompanyName: '', pickupAddress: '', 
     dropoffCompanyName: '', dropoffAddress: '',
@@ -70,6 +72,10 @@ export default function TripsPage() {
     loadingReference: '', unloadingReference: '', cmrReference: '', status: 'pending',
     clientRateId: '', agreedPrice: '', fuelSurchargePercent: '', tollCosts: '', extraCosts: '', tollIncluded: false
   });
+
+  useEffect(() => {
+    formStore.setFormState('trips', { showForm, editId, form });
+  }, [showForm, editId, form]);
   const [clientRates, setClientRates] = useState<any[]>([]);
   const [dieselPrice, setDieselPrice] = useState<number>(1.68);
   const [confirmModal, setConfirmModal] = useState<any>({

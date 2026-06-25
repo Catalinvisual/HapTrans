@@ -8,18 +8,25 @@ import toast from 'react-hot-toast';
 import ExportModal from '../components/ExportModal';
 import { formatDate } from '../lib/dateUtils';
 import ClientDetails from '../components/ClientDetails';
+import { useFormStore } from '../store/formStore';
 
 export default function ClientsPage() {
+  const formStore = useFormStore();
   const { t } = useTranslation();
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(formStore.clientsShowForm);
   const [search, setSearch] = useState('');
   const [showExport, setShowExport] = useState(false);
   
-  const [form, setForm] = useState({ name: '', cui: '', address: '', contactName: '', contactEmail: '', phone: '' });
-  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState(formStore.clientsForm || { name: '', cui: '', address: '', contactName: '', contactEmail: '', phone: '' });
+  const [editId, setEditId] = useState<string | null>(formStore.clientsEditId);
+
+  useEffect(() => {
+    formStore.setFormState('clients', { showForm, editId, form });
+  }, [showForm, editId, form]);
+
   const [selectedClient, setSelectedClient] = useState<any | null>(null);
 
   const load = () => api.get('/clients').then(r => { setClients(r.data); setLoading(false); });
