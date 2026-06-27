@@ -283,16 +283,17 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
 
   .invoice-meta {
     border-left: 2px solid #ff4b00;
-    padding-left: 22px;
+    padding-left: 18px;
     font-size: 13px;
-    line-height: 1.8;
-    min-width: 270px;
+    line-height: 1.3;
+    min-width: 250px;
   }
 
   .invoice-meta .row {
     display: flex;
     justify-content: space-between;
-    gap: 20px;
+    gap: 15px;
+    margin-bottom: 4px;
   }
 
   .invoice-meta strong {

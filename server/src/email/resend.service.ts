@@ -20,13 +20,13 @@ const formatDMYTime = (dateInput: any) => {
 export class ResendService {
   private resend: Resend;
 
-  constructor(private readonly usersService: UsersService) {
+  constructor(public readonly usersService: UsersService) {
     this.resend = new Resend(process.env.RESEND_API_KEY || 're_mock_key');
   }
 
   public lastStatus: any = null;
 
-  private async getLogoUrl(company?: any): Promise<string> {
+  public async getLogoUrl(company?: any): Promise<string> {
     let cmsSettings: any = null;
     try {
       cmsSettings = await this.usersService.getCompanySettingsCms();
@@ -249,6 +249,24 @@ export class ResendService {
     const logoUrl = await this.getLogoUrl(company);
     const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; vertical-align: middle;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
 
+    const items = invoice.items || [];
+    let itemsSubtotal = 0;
+    if (items.length > 0) {
+      items.forEach((item: any) => {
+        itemsSubtotal += Number(item.total) || ((Number(item.quantity)||1) * (Number(item.unitPrice)||0));
+      });
+    } else {
+      itemsSubtotal = Number(invoice.amount) || 0;
+    }
+
+    let subtotal = Number(invoice.subtotal) || itemsSubtotal;
+    let vatAmt = Number(invoice.vatAmount) || (subtotal * (invoice.vatPercent || 19)) / 100;
+
+    if (invoice.vatType === 'REVERSE_CHARGE' || invoice.vatType === 'EXEMPT') {
+      vatAmt = 0;
+    }
+    const finalTotal = subtotal + vatAmt;
+
     const htmlContent = `
       <html>
       <body style="font-family: Arial, sans-serif; color: #333; background-color: #ffffff; margin: 0; padding: 20px;">
@@ -258,7 +276,7 @@ export class ResendService {
         <h2>Your Invoice is Ready</h2>
         <p>Hello,</p>
         <p>Please find attached the invoice <strong>${invoice.invoiceNumber}</strong> for transport services.</p>
-        <p><strong>Total Amount:</strong> &euro;${Number(invoice.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+        <p><strong>Total Amount:</strong> &euro;${finalTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
         <p><strong>Due Date:</strong> ${formatDMY(invoice.dueDate)}</p>
         <br/>
         <p>You can download the PDF copy of your invoice using the link below:</p>

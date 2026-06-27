@@ -40,6 +40,20 @@ export class InvoicesController {
 
   @Post('generate-pdf')
   async generatePdf(@Body() body: { invoice: any, company: any, lang: 'en' | 'nl' }) {
+    if (!body.company) body.company = {};
+    const cmsSettings = await this.resendService.usersService.getCompanySettingsCms();
+    if (cmsSettings) {
+      body.company = { ...cmsSettings, ...body.company };
+      if (!body.company.workingHours && cmsSettings.workingHours) {
+        body.company.workingHours = cmsSettings.workingHours;
+      }
+    }
+
+    const latestLogo = await this.resendService.getLogoUrl(body.company);
+    if (latestLogo) {
+      body.company.logo = latestLogo;
+    }
+
     if (body.company?.logo && body.company.logo.startsWith('http')) {
       try {
         const response = await fetch(body.company.logo);
