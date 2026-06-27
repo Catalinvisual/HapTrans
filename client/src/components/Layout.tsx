@@ -51,11 +51,44 @@ const formatNotification = (n: any, lang: string, t: any) => {
   let title = n.title || '';
   let message = n.message || '';
 
-  // 1. Translate Title
+  // --- 1. TRANSLATE TITLE ---
   if (title.startsWith('notif_')) {
     title = t(title) || title;
-  } else if (title === 'Document Expirat / Expiră Curând' || title === 'Document Expiring Soon') {
-    title = t('notif_doc_expiring_title') || title;
+  } else if (title === 'Document Expirat / Expiră Curând' || title === 'Document Expiring Soon' || title === 'notif_doc_expiring_title') {
+    if (lang === 'ro') title = 'Document Expiră Curând';
+    else if (lang === 'en') title = 'Document Expiring Soon';
+    else if (lang === 'nl') title = 'Document Verloopt Binnenkort';
+    else if (lang === 'de') title = 'Dokument läuft bald ab';
+    else if (lang === 'fr') title = 'Document expirant bientôt';
+    else title = 'Document Expiring Soon';
+  } else if (title === 'Întârziat') {
+    if (lang === 'ro') title = 'Cursă Întârziată';
+    else if (lang === 'en') title = 'Trip Delayed';
+    else if (lang === 'nl') title = 'Rit Vertraagd';
+    else if (lang === 'de') title = 'Fahrt Verspätet';
+    else if (lang === 'fr') title = 'Trajet Retardé';
+    else title = 'Trip Delayed';
+  } else if (title === 'Risc Întârziere') {
+    if (lang === 'ro') title = 'Risc Întârziere Cursă';
+    else if (lang === 'en') title = 'Trip Delay Risk';
+    else if (lang === 'nl') title = 'Risico op Vertraging';
+    else if (lang === 'de') title = 'Risiko von Verspätung';
+    else if (lang === 'fr') title = 'Risque de Retard';
+    else title = 'Trip Delay Risk';
+  } else if (title === 'Factură draft veche (7+ zile)') {
+    if (lang === 'ro') title = 'Factură Provizorie (7+ zile)';
+    else if (lang === 'en') title = 'Draft Invoice (7+ days)';
+    else if (lang === 'nl') title = 'Conceptfactuur (7+ dagen)';
+    else if (lang === 'de') title = 'Entwurfsrechnung (7+ Tage)';
+    else if (lang === 'fr') title = 'Facture Brouillon (7+ jours)';
+    else title = 'Draft Invoice (7+ days)';
+  } else if (title === 'Factură draft uitată (3 zile)') {
+    if (lang === 'ro') title = 'Factură Provizorie (3 zile)';
+    else if (lang === 'en') title = 'Draft Invoice (3 days)';
+    else if (lang === 'nl') title = 'Conceptfactuur (3 dagen)';
+    else if (lang === 'de') title = 'Entwurfsrechnung (3 Tage)';
+    else if (lang === 'fr') title = 'Facture Brouillon (3 jours)';
+    else title = 'Draft Invoice (3 days)';
   } else if (title.includes('Document Nou de la')) {
     const parts = title.split(':');
     const name = parts.length > 1 ? parts[1].trim() : '';
@@ -84,11 +117,15 @@ const formatNotification = (n: any, lang: string, t: any) => {
     else title = `Trip Update • ${statusPart}`;
   }
 
-  // 2. Translate Message
+  // --- 2. TRANSLATE MESSAGE ---
   if (message) {
-    message = message.replace('Permis', t('doc_permis') || 'Permis')
-                     .replace('Aviz Medical', t('doc_medical') || 'Aviz Medical')
-                     .replace('Card Tahograf', t('doc_tacho') || 'Card Tahograf');
+    const permisText = lang === 'ro' ? 'Permis de Conducere' : lang === 'en' ? 'Driver License' : lang === 'nl' ? 'Rijbewijs' : lang === 'de' ? 'Führerschein' : 'Permis de conduire';
+    const medicalText = lang === 'ro' ? 'Aviz Medical' : lang === 'en' ? 'Medical Certificate' : lang === 'nl' ? 'Medische Verklaring' : lang === 'de' ? 'Ärztliches Gutachten' : 'Certificat médical';
+    const tachoText = lang === 'ro' ? 'Card Tahograf' : lang === 'en' ? 'Tachograph Card' : lang === 'nl' ? 'Bestuurderskaart' : lang === 'de' ? 'Fahrerkarte' : 'Carte de tachygraphe';
+    
+    message = message.replace('Permis', permisText)
+                     .replace('Aviz Medical', medicalText)
+                     .replace('Card Tahograf', tachoText);
   }
 
   if (n.type === 'document' && message?.includes('|||')) {
@@ -159,6 +196,44 @@ const formatNotification = (n: any, lang: string, t: any) => {
       else if (lang === 'de') message = `Fahrt ${tripRef} ist jetzt: ${statusPart} (${driverName})`;
       else if (lang === 'fr') message = `Course ${tripRef} est mtn: ${statusPart} (${driverName})`;
       else message = `Trip ${tripRef} is now: ${statusPart} (${driverName})`;
+    }
+  } else if (message?.includes('a depășit timpul limită programat pentru livrare')) {
+    const match = message.match(/Cursa (.*?) a depășit timpul limită/);
+    const tripRef = match ? match[1] : '';
+    if (lang === 'ro') message = `Cursa ${tripRef} a depășit timpul limită programat pentru livrare.`;
+    else if (lang === 'en') message = `Trip ${tripRef} has exceeded the scheduled delivery deadline.`;
+    else if (lang === 'nl') message = `Rit ${tripRef} heeft de geplande levertijd overschreden.`;
+    else if (lang === 'de') message = `Fahrt ${tripRef} hat die geplante Lieferzeit überschritten.`;
+    else if (lang === 'fr') message = `Le trajet ${tripRef} a dépassé l'heure de livraison prévue.`;
+  } else if (message?.includes('are risc major de întârziere')) {
+    const match = message.match(/Cursa (.*?) are risc major de întârziere/);
+    const tripRef = match ? match[1] : '';
+    if (lang === 'ro') message = `Cursa ${tripRef} are risc major de întârziere (>60 min).`;
+    else if (lang === 'en') message = `Trip ${tripRef} has a major delay risk (>60 min).`;
+    else if (lang === 'nl') message = `Rit ${tripRef} heeft een groot risico op vertraging (>60 min).`;
+    else if (lang === 'de') message = `Fahrt ${tripRef} hat ein hohes Verspätungsrisiko (>60 min).`;
+    else if (lang === 'fr') message = `Le trajet ${tripRef} présente un risque de retard majeur (>60 min).`;
+  } else if (message?.includes('a fost creată pe') && message?.includes('și trebuie aprobată')) {
+    const match = message.match(/Factura provizorie (.*?) pentru clientul (.*?) a fost creată pe/);
+    if (match) {
+      const invNum = match[1];
+      const clientName = match[2];
+      if (lang === 'ro') message = `Factura provizorie ${invNum} (${clientName}) este mai veche de 7 zile și necesită aprobare.`;
+      else if (lang === 'en') message = `Draft invoice ${invNum} (${clientName}) is older than 7 days and requires approval.`;
+      else if (lang === 'nl') message = `Conceptfactuur ${invNum} (${clientName}) is ouder dan 7 dagen en vereist goedkeuring.`;
+      else if (lang === 'de') message = `Entwurfsrechnung ${invNum} (${clientName}) ist älter als 7 Tage und erfordert eine Genehmigung.`;
+      else if (lang === 'fr') message = `La facture brouillon ${invNum} (${clientName}) date de plus de 7 jours et nécessite une approbation.`;
+    }
+  } else if (message?.includes('Factura provizorie') && message?.includes('așteaptă aprobarea')) {
+    const match = message.match(/Factura provizorie (.*?) pentru clientul (.*?) așteaptă aprobarea/);
+    if (match) {
+      const invNum = match[1];
+      const clientName = match[2];
+      if (lang === 'ro') message = `Factura provizorie ${invNum} (${clientName}) așteaptă aprobarea ta.`;
+      else if (lang === 'en') message = `Draft invoice ${invNum} (${clientName}) is waiting for your approval.`;
+      else if (lang === 'nl') message = `Conceptfactuur ${invNum} (${clientName}) wacht op uw goedkeuring.`;
+      else if (lang === 'de') message = `Entwurfsrechnung ${invNum} (${clientName}) wartet auf Ihre Genehmigung.`;
+      else if (lang === 'fr') message = `La facture brouillon ${invNum} (${clientName}) attend votre approbation.`;
     }
   } else if (message === 'notif_chat_file') {
     message = t('notif_chat_file') || message;
