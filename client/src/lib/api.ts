@@ -13,7 +13,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    const isLoginRequest = err.config?.url?.includes('/auth/login');
+    const isLoginPage = typeof window !== 'undefined' && window.location.pathname.includes('/login');
+
+    if (err.response?.status === 401 && !isLoginRequest && !isLoginPage) {
       localStorage.removeItem('hapcargo_token');
       localStorage.removeItem('hapcargo_user');
       window.location.href = '/login';
