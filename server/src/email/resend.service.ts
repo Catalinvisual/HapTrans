@@ -27,14 +27,14 @@ export class ResendService {
   public lastStatus: any = null;
 
   private async getLogoUrl(company?: any): Promise<string> {
-    if (company?.companyLogoUrl && company.companyLogoUrl.startsWith('http')) return company.companyLogoUrl;
-    if (company?.logo && company.logo.startsWith('http')) return company.logo;
-    if (company?.logoUrl && company.logoUrl.startsWith('http')) return company.logoUrl;
+    if (company?.companyLogoUrl) return company.companyLogoUrl;
+    if (company?.logo) return company.logo;
+    if (company?.logoUrl) return company.logoUrl;
     
     try {
       const res = await this.usersService.getCompanySettingsCms();
-      if (res?.logo && res.logo.startsWith('http')) return res.logo;
-      if (res?.companyLogoUrl && res.companyLogoUrl.startsWith('http')) return res.companyLogoUrl;
+      if (res?.logo) return res.logo;
+      if (res?.companyLogoUrl) return res.companyLogoUrl;
     } catch (e) {
       console.error('Error fetching company settings from CMS:', e);
     }
@@ -45,13 +45,6 @@ export class ResendService {
     } catch (e) {
       console.error('Error fetching any user logo:', e);
     }
-
-    if (company?.logo && company.logo.startsWith('data:image')) return company.logo;
-    if (company?.companyLogoUrl && company.companyLogoUrl.startsWith('data:image')) return company.companyLogoUrl;
-    try {
-      const res = await this.usersService.getCompanySettingsCms();
-      if (res?.logo && res.logo.startsWith('data:image')) return res.logo;
-    } catch (e) {}
     
     const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
     return `${baseUrl}/email-logo.png`;
