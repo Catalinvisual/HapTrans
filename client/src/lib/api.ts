@@ -13,13 +13,17 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    const isLoginRequest = err.config?.url?.includes('/auth/login');
-    const isLoginPage = typeof window !== 'undefined' && window.location.pathname.includes('/login');
+    const url = err.config?.url || '';
+    const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+    const isLoginRequest = url.includes('login') || url.includes('/auth/');
+    const isLoginPage = pathname.includes('login') || pathname === '/';
 
     if (err.response?.status === 401 && !isLoginRequest && !isLoginPage) {
       localStorage.removeItem('hapcargo_token');
       localStorage.removeItem('hapcargo_user');
-      window.location.href = '/login';
+      if (pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(err);
   }

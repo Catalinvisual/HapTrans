@@ -52,7 +52,14 @@ const formatNotification = (n: any, lang: string, t: any) => {
   let message = n.message || '';
 
   // --- 1. TRANSLATE TITLE ---
-  if (title.startsWith('notif_')) {
+  if (title === 'notif_trip_title' || title === 'Actualizare Status Cursă') {
+    if (lang === 'ro') title = 'Actualizare Status Cursă';
+    else if (lang === 'en') title = 'Trip Status Update';
+    else if (lang === 'nl') title = 'Ritstatus Update';
+    else if (lang === 'de') title = 'Fahrtstatus Aktualisierung';
+    else if (lang === 'fr') title = 'Mise à jour du statut du trajet';
+    else title = 'Trip Status Update';
+  } else if (title.startsWith('notif_')) {
     title = t(title) || title;
   } else if (title === 'Document Expirat / Expiră Curând' || title === 'Document Expiring Soon' || title === 'notif_doc_expiring_title') {
     if (lang === 'ro') title = 'Document Expiră Curând';
@@ -168,6 +175,7 @@ const formatNotification = (n: any, lang: string, t: any) => {
     const dropoff = parts[3] || '';
     
     const statusMap: Record<string, Record<string, string>> = {
+      pending: { ro: 'În Așteptare', en: 'Pending', nl: 'In Afwachting', de: 'Ausstehend', fr: 'En attente' },
       confirmed: { ro: 'Confirmată', en: 'Confirmed', nl: 'Bevestigd', de: 'Bestätigt', fr: 'Confirmé' },
       loading: { ro: 'La încărcare', en: 'Loading', nl: 'Aan het laden', de: 'Wird geladen', fr: 'En chargement' },
       in_progress: { ro: 'În desfășurare', en: 'In Progress', nl: 'Onderweg', de: 'Im Gange', fr: 'En cours' },
@@ -208,6 +216,7 @@ const formatNotification = (n: any, lang: string, t: any) => {
       const driverName = match[3];
       
       const statusMap: Record<string, Record<string, string>> = {
+        pending: { ro: 'În Așteptare', en: 'Pending', nl: 'In Afwachting', de: 'Ausstehend', fr: 'En attente' },
         confirmed: { ro: 'Confirmată', en: 'Confirmed', nl: 'Bevestigd', de: 'Bestätigt', fr: 'Confirmé' },
         loading: { ro: 'La încărcare', en: 'Loading', nl: 'Aan het laden', de: 'Wird geladen', fr: 'En chargement' },
         in_progress: { ro: 'În desfășurare', en: 'In Progress', nl: 'Onderweg', de: 'Im Gange', fr: 'En cours' },
@@ -218,7 +227,8 @@ const formatNotification = (n: any, lang: string, t: any) => {
       };
 
       let cleanKey = rawStatus.toLowerCase().replace(/\(.*?\)/g, '').trim();
-      if (cleanKey.includes('confirm')) cleanKey = 'confirmed';
+      if (cleanKey.includes('pending') || cleanKey.includes('așteptare')) cleanKey = 'pending';
+      else if (cleanKey.includes('confirm')) cleanKey = 'confirmed';
       else if (cleanKey.includes('load') || cleanKey.includes('încărcare')) cleanKey = 'loading';
       else if (cleanKey.includes('progress') || cleanKey.includes('desfășurare')) cleanKey = 'in_progress';
       else if (cleanKey.includes('complet') || cleanKey.includes('finalizat')) cleanKey = 'completed';
@@ -278,6 +288,7 @@ const formatNotification = (n: any, lang: string, t: any) => {
 
   return { title, message };
 };
+
 
 export default function Layout() {
   const { i18n, t } = useTranslation();
@@ -341,13 +352,19 @@ export default function Layout() {
   }, []);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent | PointerEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent | PointerEvent) => {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setIsNotifOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('pointerdown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('pointerdown', handleClickOutside);
+    };
   }, []);
 
   const fetchNotifications = async () => {
@@ -492,6 +509,16 @@ export default function Layout() {
                                 {new Date(n.createdAt).toLocaleString(localeMap[lang] || 'en-GB', { dateStyle: 'short', timeStyle: 'short' })}
                               </span>
                             </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                markAsRead(n.id);
+                              }}
+                              title={lang === 'ro' ? 'Marchează ca citit și șterge din panou' : 'Mark as read & dismiss'}
+                              className="p-1 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors ml-1 flex-shrink-0 self-start"
+                            >
+                              <CheckCheck className="w-4 h-4" />
+                            </button>
                           </div>
                         );
                       })

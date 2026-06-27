@@ -27,30 +27,48 @@ export class ResendService {
   public lastStatus: any = null;
 
   private async getLogoUrl(company?: any): Promise<string> {
-    if (company?.companyLogoUrl) return company.companyLogoUrl;
-    if (company?.logo) return company.logo;
-    if (company?.logoUrl) return company.logoUrl;
-    
+    let cmsSettings: any = null;
     try {
-      const res = await this.usersService.getCompanySettingsCms();
-      if (res?.logo) return res.logo;
-      if (res?.companyLogoUrl) return res.companyLogoUrl;
+      cmsSettings = await this.usersService.getCompanySettingsCms();
     } catch (e) {
       console.error('Error fetching company settings from CMS:', e);
     }
 
+    let userLogo: string | null = null;
     try {
-      const allUsersLogo = await this.usersService.findAnyUserLogo();
-      if (allUsersLogo) return allUsersLogo;
+      userLogo = await this.usersService.findAnyUserLogo();
     } catch (e) {
       console.error('Error fetching any user logo:', e);
     }
+
+    const candidates = [
+      ...(company ? [company.companyLogoUrl, company.logo, company.logoUrl] : []),
+      cmsSettings?.logo,
+      cmsSettings?.companyLogoUrl,
+      userLogo,
+    ].filter(url => typeof url === 'string' && url.trim().length > 0);
+
+    // Filter out the default fallback 'email-logo.png' if a real uploaded logo exists in settings
+    let finalUrl = candidates.find(url => url && !url.includes('email-logo.png'));
     
-    const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
-    return `${baseUrl}/email-logo.png`;
+    if (!finalUrl && candidates.length > 0) {
+      finalUrl = candidates[0];
+    }
+    
+    if (!finalUrl) {
+      const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
+      finalUrl = `${baseUrl}/email-logo.png`;
+    }
+
+    if (finalUrl && finalUrl.startsWith('http')) {
+      const separator = finalUrl.includes('?') ? '&' : '?';
+      finalUrl += `${separator}cb=${Date.now()}`;
+    }
+
+    return finalUrl;
   }
 
-  async sendTripStatusEmail(tripOrEmail: any, trackingToken: string) {
+  async sendTripStatusEmail(tripOrEmail: any, trackingToken: string, company?: any) {
     const isString = typeof tripOrEmail === 'string';
     const email = isString ? tripOrEmail : (tripOrEmail?.client?.contactEmail || 'test@example.com');
     const trip = isString ? { status: 'pending', pickupAddress: 'N/A', dropoffAddress: 'N/A' } : tripOrEmail;
@@ -84,7 +102,7 @@ export class ResendService {
       emailText = "Your transport request has been cancelled. Please contact us for more details.";
     }
 
-    const logoUrl = await this.getLogoUrl();
+    const logoUrl = await this.getLogoUrl(company);
     const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; vertical-align: middle;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
     
     const htmlContent = `
@@ -168,7 +186,7 @@ export class ResendService {
     }
   }
 
-  async sendDelayedRiskEmail(trip: any, trackingToken: string, liveEta: Date) {
+  async sendDelayedRiskEmail(trip: any, trackingToken: string, liveEta: Date, company?: any) {
     if (!trip.client?.contactEmail) return;
     
     const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
@@ -189,7 +207,7 @@ export class ResendService {
 
     const formattedEta = formatDMYTime(liveEta);
 
-    const logoUrl = await this.getLogoUrl();
+    const logoUrl = await this.getLogoUrl(company);
     const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; vertical-align: middle;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
     const htmlContent = `
       <html>
@@ -269,8 +287,8 @@ export class ResendService {
     }
   }
 
-  async sendQuoteConfirmationEmail(email: string, name: string) {
-    const logoUrl = await this.getLogoUrl();
+  async sendQuoteConfirmationEmail(email: string, name: string, company?: any) {
+    const logoUrl = await this.getLogoUrl(company);
     const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; vertical-align: middle;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
 
     const htmlContent = `
@@ -304,8 +322,8 @@ export class ResendService {
     }
   }
 
-  async sendQuoteReplyEmail(email: string, name: string, reply: any) {
-    const logoUrl = await this.getLogoUrl();
+  async sendQuoteReplyEmail(email: string, name: string, reply: any, company?: any) {
+    const logoUrl = await this.getLogoUrl(company);
     const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; vertical-align: middle;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
 
     const htmlContent = `

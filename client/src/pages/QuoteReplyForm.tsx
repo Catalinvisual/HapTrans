@@ -5,6 +5,7 @@ import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import { Calendar } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { getCompanySettings } from './SettingsPage';
 
 export const QuoteReplyForm = ({ quoteId, replies, tLocal, onReplyAdded }: any) => {
   const [showForm, setShowForm] = useState(false);
@@ -54,7 +55,7 @@ export const QuoteReplyForm = ({ quoteId, replies, tLocal, onReplyAdded }: any) 
     }
     setSending(true);
     try {
-      const res = await api.post(`/quotes/${quoteId}/reply`, formData);
+      const res = await api.post(`/quotes/${quoteId}/reply`, { ...formData, company: getCompanySettings() });
       toast.success(tLocal('reply_sent_success'));
       if (onReplyAdded) onReplyAdded(res.data);
       setFormData({ price: '', pickupDate: '', deliveryDate: '', validUntil: '', message: '' });

@@ -25,6 +25,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 import { useAuthStore } from '../store/authStore';
 import { useFormStore } from '../store/formStore';
+import { getCompanySettings } from './SettingsPage';
 
 export default function TripsPage() {
   const formStore = useFormStore();
@@ -438,6 +439,7 @@ export default function TripsPage() {
           pallets: parseNum(form.pallets),
           weightKg: parseNum(form.weightKg),
           volumeCbm: parseNum(form.volumeCbm),
+          company: getCompanySettings(),
         };
 
         if (editId) {
@@ -1547,7 +1549,7 @@ export default function TripsPage() {
                                   setOpenStatusId(null);
                                   if (opt.value === trip.status) return;
                                   try {
-                                    await api.patch(`/trips/${trip.id}`, { status: opt.value });
+                                    await api.patch(`/trips/${trip.id}`, { status: opt.value, company: getCompanySettings() });
                                     toast.success(t('statusUpdated') || 'Status actualizat');
                                     load();
                                   } catch {

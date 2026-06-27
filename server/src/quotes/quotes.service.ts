@@ -33,7 +33,7 @@ export class QuotesService {
     
     // Send confirmation email
     if (saved.email && saved.companyName) {
-      await this.resendService.sendQuoteConfirmationEmail(saved.email, saved.companyName);
+      await this.resendService.sendQuoteConfirmationEmail(saved.email, saved.companyName, (data as any).company);
     }
     
     return saved;
@@ -56,7 +56,7 @@ export class QuotesService {
 
     // Send the email
     if (quote.email && quote.companyName) {
-      await this.resendService.sendQuoteReplyEmail(quote.email, quote.companyName, savedReply);
+      await this.resendService.sendQuoteReplyEmail(quote.email, quote.companyName, savedReply, (replyData as any).company);
     }
 
     // Update status to quoted
