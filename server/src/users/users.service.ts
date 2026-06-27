@@ -32,11 +32,15 @@ export class UsersService {
 
   async findAnyUserLogo(): Promise<string | null> {
     try {
-      const res = await this.repo.manager.query("SELECT companyLogoUrl FROM users WHERE companyLogoUrl IS NOT NULL AND companyLogoUrl != '' AND companyLogoUrl LIKE 'http%' LIMIT 1");
+      const adminRes = await this.repo.manager.query("SELECT companyLogoUrl FROM users WHERE role = 'admin' AND companyLogoUrl IS NOT NULL AND companyLogoUrl != '' LIMIT 1");
+      if (adminRes && adminRes.length > 0 && adminRes[0].companyLogoUrl) {
+        return adminRes[0].companyLogoUrl;
+      }
+      const res = await this.repo.manager.query("SELECT companyLogoUrl FROM users WHERE companyLogoUrl IS NOT NULL AND companyLogoUrl != '' LIMIT 1");
       if (res && res.length > 0 && res[0].companyLogoUrl) {
         return res[0].companyLogoUrl;
       }
-      const cmsRes = await this.repo.manager.query("SELECT `value` FROM website_cms WHERE `key` IN ('logo', 'company_logo', 'site_logo') AND `value` LIKE 'http%' LIMIT 1");
+      const cmsRes = await this.repo.manager.query("SELECT `value` FROM website_cms WHERE `key` IN ('logo', 'company_logo', 'site_logo') AND `value` != '' LIMIT 1");
       if (cmsRes && cmsRes.length > 0 && cmsRes[0].value) {
         return cmsRes[0].value;
       }

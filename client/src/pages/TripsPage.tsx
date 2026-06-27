@@ -1361,7 +1361,7 @@ export default function TripsPage() {
                 { value: 'all', label: t('all') },
                 { value: 'pending', label: t('pending') },
                 { value: 'confirmed', label: t('confirmed') },
-                { value: 'in_progress', label: t('in_progress') },
+                { value: 'in_progress', label: t('inProgress') },
                 { value: 'completed', label: t('completed') },
                 { value: 'cancelled', label: t('cancelled') },
               ]}

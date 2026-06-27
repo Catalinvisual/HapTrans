@@ -58,18 +58,17 @@ export class AppController {
         });
         const result = await cloudinary.uploader.upload(body.logo, {
           folder: 'hapcargo_settings',
-          public_id: 'company_logo',
+          public_id: 'company_logo_' + Date.now(),
           overwrite: true,
         });
         
         try {
           const users = await this.usersService.findAll();
-          const admin = users.find(u => u.role === 'admin') || users[0];
-          if (admin) {
-            await this.usersService.update(admin.id, { companyLogoUrl: result.secure_url } as any);
+          for (const u of users) {
+            await this.usersService.update(u.id, { companyLogoUrl: result.secure_url } as any);
           }
         } catch (dbErr) {
-          console.error('Failed to save logo URL to admin user', dbErr);
+          console.error('Failed to save logo URL to users', dbErr);
         }
 
         return { success: true, url: result.secure_url };
