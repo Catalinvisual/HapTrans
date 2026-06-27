@@ -157,4 +157,7 @@ export class CreateTripDto {
   @IsOptional()
   @IsBoolean()
   etaUpdateSent?: boolean;
+
+  @IsOptional()
+  company?: any;
 }

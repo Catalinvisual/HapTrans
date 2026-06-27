@@ -46,10 +46,9 @@ export class ResendService {
       cmsSettings?.logo,
       cmsSettings?.companyLogoUrl,
       userLogo,
-    ].filter(url => typeof url === 'string' && url.trim().length > 0);
+    ].filter(url => typeof url === 'string' && url.trim().length > 0 && !url.includes('email-logo.png'));
 
-    // Filter out the default fallback 'email-logo.png' if a real uploaded logo exists in settings
-    let finalUrl = candidates.find(url => url && !url.includes('email-logo.png'));
+    let finalUrl = candidates.find(url => url && url.startsWith('http'));
     
     if (!finalUrl && candidates.length > 0) {
       finalUrl = candidates[0];

@@ -124,6 +124,14 @@ export class AppController {
       } else {
         await this.em.query("INSERT INTO website_cms (`key`, `value`) VALUES ('company_settings', ?)", [jsonStr]);
       }
+      if (body.logo && typeof body.logo === 'string' && body.logo.startsWith('http')) {
+        try {
+          await this.em.query("UPDATE users SET companyLogoUrl = ?", [body.logo]);
+          await this.em.query("UPDATE website_cms SET `value` = ? WHERE `key` IN ('logo', 'company_logo', 'site_logo')", [body.logo]);
+        } catch (dbErr) {
+          console.error('Failed to update logo in users and website_cms', dbErr);
+        }
+      }
       return { success: true };
     } catch (e) {
       console.error('Failed to save company settings', e);
