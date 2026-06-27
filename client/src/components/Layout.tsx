@@ -166,8 +166,24 @@ const formatNotification = (n: any, lang: string, t: any) => {
     const status = parts[1];
     const pickup = parts[2] || '';
     const dropoff = parts[3] || '';
-    const statusKey = `notif_status_${status}`;
-    const translatedStatus = t(statusKey) || status;
+    
+    const statusMap: Record<string, Record<string, string>> = {
+      confirmed: { ro: 'Confirmată', en: 'Confirmed', nl: 'Bevestigd', de: 'Bestätigt', fr: 'Confirmé' },
+      loading: { ro: 'La încărcare', en: 'Loading', nl: 'Aan het laden', de: 'Wird geladen', fr: 'En chargement' },
+      in_progress: { ro: 'În desfășurare', en: 'In Progress', nl: 'Onderweg', de: 'Im Gange', fr: 'En cours' },
+      completed: { ro: 'Finalizată', en: 'Completed', nl: 'Voltooid', de: 'Abgeschlossen', fr: 'Terminé' },
+      cancelled: { ro: 'Anulată', en: 'Cancelled', nl: 'Geannuleerd', de: 'Abgebrochen', fr: 'Annulé' },
+      delayed: { ro: 'Întârziată', en: 'Delayed', nl: 'Vertraagd', de: 'Verspätet', fr: 'Retardé' },
+      active: { ro: 'Activă', en: 'Active', nl: 'Actief', de: 'Aktiv', fr: 'Actif' },
+    };
+
+    const cleanStatus = status.toLowerCase().trim();
+    let translatedStatus = statusMap[cleanStatus]?.[lang];
+    if (!translatedStatus) {
+      const tVal = t(`notif_status_${status}`);
+      translatedStatus = tVal.startsWith('notif_') ? status : tVal;
+    }
+
     if (pickup && dropoff) {
       const routeText = `${pickup} → ${dropoff}`;
       if (lang === 'ro') message = `Cursa ${routeText} a fost schimbată în: ${translatedStatus}`;
@@ -188,8 +204,29 @@ const formatNotification = (n: any, lang: string, t: any) => {
     const match = message.match(/Cursa (.*?) a fost schimbată în statusul: (.*?) de către (.*)/);
     if (match) {
       const tripRef = match[1];
-      const statusPart = match[2];
+      const rawStatus = match[2];
       const driverName = match[3];
+      
+      const statusMap: Record<string, Record<string, string>> = {
+        confirmed: { ro: 'Confirmată', en: 'Confirmed', nl: 'Bevestigd', de: 'Bestätigt', fr: 'Confirmé' },
+        loading: { ro: 'La încărcare', en: 'Loading', nl: 'Aan het laden', de: 'Wird geladen', fr: 'En chargement' },
+        in_progress: { ro: 'În desfășurare', en: 'In Progress', nl: 'Onderweg', de: 'Im Gange', fr: 'En cours' },
+        completed: { ro: 'Finalizată', en: 'Completed', nl: 'Voltooid', de: 'Abgeschlossen', fr: 'Terminé' },
+        cancelled: { ro: 'Anulată', en: 'Cancelled', nl: 'Geannuleerd', de: 'Abgebrochen', fr: 'Annulé' },
+        delayed: { ro: 'Întârziată', en: 'Delayed', nl: 'Vertraagd', de: 'Verspätet', fr: 'Retardé' },
+        active: { ro: 'Activă', en: 'Active', nl: 'Actief', de: 'Aktiv', fr: 'Actif' },
+      };
+
+      let cleanKey = rawStatus.toLowerCase().replace(/\(.*?\)/g, '').trim();
+      if (cleanKey.includes('confirm')) cleanKey = 'confirmed';
+      else if (cleanKey.includes('load') || cleanKey.includes('încărcare')) cleanKey = 'loading';
+      else if (cleanKey.includes('progress') || cleanKey.includes('desfășurare')) cleanKey = 'in_progress';
+      else if (cleanKey.includes('complet') || cleanKey.includes('finalizat')) cleanKey = 'completed';
+      else if (cleanKey.includes('cancel') || cleanKey.includes('anulat')) cleanKey = 'cancelled';
+      else if (cleanKey.includes('delay') || cleanKey.includes('întârziat')) cleanKey = 'delayed';
+      
+      const statusPart = statusMap[cleanKey]?.[lang] || rawStatus;
+
       if (lang === 'ro') message = `Cursa ${tripRef} a devenit: ${statusPart} (${driverName})`;
       else if (lang === 'en') message = `Trip ${tripRef} is now: ${statusPart} (${driverName})`;
       else if (lang === 'nl') message = `Rit ${tripRef} is nu: ${statusPart} (${driverName})`;
@@ -256,6 +293,7 @@ export default function Layout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [popupNotif, setPopupNotif] = useState<any | null>(null);
   const lastNotifIdRef = useRef<string | null>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   const playNotificationSound = () => {
     try {
@@ -302,11 +340,23 @@ export default function Layout() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | PointerEvent) => {
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setIsNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const fetchNotifications = async () => {
     try {
       const res = await api.get('/notifications');
       if (res.data) {
-        setNotifications(res.data.data);
+        // Only show unread notifications in the dropdown panel
+        const unreadList = (res.data.data || []).filter((n: any) => !n.isRead);
+        setNotifications(unreadList);
         setUnreadCount(res.data.unreadCount);
 
         if (res.data.data && res.data.data.length > 0) {
@@ -330,6 +380,13 @@ export default function Layout() {
 
   const markAsRead = async (id: string) => {
     try {
+      if (id === 'all') {
+        setNotifications([]);
+        setUnreadCount(0);
+      } else {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
       await api.patch(`/notifications/${id}/read`);
       fetchNotifications();
     } catch (e) {
@@ -364,7 +421,7 @@ export default function Layout() {
           </div>
           <div className="flex items-center gap-3">
             {/* Notification bell */}
-            <div className="relative">
+            <div className="relative" ref={notifRef}>
               <button 
                 onClick={() => setIsNotifOpen(!isNotifOpen)}
                 className="relative w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-surface hover:border-primary/40 transition-all"
