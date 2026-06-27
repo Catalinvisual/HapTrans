@@ -27,24 +27,31 @@ export class ResendService {
   public lastStatus: any = null;
 
   private async getLogoUrl(company?: any): Promise<string> {
-    if (company?.companyLogoUrl) return company.companyLogoUrl;
-    if (company?.logo) return company.logo;
-    if (company?.logoUrl) return company.logoUrl;
+    if (company?.companyLogoUrl && company.companyLogoUrl.startsWith('http')) return company.companyLogoUrl;
+    if (company?.logo && company.logo.startsWith('http')) return company.logo;
+    if (company?.logoUrl && company.logoUrl.startsWith('http')) return company.logoUrl;
     
     try {
       const res = await this.usersService.getCompanySettingsCms();
-      if (res?.logo) return res.logo;
-      if (res?.companyLogoUrl) return res.companyLogoUrl;
+      if (res?.logo && res.logo.startsWith('http')) return res.logo;
+      if (res?.companyLogoUrl && res.companyLogoUrl.startsWith('http')) return res.companyLogoUrl;
     } catch (e) {
       console.error('Error fetching company settings from CMS:', e);
     }
 
     try {
-      const admin = await this.usersService.findAdmin();
-      if (admin?.companyLogoUrl) return admin.companyLogoUrl;
+      const allUsersLogo = await this.usersService.findAnyUserLogo();
+      if (allUsersLogo) return allUsersLogo;
     } catch (e) {
-      console.error('Error fetching admin logo:', e);
+      console.error('Error fetching any user logo:', e);
     }
+
+    if (company?.logo && company.logo.startsWith('data:image')) return company.logo;
+    if (company?.companyLogoUrl && company.companyLogoUrl.startsWith('data:image')) return company.companyLogoUrl;
+    try {
+      const res = await this.usersService.getCompanySettingsCms();
+      if (res?.logo && res.logo.startsWith('data:image')) return res.logo;
+    } catch (e) {}
     
     const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
     return `${baseUrl}/email-logo.png`;
@@ -85,6 +92,7 @@ export class ResendService {
     }
 
     const logoUrl = await this.getLogoUrl();
+    const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; vertical-align: middle;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
     
     const htmlContent = `
       <html>
@@ -92,8 +100,8 @@ export class ResendService {
         <style>
           body { font-family: 'Inter', Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
           .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-          .header { background-color: #ffffff; padding: 25px 30px; border-bottom: 2px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; }
-          .logo { text-align: left; }
+          .header { background-color: #ffffff; padding: 25px 30px; border-bottom: 2px solid #f0f0f0; text-align: center; }
+          .logo { text-align: center; }
           .content { padding: 30px; }
           .content h2 { color: #0d1b2a; margin-top: 0; font-size: 22px; }
           .info-box { background-color: #f8fafc; border-left: 4px solid #ff5a00; padding: 15px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }
@@ -111,7 +119,7 @@ export class ResendService {
         <div class="container">
           <div class="header">
             <div class="logo">
-              ${logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; margin-right: 4px; vertical-align: middle;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`}
+              ${logoHtml}
             </div>
           </div>
           <div class="content">
@@ -189,11 +197,12 @@ export class ResendService {
     const formattedEta = formatDMYTime(liveEta);
 
     const logoUrl = await this.getLogoUrl();
+    const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; vertical-align: middle;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
     const htmlContent = `
       <html>
       <body style="font-family: Arial, sans-serif; color: #333;">
-        <div style="text-align: left; margin-bottom: 20px;">
-          ${logoUrl ? `<img src="${logoUrl}" style="height:40px; max-width: 250px; object-fit:contain;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`}
+        <div style="text-align: center; margin-bottom: 24px; margin-top: 10px;">
+          ${logoHtml}
         </div>
         <h2>HapCargo Transportation Update</h2>
         <p>We would like to inform you that the current estimated time of arrival has been updated for your shipment.</p>
@@ -228,7 +237,7 @@ export class ResendService {
 
     const downloadUrl = invoice.pdfUrl || '#'; 
     const logoUrl = await this.getLogoUrl(company);
-    const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
+    const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; vertical-align: middle;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
 
     const htmlContent = `
       <html>
@@ -269,7 +278,7 @@ export class ResendService {
 
   async sendQuoteConfirmationEmail(email: string, name: string) {
     const logoUrl = await this.getLogoUrl();
-    const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
+    const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; vertical-align: middle;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
 
     const htmlContent = `
       <html>
@@ -304,7 +313,7 @@ export class ResendService {
 
   async sendQuoteReplyEmail(email: string, name: string, reply: any) {
     const logoUrl = await this.getLogoUrl();
-    const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
+    const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; vertical-align: middle;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
 
     const htmlContent = `
       <html>

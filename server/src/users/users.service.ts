@@ -30,6 +30,22 @@ export class UsersService {
     }
   }
 
+  async findAnyUserLogo(): Promise<string | null> {
+    try {
+      const res = await this.repo.manager.query("SELECT companyLogoUrl FROM users WHERE companyLogoUrl IS NOT NULL AND companyLogoUrl != '' AND companyLogoUrl LIKE 'http%' LIMIT 1");
+      if (res && res.length > 0 && res[0].companyLogoUrl) {
+        return res[0].companyLogoUrl;
+      }
+      const cmsRes = await this.repo.manager.query("SELECT `value` FROM website_cms WHERE `key` IN ('logo', 'company_logo', 'site_logo') AND `value` LIKE 'http%' LIMIT 1");
+      if (cmsRes && cmsRes.length > 0 && cmsRes[0].value) {
+        return cmsRes[0].value;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   async update(id: string, dto: any) {
     if (dto.password) {
       dto.password = await bcrypt.hash(dto.password, 10);
