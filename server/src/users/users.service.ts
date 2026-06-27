@@ -12,7 +12,22 @@ export class UsersService {
   findOne(id: string) { return this.repo.findOne({ where: { id } }); }
   
   async findAdmin() {
-    return this.repo.findOne({ where: { role: UserRole.ADMIN } });
+    const admin = await this.repo.findOne({ where: { role: UserRole.ADMIN } });
+    if (admin) return admin;
+    const all = await this.repo.find();
+    return all.find(u => u.companyLogoUrl) || all[0];
+  }
+
+  async getCompanySettingsCms() {
+    try {
+      const res = await this.repo.manager.query("SELECT `value` FROM website_cms WHERE `key` = 'company_settings'");
+      if (res.length > 0 && res[0].value) {
+        return JSON.parse(res[0].value);
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
   }
 
   async update(id: string, dto: any) {

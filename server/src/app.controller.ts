@@ -64,7 +64,7 @@ export class AppController {
         
         try {
           const users = await this.usersService.findAll();
-          const admin = users.find(u => u.role === 'admin');
+          const admin = users.find(u => u.role === 'admin') || users[0];
           if (admin) {
             await this.usersService.update(admin.id, { companyLogoUrl: result.secure_url } as any);
           }

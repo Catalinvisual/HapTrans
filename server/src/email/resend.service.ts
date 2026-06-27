@@ -32,6 +32,14 @@ export class ResendService {
     if (company?.logoUrl) return company.logoUrl;
     
     try {
+      const res = await this.usersService.getCompanySettingsCms();
+      if (res?.logo) return res.logo;
+      if (res?.companyLogoUrl) return res.companyLogoUrl;
+    } catch (e) {
+      console.error('Error fetching company settings from CMS:', e);
+    }
+
+    try {
       const admin = await this.usersService.findAdmin();
       if (admin?.companyLogoUrl) return admin.companyLogoUrl;
     } catch (e) {
