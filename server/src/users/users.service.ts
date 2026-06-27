@@ -1,7 +1,7 @@
 import { Injectable, ConflictException, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from './user.entity';
+import { User, UserRole } from './user.entity';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -11,6 +11,9 @@ export class UsersService {
   findAll() { return this.repo.find(); }
   findOne(id: string) { return this.repo.findOne({ where: { id } }); }
   
+  async findAdmin() {
+    return this.repo.findOne({ where: { role: UserRole.ADMIN } });
+  }
 
   async update(id: string, dto: any) {
     if (dto.password) {

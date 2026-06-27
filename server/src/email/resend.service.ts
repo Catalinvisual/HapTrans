@@ -27,10 +27,19 @@ export class ResendService {
   public lastStatus: any = null;
 
   private async getLogoUrl(company?: any): Promise<string> {
-    // Solutie definitiva: nu mai preluam logo-ul din Cloudinary (company.logo sau admin.companyLogoUrl)
-    // pentru a evita expirarea URL-urilor temporare / signed si blocarea de catre proxy-urile de email (ex. Google Image Proxy).
-    // Folosim un URL public permanent, servit direct de pe website:
-    return 'https://hapcargo.com/email-logo.png';
+    if (company?.companyLogoUrl) return company.companyLogoUrl;
+    if (company?.logo) return company.logo;
+    if (company?.logoUrl) return company.logoUrl;
+    
+    try {
+      const admin = await this.usersService.findAdmin();
+      if (admin?.companyLogoUrl) return admin.companyLogoUrl;
+    } catch (e) {
+      console.error('Error fetching admin logo:', e);
+    }
+    
+    const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
+    return `${baseUrl}/email-logo.png`;
   }
 
   async sendTripStatusEmail(tripOrEmail: any, trackingToken: string) {
@@ -153,8 +162,22 @@ export class ResendService {
   async sendDelayedRiskEmail(trip: any, trackingToken: string, liveEta: Date) {
     if (!trip.client?.contactEmail) return;
     
-    const trackingUrl = `${process.env.FRONTEND_URL}/track/${trackingToken}`;
-    const formattedAppt = trip.appointmentFrom ? formatDMYTime(trip.appointmentFrom) : 'N/A';
+    const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
+    const trackingUrl = `${baseUrl}/track/${trackingToken}`;
+    
+    let formattedAppt = 'N/A';
+    if (trip.appointmentFrom) {
+      formattedAppt = formatDMYTime(trip.appointmentFrom);
+      if (trip.appointmentTo) {
+        formattedAppt += ` - ${formatDMYTime(trip.appointmentTo)}`;
+      }
+    } else if (trip.dropoffDate) {
+      formattedAppt = formatDMY(trip.dropoffDate);
+      if (trip.dropoffTime) {
+        formattedAppt += ` ${trip.dropoffTime}`;
+      }
+    }
+
     const formattedEta = formatDMYTime(liveEta);
 
     const logoUrl = await this.getLogoUrl();
@@ -169,7 +192,7 @@ export class ResendService {
         <p><strong>Delivery Appointment:</strong><br/>${formattedAppt}</p>
         <p><strong>Current ETA:</strong><br/>${formattedEta}</p>
         <p>You can track the live status here:</p>
-        <a href="${trackingUrl}" style="background-color: #ff5a00; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Track Shipment</a>
+        <a href="${trackingUrl}" style="background-color: #ff5a00; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; margin-top: 10px; margin-bottom: 10px;">Track Shipment</a>
         <p>For more information, please contact the HapCargo team.</p>
       </body>
       </html>
@@ -197,7 +220,7 @@ export class ResendService {
 
     const downloadUrl = invoice.pdfUrl || '#'; 
     const logoUrl = await this.getLogoUrl(company);
-    const logoHtml = logoUrl ? `${logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`}` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
+    const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
 
     const htmlContent = `
       <html>
