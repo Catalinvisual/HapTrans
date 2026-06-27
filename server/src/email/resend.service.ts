@@ -108,7 +108,7 @@ export class ResendService {
       <html>
       <head>
         <style>
-          body { font-family: 'Inter', Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+          body { font-family: 'Inter', Arial, sans-serif; background-color: #ffffff; margin: 0; padding: 20px; color: #333; }
           .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
           .header { background-color: #ffffff; padding: 25px 30px; border-bottom: 2px solid #f0f0f0; text-align: center; }
           .logo { text-align: center; }
@@ -210,7 +210,7 @@ export class ResendService {
     const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; vertical-align: middle;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
     const htmlContent = `
       <html>
-      <body style="font-family: Arial, sans-serif; color: #333;">
+      <body style="font-family: Arial, sans-serif; color: #333; background-color: #ffffff; margin: 0; padding: 20px;">
         <div style="text-align: center; margin-bottom: 24px; margin-top: 10px;">
           ${logoHtml}
         </div>
@@ -251,7 +251,7 @@ export class ResendService {
 
     const htmlContent = `
       <html>
-      <body style="font-family: Arial, sans-serif; color: #333;">
+      <body style="font-family: Arial, sans-serif; color: #333; background-color: #ffffff; margin: 0; padding: 20px;">
         <div style="text-align: center; margin-bottom: 24px; margin-top: 10px;">
           ${logoHtml}
         </div>
@@ -292,7 +292,7 @@ export class ResendService {
 
     const htmlContent = `
       <html>
-      <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+      <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; background-color: #ffffff; margin: 0; padding: 20px;">
         <div style="text-align: center; margin-bottom: 24px; margin-top: 10px;">
           ${logoHtml}
         </div>
@@ -327,7 +327,7 @@ export class ResendService {
 
     const htmlContent = `
       <html>
-      <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+      <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; background-color: #ffffff; margin: 0; padding: 20px;">
         <div style="text-align: center; margin-bottom: 24px; margin-top: 10px;">
           ${logoHtml}
         </div>
