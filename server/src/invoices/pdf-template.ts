@@ -293,7 +293,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
     display: flex;
     justify-content: space-between;
     gap: 15px;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
 
   .invoice-meta strong {
@@ -445,7 +445,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
     grid-template-columns: auto 1fr;
     gap: 8px;
     border-bottom: 1px dashed #d9e0ea;
-    padding: 5px 0;
+    padding: 2px 0;
     font-size: 12px;
   }
 
@@ -609,12 +609,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
       <div class="info-line">${t.taxId}: ${co.cui || 'NL442452452145'}</div>
       ${(co.regNumber || co.regNo) ? `<div class="info-line">${t.regNo}: ${co.regNumber || co.regNo}</div>` : ''}
       <div class="info-line">${t.address}: ${co.address || 'Lange Brink 15, 8315 AH Luttelgeest, Nederland'}</div>
-      
-      ${co.phone ? `<div class="info-line">${t.phone}: ${co.phone}</div>` : ''}
-      ${co.email ? `<div class="info-line">${t.email}: ${co.email}</div>` : ''}
       ${workingHoursStr ? `<div class="info-line"><strong>${t.workingHours}:</strong> ${workingHoursStr}</div>` : ''}
-      ${co.bank ? `<div class="info-line">${t.bank}: ${co.bank}</div>` : ''}
-      ${co.iban ? `<div class="info-line"><strong>IBAN:</strong> ${co.iban}</div>` : ''}
     </div>
 
     <div class="card">
