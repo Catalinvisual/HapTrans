@@ -588,7 +588,7 @@ export default function InvoicesPage() {
                     <td className="table-cell font-bold text-text">{inv.client?.name}</td>
                     <td className="table-cell">
                       <div className="font-bold text-success text-sm">€{totals.total.toLocaleString(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      <div className="text-[10px] text-text-secondary font-medium">Net: €{totals.subtotal.toLocaleString(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="text-[10px] text-text-secondary font-medium">{t('net', 'Net')}: €{totals.subtotal.toLocaleString(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                     </td>
                     <td className="table-cell font-semibold text-text-secondary">
                       <div>{inv.vatType === 'REVERSE_CHARGE' ? '0% (Taxare inv.)' : inv.vatType === 'EXEMPT' ? '0% (Scutit)' : `${inv.vatPercent}%`}</div>

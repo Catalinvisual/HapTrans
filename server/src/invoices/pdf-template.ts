@@ -285,15 +285,15 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
     border-left: 2px solid #ff4b00;
     padding-left: 18px;
     font-size: 13px;
-    line-height: 1.1;
+    line-height: 1.2;
     min-width: 250px;
   }
 
   .invoice-meta .row {
     display: flex;
-    justify-content: space-between;
-    gap: 15px;
-    margin-bottom: 0;
+    justify-content: flex-start;
+    gap: 6px;
+    margin-bottom: 3px;
   }
 
   .invoice-meta strong {
