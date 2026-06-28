@@ -1506,7 +1506,7 @@ export default function TripsPage() {
                             </div>
                             {hasExtraFees && (
                               <div className="text-[10px] text-text-secondary font-medium mt-0.5">
-                                Base: €{basePrice.toLocaleString(i18n.language)} + extra
+                                {t('basePriceLabel', 'Base')}: €{basePrice.toLocaleString(i18n.language)} + {t('extraLabel', 'extra')}
                               </div>
                             )}
                           </div>
