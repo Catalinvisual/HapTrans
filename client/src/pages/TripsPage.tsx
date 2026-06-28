@@ -1490,8 +1490,28 @@ export default function TripsPage() {
                     </td>
                     <td className="table-cell text-xs font-semibold text-text-secondary whitespace-nowrap">{trip.truck?.plateNumber || '—'}</td>
                     <td className="table-cell text-xs font-medium text-text">{trip.driver?.user?.name || '—'}</td>
-                    <td className="table-cell font-semibold text-success whitespace-nowrap">
-                      <div>€{Number(trip.agreedPrice || trip.price || 0).toLocaleString(i18n.language)}</div>
+                    <td className="table-cell whitespace-nowrap">
+                      {(() => {
+                        const basePrice = Number(trip.agreedPrice || trip.price || 0);
+                        const fuelSurcharge = Number(trip.fuelSurchargePercent || 0);
+                        const fuelAmt = fuelSurcharge > 0 ? (basePrice * fuelSurcharge) / 100 : 0;
+                        const tollCosts = Number(trip.tollCosts || 0);
+                        const extraCosts = Number(trip.extraCosts || 0);
+                        const totalTripNet = basePrice + fuelAmt + tollCosts + extraCosts;
+                        const hasExtraFees = fuelAmt > 0 || tollCosts > 0 || extraCosts > 0;
+                        return (
+                          <div className="flex flex-col">
+                            <div className="font-bold text-success text-sm">
+                              €{totalTripNet.toLocaleString(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                            {hasExtraFees && (
+                              <div className="text-[10px] text-text-secondary font-medium mt-0.5">
+                                Base: €{basePrice.toLocaleString(i18n.language)} + extra
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                       {trip.invoices && trip.invoices.length > 0 && (
                         <div className={`mt-1 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded inline-block ${
                           trip.invoices[0].status === 'paid' ? 'bg-green-100 text-green-800' :
@@ -1629,7 +1649,15 @@ export default function TripsPage() {
           { key: 'pallets', label: 'Paleti' },
           { key: 'weightKg', label: 'Greutate (kg)' },
           { key: 'volumeCbm', label: 'Volum (cbm)' },
-          { key: 'price', label: 'Pret (€)' },
+          { key: 'price', label: 'Pret Baza (€)', transform: (val, item) => Number(item?.agreedPrice || item?.price || 0).toFixed(2) },
+          { key: 'totalNet', label: 'Pret Total Net (€)', transform: (val, item) => {
+            const base = Number(item?.agreedPrice || item?.price || 0);
+            const fuel = Number(item?.fuelSurchargePercent || 0);
+            const fuelAmt = fuel > 0 ? (base * fuel) / 100 : 0;
+            const tolls = Number(item?.tollCosts || 0);
+            const extra = Number(item?.extraCosts || 0);
+            return (base + fuelAmt + tolls + extra).toFixed(2);
+          }},
           { key: 'realCost', label: 'Cost Real (€)' },
           { key: 'status', label: 'Status' },
           { key: 'notes', label: 'Note' },
