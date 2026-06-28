@@ -3,6 +3,7 @@ import { initReactI18next } from 'react-i18next';
 
 const resources = {
   ro: { translation: {
+      net: "Net",
       cmsLoadError: "Eroare la încărcarea datelor CMS",
       cmsSaved: "Setările site-ului au fost salvate cu succes!",
       cmsSaveError: "Eroare la salvare",
@@ -572,6 +573,7 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
     },
   },
   frBase: { translation: {
+      net: "Net",
       cmsLoadError: "Erreur de chargement des données CMS",
       cmsSaved: "Paramètres du site web enregistrés avec succès !",
       cmsSaveError: "Erreur d'enregistrement",
@@ -660,6 +662,7 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
     }
   },
   en: { translation: {
+      net: "Net",
       cmsLoadError: "Error loading CMS data",
       cmsSaved: "Website settings saved successfully!",
       cmsSaveError: "Error saving settings",
@@ -1214,6 +1217,7 @@ smartDispatchAddressError: "Please enter the pickup address first!",
     },
   },
   pl: { translation: {
+      net: "Netto",
       cmsLoadError: "Błąd ładowania danych CMS",
       cmsSaved: "Ustawienia strony zostały pomyślnie zapisane!",
       cmsSaveError: "Błąd zapisywania ustawień",
@@ -1256,6 +1260,7 @@ smartDispatchAddressError: "Please enter the pickup address first!",
     },
   },
   nl: { translation: {
+      net: "Netto",
       cmsLoadError: "Fout bij laden van CMS-gegevens",
       cmsSaved: "Website-instellingen succesvol opgeslagen!",
       cmsSaveError: "Fout bij opslaan",
@@ -1809,6 +1814,7 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
 },
   },
   de: { translation: {
+      net: "Netto",
       cmsLoadError: "Fehler beim Laden der CMS-Daten",
       cmsSaved: "Website-Einstellungen erfolgreich gespeichert!",
       cmsSaveError: "Fehler beim Speichern",
