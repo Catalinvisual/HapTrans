@@ -403,6 +403,23 @@ export default function InvoicesPage() {
     );
   }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
+  const getInvTotals = (inv: any) => {
+    let sub = Number(inv.subtotal) || 0;
+    if (!sub) {
+      const amt = Number(inv.amount) || 0;
+      const fuel = Number(inv.fuelSurcharge) || 0;
+      const fuelCost = fuel > 0 ? Number(((amt * fuel) / 100).toFixed(2)) : 0;
+      const toll = Number(inv.tollCosts) || 0;
+      const extra = Number(inv.extraCosts) || 0;
+      sub = amt + fuelCost + toll + extra;
+    }
+    const vatP = Number(inv.vatPercent) || 19;
+    const isVat = inv.vatType === 'NORMAL' || !inv.vatType;
+    const vatAmt = Number(inv.vatAmount) || (isVat ? Number(((sub * vatP) / 100).toFixed(2)) : 0);
+    const total = Number(inv.total) || (sub + vatAmt);
+    return { subtotal: sub, vatAmount: vatAmt, total };
+  };
+
   return (
     <div className="space-y-5 animate-fade-in">
       {showForm && (
@@ -563,12 +580,22 @@ export default function InvoicesPage() {
             <tbody>
               {loading ? <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
                 : filtered.length === 0 ? <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
-                : filtered.map(inv => (
+                : filtered.map(inv => {
+                  const totals = getInvTotals(inv);
+                  return (
                   <tr key={inv.id} className={`transition-colors ${inv.status === 'overdue' ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-surface/60'}`}>
                     <td className="table-cell font-mono text-sm font-bold">{inv.invoiceNumber}</td>
                     <td className="table-cell font-bold text-text">{inv.client?.name}</td>
-                    <td className="table-cell font-semibold text-success">€{Number(inv.amount).toLocaleString(i18n.language)}</td>
-                    <td className="table-cell font-semibold text-text-secondary">{inv.vatPercent}%</td>
+                    <td className="table-cell">
+                      <div className="font-bold text-success text-sm">€{totals.total.toLocaleString(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="text-[10px] text-text-secondary font-medium">Net: €{totals.subtotal.toLocaleString(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    </td>
+                    <td className="table-cell font-semibold text-text-secondary">
+                      <div>{inv.vatType === 'REVERSE_CHARGE' ? '0% (Taxare inv.)' : inv.vatType === 'EXEMPT' ? '0% (Scutit)' : `${inv.vatPercent}%`}</div>
+                      {inv.vatType !== 'REVERSE_CHARGE' && inv.vatType !== 'EXEMPT' && totals.vatAmount > 0 && (
+                        <div className="text-[10px] text-text-secondary">€{totals.vatAmount.toLocaleString(i18n.language, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      )}
+                    </td>
                     <td className="table-cell text-xs font-medium text-text-secondary">{formatDate(inv.issueDate)}</td>
                     <td className={`table-cell text-xs font-bold ${inv.status === 'overdue' ? 'text-red-600 animate-pulse' : 'text-text-secondary'}`}>{formatDate(inv.dueDate)}</td>
                     <td className="table-cell"><span className={STATUS_COLORS[inv.status] || 'badge-gray'}>{t(inv.status)}</span></td>
@@ -615,7 +642,8 @@ export default function InvoicesPage() {
                       )}
                     </td>
                   </tr>
-                ))}
+                );
+                })}
             </tbody>
           </table>
         </div>
@@ -631,8 +659,9 @@ export default function InvoicesPage() {
           { key: 'createdAt', label: 'Data Inregistrare', transform: val => val ? formatDate(val) : '' },
           { key: 'invoiceNumber', label: 'Numar Factura' },
           { key: 'client', label: 'Nume Client', transform: val => val?.name || '' },
-          { key: 'amount', label: 'Suma Fara TVA (€)' },
-          { key: 'vatPercent', label: 'TVA (%)' },
+          { key: 'amount', label: 'Subtotal Fara TVA (€)', transform: (val, item) => getInvTotals(item).subtotal.toFixed(2) },
+          { key: 'vatPercent', label: 'TVA (%)', transform: (val, item) => item?.vatType === 'REVERSE_CHARGE' ? 'Taxare Inversa (0%)' : item?.vatType === 'EXEMPT' ? 'Scutit (0%)' : `${val || 19}%` },
+          { key: 'total', label: 'Total Cu TVA (€)', transform: (val, item) => getInvTotals(item).total.toFixed(2) },
           { key: 'issueDate', label: 'Data Emitere', transform: val => val ? formatDate(val) : '' },
           { key: 'dueDate', label: 'Data Scadenta', transform: val => val ? formatDate(val) : '' },
           { key: 'status', label: 'Status' },

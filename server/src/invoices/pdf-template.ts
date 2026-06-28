@@ -285,7 +285,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
     border-left: 2px solid #ff4b00;
     padding-left: 18px;
     font-size: 13px;
-    line-height: 1.3;
+    line-height: 1.1;
     min-width: 250px;
   }
 
@@ -293,7 +293,7 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
     display: flex;
     justify-content: space-between;
     gap: 15px;
-    margin-bottom: 2px;
+    margin-bottom: 0;
   }
 
   .invoice-meta strong {
