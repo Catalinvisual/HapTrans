@@ -276,221 +276,228 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div>
-            <label className="label font-semibold text-xs flex items-center gap-1">
-              🛣️ {getLabel("Min price per km (€)", "Preț minim pe km (€)", "Min. prijs per km (€)", "Min. Preis pro km (€)", "Prix min par km (€)", "Min. cena za km (€)")}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="space-y-1.5">
+            <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
+              🛣️ {getLabel("Min price per km", "Preț minim pe km", "Min. prijs per km", "Min. Preis pro km", "Prix min par km", "Min. cena za km")}
             </label>
-            <div className="relative">
+            <div className="relative flex items-center">
+              <span className="absolute left-3 text-primary font-extrabold text-sm select-none pointer-events-none">€</span>
               <input
                 type="number"
                 step="0.01"
-                className="input text-sm pr-7"
+                className="input text-sm pl-8 pr-14 font-bold text-text"
                 value={tariffs.minPricePerKm}
                 onChange={e => setTariffs(prev => ({ ...prev, minPricePerKm: parseFloat(e.target.value) || 0 }))}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">€</span>
+              <span className="absolute right-2 bg-primary/10 text-primary font-extrabold text-[11px] px-2 py-1 rounded-md select-none pointer-events-none border border-primary/20">EUR</span>
             </div>
           </div>
 
-          <div>
-            <label className="label font-semibold text-xs flex items-center gap-1">
-              💶 {getLabel("Minimum trip price (€)", "Preț minim per cursă (€)", "Minimale ritprijs (€)", "Mindestfahrtpreis (€)", "Prix min du trajet (€)", "Minimalna cena trasy (€)")}
+          <div className="space-y-1.5">
+            <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
+              💶 {getLabel("Minimum trip price", "Preț minim per cursă", "Minimale ritprijs", "Mindestfahrtpreis", "Prix min du trajet", "Minimalna cena trasy")}
             </label>
-            <div className="relative">
+            <div className="relative flex items-center">
+              <span className="absolute left-3 text-primary font-extrabold text-sm select-none pointer-events-none">€</span>
               <input
                 type="number"
-                className="input text-sm pr-7"
+                className="input text-sm pl-8 pr-14 font-bold text-text"
                 value={tariffs.minTripPrice}
                 onChange={e => setTariffs(prev => ({ ...prev, minTripPrice: parseFloat(e.target.value) || 0 }))}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">€</span>
+              <span className="absolute right-2 bg-primary/10 text-primary font-extrabold text-[11px] px-2 py-1 rounded-md select-none pointer-events-none border border-primary/20">EUR</span>
             </div>
           </div>
 
-          <div>
-            <label className="label font-semibold text-xs flex items-center gap-1">
-              📦 {getLabel("Handling fee (€)", "Cost manipulare (€)", "Afhandelingskosten (€)", "Bearbeitungsgebühr (€)", "Frais de manutention (€)", "Opłata operacyjna (€)")}
+          <div className="space-y-1.5">
+            <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
+              📦 {getLabel("Handling fee", "Cost manipulare", "Afhandelingskosten", "Bearbeitungsgebühr", "Frais de manutention", "Opłata operacyjna")}
             </label>
-            <div className="relative">
+            <div className="relative flex items-center">
+              <span className="absolute left-3 text-primary font-extrabold text-sm select-none pointer-events-none">€</span>
               <input
                 type="number"
-                className="input text-sm pr-7"
+                className="input text-sm pl-8 pr-14 font-bold text-text"
                 value={tariffs.handlingFee}
                 onChange={e => setTariffs(prev => ({ ...prev, handlingFee: parseFloat(e.target.value) || 0 }))}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">€</span>
+              <span className="absolute right-2 bg-primary/10 text-primary font-extrabold text-[11px] px-2 py-1 rounded-md select-none pointer-events-none border border-primary/20">EUR</span>
             </div>
           </div>
 
-          <div>
-            <label className="label font-semibold text-xs flex items-center gap-1">
-              ⛽ {getLabel("Fuel surcharge (%)", "Supliment combustibil (%)", "Brandstoftoeslag (%)", "Treibstoffzuschlag (%)", "Surcharge carburant (%)", "Dopłata paliwowa (%)")}
+          <div className="space-y-1.5">
+            <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
+              ⛽ {getLabel("Fuel surcharge", "Supliment combustibil", "Brandstoftoeslag", "Treibstoffzuschlag", "Surcharge carburant", "Dopłata paliwowa")}
             </label>
-            <div className="relative">
+            <div className="relative flex items-center">
               <input
                 type="number"
-                className="input text-sm pr-7"
+                className="input text-sm pr-20 font-bold text-text"
                 value={tariffs.fuelSurchargePercent}
                 onChange={e => setTariffs(prev => ({ ...prev, fuelSurchargePercent: parseFloat(e.target.value) || 0 }))}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">%</span>
+              <span className="absolute right-2 bg-amber-500/10 text-amber-700 font-extrabold text-[11px] px-2.5 py-1 rounded-md select-none pointer-events-none border border-amber-500/20">% PROCENT</span>
             </div>
           </div>
 
-          <div>
-            <label className="label font-semibold text-xs flex items-center gap-1">
-              📈 {getLabel("Profit margin (%)", "Marjă de profit (%)", "Winstmarge (%)", "Gewinnmarge (%)", "Marge bénéficiaire (%)", "Marża zysku (%)")}
+          <div className="space-y-1.5">
+            <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
+              📈 {getLabel("Profit margin", "Marjă de profit", "Winstmarge", "Gewinnmarge", "Marge bénéficiaire", "Marża zysku")}
             </label>
-            <div className="relative">
+            <div className="relative flex items-center">
               <input
                 type="number"
-                className="input text-sm pr-7"
+                className="input text-sm pr-20 font-bold text-text"
                 value={tariffs.profitMarginPercent}
                 onChange={e => setTariffs(prev => ({ ...prev, profitMarginPercent: parseFloat(e.target.value) || 0 }))}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">%</span>
+              <span className="absolute right-2 bg-emerald-500/10 text-emerald-700 font-extrabold text-[11px] px-2.5 py-1 rounded-md select-none pointer-events-none border border-emerald-500/20">% PROCENT</span>
             </div>
           </div>
 
-          <div>
-            <label className="label font-semibold text-xs flex items-center gap-1">
-              ⚖️ {getLabel("Weight surcharge (%)", "Spor greutate (%)", "Gewichtstoeslag (%)", "Gewichtszuschlag (%)", "Surcharge de poids (%)", "Dopłata za wagę (%)")}
+          <div className="space-y-1.5">
+            <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
+              ⚖️ {getLabel("Weight surcharge", "Spor greutate", "Gewichtstoeslag", "Gewichtszuschlag", "Surcharge de poids", "Dopłata za wagę")}
             </label>
-            <div className="relative">
+            <div className="relative flex items-center">
               <input
                 type="number"
-                className="input text-sm pr-7"
+                className="input text-sm pr-20 font-bold text-text"
                 value={tariffs.weightSurchargePercent}
                 onChange={e => setTariffs(prev => ({ ...prev, weightSurchargePercent: parseFloat(e.target.value) || 0 }))}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">%</span>
+              <span className="absolute right-2 bg-blue-500/10 text-blue-700 font-extrabold text-[11px] px-2.5 py-1 rounded-md select-none pointer-events-none border border-blue-500/20">% PROCENT</span>
             </div>
           </div>
 
-          <div>
-            <label className="label font-semibold text-xs flex items-center gap-1">
-              🚛 {getLabel("Weight threshold (kg)", "Prag greutate (kg)", "Gewichtsdrempel (kg)", "Gewichtsgrenze (kg)", "Seuil de poids (kg)", "Próg wagi (kg)")}
+          <div className="space-y-1.5">
+            <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
+              🚛 {getLabel("Weight threshold", "Prag greutate", "Gewichtsdrempel", "Gewichtsgrenze", "Seuil de poids", "Próg wagi")}
             </label>
-            <div className="relative">
+            <div className="relative flex items-center">
               <input
                 type="number"
-                className="input text-sm pr-8"
+                className="input text-sm pr-16 font-bold text-text"
                 value={tariffs.weightThresholdKg}
                 onChange={e => setTariffs(prev => ({ ...prev, weightThresholdKg: parseFloat(e.target.value) || 0 }))}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">kg</span>
+              <span className="absolute right-2 bg-slate-500/10 text-slate-700 font-extrabold text-[11px] px-3 py-1 rounded-md select-none pointer-events-none border border-slate-500/20">KG</span>
             </div>
           </div>
 
-          <div>
-            <label className="label font-semibold text-xs flex items-center gap-1">
-              🥉 {getLabel("0-5 pallets rate modifier (%) (e.g. 60)", "Modificator tarif 0-5 paleți (%) (ex: 60)", "0-5 pallets tarief modifier (%) (bijv. 60)", "0-5 Paletten-Tarif Modifikator (%) (z.B. 60)", "Modificateur tarif 0-5 palettes (%) (ex: 60)", "Mnożnik stawki 0-5 palet (%) (np. 60)")}
+          <div className="space-y-1.5">
+            <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
+              🥉 {getLabel("0-5 pallets modifier", "Modificator tarif 0-5 paleți", "0-5 pallets tarief modifier", "0-5 Paletten Modifikator", "Modificateur tarif 0-5 palettes", "Mnożnik stawki 0-5 palet")}
             </label>
-            <div className="relative">
+            <div className="relative flex items-center">
               <input
                 type="number"
                 step="1"
-                className="input text-sm pr-7"
+                className="input text-sm pr-20 font-bold text-text"
                 placeholder="60"
                 value={tariffs.palletFactorSmall}
                 onChange={e => setTariffs(prev => ({ ...prev, palletFactorSmall: parseFloat(e.target.value) || 0 }))}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">%</span>
+              <span className="absolute right-2 bg-orange-500/10 text-orange-700 font-extrabold text-[11px] px-2.5 py-1 rounded-md select-none pointer-events-none border border-orange-500/20">% PROCENT</span>
             </div>
           </div>
 
-          <div>
-            <label className="label font-semibold text-xs flex items-center gap-1">
-              🥈 {getLabel("6-15 pallets rate modifier (%) (e.g. 85)", "Modificator tarif 6-15 paleți (%) (ex: 85)", "6-15 pallets tarief modifier (%) (bijv. 85)", "6-15 Paletten-Tarif Modifikator (%) (z.B. 85)", "Modificateur tarif 6-15 palettes (%) (ex: 85)", "Mnożnik stawki 6-15 palet (%) (np. 85)")}
+          <div className="space-y-1.5">
+            <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
+              🥈 {getLabel("6-15 pallets modifier", "Modificator tarif 6-15 paleți", "6-15 pallets tarief modifier", "6-15 Paletten Modifikator", "Modificateur tarif 6-15 palettes", "Mnożnik stawki 6-15 palet")}
             </label>
-            <div className="relative">
+            <div className="relative flex items-center">
               <input
                 type="number"
                 step="1"
-                className="input text-sm pr-7"
+                className="input text-sm pr-20 font-bold text-text"
                 placeholder="85"
                 value={tariffs.palletFactorMedium}
                 onChange={e => setTariffs(prev => ({ ...prev, palletFactorMedium: parseFloat(e.target.value) || 0 }))}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">%</span>
+              <span className="absolute right-2 bg-orange-500/10 text-orange-700 font-extrabold text-[11px] px-2.5 py-1 rounded-md select-none pointer-events-none border border-orange-500/20">% PROCENT</span>
             </div>
           </div>
 
-          <div>
-            <label className="label font-semibold text-xs flex items-center gap-1">
-              🥇 {getLabel("16-33 pallets rate modifier (%) (e.g. 100)", "Modificator tarif 16-33 paleți (%) (ex: 100)", "16-33 pallets tarief modifier (%) (bijv. 100)", "16-33 Paletten-Tarif Modifikator (%) (z.B. 100)", "Modificateur tarif 16-33 palettes (%) (ex: 100)", "Mnożnik stawki 16-33 palet (%) (np. 100)")}
+          <div className="space-y-1.5">
+            <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
+              🥇 {getLabel("16-33 pallets modifier", "Modificator tarif 16-33 paleți", "16-33 pallets tarief modifier", "16-33 Paletten Modifikator", "Modificateur tarif 16-33 palettes", "Mnożnik stawki 16-33 palet")}
             </label>
-            <div className="relative">
+            <div className="relative flex items-center">
               <input
                 type="number"
                 step="1"
-                className="input text-sm pr-7"
+                className="input text-sm pr-20 font-bold text-text"
                 placeholder="100"
                 value={tariffs.palletFactorFull}
                 onChange={e => setTariffs(prev => ({ ...prev, palletFactorFull: parseFloat(e.target.value) || 0 }))}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">%</span>
+              <span className="absolute right-2 bg-orange-500/10 text-orange-700 font-extrabold text-[11px] px-2.5 py-1 rounded-md select-none pointer-events-none border border-orange-500/20">% PROCENT</span>
             </div>
           </div>
 
-          <div>
-            <label className="label font-semibold text-xs text-amber-700 flex items-center gap-1">
-              ⚠️ {getLabel("ADR Surcharge Fee (€)", "Tarif Suplimentar ADR (€)", "ADR Toeslag (€)", "ADR Zuschlag (€)", "Surcharge ADR (€)", "Dopłata ADR (€)")}
+          <div className="space-y-1.5">
+            <label className="label font-bold text-xs text-amber-700 flex items-center gap-1.5">
+              ⚠️ {getLabel("ADR Surcharge Fee", "Tarif Suplimentar ADR", "ADR Toeslag", "ADR Zuschlag", "Surcharge ADR", "Dopłata ADR")}
             </label>
-            <div className="relative">
+            <div className="relative flex items-center">
+              <span className="absolute left-3 text-amber-700 font-extrabold text-sm select-none pointer-events-none">€</span>
               <input
                 type="number"
-                className="input text-sm pr-7"
+                className="input text-sm pl-8 pr-14 font-bold text-text border-amber-500/30 focus:border-amber-500"
                 value={tariffs.adrSurchargeFee}
                 onChange={e => setTariffs(prev => ({ ...prev, adrSurchargeFee: parseFloat(e.target.value) || 0 }))}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">€</span>
+              <span className="absolute right-2 bg-amber-500/10 text-amber-700 font-extrabold text-[11px] px-2 py-1 rounded-md select-none pointer-events-none border border-amber-500/20">EUR</span>
             </div>
           </div>
 
-          <div>
-            <label className="label font-semibold text-xs text-blue-700 flex items-center gap-1">
-              🌙 {getLabel("Night Driving Surcharge (€)", "Tarif de Noapte / Express (€)", "Nachttoeslag (€)", "Nachtzuschlag (€)", "Surcharge de nuit (€)", "Dopłata nocna (€)")}
+          <div className="space-y-1.5">
+            <label className="label font-bold text-xs text-blue-700 flex items-center gap-1.5">
+              🌙 {getLabel("Night Driving Surcharge", "Tarif de Noapte / Express", "Nachttoeslag", "Nachtzuschlag", "Surcharge de nuit", "Dopłata nocna")}
             </label>
-            <div className="relative">
+            <div className="relative flex items-center">
+              <span className="absolute left-3 text-blue-700 font-extrabold text-sm select-none pointer-events-none">€</span>
               <input
                 type="number"
-                className="input text-sm pr-7"
+                className="input text-sm pl-8 pr-14 font-bold text-text border-blue-500/30 focus:border-blue-500"
                 value={tariffs.nightSurchargeFee}
                 onChange={e => setTariffs(prev => ({ ...prev, nightSurchargeFee: parseFloat(e.target.value) || 0 }))}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">€</span>
+              <span className="absolute right-2 bg-blue-500/10 text-blue-700 font-extrabold text-[11px] px-2 py-1 rounded-md select-none pointer-events-none border border-blue-500/20">EUR</span>
             </div>
           </div>
 
-          <div>
-            <label className="label font-semibold text-xs text-emerald-700 flex items-center gap-1">
-              📅 {getLabel("Weekend Surcharge Fee (€)", "Tarif de Weekend (€)", "Weekendtoeslag (€)", "Wochenendzuschlag (€)", "Surcharge week-end (€)", "Dopłata weekendowa (€)")}
+          <div className="space-y-1.5">
+            <label className="label font-bold text-xs text-emerald-700 flex items-center gap-1.5">
+              📅 {getLabel("Weekend Surcharge Fee", "Tarif de Weekend", "Weekendtoeslag", "Wochenendzuschlag", "Surcharge week-end", "Dopłata weekendowa")}
             </label>
-            <div className="relative">
+            <div className="relative flex items-center">
+              <span className="absolute left-3 text-emerald-700 font-extrabold text-sm select-none pointer-events-none">€</span>
               <input
                 type="number"
-                className="input text-sm pr-7"
+                className="input text-sm pl-8 pr-14 font-bold text-text border-emerald-500/30 focus:border-emerald-500"
                 value={tariffs.weekendSurchargeFee}
                 onChange={e => setTariffs(prev => ({ ...prev, weekendSurchargeFee: parseFloat(e.target.value) || 0 }))}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">€</span>
+              <span className="absolute right-2 bg-emerald-500/10 text-emerald-700 font-extrabold text-[11px] px-2 py-1 rounded-md select-none pointer-events-none border border-emerald-500/20">EUR</span>
             </div>
           </div>
 
-          <div>
-            <label className="label font-semibold text-xs text-purple-700 flex items-center gap-1">
-              🏛️ {getLabel("Public / Bank Holiday Surcharge (€)", "Tarif Sărbători Legale (€)", "Toeslag Erkende Feestdagen (€)", "Zuschlag gesetzliche Feiertage (€)", "Majoration Jours Fériés (€)", "Dopłata za dni ustawowo wolne (€)")}
+          <div className="space-y-1.5">
+            <label className="label font-bold text-xs text-purple-700 flex items-center gap-1.5">
+              🏛️ {getLabel("Public / Bank Holiday Surcharge", "Tarif Sărbători Legale", "Toeslag Erkende Feestdagen", "Zuschlag gesetzliche Feiertage", "Majoration Jours Fériés", "Dopłata za dni ustawowo wolne")}
             </label>
-            <div className="relative">
+            <div className="relative flex items-center">
+              <span className="absolute left-3 text-purple-700 font-extrabold text-sm select-none pointer-events-none">€</span>
               <input
                 type="number"
-                className="input text-sm pr-7"
+                className="input text-sm pl-8 pr-14 font-bold text-text border-purple-500/30 focus:border-purple-500"
                 value={tariffs.holidaySurchargeFee}
                 onChange={e => setTariffs(prev => ({ ...prev, holidaySurchargeFee: parseFloat(e.target.value) || 0 }))}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">€</span>
+              <span className="absolute right-2 bg-purple-500/10 text-purple-700 font-extrabold text-[11px] px-2 py-1 rounded-md select-none pointer-events-none border border-purple-500/20">EUR</span>
             </div>
           </div>
         </div>

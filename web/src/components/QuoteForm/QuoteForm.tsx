@@ -105,8 +105,6 @@ const QuoteForm = () => {
   const { loadingDate, unloadingDate, adrSurcharge, nightSurcharge, weekendSurcharge, holidaySurcharge, distanceKm, cargoWeightKg, numberOfPallets, hasCalculation } = formData;
 
   useEffect(() => {
-    if (!hasCalculation && !distanceKm) return;
-
     let isWeekend = false;
     if (loadingDate) {
       const day = new Date(loadingDate).getDay();
@@ -143,13 +141,14 @@ const QuoteForm = () => {
       if (data.minEstimate && data.maxEstimate) {
         setFormData(prev => ({
           ...prev,
-          estimatedPrice: `€${data.minEstimate.toLocaleString()} – €${data.maxEstimate.toLocaleString()}`
+          estimatedPrice: `€${data.minEstimate.toLocaleString()} – €${data.maxEstimate.toLocaleString()}`,
+          hasCalculation: true
         }));
         setSurchargesApplied(data.surchargesApplied || null);
       }
     })
     .catch(err => console.error(err));
-  }, [loadingDate, unloadingDate, adrSurcharge, nightSurcharge, weekendSurcharge, holidaySurcharge, distanceKm, cargoWeightKg, numberOfPallets, hasCalculation]);
+  }, [loadingDate, unloadingDate, adrSurcharge, nightSurcharge, weekendSurcharge, holidaySurcharge, distanceKm, cargoWeightKg, numberOfPallets]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -236,7 +235,7 @@ const QuoteForm = () => {
   return (
     <div onClick={handleOutsideClick}>
       <form className={styles.formContainer} onSubmit={handleSubmit} onClick={(e) => e.stopPropagation()}>
-      {formData.hasCalculation && formData.estimatedPrice && (
+      {formData.estimatedPrice && (
         <div style={{ marginBottom: '2rem', padding: '1.25rem 1.5rem', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.15rem' }}>
             <span>⚡ {getLabel("Estimare de preț calculată:", "Estimated price calculated:", "Geschatte prijs berekend:", "Geschätzter Preis berechnet:", "Prix estimé calculé :", "Precio estimado calculado:")}</span>

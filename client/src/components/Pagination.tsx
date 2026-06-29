@@ -129,20 +129,20 @@ export default function Pagination({
   if (totalItems === 0) return null;
 
   return (
-    <div className={`flex flex-wrap items-center justify-center gap-8 p-4 bg-white border-t border-border rounded-b-2xl ${className}`}>
+    <div className={`flex flex-wrap items-center justify-center gap-6 py-3.5 px-6 bg-surface/80 border border-border rounded-2xl max-w-fit mx-auto my-4 shadow-sm ${className}`}>
       {/* Left side: Items per page dropdown */}
-      <div className="flex items-center gap-2.5">
-        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-extrabold text-text-secondary uppercase tracking-wider select-none">
           {tLocal('show')}:
         </span>
         <div className="relative" ref={dropdownRef}>
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center gap-2 px-3.5 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold text-xs rounded-xl border border-gray-200 transition-all shadow-sm"
+            className="flex items-center gap-2 px-3 py-1.5 bg-white hover:bg-gray-50 text-text font-extrabold text-xs rounded-xl border border-border transition-all shadow-sm"
           >
             <span>{currentOption.label}</span>
-            <ChevronDown className={`w-3.5 h-3.5 text-gray-600 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-4 h-4 text-primary transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {isOpen && (
@@ -158,8 +158,8 @@ export default function Pagination({
                   }}
                   className={`w-full text-left px-3 py-2 text-xs font-bold transition-colors flex items-center justify-between ${
                     itemsPerPage === opt.value
-                      ? 'bg-primary/10 text-primary border-l-2 border-primary'
-                      : 'text-gray-700 hover:bg-gray-50 border-l-2 border-transparent'
+                      ? 'bg-primary/15 text-primary border-l-4 border-primary font-extrabold'
+                      : 'text-gray-700 hover:bg-gray-50 border-l-4 border-transparent'
                   }`}
                 >
                   {opt.label}
@@ -168,39 +168,39 @@ export default function Pagination({
             </div>
           )}
         </div>
-        <span className="text-xs font-semibold text-gray-400 hidden sm:inline">
+        <span className="text-xs font-bold text-text-secondary hidden sm:inline select-none">
           ({totalItems} {tLocal('total')})
         </span>
       </div>
 
       {/* Right side: Page navigation */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <button
           type="button"
           onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className={`w-8 h-8 rounded-xl border transition-all flex items-center justify-center ${
+          className={`w-9 h-9 rounded-xl border transition-all flex items-center justify-center ${
             currentPage === 1
-              ? 'border-gray-200 text-gray-400 bg-gray-100 cursor-not-allowed opacity-70'
-              : 'border-gray-300 bg-white text-gray-700 hover:bg-primary hover:text-white hover:border-primary shadow-sm'
+              ? 'border-gray-200 text-gray-300 bg-gray-100 cursor-not-allowed opacity-50'
+              : 'border-gray-300 bg-white text-gray-900 hover:bg-primary hover:text-white hover:border-primary shadow-sm'
           }`}
           title={tLocal('previous')}
         >
-          <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
+          <ChevronLeft className="w-5 h-5 stroke-[3]" />
         </button>
 
         {getPageNumbers().map((pg, idx) => (
           <React.Fragment key={idx}>
             {typeof pg === 'string' ? (
-              <span className="px-1 text-gray-400 font-bold text-xs">{pg}</span>
+              <span className="px-1.5 text-gray-400 font-extrabold text-xs select-none">{pg}</span>
             ) : (
               <button
                 type="button"
                 onClick={() => onPageChange(pg)}
-                className={`min-w-[32px] h-8 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center ${
+                className={`min-w-[36px] h-9 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center ${
                   currentPage === pg
-                    ? 'bg-primary text-white shadow-md shadow-primary/30 border border-primary'
-                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900 shadow-sm'
+                    ? 'bg-primary text-white shadow-md shadow-primary/30 border border-primary font-black'
+                    : 'bg-white border border-gray-300 text-gray-800 hover:bg-gray-50 hover:text-gray-900 shadow-sm'
                 }`}
               >
                 {pg}
@@ -213,14 +213,14 @@ export default function Pagination({
           type="button"
           onClick={() => currentPage < totalPages && onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className={`w-8 h-8 rounded-xl border transition-all flex items-center justify-center ${
+          className={`w-9 h-9 rounded-xl border transition-all flex items-center justify-center ${
             currentPage === totalPages
-              ? 'border-gray-200 text-gray-400 bg-gray-100 cursor-not-allowed opacity-70'
-              : 'border-gray-300 bg-white text-gray-700 hover:bg-primary hover:text-white hover:border-primary shadow-sm'
+              ? 'border-gray-200 text-gray-300 bg-gray-100 cursor-not-allowed opacity-50'
+              : 'border-gray-300 bg-white text-gray-900 hover:bg-primary hover:text-white hover:border-primary shadow-sm'
           }`}
           title={tLocal('next')}
         >
-          <ChevronRight className="w-4 h-4 stroke-[2.5]" />
+          <ChevronRight className="w-5 h-5 stroke-[3]" />
         </button>
       </div>
     </div>

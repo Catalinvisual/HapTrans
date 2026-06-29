@@ -75,9 +75,11 @@ export class InvoicesService implements OnModuleInit {
     if (tripId) {
       try {
         const trip = await tripRepo.findOne({ where: { id: tripId } });
-        if (trip && trip.pickupAddress && trip.dropoffAddress) {
+        if (trip) {
           tripObj = trip;
-          routeDesc = `Transport: ${trip.pickupAddress.split(',')[0]} - ${trip.dropoffAddress.split(',')[0]}`;
+          if (trip.pickupAddress && trip.dropoffAddress) {
+            routeDesc = `Transport: ${trip.pickupAddress.split(',')[0]} - ${trip.dropoffAddress.split(',')[0]}`;
+          }
         }
       } catch (e) {
         console.error('Failed to fetch trip for route desc', e);
@@ -365,7 +367,11 @@ export class InvoicesService implements OnModuleInit {
 
     Object.assign(inv, payload);
 
-    if (inv.status === InvoiceStatus.DRAFT) {
+    // ONLY rebuild items if we are actually updating invoice data (like amount, items, tripId, etc.), NOT when just setting pdfUrl/status/metadata
+    const dataKeys = ['amount', 'fuelSurcharge', 'extraCosts', 'tollCosts', 'vatPercent', 'vatType', 'items', 'tripId', 'clientId', 'adrSurcharge', 'nightSurcharge', 'weekendSurcharge', 'holidaySurcharge'];
+    const hasDataChanges = Object.keys(dto).some(k => dataKeys.includes(k));
+
+    if (inv.status === InvoiceStatus.DRAFT && hasDataChanges) {
       // Delete old items
       await this.repo.manager.delete(InvoiceItem, { invoice: { id: inv.id } });
       
