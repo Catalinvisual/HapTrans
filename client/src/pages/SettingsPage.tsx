@@ -481,7 +481,7 @@ export default function SettingsPage() {
 
           <div>
             <label className="label font-semibold text-xs text-purple-700 flex items-center gap-1">
-              🏖️ {getLabel("Holiday Surcharge Fee (€)", "Tarif de Sărbători (€)", "Feestdagentoeslag (€)", "Feiertagszuschlag (€)", "Surcharge jours fériés (€)", "Dopłata świąteczna (€)")}
+              🏛️ {getLabel("Public / Bank Holiday Surcharge (€)", "Tarif Sărbători Legale (€)", "Toeslag Erkende Feestdagen (€)", "Zuschlag gesetzliche Feiertage (€)", "Majoration Jours Fériés (€)", "Dopłata za dni ustawowo wolne (€)")}
             </label>
             <div className="relative">
               <input

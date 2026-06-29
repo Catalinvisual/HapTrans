@@ -479,7 +479,7 @@ const QuoteForm = () => {
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
             <input type="checkbox" name="holidaySurcharge" checked={formData.holidaySurcharge} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)' }} />
-            🏖️ {getLabel("Transit Sărbători", "Holiday Transit", "Feestdagen Transit", "Feiertagstransit", "Transit Jours Fériés", "Tránsito en Festivos")}
+            🏛️ {getLabel("Transit Sărbători Legale", "Bank / Public Holiday Transit", "Transit Erkende Feestdagen", "Gesetzliche Feiertage", "Transit Jours Fériés", "Tránsito en Festivos Oficiales")}
           </label>
         </div>
       </div>

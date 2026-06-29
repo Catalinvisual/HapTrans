@@ -68,6 +68,19 @@ export default function InvoicesPage() {
           routeDesc = 'Transport: ' + mockTrip.pickupAddress.split(',')[0] + ' - ' + mockTrip.dropoffAddress.split(',')[0];
         }
 
+        let tariffs: any = {
+          adrSurchargeFee: 100,
+          nightSurchargeFee: 80,
+          weekendSurchargeFee: 150,
+          holidaySurchargeFee: 200
+        };
+        try {
+          const tRes = await api.get('/public/tariff-settings');
+          if (tRes.data && Object.keys(tRes.data).length > 0) {
+            tariffs = { ...tariffs, ...tRes.data };
+          }
+        } catch (e) { console.error(e); }
+
         const items = [];
         let subtotal = 0;
         const pN = (v: string | number) => Number(String(v).replace(',', '.')) || 0;
@@ -91,6 +104,27 @@ export default function InvoicesPage() {
         if (toll > 0) {
           items.push({ description: 'Road tolls / Toll charges', quantity: 1, unitPrice: toll, vatRate: isVat ? vatP : 0, total: toll });
           subtotal += toll;
+        }
+
+        if (mockTrip?.adrSurcharge) {
+           const fee = Number(tariffs.adrSurchargeFee) || 100;
+           items.push({ description: '⚠️ ADR Surcharge Fee', quantity: 1, unitPrice: fee, vatRate: isVat ? vatP : 0, total: fee });
+           subtotal += fee;
+        }
+        if (mockTrip?.nightSurcharge) {
+           const fee = Number(tariffs.nightSurchargeFee) || 80;
+           items.push({ description: '🌙 Night / Express Surcharge Fee', quantity: 1, unitPrice: fee, vatRate: isVat ? vatP : 0, total: fee });
+           subtotal += fee;
+        }
+        if (mockTrip?.weekendSurcharge) {
+           const fee = Number(tariffs.weekendSurchargeFee) || 150;
+           items.push({ description: '📅 Weekend Surcharge Fee', quantity: 1, unitPrice: fee, vatRate: isVat ? vatP : 0, total: fee });
+           subtotal += fee;
+        }
+        if (mockTrip?.holidaySurcharge) {
+           const fee = Number(tariffs.holidaySurchargeFee) || 200;
+           items.push({ description: '🏛️ Bank / Public Holiday Surcharge Fee', quantity: 1, unitPrice: fee, vatRate: isVat ? vatP : 0, total: fee });
+           subtotal += fee;
         }
 
         const extra = pN(form.extraCosts);

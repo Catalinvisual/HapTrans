@@ -40,18 +40,63 @@ export class InvoicesService implements OnModuleInit {
     const vatPercent = dto.vatPercent !== undefined ? Number(dto.vatPercent) : Number(inv.vatPercent || 19);
     const vatType = dto.vatType !== undefined ? dto.vatType : (inv.vatType || 'NORMAL');
 
+    if (dto.items && Array.isArray(dto.items) && dto.items.length > 0) {
+      const items = dto.items.map((it: any) => ({
+        description: it.description || 'Service',
+        quantity: Number(it.quantity) || 1,
+        unitPrice: Number(it.unitPrice) || 0,
+        vatRate: vatType === 'NORMAL' ? vatPercent : 0,
+        total: Number(it.total) || ((Number(it.quantity) || 1) * (Number(it.unitPrice) || 0))
+      }));
+      const subtotal = items.reduce((sum: number, it: any) => sum + it.total, 0);
+      let vatAmount = 0;
+      if (vatType === 'NORMAL') {
+        vatAmount = Number(((subtotal * vatPercent) / 100).toFixed(2));
+      }
+      const total = subtotal + vatAmount;
+      return {
+        amount: dto.amount !== undefined ? Number(dto.amount) : subtotal,
+        fuelSurcharge,
+        extraCosts,
+        tollCosts,
+        vatPercent,
+        vatType,
+        subtotal,
+        vatAmount,
+        total,
+        items
+      };
+    }
+
     // Get trip details for route description if tripId is provided
     let routeDesc = 'Road freight transport services';
     const tripId = dto.tripId !== undefined ? dto.tripId : (inv.trip ? inv.trip.id : null);
+    let tripObj: any = null;
     if (tripId) {
       try {
         const trip = await tripRepo.findOne({ where: { id: tripId } });
         if (trip && trip.pickupAddress && trip.dropoffAddress) {
+          tripObj = trip;
           routeDesc = `Transport: ${trip.pickupAddress.split(',')[0]} - ${trip.dropoffAddress.split(',')[0]}`;
         }
       } catch (e) {
         console.error('Failed to fetch trip for route desc', e);
       }
+    }
+
+    let tariffs: any = {
+      adrSurchargeFee: 100,
+      nightSurchargeFee: 80,
+      weekendSurchargeFee: 150,
+      holidaySurchargeFee: 200
+    };
+    try {
+      const res = await this.repo.manager.query("SELECT `value` FROM website_cms WHERE `key` = 'tariff_settings'");
+      if (res.length > 0 && res[0].value) {
+        tariffs = { ...tariffs, ...JSON.parse(res[0].value) };
+      }
+    } catch (e) {
+      console.error('Failed to load tariff settings in invoices service', e);
     }
 
     const items: any[] = [];
@@ -89,6 +134,54 @@ export class InvoicesService implements OnModuleInit {
         total: tollCosts
       });
       subtotal += tollCosts;
+    }
+
+    if (tripObj?.adrSurcharge || dto.adrSurcharge) {
+      const fee = Number(tariffs.adrSurchargeFee) || 100;
+      items.push({
+        description: `⚠️ ADR Surcharge Fee`,
+        quantity: 1,
+        unitPrice: fee,
+        vatRate: vatType === 'NORMAL' ? vatPercent : 0,
+        total: fee
+      });
+      subtotal += fee;
+    }
+
+    if (tripObj?.nightSurcharge || dto.nightSurcharge) {
+      const fee = Number(tariffs.nightSurchargeFee) || 80;
+      items.push({
+        description: `🌙 Night / Express Surcharge Fee`,
+        quantity: 1,
+        unitPrice: fee,
+        vatRate: vatType === 'NORMAL' ? vatPercent : 0,
+        total: fee
+      });
+      subtotal += fee;
+    }
+
+    if (tripObj?.weekendSurcharge || dto.weekendSurcharge) {
+      const fee = Number(tariffs.weekendSurchargeFee) || 150;
+      items.push({
+        description: `📅 Weekend Surcharge Fee`,
+        quantity: 1,
+        unitPrice: fee,
+        vatRate: vatType === 'NORMAL' ? vatPercent : 0,
+        total: fee
+      });
+      subtotal += fee;
+    }
+
+    if (tripObj?.holidaySurcharge || dto.holidaySurcharge) {
+      const fee = Number(tariffs.holidaySurchargeFee) || 200;
+      items.push({
+        description: `🏛️ Bank / Public Holiday Surcharge Fee`,
+        quantity: 1,
+        unitPrice: fee,
+        vatRate: vatType === 'NORMAL' ? vatPercent : 0,
+        total: fee
+      });
+      subtotal += fee;
     }
 
     if (extraCosts > 0) {
@@ -149,8 +242,8 @@ export class InvoicesService implements OnModuleInit {
     }
   }
 
-  findAll() { return this.repo.find({ relations: ['client', 'trip'] }); }
-  findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['client', 'trip'] }); }
+  findAll() { return this.repo.find({ relations: ['client', 'trip', 'items'] }); }
+  findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['client', 'trip', 'items'] }); }
 
   async create(dto: any) {
     const year = new Date().getFullYear();
@@ -314,6 +407,7 @@ export class InvoicesService implements OnModuleInit {
   getOverdue() {
     return this.repo.createQueryBuilder('inv')
       .leftJoinAndSelect('inv.client', 'client')
+      .leftJoinAndSelect('inv.items', 'items')
       .where('inv.status != :paid', { paid: InvoiceStatus.PAID })
       .andWhere('inv.dueDate < :now', { now: new Date() })
       .getMany();

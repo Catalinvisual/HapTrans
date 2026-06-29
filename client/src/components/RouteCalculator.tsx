@@ -221,7 +221,7 @@ export default function RouteCalculator({
                           {quoteResult.surchargesApplied.adr > 0 && <span>⚠️ ADR: +€{quoteResult.surchargesApplied.adr}</span>}
                           {quoteResult.surchargesApplied.night > 0 && <span>🌙 Noapte: +€{quoteResult.surchargesApplied.night}</span>}
                           {quoteResult.surchargesApplied.weekend > 0 && <span>📅 Weekend: +€{quoteResult.surchargesApplied.weekend}</span>}
-                          {quoteResult.surchargesApplied.holiday > 0 && <span>🏖️ Sărbători: +€{quoteResult.surchargesApplied.holiday}</span>}
+                          {quoteResult.surchargesApplied.holiday > 0 && <span>🏛️ {lang === 'ro' ? 'Sărbători Legale' : 'Bank/Public Holiday'}: +€{quoteResult.surchargesApplied.holiday}</span>}
                         </div>
                       </div>
                     )}

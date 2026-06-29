@@ -650,6 +650,19 @@ export default function TripsPage() {
       const basePrice = Number(trip.agreedPrice) || Number(trip.price) || 0;
       const vatPercent = 19;
       
+      let tariffs: any = {
+        adrSurchargeFee: 100,
+        nightSurchargeFee: 80,
+        weekendSurchargeFee: 150,
+        holidaySurchargeFee: 200
+      };
+      try {
+        const tRes = await api.get('/public/tariff-settings');
+        if (tRes.data && Object.keys(tRes.data).length > 0) {
+          tariffs = { ...tariffs, ...tRes.data };
+        }
+      } catch (e) { console.error(e); }
+
       const items = [];
       if (basePrice > 0) {
         items.push({
@@ -681,6 +694,47 @@ export default function TripsPage() {
            unitPrice: tollCosts,
            vatRate: vatPercent,
            total: tollCosts
+         });
+      }
+
+      if (trip.adrSurcharge) {
+         const fee = Number(tariffs.adrSurchargeFee) || 100;
+         items.push({
+           description: '⚠️ ADR Surcharge Fee',
+           quantity: 1,
+           unitPrice: fee,
+           vatRate: vatPercent,
+           total: fee
+         });
+      }
+      if (trip.nightSurcharge) {
+         const fee = Number(tariffs.nightSurchargeFee) || 80;
+         items.push({
+           description: '🌙 Night / Express Surcharge Fee',
+           quantity: 1,
+           unitPrice: fee,
+           vatRate: vatPercent,
+           total: fee
+         });
+      }
+      if (trip.weekendSurcharge) {
+         const fee = Number(tariffs.weekendSurchargeFee) || 150;
+         items.push({
+           description: '📅 Weekend Surcharge Fee',
+           quantity: 1,
+           unitPrice: fee,
+           vatRate: vatPercent,
+           total: fee
+         });
+      }
+      if (trip.holidaySurcharge) {
+         const fee = Number(tariffs.holidaySurchargeFee) || 200;
+         items.push({
+           description: '🏛️ Bank / Public Holiday Surcharge Fee',
+           quantity: 1,
+           unitPrice: fee,
+           vatRate: vatPercent,
+           total: fee
          });
       }
 
@@ -1188,15 +1242,35 @@ export default function TripsPage() {
             {/* Smart Tariffs & Surcharges (ADR, Night, Weekend, Holiday) */}
             <div className="border-t border-dashed border-border pt-4 md:col-span-2 lg:col-span-3">
               <span className="text-xs font-bold text-primary uppercase tracking-wider block mb-3">
-                {i18n.language === 'ro' ? 'Tarife Suplimentare & Condiții Speciale (Smart Surcharges)' : 'Special Surcharges & Conditions'}
+                {({
+                  ro: 'Tarife Suplimentare & Condiții Speciale (Smart Surcharges)',
+                  nl: 'Speciale Toeslagen & Voorwaarden',
+                  de: 'Spezielle Zuschläge & Bedingungen',
+                  fr: 'Suppléments et Conditions Spéciales',
+                  pl: 'Specjalne Dopłaty i Warunki'
+                }[i18n.language] || 'Special Surcharges & Conditions')}
               </span>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <label className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${form.adrSurcharge ? 'bg-amber-50/60 border-amber-400 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
                   <input type="checkbox" className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500" checked={form.adrSurcharge || false} onChange={e => setForm({...form, adrSurcharge: e.target.checked})} />
                   <div>
-                    <p className="font-bold text-xs text-amber-800 flex items-center gap-1">⚠️ ADR (Mărfuri Periculoase)</p>
+                    <p className="font-bold text-xs text-amber-800 flex items-center gap-1">
+                      {({
+                        ro: '⚠️ ADR (Mărfuri Periculoase)',
+                        nl: '⚠️ ADR (Gevaarlijke Stoffen)',
+                        de: '⚠️ ADR (Gefahrgut)',
+                        fr: '⚠️ ADR (Matières Dangereuses)',
+                        pl: '⚠️ ADR (Towary Niebezpieczne)'
+                      }[i18n.language] || '⚠️ ADR (Dangerous Goods)')}
+                    </p>
                     <p className="text-[10px] text-text-secondary leading-tight">
-                      {i18n.language === 'ro' ? 'Adaugă tariful fix de risc ADR setat în Settings' : 'Add flat ADR risk surcharge from Settings'}
+                      {({
+                        ro: 'Adaugă tariful fix de risc ADR setat în Settings',
+                        nl: 'Voeg vaste ADR-risicotoeslag toe vanuit Instellingen',
+                        de: 'Fügen Sie den festen ADR-Risikozuschlag aus den Einstellungen hinzu',
+                        fr: 'Ajouter le supplément fixe de risque ADR depuis les Paramètres',
+                        pl: 'Dodaj stałą dopłatę za ryzyko ADR z Ustawień'
+                      }[i18n.language] || 'Add flat ADR risk surcharge from Settings')}
                     </p>
                   </div>
                 </label>
@@ -1204,9 +1278,23 @@ export default function TripsPage() {
                 <label className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${form.nightSurcharge ? 'bg-blue-50/60 border-blue-400 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
                   <input type="checkbox" className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" checked={form.nightSurcharge || false} onChange={e => setForm({...form, nightSurcharge: e.target.checked})} />
                   <div>
-                    <p className="font-bold text-xs text-blue-800 flex items-center gap-1">🌙 Transit de Noapte / Express</p>
+                    <p className="font-bold text-xs text-blue-800 flex items-center gap-1">
+                      {({
+                        ro: '🌙 Tranzit de Noapte / Express',
+                        nl: '🌙 Nacht / Express Transport',
+                        de: '🌙 Nacht- / Express-Transit',
+                        fr: '🌙 Transit de Nuit / Express',
+                        pl: '🌙 Tranzyt Nocny / Ekspresowy'
+                      }[i18n.language] || '🌙 Night / Express Transit')}
+                    </p>
                     <p className="text-[10px] text-text-secondary leading-tight">
-                      {i18n.language === 'ro' ? 'Adaugă tariful de tranzit nocturn / express' : 'Add night transit / express surcharge'}
+                      {({
+                        ro: 'Adaugă tariful de tranzit nocturn / express',
+                        nl: 'Voeg nachttransport / express toeslag toe',
+                        de: 'Nachtfahrt- / Expresszuschlag hinzufügen',
+                        fr: 'Ajouter le supplément pour transit de nuit / express',
+                        pl: 'Dodaj dopłatę za tranzyt nocny / ekspresowy'
+                      }[i18n.language] || 'Add night transit / express surcharge')}
                     </p>
                   </div>
                 </label>
@@ -1214,9 +1302,23 @@ export default function TripsPage() {
                 <label className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${form.weekendSurcharge ? 'bg-emerald-50/60 border-emerald-400 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
                   <input type="checkbox" className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500" checked={form.weekendSurcharge || false} onChange={e => setForm({...form, weekendSurcharge: e.target.checked})} />
                   <div>
-                    <p className="font-bold text-xs text-emerald-800 flex items-center gap-1">📅 Transit de Weekend</p>
+                    <p className="font-bold text-xs text-emerald-800 flex items-center gap-1">
+                      {({
+                        ro: '📅 Tranzit de Weekend',
+                        nl: '📅 Weekend Transport',
+                        de: '📅 Wochenend-Transit',
+                        fr: '📅 Transit de Week-end',
+                        pl: '📅 Tranzyt Weekendowy'
+                      }[i18n.language] || '📅 Weekend Transit')}
+                    </p>
                     <p className="text-[10px] text-text-secondary leading-tight">
-                      {i18n.language === 'ro' ? 'Acoperă restricțiile și tarifele speciale de sâmbătă/duminică' : 'Cover Saturday/Sunday restrictions and permits'}
+                      {({
+                        ro: 'Acoperă restricțiile și tarifele speciale de sâmbătă/duminică',
+                        nl: 'Dekt zaterdag/zondag restricties en vergunningen',
+                        de: 'Abdeckung von Samstag/Sonntag-Beschränkungen und Genehmigungen',
+                        fr: 'Couvre les restrictions et permis du samedi/dimanche',
+                        pl: 'Pokrywa ograniczenia i zezwolenia na sobotę/niedzielę'
+                      }[i18n.language] || 'Cover Saturday/Sunday restrictions and permits')}
                     </p>
                   </div>
                 </label>
@@ -1224,9 +1326,23 @@ export default function TripsPage() {
                 <label className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${form.holidaySurcharge ? 'bg-purple-50/60 border-purple-400 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
                   <input type="checkbox" className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500" checked={form.holidaySurcharge || false} onChange={e => setForm({...form, holidaySurcharge: e.target.checked})} />
                   <div>
-                    <p className="font-bold text-xs text-purple-800 flex items-center gap-1">🏖️ Transit Sărbători Legale</p>
+                    <p className="font-bold text-xs text-purple-800 flex items-center gap-1">
+                      {({
+                        ro: '🏛️ Tranzit Sărbători Legale',
+                        nl: '🏛️ Feestdagen Transport',
+                        de: '🏛️ Feiertags-Transit',
+                        fr: '🏛️ Transit Jours Fériés',
+                        pl: '🏛️ Tranzyt w Święta'
+                      }[i18n.language] || '🏛️ Bank / Public Holiday Transit')}
+                    </p>
                     <p className="text-[10px] text-text-secondary leading-tight">
-                      {i18n.language === 'ro' ? 'Acoperă interdicțiile de sărbători legale și costul șoferului' : 'Cover public holiday driving bans and double pay'}
+                      {({
+                        ro: 'Acoperă interdicțiile de sărbători legale și costul șoferului',
+                        nl: 'Dekt rijverboden tijdens feestdagen en dubbele betaling',
+                        de: 'Abdeckung von Feiertagsfahrverboten und doppelter Bezahlung',
+                        fr: 'Couvre les interdictions de circuler les jours fériés et la double rémunération',
+                        pl: 'Pokrywa zakazy prowadzenia pojazdów w święta i podwójne wynagrodzenie'
+                      }[i18n.language] || 'Cover public holiday driving bans and double pay')}
                     </p>
                   </div>
                 </label>

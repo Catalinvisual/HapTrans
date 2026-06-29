@@ -446,7 +446,7 @@ const WebsiteQuotesPage = () => {
                         {quote.adrSurcharge && <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded border border-amber-200">⚠️ ADR</span>}
                         {quote.nightSurcharge && <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 rounded border border-blue-200">🌙 Noapte / Express</span>}
                         {quote.weekendSurcharge && <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded border border-emerald-200">📅 Weekend</span>}
-                        {quote.holidaySurcharge && <span className="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-0.5 rounded border border-purple-200">🏖️ Sărbători</span>}
+                        {quote.holidaySurcharge && <span className="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-0.5 rounded border border-purple-200">🏛️ Sărbători Legale</span>}
                         {quote.estimatedPrice && (
                           <span className="bg-green-100 text-green-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-green-200 flex items-center gap-1 shadow-sm">
                             ⚡ Calculator: {quote.estimatedPrice}
@@ -487,7 +487,7 @@ const WebsiteQuotesPage = () => {
                               {quote.adrSurcharge && <span className="bg-amber-100 text-amber-800 font-bold text-xs px-2.5 py-1 rounded-full border border-amber-300">⚠️ ADR (Mărfuri Periculoase)</span>}
                               {quote.nightSurcharge && <span className="bg-blue-100 text-blue-800 font-bold text-xs px-2.5 py-1 rounded-full border border-blue-300">🌙 Transit Noapte / Express</span>}
                               {quote.weekendSurcharge && <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-2.5 py-1 rounded-full border border-emerald-300">📅 Transit Weekend</span>}
-                              {quote.holidaySurcharge && <span className="bg-purple-100 text-purple-800 font-bold text-xs px-2.5 py-1 rounded-full border border-purple-300">🏖️ Transit Sărbători Legale</span>}
+                              {quote.holidaySurcharge && <span className="bg-purple-100 text-purple-800 font-bold text-xs px-2.5 py-1 rounded-full border border-purple-300">🏛️ Transit Sărbători Legale</span>}
                             </div>
                           </div>
                         )}
