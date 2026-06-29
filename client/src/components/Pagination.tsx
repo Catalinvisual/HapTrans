@@ -11,6 +11,65 @@ interface PaginationProps {
   className?: string;
 }
 
+const translations: Record<string, Record<string, string>> = {
+  ro: {
+    show: 'Afișează',
+    total: 'total',
+    previous: 'Pagina anterioară',
+    next: 'Pagina următoare',
+    pag: 'pag',
+    all: 'Toate',
+  },
+  en: {
+    show: 'Show',
+    total: 'total',
+    previous: 'Previous page',
+    next: 'Next page',
+    pag: 'page',
+    all: 'All',
+  },
+  nl: {
+    show: 'Toon',
+    total: 'totaal',
+    previous: 'Vorige pagina',
+    next: 'Volgende pagina',
+    pag: 'pag',
+    all: 'Alles',
+  },
+  de: {
+    show: 'Anzeigen',
+    total: 'Gesamt',
+    previous: 'Vorherige Seite',
+    next: 'Nächste Seite',
+    pag: 'Seite',
+    all: 'Alle',
+  },
+  fr: {
+    show: 'Afficher',
+    total: 'total',
+    previous: 'Page précédente',
+    next: 'Page suivante',
+    pag: 'page',
+    all: 'Tout',
+  },
+  es: {
+    show: 'Mostrar',
+    total: 'total',
+    previous: 'Página anterior',
+    next: 'Página siguiente',
+    pag: 'pág',
+    all: 'Todos',
+  },
+  pl: {
+    show: 'Pokaż',
+    total: 'razem',
+    previous: 'Poprzednia strona',
+    next: 'Następna strona',
+    pag: 'str',
+    all: 'Wszystkie',
+  },
+};
+
 export default function Pagination({
   currentPage,
   totalItems,
@@ -19,9 +78,12 @@ export default function Pagination({
   onItemsPerPageChange,
   className = '',
 }: PaginationProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const currentLang = i18n?.language?.substring(0, 2).toLowerCase() || 'ro';
+  const tLocal = (key: string) => translations[currentLang]?.[key] || translations['en'][key] || key;
 
   const totalPages = itemsPerPage === 999999 ? 1 : Math.ceil(totalItems / itemsPerPage) || 1;
 
@@ -36,11 +98,11 @@ export default function Pagination({
   }, []);
 
   const options = [
-    { value: 10, label: '10 / pag' },
-    { value: 25, label: '25 / pag' },
-    { value: 50, label: '50 / pag' },
-    { value: 100, label: '100 / pag' },
-    { value: 999999, label: 'All' },
+    { value: 10, label: `10 / ${tLocal('pag')}` },
+    { value: 25, label: `25 / ${tLocal('pag')}` },
+    { value: 50, label: `50 / ${tLocal('pag')}` },
+    { value: 100, label: `100 / ${tLocal('pag')}` },
+    { value: 999999, label: tLocal('all') },
   ];
 
   const currentOption = options.find(o => o.value === itemsPerPage) || options[0];
@@ -67,24 +129,24 @@ export default function Pagination({
   if (totalItems === 0) return null;
 
   return (
-    <div className={`flex flex-wrap items-center justify-between gap-4 p-4 bg-white border-t border-border rounded-b-2xl ${className}`}>
+    <div className={`flex flex-wrap items-center justify-center gap-8 p-4 bg-white border-t border-border rounded-b-2xl ${className}`}>
       {/* Left side: Items per page dropdown */}
-      <div className="flex items-center gap-3">
-        <span className="text-xs font-semibold text-text-secondary uppercase">
-          {t('show') || 'Afișează'}:
+      <div className="flex items-center gap-2.5">
+        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+          {tLocal('show')}:
         </span>
         <div className="relative" ref={dropdownRef}>
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-surface hover:bg-surface/80 text-text font-bold text-xs rounded-xl border border-border transition-all shadow-sm"
+            className="flex items-center gap-2 px-3.5 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold text-xs rounded-xl border border-gray-200 transition-all shadow-sm"
           >
             <span>{currentOption.label}</span>
-            <ChevronDown className={`w-3.5 h-3.5 text-text-secondary transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-3.5 h-3.5 text-gray-600 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {isOpen && (
-            <div className="absolute left-0 bottom-full mb-1 z-[50] w-28 bg-white border border-border rounded-xl shadow-xl overflow-hidden py-1 animate-fade-in">
+            <div className="absolute left-0 bottom-full mb-1 z-[50] w-28 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden py-1 animate-fade-in">
               {options.map(opt => (
                 <button
                   key={opt.value}
@@ -97,7 +159,7 @@ export default function Pagination({
                   className={`w-full text-left px-3 py-2 text-xs font-bold transition-colors flex items-center justify-between ${
                     itemsPerPage === opt.value
                       ? 'bg-primary/10 text-primary border-l-2 border-primary'
-                      : 'text-text hover:bg-surface border-l-2 border-transparent'
+                      : 'text-gray-700 hover:bg-gray-50 border-l-2 border-transparent'
                   }`}
                 >
                   {opt.label}
@@ -106,39 +168,39 @@ export default function Pagination({
             </div>
           )}
         </div>
-        <span className="text-xs font-medium text-text-secondary hidden sm:inline">
-          ({totalItems} {t('total') || 'total'})
+        <span className="text-xs font-semibold text-gray-400 hidden sm:inline">
+          ({totalItems} {tLocal('total')})
         </span>
       </div>
 
       {/* Right side: Page navigation */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className={`p-1.5 rounded-xl border transition-all flex items-center justify-center ${
+          className={`w-8 h-8 rounded-xl border transition-all flex items-center justify-center ${
             currentPage === 1
-              ? 'border-border/50 text-border bg-surface/30 cursor-not-allowed'
-              : 'border-border bg-white text-text-secondary hover:bg-surface hover:text-primary shadow-sm'
+              ? 'border-gray-200 text-gray-400 bg-gray-100 cursor-not-allowed opacity-70'
+              : 'border-gray-300 bg-white text-gray-700 hover:bg-primary hover:text-white hover:border-primary shadow-sm'
           }`}
-          title={t('previous') || 'Pagina anterioară'}
+          title={tLocal('previous')}
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
         </button>
 
         {getPageNumbers().map((pg, idx) => (
           <React.Fragment key={idx}>
             {typeof pg === 'string' ? (
-              <span className="px-1 text-text-secondary font-bold text-xs">{pg}</span>
+              <span className="px-1 text-gray-400 font-bold text-xs">{pg}</span>
             ) : (
               <button
                 type="button"
                 onClick={() => onPageChange(pg)}
-                className={`min-w-[28px] h-[28px] px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center ${
+                className={`min-w-[32px] h-8 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center ${
                   currentPage === pg
-                    ? 'bg-primary text-white shadow-md shadow-primary/20'
-                    : 'bg-white border border-border text-text-secondary hover:bg-surface hover:text-text shadow-sm'
+                    ? 'bg-primary text-white shadow-md shadow-primary/30 border border-primary'
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900 shadow-sm'
                 }`}
               >
                 {pg}
@@ -151,14 +213,14 @@ export default function Pagination({
           type="button"
           onClick={() => currentPage < totalPages && onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className={`p-1.5 rounded-xl border transition-all flex items-center justify-center ${
+          className={`w-8 h-8 rounded-xl border transition-all flex items-center justify-center ${
             currentPage === totalPages
-              ? 'border-border/50 text-border bg-surface/30 cursor-not-allowed'
-              : 'border-border bg-white text-text-secondary hover:bg-surface hover:text-primary shadow-sm'
+              ? 'border-gray-200 text-gray-400 bg-gray-100 cursor-not-allowed opacity-70'
+              : 'border-gray-300 bg-white text-gray-700 hover:bg-primary hover:text-white hover:border-primary shadow-sm'
           }`}
-          title={t('next') || 'Pagina următoare'}
+          title={tLocal('next')}
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-4 h-4 stroke-[2.5]" />
         </button>
       </div>
     </div>
