@@ -48,6 +48,10 @@ interface QuoteRequest {
   estimatedPrice?: string;
   distanceKm?: string;
   hasCalculation?: boolean;
+  adrSurcharge?: boolean;
+  nightSurcharge?: boolean;
+  weekendSurcharge?: boolean;
+  holidaySurcharge?: boolean;
   replies?: QuoteReply[];
 }
 
@@ -439,6 +443,10 @@ const WebsiteQuotesPage = () => {
                             {tLocal('urgent')}
                           </span>
                         )}
+                        {quote.adrSurcharge && <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded border border-amber-200">⚠️ ADR</span>}
+                        {quote.nightSurcharge && <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 rounded border border-blue-200">🌙 Noapte / Express</span>}
+                        {quote.weekendSurcharge && <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded border border-emerald-200">📅 Weekend</span>}
+                        {quote.holidaySurcharge && <span className="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-0.5 rounded border border-purple-200">🏖️ Sărbători</span>}
                         {quote.estimatedPrice && (
                           <span className="bg-green-100 text-green-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-green-200 flex items-center gap-1 shadow-sm">
                             ⚡ Calculator: {quote.estimatedPrice}
@@ -469,6 +477,17 @@ const WebsiteQuotesPage = () => {
                               <span className="font-bold uppercase text-xs text-green-700 tracking-wider block mb-1">⚡ Estimare preț prin calculatorul de pe site</span>
                               <span className="text-xl font-extrabold text-green-800">{quote.estimatedPrice}</span>
                               {quote.distanceKm && <span className="text-gray-600 ml-2 font-medium">(Distanță rută: {quote.distanceKm} km)</span>}
+                            </div>
+                          </div>
+                        )}
+                        {(quote.adrSurcharge || quote.nightSurcharge || quote.weekendSurcharge || quote.holidaySurcharge) && (
+                          <div className="p-4 bg-gray-100 rounded-xl border border-gray-200 mb-6 shadow-sm">
+                            <span className="font-bold uppercase text-xs text-gray-700 tracking-wider block mb-2">Opțiuni / Tarife Speciale Selectate</span>
+                            <div className="flex flex-wrap gap-2">
+                              {quote.adrSurcharge && <span className="bg-amber-100 text-amber-800 font-bold text-xs px-2.5 py-1 rounded-full border border-amber-300">⚠️ ADR (Mărfuri Periculoase)</span>}
+                              {quote.nightSurcharge && <span className="bg-blue-100 text-blue-800 font-bold text-xs px-2.5 py-1 rounded-full border border-blue-300">🌙 Transit Noapte / Express</span>}
+                              {quote.weekendSurcharge && <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-2.5 py-1 rounded-full border border-emerald-300">📅 Transit Weekend</span>}
+                              {quote.holidaySurcharge && <span className="bg-purple-100 text-purple-800 font-bold text-xs px-2.5 py-1 rounded-full border border-purple-300">🏖️ Transit Sărbători Legale</span>}
                             </div>
                           </div>
                         )}

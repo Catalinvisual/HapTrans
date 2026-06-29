@@ -278,178 +278,220 @@ export default function SettingsPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label className="label font-semibold text-xs">
-              {getLabel("Min price per km (€)", "Preț minim pe km (€)", "Min. prijs per km (€)", "Min. Preis pro km (€)", "Prix min par km (€)", "Min. cena za km (€)")}
+            <label className="label font-semibold text-xs flex items-center gap-1">
+              🛣️ {getLabel("Min price per km (€)", "Preț minim pe km (€)", "Min. prijs per km (€)", "Min. Preis pro km (€)", "Prix min par km (€)", "Min. cena za km (€)")}
             </label>
-            <input
-              type="number"
-              step="0.01"
-              className="input text-sm"
-              value={tariffs.minPricePerKm}
-              onChange={e => setTariffs(prev => ({ ...prev, minPricePerKm: parseFloat(e.target.value) || 0 }))}
-            />
+            <div className="relative">
+              <input
+                type="number"
+                step="0.01"
+                className="input text-sm pr-7"
+                value={tariffs.minPricePerKm}
+                onChange={e => setTariffs(prev => ({ ...prev, minPricePerKm: parseFloat(e.target.value) || 0 }))}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">€</span>
+            </div>
           </div>
 
           <div>
-            <label className="label font-semibold text-xs">
-              {getLabel("Minimum trip price (€)", "Preț minim per cursă (€)", "Minimale ritprijs (€)", "Mindestfahrtpreis (€)", "Prix min du trajet (€)", "Minimalna cena trasy (€)")}
+            <label className="label font-semibold text-xs flex items-center gap-1">
+              💶 {getLabel("Minimum trip price (€)", "Preț minim per cursă (€)", "Minimale ritprijs (€)", "Mindestfahrtpreis (€)", "Prix min du trajet (€)", "Minimalna cena trasy (€)")}
             </label>
-            <input
-              type="number"
-              className="input text-sm"
-              value={tariffs.minTripPrice}
-              onChange={e => setTariffs(prev => ({ ...prev, minTripPrice: parseFloat(e.target.value) || 0 }))}
-            />
+            <div className="relative">
+              <input
+                type="number"
+                className="input text-sm pr-7"
+                value={tariffs.minTripPrice}
+                onChange={e => setTariffs(prev => ({ ...prev, minTripPrice: parseFloat(e.target.value) || 0 }))}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">€</span>
+            </div>
           </div>
 
           <div>
-            <label className="label font-semibold text-xs">
-              {getLabel("Handling fee (€)", "Cost manipulare (€)", "Afhandelingskosten (€)", "Bearbeitungsgebühr (€)", "Frais de manutention (€)", "Opłata operacyjna (€)")}
+            <label className="label font-semibold text-xs flex items-center gap-1">
+              📦 {getLabel("Handling fee (€)", "Cost manipulare (€)", "Afhandelingskosten (€)", "Bearbeitungsgebühr (€)", "Frais de manutention (€)", "Opłata operacyjna (€)")}
             </label>
-            <input
-              type="number"
-              className="input text-sm"
-              value={tariffs.handlingFee}
-              onChange={e => setTariffs(prev => ({ ...prev, handlingFee: parseFloat(e.target.value) || 0 }))}
-            />
+            <div className="relative">
+              <input
+                type="number"
+                className="input text-sm pr-7"
+                value={tariffs.handlingFee}
+                onChange={e => setTariffs(prev => ({ ...prev, handlingFee: parseFloat(e.target.value) || 0 }))}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">€</span>
+            </div>
           </div>
 
           <div>
-            <label className="label font-semibold text-xs">
-              {getLabel("Fuel surcharge (%)", "Supliment combustibil (%)", "Brandstoftoeslag (%)", "Treibstoffzuschlag (%)", "Surcharge carburant (%)", "Dopłata paliwowa (%)")}
+            <label className="label font-semibold text-xs flex items-center gap-1">
+              ⛽ {getLabel("Fuel surcharge (%)", "Supliment combustibil (%)", "Brandstoftoeslag (%)", "Treibstoffzuschlag (%)", "Surcharge carburant (%)", "Dopłata paliwowa (%)")}
             </label>
-            <input
-              type="number"
-              className="input text-sm"
-              value={tariffs.fuelSurchargePercent}
-              onChange={e => setTariffs(prev => ({ ...prev, fuelSurchargePercent: parseFloat(e.target.value) || 0 }))}
-            />
+            <div className="relative">
+              <input
+                type="number"
+                className="input text-sm pr-7"
+                value={tariffs.fuelSurchargePercent}
+                onChange={e => setTariffs(prev => ({ ...prev, fuelSurchargePercent: parseFloat(e.target.value) || 0 }))}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">%</span>
+            </div>
           </div>
 
           <div>
-            <label className="label font-semibold text-xs">
-              {getLabel("Profit margin (%)", "Marjă de profit (%)", "Winstmarge (%)", "Gewinnmarge (%)", "Marge bénéficiaire (%)", "Marża zysku (%)")}
+            <label className="label font-semibold text-xs flex items-center gap-1">
+              📈 {getLabel("Profit margin (%)", "Marjă de profit (%)", "Winstmarge (%)", "Gewinnmarge (%)", "Marge bénéficiaire (%)", "Marża zysku (%)")}
             </label>
-            <input
-              type="number"
-              className="input text-sm"
-              value={tariffs.profitMarginPercent}
-              onChange={e => setTariffs(prev => ({ ...prev, profitMarginPercent: parseFloat(e.target.value) || 0 }))}
-            />
+            <div className="relative">
+              <input
+                type="number"
+                className="input text-sm pr-7"
+                value={tariffs.profitMarginPercent}
+                onChange={e => setTariffs(prev => ({ ...prev, profitMarginPercent: parseFloat(e.target.value) || 0 }))}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">%</span>
+            </div>
           </div>
 
           <div>
-            <label className="label font-semibold text-xs">
-              {getLabel("Weight surcharge (%)", "Spor greutate (%)", "Gewichtstoeslag (%)", "Gewichtszuschlag (%)", "Surcharge de poids (%)", "Dopłata za wagę (%)")}
+            <label className="label font-semibold text-xs flex items-center gap-1">
+              ⚖️ {getLabel("Weight surcharge (%)", "Spor greutate (%)", "Gewichtstoeslag (%)", "Gewichtszuschlag (%)", "Surcharge de poids (%)", "Dopłata za wagę (%)")}
             </label>
-            <input
-              type="number"
-              className="input text-sm"
-              value={tariffs.weightSurchargePercent}
-              onChange={e => setTariffs(prev => ({ ...prev, weightSurchargePercent: parseFloat(e.target.value) || 0 }))}
-            />
+            <div className="relative">
+              <input
+                type="number"
+                className="input text-sm pr-7"
+                value={tariffs.weightSurchargePercent}
+                onChange={e => setTariffs(prev => ({ ...prev, weightSurchargePercent: parseFloat(e.target.value) || 0 }))}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">%</span>
+            </div>
           </div>
 
           <div>
-            <label className="label font-semibold text-xs">
-              {getLabel("Weight threshold (kg)", "Prag greutate (kg)", "Gewichtsdrempel (kg)", "Gewichtsgrenze (kg)", "Seuil de poids (kg)", "Próg wagi (kg)")}
+            <label className="label font-semibold text-xs flex items-center gap-1">
+              🚛 {getLabel("Weight threshold (kg)", "Prag greutate (kg)", "Gewichtsdrempel (kg)", "Gewichtsgrenze (kg)", "Seuil de poids (kg)", "Próg wagi (kg)")}
             </label>
-            <input
-              type="number"
-              className="input text-sm"
-              value={tariffs.weightThresholdKg}
-              onChange={e => setTariffs(prev => ({ ...prev, weightThresholdKg: parseFloat(e.target.value) || 0 }))}
-            />
+            <div className="relative">
+              <input
+                type="number"
+                className="input text-sm pr-8"
+                value={tariffs.weightThresholdKg}
+                onChange={e => setTariffs(prev => ({ ...prev, weightThresholdKg: parseFloat(e.target.value) || 0 }))}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">kg</span>
+            </div>
           </div>
 
           <div>
-            <label className="label font-semibold text-xs">
-              {getLabel("0-5 pallets rate modifier (%) (e.g. 60)", "Modificator tarif 0-5 paleți (%) (ex: 60)", "0-5 pallets tarief modifier (%) (bijv. 60)", "0-5 Paletten-Tarif Modifikator (%) (z.B. 60)", "Modificateur tarif 0-5 palettes (%) (ex: 60)", "Mnożnik stawki 0-5 palet (%) (np. 60)")}
+            <label className="label font-semibold text-xs flex items-center gap-1">
+              🥉 {getLabel("0-5 pallets rate modifier (%) (e.g. 60)", "Modificator tarif 0-5 paleți (%) (ex: 60)", "0-5 pallets tarief modifier (%) (bijv. 60)", "0-5 Paletten-Tarif Modifikator (%) (z.B. 60)", "Modificateur tarif 0-5 palettes (%) (ex: 60)", "Mnożnik stawki 0-5 palet (%) (np. 60)")}
             </label>
-            <input
-              type="number"
-              step="1"
-              className="input text-sm"
-              placeholder="60"
-              value={tariffs.palletFactorSmall}
-              onChange={e => setTariffs(prev => ({ ...prev, palletFactorSmall: parseFloat(e.target.value) || 0 }))}
-            />
+            <div className="relative">
+              <input
+                type="number"
+                step="1"
+                className="input text-sm pr-7"
+                placeholder="60"
+                value={tariffs.palletFactorSmall}
+                onChange={e => setTariffs(prev => ({ ...prev, palletFactorSmall: parseFloat(e.target.value) || 0 }))}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">%</span>
+            </div>
           </div>
 
           <div>
-            <label className="label font-semibold text-xs">
-              {getLabel("6-15 pallets rate modifier (%) (e.g. 85)", "Modificator tarif 6-15 paleți (%) (ex: 85)", "6-15 pallets tarief modifier (%) (bijv. 85)", "6-15 Paletten-Tarif Modifikator (%) (z.B. 85)", "Modificateur tarif 6-15 palettes (%) (ex: 85)", "Mnożnik stawki 6-15 palet (%) (np. 85)")}
+            <label className="label font-semibold text-xs flex items-center gap-1">
+              🥈 {getLabel("6-15 pallets rate modifier (%) (e.g. 85)", "Modificator tarif 6-15 paleți (%) (ex: 85)", "6-15 pallets tarief modifier (%) (bijv. 85)", "6-15 Paletten-Tarif Modifikator (%) (z.B. 85)", "Modificateur tarif 6-15 palettes (%) (ex: 85)", "Mnożnik stawki 6-15 palet (%) (np. 85)")}
             </label>
-            <input
-              type="number"
-              step="1"
-              className="input text-sm"
-              placeholder="85"
-              value={tariffs.palletFactorMedium}
-              onChange={e => setTariffs(prev => ({ ...prev, palletFactorMedium: parseFloat(e.target.value) || 0 }))}
-            />
+            <div className="relative">
+              <input
+                type="number"
+                step="1"
+                className="input text-sm pr-7"
+                placeholder="85"
+                value={tariffs.palletFactorMedium}
+                onChange={e => setTariffs(prev => ({ ...prev, palletFactorMedium: parseFloat(e.target.value) || 0 }))}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">%</span>
+            </div>
           </div>
 
           <div>
-            <label className="label font-semibold text-xs">
-              {getLabel("16-33 pallets rate modifier (%) (e.g. 100)", "Modificator tarif 16-33 paleți (%) (ex: 100)", "16-33 pallets tarief modifier (%) (bijv. 100)", "16-33 Paletten-Tarif Modifikator (%) (z.B. 100)", "Modificateur tarif 16-33 palettes (%) (ex: 100)", "Mnożnik stawki 16-33 palet (%) (np. 100)")}
+            <label className="label font-semibold text-xs flex items-center gap-1">
+              🥇 {getLabel("16-33 pallets rate modifier (%) (e.g. 100)", "Modificator tarif 16-33 paleți (%) (ex: 100)", "16-33 pallets tarief modifier (%) (bijv. 100)", "16-33 Paletten-Tarif Modifikator (%) (z.B. 100)", "Modificateur tarif 16-33 palettes (%) (ex: 100)", "Mnożnik stawki 16-33 palet (%) (np. 100)")}
             </label>
-            <input
-              type="number"
-              step="1"
-              className="input text-sm"
-              placeholder="100"
-              value={tariffs.palletFactorFull}
-              onChange={e => setTariffs(prev => ({ ...prev, palletFactorFull: parseFloat(e.target.value) || 0 }))}
-            />
+            <div className="relative">
+              <input
+                type="number"
+                step="1"
+                className="input text-sm pr-7"
+                placeholder="100"
+                value={tariffs.palletFactorFull}
+                onChange={e => setTariffs(prev => ({ ...prev, palletFactorFull: parseFloat(e.target.value) || 0 }))}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">%</span>
+            </div>
           </div>
 
           <div>
             <label className="label font-semibold text-xs text-amber-700 flex items-center gap-1">
               ⚠️ {getLabel("ADR Surcharge Fee (€)", "Tarif Suplimentar ADR (€)", "ADR Toeslag (€)", "ADR Zuschlag (€)", "Surcharge ADR (€)", "Dopłata ADR (€)")}
             </label>
-            <input
-              type="number"
-              className="input text-sm"
-              value={tariffs.adrSurchargeFee}
-              onChange={e => setTariffs(prev => ({ ...prev, adrSurchargeFee: parseFloat(e.target.value) || 0 }))}
-            />
+            <div className="relative">
+              <input
+                type="number"
+                className="input text-sm pr-7"
+                value={tariffs.adrSurchargeFee}
+                onChange={e => setTariffs(prev => ({ ...prev, adrSurchargeFee: parseFloat(e.target.value) || 0 }))}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">€</span>
+            </div>
           </div>
 
           <div>
             <label className="label font-semibold text-xs text-blue-700 flex items-center gap-1">
               🌙 {getLabel("Night Driving Surcharge (€)", "Tarif de Noapte / Express (€)", "Nachttoeslag (€)", "Nachtzuschlag (€)", "Surcharge de nuit (€)", "Dopłata nocna (€)")}
             </label>
-            <input
-              type="number"
-              className="input text-sm"
-              value={tariffs.nightSurchargeFee}
-              onChange={e => setTariffs(prev => ({ ...prev, nightSurchargeFee: parseFloat(e.target.value) || 0 }))}
-            />
+            <div className="relative">
+              <input
+                type="number"
+                className="input text-sm pr-7"
+                value={tariffs.nightSurchargeFee}
+                onChange={e => setTariffs(prev => ({ ...prev, nightSurchargeFee: parseFloat(e.target.value) || 0 }))}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">€</span>
+            </div>
           </div>
 
           <div>
             <label className="label font-semibold text-xs text-emerald-700 flex items-center gap-1">
               📅 {getLabel("Weekend Surcharge Fee (€)", "Tarif de Weekend (€)", "Weekendtoeslag (€)", "Wochenendzuschlag (€)", "Surcharge week-end (€)", "Dopłata weekendowa (€)")}
             </label>
-            <input
-              type="number"
-              className="input text-sm"
-              value={tariffs.weekendSurchargeFee}
-              onChange={e => setTariffs(prev => ({ ...prev, weekendSurchargeFee: parseFloat(e.target.value) || 0 }))}
-            />
+            <div className="relative">
+              <input
+                type="number"
+                className="input text-sm pr-7"
+                value={tariffs.weekendSurchargeFee}
+                onChange={e => setTariffs(prev => ({ ...prev, weekendSurchargeFee: parseFloat(e.target.value) || 0 }))}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">€</span>
+            </div>
           </div>
 
           <div>
             <label className="label font-semibold text-xs text-purple-700 flex items-center gap-1">
               🏖️ {getLabel("Holiday Surcharge Fee (€)", "Tarif de Sărbători (€)", "Feestdagentoeslag (€)", "Feiertagszuschlag (€)", "Surcharge jours fériés (€)", "Dopłata świąteczna (€)")}
             </label>
-            <input
-              type="number"
-              className="input text-sm"
-              value={tariffs.holidaySurchargeFee}
-              onChange={e => setTariffs(prev => ({ ...prev, holidaySurchargeFee: parseFloat(e.target.value) || 0 }))}
-            />
+            <div className="relative">
+              <input
+                type="number"
+                className="input text-sm pr-7"
+                value={tariffs.holidaySurchargeFee}
+                onChange={e => setTariffs(prev => ({ ...prev, holidaySurchargeFee: parseFloat(e.target.value) || 0 }))}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary font-bold text-xs select-none pointer-events-none">€</span>
+            </div>
           </div>
         </div>
       </div>

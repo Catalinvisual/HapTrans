@@ -25,6 +25,14 @@ export class QuotesController {
       data.hasCalculation = false;
     }
 
+    ['adrSurcharge', 'nightSurcharge', 'weekendSurcharge', 'holidaySurcharge'].forEach(field => {
+      if (data[field] === 'true' || data[field] === true) {
+        data[field] = true;
+      } else {
+        data[field] = false;
+      }
+    });
+
     if (file) {
       const f = file as any;
       data.attachmentUrl = f.secure_url || f.path;

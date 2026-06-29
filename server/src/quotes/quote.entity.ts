@@ -84,6 +84,18 @@ export class QuoteRequest {
   @Column({ default: false })
   hasCalculation: boolean;
 
+  @Column({ type: 'boolean', default: false, nullable: true })
+  adrSurcharge: boolean;
+
+  @Column({ type: 'boolean', default: false, nullable: true })
+  nightSurcharge: boolean;
+
+  @Column({ type: 'boolean', default: false, nullable: true })
+  weekendSurcharge: boolean;
+
+  @Column({ type: 'boolean', default: false, nullable: true })
+  holidaySurcharge: boolean;
+
   @Column({ type: 'enum', enum: QuoteStatus, default: QuoteStatus.NEW })
   status: QuoteStatus;
 
