@@ -141,7 +141,7 @@ export class InvoicesService implements OnModuleInit {
     if (tripObj?.adrSurcharge || dto.adrSurcharge) {
       const fee = Number(tariffs.adrSurchargeFee) || 100;
       items.push({
-        description: `⚠️ ADR Surcharge Fee`,
+        description: `ADR Surcharge Fee`,
         quantity: 1,
         unitPrice: fee,
         vatRate: vatType === 'NORMAL' ? vatPercent : 0,
@@ -153,7 +153,7 @@ export class InvoicesService implements OnModuleInit {
     if (tripObj?.nightSurcharge || dto.nightSurcharge) {
       const fee = Number(tariffs.nightSurchargeFee) || 80;
       items.push({
-        description: `🌙 Night / Express Surcharge Fee`,
+        description: `Night / Express Surcharge Fee`,
         quantity: 1,
         unitPrice: fee,
         vatRate: vatType === 'NORMAL' ? vatPercent : 0,
@@ -165,7 +165,7 @@ export class InvoicesService implements OnModuleInit {
     if (tripObj?.weekendSurcharge || dto.weekendSurcharge) {
       const fee = Number(tariffs.weekendSurchargeFee) || 150;
       items.push({
-        description: `📅 Weekend Surcharge Fee`,
+        description: `Weekend Surcharge Fee`,
         quantity: 1,
         unitPrice: fee,
         vatRate: vatType === 'NORMAL' ? vatPercent : 0,
@@ -177,7 +177,7 @@ export class InvoicesService implements OnModuleInit {
     if (tripObj?.holidaySurcharge || dto.holidaySurcharge) {
       const fee = Number(tariffs.holidaySurchargeFee) || 200;
       items.push({
-        description: `🏛️ Bank / Public Holiday Surcharge Fee`,
+        description: `Bank / Public Holiday Surcharge Fee`,
         quantity: 1,
         unitPrice: fee,
         vatRate: vatType === 'NORMAL' ? vatPercent : 0,
