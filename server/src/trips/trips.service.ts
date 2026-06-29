@@ -137,6 +137,10 @@ export class TripsService {
       dropoffLat,
       dropoffLng,
       etaSource: 'planned',
+      adrSurcharge: dto.adrSurcharge ?? false,
+      nightSurcharge: dto.nightSurcharge ?? false,
+      weekendSurcharge: dto.weekendSurcharge ?? false,
+      holidaySurcharge: dto.holidaySurcharge ?? false,
     };
 
     const trip: Trip = this.repo.create(tripPayload) as any;
@@ -220,6 +224,10 @@ export class TripsService {
     if (dto.fuelSurchargePercent !== undefined) updateData.fuelSurchargePercent = dto.fuelSurchargePercent ?? 0;
     if (dto.tollCosts !== undefined) updateData.tollCosts = dto.tollCosts ?? 0;
     if (dto.extraCosts !== undefined) updateData.extraCosts = dto.extraCosts ?? 0;
+    if (dto.adrSurcharge !== undefined) updateData.adrSurcharge = dto.adrSurcharge ?? false;
+    if (dto.nightSurcharge !== undefined) updateData.nightSurcharge = dto.nightSurcharge ?? false;
+    if (dto.weekendSurcharge !== undefined) updateData.weekendSurcharge = dto.weekendSurcharge ?? false;
+    if (dto.holidaySurcharge !== undefined) updateData.holidaySurcharge = dto.holidaySurcharge ?? false;
     
     // Reset delayed risk if manually changed
     if (dto.appointmentTo !== undefined || dto.dropoffDate !== undefined) {

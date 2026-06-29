@@ -17,6 +17,10 @@ interface Props {
   dropoffAddress: string;
   weightKg?: number;
   pallets?: number;
+  adr?: boolean;
+  nightSurcharge?: boolean;
+  weekendSurcharge?: boolean;
+  holidaySurcharge?: boolean;
   onApply: (result: { distanceKm: number; estimatedCost?: number; recommendedPrice?: number }) => void;
   dieselPricePerL?: number;
   avgConsumptionL100?: number;
@@ -27,6 +31,10 @@ export default function RouteCalculator({
   dropoffAddress,
   weightKg,
   pallets,
+  adr,
+  nightSurcharge,
+  weekendSurcharge,
+  holidaySurcharge,
   onApply,
   dieselPricePerL = 1.68,
   avgConsumptionL100 = 32,
@@ -65,7 +73,11 @@ export default function RouteCalculator({
           const qRes = await api.post('/public/calculate-quote', {
             distanceKm: res.data.distanceKm,
             weightKg: weightKg || 5000,
-            pallets: pallets || 10
+            pallets: pallets || 10,
+            adr,
+            nightSurcharge,
+            weekendSurcharge,
+            holidaySurcharge
           });
           if (qRes.data?.success) {
             setQuoteResult(qRes.data);
@@ -202,6 +214,17 @@ export default function RouteCalculator({
                         €{quoteResult.minEstimate} — €{quoteResult.maxEstimate}
                       </span>
                     </div>
+                    {quoteResult.surchargesApplied && (quoteResult.surchargesApplied.adr > 0 || quoteResult.surchargesApplied.night > 0 || quoteResult.surchargesApplied.weekend > 0 || quoteResult.surchargesApplied.holiday > 0) && (
+                      <div className="px-3 py-2 bg-amber-50/50 text-[11px] text-amber-900 flex flex-wrap gap-x-4 gap-y-1 justify-between items-center border-y border-amber-100">
+                        <span className="font-bold uppercase tracking-wider text-amber-800">{lang === 'ro' ? 'Tarife Suplimentare Aplicate:' : 'Applied Surcharges:'}</span>
+                        <div className="flex items-center gap-3 font-semibold">
+                          {quoteResult.surchargesApplied.adr > 0 && <span>⚠️ ADR: +€{quoteResult.surchargesApplied.adr}</span>}
+                          {quoteResult.surchargesApplied.night > 0 && <span>🌙 Noapte: +€{quoteResult.surchargesApplied.night}</span>}
+                          {quoteResult.surchargesApplied.weekend > 0 && <span>📅 Weekend: +€{quoteResult.surchargesApplied.weekend}</span>}
+                          {quoteResult.surchargesApplied.holiday > 0 && <span>🏖️ Sărbători: +€{quoteResult.surchargesApplied.holiday}</span>}
+                        </div>
+                      </div>
+                    )}
                     <div className="px-3 py-2.5 flex justify-between items-center bg-emerald-500/10">
                       <span className="text-xs font-bold text-emerald-700 uppercase">
                         {lang === 'ro' ? 'PREȚ DE BAZĂ RECOMANDAT' : 'RECOMMENDED BASE PRICE'}

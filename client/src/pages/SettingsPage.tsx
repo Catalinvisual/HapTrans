@@ -56,7 +56,11 @@ export default function SettingsPage() {
     weightThresholdKg: 20000,
     palletFactorSmall: 60,
     palletFactorMedium: 85,
-    palletFactorFull: 100
+    palletFactorFull: 100,
+    adrSurchargeFee: 100,
+    nightSurchargeFee: 80,
+    weekendSurchargeFee: 150,
+    holidaySurchargeFee: 200
   });
 
   const getLabel = (enText: string, roText: string, nlText: string, deText: string, frText: string, plText: string) => {
@@ -397,6 +401,54 @@ export default function SettingsPage() {
               placeholder="100"
               value={tariffs.palletFactorFull}
               onChange={e => setTariffs(prev => ({ ...prev, palletFactorFull: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+
+          <div>
+            <label className="label font-semibold text-xs text-amber-700 flex items-center gap-1">
+              ⚠️ {getLabel("ADR Surcharge Fee (€)", "Tarif Suplimentar ADR (€)", "ADR Toeslag (€)", "ADR Zuschlag (€)", "Surcharge ADR (€)", "Dopłata ADR (€)")}
+            </label>
+            <input
+              type="number"
+              className="input text-sm"
+              value={tariffs.adrSurchargeFee}
+              onChange={e => setTariffs(prev => ({ ...prev, adrSurchargeFee: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+
+          <div>
+            <label className="label font-semibold text-xs text-blue-700 flex items-center gap-1">
+              🌙 {getLabel("Night Driving Surcharge (€)", "Tarif de Noapte / Express (€)", "Nachttoeslag (€)", "Nachtzuschlag (€)", "Surcharge de nuit (€)", "Dopłata nocna (€)")}
+            </label>
+            <input
+              type="number"
+              className="input text-sm"
+              value={tariffs.nightSurchargeFee}
+              onChange={e => setTariffs(prev => ({ ...prev, nightSurchargeFee: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+
+          <div>
+            <label className="label font-semibold text-xs text-emerald-700 flex items-center gap-1">
+              📅 {getLabel("Weekend Surcharge Fee (€)", "Tarif de Weekend (€)", "Weekendtoeslag (€)", "Wochenendzuschlag (€)", "Surcharge week-end (€)", "Dopłata weekendowa (€)")}
+            </label>
+            <input
+              type="number"
+              className="input text-sm"
+              value={tariffs.weekendSurchargeFee}
+              onChange={e => setTariffs(prev => ({ ...prev, weekendSurchargeFee: parseFloat(e.target.value) || 0 }))}
+            />
+          </div>
+
+          <div>
+            <label className="label font-semibold text-xs text-purple-700 flex items-center gap-1">
+              🏖️ {getLabel("Holiday Surcharge Fee (€)", "Tarif de Sărbători (€)", "Feestdagentoeslag (€)", "Feiertagszuschlag (€)", "Surcharge jours fériés (€)", "Dopłata świąteczna (€)")}
+            </label>
+            <input
+              type="number"
+              className="input text-sm"
+              value={tariffs.holidaySurchargeFee}
+              onChange={e => setTariffs(prev => ({ ...prev, holidaySurchargeFee: parseFloat(e.target.value) || 0 }))}
             />
           </div>
         </div>

@@ -159,5 +159,21 @@ export class CreateTripDto {
   etaUpdateSent?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  adrSurcharge?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  nightSurcharge?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  weekendSurcharge?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  holidaySurcharge?: boolean;
+
+  @IsOptional()
   company?: any;
 }

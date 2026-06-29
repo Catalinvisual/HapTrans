@@ -169,6 +169,18 @@ export class Trip {
   @Column({ type: 'boolean', default: false })
   delayedRiskEmailSent: boolean;
 
+  @Column({ type: 'boolean', default: false, nullable: true })
+  adrSurcharge: boolean;
+
+  @Column({ type: 'boolean', default: false, nullable: true })
+  nightSurcharge: boolean;
+
+  @Column({ type: 'boolean', default: false, nullable: true })
+  weekendSurcharge: boolean;
+
+  @Column({ type: 'boolean', default: false, nullable: true })
+  holidaySurcharge: boolean;
+
   @OneToMany(() => TripCost, (cost) => cost.trip, { eager: true })
   costs: TripCost[];
 

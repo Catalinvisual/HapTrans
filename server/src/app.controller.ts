@@ -188,7 +188,11 @@ export class AppController {
         weightThresholdKg: 20000,
         palletFactorSmall: 60,
         palletFactorMedium: 85,
-        palletFactorFull: 100
+        palletFactorFull: 100,
+        adrSurchargeFee: 100,
+        nightSurchargeFee: 80,
+        weekendSurchargeFee: 150,
+        holidaySurchargeFee: 200
       };
     } catch (e) {
       return { error: e.toString() };
@@ -196,7 +200,7 @@ export class AppController {
   }
 
   @Post('public/calculate-quote')
-  async calculateQuote(@Body() body: { distanceKm?: number; weightKg?: number; pallets?: number }) {
+  async calculateQuote(@Body() body: { distanceKm?: number; weightKg?: number; pallets?: number; adr?: boolean; nightSurcharge?: boolean; weekendSurcharge?: boolean; holidaySurcharge?: boolean }) {
     try {
       const settings = await this.getTariffSettings();
       const dist = body.distanceKm || 500;
@@ -213,6 +217,11 @@ export class AppController {
       let palletFactorSmall = Number(settings.palletFactorSmall) || 60;
       let palletFactorMedium = Number(settings.palletFactorMedium) || 85;
       let palletFactorFull = Number(settings.palletFactorFull) || 100;
+
+      const adrSurchargeFee = Number(settings.adrSurchargeFee) || 100;
+      const nightSurchargeFee = Number(settings.nightSurchargeFee) || 80;
+      const weekendSurchargeFee = Number(settings.weekendSurchargeFee) || 150;
+      const holidaySurchargeFee = Number(settings.holidaySurchargeFee) || 200;
 
       // If user entered as percentage (e.g. 60, 85, 100), convert to multiplier (0.6, 0.85, 1.0). If they entered 0.6, keep it.
       if (palletFactorSmall > 2) palletFactorSmall /= 100;
@@ -236,6 +245,16 @@ export class AppController {
 
       // Handling fee
       basePrice += handlingFee;
+
+      let adrCost = 0;
+      let nightCost = 0;
+      let weekendCost = 0;
+      let holidayCost = 0;
+
+      if (body.adr) { adrCost = adrSurchargeFee; basePrice += adrCost; }
+      if (body.nightSurcharge) { nightCost = nightSurchargeFee; basePrice += nightCost; }
+      if (body.weekendSurcharge) { weekendCost = weekendSurchargeFee; basePrice += weekendCost; }
+      if (body.holidaySurcharge) { holidayCost = holidaySurchargeFee; basePrice += holidayCost; }
 
       // Weight surcharge
       if (weight > weightThresholdKg) {
@@ -262,6 +281,12 @@ export class AppController {
           distanceKm: dist,
           weightKg: weight,
           pallets: pallets
+        },
+        surchargesApplied: {
+          adr: adrCost,
+          night: nightCost,
+          weekend: weekendCost,
+          holiday: holidayCost
         }
       };
     } catch (e) {

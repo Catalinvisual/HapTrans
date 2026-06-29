@@ -74,7 +74,8 @@ export default function TripsPage() {
     pickupDate: '', dropoffDate: '', price: '', estimatedCost: '', realCost: '', distanceKm: '', notes: '',
     pickupTime: '', dropoffTime: '', pallets: '', palletType: '', weightKg: '', volumeCbm: '',
     loadingReference: '', unloadingReference: '', cmrReference: '', status: 'pending',
-    clientRateId: '', agreedPrice: '', fuelSurchargePercent: '', tollCosts: '', extraCosts: '', tollIncluded: false
+    clientRateId: '', agreedPrice: '', fuelSurchargePercent: '', tollCosts: '', extraCosts: '', tollIncluded: false,
+    adrSurcharge: false, nightSurcharge: false, weekendSurcharge: false, holidaySurcharge: false
   });
 
   useEffect(() => {
@@ -463,7 +464,8 @@ export default function TripsPage() {
           clientId:'', truckId:'', driverId:'', pickupAddress:'', dropoffAddress:'', 
           pickupDate:'', dropoffDate:'', price:'', estimatedCost:'', realCost:'', distanceKm:'', notes:'',
           pickupTime: '', dropoffTime: '', pallets: '', weightKg: '', volumeCbm: '',
-          loadingReference: '', unloadingReference: '', cmrReference: '', palletType: 'Euro paleti'
+          loadingReference: '', unloadingReference: '', cmrReference: '', palletType: 'Euro paleti',
+          adrSurcharge: false, nightSurcharge: false, weekendSurcharge: false, holidaySurcharge: false
         });
         load();
       } catch (err: any) {
@@ -801,6 +803,10 @@ export default function TripsPage() {
       fuelSurchargePercent: trip.fuelSurchargePercent ?? '',
       tollCosts: trip.tollCosts ?? '',
       extraCosts: trip.extraCosts ?? '',
+      adrSurcharge: trip.adrSurcharge ?? false,
+      nightSurcharge: trip.nightSurcharge ?? false,
+      weekendSurcharge: trip.weekendSurcharge ?? false,
+      holidaySurcharge: trip.holidaySurcharge ?? false,
     });
     setEditId(trip.id); setShowForm(true);
   };
@@ -1179,6 +1185,54 @@ export default function TripsPage() {
               </div>
             </div>
 
+            {/* Smart Tariffs & Surcharges (ADR, Night, Weekend, Holiday) */}
+            <div className="border-t border-dashed border-border pt-4 md:col-span-2 lg:col-span-3">
+              <span className="text-xs font-bold text-primary uppercase tracking-wider block mb-3">
+                {i18n.language === 'ro' ? 'Tarife Suplimentare & Condiții Speciale (Smart Surcharges)' : 'Special Surcharges & Conditions'}
+              </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <label className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${form.adrSurcharge ? 'bg-amber-50/60 border-amber-400 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
+                  <input type="checkbox" className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500" checked={form.adrSurcharge || false} onChange={e => setForm({...form, adrSurcharge: e.target.checked})} />
+                  <div>
+                    <p className="font-bold text-xs text-amber-800 flex items-center gap-1">⚠️ ADR (Mărfuri Periculoase)</p>
+                    <p className="text-[10px] text-text-secondary leading-tight">
+                      {i18n.language === 'ro' ? 'Adaugă tariful fix de risc ADR setat în Settings' : 'Add flat ADR risk surcharge from Settings'}
+                    </p>
+                  </div>
+                </label>
+
+                <label className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${form.nightSurcharge ? 'bg-blue-50/60 border-blue-400 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
+                  <input type="checkbox" className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" checked={form.nightSurcharge || false} onChange={e => setForm({...form, nightSurcharge: e.target.checked})} />
+                  <div>
+                    <p className="font-bold text-xs text-blue-800 flex items-center gap-1">🌙 Transit de Noapte / Express</p>
+                    <p className="text-[10px] text-text-secondary leading-tight">
+                      {i18n.language === 'ro' ? 'Adaugă tariful de tranzit nocturn / express' : 'Add night transit / express surcharge'}
+                    </p>
+                  </div>
+                </label>
+
+                <label className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${form.weekendSurcharge ? 'bg-emerald-50/60 border-emerald-400 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
+                  <input type="checkbox" className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500" checked={form.weekendSurcharge || false} onChange={e => setForm({...form, weekendSurcharge: e.target.checked})} />
+                  <div>
+                    <p className="font-bold text-xs text-emerald-800 flex items-center gap-1">📅 Transit de Weekend</p>
+                    <p className="text-[10px] text-text-secondary leading-tight">
+                      {i18n.language === 'ro' ? 'Acoperă restricțiile și tarifele speciale de sâmbătă/duminică' : 'Cover Saturday/Sunday restrictions and permits'}
+                    </p>
+                  </div>
+                </label>
+
+                <label className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${form.holidaySurcharge ? 'bg-purple-50/60 border-purple-400 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
+                  <input type="checkbox" className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500" checked={form.holidaySurcharge || false} onChange={e => setForm({...form, holidaySurcharge: e.target.checked})} />
+                  <div>
+                    <p className="font-bold text-xs text-purple-800 flex items-center gap-1">🏖️ Transit Sărbători Legale</p>
+                    <p className="text-[10px] text-text-secondary leading-tight">
+                      {i18n.language === 'ro' ? 'Acoperă interdicțiile de sărbători legale și costul șoferului' : 'Cover public holiday driving bans and double pay'}
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
 
  
             <div className="md:col-span-2 lg:col-span-3">
@@ -1263,6 +1317,10 @@ export default function TripsPage() {
                 dropoffAddress={form.dropoffAddress}
                 weightKg={form.weightKg ? Number(form.weightKg) : undefined}
                 pallets={form.pallets ? Number(form.pallets) : undefined}
+                adr={form.adrSurcharge}
+                nightSurcharge={form.nightSurcharge}
+                weekendSurcharge={form.weekendSurcharge}
+                holidaySurcharge={form.holidaySurcharge}
                 dieselPricePerL={dieselPrice}
                 onApply={async ({ distanceKm, estimatedCost, recommendedPrice }) => {
                   let extraCost = 0;
