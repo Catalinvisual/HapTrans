@@ -108,22 +108,22 @@ export default function InvoicesPage() {
 
         if (mockTrip?.adrSurcharge) {
            const fee = Number(tariffs.adrSurchargeFee) || 100;
-           items.push({ description: '⚠️ ADR Surcharge Fee', quantity: 1, unitPrice: fee, vatRate: isVat ? vatP : 0, total: fee });
+           items.push({ description: 'ADR Surcharge Fee', quantity: 1, unitPrice: fee, vatRate: isVat ? vatP : 0, total: fee });
            subtotal += fee;
         }
         if (mockTrip?.nightSurcharge) {
            const fee = Number(tariffs.nightSurchargeFee) || 80;
-           items.push({ description: '🌙 Night / Express Surcharge Fee', quantity: 1, unitPrice: fee, vatRate: isVat ? vatP : 0, total: fee });
+           items.push({ description: 'Night / Express Surcharge Fee', quantity: 1, unitPrice: fee, vatRate: isVat ? vatP : 0, total: fee });
            subtotal += fee;
         }
         if (mockTrip?.weekendSurcharge) {
            const fee = Number(tariffs.weekendSurchargeFee) || 150;
-           items.push({ description: '📅 Weekend Surcharge Fee', quantity: 1, unitPrice: fee, vatRate: isVat ? vatP : 0, total: fee });
+           items.push({ description: 'Weekend Surcharge Fee', quantity: 1, unitPrice: fee, vatRate: isVat ? vatP : 0, total: fee });
            subtotal += fee;
         }
         if (mockTrip?.holidaySurcharge) {
            const fee = Number(tariffs.holidaySurchargeFee) || 200;
-           items.push({ description: '🏛️ Bank / Public Holiday Surcharge Fee', quantity: 1, unitPrice: fee, vatRate: isVat ? vatP : 0, total: fee });
+           items.push({ description: 'Bank / Public Holiday Surcharge Fee', quantity: 1, unitPrice: fee, vatRate: isVat ? vatP : 0, total: fee });
            subtotal += fee;
         }
 

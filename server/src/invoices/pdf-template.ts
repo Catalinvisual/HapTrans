@@ -160,16 +160,19 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
 
   let itemsHtml = '';
   if (items.length > 0) {
-    itemsHtml = items.map((item: any) => `
+    itemsHtml = items.map((item: any) => {
+      const cleanDesc = (item.description || '').replace(/[⚠️🌙📅🏛️🏖️]/g, '').trim();
+      return `
       <tr>
         <td>
-          <div class="service-title">${item.description}</div>
+          <div class="service-title">${cleanDesc}</div>
         </td>
         <td>${Number(item.quantity) || 1}</td>
         <td>${(Number(item.unitPrice) || 0).toFixed(2)}</td>
         <td><strong>${((Number(item.quantity)||1)*(Number(item.unitPrice)||0)).toFixed(2)}</strong></td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
   } else {
     itemsHtml = `
       <tr>
