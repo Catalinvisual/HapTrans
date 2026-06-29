@@ -12,6 +12,7 @@ import CustomSelect from '../components/CustomSelect';
 import ConfirmModal from '../components/ConfirmModal';
 import { getCompanySettings } from './SettingsPage';
 import { useFormStore } from '../store/formStore';
+import Pagination from '../components/Pagination';
 
 const STATUS_COLORS: Record<string, string> = { draft:'badge-gray', approved:'bg-indigo-100 text-indigo-700', sent:'badge-primary', paid:'badge-success', overdue:'badge-error', cancelled:'badge-error' };
 
@@ -38,6 +39,8 @@ export default function InvoicesPage() {
   const [showExport, setShowExport] = useState(false);
   const [previewData, setPreviewData] = useState<string | null>(null);
   const [invoiceLangModal, setInvoiceLangModal] = useState<any>({ isOpen: false, data: null, type: '', cb: null });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [form, setForm] = useState(formStore.invoicesForm || { clientId: '', tripId: '', amount: '', fuelSurcharge: '', extraCosts: '', tollCosts: '', vatPercent: '19', vatType: 'NORMAL', issueDate: '', dueDate: '', notes: '' });
 
   useEffect(() => {
@@ -580,7 +583,7 @@ export default function InvoicesPage() {
             <tbody>
               {loading ? <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
                 : filtered.length === 0 ? <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
-                : filtered.map(inv => {
+                : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(inv => {
                   const totals = getInvTotals(inv);
                   return (
                   <tr key={inv.id} className={`transition-colors ${inv.status === 'overdue' ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-surface/60'}`}>
@@ -647,6 +650,13 @@ export default function InvoicesPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filtered.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={setItemsPerPage}
+        />
       </div>
 
       <ExportModal

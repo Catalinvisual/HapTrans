@@ -28,6 +28,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 import { useFormStore } from '../store/formStore';
+import Pagination from '../components/Pagination';
 
 export default function DriversPage() {
   const formStore = useFormStore();
@@ -48,6 +49,8 @@ export default function DriversPage() {
   }), []);
 
   const [showExport, setShowExport] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Form State
   const [form, setForm] = useState(formStore.driversForm || {
@@ -449,7 +452,7 @@ export default function DriversPage() {
                 <tr><td colSpan={10} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={10} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
-              ) : filtered.map(d => (
+              ) : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(d => (
                 <tr key={d.id} className="hover:bg-surface/60 transition-colors">
                   <td className="table-cell font-bold text-text">{d.user?.name || '—'}</td>
                   <td className="table-cell text-xs">{d.user?.email || '—'}</td>
@@ -515,6 +518,13 @@ export default function DriversPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filtered.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={setItemsPerPage}
+        />
       </div>
 
       <ExportModal

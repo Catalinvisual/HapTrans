@@ -4,6 +4,7 @@ import api from '../lib/api';
 import { Plus, Trash2, Edit2, Upload, FileText, Loader2, Image as ImageIcon, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import CustomSelect from '../components/CustomSelect';
+import Pagination from '../components/Pagination';
 
 const CATEGORIES = [
   { value: 'fuel',        labelKey: 'cat_fuel' },
@@ -20,6 +21,8 @@ export default function ExpensesPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const [form, setForm] = useState<any>({
     amount: '',
@@ -269,7 +272,7 @@ export default function ExpensesPage() {
                 </td></tr>
               ) : expenses.length === 0 ? (
                 <tr><td colSpan={6} className="table-cell text-center py-10 text-text-secondary">{t('noExpenses')}</td></tr>
-              ) : expenses.map(exp => (
+              ) : expenses.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(exp => (
                 <tr key={exp.id} className="hover:bg-surface/60 transition-colors border-b border-border/50 last:border-0">
                   <td className="table-cell text-text-secondary font-medium">
                     {new Date(exp.date).toLocaleDateString()}
@@ -306,6 +309,13 @@ export default function ExpensesPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalItems={expenses.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={setItemsPerPage}
+        />
       </div>
     </div>
   );

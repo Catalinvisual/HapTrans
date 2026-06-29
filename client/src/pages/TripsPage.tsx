@@ -17,6 +17,7 @@ import RouteCalculator from '../components/RouteCalculator';
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
 import AddressAutocomplete from '../components/AddressAutocomplete';
+import Pagination from '../components/Pagination';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'badge-gray', confirmed: 'badge-primary', in_progress: 'badge-warning',
@@ -47,6 +48,8 @@ export default function TripsPage() {
   const [openStatusId, setOpenStatusId] = useState<string | null>(null);
   const [statusCoords, setStatusCoords] = useState({ left: 0, top: 0, width: 0 });
   const [editId, setEditId] = useState<string | null>(formStore.tripsEditId);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const fpOptions = useMemo(() => ({
     altInput: true,
@@ -1407,7 +1410,7 @@ export default function TripsPage() {
                 <tr><td colSpan={11} className="table-cell text-center text-text-secondary py-8">{t('loading')}</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={11} className="table-cell text-center text-text-secondary py-8">{t('noData')}</td></tr>
-              ) : filtered.map((trip) => {
+              ) : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((trip) => {
                 const addedCosts = trip.costs?.reduce((s: number, c: any) => s + Number(c.amount), 0) || 0;
                 const totalCost = addedCosts > 0 ? addedCosts : (Number(trip.realCost) || Number(trip.estimatedCost) || 0);
                 const profit = Number(trip.price || 0) - totalCost;
@@ -1625,6 +1628,13 @@ export default function TripsPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filtered.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={setItemsPerPage}
+        />
       </div>
 
       <ExportModal

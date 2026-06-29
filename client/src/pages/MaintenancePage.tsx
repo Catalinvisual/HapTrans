@@ -7,6 +7,7 @@ import api from '../lib/api';
 import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
 import CustomSelect from '../components/CustomSelect';
+import Pagination from '../components/Pagination';
 
 export default function MaintenancePage() {
   const { t, i18n } = useTranslation();
@@ -16,6 +17,8 @@ export default function MaintenancePage() {
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({ truckId: '', type: 'preventive', description: '', scheduledDate: '', cost: '', serviceProvider: '', notes: '' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const load = async () => {
     const [r, tr] = await Promise.all([api.get('/maintenance'), api.get('/trucks')]);
@@ -125,7 +128,7 @@ export default function MaintenancePage() {
           </tr></thead>
           <tbody>
             {loading ? <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
-              : filtered.map(r => (
+              : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(r => (
               <tr key={r.id} className="hover:bg-surface/60 transition-colors">
                 <td className="table-cell font-semibold">{r.truck?.plateNumber}</td>
                 <td className="table-cell capitalize">{r.type}</td>
@@ -145,6 +148,13 @@ export default function MaintenancePage() {
             ))}
           </tbody>
         </table></div>
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filtered.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={setItemsPerPage}
+        />
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { Mail, Check, Trash2, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import Pagination from '../components/Pagination';
 
 interface ContactMessage {
   id: string;
@@ -18,6 +19,8 @@ export default function ContactInbox() {
   const { t } = useTranslation();
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const fetchMessages = async () => {
     try {
@@ -63,7 +66,7 @@ export default function ContactInbox() {
         </div>
       ) : (
         <div className="space-y-4">
-          {messages.map(msg => (
+          {messages.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(msg => (
             <div 
               key={msg.id} 
               className={`p-5 rounded-xl border transition-all ${msg.isRead ? 'bg-white border-border' : 'bg-primary/5 border-primary/20 shadow-sm'}`}
@@ -95,6 +98,17 @@ export default function ContactInbox() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {messages.length > 0 && (
+        <div className="mt-6">
+          <Pagination
+            currentPage={currentPage}
+            totalItems={messages.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={setItemsPerPage}
+          />
         </div>
       )}
     </div>

@@ -6,6 +6,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import CustomSelect from '../components/CustomSelect';
 import { navItems } from '../components/Sidebar';
+import Pagination from '../components/Pagination';
 
 export default function UsersPage() {
   const { t } = useTranslation();
@@ -18,6 +19,8 @@ export default function UsersPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<{ email: string, password: string, name: string, role: string, grossSalary: string, dailyRate: string, allowedPages: string[] }>({ email: '', password: '', name: '', role: 'dispatcher', grossSalary: '', dailyRate: '', allowedPages: [] });
   const [showPageSelect, setShowPageSelect] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const load = () => api.get('/users').then(r => {
     const sorted = r.data.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
@@ -254,7 +257,7 @@ export default function UsersPage() {
                 <tr><td colSpan={6} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={6} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
-              ) : filtered.map(u => (
+              ) : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(u => (
                 <tr key={u.id} className="hover:bg-surface/60 transition-colors">
                   <td className="table-cell font-bold text-text">{u.name}</td>
                   <td className="table-cell text-xs text-text-secondary">{u.email}</td>
@@ -283,6 +286,13 @@ export default function UsersPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filtered.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={setItemsPerPage}
+        />
       </div>
     
       <ConfirmModal

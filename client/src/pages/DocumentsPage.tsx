@@ -6,6 +6,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
 import CustomSelect from '../components/CustomSelect';
+import Pagination from '../components/Pagination';
 
 export default function DocumentsPage() {
   const { t, i18n } = useTranslation();
@@ -19,6 +20,8 @@ export default function DocumentsPage() {
   const [tripId, setTripId] = useState('');
   const [docType, setDocType] = useState('CMR');
   const [notes, setNotes] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const executeDelete = async () => {
     if (!deleteId) return;
@@ -215,7 +218,7 @@ export default function DocumentsPage() {
                 <tr><td colSpan={7} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
               ) : docs.length === 0 ? (
                 <tr><td colSpan={7} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
-              ) : docs.map(doc => {
+              ) : docs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(doc => {
                 return (
                   <tr key={doc.id} className="hover:bg-surface/60 transition-colors">
                     <td className="table-cell">
@@ -261,6 +264,13 @@ export default function DocumentsPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalItems={docs.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={setItemsPerPage}
+        />
       </div>
     
       <ConfirmModal

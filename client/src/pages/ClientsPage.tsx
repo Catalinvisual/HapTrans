@@ -9,6 +9,7 @@ import ExportModal from '../components/ExportModal';
 import { formatDate } from '../lib/dateUtils';
 import ClientDetails from '../components/ClientDetails';
 import { useFormStore } from '../store/formStore';
+import Pagination from '../components/Pagination';
 
 export default function ClientsPage() {
   const formStore = useFormStore();
@@ -19,6 +20,8 @@ export default function ClientsPage() {
   const [showForm, setShowForm] = useState(formStore.clientsShowForm);
   const [search, setSearch] = useState('');
   const [showExport, setShowExport] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
   const [form, setForm] = useState(formStore.clientsForm || { name: '', cui: '', address: '', contactName: '', contactEmail: '', phone: '' });
   const [editId, setEditId] = useState<string | null>(formStore.clientsEditId);
@@ -159,7 +162,7 @@ export default function ClientsPage() {
                 <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
-              ) : filtered.map(c => (
+              ) : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(c => (
                 <tr key={c.id} className="hover:bg-surface/60 transition-colors">
                   <td className="table-cell font-bold text-text">{c.name}</td>
                   <td className="table-cell text-xs font-semibold text-text-secondary">{c.cui || '—'}</td>
@@ -196,6 +199,13 @@ export default function ClientsPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filtered.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={setItemsPerPage}
+        />
       </div>
 
       <ExportModal

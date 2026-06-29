@@ -3,6 +3,7 @@ import api from '../lib/api';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import Pagination from '../components/Pagination';
 
 interface Lead {
   id: string;
@@ -24,6 +25,8 @@ interface Lead {
 const WebsiteLeadsPage = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
@@ -114,7 +117,7 @@ const WebsiteLeadsPage = () => {
             </div>
           </div>
         ) : (
-          leads.map((lead) => (
+          leads.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((lead) => (
             <div key={lead.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
               <div className="flex flex-col lg:flex-row">
                 <div className="p-6 flex-1 border-b lg:border-b-0 lg:border-r border-gray-100">
@@ -206,6 +209,13 @@ const WebsiteLeadsPage = () => {
           ))
         )}
       </div>
+      <Pagination
+        currentPage={currentPage}
+        totalItems={leads.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        onItemsPerPageChange={setItemsPerPage}
+      />
     </div>
   );
 };

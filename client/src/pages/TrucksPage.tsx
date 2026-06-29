@@ -8,6 +8,7 @@ import ExportModal from '../components/ExportModal';
 import { formatDate } from '../lib/dateUtils';
 
 import { useFormStore } from '../store/formStore';
+import Pagination from '../components/Pagination';
 
 export default function TrucksPage() {
   const formStore = useFormStore();
@@ -18,6 +19,8 @@ export default function TrucksPage() {
   const [showForm, setShowForm] = useState(formStore.trucksShowForm);
   const [search, setSearch] = useState('');
   const [showExport, setShowExport] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
   const [form, setForm] = useState(formStore.trucksForm || { plateNumber: '', brand: '', model: '', year: '', payloadCapacity: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '' });
   const [editId, setEditId] = useState<string | null>(formStore.trucksEditId);
@@ -135,7 +138,7 @@ export default function TrucksPage() {
                 <tr><td colSpan={9} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={9} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
-              ) : filtered.map(truck => (
+              ) : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(truck => (
                 <tr key={truck.id} className="hover:bg-surface/60 transition-colors">
                   <td className="table-cell font-bold text-primary">{truck.plateNumber}</td>
                   <td className="table-cell font-medium text-text">{truck.brand}</td>
@@ -187,6 +190,13 @@ export default function TrucksPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filtered.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={setItemsPerPage}
+        />
       </div>
 
       <ExportModal

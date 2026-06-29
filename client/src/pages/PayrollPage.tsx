@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
 import CustomSelect from '../components/CustomSelect';
 import { generatePayrollPdfBase64 } from '../lib/payrollPdfGenerator';
+import Pagination from '../components/Pagination';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -19,6 +20,8 @@ export default function PayrollPage() {
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const loadPayrolls = async () => {
     setLoading(true);
@@ -142,7 +145,7 @@ export default function PayrollPage() {
             <tbody>
               {loading ? <tr><td colSpan={10} className="text-center py-8 text-text-secondary">{t('loading')}</td></tr>
               : filtered.length === 0 ? <tr><td colSpan={10} className="text-center py-8 text-text-secondary">{t('noPayrollData')}</td></tr>
-              : filtered.map(p => (
+              : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(p => (
                 <tr key={p.id} className="hover:bg-surface/60 transition-colors border-b border-border/50 last:border-0">
                   <td className="table-cell font-bold text-text">
                     {p.user?.name || '-'}
@@ -203,6 +206,13 @@ export default function PayrollPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filtered.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={setItemsPerPage}
+        />
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import { QuoteReplyForm } from './QuoteReplyForm';
 import { useNavigate } from 'react-router-dom';
+import Pagination from '../components/Pagination';
 
 interface QuoteReply {
   id: string;
@@ -261,6 +262,8 @@ const WebsiteQuotesPage = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('');
   const [expandedQuoteId, setExpandedQuoteId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const { i18n } = useTranslation();
   const navigate = useNavigate();
   
@@ -416,7 +419,7 @@ const WebsiteQuotesPage = () => {
             </div>
           </div>
         ) : (
-          filteredQuotes.map((quote) => {
+          filteredQuotes.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((quote) => {
             const isExpanded = expandedQuoteId === quote.id;
             const createdAtDate = quote.createdAt ? new Date(quote.createdAt) : null;
             
@@ -597,6 +600,13 @@ const WebsiteQuotesPage = () => {
           })
         )}
       </div>
+      <Pagination
+        currentPage={currentPage}
+        totalItems={filteredQuotes.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        onItemsPerPageChange={setItemsPerPage}
+      />
     </div>
   );
 };
