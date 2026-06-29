@@ -98,10 +98,10 @@ export default function Pagination({
   }, []);
 
   const options = [
-    { value: 10, label: `10 / ${tLocal('pag')}` },
-    { value: 25, label: `25 / ${tLocal('pag')}` },
-    { value: 50, label: `50 / ${tLocal('pag')}` },
-    { value: 100, label: `100 / ${tLocal('pag')}` },
+    { value: 10, label: '10' },
+    { value: 25, label: '25' },
+    { value: 50, label: '50' },
+    { value: 100, label: '100' },
     { value: 999999, label: tLocal('all') },
   ];
 
