@@ -300,7 +300,7 @@ export class InvoicesService implements OnModuleInit {
     inv.vatAmount = calculated.vatAmount;
     inv.total = calculated.total;
     
-    inv.items = calculated.items.map(itemDto => {
+    inv.items = calculated.items.map((itemDto: any) => {
       const item = new InvoiceItem();
       item.description = itemDto.description;
       item.quantity = itemDto.quantity;
@@ -388,7 +388,7 @@ export class InvoicesService implements OnModuleInit {
       inv.vatAmount = calculated.vatAmount;
       inv.total = calculated.total;
       
-      inv.items = calculated.items.map(itemDto => {
+      inv.items = calculated.items.map((itemDto: any) => {
         const item = new InvoiceItem();
         item.description = itemDto.description;
         item.quantity = itemDto.quantity;
