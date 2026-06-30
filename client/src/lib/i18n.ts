@@ -3,6 +3,9 @@ import { initReactI18next } from 'react-i18next';
 
 const resources = {
   ro: { translation: {
+      pwa_install_unavailable: Aplicația de desktop a fost deja activată în browser.
+
+Dacă ai șters scurtătura din greșeală, apasă pe meniul browser-ului (cele 3 puncte sus dreapta) -> Salvează și distribuie (Save and share) -> Instalează pagina ca aplicație (Install page as app) sau Creează scurtătură (Create shortcut). Alternativ, poți accesa chrome://apps în bara de adrese pentru a o reinstala.,
 shortcuts_title: 'Scurtături Tastatură', shortcuts_subtitle: 'Navighează rapid folosind tastatura', shortcuts_info: 'Scurtăturile nu vor funcționa dacă tastați în câmpuri text, cu excepția Ctrl+S, Esc și Shift+H.', shortcuts_global_title: 'Globale', sc_search: 'Caută/deschide orice: pagină, client, cursă, factură', sc_new: 'Creează element nou în pagina curentă', sc_save: 'Salvează formularul curent', sc_nav_sidebar: 'Navigare sus/jos prin meniul lateral', sc_nav_tabs: 'Navigare între taburile paginii curente', sc_esc: 'Închide modal/dropdown/panel', sc_f1: 'Deschide meniul cu scurtături', sc_f12: 'Logout (cu confirmare)', shortcuts_tables_title: 'În tabele / liste', sc_tbl_updown: 'Selectează rândul anterior/următor', sc_tbl_enter: 'Deschide rândul selectat', sc_tbl_space: 'Selectează checkbox-ul rândului', sc_tbl_delete: 'Șterge/arhivează (cu confirmare)', sc_tbl_copy: 'Copiază informațiile rândului selectat', shortcuts_forms_title: 'În formulare', sc_form_tab: 'Câmpul următor', sc_form_shifttab: 'Câmpul anterior', sc_form_enter: 'Confirmă (unde are sens)', sc_form_save: 'Salvează', sc_form_esc: 'Închide/anulează',
 
       net: "Net",
@@ -670,6 +673,9 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
     }
   },
   en: { translation: {
+      pwa_install_unavailable: The desktop app has already been activated in the browser.
+
+If you deleted the shortcut by mistake, click the browser menu (3 dots top right) -> Save and share -> Install page as app or Create shortcut. Alternatively, you can go to chrome://apps in your address bar to reinstall it.,
 shortcuts_title: 'Keyboard Shortcuts', shortcuts_subtitle: 'Navigate quickly using the keyboard', shortcuts_info: 'Shortcuts will not work when typing in text fields, except for Ctrl+S, Esc, and Shift+H.', shortcuts_global_title: 'Global', sc_search: 'Search/open anything: page, client, trip, invoice', sc_new: 'Create new item in current page', sc_save: 'Save current form', sc_nav_sidebar: 'Navigate up/down sidebar', sc_nav_tabs: 'Navigate between tabs on current page', sc_esc: 'Close modal/dropdown/panel', sc_f1: 'Open shortcuts menu', sc_f12: 'Logout (with confirmation)', shortcuts_tables_title: 'In tables / lists', sc_tbl_updown: 'Select previous/next row', sc_tbl_enter: 'Open selected row', sc_tbl_space: 'Select row checkbox', sc_tbl_delete: 'Delete/archive (with confirmation)', sc_tbl_copy: 'Copy selected row info', shortcuts_forms_title: 'In forms', sc_form_tab: 'Next field', sc_form_shifttab: 'Previous field', sc_form_enter: 'Confirm (where applicable)', sc_form_save: 'Save', sc_form_esc: 'Close/cancel',
 
       net: "Net",
@@ -1276,6 +1282,9 @@ shortcuts_title: 'Skróty klawiszowe', shortcuts_subtitle: 'Nawiguj szybko za po
     },
   },
   nl: { translation: {
+      pwa_install_unavailable: De desktop-app is al geactiveerd in de browser.
+
+Als u de snelkoppeling per ongeluk hebt verwijderd, klikt u op het browsermenu (3 stippen rechtsboven) -> Opslaan en delen -> Pagina installeren als app of Snelkoppeling maken. Als alternatief kunt u naar chrome://apps gaan in uw adresbalk om deze opnieuw te installeren.,
 shortcuts_title: 'Sneltoetsen', shortcuts_subtitle: 'Navigeer snel met het toetsenbord', shortcuts_info: 'Sneltoetsen werken niet bij het typen in tekstvelden, behalve Ctrl+S, Esc en Shift+H.', shortcuts_global_title: 'Globaal', sc_search: 'Zoek/open alles: pagina, klant, rit, factuur', sc_new: 'Nieuw item maken op huidige pagina', sc_save: 'Huidig formulier opslaan', sc_nav_sidebar: 'Navigeer omhoog/omlaag zijbalk', sc_nav_tabs: 'Navigeer tussen tabbladen op huidige pagina', sc_esc: 'Sluit modaal/dropdown/paneel', sc_f1: 'Open sneltoetsen menu', sc_f12: 'Uitloggen (met bevestiging)', shortcuts_tables_title: 'In tabellen / lijsten', sc_tbl_updown: 'Selecteer vorige/volgende rij', sc_tbl_enter: 'Open geselecteerde rij', sc_tbl_space: 'Selecteer rij checkbox', sc_tbl_delete: 'Verwijder/archiveer (met bevestiging)', sc_tbl_copy: 'Kopieer geselecteerde rij info', shortcuts_forms_title: 'In formulieren', sc_form_tab: 'Volgend veld', sc_form_shifttab: 'Vorig veld', sc_form_enter: 'Bevestig (indien van toepassing)', sc_form_save: 'Opslaan', sc_form_esc: 'Sluiten/annuleren',
 
       net: "Netto",
@@ -1834,6 +1843,9 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
 },
   },
   de: { translation: {
+      pwa_install_unavailable: Die Desktop-App wurde bereits im Browser aktiviert.
+
+Wenn Sie die Verknüpfung versehentlich gelöscht haben, klicken Sie auf das Browsermenü (3 Punkte oben rechts) -> Speichern und teilen -> Seite als App installieren oder Verknüpfung erstellen. Alternativ können Sie in Ihrer Adressleiste zu chrome://apps gehen, um sie neu zu installieren.,
 shortcuts_title: 'Tastaturkürzel', shortcuts_subtitle: 'Schnelles Navigieren mit der Tastatur', shortcuts_info: 'Tastaturkürzel funktionieren nicht bei Eingabe in Textfelder, außer Ctrl+S, Esc und Shift+H.', shortcuts_global_title: 'Global', sc_search: 'Alles suchen/öffnen: Seite, Kunde, Fahrt, Rechnung', sc_new: 'Neues Element auf aktueller Seite erstellen', sc_save: 'Aktuelles Formular speichern', sc_nav_sidebar: 'Seitenleiste hoch/runter navigieren', sc_nav_tabs: 'Zwischen Tabs auf aktueller Seite navigieren', sc_esc: 'Modal/Dropdown/Panel schließen', sc_f1: 'Tastaturkürzel-Menü öffnen', sc_f12: 'Abmelden (mit Bestätigung)', shortcuts_tables_title: 'In Tabellen / Listen', sc_tbl_updown: 'Vorherige/nächste Zeile auswählen', sc_tbl_enter: 'Ausgewählte Zeile öffnen', sc_tbl_space: 'Zeilen-Checkbox auswählen', sc_tbl_delete: 'Löschen/Archivieren (mit Bestätigung)', sc_tbl_copy: 'Info der ausgewählten Zeile kopieren', shortcuts_forms_title: 'In Formularen', sc_form_tab: 'Nächstes Feld', sc_form_shifttab: 'Vorheriges Feld', sc_form_enter: 'Bestätigen (wo zutreffend)', sc_form_save: 'Speichern', sc_form_esc: 'Schließen/Abbrechen',
 
       net: "Netto",
