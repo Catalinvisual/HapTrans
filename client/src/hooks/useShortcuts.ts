@@ -39,40 +39,28 @@ export function useShortcuts(shortcuts: ShortcutMap, isActive: boolean = true) {
         key
       ].join('');
 
-      // Handle input navigation with Arrows (with or without shift)
-      const isArrowNav = keyString.startsWith('shift+arrow') || key === 'arrowdown' || key === 'arrowup' || key === 'arrowleft' || key === 'arrowright';
-      if (isArrowNav) {
-        const inputs = Array.from(document.querySelectorAll('input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled]), button.input:not([disabled])')) as HTMLElement[];
-        const visibleInputs = inputs.filter(el => {
-           const rect = el.getBoundingClientRect();
-           return rect.width > 0 && rect.height > 0;
-        });
-
-        if (isInput) {
-          const isSelectOrNumber = target.tagName === 'SELECT' || (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'number');
-          const isTextArea = target.tagName === 'TEXTAREA';
+      // Handle input navigation with simple Arrows (no shift)
+      if (isInput && !e.shiftKey && (key === 'arrowdown' || key === 'arrowup' || key === 'arrowleft' || key === 'arrowright')) {
+        const isSelectOrNumber = target.tagName === 'SELECT' || (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'number');
+        const isTextArea = target.tagName === 'TEXTAREA';
+        
+        if (!(isSelectOrNumber || isTextArea)) {
+          const inputs = Array.from(document.querySelectorAll('input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled]), button.input:not([disabled])')) as HTMLElement[];
+          const visibleInputs = inputs.filter(el => {
+             const rect = el.getBoundingClientRect();
+             return rect.width > 0 && rect.height > 0;
+          });
           
-          if (!keyString.startsWith('shift+') && (isSelectOrNumber || isTextArea)) {
-            // Let native behavior happen for select, number, and textarea when just using arrows
-          } else {
-             const currentIndex = visibleInputs.indexOf(target);
-             if (currentIndex !== -1) {
-               if (key === 'arrowdown' || key === 'arrowright') {
-                 const next = visibleInputs[currentIndex + 1];
-                 if (next) { e.preventDefault(); next.focus(); return; }
-               } else if (key === 'arrowup' || key === 'arrowleft') {
-                 const prev = visibleInputs[currentIndex - 1];
-                 if (prev) { e.preventDefault(); prev.focus(); return; }
-               }
-             }
+          const currentIndex = visibleInputs.indexOf(target);
+          if (currentIndex !== -1) {
+            if (key === 'arrowdown' || key === 'arrowright') {
+              const next = visibleInputs[currentIndex + 1];
+              if (next) { e.preventDefault(); next.focus(); return; }
+            } else if (key === 'arrowup' || key === 'arrowleft') {
+              const prev = visibleInputs[currentIndex - 1];
+              if (prev) { e.preventDefault(); prev.focus(); return; }
+            }
           }
-        } else if (visibleInputs.length > 0 && keyString.startsWith('shift+arrow')) {
-           // If they use Shift+Arrow but are NOT in an input, focus the first visible input!
-           if (key === 'arrowdown' || key === 'arrowright') {
-             e.preventDefault();
-             visibleInputs[0].focus();
-             return;
-           }
         }
       }
 
@@ -83,7 +71,7 @@ export function useShortcuts(shortcuts: ShortcutMap, isActive: boolean = true) {
       ].join('');
 
       // Check exceptions
-      const isException = keyString === 'ctrl+s' || key === 'escape' || key === 'shift+h';
+      const isException = keyString === 'ctrl+s' || key === 'escape' || key === 'shift+h' || keyString.startsWith('shift+arrow');
 
       if (isInput && !isException) {
         return; // Do not trigger shortcuts inside inputs
