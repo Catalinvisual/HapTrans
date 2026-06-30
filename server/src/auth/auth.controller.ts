@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, UseGuards, Request, Logger } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, Request, Response, Logger } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { IsEmail, IsString, MinLength, IsOptional, IsEnum } from 'class-validator';
@@ -7,6 +7,7 @@ import { UserRole } from '../users/user.entity';
 class LoginDto {
   @IsEmail() email: string;
   @IsString() @MinLength(8) password: string;
+  @IsOptional() rememberMe?: boolean;
 }
 
 class RegisterDto {
@@ -24,8 +25,75 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto.email, dto.password);
+  async login(@Body() dto: LoginDto, @Request() req: any, @Response() res: any) {
+    const userAgent = req.headers['user-agent'] || 'Unknown Device';
+    const ip = req.ip || req.connection.remoteAddress;
+
+    const result = await this.authService.login(dto.email, dto.password, userAgent, ip);
+    
+    // Set HttpOnly Cookie for Refresh Token
+    res.cookie('refresh_token', result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // true if https
+      sameSite: 'lax', // Protect against CSRF but allow normal navigation
+      expires: result.expiresAt,
+    });
+
+    return res.json({
+      access_token: result.accessToken,
+      user: result.user
+    });
+  }
+
+  @Post('refresh')
+  async refresh(@Request() req: any, @Response() res: any) {
+    const refreshToken = req.cookies['refresh_token'];
+    if (!refreshToken) {
+      return res.status(401).json({ message: 'No refresh token provided' });
+    }
+
+    const userAgent = req.headers['user-agent'] || 'Unknown Device';
+    const ip = req.ip || req.connection.remoteAddress;
+
+    try {
+      const result = await this.authService.refreshToken(refreshToken, userAgent, ip);
+
+      // Set NEW HttpOnly Cookie (Token Rotation)
+      res.cookie('refresh_token', result.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        expires: result.expiresAt,
+      });
+
+      return res.json({
+        access_token: result.accessToken,
+        user: result.user
+      });
+    } catch (e: any) {
+      // Clear cookie if refresh fails
+      res.clearCookie('refresh_token');
+      return res.status(401).json({ message: e.message || 'Invalid refresh token' });
+    }
+  }
+
+  @Post('logout')
+  async logout(@Request() req: any, @Response() res: any) {
+    const refreshToken = req.cookies['refresh_token'];
+    if (refreshToken && refreshToken.includes('.')) {
+      const [sessionId] = refreshToken.split('.');
+      await this.authService.revokeSession(sessionId, 'User Logout');
+    }
+    res.clearCookie('refresh_token');
+    return res.json({ success: true });
+  }
+
+  @Post('logout-all')
+  @UseGuards(JwtAuthGuard)
+  async logoutAll(@Request() req: any, @Response() res: any) {
+    await this.authService.revokeAllSessions(req.user.id, 'User Triggered Logout All');
+    res.clearCookie('refresh_token');
+    return res.json({ success: true });
   }
 
   @Post('register')
@@ -41,8 +109,11 @@ export class AuthController {
 
   @Post('change-password')
   @UseGuards(JwtAuthGuard)
-  changePassword(@Request() req: any, @Body() dto: any) {
-    return this.authService.changePassword(req.user.id, dto.oldPassword, dto.newPassword);
+  async changePassword(@Request() req: any, @Response() res: any, @Body() dto: any) {
+    await this.authService.changePassword(req.user.id, dto.oldPassword, dto.newPassword);
+    // User must login again since all sessions revoked
+    res.clearCookie('refresh_token');
+    return res.json({ success: true });
   }
 
   @Post('fcm-token')
@@ -53,6 +124,4 @@ export class AuthController {
     await this.authService.saveFcmToken(req.user.id, body.fcmToken);
     return { success: true };
   }
-
-
 }

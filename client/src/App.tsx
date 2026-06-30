@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { AppToaster } from './components/AppToaster';
+import PWAReloadPrompt from './components/PWAReloadPrompt';
 import Layout from './components/Layout';
 import { ShortcutProvider } from './lib/ShortcutContext';
 import LoginPage from './pages/LoginPage';
@@ -35,6 +36,7 @@ export default function App() {
       <BrowserRouter>
         {/* Global Toaster - top-right, colored */}
         <AppToaster />
+        <PWAReloadPrompt />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         {/* Public route for shared documents */}

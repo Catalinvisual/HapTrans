@@ -5,7 +5,7 @@ import { formatDate } from '../lib/dateUtils';
 import Sidebar from './Sidebar';
 import LanguageDropdown from './LanguageDropdown';
 import { useAuthStore } from '../store/authStore';
-import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard, Search } from 'lucide-react';
+import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard, Search, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { useShortcuts } from '../hooks/useShortcuts';
@@ -13,6 +13,14 @@ import ShortcutsHelpModal from './ShortcutsHelpModal';
 import GlobalSearchModal from './GlobalSearchModal';
 import ConfirmModal from './ConfirmModal';
 import { navItems } from './Sidebar';
+
+let deferredPrompt: any = null;
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+  });
+}
 
 const PAGE_TITLES: Record<string, Record<string, string>> = {
   '/dashboard': { ro: 'Panou de Control', en: 'Dashboard', nl: 'Dashboard' },
@@ -311,9 +319,11 @@ export default function Layout() {
   const [popupNotif, setPopupNotif] = useState<any | null>(null);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   
   const lastNotifIdRef = useRef<string | null>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   const isDispatcher = user?.role === 'dispatcher';
   const restrictedKeys = ['financial', 'payroll', 'expenses', 'websiteCms', 'users', 'settings'];
@@ -400,6 +410,9 @@ export default function Layout() {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setIsNotifOpen(false);
       }
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('touchstart', handleClickOutside);
@@ -455,9 +468,38 @@ export default function Layout() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (e) {
+      console.error('Logout error', e);
+    }
     logout();
     navigate('/login');
+  };
+
+  const handleLogoutAll = async () => {
+    try {
+      await api.post('/auth/logout-all');
+    } catch (e) {
+      console.error('Logout all error', e);
+    }
+    logout();
+    navigate('/login');
+  };
+
+  const handleInstallPWA = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult: any) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('User accepted the install prompt');
+        }
+        deferredPrompt = null;
+      });
+    } else {
+      alert(t('pwa_install_unavailable', 'App is already installed or browser does not support it.'));
+    }
   };
 
   return (
@@ -592,22 +634,53 @@ export default function Layout() {
             {/* Language Dropdown */}
             <LanguageDropdown />
 
-            {/* User Avatar & Logout */}
-            <div className="flex items-center gap-2.5 pl-3 border-l border-border">
-              <div className="w-8 h-8 rounded-full bg-primary-light flex items-center justify-center flex-shrink-0">
-                <span className="text-primary font-bold text-sm">{user?.name?.[0]?.toUpperCase()}</span>
-              </div>
-              <div className="hidden md:block mr-2">
-                <div className="text-sm font-semibold text-text leading-tight">{user?.name}</div>
-                <div className="text-xs text-text-secondary capitalize">{user?.role}</div>
-              </div>
+            {/* User Profile Dropdown */}
+            <div className="relative pl-3 border-l border-border" ref={profileRef}>
               <button 
-                onClick={handleLogout} 
-                title={t('logout')} 
-                className="p-1.5 text-text-secondary hover:text-error hover:bg-red-50 rounded-lg transition-colors"
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-surface transition-colors focus:outline-none"
               >
-                <LogOut className="w-5 h-5" />
+                <div className="w-8 h-8 rounded-full bg-primary-light flex items-center justify-center flex-shrink-0">
+                  <span className="text-primary font-bold text-sm">{user?.name?.[0]?.toUpperCase()}</span>
+                </div>
+                <div className="hidden md:block text-left mr-1">
+                  <div className="text-sm font-semibold text-text leading-tight">{user?.name}</div>
+                  <div className="text-xs text-text-secondary capitalize">{user?.role}</div>
+                </div>
               </button>
+
+              {isProfileOpen && (
+                <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-border shadow-xl rounded-xl overflow-hidden z-50 animate-fade-in origin-top-right">
+                  <div className="p-1">
+                    {/* PWA Install Button */}
+                    {deferredPrompt && (
+                      <button 
+                        onClick={handleInstallPWA}
+                        className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-primary/5 rounded-lg transition-colors flex items-center gap-2 font-medium"
+                      >
+                        <svg xmlns="http://www.w3.org/-2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        {t('install_app', 'Install HAP Cargo')}
+                      </button>
+                    )}
+                    
+                    <button 
+                      onClick={() => { setIsLogoutModalOpen(true); setIsProfileOpen(false); }}
+                      className="w-full text-left px-3 py-2 text-sm text-error hover:bg-error/5 rounded-lg transition-colors flex items-center gap-2 mt-1"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      {t('logout', 'Logout')}
+                    </button>
+
+                    <button 
+                      onClick={() => { handleLogoutAll(); setIsProfileOpen(false); }}
+                      className="w-full text-left px-3 py-2 text-sm text-error hover:bg-error/5 rounded-lg transition-colors flex items-center gap-2 mt-1"
+                    >
+                      <AlertTriangle className="w-4 h-4" />
+                      {t('logout_all', 'Logout from all devices')}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>
