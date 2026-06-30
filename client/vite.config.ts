@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'HAP Cargo',
-        short_name: 'HAP Cargo',
+        name: 'HAPCARGO',
+        short_name: 'HAPCARGO',
         description: 'HAP Cargo Transport Management System',
         theme_color: '#ffffff',
         background_color: '#ffffff',

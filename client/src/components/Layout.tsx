@@ -323,6 +323,9 @@ export default function Layout() {
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<any>(deferredPrompt);
+  const [isStandalone, setIsStandalone] = useState(
+    typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches
+  );
   
   const lastNotifIdRef = useRef<string | null>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -411,8 +414,14 @@ export default function Layout() {
   useEffect(() => {
     const listener = (e: any) => setInstallPrompt(e);
     installPromptListeners.push(listener);
+    
+    const mediaQuery = window.matchMedia('(display-mode: standalone)');
+    const handleMediaChange = (e: MediaQueryListEvent) => setIsStandalone(e.matches);
+    mediaQuery.addEventListener('change', handleMediaChange);
+
     return () => {
       installPromptListeners = installPromptListeners.filter(l => l !== listener);
+      mediaQuery.removeEventListener('change', handleMediaChange);
     };
   }, []);
 
@@ -510,7 +519,7 @@ export default function Layout() {
         deferredPrompt = null;
       });
     } else {
-      alert(t('pwa_install_unavailable', 'App is already installed or browser does not support it.'));
+      alert(t('pwa_install_unavailable', 'Aplicația de desktop a fost deja activată în browser.\n\nDacă ai șters-o din greșeală, o poți reinstala dând click pe iconița de instalare din dreapta barei de adrese a browser-ului tău (sus) sau mergând la Meniul Browserului -> Instalare HAPCARGO / Create Shortcut.'));
     }
   };
 
@@ -536,7 +545,7 @@ export default function Layout() {
           </div>
           <div className="flex items-center gap-3">
             {/* Desktop Install Button */}
-            {installPrompt && (
+            {!isStandalone && (
               <button 
                 onClick={handleInstallPWA}
                 title={t('install_app', 'Instalează aplicația pe Desktop')}
@@ -675,13 +684,13 @@ export default function Layout() {
                 <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-border shadow-xl rounded-xl overflow-hidden z-50 animate-fade-in origin-top-right">
                   <div className="p-1">
                     {/* PWA Install Button */}
-                    {installPrompt && (
+                    {!isStandalone && (
                       <button 
                         onClick={handleInstallPWA}
                         className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-primary/5 rounded-lg transition-colors flex items-center gap-2 font-medium"
                       >
                         <Download className="w-4 h-4" />
-                        {t('install_app', 'Install HAP Cargo')}
+                        {t('install_app', 'Install HAPCARGO')}
                       </button>
                     )}
                     
