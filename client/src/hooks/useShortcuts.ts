@@ -39,22 +39,41 @@ export function useShortcuts(shortcuts: ShortcutMap, isActive: boolean = true) {
         key
       ].join('');
 
-      // Handle input navigation with Shift+Arrows
-      if (isInput && keyString.startsWith('shift+arrow')) {
-        e.preventDefault(); // Stop text selection
-        const inputs = Array.from(document.querySelectorAll('input:not([disabled]), textarea:not([disabled]), select:not([disabled]), button.input:not([disabled])')) as HTMLElement[];
-        // Note: button.input is for CustomSelect
-        const currentIndex = inputs.indexOf(target);
-        if (currentIndex !== -1) {
-          if (key === 'arrowdown' || key === 'arrowright') {
-            const next = inputs[currentIndex + 1];
-            if (next) next.focus();
-          } else if (key === 'arrowup' || key === 'arrowleft') {
-            const prev = inputs[currentIndex - 1];
-            if (prev) prev.focus();
+      // Handle input navigation with Arrows (with or without shift)
+      const isArrowNav = keyString.startsWith('shift+arrow') || key === 'arrowdown' || key === 'arrowup' || key === 'arrowleft' || key === 'arrowright';
+      if (isArrowNav) {
+        const inputs = Array.from(document.querySelectorAll('input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled]), button.input:not([disabled])')) as HTMLElement[];
+        const visibleInputs = inputs.filter(el => {
+           const rect = el.getBoundingClientRect();
+           return rect.width > 0 && rect.height > 0;
+        });
+
+        if (isInput) {
+          const isSelectOrNumber = target.tagName === 'SELECT' || (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'number');
+          const isTextArea = target.tagName === 'TEXTAREA';
+          
+          if (!keyString.startsWith('shift+') && (isSelectOrNumber || isTextArea)) {
+            // Let native behavior happen for select, number, and textarea when just using arrows
+          } else {
+             const currentIndex = visibleInputs.indexOf(target);
+             if (currentIndex !== -1) {
+               if (key === 'arrowdown' || key === 'arrowright') {
+                 const next = visibleInputs[currentIndex + 1];
+                 if (next) { e.preventDefault(); next.focus(); return; }
+               } else if (key === 'arrowup' || key === 'arrowleft') {
+                 const prev = visibleInputs[currentIndex - 1];
+                 if (prev) { e.preventDefault(); prev.focus(); return; }
+               }
+             }
           }
+        } else if (visibleInputs.length > 0 && keyString.startsWith('shift+arrow')) {
+           // If they use Shift+Arrow but are NOT in an input, focus the first visible input!
+           if (key === 'arrowdown' || key === 'arrowright') {
+             e.preventDefault();
+             visibleInputs[0].focus();
+             return;
+           }
         }
-        return;
       }
 
       const keyStringFallback = [

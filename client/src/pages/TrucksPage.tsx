@@ -131,7 +131,7 @@ export default function TrucksPage() {
                     let val = e.target.value;
                     if (f.key === 'plateNumber') val = val.toUpperCase();
                     setForm({ ...form, [f.key]: val });
-                  }} required={f.required} />
+                  }} required={f.required} autoFocus={f.key === 'plateNumber'} />
               </div>
             ))}
             <div className="flex gap-3 col-span-1 md:col-span-2 lg:col-span-3 pt-3 border-t border-border mt-2">
