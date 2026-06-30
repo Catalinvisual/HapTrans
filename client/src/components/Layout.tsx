@@ -5,7 +5,7 @@ import { formatDate } from '../lib/dateUtils';
 import Sidebar from './Sidebar';
 import LanguageDropdown from './LanguageDropdown';
 import { useAuthStore } from '../store/authStore';
-import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard, Search, User } from 'lucide-react';
+import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard, Search, User, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { useShortcuts } from '../hooks/useShortcuts';
@@ -15,10 +15,12 @@ import ConfirmModal from './ConfirmModal';
 import { navItems } from './Sidebar';
 
 let deferredPrompt: any = null;
+let installPromptListeners: Function[] = [];
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
+    installPromptListeners.forEach(listener => listener(e));
   });
 }
 
@@ -320,6 +322,7 @@ export default function Layout() {
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<any>(deferredPrompt);
   
   const lastNotifIdRef = useRef<string | null>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -400,9 +403,17 @@ export default function Layout() {
   };
 
   useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 10000); // Check every 10s
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 60000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const listener = (e: any) => setInstallPrompt(e);
+    installPromptListeners.push(listener);
+    return () => {
+      installPromptListeners = installPromptListeners.filter(l => l !== listener);
+    };
   }, []);
 
   useEffect(() => {
@@ -489,12 +500,13 @@ export default function Layout() {
   };
 
   const handleInstallPWA = () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then((choiceResult: any) => {
+    if (installPrompt) {
+      installPrompt.prompt();
+      installPrompt.userChoice.then((choiceResult: any) => {
         if (choiceResult.outcome === 'accepted') {
           console.log('User accepted the install prompt');
         }
+        setInstallPrompt(null);
         deferredPrompt = null;
       });
     } else {
@@ -523,6 +535,16 @@ export default function Layout() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {/* Desktop Install Button */}
+            {installPrompt && (
+              <button 
+                onClick={handleInstallPWA}
+                title={t('install_app', 'Instalează aplicația pe Desktop')}
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-primary/10 border border-primary/20 hover:bg-primary/20 hover:border-primary/40 transition-all text-primary"
+              >
+                <Download className="w-4 h-4" />
+              </button>
+            )}
             {/* Global Search Icon */}
             <button 
               onClick={() => setIsSearchOpen(true)}
@@ -653,12 +675,12 @@ export default function Layout() {
                 <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-border shadow-xl rounded-xl overflow-hidden z-50 animate-fade-in origin-top-right">
                   <div className="p-1">
                     {/* PWA Install Button */}
-                    {deferredPrompt && (
+                    {installPrompt && (
                       <button 
                         onClick={handleInstallPWA}
                         className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-primary/5 rounded-lg transition-colors flex items-center gap-2 font-medium"
                       >
-                        <svg xmlns="http://www.w3.org/-2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        <Download className="w-4 h-4" />
                         {t('install_app', 'Install HAP Cargo')}
                       </button>
                     )}
