@@ -55,10 +55,7 @@ export function useShortcuts(shortcuts: ShortcutMap, isActive: boolean = true) {
 
       const action = shortcutsRef.current[keyString] || shortcutsRef.current[keyStringFallback];
       if (action) {
-        // Only prevent default if it's not a native action we want to keep, but mostly we want to prevent default for our custom shortcuts.
-        if (keyString.includes('ctrl+s') || keyString.includes('ctrl+n') || keyString.includes('ctrl+k') || keyString === 'f1' || keyString === 'escape' || keyString.includes('ctrl+arrow')) {
-          e.preventDefault();
-        }
+        e.preventDefault();
         action(e);
       }
     };

@@ -31,6 +31,7 @@ export default function CustomSelect({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState({ left: 0, top: 0, width: 0 });
+  const [focusedIndex, setFocusedIndex] = useState(-1);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -59,6 +60,41 @@ export default function CustomSelect({
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (isOpen) {
+      setFocusedIndex(options.findIndex(o => o.value === value));
+    } else {
+      setFocusedIndex(-1);
+    }
+  }, [isOpen, value, options]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isOpen) {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        toggleDropdown();
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusedIndex(prev => (prev + 1) % options.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedIndex(prev => (prev - 1 + options.length) % options.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (focusedIndex >= 0 && focusedIndex < options.length && !options[focusedIndex].disabled) {
+        onChange(options[focusedIndex].value);
+        setIsOpen(false);
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setIsOpen(false);
+    }
+  };
+
   const toggleDropdown = () => {
     if (!isOpen && wrapperRef.current) {
       const rect = wrapperRef.current.getBoundingClientRect();
@@ -80,6 +116,7 @@ export default function CustomSelect({
         disabled={disabled}
         className={`w-full flex items-center justify-between input bg-white text-left ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-primary/50'} transition-colors`}
         onClick={toggleDropdown}
+        onKeyDown={handleKeyDown}
       >
         <div className="flex items-center gap-2 truncate">
           {selectedOption ? (
@@ -105,7 +142,7 @@ export default function CustomSelect({
           {options.length === 0 ? (
             <div className="px-4 py-3 text-sm text-text-secondary">No options</div>
           ) : (
-            options.map((option) => (
+            options.map((option, index) => (
               <div
                 key={option.value}
                 onClick={() => {
@@ -117,8 +154,10 @@ export default function CustomSelect({
                 className={`px-4 py-2.5 flex flex-col cursor-pointer transition-colors border-b border-gray-300 last:border-b-0 ${
                   option.disabled
                     ? 'opacity-50 cursor-not-allowed bg-slate-50'
-                    : 'hover:bg-primary/5'
-                } ${value === option.value ? 'bg-primary/5 border-l-2 border-primary' : 'border-l-2 border-transparent'}`}
+                    : focusedIndex === index
+                      ? 'bg-primary/10 border-l-2 border-primary'
+                      : 'hover:bg-primary/5 border-l-2 border-transparent'
+                }`}
               >
                 <div className="flex items-center gap-2">
                   {option.color && <div className={`w-2 h-2 rounded-full flex-shrink-0 ${option.color.replace('text-', 'bg-')}`} />}
