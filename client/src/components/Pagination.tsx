@@ -129,7 +129,7 @@ export default function Pagination({
   if (totalItems === 0) return null;
 
   return (
-    <div className={`flex flex-wrap items-center justify-center gap-6 py-3.5 px-6 bg-surface/80 border border-border rounded-2xl max-w-fit mx-auto my-4 shadow-sm ${className}`}>
+    <div className={`flex flex-wrap items-center justify-center gap-4 py-2 px-5 bg-surface/80 border border-border rounded-xl max-w-fit mx-auto my-3 shadow-sm ${className}`}>
       {/* Left side: Items per page dropdown */}
       <div className="flex items-center gap-2">
         <span className="text-xs font-extrabold text-text-secondary uppercase tracking-wider select-none">
@@ -139,7 +139,7 @@ export default function Pagination({
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-white hover:bg-gray-50 text-text font-extrabold text-xs rounded-xl border border-border transition-all shadow-sm"
+            className="flex items-center gap-2 px-2.5 py-1 bg-white hover:bg-gray-50 text-text font-extrabold text-xs rounded-lg border border-border transition-all shadow-sm"
           >
             <span>{currentOption.label}</span>
             <ChevronDown className={`w-4 h-4 text-primary transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
@@ -179,7 +179,7 @@ export default function Pagination({
           type="button"
           onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className={`w-9 h-9 rounded-xl border transition-all flex items-center justify-center ${
+          className={`w-8 h-8 rounded-lg border transition-all flex items-center justify-center ${
             currentPage === 1
               ? 'border-gray-200 text-gray-300 bg-gray-100 cursor-not-allowed opacity-50'
               : 'border-gray-300 bg-white text-gray-900 hover:bg-primary hover:text-white hover:border-primary shadow-sm'
@@ -197,10 +197,10 @@ export default function Pagination({
               <button
                 type="button"
                 onClick={() => onPageChange(pg)}
-                className={`min-w-[36px] h-9 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center ${
+                className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center ${
                   currentPage === pg
-                    ? 'bg-primary text-white shadow-md shadow-primary/30 border border-primary font-black'
-                    : 'bg-white border border-gray-300 text-gray-800 hover:bg-gray-50 hover:text-gray-900 shadow-sm'
+                    ? 'bg-primary text-white shadow-sm border border-primary'
+                    : 'bg-white text-text hover:bg-gray-50 border border-border hover:border-gray-300'
                 }`}
               >
                 {pg}
@@ -213,7 +213,7 @@ export default function Pagination({
           type="button"
           onClick={() => currentPage < totalPages && onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className={`w-9 h-9 rounded-xl border transition-all flex items-center justify-center ${
+          className={`w-8 h-8 rounded-lg border transition-all flex items-center justify-center ${
             currentPage === totalPages
               ? 'border-gray-200 text-gray-300 bg-gray-100 cursor-not-allowed opacity-50'
               : 'border-gray-300 bg-white text-gray-900 hover:bg-primary hover:text-white hover:border-primary shadow-sm'

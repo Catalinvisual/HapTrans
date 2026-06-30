@@ -317,6 +317,11 @@ export default function Layout() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    document.title = title;
+  }, [title]);
+
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [popupNotif, setPopupNotif] = useState<any | null>(null);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
