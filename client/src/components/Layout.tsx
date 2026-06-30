@@ -5,11 +5,12 @@ import { formatDate } from '../lib/dateUtils';
 import Sidebar from './Sidebar';
 import LanguageDropdown from './LanguageDropdown';
 import { useAuthStore } from '../store/authStore';
-import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard } from 'lucide-react';
+import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { useShortcuts } from '../hooks/useShortcuts';
 import ShortcutsHelpModal from './ShortcutsHelpModal';
+import GlobalSearchModal from './GlobalSearchModal';
 import ConfirmModal from './ConfirmModal';
 import { navItems } from './Sidebar';
 
@@ -306,6 +307,7 @@ export default function Layout() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [popupNotif, setPopupNotif] = useState<any | null>(null);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -339,7 +341,7 @@ export default function Layout() {
     'f12': () => setIsLogoutModalOpen(true),
     'shift+arrowup': () => navigateSidebar(-1),
     'shift+arrowdown': () => navigateSidebar(1),
-    'shift+k': () => {}, // Prevent default browser behavior if no global search yet
+    'shift+k': () => setIsSearchOpen(true),
     'shift+n': () => {}, // Prevent default browser behavior if page has no handler
     'escape': () => {
       const hasOpenModal = document.querySelector('.fixed.inset-0, [role="dialog"]');
@@ -479,6 +481,14 @@ export default function Layout() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {/* Global Search Icon */}
+            <button 
+              onClick={() => setIsSearchOpen(true)}
+              title={t('sc_search', 'Caută/deschide orice (Shift+K)')}
+              className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-surface hover:border-primary/40 transition-all text-text-secondary"
+            >
+              <Search className="w-4 h-4" />
+            </button>
             {/* Shortcuts Help Icon */}
             <button 
               onClick={() => setIsShortcutsModalOpen(true)}
@@ -661,6 +671,11 @@ export default function Layout() {
       <ShortcutsHelpModal 
         isOpen={isShortcutsModalOpen} 
         onClose={() => setIsShortcutsModalOpen(false)} 
+      />
+
+      <GlobalSearchModal 
+        isOpen={isSearchOpen} 
+        onClose={() => setIsSearchOpen(false)} 
       />
 
       <ConfirmModal
