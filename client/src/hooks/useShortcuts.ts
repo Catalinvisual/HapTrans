@@ -23,7 +23,6 @@ export function useShortcuts(shortcuts: ShortcutMap, isActive: boolean = true) {
                       target.tagName === 'SELECT' || 
                       target.isContentEditable;
 
-      // Build key string, e.g., 'ctrl+s', 'escape', 'ctrl+arrowup'
       let key = e.key.toLowerCase();
       
       // Normalize arrow keys
@@ -39,6 +38,11 @@ export function useShortcuts(shortcuts: ShortcutMap, isActive: boolean = true) {
         e.shiftKey && key !== 'tab' ? 'shift+' : '', // Include shift except for Tab if not needed
         key
       ].join('');
+
+      // ALWAYS prevent default for our crucial app shortcuts so the browser doesn't steal them
+      if (keyString === 'f1' || keyString === 'ctrl+k' || keyString === 'ctrl+n' || keyString === 'ctrl+s') {
+        e.preventDefault();
+      }
       
       const keyStringFallback = [
         e.ctrlKey ? 'ctrl+' : '',

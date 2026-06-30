@@ -38,6 +38,10 @@ export function useTableShortcuts({
       
       if (isInput) return;
 
+      // Check if a modal is currently open by looking for common modal wrappers (fixed inset-0, z-50, etc)
+      const hasOpenModal = document.querySelector('.fixed.inset-0, [role="dialog"]');
+      if (hasOpenModal) return;
+
       const { items, selectedIndex, setSelectedIndex, onOpen, onDelete, onToggleCheck } = latestConfig.current;
 
       if (!items || items.length === 0) return;

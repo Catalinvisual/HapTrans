@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { X, Keyboard } from 'lucide-react';
+import { useShortcuts } from '../hooks/useShortcuts';
 
 interface ShortcutsHelpModalProps {
   isOpen: boolean;
@@ -8,6 +9,10 @@ interface ShortcutsHelpModalProps {
 
 export default function ShortcutsHelpModal({ isOpen, onClose }: ShortcutsHelpModalProps) {
   const { t } = useTranslation();
+
+  useShortcuts({
+    'escape': onClose
+  }, isOpen);
 
   if (!isOpen) return null;
 

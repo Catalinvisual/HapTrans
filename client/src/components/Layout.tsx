@@ -339,6 +339,8 @@ export default function Layout() {
     'f12': () => setIsLogoutModalOpen(true),
     'ctrl+arrowup': () => navigateSidebar(-1),
     'ctrl+arrowdown': () => navigateSidebar(1),
+    'ctrl+k': () => {}, // Prevent default browser behavior if no global search yet
+    'ctrl+n': () => {}  // Prevent default browser behavior if page has no ctrl+n handler
   });
   const playNotificationSound = () => {
     try {
