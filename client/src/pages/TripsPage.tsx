@@ -86,7 +86,7 @@ export default function TripsPage() {
   }, [showForm, editId, form]);
 
   useShortcuts({
-    'ctrl+n': () => {
+    'shift+n': () => {
       if (!showForm) {
         setEditId(null);
         setForm({ 

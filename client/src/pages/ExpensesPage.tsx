@@ -150,7 +150,7 @@ export default function ExpensesPage() {
   const currentTableItems = expenses.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   useShortcuts({
-    'ctrl+n': () => {
+    'shift+n': () => {
       if (!showForm) {
         setForm({ date: new Date().toISOString().split('T')[0], category: 'fuel', amount: '', currency: 'EUR', description: '', receiptUrl: '' });
         setEditId(null);

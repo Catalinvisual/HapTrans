@@ -335,12 +335,18 @@ export default function Layout() {
   };
 
   useShortcuts({
-    'f1': () => setIsShortcutsModalOpen(true),
+    'shift+h': () => setIsShortcutsModalOpen(true),
     'f12': () => setIsLogoutModalOpen(true),
-    'ctrl+arrowup': () => navigateSidebar(-1),
-    'ctrl+arrowdown': () => navigateSidebar(1),
-    'ctrl+k': () => {}, // Prevent default browser behavior if no global search yet
-    'ctrl+n': () => {}  // Prevent default browser behavior if page has no ctrl+n handler
+    'shift+arrowup': () => navigateSidebar(-1),
+    'shift+arrowdown': () => navigateSidebar(1),
+    'shift+k': () => {}, // Prevent default browser behavior if no global search yet
+    'shift+n': () => {}, // Prevent default browser behavior if page has no handler
+    'escape': () => {
+      const hasOpenModal = document.querySelector('.fixed.inset-0, [role="dialog"]');
+      if (!hasOpenModal) {
+        window.history.back();
+      }
+    }
   });
   const playNotificationSound = () => {
     try {

@@ -446,7 +446,7 @@ export default function InvoicesPage() {
   const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   useShortcuts({
-    'ctrl+n': () => {
+    'shift+n': () => {
       if (!showForm && !previewData && !invoiceLangModal.isOpen) {
         setForm({ clientId: '', tripId: '', amount: '', fuelSurcharge: '', extraCosts: '', tollCosts: '', vatPercent: '19', vatType: 'NORMAL', issueDate: '', dueDate: '', notes: '' });
         setEditId(null);

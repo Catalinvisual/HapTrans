@@ -84,7 +84,7 @@ export default function MaintenancePage() {
   const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   useShortcuts({
-    'ctrl+n': () => {
+    'shift+n': () => {
       if (!showForm) {
         setForm({ truckId: '', type: 'preventive', description: '', scheduledDate: '', cost: '', serviceProvider: '', notes: '' });
         setShowForm(true);

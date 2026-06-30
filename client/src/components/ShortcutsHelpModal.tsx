@@ -20,13 +20,13 @@ export default function ShortcutsHelpModal({ isOpen, onClose }: ShortcutsHelpMod
     {
       title: t('shortcuts_global_title', 'Globale'),
       items: [
-        { key: 'Ctrl + K', desc: t('sc_search', 'Caută/deschide orice: pagină, client, cursă, factură') },
-        { key: 'Ctrl + N', desc: t('sc_new', 'Creează element nou în pagina curentă') },
+        { key: 'Shift + K', desc: t('sc_search', 'Caută/deschide orice: pagină, client, cursă, factură') },
+        { key: 'Shift + N', desc: t('sc_new', 'Creează element nou în pagina curentă') },
         { key: 'Ctrl + S', desc: t('sc_save', 'Salvează formularul curent') },
-        { key: 'Ctrl + ↑ / ↓', desc: t('sc_nav_sidebar', 'Navigare sus/jos prin meniul lateral') },
-        { key: 'Ctrl + ← / →', desc: t('sc_nav_tabs', 'Navigare între taburile paginii curente') },
+        { key: 'Shift + ↑ / ↓', desc: t('sc_nav_sidebar', 'Navigare sus/jos prin meniul lateral') },
+        { key: 'Shift + ← / →', desc: t('sc_nav_tabs', 'Navigare între taburile paginii curente') },
         { key: 'Esc', desc: t('sc_esc', 'Închide modal/dropdown/panel') },
-        { key: 'F1', desc: t('sc_f1', 'Deschide meniul cu shortcut-uri') },
+        { key: 'Shift + H', desc: t('sc_f1', 'Deschide meniul cu shortcut-uri') },
         { key: 'F12', desc: t('sc_f12', 'Logout (cu confirmare)') },
       ],
     },
@@ -98,7 +98,7 @@ export default function ShortcutsHelpModal({ isOpen, onClose }: ShortcutsHelpMod
           <div className="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
             <div className="text-blue-500 font-bold mt-0.5">ℹ</div>
             <div className="text-sm text-blue-900 leading-relaxed">
-              {t('shortcuts_info', 'Shortcut-urile nu vor funcționa dacă tastați în câmpuri text, cu excepția Ctrl+S, Esc și F1.')}
+              {t('shortcuts_info', 'Shortcut-urile nu vor funcționa dacă tastați în câmpuri text, cu excepția Ctrl+S, Esc și Shift+H.')}
             </div>
           </div>
         </div>

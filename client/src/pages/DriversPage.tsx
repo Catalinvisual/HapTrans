@@ -202,7 +202,7 @@ export default function DriversPage() {
   const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   useShortcuts({
-    'ctrl+n': () => {
+    'shift+n': () => {
       if (!showForm) {
         setForm({
           name: '', email: '', password: '', phone: '', licenseNumber: '',

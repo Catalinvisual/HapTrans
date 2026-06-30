@@ -128,7 +128,7 @@ export default function UsersPage() {
   const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   useShortcuts({
-    'ctrl+n': () => {
+    'shift+n': () => {
       if (!showForm && !resetPasswordUser && !deactivateUser) {
         setForm({ email: '', password: '', name: '', role: 'dispatcher', grossSalary: '', dailyRate: '', allowedPages: [] });
         setEditId(null);

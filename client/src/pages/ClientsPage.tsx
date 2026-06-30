@@ -83,7 +83,7 @@ export default function ClientsPage() {
   const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   useShortcuts({
-    'ctrl+n': () => {
+    'shift+n': () => {
       if (!showForm && !selectedClient) {
         setForm({ name: '', cui: '', address: '', contactName: '', contactEmail: '', phone: '' });
         setEditId(null);

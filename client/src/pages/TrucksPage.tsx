@@ -71,7 +71,7 @@ export default function TrucksPage() {
   const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   useShortcuts({
-    'ctrl+n': () => {
+    'shift+n': () => {
       if (!showForm) {
         setForm({ plateNumber: '', brand: '', model: '', year: '', payloadCapacity: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '' });
         setEditId(null);

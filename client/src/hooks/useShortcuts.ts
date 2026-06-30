@@ -39,11 +39,24 @@ export function useShortcuts(shortcuts: ShortcutMap, isActive: boolean = true) {
         key
       ].join('');
 
-      // ALWAYS prevent default for our crucial app shortcuts so the browser doesn't steal them
-      if (keyString === 'f1' || keyString === 'ctrl+k' || keyString === 'ctrl+n' || keyString === 'ctrl+s') {
-        e.preventDefault();
+      // Handle input navigation with Shift+Arrows
+      if (isInput && keyString.startsWith('shift+arrow')) {
+        e.preventDefault(); // Stop text selection
+        const inputs = Array.from(document.querySelectorAll('input:not([disabled]), textarea:not([disabled]), select:not([disabled]), button.input:not([disabled])')) as HTMLElement[];
+        // Note: button.input is for CustomSelect
+        const currentIndex = inputs.indexOf(target);
+        if (currentIndex !== -1) {
+          if (key === 'arrowdown' || key === 'arrowright') {
+            const next = inputs[currentIndex + 1];
+            if (next) next.focus();
+          } else if (key === 'arrowup' || key === 'arrowleft') {
+            const prev = inputs[currentIndex - 1];
+            if (prev) prev.focus();
+          }
+        }
+        return;
       }
-      
+
       const keyStringFallback = [
         e.ctrlKey ? 'ctrl+' : '',
         e.altKey ? 'alt+' : '',
@@ -51,7 +64,7 @@ export function useShortcuts(shortcuts: ShortcutMap, isActive: boolean = true) {
       ].join('');
 
       // Check exceptions
-      const isException = keyString === 'ctrl+s' || key === 'escape' || key === 'f1';
+      const isException = keyString === 'ctrl+s' || key === 'escape' || key === 'shift+h';
 
       if (isInput && !isException) {
         return; // Do not trigger shortcuts inside inputs
