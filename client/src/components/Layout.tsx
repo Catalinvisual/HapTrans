@@ -403,8 +403,8 @@ export default function Layout() {
   };
 
   useEffect(() => {
-    fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 60000);
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
   }, []);
 
