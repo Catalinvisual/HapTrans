@@ -29,6 +29,8 @@ const STATUS_LABELS: Record<string, string> = {
 
 import { useFormStore } from '../store/formStore';
 import Pagination from '../components/Pagination';
+import { useShortcuts } from '../hooks/useShortcuts';
+import { useTableShortcuts } from '../hooks/useTableShortcuts';
 
 export default function DriversPage() {
   const formStore = useFormStore();
@@ -39,6 +41,7 @@ export default function DriversPage() {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(formStore.driversShowForm);
   const [editId, setEditId] = useState<string | null>(formStore.driversEditId);
+  const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
 
   const fpOptions = useMemo(() => ({
     altInput: true,
@@ -120,8 +123,8 @@ export default function DriversPage() {
     return 'Date cannot be in the past.';
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: any) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (isPastDate(form.licenseExpiry) || isPastDate(form.medicalExpiry) || isPastDate(form.tachoCardExpiry)) {
       toast.error(getErrorMessage());
       return;
@@ -195,6 +198,41 @@ export default function DriversPage() {
       (d.status || '').toLowerCase().includes(query)
     );
   }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+  const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useShortcuts({
+    'ctrl+n': () => {
+      if (!showForm) {
+        setForm({
+          name: '', email: '', password: '', phone: '', licenseNumber: '',
+          licenseExpiry: '', medicalExpiry: '', tachoCardExpiry: '', status: 'active',
+          bankAccountName: '', bankAccountNumber: '', grossSalary: '', dailyRate: '', notes: ''
+        });
+        setEditId(null);
+        setShowForm(true);
+      }
+    },
+    'ctrl+s': (e) => {
+      if (showForm) {
+        handleSubmit(e);
+      }
+    },
+    'escape': () => {
+      if (showForm) {
+        setShowForm(false);
+      }
+    }
+  });
+
+  useTableShortcuts({
+    items: currentTableItems,
+    selectedIndex: selectedRowIndex,
+    setSelectedIndex: setSelectedRowIndex,
+    onOpen: (d) => handleEdit(d),
+    onDelete: (d) => handleDelete(d.id),
+    isActive: !showForm
+  });
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -452,8 +490,13 @@ export default function DriversPage() {
                 <tr><td colSpan={10} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={10} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
-              ) : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(d => (
-                <tr key={d.id} className="hover:bg-surface/60 transition-colors">
+              ) : currentTableItems.map((d: any, idx: number) => (
+                <tr key={d.id} 
+                    className={`hover:bg-surface/60 transition-colors cursor-pointer ${selectedRowIndex === idx ? 'bg-primary/5 ring-1 ring-inset ring-primary' : ''}`}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('button, select, input, a, .interactive-click')) return;
+                      handleEdit(d);
+                    }}>
                   <td className="table-cell font-bold text-text">{d.user?.name || '—'}</td>
                   <td className="table-cell text-xs">{d.user?.email || '—'}</td>
                   <td className="table-cell text-xs font-medium text-text-secondary">{d.phone || '—'}</td>

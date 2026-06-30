@@ -7,6 +7,8 @@ import toast from 'react-hot-toast';
 import CustomSelect from '../components/CustomSelect';
 import { navItems } from '../components/Sidebar';
 import Pagination from '../components/Pagination';
+import { useShortcuts } from '../hooks/useShortcuts';
+import { useTableShortcuts } from '../hooks/useTableShortcuts';
 
 export default function UsersPage() {
   const { t } = useTranslation();
@@ -21,6 +23,7 @@ export default function UsersPage() {
   const [showPageSelect, setShowPageSelect] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
 
   const load = () => api.get('/users').then(r => {
     const sorted = r.data.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
@@ -40,8 +43,8 @@ export default function UsersPage() {
     toast.success(t('passwordGenerated'));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: any) => {
+    if (e && e.preventDefault) e.preventDefault();
     try {
       if (editId) {
         const payload: Partial<typeof form> = { ...form };
@@ -120,6 +123,49 @@ export default function UsersPage() {
       (u.role || '').toLowerCase().includes(query) ||
       (u.language || '').toLowerCase().includes(query)
     );
+  });
+
+  const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useShortcuts({
+    'ctrl+n': () => {
+      if (!showForm && !resetPasswordUser && !deactivateUser) {
+        setForm({ email: '', password: '', name: '', role: 'dispatcher', grossSalary: '', dailyRate: '', allowedPages: [] });
+        setEditId(null);
+        setShowForm(true);
+      }
+    },
+    'ctrl+s': (e) => {
+      if (showForm) {
+        handleSubmit(e);
+      }
+    },
+    'escape': () => {
+      if (showForm) setShowForm(false);
+      if (resetPasswordUser) setResetPasswordUser(null);
+      if (deactivateUser) setDeactivateUser(null);
+    }
+  });
+
+  useTableShortcuts({
+    items: currentTableItems,
+    selectedIndex: selectedRowIndex,
+    setSelectedIndex: setSelectedRowIndex,
+    onOpen: (u) => {
+      setEditId(u.id);
+      setForm({
+        name: u.name,
+        email: u.email,
+        password: '',
+        role: u.role,
+        grossSalary: u.grossSalary?.toString() || '',
+        dailyRate: u.dailyRate?.toString() || '',
+        allowedPages: u.allowedPages || []
+      });
+      setShowForm(true);
+    },
+    onDelete: (u) => setDeactivateUser(u),
+    isActive: !showForm && !resetPasswordUser && !deactivateUser
   });
 
   return (
@@ -257,8 +303,23 @@ export default function UsersPage() {
                 <tr><td colSpan={6} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={6} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
-              ) : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(u => (
-                <tr key={u.id} className="hover:bg-surface/60 transition-colors">
+              ) : currentTableItems.map((u: any, idx: number) => (
+                <tr key={u.id} 
+                    className={`hover:bg-surface/60 transition-colors cursor-pointer ${selectedRowIndex === idx ? 'bg-primary/5 ring-1 ring-inset ring-primary' : ''}`}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('button, select, input, a, .interactive-click')) return;
+                      setEditId(u.id);
+                      setForm({
+                        name: u.name,
+                        email: u.email,
+                        password: '',
+                        role: u.role,
+                        grossSalary: u.grossSalary?.toString() || '',
+                        dailyRate: u.dailyRate?.toString() || '',
+                        allowedPages: u.allowedPages || []
+                      });
+                      setShowForm(true);
+                    }}>
                   <td className="table-cell font-bold text-text">{u.name}</td>
                   <td className="table-cell text-xs text-text-secondary">{u.email}</td>
                   <td className="table-cell"><span className={ROLE_BADGE[u.role] || 'badge-gray'}>{t(u.role)}</span></td>

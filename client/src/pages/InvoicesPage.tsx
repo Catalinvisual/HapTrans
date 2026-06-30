@@ -13,6 +13,8 @@ import ConfirmModal from '../components/ConfirmModal';
 import { getCompanySettings } from './SettingsPage';
 import { useFormStore } from '../store/formStore';
 import Pagination from '../components/Pagination';
+import { useShortcuts } from '../hooks/useShortcuts';
+import { useTableShortcuts } from '../hooks/useTableShortcuts';
 
 const STATUS_COLORS: Record<string, string> = { draft:'badge-gray', approved:'bg-indigo-100 text-indigo-700', sent:'badge-primary', paid:'badge-success', overdue:'badge-error', cancelled:'badge-error' };
 
@@ -41,6 +43,7 @@ export default function InvoicesPage() {
   const [invoiceLangModal, setInvoiceLangModal] = useState<any>({ isOpen: false, data: null, type: '', cb: null });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
   const [form, setForm] = useState(formStore.invoicesForm || { clientId: '', tripId: '', amount: '', fuelSurcharge: '', extraCosts: '', tollCosts: '', vatPercent: '19', vatType: 'NORMAL', issueDate: '', dueDate: '', notes: '' });
 
   useEffect(() => {
@@ -289,8 +292,8 @@ export default function InvoicesPage() {
     return 'Date cannot be in the past.';
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: any) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (isPastDate(form.issueDate) || isPastDate(form.dueDate)) {
       toast.error(getErrorMessage());
       return;
@@ -439,6 +442,44 @@ export default function InvoicesPage() {
       String(i.amount || '').includes(query)
     );
   }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+  const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useShortcuts({
+    'ctrl+n': () => {
+      if (!showForm && !previewData && !invoiceLangModal.isOpen) {
+        setForm({ clientId: '', tripId: '', amount: '', fuelSurcharge: '', extraCosts: '', tollCosts: '', vatPercent: '19', vatType: 'NORMAL', issueDate: '', dueDate: '', notes: '' });
+        setEditId(null);
+        setShowForm(true);
+      }
+    },
+    'ctrl+s': (e) => {
+      if (showForm) {
+        handleSubmit(e);
+      }
+    },
+    'escape': () => {
+      if (showForm) {
+        setShowForm(false);
+      } else if (previewData) {
+        setPreviewData(null);
+      }
+    }
+  });
+
+  useTableShortcuts({
+    items: currentTableItems,
+    selectedIndex: selectedRowIndex,
+    setSelectedIndex: setSelectedRowIndex,
+    onOpen: (inv) => {
+      if (inv.status === 'draft') handleEditClick(inv);
+      else if (inv.pdfUrl) window.open(inv.pdfUrl, '_blank');
+    },
+    onDelete: (inv) => {
+      if (inv.status === 'draft') setDeleteId(inv.id);
+    },
+    isActive: !showForm && !previewData && !invoiceLangModal.isOpen
+  });
 
   const getInvTotals = (inv: any) => {
     let sub = Number(inv.subtotal) || 0;
@@ -617,10 +658,16 @@ export default function InvoicesPage() {
             <tbody>
               {loading ? <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
                 : filtered.length === 0 ? <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
-                : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(inv => {
+                : currentTableItems.map((inv: any, idx: number) => {
                   const totals = getInvTotals(inv);
                   return (
-                  <tr key={inv.id} className={`transition-colors ${inv.status === 'overdue' ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-surface/60'}`}>
+                  <tr key={inv.id} 
+                      className={`transition-colors cursor-pointer ${inv.status === 'overdue' ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-surface/60'} ${selectedRowIndex === idx ? 'ring-1 ring-inset ring-primary bg-primary/5' : ''}`}
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).closest('button, select, input, a, .interactive-click')) return;
+                        if (inv.status === 'draft') handleEditClick(inv);
+                        else if (inv.pdfUrl) window.open(inv.pdfUrl, '_blank');
+                      }}>
                     <td className="table-cell font-mono text-sm font-bold">{inv.invoiceNumber}</td>
                     <td className="table-cell font-bold text-text">{inv.client?.name}</td>
                     <td className="table-cell">

@@ -10,6 +10,8 @@ import { formatDate } from '../lib/dateUtils';
 import ClientDetails from '../components/ClientDetails';
 import { useFormStore } from '../store/formStore';
 import Pagination from '../components/Pagination';
+import { useShortcuts } from '../hooks/useShortcuts';
+import { useTableShortcuts } from '../hooks/useTableShortcuts';
 
 export default function ClientsPage() {
   const formStore = useFormStore();
@@ -22,6 +24,7 @@ export default function ClientsPage() {
   const [showExport, setShowExport] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
   
   const [form, setForm] = useState(formStore.clientsForm || { name: '', cui: '', address: '', contactName: '', contactEmail: '', phone: '' });
   const [editId, setEditId] = useState<string | null>(formStore.clientsEditId);
@@ -35,8 +38,8 @@ export default function ClientsPage() {
   const load = () => api.get('/clients').then(r => { setClients(r.data); setLoading(false); });
   useEffect(() => { load(); }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: any) => {
+    if (e && e.preventDefault) e.preventDefault();
     try {
       if (editId) { await api.patch(`/clients/${editId}`, form); toast.success(t('clientUpdated')); }
       else { await api.post('/clients', form); toast.success(t('clientAdded')); }
@@ -76,6 +79,40 @@ export default function ClientsPage() {
       (c.phone || '').toLowerCase().includes(query)
     );
   }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+  const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useShortcuts({
+    'ctrl+n': () => {
+      if (!showForm && !selectedClient) {
+        setForm({ name: '', cui: '', address: '', contactName: '', contactEmail: '', phone: '' });
+        setEditId(null);
+        setShowForm(true);
+      }
+    },
+    'ctrl+s': (e) => {
+      if (showForm) {
+        handleSubmit(e);
+      }
+    },
+    'escape': () => {
+      if (showForm) {
+        setShowForm(false);
+      } else if (selectedClient) {
+        setSelectedClient(null);
+        load();
+      }
+    }
+  });
+
+  useTableShortcuts({
+    items: currentTableItems,
+    selectedIndex: selectedRowIndex,
+    setSelectedIndex: setSelectedRowIndex,
+    onOpen: (c) => setSelectedClient(c),
+    onDelete: (c) => setDeleteId(c.id),
+    isActive: !showForm && !selectedClient
+  });
 
   if (selectedClient) {
     return <ClientDetails client={selectedClient} onBack={() => { setSelectedClient(null); load(); }} />;
@@ -162,8 +199,13 @@ export default function ClientsPage() {
                 <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
-              ) : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(c => (
-                <tr key={c.id} className="hover:bg-surface/60 transition-colors">
+              ) : currentTableItems.map((c: any, idx: number) => (
+                <tr key={c.id} 
+                    className={`hover:bg-surface/60 transition-colors cursor-pointer ${selectedRowIndex === idx ? 'bg-primary/5 ring-1 ring-inset ring-primary' : ''}`}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('button, select, input, a, .interactive-click')) return;
+                      setSelectedClient(c);
+                    }}>
                   <td className="table-cell font-bold text-text">{c.name}</td>
                   <td className="table-cell text-xs font-semibold text-text-secondary">{c.cui || '—'}</td>
                   <td className="table-cell text-xs max-w-[150px] truncate">{c.address || '—'}</td>

@@ -13,6 +13,8 @@ import ConfirmModal from '../components/ConfirmModal';
 import { TimePicker } from '../components/TimePicker';
 import { formatDate } from '../lib/dateUtils';
 import RouteCalculator from '../components/RouteCalculator';
+import { useShortcuts } from '../hooks/useShortcuts';
+import { useTableShortcuts } from '../hooks/useTableShortcuts';
 
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
@@ -50,6 +52,7 @@ export default function TripsPage() {
   const [editId, setEditId] = useState<string | null>(formStore.tripsEditId);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
 
   const fpOptions = useMemo(() => ({
     altInput: true,
@@ -81,6 +84,34 @@ export default function TripsPage() {
   useEffect(() => {
     formStore.setFormState('trips', { showForm, editId, form });
   }, [showForm, editId, form]);
+
+  useShortcuts({
+    'ctrl+n': () => {
+      if (!showForm) {
+        setEditId(null);
+        setForm({ 
+          clientId:'', truckId:'', driverId:'', pickupAddress:'', dropoffAddress:'', 
+          pickupDate:'', dropoffDate:'', price:'', estimatedCost:'', realCost:'', distanceKm:'', notes:'',
+          pickupTime: '', dropoffTime: '', pallets: '', palletType: 'Euro paleti', weightKg: '', volumeCbm: '',
+          loadingReference: '', unloadingReference: '', cmrReference: '', status: 'pending',
+          clientRateId: '', agreedPrice: '', fuelSurchargePercent: '', tollCosts: '', extraCosts: '', tollIncluded: false,
+          adrSurcharge: false, nightSurcharge: false, weekendSurcharge: false, holidaySurcharge: false
+        });
+        setShowForm(true);
+      }
+    },
+    'ctrl+s': (e) => {
+      if (showForm) {
+        handleSubmit(e);
+      }
+    },
+    'escape': () => {
+      if (showForm) {
+        setShowForm(false);
+      }
+    }
+  });
+
   const [clientRates, setClientRates] = useState<any[]>([]);
   const [dieselPrice, setDieselPrice] = useState<number>(1.68);
   const [confirmModal, setConfirmModal] = useState<any>({
@@ -135,6 +166,30 @@ export default function TripsPage() {
     }
     return window.location.origin.replace('saas.', '').replace('5173', '3000').replace('5174', '3000');
   };
+
+  const filtered = useMemo(() => {
+    return trips.filter((t: any) => {
+      const matchSearch = (t.referenceNumber || '').toLowerCase().includes(search.toLowerCase()) ||
+                          (t.client?.name || '').toLowerCase().includes(search.toLowerCase()) ||
+                          (t.pickupAddress || '').toLowerCase().includes(search.toLowerCase()) ||
+                          (t.dropoffAddress || '').toLowerCase().includes(search.toLowerCase());
+      const matchStatus = statusFilter === 'all' || t.status === statusFilter;
+      return matchSearch && matchStatus;
+    });
+  }, [trips, search, statusFilter]);
+
+  const currentTableItems = useMemo(() => {
+    return filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  }, [filtered, currentPage, itemsPerPage]);
+
+  useTableShortcuts({
+    items: currentTableItems,
+    selectedIndex: selectedRowIndex,
+    setSelectedIndex: setSelectedRowIndex,
+    onOpen: (trip) => navigate(`/trips/${trip.id}`),
+    onDelete: (trip) => handleDelete(trip.id),
+    isActive: !showForm
+  });
 
   const load = async () => {
     try {
@@ -399,8 +454,8 @@ export default function TripsPage() {
     return 'Date cannot be in the past.';
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: any) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (isPastDate(form.pickupDate) || isPastDate(form.dropoffDate)) {
       toast.error(getErrorMessage());
       return;
@@ -865,24 +920,7 @@ export default function TripsPage() {
     setEditId(trip.id); setShowForm(true);
   };
 
-  const filtered = trips.filter(t => {
-    if (statusFilter !== 'all' && t.status !== statusFilter) return false;
-    const query = search.toLowerCase();
-    return (
-      (t.client?.name || '').toLowerCase().includes(query) ||
-      (t.pickupAddress || '').toLowerCase().includes(query) ||
-      (t.dropoffAddress || '').toLowerCase().includes(query) ||
-      (t.loadingReference || '').toLowerCase().includes(query) ||
-      (t.unloadingReference || '').toLowerCase().includes(query) ||
-      (t.cmrReference || '').toLowerCase().includes(query) ||
-      (t.truck?.plateNumber || '').toLowerCase().includes(query) ||
-      (t.truck?.brand || '').toLowerCase().includes(query) ||
-      (t.driver?.user?.name || '').toLowerCase().includes(query) ||
-      (t.notes || '').toLowerCase().includes(query) ||
-      (t.status || '').toLowerCase().includes(query) ||
-      String(t.price || '').includes(query)
-    );
-  }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -1584,16 +1622,15 @@ export default function TripsPage() {
                 <tr><td colSpan={11} className="table-cell text-center text-text-secondary py-8">{t('loading')}</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={11} className="table-cell text-center text-text-secondary py-8">{t('noData')}</td></tr>
-              ) : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((trip) => {
+              ) : currentTableItems.map((trip: any, idx: number) => {
                 const addedCosts = trip.costs?.reduce((s: number, c: any) => s + Number(c.amount), 0) || 0;
                 const totalCost = addedCosts > 0 ? addedCosts : (Number(trip.realCost) || Number(trip.estimatedCost) || 0);
                 const profit = Number(trip.price || 0) - totalCost;
                 return (
                   <tr key={trip.id} onClick={(e) => {
-                    // Prevent row click if clicking on an interactive element like select or button
                     if ((e.target as HTMLElement).closest('button, select, input, a, .interactive-click')) return;
                     navigate(`/trips/${trip.id}`);
-                  }} className="hover:bg-surface/60 transition-colors cursor-pointer">
+                  }} className={`hover:bg-surface/60 transition-colors cursor-pointer ${selectedRowIndex === idx ? 'bg-primary/5 ring-1 ring-inset ring-primary' : ''}`}>
                     <td className="table-cell whitespace-nowrap text-xs font-bold text-primary">
                       {trip.referenceNumber || '—'}
                     </td>

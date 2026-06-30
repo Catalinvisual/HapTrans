@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { AppToaster } from './components/AppToaster';
 import Layout from './components/Layout';
+import { ShortcutProvider } from './lib/ShortcutContext';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import TripsPage from './pages/TripsPage';
@@ -30,9 +31,10 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      {/* Global Toaster - top-right, colored */}
-      <AppToaster />
+    <ShortcutProvider>
+      <BrowserRouter>
+        {/* Global Toaster - top-right, colored */}
+        <AppToaster />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         {/* Public route for shared documents */}
@@ -61,5 +63,6 @@ export default function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+    </ShortcutProvider>
   );
 }

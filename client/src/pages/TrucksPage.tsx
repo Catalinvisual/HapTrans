@@ -9,6 +9,8 @@ import { formatDate } from '../lib/dateUtils';
 
 import { useFormStore } from '../store/formStore';
 import Pagination from '../components/Pagination';
+import { useShortcuts } from '../hooks/useShortcuts';
+import { useTableShortcuts } from '../hooks/useTableShortcuts';
 
 export default function TrucksPage() {
   const formStore = useFormStore();
@@ -24,6 +26,7 @@ export default function TrucksPage() {
   
   const [form, setForm] = useState(formStore.trucksForm || { plateNumber: '', brand: '', model: '', year: '', payloadCapacity: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '' });
   const [editId, setEditId] = useState<string | null>(formStore.trucksEditId);
+  const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
 
   useEffect(() => {
     formStore.setFormState('trucks', { showForm, editId, form });
@@ -44,8 +47,8 @@ export default function TrucksPage() {
   const load = () => api.get('/trucks').then(r => { setTrucks(r.data); setLoading(false); });
   useEffect(() => { load(); }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: any) => {
+    if (e && e.preventDefault) e.preventDefault();
     try {
       if (editId) { await api.patch(`/trucks/${editId}`, form); toast.success(t('truckUpdated')); }
       else { await api.post('/trucks', form); toast.success(t('truckAdded')); }
@@ -64,6 +67,41 @@ export default function TrucksPage() {
       (t.status || '').toLowerCase().includes(query)
     );
   }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+  const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useShortcuts({
+    'ctrl+n': () => {
+      if (!showForm) {
+        setForm({ plateNumber: '', brand: '', model: '', year: '', payloadCapacity: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '' });
+        setEditId(null);
+        setShowForm(true);
+      }
+    },
+    'ctrl+s': (e) => {
+      if (showForm) {
+        handleSubmit(e);
+      }
+    },
+    'escape': () => {
+      if (showForm) {
+        setShowForm(false);
+      }
+    }
+  });
+
+  useTableShortcuts({
+    items: currentTableItems,
+    selectedIndex: selectedRowIndex,
+    setSelectedIndex: setSelectedRowIndex,
+    onOpen: (truck) => {
+      setForm({ plateNumber: truck.plateNumber, brand: truck.brand, model: truck.model, year: truck.year, payloadCapacity: truck.payloadCapacity, fuelConsumption: truck.fuelConsumption, totalMileage: truck.totalMileage || '', nextMaintenanceMileage: truck.nextMaintenanceMileage || '' });
+      setEditId(truck.id);
+      setShowForm(true);
+    },
+    onDelete: (truck) => setDeleteId(truck.id),
+    isActive: !showForm
+  });
 
   const statusBadge = (s: string) => ({
     active: 'badge-success', in_trip: 'badge-primary', maintenance: 'badge-warning', inactive: 'badge-gray'
@@ -138,8 +176,15 @@ export default function TrucksPage() {
                 <tr><td colSpan={9} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={9} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
-              ) : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(truck => (
-                <tr key={truck.id} className="hover:bg-surface/60 transition-colors">
+              ) : currentTableItems.map((truck: any, idx: number) => (
+                <tr key={truck.id} 
+                    className={`hover:bg-surface/60 transition-colors cursor-pointer ${selectedRowIndex === idx ? 'bg-primary/5 ring-1 ring-inset ring-primary' : ''}`}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('button, select, input, a, .interactive-click')) return;
+                      setForm({ plateNumber: truck.plateNumber, brand: truck.brand, model: truck.model, year: truck.year, payloadCapacity: truck.payloadCapacity, fuelConsumption: truck.fuelConsumption, totalMileage: truck.totalMileage || '', nextMaintenanceMileage: truck.nextMaintenanceMileage || '' });
+                      setEditId(truck.id);
+                      setShowForm(true);
+                    }}>
                   <td className="table-cell font-bold text-primary">{truck.plateNumber}</td>
                   <td className="table-cell font-medium text-text">{truck.brand}</td>
                   <td className="table-cell text-text">{truck.model}</td>

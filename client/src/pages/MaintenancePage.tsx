@@ -8,6 +8,8 @@ import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
 import CustomSelect from '../components/CustomSelect';
 import Pagination from '../components/Pagination';
+import { useShortcuts } from '../hooks/useShortcuts';
+import { useTableShortcuts } from '../hooks/useTableShortcuts';
 
 export default function MaintenancePage() {
   const { t, i18n } = useTranslation();
@@ -19,6 +21,7 @@ export default function MaintenancePage() {
   const [form, setForm] = useState({ truckId: '', type: 'preventive', description: '', scheduledDate: '', cost: '', serviceProvider: '', notes: '' });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
 
   const load = async () => {
     const [r, tr] = await Promise.all([api.get('/maintenance'), api.get('/trucks')]);
@@ -56,8 +59,8 @@ export default function MaintenancePage() {
     return 'Date cannot be in the past.';
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: any) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (isPastDate(form.scheduledDate)) {
       toast.error(getErrorMessage());
       return;
@@ -77,6 +80,32 @@ export default function MaintenancePage() {
 
   const STATUS = { scheduled:'badge-primary', in_progress:'badge-warning', done:'badge-success' };
   const filtered = records.filter(r => r.truck?.plateNumber?.toLowerCase().includes(search.toLowerCase()) || r.description?.toLowerCase().includes(search.toLowerCase()));
+
+  const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useShortcuts({
+    'ctrl+n': () => {
+      if (!showForm) {
+        setForm({ truckId: '', type: 'preventive', description: '', scheduledDate: '', cost: '', serviceProvider: '', notes: '' });
+        setShowForm(true);
+      }
+    },
+    'ctrl+s': (e) => {
+      if (showForm) handleSubmit(e);
+    },
+    'escape': () => {
+      if (showForm) setShowForm(false);
+    }
+  });
+
+  useTableShortcuts({
+    items: currentTableItems,
+    selectedIndex: selectedRowIndex,
+    setSelectedIndex: setSelectedRowIndex,
+    onOpen: (r) => {}, // not implemented in maintenance
+    onDelete: (r) => {}, // not implemented delete in this file?
+    isActive: !showForm
+  });
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -128,8 +157,9 @@ export default function MaintenancePage() {
           </tr></thead>
           <tbody>
             {loading ? <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
-              : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(r => (
-              <tr key={r.id} className="hover:bg-surface/60 transition-colors">
+              : currentTableItems.map((r: any, idx: number) => (
+              <tr key={r.id} 
+                  className={`hover:bg-surface/60 transition-colors cursor-pointer ${selectedRowIndex === idx ? 'bg-primary/5 ring-1 ring-inset ring-primary' : ''}`}>
                 <td className="table-cell font-semibold">{r.truck?.plateNumber}</td>
                 <td className="table-cell capitalize">{r.type}</td>
                 <td className="table-cell">{r.description}</td>

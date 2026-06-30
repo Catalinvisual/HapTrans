@@ -5,6 +5,8 @@ import { Plus, Trash2, Edit2, Upload, FileText, Loader2, Image as ImageIcon, Che
 import toast from 'react-hot-toast';
 import CustomSelect from '../components/CustomSelect';
 import Pagination from '../components/Pagination';
+import { useShortcuts } from '../hooks/useShortcuts';
+import { useTableShortcuts } from '../hooks/useTableShortcuts';
 
 const CATEGORIES = [
   { value: 'fuel',        labelKey: 'cat_fuel' },
@@ -23,6 +25,7 @@ export default function ExpensesPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
 
   const [form, setForm] = useState<any>({
     amount: '',
@@ -105,8 +108,8 @@ export default function ExpensesPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: any) => {
+    if (e && e.preventDefault) e.preventDefault();
     try {
       const data = { ...form, amount: Number(form.amount) || 0 };
       if (editId) {
@@ -133,13 +136,46 @@ export default function ExpensesPage() {
     }
   };
 
+  const handleEdit = (exp: any) => {
+    setForm({ amount: exp.amount.toString(), currency: exp.currency, category: exp.category, description: exp.description || '', date: exp.date?.slice(0, 10) || '', receiptUrl: exp.receiptUrl || '' });
+    setEditId(exp.id);
+    setShowForm(true);
+  };
+
   const getCategoryLabel = (val: string) => {
     const cat = CATEGORIES.find(c => c.value === val);
     return cat ? t(cat.labelKey) : val;
   };
 
+  const currentTableItems = expenses.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useShortcuts({
+    'ctrl+n': () => {
+      if (!showForm) {
+        setForm({ date: new Date().toISOString().split('T')[0], category: 'fuel', amount: '', currency: 'EUR', description: '', receiptUrl: '' });
+        setEditId(null);
+        setShowForm(true);
+      }
+    },
+    'ctrl+s': (e) => {
+      if (showForm) handleSubmit(e);
+    },
+    'escape': () => {
+      if (showForm) resetForm();
+    }
+  });
+
+  useTableShortcuts({
+    items: currentTableItems,
+    selectedIndex: selectedRowIndex,
+    setSelectedIndex: setSelectedRowIndex,
+    onOpen: (exp) => handleEdit(exp),
+    onDelete: (exp) => handleDelete(exp.id),
+    isActive: !showForm
+  });
+
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-5 animate-fade-in">
 
       {showForm && (
         <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md relative overflow-hidden">
@@ -272,8 +308,13 @@ export default function ExpensesPage() {
                 </td></tr>
               ) : expenses.length === 0 ? (
                 <tr><td colSpan={6} className="table-cell text-center py-10 text-text-secondary">{t('noExpenses')}</td></tr>
-              ) : expenses.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(exp => (
-                <tr key={exp.id} className="hover:bg-surface/60 transition-colors border-b border-border/50 last:border-0">
+              ) : currentTableItems.map((exp: any, idx: number) => (
+                <tr key={exp.id} 
+                    className={`hover:bg-surface/60 transition-colors border-b border-border/50 last:border-0 cursor-pointer ${selectedRowIndex === idx ? 'bg-primary/5 ring-1 ring-inset ring-primary' : ''}`}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('button, select, input, a, .interactive-click')) return;
+                      handleEdit(exp);
+                    }}>
                   <td className="table-cell text-text-secondary font-medium">
                     {new Date(exp.date).toLocaleDateString()}
                   </td>

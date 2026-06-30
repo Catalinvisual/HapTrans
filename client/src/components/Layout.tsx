@@ -5,9 +5,13 @@ import { formatDate } from '../lib/dateUtils';
 import Sidebar from './Sidebar';
 import LanguageDropdown from './LanguageDropdown';
 import { useAuthStore } from '../store/authStore';
-import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu } from 'lucide-react';
+import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
+import { useShortcuts } from '../hooks/useShortcuts';
+import ShortcutsHelpModal from './ShortcutsHelpModal';
+import ConfirmModal from './ConfirmModal';
+import { navItems } from './Sidebar';
 
 const PAGE_TITLES: Record<string, Record<string, string>> = {
   '/dashboard': { ro: 'Panou de Control', en: 'Dashboard', nl: 'Dashboard' },
@@ -303,9 +307,39 @@ export default function Layout() {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [popupNotif, setPopupNotif] = useState<any | null>(null);
+  const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  
   const lastNotifIdRef = useRef<string | null>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
+  const isDispatcher = user?.role === 'dispatcher';
+  const restrictedKeys = ['financial', 'payroll', 'expenses', 'websiteCms', 'users', 'settings'];
+  const filteredNavItems = navItems.filter(item => {
+    if (user?.allowedPages && user.allowedPages.length > 0) {
+      return user.allowedPages.includes(item.key);
+    }
+    if (isDispatcher && restrictedKeys.includes(item.key)) {
+      return false;
+    }
+    return true;
+  });
+
+  const navigateSidebar = (direction: number) => {
+    if (filteredNavItems.length === 0) return;
+    const currentIndex = filteredNavItems.findIndex(item => item.to === location.pathname);
+    let nextIndex = currentIndex + direction;
+    if (nextIndex < 0) nextIndex = filteredNavItems.length - 1;
+    if (nextIndex >= filteredNavItems.length) nextIndex = 0;
+    navigate(filteredNavItems[nextIndex].to);
+  };
+
+  useShortcuts({
+    'f1': () => setIsShortcutsModalOpen(true),
+    'f12': () => setIsLogoutModalOpen(true),
+    'ctrl+arrowup': () => navigateSidebar(-1),
+    'ctrl+arrowdown': () => navigateSidebar(1),
+  });
   const playNotificationSound = () => {
     try {
       if (!sharedAudioCtx) {
@@ -437,6 +471,15 @@ export default function Layout() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {/* Shortcuts Help Icon */}
+            <button 
+              onClick={() => setIsShortcutsModalOpen(true)}
+              title={t('shortcuts_title', 'Keyboard Shortcuts (F1)')}
+              className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-surface hover:border-primary/40 transition-all text-text-secondary"
+            >
+              <Keyboard className="w-4 h-4" />
+            </button>
+
             {/* Notification bell */}
             <div className="relative" ref={notifRef}>
               <button 
@@ -606,6 +649,19 @@ export default function Layout() {
           </div>
         );
       })()}
+
+      <ShortcutsHelpModal 
+        isOpen={isShortcutsModalOpen} 
+        onClose={() => setIsShortcutsModalOpen(false)} 
+      />
+
+      <ConfirmModal
+        isOpen={isLogoutModalOpen}
+        title={t('logout', 'Logout')}
+        message={t('confirm_logout', 'Sunteți sigur că doriți să vă deconectați?')}
+        onConfirm={handleLogout}
+        onCancel={() => setIsLogoutModalOpen(false)}
+      />
     </div>
   );
 }
