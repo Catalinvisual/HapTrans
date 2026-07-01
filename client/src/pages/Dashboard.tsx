@@ -146,15 +146,17 @@ export default function Dashboard() {
         <div className="card">
           <h3 className="text-sm font-semibold text-text mb-4">{t('topClientsProfit') || 'Top Clienți (Profit)'}</h3>
           <div className="space-y-4 mt-2">
-            {(data?.topClients ?? []).map((client, idx) => (
+            {(data?.topClients ?? []).filter(c => c.profit > 0).map((client, idx) => (
               <div key={idx} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+                <div className="flex items-center gap-4">
+                  <div className="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center text-primary font-bold text-xs">
                     {idx + 1}
                   </div>
-                  <span className="text-sm font-medium text-text">{client.name}</span>
+                  <span className="font-semibold text-text">{client.name}</span>
                 </div>
-                <span className="text-sm font-bold text-success">€{client.profit.toLocaleString(i18n.language)}</span>
+                <span className={`text-sm font-bold ${client.profit >= 0 ? 'text-success' : 'text-error'}`}>
+                  €{client.profit.toLocaleString(i18n.language)}
+                </span>
               </div>
             ))}
             {(data?.topClients?.length ?? 0) === 0 && (
