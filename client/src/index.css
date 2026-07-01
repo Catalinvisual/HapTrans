@@ -101,7 +101,7 @@
   .badge-error { @apply badge bg-red-100 text-red-800; }
   .badge-warning { @apply badge bg-amber-100 text-amber-800; }
   .badge-primary { @apply badge bg-orange-100 text-orange-700; }
-  .badge-gray { @apply badge bg-gray-100 text-gray-700; }
+  .badge-gray { @apply badge bg-surface text-text-secondary border border-border; }
   .sidebar-item {
     @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-text-secondary
     hover:bg-orange-50 hover:text-primary transition-all duration-150 cursor-pointer no-underline;
@@ -110,7 +110,7 @@
     @apply bg-orange-50 text-primary font-semibold;
   }
   .table-header {
-    @apply text-xs font-bold text-gray-800 uppercase tracking-wider px-2 py-2 text-left bg-surface;
+    @apply text-xs font-bold text-text-secondary uppercase tracking-wider px-2 py-2 text-left bg-surface;
   }
   .table-cell {
     @apply px-2 py-2 text-sm text-text border-b border-border;

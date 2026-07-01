@@ -156,7 +156,7 @@ export default function CustomSelect({
                     ? 'opacity-50 cursor-not-allowed bg-surface'
                     : focusedIndex === index
                       ? 'bg-primary/10 border-l-2 border-primary'
-                      : 'hover:bg-primary/5 border-l-2 border-transparent'
+                      : 'hover:bg-primary/5 border-l-2 border-l-transparent'
                 }`}
               >
                 <div className="flex items-center gap-2">
