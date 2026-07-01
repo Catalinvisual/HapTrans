@@ -98,6 +98,9 @@ const QuoteForm = () => {
           weekendSurcharge: weekend || prev.weekendSurcharge,
           holidaySurcharge: holiday || prev.holidaySurcharge
         }));
+        
+        // Remove query params from URL so they don't persist on refresh
+        window.history.replaceState({}, document.title, window.location.pathname);
       }
     }
   }, []);
