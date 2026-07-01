@@ -190,26 +190,26 @@ const Hero = () => {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem', marginBottom: '1rem', background: 'rgba(243, 244, 246, 0.6)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid rgba(229, 231, 235, 1)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem', marginBottom: '1.5rem' }}>
                     <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      {getLabel("Opțiuni Suplimentare / Tarife Speciale", "Additional Options / Special Tariffs", "Aanvullende opties / Speciale tarieven", "Zusätzliche Optionen / Sondertarife", "Options supplémentaires / Tarifs spéciaux", "Opciones adicionales / Tarifas especiales")}
+                      {getLabel("Opțiuni Suplimentare", "Additional Options", "Aanvullende opties", "Zusätzliche Optionen", "Options supplémentaires", "Opciones adicionales")}
                     </span>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', marginTop: '0.25rem' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                        <input type="checkbox" name="adrSurcharge" checked={formData.adrSurcharge} onChange={handleChange} style={{ width: '1rem', height: '1rem', accentColor: 'var(--primary)' }} />
-                        ⚠️ {getLabel("ADR (Mărfuri Periculoase)", "ADR (Hazardous Goods)", "ADR (Gevaarlijke stoffen)", "ADR (Gefahrgut)", "ADR (Matières dangereuses)", "ADR (Mercancías peligrosas)")}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', padding: '0.75rem 1rem', borderRadius: '0.5rem', border: formData.adrSurcharge ? '2px solid var(--primary)' : '1px solid #E5E7EB', background: formData.adrSurcharge ? 'rgba(255, 122, 26, 0.05)' : 'white', color: formData.adrSurcharge ? 'var(--primary)' : 'var(--text-secondary)', transition: 'all 0.2s ease' }}>
+                        <input type="checkbox" name="adrSurcharge" checked={formData.adrSurcharge} onChange={handleChange} style={{ display: 'none' }} />
+                        <span style={{ fontSize: '1.1rem' }}>⚠️</span> {getLabel("ADR (Mărfuri Periculoase)", "ADR (Hazardous Goods)", "ADR (Gevaarlijke stoffen)", "ADR (Gefahrgut)", "ADR (Matières dangereuses)", "ADR (Mercancías peligrosas)")}
                       </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                        <input type="checkbox" name="nightSurcharge" checked={formData.nightSurcharge} onChange={handleChange} style={{ width: '1rem', height: '1rem', accentColor: 'var(--primary)' }} />
-                        🌙 {getLabel("Transit Noapte / Express", "Night / Express Transit", "Nacht / Express Transit", "Nacht- / Expresstransit", "Transit de Nuit / Express", "Tránsito Nocturno / Exprés")}
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', padding: '0.75rem 1rem', borderRadius: '0.5rem', border: formData.nightSurcharge ? '2px solid var(--primary)' : '1px solid #E5E7EB', background: formData.nightSurcharge ? 'rgba(255, 122, 26, 0.05)' : 'white', color: formData.nightSurcharge ? 'var(--primary)' : 'var(--text-secondary)', transition: 'all 0.2s ease' }}>
+                        <input type="checkbox" name="nightSurcharge" checked={formData.nightSurcharge} onChange={handleChange} style={{ display: 'none' }} />
+                        <span style={{ fontSize: '1.1rem' }}>🌙</span> {getLabel("Transit Noapte / Express", "Night / Express Transit", "Nacht / Express Transit", "Nacht- / Expresstransit", "Transit de Nuit / Express", "Tránsito Nocturno / Exprés")}
                       </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                        <input type="checkbox" name="weekendSurcharge" checked={formData.weekendSurcharge} onChange={handleChange} style={{ width: '1rem', height: '1rem', accentColor: 'var(--primary)' }} />
-                        📅 {getLabel("Transit Weekend", "Weekend Transit", "Weekend Transit", "Wochenendtransit", "Transit Week-end", "Tránsito de Fin de Semana")}
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', padding: '0.75rem 1rem', borderRadius: '0.5rem', border: formData.weekendSurcharge ? '2px solid var(--primary)' : '1px solid #E5E7EB', background: formData.weekendSurcharge ? 'rgba(255, 122, 26, 0.05)' : 'white', color: formData.weekendSurcharge ? 'var(--primary)' : 'var(--text-secondary)', transition: 'all 0.2s ease' }}>
+                        <input type="checkbox" name="weekendSurcharge" checked={formData.weekendSurcharge} onChange={handleChange} style={{ display: 'none' }} />
+                        <span style={{ fontSize: '1.1rem' }}>📅</span> {getLabel("Transit Weekend", "Weekend Transit", "Weekend Transit", "Wochenendtransit", "Transit Week-end", "Tránsito de Fin de Semana")}
                       </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                        <input type="checkbox" name="holidaySurcharge" checked={formData.holidaySurcharge} onChange={handleChange} style={{ width: '1rem', height: '1rem', accentColor: 'var(--primary)' }} />
-                        🏛️ {getLabel("Transit Sărbători Legale", "Bank / Public Holiday Transit", "Transit Erkende Feestdagen", "Gesetzliche Feiertage", "Transit Jours Fériés", "Tránsito en Festivos Oficiales")}
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', padding: '0.75rem 1rem', borderRadius: '0.5rem', border: formData.holidaySurcharge ? '2px solid var(--primary)' : '1px solid #E5E7EB', background: formData.holidaySurcharge ? 'rgba(255, 122, 26, 0.05)' : 'white', color: formData.holidaySurcharge ? 'var(--primary)' : 'var(--text-secondary)', transition: 'all 0.2s ease' }}>
+                        <input type="checkbox" name="holidaySurcharge" checked={formData.holidaySurcharge} onChange={handleChange} style={{ display: 'none' }} />
+                        <span style={{ fontSize: '1.1rem' }}>🏛️</span> {getLabel("Transit Sărbători Legale", "Public Holiday Transit", "Transit Erkende Feestdagen", "Gesetzliche Feiertage", "Transit Jours Fériés", "Tránsito en Festivos Oficiales")}
                       </label>
                     </div>
                   </div>
