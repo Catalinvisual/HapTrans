@@ -5,37 +5,37 @@
 
 @layer base {
   :root {
-    --color-primary: #FF5A00;
-    --color-primary-dark: #E04D00;
-    --color-primary-light: #FFF0E6;
-    --color-secondary: #0D1B2A;
-    --color-accent: #1976D2;
-    --color-success: #10B981;
-    --color-error: #EF4444;
-    --color-warning: #F59E0B;
-    --color-surface: #F2F4F7;
-    --color-card: #FFFFFF;
-    --color-text: #0D1B2A;
-    --color-text-secondary: #6B7280;
-    --color-text-light: #9CA3AF;
-    --color-border: #F3F4F6;
+    --color-primary: 255 90 0;
+    --color-primary-dark: 224 77 0;
+    --color-primary-light: 255 240 230;
+    --color-secondary: 13 27 42;
+    --color-accent: 25 118 210;
+    --color-success: 16 185 129;
+    --color-error: 239 68 68;
+    --color-warning: 245 158 11;
+    --color-surface: 242 244 247;
+    --color-card: 255 255 255;
+    --color-text: 13 27 42;
+    --color-text-secondary: 107 114 128;
+    --color-text-light: 156 163 175;
+    --color-border: 243 244 246;
   }
 
   .dark {
-    --color-primary: #FF5A00;
-    --color-primary-dark: #FF7A33;
-    --color-primary-light: #331200;
-    --color-secondary: #E2E8F0;
-    --color-accent: #3B82F6;
-    --color-success: #10B981;
-    --color-error: #EF4444;
-    --color-warning: #F59E0B;
-    --color-surface: #0f172a;
-    --color-card: #1e293b;
-    --color-text: #F8FAFC;
-    --color-text-secondary: #94A3B8;
-    --color-text-light: #64748B;
-    --color-border: #334155;
+    --color-primary: 255 90 0;
+    --color-primary-dark: 255 122 51;
+    --color-primary-light: 51 18 0;
+    --color-secondary: 226 232 240;
+    --color-accent: 59 130 246;
+    --color-success: 16 185 129;
+    --color-error: 239 68 68;
+    --color-warning: 245 158 11;
+    --color-surface: 15 23 42;
+    --color-card: 30 41 59;
+    --color-text: 248 250 252;
+    --color-text-secondary: 148 163 184;
+    --color-text-light: 100 116 139;
+    --color-border: 51 65 85;
   }
 
   * { @apply border-border; }
