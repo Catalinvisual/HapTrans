@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { v2 as cloudinary } from 'cloudinary';
 import { UsersService } from './users/users.service';
+import { RoutingService } from './routing/routing.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -11,9 +12,9 @@ import * as path from 'path';
 export class AppController {
   constructor(
     private readonly em: EntityManager,
-
     private readonly appService: AppService,
     private readonly usersService: UsersService,
+    private readonly routingService: RoutingService,
   ) {}
 
   @Get()
@@ -200,10 +201,27 @@ export class AppController {
   }
 
   @Post('public/calculate-quote')
-  async calculateQuote(@Body() body: { distanceKm?: number; weightKg?: number; pallets?: number; adr?: boolean; nightSurcharge?: boolean; weekendSurcharge?: boolean; holidaySurcharge?: boolean }) {
+  async calculateQuote(@Body() body: { distanceKm?: number; from?: string; to?: string; weightKg?: number; pallets?: number; adr?: boolean; nightSurcharge?: boolean; weekendSurcharge?: boolean; holidaySurcharge?: boolean }) {
     try {
       const settings = await this.getTariffSettings();
-      const dist = body.distanceKm || 500;
+      let dist = body.distanceKm || 500;
+      
+      // Calculate real distance if origin and destination are provided
+      if (body.from && body.to) {
+        try {
+          const geoFrom = await this.routingService.geocode(body.from);
+          const geoTo = await this.routingService.geocode(body.to);
+          if (geoFrom && geoTo) {
+            const route = await this.routingService.calculateRoute(geoFrom.lat, geoFrom.lng, geoTo.lat, geoTo.lng);
+            if (route && route.distanceKm) {
+              dist = route.distanceKm;
+            }
+          }
+        } catch (err) {
+          console.error('Error calculating real distance in calculate-quote:', err);
+        }
+      }
+
       const weight = body.weightKg || 5000;
       const pallets = body.pallets || 10;
 

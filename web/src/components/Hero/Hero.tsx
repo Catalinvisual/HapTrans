@@ -87,6 +87,8 @@ const Hero = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
+          from: formData.from,
+          to: formData.to,
           distanceKm, 
           weightKg, 
           pallets: palletsNum,
