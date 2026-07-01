@@ -148,7 +148,7 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
             ref={inputRef}
             type="text"
             className="flex-1 text-lg outline-none bg-transparent text-text placeholder-text-secondary"
-            placeholder={t('search_placeholder', 'Caută pagini, clienți, curse...')}
+            placeholder={t('search_placeholder', 'Cauta pagini, clienți, curse...')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -180,7 +180,7 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
                     selectedIndex === index ? 'bg-primary/10 text-primary' : 'hover:bg-surface text-text'
                   }`}
                 >
-                  <div className={`p-2 rounded-lg ${selectedIndex === index ? 'bg-primary/20' : 'bg-surface border border-border'}`}>
+                  <div className={`p-2 rounded-lg border ${selectedIndex === index ? 'bg-primary/20 border-transparent' : 'bg-surface border-border'}`}>
                     {res.icon}
                   </div>
                   <div className="flex-1 flex flex-col">

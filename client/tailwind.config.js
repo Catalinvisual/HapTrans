@@ -1,27 +1,28 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#FF5A00', // HapCargo Orange
-          dark: '#E04D00',
-          light: '#FFF0E6',
+          DEFAULT: 'var(--color-primary)',
+          dark: 'var(--color-primary-dark)',
+          light: 'var(--color-primary-light)',
         },
-        secondary: '#0D1B2A', // HapCargo Dark Blue
-        accent: '#1976D2', // HapCargo Bright Blue
-        success: '#10B981', 
-        error: '#EF4444',
-        warning: '#F59E0B',
-        surface: '#F2F4F7', // HapCargo Background
-        card: '#FFFFFF',
+        secondary: 'var(--color-secondary)',
+        accent: 'var(--color-accent)',
+        success: 'var(--color-success)',
+        error: 'var(--color-error)',
+        warning: 'var(--color-warning)',
+        surface: 'var(--color-surface)',
+        card: 'var(--color-card)',
         text: {
-          DEFAULT: '#0D1B2A', // Using secondary as main dark text
-          secondary: '#6B7280',
-          light: '#9CA3AF',
+          DEFAULT: 'var(--color-text)',
+          secondary: 'var(--color-text-secondary)',
+          light: 'var(--color-text-light)',
         },
-        border: '#F3F4F6', 
+        border: 'var(--color-border)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

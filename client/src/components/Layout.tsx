@@ -5,7 +5,7 @@ import { formatDate } from '../lib/dateUtils';
 import Sidebar from './Sidebar';
 import LanguageDropdown from './LanguageDropdown';
 import { useAuthStore } from '../store/authStore';
-import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard, Search, User, Download } from 'lucide-react';
+import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard, Search, User, Download, Moon, Sun } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { useShortcuts } from '../hooks/useShortcuts';
@@ -318,6 +318,24 @@ export default function Layout() {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') === 'dark' ||
+        (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
+
   useEffect(() => {
     document.title = title;
   }, [title]);
@@ -575,6 +593,14 @@ export default function Layout() {
             >
               <Keyboard className="w-4 h-4" />
             </button>
+            {/* Dark Mode Toggle */}
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              title={isDarkMode ? t('light_mode', 'Light Mode') : t('dark_mode', 'Dark Mode')}
+              className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-surface hover:border-primary/40 transition-all text-text-secondary"
+            >
+              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
 
             {/* Notification bell */}
             <div className="relative" ref={notifRef}>
@@ -722,7 +748,7 @@ export default function Layout() {
         </header>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto bg-[#F8FAFC]">
+        <main className="flex-1 overflow-y-auto bg-surface">
           <div className="p-4 md:p-6 w-full mx-auto">
             <Outlet />
           </div>

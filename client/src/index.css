@@ -4,6 +4,40 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-primary: #FF5A00;
+    --color-primary-dark: #E04D00;
+    --color-primary-light: #FFF0E6;
+    --color-secondary: #0D1B2A;
+    --color-accent: #1976D2;
+    --color-success: #10B981;
+    --color-error: #EF4444;
+    --color-warning: #F59E0B;
+    --color-surface: #F2F4F7;
+    --color-card: #FFFFFF;
+    --color-text: #0D1B2A;
+    --color-text-secondary: #6B7280;
+    --color-text-light: #9CA3AF;
+    --color-border: #F3F4F6;
+  }
+
+  .dark {
+    --color-primary: #FF5A00;
+    --color-primary-dark: #FF7A33;
+    --color-primary-light: #331200;
+    --color-secondary: #E2E8F0;
+    --color-accent: #3B82F6;
+    --color-success: #10B981;
+    --color-error: #EF4444;
+    --color-warning: #F59E0B;
+    --color-surface: #0f172a;
+    --color-card: #1e293b;
+    --color-text: #F8FAFC;
+    --color-text-secondary: #94A3B8;
+    --color-text-light: #64748B;
+    --color-border: #334155;
+  }
+
   * { @apply border-border; }
   body {
     @apply bg-surface text-text font-sans antialiased;
