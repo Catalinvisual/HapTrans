@@ -118,16 +118,16 @@ export class AppController {
   async saveCompanySettings(@Body() body: any) {
     try {
       const jsonStr = JSON.stringify(body);
-      const existing = await this.em.query("SELECT * FROM website_cms WHERE `key` = 'company_settings'");
+      const existing = await this.em.query('SELECT * FROM website_cms WHERE \"key\" = \'company_settings\'');
       if (existing.length > 0) {
-        await this.em.query("UPDATE website_cms SET `value` = ? WHERE `key` = 'company_settings'", [jsonStr]);
+        await this.em.query('UPDATE website_cms SET \"value\" = $1 WHERE \"key\" = \'company_settings\'', [jsonStr]);
       } else {
-        await this.em.query("INSERT INTO website_cms (`key`, `value`) VALUES ('company_settings', ?)", [jsonStr]);
+        await this.em.query('INSERT INTO website_cms (\"key\", \"value\") VALUES (\'company_settings\', $1)', [jsonStr]);
       }
       if (body.logo && typeof body.logo === 'string' && body.logo.startsWith('http')) {
         try {
-          await this.em.query("UPDATE users SET companyLogoUrl = ?", [body.logo]);
-          await this.em.query("UPDATE website_cms SET `value` = ? WHERE `key` IN ('logo', 'company_logo', 'site_logo')", [body.logo]);
+          await this.em.query('UPDATE users SET \"companyLogoUrl\" = $1', [body.logo]);
+          await this.em.query('UPDATE website_cms SET \"value\" = $1 WHERE \"key\" IN (\'logo\', \'company_logo\', \'site_logo\')', [body.logo]);
         } catch (dbErr) {
           console.error('Failed to update logo in users and website_cms', dbErr);
         }
@@ -142,7 +142,7 @@ export class AppController {
   @Get('public/company-settings')
   async getCompanySettings() {
     try {
-      const res = await this.em.query("SELECT `value` FROM website_cms WHERE `key` = 'company_settings'");
+      const res = await this.em.query('SELECT \"value\" FROM website_cms WHERE \"key\" = \'company_settings\'');
       if (res.length > 0 && res[0].value) {
         return JSON.parse(res[0].value);
       }
@@ -157,11 +157,11 @@ export class AppController {
   async saveTariffSettings(@Body() body: any) {
     try {
       const jsonStr = JSON.stringify(body);
-      const existing = await this.em.query("SELECT * FROM website_cms WHERE `key` = 'tariff_settings'");
+      const existing = await this.em.query('SELECT * FROM website_cms WHERE \"key\" = \'tariff_settings\'');
       if (existing.length > 0) {
-        await this.em.query("UPDATE website_cms SET `value` = ? WHERE `key` = 'tariff_settings'", [jsonStr]);
+        await this.em.query('UPDATE website_cms SET \"value\" = $1 WHERE \"key\" = \'tariff_settings\'', [jsonStr]);
       } else {
-        await this.em.query("INSERT INTO website_cms (`key`, `value`) VALUES ('tariff_settings', ?)", [jsonStr]);
+        await this.em.query('INSERT INTO website_cms (\"key\", \"value\") VALUES (\'tariff_settings\', $1)', [jsonStr]);
       }
       return { success: true };
     } catch (e) {
@@ -173,7 +173,7 @@ export class AppController {
   @Get('public/tariff-settings')
   async getTariffSettings() {
     try {
-      const res = await this.em.query("SELECT `value` FROM website_cms WHERE `key` = 'tariff_settings'");
+      const res = await this.em.query('SELECT \"value\" FROM website_cms WHERE \"key\" = \'tariff_settings\'');
       if (res.length > 0 && res[0].value) {
         return JSON.parse(res[0].value);
       }
