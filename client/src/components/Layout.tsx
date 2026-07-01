@@ -551,7 +551,7 @@ export default function Layout() {
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <div className="flex-1 flex flex-col overflow-hidden w-full">
         {/* Top Bar */}
-        <header className="h-16 bg-white border-b border-border flex items-center justify-between px-4 md:px-6 flex-shrink-0 shadow-sm">
+        <header className="h-16 bg-card border-b border-border flex items-center justify-between px-4 md:px-6 flex-shrink-0 shadow-sm">
           <div className="flex items-center gap-3">
             <button 
               className="md:hidden p-2 -ml-2 text-text-secondary hover:bg-surface rounded-lg"
@@ -615,7 +615,7 @@ export default function Layout() {
               </button>
               
               {isNotifOpen && (
-                <div className="absolute top-12 right-0 w-80 bg-white rounded-xl shadow-xl border border-border overflow-hidden z-50 flex flex-col max-h-[420px]">
+                <div className="absolute top-12 right-0 w-80 bg-card rounded-xl shadow-xl border border-border overflow-hidden z-50 flex flex-col max-h-[420px]">
                   <div className="p-3 border-b border-border flex justify-between items-center bg-surface">
                     <span className="font-semibold text-text text-sm">{t('notif_title')}</span>
                     {unreadCount > 0 && (
@@ -712,7 +712,7 @@ export default function Layout() {
               </button>
 
               {isProfileOpen && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-border shadow-xl rounded-xl overflow-hidden z-50 animate-fade-in origin-top-right">
+                <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border shadow-xl rounded-xl overflow-hidden z-50 animate-fade-in origin-top-right">
                   <div className="p-1">
                     {/* PWA Install Button */}
                     {!isStandalone && (
@@ -772,7 +772,7 @@ export default function Layout() {
 
         return (
           <div 
-            className="fixed bottom-6 right-6 z-[9999] w-80 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-border p-4 animate-slide-in flex flex-col gap-2 cursor-pointer hover:scale-[1.02] transition-all duration-200"
+            className="fixed bottom-6 right-6 z-[9999] w-80 bg-card/95 backdrop-blur-md rounded-2xl shadow-2xl border border-border p-4 animate-slide-in flex flex-col gap-2 cursor-pointer hover:scale-[1.02] transition-all duration-200"
             onClick={() => {
               if (!n.isRead) markAsRead(n.id);
               if (n.type === 'document') navigate('/documents');

@@ -122,7 +122,7 @@ export default function ClientsPage() {
     <div className="space-y-5 animate-fade-in">
 
       {showForm && (
-        <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md">
+        <div className="card animate-fade-in bg-card border border-border rounded-2xl p-6 shadow-md">
           <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">
             {editId ? t('editClient') || 'Editează client' : t('addClient')}
           </h3>
@@ -165,7 +165,7 @@ export default function ClientsPage() {
       )}
 
 
-      <div className="card p-0 overflow-hidden bg-white border border-border rounded-2xl shadow-sm">
+      <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
         <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 flex-1 max-w-md">
             <div className="relative flex-1">

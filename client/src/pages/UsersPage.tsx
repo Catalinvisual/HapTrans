@@ -172,7 +172,7 @@ export default function UsersPage() {
     <div className="space-y-5 animate-fade-in">
 
       {showForm && (
-        <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md">
+        <div className="card animate-fade-in bg-card border border-border rounded-2xl p-6 shadow-md">
           <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">
             {editId ? t('editUser', 'Editare utilizator') : t('newUser', 'Utilizator nou')}
           </h3>
@@ -220,7 +220,7 @@ export default function UsersPage() {
                 <label className="label font-semibold">{t('allowedPages', 'Acces Pagini (Lăsați gol pentru acces complet)')}</label>
                 <div className="relative">
                   <div 
-                    className="input cursor-pointer min-h-[42px] flex flex-wrap gap-2 items-center bg-white"
+                    className="input cursor-pointer min-h-[42px] flex flex-wrap gap-2 items-center bg-card"
                     onClick={() => setShowPageSelect(!showPageSelect)}
                   >
                     {form.allowedPages.length === 0 ? (
@@ -234,7 +234,7 @@ export default function UsersPage() {
                     )}
                   </div>
                   {showPageSelect && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-border rounded-xl shadow-lg max-h-64 overflow-y-auto p-2">
+                    <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-xl shadow-lg max-h-64 overflow-y-auto p-2">
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                         {navItems.map(item => {
                           const isSelected = form.allowedPages.includes(item.key);
@@ -242,7 +242,7 @@ export default function UsersPage() {
                             <label key={item.key} className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors border ${isSelected ? 'border-primary bg-primary/5 text-primary' : 'border-transparent hover:bg-surface'}`}>
                               <input 
                                 type="checkbox" 
-                                className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
                                 checked={isSelected}
                                 onChange={(e) => {
                                   if (e.target.checked) {
@@ -274,7 +274,7 @@ export default function UsersPage() {
         </div>
       )}
 
-      <div className="card p-0 overflow-hidden bg-white border border-border rounded-2xl shadow-sm">
+      <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
         <div className="p-4 border-b border-border flex items-center justify-between gap-3">
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />

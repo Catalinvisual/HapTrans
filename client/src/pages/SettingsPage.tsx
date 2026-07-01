@@ -171,7 +171,7 @@ export default function SettingsPage() {
     <div className="space-y-6 animate-fade-in max-w-4xl">
 
       {/* ─── COMPANY DETAILS ─── */}
-      <div className="bg-white border border-border rounded-2xl p-6 shadow-sm space-y-5">
+      <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-5">
         <div className="flex items-center gap-2 border-b border-border pb-3">
           <Building2 className="w-5 h-5 text-primary" />
           <h3 className="font-semibold text-lg text-primary">{t('company_section_title')}</h3>
@@ -263,7 +263,7 @@ export default function SettingsPage() {
       </div>
 
       {/* ─── TARIFFS & CALCULATOR ENGINE ─── */}
-      <div className="bg-white border border-border rounded-2xl p-6 shadow-sm space-y-5">
+      <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-5">
         <div className="flex items-center gap-2 border-b border-border pb-3">
           <Calculator className="w-5 h-5 text-primary" />
           <div>
@@ -382,7 +382,7 @@ export default function SettingsPage() {
                 value={tariffs.weightThresholdKg}
                 onChange={e => setTariffs(prev => ({ ...prev, weightThresholdKg: parseFloat(e.target.value) || 0 }))}
               />
-              <span className="absolute right-2 bg-slate-500/10 text-slate-700 font-extrabold text-[11px] px-3 py-1 rounded-md select-none pointer-events-none border border-slate-500/20">KG</span>
+              <span className="absolute right-2 bg-surface text-text-secondary font-extrabold text-[11px] px-3 py-1 rounded-md select-none pointer-events-none border border-border">KG</span>
             </div>
           </div>
 
@@ -504,7 +504,7 @@ export default function SettingsPage() {
       </div>
 
       {/* ─── PROFILE ─── */}
-      <div className="bg-white border border-border rounded-2xl p-6 shadow-sm space-y-4">
+      <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
         <div className="flex items-center gap-2 border-b border-border pb-3">
           <User className="w-5 h-5 text-primary" />
           <h3 className="font-semibold text-lg text-primary">{t('profile')}</h3>
@@ -543,7 +543,7 @@ export default function SettingsPage() {
       </div>
 
       {/* ─── SERVER CONNECTION ─── */}
-      <div className="bg-white border border-border rounded-2xl p-6 shadow-sm space-y-4">
+      <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
         <div className="flex items-center gap-2 border-b border-border pb-3">
           <Server className="w-5 h-5 text-primary" />
           <h3 className="font-semibold text-lg text-primary">{t('serverConnection')}</h3>

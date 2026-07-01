@@ -14,7 +14,7 @@ import CustomSelect from '../components/CustomSelect';
 const STATUS_COLORS: Record<string, string> = {
   available: 'text-success',
   in_trip: 'text-primary',
-  off: 'text-gray-500',
+  off: 'text-text-secondary',
   sick: 'text-error',
   vacation: 'text-warning',
 };
@@ -238,7 +238,7 @@ export default function DriversPage() {
     <div className="space-y-5 animate-fade-in">
 
       {showForm && (
-        <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md">
+        <div className="card animate-fade-in bg-card border border-border rounded-2xl p-6 shadow-md">
           <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">
             {editId ? t('editDriver') : t('addDriver')}
           </h3>
@@ -360,7 +360,7 @@ export default function DriversPage() {
                 options={[
                   { value: 'available', label: t('available'), color: 'text-success' },
                   { value: 'in_trip', label: t('inTrip'), color: 'text-primary' },
-                  { value: 'off', label: t('unavailable'), color: 'text-gray-500' },
+                  { value: 'off', label: t('unavailable'), color: 'text-text-secondary' },
                   { value: 'sick', label: t('sick'), color: 'text-error' },
                   { value: 'vacation', label: t('vacation'), color: 'text-warning' },
                 ]}
@@ -378,7 +378,7 @@ export default function DriversPage() {
                 onChange={(dates, dateStr) => setForm({...form, licenseExpiry: dateStr})}
                 onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                 onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
-                className={`input bg-white ${isPastDate(form.licenseExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
+                className={`input bg-card ${isPastDate(form.licenseExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
                 options={fpOptions}
                 placeholder="DD/MM/YYYY"
               />
@@ -395,7 +395,7 @@ export default function DriversPage() {
                 onChange={(dates, dateStr) => setForm({...form, medicalExpiry: dateStr})}
                 onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                 onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
-                className={`input bg-white ${isPastDate(form.medicalExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
+                className={`input bg-card ${isPastDate(form.medicalExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
                 options={fpOptions}
                 placeholder="DD/MM/YYYY"
               />
@@ -412,7 +412,7 @@ export default function DriversPage() {
                 onChange={(dates, dateStr) => setForm({...form, tachoCardExpiry: dateStr})}
                 onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                 onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
-                className={`input bg-white ${isPastDate(form.tachoCardExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
+                className={`input bg-card ${isPastDate(form.tachoCardExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
                 options={fpOptions}
                 placeholder="DD/MM/YYYY"
               />
@@ -440,7 +440,7 @@ export default function DriversPage() {
       )}
 
       {/* Table */}
-      <div className="card p-0 overflow-hidden bg-white border border-border rounded-2xl shadow-sm">
+      <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
         <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 flex-1 max-w-md">
             <div className="relative flex-1">
@@ -533,7 +533,7 @@ export default function DriversPage() {
                       options={[
                         { value: 'available', label: t('available'), color: 'text-success' },
                         { value: 'in_trip', label: t('inTrip'), color: 'text-primary' },
-                        { value: 'off', label: t('unavailable'), color: 'text-gray-500' },
+                        { value: 'off', label: t('unavailable'), color: 'text-text-secondary' },
                         { value: 'sick', label: t('sick'), color: 'text-error' },
                         { value: 'vacation', label: t('vacation'), color: 'text-warning' },
                       ]}

@@ -85,7 +85,7 @@ export default function PayrollPage() {
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <div className="card p-0 overflow-hidden bg-white border border-border rounded-2xl shadow-sm">
+      <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
         <div className="p-4 border-b border-border flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
           <div className="flex items-center gap-3 w-full xl:w-auto">
             <div className="relative flex-1 xl:w-80">
@@ -184,7 +184,7 @@ export default function PayrollPage() {
                       value={p.status} 
                       onChange={val => handleUpdate(p.id, 'status', val)} 
                       options={[
-                        { value: 'draft', label: 'Draft', color: 'text-gray-500' },
+                        { value: 'draft', label: 'Draft', color: 'text-text-secondary' },
                         { value: 'paid', label: 'Plătit', color: 'text-success' },
                         { value: 'sent', label: 'Trimis', color: 'text-primary' },
                       ]}

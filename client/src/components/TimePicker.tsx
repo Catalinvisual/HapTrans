@@ -88,8 +88,8 @@ export function TimePicker({ value, onChange, label, className = '', placeholder
           flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer select-none
           transition-all duration-150
           ${open
-            ? 'border-primary ring-2 ring-primary/20 bg-white'
-            : 'border-border bg-white hover:border-primary/50'
+            ? 'border-primary ring-2 ring-primary/20 bg-card'
+            : 'border-border bg-card hover:border-primary/50'
           }
         `}
       >
@@ -112,7 +112,7 @@ export function TimePicker({ value, onChange, label, className = '', placeholder
       {/* Dropdown */}
       {open && (
         <div className="
-          absolute z-50 mt-1 w-40 bg-white rounded-xl shadow-xl border border-border
+          absolute z-50 mt-1 w-40 bg-card rounded-xl shadow-xl border border-border
           overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150
         ">
           {/* Header */}

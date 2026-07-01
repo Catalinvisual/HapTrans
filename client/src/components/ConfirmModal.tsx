@@ -72,7 +72,7 @@ export default function ConfirmModal({
 
   const modalContent = (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 animate-fade-in">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl flex flex-col items-center text-center">
+      <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-xl flex flex-col items-center text-center">
         <div className={`w-12 h-12 rounded-full ${getIconBg()} flex items-center justify-center mb-4`}>
           {getIcon()}
         </div>

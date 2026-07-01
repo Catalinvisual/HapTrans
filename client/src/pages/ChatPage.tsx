@@ -95,11 +95,11 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-[calc(100vh-8.5rem)] rounded-2xl overflow-hidden bg-white border border-border shadow-sm animate-fade-in">
+    <div className="flex flex-col md:flex-row h-[calc(100vh-8.5rem)] rounded-2xl overflow-hidden bg-card border border-border shadow-sm animate-fade-in">
       
       {/* LEFT SIDEBAR: List of rooms */}
       <div className="w-full md:w-80 border-b md:border-b-0 md:border-r border-border flex flex-col bg-surface/30 flex-shrink-0 h-40 md:h-full">
-        <div className="p-3 md:p-4 border-b border-border bg-white flex-shrink-0">
+        <div className="p-3 md:p-4 border-b border-border bg-card flex-shrink-0">
           <h2 className="font-bold text-text flex items-center gap-2 text-sm md:text-base">
             <MessageSquare className="w-4 h-4 md:w-5 md:h-5 text-primary" /> {t('chatChannels')}
           </h2>
@@ -117,10 +117,10 @@ export default function ChatPage() {
             className={`w-full flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all ${
               selectedTripId === 'general'
                 ? 'bg-primary border-primary text-white shadow-md shadow-primary/20'
-                : 'bg-white border-border text-text hover:bg-surface'
+                : 'bg-card border-border text-text hover:bg-surface'
             }`}
           >
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${selectedTripId === 'general' ? 'bg-white/20' : 'bg-primary-light'}`}>
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${selectedTripId === 'general' ? 'bg-card/20' : 'bg-primary-light'}`}>
               <Users className={`w-5 h-5 ${selectedTripId === 'general' ? 'text-white' : 'text-primary'}`} />
             </div>
             <div className="flex-1 min-w-0">
@@ -153,10 +153,10 @@ export default function ChatPage() {
                   className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
                     isSelected
                       ? 'bg-primary border-primary text-white shadow-md shadow-primary/20'
-                      : 'bg-white border-border text-text hover:bg-surface'
+                      : 'bg-card border-border text-text hover:bg-surface'
                   }`}
                 >
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isSelected ? 'bg-white/20' : 'bg-primary-light'}`}>
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isSelected ? 'bg-card/20' : 'bg-primary-light'}`}>
                     <User className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-primary'}`} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -176,7 +176,7 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col bg-surface/10">
         
         {/* Header of selected room */}
-        <div className="h-16 border-b border-border bg-white flex items-center px-6 flex-shrink-0 justify-between shadow-sm">
+        <div className="h-16 border-b border-border bg-card flex items-center px-6 flex-shrink-0 justify-between shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-2.5 h-2.5 bg-success rounded-full animate-pulse" />
             <h3 className="font-bold text-text text-sm">{selectedTripName}</h3>
@@ -209,7 +209,7 @@ export default function ChatPage() {
                   <div className={`max-w-[70%] rounded-2xl px-4 py-3 shadow-sm border ${
                     isMe
                       ? 'bg-primary border-primary text-white rounded-br-none'
-                      : 'bg-white border-border text-text rounded-bl-none'
+                      : 'bg-card border-border text-text rounded-bl-none'
                   }`}>
                     {!isMe && (
                       <div className="text-[10px] font-bold text-primary mb-1 flex items-center gap-1">
@@ -229,7 +229,7 @@ export default function ChatPage() {
         </div>
 
         {/* Text Input area */}
-        <div className="p-4 border-t border-border bg-white flex-shrink-0">
+        <div className="p-4 border-t border-border bg-card flex-shrink-0">
           <form onSubmit={handleSend} className="flex gap-3">
             <input
               type="text"

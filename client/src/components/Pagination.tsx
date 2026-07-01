@@ -139,14 +139,14 @@ export default function Pagination({
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center gap-2 px-2.5 py-1 bg-white hover:bg-gray-50 text-text font-extrabold text-xs rounded-lg border border-border transition-all shadow-sm"
+            className="flex items-center gap-2 px-2.5 py-1 bg-card hover:bg-surface text-text font-extrabold text-xs rounded-lg border border-border transition-all shadow-sm"
           >
             <span>{currentOption.label}</span>
             <ChevronDown className={`w-4 h-4 text-primary transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {isOpen && (
-            <div className="absolute left-0 bottom-full mb-1 z-[50] w-28 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden py-1 animate-fade-in">
+            <div className="absolute left-0 bottom-full mb-1 z-[50] w-28 bg-card border border-border rounded-xl shadow-xl overflow-hidden py-1 animate-fade-in">
               {options.map(opt => (
                 <button
                   key={opt.value}
@@ -159,7 +159,7 @@ export default function Pagination({
                   className={`w-full text-left px-3 py-2 text-xs font-bold transition-colors flex items-center justify-between ${
                     itemsPerPage === opt.value
                       ? 'bg-primary/15 text-primary border-l-4 border-primary font-extrabold'
-                      : 'text-gray-700 hover:bg-gray-50 border-l-4 border-transparent'
+                      : 'text-text-secondary hover:bg-surface border-l-4 border-transparent'
                   }`}
                 >
                   {opt.label}
@@ -181,8 +181,8 @@ export default function Pagination({
           disabled={currentPage === 1}
           className={`w-8 h-8 rounded-lg border transition-all flex items-center justify-center ${
             currentPage === 1
-              ? 'border-gray-200 text-gray-500 bg-gray-100 cursor-not-allowed'
-              : 'border-gray-300 bg-white text-gray-900 hover:bg-primary hover:text-white hover:border-primary shadow-sm'
+              ? 'border-border text-text-secondary bg-surface cursor-not-allowed'
+              : 'border-border bg-card text-text hover:bg-primary hover:text-white hover:border-primary shadow-sm'
           }`}
           title={tLocal('previous')}
         >
@@ -192,7 +192,7 @@ export default function Pagination({
         {getPageNumbers().map((pg, idx) => (
           <React.Fragment key={idx}>
             {typeof pg === 'string' ? (
-              <span className="px-1.5 text-gray-400 font-extrabold text-xs select-none">{pg}</span>
+              <span className="px-1.5 text-text-light font-extrabold text-xs select-none">{pg}</span>
             ) : (
               <button
                 type="button"
@@ -200,7 +200,7 @@ export default function Pagination({
                 className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center ${
                   currentPage === pg
                     ? 'bg-primary text-white shadow-sm border border-primary'
-                    : 'bg-white text-text hover:bg-gray-50 border border-border hover:border-gray-300'
+                    : 'bg-card text-text hover:bg-surface border border-border hover:border-border'
                 }`}
               >
                 {pg}
@@ -215,8 +215,8 @@ export default function Pagination({
           disabled={currentPage === totalPages}
           className={`w-8 h-8 rounded-lg border transition-all flex items-center justify-center ${
             currentPage === totalPages
-              ? 'border-gray-200 text-gray-500 bg-gray-100 cursor-not-allowed'
-              : 'border-gray-300 bg-white text-gray-900 hover:bg-primary hover:text-white hover:border-primary shadow-sm'
+              ? 'border-border text-text-secondary bg-surface cursor-not-allowed'
+              : 'border-border bg-card text-text hover:bg-primary hover:text-white hover:border-primary shadow-sm'
           }`}
           title={tLocal('next')}
         >

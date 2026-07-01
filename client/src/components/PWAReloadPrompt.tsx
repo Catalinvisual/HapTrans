@@ -23,7 +23,7 @@ export default function PWAReloadPrompt() {
   if (!needRefresh) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-[9999] bg-white border border-border shadow-2xl p-6 rounded-2xl flex flex-col gap-4 animate-fade-in max-w-sm">
+    <div className="fixed bottom-4 right-4 z-[9999] bg-card border border-border shadow-2xl p-6 rounded-2xl flex flex-col gap-4 animate-fade-in max-w-sm">
       <div className="flex flex-col gap-1">
         <h3 className="font-bold text-text text-lg">
           {t('pwa_update_available', 'New version available')}

@@ -94,7 +94,7 @@ const WebsiteLeadsPage = () => {
     
     const displayStatus = status || 'new';
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${colors[displayStatus] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>
+      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${colors[displayStatus] || 'bg-surface text-text border-border'}`}>
         {displayStatus.toUpperCase()}
       </span>
     );
@@ -105,22 +105,22 @@ const WebsiteLeadsPage = () => {
   return (
     <div className="p-8 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">{t('leads.title', 'Cereri Website (Leads)')}</h1>
-        <p className="text-gray-500 mt-2">{t('leads.subtitle', 'Gestionează cererile de ofertă venite de pe site-ul public hapcargo.com.')}</p>
+        <h1 className="text-3xl font-bold tracking-tight text-text">{t('leads.title', 'Cereri Website (Leads)')}</h1>
+        <p className="text-text-secondary mt-2">{t('leads.subtitle', 'Gestionează cererile de ofertă venite de pe site-ul public hapcargo.com.')}</p>
       </div>
 
       <div className="grid gap-6">
         {leads.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-            <div className="p-8 text-center text-gray-500">
+          <div className="bg-card rounded-xl shadow-sm border border-border">
+            <div className="p-8 text-center text-text-secondary">
               {t('leads.noLeads', 'Nu există nicio cerere momentan.')}
             </div>
           </div>
         ) : (
           leads.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((lead) => (
-            <div key={lead.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
+            <div key={lead.id} className="bg-card rounded-xl shadow-sm overflow-hidden border border-border">
               <div className="flex flex-col lg:flex-row">
-                <div className="p-6 flex-1 border-b lg:border-b-0 lg:border-r border-gray-100">
+                <div className="p-6 flex-1 border-b lg:border-b-0 lg:border-r border-border">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">{lead.name}</h3>
                     {getStatusBadge(lead.status)}
@@ -128,27 +128,27 @@ const WebsiteLeadsPage = () => {
                   
                   <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
                     <div>
-                      <p className="text-gray-500 mb-1">{t('common.contact', 'Contact')}</p>
+                      <p className="text-text-secondary mb-1">{t('common.contact', 'Contact')}</p>
                       <p className="font-medium">📞 {lead.phone}</p>
                       <p className="font-medium">📧 {lead.email}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500 mb-1">{t('leads.freightDetails', 'Detalii Marfă')}</p>
+                      <p className="text-text-secondary mb-1">{t('leads.freightDetails', 'Detalii Marfă')}</p>
                       <p className="font-medium">⚖️ {lead.weight}</p>
                       <p className="font-medium">📦 {lead.type || t('common.unspecified', 'Nespecificat')}</p>
                       {lead.pallets && <p className="font-medium">🏢 {getLabel("Pallets", "Paleți", "Pallets", "Paletten", "Palettes", "Palety")}: {lead.pallets}</p>}
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                  <div className="bg-surface p-4 rounded-lg border border-border">
                     <div className="flex items-center gap-3">
                       <div className="flex-1">
-                        <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">{t('common.from', 'De la')}</p>
+                        <p className="text-xs text-text-secondary uppercase tracking-wider font-semibold mb-1">{t('common.from', 'De la')}</p>
                         <p className="font-medium">{lead.from}</p>
                       </div>
-                      <div className="text-gray-400">➔</div>
+                      <div className="text-text-light">➔</div>
                       <div className="flex-1">
-                        <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">{t('common.to', 'Până la')}</p>
+                        <p className="text-xs text-text-secondary uppercase tracking-wider font-semibold mb-1">{t('common.to', 'Până la')}</p>
                         <p className="font-medium">{lead.to}</p>
                       </div>
                     </div>
@@ -167,8 +167,8 @@ const WebsiteLeadsPage = () => {
                   )}
                 </div>
                 
-                <div className="p-6 lg:w-64 bg-gray-50 flex flex-col justify-center gap-3">
-                  <p className="text-xs text-gray-500 text-center mb-2">{t('common.quickActions', 'Acțiuni Rapide')}</p>
+                <div className="p-6 lg:w-64 bg-surface flex flex-col justify-center gap-3">
+                  <p className="text-xs text-text-secondary text-center mb-2">{t('common.quickActions', 'Acțiuni Rapide')}</p>
                   
                   {lead.status === 'new' && (
                     <button onClick={() => updateStatus(lead.id, 'contacted')} className="w-full py-2 px-4 rounded font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors">
@@ -195,12 +195,12 @@ const WebsiteLeadsPage = () => {
                   )}
 
                   {['accepted', 'rejected'].includes(lead.status) && (
-                    <div className="text-center text-sm font-medium text-gray-500 mt-2">
+                    <div className="text-center text-sm font-medium text-text-secondary mt-2">
                       Cerere finalizată
                     </div>
                   )}
                   
-                  <div className="text-center text-xs text-gray-400 mt-auto pt-4">
+                  <div className="text-center text-xs text-text-light mt-auto pt-4">
                     Primită: {lead.createdAt ? new Date(lead.createdAt).toLocaleString('ro-RO') : ''}
                   </div>
                 </div>

@@ -46,7 +46,7 @@ export default function ContactInbox() {
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-500">Se încarcă mesajele...</div>;
+  if (loading) return <div className="p-8 text-center text-text-secondary">Se încarcă mesajele...</div>;
 
   return (
     <div className="max-w-5xl">
@@ -69,7 +69,7 @@ export default function ContactInbox() {
           {messages.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(msg => (
             <div 
               key={msg.id} 
-              className={`p-5 rounded-xl border transition-all ${msg.isRead ? 'bg-white border-border' : 'bg-primary/5 border-primary/20 shadow-sm'}`}
+              className={`p-5 rounded-xl border transition-all ${msg.isRead ? 'bg-card border-border' : 'bg-primary/5 border-primary/20 shadow-sm'}`}
             >
               <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-3">

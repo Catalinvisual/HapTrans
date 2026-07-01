@@ -36,7 +36,7 @@ export default function LanguageDropdown() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-3 py-1.5 bg-white border border-border rounded-xl
+        className="flex items-center gap-2 px-3 py-1.5 bg-card border border-border rounded-xl
           hover:border-primary/50 hover:bg-orange-50 transition-all duration-150 shadow-sm
           text-sm font-medium text-text group"
         title={current.label}
@@ -44,14 +44,14 @@ export default function LanguageDropdown() {
         <img 
           src={current.flag} 
           alt={current.label} 
-          className="w-5 h-5 rounded-full object-cover border border-slate-200 shadow-sm select-none" 
+          className="w-5 h-5 rounded-full object-cover border border-border shadow-sm select-none" 
         />
         <span className="text-text-secondary group-hover:text-primary transition-colors text-xs font-bold uppercase">{current.code}</span>
         <ChevronDown className={`w-3.5 h-3.5 text-text-secondary transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-border rounded-xl shadow-lg
+        <div className="absolute right-0 top-full mt-2 w-48 bg-card border border-border rounded-xl shadow-lg
           overflow-hidden z-50 animate-fade-in">
           {LANGS.map((lang) => (
             <button
@@ -65,7 +65,7 @@ export default function LanguageDropdown() {
               <img 
                 src={lang.flag} 
                 alt={lang.label} 
-                className="w-5 h-5 rounded-full object-cover border border-slate-200 shadow-sm select-none" 
+                className="w-5 h-5 rounded-full object-cover border border-border shadow-sm select-none" 
               />
               <span className="font-semibold">{lang.label}</span>
               {i18n.language === lang.code && (

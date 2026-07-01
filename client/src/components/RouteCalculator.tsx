@@ -151,14 +151,14 @@ export default function RouteCalculator({
             <div className="space-y-2 animate-fade-in">
               {/* Stats Grid */}
               <div className="grid grid-cols-2 gap-2">
-                <div className="bg-white rounded-xl p-3 border border-border">
+                <div className="bg-card rounded-xl p-3 border border-border">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Gauge className="w-3.5 h-3.5 text-primary" />
                     <span className="text-[11px] text-text-secondary font-medium">{L.distance}</span>
                   </div>
                   <span className="text-lg font-bold text-text">{result.distanceKm} <span className="text-sm font-normal text-text-secondary">km</span></span>
                 </div>
-                <div className="bg-white rounded-xl p-3 border border-border">
+                <div className="bg-card rounded-xl p-3 border border-border">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Clock className="w-3.5 h-3.5 text-blue-500" />
                     <span className="text-[11px] text-text-secondary font-medium">{L.duration}</span>
@@ -168,7 +168,7 @@ export default function RouteCalculator({
               </div>
 
               {/* Cost Breakdown */}
-              <div className="bg-white rounded-xl border border-border overflow-hidden">
+              <div className="bg-card rounded-xl border border-border overflow-hidden">
                 <div className="px-3 py-2 border-b border-border/50 flex items-center gap-1.5">
                   <Banknote className="w-3.5 h-3.5 text-green-600" />
                   <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">{L.estCostTitle}</span>
@@ -193,7 +193,7 @@ export default function RouteCalculator({
 
               {/* Recommended Client Price */}
               {quoteResult && (
-                <div className="bg-white rounded-xl border border-border overflow-hidden mt-2">
+                <div className="bg-card rounded-xl border border-border overflow-hidden mt-2">
                   <div className="px-3 py-2 border-b border-border/50 flex items-center justify-between bg-emerald-50/50">
                     <div className="flex items-center gap-1.5">
                       <Calculator className="w-3.5 h-3.5 text-emerald-600" />

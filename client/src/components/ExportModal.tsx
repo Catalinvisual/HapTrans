@@ -185,15 +185,15 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-border animate-slide-up">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4">
+      <div className="bg-card rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-border animate-slide-up">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-border bg-slate-50">
+        <div className="flex items-center justify-between p-5 border-b border-border bg-surface">
           <div className="flex items-center gap-2">
             <Download className="w-5 h-5 text-primary" />
             <h3 className="font-bold text-text text-lg">{tExport.title}</h3>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-200 transition-colors">
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-surface transition-colors">
             <X className="w-5 h-5 text-text-secondary" />
           </button>
         </div>
@@ -216,7 +216,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
                   className={`px-4 py-3 rounded-xl border text-sm font-semibold transition-all ${
                     rangeType === opt.type
                       ? 'border-primary bg-primary-light text-primary font-bold shadow-sm shadow-primary/5'
-                      : 'border-border bg-white text-text-secondary hover:border-primary/30'
+                      : 'border-border bg-card text-text-secondary hover:border-primary/30'
                   }`}
                 >
                   {opt.label}
@@ -228,7 +228,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
                 className={`col-span-2 px-4 py-3 rounded-xl border text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
                   rangeType === 'custom'
                     ? 'border-primary bg-primary-light text-primary font-bold shadow-sm shadow-primary/5'
-                    : 'border-border bg-white text-text-secondary hover:border-primary/30'
+                    : 'border-border bg-card text-text-secondary hover:border-primary/30'
                 }`}
               >
                 <Calendar className="w-4 h-4" /> {tExport.custom}
@@ -237,12 +237,12 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
           </div>
 
           {rangeType === 'custom' && (
-            <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-50 border border-border animate-fade-in">
+            <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-surface border border-border animate-fade-in">
               <div>
                 <label className="label text-xs font-bold text-text-secondary">{tExport.startDate}</label>
                 <input
                   type="date"
-                  className="input py-2 text-sm bg-white"
+                  className="input py-2 text-sm bg-card"
                   value={startDate}
                   onChange={e => setStartDate(e.target.value)}
                 />
@@ -251,7 +251,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
                 <label className="label text-xs font-bold text-text-secondary">{tExport.endDate}</label>
                 <input
                   type="date"
-                  className="input py-2 text-sm bg-white"
+                  className="input py-2 text-sm bg-card"
                   value={endDate}
                   onChange={e => setEndDate(e.target.value)}
                 />
@@ -261,7 +261,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
         </div>
 
         {/* Footer */}
-        <div className="flex gap-3 p-5 border-t border-border bg-slate-50">
+        <div className="flex gap-3 p-5 border-t border-border bg-surface">
           <button onClick={handleExport} className="btn-primary flex-1 py-2.5 font-bold shadow-md shadow-primary/20">
             {tExport.exportBtn}
           </button>

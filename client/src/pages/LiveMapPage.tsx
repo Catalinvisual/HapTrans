@@ -979,7 +979,7 @@ export default function LiveMapPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
           <input 
             type="text" 
-            className="input pl-9 pr-4 py-2 w-full bg-white border border-border rounded-xl shadow-sm focus:ring-2 focus:ring-primary/20 text-sm"
+            className="input pl-9 pr-4 py-2 w-full bg-card border border-border rounded-xl shadow-sm focus:ring-2 focus:ring-primary/20 text-sm"
             placeholder={t('searchTruckRefCity') || "Caută camion, oraș sau referință..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -989,7 +989,7 @@ export default function LiveMapPage() {
           <button 
             type="button"
             onClick={() => setIsSatellite(!isSatellite)}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-border rounded-xl text-sm font-medium hover:bg-surface transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-sm font-medium hover:bg-surface transition-colors shadow-sm"
           >
             {isSatellite ? (
               <><MapIcon className="w-4 h-4 text-primary" /> Hartă Standard</>
@@ -1007,7 +1007,7 @@ export default function LiveMapPage() {
           <div 
             key={truck.id} 
             onClick={() => { focusOnTruck(truck); drawRoute(truck); }}
-            className="card flex items-center gap-3 py-3 bg-white border border-border rounded-xl cursor-pointer hover:border-primary hover:shadow-md transition-all active:scale-[0.98]"
+            className="card flex items-center gap-3 py-3 bg-card border border-border rounded-xl cursor-pointer hover:border-primary hover:shadow-md transition-all active:scale-[0.98]"
           >
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${truck.status === 'in_trip' ? 'bg-primary-light' : 'bg-surface'}`}>
               <Truck className={`w-4 h-4 ${truck.status === 'in_trip' ? 'text-primary' : 'text-text-secondary'}`} />
@@ -1019,11 +1019,11 @@ export default function LiveMapPage() {
           </div>
         ))}
       </div>
-      <div className="card p-0 overflow-hidden bg-white border border-border rounded-2xl shadow-sm" style={{ minHeight: '520px', height: 'calc(100vh - 280px)' }}>
+      <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm" style={{ minHeight: '520px', height: 'calc(100vh - 280px)' }}>
         <div ref={mapRef} className="w-full h-full" />
       </div>
       {drivers.filter(d => d.currentLat).length === 0 && trucks.filter(t => t.currentLat).length === 0 && (
-        <div className="card flex flex-col items-center py-8 text-center bg-white border border-border rounded-xl">
+        <div className="card flex flex-col items-center py-8 text-center bg-card border border-border rounded-xl">
           <Navigation className="w-10 h-10 text-text-light mb-3" />
           <p className="text-text-secondary text-sm">{t('noActiveLocations')}</p>
         </div>

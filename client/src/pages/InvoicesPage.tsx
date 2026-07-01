@@ -502,7 +502,7 @@ export default function InvoicesPage() {
     <div className="space-y-5 animate-fade-in">
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-white border border-border rounded-2xl shadow-2xl max-w-[90rem] w-full h-[90vh] flex flex-col overflow-hidden">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-[90rem] w-full h-[90vh] flex flex-col overflow-hidden">
             <div className="p-6 border-b border-border flex justify-between items-center bg-surface shrink-0">
               <h3 className="font-bold text-xl text-primary">{editId ? t('editDraft', 'Editare Draft / Detalii Complete') : t('newInvoice')}</h3>
               <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="text-text-secondary hover:text-red-500 transition-colors">
@@ -590,12 +590,12 @@ export default function InvoicesPage() {
                 
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('issueDate')}</label>
-                  <Flatpickr type="hidden" value={form.issueDate} onChange={(dates, dateStr) => setForm({...form, issueDate: dateStr})} onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} className={`input py-3 bg-white ${isPastDate(form.issueDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={fpOptions} placeholder="DD/MM/YYYY" />
+                  <Flatpickr type="hidden" value={form.issueDate} onChange={(dates, dateStr) => setForm({...form, issueDate: dateStr})} onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} className={`input py-3 bg-card ${isPastDate(form.issueDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={fpOptions} placeholder="DD/MM/YYYY" />
                   {isPastDate(form.issueDate) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('dueDate')}</label>
-                  <Flatpickr type="hidden" value={form.dueDate} onChange={(dates, dateStr) => setForm({...form, dueDate: dateStr})} onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} className={`input py-3 bg-white ${isPastDate(form.dueDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={fpOptions} placeholder="DD/MM/YYYY" />
+                  <Flatpickr type="hidden" value={form.dueDate} onChange={(dates, dateStr) => setForm({...form, dueDate: dateStr})} onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} className={`input py-3 bg-card ${isPastDate(form.dueDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={fpOptions} placeholder="DD/MM/YYYY" />
                   {isPastDate(form.dueDate) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
                 </div>
                 
@@ -604,7 +604,7 @@ export default function InvoicesPage() {
                   <textarea className="input py-3 text-sm min-h-[80px]" placeholder={t('notesPlaceholder')} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} />
                 </div>
                 
-                <div className="md:col-span-2 pt-6 border-t border-border mt-2 flex items-center justify-end gap-3 sticky bottom-0 bg-white">
+                <div className="md:col-span-2 pt-6 border-t border-border mt-2 flex items-center justify-end gap-3 sticky bottom-0 bg-card">
                   <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="btn-secondary px-6 py-3 font-bold text-sm">
                     {t('cancel')}
                   </button>
@@ -617,9 +617,9 @@ export default function InvoicesPage() {
               <div className="flex-1 bg-surface flex flex-col p-6 hidden md:flex">
                 <h4 className="text-sm font-bold text-text-secondary uppercase mb-3 flex items-center gap-2"><Eye className="w-4 h-4"/> Live Preview</h4>
                 {previewData ? (
-                  <iframe src={previewData} className="w-full h-full rounded-xl border border-border shadow-sm bg-white" />
+                  <iframe src={previewData} className="w-full h-full rounded-xl border border-border shadow-sm bg-card" />
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-text-secondary bg-white rounded-xl border border-border">
+                  <div className="w-full h-full flex flex-col items-center justify-center text-text-secondary bg-card rounded-xl border border-border">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
                     {t('generatingPdf')}...
                   </div>
@@ -629,7 +629,7 @@ export default function InvoicesPage() {
           </div>
         </div>
       )}
-      <div className="card p-0 overflow-hidden bg-white border border-border rounded-2xl shadow-sm">
+      <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
         <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 flex-1 max-w-md">
             <div className="relative flex-1">
@@ -703,7 +703,7 @@ export default function InvoicesPage() {
                             { value: 'sent', label: t('sent'), color: 'text-primary' },
                             { value: 'paid', label: t('paid'), color: 'text-success' },
                             { value: 'overdue', label: t('overdue'), color: 'text-error' },
-                            { value: 'cancelled', label: t('cancelled'), color: 'text-gray-400' },
+                            { value: 'cancelled', label: t('cancelled'), color: 'text-text-light' },
                           ]} />
                           <div className="flex items-center gap-1 border-l border-border pl-3">
                             <button onClick={() => ensurePdfAndExecute(inv, handlePreview)} className="p-1 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-all" title="Previzualizare PDF">
@@ -761,7 +761,7 @@ export default function InvoicesPage() {
 
       {invoiceLangModal.isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4">
+          <div className="bg-card p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4">
             <h3 className="text-xl font-bold mb-2">{t('invoiceLanguageTitle') || 'Invoice Language'}</h3>
             <p className="text-sm text-text-secondary mb-6">{t('invoiceLanguageSub') || 'Choose the language for the generated PDF'}</p>
             <div className="flex flex-col gap-3">

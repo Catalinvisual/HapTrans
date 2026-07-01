@@ -89,11 +89,11 @@ export default function AddressAutocomplete({ value, onChange, placeholder, clas
       )}
 
       {isOpen && suggestions.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden animate-fade-in-up">
+        <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-xl shadow-xl overflow-hidden animate-fade-in-up">
           {suggestions.map((s, idx) => (
             <div
               key={s.id || idx}
-              className="px-4 py-3 hover:bg-primary/5 cursor-pointer text-sm font-medium transition-colors text-slate-700 border-b border-slate-50 flex items-start gap-3"
+              className="px-4 py-3 hover:bg-primary/5 cursor-pointer text-sm font-medium transition-colors text-text-secondary border-b border-slate-50 flex items-start gap-3"
               onClick={() => handleSelect(s.label)}
             >
               <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />

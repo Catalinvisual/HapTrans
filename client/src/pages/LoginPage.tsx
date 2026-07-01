@@ -61,7 +61,7 @@ export default function LoginPage() {
 
       {/* Login Card */}
       <div className="relative z-10 w-full max-w-[420px] px-6">
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-10 shadow-2xl animate-fade-in-up">
+        <div className="bg-card/5 backdrop-blur-xl border border-white/10 rounded-3xl p-10 shadow-2xl animate-fade-in-up">
           <div className="flex flex-col items-center mb-8">
             <div className="flex items-center gap-2 mb-2">
               <svg viewBox="0 0 100 100" fill="currentColor" className="w-10 h-10 text-primary">
@@ -90,7 +90,7 @@ export default function LoginPage() {
               <label className="block text-xs font-semibold text-white/70 uppercase tracking-wider mb-2">{t('email')}</label>
               <input
                 type="email"
-                className="w-full bg-white/5 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent placeholder:text-white/30 transition-all"
+                className="w-full bg-card/5 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent placeholder:text-white/30 transition-all"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); if (errorMessage) setErrorMessage(null); }}
                 placeholder="nume@hapcargo.ro"
@@ -102,7 +102,7 @@ export default function LoginPage() {
               <div className="relative">
                 <input
                   type={showPass ? 'text' : 'password'}
-                  className="w-full bg-white/5 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent placeholder:text-white/30 transition-all pr-11"
+                  className="w-full bg-card/5 border border-white/10 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent placeholder:text-white/30 transition-all pr-11"
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); if (errorMessage) setErrorMessage(null); }}
                   placeholder="••••••••"

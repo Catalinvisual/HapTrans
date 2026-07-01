@@ -114,7 +114,7 @@ export default function CustomSelect({
       <button
         type="button"
         disabled={disabled}
-        className={`w-full flex items-center justify-between input bg-white text-left ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-primary/50'} transition-colors`}
+        className={`w-full flex items-center justify-between input bg-card text-left ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-primary/50'} transition-colors`}
         onClick={toggleDropdown}
         onKeyDown={handleKeyDown}
       >
@@ -136,7 +136,7 @@ export default function CustomSelect({
       {isOpen && typeof document !== 'undefined' && createPortal(
         <div 
           ref={dropdownRef}
-          className="absolute z-[9999] mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-y-auto max-h-60 animate-fade-in-up py-1"
+          className="absolute z-[9999] mt-1 bg-card border border-border rounded-xl shadow-xl overflow-y-auto max-h-60 animate-fade-in-up py-1"
           style={{ left: coords.left, top: coords.top, width: coords.width }}
         >
           {options.length === 0 ? (
@@ -151,9 +151,9 @@ export default function CustomSelect({
                     setIsOpen(false);
                   }
                 }}
-                className={`px-4 py-2.5 flex flex-col cursor-pointer transition-colors border-b border-gray-300 last:border-b-0 ${
+                className={`px-4 py-2.5 flex flex-col cursor-pointer transition-colors border-b border-border last:border-b-0 ${
                   option.disabled
-                    ? 'opacity-50 cursor-not-allowed bg-slate-50'
+                    ? 'opacity-50 cursor-not-allowed bg-surface'
                     : focusedIndex === index
                       ? 'bg-primary/10 border-l-2 border-primary'
                       : 'hover:bg-primary/5 border-l-2 border-transparent'

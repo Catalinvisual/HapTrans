@@ -122,7 +122,7 @@ export default function DocumentsPage() {
     <div className="space-y-5 animate-fade-in">
 
       {showForm && (
-        <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md mb-6">
+        <div className="card animate-fade-in bg-card border border-border rounded-2xl p-6 shadow-md mb-6">
           <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">
             {t('uploadDocument')}
           </h3>
@@ -176,7 +176,7 @@ export default function DocumentsPage() {
               />
               <label 
                 htmlFor="file-upload" 
-                className="input py-2 flex items-center justify-between cursor-pointer bg-white"
+                className="input py-2 flex items-center justify-between cursor-pointer bg-card"
               >
                 <span className={`truncate ${file ? 'text-text' : 'text-text-secondary'}`}>
                   {file ? file.name : t('noFileChosen') || 'Niciun fișier ales'}
@@ -198,7 +198,7 @@ export default function DocumentsPage() {
           </form>
         </div>
       )}
-      <div className="card p-0 overflow-hidden bg-white border border-border rounded-2xl shadow-sm">
+      <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
         <div className="p-4 border-b border-border flex items-center justify-end">
           <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold">
             <Upload className="w-4 h-4" /> {t('uploadDocument')}

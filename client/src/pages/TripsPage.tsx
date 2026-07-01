@@ -926,7 +926,7 @@ export default function TripsPage() {
     <div className="space-y-5 animate-fade-in">
 
       {showForm && (
-        <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md">
+        <div className="card animate-fade-in bg-card border border-border rounded-2xl p-6 shadow-md">
           <h3 className="font-bold text-lg text-text mb-4 text-primary border-b border-border pb-3">
             {editId ? t('editTrip') : t('addTrip')}
           </h3>
@@ -963,7 +963,7 @@ export default function TripsPage() {
               </div>
               <label className={`cursor-pointer flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${
                 isScanLoading 
-                  ? 'opacity-50 cursor-not-allowed border-gray-200 text-gray-400'
+                  ? 'opacity-50 cursor-not-allowed border-border text-text-light'
                   : scanSuccess
                     ? 'border-green-400 text-green-700 hover:bg-green-100'
                     : 'border-primary/40 text-primary hover:bg-primary/10'
@@ -1028,7 +1028,7 @@ export default function TripsPage() {
                   if (d.status === 'sick') { color = 'text-error'; disabled = true; }
                   else if (d.status === 'vacation') { color = 'text-warning'; disabled = true; }
                   else if (d.status === 'in_trip') { color = 'text-primary'; }
-                  else if (d.status === 'off') { color = 'text-gray-500'; }
+                  else if (d.status === 'off') { color = 'text-text-secondary'; }
 
                   return {
                     value: d.id,
@@ -1105,7 +1105,7 @@ export default function TripsPage() {
                   onChange={(dates, dateStr) => setForm({...form, pickupDate: dateStr})}
                   onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                   onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
-                  className={`input text-xs bg-white ${isPastDate(form.pickupDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
+                  className={`input text-xs bg-card ${isPastDate(form.pickupDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
                   options={fpOptions}
                   placeholder="DD/MM/YYYY"
                 />
@@ -1130,7 +1130,7 @@ export default function TripsPage() {
                   onChange={(dates, dateStr) => setForm({...form, dropoffDate: dateStr})}
                   onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                   onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
-                  className={`input text-xs bg-white ${isPastDate(form.dropoffDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
+                  className={`input text-xs bg-card ${isPastDate(form.dropoffDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
                   options={fpOptions}
                   placeholder="DD/MM/YYYY"
                 />
@@ -1192,7 +1192,7 @@ export default function TripsPage() {
                 </div>
                 <div>
                   <label className="label font-semibold text-xs">{t('totalEstimatedCost')}</label>
-                  <input type="number" className="input text-xs bg-slate-50" value={form.estimatedCost} onChange={e => setForm({...form, estimatedCost: e.target.value})} />
+                  <input type="number" className="input text-xs bg-surface" value={form.estimatedCost} onChange={e => setForm({...form, estimatedCost: e.target.value})} />
                 </div>
                 {/* Legacy realCost hidden for now or kept for backward comp */}
                 <div className="hidden">
@@ -1218,7 +1218,7 @@ export default function TripsPage() {
                   </label>
                   <div className="relative">
                     <div 
-                      className="appearance-none w-full bg-slate-50 border border-slate-200 text-slate-700 py-2.5 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 font-medium shadow-sm hover:border-slate-300 cursor-pointer flex justify-between items-center"
+                      className="appearance-none w-full bg-surface border border-border text-text-secondary py-2.5 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 font-medium shadow-sm hover:border-primary cursor-pointer flex justify-between items-center"
                       onClick={() => setPalletDropdownOpen(!palletDropdownOpen)}
                     >
                       <span>
@@ -1230,9 +1230,9 @@ export default function TripsPage() {
                     </div>
                     
                     {palletDropdownOpen && (
-                      <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden animate-fade-in-up">
+                      <div className="absolute z-50 w-full mt-2 bg-card border border-slate-100 rounded-xl shadow-xl overflow-hidden animate-fade-in-up">
                         <div 
-                          className="px-4 py-3 hover:bg-primary/5 cursor-pointer text-sm font-medium transition-colors text-slate-700 border-b border-slate-50"
+                          className="px-4 py-3 hover:bg-primary/5 cursor-pointer text-sm font-medium transition-colors text-text-secondary border-b border-slate-50"
                           onClick={() => { setForm({...form, palletType: 'Euro paleti'}); setPalletDropdownOpen(false); }}
                         >
                           <div className="flex items-center gap-2">
@@ -1241,7 +1241,7 @@ export default function TripsPage() {
                           </div>
                         </div>
                         <div 
-                          className="px-4 py-3 hover:bg-primary/5 cursor-pointer text-sm font-medium transition-colors text-slate-700 border-b border-slate-50"
+                          className="px-4 py-3 hover:bg-primary/5 cursor-pointer text-sm font-medium transition-colors text-text-secondary border-b border-slate-50"
                           onClick={() => { setForm({...form, palletType: 'Block paleti'}); setPalletDropdownOpen(false); }}
                         >
                           <div className="flex items-center gap-2">
@@ -1250,7 +1250,7 @@ export default function TripsPage() {
                           </div>
                         </div>
                         <div 
-                          className="px-4 py-3 hover:bg-primary/5 cursor-pointer text-sm font-medium transition-colors text-slate-700"
+                          className="px-4 py-3 hover:bg-primary/5 cursor-pointer text-sm font-medium transition-colors text-text-secondary"
                           onClick={() => { setForm({...form, palletType: 'Overige'}); setPalletDropdownOpen(false); }}
                         >
                           <div className="flex items-center gap-2">
@@ -1289,7 +1289,7 @@ export default function TripsPage() {
                 }[i18n.language] || 'Special Surcharges & Conditions')}
               </span>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <label className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${form.adrSurcharge ? 'bg-amber-50/60 border-amber-400 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
+                <label className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${form.adrSurcharge ? 'bg-amber-50/60 border-amber-400 shadow-sm' : 'bg-surface border-border hover:border-primary'}`}>
                   <input type="checkbox" className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500" checked={form.adrSurcharge || false} onChange={e => setForm({...form, adrSurcharge: e.target.checked})} />
                   <div>
                     <p className="font-bold text-xs text-amber-800 flex items-center gap-1">
@@ -1313,7 +1313,7 @@ export default function TripsPage() {
                   </div>
                 </label>
 
-                <label className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${form.nightSurcharge ? 'bg-blue-50/60 border-blue-400 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
+                <label className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${form.nightSurcharge ? 'bg-blue-50/60 border-blue-400 shadow-sm' : 'bg-surface border-border hover:border-primary'}`}>
                   <input type="checkbox" className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" checked={form.nightSurcharge || false} onChange={e => setForm({...form, nightSurcharge: e.target.checked})} />
                   <div>
                     <p className="font-bold text-xs text-blue-800 flex items-center gap-1">
@@ -1337,7 +1337,7 @@ export default function TripsPage() {
                   </div>
                 </label>
 
-                <label className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${form.weekendSurcharge ? 'bg-emerald-50/60 border-emerald-400 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
+                <label className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${form.weekendSurcharge ? 'bg-emerald-50/60 border-emerald-400 shadow-sm' : 'bg-surface border-border hover:border-primary'}`}>
                   <input type="checkbox" className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500" checked={form.weekendSurcharge || false} onChange={e => setForm({...form, weekendSurcharge: e.target.checked})} />
                   <div>
                     <p className="font-bold text-xs text-emerald-800 flex items-center gap-1">
@@ -1361,7 +1361,7 @@ export default function TripsPage() {
                   </div>
                 </label>
 
-                <label className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${form.holidaySurcharge ? 'bg-purple-50/60 border-purple-400 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
+                <label className={`flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${form.holidaySurcharge ? 'bg-purple-50/60 border-purple-400 shadow-sm' : 'bg-surface border-border hover:border-primary'}`}>
                   <input type="checkbox" className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500" checked={form.holidaySurcharge || false} onChange={e => setForm({...form, holidaySurcharge: e.target.checked})} />
                   <div>
                     <p className="font-bold text-xs text-purple-800 flex items-center gap-1">
@@ -1399,8 +1399,8 @@ export default function TripsPage() {
                 <div className="space-y-1">
                   <span className="text-xs font-bold text-blue-800 uppercase tracking-wider block">{t('clientPortalTitle')}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-slate-700">Token:</span>
-                    <code className="bg-white px-2 py-1 rounded border border-slate-200 text-xs font-mono select-all text-slate-800">{currentToken}</code>
+                    <span className="text-sm font-semibold text-text-secondary">Token:</span>
+                    <code className="bg-card px-2 py-1 rounded border border-border text-xs font-mono select-all text-slate-800">{currentToken}</code>
                   </div>
                   <p className="text-xs text-slate-500">
                     {i18n.language === 'ro' ? 'Folosește acest link pentru a trimite clientului statusul live al expediției și documentele.' :
@@ -1558,7 +1558,7 @@ export default function TripsPage() {
       )}
 
       {/* Table */}
-      <div className="card p-0 overflow-hidden bg-white border border-border rounded-2xl shadow-sm">
+      <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
         <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 flex-1 max-w-md">
             <div className="relative flex-1">
@@ -1690,7 +1690,7 @@ export default function TripsPage() {
                         </div>
                       ) : trip.appointmentTo ? (
                         <div className="flex flex-col gap-0.5" title="ETA Planificat">
-                          <div className="flex items-center gap-1.5 bg-gray-50/80 px-2 py-1 rounded-md text-gray-700 border border-gray-200 w-fit">
+                          <div className="flex items-center gap-1.5 bg-surface/80 px-2 py-1 rounded-md text-text-secondary border border-border w-fit">
                             <Clock className="w-3.5 h-3.5 shrink-0" />
                             <div className="flex flex-col">
                               <span>{new Date(trip.appointmentTo).toLocaleDateString('en-GB')}</span>
@@ -1732,7 +1732,7 @@ export default function TripsPage() {
                           trip.invoices[0].status === 'overdue' ? 'bg-red-100 text-red-800 animate-pulse' :
                           trip.invoices[0].status === 'approved' ? 'bg-indigo-100 text-indigo-800' :
                           trip.invoices[0].status === 'sent' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'
+                          'bg-surface text-text'
                         }`}>
                           {t(trip.invoices[0].status) || trip.invoices[0].status}
                         </div>
@@ -1758,7 +1758,7 @@ export default function TripsPage() {
                         </button>
                         {openStatusId === trip.id && typeof document !== 'undefined' && createPortal(
                           <div 
-                            className="absolute z-[9999] bg-white border border-border rounded-xl shadow-xl overflow-hidden min-w-[150px] animate-fade-in"
+                            className="absolute z-[9999] bg-card border border-border rounded-xl shadow-xl overflow-hidden min-w-[150px] animate-fade-in"
                             style={{
                               left: statusCoords.left,
                               top: statusCoords.top,
@@ -1887,7 +1887,7 @@ export default function TripsPage() {
 
       {invoiceLangModal.isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4">
+          <div className="bg-card p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4">
             <h3 className="text-xl font-bold mb-2">{t('invoiceLanguageTitle') || 'Invoice Language'}</h3>
             <p className="text-sm text-text-secondary mb-6">{t('invoiceLanguageSub') || 'Choose the language for the generated PDF'}</p>
             <div className="flex flex-col gap-3">

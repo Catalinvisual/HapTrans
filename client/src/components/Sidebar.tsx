@@ -60,7 +60,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 md:w-48 bg-white border-r border-border flex flex-col h-full transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 md:w-48 bg-card border-r border-border flex flex-col h-full transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         {/* Logo */}
         <div className="px-5 py-5 border-b border-border flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -88,7 +88,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
                   isActive 
                     ? 'bg-primary/10 text-primary font-medium' 
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    : 'text-text-secondary hover:bg-surface hover:text-text'
                 }`
               }
               onClick={onClose}

@@ -96,8 +96,8 @@ const WebsiteCmsPage = () => {
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">{t('cms.title', 'Conținut Website (CMS)')}</h1>
-          <p className="text-gray-500 mt-2">{t('cms.subtitle', 'Editează conținutul dinamic de pe site-ul public hapcargo.com')}</p>
+          <h1 className="text-3xl font-bold tracking-tight text-text">{t('cms.title', 'Conținut Website (CMS)')}</h1>
+          <p className="text-text-secondary mt-2">{t('cms.subtitle', 'Editează conținutul dinamic de pe site-ul public hapcargo.com')}</p>
         </div>
         <button
           onClick={handleSave}
@@ -109,7 +109,7 @@ const WebsiteCmsPage = () => {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-border p-6 mb-6">
+      <div className="bg-card rounded-xl shadow-sm border border-border p-6 mb-6">
         <h3 className="text-lg font-semibold flex items-center gap-2 mb-4 text-text">
           <Globe className="w-5 h-5 text-primary" />
           Rute & Destinații (Harta Europei din prima pagină)
@@ -129,7 +129,7 @@ const WebsiteCmsPage = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-border p-6">
+      <div className="bg-card rounded-xl shadow-sm border border-border p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-border">
           <h3 className="text-lg font-semibold flex items-center gap-2 text-text">
             <Code className="w-5 h-5 text-primary" />
@@ -142,7 +142,7 @@ const WebsiteCmsPage = () => {
                 onClick={() => setSelectedLang(lang.code)}
                 className={\`px-3 py-1.5 rounded-md text-sm font-medium transition-colors \${
                   selectedLang === lang.code 
-                    ? 'bg-white text-primary shadow-sm' 
+                    ? 'bg-card text-primary shadow-sm' 
                     : 'text-text-secondary hover:text-text'
                 }\`}
               >

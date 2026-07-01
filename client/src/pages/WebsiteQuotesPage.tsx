@@ -347,7 +347,7 @@ const WebsiteQuotesPage = () => {
     const displayStatus = status || 'new';
 
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${colors[displayStatus] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>
+      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${colors[displayStatus] || 'bg-surface text-text border-border'}`}>
         {tLocal(`status_${displayStatus}`).toUpperCase()}
       </span>
     );
@@ -376,10 +376,10 @@ const WebsiteQuotesPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-surface p-4 rounded-xl border border-border">
         <div className="flex items-center gap-2">
-          <Filter className="w-5 h-5 text-gray-500" />
-          <span className="font-medium text-gray-700">{tLocal('filter_requests')}</span>
+          <Filter className="w-5 h-5 text-text-secondary" />
+          <span className="font-medium text-text-secondary">{tLocal('filter_requests')}</span>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
           <div className="w-full sm:w-48 relative z-50">
@@ -397,11 +397,11 @@ const WebsiteQuotesPage = () => {
               onChange={(dates, dateStr) => setDateFilter(dateStr)}
               onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
               onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
-              className="w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary text-sm bg-white cursor-pointer pl-10"
+              className="w-full sm:w-40 px-3 py-2 border border-border rounded-lg focus:ring-primary focus:border-primary text-sm bg-card cursor-pointer pl-10"
               options={fpOptions}
               placeholder="dd/mm/yyyy"
             />
-            <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Calendar className="w-4 h-4 text-text-light absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
           
           {(statusFilter !== 'all' || dateFilter) && (
@@ -417,8 +417,8 @@ const WebsiteQuotesPage = () => {
 
       <div className="grid gap-4">
         {filteredQuotes.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-            <div className="p-8 text-center text-gray-500">
+          <div className="bg-card rounded-xl shadow-sm border border-border">
+            <div className="p-8 text-center text-text-secondary">
               {tLocal('no_requests_found')}
             </div>
           </div>
@@ -428,10 +428,10 @@ const WebsiteQuotesPage = () => {
             const createdAtDate = quote.createdAt ? new Date(quote.createdAt) : null;
             
             return (
-              <div key={quote.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200 transition-all">
+              <div key={quote.id} className="bg-card rounded-xl shadow-sm overflow-hidden border border-border transition-all">
                 {/* Header Row (Clickable) */}
                 <div 
-                  className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50"
+                  className="p-4 flex items-center justify-between cursor-pointer hover:bg-surface"
                   onClick={() => setExpandedQuoteId(isExpanded ? null : quote.id)}
                 >
                   <div className="flex items-center gap-4">
@@ -453,14 +453,14 @@ const WebsiteQuotesPage = () => {
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-sm text-text-secondary mt-1">
                         {createdAtDate ? formatDate(createdAtDate.toISOString().split('T')[0]) : '-'} {createdAtDate ? createdAtDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''} • {quote.loadingLocation} ➔ {quote.unloadingLocation}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     {getStatusBadge(quote.status)}
-                    <button className="text-gray-400 hover:text-gray-600">
+                    <button className="text-text-light hover:text-text-secondary">
                       {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                     </button>
                   </div>
@@ -468,21 +468,21 @@ const WebsiteQuotesPage = () => {
 
                 {/* Collapsible Body */}
                 {isExpanded && (
-                  <div className="border-t border-gray-100 bg-gray-50/30">
+                  <div className="border-t border-border bg-surface/30">
                     <div className="flex flex-col lg:flex-row">
-                      <div className="p-6 flex-1 border-b lg:border-b-0 lg:border-r border-gray-100">
+                      <div className="p-6 flex-1 border-b lg:border-b-0 lg:border-r border-border">
                         {quote.estimatedPrice && (
                           <div className="p-4 bg-green-50 text-green-900 rounded-xl text-sm border border-green-200 mb-6 flex items-center justify-between shadow-sm">
                             <div>
                               <span className="font-bold uppercase text-xs text-green-700 tracking-wider block mb-1">⚡ Estimare preț prin calculatorul de pe site</span>
                               <span className="text-xl font-extrabold text-green-800">{quote.estimatedPrice}</span>
-                              {quote.distanceKm && <span className="text-gray-600 ml-2 font-medium">(Distanță rută: {quote.distanceKm} km)</span>}
+                              {quote.distanceKm && <span className="text-text-secondary ml-2 font-medium">(Distanță rută: {quote.distanceKm} km)</span>}
                             </div>
                           </div>
                         )}
                         {(quote.adrSurcharge || quote.nightSurcharge || quote.weekendSurcharge || quote.holidaySurcharge) && (
-                          <div className="p-4 bg-gray-100 rounded-xl border border-gray-200 mb-6 shadow-sm">
-                            <span className="font-bold uppercase text-xs text-gray-700 tracking-wider block mb-2">Opțiuni / Tarife Speciale Selectate</span>
+                          <div className="p-4 bg-surface rounded-xl border border-border mb-6 shadow-sm">
+                            <span className="font-bold uppercase text-xs text-text-secondary tracking-wider block mb-2">Opțiuni / Tarife Speciale Selectate</span>
                             <div className="flex flex-wrap gap-2">
                               {quote.adrSurcharge && <span className="bg-amber-100 text-amber-800 font-bold text-xs px-2.5 py-1 rounded-full border border-amber-300">⚠️ ADR (Mărfuri Periculoase)</span>}
                               {quote.nightSurcharge && <span className="bg-blue-100 text-blue-800 font-bold text-xs px-2.5 py-1 rounded-full border border-blue-300">🌙 Transit Noapte / Express</span>}
@@ -493,15 +493,15 @@ const WebsiteQuotesPage = () => {
                         )}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 text-sm">
                           <div>
-                            <p className="text-gray-500 mb-1 text-xs uppercase font-semibold">{tLocal('contact')}</p>
+                            <p className="text-text-secondary mb-1 text-xs uppercase font-semibold">{tLocal('contact')}</p>
                             <p className="font-medium">👤 {quote.contactPerson || quote.companyName}</p>
                             <p className="font-medium">📞 {quote.phone}</p>
                             <p className="font-medium">📧 {quote.email}</p>
-                            <p className="text-gray-500 mt-1">{tLocal('preference')}: <span className="font-medium text-gray-700 capitalize">{quote.preferredContactMethod || tLocal('unspecified')}</span></p>
+                            <p className="text-text-secondary mt-1">{tLocal('preference')}: <span className="font-medium text-text-secondary capitalize">{quote.preferredContactMethod || tLocal('unspecified')}</span></p>
                           </div>
                           
                           <div>
-                            <p className="text-gray-500 mb-1 text-xs uppercase font-semibold">{tLocal('cargo_details')}</p>
+                            <p className="text-text-secondary mb-1 text-xs uppercase font-semibold">{tLocal('cargo_details')}</p>
                             <p className="font-medium">📦 {tLocal('type')}: {quote.cargoType || '-'}</p>
                             <p className="font-medium">⚖️ {tLocal('weight')}: {quote.cargoWeightKg ? `${quote.cargoWeightKg} kg` : '-'}</p>
                             <p className="font-medium">🏢 {tLocal('pallets')}: {quote.numberOfPallets || '-'}</p>
@@ -509,7 +509,7 @@ const WebsiteQuotesPage = () => {
                           </div>
 
                           <div>
-                            <p className="text-gray-500 mb-1 text-xs uppercase font-semibold">{tLocal('required_truck')}</p>
+                            <p className="text-text-secondary mb-1 text-xs uppercase font-semibold">{tLocal('required_truck')}</p>
                             <p className="font-medium">🚚 {tLocal('type')}: {quote.truckType || '-'}</p>
                             {quote.temperatureRequired && (
                               <p className="font-medium text-primary">❄️ {tLocal('temp')}: {quote.temperatureRequired}</p>
@@ -517,26 +517,26 @@ const WebsiteQuotesPage = () => {
                           </div>
                         </div>
 
-                        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-4">
+                        <div className="bg-card rounded-lg border border-border overflow-hidden mb-4">
                           <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-200">
                             <div className="p-4">
-                              <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2 flex items-center gap-2">
+                              <p className="text-xs text-text-secondary uppercase tracking-wider font-semibold mb-2 flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-primary"></span> {tLocal('loading')}
                               </p>
                               <p className="font-medium text-base mb-1">{quote.loadingLocation}</p>
                               {(quote.loadingDate || quote.loadingTime) && (
-                                <p className="text-sm text-gray-600 flex items-center gap-1">
+                                <p className="text-sm text-text-secondary flex items-center gap-1">
                                   📅 {formatDate(quote.loadingDate)} 🕒 {quote.loadingTime || '-'}
                                 </p>
                               )}
                             </div>
                             <div className="p-4">
-                              <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2 flex items-center gap-2">
+                              <p className="text-xs text-text-secondary uppercase tracking-wider font-semibold mb-2 flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-green-500"></span> {tLocal('unloading')}
                               </p>
                               <p className="font-medium text-base mb-1">{quote.unloadingLocation}</p>
                               {(quote.unloadingDate || quote.unloadingTime) && (
-                                <p className="text-sm text-gray-600 flex items-center gap-1">
+                                <p className="text-sm text-text-secondary flex items-center gap-1">
                                   📅 {formatDate(quote.unloadingDate)} 🕒 {quote.unloadingTime || '-'}
                                 </p>
                               )}
@@ -566,7 +566,7 @@ const WebsiteQuotesPage = () => {
                               href={quote.attachmentUrl} 
                               download
                               onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors border border-gray-200"
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-surface hover:bg-border text-text-secondary text-sm font-medium rounded-lg transition-colors border border-border"
                             >
                               <Download className="w-4 h-4" />
                               {tLocal('download_file')}
@@ -582,8 +582,8 @@ const WebsiteQuotesPage = () => {
                         />
                       </div>
                       
-                      <div className="p-6 lg:w-64 bg-white flex flex-col gap-2 relative z-10" onClick={(e) => e.stopPropagation()}>
-                        <p className="text-xs text-gray-500 text-center mb-1 font-semibold uppercase">{tLocal('modify_status')}</p>
+                      <div className="p-6 lg:w-64 bg-card flex flex-col gap-2 relative z-10" onClick={(e) => e.stopPropagation()}>
+                        <p className="text-xs text-text-secondary text-center mb-1 font-semibold uppercase">{tLocal('modify_status')}</p>
                         
                         <CustomSelect 
                           value={quote.status}
@@ -604,9 +604,9 @@ const WebsiteQuotesPage = () => {
                           </button>
                         )}
 
-                        <div className="mt-auto pt-4 border-t border-gray-200 text-center">
-                          <p className="text-xs text-gray-400">{tLocal('received_at')}</p>
-                          <p className="text-sm font-medium text-gray-600">
+                        <div className="mt-auto pt-4 border-t border-border text-center">
+                          <p className="text-xs text-text-light">{tLocal('received_at')}</p>
+                          <p className="text-sm font-medium text-text-secondary">
                             {createdAtDate ? `${createdAtDate.toLocaleDateString('en-GB')} ${createdAtDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}
                           </p>
                         </div>

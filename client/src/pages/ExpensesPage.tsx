@@ -178,7 +178,7 @@ export default function ExpensesPage() {
     <div className="space-y-5 animate-fade-in">
 
       {showForm && (
-        <div className="card animate-fade-in bg-white border border-border rounded-2xl p-6 shadow-md relative overflow-hidden">
+        <div className="card animate-fade-in bg-card border border-border rounded-2xl p-6 shadow-md relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-secondary to-primary" />
           <h3 className="text-lg font-bold text-text mb-5 text-primary border-b border-border pb-3">
             {editId ? t('save') : t('addExpense')}
@@ -211,7 +211,7 @@ export default function ExpensesPage() {
               </div>
               <label className={`cursor-pointer flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${
                 aiLoading
-                  ? 'opacity-50 cursor-not-allowed border-gray-200 text-gray-400'
+                  ? 'opacity-50 cursor-not-allowed border-border text-text-light'
                   : aiSuccess
                     ? 'border-green-400 text-green-700 hover:bg-green-100'
                     : 'border-primary/40 text-primary hover:bg-primary/10'

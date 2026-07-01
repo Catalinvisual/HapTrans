@@ -68,17 +68,17 @@ const WebsiteHubPage = () => {
     <div className="p-4 md:p-8 space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 flex items-center gap-3">
+          <h1 className="text-3xl font-bold tracking-tight text-text flex items-center gap-3">
             <Globe className="w-8 h-8 text-primary" />
             {t('websiteHub', 'Website Hub')}
           </h1>
-          <p className="text-gray-500 mt-2">{t('websiteHubSubtitle', 'Gestionează toate setările, paginile și cererile venite de pe site-ul public.')}</p>
+          <p className="text-text-secondary mt-2">{t('websiteHubSubtitle', 'Gestionează toate setările, paginile și cererile venite de pe site-ul public.')}</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
         {/* Tabs Header */}
-        <div className="flex overflow-x-auto border-b border-gray-200 hide-scrollbar bg-gray-50/50">
+        <div className="flex overflow-x-auto border-b border-border hide-scrollbar bg-surface/50">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -88,11 +88,11 @@ const WebsiteHubPage = () => {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   isActive
-                    ? 'border-primary text-primary bg-white'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-primary text-primary bg-card'
+                    : 'border-transparent text-text-secondary hover:text-text-secondary hover:border-border'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-gray-400'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-text-light'}`} />
                 {tab.label}
               </button>
             );
@@ -100,7 +100,7 @@ const WebsiteHubPage = () => {
         </div>
 
         {/* Tab Content */}
-        <div className="p-4 md:p-6 bg-white min-h-[500px]">
+        <div className="p-4 md:p-6 bg-card min-h-[500px]">
           {activeTab === 'quotes' && (
             <div className="-m-4 md:-m-6">
               <WebsiteQuotesPage />
@@ -114,9 +114,9 @@ const WebsiteHubPage = () => {
           {activeTab === 'map' && (
             <div className="max-w-2xl">
               <h3 className="text-lg font-semibold mb-4">{t('website_hub_countries_title', 'Țări Acoperite')}</h3>
-              <p className="text-sm text-gray-500 mb-4">{t('website_hub_countries_desc', 'Adaugă codurile țărilor (ex: RO, DE, FR) separate prin virgulă pentru a afișa steagurile pe hartă.')}</p>
+              <p className="text-sm text-text-secondary mb-4">{t('website_hub_countries_desc', 'Adaugă codurile țărilor (ex: RO, DE, FR) separate prin virgulă pentru a afișa steagurile pe hartă.')}</p>
               <textarea
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-3 rounded-lg border border-border focus:ring-2 focus:ring-primary"
                 rows={3}
                 placeholder="RO, DE, FR, IT, NL..."
                 value={cmsData['countries'] || ''}
@@ -134,15 +134,15 @@ const WebsiteHubPage = () => {
 
           {['about', 'services', 'fleet', 'contact'].includes(activeTab) && (
             <div className="max-w-4xl">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-gray-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-border">
                 <div>
                   <h3 className="text-lg font-semibold capitalize">
                     {t('website_hub_page_content_title', { defaultValue: `${activeTab} Page Content`, page: t(`website_hub_tabs_${activeTab}`) })}
                   </h3>
-                  <p className="text-sm text-gray-500 mt-1">{t('website_hub_page_content_desc', 'Adaugă conținutul pentru această pagină. (Suportă HTML de bază).')}</p>
+                  <p className="text-sm text-text-secondary mt-1">{t('website_hub_page_content_desc', 'Adaugă conținutul pentru această pagină. (Suportă HTML de bază).')}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">{t('website_hub_edit_language', 'Limba de Editare')}:</label>
+                  <label className="text-sm font-semibold text-text-secondary whitespace-nowrap">{t('website_hub_edit_language', 'Limba de Editare')}:</label>
                   <CustomSelect 
                     value={editLang} 
                     onChange={val => setEditLang(val)}
@@ -153,7 +153,7 @@ const WebsiteHubPage = () => {
               </div>
 
               <textarea
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary font-mono text-sm"
+                className="w-full px-4 py-3 rounded-lg border border-border focus:ring-2 focus:ring-primary font-mono text-sm"
                 rows={12}
                 placeholder={t('website_hub_placeholder_html', '<h1>Titlu Pagină</h1><p>Conținutul tău aici...</p>')}
                 value={cmsData[getCmsKey(activeTab, editLang)] || ''}

@@ -33,12 +33,12 @@ export default function SharedDocumentPage() {
   if (error || !doc) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <div className="card bg-white p-8 max-w-md w-full text-center shadow-lg rounded-2xl">
+        <div className="card bg-card p-8 max-w-md w-full text-center shadow-lg rounded-2xl">
           <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Eroare Acces</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <h2 className="text-xl font-bold text-text mb-2">Eroare Acces</h2>
+          <p className="text-text-secondary mb-6">{error}</p>
         </div>
       </div>
     );
@@ -48,9 +48,9 @@ export default function SharedDocumentPage() {
   const isImage = doc.url.match(/\.(jpeg|jpg|gif|png)$/) != null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-100">
-      <div className="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-gray-800 truncate max-w-2xl">{doc.filename}</h1>
+    <div className="min-h-screen flex flex-col bg-surface">
+      <div className="bg-card shadow-sm px-6 py-4 flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-text truncate max-w-2xl">{doc.filename}</h1>
         <a 
           href={doc.url} 
           download={doc.filename}
@@ -61,7 +61,7 @@ export default function SharedDocumentPage() {
         </a>
       </div>
       <div className="flex-1 p-4 flex justify-center items-start overflow-auto">
-        <div className="bg-white shadow-lg rounded-xl overflow-hidden w-full max-w-5xl" style={{ height: 'calc(100vh - 100px)' }}>
+        <div className="bg-card shadow-lg rounded-xl overflow-hidden w-full max-w-5xl" style={{ height: 'calc(100vh - 100px)' }}>
           {isPdf || (!isImage) ? (
             <iframe 
               src={doc.url} 
@@ -69,7 +69,7 @@ export default function SharedDocumentPage() {
               title={doc.filename}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gray-50 p-4">
+            <div className="w-full h-full flex items-center justify-center bg-surface p-4">
               <img src={doc.url} alt={doc.filename} className="max-w-full max-h-full object-contain" />
             </div>
           )}

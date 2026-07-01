@@ -91,7 +91,7 @@ export default function TripDetailsPage() {
         <div className="flex items-center gap-4">
           <button 
             onClick={() => navigate('/trips')} 
-            className="p-2.5 bg-white border border-border rounded-xl hover:bg-surface text-text-secondary hover:text-primary transition-all shadow-sm"
+            className="p-2.5 bg-card border border-border rounded-xl hover:bg-surface text-text-secondary hover:text-primary transition-all shadow-sm"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -130,7 +130,7 @@ export default function TripDetailsPage() {
         
         {/* Left Column: Route Details */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="card p-6 bg-white border border-border rounded-2xl shadow-sm relative overflow-hidden">
+          <div className="card p-6 bg-card border border-border rounded-2xl shadow-sm relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-blue-500 to-green-500"></div>
             <h3 className="font-bold text-lg text-text mb-6 flex items-center gap-2">
               <Navigation className="w-5 h-5 text-primary" />
@@ -140,7 +140,7 @@ export default function TripDetailsPage() {
             <div className="relative pl-6 space-y-8">
               {/* Pickup */}
               <div className="relative">
-                <div className="absolute -left-[35px] top-1 w-4 h-4 rounded-full border-4 border-blue-500 bg-white z-10"></div>
+                <div className="absolute -left-[35px] top-1 w-4 h-4 rounded-full border-4 border-blue-500 bg-card z-10"></div>
                 <div className="absolute -left-[28px] top-5 w-0.5 h-full bg-border -z-0"></div>
                 
                 <span className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1 block">{t('pickupPoint', 'Punct Încărcare (Pickup)')}</span>
@@ -165,7 +165,7 @@ export default function TripDetailsPage() {
 
               {/* Delivery */}
               <div className="relative">
-                <div className="absolute -left-[35px] top-1 w-4 h-4 rounded-full border-4 border-green-500 bg-white z-10"></div>
+                <div className="absolute -left-[35px] top-1 w-4 h-4 rounded-full border-4 border-green-500 bg-card z-10"></div>
                 
                 <span className="text-xs font-bold text-green-600 uppercase tracking-wider mb-1 block">{t('deliveryPoint', 'Punct Descărcare (Delivery)')}</span>
                 <h4 className="font-bold text-lg text-text">{trip.dropoffCompanyName || 'N/A'}</h4>
@@ -187,12 +187,12 @@ export default function TripDetailsPage() {
                   
                   {/* ETA Display */}
                   {trip.lastLiveEta && (
-                    <div className={`flex items-center gap-2 text-xs font-bold bg-white px-2 py-1 rounded border ${trip.etaStatus === 'on_time' ? 'text-green-700 border-green-200' : trip.etaStatus === 'at_risk' ? 'text-yellow-700 border-yellow-200' : 'text-red-700 border-red-200'}`}>
+                    <div className={`flex items-center gap-2 text-xs font-bold bg-card px-2 py-1 rounded border ${trip.etaStatus === 'on_time' ? 'text-green-700 border-green-200' : trip.etaStatus === 'at_risk' ? 'text-yellow-700 border-yellow-200' : 'text-red-700 border-red-200'}`}>
                       {t('liveEta', 'ETA Smart')}: {formatDate(trip.lastLiveEta)} {new Date(trip.lastLiveEta).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   )}
                   {trip.appointmentTo && !trip.lastLiveEta && (
-                    <div className="flex items-center gap-2 text-xs font-bold text-green-700 bg-white px-2 py-1 rounded border border-green-200">
+                    <div className="flex items-center gap-2 text-xs font-bold text-green-700 bg-card px-2 py-1 rounded border border-green-200">
                       {t('plannedEta', 'ETA Planificat')}: {formatDate(trip.appointmentTo)}
                     </div>
                   )}
@@ -202,7 +202,7 @@ export default function TripDetailsPage() {
           </div>
 
           {/* Cargo Details */}
-          <div className="card p-6 bg-white border border-border rounded-2xl shadow-sm">
+          <div className="card p-6 bg-card border border-border rounded-2xl shadow-sm">
             <h3 className="font-bold text-lg text-text mb-4 flex items-center gap-2">
               <Box className="w-5 h-5 text-primary" />
               {t('cargoAndReferences', 'Detalii Marfă & Referințe')}
@@ -266,7 +266,7 @@ export default function TripDetailsPage() {
         <div className="space-y-6">
           
           {/* Assignment */}
-          <div className="card p-6 bg-white border border-border rounded-2xl shadow-sm">
+          <div className="card p-6 bg-card border border-border rounded-2xl shadow-sm">
             <h3 className="font-bold text-lg text-text mb-4 flex items-center gap-2">
               <Truck className="w-5 h-5 text-primary" />
               {t('crewAllocation', 'Alocare Echipaj')}
@@ -295,7 +295,7 @@ export default function TripDetailsPage() {
 
           {/* Financials - HIDE FOR DISPATCHERS */}
           {!isDispatcher && (
-            <div className="card p-6 bg-white border border-border rounded-2xl shadow-sm">
+            <div className="card p-6 bg-card border border-border rounded-2xl shadow-sm">
               <h3 className="font-bold text-lg text-text mb-4 flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-primary" />
                 {t('financial', 'Financiar')}
@@ -323,7 +323,7 @@ export default function TripDetailsPage() {
           )}
 
           {/* Documents summary */}
-          <div className="card p-6 bg-white border border-border rounded-2xl shadow-sm">
+          <div className="card p-6 bg-card border border-border rounded-2xl shadow-sm">
             <h3 className="font-bold text-lg text-text mb-4 flex items-center gap-2">
               <FileBadge className="w-5 h-5 text-primary" />
               {t('attachments', 'Atașamente')}

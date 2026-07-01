@@ -61,14 +61,14 @@ export default function PlanningPage() {
       case 'completed': return 'bg-success border-success-dark';
       case 'pending': return 'bg-warning border-warning-dark';
       case 'cancelled': return 'bg-error border-error-dark';
-      default: return 'bg-gray-400 border-gray-500';
+      default: return 'bg-border border-border';
     }
   };
 
   return (
     <div className="space-y-5 animate-fade-in flex flex-col h-[calc(100vh-6rem)]">
       {/* Gantt Chart Area */}
-      <div className="flex-1 card p-0 overflow-hidden bg-white border border-border rounded-2xl shadow-sm flex flex-col">
+      <div className="flex-1 card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm flex flex-col">
         {/* Controls Toolbar */}
         <div className="p-4 border-b border-border flex items-center justify-end flex-wrap gap-3">
           <div className="flex flex-wrap items-center gap-3">
@@ -78,7 +78,7 @@ export default function PlanningPage() {
                   key={days}
                   onClick={() => setViewDays(days)}
                   className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                    viewDays === days ? 'bg-white text-primary shadow-sm' : 'text-text-secondary hover:text-text'
+                    viewDays === days ? 'bg-card text-primary shadow-sm' : 'text-text-secondary hover:text-text'
                   }`}
                 >
                   {days} {t('days') || 'zile'}
@@ -126,11 +126,11 @@ export default function PlanningPage() {
             {/* Timeline Grid */}
             <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar relative flex flex-col">
               {/* Timeline Header (Days) */}
-              <div className="h-12 border-b border-border flex w-full sticky top-0 bg-white z-20 min-w-max">
+              <div className="h-12 border-b border-border flex w-full sticky top-0 bg-card z-20 min-w-max">
                 {days.map(day => {
                   const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
                   return (
-                    <div key={day.toISOString()} className={`flex-1 min-w-[100px] border-r border-border flex flex-col items-center justify-center ${isToday ? 'bg-orange-50 text-primary' : 'bg-slate-50 text-text-secondary'}`}>
+                    <div key={day.toISOString()} className={`flex-1 min-w-[100px] border-r border-border flex flex-col items-center justify-center ${isToday ? 'bg-orange-50 text-primary' : 'bg-surface text-text-secondary'}`}>
                       <span className="text-xs font-semibold">{format(day, 'EEE')}</span>
                       <span className={`text-sm font-bold ${isToday ? 'text-primary' : 'text-text'}`}>{format(day, 'dd MMM')}</span>
                     </div>
@@ -153,8 +153,8 @@ export default function PlanningPage() {
 
                       if (isSunday) {
                         return (
-                          <div key={day.toISOString()} className="flex-1 min-w-[100px] border-r border-border/30 h-full flex items-center justify-center p-1.5 bg-gray-100/50">
-                            <div className="w-full py-1.5 rounded-md text-center text-xs font-bold transition-all shadow-sm bg-gray-400 text-white border border-gray-500" title="Zile nelucrătoare">
+                          <div key={day.toISOString()} className="flex-1 min-w-[100px] border-r border-border/30 h-full flex items-center justify-center p-1.5 bg-surface/50">
+                            <div className="w-full py-1.5 rounded-md text-center text-xs font-bold transition-all shadow-sm bg-border text-white border border-border" title="Zile nelucrătoare">
                               X
                             </div>
                           </div>
@@ -179,7 +179,7 @@ export default function PlanningPage() {
                         badgeColor = 'bg-lime-500 text-white border border-lime-600';
                       }
 
-                      const cellBg = isToday ? 'bg-orange-50/40' : (isBusy ? 'bg-red-50/20' : 'bg-slate-50/50');
+                      const cellBg = isToday ? 'bg-orange-50/40' : (isBusy ? 'bg-red-50/20' : 'bg-surface/50');
 
                       return (
                         <div key={day.toISOString()} className={`flex-1 min-w-[100px] border-r border-border/30 h-full flex items-center justify-center p-1.5 ${cellBg}`}>

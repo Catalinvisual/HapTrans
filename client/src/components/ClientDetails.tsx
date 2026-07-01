@@ -101,7 +101,7 @@ export default function ClientDetails({ client, onBack }: { client: any, onBack:
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-border shadow-sm p-6">
+      <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
         {activeTab === 'general' && (
           <form onSubmit={handleSaveGeneral} className="space-y-6 max-w-3xl">
             <h3 className="text-lg font-bold">{t('generalInfoSettings')}</h3>
