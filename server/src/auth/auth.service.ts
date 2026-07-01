@@ -47,7 +47,7 @@ export class AuthService {
   async createSessionAndTokens(user: User, deviceInfo?: string, ipAddress?: string) {
     const accessToken = this.jwtService.sign(
       { sub: user.id, email: user.email, role: user.role },
-      { expiresIn: '20m' } // 20 minutes access token
+      { expiresIn: '12h' } // 12 hours access token
     );
 
     const refreshToken = crypto.randomBytes(32).toString('hex');
