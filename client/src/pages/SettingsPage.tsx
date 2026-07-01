@@ -36,6 +36,60 @@ export function getCompanySettings(): CompanySettings {
   } catch { return defaultCompany; }
 }
 
+
+const PriceInput = ({ value, onChange, className, placeholder }: { value: number, onChange: (v: number) => void, className?: string, placeholder?: string }) => {
+  const [localValue, setLocalValue] = useState(value?.toString() || '');
+
+  useEffect(() => {
+    const currentNum = parseFloat(localValue.replace(',', '.'));
+    if (isNaN(currentNum) || currentNum !== value) {
+      setLocalValue(value?.toString() || '');
+    }
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value;
+    val = val.replace(/[^0-9.,]/g, '');
+    let normalized = val.replace(',', '.');
+    const parts = normalized.split('.');
+    if (parts.length > 2) {
+      normalized = parts[0] + '.' + parts.slice(1).join('');
+      val = normalized;
+    }
+    
+    setLocalValue(val);
+    
+    if (normalized === '' || normalized === '.') {
+      onChange(0);
+    } else if (!normalized.endsWith('.')) {
+      const parsed = parseFloat(normalized);
+      if (!isNaN(parsed)) {
+        onChange(parsed);
+      }
+    }
+  };
+
+  const handleBlur = () => {
+    let normalized = localValue.replace(',', '.');
+    let finalVal = parseFloat(normalized);
+    if (isNaN(finalVal)) finalVal = 0;
+    setLocalValue(finalVal.toString());
+    onChange(finalVal);
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      className={className}
+      value={localValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+    />
+  );
+};
+
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuthStore();
@@ -283,12 +337,10 @@ export default function SettingsPage() {
             </label>
             <div className="relative flex items-center">
               <span className="absolute left-3 text-primary font-extrabold text-sm select-none pointer-events-none">€</span>
-              <input
-                type="number"
-                step="0.01"
+              <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text"
                 value={tariffs.minPricePerKm}
-                onChange={e => setTariffs(prev => ({ ...prev, minPricePerKm: parseFloat(e.target.value) || 0 }))}
+                onChange={(val) => setTariffs(prev => ({ ...prev, minPricePerKm: val }))}
               />
               <span className="absolute right-2 bg-primary/10 text-primary font-extrabold text-[11px] px-2 py-1 rounded-md select-none pointer-events-none border border-primary/20">EUR</span>
             </div>
@@ -300,11 +352,10 @@ export default function SettingsPage() {
             </label>
             <div className="relative flex items-center">
               <span className="absolute left-3 text-primary font-extrabold text-sm select-none pointer-events-none">€</span>
-              <input
-                type="number"
+              <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text"
                 value={tariffs.minTripPrice}
-                onChange={e => setTariffs(prev => ({ ...prev, minTripPrice: parseFloat(e.target.value) || 0 }))}
+                onChange={(val) => setTariffs(prev => ({ ...prev, minTripPrice: val }))}
               />
               <span className="absolute right-2 bg-primary/10 text-primary font-extrabold text-[11px] px-2 py-1 rounded-md select-none pointer-events-none border border-primary/20">EUR</span>
             </div>
@@ -316,11 +367,10 @@ export default function SettingsPage() {
             </label>
             <div className="relative flex items-center">
               <span className="absolute left-3 text-primary font-extrabold text-sm select-none pointer-events-none">€</span>
-              <input
-                type="number"
+              <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text"
                 value={tariffs.handlingFee}
-                onChange={e => setTariffs(prev => ({ ...prev, handlingFee: parseFloat(e.target.value) || 0 }))}
+                onChange={(val) => setTariffs(prev => ({ ...prev, handlingFee: val }))}
               />
               <span className="absolute right-2 bg-primary/10 text-primary font-extrabold text-[11px] px-2 py-1 rounded-md select-none pointer-events-none border border-primary/20">EUR</span>
             </div>
@@ -331,11 +381,10 @@ export default function SettingsPage() {
               ⛽ {getLabel("Fuel surcharge", "Supliment combustibil", "Brandstoftoeslag", "Treibstoffzuschlag", "Surcharge carburant", "Dopłata paliwowa")}
             </label>
             <div className="relative flex items-center">
-              <input
-                type="number"
+              <PriceInput
                 className="input text-sm pr-20 font-bold text-text"
                 value={tariffs.fuelSurchargePercent}
-                onChange={e => setTariffs(prev => ({ ...prev, fuelSurchargePercent: parseFloat(e.target.value) || 0 }))}
+                onChange={(val) => setTariffs(prev => ({ ...prev, fuelSurchargePercent: val }))}
               />
               <span className="absolute right-2 bg-amber-500/10 text-amber-700 font-extrabold text-[11px] px-2.5 py-1 rounded-md select-none pointer-events-none border border-amber-500/20">% PROCENT</span>
             </div>
@@ -346,11 +395,10 @@ export default function SettingsPage() {
               📈 {getLabel("Profit margin", "Marjă de profit", "Winstmarge", "Gewinnmarge", "Marge bénéficiaire", "Marża zysku")}
             </label>
             <div className="relative flex items-center">
-              <input
-                type="number"
+              <PriceInput
                 className="input text-sm pr-20 font-bold text-text"
                 value={tariffs.profitMarginPercent}
-                onChange={e => setTariffs(prev => ({ ...prev, profitMarginPercent: parseFloat(e.target.value) || 0 }))}
+                onChange={(val) => setTariffs(prev => ({ ...prev, profitMarginPercent: val }))}
               />
               <span className="absolute right-2 bg-emerald-500/10 text-emerald-700 font-extrabold text-[11px] px-2.5 py-1 rounded-md select-none pointer-events-none border border-emerald-500/20">% PROCENT</span>
             </div>
@@ -361,11 +409,10 @@ export default function SettingsPage() {
               ⚖️ {getLabel("Weight surcharge", "Spor greutate", "Gewichtstoeslag", "Gewichtszuschlag", "Surcharge de poids", "Dopłata za wagę")}
             </label>
             <div className="relative flex items-center">
-              <input
-                type="number"
+              <PriceInput
                 className="input text-sm pr-20 font-bold text-text"
                 value={tariffs.weightSurchargePercent}
-                onChange={e => setTariffs(prev => ({ ...prev, weightSurchargePercent: parseFloat(e.target.value) || 0 }))}
+                onChange={(val) => setTariffs(prev => ({ ...prev, weightSurchargePercent: val }))}
               />
               <span className="absolute right-2 bg-blue-500/10 text-blue-700 font-extrabold text-[11px] px-2.5 py-1 rounded-md select-none pointer-events-none border border-blue-500/20">% PROCENT</span>
             </div>
@@ -376,11 +423,10 @@ export default function SettingsPage() {
               🚛 {getLabel("Weight threshold", "Prag greutate", "Gewichtsdrempel", "Gewichtsgrenze", "Seuil de poids", "Próg wagi")}
             </label>
             <div className="relative flex items-center">
-              <input
-                type="number"
+              <PriceInput
                 className="input text-sm pr-16 font-bold text-text"
                 value={tariffs.weightThresholdKg}
-                onChange={e => setTariffs(prev => ({ ...prev, weightThresholdKg: parseFloat(e.target.value) || 0 }))}
+                onChange={(val) => setTariffs(prev => ({ ...prev, weightThresholdKg: val }))}
               />
               <span className="absolute right-2 bg-surface text-text-secondary font-extrabold text-[11px] px-3 py-1 rounded-md select-none pointer-events-none border border-border">KG</span>
             </div>
@@ -391,13 +437,11 @@ export default function SettingsPage() {
               🥉 {getLabel("0-5 pallets modifier", "Modificator tarif 0-5 paleți", "0-5 pallets tarief modifier", "0-5 Paletten Modifikator", "Modificateur tarif 0-5 palettes", "Mnożnik stawki 0-5 palet")}
             </label>
             <div className="relative flex items-center">
-              <input
-                type="number"
-                step="1"
+              <PriceInput
                 className="input text-sm pr-20 font-bold text-text"
                 placeholder="60"
                 value={tariffs.palletFactorSmall}
-                onChange={e => setTariffs(prev => ({ ...prev, palletFactorSmall: parseFloat(e.target.value) || 0 }))}
+                onChange={(val) => setTariffs(prev => ({ ...prev, palletFactorSmall: val }))}
               />
               <span className="absolute right-2 bg-orange-500/10 text-orange-700 font-extrabold text-[11px] px-2.5 py-1 rounded-md select-none pointer-events-none border border-orange-500/20">% PROCENT</span>
             </div>
@@ -408,13 +452,11 @@ export default function SettingsPage() {
               🥈 {getLabel("6-15 pallets modifier", "Modificator tarif 6-15 paleți", "6-15 pallets tarief modifier", "6-15 Paletten Modifikator", "Modificateur tarif 6-15 palettes", "Mnożnik stawki 6-15 palet")}
             </label>
             <div className="relative flex items-center">
-              <input
-                type="number"
-                step="1"
+              <PriceInput
                 className="input text-sm pr-20 font-bold text-text"
                 placeholder="85"
                 value={tariffs.palletFactorMedium}
-                onChange={e => setTariffs(prev => ({ ...prev, palletFactorMedium: parseFloat(e.target.value) || 0 }))}
+                onChange={(val) => setTariffs(prev => ({ ...prev, palletFactorMedium: val }))}
               />
               <span className="absolute right-2 bg-orange-500/10 text-orange-700 font-extrabold text-[11px] px-2.5 py-1 rounded-md select-none pointer-events-none border border-orange-500/20">% PROCENT</span>
             </div>
@@ -425,13 +467,11 @@ export default function SettingsPage() {
               🥇 {getLabel("16-33 pallets modifier", "Modificator tarif 16-33 paleți", "16-33 pallets tarief modifier", "16-33 Paletten Modifikator", "Modificateur tarif 16-33 palettes", "Mnożnik stawki 16-33 palet")}
             </label>
             <div className="relative flex items-center">
-              <input
-                type="number"
-                step="1"
+              <PriceInput
                 className="input text-sm pr-20 font-bold text-text"
                 placeholder="100"
                 value={tariffs.palletFactorFull}
-                onChange={e => setTariffs(prev => ({ ...prev, palletFactorFull: parseFloat(e.target.value) || 0 }))}
+                onChange={(val) => setTariffs(prev => ({ ...prev, palletFactorFull: val }))}
               />
               <span className="absolute right-2 bg-orange-500/10 text-orange-700 font-extrabold text-[11px] px-2.5 py-1 rounded-md select-none pointer-events-none border border-orange-500/20">% PROCENT</span>
             </div>
@@ -443,11 +483,10 @@ export default function SettingsPage() {
             </label>
             <div className="relative flex items-center">
               <span className="absolute left-3 text-amber-700 font-extrabold text-sm select-none pointer-events-none">€</span>
-              <input
-                type="number"
+              <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text border-amber-500/30 focus:border-amber-500"
                 value={tariffs.adrSurchargeFee}
-                onChange={e => setTariffs(prev => ({ ...prev, adrSurchargeFee: parseFloat(e.target.value) || 0 }))}
+                onChange={(val) => setTariffs(prev => ({ ...prev, adrSurchargeFee: val }))}
               />
               <span className="absolute right-2 bg-amber-500/10 text-amber-700 font-extrabold text-[11px] px-2 py-1 rounded-md select-none pointer-events-none border border-amber-500/20">EUR</span>
             </div>
@@ -459,11 +498,10 @@ export default function SettingsPage() {
             </label>
             <div className="relative flex items-center">
               <span className="absolute left-3 text-blue-700 font-extrabold text-sm select-none pointer-events-none">€</span>
-              <input
-                type="number"
+              <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text border-blue-500/30 focus:border-blue-500"
                 value={tariffs.nightSurchargeFee}
-                onChange={e => setTariffs(prev => ({ ...prev, nightSurchargeFee: parseFloat(e.target.value) || 0 }))}
+                onChange={(val) => setTariffs(prev => ({ ...prev, nightSurchargeFee: val }))}
               />
               <span className="absolute right-2 bg-blue-500/10 text-blue-700 font-extrabold text-[11px] px-2 py-1 rounded-md select-none pointer-events-none border border-blue-500/20">EUR</span>
             </div>
@@ -475,11 +513,10 @@ export default function SettingsPage() {
             </label>
             <div className="relative flex items-center">
               <span className="absolute left-3 text-emerald-700 font-extrabold text-sm select-none pointer-events-none">€</span>
-              <input
-                type="number"
+              <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text border-emerald-500/30 focus:border-emerald-500"
                 value={tariffs.weekendSurchargeFee}
-                onChange={e => setTariffs(prev => ({ ...prev, weekendSurchargeFee: parseFloat(e.target.value) || 0 }))}
+                onChange={(val) => setTariffs(prev => ({ ...prev, weekendSurchargeFee: val }))}
               />
               <span className="absolute right-2 bg-emerald-500/10 text-emerald-700 font-extrabold text-[11px] px-2 py-1 rounded-md select-none pointer-events-none border border-emerald-500/20">EUR</span>
             </div>
@@ -491,11 +528,10 @@ export default function SettingsPage() {
             </label>
             <div className="relative flex items-center">
               <span className="absolute left-3 text-purple-700 font-extrabold text-sm select-none pointer-events-none">€</span>
-              <input
-                type="number"
+              <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text border-purple-500/30 focus:border-purple-500"
                 value={tariffs.holidaySurchargeFee}
-                onChange={e => setTariffs(prev => ({ ...prev, holidaySurchargeFee: parseFloat(e.target.value) || 0 }))}
+                onChange={(val) => setTariffs(prev => ({ ...prev, holidaySurchargeFee: val }))}
               />
               <span className="absolute right-2 bg-purple-500/10 text-purple-700 font-extrabold text-[11px] px-2 py-1 rounded-md select-none pointer-events-none border border-purple-500/20">EUR</span>
             </div>
