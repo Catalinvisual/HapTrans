@@ -1,6 +1,6 @@
 .hero {
   position: relative;
-  min-height: 85vh;
+  min-height: calc(100vh - 80px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -87,6 +87,9 @@
 .calculatorWrapper {
   width: 100%;
   margin-top: 3rem;
+  margin-bottom: -140px; /* Pull it down over the next section */
+  position: relative;
+  z-index: 10;
 }
 
 .calculator {

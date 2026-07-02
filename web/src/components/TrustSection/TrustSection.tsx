@@ -14,7 +14,7 @@ export default function TrustSection() {
   ];
 
   return (
-    <section style={{ padding: '3rem 1.5rem', background: '#0f172a', color: '#fff' }}>
+    <section style={{ paddingTop: '11rem', paddingBottom: '3rem', paddingLeft: '1.5rem', paddingRight: '1.5rem', background: '#0f172a', color: '#fff' }}>
       <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <h3 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '2rem', color: '#f8fafc' }}>
           {t('trustTitle') || 'Betrouwbaar transportbedrijf'}
