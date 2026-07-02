@@ -146,6 +146,8 @@ const QuoteForm = () => {
   const { loadingDate, unloadingDate, adrSurcharge, nightSurcharge, weekendSurcharge, holidaySurcharge, distanceKm, cargoWeightKg, numberOfPallets, hasCalculation } = formData;
 
   useEffect(() => {
+    if (!hasCalculation) return;
+    
     let isWeekend = false;
     if (loadingDate) {
       const day = new Date(loadingDate).getDay();
@@ -189,7 +191,7 @@ const QuoteForm = () => {
       }
     })
     .catch(err => console.error(err));
-  }, [loadingDate, unloadingDate, adrSurcharge, nightSurcharge, weekendSurcharge, holidaySurcharge, distanceKm, cargoWeightKg, numberOfPallets]);
+  }, [loadingDate, unloadingDate, adrSurcharge, nightSurcharge, weekendSurcharge, holidaySurcharge, distanceKm, cargoWeightKg, numberOfPallets, hasCalculation]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -560,3 +562,4 @@ const QuoteForm = () => {
 };
 
 export default QuoteForm;
+
