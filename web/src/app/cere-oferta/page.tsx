@@ -27,7 +27,9 @@ export default function RequestQuotePage() {
 
         {/* Form Section */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-30 pb-24" style={{ maxWidth: '1280px', margin: '-64px auto 0', padding: '0 24px', position: 'relative', zIndex: 30, paddingBottom: '96px' }}>
-          <QuoteForm />
+          <React.Suspense fallback={<div>Loading...</div>}>
+            <QuoteForm />
+          </React.Suspense>
         </div>
       </div>
       

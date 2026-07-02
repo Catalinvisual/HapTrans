@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '../../context/LanguageContext';
 import { ChevronDown, UploadCloud, CheckCircle } from 'lucide-react';
 import AddressAutocomplete from '../AddressAutocomplete/AddressAutocomplete';
@@ -22,6 +23,7 @@ const truckOptions = [
 ];
 
 const QuoteForm = () => {
+  const searchParams = useSearchParams();
   const { t, lang } = useLanguage();
   const [formData, setFormData] = useState({
     companyName: '',
@@ -68,31 +70,30 @@ const QuoteForm = () => {
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const from = params.get('from');
-      const to = params.get('to');
-      const weight = params.get('weight');
-      const type = params.get('type');
-      const pallets = params.get('pallets');
-      const est = params.get('est');
-      const dist = params.get('dist');
-      const adr = params.get('adr') === 'true';
-      const night = params.get('night') === 'true';
-      const weekend = params.get('weekend') === 'true';
-      const holiday = params.get('holiday') === 'true';
+    if (searchParams) {
+      const from = searchParams.get('from');
+      const to = searchParams.get('to');
+      const weight = searchParams.get('weight');
+      const type = searchParams.get('type');
+      const pallets = searchParams.get('pallets');
+      const est = searchParams.get('est');
+      const dist = searchParams.get('dist');
+      const adr = searchParams.get('adr') === 'true';
+      const night = searchParams.get('night') === 'true';
+      const weekend = searchParams.get('weekend') === 'true';
+      const holiday = searchParams.get('holiday') === 'true';
 
-      const ts = params.get('ts');
+      const ts = searchParams.get('ts');
 
       if (from || to || est || adr || night || weekend || holiday) {
-        // If there's a timestamp, verify it's not older than 30 minutes
-        let isValid = true;
+        // If there's a timestamp, verify it's not older than 15 minutes
+        let isValid = false;
         if (ts) {
           const timestamp = parseInt(ts, 10);
           if (!isNaN(timestamp)) {
             const ageMs = Date.now() - timestamp;
-            if (ageMs > 30 * 60 * 1000) { // 30 minutes
-              isValid = false;
+            if (ageMs <= 15 * 60 * 1000) { // 15 minutes
+              isValid = true;
             }
           }
         }
@@ -119,7 +120,7 @@ const QuoteForm = () => {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     }
-  }, []);
+  }, [searchParams]);
 
   const { loadingDate, unloadingDate, adrSurcharge, nightSurcharge, weekendSurcharge, holidaySurcharge, distanceKm, cargoWeightKg, numberOfPallets, hasCalculation } = formData;
 

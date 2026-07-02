@@ -43,6 +43,9 @@
   select, option, input, textarea {
     @apply bg-card text-text;
   }
+  .dark select, .dark option, .dark input, .dark textarea {
+    color-scheme: dark;
+  }
   body {
     @apply bg-surface text-text font-sans antialiased;
   }
