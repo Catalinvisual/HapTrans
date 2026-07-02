@@ -121,7 +121,7 @@ const QuoteForm = () => {
           setFormData(prev => ({
             ...prev,
             estimatedPrice: '',
-            hasCalculation: false, calculationTimestamp: 0,
+            hasCalculation: false,
             distanceKm: '',
             calculationTimestamp: 0
           }));
