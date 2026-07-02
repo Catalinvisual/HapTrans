@@ -45,7 +45,7 @@ const Footer = () => {
         const res = await fetch(`${apiUrl}/public/company-settings`, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
-          if (data && !data.error) {
+          if (data && (!data.error || data.address)) {
             setCompany(data);
           }
         }

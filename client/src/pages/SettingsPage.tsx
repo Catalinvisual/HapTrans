@@ -178,6 +178,7 @@ export default function SettingsPage() {
         await api.patch(`/users/${user.id}`, updatePayload);
       }
         let finalCompany = { ...company };
+        delete (finalCompany as any).error;
         if (company.logo && company.logo.startsWith('data:image')) {
           try {
             const res = await api.post('/settings/logo', { logo: company.logo });
