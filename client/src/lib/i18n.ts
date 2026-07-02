@@ -1983,7 +1983,7 @@ smartDispatchAddressError: "Bitte geben Sie zuerst die Abholadresse (Pickup) ein
       toast_deadhead_calculated: "🚚 {{dist}}km leer berechnet (von {{from}}). Geschätzte zusätzliche Kosten: €{{cost}}",
       toast_auto_distance_success: "Automatisch berechnete Entfernung: {{dist}} km",
       toast_auto_distance_error: "Entfernung konnte nicht automatisch berechnet werden: {{error}}. Bitte überprüfen Sie die Adressen oder geben Sie sie manuell ein.",
-      toast_gemini_key_missing: "⚠️ GEMINI_API_KEY ist nicht auf dem Server konfiguriert. Fügen Sie die Variable in Railway hinzu.",payroll: 'Gehaltsabrechnung', changePasswordOptional: 'Passwort �ndern (optional)', leaveBlankToKeep: 'Leer lassen, um nicht zu �ndern',
+      toast_gemini_key_missing: "⚠️ GEMINI_API_KEY ist nicht auf dem Server konfiguriert. Fügen Sie die Variable in Railway hinzu.",payroll: 'Gehaltsabrechnung', changePasswordOptional: 'Passwort �ndern (optional)', leaveBlankToKeep: 'Leer lassen, um nicht zu �ndern',
       payrollDesc: 'Verwalten Sie Bruttogehalt, Lohnsteuer und Tagegeld',
       payroll_gross: 'Bruttogehalt',
       payroll_tax: 'Lohnsteuer',

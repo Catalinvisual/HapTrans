@@ -268,7 +268,7 @@ export default function SettingsPage() {
                   <X className="w-3 h-3" /> {t('logo_remove')}
                 </button>
               )}
-              <p className="text-[11px] text-text-secondary leading-tight">PNG, JPG, SVG · Max 500KB<br/>{t('logo_recommendation')}</p>
+              <p className="text-[11px] text-text-secondary leading-tight">PNG, JPG, SVG ï¿½ Max 500KB<br/>{t('logo_recommendation')}</p>
             </div>
           </div>
           <input
@@ -325,7 +325,7 @@ export default function SettingsPage() {
               {getLabel("Smart Tariffs & Calculator Engine", "Tarife & Calculator Engine", "Tarieven & Calculator Engine", "Tarife & Rechner-Engine", "Tarifs & Moteur de calcul", "Taryfy i silnik kalkulatora")}
             </h3>
             <p className="text-xs text-text-secondary">
-              {getLabel("Configure the pricing rules and modifiers used by the system and website calculator.", "Configureaza regulile de pre? folosite de sistem ?i calculatorul web.", "Configureer de prijsregels die door het systeem en de websitecalculator worden gebruikt.", "Konfigurieren Sie die Preisregeln für das System und den Website-Rechner.", "Configurez les règles de tarification utilisées par le système et le calculateur web.", "Skonfiguruj zasady wyceny uzywane przez system i kalkulator internetowy.")}
+              {getLabel("Configure the pricing rules and modifiers used by the system and website calculator.", "Configureaza regulile de pre? folosite de sistem ?i calculatorul web.", "Configureer de prijsregels die door het systeem en de websitecalculator worden gebruikt.", "Konfigurieren Sie die Preisregeln fï¿½r das System und den Website-Rechner.", "Configurez les rï¿½gles de tarification utilisï¿½es par le systï¿½me et le calculateur web.", "Skonfiguruj zasady wyceny uzywane przez system i kalkulator internetowy.")}
             </p>
           </div>
         </div>
@@ -336,7 +336,7 @@ export default function SettingsPage() {
               ??? {getLabel("Min price per km", "Pre? minim pe km", "Min. prijs per km", "Min. Preis pro km", "Prix min par km", "Min. cena za km")}
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-3 text-primary font-extrabold text-sm select-none pointer-events-none">€</span>
+              <span className="absolute left-3 text-primary font-extrabold text-sm select-none pointer-events-none">ï¿½</span>
               <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text"
                 value={tariffs.minPricePerKm}
@@ -351,7 +351,7 @@ export default function SettingsPage() {
               ?? {getLabel("Minimum trip price", "Pre? minim per cursa", "Minimale ritprijs", "Mindestfahrtpreis", "Prix min du trajet", "Minimalna cena trasy")}
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-3 text-primary font-extrabold text-sm select-none pointer-events-none">€</span>
+              <span className="absolute left-3 text-primary font-extrabold text-sm select-none pointer-events-none">ï¿½</span>
               <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text"
                 value={tariffs.minTripPrice}
@@ -363,10 +363,10 @@ export default function SettingsPage() {
 
           <div className="space-y-1.5">
             <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
-              ?? {getLabel("Handling fee", "Cost manipulare", "Afhandelingskosten", "Bearbeitungsgebühr", "Frais de manutention", "Oplata operacyjna")}
+              ?? {getLabel("Handling fee", "Cost manipulare", "Afhandelingskosten", "Bearbeitungsgebï¿½hr", "Frais de manutention", "Oplata operacyjna")}
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-3 text-primary font-extrabold text-sm select-none pointer-events-none">€</span>
+              <span className="absolute left-3 text-primary font-extrabold text-sm select-none pointer-events-none">ï¿½</span>
               <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text"
                 value={tariffs.handlingFee}
@@ -392,7 +392,7 @@ export default function SettingsPage() {
 
           <div className="space-y-1.5">
             <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
-              ?? {getLabel("Profit margin", "Marja de profit", "Winstmarge", "Gewinnmarge", "Marge bénéficiaire", "Marza zysku")}
+              ?? {getLabel("Profit margin", "Marja de profit", "Winstmarge", "Gewinnmarge", "Marge bï¿½nï¿½ficiaire", "Marza zysku")}
             </label>
             <div className="relative flex items-center">
               <PriceInput
@@ -420,7 +420,7 @@ export default function SettingsPage() {
 
           <div className="space-y-1.5">
             <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
-              ?? {getLabel("Weight threshold", "Prag greutate", "Gewichtsdrempel", "Gewichtsgrenze", "Seuil de poids", "Próg wagi")}
+              ?? {getLabel("Weight threshold", "Prag greutate", "Gewichtsdrempel", "Gewichtsgrenze", "Seuil de poids", "Prï¿½g wagi")}
             </label>
             <div className="relative flex items-center">
               <PriceInput
@@ -482,7 +482,7 @@ export default function SettingsPage() {
               ?? {getLabel("ADR Surcharge Fee", "Tarif Suplimentar ADR", "ADR Toeslag", "ADR Zuschlag", "Surcharge ADR", "Doplata ADR")}
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-3 text-amber-700 font-extrabold text-sm select-none pointer-events-none">€</span>
+              <span className="absolute left-3 text-amber-700 font-extrabold text-sm select-none pointer-events-none">ï¿½</span>
               <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text border-amber-500/30 focus:border-amber-500"
                 value={tariffs.adrSurchargeFee}
@@ -497,7 +497,7 @@ export default function SettingsPage() {
               ?? {getLabel("Night Driving Surcharge", "Tarif de Noapte / Express", "Nachttoeslag", "Nachtzuschlag", "Surcharge de nuit", "Doplata nocna")}
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-3 text-blue-700 font-extrabold text-sm select-none pointer-events-none">€</span>
+              <span className="absolute left-3 text-blue-700 font-extrabold text-sm select-none pointer-events-none">ï¿½</span>
               <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text border-blue-500/30 focus:border-blue-500"
                 value={tariffs.nightSurchargeFee}
@@ -512,7 +512,7 @@ export default function SettingsPage() {
               ?? {getLabel("Weekend Surcharge Fee", "Tarif de Weekend", "Weekendtoeslag", "Wochenendzuschlag", "Surcharge week-end", "Doplata weekendowa")}
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-3 text-emerald-700 font-extrabold text-sm select-none pointer-events-none">€</span>
+              <span className="absolute left-3 text-emerald-700 font-extrabold text-sm select-none pointer-events-none">ï¿½</span>
               <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text border-emerald-500/30 focus:border-emerald-500"
                 value={tariffs.weekendSurchargeFee}
@@ -524,10 +524,10 @@ export default function SettingsPage() {
 
           <div className="space-y-1.5">
             <label className="label font-bold text-xs text-purple-700 flex items-center gap-1.5">
-              ??? {getLabel("Public / Bank Holiday Surcharge", "Tarif Sarbatori Legale", "Toeslag Erkende Feestdagen", "Zuschlag gesetzliche Feiertage", "Majoration Jours Fériés", "Doplata za dni ustawowo wolne")}
+              ??? {getLabel("Public / Bank Holiday Surcharge", "Tarif Sarbatori Legale", "Toeslag Erkende Feestdagen", "Zuschlag gesetzliche Feiertage", "Majoration Jours Fï¿½riï¿½s", "Doplata za dni ustawowo wolne")}
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-3 text-purple-700 font-extrabold text-sm select-none pointer-events-none">€</span>
+              <span className="absolute left-3 text-purple-700 font-extrabold text-sm select-none pointer-events-none">ï¿½</span>
               <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text border-purple-500/30 focus:border-purple-500"
                 value={tariffs.holidaySurchargeFee}
