@@ -785,7 +785,7 @@ export default function TripsPage() {
       if (trip.holidaySurcharge) {
          const fee = Number(tariffs.holidaySurchargeFee) || 200;
          items.push({
-           description: '🏛️ Bank / Public Holiday Surcharge Fee',
+           description: '🏛️ Public Holiday Surcharge Fee',
            quantity: 1,
            unitPrice: fee,
            vatRate: vatPercent,
@@ -1371,7 +1371,7 @@ export default function TripsPage() {
                         de: '🏛️ Feiertags-Transit',
                         fr: '🏛️ Transit Jours Fériés',
                         pl: '🏛️ Tranzyt w Święta'
-                      }[i18n.language] || '🏛️ Bank / Public Holiday Transit')}
+                      }[i18n.language] || '🏛️ Public Holiday Transit')}
                     </p>
                     <p className="text-[10px] text-text-secondary leading-tight">
                       {({

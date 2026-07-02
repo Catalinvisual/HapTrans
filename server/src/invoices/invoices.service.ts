@@ -177,7 +177,7 @@ export class InvoicesService implements OnModuleInit {
     if (tripObj?.holidaySurcharge || dto.holidaySurcharge) {
       const fee = Number(tariffs.holidaySurchargeFee) || 200;
       items.push({
-        description: `Bank / Public Holiday Surcharge Fee`,
+        description: `Public Holiday Surcharge Fee`,
         quantity: 1,
         unitPrice: fee,
         vatRate: vatType === 'NORMAL' ? vatPercent : 0,

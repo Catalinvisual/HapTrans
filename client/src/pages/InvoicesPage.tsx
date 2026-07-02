@@ -126,7 +126,7 @@ export default function InvoicesPage() {
         }
         if (mockTrip?.holidaySurcharge) {
            const fee = Number(tariffs.holidaySurchargeFee) || 200;
-           items.push({ description: 'Bank / Public Holiday Surcharge Fee', quantity: 1, unitPrice: fee, vatRate: isVat ? vatP : 0, total: fee });
+           items.push({ description: 'Public Holiday Surcharge Fee', quantity: 1, unitPrice: fee, vatRate: isVat ? vatP : 0, total: fee });
            subtotal += fee;
         }
 
