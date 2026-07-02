@@ -36,6 +36,7 @@
     --color-text-secondary: 148 163 184;
     --color-text-light: 100 116 139;
     --color-border: 51 65 85;
+    color-scheme: dark;
   }
 
   * { @apply border-border; }

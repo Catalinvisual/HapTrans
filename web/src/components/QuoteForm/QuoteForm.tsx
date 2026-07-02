@@ -82,22 +82,38 @@ const QuoteForm = () => {
       const weekend = params.get('weekend') === 'true';
       const holiday = params.get('holiday') === 'true';
 
+      const ts = params.get('ts');
+
       if (from || to || est || adr || night || weekend || holiday) {
-        setFormData(prev => ({
-          ...prev,
-          loadingLocation: from || prev.loadingLocation,
-          unloadingLocation: to || prev.unloadingLocation,
-          cargoWeightKg: weight ? weight.replace(/[^0-9.]/g, '') : prev.cargoWeightKg,
-          cargoType: type || prev.cargoType,
-          numberOfPallets: pallets ? pallets.replace(/[^0-9]/g, '') : prev.numberOfPallets,
-          estimatedPrice: est || '',
-          distanceKm: dist || '',
-          hasCalculation: !!est,
-          adrSurcharge: adr || prev.adrSurcharge,
-          nightSurcharge: night || prev.nightSurcharge,
-          weekendSurcharge: weekend || prev.weekendSurcharge,
-          holidaySurcharge: holiday || prev.holidaySurcharge
-        }));
+        // If there's a timestamp, verify it's not older than 30 minutes
+        let isValid = true;
+        if (ts) {
+          const timestamp = parseInt(ts, 10);
+          if (!isNaN(timestamp)) {
+            const ageMs = Date.now() - timestamp;
+            if (ageMs > 30 * 60 * 1000) { // 30 minutes
+              isValid = false;
+            }
+          }
+        }
+
+        if (isValid) {
+          setFormData(prev => ({
+            ...prev,
+            loadingLocation: from || prev.loadingLocation,
+            unloadingLocation: to || prev.unloadingLocation,
+            cargoWeightKg: weight ? weight.replace(/[^0-9.]/g, '') : prev.cargoWeightKg,
+            cargoType: type || prev.cargoType,
+            numberOfPallets: pallets ? pallets.replace(/[^0-9]/g, '') : prev.numberOfPallets,
+            estimatedPrice: est || '',
+            distanceKm: dist || '',
+            hasCalculation: !!est,
+            adrSurcharge: adr || prev.adrSurcharge,
+            nightSurcharge: night || prev.nightSurcharge,
+            weekendSurcharge: weekend || prev.weekendSurcharge,
+            holidaySurcharge: holiday || prev.holidaySurcharge
+          }));
+        }
         
         // Remove query params from URL so they don't persist on refresh
         window.history.replaceState({}, document.title, window.location.pathname);
