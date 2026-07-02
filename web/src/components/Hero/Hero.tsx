@@ -104,6 +104,9 @@ const Hero = () => {
         if (data.minEstimate && data.maxEstimate) {
           setEstimatedPriceRange(`€${data.minEstimate.toLocaleString()} – €${data.maxEstimate.toLocaleString()}`);
           setSurchargesApplied(data.surchargesApplied || null);
+          if (data.calculationDetails && data.calculationDetails.distanceKm) {
+            setCalculatedDistance(data.calculationDetails.distanceKm);
+          }
         } else {
           setEstimatedPriceRange('€1,380 – €1,550');
         }

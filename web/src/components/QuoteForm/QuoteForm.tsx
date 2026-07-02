@@ -49,7 +49,7 @@ const QuoteForm = () => {
     notes: '',
     estimatedPrice: '',
     distanceKm: '',
-    hasCalculation: false,
+    hasCalculation: false, calculationTimestamp: 0,
     adrSurcharge: false,
     nightSurcharge: false,
     weekendSurcharge: false,
@@ -114,12 +114,31 @@ const QuoteForm = () => {
             adrSurcharge: adr || prev.adrSurcharge,
             nightSurcharge: night || prev.nightSurcharge,
             weekendSurcharge: weekend || prev.weekendSurcharge,
-            holidaySurcharge: holiday || prev.holidaySurcharge
+            holidaySurcharge: holiday || prev.holidaySurcharge,
+            calculationTimestamp: Date.now()
+          }));
+        } else {
+          setFormData(prev => ({
+            ...prev,
+            estimatedPrice: '',
+            hasCalculation: false, calculationTimestamp: 0,
+            distanceKm: '',
+            calculationTimestamp: 0
           }));
         }
         
         // Remove query params from URL so they don't persist on refresh
         router.replace(pathname, { scroll: false });
+      } else {
+        setFormData(prev => {
+          if (prev.hasCalculation && prev.calculationTimestamp) {
+            const ageMs = Date.now() - prev.calculationTimestamp;
+            if (ageMs > 15 * 60 * 1000) {
+              return { ...prev, estimatedPrice: '', hasCalculation: false, calculationTimestamp: 0, distanceKm: '', calculationTimestamp: 0 };
+            }
+          }
+          return prev;
+        });
       }
     }
   }, [searchParams, router, pathname]);
@@ -225,7 +244,7 @@ const QuoteForm = () => {
         companyName: '', contactPerson: '', phone: '', email: '', preferredContactMethod: 'email', loadingLocation: '', unloadingLocation: '',
         loadingDate: '', loadingTime: '', unloadingDate: '', unloadingTime: '',
         cargoType: '', cargoWeightKg: '', numberOfPallets: '', cargoVolumeM3: '',
-        truckType: '', temperatureRequired: '', isUrgent: false, notes: '', estimatedPrice: '', distanceKm: '', hasCalculation: false,
+        truckType: '', temperatureRequired: '', isUrgent: false, notes: '', estimatedPrice: '', distanceKm: '', hasCalculation: false, calculationTimestamp: 0,
         adrSurcharge: false, nightSurcharge: false, weekendSurcharge: false, holidaySurcharge: false
       });
       setAttachment(null);
