@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useLanguage } from '../../context/LanguageContext';
 import { ChevronDown, UploadCloud, CheckCircle } from 'lucide-react';
 import AddressAutocomplete from '../AddressAutocomplete/AddressAutocomplete';
@@ -24,6 +24,8 @@ const truckOptions = [
 
 const QuoteForm = () => {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const { t, lang } = useLanguage();
   const [formData, setFormData] = useState({
     companyName: '',
@@ -117,10 +119,10 @@ const QuoteForm = () => {
         }
         
         // Remove query params from URL so they don't persist on refresh
-        window.history.replaceState({}, document.title, window.location.pathname);
+        router.replace(pathname, { scroll: false });
       }
     }
-  }, [searchParams]);
+  }, [searchParams, router, pathname]);
 
   const { loadingDate, unloadingDate, adrSurcharge, nightSurcharge, weekendSurcharge, holidaySurcharge, distanceKm, cargoWeightKg, numberOfPallets, hasCalculation } = formData;
 

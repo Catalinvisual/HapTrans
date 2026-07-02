@@ -203,3 +203,18 @@ input[readonly] {
   from { width: 100%; }
   to { width: 0%; }
 }
+
+.dark .flatpickr-calendar { background: #1e293b !important; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5) !important; border: 1px solid #334155 !important; }
+.dark .flatpickr-calendar::before, .dark .flatpickr-calendar::after { border-bottom-color: #1e293b !important; }
+.dark .flatpickr-month, .dark .flatpickr-current-month { color: #f8fafc !important; fill: #f8fafc !important; }
+.dark .flatpickr-weekday { color: #94a3b8 !important; }
+.dark .flatpickr-day { color: #cbd5e1 !important; }
+.dark .flatpickr-day:hover, .dark .flatpickr-day:focus { background: #334155 !important; border-color: #334155 !important; }
+.dark .flatpickr-day.selected { background: #f97316 !important; border-color: #f97316 !important; color: #fff !important; }
+.dark .flatpickr-day.flatpickr-disabled, .dark .flatpickr-day.flatpickr-disabled:hover { color: #475569 !important; background: transparent !important; }
+.dark .flatpickr-time input { color: #f8fafc !important; background: #1e293b !important; }
+.dark .flatpickr-time .numInputWrapper span.arrowUp::after { border-bottom-color: #94a3b8 !important; }
+.dark .flatpickr-time .numInputWrapper span.arrowDown::after { border-top-color: #94a3b8 !important; }
+.dark .flatpickr-time .flatpickr-time-separator { color: #f8fafc !important; }
+.dark .flatpickr-time .flatpickr-am-pm { color: #f8fafc !important; }
+
