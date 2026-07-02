@@ -134,7 +134,7 @@ const QuoteForm = () => {
           if (prev.hasCalculation && prev.calculationTimestamp) {
             const ageMs = Date.now() - prev.calculationTimestamp;
             if (ageMs > 15 * 60 * 1000) {
-              return { ...prev, estimatedPrice: '', hasCalculation: false, calculationTimestamp: 0, distanceKm: '', calculationTimestamp: 0 };
+              return { ...prev, estimatedPrice: '', hasCalculation: false, distanceKm: '', calculationTimestamp: 0 };
             }
           }
           return prev;
