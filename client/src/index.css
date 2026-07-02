@@ -189,3 +189,7 @@ input[readonly] {
 .dark .flatpickr-time .flatpickr-time-separator { color: #f8fafc !important; }
 .dark .flatpickr-time .flatpickr-am-pm { color: #f8fafc !important; }
 
+
+.dark input[type='date'], .dark input[type='time'], .dark input[type='datetime-local'] { color-scheme: dark !important; background-color: #1e293b !important; color: #f8fafc !important; }
+.dark input[type='date']::-webkit-calendar-picker-indicator, .dark input[type='time']::-webkit-calendar-picker-indicator { filter: invert(1) hue-rotate(180deg) !important; opacity: 0.8 !important; }
+
