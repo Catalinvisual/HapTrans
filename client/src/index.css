@@ -244,3 +244,34 @@ input[readonly] {
 .dark input[type='date'], .dark input[type='time'], .dark input[type='datetime-local'] { color-scheme: dark !important; background-color: #1e293b !important; color: #f8fafc !important; }
 .dark input[type='date']::-webkit-calendar-picker-indicator, .dark input[type='time']::-webkit-calendar-picker-indicator { filter: invert(1) hue-rotate(180deg) !important; opacity: 0.8 !important; }
 
+
+.dark .flatpickr-calendar {
+  border: 1px solid #334155 !important;
+}
+.flatpickr-calendar {
+  overflow: hidden !important;
+}
+
+.dark .flatpickr-calendar {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark .flatpickr-calendar .flatpickr-months,
+.dark .flatpickr-calendar .flatpickr-month,
+.dark .flatpickr-calendar .flatpickr-weekdays,
+.dark .flatpickr-calendar span.flatpickr-weekday,
+.dark .flatpickr-calendar .flatpickr-days,
+.dark .flatpickr-calendar .flatpickr-time,
+.dark .flatpickr-calendar .flatpickr-time input,
+.dark .flatpickr-calendar .flatpickr-rContainer,
+.dark .flatpickr-calendar .flatpickr-innerContainer,
+.dark .flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.flatpickr-calendar {
+  overflow: visible !important;
+}
