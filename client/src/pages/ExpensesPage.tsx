@@ -282,7 +282,7 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      <div className="bg-surface rounded-2xl border border-border overflow-hidden shadow-sm">
+      <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
         <div className="p-4 border-b border-border flex items-center justify-end">
           <button onClick={() => { setShowForm(!showForm); setEditId(null); }} className="btn-primary flex items-center gap-2 text-sm font-semibold py-2 px-4">
             <Plus className="w-4 h-4" />
