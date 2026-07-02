@@ -224,7 +224,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl">
 
-      {/* ─── COMPANY DETAILS ─── */}
+      {/* --- COMPANY DETAILS --- */}
       <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-5">
         <div className="flex items-center gap-2 border-b border-border pb-3">
           <Building2 className="w-5 h-5 text-primary" />
@@ -268,7 +268,7 @@ export default function SettingsPage() {
                   <X className="w-3 h-3" /> {t('logo_remove')}
                 </button>
               )}
-              <p className="text-[11px] text-text-secondary leading-tight">PNG, JPG, SVG · Max 500KB<br/>{t('logo_recommendation')}</p>
+              <p className="text-[11px] text-text-secondary leading-tight">PNG, JPG, SVG � Max 500KB<br/>{t('logo_recommendation')}</p>
             </div>
           </div>
           <input
@@ -316,7 +316,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* ─── TARIFFS & CALCULATOR ENGINE ─── */}
+      {/* --- TARIFFS & CALCULATOR ENGINE --- */}
       <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-5">
         <div className="flex items-center gap-2 border-b border-border pb-3">
           <Calculator className="w-5 h-5 text-primary" />
@@ -325,7 +325,7 @@ export default function SettingsPage() {
               {getLabel("Smart Tariffs & Calculator Engine", "Tarife & Calculator Engine", "Tarieven & Calculator Engine", "Tarife & Rechner-Engine", "Tarifs & Moteur de calcul", "Taryfy i silnik kalkulatora")}
             </h3>
             <p className="text-xs text-text-secondary">
-              {getLabel("Configure the pricing rules and modifiers used by the system and website calculator.", "Configurează regulile de preț folosite de sistem și calculatorul web.", "Configureer de prijsregels die door het systeem en de websitecalculator worden gebruikt.", "Konfigurieren Sie die Preisregeln für das System und den Website-Rechner.", "Configurez les règles de tarification utilisées par le système et le calculateur web.", "Skonfiguruj zasady wyceny używane przez system i kalkulator internetowy.")}
+              {getLabel("Configure the pricing rules and modifiers used by the system and website calculator.", "Configureaza regulile de pre? folosite de sistem ?i calculatorul web.", "Configureer de prijsregels die door het systeem en de websitecalculator worden gebruikt.", "Konfigurieren Sie die Preisregeln f�r das System und den Website-Rechner.", "Configurez les r�gles de tarification utilis�es par le syst�me et le calculateur web.", "Skonfiguruj zasady wyceny uzywane przez system i kalkulator internetowy.")}
             </p>
           </div>
         </div>
@@ -333,10 +333,10 @@ export default function SettingsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-1.5">
             <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
-              🛣️ {getLabel("Min price per km", "Preț minim pe km", "Min. prijs per km", "Min. Preis pro km", "Prix min par km", "Min. cena za km")}
+              ??? {getLabel("Min price per km", "Pre? minim pe km", "Min. prijs per km", "Min. Preis pro km", "Prix min par km", "Min. cena za km")}
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-3 text-primary font-extrabold text-sm select-none pointer-events-none">€</span>
+              <span className="absolute left-3 text-primary font-extrabold text-sm select-none pointer-events-none">�</span>
               <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text"
                 value={tariffs.minPricePerKm}
@@ -348,10 +348,10 @@ export default function SettingsPage() {
 
           <div className="space-y-1.5">
             <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
-              💶 {getLabel("Minimum trip price", "Preț minim per cursă", "Minimale ritprijs", "Mindestfahrtpreis", "Prix min du trajet", "Minimalna cena trasy")}
+              ?? {getLabel("Minimum trip price", "Pre? minim per cursa", "Minimale ritprijs", "Mindestfahrtpreis", "Prix min du trajet", "Minimalna cena trasy")}
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-3 text-primary font-extrabold text-sm select-none pointer-events-none">€</span>
+              <span className="absolute left-3 text-primary font-extrabold text-sm select-none pointer-events-none">�</span>
               <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text"
                 value={tariffs.minTripPrice}
@@ -363,10 +363,10 @@ export default function SettingsPage() {
 
           <div className="space-y-1.5">
             <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
-              📦 {getLabel("Handling fee", "Cost manipulare", "Afhandelingskosten", "Bearbeitungsgebühr", "Frais de manutention", "Opłata operacyjna")}
+              ?? {getLabel("Handling fee", "Cost manipulare", "Afhandelingskosten", "Bearbeitungsgeb�hr", "Frais de manutention", "Oplata operacyjna")}
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-3 text-primary font-extrabold text-sm select-none pointer-events-none">€</span>
+              <span className="absolute left-3 text-primary font-extrabold text-sm select-none pointer-events-none">�</span>
               <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text"
                 value={tariffs.handlingFee}
@@ -378,7 +378,7 @@ export default function SettingsPage() {
 
           <div className="space-y-1.5">
             <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
-              ⛽ {getLabel("Fuel surcharge", "Supliment combustibil", "Brandstoftoeslag", "Treibstoffzuschlag", "Surcharge carburant", "Dopłata paliwowa")}
+              ? {getLabel("Fuel surcharge", "Supliment combustibil", "Brandstoftoeslag", "Treibstoffzuschlag", "Surcharge carburant", "Doplata paliwowa")}
             </label>
             <div className="relative flex items-center">
               <PriceInput
@@ -392,7 +392,7 @@ export default function SettingsPage() {
 
           <div className="space-y-1.5">
             <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
-              📈 {getLabel("Profit margin", "Marjă de profit", "Winstmarge", "Gewinnmarge", "Marge bénéficiaire", "Marża zysku")}
+              ?? {getLabel("Profit margin", "Marja de profit", "Winstmarge", "Gewinnmarge", "Marge b�n�ficiaire", "Marza zysku")}
             </label>
             <div className="relative flex items-center">
               <PriceInput
@@ -406,7 +406,7 @@ export default function SettingsPage() {
 
           <div className="space-y-1.5">
             <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
-              ⚖️ {getLabel("Weight surcharge", "Spor greutate", "Gewichtstoeslag", "Gewichtszuschlag", "Surcharge de poids", "Dopłata za wagę")}
+              ?? {getLabel("Weight surcharge", "Spor greutate", "Gewichtstoeslag", "Gewichtszuschlag", "Surcharge de poids", "Doplata za wage")}
             </label>
             <div className="relative flex items-center">
               <PriceInput
@@ -420,7 +420,7 @@ export default function SettingsPage() {
 
           <div className="space-y-1.5">
             <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
-              🚛 {getLabel("Weight threshold", "Prag greutate", "Gewichtsdrempel", "Gewichtsgrenze", "Seuil de poids", "Próg wagi")}
+              ?? {getLabel("Weight threshold", "Prag greutate", "Gewichtsdrempel", "Gewichtsgrenze", "Seuil de poids", "Pr�g wagi")}
             </label>
             <div className="relative flex items-center">
               <PriceInput
@@ -434,7 +434,7 @@ export default function SettingsPage() {
 
           <div className="space-y-1.5">
             <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
-              🥉 {getLabel("0-5 pallets modifier", "Modificator tarif 0-5 paleți", "0-5 pallets tarief modifier", "0-5 Paletten Modifikator", "Modificateur tarif 0-5 palettes", "Mnożnik stawki 0-5 palet")}
+              ?? {getLabel("0-5 pallets modifier", "Modificator tarif 0-5 pale?i", "0-5 pallets tarief modifier", "0-5 Paletten Modifikator", "Modificateur tarif 0-5 palettes", "Mnoznik stawki 0-5 palet")}
             </label>
             <div className="relative flex items-center">
               <PriceInput
@@ -449,7 +449,7 @@ export default function SettingsPage() {
 
           <div className="space-y-1.5">
             <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
-              🥈 {getLabel("6-15 pallets modifier", "Modificator tarif 6-15 paleți", "6-15 pallets tarief modifier", "6-15 Paletten Modifikator", "Modificateur tarif 6-15 palettes", "Mnożnik stawki 6-15 palet")}
+              ?? {getLabel("6-15 pallets modifier", "Modificator tarif 6-15 pale?i", "6-15 pallets tarief modifier", "6-15 Paletten Modifikator", "Modificateur tarif 6-15 palettes", "Mnoznik stawki 6-15 palet")}
             </label>
             <div className="relative flex items-center">
               <PriceInput
@@ -464,7 +464,7 @@ export default function SettingsPage() {
 
           <div className="space-y-1.5">
             <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
-              🥇 {getLabel("16-33 pallets modifier", "Modificator tarif 16-33 paleți", "16-33 pallets tarief modifier", "16-33 Paletten Modifikator", "Modificateur tarif 16-33 palettes", "Mnożnik stawki 16-33 palet")}
+              ?? {getLabel("16-33 pallets modifier", "Modificator tarif 16-33 pale?i", "16-33 pallets tarief modifier", "16-33 Paletten Modifikator", "Modificateur tarif 16-33 palettes", "Mnoznik stawki 16-33 palet")}
             </label>
             <div className="relative flex items-center">
               <PriceInput
@@ -479,10 +479,10 @@ export default function SettingsPage() {
 
           <div className="space-y-1.5">
             <label className="label font-bold text-xs text-amber-700 flex items-center gap-1.5">
-              ⚠️ {getLabel("ADR Surcharge Fee", "Tarif Suplimentar ADR", "ADR Toeslag", "ADR Zuschlag", "Surcharge ADR", "Dopłata ADR")}
+              ?? {getLabel("ADR Surcharge Fee", "Tarif Suplimentar ADR", "ADR Toeslag", "ADR Zuschlag", "Surcharge ADR", "Doplata ADR")}
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-3 text-amber-700 font-extrabold text-sm select-none pointer-events-none">€</span>
+              <span className="absolute left-3 text-amber-700 font-extrabold text-sm select-none pointer-events-none">�</span>
               <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text border-amber-500/30 focus:border-amber-500"
                 value={tariffs.adrSurchargeFee}
@@ -494,10 +494,10 @@ export default function SettingsPage() {
 
           <div className="space-y-1.5">
             <label className="label font-bold text-xs text-blue-700 flex items-center gap-1.5">
-              🌙 {getLabel("Night Driving Surcharge", "Tarif de Noapte / Express", "Nachttoeslag", "Nachtzuschlag", "Surcharge de nuit", "Dopłata nocna")}
+              ?? {getLabel("Night Driving Surcharge", "Tarif de Noapte / Express", "Nachttoeslag", "Nachtzuschlag", "Surcharge de nuit", "Doplata nocna")}
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-3 text-blue-700 font-extrabold text-sm select-none pointer-events-none">€</span>
+              <span className="absolute left-3 text-blue-700 font-extrabold text-sm select-none pointer-events-none">�</span>
               <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text border-blue-500/30 focus:border-blue-500"
                 value={tariffs.nightSurchargeFee}
@@ -509,10 +509,10 @@ export default function SettingsPage() {
 
           <div className="space-y-1.5">
             <label className="label font-bold text-xs text-emerald-700 flex items-center gap-1.5">
-              📅 {getLabel("Weekend Surcharge Fee", "Tarif de Weekend", "Weekendtoeslag", "Wochenendzuschlag", "Surcharge week-end", "Dopłata weekendowa")}
+              ?? {getLabel("Weekend Surcharge Fee", "Tarif de Weekend", "Weekendtoeslag", "Wochenendzuschlag", "Surcharge week-end", "Doplata weekendowa")}
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-3 text-emerald-700 font-extrabold text-sm select-none pointer-events-none">€</span>
+              <span className="absolute left-3 text-emerald-700 font-extrabold text-sm select-none pointer-events-none">�</span>
               <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text border-emerald-500/30 focus:border-emerald-500"
                 value={tariffs.weekendSurchargeFee}
@@ -524,10 +524,10 @@ export default function SettingsPage() {
 
           <div className="space-y-1.5">
             <label className="label font-bold text-xs text-purple-700 flex items-center gap-1.5">
-              🏛️ {getLabel("Public / Bank Holiday Surcharge", "Tarif Sărbători Legale", "Toeslag Erkende Feestdagen", "Zuschlag gesetzliche Feiertage", "Majoration Jours Fériés", "Dopłata za dni ustawowo wolne")}
+              ??? {getLabel("Public / Bank Holiday Surcharge", "Tarif Sarbatori Legale", "Toeslag Erkende Feestdagen", "Zuschlag gesetzliche Feiertage", "Majoration Jours F�ri�s", "Doplata za dni ustawowo wolne")}
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-3 text-purple-700 font-extrabold text-sm select-none pointer-events-none">€</span>
+              <span className="absolute left-3 text-purple-700 font-extrabold text-sm select-none pointer-events-none">�</span>
               <PriceInput
                 className="input text-sm pl-8 pr-14 font-bold text-text border-purple-500/30 focus:border-purple-500"
                 value={tariffs.holidaySurchargeFee}
@@ -539,7 +539,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* ─── PROFILE ─── */}
+      {/* --- PROFILE --- */}
       <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
         <div className="flex items-center gap-2 border-b border-border pb-3">
           <User className="w-5 h-5 text-primary" />
@@ -565,10 +565,10 @@ export default function SettingsPage() {
           </div>
           {user?.role === 'admin' && (
             <div>
-              <label className="label font-semibold">Schimbă Parola (opțional)</label>
+              <label className="label font-semibold">{t('changePasswordOptional', 'Schimba Parola (op?ional)')}</label>
               <input 
                 type="password" 
-                placeholder="Lasă gol pentru a nu schimba" 
+                placeholder={t('leaveBlankToKeep', 'Lasa gol pentru a nu schimba')} 
                 className="input" 
                 value={newPassword} 
                 onChange={e => setNewPassword(e.target.value)} 
@@ -578,7 +578,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* ─── SERVER CONNECTION ─── */}
+      {/* --- SERVER CONNECTION --- */}
       <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
         <div className="flex items-center gap-2 border-b border-border pb-3">
           <Server className="w-5 h-5 text-primary" />
@@ -605,3 +605,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

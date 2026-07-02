@@ -42,7 +42,7 @@ const Footer = () => {
     const fetchCompany = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
-        const res = await fetch(`${apiUrl}/public/company-settings`);
+        const res = await fetch(`${apiUrl}/public/company-settings`, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           if (data && !data.error) {
