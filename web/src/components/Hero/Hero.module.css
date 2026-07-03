@@ -93,32 +93,35 @@
 }
 
 .calculator {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  border-left: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 1.5rem;
-  padding: 1.5rem 2rem;
-  color: var(--text-primary);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  padding: 2rem 2.5rem;
+  color: #ffffff;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .calcHeader {
   display: flex;
   align-items: baseline;
   gap: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
 }
 
 .calcTitle {
-  font-size: 1.25rem;
+  font-size: 1.4rem;
   font-weight: 800;
   margin: 0;
+  color: #ffffff;
 }
 
 .calcDesc {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
   margin: 0;
 }
 
@@ -167,22 +170,31 @@
 .formGroup label {
   font-size: 0.8rem;
   font-weight: 700;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.85);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
 }
 
 .horizontalFields input,
 .step1Grid input,
 .step2Grid input,
 .subGrid3 input {
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--border);
+  padding: 0.85rem 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 0.75rem;
   font-size: 0.95rem;
-  background-color: var(--surface);
-  transition: all 0.2s ease;
+  background-color: rgba(0, 0, 0, 0.3);
+  color: #ffffff;
+  transition: all 0.3s ease;
   width: 100%;
+}
+
+.horizontalFields input::placeholder,
+.step1Grid input::placeholder,
+.step2Grid input::placeholder,
+.subGrid3 input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .horizontalFields input:focus,
@@ -191,7 +203,8 @@
 .subGrid3 input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(255, 90, 0, 0.1);
+  background-color: rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 4px rgba(255, 90, 0, 0.2);
 }
 
 .calcBtn {
@@ -244,11 +257,11 @@
   font-size: 1.35rem;
   font-weight: 800;
   margin-bottom: 0.5rem;
-  color: var(--text-primary);
+  color: #ffffff;
 }
 
 .successDesc {
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.8);
   font-size: 0.95rem;
   margin-bottom: 1.5rem;
   line-height: 1.5;

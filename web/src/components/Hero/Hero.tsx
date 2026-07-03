@@ -200,23 +200,23 @@ const Hero = () => {
                   </button>
 
                   <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'rgba(255, 255, 255, 0.7)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       {getLabel("Opțiuni Suplimentare", "Additional Options", "Aanvullende opties", "Zusätzliche Optionen", "Options supplémentaires", "Opciones adicionales")}
                     </span>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: formData.adrSurcharge ? '2px solid var(--primary)' : '1px solid #E5E7EB', background: formData.adrSurcharge ? 'rgba(255, 122, 26, 0.05)' : 'white', color: formData.adrSurcharge ? 'var(--primary)' : 'var(--text-secondary)', transition: 'all 0.2s ease' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: formData.adrSurcharge ? '2px solid var(--primary)' : '1px solid rgba(255, 255, 255, 0.15)', background: formData.adrSurcharge ? 'rgba(255, 90, 0, 0.15)' : 'rgba(0, 0, 0, 0.3)', color: formData.adrSurcharge ? 'var(--primary)' : 'rgba(255, 255, 255, 0.8)', transition: 'all 0.2s ease' }}>
                         <input type="checkbox" name="adrSurcharge" checked={formData.adrSurcharge} onChange={handleChange} style={{ display: 'none' }} />
                         <span>⚠️</span> {getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR")}
                       </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: formData.nightSurcharge ? '2px solid var(--primary)' : '1px solid #E5E7EB', background: formData.nightSurcharge ? 'rgba(255, 122, 26, 0.05)' : 'white', color: formData.nightSurcharge ? 'var(--primary)' : 'var(--text-secondary)', transition: 'all 0.2s ease' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: formData.nightSurcharge ? '2px solid var(--primary)' : '1px solid rgba(255, 255, 255, 0.15)', background: formData.nightSurcharge ? 'rgba(255, 90, 0, 0.15)' : 'rgba(0, 0, 0, 0.3)', color: formData.nightSurcharge ? 'var(--primary)' : 'rgba(255, 255, 255, 0.8)', transition: 'all 0.2s ease' }}>
                         <input type="checkbox" name="nightSurcharge" checked={formData.nightSurcharge} onChange={handleChange} style={{ display: 'none' }} />
                         <span>🌙</span> {getLabel("Noapte / Express", "Night / Express", "Nacht / Express", "Nacht / Express", "Nuit / Express", "Noche / Exprés")}
                       </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: formData.weekendSurcharge ? '2px solid var(--primary)' : '1px solid #E5E7EB', background: formData.weekendSurcharge ? 'rgba(255, 122, 26, 0.05)' : 'white', color: formData.weekendSurcharge ? 'var(--primary)' : 'var(--text-secondary)', transition: 'all 0.2s ease' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: formData.weekendSurcharge ? '2px solid var(--primary)' : '1px solid rgba(255, 255, 255, 0.15)', background: formData.weekendSurcharge ? 'rgba(255, 90, 0, 0.15)' : 'rgba(0, 0, 0, 0.3)', color: formData.weekendSurcharge ? 'var(--primary)' : 'rgba(255, 255, 255, 0.8)', transition: 'all 0.2s ease' }}>
                         <input type="checkbox" name="weekendSurcharge" checked={formData.weekendSurcharge} onChange={handleChange} style={{ display: 'none' }} />
                         <span>📅</span> {getLabel("Weekend", "Weekend", "Weekend", "Wochenende", "Week-end", "Fin de Semana")}
                       </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: formData.holidaySurcharge ? '2px solid var(--primary)' : '1px solid #E5E7EB', background: formData.holidaySurcharge ? 'rgba(255, 122, 26, 0.05)' : 'white', color: formData.holidaySurcharge ? 'var(--primary)' : 'var(--text-secondary)', transition: 'all 0.2s ease' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: formData.holidaySurcharge ? '2px solid var(--primary)' : '1px solid rgba(255, 255, 255, 0.15)', background: formData.holidaySurcharge ? 'rgba(255, 90, 0, 0.15)' : 'rgba(0, 0, 0, 0.3)', color: formData.holidaySurcharge ? 'var(--primary)' : 'rgba(255, 255, 255, 0.8)', transition: 'all 0.2s ease' }}>
                         <input type="checkbox" name="holidaySurcharge" checked={formData.holidaySurcharge} onChange={handleChange} style={{ display: 'none' }} />
                         <span>🏛️</span> {getLabel("Sărbători Legale", "Public Holiday", "Feestdagen", "Feiertage", "Jours Fériés", "Festivos Oficiales")}
                       </label>
@@ -237,8 +237,8 @@ const Hero = () => {
                   {getLabel("Oferta estimativă este gata!", "Estimated quote is ready!", "Geschatte offerte is klaar!", "Geschätztes Angebot ist bereit!", "Le devis estimatif est prêt!", "¡El presupuesto estimado está listo!")}
                 </h3>
                 
-                <div style={{ margin: '1rem auto 1.5rem auto', padding: '0.75rem 1.5rem', background: 'rgba(34, 197, 94, 0.08)', border: '1px solid rgba(34, 197, 94, 0.25)', borderRadius: '0.75rem', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', maxWidth: '100%', width: 'fit-content', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '0.2rem', textAlign: 'center' }}>
+                <div style={{ margin: '1rem auto 1.5rem auto', padding: '0.75rem 1.5rem', background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: '0.75rem', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', maxWidth: '100%', width: 'fit-content', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'rgba(255, 255, 255, 0.8)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '0.2rem', textAlign: 'center' }}>
                     {getLabel("Recommended price / System suggested price", "Recommended price / System suggested price", "Aanbevolen prijs / Systeem voorgestelde prijs", "Empfohlener Preis / System-Vorschlagspreis", "Prix recommandé / Prix suggéré par le système", "Precio recomendado / Precio sugerido por el sistema")}
                   </span>
                   <span style={{ fontSize: '1.6rem', fontWeight: 850, color: 'var(--primary)', lineHeight: 1.2, textAlign: 'center' }}>
@@ -247,8 +247,8 @@ const Hero = () => {
                 </div>
 
                 {surchargesApplied && (surchargesApplied.adr > 0 || surchargesApplied.night > 0 || surchargesApplied.weekend > 0 || surchargesApplied.holiday > 0) && (
-                  <div style={{ margin: '0 auto 1.5rem auto', padding: '1rem', background: 'rgba(243, 244, 246, 0.8)', border: '1px solid rgba(229, 231, 235, 1)', borderRadius: '0.75rem', width: '100%', textAlign: 'left' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.5rem' }}>
+                  <div style={{ margin: '0 auto 1.5rem auto', padding: '1rem', background: 'rgba(0, 0, 0, 0.2)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '0.75rem', width: '100%', textAlign: 'left' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'rgba(255, 255, 255, 0.7)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.5rem' }}>
                       {getLabel("Defalcare costuri suplimentare aplicate:", "Applied surcharge breakdown:", "Overzicht toegepaste toeslagen:", "Aufschlüsselung der angewendeten Zuschläge:", "Répartition des suppléments appliqués :", "Desglose de recargos aplicados:")}
                     </span>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
@@ -265,7 +265,7 @@ const Hero = () => {
                 </p>
 
                 <div className={styles.btnGroup}>
-                  <button type="button" onClick={() => setStep(1)} className={`btn btn-outline ${styles.calcBtn}`} style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)', background: 'white', minWidth: '140px' }}>
+                  <button type="button" onClick={() => setStep(1)} className={`btn btn-outline ${styles.calcBtn}`} style={{ borderColor: 'rgba(255, 255, 255, 0.3)', color: '#ffffff', background: 'rgba(255, 255, 255, 0.05)', minWidth: '140px' }}>
                     {t('calcBack')}
                   </button>
                   <button 
