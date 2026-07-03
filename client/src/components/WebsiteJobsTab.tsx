@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Edit2, Save, X } from 'lucide-react';
 import CustomSelect from './CustomSelect';
-import { v4 as uuidv4 } from 'uuid';
 
 interface JobData {
   id: string;
@@ -66,7 +65,7 @@ const WebsiteJobsTab: React.FC<WebsiteJobsTabProps> = ({ cmsData, editLang, setE
 
   const handleAddNew = () => {
     setEditingJob({
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       title: '',
       department: 'Transport',
       location: '',
