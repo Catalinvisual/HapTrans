@@ -77,6 +77,7 @@ const Header = () => {
             <Link href="/routes" className={`${styles.navLink}`} onClick={() => setMobileMenuOpen(false)}>Routes</Link>
             <Link href="/vloot" className={`${styles.navLink}`} onClick={() => setMobileMenuOpen(false)}>{t('fleet')}</Link>
             <Link href="/over-ons" className={`${styles.navLink}`} onClick={() => setMobileMenuOpen(false)}>{t('about')}</Link>
+            <Link href="/cariere" className={`${styles.navLink} ${pathname === '/cariere' ? styles.navLinkActive : ''}`} onClick={() => setMobileMenuOpen(false)}>{t('careers')}</Link>
             <Link href="/contact" className={`${styles.navLink} ${pathname === '/contact' ? styles.navLinkActive : ''}`} onClick={() => setMobileMenuOpen(false)}>{t('contact')}</Link>
           </div>
 

@@ -30,6 +30,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CronModule } from './cron/cron.module';
 import { QuotesModule } from './quotes/quotes.module';
+import { JobApplicationsModule } from './job-applications/job-applications.module';
 
 @Module({
   imports: [
@@ -79,6 +80,7 @@ import { QuotesModule } from './quotes/quotes.module';
       limit: 10,
     }]),
     QuotesModule,
+    JobApplicationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

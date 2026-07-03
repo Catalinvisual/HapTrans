@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Globe, MousePointerClick, FileText, Map, Phone, Briefcase, Truck, Mail } from 'lucide-react';
+import { Globe, MousePointerClick, FileText, Map, Phone, Briefcase, Truck, Mail, Users } from 'lucide-react';
 import WebsiteLeadsPage from './WebsiteLeadsPage';
 import WebsiteQuotesPage from './WebsiteQuotesPage';
 import ContactInbox from './ContactInbox';
+import WebsiteJobsTab from '../components/WebsiteJobsTab';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import CustomSelect from '../components/CustomSelect';
@@ -54,6 +55,7 @@ const WebsiteHubPage = () => {
     { id: 'about', label: t('website_hub_tabs_about', 'Despre Noi'), icon: FileText },
     { id: 'services', label: t('website_hub_tabs_services', 'Servicii'), icon: Briefcase },
     { id: 'fleet', label: t('website_hub_tabs_fleet', 'Flota'), icon: Truck },
+    { id: 'jobs', label: t('website_hub_tabs_jobs', 'Cariere / Jobs'), icon: Users },
     { id: 'contact', label: t('website_hub_tabs_contact', 'Contact'), icon: Phone },
   ];
 
@@ -109,6 +111,16 @@ const WebsiteHubPage = () => {
 
           {activeTab === 'inbox' && (
             <ContactInbox />
+          )}
+
+          {activeTab === 'jobs' && (
+            <WebsiteJobsTab 
+              cmsData={cmsData} 
+              editLang={editLang} 
+              setEditLang={setEditLang}
+              handleSave={handleSave} 
+              saving={saving} 
+            />
           )}
           
           {activeTab === 'map' && (
