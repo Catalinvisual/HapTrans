@@ -83,7 +83,7 @@ const Header = () => {
 
           {mobileMenuOpen && (
             <div className={styles.mobileNavFooter}>
-              <Link href="/track" className="btn btn-primary" style={{ width: '100%', padding: '0.9rem', fontSize: '1rem', backgroundColor: '#FF5A00' }} onClick={() => setMobileMenuOpen(false)}>
+              <Link href="/track" className="btn btn-primary" style={{ width: '100%', padding: '0.9rem', fontSize: '1rem', backgroundColor: '#FF5A00', borderRadius: '0.5rem 2.5rem 0.5rem 2.5rem' }} onClick={() => setMobileMenuOpen(false)}>
                 {t('clientLogin') || 'PORTAL CLIENȚI'}
               </Link>
             </div>
@@ -111,11 +111,11 @@ const Header = () => {
             )}
           </div>
           
-          <Link href="/cere-oferta" className={`btn btn-primary ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#fff', color: '#FF5A00', border: '2px solid #FF5A00' }}>
+          <Link href="/cere-oferta" className={`btn btn-primary ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#fff', color: '#FF5A00', border: '2px solid #FF5A00', borderRadius: '1.5rem 0.3rem 1.5rem 0.3rem' }}>
             {t('navQuote') || 'Cere ofertă'}
           </Link>
-          <Link href="/track" className={`btn btn-primary ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#FF5A00' }}>
-            {t('clientLogin') || 'PORTAL CLIEN?I'}
+          <Link href="/track" className={`btn btn-primary ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#FF5A00', borderRadius: '0.3rem 1.5rem 0.3rem 1.5rem' }}>
+            {t('clientLogin') || 'PORTAL CLIENȚI'}
           </Link>
 
           <button className={styles.mobileMenuBtn} onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>

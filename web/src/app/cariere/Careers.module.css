@@ -101,7 +101,7 @@
 .applyBtn {
   margin-top: auto;
   align-self: flex-start;
-  color: #1e293b;
+  color: var(--primary);
   font-weight: 700;
   display: flex;
   align-items: center;
