@@ -129,6 +129,55 @@ const WebsiteCmsPage = () => {
         </div>
       </div>
 
+      <div className="bg-card rounded-xl shadow-sm border border-border p-6 mb-6">
+        <h3 className="text-lg font-semibold flex items-center gap-2 mb-4 text-text">
+          <Globe className="w-5 h-5 text-primary" />
+          Social Media
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1">LinkedIn URL</label>
+            <input
+              type="text"
+              className="input w-full"
+              value={data['social_linkedin'] || ''}
+              placeholder="https://linkedin.com/company/..."
+              onChange={(e) => handleChange('social_linkedin', e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Facebook URL</label>
+            <input
+              type="text"
+              className="input w-full"
+              value={data['social_facebook'] || ''}
+              placeholder="https://facebook.com/..."
+              onChange={(e) => handleChange('social_facebook', e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Instagram URL</label>
+            <input
+              type="text"
+              className="input w-full"
+              value={data['social_instagram'] || ''}
+              placeholder="https://instagram.com/..."
+              onChange={(e) => handleChange('social_instagram', e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1">TikTok URL</label>
+            <input
+              type="text"
+              className="input w-full"
+              value={data['social_tiktok'] || ''}
+              placeholder="https://tiktok.com/@..."
+              onChange={(e) => handleChange('social_tiktok', e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="bg-card rounded-xl shadow-sm border border-border p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-border">
           <h3 className="text-lg font-semibold flex items-center gap-2 text-text">
