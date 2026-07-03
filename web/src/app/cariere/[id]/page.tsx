@@ -53,7 +53,7 @@ export default function JobDetailsPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
     fetch(`${apiUrl}/website-cms`)
       .then(res => res.json())
       .then(data => {
@@ -97,7 +97,7 @@ export default function JobDetailsPage() {
         data.append('documents', docFile);
       }
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
       const res = await fetch(`${apiUrl}/job-applications`, {
         method: 'POST',
         body: data,

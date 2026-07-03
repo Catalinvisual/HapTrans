@@ -247,7 +247,7 @@ const WebsiteJobsTab: React.FC<WebsiteJobsTabProps> = ({ cmsData, editLang, setE
         </div>
         <button onClick={handleAddNew} className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium">
           <Plus className="w-4 h-4" />
-          Adaugă Job Nou
+          {t('jobs_add_new', 'Adaugă Job Nou')}
         </button>
       </div>
 

@@ -3,6 +3,7 @@ import { initReactI18next } from 'react-i18next';
 
 const resources = {
   ro: { translation: {
+      website_hub_saved_success: "Modificările au fost salvate cu succes!",
       website_hub_tabs_jobs: "Cariere / Jobs",
 
       jobs_add_new: "Adaugă Job Nou",
@@ -610,6 +611,7 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
     },
   },
   frBase: { translation: {
+      website_hub_saved_success: "Modifications enregistrées avec succès!",
       website_hub_tabs_jobs: "Carrières / Emplois",
 
       jobs_add_new: "Nouvel Emploi",
@@ -733,6 +735,7 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
     }
   },
   en: { translation: {
+      website_hub_saved_success: "Changes saved successfully!",
       website_hub_tabs_jobs: "Careers / Jobs",
 
       jobs_add_new: "Add New Job",
@@ -1325,6 +1328,7 @@ smartDispatchAddressError: "Please enter the pickup address first!",
     },
   },
   pl: { translation: {
+      website_hub_saved_success: "Zmiany zapisane pomyślnie!",
       website_hub_tabs_jobs: "Kariera / Praca",
 
       jobs_add_new: "Nowa Oferta",
@@ -1402,6 +1406,7 @@ shortcuts_title: 'Skróty klawiszowe', shortcuts_subtitle: 'Nawiguj szybko za po
     },
   },
   nl: { translation: {
+      website_hub_saved_success: "Wijzigingen succesvol opgeslagen!",
       website_hub_tabs_jobs: "Carrière / Jobs",
 
       jobs_add_new: "Nieuwe Vacature",
@@ -1993,6 +1998,7 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
 },
   },
   de: { translation: {
+      website_hub_saved_success: "Änderungen erfolgreich gespeichert!",
       website_hub_tabs_jobs: "Karriere / Jobs",
 
       jobs_add_new: "Neuer Job",

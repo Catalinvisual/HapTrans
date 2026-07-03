@@ -22,7 +22,7 @@ export default function CareersPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
     fetch(`${apiUrl}/website-cms`)
       .then(res => res.json())
       .then(data => {
