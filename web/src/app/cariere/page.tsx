@@ -27,16 +27,32 @@ export default function CareersPage() {
       .then(res => res.json())
       .then(data => {
         const key = `jobs_${lang}`;
+        let parsed = [];
         if (data[key]) {
           try {
-            const parsed = JSON.parse(data[key]);
-            setJobs(parsed.filter((j: any) => j.isActive));
+            parsed = JSON.parse(data[key]);
           } catch (e) {
             console.error('Failed to parse jobs', e);
           }
-        } else {
-          setJobs([]);
         }
+        
+        // Fallback to other languages if current is empty
+        if (parsed.length === 0) {
+          const fallbackLangs = ['EN', 'RO', 'NL', 'DE', 'FR', 'ES'];
+          for (const l of fallbackLangs) {
+            if (l !== lang && data[`jobs_${l}`]) {
+              try {
+                const p = JSON.parse(data[`jobs_${l}`]);
+                if (p.length > 0) {
+                  parsed = p;
+                  break;
+                }
+              } catch (e) {}
+            }
+          }
+        }
+        
+        setJobs(parsed.filter((j: any) => j.isActive));
       })
       .catch(err => console.error(err))
       .finally(() => setLoading(false));

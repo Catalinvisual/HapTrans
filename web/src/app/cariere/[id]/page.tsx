@@ -57,19 +57,36 @@ export default function JobDetailsPage() {
     fetch(`${apiUrl}/website-cms`)
       .then(res => res.json())
       .then(data => {
-        const key = `jobs_${lang}`;
-        if (data[key]) {
+        let foundJob = null;
+        
+        // Try current language first
+        if (data[`jobs_${lang}`]) {
           try {
-            const parsed = JSON.parse(data[key]);
-            const foundJob = parsed.find((j: any) => j.id === id && j.isActive);
-            if (foundJob) {
-              setJob(foundJob);
-            } else {
-              router.push('/cariere');
+            const parsed = JSON.parse(data[`jobs_${lang}`]);
+            foundJob = parsed.find((j: any) => j.id === id && j.isActive);
+          } catch (e) {}
+        }
+        
+        // Fallback to searching all languages
+        if (!foundJob) {
+          for (const k of Object.keys(data)) {
+            if (k.startsWith('jobs_') && k !== `jobs_${lang}`) {
+              try {
+                const parsed = JSON.parse(data[k]);
+                const j = parsed.find((j: any) => j.id === id && j.isActive);
+                if (j) {
+                  foundJob = j;
+                  break;
+                }
+              } catch (e) {}
             }
-          } catch (e) {
-            console.error('Failed to parse jobs', e);
           }
+        }
+
+        if (foundJob) {
+          setJob(foundJob);
+        } else {
+          router.push('/cariere');
         }
       })
       .catch(err => console.error(err))
