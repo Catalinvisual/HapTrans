@@ -99,7 +99,7 @@
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-top: 1px solid rgba(255, 255, 255, 0.25);
   border-left: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 2.5rem 0.75rem 2.5rem 0.75rem; /* Aerodynamic asymmetric squircle */
+  border-radius: 3rem 0 3rem 0; /* Sharp leaf shape */
   padding: 2rem 2.5rem;
   color: #ffffff;
   box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -182,7 +182,7 @@
 .subGrid3 input {
   padding: 0.85rem 1.25rem;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 1rem 0.35rem 1rem 0.35rem; /* Matched inner asymmetric shape */
+  border-radius: 1.25rem 0 1.25rem 0; /* Matched sharp leaf shape */
   font-size: 0.95rem;
   background-color: rgba(0, 0, 0, 0.3);
   color: #ffffff;
@@ -211,7 +211,7 @@
   height: 46px; /* match input height */
   padding: 0 1.5rem;
   font-weight: 700;
-  border-radius: 1rem 0.35rem 1rem 0.35rem; /* Matched button shape */
+  border-radius: 1.25rem 0 1.25rem 0; /* Matched button leaf shape */
   display: flex;
   align-items: center;
   justify-content: center;
