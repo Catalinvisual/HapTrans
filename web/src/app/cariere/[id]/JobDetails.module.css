@@ -23,7 +23,7 @@
 .contentWrapper {
   background: rgba(15, 23, 42, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 2rem;
+  border-radius: 2.5rem 0.5rem 2.5rem 0.5rem;
   padding: 3rem;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);

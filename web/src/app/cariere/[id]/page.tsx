@@ -177,29 +177,29 @@ export default function JobDetailsPage() {
               <div className={styles.driverGrid}>
                 {job.license && (
                   <div className={styles.driverItem}>
-                    <span className={styles.driverLabel}>Permis Necesar</span>
+                    <span className={styles.driverLabel}>{t("jobDetailsPermis") || "Permis Necesar"}</span>
                     <span className={styles.driverValue}>{job.license}</span>
                   </div>
                 )}
                 {job.truckType && (
                   <div className={styles.driverItem}>
-                    <span className={styles.driverLabel}>Tip Camion</span>
+                    <span className={styles.driverLabel}>{t("jobDetailsTipCamion") || "Tip Camion"}</span>
                     <span className={styles.driverValue}>{job.truckType}</span>
                   </div>
                 )}
                 {job.routes && (
                   <div className={styles.driverItem}>
-                    <span className={styles.driverLabel}>Rute</span>
+                    <span className={styles.driverLabel}>{t("jobDetailsRute") || "Rute"}</span>
                     <span className={styles.driverValue}>{job.routes}</span>
                   </div>
                 )}
                 <div className={styles.driverItem}>
-                  <span className={styles.driverLabel}>Code 95</span>
-                  <span className={styles.driverValue}>{job.code95 ? 'Da' : 'Nu'}</span>
+                  <span className={styles.driverLabel}>{t("jobDetailsCode95") || "Code 95"}</span>
+                  <span className={styles.driverValue}>{job.code95 ? (t('jobDetailsYes') || 'Da') : (t('jobDetailsNo') || 'Nu')}</span>
                 </div>
                 <div className={styles.driverItem}>
-                  <span className={styles.driverLabel}>ADR</span>
-                  <span className={styles.driverValue}>{job.adr ? 'Da' : 'Nu'}</span>
+                  <span className={styles.driverLabel}>{t("jobDetailsADR") || "ADR"}</span>
+                  <span className={styles.driverValue}>{job.adr ? (t('jobDetailsYes') || 'Da') : (t('jobDetailsNo') || 'Nu')}</span>
                 </div>
               </div>
             </div>
@@ -207,71 +207,71 @@ export default function JobDetailsPage() {
 
           {job.responsibilities && (
             <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Responsabilități</h3>
+              <h3 className={styles.sectionTitle}>{t("jobDetailsResp") || "Responsabilități"}</h3>
               <div className={styles.htmlContent} dangerouslySetInnerHTML={{ __html: job.responsibilities }}></div>
             </div>
           )}
 
           {job.requirements && (
             <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Cerințe</h3>
+              <h3 className={styles.sectionTitle}>{t("jobDetailsReq") || "Cerințe"}</h3>
               <div className={styles.htmlContent} dangerouslySetInnerHTML={{ __html: job.requirements }}></div>
             </div>
           )}
 
           {job.benefits && (
             <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Ce oferim (Beneficii)</h3>
+              <h3 className={styles.sectionTitle}>{t("jobDetailsBen") || "Ce oferim (Beneficii)"}</h3>
               <div className={styles.htmlContent} dangerouslySetInnerHTML={{ __html: job.benefits }}></div>
             </div>
           )}
 
           <div className={styles.applySection} id="apply-form">
-            <h3 className={styles.sectionTitle} style={{ marginBottom: '2rem' }}>Aplică pentru acest job</h3>
+            <h3 className={styles.sectionTitle} style={{ marginBottom: '2rem' }}>{t('jobDetailsApplyTitle') || 'Aplică pentru acest job'}</h3>
             <form onSubmit={handleSubmit}>
               <div className={styles.formGrid}>
                 <div className={styles.formGroup}>
-                  <label>Nume complet *</label>
-                  <input required type="text" className={styles.input} value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Ex: Ion Popescu" />
+                  <label>{t("jobDetailsName") || "Nume complet *"}</label>
+                  <input required type="text" className={styles.input} value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder={t("jobDetailsNamePh") || "Ex: Ion Popescu"} />
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Telefon *</label>
-                  <input required type="tel" className={styles.input} value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="Ex: 07XX XXX XXX" />
+                  <label>{t("jobDetailsPhone") || "Telefon *"}</label>
+                  <input required type="tel" className={styles.input} value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder={t("jobDetailsPhonePh") || "Ex: 07XX XXX XXX"} />
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Email *</label>
-                  <input required type="email" className={styles.input} value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="Ex: ion@email.com" />
+                  <label>{t("jobDetailsEmail") || "Email *"}</label>
+                  <input required type="email" className={styles.input} value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder={t("jobDetailsEmailPh") || "Ex: ion@email.com"} />
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Experiență în domeniu</label>
-                  <input type="text" className={styles.input} value={formData.experience} onChange={e => setFormData({...formData, experience: e.target.value})} placeholder="Ex: 3 ani / Fără experiență" />
+                  <label>{t("jobDetailsExp") || "Experiență în domeniu"}</label>
+                  <input type="text" className={styles.input} value={formData.experience} onChange={e => setFormData({...formData, experience: e.target.value})} placeholder={t("jobDetailsExpPh") || "Ex: 3 ani / Fără experiență"} />
                 </div>
                 
                 <div className={`${styles.formGroup} ${styles.full}`}>
-                  <label>Mesaj (opțional)</label>
-                  <textarea className={styles.input} rows={4} value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})} placeholder="Câteva cuvinte despre tine..."></textarea>
+                  <label>{t("jobDetailsMsg") || "Mesaj (opțional)"}</label>
+                  <textarea className={styles.input} rows={4} value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})} placeholder={t("jobDetailsMsgPh") || "Câteva cuvinte despre tine..."}></textarea>
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label>Upload CV (PDF, DOCX) *</label>
+                  <label>{t("jobDetailsCV") || "Upload CV (PDF, DOCX) *"}</label>
                   <label className={styles.fileInput}>
                     <Upload className="mx-auto mb-2 opacity-50" />
-                    <span>{cvFile ? cvFile.name : 'Alege fișierul CV'}</span>
+                    <span>{cvFile ? cvFile.name : (t('jobDetailsCVBtn') || 'Alege fișierul CV')}</span>
                     <input type="file" required accept=".pdf,.doc,.docx" onChange={e => setCvFile(e.target.files?.[0] || null)} />
                   </label>
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Alte Documente (Opțional)</label>
+                  <label>{t("jobDetailsDocs") || "Alte Documente (Opțional)"}</label>
                   <label className={styles.fileInput}>
                     <Upload className="mx-auto mb-2 opacity-50" />
-                    <span>{docFile ? docFile.name : 'Alege fișier (diplome, atestate)'}</span>
+                    <span>{docFile ? docFile.name : (t('jobDetailsDocsBtn') || 'Alege fișier (diplome, atestate)')}</span>
                     <input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={e => setDocFile(e.target.files?.[0] || null)} />
                   </label>
                 </div>
               </div>
 
               <button type="submit" className={styles.submitBtn} disabled={submitting}>
-                {submitting ? 'Se trimite...' : 'Trimite Aplicația'}
+                {submitting ? (t('jobDetailsSubmitting') || 'Se trimite...') : (t('jobDetailsSubmit') || 'Trimite Aplicația')}
               </button>
             </form>
           </div>
