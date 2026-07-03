@@ -77,19 +77,20 @@ const Footer = () => {
         <div className={styles.column}>
           <h4 className={styles.title}>{t('companyTitle') || 'Companie'}</h4>
           <ul className={styles.links}>
-            <li><a href="#despre">{t('about') || 'Despre Noi'}</a></li>
-            <li><a href="#servicii">{t('services') || 'Servicii'}</a></li>
-            <li><a href="#flota">{t('fleet') || 'Flotă'}</a></li>
-            <li><a href="#cariere">{t('careers') || 'Cariere'}</a></li>
+            <li><Link href="/over-ons">{t('about') || 'Despre Noi'}</Link></li>
+            <li><Link href="/diensten">{t('services') || 'Servicii'}</Link></li>
+            <li><Link href="/routes">Routes</Link></li>
+            <li><Link href="/vloot">{t('fleet') || 'Flotă'}</Link></li>
+            <li><Link href="/cariere">{t('careers') || 'Cariere'}</Link></li>
           </ul>
         </div>
         
         <div className={styles.column}>
           <h4 className={styles.title}>{t('legalTitle') || 'Legal'}</h4>
           <ul className={styles.links}>
-            <li><a href="/termeni">{t('termsLink') || 'Termeni și Condiții'}</a></li>
-            <li><a href="/politica">{t('privacyLink') || 'Politica de Confidențialitate'}</a></li>
-            <li><a href="/cookies">{t('cookiesLink') || 'Politica Cookies'}</a></li>
+            <li><Link href="/termeni">{t('termsLink') || 'Termeni și Condiții'}</Link></li>
+            <li><Link href="/politica">{t('privacyLink') || 'Politica de Confidențialitate'}</Link></li>
+            <li><Link href="/cookies">{t('cookiesLink') || 'Politica Cookies'}</Link></li>
           </ul>
         </div>
         
