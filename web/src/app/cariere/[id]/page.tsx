@@ -255,7 +255,7 @@ export default function JobDetailsPage() {
                 <div className={styles.formGroup}>
                   <label>{t("jobDetailsCV") || "Upload CV (PDF, DOCX) *"}</label>
                   <label className={styles.fileInput}>
-                    <Upload className="mx-auto mb-2 opacity-50" />
+                    <Upload className="opacity-50" />
                     <span>{cvFile ? cvFile.name : (t('jobDetailsCVBtn') || 'Alege fișierul CV')}</span>
                     <input type="file" required accept=".pdf,.doc,.docx" onChange={e => setCvFile(e.target.files?.[0] || null)} />
                   </label>
@@ -263,7 +263,7 @@ export default function JobDetailsPage() {
                 <div className={styles.formGroup}>
                   <label>{t("jobDetailsDocs") || "Alte Documente (Opțional)"}</label>
                   <label className={styles.fileInput}>
-                    <Upload className="mx-auto mb-2 opacity-50" />
+                    <Upload className="opacity-50" />
                     <span>{docFile ? docFile.name : (t('jobDetailsDocsBtn') || 'Alege fișier (diplome, atestate)')}</span>
                     <input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={e => setDocFile(e.target.files?.[0] || null)} />
                   </label>

@@ -21,16 +21,15 @@
 }
 
 .contentWrapper {
-  background: rgba(15, 23, 42, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
   border-radius: 2.5rem 0.5rem 2.5rem 0.5rem;
   padding: 3rem;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 .header {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid #e2e8f0;
   padding-bottom: 2rem;
   margin-bottom: 2rem;
 }
@@ -38,7 +37,7 @@
 .title {
   font-size: 2.5rem;
   font-weight: 800;
-  color: #fff;
+  color: #1e293b;
   margin-bottom: 1.5rem;
   line-height: 1.2;
 }
@@ -53,12 +52,12 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.05);
   padding: 0.5rem 1rem;
   border-radius: 2rem;
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: #475569;
 }
 
 .metaTagIcon {
@@ -72,7 +71,7 @@
 .sectionTitle {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #fff;
+  color: #1e293b;
   margin-bottom: 1rem;
   display: flex;
   align-items: center;
@@ -89,7 +88,7 @@
 }
 
 .htmlContent {
-  color: rgba(255, 255, 255, 0.8);
+  color: #475569;
   line-height: 1.7;
 }
 
@@ -124,20 +123,20 @@
 
 .driverLabel {
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: #64748b;
   margin-bottom: 0.25rem;
 }
 
 .driverValue {
   font-size: 1rem;
   font-weight: 600;
-  color: #fff;
+  color: #1e293b;
 }
 
 /* Application Form */
 .applySection {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 1.5rem;
   padding: 2.5rem;
   margin-top: 4rem;
@@ -163,15 +162,15 @@
 .formGroup label {
   font-size: 0.9rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.8);
+  color: #475569;
 }
 
 .input {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
   padding: 0.85rem 1rem;
   border-radius: 0.75rem;
-  color: #fff;
+  color: #1e293b;
   font-size: 1rem;
   transition: border-color 0.2s;
 }
@@ -182,19 +181,23 @@
 }
 
 .fileInput {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px dashed rgba(255, 255, 255, 0.3);
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
   padding: 1.5rem;
   border-radius: 0.75rem;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
-  color: rgba(255, 255, 255, 0.6);
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .fileInput:hover {
   border-color: var(--primary);
-  color: #fff;
+  color: var(--primary);
   background: rgba(255, 90, 0, 0.05);
 }
 
@@ -207,7 +210,7 @@
   padding: 1rem;
   font-size: 1.1rem;
   font-weight: 700;
-  border-radius: 0.75rem;
+  border-radius: 2.5rem 0.5rem 2.5rem 0.5rem;
   background: var(--primary);
   color: #fff;
   border: none;
