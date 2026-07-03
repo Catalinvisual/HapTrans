@@ -57,6 +57,7 @@ const WebsiteHubPage = () => {
     { id: 'fleet', label: t('website_hub_tabs_fleet', 'Flota'), icon: Truck },
     { id: 'jobs', label: t('website_hub_tabs_jobs', 'Cariere / Jobs'), icon: Users },
     { id: 'contact', label: t('website_hub_tabs_contact', 'Contact'), icon: Phone },
+    { id: 'social', label: 'Social Media', icon: Globe },
   ];
 
 
@@ -141,6 +142,60 @@ const WebsiteHubPage = () => {
               >
                 {saving ? t('website_hub_saving', 'Se salvează...') : t('website_hub_save_countries', 'Salvează Țările')}
               </button>
+            </div>
+          )}
+
+          {activeTab === 'social' && (
+            <div className="max-w-2xl">
+              <h3 className="text-lg font-semibold mb-4">Social Media Links</h3>
+              <p className="text-sm text-text-secondary mb-4">Adaugă linkurile pentru rețelele sociale. Acestea vor apărea în footer-ul website-ului.</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">LinkedIn URL</label>
+                  <input
+                    type="text"
+                    className="input w-full"
+                    value={cmsData['social_linkedin'] || ''}
+                    placeholder="https://linkedin.com/company/..."
+                    onChange={(e) => setCmsData({ ...cmsData, social_linkedin: e.target.value })}
+                  />
+                  <button onClick={() => handleSave('social_linkedin', cmsData['social_linkedin'])} disabled={saving} className="mt-2 text-sm bg-primary text-white px-3 py-1 rounded hover:bg-primary-dark disabled:opacity-50">Salvează</button>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">Facebook URL</label>
+                  <input
+                    type="text"
+                    className="input w-full"
+                    value={cmsData['social_facebook'] || ''}
+                    placeholder="https://facebook.com/..."
+                    onChange={(e) => setCmsData({ ...cmsData, social_facebook: e.target.value })}
+                  />
+                  <button onClick={() => handleSave('social_facebook', cmsData['social_facebook'])} disabled={saving} className="mt-2 text-sm bg-primary text-white px-3 py-1 rounded hover:bg-primary-dark disabled:opacity-50">Salvează</button>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">Instagram URL</label>
+                  <input
+                    type="text"
+                    className="input w-full"
+                    value={cmsData['social_instagram'] || ''}
+                    placeholder="https://instagram.com/..."
+                    onChange={(e) => setCmsData({ ...cmsData, social_instagram: e.target.value })}
+                  />
+                  <button onClick={() => handleSave('social_instagram', cmsData['social_instagram'])} disabled={saving} className="mt-2 text-sm bg-primary text-white px-3 py-1 rounded hover:bg-primary-dark disabled:opacity-50">Salvează</button>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">TikTok URL</label>
+                  <input
+                    type="text"
+                    className="input w-full"
+                    value={cmsData['social_tiktok'] || ''}
+                    placeholder="https://tiktok.com/@..."
+                    onChange={(e) => setCmsData({ ...cmsData, social_tiktok: e.target.value })}
+                  />
+                  <button onClick={() => handleSave('social_tiktok', cmsData['social_tiktok'])} disabled={saving} className="mt-2 text-sm bg-primary text-white px-3 py-1 rounded hover:bg-primary-dark disabled:opacity-50">Salvează</button>
+                </div>
+              </div>
             </div>
           )}
 
