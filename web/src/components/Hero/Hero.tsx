@@ -144,9 +144,6 @@ const Hero = () => {
             <a href="/cere-oferta" className="btn btn-primary">
               {t('ctaPrimary')}
             </a>
-            <a href="/contact" className="btn btn-outline" style={{ color: '#fff', borderColor: 'rgba(255, 255, 255, 0.5)' }}>
-              {t('ctaSecondary')}
-            </a>
           </div>
         </div>
 
