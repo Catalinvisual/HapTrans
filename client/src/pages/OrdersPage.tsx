@@ -38,9 +38,6 @@ export default function OrdersPage() {
             <Box className="w-6 h-6 text-primary" />
             {t('orders', 'Orders')}
           </h1>
-          <p className="text-text-secondary mt-1">
-            {t('manageOrders', 'Manage freight orders and assignments.')}
-          </p>
         </div>
         <button className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2">
           <Plus className="w-4 h-4" />

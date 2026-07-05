@@ -23,7 +23,7 @@ export class DashboardService {
       this.invoicesService.getOverdue(),
       this.trucksService.getExpiringDocuments(30),
       this.driversService.getExpiringDocuments(30),
-      this.tripsService.findAll(),
+      this.tripsService.findAllForDashboard(),
     ]);
     const activeTrucks = trucks.filter(t => t.status === 'active' || t.status === 'in_trip').length;
 

@@ -6,35 +6,8 @@ import toast from 'react-hot-toast';
 import { Save, Building2, User, Server, Upload, X, ImageIcon, Calculator } from 'lucide-react';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 
-const COMPANY_KEY = 'hapcargo_company_settings';
-
-export interface CompanySettings {
-  name: string;
-  cui: string;
-  regNo: string;
-  address: string;
-  postalCode: string;
-  city: string;
-  country: string;
-  phone: string;
-  email: string;
-  bank: string;
-  iban: string;
-  logo: string; // base64 data URL
-  workingHours?: string;
-}
-
-const defaultCompany: CompanySettings = {
-  name: '', cui: '', regNo: '', address: '', postalCode: '',
-  city: '', country: '', phone: '', email: '', bank: '', iban: '', logo: '', workingHours: '',
-};
-
-export function getCompanySettings(): CompanySettings {
-  try {
-    const stored = localStorage.getItem(COMPANY_KEY);
-    return stored ? { ...defaultCompany, ...JSON.parse(stored) } : defaultCompany;
-  } catch { return defaultCompany; }
-}
+import { useSettingsStore } from '../store/settingsStore';
+export type { CompanySettings } from '../store/settingsStore';
 
 
 const PriceInput = ({ value, onChange, className, placeholder }: { value: number, onChange: (v: number) => void, className?: string, placeholder?: string }) => {
@@ -93,11 +66,13 @@ const PriceInput = ({ value, onChange, className, placeholder }: { value: number
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
   const { user } = useAuthStore();
+  const { company, updateCompany } = useSettingsStore();
+
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [newPassword, setNewPassword] = useState('');
-  const [company, setCompany] = useState<CompanySettings>(getCompanySettings);
-  const [logoPreview, setLogoPreview] = useState<string>(getCompanySettings().logo || '');
+  const [formData, setFormData] = useState(company);
+  const [logoPreview, setLogoPreview] = useState<string>(company.logo || '');
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const [tariffs, setTariffs] = useState({
@@ -130,10 +105,9 @@ export default function SettingsPage() {
   useEffect(() => {
     api.get('/public/company-settings').then(res => {
       if (res.data && Object.keys(res.data).length > 0) {
-        const merged = { ...defaultCompany, ...getCompanySettings(), ...res.data };
-        setCompany(merged);
-        if (merged.logo) setLogoPreview(merged.logo);
-        localStorage.setItem(COMPANY_KEY, JSON.stringify(merged));
+        updateCompany(res.data);
+        setFormData(res.data);
+        if (res.data.logo) setLogoPreview(res.data.logo);
       }
     }).catch(e => console.error('Failed to load company settings from server', e));
 
@@ -156,14 +130,14 @@ export default function SettingsPage() {
     reader.onload = () => {
       const result = reader.result as string;
       setLogoPreview(result);
-      setCompany(prev => ({ ...prev, logo: result }));
+      setFormData(prev => ({ ...prev, logo: result }));
     };
     reader.readAsDataURL(file);
   };
 
   const removeLogo = () => {
     setLogoPreview('');
-    setCompany(prev => ({ ...prev, logo: '' }));
+    setFormData(prev => ({ ...prev, logo: '' }));
     if (logoInputRef.current) logoInputRef.current.value = '';
   };
 
@@ -290,19 +264,19 @@ export default function SettingsPage() {
               </label>
               {f.key === 'address' ? (
                 <AddressAutocomplete
-                  value={company.address}
-                  onChange={val => setCompany(prev => ({ ...prev, address: val }))}
+                  value={formData.address}
+                  onChange={(val) => setFormData(prev => ({ ...prev, address: val }))}
                   placeholder={t(f.labelKey)}
                   className="input text-sm w-full"
                 />
               ) : (
                 <input
                   className="input text-sm"
-                  value={company[f.key] || ''}
+                  value={formData[f.key] || ''}
                   onChange={e => {
                     let val = e.target.value;
                     if (f.key === 'iban' || f.key === 'cui' || f.key === 'regNo') val = val.toUpperCase();
-                    setCompany(prev => ({ ...prev, [f.key]: val }));
+                    setFormData(prev => ({ ...prev, [f.key]: val }));
                   }}
                   placeholder={f.key === 'workingHours' ? getLabel("e.g. Mon - Fri, 08:00 - 18:00", "ex: Ma - Vr, 08:00 - 18:00", "bijv. Ma - Vr, 08:00 - 18:00", "z.B. Mo - Fr, 08:00 - 18:00", "ex: Lun - Ven, 08:00 - 18:00", "np. Pon - Pt, 08:00 - 18:00") : t(f.labelKey)}
                 />

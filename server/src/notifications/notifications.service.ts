@@ -22,10 +22,10 @@ export class NotificationsService {
   }
 
   async create(data: Partial<Notification>): Promise<Notification> {
-    // avoid duplicates for alerts (like expiry)
-    if (data.type === 'alert' && data.relatedId) {
+    // avoid duplicates for alerts/documents/system
+    if ((data.type === 'alert' || data.type === 'document' || data.type === 'system') && data.relatedId) {
       const existing = await this.notificationsRepo.findOne({
-        where: { relatedId: data.relatedId, type: 'alert' },
+        where: { relatedId: data.relatedId, type: data.type },
       });
       if (existing) return existing;
     }

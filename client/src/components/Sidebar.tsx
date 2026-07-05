@@ -32,10 +32,12 @@ interface SidebarProps {
 }
 
 import { useAuthStore } from '../store/authStore';
+import { useSettingsStore } from '../store/settingsStore';
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { t } = useTranslation();
   const { user } = useAuthStore();
+  const { company } = useSettingsStore();
 
   const isDispatcher = user?.role === 'dispatcher';
   const restrictedKeys = ['financial', 'payroll', 'expenses', 'websiteCms', 'users', 'settings'];
@@ -62,17 +64,22 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 md:w-48 bg-card border-r border-border flex flex-col h-full transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        {/* Logo */}
         <div className="px-5 py-5 border-b border-border flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <svg viewBox="0 0 100 100" fill="currentColor" className="w-7 h-7 text-primary">
-              <path d="M32 10 L46 10 L38 50 L48 50 L45.2 64 L35.2 64 L30 90 L16 90 L21.2 64 L5.2 64 L8 50 L24 50 Z" />
-              <path d="M68 90 L54 90 L62 50 L52 50 L54.8 36 L64.8 36 L70 10 L84 10 L78.8 36 L94.8 36 L92 50 L76 50 Z" />
-            </svg>
-            <div className="flex items-center text-xl tracking-tight italic">
-              <span className="font-black text-primary">HAP</span>
-              <span className="font-black text-secondary">CARGO</span>
-            </div>
+            {company?.logo ? (
+              <img src={company.logo} alt="Logo" className="h-8 w-auto object-contain" />
+            ) : (
+              <>
+                <svg viewBox="0 0 100 100" fill="currentColor" className="w-7 h-7 text-primary">
+                  <path d="M32 10 L46 10 L38 50 L48 50 L45.2 64 L35.2 64 L30 90 L16 90 L21.2 64 L5.2 64 L8 50 L24 50 Z" />
+                  <path d="M68 90 L54 90 L62 50 L52 50 L54.8 36 L64.8 36 L70 10 L84 10 L78.8 36 L94.8 36 L92 50 L76 50 Z" />
+                </svg>
+                <div className="flex items-center text-xl tracking-tight italic">
+                  <span className="font-black text-primary">HAP</span>
+                  <span className="font-black text-secondary">CARGO</span>
+                </div>
+              </>
+            )}
           </div>
           <button className="md:hidden text-text-secondary hover:bg-surface p-1 rounded-md" onClick={onClose}>
             <X className="w-5 h-5" />

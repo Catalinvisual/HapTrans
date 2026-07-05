@@ -30,6 +30,13 @@ export class TripsService {
     return this.repo.find({ relations: ['client', 'truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders'] });
   }
 
+  findAllForDashboard() {
+    return this.repo.find({
+      select: ['id', 'pickupCountry', 'pickupAddress', 'dropoffCountry', 'dropoffAddress', 'agreedPrice', 'price', 'estimatedCost', 'realCost', 'createdAt'],
+      relations: ['client', 'costs']
+    });
+  }
+
   findOne(id: string) {
     return this.repo.findOne({ where: { id }, relations: ['client', 'truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'messages', 'clientRate', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders'] });
   }
