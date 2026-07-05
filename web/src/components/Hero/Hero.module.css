@@ -21,10 +21,10 @@
 .container {
   position: relative;
   z-index: 2;
-  max-width: 1280px;
+  max-width: 1536px;
   width: 100%;
   margin: 0 auto;
-  padding: 2rem 1.5rem;
+  padding: 2rem 2rem;
   display: flex;
   flex-direction: column;
   gap: 3rem;
@@ -41,8 +41,8 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
   color: #fff;
   font-weight: 700;
   font-size: 0.85rem;
@@ -50,7 +50,7 @@
   margin-bottom: 1.5rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .title {
