@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Box, Plus, Search, Loader2 } from 'lucide-react';
 import api from '../lib/api';
+import OrderFormModal from '../components/OrderFormModal';
 
 export default function OrdersPage() {
   const { t } = useTranslation();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchOrders = async () => {
     try {
@@ -44,7 +46,10 @@ export default function OrdersPage() {
               className="input pl-10 w-full"
             />
           </div>
-          <button className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2 shrink-0">
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2 shrink-0"
+          >
             <Plus className="w-4 h-4" />
             {t('addOrder', 'Add Order')}
           </button>
@@ -95,6 +100,12 @@ export default function OrdersPage() {
           </div>
         )}
       </div>
+
+      <OrderFormModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSaved={fetchOrders}
+      />
     </div>
   );
 }

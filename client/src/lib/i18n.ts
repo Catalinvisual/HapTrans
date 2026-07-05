@@ -2,7 +2,9 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
 const resources = {
-  ro: { translation: {
+  1
+      addOrder: "Adauga Comanda",
+      weight: "Greutate",
       website_hub_saved_success: "Modificările au fost salvate cu succes!",
       website_hub_tabs_jobs: "Cariere / Jobs",
 
@@ -734,7 +736,9 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
       website_hub_tabs_contact: 'Contact',
     }
   },
-  en: { translation: {
+  1
+      addOrder: "Add Order",
+      weight: "Weight",
       website_hub_saved_success: "Changes saved successfully!",
       website_hub_tabs_jobs: "Careers / Jobs",
 
@@ -1405,7 +1409,9 @@ shortcuts_title: 'Skróty klawiszowe', shortcuts_subtitle: 'Nawiguj szybko za po
       noInvoicesAttached: "Brak faktur",
     },
   },
-  nl: { translation: {
+  1
+      addOrder: "Bestelling Toevoegen",
+      weight: "Gewicht",
       website_hub_saved_success: "Wijzigingen succesvol opgeslagen!",
       website_hub_tabs_jobs: "Carrière / Jobs",
 
@@ -1997,7 +2003,9 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
       website_hub_tabs_contact: 'Contact',
 },
   },
-  de: { translation: {
+  1
+      addOrder: "Bestellung hinzuf�gen",
+      weight: "Gewicht",
       website_hub_saved_success: "Änderungen erfolgreich gespeichert!",
       website_hub_tabs_jobs: "Karriere / Jobs",
 
