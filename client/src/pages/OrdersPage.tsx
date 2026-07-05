@@ -32,24 +32,22 @@ export default function OrdersPage() {
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div />
-        <button className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2">
-          <Plus className="w-4 h-4" />
-          {t('addOrder', 'Add Order')}
-        </button>
-      </div>
-
       <div className="card p-4">
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary" />
-          <input
-            type="text"
-            placeholder={t('search', 'Search...')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="input pl-10 w-full md:w-96"
-          />
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <div className="relative w-full sm:w-auto flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary" />
+            <input
+              type="text"
+              placeholder={t('search', 'Search...')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="input pl-10 w-full"
+            />
+          </div>
+          <button className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2 shrink-0">
+            <Plus className="w-4 h-4" />
+            {t('addOrder', 'Add Order')}
+          </button>
         </div>
 
         {loading ? (
