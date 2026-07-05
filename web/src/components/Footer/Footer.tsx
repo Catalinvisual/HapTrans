@@ -111,7 +111,7 @@ const Footer = () => {
 </svg>
             </a>
             <a href={cmsData.social_facebook || '#'} target={cmsData.social_facebook ? "_blank" : "_self"} rel="noreferrer" aria-label="Facebook">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M24 12.073C24 5.405 18.627 0 12 0C5.373 0 0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24V15.563H7.078V12.073H10.125V9.413C10.125 6.388 11.917 4.717 14.658 4.717C15.97 4.717 17.344 4.952 17.344 4.952V7.933H15.832C14.343 7.933 13.875 8.867 13.875 9.825V12.073H17.203L16.671 15.563H13.875V24C19.612 23.094 24 18.1 24 12.073Z" fill="#1877F2"/><path d="M16.671 15.563L17.203 12.073H13.875V9.825C13.875 8.867 14.343 7.933 15.832 7.933H17.344V4.952s-1.374-.235-2.686-.235C11.917 4.717 10.125 6.388 10.125 9.413v2.66H7.078v3.49h3.047V24c.616.096 1.242.146 1.875.146.633 0 1.259-.05 1.875-.146v-8.437h2.796z" fill="white"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="32" height="32" viewBox="0 0 48 48"> <path fill="#3F51B5" d="M42,37c0,2.762-2.238,5-5,5H11c-2.761,0-5-2.238-5-5V11c0-2.762,2.239-5,5-5h26c2.762,0,5,2.238,5,5V37z"></path><path fill="#FFF" d="M34.368,25H31v13h-5V25h-3v-4h3v-2.41c0.002-3.508,1.459-5.59,5.592-5.59H35v4h-2.287 C31.104,17,31,17.6,31,18.723V21h4L34.368,25z"></path></svg>
             </a>
             <a href={cmsData.social_instagram || '#'} target={cmsData.social_instagram ? "_blank" : "_self"} rel="noreferrer" aria-label="Instagram">
               <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="32" height="32" viewBox="0 0 48 48">
