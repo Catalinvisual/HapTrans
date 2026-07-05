@@ -16,13 +16,6 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [companySettings, setCompanySettings] = useState<any>(null);
-
-  useEffect(() => {
-    api.get('/public/company-settings').then(res => {
-      setCompanySettings(res.data);
-    }).catch(() => {});
-  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,26 +64,7 @@ export default function LoginPage() {
         <div className="bg-card/5 backdrop-blur-xl border border-white/10 rounded-3xl p-10 shadow-2xl animate-fade-in-up">
           <div className="flex flex-col items-center mb-8">
             <div className="flex flex-col items-center gap-2 mb-2">
-              {companySettings?.logo ? (
-                <img src={companySettings.logo} alt="Company Logo" className="h-20 w-auto max-w-full object-contain" />
-              ) : (
-                <div className="flex items-center gap-2">
-                  <svg viewBox="0 0 100 100" fill="currentColor" className="w-10 h-10 text-primary">
-                    <path d="M32 10 L46 10 L38 50 L48 50 L45.2 64 L35.2 64 L30 90 L16 90 L21.2 64 L5.2 64 L8 50 L24 50 Z" />
-                    <path d="M68 90 L54 90 L62 50 L52 50 L54.8 36 L64.8 36 L70 10 L84 10 L78.8 36 L94.8 36 L92 50 L76 50 Z" />
-                  </svg>
-                  <div className="flex items-center text-3xl tracking-tight italic">
-                    {companySettings?.name ? (
-                      <span className="font-black text-white">{companySettings.name}</span>
-                    ) : (
-                      <>
-                        <span className="font-black text-primary">HAP</span>
-                        <span className="font-black text-white">CARGO</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
+              <img src="/footer-logo.png" alt="Company Logo" className="h-20 w-auto max-w-full object-contain" />
             </div>
             <p className="text-white/50 text-sm mt-1">{t('loginSubtitle')}</p>
           </div>

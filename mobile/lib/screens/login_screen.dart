@@ -18,26 +18,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   bool _obscure = true;
   String? _error;
-  String? _logoUrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchLogo();
-  }
-
-  Future<void> _fetchLogo() async {
-    try {
-      final res = await Dio().get('$kApiUrl/public/company-settings');
-      if (res.statusCode == 200 && res.data != null && res.data['logo'] != null) {
-        if (mounted) {
-          setState(() {
-            _logoUrl = res.data['logo'];
-          });
-        }
-      }
-    } catch (_) {}
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,22 +44,16 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 40),
               // Logo
               Center(
-                child: _logoUrl != null
-                    ? Image.network(
-                        _logoUrl!,
-                        height: 80,
-                        fit: BoxFit.contain,
-                        errorBuilder: (c, e, s) => Container(
-                          width: 80, height: 80,
-                          decoration: BoxDecoration(color: kPrimary, borderRadius: BorderRadius.circular(20)),
-                          child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 44),
-                        ),
-                      )
-                    : Container(
-                        width: 80, height: 80,
-                        decoration: BoxDecoration(color: kPrimary, borderRadius: BorderRadius.circular(20)),
-                        child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 44),
-                      ),
+                child: Image.asset(
+                  'assets/images/footer-logo.png',
+                  height: 80,
+                  fit: BoxFit.contain,
+                  errorBuilder: (c, e, s) => Container(
+                    width: 80, height: 80,
+                    decoration: BoxDecoration(color: kPrimary, borderRadius: BorderRadius.circular(20)),
+                    child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 44),
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
               Text(l['title']!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: kText)),
