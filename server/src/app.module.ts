@@ -31,6 +31,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { CronModule } from './cron/cron.module';
 import { QuotesModule } from './quotes/quotes.module';
 import { JobApplicationsModule } from './job-applications/job-applications.module';
+import { OrdersModule } from './orders/orders.module';
 
 @Module({
   imports: [
@@ -43,9 +44,9 @@ import { JobApplicationsModule } from './job-applications/job-applications.modul
         url: config.get('DATABASE_URL'),
         host: config.get('DB_HOST'),
         port: +(config.get('DB_PORT') as string),
-        username: config.get('DB_USERNAME'),
-        password: config.get('DB_PASSWORD'),
-        database: config.get('DB_DATABASE'),
+        username: config.get('DB_USERNAME') || config.get('DB_USER'),
+        password: config.get('DB_PASSWORD') || config.get('DB_PASS'),
+        database: config.get('DB_DATABASE') || config.get('DB_NAME'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: true, // TEMPORARY: force sync to add draftReminderLevel column
         logging: false,
@@ -81,6 +82,7 @@ import { JobApplicationsModule } from './job-applications/job-applications.modul
     }]),
     QuotesModule,
     JobApplicationsModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

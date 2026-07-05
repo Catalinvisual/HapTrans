@@ -25,10 +25,9 @@ export class EtaCronService {
 
     const activeTrips = await this.tripRepo.find({
       where: [
-        { status: TripStatus.CONFIRMED },
-        { status: TripStatus.LOADING },
-        { status: TripStatus.IN_PROGRESS },
-        { status: TripStatus.DELAYED },
+        { status: TripStatus.PLANNED },
+        { status: TripStatus.ACTIVE },
+        { status: TripStatus.PROBLEM },
       ],
       relations: ['truck', 'client'],
     });
@@ -52,7 +51,7 @@ export class EtaCronService {
       }
     }
 
-    if (!trip.truck?.currentLat || !trip.truck?.currentLng || trip.status === TripStatus.CONFIRMED) {
+    if (!trip.truck?.currentLat || !trip.truck?.currentLng || trip.status === TripStatus.PLANNED) {
       etaConfidence = 'low';
     }
 
@@ -60,7 +59,7 @@ export class EtaCronService {
       // 2. Calculate Route Duration (seconds)
       let routeDurationMins = 0;
 
-      if (trip.status !== TripStatus.CONFIRMED && trip.truck?.currentLat && trip.truck?.currentLng && trip.dropoffLat && trip.dropoffLng) {
+      if (trip.status !== TripStatus.PLANNED && trip.truck?.currentLat && trip.truck?.currentLng && trip.dropoffLat && trip.dropoffLng) {
         const route = await this.routingService.calculateRoute(
           trip.truck.currentLat,
           trip.truck.currentLng,
@@ -78,9 +77,9 @@ export class EtaCronService {
         return;
       }
 
-      // 3. Calculate Loading Time if status is LOADING
+      // 3. Calculate Loading Time if status is ACTIVE (fallback logic)
       let remainingLoadingMins = 0;
-      if (trip.status === TripStatus.LOADING && trip.loadingStartedAt && trip.estimatedLoadingMinutes) {
+      if (trip.status === TripStatus.ACTIVE && trip.loadingStartedAt && trip.estimatedLoadingMinutes) {
         const elapsedMins = (now.getTime() - trip.loadingStartedAt.getTime()) / 60000;
         remainingLoadingMins = Math.max(0, trip.estimatedLoadingMinutes - elapsedMins);
       }

@@ -8,16 +8,14 @@ import { Document } from '../documents/document.entity';
 import { Message } from '../chat/message.entity';
 import { User } from '../users/user.entity';
 import { ClientRate } from '../clients/client-rate.entity';
+import { Order } from '../orders/order.entity';
+import { Stop } from './stop.entity';
 
 export enum TripStatus {
-  PENDING = 'pending',
-  CONFIRMED = 'confirmed',
-  IN_PROGRESS = 'in_progress',
-  LOADING = 'loading',
-  UNLOADING = 'unloading',
+  PLANNED = 'planned',
+  ACTIVE = 'active',
   COMPLETED = 'completed',
-  CANCELLED = 'cancelled',
-  DELAYED = 'delayed',
+  PROBLEM = 'problem',
 }
 
 @Entity('trips')
@@ -88,7 +86,7 @@ export class Trip {
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
   distanceKm: number;
 
-  @Column({ type: 'enum', enum: TripStatus, default: TripStatus.PENDING })
+  @Column({ type: 'enum', enum: TripStatus, default: TripStatus.PLANNED })
   status: TripStatus;
 
   @Column({ nullable: true, type: 'text' })
@@ -180,6 +178,12 @@ export class Trip {
 
   @Column({ type: 'boolean', default: false, nullable: true })
   holidaySurcharge: boolean;
+
+  @OneToMany(() => Order, (order) => order.trip)
+  orders: Order[];
+
+  @OneToMany(() => Stop, (stop) => stop.trip)
+  stops: Stop[];
 
   @OneToMany(() => TripCost, (cost) => cost.trip, { eager: true })
   costs: TripCost[];

@@ -5,6 +5,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { MulterModule } from '@nestjs/platform-express';
 import { Trip } from './trip.entity';
 import { TripCost } from './trip-cost.entity';
+import { Stop } from './stop.entity';
+import { StopTask } from './stop-task.entity';
 import { TripsController } from './trips.controller';
 import { TripsService } from './trips.service';
 import { TripScannerService } from './trip-scanner.service';
@@ -33,7 +35,7 @@ const storage = multer.memoryStorage();
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Trip, TripCost]),
+    TypeOrmModule.forFeature([Trip, TripCost, Stop, StopTask]),
     MulterModule.register({ storage }),
     forwardRef(() => ChatModule),
     NotificationsModule,

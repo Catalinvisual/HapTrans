@@ -44,7 +44,7 @@ export class TripsService {
     const end = new Date(dropoffDate);
 
     const query = this.repo.createQueryBuilder('trip')
-      .where('trip.status NOT IN (:...statuses)', { statuses: [TripStatus.COMPLETED, TripStatus.CANCELLED] })
+      .where('trip.status NOT IN (:...statuses)', { statuses: [TripStatus.COMPLETED, TripStatus.PROBLEM] })
       .andWhere('trip.pickupDate <= :end', { end })
       .andWhere('trip.dropoffDate >= :start', { start });
 
@@ -129,7 +129,7 @@ export class TripsService {
       volumeCbm: dto.volumeCbm,
       loadingReference: dto.loadingReference,
       unloadingReference: dto.unloadingReference,
-      status: TripStatus.PENDING,
+      status: TripStatus.PLANNED,
       appointmentFrom: dto.appointmentFrom || dto.dropoffDate,
       appointmentTo: dto.appointmentTo,
       estimatedLoadingMinutes: dto.estimatedLoadingMinutes,
@@ -173,7 +173,7 @@ export class TripsService {
     const dDate = dto.dropoffDate !== undefined ? dto.dropoffDate : existingTrip?.dropoffDate;
     const dId = dto.driverId !== undefined ? dto.driverId : existingTrip?.driver?.id;
     const tId = dto.truckId !== undefined ? dto.truckId : existingTrip?.truck?.id;
-    const isStatusChangingToCompletedOrCancelled = dto.status === TripStatus.COMPLETED || dto.status === TripStatus.CANCELLED;
+    const isStatusChangingToCompletedOrCancelled = dto.status === TripStatus.COMPLETED || dto.status === TripStatus.PROBLEM;
 
     if (!isStatusChangingToCompletedOrCancelled && (dto.pickupDate || dto.dropoffDate || dto.driverId || dto.truckId)) {
       await this.checkConflict(dId, tId, pDate, dDate, id);
@@ -391,7 +391,7 @@ export class TripsService {
     const totalKm = trips.reduce((s, t) => s + Number(t.distanceKm || 0), 0);
     const costPerKm = totalKm > 0 ? totalCost / totalKm : 0;
     const active = await this.repo.count({ 
-      where: { status: In([TripStatus.IN_PROGRESS, TripStatus.PENDING, TripStatus.CONFIRMED]) } 
+      where: { status: In([TripStatus.ACTIVE, TripStatus.PLANNED]) } 
     });
     return { totalRevenue, totalCost, profit, totalKm, costPerKm, active, tripsCount: trips.length };
   }

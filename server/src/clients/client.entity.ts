@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { Trip } from '../trips/trip.entity';
 import { Invoice } from '../invoices/invoice.entity';
 import { ClientRate } from './client-rate.entity';
+import { Order } from '../orders/order.entity';
 
 @Entity('clients')
 export class Client {
@@ -46,6 +47,9 @@ export class Client {
 
   @OneToMany(() => Trip, (trip) => trip.client)
   trips: Trip[];
+
+  @OneToMany(() => Order, (order) => order.client)
+  orders: Order[];
 
   @OneToMany(() => Invoice, (invoice) => invoice.client)
   invoices: Invoice[];

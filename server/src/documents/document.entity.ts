@@ -1,7 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn } from 'typeorm';
 import { Trip } from '../trips/trip.entity';
 import { User } from '../users/user.entity';
-
+import { Order } from '../orders/order.entity';
+import { StopTask } from '../trips/stop-task.entity';
 @Entity('documents')
 export class Document {
   @PrimaryGeneratedColumn('uuid')
@@ -12,6 +13,12 @@ export class Document {
 
   @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
   uploadedBy: User;
+
+  @ManyToOne(() => Order, (order) => order.documents, { onDelete: 'CASCADE', nullable: true })
+  order: Order;
+
+  @ManyToOne(() => StopTask, (stopTask) => stopTask.documents, { onDelete: 'CASCADE', nullable: true })
+  stopTask: StopTask;
 
   @Column()
   type: string; // CMR, Aviz, Factura, Foto, etc.
