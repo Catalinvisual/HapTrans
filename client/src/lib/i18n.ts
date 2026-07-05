@@ -2,7 +2,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
 const resources = {
-  1
+  ro: { translation: {
       addOrder: "Adauga Comanda",
       weight: "Greutate",
       website_hub_saved_success: "Modificările au fost salvate cu succes!",
@@ -736,7 +736,7 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
       website_hub_tabs_contact: 'Contact',
     }
   },
-  1
+  en: { translation: {
       addOrder: "Add Order",
       weight: "Weight",
       website_hub_saved_success: "Changes saved successfully!",
@@ -1409,7 +1409,7 @@ shortcuts_title: 'Skróty klawiszowe', shortcuts_subtitle: 'Nawiguj szybko za po
       noInvoicesAttached: "Brak faktur",
     },
   },
-  1
+  nl: { translation: {
       addOrder: "Bestelling Toevoegen",
       weight: "Gewicht",
       website_hub_saved_success: "Wijzigingen succesvol opgeslagen!",
@@ -2003,7 +2003,7 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
       website_hub_tabs_contact: 'Contact',
 },
   },
-  1
+  de: { translation: {
       addOrder: "Bestellung hinzuf�gen",
       weight: "Gewicht",
       website_hub_saved_success: "Änderungen erfolgreich gespeichert!",
