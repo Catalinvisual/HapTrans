@@ -56,6 +56,16 @@ class TripProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> updateStopStatus(String token, String stopId, String status) async {
+    try {
+      await _dio(token).patch('/trips/stops/$stopId/status', data: {'status': status});
+      await silentReloadTrips(token);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<bool> uploadDocument(String token, String tripId, String filePath, String type) async {
     try {
       final formData = FormData.fromMap({

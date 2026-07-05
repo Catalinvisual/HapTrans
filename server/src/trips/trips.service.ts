@@ -2,6 +2,7 @@ import { Injectable, Inject, forwardRef, ConflictException } from '@nestjs/commo
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, In, LessThanOrEqual, MoreThanOrEqual, Not } from 'typeorm';
 import { Trip, TripStatus } from './trip.entity';
+import { Stop, StopStatus } from './stop.entity';
 import { Truck } from '../trucks/truck.entity';
 import { Expense } from '../expenses/expense.entity';
 import { TripCost } from './trip-cost.entity';
@@ -26,11 +27,11 @@ export class TripsService {
   ) {}
 
   findAll() {
-    return this.repo.find({ relations: ['client', 'truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices'] });
+    return this.repo.find({ relations: ['client', 'truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders'] });
   }
 
   findOne(id: string) {
-    return this.repo.findOne({ where: { id }, relations: ['client', 'truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'messages', 'clientRate'] });
+    return this.repo.findOne({ where: { id }, relations: ['client', 'truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'messages', 'clientRate', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders'] });
   }
 
   findByTrackingToken(trackingToken: string) {
@@ -405,5 +406,138 @@ export class TripsService {
       results.push({ month: d.toLocaleString('ro', { month: 'short' }), ...stats });
     }
     return results;
+  }
+
+  // Faza 4: Update stop status and propagate ETA delays
+  async updateStopStatus(stopId: string, status: string) {
+    const stop = await this.repo.manager.findOne(Stop, { 
+      where: { id: stopId }, 
+      relations: ['trip', 'trip.stops'] 
+    });
+    
+    if (!stop) return null;
+    
+    stop.status = status as StopStatus;
+    const now = new Date();
+    
+    if (status === StopStatus.COMPLETED) {
+      stop.completedAt = now;
+      // Propagate delay if applicable
+      if (stop.eta) {
+        const delayMs = now.getTime() - stop.eta.getTime();
+        // Only propagate if delay > 15 mins (900000 ms)
+        if (delayMs > 900000) {
+          const sortedStops = stop.trip.stops.sort((a, b) => a.orderIndex - b.orderIndex);
+          let found = false;
+          for (const s of sortedStops) {
+            if (found && s.eta) {
+              s.eta = new Date(s.eta.getTime() + delayMs);
+              s.etaStatus = 'delayed';
+              await this.repo.manager.save(s);
+            }
+            if (s.id === stop.id) found = true;
+          }
+        }
+      }
+    } else if (status === StopStatus.ARRIVED) {
+      stop.arrivedAt = now;
+    }
+    
+    await this.repo.manager.save(stop);
+    
+    try {
+      this.chatGateway.broadcastTripUpdate(stop.trip.id, stop.trip.status, undefined, false);
+    } catch (e) {}
+    
+    return stop;
+  }
+
+  private getDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371; // Radius of earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  // Faza 5: Basic Route Optimization using Haversine
+  // A proper TSP would check constraints (Pickup before Delivery for same Order).
+  // Here we do a greedy nearest-neighbor approach from Pickup -> Delivery.
+  async optimizeRoute(tripId: string) {
+    const trip = await this.repo.findOne({
+      where: { id: tripId },
+      relations: ['stops', 'stops.tasks', 'stops.tasks.order']
+    });
+
+    if (!trip || !trip.stops || trip.stops.length === 0) return { success: false };
+
+    // Group stops into Pickups and Deliveries to enforce constraints.
+    // In a real advanced VRP, we check every permutation.
+    // Here: Just sort them so all Pickups happen before their Deliveries, optimizing locally.
+    const pickups = trip.stops.filter(s => s.tasks.some(t => t.type === 'pickup'));
+    const deliveries = trip.stops.filter(s => s.tasks.some(t => t.type === 'delivery'));
+    
+    let currentIndex = 0;
+    
+    // Sort Pickups geographically if coordinates exist (Greedy TSP for pickups)
+    // We assume the first pickup is fixed.
+    if (pickups.length > 1) {
+      for (let i = 0; i < pickups.length - 1; i++) {
+        let nearestIdx = i + 1;
+        let minDest = Number.MAX_VALUE;
+        const current = pickups[i];
+        
+        for (let j = i + 1; j < pickups.length; j++) {
+           const candidate = pickups[j];
+           if (current.lat && current.lng && candidate.lat && candidate.lng) {
+             const dist = this.getDistance(current.lat, current.lng, candidate.lat, candidate.lng);
+             if (dist < minDest) {
+                minDest = dist;
+                nearestIdx = j;
+             }
+           }
+        }
+        // Swap
+        const temp = pickups[i + 1];
+        pickups[i + 1] = pickups[nearestIdx];
+        pickups[nearestIdx] = temp;
+      }
+    }
+
+    // Do same for deliveries
+    if (deliveries.length > 1) {
+      for (let i = 0; i < deliveries.length - 1; i++) {
+        let nearestIdx = i + 1;
+        let minDest = Number.MAX_VALUE;
+        const current = deliveries[i];
+        
+        for (let j = i + 1; j < deliveries.length; j++) {
+           const candidate = deliveries[j];
+           if (current.lat && current.lng && candidate.lat && candidate.lng) {
+             const dist = this.getDistance(current.lat, current.lng, candidate.lat, candidate.lng);
+             if (dist < minDest) {
+                minDest = dist;
+                nearestIdx = j;
+             }
+           }
+        }
+        // Swap
+        const temp = deliveries[i + 1];
+        deliveries[i + 1] = deliveries[nearestIdx];
+        deliveries[nearestIdx] = temp;
+      }
+    }
+
+    const optimizedStops = [...pickups, ...deliveries];
+    
+    for (let i = 0; i < optimizedStops.length; i++) {
+      optimizedStops[i].orderIndex = i;
+      await this.repo.manager.save(optimizedStops[i]);
+    }
+
+    return { success: true, optimizedStops };
   }
 }

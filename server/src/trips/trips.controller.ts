@@ -23,6 +23,16 @@ export class TripsController {
   @Get('debug/:ref') async getDebug(@Param('ref') ref: string) { return this.service.findOneByRef(ref); }
   @Post(':id/costs') addCost(@Param('id') id: string, @Body() dto: any) { return this.service.addCost(id, dto); }
 
+  @Post(':id/optimize')
+  optimizeRoute(@Param('id') id: string) {
+    return this.service.optimizeRoute(id);
+  }
+
+  @Patch('stops/:stopId/status')
+  updateStopStatus(@Param('stopId') stopId: string, @Body() body: any) {
+    return this.service.updateStopStatus(stopId, body.status);
+  }
+
   @Post('scan-document')
   @UseInterceptors(FileInterceptor('file'))
   async scanDocument(@UploadedFile() file: Express.Multer.File) {

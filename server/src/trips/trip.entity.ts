@@ -12,10 +12,20 @@ import { Order } from '../orders/order.entity';
 import { Stop } from './stop.entity';
 
 export enum TripStatus {
+  // New statuses
   PLANNED = 'planned',
   ACTIVE = 'active',
   COMPLETED = 'completed',
   PROBLEM = 'problem',
+
+  // Old statuses (kept for TypeORM backward compatibility during migration)
+  PENDING = 'pending',
+  CONFIRMED = 'confirmed',
+  IN_PROGRESS = 'in_progress',
+  LOADING = 'loading',
+  UNLOADING = 'unloading',
+  DELAYED = 'delayed',
+  CANCELLED = 'cancelled',
 }
 
 @Entity('trips')

@@ -69,7 +69,8 @@ export default function TripDetailsPage() {
 
   const addedCosts = trip.costs?.reduce((s: number, c: any) => s + Number(c.amount), 0) || 0;
   const totalCost = addedCosts > 0 ? addedCosts : (Number(trip.realCost) || Number(trip.estimatedCost) || 0);
-  const basePrice = Number(trip.agreedPrice || trip.price || 0);
+  const ordersPrice = trip.orders?.reduce((sum: number, o: any) => sum + (Number(o.price) || 0), 0) || 0;
+  const basePrice = trip.orders?.length > 0 ? ordersPrice : Number(trip.agreedPrice || trip.price || 0);
   const profit = basePrice - totalCost;
 
   const handleShare = async (url: string, title: string) => {
@@ -132,10 +133,28 @@ export default function TripDetailsPage() {
         <div className="lg:col-span-2 space-y-6">
           <div className="card p-6 bg-card border border-border rounded-2xl shadow-sm relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-blue-500 to-green-500"></div>
-            <h3 className="font-bold text-lg text-text mb-6 flex items-center gap-2">
-              <Navigation className="w-5 h-5 text-primary" />
-              {t('routeDetails', 'Detalii Rută')}
-            </h3>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-lg text-text flex items-center gap-2">
+                <Navigation className="w-5 h-5 text-primary" />
+                {t('routeDetails', 'Detalii Rută')}
+              </h3>
+              {trip.stops && trip.stops.length > 2 && (
+                <button 
+                  onClick={async () => {
+                    try {
+                      await api.post(`/trips/${trip.id}/optimize`);
+                      toast.success('Route optimized successfully');
+                      window.location.reload();
+                    } catch (e) {
+                      toast.error('Optimization failed');
+                    }
+                  }}
+                  className="btn-primary py-1.5 px-3 text-xs flex items-center gap-2"
+                >
+                  <Eye className="w-3.5 h-3.5" /> Optimize
+                </button>
+              )}
+            </div>
             
             <div className="relative pl-6 space-y-8">
               {trip.stops && trip.stops.length > 0 ? (
@@ -469,6 +488,67 @@ export default function TripDetailsPage() {
                 </div>
               ) : (
                 <p className="text-sm text-text-secondary px-2">{t('noDocuments', 'Niciun document atașat')}</p>
+              )}
+
+              {/* Stop Task Documents */}
+              {trip.stops?.some((stop: any) => stop.tasks?.some((t: any) => t.documents?.length > 0 || t.signatureUrl)) && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <h4 className="text-sm font-semibold text-text-secondary flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <FileBadge className="w-4 h-4" /> {t('taskDocuments', 'Documente de la Opriri')}
+                    </div>
+                  </h4>
+                  <div className="space-y-3">
+                    {trip.stops.map((stop: any) => stop.tasks?.map((task: any) => {
+                      const hasDocs = task.documents?.length > 0;
+                      const hasSig = !!task.signatureUrl;
+                      if (!hasDocs && !hasSig) return null;
+
+                      return (
+                        <div key={task.id} className="bg-surface/50 p-3 rounded-xl border border-border">
+                          <div className="text-xs font-bold text-text mb-2 flex items-center gap-2">
+                            <Box className="w-3 h-3 text-primary" />
+                            {t('order', 'Comanda')} {task.order?.referenceNumber || '#N/A'} - {t(task.type)}
+                          </div>
+                          <div className="space-y-2">
+                            {task.documents?.map((doc: any) => (
+                              <div key={doc.id} className="flex items-center justify-between p-2 bg-card rounded-lg border border-border">
+                                <div className="flex items-center gap-2 truncate">
+                                  <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
+                                  <span className="text-xs font-semibold truncate">
+                                    {doc.fileName || doc.documentType || 'Document'}
+                                  </span>
+                                </div>
+                                <div className="flex gap-1 shrink-0">
+                                  {doc.fileUrl && (
+                                    <>
+                                      <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="p-1 text-text-secondary hover:text-primary transition-colors">
+                                        <Eye className="w-3.5 h-3.5" />
+                                      </a>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                            {task.signatureUrl && (
+                              <div className="flex items-center justify-between p-2 bg-card rounded-lg border border-border">
+                                <div className="flex items-center gap-2 truncate">
+                                  <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
+                                  <span className="text-xs font-semibold truncate">{t('signature', 'Semnătură Șofer/Client')}</span>
+                                </div>
+                                <div className="flex gap-1 shrink-0">
+                                  <a href={task.signatureUrl} target="_blank" rel="noopener noreferrer" className="p-1 text-text-secondary hover:text-primary transition-colors">
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </a>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }))}
+                  </div>
+                </div>
               )}
 
               {/* Invoices List */}
