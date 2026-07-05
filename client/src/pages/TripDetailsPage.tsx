@@ -258,13 +258,56 @@ export default function TripDetailsPage() {
             </div>
           </div>
 
-          {/* Cargo Details */}
+          {/* Orders & Capacity Details */}
           <div className="card p-6 bg-card border border-border rounded-2xl shadow-sm">
             <h3 className="font-bold text-lg text-text mb-4 flex items-center gap-2">
               <Box className="w-5 h-5 text-primary" />
-              {t('cargoAndReferences', 'Detalii Marfă & Referințe')}
+              {trip.orders && trip.orders.length > 0 ? t('tripOrders', 'Comenzi (Orders)') : t('cargoAndReferences', 'Detalii Marfă & Referințe')}
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+
+            {trip.orders && trip.orders.length > 0 ? (
+              <div className="space-y-4 mb-6">
+                {trip.orders.map((order: any) => (
+                  <div key={order.id} className="p-4 bg-surface rounded-xl border border-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                      <div className="font-bold text-lg">{order.referenceNumber || t('noReference', 'Fără referință')}</div>
+                      <div className="text-sm text-text-secondary">{order.client?.name || '-'}</div>
+                    </div>
+                    <div className="flex gap-4 text-sm font-semibold">
+                      <div className="flex items-center gap-1"><Layers className="w-4 h-4 text-primary" /> {order.pallets || 0} pal</div>
+                      <div className="flex items-center gap-1"><Scale className="w-4 h-4 text-primary" /> {order.weightKg || 0} kg</div>
+                      <span className={`px-2 py-1 rounded badge badge-gray capitalize`}>{t(order.status)}</span>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Capacity Summary */}
+                <div className="mt-6 p-4 bg-primary/5 rounded-xl border border-primary/20">
+                  <h4 className="text-sm font-bold text-primary mb-3">{t('truckCapacity', 'Capacitate Camion (Total estimat)')}</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <div className="flex justify-between text-xs font-bold mb-1">
+                        <span>{t('weight', 'Greutate')}</span>
+                        <span>{trip.orders.reduce((sum: number, o: any) => sum + (o.weightKg || 0), 0)} kg / 24000 kg</span>
+                      </div>
+                      <div className="w-full bg-border rounded-full h-2">
+                        <div className="bg-primary h-2 rounded-full" style={{ width: `${Math.min(100, (trip.orders.reduce((sum: number, o: any) => sum + (o.weightKg || 0), 0) / 24000) * 100)}%` }}></div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-xs font-bold mb-1">
+                        <span>{t('pallets', 'Paleți')}</span>
+                        <span>{trip.orders.reduce((sum: number, o: any) => sum + (o.pallets || 0), 0)} / 33</span>
+                      </div>
+                      <div className="w-full bg-border rounded-full h-2">
+                        <div className="bg-primary h-2 rounded-full" style={{ width: `${Math.min(100, (trip.orders.reduce((sum: number, o: any) => sum + (o.pallets || 0), 0) / 33) * 100)}%` }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="p-4 bg-surface rounded-xl border border-border">
                 <span className="text-xs text-text-secondary font-bold block mb-1">{t('pallets', 'PALEȚI').toUpperCase()}</span>
                 <div className="flex items-center gap-2 font-bold text-lg text-text">
@@ -293,7 +336,8 @@ export default function TripDetailsPage() {
                   {trip.distanceKm || 0} km
                 </div>
               </div>
-            </div>
+              </div>
+            )}
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-border pt-4">
               <div>
