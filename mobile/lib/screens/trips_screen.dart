@@ -10,6 +10,8 @@ import 'chat_screen.dart';
 import 'trip_dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:dio/dio.dart';
+
 class TripsScreen extends StatefulWidget {
   const TripsScreen({super.key});
 
@@ -20,16 +22,33 @@ class TripsScreen extends StatefulWidget {
 class _TripsScreenState extends State<TripsScreen> {
   String _selectedFilter = 'active';
   Timer? _timer;
+  String? _logoUrl;
+  String? _companyName;
 
   @override
   void initState() {
     super.initState();
+    _fetchSettings();
     _timer = Timer.periodic(const Duration(seconds: 5), (_) {
       final auth = context.read<AuthProvider>();
       if (auth.token != null) {
         context.read<TripProvider>().silentReloadTrips(auth.token!);
       }
     });
+  }
+
+  Future<void> _fetchSettings() async {
+    try {
+      final res = await Dio().get('$kApiUrl/public/company-settings');
+      if (res.statusCode == 200 && res.data != null) {
+        if (mounted) {
+          setState(() {
+            _logoUrl = res.data['logo'];
+            _companyName = res.data['name'];
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -175,49 +194,75 @@ class _TripsScreenState extends State<TripsScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: kPrimary,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: kPrimary.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
+                  _logoUrl != null
+                    ? Container(
+                        height: 44,
+                        margin: const EdgeInsets.only(right: 12),
+                        child: Image.network(
+                          _logoUrl!,
+                          fit: BoxFit.contain,
+                          errorBuilder: (c, e, s) => Container(
+                            width: 44, height: 44,
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(color: kPrimary, borderRadius: BorderRadius.circular(12)),
+                            child: SvgPicture.string(
+                              '''<svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M32 10 L46 10 L38 50 L48 50 L45.2 64 L35.2 64 L30 90 L16 90 L21.2 64 L5.2 64 L8 50 L24 50 Z" />
+                                <path d="M68 90 L54 90 L62 50 L52 50 L54.8 36 L64.8 36 L70 10 L84 10 L78.8 36 L94.8 36 L92 50 L76 50 Z" />
+                              </svg>''',
+                              colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                            ),
+                          ),
                         ),
-                      ],
-                    ),
-                    child: SvgPicture.string(
-                      '''<svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M32 10 L46 10 L38 50 L48 50 L45.2 64 L35.2 64 L30 90 L16 90 L21.2 64 L5.2 64 L8 50 L24 50 Z" />
-                        <path d="M68 90 L54 90 L62 50 L52 50 L54.8 36 L64.8 36 L70 10 L84 10 L78.8 36 L94.8 36 L92 50 L76 50 Z" />
-                      </svg>''',
-                      colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
+                      )
+                    : Container(
+                        width: 44,
+                        height: 44,
+                        padding: const EdgeInsets.all(8),
+                        margin: const EdgeInsets.only(right: 12),
+                        decoration: BoxDecoration(
+                          color: kPrimary,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: kPrimary.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: SvgPicture.string(
+                          '''<svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M32 10 L46 10 L38 50 L48 50 L45.2 64 L35.2 64 L30 90 L16 90 L21.2 64 L5.2 64 L8 50 L24 50 Z" />
+                            <path d="M68 90 L54 90 L62 50 L52 50 L54.8 36 L64.8 36 L70 10 L84 10 L78.8 36 L94.8 36 L92 50 L76 50 Z" />
+                          </svg>''',
+                          colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                        ),
+                      ),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        RichText(
-                          text: const TextSpan(
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              fontStyle: FontStyle.italic,
-                              letterSpacing: 0.5,
+                        if (_logoUrl == null)
+                          RichText(
+                            text: TextSpan(
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                fontStyle: FontStyle.italic,
+                                letterSpacing: 0.5,
+                              ),
+                              children: [
+                                if (_companyName != null)
+                                  TextSpan(text: _companyName, style: const TextStyle(color: kText))
+                                else ...[
+                                  const TextSpan(text: 'HAP', style: TextStyle(color: kPrimary)),
+                                  const TextSpan(text: 'CARGO', style: TextStyle(color: kText)),
+                                ]
+                              ],
                             ),
-                            children: [
-                              TextSpan(text: 'HAP', style: TextStyle(color: kPrimary)),
-                              TextSpan(text: 'CARGO', style: TextStyle(color: kText)),
-                            ],
                           ),
-                        ),
                         Text(
                           '$welcomeText, $userName!',
                           style: const TextStyle(
