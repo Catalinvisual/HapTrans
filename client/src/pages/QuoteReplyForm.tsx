@@ -5,7 +5,7 @@ import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import { Calendar } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { getCompanySettings } from './SettingsPage';
+import { getCompanySettings } from "../store/settingsStore";
 
 export const QuoteReplyForm = ({ quoteId, replies, tLocal, onReplyAdded }: any) => {
   const [showForm, setShowForm] = useState(false);

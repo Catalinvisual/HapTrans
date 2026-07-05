@@ -28,7 +28,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 import { useAuthStore } from '../store/authStore';
 import { useFormStore } from '../store/formStore';
-import { getCompanySettings } from './SettingsPage';
+import { getCompanySettings } from "../store/settingsStore";
 
 export default function TripsPage() {
   const formStore = useFormStore();

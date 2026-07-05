@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getCompanySettings } from '../pages/SettingsPage';
+import { getCompanySettings } from "../store/settingsStore";
 import { formatDate } from './dateUtils';
 
 export const generatePayrollPdfBase64 = async (payroll: any, t: any): Promise<string> => {

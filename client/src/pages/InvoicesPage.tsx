@@ -10,7 +10,7 @@ import { generateInvoicePdfBase64 } from '../lib/invoicePdfGenerator';
 import { formatDate } from '../lib/dateUtils';
 import CustomSelect from '../components/CustomSelect';
 import ConfirmModal from '../components/ConfirmModal';
-import { getCompanySettings } from './SettingsPage';
+import { getCompanySettings } from "../store/settingsStore";
 import { useFormStore } from '../store/formStore';
 import Pagination from '../components/Pagination';
 import { useShortcuts } from '../hooks/useShortcuts';

@@ -1,4 +1,4 @@
-import { getCompanySettings } from '../pages/SettingsPage';
+import { getCompanySettings } from "../store/settingsStore";
 import api from './api';
 
 // Convert a remote URL to a base64 data URL so Puppeteer can render it without external network access
