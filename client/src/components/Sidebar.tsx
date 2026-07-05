@@ -2,12 +2,13 @@ import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Route, Truck, Users, UserCheck, Map, MessageSquare, FileText,
-  Receipt, BarChart3, Wrench, Settings, UserCog, X, Banknote, Wallet, CalendarDays, Globe
+  Receipt, BarChart3, Wrench, Settings, UserCog, X, Banknote, Wallet, CalendarDays, Globe, Box
 } from 'lucide-react';
 
 export const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, key: 'dashboard' },
   { to: '/trips', icon: Route, key: 'trips' },
+  { to: '/orders', icon: Box, key: 'orders' },
   { to: '/map', icon: Map, key: 'liveMap' },
   { to: '/trucks', icon: Truck, key: 'trucks' },
   { to: '/planning', icon: CalendarDays, key: 'planning' },

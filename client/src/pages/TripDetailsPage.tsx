@@ -138,66 +138,123 @@ export default function TripDetailsPage() {
             </h3>
             
             <div className="relative pl-6 space-y-8">
-              {/* Pickup */}
-              <div className="relative">
-                <div className="absolute -left-[35px] top-1 w-4 h-4 rounded-full border-4 border-blue-500 bg-card z-10"></div>
-                <div className="absolute -left-[28px] top-5 w-0.5 h-full bg-border -z-0"></div>
-                
-                <span className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1 block">{t('pickupPoint', 'Punct Încărcare (Pickup)')}</span>
-                <h4 className="font-bold text-lg text-text">{trip.pickupCompanyName || trip.client?.name || 'N/A'}</h4>
-                <p className="text-text-secondary font-medium mt-1 flex items-start gap-2">
-                  <MapPin className="w-4 h-4 shrink-0 mt-0.5 text-blue-400" />
-                  {trip.pickupAddress}
-                </p>
-                <div className="flex items-center gap-4 mt-3 bg-blue-50/50 p-3 rounded-xl border border-blue-100/50 w-fit">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-blue-900">
-                    <Calendar className="w-4 h-4 text-blue-500" />
-                    {trip.pickupDate ? formatDate(trip.pickupDate) : '-'}
-                  </div>
-                  {trip.pickupTime && (
-                    <div className="flex items-center gap-2 text-sm font-semibold text-blue-900">
-                      <Clock className="w-4 h-4 text-blue-500" />
-                      {trip.pickupTime}
-                    </div>
-                  )}
-                </div>
-              </div>
+              {trip.stops && trip.stops.length > 0 ? (
+                // --- NEW ROUTE TIMELINE ---
+                [...trip.stops].sort((a, b) => a.orderIndex - b.orderIndex).map((stop: any, index: number, arr: any[]) => {
+                  const isLast = index === arr.length - 1;
+                  const hasPickup = stop.tasks?.some((t: any) => t.type === 'pickup');
+                  const markerColor = hasPickup ? 'blue' : 'green';
+                  const markerBorderClass = hasPickup ? 'border-blue-500' : 'border-green-500';
+                  const textClass = hasPickup ? 'text-blue-600' : 'text-green-600';
 
-              {/* Delivery */}
-              <div className="relative">
-                <div className="absolute -left-[35px] top-1 w-4 h-4 rounded-full border-4 border-green-500 bg-card z-10"></div>
-                
-                <span className="text-xs font-bold text-green-600 uppercase tracking-wider mb-1 block">{t('deliveryPoint', 'Punct Descărcare (Delivery)')}</span>
-                <h4 className="font-bold text-lg text-text">{trip.dropoffCompanyName || 'N/A'}</h4>
-                <p className="text-text-secondary font-medium mt-1 flex items-start gap-2">
-                  <MapPin className="w-4 h-4 shrink-0 mt-0.5 text-green-400" />
-                  {trip.dropoffAddress}
-                </p>
-                <div className="flex flex-wrap items-center gap-4 mt-3 bg-green-50/50 p-3 rounded-xl border border-green-100/50 w-fit">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-green-900">
-                    <Calendar className="w-4 h-4 text-green-500" />
-                    {trip.dropoffDate ? formatDate(trip.dropoffDate) : '-'}
+                  return (
+                    <div key={stop.id} className="relative">
+                      <div className={`absolute -left-[35px] top-1 w-4 h-4 rounded-full border-4 ${markerBorderClass} bg-card z-10`}></div>
+                      {!isLast && <div className="absolute -left-[28px] top-5 w-0.5 h-full bg-border -z-0"></div>}
+                      
+                      <span className={`text-xs font-bold ${textClass} uppercase tracking-wider mb-1 block flex justify-between`}>
+                        {t('stopIndex', 'Stop {{index}}', { index: stop.orderIndex })} - {t(stop.status)}
+                        {stop.eta && (
+                          <span className={`px-2 py-0.5 rounded ${stop.etaStatus === 'delayed' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                            ETA: {formatDate(stop.eta)}
+                          </span>
+                        )}
+                      </span>
+                      <h4 className="font-bold text-lg text-text">{stop.companyName || 'N/A'}</h4>
+                      <p className="text-text-secondary font-medium mt-1 flex items-start gap-2">
+                        <MapPin className={`w-4 h-4 shrink-0 mt-0.5 text-${markerColor}-400`} />
+                        {stop.address}
+                      </p>
+                      
+                      {/* Tasks List for this Stop */}
+                      {stop.tasks && stop.tasks.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {stop.tasks.map((task: any) => (
+                            <div key={task.id} className={`bg-${markerColor}-50/50 p-3 rounded-xl border border-${markerColor}-100/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3`}>
+                              <div>
+                                <div className={`text-sm font-semibold text-${markerColor}-900 flex items-center gap-2`}>
+                                  <Box className={`w-4 h-4 text-${markerColor}-500`} />
+                                  <span className="capitalize">{t(task.type)}</span> - {t('orderRef', 'Order')}: {task.order?.referenceNumber || '#N/A'}
+                                </div>
+                                <div className="text-xs text-text-secondary mt-1">
+                                  {task.plannedTime ? formatDate(task.plannedTime) : '-'} | {t('pallets')}: {task.pallets || 0} ({task.weightKg || 0} kg)
+                                </div>
+                              </div>
+                              <span className={`text-xs font-bold px-2 py-1 rounded bg-white border shadow-sm ${task.status === 'completed' ? 'border-green-200 text-green-700' : 'border-gray-200 text-gray-600'}`}>
+                                {t(task.status)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                // --- OLD FALLBACK UI FOR UNMIGRATED TRIPS ---
+                <>
+                  {/* Pickup */}
+                  <div className="relative">
+                    <div className="absolute -left-[35px] top-1 w-4 h-4 rounded-full border-4 border-blue-500 bg-card z-10"></div>
+                    <div className="absolute -left-[28px] top-5 w-0.5 h-full bg-border -z-0"></div>
+                    
+                    <span className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1 block">{t('pickupPoint', 'Punct Încărcare (Pickup)')}</span>
+                    <h4 className="font-bold text-lg text-text">{trip.pickupCompanyName || trip.client?.name || 'N/A'}</h4>
+                    <p className="text-text-secondary font-medium mt-1 flex items-start gap-2">
+                      <MapPin className="w-4 h-4 shrink-0 mt-0.5 text-blue-400" />
+                      {trip.pickupAddress}
+                    </p>
+                    <div className="flex items-center gap-4 mt-3 bg-blue-50/50 p-3 rounded-xl border border-blue-100/50 w-fit">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-blue-900">
+                        <Calendar className="w-4 h-4 text-blue-500" />
+                        {trip.pickupDate ? formatDate(trip.pickupDate) : '-'}
+                      </div>
+                      {trip.pickupTime && (
+                        <div className="flex items-center gap-2 text-sm font-semibold text-blue-900">
+                          <Clock className="w-4 h-4 text-blue-500" />
+                          {trip.pickupTime}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  {trip.dropoffTime && (
-                    <div className="flex items-center gap-2 text-sm font-semibold text-green-900">
-                      <Clock className="w-4 h-4 text-green-500" />
-                      {trip.dropoffTime}
+
+                  {/* Delivery */}
+                  <div className="relative">
+                    <div className="absolute -left-[35px] top-1 w-4 h-4 rounded-full border-4 border-green-500 bg-card z-10"></div>
+                    
+                    <span className="text-xs font-bold text-green-600 uppercase tracking-wider mb-1 block">{t('deliveryPoint', 'Punct Descărcare (Delivery)')}</span>
+                    <h4 className="font-bold text-lg text-text">{trip.dropoffCompanyName || 'N/A'}</h4>
+                    <p className="text-text-secondary font-medium mt-1 flex items-start gap-2">
+                      <MapPin className="w-4 h-4 shrink-0 mt-0.5 text-green-400" />
+                      {trip.dropoffAddress}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-4 mt-3 bg-green-50/50 p-3 rounded-xl border border-green-100/50 w-fit">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-green-900">
+                        <Calendar className="w-4 h-4 text-green-500" />
+                        {trip.dropoffDate ? formatDate(trip.dropoffDate) : '-'}
+                      </div>
+                      {trip.dropoffTime && (
+                        <div className="flex items-center gap-2 text-sm font-semibold text-green-900">
+                          <Clock className="w-4 h-4 text-green-500" />
+                          {trip.dropoffTime}
+                        </div>
+                      )}
+                      
+                      {/* ETA Display */}
+                      {trip.lastLiveEta && (
+                        <div className={`flex items-center gap-2 text-xs font-bold bg-card px-2 py-1 rounded border ${trip.etaStatus === 'on_time' ? 'text-green-700 border-green-200' : trip.etaStatus === 'at_risk' ? 'text-yellow-700 border-yellow-200' : 'text-red-700 border-red-200'}`}>
+                          {t('liveEta', 'ETA Smart')}: {formatDate(trip.lastLiveEta)} {new Date(trip.lastLiveEta).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      )}
+                      {trip.appointmentTo && !trip.lastLiveEta && (
+                        <div className="flex items-center gap-2 text-xs font-bold text-green-700 bg-card px-2 py-1 rounded border border-green-200">
+                          {t('plannedEta', 'ETA Planificat')}: {formatDate(trip.appointmentTo)}
+                        </div>
+                      )}
                     </div>
-                  )}
-                  
-                  {/* ETA Display */}
-                  {trip.lastLiveEta && (
-                    <div className={`flex items-center gap-2 text-xs font-bold bg-card px-2 py-1 rounded border ${trip.etaStatus === 'on_time' ? 'text-green-700 border-green-200' : trip.etaStatus === 'at_risk' ? 'text-yellow-700 border-yellow-200' : 'text-red-700 border-red-200'}`}>
-                      {t('liveEta', 'ETA Smart')}: {formatDate(trip.lastLiveEta)} {new Date(trip.lastLiveEta).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  )}
-                  {trip.appointmentTo && !trip.lastLiveEta && (
-                    <div className="flex items-center gap-2 text-xs font-bold text-green-700 bg-card px-2 py-1 rounded border border-green-200">
-                      {t('plannedEta', 'ETA Planificat')}: {formatDate(trip.appointmentTo)}
-                    </div>
-                  )}
-                </div>
-              </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

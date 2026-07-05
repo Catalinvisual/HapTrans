@@ -7,6 +7,7 @@ import { ShortcutProvider } from './lib/ShortcutContext';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import TripsPage from './pages/TripsPage';
+import OrdersPage from './pages/OrdersPage';
 import TrucksPage from './pages/TrucksPage';
 import DriversPage from './pages/DriversPage';
 import ClientsPage from './pages/ClientsPage';
@@ -46,6 +47,7 @@ export default function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="trips" element={<TripsPage />} />
+          <Route path="orders" element={<OrdersPage />} />
           <Route path="trips/:id" element={<TripDetailsPage />} />
           <Route path="trucks" element={<TrucksPage />} />
           <Route path="drivers" element={<DriversPage />} />
