@@ -32,7 +32,7 @@ export class TripsService {
 
   findAllForDashboard() {
     return this.repo.find({
-      select: ['id', 'pickupCountry', 'pickupAddress', 'dropoffCountry', 'dropoffAddress', 'agreedPrice', 'price', 'estimatedCost', 'realCost', 'createdAt'],
+      select: ['id', 'pickupCountry', 'pickupAddress', 'dropoffCountry', 'dropoffAddress', 'agreedPrice', 'price', 'estimatedCost', 'realCost', 'createdAt', 'status', 'distanceKm'],
       relations: ['client', 'costs']
     });
   }
@@ -382,8 +382,8 @@ export class TripsService {
     return this.costsRepo.save(cost);
   }
 
-  async getStats(month?: number, year?: number) {
-    const trips = await this.findAll();
+  async getStats(month?: number, year?: number, preloadedTrips?: Trip[]) {
+    const trips = preloadedTrips || await this.findAllForDashboard();
     const filtered = trips.filter(t => {
       if (!month || !year) return true;
       const d = new Date(t.createdAt);
@@ -398,18 +398,17 @@ export class TripsService {
     const profit = totalRevenue - totalCost;
     const totalKm = trips.reduce((s, t) => s + Number(t.distanceKm || 0), 0);
     const costPerKm = totalKm > 0 ? totalCost / totalKm : 0;
-    const active = await this.repo.count({ 
-      where: { status: In([TripStatus.ACTIVE, TripStatus.PLANNED]) } 
-    });
+    const active = trips.filter(t => t.status === TripStatus.ACTIVE || t.status === TripStatus.PLANNED).length;
     return { totalRevenue, totalCost, profit, totalKm, costPerKm, active, tripsCount: trips.length };
   }
 
   async getMonthlyProfits() {
     const results = [];
     const now = new Date();
+    const allTrips = await this.findAllForDashboard();
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const stats = await this.getStats(d.getMonth() + 1, d.getFullYear());
+      const stats = await this.getStats(d.getMonth() + 1, d.getFullYear(), allTrips);
       results.push({ month: d.toLocaleString('ro', { month: 'short' }), ...stats });
     }
     return results;

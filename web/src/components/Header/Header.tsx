@@ -13,7 +13,8 @@ const Header = () => {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('http://localhost:3000/api/public/company-settings')
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
+    fetch(`${apiUrl}/public/company-settings`)
       .then(r => r.json())
       .then(data => {
         if (data?.logo) setLogoUrl(data.logo);

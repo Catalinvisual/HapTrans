@@ -27,6 +27,7 @@ if (typeof window !== 'undefined') {
 const PAGE_TITLES: Record<string, Record<string, string>> = {
   '/dashboard': { ro: 'Panou de Control', en: 'Dashboard', nl: 'Dashboard' },
   '/trips': { ro: 'Curse', en: 'Trips', nl: 'Ritten' },
+  '/orders': { ro: 'Comenzi', en: 'Orders', nl: 'Bestellingen', de: 'Bestellungen', fr: 'Commandes' },
   '/trucks': { ro: 'Camioane', en: 'Trucks', nl: 'Vrachtwagens' },
   '/drivers': { ro: 'Șoferi', en: 'Drivers', nl: 'Chauffeurs' },
   '/clients': { ro: 'Clienți', en: 'Clients', nl: 'Klanten' },

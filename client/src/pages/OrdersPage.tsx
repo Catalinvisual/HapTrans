@@ -33,12 +33,7 @@ export default function OrdersPage() {
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Box className="w-6 h-6 text-primary" />
-            {t('orders', 'Orders')}
-          </h1>
-        </div>
+        <div />
         <button className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2">
           <Plus className="w-4 h-4" />
           {t('addOrder', 'Add Order')}
