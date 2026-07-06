@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { X, Save, Loader2, ArrowRight, ArrowLeft, Plus, Trash2, Box, MapPin, FileText } from 'lucide-react';
 import api from '../../lib/api';
@@ -13,7 +14,7 @@ interface OrderWizardProps {
 
 const STEPS = [
   { id: 'general', title: 'General Info', icon: FileText },
-  { id: 'stops', title: 'Route & Stops', icon: MapPin },
+  { id: 'route', title: 'Pickup & Delivery', icon: MapPin },
   { id: 'cargo', title: 'Cargo Items', icon: Box },
 ];
 
@@ -34,7 +35,8 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
     notes: '',
   });
 
-  const [stops, setStops] = useState<any[]>([]);
+  const [pickup, setPickup] = useState({ companyName: '', address: '', city: '', country: '', scheduledDate: '' });
+  const [dropoff, setDropoff] = useState({ companyName: '', address: '', city: '', country: '', scheduledDate: '' });
   const [cargoItems, setCargoItems] = useState<any[]>([]);
 
   useEffect(() => {
@@ -53,10 +55,11 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
             currency: order.currency || 'EUR',
             notes: order.notes || '',
           });
-          setStops(order.stops?.length ? order.stops : [
-             { type: 'pickup', sequence: 1, address: '', companyName: '', city: '', country: '', scheduledDate: '' },
-             { type: 'dropoff', sequence: 2, address: '', companyName: '', city: '', country: '', scheduledDate: '' }
-          ]);
+          const p = order.stops?.find((s:any) => s.type === 'pickup') || { companyName: '', address: '', city: '', country: '', scheduledDate: '' };
+          const d = order.stops?.find((s:any) => s.type === 'dropoff') || { companyName: '', address: '', city: '', country: '', scheduledDate: '' };
+          setPickup(p);
+          setDropoff(d);
+          
           setCargoItems(order.cargoItems?.length ? order.cargoItems : [
              { description: '', quantity: 1, weightKg: '', unit: 'pallet' }
           ]);
@@ -72,10 +75,8 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
           currency: 'EUR',
           notes: '',
         });
-        setStops([
-          { type: 'pickup', sequence: 1, address: '', companyName: '', city: '', country: '', scheduledDate: '' },
-          { type: 'dropoff', sequence: 2, address: '', companyName: '', city: '', country: '', scheduledDate: '' }
-        ]);
+        setPickup({ companyName: '', address: '', city: '', country: '', scheduledDate: '' });
+        setDropoff({ companyName: '', address: '', city: '', country: '', scheduledDate: '' });
         setCargoItems([
           { description: '', quantity: 1, weightKg: '', unit: 'pallet' }
         ]);
@@ -91,18 +92,6 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
   };
   const handlePrev = () => {
     if (currentStep > 0) setCurrentStep(c => c - 1);
-  };
-
-  const handleAddStop = () => {
-    setStops([...stops, { type: 'dropoff', sequence: stops.length + 1, address: '', companyName: '', city: '', country: '', scheduledDate: '' }]);
-  };
-  const handleRemoveStop = (index: number) => {
-    setStops(stops.filter((_, i) => i !== index).map((s, i) => ({ ...s, sequence: i + 1 })));
-  };
-  const handleStopChange = (index: number, field: string, value: string) => {
-    const newStops = [...stops];
-    newStops[index][field] = value;
-    setStops(newStops);
   };
 
   const handleAddCargo = () => {
@@ -124,7 +113,10 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
         ...form,
         clientId: form.clientId || null,
         price: form.price ? parseFloat(form.price) : null,
-        stops: stops,
+        stops: [
+          { type: 'pickup', sequence: 1, ...pickup },
+          { type: 'dropoff', sequence: 2, ...dropoff }
+        ],
         cargoItems: cargoItems.map(c => ({
           ...c,
           quantity: c.quantity ? parseInt(c.quantity) : null,
@@ -149,15 +141,15 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
     }
   };
 
-  return (
-    <>
+  const modalContent = (
+    <div className="fixed inset-0 z-[100] flex justify-end">
       <div 
-        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity" 
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity" 
         onClick={onClose}
       />
       
-      <div className="fixed inset-y-0 right-0 z-50 w-full md:w-[600px] lg:w-[800px] bg-card shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out border-l border-border">
-        <div className="px-6 py-5 border-b border-border bg-surface/50 flex justify-between items-center">
+      <div className="relative z-50 w-full md:w-[600px] lg:w-[800px] bg-card shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-300">
+        <div className="px-6 py-5 border-b border-border bg-surface/50 flex justify-between items-center shrink-0">
           <div>
             <h2 className="text-xl font-bold text-text-primary">
               {orderId ? t('editOrder', 'Edit Order') : t('createOrder', 'Create New Order')}
@@ -171,15 +163,15 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
           </button>
         </div>
 
-        <div className="px-6 py-4 border-b border-border bg-surface/30">
-          <div className="flex justify-between">
+        <div className="px-6 py-4 border-b border-border bg-surface/30 shrink-0">
+          <div className="flex justify-between relative">
             {STEPS.map((step, idx) => {
               const StepIcon = step.icon;
               const isActive = idx === currentStep;
               const isPast = idx < currentStep;
               return (
-                <div key={step.id} className="flex flex-col items-center flex-1 relative">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center z-10 ${
+                <div key={step.id} className="flex flex-col items-center flex-1 relative z-10">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                     isActive ? 'bg-primary text-white shadow-lg ring-4 ring-primary/20' : 
                     isPast ? 'bg-primary/20 text-primary' : 'bg-surface border border-border text-text-muted'
                   } transition-all duration-300`}>
@@ -188,20 +180,20 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                   <span className={`text-xs mt-2 font-medium ${isActive ? 'text-primary' : 'text-text-secondary'}`}>
                     {step.title}
                   </span>
-                  {idx < STEPS.length - 1 && (
-                    <div className={`absolute top-5 left-[50%] right-[-50%] h-[2px] -z-0 ${
-                      isPast ? 'bg-primary' : 'bg-border'
-                    }`} />
-                  )}
                 </div>
               );
             })}
+            <div className="absolute top-5 left-10 right-10 h-[2px] bg-border z-0" />
+            <div 
+              className="absolute top-5 left-10 h-[2px] bg-primary z-0 transition-all duration-300"
+              style={{ width: `${(currentStep / (STEPS.length - 1)) * 100}%` }}
+            />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
           {currentStep === 0 && (
-            <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="space-y-5 animate-in fade-in duration-300">
               <div className="bg-surface/30 p-4 rounded-xl border border-border space-y-4">
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">Client Information</h3>
                 <div>
@@ -306,7 +298,7 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                 <textarea
                   value={form.notes}
                   onChange={e => setForm({ ...form, notes: e.target.value })}
-                  className="input w-full min-h-[100px]"
+                  className="input w-full min-h-[80px]"
                   placeholder="Additional instructions..."
                 />
               </div>
@@ -314,121 +306,146 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
           )}
 
           {currentStep === 1 && (
-            <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold">Route & Stops</h3>
-                <p className="text-sm text-text-secondary">Define the pickup and delivery locations for this order.</p>
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="mb-2">
+                <h3 className="text-lg font-semibold">Pickup & Delivery</h3>
+                <p className="text-sm text-text-secondary">Where is the cargo going from and to?</p>
               </div>
               
-              <div className="relative">
-                <div className="absolute left-[20px] top-4 bottom-4 w-0.5 bg-border z-0"></div>
-
-                {stops.map((stop, index) => (
-                  <div key={index} className="relative z-10 pl-12 mb-6 group">
-                    <div className={`absolute left-0 top-3 w-10 h-10 rounded-full border-4 border-card flex items-center justify-center font-bold text-sm
-                      ${stop.type === 'pickup' ? 'bg-blue-100 text-blue-600 border-blue-200' : 
-                        stop.type === 'dropoff' ? 'bg-green-100 text-green-600 border-green-200' : 
-                        'bg-gray-100 text-gray-600 border-gray-200'}`}
-                    >
-                      {stop.sequence}
+              {/* Pickup Details */}
+              <div className="bg-blue-50/30 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-5 relative">
+                <div className="absolute -left-3 top-6 w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 border-4 border-card flex items-center justify-center font-bold text-xs text-blue-600">A</div>
+                <h4 className="text-blue-600 dark:text-blue-400 font-bold mb-4 flex items-center gap-2">
+                  <MapPin className="w-4 h-4" /> Pickup Details
+                </h4>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-text-secondary mb-1">Company / Location Name</label>
+                    <input 
+                      type="text" 
+                      value={pickup.companyName}
+                      onChange={(e) => setPickup({...pickup, companyName: e.target.value})}
+                      className="input w-full text-sm bg-white dark:bg-card"
+                      placeholder="e.g. Supplier Warehouse"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-text-secondary mb-1">Full Address *</label>
+                    <input 
+                      type="text" 
+                      value={pickup.address}
+                      onChange={(e) => setPickup({...pickup, address: e.target.value})}
+                      className="input w-full text-sm bg-white dark:bg-card"
+                      placeholder="Street, Number, Zip"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-text-secondary mb-1">City</label>
+                      <input 
+                        type="text" 
+                        value={pickup.city}
+                        onChange={(e) => setPickup({...pickup, city: e.target.value})}
+                        className="input w-full text-sm bg-white dark:bg-card"
+                      />
                     </div>
-
-                    <div className="bg-surface/50 border border-border rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow relative">
-                      {stops.length > 2 && (
-                        <button 
-                          onClick={() => handleRemoveStop(index)}
-                          className="absolute top-2 right-2 p-1.5 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pr-8">
-                        <div>
-                          <label className="block text-xs font-medium text-text-secondary mb-1">Action Type</label>
-                          <select 
-                            value={stop.type}
-                            onChange={(e) => handleStopChange(index, 'type', e.target.value)}
-                            className="input w-full text-sm"
-                          >
-                            <option value="pickup">Pickup</option>
-                            <option value="dropoff">Dropoff</option>
-                            <option value="warehouse">Warehouse Storage</option>
-                            <option value="customs">Customs</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-text-secondary mb-1">Company / Location Name</label>
-                          <input 
-                            type="text" 
-                            value={stop.companyName}
-                            onChange={(e) => handleStopChange(index, 'companyName', e.target.value)}
-                            className="input w-full text-sm"
-                            placeholder="e.g. Acme Corp Depot"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="mb-4">
-                        <label className="block text-xs font-medium text-text-secondary mb-1">Full Address *</label>
-                        <input 
-                          type="text" 
-                          value={stop.address}
-                          onChange={(e) => handleStopChange(index, 'address', e.target.value)}
-                          className="input w-full text-sm"
-                          placeholder="Street, Number, Zip"
-                          required
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-text-secondary mb-1">City</label>
-                          <input 
-                            type="text" 
-                            value={stop.city}
-                            onChange={(e) => handleStopChange(index, 'city', e.target.value)}
-                            className="input w-full text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-text-secondary mb-1">Country</label>
-                          <input 
-                            type="text" 
-                            value={stop.country}
-                            onChange={(e) => handleStopChange(index, 'country', e.target.value)}
-                            className="input w-full text-sm"
-                          />
-                        </div>
-                        <div className="col-span-2 md:col-span-1">
-                          <label className="block text-xs font-medium text-text-secondary mb-1">Scheduled Date</label>
-                          <input 
-                            type="date" 
-                            value={stop.scheduledDate?.slice(0,10) || ''}
-                            onChange={(e) => handleStopChange(index, 'scheduledDate', e.target.value)}
-                            className="input w-full text-sm"
-                          />
-                        </div>
-                      </div>
+                    <div>
+                      <label className="block text-xs font-medium text-text-secondary mb-1">Country</label>
+                      <input 
+                        type="text" 
+                        value={pickup.country}
+                        onChange={(e) => setPickup({...pickup, country: e.target.value})}
+                        className="input w-full text-sm bg-white dark:bg-card"
+                      />
+                    </div>
+                    <div className="col-span-2 md:col-span-1">
+                      <label className="block text-xs font-medium text-text-secondary mb-1">Pickup Date</label>
+                      <input 
+                        type="date" 
+                        value={pickup.scheduledDate?.slice(0,10) || ''}
+                        onChange={(e) => setPickup({...pickup, scheduledDate: e.target.value})}
+                        className="input w-full text-sm bg-white dark:bg-card"
+                      />
                     </div>
                   </div>
-                ))}
-
-                <div className="pl-12 mt-4">
-                  <button 
-                    onClick={handleAddStop}
-                    className="flex items-center gap-2 text-primary hover:text-primary-dark font-medium px-4 py-2 bg-primary/5 hover:bg-primary/10 rounded-xl transition-colors border border-primary/20"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Another Stop
-                  </button>
                 </div>
               </div>
+
+              {/* Arrow down visually connecting them */}
+              <div className="flex justify-center -my-2 relative z-10">
+                <div className="bg-surface border border-border rounded-full p-1 text-text-muted">
+                  <ArrowRight className="w-5 h-5 rotate-90" />
+                </div>
+              </div>
+
+              {/* Delivery Details */}
+              <div className="bg-green-50/30 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-xl p-5 relative">
+                <div className="absolute -left-3 top-6 w-6 h-6 rounded-full bg-green-100 dark:bg-green-900 border-4 border-card flex items-center justify-center font-bold text-xs text-green-600">B</div>
+                <h4 className="text-green-600 dark:text-green-400 font-bold mb-4 flex items-center gap-2">
+                  <MapPin className="w-4 h-4" /> Delivery Details
+                </h4>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-text-secondary mb-1">Company / Location Name</label>
+                    <input 
+                      type="text" 
+                      value={dropoff.companyName}
+                      onChange={(e) => setDropoff({...dropoff, companyName: e.target.value})}
+                      className="input w-full text-sm bg-white dark:bg-card"
+                      placeholder="e.g. Client Destination"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-text-secondary mb-1">Full Address *</label>
+                    <input 
+                      type="text" 
+                      value={dropoff.address}
+                      onChange={(e) => setDropoff({...dropoff, address: e.target.value})}
+                      className="input w-full text-sm bg-white dark:bg-card"
+                      placeholder="Street, Number, Zip"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-text-secondary mb-1">City</label>
+                      <input 
+                        type="text" 
+                        value={dropoff.city}
+                        onChange={(e) => setDropoff({...dropoff, city: e.target.value})}
+                        className="input w-full text-sm bg-white dark:bg-card"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-text-secondary mb-1">Country</label>
+                      <input 
+                        type="text" 
+                        value={dropoff.country}
+                        onChange={(e) => setDropoff({...dropoff, country: e.target.value})}
+                        className="input w-full text-sm bg-white dark:bg-card"
+                      />
+                    </div>
+                    <div className="col-span-2 md:col-span-1">
+                      <label className="block text-xs font-medium text-text-secondary mb-1">Delivery Date</label>
+                      <input 
+                        type="date" 
+                        value={dropoff.scheduledDate?.slice(0,10) || ''}
+                        onChange={(e) => setDropoff({...dropoff, scheduledDate: e.target.value})}
+                        className="input w-full text-sm bg-white dark:bg-card"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
             </div>
           )}
 
           {currentStep === 2 && (
-            <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="space-y-4 animate-in fade-in duration-300">
               <div className="mb-4">
                 <h3 className="text-lg font-semibold">Cargo Items</h3>
                 <p className="text-sm text-text-secondary">What are we transporting? You can split the order into multiple items.</p>
@@ -520,7 +537,7 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
           )}
         </div>
 
-        <div className="p-6 border-t border-border bg-surface/50 flex justify-between items-center mt-auto">
+        <div className="p-6 border-t border-border bg-surface/50 flex justify-between items-center shrink-0">
           <button 
             type="button" 
             onClick={onClose} 
@@ -544,7 +561,7 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
               <button 
                 type="button" 
                 onClick={handleNext}
-                className="btn-primary flex items-center gap-2"
+                className="btn-primary flex items-center gap-2 shadow-sm hover:shadow-md"
               >
                 Next Step <ArrowRight className="w-4 h-4" />
               </button>
@@ -553,7 +570,7 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                 type="button" 
                 onClick={handleSubmit}
                 disabled={loading}
-                className="btn-primary flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+                className="btn-primary flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white border-green-700 shadow-md hover:shadow-lg"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Confirm & Save Order
@@ -562,6 +579,12 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
+
+  // Use React Portal to render the modal at the root level so it covers everything including the sidebar
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+  return null;
 }
