@@ -6,6 +6,7 @@ import '../providers/trip_provider.dart';
 import '../utils/constants.dart';
 import '../utils/date_formatter.dart';
 import 'chat_screen.dart';
+import 'package:dio/dio.dart';
 
 class TripDashboardScreen extends StatefulWidget {
   final Map<String, dynamic> trip;
