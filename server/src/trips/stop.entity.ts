@@ -20,7 +20,7 @@ export class Stop {
   @ManyToOne(() => Trip, (trip) => trip.stops, { onDelete: 'CASCADE' })
   trip: Trip;
 
-  @Column({ type: 'int' })
+  @Column({ type: 'int', default: 1 })
   sequence: number; // e.g. 1, 2, 3 (renamed from orderIndex)
 
   @Column()
