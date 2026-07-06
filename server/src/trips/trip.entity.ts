@@ -81,7 +81,7 @@ export class Trip {
   lockedUntil: Date;
 
   // Optimistic Locking
-  @Column({ default: 1 })
+  @Column({ default: 1, nullable: true })
   version: number;
 
   // Relations
