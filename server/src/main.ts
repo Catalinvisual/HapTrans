@@ -26,7 +26,7 @@ async function bootstrap() {
       'https://hapcargo.ro',
       'https://www.hapcargo.ro',
       'https://haptrans-production.up.railway.app',
-      'https://joyfull-exploration-production.up.railway.app',
+      'https://joyful-exploration-production.up.railway.app',
       /\.railway\.app$/,
     ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
