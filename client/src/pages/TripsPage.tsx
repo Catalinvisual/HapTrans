@@ -1583,16 +1583,21 @@ export default function TripsPage() {
                 { value: 'cancelled', label: t('cancelled') },
               ]}
             />
-            <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold border-primary/20 hover:border-primary/50 text-primary transition-all">
-              <Download className="w-4 h-4" /> {t('export')}
-            </button>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
-              {filtered.length} {t('results')}
-            </span>
-            <button onClick={() => { setShowForm(!showForm); setEditId(null); }} className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold">
-              <Plus className="w-4 h-4" /> {t('addTrip')}
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setShowExport(true)} 
+              className="btn-secondary px-3"
+              title={t('exportData', 'Exportă date')}
+            >
+              <Download className="w-5 h-5" />
+            </button>
+            <button onClick={() => navigate('/planning')} className="btn-secondary whitespace-nowrap hidden sm:flex">
+              {t('plannerView', 'Planner View')}
+            </button>
+            <button onClick={() => setShowForm(true)} className="btn-primary whitespace-nowrap">
+              <Plus className="w-5 h-5 sm:mr-2" />
+              <span className="hidden sm:inline">{t('addTrip', 'Adaugă cursă')}</span>
             </button>
           </div>
         </div>

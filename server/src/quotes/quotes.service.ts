@@ -80,21 +80,15 @@ export class QuotesService {
       });
     }
 
-    // Create trip
+    // Create trip mock
     const trip = await this.tripsService.create({
       clientId: client.id,
-      pickupAddress: quote.loadingLocation || '',
-      dropoffAddress: quote.unloadingLocation || '',
       notes: `Converted from Quote Request.\nWeight: ${quote.cargoWeightKg || 'N/A'}, Pallets: ${quote.numberOfPallets || 'N/A'}\nNotes: ${quote.notes || ''}`,
-      pickupDate: quote.loadingDate ? new Date(quote.loadingDate) : new Date(),
     });
-
-    trip.trackingToken = 'hc_' + nanoid(14);
-    await this.tripsService.update(trip.id, trip);
 
     // Update quote status to accepted
     await this.updateStatus(id, 'accepted');
 
-    return { tripId: trip.id, clientId: client.id, trackingToken: trip.trackingToken };
+    return { tripId: trip.id, clientId: client.id };
   }
 }

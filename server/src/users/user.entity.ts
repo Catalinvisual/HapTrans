@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne, ManyToOne } from 'typeorm';
 import { Driver } from '../drivers/driver.entity';
+import { Company } from '../companies/company.entity';
 
 export enum UserRole {
   ADMIN = 'admin',
@@ -44,6 +45,9 @@ export class User {
 
   @Column({ default: true })
   isActive: boolean;
+
+  @ManyToOne(() => Company, (company) => company.users, { nullable: true })
+  company: Company;
 
   @OneToOne(() => Driver, (driver) => driver.user, { nullable: true })
   driver: Driver;

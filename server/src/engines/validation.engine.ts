@@ -1,0 +1,32 @@
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { Order, OrderStatus } from '../orders/order.entity';
+import { Trip } from '../trips/trip.entity';
+
+@Injectable()
+export class ValidationEngine {
+  validateOrder(orderDto: any): void {
+    if (!orderDto.clientId) {
+      throw new BadRequestException('Client ID is required');
+    }
+    if (!orderDto.stops || orderDto.stops.length < 2) {
+      throw new BadRequestException('An order must have at least one pickup and one dropoff stop');
+    }
+    // Basic structural validation
+  }
+
+  validateTrip(tripDto: any): void {
+    if (!tripDto.companyId) {
+      throw new BadRequestException('Company ID is required');
+    }
+  }
+
+  validateOrderAssignment(order: Order, trip: Trip): void {
+    if (order.status !== OrderStatus.DRAFT && order.status !== OrderStatus.PARTIALLY_ASSIGNED) {
+      throw new BadRequestException(`Order ${order.orderNumber} is not available for assignment`);
+    }
+    // Check if trip company matches order company
+    if (trip.company?.id !== order.company?.id) {
+      throw new BadRequestException('Cross-tenant assignment is not allowed');
+    }
+  }
+}

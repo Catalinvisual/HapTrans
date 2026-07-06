@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
 import { Trip } from './trip.entity';
 import { StopTask } from './stop-task.entity';
+import { Company } from '../companies/company.entity';
 
 export enum StopStatus {
   PENDING = 'pending',
@@ -13,11 +14,14 @@ export class Stop {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @ManyToOne(() => Company, { nullable: true, onDelete: 'CASCADE' })
+  company: Company;
+
   @ManyToOne(() => Trip, (trip) => trip.stops, { onDelete: 'CASCADE' })
   trip: Trip;
 
   @Column({ type: 'int' })
-  orderIndex: number; // e.g. 1, 2, 3
+  sequence: number; // e.g. 1, 2, 3 (renamed from orderIndex)
 
   @Column()
   address: string;
@@ -29,25 +33,25 @@ export class Stop {
   country: string;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
-  lat: number;
+  latitude: number;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
-  lng: number;
+  longitude: number;
 
   @Column({ type: 'enum', enum: StopStatus, default: StopStatus.PENDING })
   status: StopStatus;
 
   @Column({ type: 'timestamp', nullable: true })
-  eta: Date; // Calculated live ETA
+  eta: Date; // Estimated Time of Arrival
+
+  @Column({ type: 'timestamp', nullable: true })
+  ata: Date; // Actual Time of Arrival
 
   @Column({ nullable: true })
   etaStatus: string; // 'on_time', 'delayed'
 
   @Column({ nullable: true })
   distanceToStopKm: number;
-
-  @Column({ type: 'timestamp', nullable: true })
-  arrivedAt: Date;
 
   @Column({ type: 'timestamp', nullable: true })
   completedAt: Date;

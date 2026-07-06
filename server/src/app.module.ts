@@ -33,8 +33,13 @@ import { QuotesModule } from './quotes/quotes.module';
 import { JobApplicationsModule } from './job-applications/job-applications.module';
 import { OrdersModule } from './orders/orders.module';
 
+import { EnginesModule } from './engines/engines.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+
 @Module({
   imports: [
+    EventEmitterModule.forRoot(),
+    EnginesModule,
     ScheduleModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({

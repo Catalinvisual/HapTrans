@@ -63,7 +63,7 @@ export class TnasService {
         filename: d.originalFilename || d.fileName,
         category: 'Documents',
         signedUrl: this.generateSignedUrl(d, 15 * 60),
-        createdAt: d.createdAt,
+        createdAt: d.uploadedAt,
       });
     }
 

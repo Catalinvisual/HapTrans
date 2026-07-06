@@ -1,6 +1,5 @@
 import { Controller, Get, Req, Param, NotFoundException } from '@nestjs/common';
 import { TripsService } from '../trips/trips.service';
-import { TripStatus } from '../trips/trip.entity';
 
 @Controller('track')
 export class TrackController {
@@ -23,32 +22,15 @@ export class TrackController {
 
     // Only return safe public data
     return {
-      referenceNumber: trip.referenceNumber,
-      pickupCountry: trip.pickupCountry,
-      pickupAddress: trip.pickupAddress,
-      dropoffCountry: trip.dropoffCountry,
-      dropoffAddress: trip.dropoffAddress,
-      pickupDate: trip.pickupDate,
-      pickupTime: trip.pickupTime,
-      dropoffDate: trip.dropoffDate,
-      dropoffTime: trip.dropoffTime,
-      weightKg: trip.weightKg,
-      pallets: trip.pallets,
-      distanceKm: trip.distanceKm,
+      referenceNumber: trip.tripNumber,
       status: trip.status,
       updatedAt: trip.updatedAt,
-      appointmentFrom: trip.appointmentFrom,
-      appointmentTo: trip.appointmentTo,
-      lastLiveEta: trip.lastLiveEta,
-      etaConfidence: trip.etaConfidence,
-      etaStatus: trip.etaStatus,
-      etaSource: trip.etaSource,
       // filter documents to only show relevant public ones, e.g. CMR, invoice (if paid), pictures
       documents: trip.documents?.map(doc => ({
         id: doc.id,
         name: doc.fileName,
         url: doc.fileUrl,
-        type: doc.type,
+        type: doc.documentType,
       })) || []
     };
   }

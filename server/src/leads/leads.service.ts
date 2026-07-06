@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Lead, LeadStatus } from './lead.entity';
@@ -13,10 +13,10 @@ export class LeadsService {
   constructor(
     @InjectRepository(Lead)
     private readonly leadRepo: Repository<Lead>,
-    private readonly clientsService: ClientsService,
-    private readonly tripsService: TripsService,
-    private readonly resendService: ResendService,
-    private readonly quotesService: QuotesService,
+    private clientsService: ClientsService,
+    private tripsService: TripsService,
+    private quotesService: QuotesService,
+    private resendService: ResendService,
   ) {}
 
   async create(createLeadDto: any): Promise<Lead> {
@@ -55,30 +55,22 @@ export class LeadsService {
         name: lead.name,
         contactEmail: lead.email,
         phone: lead.phone,
-        address: lead.from, // best guess
+        address: lead.from,
       });
     }
 
-    // Create trip
+    // Create trip mock
     const trip = await this.tripsService.create({
       clientId: client.id,
-      pickupAddress: lead.from,
-      dropoffAddress: lead.to,
-      notes: `Generated from Website Lead. Weight: ${lead.weight}, Type: ${lead.type}\nNotes: ${lead.notes || ''}`,
-      pickupDate: new Date(),
+      notes: `Converted from lead. Weight: ${lead.weight || 'N/A'}. Addr: ${lead.from} -> ${lead.to}`
     });
-
-    // Generate tracking token for trip
-    trip.trackingToken = lead.trackingToken;
-    await this.tripsService.update(trip.id, trip);
 
     // Update lead status
     await this.update(id, { status: LeadStatus.ACCEPTED });
 
-    // Send email to client
-    await this.resendService.sendTripStatusEmail(lead.email, trip.trackingToken);
+    // Generate tracking token for trip is removed
 
-    return { tripId: trip.id, clientId: client.id, trackingToken: trip.trackingToken };
+    return { tripId: trip.id, clientId: client.id };
   }
 
   async convertToQuote(id: string): Promise<any> {
@@ -86,16 +78,15 @@ export class LeadsService {
     if (!lead) throw new NotFoundException('Lead not found');
 
     const quoteData = {
-      companyName: lead.name || 'Company from Lead',
-      contactPerson: lead.name,
-      phone: lead.phone || 'N/A',
-      email: lead.email || 'no-email@example.com',
-      loadingLocation: lead.from || 'N/A',
-      unloadingLocation: lead.to || 'N/A',
-      cargoWeightKg: lead.weight || '',
-      numberOfPallets: lead.pallets || '',
-      cargoType: lead.type || 'General',
-      notes: `Generated from Website Calculator Lead.\nEstimated Price seen by client: ${lead.estimatedPrice || 'N/A'}\nNotes: ${lead.notes || ''}`
+      companyName: lead.name,
+      email: lead.email,
+      phone: lead.phone,
+      loadingLocation: lead.from,
+      unloadingLocation: lead.to,
+      loadingDate: new Date().toISOString(),
+      cargoWeightKg: lead.weight ? lead.weight.toString() : '',
+      notes: `Converted from Lead ${id}`,
+      status: 'pending' as any
     };
 
     const quote = await this.quotesService.create(quoteData);

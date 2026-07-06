@@ -159,20 +159,47 @@ export default function TripDetailsPage() {
             <div className="relative pl-6 space-y-8">
               {trip.stops && trip.stops.length > 0 ? (
                 // --- NEW ROUTE TIMELINE ---
-                [...trip.stops].sort((a, b) => a.orderIndex - b.orderIndex).map((stop: any, index: number, arr: any[]) => {
+                [...trip.stops].sort((a, b) => a.sequence - b.sequence).map((stop: any, index: number, arr: any[]) => {
                   const isLast = index === arr.length - 1;
-                  const hasPickup = stop.tasks?.some((t: any) => t.type === 'pickup');
+                  const isFirst = index === 0;
+                  const hasPickup = stop.tasks?.some((t: any) => t.type === 'load');
                   const markerColor = hasPickup ? 'blue' : 'green';
                   const markerBorderClass = hasPickup ? 'border-blue-500' : 'border-green-500';
                   const textClass = hasPickup ? 'text-blue-600' : 'text-green-600';
 
+                  const handleReorder = async (direction: 'up' | 'down') => {
+                    const sortedStops = [...trip.stops].sort((a, b) => a.sequence - b.sequence);
+                    const stopIndex = sortedStops.findIndex(s => s.id === stop.id);
+                    if (direction === 'up' && stopIndex > 0) {
+                      const temp = sortedStops[stopIndex];
+                      sortedStops[stopIndex] = sortedStops[stopIndex - 1];
+                      sortedStops[stopIndex - 1] = temp;
+                    } else if (direction === 'down' && stopIndex < sortedStops.length - 1) {
+                      const temp = sortedStops[stopIndex];
+                      sortedStops[stopIndex] = sortedStops[stopIndex + 1];
+                      sortedStops[stopIndex + 1] = temp;
+                    }
+                    try {
+                      await api.post(`/trips/${trip.id}/stops/reorder`, { stopIds: sortedStops.map(s => s.id) });
+                      // Reload window for simplicity
+                      window.location.reload();
+                    } catch (e) {
+                      toast.error('Failed to reorder stops');
+                    }
+                  };
+
                   return (
-                    <div key={stop.id} className="relative">
+                    <div key={stop.id} className="relative group">
                       <div className={`absolute -left-[35px] top-1 w-4 h-4 rounded-full border-4 ${markerBorderClass} bg-card z-10`}></div>
                       {!isLast && <div className="absolute -left-[28px] top-5 w-0.5 h-full bg-border -z-0"></div>}
                       
+                      <div className="absolute -left-[70px] top-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center">
+                        <button disabled={isFirst} onClick={() => handleReorder('up')} className="p-1 text-text-secondary hover:text-primary disabled:opacity-30">▲</button>
+                        <button disabled={isLast} onClick={() => handleReorder('down')} className="p-1 text-text-secondary hover:text-primary disabled:opacity-30">▼</button>
+                      </div>
+
                       <span className={`text-xs font-bold ${textClass} uppercase tracking-wider mb-1 block flex justify-between`}>
-                        {t('stopIndex', 'Stop {{index}}', { index: stop.orderIndex })} - {t(stop.status)}
+                        {t('stopIndex', 'Stop {{index}}', { index: stop.sequence })} - {t(stop.status)}
                         {stop.eta && (
                           <span className={`px-2 py-0.5 rounded ${stop.etaStatus === 'delayed' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                             ETA: {formatDate(stop.eta)}

@@ -120,7 +120,7 @@ export class DocumentsController {
       const roleLabel = req.user.role === 'driver' ? 'Șofer' : (req.user.role === 'client' ? 'Client' : 'Dispecerat / Admin');
       let tripRef = body.tripId || 'N/A';
       if (doc.trip) {
-        tripRef = doc.trip.referenceNumber || doc.trip.cmrReference || doc.trip.loadingReference || `${doc.trip.pickupCompanyName || doc.trip.pickupAddress || ''} -> ${doc.trip.dropoffCompanyName || doc.trip.dropoffAddress || ''}`;
+        tripRef = doc.trip.tripNumber || 'Trip';
       }
       await this.notificationsService.create({
         type: 'document',

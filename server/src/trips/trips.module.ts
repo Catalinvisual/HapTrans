@@ -19,6 +19,7 @@ import { RoutingModule } from '../routing/routing.module';
 import { ClientsModule } from '../clients/clients.module';
 import { TrucksModule } from '../trucks/trucks.module';
 import { UsersModule } from '../users/users.module';
+import { EnginesModule } from '../engines/engines.module';
 
 import { ResendService } from '../email/resend.service';
 import * as multer from 'multer';
@@ -41,6 +42,7 @@ const storage = multer.memoryStorage();
     NotificationsModule,
     InvoicesModule,
     RoutingModule,
+    EnginesModule,
     forwardRef(() => ClientsModule),
     forwardRef(() => TrucksModule),
     UsersModule,

@@ -28,7 +28,6 @@ export class PayrollService {
     const results = [];
 
     for (const user of users) {
-      // Find trips completed by this user if they are a driver
       let totalDaysWorked = 0;
       
       if (user.role === 'driver') {
@@ -36,22 +35,20 @@ export class PayrollService {
           where: {
             driver: { user: { id: user.id } },
             status: TripStatus.COMPLETED,
-            dropoffDate: Between(startDate, endDate)
+            actualArrival: Between(startDate, endDate)
           },
           relations: ['driver', 'driver.user']
         });
 
-        // Calculate total days worked in trips
         trips.forEach(t => {
-           const pDate = new Date(`${t.pickupDate}T${t.pickupTime || '00:00'}:00`);
-           const dDate = new Date(`${t.dropoffDate}T${t.dropoffTime || '23:59'}:00`);
+           const pDate = t.actualDeparture || new Date();
+           const dDate = t.actualArrival || new Date();
            const hours = (dDate.getTime() - pDate.getTime()) / (1000 * 60 * 60);
            const days = Math.max(1, Math.ceil(hours / 24));
            totalDaysWorked += days;
         });
       }
 
-      // We generate payroll only if the user has a grossSalary or has worked trips
       if (!user.grossSalary && totalDaysWorked === 0) continue;
 
       let payroll = await this.repo.findOne({ where: { user: { id: user.id }, month, year } });
@@ -68,13 +65,9 @@ export class PayrollService {
       const grossSalary = Number(user.grossSalary) || 0;
       const dailyAllowanceRate = Number(user.dailyRate) || 0;
       
-      // Loonheffing ~36.97%
       const taxAmount = grossSalary * 0.3697;
       const netSalary = grossSalary - taxAmount;
-      
-      // Vakantiegeld 8%
       const holidayAllowance = grossSalary * 0.08;
-
       const totalAllowance = totalDaysWorked * dailyAllowanceRate;
 
       payroll.grossSalary = grossSalary;
@@ -104,7 +97,6 @@ export class PayrollService {
     if (dto.status !== undefined) payroll.status = dto.status;
     if (dto.pdfData !== undefined) payroll.pdfData = dto.pdfData;
 
-    // Recalculate net to pay if bonuses or deductions change
     const totalNetToPay = Number(payroll.netSalary) + Number(payroll.totalAllowance) + Number(payroll.bonuses) - Number(payroll.deductions);
     payroll.totalNetToPay = totalNetToPay;
 

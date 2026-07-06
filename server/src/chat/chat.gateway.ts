@@ -48,7 +48,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         try {
           const tObj = await this.tripsService.findOne(data.tripId);
           if (tObj) {
-            const ref = tObj.referenceNumber || tObj.cmrReference || tObj.loadingReference || `${tObj.pickupCompanyName || tObj.pickupAddress || ''} -> ${tObj.dropoffCompanyName || tObj.dropoffAddress || ''}`;
+            const ref = tObj.tripNumber || tObj.id;
             tripContext = ` (Cursa: ${ref})`;
           }
         } catch (e) {}
@@ -117,7 +117,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       const trip = await this.tripsService.findOne(data.tripId);
       const driverName = trip?.driver?.user?.name || 'Șofer';
-      const tripRef = trip?.referenceNumber || trip?.cmrReference || trip?.loadingReference || `${trip?.pickupCompanyName || trip?.pickupAddress || ''} -> ${trip?.dropoffCompanyName || trip?.dropoffAddress || ''}`;
+      const tripRef = trip?.tripNumber || trip?.id || 'Necunoscut';
       
       const statusMap: Record<string, string> = {
         pending: 'În Așteptare (Pending)',

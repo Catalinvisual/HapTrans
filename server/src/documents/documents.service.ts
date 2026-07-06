@@ -17,7 +17,7 @@ export class DocumentsService {
   
   getDebugDocs() {
     return this.repo.find({
-      order: { createdAt: 'DESC' },
+      order: { uploadedAt: 'DESC' },
       take: 10,
     });
   }
@@ -118,7 +118,7 @@ export class DocumentsService {
       id: doc.id,
       filename: doc.originalFilename || doc.fileName,
       signedUrl: this.generateSignedUrl(doc, 15 * 60), // 15 mins
-      createdAt: doc.createdAt,
+      uploadedAt: doc.uploadedAt,
     }));
   }
 

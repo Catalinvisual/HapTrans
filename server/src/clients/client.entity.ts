@@ -1,13 +1,17 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
-import { Trip } from '../trips/trip.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne } from 'typeorm';
 import { Invoice } from '../invoices/invoice.entity';
 import { ClientRate } from './client-rate.entity';
 import { Order } from '../orders/order.entity';
+
+import { Company } from '../companies/company.entity';
 
 @Entity('clients')
 export class Client {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @ManyToOne(() => Company, { nullable: true, onDelete: 'CASCADE' })
+  company: Company;
 
   @Column()
   name: string;
@@ -44,9 +48,6 @@ export class Client {
 
   @OneToMany(() => ClientRate, rate => rate.client)
   rates: ClientRate[];
-
-  @OneToMany(() => Trip, (trip) => trip.client)
-  trips: Trip[];
 
   @OneToMany(() => Order, (order) => order.client)
   orders: Order[];

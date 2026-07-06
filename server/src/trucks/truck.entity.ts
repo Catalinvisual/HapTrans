@@ -1,7 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne } from 'typeorm';
 import { Trip } from '../trips/trip.entity';
 import { TruckDocument } from './truck-document.entity';
 import { Maintenance } from '../maintenance/maintenance.entity';
+
+import { Company } from '../companies/company.entity';
 
 export enum TruckStatus {
   ACTIVE = 'active',
@@ -14,6 +16,9 @@ export enum TruckStatus {
 export class Truck {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @ManyToOne(() => Company, { nullable: true, onDelete: 'CASCADE' })
+  company: Company;
 
   @Column({ unique: true })
   plateNumber: string;

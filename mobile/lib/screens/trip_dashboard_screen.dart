@@ -314,8 +314,13 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
                         ),
                         if (isArrived && !isDone)
                           ElevatedButton(
-                            onPressed: () {
-                              // Action to complete task
+                            onPressed: () async {
+                              try {
+                                await Dio().patch('$kApiUrl/trips/tasks/${task['id']}/status', data: {'status': 'completed'});
+                                _refreshTrip();
+                              } catch (e) {
+                                debugPrint('Error completing task: $e');
+                              }
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: kPrimary,
@@ -355,14 +360,37 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
                   if (!isArrived)
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
-                          // TODO: mark stop arrived
+                        onPressed: () async {
+                          try {
+                            await Dio().patch('$kApiUrl/trips/stops/${stop['id']}/status', data: {'status': 'arrived'});
+                            _refreshTrip();
+                          } catch (e) {
+                            debugPrint('Error arriving at stop: $e');
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
                         child: Text({'ro':'Am ajuns','en':'Arrived'}[widget.locale] ?? 'Arrived'),
+                      ),
+                    ),
+                  if (isArrived && tasks.every((t) => t['status'] == 'completed'))
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          try {
+                            await Dio().patch('$kApiUrl/trips/stops/${stop['id']}/status', data: {'status': 'completed'});
+                            _refreshTrip();
+                          } catch (e) {
+                            debugPrint('Error completing stop: $e');
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kSuccess,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: Text({'ro':'Plecare (Finalizare Oprire)','en':'Depart (Complete Stop)'}[widget.locale] ?? 'Depart (Complete Stop)'),
                       ),
                     ),
                 ],

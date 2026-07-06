@@ -87,8 +87,12 @@ export default function OrdersPage() {
                       <td className="p-3 capitalize">
                         <span className="badge badge-gray">{order.status}</span>
                       </td>
-                      <td className="p-3">{order.weightKg || '-'} kg</td>
-                      <td className="p-3">{order.pallets || '-'}</td>
+                      <td className="p-3">
+                        {order.cargoItems?.reduce((sum: number, item: any) => sum + (item.weightKg || 0), 0) || '-'} kg
+                      </td>
+                      <td className="p-3">
+                        {order.cargoItems?.filter((i: any) => i.unit === 'pallet').reduce((sum: number, item: any) => sum + (item.quantity || 0), 0) || '-'}
+                      </td>
                       <td className="p-3 text-right">
                         {/* Placeholder for actions */}
                       </td>

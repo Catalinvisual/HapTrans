@@ -3,16 +3,27 @@ import { Trip } from '../trips/trip.entity';
 import { User } from '../users/user.entity';
 import { Order } from '../orders/order.entity';
 import { StopTask } from '../trips/stop-task.entity';
+import { Company } from '../companies/company.entity';
+
+export enum DocumentType {
+  CMR = 'cmr',
+  INVOICE = 'invoice',
+  POD = 'pod',
+  PACKING_LIST = 'packing_list',
+  PHOTO = 'photo',
+  OTHER = 'other',
+}
+
 @Entity('documents')
 export class Document {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Trip, (trip) => trip.documents, { onDelete: 'CASCADE' })
-  trip: Trip;
+  @ManyToOne(() => Company, { nullable: true, onDelete: 'CASCADE' })
+  company: Company;
 
-  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
-  uploadedBy: User;
+  @ManyToOne(() => Trip, (trip) => trip.documents, { onDelete: 'CASCADE', nullable: true })
+  trip: Trip;
 
   @ManyToOne(() => Order, (order) => order.documents, { onDelete: 'CASCADE', nullable: true })
   order: Order;
@@ -20,15 +31,23 @@ export class Document {
   @ManyToOne(() => StopTask, (stopTask) => stopTask.documents, { onDelete: 'CASCADE', nullable: true })
   stopTask: StopTask;
 
-  @Column()
-  type: string; // CMR, Aviz, Factura, Foto, etc.
+  @Column({ type: 'enum', enum: DocumentType, default: DocumentType.OTHER })
+  documentType: DocumentType;
 
-  @Column()
+  @Column({ nullable: true })
   fileName: string;
 
   @Column({ nullable: true })
   fileUrl: string;
 
+  // Verification
+  @Column({ default: false })
+  verified: boolean;
+
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+  verifiedBy: User;
+
+  // Cloudinary metadata
   @Column({ nullable: true })
   publicId: string;
 
@@ -56,6 +75,9 @@ export class Document {
   @Column({ nullable: true })
   notes: string;
 
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+  uploadedBy: User;
+
   @CreateDateColumn()
-  createdAt: Date;
+  uploadedAt: Date; // Renamed from createdAt for clarity
 }

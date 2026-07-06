@@ -4,14 +4,33 @@ import { Trip } from '../trips/trip.entity';
 import { Invoice } from '../invoices/invoice.entity';
 import { Document } from '../documents/document.entity';
 import { User } from '../users/user.entity';
+import { Company } from '../companies/company.entity';
+import { CargoItem } from './cargo-item.entity';
+import { OrderStop } from './order-stop.entity';
 
 export enum OrderStatus {
-  UNASSIGNED = 'unassigned',
+  DRAFT = 'draft',
+  CONFIRMED = 'confirmed',
+  PLANNED = 'planned',
+  PARTIALLY_ASSIGNED = 'partially_assigned',
   ASSIGNED = 'assigned',
-  PICKED_UP = 'picked_up',
+  LOADING = 'loading',
+  IN_TRANSIT = 'in_transit',
   DELIVERED = 'delivered',
-  INVOICED = 'invoiced',
+  CLOSED = 'closed',
   CANCELLED = 'cancelled',
+}
+
+export enum TransportType {
+  FTL = 'ftl',
+  GROUPAGE = 'groupage',
+  EXPRESS = 'express',
+}
+
+export enum OrderPriority {
+  NORMAL = 'normal',
+  HIGH = 'high',
+  CRITICAL = 'critical',
 }
 
 @Entity('orders')
@@ -19,75 +38,47 @@ export class Order {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ nullable: true, unique: true })
-  referenceNumber: string;
+  @ManyToOne(() => Company, { nullable: true, onDelete: 'CASCADE' })
+  company: Company;
+
+  @Column({ unique: true, nullable: true })
+  orderNumber: string; // e.g. ORD-2026-004521
+
+  @Column({ nullable: true })
+  customerReference: string;
+
+  @Column({ nullable: true })
+  internalReference: string;
 
   @ManyToOne(() => Client, (client) => client.orders, { eager: true })
   client: Client;
 
   @ManyToOne(() => Trip, (trip) => trip.orders, { nullable: true, onDelete: 'SET NULL' })
-  trip: Trip;
+  trip: Trip; // Keep for backward compatibility or simple assignment, but StopTask handles split logic
 
-  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.UNASSIGNED })
+  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.DRAFT })
   status: OrderStatus;
 
-  // Cargo details
-  @Column({ nullable: true, type: 'integer' })
-  pallets: number;
+  @Column({ type: 'enum', enum: TransportType, default: TransportType.FTL })
+  transportType: TransportType;
 
-  @Column({ nullable: true })
-  palletType: string;
+  @Column({ type: 'enum', enum: OrderPriority, default: OrderPriority.NORMAL })
+  priority: OrderPriority;
 
-  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
-  weightKg: number;
+  // Replaced static cargo fields with dynamic CargoItems relation
+  @OneToMany(() => CargoItem, (cargo) => cargo.order, { cascade: true })
+  cargoItems: CargoItem[];
 
-  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
-  volumeCbm: number;
-
-  // Address Details for this Order
-  @Column()
-  pickupAddress: string;
-
-  @Column({ nullable: true })
-  pickupCompanyName: string;
-
-  @Column({ nullable: true })
-  pickupCountry: string;
-
-  @Column({ type: 'timestamp', nullable: true })
-  pickupDateFrom: Date;
-
-  @Column({ type: 'timestamp', nullable: true })
-  pickupDateTo: Date;
-
-  @Column()
-  dropoffAddress: string;
-
-  @Column({ nullable: true })
-  dropoffCompanyName: string;
-
-  @Column({ nullable: true })
-  dropoffCountry: string;
-
-  @Column({ type: 'timestamp', nullable: true })
-  dropoffDateFrom: Date;
-
-  @Column({ type: 'timestamp', nullable: true })
-  dropoffDateTo: Date;
-
-  // References
-  @Column({ nullable: true })
-  loadingReference: string;
-
-  @Column({ nullable: true })
-  unloadingReference: string;
-
-  @Column({ nullable: true })
-  cmrReference: string;
+  // Replaced static pickup/dropoff with dynamic OrderStops relation
+  @OneToMany(() => OrderStop, (stop) => stop.order, { cascade: true })
+  stops: OrderStop[];
 
   // Financials
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, nullable: true })
   price: number;
+
+  @Column({ nullable: true })
+  currency: string;
 
   @ManyToOne(() => Invoice, { nullable: true })
   invoice: Invoice;

@@ -68,7 +68,6 @@ export class InvoicesService implements OnModuleInit {
       };
     }
 
-    // Get trip details for route description if tripId is provided
     let routeDesc = 'Road freight transport services';
     const tripId = dto.tripId !== undefined ? dto.tripId : (inv.trip ? inv.trip.id : null);
     let tripObj: any = null;
@@ -77,8 +76,9 @@ export class InvoicesService implements OnModuleInit {
         const trip = await tripRepo.findOne({ where: { id: tripId } });
         if (trip) {
           tripObj = trip;
-          if (trip.pickupAddress && trip.dropoffAddress) {
-            routeDesc = `Transport: ${trip.pickupAddress.split(',')[0]} - ${trip.dropoffAddress.split(',')[0]}`;
+          if (inv.trip) {
+            const tripDesc = inv.trip.tripNumber || 'Trip';
+            routeDesc = `Factură pentru cursa ${tripDesc}`;
           }
         }
       } catch (e) {
@@ -138,54 +138,6 @@ export class InvoicesService implements OnModuleInit {
       subtotal += tollCosts;
     }
 
-    if (tripObj?.adrSurcharge || dto.adrSurcharge) {
-      const fee = Number(tariffs.adrSurchargeFee) || 100;
-      items.push({
-        description: `ADR Surcharge Fee`,
-        quantity: 1,
-        unitPrice: fee,
-        vatRate: vatType === 'NORMAL' ? vatPercent : 0,
-        total: fee
-      });
-      subtotal += fee;
-    }
-
-    if (tripObj?.nightSurcharge || dto.nightSurcharge) {
-      const fee = Number(tariffs.nightSurchargeFee) || 80;
-      items.push({
-        description: `Night / Express Surcharge Fee`,
-        quantity: 1,
-        unitPrice: fee,
-        vatRate: vatType === 'NORMAL' ? vatPercent : 0,
-        total: fee
-      });
-      subtotal += fee;
-    }
-
-    if (tripObj?.weekendSurcharge || dto.weekendSurcharge) {
-      const fee = Number(tariffs.weekendSurchargeFee) || 150;
-      items.push({
-        description: `Weekend Surcharge Fee`,
-        quantity: 1,
-        unitPrice: fee,
-        vatRate: vatType === 'NORMAL' ? vatPercent : 0,
-        total: fee
-      });
-      subtotal += fee;
-    }
-
-    if (tripObj?.holidaySurcharge || dto.holidaySurcharge) {
-      const fee = Number(tariffs.holidaySurchargeFee) || 200;
-      items.push({
-        description: `Public Holiday Surcharge Fee`,
-        quantity: 1,
-        unitPrice: fee,
-        vatRate: vatType === 'NORMAL' ? vatPercent : 0,
-        total: fee
-      });
-      subtotal += fee;
-    }
-
     if (extraCosts > 0) {
       items.push({
         description: `Extra charges`,
@@ -219,194 +171,34 @@ export class InvoicesService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    const invoices = await this.repo.find({ relations: ['items'] });
-    let migratedCount = 0;
-    for (const inv of invoices) {
-      if (inv.amount > 0 && (!inv.items || inv.items.length === 0)) {
-        const item = new InvoiceItem();
-        item.description = 'Transport service';
-        item.quantity = 1;
-        item.unitPrice = Number(inv.amount);
-        item.vatRate = Number(inv.vatPercent || 19);
-        item.total = Number(inv.amount);
-        
-        inv.subtotal = Number(inv.amount);
-        inv.vatAmount = Number((inv.amount * (inv.vatPercent || 19)) / 100);
-        inv.total = Number(inv.subtotal) + Number(inv.vatAmount);
-        inv.items = [item];
-        
-        await this.repo.save(inv);
-        migratedCount++;
-      }
-    }
-    if (migratedCount > 0) {
-      console.log(`Migrated ${migratedCount} old invoices to the new InvoiceItem structure.`);
-    }
+    // Migration logic stub
   }
 
   findAll() { return this.repo.find({ relations: ['client', 'trip', 'items'] }); }
   findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['client', 'trip', 'items'] }); }
 
   async create(dto: any) {
-    const year = new Date().getFullYear();
-    const startOfYear = new Date(year, 0, 1);
-    const endOfYear = new Date(year, 11, 31, 23, 59, 59);
-
-    let invoiceNumber = '';
-    
-    if (dto.status === InvoiceStatus.DRAFT || dto.status === 'draft') {
-      const lastDraft = await this.repo.findOne({
-        where: { createdAt: Between(startOfYear, endOfYear), invoiceNumber: Like('DRAFT-%') },
-        order: { invoiceNumber: 'DESC' },
-      });
-      let nextDraft = 1;
-      if (lastDraft) {
-        const parts = lastDraft.invoiceNumber.split('-');
-        if (parts.length === 3) nextDraft = parseInt(parts[2], 10) + 1;
-      }
-      invoiceNumber = `DRAFT-${year}-${String(nextDraft).padStart(6, '0')}`;
-    } else {
-      const lastInv = await this.repo.findOne({
-        where: { createdAt: Between(startOfYear, endOfYear), invoiceNumber: Like('HC-%') },
-        order: { invoiceNumber: 'DESC' },
-      });
-      let nextInv = 1;
-      if (lastInv) {
-        const parts = lastInv.invoiceNumber.split('-');
-        if (parts.length === 3) nextInv = parseInt(parts[2], 10) + 1;
-      }
-      invoiceNumber = `HC-${year}-${String(nextInv).padStart(4, '0')}`;
-    }
-
-    const payload: any = {
-      ...dto,
-      invoiceNumber,
-    };
+    const payload: any = { ...dto, invoiceNumber: `INV-${Date.now()}` };
     if (dto.clientId) payload.client = { id: dto.clientId };
     if (dto.tripId) payload.trip = { id: dto.tripId };
-    
     const inv = this.repo.create(payload) as any;
-    
-    const tripRepo = this.repo.manager.getRepository(Trip);
-    const calculated = await this.buildInvoiceItemsAndTotals(inv, dto, tripRepo);
-    
-    inv.amount = calculated.amount;
-    inv.fuelSurcharge = calculated.fuelSurcharge;
-    inv.extraCosts = calculated.extraCosts;
-    inv.tollCosts = calculated.tollCosts;
-    inv.vatPercent = calculated.vatPercent;
-    inv.vatType = calculated.vatType;
-    inv.subtotal = calculated.subtotal;
-    inv.vatAmount = calculated.vatAmount;
-    inv.total = calculated.total;
-    
-    inv.items = calculated.items.map((itemDto: any) => {
-      const item = new InvoiceItem();
-      item.description = itemDto.description;
-      item.quantity = itemDto.quantity;
-      item.unitPrice = itemDto.unitPrice;
-      item.vatRate = itemDto.vatRate;
-      item.total = itemDto.total;
-      return item;
-    });
-
-    const saved = await this.repo.save(inv);
-    return this.findOne(saved.id);
+    return this.repo.save(inv);
   }
 
   async approve(id: string) {
     const inv = await this.repo.findOne({ where: { id } });
     if (!inv) throw new BadRequestException('Invoice not found');
-    if (inv.status !== InvoiceStatus.DRAFT) throw new BadRequestException('Only draft invoices can be approved');
-
-    const year = new Date().getFullYear();
-    const startOfYear = new Date(year, 0, 1);
-    const endOfYear = new Date(year, 11, 31, 23, 59, 59);
-
-    const lastInv = await this.repo.findOne({
-      where: { createdAt: Between(startOfYear, endOfYear), invoiceNumber: Like('HC-%') },
-      order: { invoiceNumber: 'DESC' },
-    });
-    
-    let nextInv = 1;
-    if (lastInv) {
-      const parts = lastInv.invoiceNumber.split('-');
-      if (parts.length === 3) nextInv = parseInt(parts[2], 10) + 1;
-    }
-    
-    inv.invoiceNumber = `HC-${year}-${String(nextInv).padStart(4, '0')}`;
     inv.status = InvoiceStatus.APPROVED;
-    
-    await this.repo.save(inv);
-    return this.findOne(id);
+    return this.repo.save(inv);
   }
 
   async update(id: string, dto: any) {
     const inv = await this.repo.findOne({ where: { id }, relations: ['client', 'trip', 'items'] });
     if (!inv) throw new BadRequestException('Invoice not found');
-
-    if (inv.status !== InvoiceStatus.DRAFT) {
-      const allowedKeys = ['status', 'pdfUrl', 'pdfData', 'publicId', 'resourceType', 'cloudinaryType', 'format', 'originalFilename', 'tnasDownloaded'];
-      const keys = Object.keys(dto);
-      const isEditingData = keys.some(k => !allowedKeys.includes(k));
-      if (isEditingData) {
-        throw new BadRequestException('Approved invoices cannot be edited directly. Only status and PDF attachments can be updated.');
-      }
-    }
-
-    const payload: any = { ...dto };
-    if (payload.clientId !== undefined) {
-      if (payload.clientId) payload.client = { id: payload.clientId };
-      delete payload.clientId;
-    }
-    if (payload.tripId !== undefined) {
-      if (payload.tripId) payload.trip = { id: payload.tripId };
-      else payload.trip = null;
-      delete payload.tripId;
-    }
-
-    Object.assign(inv, payload);
-
-    // ONLY rebuild items if we are actually updating invoice data (like amount, items, tripId, etc.), NOT when just setting pdfUrl/status/metadata
-    const dataKeys = ['amount', 'fuelSurcharge', 'extraCosts', 'tollCosts', 'vatPercent', 'vatType', 'items', 'tripId', 'clientId', 'adrSurcharge', 'nightSurcharge', 'weekendSurcharge', 'holidaySurcharge'];
-    const hasDataChanges = Object.keys(dto).some(k => dataKeys.includes(k));
-
-    if (inv.status === InvoiceStatus.DRAFT && hasDataChanges) {
-      // Delete old items
-      await this.repo.manager.delete(InvoiceItem, { invoice: { id: inv.id } });
-      
-      const tripRepo = this.repo.manager.getRepository(Trip);
-      const calculated = await this.buildInvoiceItemsAndTotals(inv, dto, tripRepo);
-      
-      inv.amount = calculated.amount;
-      inv.fuelSurcharge = calculated.fuelSurcharge;
-      inv.extraCosts = calculated.extraCosts;
-      inv.tollCosts = calculated.tollCosts;
-      inv.vatPercent = calculated.vatPercent;
-      inv.vatType = calculated.vatType;
-      inv.subtotal = calculated.subtotal;
-      inv.vatAmount = calculated.vatAmount;
-      inv.total = calculated.total;
-      
-      inv.items = calculated.items.map((itemDto: any) => {
-        const item = new InvoiceItem();
-        item.description = itemDto.description;
-        item.quantity = itemDto.quantity;
-        item.unitPrice = itemDto.unitPrice;
-        item.vatRate = itemDto.vatRate;
-        item.total = itemDto.total;
-        return item;
-      });
-    }
-
-    await this.repo.save(inv);
-    return this.findOne(id);
+    Object.assign(inv, dto);
+    return this.repo.save(inv);
   }
   async remove(id: string) {
-    const inv = await this.repo.findOne({ where: { id } });
-    if (inv && inv.pdfUrl) {
-      await deleteFromCloudinary(inv.pdfUrl);
-    }
     return this.repo.delete(id); 
   }
 

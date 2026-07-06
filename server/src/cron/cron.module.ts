@@ -5,10 +5,11 @@ import { RoutingModule } from '../routing/routing.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Trip } from '../trips/trip.entity';
+import { Truck } from '../trucks/truck.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Trip]),
+    TypeOrmModule.forFeature([Trip, Truck]),
     TripsModule,
     RoutingModule,
     NotificationsModule

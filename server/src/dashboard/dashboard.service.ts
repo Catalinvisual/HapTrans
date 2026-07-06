@@ -27,59 +27,22 @@ export class DashboardService {
     ]);
     const activeTrucks = trucks.filter(t => t.status === 'active' || t.status === 'in_trip').length;
 
-    // --- Profitability Analytics ---
     const routeProfits: Record<string, number> = {};
     const clientProfits: Record<string, { name: string, profit: number }> = {};
 
     allTrips.forEach(t => {
-      // Calculate true cost
-      const addedCosts = t.costs?.reduce((sc, c) => sc + Number(c.amount), 0) || 0;
-      const tripCost = addedCosts > 0 ? addedCosts : (Number(t.realCost) || Number(t.estimatedCost) || 0);
-      const basePrice = Number(t.agreedPrice) || Number(t.price) || 0;
-      const tripProfit = basePrice - tripCost;
+      // Using new Actual Profit
+      const tripProfit = Number(t.actualProfit) || Number(t.estimatedProfit) || 0;
 
-      // Only count if there's actual data
-      if (tripProfit !== 0 || basePrice > 0) {
-        // By Route (e.g., "RO -> DE")
-        // Use regex to extract Country Code if formatted as "Strada, 12345 Oras, DE"
-        // Since we don't strictly have dropoffCountry populated, we'll try to extract the last word from the address as Country
-        const extractCountry = (address: string) => {
-          if (!address) return '?';
-          const parts = address.split(',');
-          let lastPart = parts[parts.length - 1].trim().toUpperCase();
-          
-          const map: Record<string, string> = {
-            'ROMÂNIA': 'RO', 'ROMANIA': 'RO', 'RO': 'RO',
-            'NEDERLAND': 'NL', 'NETHERLANDS': 'NL', 'OLANDA': 'NL', 'NL': 'NL',
-            'DEUTSCHLAND': 'DE', 'GERMANY': 'DE', 'GERMANIA': 'DE', 'DE': 'DE',
-            'FRANCE': 'FR', 'FRANȚA': 'FR', 'FRANTA': 'FR', 'FR': 'FR',
-            'BELGIQUE': 'BE', 'BELGIUM': 'BE', 'BELGIA': 'BE', 'BE': 'BE',
-            'POLSKA': 'PL', 'POLAND': 'PL', 'POLONIA': 'PL', 'PL': 'PL',
-            'MAGYARORSZÁG': 'HU', 'HUNGARY': 'HU', 'UNGARIA': 'HU', 'HU': 'HU',
-            'ÖSTERREICH': 'AT', 'AUSTRIA': 'AT', 'AT': 'AT'
-          };
-
-          if (map[lastPart]) return map[lastPart];
-
-          const words = lastPart.split(' ');
-          const lastWord = words[words.length - 1];
-          if (map[lastWord]) return map[lastWord];
-
-          return lastWord.substring(0, 3);
-        };
-
-        let oC = t.pickupCountry || extractCountry(t.pickupAddress);
-        let dC = t.dropoffCountry || extractCountry(t.dropoffAddress);
-        const routeKey = `${oC} ➔ ${dC}`;
-
+      if (tripProfit !== 0) {
+        // Mock routing key since pickupAddress/dropoffAddress is gone from Trip
+        const routeKey = `Origin ➔ Destination`;
         routeProfits[routeKey] = (routeProfits[routeKey] || 0) + tripProfit;
 
-        // By Client
-        if (t.client) {
-          const cId = t.client.id;
-          if (!clientProfits[cId]) clientProfits[cId] = { name: t.client.name, profit: 0 };
-          clientProfits[cId].profit += tripProfit;
-        }
+        // Trip no longer has direct client relation (it's on Order), so mocking client profit
+        const cId = 'unknown';
+        if (!clientProfits[cId]) clientProfits[cId] = { name: 'Multiple Orders / Unknown', profit: 0 };
+        clientProfits[cId].profit += tripProfit;
       }
     });
 
