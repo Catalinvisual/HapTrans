@@ -53,7 +53,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
         password: config.get('DB_PASSWORD') || config.get('DB_PASS'),
         database: config.get('DB_DATABASE') || config.get('DB_NAME'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: false, // Turn off to prevent boot crash
+        synchronize: false, // Turned off here; we run it manually in main.ts
         logging: false,
       }),
       inject: [ConfigService],

@@ -8,6 +8,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import { join } from 'path';
+import { DataSource } from 'typeorm';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -78,6 +79,28 @@ async function bootstrap() {
   }, express.static(join(__dirname, '..', 'uploads')));
 
   const port = process.env.PORT || 3001;
+  
+  // PRE-SYNC MIGRATION TO PREVENT ENUM CAST CRASHES
+  try {
+    const dataSource = app.get(DataSource);
+    
+    // Convert old OrderStatus to new OrderStatus
+    await dataSource.query(`UPDATE "orders" SET "status" = 'draft' WHERE "status" = 'unassigned'`);
+    await dataSource.query(`UPDATE "orders" SET "status" = 'in_transit' WHERE "status" = 'picked_up'`);
+    await dataSource.query(`UPDATE "orders" SET "status" = 'closed' WHERE "status" = 'invoiced'`);
+    
+    // If there is any TaskType in stop_tasks with old values, update them too
+    await dataSource.query(`UPDATE "stop_tasks" SET "type" = 'load' WHERE "type" = 'pickup'`).catch(() => {});
+    await dataSource.query(`UPDATE "stop_tasks" SET "type" = 'unload' WHERE "type" = 'delivery'`).catch(() => {});
+
+    // NOW run synchronize safely
+    console.log('Running safe TypeORM synchronization...');
+    await dataSource.synchronize();
+    console.log('TypeORM synchronization completed successfully.');
+  } catch (err) {
+    console.error('Migration/Sync failed!', err);
+  }
+
   await app.listen(port, '0.0.0.0');
   // Seed admin user on first run
   const authService = app.get(AuthService);
