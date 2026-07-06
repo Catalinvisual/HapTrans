@@ -80,15 +80,26 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3001;
   
-  // PRE-SYNC MIGRATION TO PREVENT ENUM CAST CRASHES
+    // PRE-SYNC MIGRATION TO PREVENT ENUM CAST CRASHES
   try {
     const dataSource = app.get(DataSource);
+    
+    // Cast enum columns to VARCHAR first to bypass Postgres enum constraints during updates
+    await dataSource.query(`ALTER TABLE "orders" ALTER COLUMN "status" TYPE VARCHAR USING "status"::text`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ALTER COLUMN "status" TYPE VARCHAR USING "status"::text`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "stop_tasks" ALTER COLUMN "type" TYPE VARCHAR USING "type"::text`).catch(() => {});
     
     // Convert old OrderStatus to new OrderStatus
     await dataSource.query(`UPDATE "orders" SET "status" = 'draft' WHERE "status" = 'unassigned'`);
     await dataSource.query(`UPDATE "orders" SET "status" = 'in_transit' WHERE "status" = 'picked_up'`);
     await dataSource.query(`UPDATE "orders" SET "status" = 'closed' WHERE "status" = 'invoiced'`);
     
+    // Convert old TripStatus to new TripStatus
+    await dataSource.query(`UPDATE "trips" SET "status" = 'planning' WHERE "status" = 'planned' OR "status" = 'pending'`);
+    await dataSource.query(`UPDATE "trips" SET "status" = 'ready' WHERE "status" = 'confirmed'`);
+    await dataSource.query(`UPDATE "trips" SET "status" = 'driving' WHERE "status" = 'in_progress' OR "status" = 'problem' OR "status" = 'delayed'`);
+    await dataSource.query(`UPDATE "trips" SET "status" = 'loading' WHERE "status" = 'unloading'`);
+
     // If there is any TaskType in stop_tasks with old values, update them too
     await dataSource.query(`UPDATE "stop_tasks" SET "type" = 'load' WHERE "type" = 'pickup'`).catch(() => {});
     await dataSource.query(`UPDATE "stop_tasks" SET "type" = 'unload' WHERE "type" = 'delivery'`).catch(() => {});
