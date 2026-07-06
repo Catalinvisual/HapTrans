@@ -34,8 +34,8 @@ export class Trip {
   @Column({ unique: true, nullable: true })
   tripNumber: string; // e.g. TR-2026-000231
 
-  @Column({ type: 'enum', enum: TripStatus, default: TripStatus.PLANNING })
-  status: TripStatus;
+  @Column({ type: 'varchar', default: 'planning' })
+  status: string;
 
   // Assignments
   @ManyToOne(() => Truck, (truck) => truck.trips, { eager: true })

@@ -56,14 +56,14 @@ export class Order {
   @ManyToOne(() => Trip, (trip) => trip.orders, { nullable: true, onDelete: 'SET NULL' })
   trip: Trip; // Keep for backward compatibility or simple assignment, but StopTask handles split logic
 
-  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.DRAFT })
-  status: OrderStatus;
+  @Column({ type: 'varchar', default: 'draft' })
+  status: string;
 
-  @Column({ type: 'enum', enum: TransportType, default: TransportType.FTL })
-  transportType: TransportType;
+  @Column({ type: 'varchar', default: 'ftl' })
+  transportType: string;
 
-  @Column({ type: 'enum', enum: OrderPriority, default: OrderPriority.NORMAL })
-  priority: OrderPriority;
+  @Column({ type: 'varchar', default: 'normal' })
+  priority: string;
 
   // Replaced static cargo fields with dynamic CargoItems relation
   @OneToMany(() => CargoItem, (cargo) => cargo.order, { cascade: true })

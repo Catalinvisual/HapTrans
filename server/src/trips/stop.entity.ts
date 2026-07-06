@@ -23,7 +23,7 @@ export class Stop {
   @Column({ type: 'int', default: 1 })
   sequence: number; // e.g. 1, 2, 3 (renamed from orderIndex)
 
-  @Column()
+  @Column({ nullable: true })
   address: string;
 
   @Column({ nullable: true })
@@ -38,8 +38,8 @@ export class Stop {
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
   longitude: number;
 
-  @Column({ type: 'enum', enum: StopStatus, default: StopStatus.PENDING })
-  status: StopStatus;
+  @Column({ type: 'varchar', default: 'pending' })
+  status: string;
 
   @Column({ type: 'timestamp', nullable: true })
   eta: Date; // Estimated Time of Arrival

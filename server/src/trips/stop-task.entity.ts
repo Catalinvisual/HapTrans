@@ -32,11 +32,11 @@ export class StopTask {
   @ManyToOne(() => Order, { eager: true, onDelete: 'CASCADE' })
   order: Order;
 
-  @Column({ type: 'enum', enum: TaskType, default: TaskType.LOAD })
-  type: TaskType;
+  @Column({ type: 'varchar', default: 'load' })
+  type: string;
 
-  @Column({ type: 'enum', enum: TaskStatus, default: TaskStatus.PENDING })
-  status: TaskStatus;
+  @Column({ type: 'varchar', default: 'pending' })
+  status: string;
 
   @Column({ nullable: true, type: 'integer' })
   pallets: number;

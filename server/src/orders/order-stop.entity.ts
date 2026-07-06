@@ -22,10 +22,10 @@ export class OrderStop {
   @ManyToOne(() => Order, (order) => order.stops, { onDelete: 'CASCADE' })
   order: Order;
 
-  @Column({ type: 'enum', enum: OrderStopType })
-  type: OrderStopType;
+  @Column({ type: 'varchar', default: 'pickup' })
+  type: string;
 
-  @Column({ type: 'int' })
+  @Column({ type: 'int', default: 1 })
   sequence: number; // 1, 2, 3... Determines order of execution
 
   // Optional link to master location, but data is snapshot below
@@ -33,10 +33,10 @@ export class OrderStop {
   clientLocation: ClientLocation;
 
   // --- Snapshot Data ---
-  @Column()
+  @Column({ nullable: true })
   companyName: string;
 
-  @Column()
+  @Column({ nullable: true })
   address: string;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
