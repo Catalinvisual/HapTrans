@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@emnapi/runtime": "^1.11.2",
     "@google/generative-ai": "^0.24.1",
     "@here/flexpolyline": "^0.1.0",
     "@nestjs/common": "^11.0.1",
