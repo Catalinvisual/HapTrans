@@ -120,7 +120,70 @@ export class OrdersService {
     delete updateData.stops;
     delete updateData.cargoItems;
 
+    if ('clientId' in updateData) {
+      updateData.client = updateData.clientId ? { id: updateData.clientId } : null;
+      delete updateData.clientId;
+    }
+    if ('companyId' in updateData) {
+      updateData.company = updateData.companyId ? { id: updateData.companyId } : null;
+      delete updateData.companyId;
+    }
+
     await this.repo.update(id, updateData);
+
+    // Recreate stops if provided
+    if (dto.stops && dto.stops.length > 0) {
+      await this.stopRepo.delete({ order: { id } });
+      for (let i = 0; i < dto.stops.length; i++) {
+        const stopDto = dto.stops[i];
+        const stop = this.stopRepo.create({
+          order: { id } as any,
+          company: dto.companyId ? { id: dto.companyId } as any : null,
+          sequence: i + 1,
+          type: stopDto.type,
+          companyName: stopDto.companyName,
+          address: stopDto.address,
+          city: stopDto.city,
+          country: stopDto.country,
+          postalCode: stopDto.postalCode,
+          contactPerson: stopDto.contactName,
+          phone: stopDto.contactPhone,
+          dateFrom: stopDto.scheduledDate || stopDto.requestedDateFrom,
+          dateTo: stopDto.requestedDateTo,
+          timeFrom: stopDto.scheduledTime || stopDto.timeFrom,
+          clientLocation: stopDto.clientLocationId ? { id: stopDto.clientLocationId } as any : null,
+          reference: stopDto.loadingReference || stopDto.reference,
+          notes: stopDto.notes
+        } as any);
+        await this.stopRepo.save(stop);
+      }
+    }
+
+    // Recreate cargo if provided
+    if (dto.cargoItems && dto.cargoItems.length > 0) {
+      await this.cargoRepo.delete({ order: { id } });
+      for (let i = 0; i < dto.cargoItems.length; i++) {
+        const cargoDto = dto.cargoItems[i];
+        const cargo = this.cargoRepo.create({
+          order: { id } as any,
+          company: dto.companyId ? { id: dto.companyId } as any : null,
+          description: cargoDto.description,
+          quantity: cargoDto.quantity,
+          unit: cargoDto.unit || 'pallet',
+          weightKg: cargoDto.weightKg,
+          volumeCbm: cargoDto.volumeCbm,
+          lengthCm: cargoDto.lengthCm,
+          widthCm: cargoDto.widthCm,
+          heightCm: cargoDto.heightCm,
+          isAdr: cargoDto.isAdr,
+          adrClass: cargoDto.adrClass,
+          adrUnNumber: cargoDto.adrUnNumber,
+          isTemperatureControlled: cargoDto.isTemperatureControlled,
+          requiredTemperature: cargoDto.requiredTemperature
+        } as any);
+        await this.cargoRepo.save(cargo);
+      }
+    }
     
     const fullOrder = await this.findOne(id);
     this.eventEmitter.emit('order.updated', fullOrder);
