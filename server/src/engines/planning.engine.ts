@@ -55,7 +55,7 @@ export class PlanningEngine {
         if (!tripStop) {
           const newStopPayload: any = {
             trip: { id: trip.id },
-            company: { id: trip.company.id },
+            company: trip.company ? { id: trip.company.id } : null,
             address: os.address,
             companyName: os.companyName,
             country: os.country,
@@ -71,7 +71,7 @@ export class PlanningEngine {
         const taskPayload: any = {
           stop: { id: tripStop.id },
           order: { id: order.id },
-          company: { id: trip.company.id },
+          company: trip.company ? { id: trip.company.id } : null,
           type: os.type === OrderStopType.PICKUP ? TaskType.LOAD : TaskType.UNLOAD,
           status: 'pending',
           plannedQuantity: order.cargoItems?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0,

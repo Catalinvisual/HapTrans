@@ -69,13 +69,13 @@ export class OrdersService {
           city: stopDto.city,
           country: stopDto.country,
           postalCode: stopDto.postalCode,
-          contactName: stopDto.contactName,
-          contactPhone: stopDto.contactPhone,
-          contactEmail: stopDto.contactEmail,
-          requestedDateFrom: stopDto.requestedDateFrom,
-          requestedDateTo: stopDto.requestedDateTo,
+          contactPerson: stopDto.contactName,
+          phone: stopDto.contactPhone,
+          dateFrom: stopDto.scheduledDate || stopDto.requestedDateFrom,
+          dateTo: stopDto.requestedDateTo,
+          timeFrom: stopDto.scheduledTime || stopDto.timeFrom,
           clientLocation: stopDto.clientLocationId ? { id: stopDto.clientLocationId } as any : null,
-          loadingReference: stopDto.loadingReference,
+          reference: stopDto.loadingReference || stopDto.reference,
           notes: stopDto.notes
         } as any);
         await this.stopRepo.save(stop);

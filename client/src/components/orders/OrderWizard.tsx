@@ -312,19 +312,21 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                   className="flex flex-col items-center flex-1"
                   style={{ position: 'relative', zIndex: 2 }}
                 >
-                  <button
-                    type="button"
-                    onClick={() => idx <= currentStep && setCurrentStep(idx)}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 focus:outline-none ring-[6px] ring-white dark:ring-card
-                      ${isActive
-                        ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-110'
-                        : isPast
-                          ? 'bg-primary/20 text-primary cursor-pointer hover:bg-primary/30'
-                          : 'bg-surface border-2 border-border text-text-muted cursor-default'
-                      }`}
-                  >
-                    <StepIcon className="w-5 h-5" />
-                  </button>
+                  <div className="bg-white dark:bg-card rounded-full ring-[6px] ring-white dark:ring-card">
+                    <button
+                      type="button"
+                      onClick={() => idx <= currentStep && setCurrentStep(idx)}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 focus:outline-none
+                        ${isActive
+                          ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-110'
+                          : isPast
+                            ? 'bg-primary/20 text-primary cursor-pointer hover:bg-primary/30'
+                            : 'bg-surface border-2 border-border text-text-muted cursor-default'
+                        }`}
+                    >
+                      <StepIcon className="w-5 h-5" />
+                    </button>
+                  </div>
                   <span className={`text-xs mt-2 font-semibold text-center leading-tight ${
                     isActive ? 'text-primary' : 'text-text-secondary'
                   }`}>

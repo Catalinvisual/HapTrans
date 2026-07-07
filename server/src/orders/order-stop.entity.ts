@@ -49,6 +49,12 @@ export class OrderStop {
   country: string;
 
   @Column({ nullable: true })
+  city: string;
+
+  @Column({ nullable: true })
+  postalCode: string;
+
+  @Column({ nullable: true })
   contactPerson: string;
 
   @Column({ nullable: true })
