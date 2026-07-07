@@ -67,9 +67,9 @@ export default function PlanningPage() {
       // Create trip and assign order
       const tripRes = await api.post('/trips', {
         truckId,
-        driverId: truck?.driver?.id || null,
-        status: 'confirmed',
-        price: order.price,
+        ...(truck?.driver?.id ? { driverId: truck.driver.id } : {}),
+        status: 'planning',
+        price: order.price ? Number(order.price) : undefined,
         currency: order.currency || 'EUR',
         referenceNumber: order.orderNumber || order.referenceNumber,
         pickupAddress: order.stops?.find((s: any) => s.type === 'pickup')?.address || '',
