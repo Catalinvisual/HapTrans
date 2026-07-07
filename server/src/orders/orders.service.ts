@@ -38,10 +38,10 @@ export class OrdersService {
     // Generate sequential order number: HAP-00001
     const count = await this.repo.count();
     const seq = String(count + 1).padStart(5, '0');
-    const orderNumber = dto.orderNumber || `HAP-${seq}`;
+    const orderNumber = dto.orderNumber || `HC-${seq}`;
     const order = this.repo.create({
       company: dto.companyId ? { id: dto.companyId } as any : null,
-      client: { id: dto.clientId } as any,
+      client: dto.clientId ? { id: dto.clientId } as any : null,
       orderNumber,
       internalReference: dto.internalReference,
       customerReference: dto.customerReference,

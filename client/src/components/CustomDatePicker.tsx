@@ -160,7 +160,7 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
           </div>
           
           {isTimeOpen && (
-            <div className="absolute top-full mt-1 left-0 w-48 bg-card border border-border rounded-xl shadow-xl z-[999] p-2 flex gap-2 h-48">
+            <div className="absolute top-full mt-1 right-0 w-48 bg-card border border-border rounded-xl shadow-xl z-[999] p-2 flex gap-2 h-48">
               <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
                 {Array.from({ length: 24 }).map((_, i) => {
                   const h = String(i).padStart(2, '0');
