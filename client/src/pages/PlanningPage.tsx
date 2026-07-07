@@ -71,7 +71,7 @@ export default function PlanningPage() {
         status: 'confirmed',
         price: order.price,
         currency: order.currency || 'EUR',
-        tripNumber: order.orderNumber || order.referenceNumber,
+        referenceNumber: order.orderNumber || order.referenceNumber,
         pickupAddress: order.stops?.find((s: any) => s.type === 'pickup')?.address || '',
         dropoffAddress: order.stops?.find((s: any) => s.type === 'dropoff')?.address || '',
         pickupDate: order.stops?.find((s: any) => s.type === 'pickup')?.scheduledDate || new Date().toISOString(),
