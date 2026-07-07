@@ -5,6 +5,7 @@ import { X, Save, Loader2, ArrowRight, ArrowLeft, Plus, Trash2, Box, MapPin, Fil
 import api from '../../lib/api';
 import toast from 'react-hot-toast';
 import AddressAutocomplete from '../AddressAutocomplete';
+import CustomDatePicker from '../CustomDatePicker';
 
 interface OrderWizardProps {
   isOpen: boolean;
@@ -93,39 +94,7 @@ function ModalSelect({
   );
 }
 
-/** Beautiful date+time row component */
-function DateTimeInput({
-  dateValue, timeValue, onDateChange, onTimeChange, label,
-}: {
-  dateValue: string; timeValue: string;
-  onDateChange: (v: string) => void;
-  onTimeChange: (v: string) => void;
-  label: string;
-}) {
-  return (
-    <div>
-      <label className="block text-xs font-semibold text-text-secondary mb-1.5 flex items-center gap-1">
-        <Clock className="w-3 h-3" /> {label}
-      </label>
-      <div className="flex gap-2">
-        <input
-          type="date"
-          value={dateValue}
-          onChange={e => onDateChange(e.target.value)}
-          className="input flex-1 bg-white dark:bg-card text-sm"
-          style={{ colorScheme: 'light' }}
-        />
-        <input
-          type="time"
-          value={timeValue}
-          onChange={e => onTimeChange(e.target.value)}
-          className="input w-28 bg-white dark:bg-card text-sm"
-          style={{ colorScheme: 'light' }}
-        />
-      </div>
-    </div>
-  );
-}
+// Using CustomDatePicker instead of inline DateTimeInput
 
 export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: OrderWizardProps) {
   const { t } = useTranslation();
@@ -451,9 +420,7 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                       value={pickup.address}
                       onChange={val => setPickup({ ...pickup, address: val })}
                       onSelectFull={(label, city, country) => {
-                        // Extract only the street part (first segment before first comma)
-                        const streetOnly = label.split(',')[0]?.trim() || label;
-                        setPickup(p => ({ ...p, address: streetOnly, city: city || p.city, country: country || p.country }));
+                        setPickup(p => ({ ...p, address: label, city: city || p.city, country: country || p.country }));
                       }}
                       placeholder="Street, Number, Zip Code"
                       className="input w-full bg-white dark:bg-card"
@@ -470,7 +437,7 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                       <input type="text" value={pickup.country} onChange={e => setPickup({ ...pickup, country: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Country" />
                     </div>
                   </div>
-                  <DateTimeInput
+                  <CustomDatePicker
                     label="Pickup Date & Time"
                     dateValue={pickup.scheduledDate}
                     timeValue={pickup.scheduledTime || ''}
@@ -504,8 +471,7 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                       value={dropoff.address}
                       onChange={val => setDropoff({ ...dropoff, address: val })}
                       onSelectFull={(label, city, country) => {
-                        const streetOnly = label.split(',')[0]?.trim() || label;
-                        setDropoff(p => ({ ...p, address: streetOnly, city: city || p.city, country: country || p.country }));
+                        setDropoff(p => ({ ...p, address: label, city: city || p.city, country: country || p.country }));
                       }}
                       placeholder="Street, Number, Zip Code"
                       className="input w-full bg-white dark:bg-card"
@@ -522,7 +488,7 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                       <input type="text" value={dropoff.country} onChange={e => setDropoff({ ...dropoff, country: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Country" />
                     </div>
                   </div>
-                  <DateTimeInput
+                  <CustomDatePicker
                     label="Delivery Date & Time"
                     dateValue={dropoff.scheduledDate}
                     timeValue={dropoff.scheduledTime || ''}

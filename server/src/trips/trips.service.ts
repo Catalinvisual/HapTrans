@@ -61,7 +61,7 @@ export class TripsService {
   async create(dto: any, user?: any): Promise<Trip> {
     const tripPayload: any = {
       ...dto,
-      company: dto.companyId ? { id: dto.companyId } : null,
+      company: dto.companyId ? { id: dto.companyId } : (user?.companyId ? { id: user.companyId } : null),
       truck: dto.truckId ? { id: dto.truckId } : null,
       driver: dto.driverId ? { id: dto.driverId } : null,
       status: TripStatus.PLANNING,

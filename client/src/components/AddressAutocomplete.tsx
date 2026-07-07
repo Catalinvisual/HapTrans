@@ -14,17 +14,12 @@ interface AddressAutocompleteProps {
 
 /** Try to parse "Street, City, Country" from a HERE-style label */
 function parseAddressLabel(label: string): { city?: string; country?: string } {
-  // Most HERE labels come as: "Street No, PostalCode City, Country"
-  // We split by comma and take the last part as country, second-last as city+zip
+  // We simply extract the last part as the country.
+  // The rest remains in the full label, which will be put into the 'Address' field.
   const parts = label.split(',').map(p => p.trim());
-  if (parts.length >= 3) {
+  if (parts.length >= 2) {
     const country = parts[parts.length - 1];
-    // Remove postal code from city part (leading digits)
-    const cityRaw = parts[parts.length - 2].replace(/^\d+\s*/, '').trim();
-    return { city: cityRaw, country };
-  }
-  if (parts.length === 2) {
-    return { country: parts[1] };
+    return { country };
   }
   return {};
 }

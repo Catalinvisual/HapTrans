@@ -35,11 +35,10 @@ export class OrdersService {
     // 1. Validate
     this.validationEngine.validateOrder(dto);
 
-    // 2. Prepare payload
-    // Generate a beautiful, sequential-looking order number: HC-2026-NNNNN
-    const year = new Date().getFullYear();
-    const seq = String(Math.floor(10000 + Math.random() * 89999)); // 10000-99999
-    const orderNumber = dto.orderNumber || `HC-${year}-${seq}`;
+    // Generate sequential order number: HAP-00001
+    const count = await this.repo.count();
+    const seq = String(count + 1).padStart(5, '0');
+    const orderNumber = dto.orderNumber || `HAP-${seq}`;
     const order = this.repo.create({
       company: dto.companyId ? { id: dto.companyId } as any : null,
       client: { id: dto.clientId } as any,

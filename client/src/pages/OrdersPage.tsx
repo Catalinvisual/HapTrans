@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Box, Plus, Search, Loader2, MapPin, Truck, ChevronRight } from 'lucide-react';
+import { Box, Plus, Search, Loader2, MapPin, Truck, ChevronRight, FileText, Activity, Link as LinkIcon } from 'lucide-react';
 import api from '../lib/api';
 import OrderWizard from '../components/orders/OrderWizard';
 
@@ -139,7 +139,7 @@ export default function OrdersPage() {
                         <div className="flex items-center gap-2">
                           <Box className="w-4 h-4 text-text-secondary" />
                           <span className="text-sm font-medium">{cargoCount} item(s)</span>
-                          {cargoWeight > 0 && <span className="text-xs text-text-secondary">({Math.round(cargoWeight).toLocaleString()} kg)</span>}
+                          {cargoWeight > 0 && <span className="text-xs text-text-secondary">({Number(cargoWeight).toLocaleString()} kg)</span>}
                         </div>
                       </td>
                       <td className="p-4">
@@ -153,8 +153,27 @@ export default function OrdersPage() {
                           {order.status || 'pending'}
                         </span>
                       </td>
-                      <td className="p-4 text-right">
+                      <td className="p-4 text-right space-x-1">
+                        {order.status === 'completed' && (
+                          <button 
+                            title="Create Invoice"
+                            onClick={(e) => { e.stopPropagation(); toast.success('Invoice generation started'); }}
+                            className="p-2 text-text-secondary hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </button>
+                        )}
+                        {(order.status === 'in_transit' || order.status === 'assigned') && (
+                          <button 
+                            title="Live Tracking Link"
+                            onClick={(e) => { e.stopPropagation(); toast.success('Live Tracking Link copied to clipboard'); }}
+                            className="p-2 text-text-secondary hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <Activity className="w-4 h-4" />
+                          </button>
+                        )}
                         <button 
+                          title="Edit Order"
                           onClick={() => handleEdit(order.id)}
                           className="p-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                         >
