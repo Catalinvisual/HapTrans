@@ -71,5 +71,23 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg}']
       }
     })
-  ]
+  ],
+  build: {
+    rolldownOptions: {
+      output: {
+        // Split heavy vendor libs into separate cached chunks
+        manualChunks: (id: string) => {
+          if (id.includes('jspdf') || id.includes('jspdf-autotable')) return 'vendor-pdf';
+          if (id.includes('leaflet') || id.includes('react-leaflet')) return 'vendor-map';
+          if (id.includes('react-router') || id.includes('@remix-run')) return 'vendor-router';
+          if (id.includes('react-dom') || id.includes('react/')) return 'vendor-react';
+          if (id.includes('axios')) return 'vendor-axios';
+          if (id.includes('i18next') || id.includes('react-i18next')) return 'vendor-i18n';
+          if (id.includes('html2canvas') || id.includes('dompurify')) return 'vendor-html';
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
+  },
 })
+

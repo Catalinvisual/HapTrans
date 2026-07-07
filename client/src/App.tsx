@@ -1,30 +1,45 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { AppToaster } from './components/AppToaster';
 import PWAReloadPrompt from './components/PWAReloadPrompt';
 import Layout from './components/Layout';
 import { ShortcutProvider } from './lib/ShortcutContext';
+import { Loader2 } from 'lucide-react';
+
+// ─── Eager-loaded (critical path, very small) ─────────────────────────────
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
-import TripsPage from './pages/TripsPage';
-import OrdersPage from './pages/OrdersPage';
-import TrucksPage from './pages/TrucksPage';
-import DriversPage from './pages/DriversPage';
-import ClientsPage from './pages/ClientsPage';
-import LiveMapPage from './pages/LiveMapPage';
-import DocumentsPage from './pages/DocumentsPage';
-import InvoicesPage from './pages/InvoicesPage';
-import FinancialPage from './pages/FinancialPage';
-import PayrollPage from './pages/PayrollPage';
-import MaintenancePage from './pages/MaintenancePage';
-import SettingsPage from './pages/SettingsPage';
-import ExpensesPage from './pages/ExpensesPage';
-import UsersPage from './pages/UsersPage';
-import ChatPage from './pages/ChatPage';
-import PlanningPage from './pages/PlanningPage';
-import SharedDocumentPage from './pages/SharedDocumentPage';
-import WebsiteHubPage from './pages/WebsiteHubPage';
-import TripDetailsPage from './pages/TripDetailsPage';
+
+// ─── Lazy-loaded (load only when user navigates there) ────────────────────
+const TripsPage        = lazy(() => import('./pages/TripsPage'));
+const OrdersPage       = lazy(() => import('./pages/OrdersPage'));
+const TripDetailsPage  = lazy(() => import('./pages/TripDetailsPage'));
+const TrucksPage       = lazy(() => import('./pages/TrucksPage'));
+const DriversPage      = lazy(() => import('./pages/DriversPage'));
+const ClientsPage      = lazy(() => import('./pages/ClientsPage'));
+const LiveMapPage      = lazy(() => import('./pages/LiveMapPage'));
+const DocumentsPage    = lazy(() => import('./pages/DocumentsPage'));
+const InvoicesPage     = lazy(() => import('./pages/InvoicesPage'));
+const FinancialPage    = lazy(() => import('./pages/FinancialPage'));
+const PayrollPage      = lazy(() => import('./pages/PayrollPage'));
+const MaintenancePage  = lazy(() => import('./pages/MaintenancePage'));
+const SettingsPage     = lazy(() => import('./pages/SettingsPage'));
+const ExpensesPage     = lazy(() => import('./pages/ExpensesPage'));
+const UsersPage        = lazy(() => import('./pages/UsersPage'));
+const ChatPage         = lazy(() => import('./pages/ChatPage'));
+const PlanningPage     = lazy(() => import('./pages/PlanningPage'));
+const WebsiteHubPage   = lazy(() => import('./pages/WebsiteHubPage'));
+const SharedDocumentPage = lazy(() => import('./pages/SharedDocumentPage'));
+
+// ─── Loading fallback ─────────────────────────────────────────────────────
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <Loader2 className="w-9 h-9 animate-spin text-primary opacity-70" />
+    </div>
+  );
+}
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore();
@@ -35,38 +50,53 @@ export default function App() {
   return (
     <ShortcutProvider>
       <BrowserRouter>
-        {/* Global Toaster - top-right, colored */}
         <AppToaster />
         <PWAReloadPrompt />
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        {/* Public route for shared documents */}
-        <Route path="/shared/documents/:token" element={<SharedDocumentPage />} />
-        
-        <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="trips" element={<TripsPage />} />
-          <Route path="orders" element={<OrdersPage />} />
-          <Route path="trips/:id" element={<TripDetailsPage />} />
-          <Route path="trucks" element={<TrucksPage />} />
-          <Route path="drivers" element={<DriversPage />} />
-          <Route path="clients" element={<ClientsPage />} />
-          <Route path="map" element={<LiveMapPage />} />
-          <Route path="documents" element={<DocumentsPage />} />
-          <Route path="invoices" element={<InvoicesPage />} />
-          <Route path="financial" element={<FinancialPage />} />
-          <Route path="payroll" element={<PayrollPage />} />
-          <Route path="website-cms" element={<WebsiteHubPage />} />
-          <Route path="maintenance" element={<MaintenancePage />} />
-          <Route path="expenses" element={<ExpensesPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="users" element={<UsersPage />} />
-          <Route path="chat" element={<ChatPage />} />
-          <Route path="planning" element={<PlanningPage />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/shared/documents/:token"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <SharedDocumentPage />
+              </Suspense>
+            }
+          />
+
+          <Route
+            path="/"
+            element={
+              <PrivateRoute>
+                <Layout />
+              </PrivateRoute>
+            }
+          >
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            {/* Dashboard is eager — it's the first thing seen */}
+            <Route path="dashboard" element={<Dashboard />} />
+
+            {/* All other pages are lazy-loaded chunks */}
+            <Route path="trips" element={<Suspense fallback={<PageLoader />}><TripsPage /></Suspense>} />
+            <Route path="trips/:id" element={<Suspense fallback={<PageLoader />}><TripDetailsPage /></Suspense>} />
+            <Route path="orders" element={<Suspense fallback={<PageLoader />}><OrdersPage /></Suspense>} />
+            <Route path="trucks" element={<Suspense fallback={<PageLoader />}><TrucksPage /></Suspense>} />
+            <Route path="drivers" element={<Suspense fallback={<PageLoader />}><DriversPage /></Suspense>} />
+            <Route path="clients" element={<Suspense fallback={<PageLoader />}><ClientsPage /></Suspense>} />
+            <Route path="map" element={<Suspense fallback={<PageLoader />}><LiveMapPage /></Suspense>} />
+            <Route path="documents" element={<Suspense fallback={<PageLoader />}><DocumentsPage /></Suspense>} />
+            <Route path="invoices" element={<Suspense fallback={<PageLoader />}><InvoicesPage /></Suspense>} />
+            <Route path="financial" element={<Suspense fallback={<PageLoader />}><FinancialPage /></Suspense>} />
+            <Route path="payroll" element={<Suspense fallback={<PageLoader />}><PayrollPage /></Suspense>} />
+            <Route path="website-cms" element={<Suspense fallback={<PageLoader />}><WebsiteHubPage /></Suspense>} />
+            <Route path="maintenance" element={<Suspense fallback={<PageLoader />}><MaintenancePage /></Suspense>} />
+            <Route path="expenses" element={<Suspense fallback={<PageLoader />}><ExpensesPage /></Suspense>} />
+            <Route path="settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
+            <Route path="users" element={<Suspense fallback={<PageLoader />}><UsersPage /></Suspense>} />
+            <Route path="chat" element={<Suspense fallback={<PageLoader />}><ChatPage /></Suspense>} />
+            <Route path="planning" element={<Suspense fallback={<PageLoader />}><PlanningPage /></Suspense>} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
     </ShortcutProvider>
   );
 }

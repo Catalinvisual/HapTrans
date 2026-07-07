@@ -103,18 +103,29 @@
 }
 
 @layer utilities {
-  .animate-fade-in { animation: fadeIn 0.2s ease-out; }
-  .animate-slide-in { animation: slideIn 0.3s ease-out; }
-  .animate-pulse-dot { animation: pulseDot 2s infinite; }
+  .animate-fade-in       { animation: fadeIn 0.2s ease-out; }
+  .animate-fade-in-up    { animation: fadeInUp 0.18s ease-out; }
+  .animate-slide-in      { animation: slideIn 0.3s ease-out; }
+  .animate-pulse-dot     { animation: pulseDot 2s infinite; }
+
+  /* Custom scrollbar for panels & modals */
+  .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(var(--color-primary)/0.3); border-radius: 9999px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(var(--color-primary)/0.6); }
 }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes slideIn {
   from { opacity: 0; transform: translateX(-12px); }
-  to { opacity: 1; transform: translateX(0); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 @keyframes pulseDot {
   0%, 100% { opacity: 1; }
@@ -136,50 +147,45 @@ input[readonly] {
 
 /* Custom premium styling for ALL dates in Flatpickr */
 .flatpickr-day {
-  color: #1e293b !important; /* Slate 800 - much darker/blacker */
+  color: #1e293b !important;
   font-weight: 600 !important;
 }
 
 /* Custom premium styling for disabled past dates in Flatpickr */
 .flatpickr-day.flatpickr-disabled,
 .flatpickr-day.flatpickr-disabled:hover {
-  color: #334155 !important; /* Slate 700 - darker */
-  background: transparent !important; /* No background to keep it clean and avoid layout shift */
-  border: none !important; /* NO BORDER to preserve exact 14.28% flex width! */
-  text-decoration: line-through !important; /* Clearly shows the day is unavailable/blocked */
-  opacity: 0.8 !important; /* Less transparent */
+  color: #334155 !important;
+  background: transparent !important;
+  border: none !important;
+  text-decoration: line-through !important;
+  opacity: 0.8 !important;
   cursor: not-allowed !important;
 }
 
-/* Enhance the overall Flatpickr calendar popover popup to look extremely premium without cutting off days */
+/* Enhance the overall Flatpickr calendar popover popup */
 .flatpickr-calendar {
   border: 1px solid #e2e8f0 !important;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
   border-radius: 1rem !important;
-  padding: 0 !important; /* NO PADDING so inner days grid fits perfectly without cutting off! */
+  padding: 0 !important;
   width: auto !important;
   box-sizing: border-box !important;
   font-family: inherit !important;
   animation: fpFadeInDown 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  overflow: visible !important;
 }
 
 @keyframes fpFadeInDown {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes progress {
   from { width: 100%; }
-  to { width: 0%; }
+  to   { width: 0%; }
 }
 
-/* FORCING FLATPICKR DARK MODE - COMPREHENSIVE */
+/* FORCING FLATPICKR DARK MODE */
 .dark .flatpickr-calendar,
 .dark .flatpickr-calendar .flatpickr-months,
 .dark .flatpickr-calendar .flatpickr-month,
@@ -243,17 +249,15 @@ input[readonly] {
   color: #f8fafc !important;
 }
 
-
-
-.dark input[type='date'], .dark input[type='time'], .dark input[type='datetime-local'] { color-scheme: dark !important; background-color: #1e293b !important; color: #f8fafc !important; }
-.dark input[type='date']::-webkit-calendar-picker-indicator, .dark input[type='time']::-webkit-calendar-picker-indicator { filter: invert(1) hue-rotate(180deg) !important; opacity: 0.8 !important; }
-
-
-.dark .flatpickr-calendar {
-  border: 1px solid #334155 !important;
+.dark input[type='date'], .dark input[type='time'], .dark input[type='datetime-local'] {
+  color-scheme: dark !important;
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
 }
-.flatpickr-calendar {
-  overflow: hidden !important;
+.dark input[type='date']::-webkit-calendar-picker-indicator,
+.dark input[type='time']::-webkit-calendar-picker-indicator {
+  filter: invert(1) hue-rotate(180deg) !important;
+  opacity: 0.8 !important;
 }
 
 .dark .flatpickr-calendar {
@@ -275,8 +279,3 @@ input[readonly] {
   background: transparent !important;
   background-color: transparent !important;
 }
-
-.flatpickr-calendar {
-  overflow: visible !important;
-}
-
