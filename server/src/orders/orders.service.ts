@@ -36,7 +36,10 @@ export class OrdersService {
     this.validationEngine.validateOrder(dto);
 
     // 2. Prepare payload
-    const orderNumber = dto.orderNumber || `ORD-${nanoid(8).toUpperCase()}`;
+    // Generate a beautiful, sequential-looking order number: HC-2026-NNNNN
+    const year = new Date().getFullYear();
+    const seq = String(Math.floor(10000 + Math.random() * 89999)); // 10000-99999
+    const orderNumber = dto.orderNumber || `HC-${year}-${seq}`;
     const order = this.repo.create({
       company: dto.companyId ? { id: dto.companyId } as any : null,
       client: { id: dto.clientId } as any,

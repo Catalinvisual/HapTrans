@@ -116,7 +116,7 @@ export default function OrdersPage() {
                   return (
                     <tr key={order.id} className="hover:bg-surface/30 transition-colors group">
                       <td className="p-4">
-                        <div className="font-semibold text-primary">{order.referenceNumber || 'N/A'}</div>
+                        <div className="font-semibold text-primary">{order.orderNumber || order.referenceNumber || '—'}</div>
                         <div className="text-xs text-text-secondary mt-1">{order.customerReference && `Ref: ${order.customerReference}`}</div>
                       </td>
                       <td className="p-4">
@@ -139,11 +139,17 @@ export default function OrdersPage() {
                         <div className="flex items-center gap-2">
                           <Box className="w-4 h-4 text-text-secondary" />
                           <span className="text-sm font-medium">{cargoCount} item(s)</span>
-                          {cargoWeight > 0 && <span className="text-xs text-text-secondary">({cargoWeight} kg)</span>}
+                          {cargoWeight > 0 && <span className="text-xs text-text-secondary">({Math.round(cargoWeight).toLocaleString()} kg)</span>}
                         </div>
                       </td>
                       <td className="p-4">
-                        <span className={`badge ${order.status === 'pending' ? 'badge-gray' : order.status === 'assigned' ? 'badge-primary' : 'badge-success'}`}>
+                        <span className={`badge ${
+                            order.status === 'draft' ? 'badge-warning' :
+                            order.status === 'pending' ? 'badge-gray' :
+                            order.status === 'assigned' ? 'badge-primary' :
+                            order.status === 'in_transit' ? 'badge-primary' :
+                            'badge-success'
+                          }`}>
                           {order.status || 'pending'}
                         </span>
                       </td>

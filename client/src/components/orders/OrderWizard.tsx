@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { X, Save, Loader2, ArrowRight, ArrowLeft, Plus, Trash2, Box, MapPin, FileText, ChevronDown } from 'lucide-react';
+import { X, Save, Loader2, ArrowRight, ArrowLeft, Plus, Trash2, Box, MapPin, FileText, ChevronDown, Clock } from 'lucide-react';
 import api from '../../lib/api';
 import toast from 'react-hot-toast';
 import AddressAutocomplete from '../AddressAutocomplete';
@@ -19,7 +19,6 @@ const STEPS = [
   { id: 'cargo', title: 'Cargo Items', icon: Box },
 ];
 
-/* ────────── Inline CustomSelect pentru modal ────────── */
 interface SelectOpt { value: string; label: string; }
 
 function ModalSelect({
@@ -47,7 +46,7 @@ function ModalSelect({
   const toggle = () => {
     if (!open && btnRef.current) {
       const r = btnRef.current.getBoundingClientRect();
-      setDropPos({ top: r.bottom + window.scrollY + 4, left: r.left + window.scrollX, width: r.width });
+      setDropPos({ top: r.bottom + 4, left: r.left, width: r.width });
     }
     setOpen(p => !p);
   };
@@ -71,13 +70,13 @@ function ModalSelect({
       {open && typeof document !== 'undefined' && createPortal(
         <div
           ref={dropRef}
-          className="fixed z-[9999] bg-card border border-border rounded-xl shadow-2xl overflow-hidden animate-fade-in py-1"
+          className="fixed z-[9999] bg-card border border-border rounded-xl shadow-2xl overflow-hidden py-1"
           style={{ top: dropPos.top, left: dropPos.left, width: dropPos.width }}
         >
           {options.map(opt => (
             <div
               key={opt.value}
-              onClick={() => { onChange(opt.value); setOpen(false); }}
+              onMouseDown={e => { e.preventDefault(); onChange(opt.value); setOpen(false); }}
               className={`px-4 py-2.5 text-sm cursor-pointer transition-colors flex items-center gap-2 border-l-2
                 ${opt.value === value
                   ? 'bg-primary/10 border-primary text-primary font-semibold'
@@ -94,13 +93,85 @@ function ModalSelect({
   );
 }
 
-/* ─────────────────────────────────────────────────────── */
+/** Beautiful date+time row component */
+function DateTimeInput({
+  dateValue, timeValue, onDateChange, onTimeChange, label,
+}: {
+  dateValue: string; timeValue: string;
+  onDateChange: (v: string) => void;
+  onTimeChange: (v: string) => void;
+  label: string;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-text-secondary mb-1.5 flex items-center gap-1">
+        <Clock className="w-3 h-3" /> {label}
+      </label>
+      <div className="flex gap-2">
+        <input
+          type="date"
+          value={dateValue}
+          onChange={e => onDateChange(e.target.value)}
+          className="input flex-1 bg-white dark:bg-card text-sm"
+          style={{ colorScheme: 'light' }}
+        />
+        <input
+          type="time"
+          value={timeValue}
+          onChange={e => onTimeChange(e.target.value)}
+          className="input w-28 bg-white dark:bg-card text-sm"
+          style={{ colorScheme: 'light' }}
+        />
+      </div>
+    </div>
+  );
+}
 
 export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: OrderWizardProps) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
+
+  // Progress bar pixel positions computed via refs
+  const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [barLeft, setBarLeft] = useState(0);
+  const [barTotalWidth, setBarTotalWidth] = useState(0);
+  const [barOrangeWidth, setBarOrangeWidth] = useState(0);
+  const headerRef = useRef<HTMLDivElement>(null);
+
+  const recalcBar = () => {
+    const refs = stepRefs.current;
+    if (!refs[0] || !refs[STEPS.length - 1] || !headerRef.current) return;
+    const containerRect = headerRef.current.getBoundingClientRect();
+    const firstRect = refs[0].getBoundingClientRect();
+    const lastRect = refs[STEPS.length - 1].getBoundingClientRect();
+    const firstCenter = firstRect.left + firstRect.width / 2 - containerRect.left;
+    const lastCenter = lastRect.left + lastRect.width / 2 - containerRect.left;
+    setBarLeft(firstCenter);
+    setBarTotalWidth(lastCenter - firstCenter);
+
+    if (currentStep === 0) {
+      setBarOrangeWidth(0);
+    } else if (currentStep >= STEPS.length - 1) {
+      setBarOrangeWidth(lastCenter - firstCenter);
+    } else {
+      const curRef = refs[currentStep];
+      if (curRef) {
+        const curRect = curRef.getBoundingClientRect();
+        const curCenter = curRect.left + curRect.width / 2 - containerRect.left;
+        setBarOrangeWidth(curCenter - firstCenter);
+      }
+    }
+  };
+
+  useLayoutEffect(() => {
+    if (isOpen) {
+      // Small delay to let modal render first
+      const t = setTimeout(recalcBar, 20);
+      return () => clearTimeout(t);
+    }
+  }, [isOpen, currentStep]);
 
   const [form, setForm] = useState({
     clientId: '',
@@ -113,12 +184,9 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
     notes: '',
   });
 
-  const [pickup, setPickup] = useState({
-    companyName: '', address: '', city: '', country: '', scheduledDate: '',
-  });
-  const [dropoff, setDropoff] = useState({
-    companyName: '', address: '', city: '', country: '', scheduledDate: '',
-  });
+  const emptyStop = { companyName: '', address: '', city: '', country: '', scheduledDate: '', scheduledTime: '' };
+  const [pickup, setPickup] = useState({ ...emptyStop });
+  const [dropoff, setDropoff] = useState({ ...emptyStop });
   const [cargoItems, setCargoItems] = useState<any[]>([]);
 
   useEffect(() => {
@@ -139,14 +207,14 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
           });
           const p = order.stops?.find((s: any) => s.type === 'pickup') || {};
           const d = order.stops?.find((s: any) => s.type === 'dropoff') || {};
-          setPickup({ companyName: p.companyName || '', address: p.address || '', city: p.city || '', country: p.country || '', scheduledDate: p.scheduledDate || '' });
-          setDropoff({ companyName: d.companyName || '', address: d.address || '', city: d.city || '', country: d.country || '', scheduledDate: d.scheduledDate || '' });
+          setPickup({ companyName: p.companyName || '', address: p.address || '', city: p.city || '', country: p.country || '', scheduledDate: p.scheduledDate?.slice(0, 10) || '', scheduledTime: p.scheduledTime || '' });
+          setDropoff({ companyName: d.companyName || '', address: d.address || '', city: d.city || '', country: d.country || '', scheduledDate: d.scheduledDate?.slice(0, 10) || '', scheduledTime: d.scheduledTime || '' });
           setCargoItems(order.cargoItems?.length ? order.cargoItems : [{ description: '', quantity: 1, weightKg: '', unit: 'pallet' }]);
         });
       } else {
         setForm({ clientId: '', customerReference: '', internalReference: '', priority: 'normal', transportType: 'ftl', price: '', currency: 'EUR', notes: '' });
-        setPickup({ companyName: '', address: '', city: '', country: '', scheduledDate: '' });
-        setDropoff({ companyName: '', address: '', city: '', country: '', scheduledDate: '' });
+        setPickup({ ...emptyStop });
+        setDropoff({ ...emptyStop });
         setCargoItems([{ description: '', quantity: 1, weightKg: '', unit: 'pallet' }]);
       }
       setCurrentStep(0);
@@ -157,7 +225,6 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
 
   const handleNext = () => { if (currentStep < STEPS.length - 1) setCurrentStep(c => c + 1); };
   const handlePrev = () => { if (currentStep > 0) setCurrentStep(c => c - 1); };
-
   const handleAddCargo = () => setCargoItems([...cargoItems, { description: '', quantity: 1, weightKg: '', unit: 'pallet' }]);
   const handleRemoveCargo = (i: number) => setCargoItems(cargoItems.filter((_, idx) => idx !== i));
   const handleCargoChange = (i: number, field: string, value: string) => {
@@ -172,8 +239,8 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
         clientId: form.clientId || null,
         price: form.price ? parseFloat(form.price) : null,
         stops: [
-          { type: 'pickup', sequence: 1, ...pickup },
-          { type: 'dropoff', sequence: 2, ...dropoff },
+          { type: 'pickup', sequence: 1, ...pickup, scheduledDate: pickup.scheduledDate || null },
+          { type: 'dropoff', sequence: 2, ...dropoff, scheduledDate: dropoff.scheduledDate || null },
         ],
         cargoItems: cargoItems.map(c => ({
           ...c,
@@ -197,17 +264,6 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
     }
   };
 
-  /* ── Progress bar geometry ────────────────────────────
-     3 steps → icons centered at 0%, 50%, 100% of the connector.
-     Connector spans from left edge of icon[0] center to right edge of icon[2] center.
-     We use flex, each step is flex-1, so icon centers are at 1/6, 3/6, 5/6 of total width.
-     Connector: left = 1/6, right = 1/6 → width = 4/6 = 66.67%
-     Orange fill = (step / (total-1)) * 100% of the connector width.
-  ─────────────────────────────────────────────────────── */
-  const connectorLeft = '16.67%';
-  const connectorWidth = '66.66%';
-  const orangeWidth = `${(currentStep / (STEPS.length - 1)) * 100}%`;
-
   const clientOptions: SelectOpt[] = [
     { value: '', label: 'Select a client...' },
     ...clients.map(c => ({ value: c.id, label: c.name })),
@@ -221,7 +277,7 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
     { value: 'low', label: 'Low' },
     { value: 'normal', label: 'Normal' },
     { value: 'high', label: 'High' },
-    { value: 'critical', label: 'Critical' },
+    { value: 'critical', label: '🔴 Critical' },
   ];
   const currencyOptions: SelectOpt[] = [
     { value: 'EUR', label: '€ EUR' },
@@ -258,34 +314,36 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
               Step {currentStep + 1} of {STEPS.length} — {STEPS[currentStep].title}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-surface rounded-xl transition-colors text-text-secondary"
-          >
+          <button onClick={onClose} className="p-2 hover:bg-surface rounded-xl transition-colors text-text-secondary">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Step indicators */}
-        <div className="px-8 py-5 border-b border-border bg-white dark:bg-card shrink-0">
-          <div className="flex items-start justify-between relative">
-            {/* Gray connector (full) */}
-            <div
-              className="absolute bg-border"
-              style={{ top: 20, left: connectorLeft, width: connectorWidth, height: 2 }}
-            />
-            {/* Orange connector (progress) */}
-            <div
-              className="absolute bg-primary transition-all duration-400 ease-in-out"
-              style={{ top: 20, left: connectorLeft, width: orangeWidth, height: 2 }}
-            />
+        {/* Step indicators with pixel-perfect bar */}
+        <div className="px-8 py-5 border-b border-border bg-white dark:bg-card shrink-0" ref={headerRef} style={{ position: 'relative' }}>
+          {/* Gray full connector */}
+          <div
+            className="absolute bg-border"
+            style={{ top: 20 + 20, left: barLeft, width: barTotalWidth, height: 2, zIndex: 0 }}
+          />
+          {/* Orange progress */}
+          <div
+            className="absolute bg-primary transition-all duration-400"
+            style={{ top: 20 + 20, left: barLeft, width: barOrangeWidth, height: 2, zIndex: 0 }}
+          />
 
+          <div className="flex items-start justify-between">
             {STEPS.map((step, idx) => {
               const StepIcon = step.icon;
               const isActive = idx === currentStep;
               const isPast = idx < currentStep;
               return (
-                <div key={step.id} className="flex flex-col items-center flex-1 relative" style={{ zIndex: 2 }}>
+                <div
+                  key={step.id}
+                  ref={el => { stepRefs.current[idx] = el; }}
+                  className="flex flex-col items-center flex-1"
+                  style={{ position: 'relative', zIndex: 2 }}
+                >
                   <button
                     type="button"
                     onClick={() => idx <= currentStep && setCurrentStep(idx)}
@@ -299,9 +357,9 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                   >
                     <StepIcon className="w-5 h-5" />
                   </button>
-                  <span className={`text-xs mt-2 font-semibold text-center leading-tight
-                    ${isActive ? 'text-primary' : 'text-text-secondary'}`}
-                  >
+                  <span className={`text-xs mt-2 font-semibold text-center leading-tight ${
+                    isActive ? 'text-primary' : 'text-text-secondary'
+                  }`}>
                     {step.title}
                   </span>
                 </div>
@@ -313,108 +371,62 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
 
-          {/* ─── STEP 1: General Info ─── */}
+          {/* STEP 1: General Info */}
           {currentStep === 0 && (
             <div className="space-y-5" style={{ animation: 'stepIn 0.2s ease-out' }}>
               <div className="bg-surface/40 p-5 rounded-xl border border-border space-y-4">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-text-secondary">Client Information</h3>
-
                 <div>
                   <label className="block text-sm font-medium mb-1.5" htmlFor="wiz-client">Client *</label>
-                  <ModalSelect
-                    id="wiz-client"
-                    value={form.clientId}
-                    onChange={v => setForm({ ...form, clientId: v })}
-                    options={clientOptions}
-                    placeholder="Select a client..."
-                  />
+                  <ModalSelect id="wiz-client" value={form.clientId} onChange={v => setForm({ ...form, clientId: v })} options={clientOptions} placeholder="Select a client..." />
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1.5">Customer Reference</label>
-                    <input
-                      type="text"
-                      value={form.customerReference}
-                      onChange={e => setForm({ ...form, customerReference: e.target.value })}
-                      className="input w-full"
-                      placeholder="e.g. PO-99812"
-                    />
+                    <input type="text" value={form.customerReference} onChange={e => setForm({ ...form, customerReference: e.target.value })} className="input w-full" placeholder="e.g. PO-99812" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1.5">Internal Reference</label>
-                    <input
-                      type="text"
-                      value={form.internalReference}
-                      onChange={e => setForm({ ...form, internalReference: e.target.value })}
-                      className="input w-full"
-                      placeholder="e.g. Hap-01"
-                    />
+                    <input type="text" value={form.internalReference} onChange={e => setForm({ ...form, internalReference: e.target.value })} className="input w-full" placeholder="e.g. Hap-01" />
                   </div>
                 </div>
               </div>
 
               <div className="bg-surface/40 p-5 rounded-xl border border-border space-y-4">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-text-secondary">Transport Details</h3>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1.5">Transport Type</label>
-                    <ModalSelect
-                      value={form.transportType}
-                      onChange={v => setForm({ ...form, transportType: v })}
-                      options={transportOptions}
-                    />
+                    <ModalSelect value={form.transportType} onChange={v => setForm({ ...form, transportType: v })} options={transportOptions} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1.5">Priority</label>
-                    <ModalSelect
-                      value={form.priority}
-                      onChange={v => setForm({ ...form, priority: v })}
-                      options={priorityOptions}
-                    />
+                    <ModalSelect value={form.priority} onChange={v => setForm({ ...form, priority: v })} options={priorityOptions} />
                   </div>
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1.5">Agreed Price</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary font-medium">€</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={form.price}
-                        onChange={e => setForm({ ...form, price: e.target.value })}
-                        className="input w-full pl-8"
-                        placeholder="0.00"
-                      />
+                      <input type="number" step="0.01" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="input w-full pl-8" placeholder="0.00" />
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1.5">Currency</label>
-                    <ModalSelect
-                      value={form.currency}
-                      onChange={v => setForm({ ...form, currency: v })}
-                      options={currencyOptions}
-                    />
+                    <ModalSelect value={form.currency} onChange={v => setForm({ ...form, currency: v })} options={currencyOptions} />
                   </div>
                 </div>
               </div>
 
               <div className="bg-surface/40 p-5 rounded-xl border border-border">
                 <label className="block text-sm font-medium mb-1.5">Internal Notes</label>
-                <textarea
-                  value={form.notes}
-                  onChange={e => setForm({ ...form, notes: e.target.value })}
-                  className="input w-full min-h-[80px] resize-none"
-                  placeholder="Additional instructions or notes..."
-                />
+                <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="input w-full min-h-[80px] resize-none" placeholder="Additional instructions or notes..." />
               </div>
             </div>
           )}
 
-          {/* ─── STEP 2: Pickup & Delivery ─── */}
+          {/* STEP 2: Pickup & Delivery */}
           {currentStep === 1 && (
             <div className="space-y-4" style={{ animation: 'stepIn 0.2s ease-out' }}>
               <div className="mb-1">
@@ -428,65 +440,43 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                 <h4 className="text-blue-600 dark:text-blue-400 font-bold mb-4 flex items-center gap-2">
                   <MapPin className="w-4 h-4" /> Pickup Details
                 </h4>
-
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-semibold text-text-secondary mb-1.5">Company / Location Name</label>
-                    <input
-                      type="text"
-                      value={pickup.companyName}
-                      onChange={e => setPickup({ ...pickup, companyName: e.target.value })}
-                      className="input w-full bg-white dark:bg-card"
-                      placeholder="e.g. Supplier Warehouse"
-                    />
+                    <input type="text" value={pickup.companyName} onChange={e => setPickup({ ...pickup, companyName: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="e.g. Supplier Warehouse" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-text-secondary mb-1.5">Full Address *</label>
                     <AddressAutocomplete
                       value={pickup.address}
                       onChange={val => setPickup({ ...pickup, address: val })}
-                      onSelectFull={(label, city, country) => setPickup(p => ({
-                        ...p,
-                        address: label,
-                        city: city || p.city,
-                        country: country || p.country,
-                      }))}
+                      onSelectFull={(label, city, country) => {
+                        // Extract only the street part (first segment before first comma)
+                        const streetOnly = label.split(',')[0]?.trim() || label;
+                        setPickup(p => ({ ...p, address: streetOnly, city: city || p.city, country: country || p.country }));
+                      }}
                       placeholder="Street, Number, Zip Code"
                       className="input w-full bg-white dark:bg-card"
                       required
                     />
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">City</label>
-                      <input
-                        type="text"
-                        value={pickup.city}
-                        onChange={e => setPickup({ ...pickup, city: e.target.value })}
-                        className="input w-full bg-white dark:bg-card"
-                        placeholder="City"
-                      />
+                      <input type="text" value={pickup.city} onChange={e => setPickup({ ...pickup, city: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="City" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">Country</label>
-                      <input
-                        type="text"
-                        value={pickup.country}
-                        onChange={e => setPickup({ ...pickup, country: e.target.value })}
-                        className="input w-full bg-white dark:bg-card"
-                        placeholder="Country"
-                      />
-                    </div>
-                    <div className="col-span-2 md:col-span-1">
-                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Pickup Date</label>
-                      <input
-                        type="date"
-                        value={pickup.scheduledDate?.slice(0, 10) || ''}
-                        onChange={e => setPickup({ ...pickup, scheduledDate: e.target.value })}
-                        className="input w-full bg-white dark:bg-card"
-                      />
+                      <input type="text" value={pickup.country} onChange={e => setPickup({ ...pickup, country: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Country" />
                     </div>
                   </div>
+                  <DateTimeInput
+                    label="Pickup Date & Time"
+                    dateValue={pickup.scheduledDate}
+                    timeValue={pickup.scheduledTime || ''}
+                    onDateChange={v => setPickup({ ...pickup, scheduledDate: v })}
+                    onTimeChange={v => setPickup({ ...pickup, scheduledTime: v })}
+                  />
                 </div>
               </div>
 
@@ -503,154 +493,89 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                 <h4 className="text-green-600 dark:text-green-400 font-bold mb-4 flex items-center gap-2">
                   <MapPin className="w-4 h-4" /> Delivery Details
                 </h4>
-
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-semibold text-text-secondary mb-1.5">Company / Location Name</label>
-                    <input
-                      type="text"
-                      value={dropoff.companyName}
-                      onChange={e => setDropoff({ ...dropoff, companyName: e.target.value })}
-                      className="input w-full bg-white dark:bg-card"
-                      placeholder="e.g. Client Destination"
-                    />
+                    <input type="text" value={dropoff.companyName} onChange={e => setDropoff({ ...dropoff, companyName: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="e.g. Client Destination" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-text-secondary mb-1.5">Full Address *</label>
                     <AddressAutocomplete
                       value={dropoff.address}
                       onChange={val => setDropoff({ ...dropoff, address: val })}
-                      onSelectFull={(label, city, country) => setDropoff(p => ({
-                        ...p,
-                        address: label,
-                        city: city || p.city,
-                        country: country || p.country,
-                      }))}
+                      onSelectFull={(label, city, country) => {
+                        const streetOnly = label.split(',')[0]?.trim() || label;
+                        setDropoff(p => ({ ...p, address: streetOnly, city: city || p.city, country: country || p.country }));
+                      }}
                       placeholder="Street, Number, Zip Code"
                       className="input w-full bg-white dark:bg-card"
                       required
                     />
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">City</label>
-                      <input
-                        type="text"
-                        value={dropoff.city}
-                        onChange={e => setDropoff({ ...dropoff, city: e.target.value })}
-                        className="input w-full bg-white dark:bg-card"
-                        placeholder="City"
-                      />
+                      <input type="text" value={dropoff.city} onChange={e => setDropoff({ ...dropoff, city: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="City" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">Country</label>
-                      <input
-                        type="text"
-                        value={dropoff.country}
-                        onChange={e => setDropoff({ ...dropoff, country: e.target.value })}
-                        className="input w-full bg-white dark:bg-card"
-                        placeholder="Country"
-                      />
-                    </div>
-                    <div className="col-span-2 md:col-span-1">
-                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Delivery Date</label>
-                      <input
-                        type="date"
-                        value={dropoff.scheduledDate?.slice(0, 10) || ''}
-                        onChange={e => setDropoff({ ...dropoff, scheduledDate: e.target.value })}
-                        className="input w-full bg-white dark:bg-card"
-                      />
+                      <input type="text" value={dropoff.country} onChange={e => setDropoff({ ...dropoff, country: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Country" />
                     </div>
                   </div>
+                  <DateTimeInput
+                    label="Delivery Date & Time"
+                    dateValue={dropoff.scheduledDate}
+                    timeValue={dropoff.scheduledTime || ''}
+                    onDateChange={v => setDropoff({ ...dropoff, scheduledDate: v })}
+                    onTimeChange={v => setDropoff({ ...dropoff, scheduledTime: v })}
+                  />
                 </div>
               </div>
             </div>
           )}
 
-          {/* ─── STEP 3: Cargo Items ─── */}
+          {/* STEP 3: Cargo Items */}
           {currentStep === 2 && (
             <div className="space-y-4" style={{ animation: 'stepIn 0.2s ease-out' }}>
               <div className="mb-2">
                 <h3 className="text-lg font-semibold text-text-primary">Cargo Items</h3>
                 <p className="text-sm text-text-secondary">What are we transporting? You can split the order into multiple items.</p>
               </div>
-
               <div className="space-y-3">
                 {cargoItems.map((cargo, index) => (
                   <div key={index} className="bg-surface/50 border border-border rounded-xl p-4 relative group">
                     {cargoItems.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveCargo(index)}
-                        className="absolute top-3 right-3 p-1.5 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                      >
+                      <button type="button" onClick={() => handleRemoveCargo(index)} className="absolute top-3 right-3 p-1.5 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
-
                     <div className="mb-3 pr-8">
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">Cargo Description *</label>
-                      <input
-                        type="text"
-                        value={cargo.description}
-                        onChange={e => handleCargoChange(index, 'description', e.target.value)}
-                        className="input w-full"
-                        placeholder="e.g. Pallets of electronics"
-                        required
-                      />
+                      <input type="text" value={cargo.description} onChange={e => handleCargoChange(index, 'description', e.target.value)} className="input w-full" placeholder="e.g. Pallets of electronics" required />
                     </div>
-
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-text-secondary mb-1.5">Quantity</label>
-                        <input
-                          type="number"
-                          value={cargo.quantity}
-                          onChange={e => handleCargoChange(index, 'quantity', e.target.value)}
-                          className="input w-full"
-                          min="1"
-                        />
+                        <input type="number" value={cargo.quantity} onChange={e => handleCargoChange(index, 'quantity', e.target.value)} className="input w-full" min="1" />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-text-secondary mb-1.5">Unit Type</label>
-                        <ModalSelect
-                          value={cargo.unit || 'pallet'}
-                          onChange={v => handleCargoChange(index, 'unit', v)}
-                          options={unitOptions}
-                        />
+                        <ModalSelect value={cargo.unit || 'pallet'} onChange={v => handleCargoChange(index, 'unit', v)} options={unitOptions} />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-text-secondary mb-1.5">Weight (kg)</label>
-                        <input
-                          type="number"
-                          value={cargo.weightKg}
-                          onChange={e => handleCargoChange(index, 'weightKg', e.target.value)}
-                          className="input w-full"
-                          placeholder="Total weight"
-                        />
+                        <input type="number" step="0.1" value={cargo.weightKg} onChange={e => handleCargoChange(index, 'weightKg', e.target.value)} className="input w-full" placeholder="Total weight" />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-text-secondary mb-1.5">Volume (m³)</label>
-                        <input
-                          type="number"
-                          value={cargo.volumeCbm || ''}
-                          onChange={e => handleCargoChange(index, 'volumeCbm', e.target.value)}
-                          className="input w-full"
-                          placeholder="Optional"
-                        />
+                        <input type="number" step="0.01" value={cargo.volumeCbm || ''} onChange={e => handleCargoChange(index, 'volumeCbm', e.target.value)} className="input w-full" placeholder="Optional" />
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-
-              <button
-                type="button"
-                onClick={handleAddCargo}
-                className="w-full py-3 border-2 border-dashed border-border rounded-xl text-text-secondary hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center gap-2 font-medium"
-              >
-                <Plus className="w-4 h-4" />
-                Add Cargo Item
+              <button type="button" onClick={handleAddCargo} className="w-full py-3 border-2 border-dashed border-border rounded-xl text-text-secondary hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center gap-2 font-medium">
+                <Plus className="w-4 h-4" /> Add Cargo Item
               </button>
             </div>
           )}
@@ -658,32 +583,19 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
 
         {/* Footer */}
         <div className="p-5 border-t border-border bg-surface/50 flex justify-between items-center shrink-0">
-          <button type="button" onClick={onClose} className="btn-secondary">
-            Cancel
-          </button>
-
+          <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
           <div className="flex gap-3">
             {currentStep > 0 && (
               <button type="button" onClick={handlePrev} className="btn-secondary flex items-center gap-2">
                 <ArrowLeft className="w-4 h-4" /> Back
               </button>
             )}
-
             {currentStep < STEPS.length - 1 ? (
-              <button
-                type="button"
-                onClick={handleNext}
-                className="btn-primary flex items-center gap-2 shadow-sm hover:shadow-md"
-              >
+              <button type="button" onClick={handleNext} className="btn-primary flex items-center gap-2 shadow-sm hover:shadow-md">
                 Next Step <ArrowRight className="w-4 h-4" />
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={loading}
-                className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-150 active:scale-95"
-              >
+              <button type="button" onClick={handleSubmit} disabled={loading} className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-150 active:scale-95">
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Confirm & Save Order
               </button>
@@ -695,11 +607,11 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
       <style>{`
         @keyframes wizardIn {
           from { opacity: 0; transform: scale(0.94) translateY(12px); }
-          to   { opacity: 1; transform: scale(1)    translateY(0);     }
+          to   { opacity: 1; transform: scale(1) translateY(0); }
         }
         @keyframes stepIn {
           from { opacity: 0; transform: translateY(6px); }
-          to   { opacity: 1; transform: translateY(0);   }
+          to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>
