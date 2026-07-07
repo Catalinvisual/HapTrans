@@ -15,8 +15,10 @@ const DAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
 export default function CustomDatePicker({ dateValue, timeValue, onDateChange, onTimeChange, label }: CustomDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isTimeOpen, setIsTimeOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const containerRef = useRef<HTMLDivElement>(null);
+  const timeRef = useRef<HTMLDivElement>(null);
   const [popupPos, setPopupPos] = useState({ top: 0, left: 0, width: 0 });
 
   useEffect(() => {
@@ -28,11 +30,14 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        // Also check if click is inside the portal
+      const target = e.target as Node;
+      if (containerRef.current && !containerRef.current.contains(target)) {
         const popup = document.getElementById('custom-datepicker-popup');
-        if (popup && popup.contains(e.target as Node)) return;
+        if (popup && popup.contains(target)) return;
         setIsOpen(false);
+      }
+      if (timeRef.current && !timeRef.current.contains(target)) {
+        setIsTimeOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -142,16 +147,54 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
           <CalendarIcon className="w-4 h-4 text-text-secondary" />
         </div>
         
-        {/* Time Input */}
-        <div className="relative w-28">
-          <input
-            type="time"
-            value={timeValue}
-            onChange={e => onTimeChange(e.target.value)}
-            className="input w-full bg-white dark:bg-card text-sm pl-8"
-            style={{ colorScheme: 'light' }}
-          />
-          <Clock className="w-4 h-4 text-text-secondary absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        {/* Time Input Custom */}
+        <div className="relative w-28" ref={timeRef}>
+          <div
+            onClick={() => setIsTimeOpen(!isTimeOpen)}
+            className="input w-full bg-white dark:bg-card text-sm pl-8 flex items-center cursor-pointer hover:border-primary/50 transition-colors h-[38px]"
+          >
+            <Clock className="w-4 h-4 text-text-secondary absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <span className={timeValue ? 'text-text-primary' : 'text-text-muted'}>
+              {timeValue || '--:--'}
+            </span>
+          </div>
+          
+          {isTimeOpen && (
+            <div className="absolute top-full mt-1 left-0 w-48 bg-card border border-border rounded-xl shadow-xl z-[999] p-2 flex gap-2 h-48">
+              <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
+                {Array.from({ length: 24 }).map((_, i) => {
+                  const h = String(i).padStart(2, '0');
+                  const currentH = timeValue?.split(':')[0];
+                  return (
+                    <div
+                      key={`h-${h}`}
+                      onClick={() => onTimeChange(`${h}:${timeValue?.split(':')[1] || '00'}`)}
+                      className={`py-1.5 px-2 text-center text-sm rounded cursor-pointer mb-1 ${currentH === h ? 'bg-primary text-white font-bold' : 'hover:bg-surface text-text-primary'}`}
+                    >
+                      {h}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
+                {['00', '15', '30', '45'].map(m => {
+                  const currentM = timeValue?.split(':')[1];
+                  return (
+                    <div
+                      key={`m-${m}`}
+                      onClick={() => {
+                        onTimeChange(`${timeValue?.split(':')[0] || '00'}:${m}`);
+                        setIsTimeOpen(false); // close after full selection
+                      }}
+                      className={`py-1.5 px-2 text-center text-sm rounded cursor-pointer mb-1 ${currentM === m ? 'bg-primary text-white font-bold' : 'hover:bg-surface text-text-primary'}`}
+                    >
+                      {m}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

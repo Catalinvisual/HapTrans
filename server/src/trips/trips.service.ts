@@ -28,7 +28,10 @@ export class TripsService {
   ) {}
 
   findAll() {
-    return this.repo.find({ relations: ['truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders'] });
+    return this.repo.find({ 
+      relations: ['truck', 'driver', 'stops', 'orders', 'orders.cargoItems'],
+      order: { createdAt: 'DESC' }
+    });
   }
 
   findAllForDashboard() {

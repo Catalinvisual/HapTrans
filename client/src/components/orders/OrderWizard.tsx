@@ -266,7 +266,6 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4"
       style={{ backdropFilter: 'blur(4px)', backgroundColor: 'rgba(0,0,0,0.55)' }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
         className="relative z-50 w-full max-w-2xl bg-card shadow-2xl flex flex-col rounded-2xl overflow-hidden"
@@ -316,9 +315,9 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                   <button
                     type="button"
                     onClick={() => idx <= currentStep && setCurrentStep(idx)}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 focus:outline-none
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 focus:outline-none ring-[6px] ring-white dark:ring-card
                       ${isActive
-                        ? 'bg-primary text-white shadow-lg shadow-primary/30 ring-4 ring-primary/20 scale-110'
+                        ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-110'
                         : isPast
                           ? 'bg-primary/20 text-primary cursor-pointer hover:bg-primary/30'
                           : 'bg-surface border-2 border-border text-text-muted cursor-default'
@@ -427,10 +426,14 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                       required
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">City</label>
                       <input type="text" value={pickup.city} onChange={e => setPickup({ ...pickup, city: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="City" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Zip Code</label>
+                      <input type="text" value={pickup.postalCode || ''} onChange={e => setPickup({ ...pickup, postalCode: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Zip Code" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">Country</label>
@@ -478,10 +481,14 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                       required
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">City</label>
                       <input type="text" value={dropoff.city} onChange={e => setDropoff({ ...dropoff, city: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="City" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Zip Code</label>
+                      <input type="text" value={dropoff.postalCode || ''} onChange={e => setDropoff({ ...dropoff, postalCode: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Zip Code" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">Country</label>

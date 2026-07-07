@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Truck, MapPin, Search, Loader2, ArrowRight, Eye, MoreHorizontal, Calendar } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Truck, MapPin, Search, Loader2, ArrowRight, Eye, MoreHorizontal, Calendar, Package } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 
 export default function TripsPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -75,9 +77,9 @@ export default function TripsPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-surface/50 border-b border-border">
-                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">Trip Ref</th>
+                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">Trip & Orders</th>
                   <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">Fleet</th>
-                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">Routing / Stops</th>
+                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">Routing & Cargo</th>
                   <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">Status</th>
                   <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider text-right">Actions</th>
                 </tr>
@@ -92,21 +94,30 @@ export default function TripsPage() {
 
                   return (
                     <tr key={trip.id} className="hover:bg-surface/30 transition-colors group">
-                      <td className="p-4">
+                      <td className="p-4 align-top">
                         <div className="font-semibold text-primary">{trip.tripNumber || trip.id.slice(0, 8)}</div>
                         <div className="text-xs text-text-secondary mt-1 flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
                           {new Date(trip.createdAt).toLocaleDateString()}
                         </div>
+                        {trip.orders && trip.orders.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {trip.orders.map((o: any) => (
+                              <div key={o.id} className="text-[11px] bg-primary/10 text-primary font-medium px-2 py-0.5 rounded-full inline-block mr-1">
+                                {o.orderNumber || o.referenceNumber}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </td>
-                      <td className="p-4">
+                      <td className="p-4 align-top">
                         <div className="font-medium">{trip.truck?.plateNumber || 'No Truck'}</div>
                         <div className="text-xs text-text-secondary mt-1 flex items-center gap-1">
                           <span className={`w-1.5 h-1.5 rounded-full ${trip.driver ? 'bg-green-500' : 'bg-red-400'}`} />
                           {driverName}
                         </div>
                       </td>
-                      <td className="p-4">
+                      <td className="p-4 align-top">
                         <div className="flex flex-col gap-2 min-w-[280px]">
                           {pickup && (
                             <div className="flex items-start gap-2">
@@ -146,9 +157,25 @@ export default function TripsPage() {
                           {!pickup && !dropoff && (
                             <span className="text-sm text-text-muted">No stops defined</span>
                           )}
+                          
+                          {/* Cargo Summary */}
+                          {trip.orders && trip.orders.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-border flex flex-wrap gap-3">
+                              {trip.orders.map((o: any) => {
+                                const w = o.cargoItems?.reduce((sum: number, c: any) => sum + (c.weightKg || 0), 0) || 0;
+                                const items = o.cargoItems?.reduce((sum: number, c: any) => sum + (c.quantity || 1), 0) || 0;
+                                return (w > 0 || items > 0) ? (
+                                  <div key={`cargo-${o.id}`} className="flex items-center gap-1 text-xs text-text-secondary">
+                                    <Package className="w-3.5 h-3.5" />
+                                    <span>{items} items {w > 0 && `(${Number(w).toLocaleString()} kg)`}</span>
+                                  </div>
+                                ) : null;
+                              })}
+                            </div>
+                          )}
                         </div>
                       </td>
-                      <td className="p-4">
+                      <td className="p-4 align-top">
                         <span className={`badge ${
                             trip.status === 'planning' ? 'badge-warning' :
                             trip.status === 'active' || trip.status === 'in_progress' ? 'badge-primary' :
@@ -159,7 +186,10 @@ export default function TripsPage() {
                         </span>
                       </td>
                       <td className="p-4 text-right">
-                        <button className="p-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors">
+                        <button 
+                          onClick={() => navigate(`/trips/${trip.id}`)}
+                          className="p-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                        >
                           <Eye className="w-5 h-5" />
                         </button>
                       </td>

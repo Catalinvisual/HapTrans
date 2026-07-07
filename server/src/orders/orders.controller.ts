@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -18,7 +18,10 @@ export class OrdersController {
   }
 
   @Post()
-  create(@Body() dto: any) {
+  create(@Body() dto: any, @Request() req: any) {
+    if (req.user?.companyId) {
+      dto.companyId = req.user.companyId;
+    }
     return this.ordersService.create(dto);
   }
 
