@@ -223,15 +223,15 @@ export default function PlanningPage() {
       }
     }
 
-    let badge = 'Compatibil';
+    let badge = t('compatible');
     let color = 'text-green-600 bg-green-50 dark:bg-green-950/20 dark:text-green-400 border-green-200';
     let isCompatible = weightFits && ldmFits;
 
     if (!isCompatible) {
       let warningText = '';
-      if (!weightFits) warningText += `Depășește Greutatea (+${(stats.weight + orderWeight - maxWeight)} kg) `;
-      if (!ldmFits) warningText += `Depășește LDM (+${(stats.ldm + orderLdm - maxLdm).toFixed(1)} LDM) `;
-      badge = warningText || 'Capacitate Depășită';
+      if (!weightFits) warningText += t('exceeds_weight', { kg: (stats.weight + orderWeight - maxWeight) }) + ' ';
+      if (!ldmFits) warningText += t('exceeds_ldm', { ldm: (stats.ldm + orderLdm - maxLdm).toFixed(1) }) + ' ';
+      badge = warningText.trim() || t('capacity_exceeded');
       color = 'text-red-500 bg-red-50 dark:bg-red-950/20 dark:text-red-400 border-red-200 font-bold';
     }
 
@@ -269,12 +269,12 @@ export default function PlanningPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Planificator HapCargo (TMS)</h1>
-          <p className="text-sm text-text-secondary mt-1">Planificați inteligent comenzile nealocate selectându-le și atribuindu-le pe camioanele recomandate.</p>
+          <h1 className="text-2xl font-bold text-text-primary">{t('planning_tms_title')}</h1>
+          <p className="text-sm text-text-secondary mt-1">{t('planning_tms_subtitle')}</p>
         </div>
         <button onClick={loadData} className="btn-secondary flex items-center gap-2">
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          Actualizează datele
+          {t('update_data')}
         </button>
       </div>
 
@@ -286,28 +286,28 @@ export default function PlanningPage() {
           <div className="p-5 border-b border-border bg-surface/30 flex justify-between items-center">
             <h2 className="font-bold text-text-primary text-lg flex items-center gap-2">
               <Package className="w-5.5 h-5.5 text-primary" />
-              Comenzi Nealocate
+              {t('unassigned_orders')}
             </h2>
-            <span className="badge badge-warning text-xs px-3 py-1 font-bold">{unassigned.length} comenzi active</span>
+            <span className="badge badge-warning text-xs px-3 py-1 font-bold">{t('active_orders_count', { count: unassigned.length })}</span>
           </div>
 
           <div className="overflow-x-auto">
             {unassigned.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <CheckCircle2 className="w-12 h-12 text-green-500 mb-3 opacity-60" />
-                <p className="font-semibold text-text-primary">Toate comenzile sunt planificate pe camioane!</p>
+                <p className="font-semibold text-text-primary">{t('no_unassigned_orders')}</p>
               </div>
             ) : (
               <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead>
                   <tr className="bg-surface/50 border-b border-border text-xs uppercase font-bold text-text-secondary">
-                    <th className="p-4 pl-6">Referință</th>
-                    <th className="p-4">Tip</th>
-                    <th className="p-4">Preluare (Origin)</th>
-                    <th className="p-4">Descărcare (Destination)</th>
-                    <th className="p-4">Detalii Marfă</th>
-                    <th className="p-4">Preț</th>
-                    <th className="p-4 pr-6 text-right">Acțiune</th>
+                    <th className="p-4 pl-6">{t('ref_table_header')}</th>
+                    <th className="p-4">{t('type_table_header')}</th>
+                    <th className="p-4">{t('pickup_table_header')}</th>
+                    <th className="p-4">{t('dropoff_table_header')}</th>
+                    <th className="p-4">{t('cargo_table_header')}</th>
+                    <th className="p-4">{t('price_table_header')}</th>
+                    <th className="p-4 pr-6 text-right">{t('action_table_header')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60 text-sm">
@@ -322,7 +322,7 @@ export default function PlanningPage() {
                       <tr key={order.id} className="hover:bg-surface/20 transition-colors">
                         <td className="p-4 pl-6">
                           <span className="font-bold text-primary">{order.orderNumber || order.referenceNumber || 'Comandă'}</span>
-                          {isUrgent && <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-red-100 text-red-700 border border-red-200 rounded">Urgent</span>}
+                          {isUrgent && <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-red-100 text-red-700 border border-red-200 rounded">{t('urgent')}</span>}
                         </td>
                         <td className="p-4">
                           <span className="px-2 py-0.5 text-xs font-semibold rounded bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400 border border-blue-150">
@@ -349,7 +349,7 @@ export default function PlanningPage() {
                             onClick={() => setSelectedOrderToAssign(order)}
                             className="btn-primary py-1.5 px-4 text-xs font-bold bg-primary hover:bg-primary/95 text-white rounded-lg inline-flex items-center gap-1.5 shadow-sm"
                           >
-                            <TruckIcon className="w-4 h-4" /> Planifică Cursă
+                            <TruckIcon className="w-4 h-4" /> {t('plan_trip')}
                           </button>
                         </td>
                       </tr>
@@ -366,7 +366,7 @@ export default function PlanningPage() {
           <div className="flex justify-between items-center">
             <h2 className="font-bold text-text-primary text-lg flex items-center gap-2">
               <TruckIcon className="w-5.5 h-5.5 text-primary" />
-              Flotă & Camioane Active (Planning)
+              {t('active_fleet_title')}
             </h2>
           </div>
 
@@ -398,14 +398,14 @@ export default function PlanningPage() {
                           {truck.plateNumber}
                         </h3>
                         <div className="mt-2 text-xs">
-                          <span className="text-text-secondary font-semibold">Șofer alocat:</span>
+                          <span className="text-text-secondary font-semibold">{t('assigned_driver')}</span>
                           <select
                             value={stats.driverId || ''}
                             onChange={e => handleAssignDriver(truck.id, e.target.value)}
                             onClick={e => e.stopPropagation()}
                             className="w-full text-xs bg-white dark:bg-card border border-border/80 rounded-lg p-1.5 font-semibold text-text-primary focus:outline-none focus:border-primary mt-1"
                           >
-                            <option value="">Fără Șofer (Alege...)</option>
+                            <option value="">{t('no_driver_select')}</option>
                             {drivers.map((d: any) => (
                               <option key={d.id} value={d.id}>
                                 {d.user?.name || 'Șofer Fără Nume'}
@@ -416,7 +416,7 @@ export default function PlanningPage() {
                       </div>
                       {hasWarning && (
                         <span className="text-red-500 animate-pulse flex items-center gap-1 text-xs font-bold">
-                          <AlertTriangle className="w-4 h-4" /> Supraîncărcare
+                          <AlertTriangle className="w-4 h-4" /> {t('overload_warning')}
                         </span>
                       )}
                     </div>
@@ -425,7 +425,7 @@ export default function PlanningPage() {
                     <div className="space-y-3 my-4">
                       <div>
                         <div className="flex justify-between text-xs font-semibold mb-1 text-text-secondary">
-                          <span>Greutate: {stats.weight} / {maxWeight} kg</span>
+                          <span>{t('weight_label')}: {stats.weight} / {maxWeight} kg</span>
                           <span>{weightPct.toFixed(0)}%</span>
                         </div>
                         <div className="w-full bg-surface dark:bg-card-dark h-2 rounded-full overflow-hidden border border-border/40">
@@ -438,7 +438,7 @@ export default function PlanningPage() {
 
                       <div>
                         <div className="flex justify-between text-xs font-semibold mb-1 text-text-secondary">
-                          <span>Metri podea: {stats.ldm.toFixed(1)} / {maxLdm} LDM</span>
+                          <span>{t('floor_meters_label')}: {stats.ldm.toFixed(1)} / {maxLdm} LDM</span>
                           <span>{ldmPct.toFixed(0)}%</span>
                         </div>
                         <div className="w-full bg-surface dark:bg-card-dark h-2 rounded-full overflow-hidden border border-border/40">
@@ -453,11 +453,11 @@ export default function PlanningPage() {
 
                   <div className="pt-3 border-t border-border/60 flex justify-between items-center text-xs text-text-secondary">
                     <span className="font-semibold">
-                      {stats.count} comenzi în cursă (LTL)
+                      {t('orders_in_trip', { count: stats.count })}
                     </span>
                     {stats.tripId && (
                       <span className="text-primary font-bold hover:underline">
-                        Vezi Opriri &rarr;
+                        {t('view_stops')} &rarr;
                       </span>
                     )}
                   </div>
@@ -473,13 +473,13 @@ export default function PlanningPage() {
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-text-primary text-base flex items-center gap-2">
                 <MapPin className="w-5.5 h-5.5 text-primary" />
-                Secvența de Opriri (Stops Routing)
+                {t('stops_sequence_title')}
               </h3>
               <button 
                 onClick={() => setSelectedTripId(null)}
                 className="text-xs font-bold text-text-secondary hover:text-red-500 border border-border rounded-lg px-3 py-1 bg-surface hover:bg-surface/80 transition-all"
               >
-                Închide Panoul
+                {t('close_panel')}
               </button>
             </div>
 
@@ -491,7 +491,7 @@ export default function PlanningPage() {
                       {stop.sequence}
                     </span>
                     <div>
-                      <p className="text-sm font-semibold text-text-primary">{stop.companyName || 'Oprire'}</p>
+                      <p className="text-sm font-semibold text-text-primary">{stop.companyName || t('stop_default_label')}</p>
                       <p className="text-xs text-text-secondary line-clamp-1">{stop.address}</p>
                     </div>
                   </div>
@@ -542,43 +542,43 @@ export default function PlanningPage() {
               <div className="px-6 py-4 border-b border-border bg-surface/50 flex justify-between items-center shrink-0">
                 <div>
                   <h2 className="text-xl font-bold text-text-primary">
-                    Asignare Inteligentă: {order.orderNumber || order.referenceNumber}
+                    {t('smart_assign_title')}: {order.orderNumber || order.referenceNumber}
                   </h2>
                   <p className="text-sm text-text-secondary mt-1">
-                    Alegeți camionul optim recomandat de sistem în funcție de adrese, zone de proximitate și capacitate.
+                    {t('smart_assign_desc')}
                   </p>
                 </div>
                 <button 
                   onClick={() => setSelectedOrderToAssign(null)} 
                   className="text-text-secondary hover:text-red-500 font-semibold text-sm"
                 >
-                  Închide
+                  {t('close')}
                 </button>
               </div>
 
               {/* Cargo Info strip */}
               <div className="bg-primary/5 p-4 border-b border-border/80 text-sm flex flex-wrap gap-x-6 gap-y-2 shrink-0 justify-between items-center">
                 <div>
-                  <span className="font-semibold text-text-secondary block text-xs uppercase tracking-wide">Traseu</span>
+                  <span className="font-semibold text-text-secondary block text-xs uppercase tracking-wide">{t('route')}</span>
                   <span className="font-bold text-text-primary">
                     {pickup?.city || pickup?.address?.split(',')[0] || 'TBD'} &rarr; {dropoff?.city || dropoff?.address?.split(',')[0] || 'TBD'}
                   </span>
                 </div>
                 <div>
-                  <span className="font-semibold text-text-secondary block text-xs uppercase tracking-wide">Detalii Mărfuri</span>
+                  <span className="font-semibold text-text-secondary block text-xs uppercase tracking-wide">{t('cargo_details')}</span>
                   <span className="font-bold text-text-primary">
                     {orderWeight} kg • {orderLdm.toFixed(1)} LDM • {(order.transportType || 'ftl').toUpperCase()}
                   </span>
                 </div>
                 <div>
-                  <span className="font-semibold text-text-secondary block text-xs uppercase tracking-wide">Preț Intermediat</span>
+                  <span className="font-semibold text-text-secondary block text-xs uppercase tracking-wide">{t('agreed_price')}</span>
                   <span className="font-bold text-primary">€{order.price || '0.00'}</span>
                 </div>
               </div>
 
               {/* List of recommended trucks */}
               <div className="p-6 overflow-y-auto space-y-4 custom-scrollbar flex-1">
-                <h3 className="text-xs uppercase font-bold tracking-widest text-text-secondary mb-2">Recomandări Camioane (Sortate după proximitate)</h3>
+                <h3 className="text-xs uppercase font-bold tracking-widest text-text-secondary mb-2">{t('recommendations_title')}</h3>
                 {sortedTrucks.map(({ truck, rec }) => {
                   const stats = getTruckStats(truck.id);
                   const maxWeight = truck.maxWeightKg || 24000;
@@ -607,14 +607,14 @@ export default function PlanningPage() {
                           </span>
                           {rec.distanceKm !== null && (
                             <span className="px-2 py-0.5 text-[10px] font-bold text-primary bg-primary/10 border border-primary/20 rounded-md">
-                              📍 {rec.distanceKm.toFixed(0)} km {rec.distanceType === 'last_stop' ? 'de la ultima oprire' : 'de la locația curentă'}
+                              📍 {rec.distanceKm.toFixed(0)} km {rec.distanceType === 'last_stop' ? t('from_last_stop') : t('from_current_loc')}
                             </span>
                           )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 text-xs font-semibold text-text-secondary mt-1">
                           <div>
-                            <span>Utilizare Greutate:</span>
+                            <span>{t('weight_label')}:</span>
                             <div className="flex items-center gap-2 mt-0.5">
                               <div className="w-24 bg-surface dark:bg-card-dark h-1.5 rounded-full overflow-hidden border border-border/40">
                                 <div className="h-full bg-primary" style={{ width: `${weightPct}%` }} />
@@ -623,7 +623,7 @@ export default function PlanningPage() {
                             </div>
                           </div>
                           <div>
-                            <span>Utilizare LDM:</span>
+                            <span>{t('floor_meters_label')}:</span>
                             <div className="flex items-center gap-2 mt-0.5">
                               <div className="w-24 bg-surface dark:bg-card-dark h-1.5 rounded-full overflow-hidden border border-border/40">
                                 <div className="h-full bg-green-600" style={{ width: `${ldmPct}%` }} />
@@ -641,7 +641,7 @@ export default function PlanningPage() {
                             onChange={e => handleAssignDriver(truck.id, e.target.value)}
                             className="w-full bg-white dark:bg-card border border-border/80 rounded-lg p-1.5 font-semibold text-text-primary focus:outline-none focus:border-primary"
                           >
-                            <option value="">Fără Șofer</option>
+                            <option value="">{t('no_driver')}</option>
                             {drivers.map((d: any) => (
                               <option key={d.id} value={d.id}>
                                 {d.user?.name || 'Șofer Fără Nume'}
@@ -663,9 +663,9 @@ export default function PlanningPage() {
                           {assigning === order.id ? (
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
                           ) : isRecommended ? (
-                            'Asignează'
+                            t('assign_btn')
                           ) : (
-                            'Forțează Alocarea'
+                            t('force_assign_btn')
                           )}
                         </button>
                       </div>
@@ -680,7 +680,7 @@ export default function PlanningPage() {
                   onClick={() => setSelectedOrderToAssign(null)} 
                   className="btn-secondary py-2 px-4 text-xs font-semibold"
                 >
-                  Anulează
+                  {t('cancel')}
                 </button>
               </div>
             </div>
