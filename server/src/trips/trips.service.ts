@@ -92,6 +92,15 @@ export class TripsService {
     delete updateData.pickupAddress;
     delete updateData.dropoffAddress;
 
+    if ('driverId' in updateData) {
+      updateData.driver = updateData.driverId ? { id: updateData.driverId } : null;
+      delete updateData.driverId;
+    }
+    if ('truckId' in updateData) {
+      updateData.truck = updateData.truckId ? { id: updateData.truckId } : null;
+      delete updateData.truckId;
+    }
+
     const existing = await this.findOne(id);
     if (!existing) throw new NotFoundException('Trip not found');
 

@@ -12,9 +12,8 @@ export default function PlanningPage() {
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState<string | null>(null);
-  const [dragOverTruck, setDragOverTruck] = useState<string | null>(null);
-  const [draggingOrder, setDraggingOrder] = useState<any | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+  const [selectedOrderToAssign, setSelectedOrderToAssign] = useState<any | null>(null);
 
   const loadData = async () => {
     try {
@@ -39,31 +38,9 @@ export default function PlanningPage() {
 
   useEffect(() => { loadData(); }, []);
 
-  const handleDragStart = (e: React.DragEvent, order: any) => {
-    e.dataTransfer.setData('orderId', order.id);
-    e.dataTransfer.effectAllowed = 'move';
-    setDraggingOrder(order);
-  };
-
-  const handleDragEnd = () => {
-    setDraggingOrder(null);
-    setDragOverTruck(null);
-  };
-
-  const handleDragOver = (e: React.DragEvent, truckId: string) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverTruck(truckId);
-  };
-
-  const handleDragLeave = () => setDragOverTruck(null);
-
-  const handleDrop = async (e: React.DragEvent, truckId: string) => {
-    e.preventDefault();
-    setDragOverTruck(null);
-    const orderId = e.dataTransfer.getData('orderId');
-    if (!orderId) return;
+  const handleAssignOrderToTruck = async (orderId: string, truckId: string) => {
     await assignOrderToTruck(orderId, truckId);
+    setSelectedOrderToAssign(null);
   };
 
   const assignOrderToTruck = async (orderId: string, truckId: string) => {
@@ -197,14 +174,41 @@ export default function PlanningPage() {
 
     return { weight, ldm, count: ordersList.length, orders: ordersList, tripId: trip.id, driverId: trip.driver?.id || null };
   };
+  const getRecommendation = (truck: any, order: any) => {
+    const stats = getTruckStats(truck.id);
+    const orderWeight = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || 0;
+    const orderLdm = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.ldm || 0), 0) || 0;
 
+    const maxWeight = truck.maxWeightKg || 24000;
+    const maxLdm = truck.maxLdm || 13.6;
+
+    const weightFits = stats.weight + orderWeight <= maxWeight;
+    const ldmFits = stats.ldm + orderLdm <= maxLdm;
+
+    if (weightFits && ldmFits) {
+      return { 
+        score: 100, 
+        badge: 'Compatibil', 
+        color: 'text-green-600 bg-green-50 dark:bg-green-950/20 dark:text-green-400 border-green-200' 
+      };
+    } else {
+      let warningText = '';
+      if (!weightFits) warningText += `Depășește Greutatea (+${(stats.weight + orderWeight - maxWeight)} kg) `;
+      if (!ldmFits) warningText += `Depășește LDM (+${(stats.ldm + orderLdm - maxLdm).toFixed(1)} LDM) `;
+      return { 
+        score: 0, 
+        badge: warningText || 'Capacitate Depășită', 
+        color: 'text-red-500 bg-red-50 dark:bg-red-950/20 dark:text-red-400 border-red-200 font-bold' 
+      };
+    }
+  };
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Planificator HapCargo (TMS)</h1>
-          <p className="text-sm text-text-secondary mt-1">Trageți comenzile nealocate peste camioane pentru a crea sau extinde rutele (LTL).</p>
+          <p className="text-sm text-text-secondary mt-1">Planificați inteligent comenzile nealocate selectându-le și atribuindu-le pe camioanele recomandate.</p>
         </div>
         <button onClick={loadData} className="btn-secondary flex items-center gap-2">
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -215,7 +219,7 @@ export default function PlanningPage() {
       {/* Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left panel: Unassigned Orders */}
-        <div className="lg:col-span-4 bg-surface/30 rounded-2xl border border-border flex flex-col h-[75vh]">
+        <div className="lg:col-span-5 bg-surface/30 rounded-2xl border border-border flex flex-col h-[75vh]">
           <div className="p-4 border-b border-border bg-white dark:bg-card flex justify-between items-center shrink-0">
             <h2 className="font-semibold text-text-primary flex items-center gap-2">
               <Package className="w-5 h-5 text-primary" />
@@ -234,7 +238,6 @@ export default function PlanningPage() {
               unassigned.map(order => {
                 const pickup = order.stops?.find((s: any) => s.type === 'pickup');
                 const dropoff = order.stops?.find((s: any) => s.type === 'dropoff');
-                const isBeingAssigned = assigning === order.id;
                 
                 const weight = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || 0;
                 const ldm = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.ldm || 0), 0) || 0;
@@ -245,44 +248,41 @@ export default function PlanningPage() {
                 return (
                   <div
                     key={order.id}
-                    draggable={!isBeingAssigned}
-                    onDragStart={e => handleDragStart(e, order)}
-                    onDragEnd={handleDragEnd}
-                    className={`bg-card border rounded-xl p-4 shadow-sm transition-all select-none
-                      ${isBeingAssigned ? 'opacity-50 cursor-wait border-primary' :
-                        draggingOrder?.id === order.id ? 'opacity-60 cursor-grabbing scale-[0.98] border-primary shadow-md' :
-                        isUrgent 
-                          ? 'border-red-200 dark:border-red-900/60 bg-red-50/20 dark:bg-red-950/5 cursor-grab hover:border-red-400' 
-                          : 'cursor-grab hover:border-primary/40 hover:shadow-md border-border'
+                    className={`bg-card border rounded-xl p-4 shadow-sm transition-all flex flex-col justify-between gap-3
+                      ${isUrgent 
+                        ? 'border-red-200 dark:border-red-900/60 bg-red-50/20 dark:bg-red-950/5' 
+                        : 'border-border hover:border-primary/20'
                       }
                     `}
                   >
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <span className="font-bold text-primary text-sm">
-                          {order.orderNumber || order.referenceNumber || 'Comandă'}
-                        </span>
-                        <span className="ml-2 text-xs uppercase font-bold text-text-secondary">
-                          ({(order.transportType || 'ftl').toUpperCase()})
-                        </span>
+                    <div>
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <span className="font-bold text-primary text-sm">
+                            {order.orderNumber || order.referenceNumber || 'Comandă'}
+                          </span>
+                          <span className="ml-2 text-xs uppercase font-bold text-text-secondary">
+                            ({(order.transportType || 'ftl').toUpperCase()})
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-sm font-bold text-text-primary">€{order.price || '0'}</span>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className="text-sm font-bold text-text-primary">€{order.price || '0'}</span>
-                      </div>
-                    </div>
 
-                    <div className="space-y-1.5 my-2">
-                      <div className="flex items-center gap-2 text-xs">
-                        <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                        <span className="text-text-secondary truncate" title={pickup?.address}>
-                          {pickup?.companyName ? `${pickup.companyName} (${pickup.address || pickup.city})` : (pickup?.address || '—')}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs">
-                        <MapPin className="w-3.5 h-3.5 text-green-500 shrink-0" />
-                        <span className="text-text-secondary truncate" title={dropoff?.address}>
-                          {dropoff?.companyName ? `${dropoff.companyName} (${dropoff.address || dropoff.city})` : (dropoff?.address || '—')}
-                        </span>
+                      <div className="space-y-1.5 my-2">
+                        <div className="flex items-center gap-2 text-xs">
+                          <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                          <span className="text-text-secondary truncate" title={pickup?.address}>
+                            {pickup?.companyName ? `${pickup.companyName} (${pickup.address || pickup.city})` : (pickup?.address || '—')}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs">
+                          <MapPin className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                          <span className="text-text-secondary truncate" title={dropoff?.address}>
+                            {dropoff?.companyName ? `${dropoff.companyName} (${dropoff.address || dropoff.city})` : (dropoff?.address || '—')}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -290,12 +290,12 @@ export default function PlanningPage() {
                       <span className="font-semibold text-text-secondary">
                         {weight} kg • {ldm.toFixed(1)} LDM
                       </span>
-                      {pickup?.dateFrom && (
-                        <span className={`flex items-center gap-1 font-semibold ${isUrgent ? 'text-red-500 font-bold' : ''}`}>
-                          <Calendar className="w-3 h-3" />
-                          {pickup.dateFrom}
-                        </span>
-                      )}
+                      <button
+                        onClick={() => setSelectedOrderToAssign(order)}
+                        className="btn-primary py-1 px-3 text-[11px] font-bold flex items-center gap-1 bg-primary text-white border-primary hover:bg-primary/95 rounded-lg shadow-sm"
+                      >
+                        <TruckIcon className="w-3.5 h-3.5" /> Asignează
+                      </button>
                     </div>
                   </div>
                 );
@@ -305,11 +305,10 @@ export default function PlanningPage() {
         </div>
 
         {/* Right panel: Trucks & Drop Zones */}
-        <div className="lg:col-span-8 flex flex-col h-[75vh] space-y-4">
+        <div className="lg:col-span-7 flex flex-col h-[75vh] space-y-4">
           <div className="flex-1 overflow-y-auto bg-surface/30 rounded-2xl border border-border p-4 custom-scrollbar">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
               {trucks.map(truck => {
-                const isDragOver = dragOverTruck === truck.id;
                 const stats = getTruckStats(truck.id);
                 const maxWeight = truck.maxWeightKg || 24000;
                 const maxLdm = truck.maxLdm || 13.6;
@@ -322,16 +321,11 @@ export default function PlanningPage() {
                 return (
                   <div
                     key={truck.id}
-                    onDragOver={e => handleDragOver(e, truck.id)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={e => handleDrop(e, truck.id)}
                     onClick={() => stats.tripId && setSelectedTripId(stats.tripId)}
-                    className={`relative bg-card border-2 rounded-xl p-5 transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[220px]
-                      ${isDragOver
-                        ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10 scale-[1.01]'
-                        : selectedTripId === stats.tripId && stats.tripId
-                          ? 'border-primary shadow-sm bg-primary/5'
-                          : 'border-border hover:border-primary/30 hover:bg-surface/50'
+                    className={`relative bg-card border rounded-xl p-5 transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[220px]
+                      ${selectedTripId === stats.tripId && stats.tripId
+                        ? 'border-primary shadow-sm bg-primary/5'
+                        : 'border-border hover:border-primary/30 hover:bg-surface/50'
                       }`}
                   >
                     <div>
@@ -463,6 +457,168 @@ export default function PlanningPage() {
           )}
         </div>
       </div>
+
+      {selectedOrderToAssign && (() => {
+        const order = selectedOrderToAssign;
+        const pickup = order.stops?.find((s: any) => s.type === 'pickup');
+        const dropoff = order.stops?.find((s: any) => s.type === 'dropoff');
+        const orderWeight = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || 0;
+        const orderLdm = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.ldm || 0), 0) || 0;
+
+        return (
+          <div 
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+            style={{ backdropFilter: 'blur(4px)', backgroundColor: 'rgba(0,0,0,0.55)' }}
+          >
+            <div 
+              className="relative w-full max-w-3xl bg-card shadow-2xl rounded-2xl overflow-hidden flex flex-col"
+              style={{ maxHeight: '90vh', animation: 'wizardIn 0.2s ease-out' }}
+            >
+              {/* Modal Header */}
+              <div className="px-6 py-4 border-b border-border bg-surface/50 flex justify-between items-center shrink-0">
+                <div>
+                  <h2 className="text-xl font-bold text-text-primary">
+                    Asignare Inteligentă: {order.orderNumber || order.referenceNumber}
+                  </h2>
+                  <p className="text-sm text-text-secondary mt-1">
+                    Alegeți camionul optim recomandat de sistem pentru această cursă.
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setSelectedOrderToAssign(null)} 
+                  className="text-text-secondary hover:text-red-500 font-semibold text-sm"
+                >
+                  Închide
+                </button>
+              </div>
+
+              {/* Cargo Info strip */}
+              <div className="bg-primary/5 p-4 border-b border-border/80 text-sm flex flex-wrap gap-x-6 gap-y-2 shrink-0 justify-between items-center">
+                <div>
+                  <span className="font-semibold text-text-secondary block text-xs uppercase tracking-wide">Traseu</span>
+                  <span className="font-bold text-text-primary">
+                    {pickup?.city || pickup?.address?.split(',')[0] || 'TBD'} &rarr; {dropoff?.city || dropoff?.address?.split(',')[0] || 'TBD'}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-semibold text-text-secondary block text-xs uppercase tracking-wide">Detalii Mărfuri</span>
+                  <span className="font-bold text-text-primary">
+                    {orderWeight} kg • {orderLdm.toFixed(1)} LDM • {(order.transportType || 'ftl').toUpperCase()}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-semibold text-text-secondary block text-xs uppercase tracking-wide">Preț Intermediat</span>
+                  <span className="font-bold text-primary">€{order.price || '0.00'}</span>
+                </div>
+              </div>
+
+              {/* List of recommended trucks */}
+              <div className="p-6 overflow-y-auto space-y-4 custom-scrollbar flex-1">
+                <h3 className="text-xs uppercase font-bold tracking-widest text-text-secondary mb-2">Recomandări Camioane</h3>
+                {trucks.map(truck => {
+                  const stats = getTruckStats(truck.id);
+                  const rec = getRecommendation(truck, order);
+                  const maxWeight = truck.maxWeightKg || 24000;
+                  const maxLdm = truck.maxLdm || 13.6;
+
+                  const weightPct = Math.min(100, (stats.weight / maxWeight) * 100);
+                  const ldmPct = Math.min(100, (stats.ldm / maxLdm) * 100);
+
+                  const isRecommended = rec.score === 100;
+
+                  return (
+                    <div 
+                      key={truck.id} 
+                      className={`border rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all hover:bg-surface/30
+                        ${isRecommended ? 'border-green-200 dark:border-green-900/60 bg-green-50/5' : 'border-border'}
+                      `}
+                    >
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-text-primary text-base flex items-center gap-1.5">
+                            <TruckIcon className="w-5 h-5 text-primary" />
+                            {truck.plateNumber}
+                          </span>
+                          <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-md border ${rec.color}`}>
+                            {rec.badge}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 text-xs font-semibold text-text-secondary mt-1">
+                          <div>
+                            <span>Utilizare Greutate:</span>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <div className="w-24 bg-surface dark:bg-card-dark h-1.5 rounded-full overflow-hidden border border-border/40">
+                                <div className="h-full bg-primary" style={{ width: `${weightPct}%` }} />
+                              </div>
+                              <span>{stats.weight} + {orderWeight} / {maxWeight} kg</span>
+                            </div>
+                          </div>
+                          <div>
+                            <span>Utilizare LDM:</span>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <div className="w-24 bg-surface dark:bg-card-dark h-1.5 rounded-full overflow-hidden border border-border/40">
+                                <div className="h-full bg-green-600" style={{ width: `${ldmPct}%` }} />
+                              </div>
+                              <span>{stats.ldm.toFixed(1)} + {orderLdm.toFixed(1)} / {maxLdm} LDM</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0 w-full md:w-auto mt-2 md:mt-0">
+                        <div className="w-full sm:w-44 text-xs">
+                          <select
+                            value={stats.driverId || ''}
+                            onChange={e => handleAssignDriver(truck.id, e.target.value)}
+                            className="w-full bg-white dark:bg-card border border-border/80 rounded-lg p-1.5 font-semibold text-text-primary focus:outline-none focus:border-primary"
+                          >
+                            <option value="">Fără Șofer</option>
+                            {drivers.map((d: any) => (
+                              <option key={d.id} value={d.id}>
+                                {d.user?.name || 'Șofer Fără Nume'}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <button
+                          onClick={() => handleAssignOrderToTruck(order.id, truck.id)}
+                          disabled={assigning === order.id}
+                          className={`w-full sm:w-auto py-2 px-4 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5
+                            ${isRecommended
+                              ? 'bg-green-600 hover:bg-green-700 text-white shadow-green-600/10'
+                              : 'bg-orange-500 hover:bg-orange-600 text-white shadow-orange-500/10'
+                            }
+                          `}
+                        >
+                          {assigning === order.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : isRecommended ? (
+                            'Asignează'
+                          ) : (
+                            'Forțează Alocarea'
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-4 border-t border-border bg-surface/50 flex justify-end shrink-0">
+                <button 
+                  onClick={() => setSelectedOrderToAssign(null)} 
+                  className="btn-secondary py-2 px-4 text-xs font-semibold"
+                >
+                  Anulează
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
