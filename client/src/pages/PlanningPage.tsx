@@ -221,8 +221,8 @@ export default function PlanningPage() {
                 const dropoff = order.stops?.find((s: any) => s.type === 'dropoff');
                 const isBeingAssigned = assigning === order.id;
                 
-                const weight = order.cargoItems?.reduce((sum: number, c: any) => sum + (c.weightKg || 0), 0) || 0;
-                const ldm = order.cargoItems?.reduce((sum: number, c: any) => sum + (c.ldm || 0), 0) || 0;
+                const weight = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || 0;
+                const ldm = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.ldm || 0), 0) || 0;
 
                 // Color deadline indicator if dateFrom is close (within 24h)
                 const isUrgent = pickup?.dateFrom && (new Date(pickup.dateFrom).getTime() - Date.now() < 86400000);
