@@ -33,10 +33,10 @@ export default function OrdersPage() {
 
   const filteredOrders = orders.filter(o => {
     const matchesSearch = 
-      o.orderNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      o.referenceNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      o.client?.name?.toLowerCase().includes(search.toLowerCase()) ||
-      o.customerReference?.toLowerCase().includes(search.toLowerCase());
+      (o.orderNumber?.toLowerCase() || '').includes(search.toLowerCase()) ||
+      (o.referenceNumber?.toLowerCase() || '').includes(search.toLowerCase()) ||
+      (o.client?.name?.toLowerCase() || '').includes(search.toLowerCase()) ||
+      (o.customerReference?.toLowerCase() || '').includes(search.toLowerCase());
     
     if (!matchesSearch) return false;
     if (statusFilter === 'all') return true;
@@ -138,8 +138,8 @@ export default function OrdersPage() {
                 {filteredOrders.map(order => {
                   const pickup = order.stops?.find((s: any) => s.type === 'pickup');
                   const dropoff = order.stops?.find((s: any) => s.type === 'dropoff');
-                  const cargoWeight = order.cargoItems?.reduce((sum: number, item: any) => sum + (item.weightKg || 0), 0) || 0;
-                  const cargoLdm = order.cargoItems?.reduce((sum: number, item: any) => sum + (item.ldm || 0), 0) || 0;
+                  const cargoWeight = order.cargoItems?.reduce((sum: number, item: any) => sum + Number(item.weightKg || 0), 0) || 0;
+                  const cargoLdm = order.cargoItems?.reduce((sum: number, item: any) => sum + Number(item.ldm || 0), 0) || 0;
                   const cargoCount = order.cargoItems?.length || 0;
 
                   return (
