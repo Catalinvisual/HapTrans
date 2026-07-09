@@ -22,7 +22,7 @@ export class OrdersService {
 
   findAll(status?: string) {
     const findOptions: any = { 
-      relations: ['client', 'stops', 'cargoItems'] 
+      relations: ['client', 'stops', 'cargoItems', 'trip'] 
     };
     if (status) {
       const statuses = status.split(',');
@@ -131,7 +131,7 @@ export class OrdersService {
         const cargo = this.cargoRepo.create({
           order: { id: savedOrder.id } as any,
           company: dto.companyId ? { id: dto.companyId } as any : null,
-          description: cargoDto.description,
+          description: cargoDto.description || 'Cargo Item',
           quantity: cargoDto.quantity,
           unit: cargoDto.unit || 'pallet',
           weightKg: cargoDto.weightKg,
@@ -248,7 +248,7 @@ export class OrdersService {
         const cargo = this.cargoRepo.create({
           order: { id } as any,
           company: dto.companyId ? { id: dto.companyId } as any : null,
-          description: cargoDto.description,
+          description: cargoDto.description || 'Cargo Item',
           quantity: cargoDto.quantity,
           unit: cargoDto.unit || 'pallet',
           weightKg: cargoDto.weightKg,

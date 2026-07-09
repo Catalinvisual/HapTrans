@@ -401,7 +401,7 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
       style={{ backdropFilter: 'blur(4px)', backgroundColor: 'rgba(0,0,0,0.55)' }}
     >
       <div
-        className="relative z-50 w-full max-w-2xl bg-card shadow-2xl flex flex-col rounded-2xl overflow-hidden"
+        className="relative z-50 w-full max-w-6xl bg-card shadow-2xl flex flex-col rounded-2xl overflow-hidden"
         style={{ maxHeight: '92vh', animation: 'wizardIn 0.25s cubic-bezier(0.34,1.56,0.64,1)' }}
         onClick={e => e.stopPropagation()}
       >
@@ -555,163 +555,156 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                 <p className="text-sm text-text-secondary">Where is the cargo going from and to? Coordinates must be validated.</p>
               </div>
 
-              {/* Pickup */}
-              <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-5 relative">
-                <div className="absolute -left-3 top-6 w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 border-4 border-card flex items-center justify-center font-bold text-xs text-blue-600">A</div>
-                <h4 className="text-blue-600 dark:text-blue-400 font-bold mb-4 flex items-center gap-2">
-                  <MapPin className="w-4 h-4" /> Pickup Details
-                </h4>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-text-secondary mb-1.5">Company / Location Name</label>
-                    <input type="text" value={pickup.companyName} onChange={e => setPickup({ ...pickup, companyName: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="e.g. Supplier Warehouse" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-text-secondary mb-1.5">Full Address *</label>
-                    <AddressAutocomplete
-                      value={pickup.address}
-                      onChange={val => setPickup({ ...pickup, address: val })}
-                      onSelectFull={(label, city, country, lat, lng) => {
-                        setPickup(p => ({
-                          ...p,
-                          address: label,
-                          city: city || p.city,
-                          country: country || p.country,
-                          latitude: lat || null,
-                          longitude: lng || null
-                        }));
-                      }}
-                      placeholder="Street, Number, Zip Code"
-                      className="input w-full bg-white dark:bg-card"
-                      required
-                    />
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs font-semibold text-text-secondary">Geocoding:</span>
-                      {pickup.latitude && pickup.longitude ? (
-                        <span className="text-xs font-semibold text-green-600 flex items-center gap-1">
-                          ● Geocoded ({pickup.latitude.toFixed(4)}, {pickup.longitude.toFixed(4)})
-                        </span>
-                      ) : (
-                        <span className="text-xs font-semibold text-red-500">
-                          ● Coordinates Missing (Address not verified)
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {/* City, Zip, Country removed as redundant because they are resolved by AddressAutocomplete */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Pickup */}
+                <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-5 relative">
+                  <div className="absolute -left-3 top-6 w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 border-4 border-card flex items-center justify-center font-bold text-xs text-blue-600">A</div>
+                  <h4 className="text-blue-600 dark:text-blue-400 font-bold mb-4 flex items-center gap-2">
+                    <MapPin className="w-4 h-4" /> Pickup Details
+                  </h4>
+                  <div className="space-y-3">
                     <div>
-                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Contact Person</label>
-                      <input type="text" value={pickup.contactPerson} onChange={e => setPickup({ ...pickup, contactPerson: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Name" />
+                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Company / Location Name</label>
+                      <input type="text" value={pickup.companyName} onChange={e => setPickup({ ...pickup, companyName: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="e.g. Supplier Warehouse" />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Phone Number</label>
-                      <input type="text" value={pickup.phone} onChange={e => setPickup({ ...pickup, phone: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Phone" />
+                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Full Address *</label>
+                      <AddressAutocomplete
+                        value={pickup.address}
+                        onChange={val => setPickup({ ...pickup, address: val })}
+                        onSelectFull={(label, city, country, lat, lng) => {
+                          setPickup(p => ({
+                            ...p,
+                            address: label,
+                            city: city || p.city,
+                            country: country || p.country,
+                            latitude: lat || null,
+                            longitude: lng || null
+                          }));
+                        }}
+                        placeholder="Street, Number, Zip Code"
+                        className="input w-full bg-white dark:bg-card"
+                        required
+                      />
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs font-semibold text-text-secondary">Geocoding:</span>
+                        {pickup.latitude && pickup.longitude ? (
+                          <span className="text-xs font-semibold text-green-600 flex items-center gap-1">
+                            ● Geocoded ({pickup.latitude.toFixed(4)}, {pickup.longitude.toFixed(4)})
+                          </span>
+                        ) : (
+                          <span className="text-xs font-semibold text-red-500">
+                            ● Coordinates Missing (Address not verified)
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <CustomDatePicker
-                      label="Pickup Time Window (Min)"
-                      dateValue={pickup.scheduledDate}
-                      timeValue={pickup.scheduledTime || ''}
-                      onDateChange={v => setPickup({ ...pickup, scheduledDate: v })}
-                      onTimeChange={v => setPickup({ ...pickup, scheduledTime: v })}
-                    />
-                    <CustomDatePicker
-                      label="Pickup Time Window (Max)"
-                      dateValue={pickup.dateTo}
-                      timeValue={pickup.timeUntil || ''}
-                      onDateChange={v => setPickup({ ...pickup, dateTo: v })}
-                      onTimeChange={v => setPickup({ ...pickup, timeUntil: v })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-text-secondary mb-1.5">Reference (PO #) / Instructions</label>
-                    <input type="text" value={pickup.reference} onChange={e => setPickup({ ...pickup, reference: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="e.g. PO-99812 / Loading Instructions" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">Contact Person</label>
+                        <input type="text" value={pickup.contactPerson} onChange={e => setPickup({ ...pickup, contactPerson: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Name" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">Phone Number</label>
+                        <input type="text" value={pickup.phone} onChange={e => setPickup({ ...pickup, phone: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Phone" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <CustomDatePicker
+                        label="Pickup Time Window (Min)"
+                        dateValue={pickup.scheduledDate}
+                        timeValue={pickup.scheduledTime || ''}
+                        onDateChange={v => setPickup({ ...pickup, scheduledDate: v })}
+                        onTimeChange={v => setPickup({ ...pickup, scheduledTime: v })}
+                      />
+                      <CustomDatePicker
+                        label="Pickup Time Window (Max)"
+                        dateValue={pickup.dateTo}
+                        timeValue={pickup.timeUntil || ''}
+                        onDateChange={v => setPickup({ ...pickup, dateTo: v })}
+                        onTimeChange={v => setPickup({ ...pickup, timeUntil: v })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Reference (PO #) / Instructions</label>
+                      <input type="text" value={pickup.reference} onChange={e => setPickup({ ...pickup, reference: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="e.g. PO-99812 / Loading Instructions" />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Connector */}
-              <div className="flex justify-center">
-                <div className="w-8 h-8 bg-surface border border-border rounded-full flex items-center justify-center text-text-muted shadow-sm">
-                  <ArrowRight className="w-4 h-4 rotate-90" />
-                </div>
-              </div>
-
-              {/* Delivery */}
-              <div className="bg-green-50/50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-xl p-5 relative">
-                <div className="absolute -left-3 top-6 w-6 h-6 rounded-full bg-green-100 dark:bg-green-900 border-4 border-card flex items-center justify-center font-bold text-xs text-green-600">B</div>
-                <h4 className="text-green-600 dark:text-green-400 font-bold mb-4 flex items-center gap-2">
-                  <MapPin className="w-4 h-4" /> Delivery Details
-                </h4>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-text-secondary mb-1.5">Company / Location Name</label>
-                    <input type="text" value={dropoff.companyName} onChange={e => setDropoff({ ...dropoff, companyName: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="e.g. Client Destination" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-text-secondary mb-1.5">Full Address *</label>
-                    <AddressAutocomplete
-                      value={dropoff.address}
-                      onChange={val => setDropoff({ ...dropoff, address: val })}
-                      onSelectFull={(label, city, country, lat, lng) => {
-                        setDropoff(d => ({
-                          ...d,
-                          address: label,
-                          city: city || d.city,
-                          country: country || d.country,
-                          latitude: lat || null,
-                          longitude: lng || null
-                        }));
-                      }}
-                      placeholder="Street, Number, Zip Code"
-                      className="input w-full bg-white dark:bg-card"
-                      required
-                    />
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs font-semibold text-text-secondary">Geocoding:</span>
-                      {dropoff.latitude && dropoff.longitude ? (
-                        <span className="text-xs font-semibold text-green-600 flex items-center gap-1">
-                          ● Geocoded ({dropoff.latitude.toFixed(4)}, {dropoff.longitude.toFixed(4)})
-                        </span>
-                      ) : (
-                        <span className="text-xs font-semibold text-red-500">
-                          ● Coordinates Missing (Address not verified)
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {/* City, Zip, Country removed as redundant because they are resolved by AddressAutocomplete */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Delivery */}
+                <div className="bg-green-50/50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-xl p-5 relative">
+                  <div className="absolute -left-3 top-6 w-6 h-6 rounded-full bg-green-100 dark:bg-green-900 border-4 border-card flex items-center justify-center font-bold text-xs text-green-600">B</div>
+                  <h4 className="text-green-600 dark:text-green-400 font-bold mb-4 flex items-center gap-2">
+                    <MapPin className="w-4 h-4" /> Delivery Details
+                  </h4>
+                  <div className="space-y-3">
                     <div>
-                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Contact Person</label>
-                      <input type="text" value={dropoff.contactPerson} onChange={e => setDropoff({ ...dropoff, contactPerson: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Name" />
+                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Company / Location Name</label>
+                      <input type="text" value={dropoff.companyName} onChange={e => setDropoff({ ...dropoff, companyName: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="e.g. Client Destination" />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Phone Number</label>
-                      <input type="text" value={dropoff.phone} onChange={e => setDropoff({ ...dropoff, phone: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Phone" />
+                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Full Address *</label>
+                      <AddressAutocomplete
+                        value={dropoff.address}
+                        onChange={val => setDropoff({ ...dropoff, address: val })}
+                        onSelectFull={(label, city, country, lat, lng) => {
+                          setDropoff(d => ({
+                            ...d,
+                            address: label,
+                            city: city || d.city,
+                            country: country || d.country,
+                            latitude: lat || null,
+                            longitude: lng || null
+                          }));
+                        }}
+                        placeholder="Street, Number, Zip Code"
+                        className="input w-full bg-white dark:bg-card"
+                        required
+                      />
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs font-semibold text-text-secondary">Geocoding:</span>
+                        {dropoff.latitude && dropoff.longitude ? (
+                          <span className="text-xs font-semibold text-green-600 flex items-center gap-1">
+                            ● Geocoded ({dropoff.latitude.toFixed(4)}, {dropoff.longitude.toFixed(4)})
+                          </span>
+                        ) : (
+                          <span className="text-xs font-semibold text-red-500">
+                            ● Coordinates Missing (Address not verified)
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <CustomDatePicker
-                      label="Delivery Time Window (Min)"
-                      dateValue={dropoff.scheduledDate}
-                      timeValue={dropoff.scheduledTime || ''}
-                      onDateChange={v => setDropoff({ ...dropoff, scheduledDate: v })}
-                      onTimeChange={v => setDropoff({ ...dropoff, scheduledTime: v })}
-                    />
-                    <CustomDatePicker
-                      label="Delivery Time Window (Max)"
-                      dateValue={dropoff.dateTo}
-                      timeValue={dropoff.timeUntil || ''}
-                      onDateChange={v => setDropoff({ ...dropoff, dateTo: v })}
-                      onTimeChange={v => setDropoff({ ...dropoff, timeUntil: v })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-text-secondary mb-1.5">Reference / Unloading Instructions</label>
-                    <input type="text" value={dropoff.reference} onChange={e => setDropoff({ ...dropoff, reference: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="e.g. Gate 3 / Unloading Instructions" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">Contact Person</label>
+                        <input type="text" value={dropoff.contactPerson} onChange={e => setDropoff({ ...dropoff, contactPerson: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Name" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">Phone Number</label>
+                        <input type="text" value={dropoff.phone} onChange={e => setDropoff({ ...dropoff, phone: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Phone" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <CustomDatePicker
+                        label="Delivery Time Window (Min)"
+                        dateValue={dropoff.scheduledDate}
+                        timeValue={dropoff.scheduledTime || ''}
+                        onDateChange={v => setDropoff({ ...dropoff, scheduledDate: v })}
+                        onTimeChange={v => setDropoff({ ...dropoff, scheduledTime: v })}
+                      />
+                      <CustomDatePicker
+                        label="Delivery Time Window (Max)"
+                        dateValue={dropoff.dateTo}
+                        timeValue={dropoff.timeUntil || ''}
+                        onDateChange={v => setDropoff({ ...dropoff, dateTo: v })}
+                        onTimeChange={v => setDropoff({ ...dropoff, timeUntil: v })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Reference / Unloading Instructions</label>
+                      <input type="text" value={dropoff.reference} onChange={e => setDropoff({ ...dropoff, reference: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="e.g. Gate 3 / Unloading Instructions" />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -733,11 +726,11 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
-                    <div className="mb-3 pr-8">
-                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Cargo Description *</label>
-                      <input type="text" value={cargo.description} onChange={e => handleCargoChange(index, 'description', e.target.value)} className="input w-full" placeholder="e.g. Pallets of electronics" required />
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
+                      <div className="col-span-2">
+                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">Cargo Description</label>
+                        <input type="text" value={cargo.description} onChange={e => handleCargoChange(index, 'description', e.target.value)} className="input w-full" placeholder="e.g. Pallets of electronics" />
+                      </div>
                       <div>
                         <label className="block text-xs font-semibold text-text-secondary mb-1.5">Quantity</label>
                         <input type="number" value={cargo.quantity} onChange={e => handleCargoChange(index, 'quantity', e.target.value)} className="input w-full" min="1" />
@@ -747,16 +740,16 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                         <ModalSelect value={cargo.unit || 'pallet'} onChange={v => handleCargoChange(index, 'unit', v)} options={unitOptions} />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">Weight (kg) *</label>
-                        <input type="number" step="0.1" value={cargo.weightKg} onChange={e => handleCargoChange(index, 'weightKg', e.target.value)} className="input w-full" placeholder="Total weight" required />
+                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">Weight (kg)</label>
+                        <input type="number" step="0.1" value={cargo.weightKg} onChange={e => handleCargoChange(index, 'weightKg', e.target.value)} className="input w-full" placeholder="Total weight" />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-text-secondary mb-1.5">Volume (m³)</label>
                         <input type="number" step="0.01" value={cargo.volumeCbm || ''} onChange={e => handleCargoChange(index, 'volumeCbm', e.target.value)} className="input w-full" placeholder="Optional" />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">LDM (Loading Meters) *</label>
-                        <input type="number" step="0.01" value={cargo.ldm || ''} onChange={e => handleCargoChange(index, 'ldm', e.target.value)} className="input w-full" placeholder="e.g. 1.2" required />
+                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">LDM (Loading Meters)</label>
+                        <input type="number" step="0.01" value={cargo.ldm || ''} onChange={e => handleCargoChange(index, 'ldm', e.target.value)} className="input w-full" placeholder="e.g. 1.2" />
                       </div>
                     </div>
                     

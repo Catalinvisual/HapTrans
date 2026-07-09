@@ -20,10 +20,6 @@ export class ValidationEngine {
       if (!orderDto.cargoItems || orderDto.cargoItems.length === 0) {
         throw new BadRequestException('At least one cargo item is required for LTL/groupage orders');
       }
-      const hasLdm = orderDto.cargoItems.some((c: any) => c.ldm !== undefined && c.ldm !== null && parseFloat(c.ldm) > 0);
-      if (!hasLdm) {
-        throw new BadRequestException('LDM (Loading Meters) is required and must be greater than 0 for LTL/groupage orders');
-      }
     }
   }
 

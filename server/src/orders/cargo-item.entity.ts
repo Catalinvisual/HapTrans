@@ -28,7 +28,7 @@ export class CargoItem {
   @Column({ type: 'enum', enum: CargoUnit, default: CargoUnit.PALLET })
   unit: CargoUnit;
 
-  @Column()
+  @Column({ nullable: true })
   description: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })

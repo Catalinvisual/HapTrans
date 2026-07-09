@@ -202,15 +202,31 @@ export default function OrdersPage() {
                             <FileText className="w-4 h-4" />
                           </button>
                         )}
-                        {(order.status === 'in_transit' || order.status === 'assigned') && (
-                          <button 
-                            title="Live Tracking Link"
-                            onClick={(e) => { e.stopPropagation(); toast.success('Live Tracking Link copied to clipboard'); }}
-                            className="p-2 text-text-secondary hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                          >
-                            <Activity className="w-4 h-4" />
-                          </button>
-                        )}
+                        {(order.status === 'in_transit' || order.status === 'assigned') && (() => {
+                          const trackingToken = order.trip?.trackingToken || order.id;
+                          const trackingUrl = `${window.location.origin}/track/${trackingToken}`;
+                          
+                          const handleCopyTrackingLink = (e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(trackingUrl)
+                              .then(() => {
+                                toast.success(t('copiedToClipboard', 'Tracking link copied to clipboard!'));
+                              })
+                              .catch(() => {
+                                toast.error('Failed to copy link');
+                              });
+                          };
+
+                          return (
+                            <button 
+                              title="Live Tracking Link"
+                              onClick={handleCopyTrackingLink}
+                              className="p-2 text-text-secondary hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                            >
+                              <Activity className="w-4 h-4" />
+                            </button>
+                          );
+                        })()}
                         <button 
                           title="Edit Order"
                           onClick={() => handleEdit(order.id)}
