@@ -174,6 +174,18 @@ export default function PlanningPage() {
 
     return { weight, ldm, count: ordersList.length, orders: ordersList, tripId: trip.id, driverId: trip.driver?.id || null };
   };
+  const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
   const getRecommendation = (truck: any, order: any) => {
     const stats = getTruckStats(truck.id);
     const orderWeight = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || 0;
@@ -185,23 +197,73 @@ export default function PlanningPage() {
     const weightFits = stats.weight + orderWeight <= maxWeight;
     const ldmFits = stats.ldm + orderLdm <= maxLdm;
 
-    if (weightFits && ldmFits) {
-      return { 
-        score: 100, 
-        badge: 'Compatibil', 
-        color: 'text-green-600 bg-green-50 dark:bg-green-950/20 dark:text-green-400 border-green-200' 
-      };
-    } else {
+    const pickupStop = order.stops?.find((s: any) => s.type === 'pickup');
+    const orderLat = pickupStop?.latitude ? Number(pickupStop.latitude) : null;
+    const orderLng = pickupStop?.longitude ? Number(pickupStop.longitude) : null;
+
+    let distanceKm: number | null = null;
+    let distanceType: 'last_stop' | 'current_loc' | null = null;
+
+    if (orderLat !== null && orderLng !== null) {
+      // Find active trip last stop
+      const trip = trips.find(tr => tr.truck?.id === truck.id && tr.status === 'planning');
+      if (trip && trip.stops && trip.stops.length > 0) {
+        const sorted = [...trip.stops].sort((a, b) => a.sequence - b.sequence);
+        const lastStop = sorted[sorted.length - 1];
+        if (lastStop.latitude && lastStop.longitude) {
+          distanceKm = getDistance(orderLat, orderLng, Number(lastStop.latitude), Number(lastStop.longitude));
+          distanceType = 'last_stop';
+        }
+      }
+      
+      // Fallback to truck current location
+      if (distanceKm === null && truck.currentLat && truck.currentLng) {
+        distanceKm = getDistance(orderLat, orderLng, Number(truck.currentLat), Number(truck.currentLng));
+        distanceType = 'current_loc';
+      }
+    }
+
+    let badge = 'Compatibil';
+    let color = 'text-green-600 bg-green-50 dark:bg-green-950/20 dark:text-green-400 border-green-200';
+    let isCompatible = weightFits && ldmFits;
+
+    if (!isCompatible) {
       let warningText = '';
       if (!weightFits) warningText += `Depășește Greutatea (+${(stats.weight + orderWeight - maxWeight)} kg) `;
       if (!ldmFits) warningText += `Depășește LDM (+${(stats.ldm + orderLdm - maxLdm).toFixed(1)} LDM) `;
-      return { 
-        score: 0, 
-        badge: warningText || 'Capacitate Depășită', 
-        color: 'text-red-500 bg-red-50 dark:bg-red-950/20 dark:text-red-400 border-red-200 font-bold' 
-      };
+      badge = warningText || 'Capacitate Depășită';
+      color = 'text-red-500 bg-red-50 dark:bg-red-950/20 dark:text-red-400 border-red-200 font-bold';
     }
+
+    return {
+      isCompatible,
+      badge,
+      color,
+      distanceKm,
+      distanceType
+    };
   };
+
+  const getSortedTrucks = (order: any) => {
+    return [...trucks].map(t => {
+      const rec = getRecommendation(t, order);
+      return { truck: t, rec };
+    }).sort((a, b) => {
+      // 1. Compatible trucks first
+      if (a.rec.isCompatible && !b.rec.isCompatible) return -1;
+      if (!a.rec.isCompatible && b.rec.isCompatible) return 1;
+
+      // 2. Closest trucks first (distance ascending)
+      if (a.rec.distanceKm !== null && b.rec.distanceKm !== null) {
+        return a.rec.distanceKm - b.rec.distanceKm;
+      }
+      if (a.rec.distanceKm !== null && b.rec.distanceKm === null) return -1;
+      if (a.rec.distanceKm === null && b.rec.distanceKm !== null) return 1;
+
+      return 0;
+    });
+  };
+
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
       {/* Header */}
@@ -216,246 +278,246 @@ export default function PlanningPage() {
         </button>
       </div>
 
-      {/* Grid */}
+      {/* Main Layout Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left panel: Unassigned Orders */}
-        <div className="lg:col-span-5 bg-surface/30 rounded-2xl border border-border flex flex-col h-[75vh]">
-          <div className="p-4 border-b border-border bg-white dark:bg-card flex justify-between items-center shrink-0">
-            <h2 className="font-semibold text-text-primary flex items-center gap-2">
-              <Package className="w-5 h-5 text-primary" />
+        
+        {/* Top Panel: Unassigned Orders Full-Width Rows */}
+        <div className="lg:col-span-12 bg-card rounded-2xl border border-border flex flex-col shadow-sm">
+          <div className="p-5 border-b border-border bg-surface/30 flex justify-between items-center">
+            <h2 className="font-bold text-text-primary text-lg flex items-center gap-2">
+              <Package className="w-5.5 h-5.5 text-primary" />
               Comenzi Nealocate
             </h2>
-            <span className="badge badge-warning">{unassigned.length}</span>
+            <span className="badge badge-warning text-xs px-3 py-1 font-bold">{unassigned.length} comenzi active</span>
           </div>
 
-          <div className="p-4 space-y-3 overflow-y-auto flex-1 custom-scrollbar">
+          <div className="overflow-x-auto">
             {unassigned.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                <CheckCircle2 className="w-16 h-16 text-green-400 mb-4 opacity-50" />
-                <p className="font-medium text-text-primary">Toate comenzile sunt alocate!</p>
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <CheckCircle2 className="w-12 h-12 text-green-500 mb-3 opacity-60" />
+                <p className="font-semibold text-text-primary">Toate comenzile sunt planificate pe camioane!</p>
               </div>
             ) : (
-              unassigned.map(order => {
-                const pickup = order.stops?.find((s: any) => s.type === 'pickup');
-                const dropoff = order.stops?.find((s: any) => s.type === 'dropoff');
-                
-                const weight = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || 0;
-                const ldm = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.ldm || 0), 0) || 0;
+              <table className="w-full text-left border-collapse min-w-[900px]">
+                <thead>
+                  <tr className="bg-surface/50 border-b border-border text-xs uppercase font-bold text-text-secondary">
+                    <th className="p-4 pl-6">Referință</th>
+                    <th className="p-4">Tip</th>
+                    <th className="p-4">Preluare (Origin)</th>
+                    <th className="p-4">Descărcare (Destination)</th>
+                    <th className="p-4">Detalii Marfă</th>
+                    <th className="p-4">Preț</th>
+                    <th className="p-4 pr-6 text-right">Acțiune</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60 text-sm">
+                  {unassigned.map(order => {
+                    const pickup = order.stops?.find((s: any) => s.type === 'pickup');
+                    const dropoff = order.stops?.find((s: any) => s.type === 'dropoff');
+                    const weight = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || 0;
+                    const ldm = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.ldm || 0), 0) || 0;
+                    const isUrgent = pickup?.dateFrom && (new Date(pickup.dateFrom).getTime() - Date.now() < 86400000);
 
-                // Color deadline indicator if dateFrom is close (within 24h)
-                const isUrgent = pickup?.dateFrom && (new Date(pickup.dateFrom).getTime() - Date.now() < 86400000);
-
-                return (
-                  <div
-                    key={order.id}
-                    className={`bg-card border rounded-xl p-4 shadow-sm transition-all flex flex-col justify-between gap-3
-                      ${isUrgent 
-                        ? 'border-red-200 dark:border-red-900/60 bg-red-50/20 dark:bg-red-950/5' 
-                        : 'border-border hover:border-primary/20'
-                      }
-                    `}
-                  >
-                    <div>
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <span className="font-bold text-primary text-sm">
-                            {order.orderNumber || order.referenceNumber || 'Comandă'}
+                    return (
+                      <tr key={order.id} className="hover:bg-surface/20 transition-colors">
+                        <td className="p-4 pl-6">
+                          <span className="font-bold text-primary">{order.orderNumber || order.referenceNumber || 'Comandă'}</span>
+                          {isUrgent && <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-red-100 text-red-700 border border-red-200 rounded">Urgent</span>}
+                        </td>
+                        <td className="p-4">
+                          <span className="px-2 py-0.5 text-xs font-semibold rounded bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400 border border-blue-150">
+                            {(order.transportType || 'ftl').toUpperCase()}
                           </span>
-                          <span className="ml-2 text-xs uppercase font-bold text-text-secondary">
-                            ({(order.transportType || 'ftl').toUpperCase()})
-                          </span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-sm font-bold text-text-primary">€{order.price || '0'}</span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5 my-2">
-                        <div className="flex items-center gap-2 text-xs">
-                          <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                          <span className="text-text-secondary truncate" title={pickup?.address}>
-                            {pickup?.companyName ? `${pickup.companyName} (${pickup.address || pickup.city})` : (pickup?.address || '—')}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs">
-                          <MapPin className="w-3.5 h-3.5 text-green-500 shrink-0" />
-                          <span className="text-text-secondary truncate" title={dropoff?.address}>
-                            {dropoff?.companyName ? `${dropoff.companyName} (${dropoff.address || dropoff.city})` : (dropoff?.address || '—')}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between items-center text-xs text-text-muted mt-2 pt-2 border-t border-border">
-                      <span className="font-semibold text-text-secondary">
-                        {weight} kg • {ldm.toFixed(1)} LDM
-                      </span>
-                      <button
-                        onClick={() => setSelectedOrderToAssign(order)}
-                        className="btn-primary py-1 px-3 text-[11px] font-bold flex items-center gap-1 bg-primary text-white border-primary hover:bg-primary/95 rounded-lg shadow-sm"
-                      >
-                        <TruckIcon className="w-3.5 h-3.5" /> Asignează
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
+                        </td>
+                        <td className="p-4">
+                          <div className="font-medium text-text-primary">{pickup?.companyName || '—'}</div>
+                          <div className="text-xs text-text-secondary">{pickup?.address || '—'}</div>
+                        </td>
+                        <td className="p-4">
+                          <div className="font-medium text-text-primary">{dropoff?.companyName || '—'}</div>
+                          <div className="text-xs text-text-secondary">{dropoff?.address || '—'}</div>
+                        </td>
+                        <td className="p-4">
+                          <span className="font-semibold text-text-primary">{weight} kg</span>
+                          <span className="text-text-secondary text-xs block">{ldm.toFixed(1)} LDM</span>
+                        </td>
+                        <td className="p-4 font-bold text-text-primary">
+                          €{order.price || '0.00'}
+                        </td>
+                        <td className="p-4 pr-6 text-right">
+                          <button
+                            onClick={() => setSelectedOrderToAssign(order)}
+                            className="btn-primary py-1.5 px-4 text-xs font-bold bg-primary hover:bg-primary/95 text-white rounded-lg inline-flex items-center gap-1.5 shadow-sm"
+                          >
+                            <TruckIcon className="w-4 h-4" /> Planifică Cursă
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             )}
           </div>
         </div>
 
-        {/* Right panel: Trucks & Drop Zones */}
-        <div className="lg:col-span-7 flex flex-col h-[75vh] space-y-4">
-          <div className="flex-1 overflow-y-auto bg-surface/30 rounded-2xl border border-border p-4 custom-scrollbar">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
-              {trucks.map(truck => {
-                const stats = getTruckStats(truck.id);
-                const maxWeight = truck.maxWeightKg || 24000;
-                const maxLdm = truck.maxLdm || 13.6;
+        {/* Bottom panel: Active Fleet */}
+        <div className="lg:col-span-12 flex flex-col space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="font-bold text-text-primary text-lg flex items-center gap-2">
+              <TruckIcon className="w-5.5 h-5.5 text-primary" />
+              Flotă & Camioane Active (Planning)
+            </h2>
+          </div>
 
-                const weightPct = Math.min(100, (stats.weight / maxWeight) * 100);
-                const ldmPct = Math.min(100, (stats.ldm / maxLdm) * 100);
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {trucks.map(truck => {
+              const stats = getTruckStats(truck.id);
+              const maxWeight = truck.maxWeightKg || 24000;
+              const maxLdm = truck.maxLdm || 13.6;
 
-                const hasWarning = stats.weight > maxWeight || stats.ldm > maxLdm;
+              const weightPct = Math.min(100, (stats.weight / maxWeight) * 100);
+              const ldmPct = Math.min(100, (stats.ldm / maxLdm) * 100);
+              const hasWarning = stats.weight > maxWeight || stats.ldm > maxLdm;
 
-                return (
-                  <div
-                    key={truck.id}
-                    onClick={() => stats.tripId && setSelectedTripId(stats.tripId)}
-                    className={`relative bg-card border rounded-xl p-5 transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[220px]
-                      ${selectedTripId === stats.tripId && stats.tripId
-                        ? 'border-primary shadow-sm bg-primary/5'
-                        : 'border-border hover:border-primary/30 hover:bg-surface/50'
-                      }`}
-                  >
-                    <div>
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h3 className="font-bold text-text-primary text-lg flex items-center gap-2">
-                            <TruckIcon className="w-5 h-5 text-primary" />
-                            {truck.plateNumber}
-                          </h3>
-                          <div className="mt-2 text-xs">
-                            <span className="text-text-secondary font-semibold">Șofer alocat:</span>
-                            <select
-                              value={stats.driverId || ''}
-                              onChange={e => handleAssignDriver(truck.id, e.target.value)}
-                              onClick={e => e.stopPropagation()}
-                              className="w-full text-xs bg-white dark:bg-card border border-border/80 rounded-lg p-1.5 font-semibold text-text-primary focus:outline-none focus:border-primary mt-1"
-                            >
-                              <option value="">Fără Șofer (Alege...)</option>
-                              {drivers.map((d: any) => (
-                                <option key={d.id} value={d.id}>
-                                  {d.user?.name || 'Șofer Fără Nume'}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                        {hasWarning && (
-                          <span className="text-red-500 animate-pulse flex items-center gap-1 text-xs font-bold">
-                            <AlertTriangle className="w-4 h-4" /> Supraîncărcare
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Capacity progress bars */}
-                      <div className="space-y-2.5 my-4">
-                        <div>
-                          <div className="flex justify-between text-xs font-semibold mb-1 text-text-secondary">
-                            <span>Greutate: {stats.weight} / {maxWeight} kg</span>
-                            <span>{weightPct.toFixed(0)}%</span>
-                          </div>
-                          <div className="w-full bg-surface dark:bg-card-dark h-2 rounded-full overflow-hidden border border-border/40">
-                            <div 
-                              className={`h-full rounded-full transition-all duration-300 ${stats.weight > maxWeight ? 'bg-red-500' : 'bg-primary'}`} 
-                              style={{ width: `${weightPct}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="flex justify-between text-xs font-semibold mb-1 text-text-secondary">
-                            <span>Metri podea: {stats.ldm.toFixed(1)} / {maxLdm} LDM</span>
-                            <span>{ldmPct.toFixed(0)}%</span>
-                          </div>
-                          <div className="w-full bg-surface dark:bg-card-dark h-2 rounded-full overflow-hidden border border-border/40">
-                            <div 
-                              className={`h-full rounded-full transition-all duration-300 ${stats.ldm > maxLdm ? 'bg-red-500' : 'bg-green-600'}`} 
-                              style={{ width: `${ldmPct}%` }}
-                            />
-                          </div>
+              return (
+                <div
+                  key={truck.id}
+                  onClick={() => stats.tripId && setSelectedTripId(stats.tripId)}
+                  className={`relative bg-card border rounded-2xl p-5 transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[220px] shadow-sm hover:shadow-md
+                    ${selectedTripId === stats.tripId && stats.tripId
+                      ? 'border-primary shadow-sm bg-primary/5'
+                      : 'border-border hover:border-primary/30 hover:bg-surface/50'
+                    }`}
+                >
+                  <div>
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="font-bold text-text-primary text-lg flex items-center gap-2">
+                          <TruckIcon className="w-5.5 h-5.5 text-primary" />
+                          {truck.plateNumber}
+                        </h3>
+                        <div className="mt-2 text-xs">
+                          <span className="text-text-secondary font-semibold">Șofer alocat:</span>
+                          <select
+                            value={stats.driverId || ''}
+                            onChange={e => handleAssignDriver(truck.id, e.target.value)}
+                            onClick={e => e.stopPropagation()}
+                            className="w-full text-xs bg-white dark:bg-card border border-border/80 rounded-lg p-1.5 font-semibold text-text-primary focus:outline-none focus:border-primary mt-1"
+                          >
+                            <option value="">Fără Șofer (Alege...)</option>
+                            {drivers.map((d: any) => (
+                              <option key={d.id} value={d.id}>
+                                {d.user?.name || 'Șofer Fără Nume'}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-border/60 flex justify-between items-center text-xs">
-                      <span className="font-semibold text-text-secondary">
-                        {stats.count} comenzi în cursă (LTL)
-                      </span>
-                      {stats.tripId && (
-                        <span className="text-primary font-bold hover:underline">
-                          Vezi Opriri &rarr;
+                      {hasWarning && (
+                        <span className="text-red-500 animate-pulse flex items-center gap-1 text-xs font-bold">
+                          <AlertTriangle className="w-4 h-4" /> Supraîncărcare
                         </span>
                       )}
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
 
-          {/* Bottom panel: Stops sequencing */}
-          {selectedTripId && (
-            <div className="bg-card border border-border rounded-2xl p-4 flex flex-col shrink-0 min-h-[220px]">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-bold text-text-primary flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-primary" />
-                  Secvența de Opriri (Stops Routing)
-                </h3>
-                <button 
-                  onClick={() => setSelectedTripId(null)}
-                  className="text-xs font-semibold text-text-secondary hover:text-red-500"
-                >
-                  Închide
-                </button>
-              </div>
-
-              <div className="overflow-y-auto max-h-[200px] space-y-2 pr-1 custom-scrollbar">
-                {trips.find(t => t.id === selectedTripId)?.stops?.sort((a: any, b: any) => a.sequence - b.sequence).map((stop: any, idx: number, arr: any[]) => (
-                  <div key={stop.id} className="flex justify-between items-center bg-surface/50 border border-border p-3 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
-                        {stop.sequence}
-                      </span>
+                    {/* Capacity progress bars */}
+                    <div className="space-y-3 my-4">
                       <div>
-                        <p className="text-sm font-semibold text-text-primary">{stop.companyName || 'Oprire'}</p>
-                        <p className="text-xs text-text-secondary">{stop.address}</p>
+                        <div className="flex justify-between text-xs font-semibold mb-1 text-text-secondary">
+                          <span>Greutate: {stats.weight} / {maxWeight} kg</span>
+                          <span>{weightPct.toFixed(0)}%</span>
+                        </div>
+                        <div className="w-full bg-surface dark:bg-card-dark h-2 rounded-full overflow-hidden border border-border/40">
+                          <div 
+                            className={`h-full rounded-full transition-all duration-300 ${stats.weight > maxWeight ? 'bg-red-500' : 'bg-primary'}`} 
+                            style={{ width: `${weightPct}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between text-xs font-semibold mb-1 text-text-secondary">
+                          <span>Metri podea: {stats.ldm.toFixed(1)} / {maxLdm} LDM</span>
+                          <span>{ldmPct.toFixed(0)}%</span>
+                        </div>
+                        <div className="w-full bg-surface dark:bg-card-dark h-2 rounded-full overflow-hidden border border-border/40">
+                          <div 
+                            className={`h-full rounded-full transition-all duration-300 ${stats.ldm > maxLdm ? 'bg-red-500' : 'bg-green-600'}`} 
+                            style={{ width: `${ldmPct}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
-                    
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => reorderStops(selectedTripId, stop.id, 'up')}
-                        disabled={idx === 0}
-                        className="p-1 hover:bg-surface rounded border border-border disabled:opacity-30"
-                      >
-                        <ArrowUp className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => reorderStops(selectedTripId, stop.id, 'down')}
-                        disabled={idx === arr.length - 1}
-                        className="p-1 hover:bg-surface rounded border border-border disabled:opacity-30"
-                      >
-                        <ArrowDown className="w-4 h-4" />
-                      </button>
+                  </div>
+
+                  <div className="pt-3 border-t border-border/60 flex justify-between items-center text-xs text-text-secondary">
+                    <span className="font-semibold">
+                      {stats.count} comenzi în cursă (LTL)
+                    </span>
+                    {stats.tripId && (
+                      <span className="text-primary font-bold hover:underline">
+                        Vezi Opriri &rarr;
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Selected Trip stops sequence details */}
+        {selectedTripId && (
+          <div className="lg:col-span-12 bg-card border border-border rounded-2xl p-5 flex flex-col shrink-0 min-h-[220px] shadow-sm">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-text-primary text-base flex items-center gap-2">
+                <MapPin className="w-5.5 h-5.5 text-primary" />
+                Secvența de Opriri (Stops Routing)
+              </h3>
+              <button 
+                onClick={() => setSelectedTripId(null)}
+                className="text-xs font-bold text-text-secondary hover:text-red-500 border border-border rounded-lg px-3 py-1 bg-surface hover:bg-surface/80 transition-all"
+              >
+                Închide Panoul
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {trips.find(t => t.id === selectedTripId)?.stops?.sort((a: any, b: any) => a.sequence - b.sequence).map((stop: any, idx: number, arr: any[]) => (
+                <div key={stop.id} className="flex justify-between items-center bg-surface/50 border border-border p-4 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs border border-primary/20">
+                      {stop.sequence}
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-text-primary">{stop.companyName || 'Oprire'}</p>
+                      <p className="text-xs text-text-secondary line-clamp-1">{stop.address}</p>
                     </div>
                   </div>
-                ))}
-              </div>
+                  
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => reorderStops(selectedTripId, stop.id, 'up')}
+                      disabled={idx === 0}
+                      className="p-1.5 hover:bg-surface rounded-lg border border-border disabled:opacity-30 transition-all"
+                    >
+                      <ArrowUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => reorderStops(selectedTripId, stop.id, 'down')}
+                      disabled={idx === arr.length - 1}
+                      className="p-1.5 hover:bg-surface rounded-lg border border-border disabled:opacity-30 transition-all"
+                    >
+                      <ArrowDown className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
       </div>
 
       {selectedOrderToAssign && (() => {
@@ -464,6 +526,8 @@ export default function PlanningPage() {
         const dropoff = order.stops?.find((s: any) => s.type === 'dropoff');
         const orderWeight = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || 0;
         const orderLdm = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.ldm || 0), 0) || 0;
+        
+        const sortedTrucks = getSortedTrucks(order);
 
         return (
           <div 
@@ -481,7 +545,7 @@ export default function PlanningPage() {
                     Asignare Inteligentă: {order.orderNumber || order.referenceNumber}
                   </h2>
                   <p className="text-sm text-text-secondary mt-1">
-                    Alegeți camionul optim recomandat de sistem pentru această cursă.
+                    Alegeți camionul optim recomandat de sistem în funcție de adrese, zone de proximitate și capacitate.
                   </p>
                 </div>
                 <button 
@@ -514,17 +578,16 @@ export default function PlanningPage() {
 
               {/* List of recommended trucks */}
               <div className="p-6 overflow-y-auto space-y-4 custom-scrollbar flex-1">
-                <h3 className="text-xs uppercase font-bold tracking-widest text-text-secondary mb-2">Recomandări Camioane</h3>
-                {trucks.map(truck => {
+                <h3 className="text-xs uppercase font-bold tracking-widest text-text-secondary mb-2">Recomandări Camioane (Sortate după proximitate)</h3>
+                {sortedTrucks.map(({ truck, rec }) => {
                   const stats = getTruckStats(truck.id);
-                  const rec = getRecommendation(truck, order);
                   const maxWeight = truck.maxWeightKg || 24000;
                   const maxLdm = truck.maxLdm || 13.6;
 
                   const weightPct = Math.min(100, (stats.weight / maxWeight) * 100);
                   const ldmPct = Math.min(100, (stats.ldm / maxLdm) * 100);
 
-                  const isRecommended = rec.score === 100;
+                  const isRecommended = rec.isCompatible;
 
                   return (
                     <div 
@@ -534,7 +597,7 @@ export default function PlanningPage() {
                       `}
                     >
                       <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
                           <span className="font-bold text-text-primary text-base flex items-center gap-1.5">
                             <TruckIcon className="w-5 h-5 text-primary" />
                             {truck.plateNumber}
@@ -542,6 +605,11 @@ export default function PlanningPage() {
                           <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-md border ${rec.color}`}>
                             {rec.badge}
                           </span>
+                          {rec.distanceKm !== null && (
+                            <span className="px-2 py-0.5 text-[10px] font-bold text-primary bg-primary/10 border border-primary/20 rounded-md">
+                              📍 {rec.distanceKm.toFixed(0)} km {rec.distanceType === 'last_stop' ? 'de la ultima oprire' : 'de la locația curentă'}
+                            </span>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 text-xs font-semibold text-text-secondary mt-1">
