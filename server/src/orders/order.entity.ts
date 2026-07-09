@@ -10,7 +10,7 @@ import { OrderStop } from './order-stop.entity';
 
 export enum OrderStatus {
   DRAFT = 'draft',
-  CONFIRMED = 'confirmed',
+  UNASSIGNED = 'unassigned', // replaces 'confirmed'
   PLANNED = 'planned',
   PARTIALLY_ASSIGNED = 'partially_assigned',
   ASSIGNED = 'assigned',
@@ -64,6 +64,15 @@ export class Order {
 
   @Column({ type: 'varchar', default: 'normal' })
   priority: string;
+
+  @Column({ type: 'simple-array', nullable: true })
+  equipmentRequirements: string[]; // ['frigo', 'adr', 'mega', 'tilt']
+
+  @Column({ nullable: true })
+  contactPerson: string;
+
+  @Column({ nullable: true })
+  contactPhone: string;
 
   // Replaced static cargo fields with dynamic CargoItems relation
   @OneToMany(() => CargoItem, (cargo) => cargo.order, { cascade: true })

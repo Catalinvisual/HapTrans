@@ -42,6 +42,15 @@ export class Stop {
   status: string;
 
   @Column({ type: 'timestamp', nullable: true })
+  timeWindowMin: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  timeWindowMax: Date;
+
+  @Column({ nullable: true })
+  type: string; // 'pickup' | 'delivery'
+
+  @Column({ type: 'timestamp', nullable: true })
   eta: Date; // Estimated Time of Arrival
 
   @Column({ type: 'timestamp', nullable: true })

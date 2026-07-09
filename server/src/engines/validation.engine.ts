@@ -11,7 +11,20 @@ export class ValidationEngine {
     if (!orderDto.stops || orderDto.stops.length < 2) {
       throw new BadRequestException('An order must have at least one pickup and one dropoff stop');
     }
-    // Basic structural validation
+    for (const stop of orderDto.stops) {
+      if (!stop.address || stop.address.trim() === '') {
+        throw new BadRequestException('Address is required for all stops');
+      }
+    }
+    if (orderDto.transportType === 'ltl' || orderDto.transportType === 'groupage') {
+      if (!orderDto.cargoItems || orderDto.cargoItems.length === 0) {
+        throw new BadRequestException('At least one cargo item is required for LTL/groupage orders');
+      }
+      const hasLdm = orderDto.cargoItems.some((c: any) => c.ldm !== undefined && c.ldm !== null && parseFloat(c.ldm) > 0);
+      if (!hasLdm) {
+        throw new BadRequestException('LDM (Loading Meters) is required and must be greater than 0 for LTL/groupage orders');
+      }
+    }
   }
 
   validateTrip(tripDto: any): void {

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Box, Plus, Search, Loader2, MapPin, Truck, ChevronRight, FileText, Activity, Link as LinkIcon } from 'lucide-react';
 import api from '../lib/api';
 import OrderWizard from '../components/orders/OrderWizard';
+import toast from 'react-hot-toast';
 
 export default function OrdersPage() {
   const { t } = useTranslation();
@@ -28,11 +29,19 @@ export default function OrdersPage() {
     fetchOrders();
   }, []);
 
-  const filteredOrders = orders.filter(o => 
-    o.referenceNumber?.toLowerCase().includes(search.toLowerCase()) ||
-    o.client?.name?.toLowerCase().includes(search.toLowerCase()) ||
-    o.customerReference?.toLowerCase().includes(search.toLowerCase())
-  );
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const filteredOrders = orders.filter(o => {
+    const matchesSearch = 
+      o.orderNumber?.toLowerCase().includes(search.toLowerCase()) ||
+      o.referenceNumber?.toLowerCase().includes(search.toLowerCase()) ||
+      o.client?.name?.toLowerCase().includes(search.toLowerCase()) ||
+      o.customerReference?.toLowerCase().includes(search.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    if (statusFilter === 'all') return true;
+    return o.status === statusFilter;
+  });
 
   const handleEdit = (id: string) => {
     setSelectedOrderId(id);
@@ -61,16 +70,34 @@ export default function OrdersPage() {
       </div>
 
       <div className="card overflow-hidden border border-border">
-        <div className="p-4 border-b border-border bg-surface/30 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary" />
-            <input
-              type="text"
-              placeholder="Search by reference, client..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input pl-10 w-full bg-white"
-            />
+        <div className="p-4 border-b border-border bg-surface/30 flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 w-full">
+            <div className="relative w-full max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary" />
+              <input
+                type="text"
+                placeholder="Search by reference, client..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="input pl-10 w-full bg-white"
+              />
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap gap-2 border-t border-border/40 pt-3">
+            {['all', 'draft', 'unassigned', 'planned', 'in_transit', 'delivered', 'closed'].map(tab => (
+              <button
+                key={tab}
+                onClick={() => setStatusFilter(tab)}
+                className={`px-4 py-2 text-xs font-semibold rounded-lg border transition-all ${
+                  statusFilter === tab
+                    ? 'bg-primary text-white border-primary shadow-sm'
+                    : 'bg-surface border-border text-text-secondary hover:border-primary/50'
+                }`}
+              >
+                {t(`status_${tab}`, tab.replace('_', ' ').toUpperCase())}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -101,6 +128,7 @@ export default function OrdersPage() {
                   <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">Order Ref</th>
                   <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">Client</th>
                   <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">Route Info</th>
+                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">Type</th>
                   <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">Cargo</th>
                   <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">Status</th>
                   <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider text-right">Actions</th>
@@ -111,6 +139,7 @@ export default function OrdersPage() {
                   const pickup = order.stops?.find((s: any) => s.type === 'pickup');
                   const dropoff = order.stops?.find((s: any) => s.type === 'dropoff');
                   const cargoWeight = order.cargoItems?.reduce((sum: number, item: any) => sum + (item.weightKg || 0), 0) || 0;
+                  const cargoLdm = order.cargoItems?.reduce((sum: number, item: any) => sum + (item.ldm || 0), 0) || 0;
                   const cargoCount = order.cargoItems?.length || 0;
 
                   return (
@@ -136,16 +165,26 @@ export default function OrdersPage() {
                         </div>
                       </td>
                       <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <Box className="w-4 h-4 text-text-secondary" />
-                          <span className="text-sm font-medium">{cargoCount} item(s)</span>
-                          {cargoWeight > 0 && <span className="text-xs text-text-secondary">({Number(cargoWeight).toLocaleString()} kg)</span>}
+                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${
+                          order.transportType === 'ltl' || order.transportType === 'groupage'
+                            ? 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-900/50'
+                            : 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/50'
+                        }`}>
+                          {(order.transportType || 'FTL').toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex flex-col text-sm font-medium">
+                          <span>{cargoCount} item(s)</span>
+                          <span className="text-xs text-text-secondary">
+                            {Number(cargoWeight).toLocaleString()} kg • {cargoLdm.toFixed(2)} LDM
+                          </span>
                         </div>
                       </td>
                       <td className="p-4">
                         <span className={`badge ${
                             order.status === 'draft' ? 'badge-warning' :
-                            order.status === 'pending' ? 'badge-gray' :
+                            order.status === 'unassigned' ? 'badge-gray' :
                             order.status === 'assigned' ? 'badge-primary' :
                             order.status === 'in_transit' ? 'badge-primary' :
                             'badge-success'

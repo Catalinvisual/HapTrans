@@ -36,6 +36,18 @@ export class Truck {
   payloadCapacity: number;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  maxWeightKg: number; // e.g. 24000
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  maxLdm: number; // e.g. 13.6 Loading Meters
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  maxVolumeCbm: number; // e.g. 90
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  costPerKm: number; // For profit margin calculation
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
   fuelConsumption: number;
 
   @Column({ type: 'enum', enum: TruckStatus, default: TruckStatus.ACTIVE })

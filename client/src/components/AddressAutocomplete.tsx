@@ -5,8 +5,8 @@ import { MapPin, Loader2 } from 'lucide-react';
 interface AddressAutocompleteProps {
   value: string;
   onChange: (val: string) => void;
-  /** Called when a suggestion is clicked with full label + parsed city/country */
-  onSelectFull?: (label: string, city?: string, country?: string) => void;
+  /** Called when a suggestion is clicked with full label + parsed city/country/coordinates */
+  onSelectFull?: (label: string, city?: string, country?: string, lat?: number, lng?: number) => void;
   placeholder?: string;
   className?: string;
   required?: boolean;
@@ -19,7 +19,8 @@ function parseAddressLabel(label: string): { city?: string; country?: string } {
   const parts = label.split(',').map(p => p.trim());
   if (parts.length >= 2) {
     const country = parts[parts.length - 1];
-    return { country };
+    const city = parts[parts.length - 2];
+    return { country, city };
   }
   return {};
 }
@@ -81,13 +82,31 @@ export default function AddressAutocomplete({
     debounceTimer.current = setTimeout(() => fetchSuggestions(val), 380);
   };
 
-  const handleSelect = (label: string) => {
+  const handleSelect = async (label: string) => {
     setQuery(label);
     onChange(label);
     setIsOpen(false);
-    if (onSelectFull) {
-      const { city, country } = parseAddressLabel(label);
-      onSelectFull(label, city, country);
+    setLoading(true);
+    try {
+      const res = await api.get(`/routing/geocode?address=${encodeURIComponent(label)}`);
+      const { lat, lng, city, country } = res.data || {};
+      if (onSelectFull) {
+        onSelectFull(
+          label,
+          city || parseAddressLabel(label).city,
+          country || parseAddressLabel(label).country,
+          lat,
+          lng
+        );
+      }
+    } catch (e) {
+      console.error('Failed to resolve coordinates', e);
+      if (onSelectFull) {
+        const { city, country } = parseAddressLabel(label);
+        onSelectFull(label, city, country);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 

@@ -68,10 +68,11 @@ export default function TripDetailsPage() {
   if (!trip) return null;
 
   const addedCosts = trip.costs?.reduce((s: number, c: any) => s + Number(c.amount), 0) || 0;
-  const totalCost = addedCosts > 0 ? addedCosts : (Number(trip.realCost) || Number(trip.estimatedCost) || 0);
-  const ordersPrice = trip.orders?.reduce((sum: number, o: any) => sum + (Number(o.price) || 0), 0) || 0;
-  const basePrice = trip.orders?.length > 0 ? ordersPrice : Number(trip.agreedPrice || trip.price || 0);
+  const estimatedCost = Number(trip.distanceKm || 0) * Number(trip.truck?.costPerKm || 0);
+  const totalCost = estimatedCost + addedCosts;
+  const basePrice = trip.orders?.reduce((sum: number, o: any) => sum + (Number(o.price) || 0), 0) || Number(trip.price || 0);
   const profit = basePrice - totalCost;
+  const profitMargin = basePrice > 0 ? (profit / basePrice) * 100 : 0;
 
   const handleShare = async (url: string, title: string) => {
     if (navigator.share) {
@@ -112,6 +113,22 @@ export default function TripDetailsPage() {
         </div>
         
         <div className="flex gap-2">
+          {trip.status === 'planning' && (
+            <button
+              onClick={async () => {
+                try {
+                  await api.patch(`/trips/${trip.id}`, { status: 'dispatched' });
+                  toast.success(t('tripDispatched', 'Cursa a fost trimisă către șofer!'));
+                  window.location.reload();
+                } catch (e) {
+                  toast.error(t('dispatchError', 'Eroare la trimiterea cursei'));
+                }
+              }}
+              className="btn-primary py-2 px-4 flex items-center gap-2 text-sm font-semibold shadow-md bg-primary text-white border-primary hover:bg-primary/95"
+            >
+              <Navigation className="w-4 h-4" /> {t('dispatchTrip', 'Trimite Cursă (Dispatch)')}
+            </button>
+          )}
           {trip.trackingToken && (
             <button 
               onClick={() => {
@@ -119,7 +136,7 @@ export default function TripDetailsPage() {
                 navigator.clipboard.writeText(webUrl);
                 toast.success(t('trackingLinkCopied', 'Link urmărire copiat!'));
               }}
-              className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold border-primary/20 text-primary hover:bg-primary/5"
+              className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold border-border text-text hover:bg-surface"
             >
               <Navigation className="w-4 h-4" /> {t('clientTrackingLink', 'Link Urmărire Client')}
             </button>
@@ -162,10 +179,13 @@ export default function TripDetailsPage() {
                 [...trip.stops].sort((a, b) => a.sequence - b.sequence).map((stop: any, index: number, arr: any[]) => {
                   const isLast = index === arr.length - 1;
                   const isFirst = index === 0;
-                  const hasPickup = stop.tasks?.some((t: any) => t.type === 'load');
-                  const markerColor = hasPickup ? 'blue' : 'green';
-                  const markerBorderClass = hasPickup ? 'border-blue-500' : 'border-green-500';
-                  const textClass = hasPickup ? 'text-blue-600' : 'text-green-600';
+                  const isCompleted = stop.status === 'completed';
+                  const isArrived = stop.status === 'arrived';
+                  const isCurrent = !isCompleted && (index === 0 || arr[index - 1].status === 'completed');
+                  
+                  const markerColor = isCompleted ? 'green' : (isArrived || isCurrent ? 'amber' : 'gray');
+                  const markerBorderClass = isCompleted ? 'border-green-500' : (isArrived || isCurrent ? 'border-amber-500 animate-pulse' : 'border-border');
+                  const textClass = isCompleted ? 'text-green-600' : (isArrived || isCurrent ? 'text-amber-600' : 'text-text-muted');
 
                   const handleReorder = async (direction: 'up' | 'down') => {
                     const sortedStops = [...trip.stops].sort((a, b) => a.sequence - b.sequence);
@@ -440,7 +460,6 @@ export default function TripDetailsPage() {
             </div>
           </div>
 
-          {/* Financials - HIDE FOR DISPATCHERS */}
           {!isDispatcher && (
             <div className="card p-6 bg-card border border-border rounded-2xl shadow-sm">
               <h3 className="font-bold text-lg text-text mb-4 flex items-center gap-2">
@@ -463,6 +482,16 @@ export default function TripDetailsPage() {
                   <span className={`text-sm font-bold ${profit >= 0 ? 'text-green-800' : 'text-red-800'}`}>{t('netProfit', 'Profit Net')}</span>
                   <span className={`font-black text-xl ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {profit >= 0 ? '+' : ''}€{profit.toLocaleString(i18n.language)}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-surface rounded-xl border border-border">
+                  <span className="text-sm font-semibold text-text-secondary">Marjă Profit</span>
+                  <span className={`font-bold ${
+                    profitMargin >= 10 ? 'text-green-600' :
+                    profitMargin >= 0 ? 'text-yellow-600' : 'text-red-500'
+                  }`}>
+                    {profitMargin.toFixed(1)}%
                   </span>
                 </div>
               </div>

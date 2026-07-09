@@ -31,6 +31,7 @@ const ChatPage         = lazy(() => import('./pages/ChatPage'));
 const PlanningPage     = lazy(() => import('./pages/PlanningPage'));
 const WebsiteHubPage   = lazy(() => import('./pages/WebsiteHubPage'));
 const SharedDocumentPage = lazy(() => import('./pages/SharedDocumentPage'));
+const TrackingPage     = lazy(() => import('./pages/TrackingPage'));
 
 // ─── Loading fallback ─────────────────────────────────────────────────────
 function PageLoader() {
@@ -59,6 +60,14 @@ export default function App() {
             element={
               <Suspense fallback={<PageLoader />}>
                 <SharedDocumentPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/track/:token"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <TrackingPage />
               </Suspense>
             }
           />

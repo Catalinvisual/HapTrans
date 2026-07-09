@@ -13,6 +13,7 @@ import { Stop } from './stop.entity';
 
 export enum TripStatus {
   PLANNING = 'planning',
+  DISPATCHED = 'dispatched',
   READY = 'ready',
   ACTIVE = 'active', // replaces 'started'
   DRIVING = 'driving',
@@ -33,6 +34,9 @@ export class Trip {
 
   @Column({ unique: true, nullable: true })
   tripNumber: string; // e.g. TR-2026-000231
+
+  @Column({ nullable: true, unique: true })
+  trackingToken: string; // e.g. "ORD-G5KQZUKH" — generated on dispatch
 
   @Column({ type: 'varchar', default: 'planning' })
   status: string;

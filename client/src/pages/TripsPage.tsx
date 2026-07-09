@@ -31,11 +31,28 @@ export default function TripsPage() {
     fetchTrips();
   }, []);
 
-  const filteredTrips = trips.filter(tr => 
-    tr.tripNumber?.toLowerCase().includes(search.toLowerCase()) ||
-    tr.truck?.plateNumber?.toLowerCase().includes(search.toLowerCase()) ||
-    tr.driver?.firstName?.toLowerCase().includes(search.toLowerCase())
-  );
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const filteredTrips = trips.filter(tr => {
+    const matchesSearch = 
+      tr.tripNumber?.toLowerCase().includes(search.toLowerCase()) ||
+      tr.truck?.plateNumber?.toLowerCase().includes(search.toLowerCase()) ||
+      tr.driver?.firstName?.toLowerCase().includes(search.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    if (statusFilter === 'all') return true;
+    return tr.status === statusFilter;
+  });
+
+  const handleDispatch = async (tripId: string) => {
+    try {
+      await api.patch(`/trips/${tripId}`, { status: 'dispatched' });
+      toast.success('Cursă trimisă către șofer cu succes!');
+      fetchTrips();
+    } catch (e) {
+      toast.error('Eroare la trimiterea cursei');
+    }
+  };
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
@@ -47,16 +64,34 @@ export default function TripsPage() {
       </div>
 
       <div className="card overflow-hidden border border-border">
-        <div className="p-4 border-b border-border bg-surface/30 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary" />
-            <input
-              type="text"
-              placeholder="Search by Trip ID, Truck, or Driver..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input pl-10 w-full bg-white"
-            />
+        <div className="p-4 border-b border-border bg-surface/30 flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 w-full">
+            <div className="relative w-full max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary" />
+              <input
+                type="text"
+                placeholder="Search by reference, client..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="input pl-10 w-full bg-white"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 border-t border-border/40 pt-3">
+            {['all', 'planning', 'dispatched', 'active', 'completed', 'cancelled'].map(tab => (
+              <button
+                key={tab}
+                onClick={() => setStatusFilter(tab)}
+                className={`px-4 py-2 text-xs font-semibold rounded-lg border transition-all ${
+                  statusFilter === tab
+                    ? 'bg-primary text-white border-primary shadow-sm'
+                    : 'bg-surface border-border text-text-secondary hover:border-primary/50'
+                }`}
+              >
+                {tab.toUpperCase()}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -80,6 +115,7 @@ export default function TripsPage() {
                   <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">Trip & Orders</th>
                   <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">Fleet</th>
                   <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">Routing & Cargo</th>
+                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">Financials</th>
                   <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">Status</th>
                   <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider text-right">Actions</th>
                 </tr>
@@ -91,6 +127,10 @@ export default function TripsPage() {
                   const stops = trip.stops ? [...trip.stops].sort((a: any, b: any) => a.sequence - b.sequence) : [];
                   const pickup = stops[0];
                   const dropoff = stops[stops.length - 1];
+
+                  const revenue = trip.orders?.reduce((sum: number, o: any) => sum + Number(o.price || 0), 0) || 0;
+                  const cost = Number(trip.distanceKm || 0) * Number(trip.truck?.costPerKm || 0);
+                  const profit = revenue - cost;
 
                   return (
                     <tr key={trip.id} className="hover:bg-surface/30 transition-colors group">
@@ -163,11 +203,12 @@ export default function TripsPage() {
                             <div className="mt-2 pt-2 border-t border-border flex flex-wrap gap-3">
                               {trip.orders.map((o: any) => {
                                 const w = o.cargoItems?.reduce((sum: number, c: any) => sum + (c.weightKg || 0), 0) || 0;
+                                const ldm = o.cargoItems?.reduce((sum: number, c: any) => sum + (c.ldm || 0), 0) || 0;
                                 const items = o.cargoItems?.reduce((sum: number, c: any) => sum + (c.quantity || 1), 0) || 0;
                                 return (w > 0 || items > 0) ? (
                                   <div key={`cargo-${o.id}`} className="flex items-center gap-1 text-xs text-text-secondary">
                                     <Package className="w-3.5 h-3.5" />
-                                    <span>{items} items {w > 0 && `(${Number(w).toLocaleString()} kg)`}</span>
+                                    <span>{items} items {w > 0 && `(${Number(w).toLocaleString()} kg)`} {ldm > 0 && `• ${ldm.toFixed(1)} LDM`}</span>
                                   </div>
                                 ) : null;
                               })}
@@ -175,9 +216,17 @@ export default function TripsPage() {
                           )}
                         </div>
                       </td>
+                      <td className="p-4 align-top text-xs font-semibold space-y-1">
+                        <div className="text-text-primary">Venit: €{revenue.toLocaleString()}</div>
+                        <div className="text-text-secondary">Cost: €{cost.toLocaleString()}</div>
+                        <div className={profit >= 0 ? 'text-green-600' : 'text-red-500'}>
+                          Profit: €{profit.toLocaleString()}
+                        </div>
+                      </td>
                       <td className="p-4 align-top">
                         <span className={`badge ${
                             trip.status === 'planning' ? 'badge-warning' :
+                            trip.status === 'dispatched' ? 'badge-gray' :
                             trip.status === 'active' || trip.status === 'in_progress' ? 'badge-primary' :
                             trip.status === 'completed' ? 'badge-success' :
                             'badge-gray'
@@ -185,10 +234,18 @@ export default function TripsPage() {
                           {trip.status}
                         </span>
                       </td>
-                      <td className="p-4 text-right">
+                      <td className="p-4 text-right space-x-2">
+                        {trip.status === 'planning' && (
+                          <button
+                            onClick={() => handleDispatch(trip.id)}
+                            className="px-2.5 py-1 text-xs bg-primary text-white font-bold rounded-lg shadow hover:bg-primary/95 transition-all"
+                          >
+                            Trimite (Dispatch)
+                          </button>
+                        )}
                         <button 
                           onClick={() => navigate(`/trips/${trip.id}`)}
-                          className="p-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                          className="p-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors inline-flex items-center"
                         >
                           <Eye className="w-5 h-5" />
                         </button>

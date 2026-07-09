@@ -40,6 +40,12 @@ export class Trailer {
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
   payloadCapacityWeight: number;
 
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  maxLdm: number; // e.g. 13.6
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  maxVolumeCbm: number;
+
   @Column({ nullable: true, type: 'int' })
   payloadCapacityPallets: number;
 

@@ -38,6 +38,9 @@ export class CargoItem {
   volumeCbm: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  ldm: number; // Loading Meters (Metri Podea) — required for LTL groupage
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   lengthCm: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })

@@ -1,4 +1,4 @@
-import { Injectable, Inject, forwardRef, ConflictException } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Trip, TripStatus } from './trip.entity';
@@ -46,8 +46,11 @@ export class TripsService {
     return this.repo.findOne({ where: { id }, relations: ['truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'messages', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders'] });
   }
 
-  findByTrackingToken(trackingToken: string): Promise<Trip | null> {
-    return Promise.resolve(null); // Tracking token deprecated for Trip directly, it should be per Order or dynamically generated
+  async findByTrackingToken(trackingToken: string): Promise<Trip | null> {
+    return this.repo.findOne({
+      where: { trackingToken },
+      relations: ['truck', 'driver', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.cargoItems', 'company']
+    });
   }
 
   async checkConflict(driverId: string, truckId: string, pickupDate: Date | string, dropoffDate: Date | string, excludeTripId?: string) {
@@ -83,8 +86,63 @@ export class TripsService {
     delete updateData.client;
     delete updateData.pickupAddress;
     delete updateData.dropoffAddress;
+
+    const existing = await this.findOne(id);
+    if (!existing) throw new NotFoundException('Trip not found');
+
+    // 1. Generate Tracking Token on Dispatch
+    if (dto.status === 'dispatched' && !existing.trackingToken) {
+      const token = 'TR-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+      updateData.trackingToken = token;
+    }
+
+    // 2. Financial calculation
+    let revenue = 0;
+    if (existing.orders) {
+      for (const order of existing.orders) {
+        revenue += Number(order.price || 0);
+      }
+    }
+    
+    const distance = dto.distanceKm !== undefined ? Number(dto.distanceKm) : Number(existing.distanceKm || 0);
+    const truck = existing.truck;
+    const cost = distance * Number(truck?.costPerKm || 0);
+    
+    updateData.estimatedProfit = revenue - cost;
+    updateData.actualProfit = revenue - cost;
+
     await this.repo.update(id, updateData);
-    return this.findOne(id);
+    
+    const updated = await this.findOne(id);
+
+    // 3. Status change notifications & Email Send on Dispatch
+    if (dto.status === 'dispatched' && updated) {
+      if (updated.driver?.user?.id) {
+        await this.firebaseService.sendPushNotification(
+          updated.driver.user.id,
+          'Cursă Nouă Asignată',
+          `Ți-a fost asignată cursa ${updated.tripNumber}. Te rugăm să verifici detaliile în aplicație.`,
+          { tripId: updated.id }
+        ).catch(err => console.error('FCM send failed', err));
+      }
+
+      if (updated.orders && updated.orders.length > 0) {
+        for (const order of updated.orders) {
+          if (order.client?.contactEmail) {
+            const tripPayload = {
+              status: updated.status,
+              referenceNumber: updated.tripNumber,
+              pickupAddress: updated.stops?.find(s => s.tasks?.some(t => t.type === 'load'))?.address || 'N/A',
+              dropoffAddress: updated.stops?.find(s => s.tasks?.some(t => t.type === 'unload'))?.address || 'N/A',
+              client: order.client
+            };
+            await this.resendService.sendTripStatusEmail(tripPayload, updated.trackingToken || '', updated.company);
+          }
+        }
+      }
+    }
+
+    return updated;
   }
 
   async reorderStops(tripId: string, stopIds: string[]) {

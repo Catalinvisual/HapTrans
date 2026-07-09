@@ -151,9 +151,48 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
     price: '',
     currency: 'EUR',
     notes: '',
+    contactPerson: '',
+    contactPhone: '',
+    equipmentRequirements: [] as string[],
   });
 
-  const emptyStop = { companyName: '', address: '', city: '', country: '', scheduledDate: '', scheduledTime: '' };
+  const emptyStop = {
+    companyName: '',
+    address: '',
+    city: '',
+    country: '',
+    postalCode: '',
+    scheduledDate: '',
+    scheduledTime: '',
+    latitude: null as number | null,
+    longitude: null as number | null,
+    contactPerson: '',
+    phone: '',
+    dateTo: '',
+    timeUntil: '',
+    reference: '',
+    notes: '',
+  };
+
+  const emptyCargo = {
+    description: '',
+    quantity: 1,
+    weightKg: '',
+    volumeCbm: '',
+    ldm: '',
+    unit: 'pallet',
+    lengthCm: '',
+    widthCm: '',
+    heightCm: '',
+    stackable: false,
+    fragile: false,
+    isAdr: false,
+    adrClass: '',
+    adrUnNumber: '',
+    isTemperatureControlled: false,
+    requiredTemperature: '',
+  };
+
   const [pickup, setPickup] = useState({ ...emptyStop });
   const [dropoff, setDropoff] = useState({ ...emptyStop });
   const [cargoItems, setCargoItems] = useState<any[]>([]);
@@ -173,18 +212,86 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
             price: order.price?.toString() || '',
             currency: order.currency || 'EUR',
             notes: order.notes || '',
+            contactPerson: order.contactPerson || '',
+            contactPhone: order.contactPhone || '',
+            equipmentRequirements: order.equipmentRequirements || [],
           });
           const p = order.stops?.find((s: any) => s.type === 'pickup') || {};
           const d = order.stops?.find((s: any) => s.type === 'dropoff') || {};
-          setPickup({ companyName: p.companyName || '', address: p.address || '', city: p.city || '', country: p.country || '', scheduledDate: p.scheduledDate?.slice(0, 10) || '', scheduledTime: p.scheduledTime || '' });
-          setDropoff({ companyName: d.companyName || '', address: d.address || '', city: d.city || '', country: d.country || '', scheduledDate: d.scheduledDate?.slice(0, 10) || '', scheduledTime: d.scheduledTime || '' });
-          setCargoItems(order.cargoItems?.length ? order.cargoItems : [{ description: '', quantity: 1, weightKg: '', unit: 'pallet' }]);
+          
+          setPickup({
+            companyName: p.companyName || '',
+            address: p.address || '',
+            city: p.city || '',
+            country: p.country || '',
+            postalCode: p.postalCode || '',
+            scheduledDate: p.dateFrom || (p.scheduledDate ? p.scheduledDate.slice(0, 10) : ''),
+            scheduledTime: p.timeFrom || p.scheduledTime || '',
+            latitude: p.latitude ? parseFloat(p.latitude) : null,
+            longitude: p.longitude ? parseFloat(p.longitude) : null,
+            contactPerson: p.contactPerson || '',
+            phone: p.phone || '',
+            dateTo: p.dateTo || '',
+            timeUntil: p.timeUntil || '',
+            reference: p.reference || '',
+            notes: p.notes || '',
+          });
+
+          setDropoff({
+            companyName: d.companyName || '',
+            address: d.address || '',
+            city: d.city || '',
+            country: d.country || '',
+            postalCode: d.postalCode || '',
+            scheduledDate: d.dateFrom || (d.scheduledDate ? d.scheduledDate.slice(0, 10) : ''),
+            scheduledTime: d.timeFrom || d.scheduledTime || '',
+            latitude: d.latitude ? parseFloat(d.latitude) : null,
+            longitude: d.longitude ? parseFloat(d.longitude) : null,
+            contactPerson: d.contactPerson || '',
+            phone: d.phone || '',
+            dateTo: d.dateTo || '',
+            timeUntil: d.timeUntil || '',
+            reference: d.reference || '',
+            notes: d.notes || '',
+          });
+
+          setCargoItems(order.cargoItems?.length ? order.cargoItems.map((c: any) => ({
+            id: c.id,
+            description: c.description || '',
+            quantity: c.quantity || 1,
+            weightKg: c.weightKg?.toString() || '',
+            volumeCbm: c.volumeCbm?.toString() || '',
+            ldm: c.ldm?.toString() || '',
+            unit: c.unit || 'pallet',
+            lengthCm: c.lengthCm?.toString() || '',
+            widthCm: c.widthCm?.toString() || '',
+            heightCm: c.heightCm?.toString() || '',
+            stackable: c.stackable || false,
+            fragile: c.fragile || false,
+            isAdr: c.isAdr || false,
+            adrClass: c.adrClass || '',
+            adrUnNumber: c.adrUnNumber || '',
+            isTemperatureControlled: c.isTemperatureControlled || false,
+            requiredTemperature: c.requiredTemperature?.toString() || '',
+          })) : [{ ...emptyCargo }]);
         });
       } else {
-        setForm({ clientId: '', customerReference: '', internalReference: '', priority: 'normal', transportType: 'ftl', price: '', currency: 'EUR', notes: '' });
+        setForm({
+          clientId: '',
+          customerReference: '',
+          internalReference: '',
+          priority: 'normal',
+          transportType: 'ftl',
+          price: '',
+          currency: 'EUR',
+          notes: '',
+          contactPerson: '',
+          contactPhone: '',
+          equipmentRequirements: [],
+        });
         setPickup({ ...emptyStop });
         setDropoff({ ...emptyStop });
-        setCargoItems([{ description: '', quantity: 1, weightKg: '', unit: 'pallet' }]);
+        setCargoItems([{ ...emptyCargo }]);
       }
       setCurrentStep(0);
     }
@@ -192,15 +299,32 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
 
   if (!isOpen) return null;
 
-  const handleNext = () => { if (currentStep < STEPS.length - 1) setCurrentStep(c => c + 1); };
+  const handleNext = () => {
+    if (currentStep === 1) {
+      // Validate geocoding coordinates on stop step
+      if (!pickup.latitude || !pickup.longitude) {
+        toast.error('Locația de încărcare (Pickup) nu are coordonate GPS valide. Vă rugăm să selectați o adresă din listă.');
+        return;
+      }
+      if (!dropoff.latitude || !dropoff.longitude) {
+        toast.error('Locația de descărcare (Delivery) nu are coordonate GPS valide. Vă rugăm să selectați o adresă din listă.');
+        return;
+      }
+    }
+    if (currentStep < STEPS.length - 1) setCurrentStep(c => c + 1);
+  };
   const handlePrev = () => { if (currentStep > 0) setCurrentStep(c => c - 1); };
-  const handleAddCargo = () => setCargoItems([...cargoItems, { description: '', quantity: 1, weightKg: '', unit: 'pallet' }]);
+  const handleAddCargo = () => setCargoItems([...cargoItems, { ...emptyCargo }]);
   const handleRemoveCargo = (i: number) => setCargoItems(cargoItems.filter((_, idx) => idx !== i));
-  const handleCargoChange = (i: number, field: string, value: string) => {
+  const handleCargoChange = (i: number, field: string, value: any) => {
     const n = [...cargoItems]; n[i][field] = value; setCargoItems(n);
   };
 
   const handleSubmit = async () => {
+    if (!pickup.latitude || !pickup.longitude || !dropoff.latitude || !dropoff.longitude) {
+      toast.error('Ambele adrese trebuie să aibă coordonate GPS valide (geocodate) pentru a salva comanda.');
+      return;
+    }
     try {
       setLoading(true);
       const payload = {
@@ -215,6 +339,12 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
           ...c,
           quantity: c.quantity ? parseInt(c.quantity) : null,
           weightKg: c.weightKg ? parseFloat(c.weightKg) : null,
+          volumeCbm: c.volumeCbm ? parseFloat(c.volumeCbm) : null,
+          ldm: c.ldm ? parseFloat(c.ldm) : null,
+          lengthCm: c.lengthCm ? parseFloat(c.lengthCm) : null,
+          widthCm: c.widthCm ? parseFloat(c.widthCm) : null,
+          heightCm: c.heightCm ? parseFloat(c.heightCm) : null,
+          requiredTemperature: c.requiredTemperature ? parseFloat(c.requiredTemperature) : null,
         })),
       };
       if (orderId) {
@@ -352,7 +482,17 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1.5">Customer Reference</label>
+                    <label className="block text-sm font-medium mb-1.5">Contact Person</label>
+                    <input type="text" value={form.contactPerson} onChange={e => setForm({ ...form, contactPerson: e.target.value })} className="input w-full" placeholder="e.g. Andrei Popescu" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">Contact Phone</label>
+                    <input type="text" value={form.contactPhone} onChange={e => setForm({ ...form, contactPhone: e.target.value })} className="input w-full" placeholder="e.g. +40722123456" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">Customer Reference (PO #)</label>
                     <input type="text" value={form.customerReference} onChange={e => setForm({ ...form, customerReference: e.target.value })} className="input w-full" placeholder="e.g. PO-99812" />
                   </div>
                   <div>
@@ -387,6 +527,34 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                     <ModalSelect value={form.currency} onChange={v => setForm({ ...form, currency: v })} options={currencyOptions} />
                   </div>
                 </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">Equipment Requirements</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['frigo', 'tilt', 'adr', 'mega'].map(eq => {
+                      const selected = form.equipmentRequirements.includes(eq);
+                      return (
+                        <button
+                          key={eq}
+                          type="button"
+                          onClick={() => {
+                            const newReqs = selected
+                              ? form.equipmentRequirements.filter(r => r !== eq)
+                              : [...form.equipmentRequirements, eq];
+                            setForm({ ...form, equipmentRequirements: newReqs });
+                          }}
+                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                            selected
+                              ? 'bg-primary text-white border-primary shadow-sm'
+                              : 'bg-surface border-border text-text-secondary hover:border-primary/50'
+                          }`}
+                        >
+                          {eq.toUpperCase()}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               <div className="bg-surface/40 p-5 rounded-xl border border-border">
@@ -401,7 +569,7 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
             <div className="space-y-4" style={{ animation: 'stepIn 0.2s ease-out' }}>
               <div className="mb-1">
                 <h3 className="text-lg font-semibold text-text-primary">Pickup & Delivery</h3>
-                <p className="text-sm text-text-secondary">Where is the cargo going from and to?</p>
+                <p className="text-sm text-text-secondary">Where is the cargo going from and to? Coordinates must be validated.</p>
               </div>
 
               {/* Pickup */}
@@ -420,13 +588,32 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                     <AddressAutocomplete
                       value={pickup.address}
                       onChange={val => setPickup({ ...pickup, address: val })}
-                      onSelectFull={(label, city, country) => {
-                        setPickup(p => ({ ...p, address: label, city: city || p.city, country: country || p.country }));
+                      onSelectFull={(label, city, country, lat, lng) => {
+                        setPickup(p => ({
+                          ...p,
+                          address: label,
+                          city: city || p.city,
+                          country: country || p.country,
+                          latitude: lat || null,
+                          longitude: lng || null
+                        }));
                       }}
                       placeholder="Street, Number, Zip Code"
                       className="input w-full bg-white dark:bg-card"
                       required
                     />
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs font-semibold text-text-secondary">Geocoding:</span>
+                      {pickup.latitude && pickup.longitude ? (
+                        <span className="text-xs font-semibold text-green-600 flex items-center gap-1">
+                          ● Geocoded ({pickup.latitude.toFixed(4)}, {pickup.longitude.toFixed(4)})
+                        </span>
+                      ) : (
+                        <span className="text-xs font-semibold text-red-500">
+                          ● Coordinates Missing (Address not verified)
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
@@ -442,13 +629,36 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                       <input type="text" value={pickup.country} onChange={e => setPickup({ ...pickup, country: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Country" />
                     </div>
                   </div>
-                  <CustomDatePicker
-                    label="Pickup Date & Time"
-                    dateValue={pickup.scheduledDate}
-                    timeValue={pickup.scheduledTime || ''}
-                    onDateChange={v => setPickup({ ...pickup, scheduledDate: v })}
-                    onTimeChange={v => setPickup({ ...pickup, scheduledTime: v })}
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Contact Person</label>
+                      <input type="text" value={pickup.contactPerson} onChange={e => setPickup({ ...pickup, contactPerson: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Name" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Phone Number</label>
+                      <input type="text" value={pickup.phone} onChange={e => setPickup({ ...pickup, phone: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Phone" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <CustomDatePicker
+                      label="Pickup Time Window (Min)"
+                      dateValue={pickup.scheduledDate}
+                      timeValue={pickup.scheduledTime || ''}
+                      onDateChange={v => setPickup({ ...pickup, scheduledDate: v })}
+                      onTimeChange={v => setPickup({ ...pickup, scheduledTime: v })}
+                    />
+                    <CustomDatePicker
+                      label="Pickup Time Window (Max)"
+                      dateValue={pickup.dateTo}
+                      timeValue={pickup.timeUntil || ''}
+                      onDateChange={v => setPickup({ ...pickup, dateTo: v })}
+                      onTimeChange={v => setPickup({ ...pickup, timeUntil: v })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-text-secondary mb-1.5">Reference / Instructions</label>
+                    <input type="text" value={pickup.reference} onChange={e => setPickup({ ...pickup, reference: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Instructions/Ref" />
+                  </div>
                 </div>
               </div>
 
@@ -475,13 +685,32 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                     <AddressAutocomplete
                       value={dropoff.address}
                       onChange={val => setDropoff({ ...dropoff, address: val })}
-                      onSelectFull={(label, city, country) => {
-                        setDropoff(p => ({ ...p, address: label, city: city || p.city, country: country || p.country }));
+                      onSelectFull={(label, city, country, lat, lng) => {
+                        setDropoff(d => ({
+                          ...d,
+                          address: label,
+                          city: city || d.city,
+                          country: country || d.country,
+                          latitude: lat || null,
+                          longitude: lng || null
+                        }));
                       }}
                       placeholder="Street, Number, Zip Code"
                       className="input w-full bg-white dark:bg-card"
                       required
                     />
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs font-semibold text-text-secondary">Geocoding:</span>
+                      {dropoff.latitude && dropoff.longitude ? (
+                        <span className="text-xs font-semibold text-green-600 flex items-center gap-1">
+                          ● Geocoded ({dropoff.latitude.toFixed(4)}, {dropoff.longitude.toFixed(4)})
+                        </span>
+                      ) : (
+                        <span className="text-xs font-semibold text-red-500">
+                          ● Coordinates Missing (Address not verified)
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
@@ -497,13 +726,36 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                       <input type="text" value={dropoff.country} onChange={e => setDropoff({ ...dropoff, country: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Country" />
                     </div>
                   </div>
-                  <CustomDatePicker
-                    label="Delivery Date & Time"
-                    dateValue={dropoff.scheduledDate}
-                    timeValue={dropoff.scheduledTime || ''}
-                    onDateChange={v => setDropoff({ ...dropoff, scheduledDate: v })}
-                    onTimeChange={v => setDropoff({ ...dropoff, scheduledTime: v })}
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Contact Person</label>
+                      <input type="text" value={dropoff.contactPerson} onChange={e => setDropoff({ ...dropoff, contactPerson: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Name" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Phone Number</label>
+                      <input type="text" value={dropoff.phone} onChange={e => setDropoff({ ...dropoff, phone: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Phone" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <CustomDatePicker
+                      label="Delivery Time Window (Min)"
+                      dateValue={dropoff.scheduledDate}
+                      timeValue={dropoff.scheduledTime || ''}
+                      onDateChange={v => setDropoff({ ...dropoff, scheduledDate: v })}
+                      onTimeChange={v => setDropoff({ ...dropoff, scheduledTime: v })}
+                    />
+                    <CustomDatePicker
+                      label="Delivery Time Window (Max)"
+                      dateValue={dropoff.dateTo}
+                      timeValue={dropoff.timeUntil || ''}
+                      onDateChange={v => setDropoff({ ...dropoff, dateTo: v })}
+                      onTimeChange={v => setDropoff({ ...dropoff, timeUntil: v })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-text-secondary mb-1.5">Reference / Instructions</label>
+                    <input type="text" value={dropoff.reference} onChange={e => setDropoff({ ...dropoff, reference: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Instructions/Ref" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -528,7 +780,7 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">Cargo Description *</label>
                       <input type="text" value={cargo.description} onChange={e => handleCargoChange(index, 'description', e.target.value)} className="input w-full" placeholder="e.g. Pallets of electronics" required />
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-text-secondary mb-1.5">Quantity</label>
                         <input type="number" value={cargo.quantity} onChange={e => handleCargoChange(index, 'quantity', e.target.value)} className="input w-full" min="1" />
@@ -538,12 +790,58 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                         <ModalSelect value={cargo.unit || 'pallet'} onChange={v => handleCargoChange(index, 'unit', v)} options={unitOptions} />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">Weight (kg)</label>
-                        <input type="number" step="0.1" value={cargo.weightKg} onChange={e => handleCargoChange(index, 'weightKg', e.target.value)} className="input w-full" placeholder="Total weight" />
+                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">Weight (kg) *</label>
+                        <input type="number" step="0.1" value={cargo.weightKg} onChange={e => handleCargoChange(index, 'weightKg', e.target.value)} className="input w-full" placeholder="Total weight" required />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-text-secondary mb-1.5">Volume (m³)</label>
                         <input type="number" step="0.01" value={cargo.volumeCbm || ''} onChange={e => handleCargoChange(index, 'volumeCbm', e.target.value)} className="input w-full" placeholder="Optional" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">LDM (Loading Meters) *</label>
+                        <input type="number" step="0.01" value={cargo.ldm || ''} onChange={e => handleCargoChange(index, 'ldm', e.target.value)} className="input w-full" placeholder="e.g. 1.2" required />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 pt-3 border-t border-border/40">
+                      <div>
+                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">Cargo Dimensions (L / W / H cm)</label>
+                        <div className="grid grid-cols-3 gap-1">
+                          <input type="number" value={cargo.lengthCm || ''} onChange={e => handleCargoChange(index, 'lengthCm', e.target.value)} className="input p-1 text-center" placeholder="L" />
+                          <input type="number" value={cargo.widthCm || ''} onChange={e => handleCargoChange(index, 'widthCm', e.target.value)} className="input p-1 text-center" placeholder="W" />
+                          <input type="number" value={cargo.heightCm || ''} onChange={e => handleCargoChange(index, 'heightCm', e.target.value)} className="input p-1 text-center" placeholder="H" />
+                        </div>
+                      </div>
+                      <div className="flex flex-col justify-center">
+                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-text-secondary">
+                          <input type="checkbox" checked={cargo.stackable} onChange={e => handleCargoChange(index, 'stackable', e.target.checked)} className="checkbox" />
+                          <span>Stackable</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-text-secondary mt-1">
+                          <input type="checkbox" checked={cargo.fragile} onChange={e => handleCargoChange(index, 'fragile', e.target.checked)} className="checkbox" />
+                          <span>Fragile</span>
+                        </label>
+                      </div>
+                      <div className="border-l border-border/60 pl-3">
+                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-text-secondary">
+                          <input type="checkbox" checked={cargo.isAdr} onChange={e => handleCargoChange(index, 'isAdr', e.target.checked)} className="checkbox" />
+                          <span>Requires ADR</span>
+                        </label>
+                        {cargo.isAdr && (
+                          <div className="grid grid-cols-2 gap-1 mt-1">
+                            <input type="text" value={cargo.adrClass || ''} onChange={e => handleCargoChange(index, 'adrClass', e.target.value)} className="input p-1 text-xs" placeholder="Class" />
+                            <input type="text" value={cargo.adrUnNumber || ''} onChange={e => handleCargoChange(index, 'adrUnNumber', e.target.value)} className="input p-1 text-xs" placeholder="UN #" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="border-l border-border/60 pl-3">
+                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-text-secondary">
+                          <input type="checkbox" checked={cargo.isTemperatureControlled} onChange={e => handleCargoChange(index, 'isTemperatureControlled', e.target.checked)} className="checkbox" />
+                          <span>Temp Controlled</span>
+                        </label>
+                        {cargo.isTemperatureControlled && (
+                          <input type="number" step="0.5" value={cargo.requiredTemperature || ''} onChange={e => handleCargoChange(index, 'requiredTemperature', e.target.value)} className="input p-1 text-xs mt-1 w-full" placeholder="Temp °C" />
+                        )}
                       </div>
                     </div>
                   </div>

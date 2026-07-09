@@ -6,11 +6,13 @@ import { CargoItem } from './cargo-item.entity';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
 import { EnginesModule } from '../engines/engines.module';
+import { RoutingModule } from '../routing/routing.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Order, OrderStop, CargoItem]),
-    EnginesModule
+    EnginesModule,
+    RoutingModule
   ],
   controllers: [OrdersController],
   providers: [OrdersService],
