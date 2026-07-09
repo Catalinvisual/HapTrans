@@ -327,10 +327,13 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
     }
     try {
       setLoading(true);
+      const { internalReference, customerReference, ...cleanForm } = form;
       const payload = {
-        ...form,
+        ...cleanForm,
         clientId: form.clientId || null,
-        price: form.price ? parseFloat(form.price) : null,
+        customerReference: pickup.reference || null,
+        contactPerson: pickup.contactPerson || null,
+        contactPhone: pickup.phone || null,
         stops: [
           { type: 'pickup', sequence: 1, ...pickup, scheduledDate: pickup.scheduledDate || null },
           { type: 'dropoff', sequence: 2, ...dropoff, scheduledDate: dropoff.scheduledDate || null },
@@ -480,26 +483,6 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                   <label className="block text-sm font-medium mb-1.5" htmlFor="wiz-client">Client *</label>
                   <ModalSelect id="wiz-client" value={form.clientId} onChange={v => setForm({ ...form, clientId: v })} options={clientOptions} placeholder="Select a client..." />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1.5">Contact Person</label>
-                    <input type="text" value={form.contactPerson} onChange={e => setForm({ ...form, contactPerson: e.target.value })} className="input w-full" placeholder="e.g. Andrei Popescu" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1.5">Contact Phone</label>
-                    <input type="text" value={form.contactPhone} onChange={e => setForm({ ...form, contactPhone: e.target.value })} className="input w-full" placeholder="e.g. +40722123456" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1.5">Customer Reference (PO #)</label>
-                    <input type="text" value={form.customerReference} onChange={e => setForm({ ...form, customerReference: e.target.value })} className="input w-full" placeholder="e.g. PO-99812" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1.5">Internal Reference</label>
-                    <input type="text" value={form.internalReference} onChange={e => setForm({ ...form, internalReference: e.target.value })} className="input w-full" placeholder="e.g. Hap-01" />
-                  </div>
-                </div>
               </div>
 
               <div className="bg-surface/40 p-5 rounded-xl border border-border space-y-4">
@@ -615,20 +598,7 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                       )}
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">City</label>
-                      <input type="text" value={pickup.city} onChange={e => setPickup({ ...pickup, city: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="City" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Zip Code</label>
-                      <input type="text" value={pickup.postalCode || ''} onChange={e => setPickup({ ...pickup, postalCode: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Zip Code" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Country</label>
-                      <input type="text" value={pickup.country} onChange={e => setPickup({ ...pickup, country: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Country" />
-                    </div>
-                  </div>
+                  {/* City, Zip, Country removed as redundant because they are resolved by AddressAutocomplete */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">Contact Person</label>
@@ -656,8 +626,8 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-text-secondary mb-1.5">Reference / Instructions</label>
-                    <input type="text" value={pickup.reference} onChange={e => setPickup({ ...pickup, reference: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Instructions/Ref" />
+                    <label className="block text-xs font-semibold text-text-secondary mb-1.5">Reference (PO #) / Instructions</label>
+                    <input type="text" value={pickup.reference} onChange={e => setPickup({ ...pickup, reference: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="e.g. PO-99812 / Loading Instructions" />
                   </div>
                 </div>
               </div>
@@ -712,20 +682,7 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                       )}
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">City</label>
-                      <input type="text" value={dropoff.city} onChange={e => setDropoff({ ...dropoff, city: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="City" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Zip Code</label>
-                      <input type="text" value={dropoff.postalCode || ''} onChange={e => setDropoff({ ...dropoff, postalCode: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Zip Code" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">Country</label>
-                      <input type="text" value={dropoff.country} onChange={e => setDropoff({ ...dropoff, country: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Country" />
-                    </div>
-                  </div>
+                  {/* City, Zip, Country removed as redundant because they are resolved by AddressAutocomplete */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">Contact Person</label>
@@ -753,8 +710,8 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-text-secondary mb-1.5">Reference / Instructions</label>
-                    <input type="text" value={dropoff.reference} onChange={e => setDropoff({ ...dropoff, reference: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="Instructions/Ref" />
+                    <label className="block text-xs font-semibold text-text-secondary mb-1.5">Reference / Unloading Instructions</label>
+                    <input type="text" value={dropoff.reference} onChange={e => setDropoff({ ...dropoff, reference: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="e.g. Gate 3 / Unloading Instructions" />
                   </div>
                 </div>
               </div>

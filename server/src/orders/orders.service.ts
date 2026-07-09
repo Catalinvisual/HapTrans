@@ -74,7 +74,7 @@ export class OrdersService {
       company: dto.companyId ? { id: dto.companyId } as any : null,
       client: dto.clientId ? { id: dto.clientId } as any : null,
       orderNumber,
-      internalReference: dto.internalReference,
+      internalReference: orderNumber,
       customerReference: dto.customerReference,
       contactPerson: dto.contactPerson,
       contactPhone: dto.contactPhone,

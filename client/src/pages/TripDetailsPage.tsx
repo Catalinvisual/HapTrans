@@ -133,8 +133,29 @@ export default function TripDetailsPage() {
             <button 
               onClick={() => {
                 const webUrl = `${window.location.origin}/track/${trip.trackingToken}`;
-                navigator.clipboard.writeText(webUrl);
-                toast.success(t('trackingLinkCopied', 'Link urmărire copiat!'));
+                const fallbackCopy = (text: string) => {
+                  const textArea = document.createElement('textarea');
+                  textArea.value = text;
+                  textArea.style.position = 'fixed';
+                  document.body.appendChild(textArea);
+                  textArea.focus();
+                  textArea.select();
+                  try {
+                    document.execCommand('copy');
+                    toast.success(t('trackingLinkCopied', 'Link urmărire copiat!'));
+                  } catch (err) {
+                    toast.error('Nu s-a putut copia link-ul.');
+                  }
+                  document.body.removeChild(textArea);
+                };
+
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                  navigator.clipboard.writeText(webUrl)
+                    .then(() => toast.success(t('trackingLinkCopied', 'Link urmărire copiat!')))
+                    .catch(() => fallbackCopy(webUrl));
+                } else {
+                  fallbackCopy(webUrl);
+                }
               }}
               className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold border-border text-text hover:bg-surface"
             >
