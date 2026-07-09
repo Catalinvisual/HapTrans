@@ -13,7 +13,7 @@ export class TripsController {
     private service: TripsService,
     private scanner: TripScannerService,
   ) {}
-  @Get() findAll() { return this.service.findAll(); }
+  @Get() findAll(@Query('status') status?: string) { return this.service.findAll(status); }
   
   @Post('migrate-legacy') 
   migrateLegacy() { return this.service.migrateLegacyTrips(); }

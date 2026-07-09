@@ -21,8 +21,8 @@ export default function PlanningPage() {
       setLoading(true);
       const [trucksRes, ordersRes, tripsRes, driversRes] = await Promise.all([
         api.get('/trucks'),
-        api.get('/orders'),
-        api.get('/trips'),
+        api.get('/orders?status=draft,unassigned,pending'),
+        api.get('/trips?status=planning,dispatched'),
         api.get('/drivers'),
       ]);
       setTrucks(trucksRes.data.filter((t: any) => t.status === 'active'));
@@ -186,27 +186,14 @@ export default function PlanningPage() {
 
     let weight = 0;
     let ldm = 0;
-    const ordersList: any[] = [];
+    const ordersList = trip.orders || [];
 
-    // Map orders currently associated with stops/tasks of this trip
-    if (trip.stops) {
-      const seenOrders = new Set<string>();
-      trip.stops.forEach((s: any) => {
-        s.tasks?.forEach((t: any) => {
-          if (t.order && !seenOrders.has(t.order.id)) {
-            seenOrders.add(t.order.id);
-            const fullOrder = orders.find(o => o.id === t.order.id);
-            if (fullOrder) {
-              ordersList.push(fullOrder);
-              fullOrder.cargoItems?.forEach((cargo: any) => {
-                weight += Number(cargo.weightKg || 0);
-                ldm += Number(cargo.ldm || 0);
-              });
-            }
-          }
-        });
+    ordersList.forEach((fullOrder: any) => {
+      fullOrder.cargoItems?.forEach((cargo: any) => {
+        weight += Number(cargo.weightKg || 0);
+        ldm += Number(cargo.ldm || 0);
       });
-    }
+    });
 
     return { weight, ldm, count: ordersList.length, orders: ordersList, tripId: trip.id, driverId: trip.driver?.id || null };
   };

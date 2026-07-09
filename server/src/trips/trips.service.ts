@@ -1,6 +1,6 @@
 import { Injectable, Inject, forwardRef, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Trip, TripStatus } from './trip.entity';
 import { Stop, StopStatus } from './stop.entity';
 import { Truck } from '../trucks/truck.entity';
@@ -27,11 +27,16 @@ export class TripsService {
     private planningEngine: PlanningEngine,
   ) {}
 
-  findAll() {
-    return this.repo.find({ 
+  findAll(status?: string) {
+    const findOptions: any = { 
       relations: ['truck', 'driver', 'stops', 'orders', 'orders.cargoItems'],
       order: { createdAt: 'DESC' }
-    });
+    };
+    if (status) {
+      const statuses = status.split(',');
+      findOptions.where = { status: In(statuses) };
+    }
+    return this.repo.find(findOptions);
   }
 
   findAllForDashboard() {

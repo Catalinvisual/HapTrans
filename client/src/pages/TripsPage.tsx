@@ -11,11 +11,13 @@ export default function TripsPage() {
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const fetchTrips = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/trips');
+      const url = statusFilter === 'all' ? '/trips' : `/trips?status=${statusFilter}`;
+      const res = await api.get(url);
       // Sort trips by creation date (newest first)
       const sorted = res.data.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setTrips(sorted);
@@ -29,9 +31,7 @@ export default function TripsPage() {
 
   useEffect(() => {
     fetchTrips();
-  }, []);
-
-  const [statusFilter, setStatusFilter] = useState('all');
+  }, [statusFilter]);
 
   const filteredTrips = trips.filter(tr => {
     const matchesSearch = 

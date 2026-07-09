@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Order, OrderStatus } from './order.entity';
 import { OrderStop } from './order-stop.entity';
 import { CargoItem } from './cargo-item.entity';
@@ -20,10 +20,15 @@ export class OrdersService {
     private routingService: RoutingService,
   ) {}
 
-  findAll() {
-    return this.repo.find({ 
+  findAll(status?: string) {
+    const findOptions: any = { 
       relations: ['client', 'stops', 'cargoItems'] 
-    });
+    };
+    if (status) {
+      const statuses = status.split(',');
+      findOptions.where = { status: In(statuses) };
+    }
+    return this.repo.find(findOptions);
   }
 
   findOne(id: string) {
