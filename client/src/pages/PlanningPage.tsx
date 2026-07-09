@@ -9,6 +9,7 @@ export default function PlanningPage() {
   const [trucks, setTrucks] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [trips, setTrips] = useState<any[]>([]);
+  const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState<string | null>(null);
   const [dragOverTruck, setDragOverTruck] = useState<string | null>(null);
@@ -18,14 +19,16 @@ export default function PlanningPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [trucksRes, ordersRes, tripsRes] = await Promise.all([
+      const [trucksRes, ordersRes, tripsRes, driversRes] = await Promise.all([
         api.get('/trucks'),
         api.get('/orders'),
         api.get('/trips'),
+        api.get('/drivers'),
       ]);
       setTrucks(trucksRes.data.filter((t: any) => t.status === 'active'));
       setOrders(ordersRes.data);
       setTrips(tripsRes.data);
+      setDrivers(driversRes.data);
     } catch (e) {
       console.error(e);
       toast.error('Eroare la încărcarea datelor de planificare');
@@ -149,12 +152,37 @@ export default function PlanningPage() {
     }
   };
 
+  const handleAssignDriver = async (truckId: string, driverId: string) => {
+    try {
+      const trip = trips.find(tr => tr.truck?.id === truckId && tr.status === 'planning');
+      if (trip) {
+        await api.patch(`/trips/${trip.id}`, { driverId: driverId || null });
+        toast.success('Șoferul a fost actualizat pe cursă!');
+      } else {
+        await api.post('/trips', {
+          truckId,
+          driverId: driverId || null,
+          status: 'planning',
+          tripNumber: `TR-${Date.now().toString().slice(-6)}`,
+          pickupAddress: '',
+          dropoffAddress: '',
+          pickupDate: new Date().toISOString(),
+          dropoffDate: new Date(Date.now() + 86400000).toISOString(),
+        });
+        toast.success('Cursă nouă creată cu șoferul selectat!');
+      }
+      loadData();
+    } catch (e) {
+      toast.error('Eroare la alocarea șoferului');
+    }
+  };
+
   const unassigned = orders.filter(o => ['draft', 'unassigned', 'pending'].includes(o.status));
 
   // Helper to calculate totals for each truck's trip
   const getTruckStats = (truckId: string) => {
     const trip = trips.find(tr => tr.truck?.id === truckId && tr.status === 'planning');
-    if (!trip) return { weight: 0, ldm: 0, count: 0, orders: [], tripId: null };
+    if (!trip) return { weight: 0, ldm: 0, count: 0, orders: [], tripId: null, driverId: null };
 
     let weight = 0;
     let ldm = 0;
@@ -180,7 +208,7 @@ export default function PlanningPage() {
       });
     }
 
-    return { weight, ldm, count: ordersList.length, orders: ordersList, tripId: trip.id };
+    return { weight, ldm, count: ordersList.length, orders: ordersList, tripId: trip.id, driverId: trip.driver?.id || null };
   };
 
   return (
@@ -259,14 +287,14 @@ export default function PlanningPage() {
                     <div className="space-y-1.5 my-2">
                       <div className="flex items-center gap-2 text-xs">
                         <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                        <span className="text-text-secondary truncate">
-                          {pickup?.companyName || pickup?.address || '—'}
+                        <span className="text-text-secondary truncate" title={pickup?.address}>
+                          {pickup?.companyName ? `${pickup.companyName} (${pickup.address || pickup.city})` : (pickup?.address || '—')}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-xs">
                         <MapPin className="w-3.5 h-3.5 text-green-500 shrink-0" />
-                        <span className="text-text-secondary truncate">
-                          {dropoff?.companyName || dropoff?.address || '—'}
+                        <span className="text-text-secondary truncate" title={dropoff?.address}>
+                          {dropoff?.companyName ? `${dropoff.companyName} (${dropoff.address || dropoff.city})` : (dropoff?.address || '—')}
                         </span>
                       </div>
                     </div>
@@ -326,9 +354,22 @@ export default function PlanningPage() {
                             <TruckIcon className="w-5 h-5 text-primary" />
                             {truck.plateNumber}
                           </h3>
-                          <p className="text-xs text-text-secondary mt-0.5">
-                            Driver: {truck.driver ? `${truck.driver.firstName} ${truck.driver.lastName}` : 'Fără Șofer'}
-                          </p>
+                          <div className="mt-2 text-xs">
+                            <span className="text-text-secondary font-semibold">Șofer alocat:</span>
+                            <select
+                              value={stats.driverId || ''}
+                              onChange={e => handleAssignDriver(truck.id, e.target.value)}
+                              onClick={e => e.stopPropagation()}
+                              className="w-full text-xs bg-white dark:bg-card border border-border/80 rounded-lg p-1.5 font-semibold text-text-primary focus:outline-none focus:border-primary mt-1"
+                            >
+                              <option value="">Fără Șofer (Alege...)</option>
+                              {drivers.map((d: any) => (
+                                <option key={d.id} value={d.id}>
+                                  {d.user?.name || 'Șofer Fără Nume'}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
                         {hasWarning && (
                           <span className="text-red-500 animate-pulse flex items-center gap-1 text-xs font-bold">
