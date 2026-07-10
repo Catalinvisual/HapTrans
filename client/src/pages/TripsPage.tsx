@@ -160,7 +160,9 @@ export default function TripsPage() {
                         <div className="font-semibold text-primary">{trip.tripNumber || trip.id.slice(0, 8)}</div>
                         <div className="text-xs text-text-secondary mt-1 flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          {new Date(trip.createdAt).toLocaleDateString()}
+                          {trip.createdAt && !isNaN(new Date(trip.createdAt).getTime()) 
+                            ? new Date(trip.createdAt).toLocaleDateString() 
+                            : 'Unknown Date'}
                         </div>
                         {trip.orders && trip.orders.length > 0 && (
                           <div className="mt-2 space-y-1">
@@ -189,7 +191,7 @@ export default function TripsPage() {
                                   {pickup.address || pickup.city || 'TBD'}
                                 </p>
                                 {pickup.companyName && <p className="text-xs text-text-secondary">{pickup.companyName}</p>}
-                                {pickup.requestedDateFrom && (
+                                {pickup.requestedDateFrom && !isNaN(new Date(pickup.requestedDateFrom).getTime()) && (
                                   <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5 font-semibold">
                                     ETA: {new Date(pickup.requestedDateFrom).toLocaleString()}
                                   </p>
@@ -208,7 +210,7 @@ export default function TripsPage() {
                                   {dropoff.address || dropoff.city || 'TBD'}
                                 </p>
                                 {dropoff.companyName && <p className="text-xs text-text-secondary">{dropoff.companyName}</p>}
-                                {dropoff.requestedDateFrom && (
+                                {dropoff.requestedDateFrom && !isNaN(new Date(dropoff.requestedDateFrom).getTime()) && (
                                   <p className="text-[10px] text-green-600 dark:text-green-400 mt-0.5 font-semibold">
                                     ETA: {new Date(dropoff.requestedDateFrom).toLocaleString()}
                                   </p>
