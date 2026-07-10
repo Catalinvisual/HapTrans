@@ -206,6 +206,11 @@ export class OrdersService {
       const updateData: any = { ...dto };
       delete updateData.stops;
       delete updateData.cargoItems;
+      delete updateData.id;
+      delete updateData.createdAt;
+      delete updateData.updatedAt;
+      delete updateData.client;
+      delete updateData.company;
 
       if ('price' in updateData) {
         updateData.price = safeNum(updateData.price) ?? safeNum(updateData.agreedPrice);

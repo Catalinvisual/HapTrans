@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Truck, MapPin, Search, Loader2, ArrowRight, Eye, MoreHorizontal, Calendar, Package, Trash2 } from 'lucide-react';
 import api from '../lib/api';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
 
 export default function TripsPage() {
@@ -12,6 +13,8 @@ export default function TripsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [tripToDelete, setTripToDelete] = useState<string | null>(null);
 
   const fetchTrips = async () => {
     try {
@@ -54,14 +57,22 @@ export default function TripsPage() {
     }
   };
 
-  const handleDelete = async (tripId: string) => {
-    if (!window.confirm('Are you sure you want to delete this trip? This action is irreversible.')) return;
+  const handleDeleteClick = (tripId: string) => {
+    setTripToDelete(tripId);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!tripToDelete) return;
     try {
-      await api.delete(`/trips/${tripId}`);
-      toast.success('Trip deleted successfully');
+      await api.delete(`/trips/${tripToDelete}`);
+      toast.success(t('global_delete_success', 'Deleted successfully'));
       fetchTrips();
     } catch (e) {
-      toast.error('Failed to delete trip');
+      toast.error(t('global_delete_error', 'Failed to delete'));
+    } finally {
+      setDeleteModalOpen(false);
+      setTripToDelete(null);
     }
   };
 
@@ -257,7 +268,7 @@ export default function TripsPage() {
                           <Eye className="w-5 h-5" />
                         </button>
                         <button 
-                          onClick={(e) => { e.stopPropagation(); handleDelete(trip.id); }}
+                          onClick={(e) => { e.stopPropagation(); handleDeleteClick(trip.id); }}
                           title="Delete Trip"
                           className="p-2 text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors inline-flex items-center"
                         >
@@ -272,6 +283,12 @@ export default function TripsPage() {
           </div>
         )}
       </div>
+      
+      <ConfirmDeleteModal
+        isOpen={deleteModalOpen}
+        onClose={() => { setDeleteModalOpen(false); setTripToDelete(null); }}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

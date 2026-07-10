@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Truck as TruckIcon, Package, Loader2, MapPin, Calendar, ArrowRight, CheckCircle2, AlertTriangle, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
 import api from '../lib/api';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 
@@ -14,6 +15,8 @@ export default function PlanningPage() {
   const [assigning, setAssigning] = useState<string | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [selectedOrderToAssign, setSelectedOrderToAssign] = useState<any | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
 
   const loadData = async (silent = false) => {
     try {
@@ -147,14 +150,22 @@ export default function PlanningPage() {
     }
   };
 
-  const handleDeleteOrder = async (orderId: string) => {
-    if (!window.confirm('Are you sure you want to delete this order? This action is irreversible.')) return;
+  const handleDeleteClick = (orderId: string) => {
+    setOrderToDelete(orderId);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!orderToDelete) return;
     try {
-      await api.delete(`/orders/${orderId}`);
-      toast.success('Order deleted successfully');
+      await api.delete(`/orders/${orderToDelete}`);
+      toast.success(t('global_delete_success', 'Deleted successfully'));
       loadData();
     } catch (err) {
-      toast.error('Failed to delete order');
+      toast.error(t('global_delete_error', 'Failed to delete'));
+    } finally {
+      setDeleteModalOpen(false);
+      setOrderToDelete(null);
     }
   };
 
@@ -346,7 +357,7 @@ export default function PlanningPage() {
                           </button>
                           <button 
                             title="Delete Order"
-                            onClick={(e) => { e.stopPropagation(); handleDeleteOrder(order.id); }}
+                            onClick={(e) => { e.stopPropagation(); handleDeleteClick(order.id); }}
                             className="p-1.5 text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors inline-flex items-center"
                           >
                             <Trash2 className="w-4 h-4" />

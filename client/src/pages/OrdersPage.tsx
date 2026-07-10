@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Box, Plus, Search, Loader2, MapPin, Truck, ChevronRight, FileText, Activity, Link as LinkIcon, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import OrderWizard from '../components/orders/OrderWizard';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
 
 export default function OrdersPage() {
@@ -12,6 +13,8 @@ export default function OrdersPage() {
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
 
   const fetchOrders = async () => {
     try {
@@ -48,14 +51,22 @@ export default function OrdersPage() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this order? This action is irreversible.')) return;
+  const handleDeleteClick = (id: string) => {
+    setOrderToDelete(id);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!orderToDelete) return;
     try {
-      await api.delete(`/orders/${id}`);
-      toast.success('Order deleted successfully');
+      await api.delete(`/orders/${orderToDelete}`);
+      toast.success(t('global_delete_success', 'Deleted successfully'));
       fetchOrders();
     } catch (err) {
-      toast.error('Failed to delete order');
+      toast.error(t('global_delete_error', 'Failed to delete'));
+    } finally {
+      setDeleteModalOpen(false);
+      setOrderToDelete(null);
     }
   };
 
@@ -250,7 +261,7 @@ export default function OrdersPage() {
                         </button>
                         <button 
                           title="Delete Order"
-                          onClick={(e) => { e.stopPropagation(); handleDelete(order.id); }}
+                          onClick={(e) => { e.stopPropagation(); handleDeleteClick(order.id); }}
                           className="p-2 text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                         >
                           <Trash2 className="w-5 h-5" />
@@ -266,10 +277,16 @@ export default function OrdersPage() {
       </div>
 
       <OrderWizard 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        orderId={selectedOrderId || undefined}
         onSaved={fetchOrders}
-        orderId={selectedOrderId}
+      />
+
+      <ConfirmDeleteModal
+        isOpen={deleteModalOpen}
+        onClose={() => { setDeleteModalOpen(false); setOrderToDelete(null); }}
+        onConfirm={confirmDelete}
       />
     </div>
   );
