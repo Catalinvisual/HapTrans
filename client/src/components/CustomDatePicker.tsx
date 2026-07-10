@@ -159,8 +159,6 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
   };
 
   return (
-    <div className="relative" ref={containerRef}>
-      {label && (
     <div className="flex flex-col gap-1.5 w-full">
       {label && <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{label}</label>}
       <div className="flex items-center gap-2 relative">
