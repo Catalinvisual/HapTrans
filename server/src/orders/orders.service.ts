@@ -185,125 +185,158 @@ export class OrdersService {
   }
 
   async update(id: string, dto: any) {
-    const updateData: any = { ...dto };
-    delete updateData.stops;
-    delete updateData.cargoItems;
+    try {
+      // Helper: safely parse a number, returns null on empty/NaN
+      const safeNum = (v: any): number | null => {
+        if (v === null || v === undefined || v === '') return null;
+        const n = parseFloat(String(v));
+        return isNaN(n) ? null : n;
+      };
 
-    if ('price' in updateData) {
-      const p = updateData.price;
-      updateData.price = p && !isNaN(parseFloat(p)) ? parseFloat(p) : null;
-    }
+      // Helper: safely parse a date string, returns null if invalid
+      const safeDate = (v: any): string | null => {
+        if (!v) return null;
+        try {
+          const d = new Date(v);
+          if (isNaN(d.getTime())) return null;
+          return d.toISOString().split('T')[0]; // YYYY-MM-DD for date columns
+        } catch { return null; }
+      };
 
-    if ('clientId' in updateData) {
-      updateData.client = updateData.clientId ? { id: updateData.clientId } : null;
-      delete updateData.clientId;
-    }
-    if ('companyId' in updateData) {
-      updateData.company = updateData.companyId ? { id: updateData.companyId } : null;
-      delete updateData.companyId;
-    }
+      const updateData: any = { ...dto };
+      delete updateData.stops;
+      delete updateData.cargoItems;
 
-    // Geocode stops if provided, validate, and check completion status
-    const processedStops: any[] = [];
-    if (dto.stops && dto.stops.length > 0) {
-      for (const stopDto of dto.stops) {
-        let lat = (stopDto.latitude && !isNaN(parseFloat(stopDto.latitude))) ? parseFloat(stopDto.latitude) : null;
-        let lng = (stopDto.longitude && !isNaN(parseFloat(stopDto.longitude))) ? parseFloat(stopDto.longitude) : null;
-        
-        if ((lat === null || lng === null || isNaN(lat) || isNaN(lng)) && stopDto.address) {
-          const geo = await this.routingService.geocode(stopDto.address);
-          if (!geo) {
-            throw new BadRequestException(`Nu s-a putut geocoda adresa: ${stopDto.address}. Coordonatele sunt obligatorii.`);
+      if ('price' in updateData) {
+        updateData.price = safeNum(updateData.price) ?? safeNum(updateData.agreedPrice);
+      }
+      if ('agreedPrice' in updateData) delete updateData.agreedPrice;
+
+      if ('clientId' in updateData) {
+        updateData.client = updateData.clientId ? { id: updateData.clientId } : null;
+        delete updateData.clientId;
+      }
+      if ('companyId' in updateData) {
+        updateData.company = updateData.companyId ? { id: updateData.companyId } : null;
+        delete updateData.companyId;
+      }
+
+      // Normalize equipmentRequirements
+      if ('equipmentRequirements' in updateData) {
+        updateData.equipmentRequirements = Array.isArray(updateData.equipmentRequirements)
+          ? updateData.equipmentRequirements
+          : [];
+      }
+
+      // Nullify empty string fields
+      ['customerReference', 'contactPerson', 'contactPhone', 'notes'].forEach(k => {
+        if (k in updateData && updateData[k] === '') updateData[k] = null;
+      });
+
+      // Geocode stops if provided — don't throw if geocoding fails, just leave coords as null
+      const processedStops: any[] = [];
+      if (dto.stops && dto.stops.length > 0) {
+        for (const stopDto of dto.stops) {
+          let lat = safeNum(stopDto.latitude);
+          let lng = safeNum(stopDto.longitude);
+
+          if ((lat === null || lng === null) && stopDto.address) {
+            try {
+              const geo = await this.routingService.geocode(stopDto.address);
+              if (geo) { lat = geo.lat; lng = geo.lng; }
+            } catch { /* geocoding failed — keep nulls */ }
           }
-          lat = geo.lat;
-          lng = geo.lng;
+          processedStops.push({ ...stopDto, latitude: lat, longitude: lng });
         }
-        processedStops.push({ ...stopDto, latitude: lat, longitude: lng });
       }
-    }
 
-    // Auto-status transition check
-    const hasStops = processedStops.length >= 2;
-    const hasCargo = (dto.cargoItems && dto.cargoItems.length > 0) || false;
-    
-    // Only transition if currently draft and now complete
-    const existingOrder = await this.findOne(id);
-    if (existingOrder && existingOrder.status === OrderStatus.DRAFT) {
-      const isComplete = (dto.clientId || existingOrder.client) && 
-                         hasStops && 
-                         hasCargo && 
-                         processedStops.every(s => s.latitude && s.longitude);
-      if (isComplete) {
-        updateData.status = OrderStatus.UNASSIGNED;
+      // Auto-status transition: draft → unassigned if now complete
+      const existingOrder = await this.findOne(id);
+      if (existingOrder && existingOrder.status === OrderStatus.DRAFT) {
+        const hasStops = processedStops.length >= 2;
+        const hasCargo = (dto.cargoItems && dto.cargoItems.length > 0) ||
+          ((existingOrder as any).cargoItems?.length > 0);
+        const isComplete =
+          (dto.clientId || existingOrder.client) &&
+          hasStops &&
+          hasCargo &&
+          processedStops.every(s => s.latitude && s.longitude);
+        if (isComplete) updateData.status = OrderStatus.UNASSIGNED;
       }
-    }
 
-    await this.repo.update(id, updateData);
+      await this.repo.update(id, updateData);
 
-    // Recreate stops if provided
-    if (processedStops.length > 0) {
-      await this.stopRepo.delete({ order: { id } });
-      for (let i = 0; i < processedStops.length; i++) {
-        const stopDto = processedStops[i];
-        const stop = this.stopRepo.create({
-          order: { id } as any,
-          company: dto.companyId ? { id: dto.companyId } as any : null,
-          sequence: i + 1,
-          type: stopDto.type,
-          companyName: stopDto.companyName,
-          address: stopDto.address,
-          latitude: stopDto.latitude,
-          longitude: stopDto.longitude,
-          city: stopDto.city,
-          country: stopDto.country,
-          postalCode: stopDto.postalCode,
-          contactPerson: stopDto.contactPerson || stopDto.contactName,
-          phone: stopDto.phone || stopDto.contactPhone,
-          dateFrom: stopDto.scheduledDate || stopDto.requestedDateFrom || stopDto.dateFrom,
-          dateTo: stopDto.requestedDateTo || stopDto.dateTo,
-          timeFrom: stopDto.scheduledTime || stopDto.timeFrom,
-          timeUntil: stopDto.timeUntil,
-          clientLocation: stopDto.clientLocationId ? { id: stopDto.clientLocationId } as any : null,
-          reference: stopDto.loadingReference || stopDto.reference,
-          notes: stopDto.notes
-        } as any);
-        await this.stopRepo.save(stop);
+      // Recreate stops if provided
+      if (processedStops.length > 0) {
+        await this.stopRepo.delete({ order: { id } });
+        for (let i = 0; i < processedStops.length; i++) {
+          const stopDto = processedStops[i];
+          const stop = this.stopRepo.create({
+            order: { id } as any,
+            company: dto.companyId ? { id: dto.companyId } as any : null,
+            sequence: i + 1,
+            type: stopDto.type || (i === 0 ? 'pickup' : 'dropoff'),
+            companyName: stopDto.companyName || null,
+            address: stopDto.address || null,
+            latitude: safeNum(stopDto.latitude),
+            longitude: safeNum(stopDto.longitude),
+            city: stopDto.city || null,
+            country: stopDto.country || null,
+            postalCode: stopDto.postalCode || null,
+            contactPerson: stopDto.contactPerson || stopDto.contactName || null,
+            phone: stopDto.phone || stopDto.contactPhone || null,
+            dateFrom: safeDate(stopDto.scheduledDate || stopDto.requestedDateFrom || stopDto.dateFrom),
+            dateTo: safeDate(stopDto.requestedDateTo || stopDto.dateTo),
+            timeFrom: stopDto.scheduledTime || stopDto.timeFrom || null,
+            timeUntil: stopDto.timeUntil || null,
+            clientLocation: stopDto.clientLocationId ? { id: stopDto.clientLocationId } as any : null,
+            reference: stopDto.loadingReference || stopDto.reference || null,
+            notes: stopDto.notes || null,
+          } as any);
+          await this.stopRepo.save(stop);
+        }
       }
-    }
 
-    // Recreate cargo if provided
-    if (dto.cargoItems && dto.cargoItems.length > 0) {
-      await this.cargoRepo.delete({ order: { id } });
-      for (let i = 0; i < dto.cargoItems.length; i++) {
-        const cargoDto = dto.cargoItems[i];
-        const cargo = this.cargoRepo.create({
-          order: { id } as any,
-          company: dto.companyId ? { id: dto.companyId } as any : null,
-          description: cargoDto.description || 'Cargo Item',
-          quantity: cargoDto.quantity,
-          unit: cargoDto.unit || 'pallet',
-          weightKg: (cargoDto.weightKg && !isNaN(parseFloat(cargoDto.weightKg))) ? parseFloat(cargoDto.weightKg) : null,
-          volumeCbm: (cargoDto.volumeCbm && !isNaN(parseFloat(cargoDto.volumeCbm))) ? parseFloat(cargoDto.volumeCbm) : null,
-          ldm: (cargoDto.ldm && !isNaN(parseFloat(cargoDto.ldm))) ? parseFloat(cargoDto.ldm) : null,
-          lengthCm: (cargoDto.lengthCm && !isNaN(parseFloat(cargoDto.lengthCm))) ? parseFloat(cargoDto.lengthCm) : null,
-          widthCm: (cargoDto.widthCm && !isNaN(parseFloat(cargoDto.widthCm))) ? parseFloat(cargoDto.widthCm) : null,
-          heightCm: (cargoDto.heightCm && !isNaN(parseFloat(cargoDto.heightCm))) ? parseFloat(cargoDto.heightCm) : null,
-          adrClass: cargoDto.adrClass || null,
-          unNumber: cargoDto.adrUnNumber || null,
-          requiresTemperatureControl: cargoDto.isTemperatureControlled || false,
-          temperatureMin: (cargoDto.requiredTemperature && !isNaN(parseFloat(cargoDto.requiredTemperature))) ? parseFloat(cargoDto.requiredTemperature) : null,
-          temperatureMax: (cargoDto.requiredTemperature && !isNaN(parseFloat(cargoDto.requiredTemperature))) ? parseFloat(cargoDto.requiredTemperature) : null,
-          stackable: cargoDto.stackable || false,
-          fragile: cargoDto.fragile || false,
-        } as any);
-        await this.cargoRepo.save(cargo);
+      // Recreate cargo if provided
+      if (dto.cargoItems && dto.cargoItems.length > 0) {
+        await this.cargoRepo.delete({ order: { id } });
+        for (let i = 0; i < dto.cargoItems.length; i++) {
+          const cargoDto = dto.cargoItems[i];
+          const cargo = this.cargoRepo.create({
+            order: { id } as any,
+            company: dto.companyId ? { id: dto.companyId } as any : null,
+            description: cargoDto.description || 'Cargo Item',
+            quantity: safeNum(cargoDto.quantity) || 1,
+            unit: cargoDto.unit || 'pallet',
+            weightKg: safeNum(cargoDto.weightKg),
+            volumeCbm: safeNum(cargoDto.volumeCbm),
+            ldm: safeNum(cargoDto.ldm),
+            lengthCm: safeNum(cargoDto.lengthCm),
+            widthCm: safeNum(cargoDto.widthCm),
+            heightCm: safeNum(cargoDto.heightCm),
+            adrClass: cargoDto.adrClass || null,
+            unNumber: cargoDto.adrUnNumber || null,
+            requiresTemperatureControl: cargoDto.isTemperatureControlled || false,
+            temperatureMin: safeNum(cargoDto.requiredTemperature),
+            temperatureMax: safeNum(cargoDto.requiredTemperature),
+            stackable: cargoDto.stackable || false,
+            fragile: cargoDto.fragile || false,
+          } as any);
+          await this.cargoRepo.save(cargo);
+        }
       }
+
+      const fullOrder = await this.findOne(id);
+      this.eventEmitter.emit('order.updated', fullOrder);
+      return fullOrder;
+    } catch (err: any) {
+      console.error('=== ORDER UPDATE ERROR ===');
+      console.error('Message:', err.message);
+      console.error('Detail:', err.detail);
+      console.error('Code:', err.code);
+      console.error('Stack:', err.stack);
+      throw err;
     }
-    
-    const fullOrder = await this.findOne(id);
-    this.eventEmitter.emit('order.updated', fullOrder);
-    
-    return fullOrder;
   }
 
   remove(id: string) {
