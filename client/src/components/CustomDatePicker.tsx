@@ -45,7 +45,16 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const [dateOpenUpward, setDateOpenUpward] = useState(false);
+  const [popupPos, setPopupPos] = useState({ top: 0, left: 0, width: 0 });
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isOpen) setIsOpen(false);
+      if (isTimeOpen) setIsTimeOpen(false);
+    };
+    window.addEventListener('scroll', handleScroll, true); // true for capture phase to catch modal scroll
+    return () => window.removeEventListener('scroll', handleScroll, true);
+  }, [isOpen, isTimeOpen]);
 
   const openPopup = () => {
     if (containerRef.current) {
@@ -54,8 +63,11 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
       const spaceBelow = window.innerHeight - rect.bottom;
       const spaceAbove = rect.top;
       
-      // Open upward if not enough space below AND there is more space above than below
-      setDateOpenUpward(spaceBelow < popupHeight && spaceAbove > spaceBelow);
+      let top = rect.bottom + 8;
+      if (spaceBelow < popupHeight && spaceAbove > spaceBelow) {
+        top = rect.top - popupHeight - 8;
+      }
+      setPopupPos({ top, left: rect.left, width: 320 });
     }
     setIsOpen(true);
   };
@@ -177,10 +189,11 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
             </span>
           </div>
           
-          {isTimeOpen && (
-            <div className={`absolute right-0 w-[140px] bg-card border border-border rounded-xl shadow-xl z-[999] p-2 flex gap-1 h-48 ${
-              timeOpenUpward ? 'bottom-full mb-1' : 'top-full mt-1'
-            }`}>
+          {isTimeOpen && typeof document !== 'undefined' && createPortal(
+            <div 
+              className="fixed z-[9999] bg-card border border-border rounded-xl shadow-xl p-2 flex gap-1 h-48 w-[140px]"
+              style={{ top: popupPos.top, left: popupPos.left + 140, animation: 'fadeUp 0.15s ease-out' }}
+            >
               <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
                 {Array.from({ length: 24 }).map((_, i) => {
                   const h = String(i).padStart(2, '0');
@@ -213,18 +226,17 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
                   );
                 })}
               </div>
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       </div>
 
-      {isOpen && (
+      {isOpen && typeof document !== 'undefined' && createPortal(
         <div
           id="custom-datepicker-popup"
-          className={`absolute left-0 z-[9999] bg-card border border-border rounded-xl shadow-2xl p-4 w-[280px] ${
-            dateOpenUpward ? 'bottom-full mb-2' : 'top-full mt-2'
-          }`}
-          style={{ animation: 'fadeUp 0.15s ease-out' }}
+          className="fixed z-[9999] bg-card border border-border rounded-xl shadow-2xl p-4 w-[280px]"
+          style={{ top: popupPos.top, left: popupPos.left, animation: 'fadeUp 0.15s ease-out' }}
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
@@ -252,7 +264,8 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
           <div className="grid grid-cols-7 gap-1 place-items-center">
             {renderCalendar()}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

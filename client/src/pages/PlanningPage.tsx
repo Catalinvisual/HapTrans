@@ -15,9 +15,9 @@ export default function PlanningPage() {
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [selectedOrderToAssign, setSelectedOrderToAssign] = useState<any | null>(null);
 
-  const loadData = async () => {
+  const loadData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const [trucksRes, ordersRes, tripsRes, driversRes] = await Promise.all([
         api.get('/trucks'),
         api.get('/orders?status=draft,unassigned,pending'),
@@ -30,13 +30,17 @@ export default function PlanningPage() {
       setDrivers(driversRes.data);
     } catch (e) {
       console.error(e);
-      toast.error('Eroare la încărcarea datelor de planificare');
+      if (!silent) toast.error('Eroare la încărcarea datelor de planificare');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { 
+    loadData(); 
+    const interval = setInterval(() => loadData(true), 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleAssignOrderToTruck = async (orderId: string, truckId: string) => {
     await assignOrderToTruck(orderId, truckId);
@@ -255,18 +259,6 @@ export default function PlanningPage() {
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">{t('planning_tms_title')}</h1>
-          <p className="text-sm text-text-secondary mt-1">{t('planning_tms_subtitle')}</p>
-        </div>
-        <button onClick={loadData} className="btn-secondary flex items-center gap-2">
-          {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          {t('update_data')}
-        </button>
-      </div>
-
       {/* Main Layout Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         

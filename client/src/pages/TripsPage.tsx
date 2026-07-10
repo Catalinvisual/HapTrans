@@ -56,12 +56,7 @@ export default function TripsPage() {
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Trips Management</h1>
-          <p className="text-sm text-text-secondary mt-1">Manage, track, and review all active and completed trips.</p>
-        </div>
-      </div>
+
 
       <div className="card overflow-hidden border border-border">
         <div className="p-4 border-b border-border bg-surface/30 flex flex-col gap-4">

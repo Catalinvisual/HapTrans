@@ -55,20 +55,6 @@ export default function OrdersPage() {
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Orders</h1>
-          <p className="text-sm text-text-secondary mt-1">Manage transport orders, cargo items, and routings.</p>
-        </div>
-        <button 
-          onClick={handleCreate}
-          className="btn-primary flex items-center gap-2 shadow-lg hover:shadow-xl transition-all"
-        >
-          <Plus className="w-5 h-5" />
-          {t('addOrder', 'Create Order')}
-        </button>
-      </div>
-
       <div className="card overflow-hidden border border-border">
         <div className="p-4 border-b border-border bg-surface/30 flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 w-full">
@@ -82,6 +68,13 @@ export default function OrdersPage() {
                 className="input pl-10 w-full bg-white"
               />
             </div>
+            <button 
+              onClick={handleCreate}
+              className="btn-primary flex items-center gap-2 shadow-lg hover:shadow-xl transition-all"
+            >
+              <Plus className="w-5 h-5" />
+              {t('addOrder', 'Create Order')}
+            </button>
           </div>
           
           <div className="flex flex-wrap gap-2 border-t border-border/40 pt-3">
