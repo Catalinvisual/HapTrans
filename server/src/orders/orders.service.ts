@@ -107,8 +107,8 @@ export class OrdersService {
           type: stopDto.type,
           companyName: stopDto.companyName,
           address: stopDto.address,
-          latitude: stopDto.latitude ? parseFloat(stopDto.latitude) : null,
-          longitude: stopDto.longitude ? parseFloat(stopDto.longitude) : null,
+          latitude: (stopDto.latitude && !isNaN(parseFloat(stopDto.latitude))) ? parseFloat(stopDto.latitude) : null,
+          longitude: (stopDto.longitude && !isNaN(parseFloat(stopDto.longitude))) ? parseFloat(stopDto.longitude) : null,
           city: stopDto.city,
           country: stopDto.country,
           postalCode: stopDto.postalCode,
@@ -136,17 +136,17 @@ export class OrdersService {
           description: cargoDto.description || 'Cargo Item',
           quantity: cargoDto.quantity || 1,
           unit: cargoDto.unit || 'pallet',
-          weightKg: cargoDto.weightKg ? parseFloat(cargoDto.weightKg) : null,
-          volumeCbm: cargoDto.volumeCbm ? parseFloat(cargoDto.volumeCbm) : null,
-          ldm: cargoDto.ldm ? parseFloat(cargoDto.ldm) : null,
-          lengthCm: cargoDto.lengthCm ? parseFloat(cargoDto.lengthCm) : null,
-          widthCm: cargoDto.widthCm ? parseFloat(cargoDto.widthCm) : null,
-          heightCm: cargoDto.heightCm ? parseFloat(cargoDto.heightCm) : null,
+          weightKg: (cargoDto.weightKg && !isNaN(parseFloat(cargoDto.weightKg))) ? parseFloat(cargoDto.weightKg) : null,
+          volumeCbm: (cargoDto.volumeCbm && !isNaN(parseFloat(cargoDto.volumeCbm))) ? parseFloat(cargoDto.volumeCbm) : null,
+          ldm: (cargoDto.ldm && !isNaN(parseFloat(cargoDto.ldm))) ? parseFloat(cargoDto.ldm) : null,
+          lengthCm: (cargoDto.lengthCm && !isNaN(parseFloat(cargoDto.lengthCm))) ? parseFloat(cargoDto.lengthCm) : null,
+          widthCm: (cargoDto.widthCm && !isNaN(parseFloat(cargoDto.widthCm))) ? parseFloat(cargoDto.widthCm) : null,
+          heightCm: (cargoDto.heightCm && !isNaN(parseFloat(cargoDto.heightCm))) ? parseFloat(cargoDto.heightCm) : null,
           adrClass: cargoDto.adrClass || null,
           unNumber: cargoDto.adrUnNumber || null,
           requiresTemperatureControl: cargoDto.isTemperatureControlled || false,
-          temperatureMin: cargoDto.requiredTemperature ? parseFloat(cargoDto.requiredTemperature) : null,
-          temperatureMax: cargoDto.requiredTemperature ? parseFloat(cargoDto.requiredTemperature) : null,
+          temperatureMin: (cargoDto.requiredTemperature && !isNaN(parseFloat(cargoDto.requiredTemperature))) ? parseFloat(cargoDto.requiredTemperature) : null,
+          temperatureMax: (cargoDto.requiredTemperature && !isNaN(parseFloat(cargoDto.requiredTemperature))) ? parseFloat(cargoDto.requiredTemperature) : null,
           stackable: cargoDto.stackable || false,
           fragile: cargoDto.fragile || false,
         } as any);
@@ -185,8 +185,8 @@ export class OrdersService {
     const processedStops: any[] = [];
     if (dto.stops && dto.stops.length > 0) {
       for (const stopDto of dto.stops) {
-        let lat = stopDto.latitude ? parseFloat(stopDto.latitude) : null;
-        let lng = stopDto.longitude ? parseFloat(stopDto.longitude) : null;
+        let lat = (stopDto.latitude && !isNaN(parseFloat(stopDto.latitude))) ? parseFloat(stopDto.latitude) : null;
+        let lng = (stopDto.longitude && !isNaN(parseFloat(stopDto.longitude))) ? parseFloat(stopDto.longitude) : null;
         
         if ((lat === null || lng === null || isNaN(lat) || isNaN(lng)) && stopDto.address) {
           const geo = await this.routingService.geocode(stopDto.address);
@@ -260,17 +260,17 @@ export class OrdersService {
           description: cargoDto.description || 'Cargo Item',
           quantity: cargoDto.quantity,
           unit: cargoDto.unit || 'pallet',
-          weightKg: cargoDto.weightKg,
-          volumeCbm: cargoDto.volumeCbm,
-          ldm: cargoDto.ldm,
-          lengthCm: cargoDto.lengthCm,
-          widthCm: cargoDto.widthCm,
-          heightCm: cargoDto.heightCm,
+          weightKg: (cargoDto.weightKg && !isNaN(parseFloat(cargoDto.weightKg))) ? parseFloat(cargoDto.weightKg) : null,
+          volumeCbm: (cargoDto.volumeCbm && !isNaN(parseFloat(cargoDto.volumeCbm))) ? parseFloat(cargoDto.volumeCbm) : null,
+          ldm: (cargoDto.ldm && !isNaN(parseFloat(cargoDto.ldm))) ? parseFloat(cargoDto.ldm) : null,
+          lengthCm: (cargoDto.lengthCm && !isNaN(parseFloat(cargoDto.lengthCm))) ? parseFloat(cargoDto.lengthCm) : null,
+          widthCm: (cargoDto.widthCm && !isNaN(parseFloat(cargoDto.widthCm))) ? parseFloat(cargoDto.widthCm) : null,
+          heightCm: (cargoDto.heightCm && !isNaN(parseFloat(cargoDto.heightCm))) ? parseFloat(cargoDto.heightCm) : null,
           adrClass: cargoDto.adrClass || null,
           unNumber: cargoDto.adrUnNumber || null,
           requiresTemperatureControl: cargoDto.isTemperatureControlled || false,
-          temperatureMin: cargoDto.requiredTemperature ? parseFloat(cargoDto.requiredTemperature) : null,
-          temperatureMax: cargoDto.requiredTemperature ? parseFloat(cargoDto.requiredTemperature) : null,
+          temperatureMin: (cargoDto.requiredTemperature && !isNaN(parseFloat(cargoDto.requiredTemperature))) ? parseFloat(cargoDto.requiredTemperature) : null,
+          temperatureMax: (cargoDto.requiredTemperature && !isNaN(parseFloat(cargoDto.requiredTemperature))) ? parseFloat(cargoDto.requiredTemperature) : null,
           stackable: cargoDto.stackable || false,
           fragile: cargoDto.fragile || false,
         } as any);

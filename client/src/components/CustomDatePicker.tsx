@@ -75,9 +75,15 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
   const toggleTime = () => {
     if (!isTimeOpen && timeRef.current) {
       const rect = timeRef.current.getBoundingClientRect();
-      const pickerHeight = 192; // h-48 is 12rem = 192px
+      const popupHeight = 192; // h-48 is 192px
       const spaceBelow = window.innerHeight - rect.bottom;
-      setTimeOpenUpward(spaceBelow < pickerHeight && rect.top > spaceBelow);
+      const spaceAbove = rect.top;
+      
+      let top = rect.bottom + 8;
+      if (spaceBelow < popupHeight && spaceAbove > spaceBelow) {
+        top = rect.top - popupHeight - 8;
+      }
+      setPopupPos({ top, left: rect.left, width: 140 });
     }
     setIsTimeOpen(!isTimeOpen);
   };
