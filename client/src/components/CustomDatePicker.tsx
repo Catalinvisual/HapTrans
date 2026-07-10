@@ -45,7 +45,6 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const [popupPos, setPopupPos] = useState({ top: 0, left: 0, width: 0 });
 
   useEffect(() => {
     const handleScroll = () => {
