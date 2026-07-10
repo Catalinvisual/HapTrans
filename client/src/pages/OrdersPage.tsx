@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Box, Plus, Search, Loader2, MapPin, Truck, ChevronRight, FileText, Activity, Link as LinkIcon } from 'lucide-react';
+import { Box, Plus, Search, Loader2, MapPin, Truck, ChevronRight, FileText, Activity, Link as LinkIcon, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import OrderWizard from '../components/orders/OrderWizard';
 import toast from 'react-hot-toast';
@@ -46,6 +46,17 @@ export default function OrdersPage() {
   const handleEdit = (id: string) => {
     setSelectedOrderId(id);
     setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this order? This action is irreversible.')) return;
+    try {
+      await api.delete(`/orders/${id}`);
+      toast.success('Order deleted successfully');
+      fetchOrders();
+    } catch (err) {
+      toast.error('Failed to delete order');
+    }
   };
 
   const handleCreate = () => {
@@ -232,10 +243,17 @@ export default function OrdersPage() {
                         })()}
                         <button 
                           title="Edit Order"
-                          onClick={() => handleEdit(order.id)}
+                          onClick={(e) => { e.stopPropagation(); handleEdit(order.id); }}
                           className="p-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                         >
                           <ChevronRight className="w-5 h-5" />
+                        </button>
+                        <button 
+                          title="Delete Order"
+                          onClick={(e) => { e.stopPropagation(); handleDelete(order.id); }}
+                          className="p-2 text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </td>
                     </tr>

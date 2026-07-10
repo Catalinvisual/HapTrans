@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Truck as TruckIcon, Package, Loader2, MapPin, Calendar, ArrowRight, CheckCircle2, AlertTriangle, ArrowUp, ArrowDown } from 'lucide-react';
+import { Truck as TruckIcon, Package, Loader2, MapPin, Calendar, ArrowRight, CheckCircle2, AlertTriangle, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -144,6 +144,17 @@ export default function PlanningPage() {
       loadData();
     } catch (e) {
       toast.error('Eroare la alocarea șoferului');
+    }
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!window.confirm('Are you sure you want to delete this order? This action is irreversible.')) return;
+    try {
+      await api.delete(`/orders/${orderId}`);
+      toast.success('Order deleted successfully');
+      loadData();
+    } catch (err) {
+      toast.error('Failed to delete order');
     }
   };
 
@@ -325,12 +336,20 @@ export default function PlanningPage() {
                         <td className="p-4 font-bold text-text-primary">
                           €{order.price || '0.00'}
                         </td>
-                        <td className="p-4 pr-6 text-right">
+                        <td className="p-4 pr-6 text-right space-x-2">
                           <button
+                            title="Plan Trip"
                             onClick={() => setSelectedOrderToAssign(order)}
-                            className="btn-primary py-1.5 px-4 text-xs font-bold bg-primary hover:bg-primary/95 text-white rounded-lg inline-flex items-center gap-1.5 shadow-sm"
+                            className="btn-primary py-1.5 px-3 text-xs font-bold bg-primary hover:bg-primary/95 text-white rounded-lg inline-flex items-center gap-1.5 shadow-sm"
                           >
                             <TruckIcon className="w-4 h-4" /> {t('plan_trip')}
+                          </button>
+                          <button 
+                            title="Delete Order"
+                            onClick={(e) => { e.stopPropagation(); handleDeleteOrder(order.id); }}
+                            className="p-1.5 text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors inline-flex items-center"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </td>
                       </tr>

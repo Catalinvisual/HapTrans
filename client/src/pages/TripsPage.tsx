@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Truck, MapPin, Search, Loader2, ArrowRight, Eye, MoreHorizontal, Calendar, Package } from 'lucide-react';
+import { Truck, MapPin, Search, Loader2, ArrowRight, Eye, MoreHorizontal, Calendar, Package, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 
@@ -51,6 +51,17 @@ export default function TripsPage() {
       fetchTrips();
     } catch (e) {
       toast.error('Eroare la trimiterea cursei');
+    }
+  };
+
+  const handleDelete = async (tripId: string) => {
+    if (!window.confirm('Are you sure you want to delete this trip? This action is irreversible.')) return;
+    try {
+      await api.delete(`/trips/${tripId}`);
+      toast.success('Trip deleted successfully');
+      fetchTrips();
+    } catch (e) {
+      toast.error('Failed to delete trip');
     }
   };
 
@@ -240,9 +251,17 @@ export default function TripsPage() {
                         )}
                         <button 
                           onClick={() => navigate(`/trips/${trip.id}`)}
+                          title="View Details"
                           className="p-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors inline-flex items-center"
                         >
                           <Eye className="w-5 h-5" />
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDelete(trip.id); }}
+                          title="Delete Trip"
+                          className="p-2 text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors inline-flex items-center"
+                        >
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </td>
                     </tr>
