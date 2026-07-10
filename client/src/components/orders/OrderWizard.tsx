@@ -312,11 +312,11 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
     if (currentStep === 1) {
       // Validate geocoding coordinates on stop step
       if (!pickup.latitude || !pickup.longitude) {
-        toast.error('Locația de încărcare (Pickup) nu are coordonate GPS valide. Vă rugăm să selectați o adresă din listă.');
+        toast.error(t('pickup_no_gps', 'Pickup location does not have valid GPS coordinates. Please select an address from the list.'));
         return;
       }
       if (!dropoff.latitude || !dropoff.longitude) {
-        toast.error('Locația de descărcare (Delivery) nu are coordonate GPS valide. Vă rugăm să selectați o adresă din listă.');
+        toast.error(t('dropoff_no_gps', 'Delivery location does not have valid GPS coordinates. Please select an address from the list.'));
         return;
       }
     }
@@ -331,7 +331,7 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
 
   const handleSubmit = async () => {
     if (!pickup.latitude || !pickup.longitude || !dropoff.latitude || !dropoff.longitude) {
-      toast.error('Ambele adrese trebuie să aibă coordonate GPS valide (geocodate) pentru a salva comanda.');
+      toast.error(t('both_addresses_need_gps', 'Both addresses must have valid GPS coordinates (geocoded) to save the order.'));
       return;
     }
     try {

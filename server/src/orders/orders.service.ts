@@ -41,125 +41,147 @@ export class OrdersService {
   }
 
   async create(dto: any) {
-    // 1. Validate
-    this.validationEngine.validateOrder(dto);
+    try {
+      // 1. Validate
+      this.validationEngine.validateOrder(dto);
 
-    // Generate sequential order number: HAP-00001
-    const count = await this.repo.count();
-    const seq = String(count + 1).padStart(5, '0');
-    const orderNumber = dto.orderNumber || `HC-${seq}`;
+      // Generate sequential order number: HAP-00001
+      const count = await this.repo.count();
+      const seq = String(count + 1).padStart(5, '0');
+      const orderNumber = dto.orderNumber || `HC-${seq}`;
 
-    // Determine initial status based on completeness
-    let status = OrderStatus.DRAFT;
-    const hasStops = dto.stops && dto.stops.length >= 2;
-    const hasCargo = dto.cargoItems && dto.cargoItems.length > 0;
-    
-    // Check geocoding ahead of time to make sure we don't save a partial order if it fails
-    const processedStops: any[] = [];
-    if (hasStops) {
-      for (const stopDto of dto.stops) {
-        let lat = stopDto.latitude ? parseFloat(stopDto.latitude) : null;
-        let lng = stopDto.longitude ? parseFloat(stopDto.longitude) : null;
-        
-        if ((lat === null || lng === null || isNaN(lat) || isNaN(lng)) && stopDto.address) {
-          const geo = await this.routingService.geocode(stopDto.address);
-          if (!geo) {
-            throw new BadRequestException(`Nu s-a putut geocoda adresa: ${stopDto.address}. Coordonatele sunt obligatorii.`);
+      // Determine initial status based on completeness
+      let status = OrderStatus.DRAFT;
+      const hasStops = dto.stops && dto.stops.length >= 2;
+      const hasCargo = dto.cargoItems && dto.cargoItems.length > 0;
+      
+      // Helper: safely parse a number, returns null on empty/NaN
+      const safeNum = (v: any): number | null => {
+        if (v === null || v === undefined || v === '') return null;
+        const n = parseFloat(String(v));
+        return isNaN(n) ? null : n;
+      };
+
+      // Helper: safely parse a date string, returns null if invalid
+      const safeDate = (v: any): string | null => {
+        if (!v) return null;
+        try {
+          const d = new Date(v);
+          if (isNaN(d.getTime())) return null;
+          return d.toISOString().split('T')[0]; // YYYY-MM-DD for date columns
+        } catch { return null; }
+      };
+
+      // Check geocoding ahead of time
+      const processedStops: any[] = [];
+      if (hasStops) {
+        for (const stopDto of dto.stops) {
+          let lat = safeNum(stopDto.latitude);
+          let lng = safeNum(stopDto.longitude);
+          
+          if ((lat === null || lng === null) && stopDto.address) {
+            const geo = await this.routingService.geocode(stopDto.address);
+            if (geo) { lat = geo.lat; lng = geo.lng; }
           }
-          lat = geo.lat;
-          lng = geo.lng;
+          processedStops.push({ ...stopDto, latitude: lat, longitude: lng });
         }
-        processedStops.push({ ...stopDto, latitude: lat, longitude: lng });
       }
-    }
 
-    if (dto.clientId && hasStops && hasCargo && processedStops.every(s => s.latitude && s.longitude)) {
-      status = OrderStatus.UNASSIGNED;
-    }
-
-    const order = this.repo.create({
-      company: dto.companyId ? { id: dto.companyId } as any : null,
-      client: dto.clientId ? { id: dto.clientId } as any : null,
-      orderNumber,
-      internalReference: orderNumber,
-      customerReference: dto.customerReference,
-      contactPerson: dto.contactPerson,
-      contactPhone: dto.contactPhone,
-      equipmentRequirements: dto.equipmentRequirements || [],
-      priority: dto.priority || 'normal',
-      transportType: dto.transportType || dto.freightType || 'ftl',
-      price: (dto.price && !isNaN(parseFloat(dto.price))) ? parseFloat(dto.price) : ((dto.agreedPrice && !isNaN(parseFloat(dto.agreedPrice))) ? parseFloat(dto.agreedPrice) : null),
-      currency: dto.currency || 'EUR',
-      notes: dto.notes,
-      status: dto.status || status
-    } as any);
-
-    const savedOrder = await this.repo.save(order) as any as Order;
-
-    // 3. Create stops
-    if (processedStops.length > 0) {
-      for (let i = 0; i < processedStops.length; i++) {
-        const stopDto = processedStops[i];
-        const stop = this.stopRepo.create({
-          order: { id: savedOrder.id } as any,
-          company: dto.companyId ? { id: dto.companyId } as any : null,
-          sequence: i + 1,
-          type: stopDto.type,
-          companyName: stopDto.companyName,
-          address: stopDto.address,
-          latitude: (stopDto.latitude && !isNaN(parseFloat(stopDto.latitude))) ? parseFloat(stopDto.latitude) : null,
-          longitude: (stopDto.longitude && !isNaN(parseFloat(stopDto.longitude))) ? parseFloat(stopDto.longitude) : null,
-          city: stopDto.city,
-          country: stopDto.country,
-          postalCode: stopDto.postalCode,
-          contactPerson: stopDto.contactPerson || stopDto.contactName,
-          phone: stopDto.phone || stopDto.contactPhone,
-          dateFrom: stopDto.scheduledDate || stopDto.requestedDateFrom || stopDto.dateFrom,
-          dateTo: stopDto.requestedDateTo || stopDto.dateTo,
-          timeFrom: stopDto.scheduledTime || stopDto.timeFrom,
-          timeUntil: stopDto.timeUntil,
-          clientLocation: stopDto.clientLocationId ? { id: stopDto.clientLocationId } as any : null,
-          reference: stopDto.loadingReference || stopDto.reference,
-          notes: stopDto.notes
-        } as any);
-        await this.stopRepo.save(stop);
+      if (dto.clientId && hasStops && hasCargo && processedStops.every(s => s.latitude && s.longitude)) {
+        status = OrderStatus.UNASSIGNED;
       }
-    }
 
-    // 4. Create cargo items
-    if (dto.cargoItems && dto.cargoItems.length > 0) {
-      for (let i = 0; i < dto.cargoItems.length; i++) {
-        const cargoDto = dto.cargoItems[i];
-        const cargo = this.cargoRepo.create({
-          order: { id: savedOrder.id } as any,
-          company: dto.companyId ? { id: dto.companyId } as any : null,
-          description: cargoDto.description || 'Cargo Item',
-          quantity: cargoDto.quantity || 1,
-          unit: cargoDto.unit || 'pallet',
-          weightKg: (cargoDto.weightKg && !isNaN(parseFloat(cargoDto.weightKg))) ? parseFloat(cargoDto.weightKg) : null,
-          volumeCbm: (cargoDto.volumeCbm && !isNaN(parseFloat(cargoDto.volumeCbm))) ? parseFloat(cargoDto.volumeCbm) : null,
-          ldm: (cargoDto.ldm && !isNaN(parseFloat(cargoDto.ldm))) ? parseFloat(cargoDto.ldm) : null,
-          lengthCm: (cargoDto.lengthCm && !isNaN(parseFloat(cargoDto.lengthCm))) ? parseFloat(cargoDto.lengthCm) : null,
-          widthCm: (cargoDto.widthCm && !isNaN(parseFloat(cargoDto.widthCm))) ? parseFloat(cargoDto.widthCm) : null,
-          heightCm: (cargoDto.heightCm && !isNaN(parseFloat(cargoDto.heightCm))) ? parseFloat(cargoDto.heightCm) : null,
-          adrClass: cargoDto.adrClass || null,
-          unNumber: cargoDto.adrUnNumber || null,
-          requiresTemperatureControl: cargoDto.isTemperatureControlled || false,
-          temperatureMin: (cargoDto.requiredTemperature && !isNaN(parseFloat(cargoDto.requiredTemperature))) ? parseFloat(cargoDto.requiredTemperature) : null,
-          temperatureMax: (cargoDto.requiredTemperature && !isNaN(parseFloat(cargoDto.requiredTemperature))) ? parseFloat(cargoDto.requiredTemperature) : null,
-          stackable: cargoDto.stackable || false,
-          fragile: cargoDto.fragile || false,
-        } as any);
-        await this.cargoRepo.save(cargo);
+      const order = this.repo.create({
+        company: dto.companyId ? { id: dto.companyId } as any : null,
+        client: dto.clientId ? { id: dto.clientId } as any : null,
+        orderNumber,
+        internalReference: orderNumber,
+        customerReference: dto.customerReference || null,
+        contactPerson: dto.contactPerson || null,
+        contactPhone: dto.contactPhone || null,
+        equipmentRequirements: Array.isArray(dto.equipmentRequirements) ? dto.equipmentRequirements : [],
+        priority: dto.priority || 'normal',
+        transportType: dto.transportType || dto.freightType || 'ftl',
+        price: safeNum(dto.price) ?? safeNum(dto.agreedPrice),
+        currency: dto.currency || 'EUR',
+        notes: dto.notes || null,
+        status: dto.status || status
+      } as any);
+
+      const savedOrder = await this.repo.save(order) as any as Order;
+
+      // 3. Create stops
+      if (processedStops.length > 0) {
+        for (let i = 0; i < processedStops.length; i++) {
+          const stopDto = processedStops[i];
+          const stop = this.stopRepo.create({
+            order: { id: savedOrder.id } as any,
+            company: dto.companyId ? { id: dto.companyId } as any : null,
+            sequence: i + 1,
+            type: stopDto.type || (i === 0 ? 'pickup' : 'dropoff'),
+            companyName: stopDto.companyName || null,
+            address: stopDto.address || null,
+            latitude: safeNum(stopDto.latitude),
+            longitude: safeNum(stopDto.longitude),
+            city: stopDto.city || null,
+            country: stopDto.country || null,
+            postalCode: stopDto.postalCode || null,
+            contactPerson: stopDto.contactPerson || stopDto.contactName || null,
+            phone: stopDto.phone || stopDto.contactPhone || null,
+            dateFrom: safeDate(stopDto.scheduledDate || stopDto.requestedDateFrom || stopDto.dateFrom),
+            dateTo: safeDate(stopDto.requestedDateTo || stopDto.dateTo),
+            timeFrom: stopDto.scheduledTime || stopDto.timeFrom || null,
+            timeUntil: stopDto.timeUntil || null,
+            clientLocation: stopDto.clientLocationId ? { id: stopDto.clientLocationId } as any : null,
+            reference: stopDto.loadingReference || stopDto.reference || null,
+            notes: stopDto.notes || null
+          } as any);
+          await this.stopRepo.save(stop);
+        }
       }
+
+      // 4. Create cargo items
+      if (dto.cargoItems && dto.cargoItems.length > 0) {
+        for (let i = 0; i < dto.cargoItems.length; i++) {
+          const cargoDto = dto.cargoItems[i];
+          const cargo = this.cargoRepo.create({
+            order: { id: savedOrder.id } as any,
+            company: dto.companyId ? { id: dto.companyId } as any : null,
+            description: cargoDto.description || 'Cargo Item',
+            quantity: safeNum(cargoDto.quantity) || 1,
+            unit: cargoDto.unit || 'pallet',
+            weightKg: safeNum(cargoDto.weightKg),
+            volumeCbm: safeNum(cargoDto.volumeCbm),
+            ldm: safeNum(cargoDto.ldm),
+            lengthCm: safeNum(cargoDto.lengthCm),
+            widthCm: safeNum(cargoDto.widthCm),
+            heightCm: safeNum(cargoDto.heightCm),
+            adrClass: cargoDto.adrClass || null,
+            unNumber: cargoDto.adrUnNumber || null,
+            requiresTemperatureControl: cargoDto.isTemperatureControlled || false,
+            temperatureMin: safeNum(cargoDto.requiredTemperature),
+            temperatureMax: safeNum(cargoDto.requiredTemperature),
+            stackable: cargoDto.stackable || false,
+            fragile: cargoDto.fragile || false,
+          } as any);
+          await this.cargoRepo.save(cargo);
+        }
+      }
+
+      const fullOrder = await this.findOne(savedOrder.id);
+
+      // 5. Emit Domain Event
+      this.eventEmitter.emit('order.created', fullOrder);
+
+      return fullOrder;
+    } catch (err: any) {
+      console.error('=== ORDER CREATE ERROR ===');
+      console.error('Message:', err.message);
+      console.error('Detail:', err.detail);
+      console.error('Code:', err.code);
+      console.error('Stack:', err.stack);
+      throw err;
     }
-
-    const fullOrder = await this.findOne(savedOrder.id);
-
-    // 5. Emit Domain Event
-    this.eventEmitter.emit('order.created', fullOrder);
-
-    return fullOrder;
   }
 
   async update(id: string, dto: any) {
