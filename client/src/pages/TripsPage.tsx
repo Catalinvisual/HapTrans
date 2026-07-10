@@ -226,9 +226,9 @@ export default function TripsPage() {
                           {trip.orders && trip.orders.length > 0 && (
                             <div className="mt-2 pt-2 border-t border-border flex flex-wrap gap-3">
                               {trip.orders.map((o: any) => {
-                                const w = o.cargoItems?.reduce((sum: number, c: any) => sum + (c.weightKg || 0), 0) || 0;
-                                const ldm = o.cargoItems?.reduce((sum: number, c: any) => sum + (c.ldm || 0), 0) || 0;
-                                const items = o.cargoItems?.reduce((sum: number, c: any) => sum + (c.quantity || 1), 0) || 0;
+                                const w = o.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || 0;
+                                const ldm = o.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.ldm || 0), 0) || 0;
+                                const items = o.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.quantity || 1), 0) || 0;
                                 return (w > 0 || items > 0) ? (
                                   <div key={`cargo-${o.id}`} className="flex items-center gap-1 text-xs text-text-secondary">
                                     <Package className="w-3.5 h-3.5" />
