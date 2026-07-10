@@ -61,7 +61,7 @@ export default function PlanningPage() {
       });
       const { warnings } = validateRes.data;
       if (warnings && warnings.length > 0) {
-        const proceed = window.confirm(`Atenție! S-au detectat următoarele atenționări:\n\n${warnings.join('\n')}\n\nDoriți să continuați?`);
+        const proceed = window.confirm(`${t('assignment_warnings')}:\n\n${warnings.join('\n')}\n\n${t('proceed_question')}`);
         if (!proceed) return;
       }
 
@@ -72,7 +72,7 @@ export default function PlanningPage() {
         // Assign to existing trip
         await api.post(`/trips/${existingTrip.id}/assign-orders`, { orderIds: [orderId] });
         await api.patch(`/orders/${orderId}`, { status: 'assigned' });
-        toast.success(`Comandă adăugată la cursa existentă pentru camionul ${truck.plateNumber}!`);
+        toast.success(t('assigned_to_existing_trip', { plate: truck.plateNumber }));
       } else {
         // Create new trip and assign
         const tripRes = await api.post('/trips', {
@@ -91,12 +91,12 @@ export default function PlanningPage() {
         const newTripId = tripRes.data.id;
         await api.post(`/trips/${newTripId}/assign-orders`, { orderIds: [orderId] });
         await api.patch(`/orders/${orderId}`, { status: 'assigned' });
-        toast.success(`Cursă nouă creată și comandă asignată pentru ${truck.plateNumber}!`);
+        toast.success(t('new_trip_created_assigned', { plate: truck.plateNumber }));
       }
 
       loadData();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Eroare la asignarea comenzii');
+      toast.error(err.response?.data?.message || t('assignment_error'));
     } finally {
       setAssigning(null);
     }

@@ -55,6 +55,11 @@ const resources = {
       exceeds_ldm: "Depășește LDM (+{{ldm}} LDM)",
       from_last_stop: "de la ultima oprire",
       from_current_loc: "de la locația curentă",
+      assignment_warnings: "Atenție! S-au detectat următoarele atenționări",
+      proceed_question: "Doriți să continuați?",
+      assigned_to_existing_trip: "Comandă adăugată la cursa existentă pentru camionul {{plate}}!",
+      new_trip_created_assigned: "Cursă nouă creată și comandă asignată pentru camionul {{plate}}!",
+      assignment_error: "Eroare la asignarea comenzii",
 
       addOrder: "Adauga Comanda",
       weight: "Greutate",
@@ -855,6 +860,11 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
       exceeds_ldm: "Exceeds LDM (+{{ldm}} LDM)",
       from_last_stop: "from last stop",
       from_current_loc: "from current location",
+      assignment_warnings: "Warning! The following issues were detected",
+      proceed_question: "Do you want to proceed?",
+      assigned_to_existing_trip: "Order added to the existing trip for truck {{plate}}!",
+      new_trip_created_assigned: "New trip created and order assigned for truck {{plate}}!",
+      assignment_error: "Error assigning the order",
 
       addOrder: "Add Order",
       weight: "Weight",

@@ -32,18 +32,19 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (containerRef.current && !containerRef.current.contains(target)) {
-        const popup = document.getElementById('custom-datepicker-popup');
-        if (popup && popup.contains(target)) return;
-        setIsOpen(false);
-      }
-      if (timeRef.current && !timeRef.current.contains(target)) {
-        setIsTimeOpen(false);
-      }
+      
+      const datePopup = document.getElementById('custom-datepicker-popup');
+      const timePopup = document.getElementById('custom-timepicker-popup');
+      
+      let clickedInsideDate = containerRef.current?.contains(target) || datePopup?.contains(target);
+      let clickedInsideTime = timeRef.current?.contains(target) || timePopup?.contains(target);
+
+      if (!clickedInsideDate && isOpen) setIsOpen(false);
+      if (!clickedInsideTime && isTimeOpen) setIsTimeOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [isOpen, isTimeOpen]);
 
 
   useEffect(() => {
@@ -160,20 +161,21 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
   return (
     <div className="relative" ref={containerRef}>
       {label && (
-        <label className="block text-xs font-semibold text-text-secondary mb-1.5 flex items-center gap-1">
-          <CalendarIcon className="w-3 h-3" /> {label}
-        </label>
-      )}
-      <div className="flex gap-2">
-        {/* Date Input */}
-        <div 
-          onClick={openPopup}
-          className="input flex-1 bg-white dark:bg-card text-sm flex items-center justify-between cursor-pointer hover:border-primary/50 transition-colors"
-        >
-          <span className={`${dateValue ? 'text-text-primary' : 'text-text-muted'} whitespace-nowrap`}>
-            {formatDisplayDate()}
-          </span>
-          <CalendarIcon className="w-4 h-4 text-text-secondary" />
+    <div className="flex flex-col gap-1.5 w-full">
+      {label && <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{label}</label>}
+      <div className="flex items-center gap-2 relative">
+        
+        {/* Date Input Custom */}
+        <div className="relative flex-1" ref={containerRef}>
+          <div 
+            onClick={openPopup}
+            className={`input w-full bg-white dark:bg-card text-sm pl-8 flex items-center cursor-pointer hover:border-primary/50 transition-colors h-[38px] ${isOpen ? 'border-primary ring-2 ring-primary/20' : ''}`}
+          >
+            <CalendarIcon className="w-4 h-4 text-text-secondary absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <span className={dateValue ? 'text-text-primary' : 'text-text-muted'}>
+              {dateValue ? new Date(dateValue).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Select Date'}
+            </span>
+          </div>
         </div>
         
         {/* Time Input Custom */}
@@ -190,8 +192,9 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
           
           {isTimeOpen && typeof document !== 'undefined' && createPortal(
             <div 
+              id="custom-timepicker-popup"
               className="fixed z-[9999] bg-card border border-border rounded-xl shadow-xl p-2 flex gap-1 h-48 w-[140px]"
-              style={{ top: popupPos.top, left: popupPos.left + 140, animation: 'fadeUp 0.15s ease-out' }}
+              style={{ top: popupPos.top, left: popupPos.left, animation: 'fadeUp 0.15s ease-out' }}
             >
               <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
                 {Array.from({ length: 24 }).map((_, i) => {
