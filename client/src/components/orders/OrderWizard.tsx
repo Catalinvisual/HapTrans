@@ -47,7 +47,16 @@ function ModalSelect({
   const toggle = () => {
     if (!open && btnRef.current) {
       const r = btnRef.current.getBoundingClientRect();
-      setDropPos({ top: r.bottom + 4, left: r.left, width: r.width });
+      const dropdownHeight = Math.min(250, options.length * 40 + 8); // cap height estimate at 250px since we might have scrollbar
+      const spaceBelow = window.innerHeight - r.bottom;
+      const spaceAbove = r.top;
+      
+      let top = r.bottom + 4;
+      if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+        // Position above the button, ensuring we account for actual dropdown max height
+        top = r.top - dropdownHeight - 4;
+      }
+      setDropPos({ top, left: r.left, width: r.width });
     }
     setOpen(p => !p);
   };
@@ -71,7 +80,7 @@ function ModalSelect({
       {open && typeof document !== 'undefined' && createPortal(
         <div
           ref={dropRef}
-          className="fixed z-[9999] bg-card border border-border rounded-xl shadow-2xl overflow-hidden py-1"
+          className="fixed z-[9999] bg-card border border-border rounded-xl shadow-2xl overflow-y-auto max-h-[250px] custom-scrollbar py-1"
           style={{ top: dropPos.top, left: dropPos.left, width: dropPos.width }}
         >
           {options.map(opt => (
@@ -331,6 +340,7 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
       const payload = {
         ...cleanForm,
         clientId: form.clientId || null,
+        price: form.price ? parseFloat(form.price) : null,
         customerReference: pickup.reference || null,
         contactPerson: pickup.contactPerson || null,
         contactPhone: pickup.phone || null,
@@ -732,24 +742,24 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
                         <input type="text" value={cargo.description} onChange={e => handleCargoChange(index, 'description', e.target.value)} className="input w-full" placeholder="e.g. Pallets of electronics" />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">Quantity</label>
-                        <input type="number" value={cargo.quantity} onChange={e => handleCargoChange(index, 'quantity', e.target.value)} className="input w-full" min="1" />
+                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">Quantity (Optional)</label>
+                        <input type="number" value={cargo.quantity || ''} onChange={e => handleCargoChange(index, 'quantity', e.target.value)} className="input w-full" min="1" placeholder="Optional" />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">Unit Type</label>
+                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">Unit Type (Optional)</label>
                         <ModalSelect value={cargo.unit || 'pallet'} onChange={v => handleCargoChange(index, 'unit', v)} options={unitOptions} />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">Weight (kg)</label>
-                        <input type="number" step="0.1" value={cargo.weightKg} onChange={e => handleCargoChange(index, 'weightKg', e.target.value)} className="input w-full" placeholder="Total weight" />
+                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">Weight (kg) (Optional)</label>
+                        <input type="number" step="0.1" value={cargo.weightKg || ''} onChange={e => handleCargoChange(index, 'weightKg', e.target.value)} className="input w-full" placeholder="Optional" />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">Volume (m³)</label>
+                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">Volume (m³) (Optional)</label>
                         <input type="number" step="0.01" value={cargo.volumeCbm || ''} onChange={e => handleCargoChange(index, 'volumeCbm', e.target.value)} className="input w-full" placeholder="Optional" />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">LDM (Loading Meters)</label>
-                        <input type="number" step="0.01" value={cargo.ldm || ''} onChange={e => handleCargoChange(index, 'ldm', e.target.value)} className="input w-full" placeholder="e.g. 1.2" />
+                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">LDM (Optional)</label>
+                        <input type="number" step="0.01" value={cargo.ldm || ''} onChange={e => handleCargoChange(index, 'ldm', e.target.value)} className="input w-full" placeholder="Optional" />
                       </div>
                     </div>
                     

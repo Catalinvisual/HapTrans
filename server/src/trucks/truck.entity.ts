@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { Trip } from '../trips/trip.entity';
 import { TruckDocument } from './truck-document.entity';
 import { Maintenance } from '../maintenance/maintenance.entity';
+import { Driver } from '../drivers/driver.entity';
 
 import { Company } from '../companies/company.entity';
 
@@ -67,6 +68,9 @@ export class Truck {
 
   @OneToMany(() => Trip, (trip) => trip.truck)
   trips: Trip[];
+
+  @ManyToOne(() => Driver, { nullable: true, onDelete: 'SET NULL' })
+  driver: Driver;
 
   @OneToMany(() => TruckDocument, (doc) => doc.truck)
   documents: TruckDocument[];

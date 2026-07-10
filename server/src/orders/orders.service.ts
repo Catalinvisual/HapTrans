@@ -86,7 +86,7 @@ export class OrdersService {
       equipmentRequirements: dto.equipmentRequirements || [],
       priority: dto.priority || 'normal',
       transportType: dto.transportType || dto.freightType || 'ftl',
-      price: dto.price || dto.agreedPrice,
+      price: (dto.price && !isNaN(parseFloat(dto.price))) ? parseFloat(dto.price) : ((dto.agreedPrice && !isNaN(parseFloat(dto.agreedPrice))) ? parseFloat(dto.agreedPrice) : null),
       currency: dto.currency || 'EUR',
       notes: dto.notes,
       status: dto.status || status
@@ -132,7 +132,7 @@ export class OrdersService {
           order: { id: savedOrder.id } as any,
           company: dto.companyId ? { id: dto.companyId } as any : null,
           description: cargoDto.description || 'Cargo Item',
-          quantity: cargoDto.quantity,
+          quantity: cargoDto.quantity || 1,
           unit: cargoDto.unit || 'pallet',
           weightKg: cargoDto.weightKg,
           volumeCbm: cargoDto.volumeCbm,
@@ -140,11 +140,13 @@ export class OrdersService {
           lengthCm: cargoDto.lengthCm,
           widthCm: cargoDto.widthCm,
           heightCm: cargoDto.heightCm,
-          isAdr: cargoDto.isAdr,
-          adrClass: cargoDto.adrClass,
-          adrUnNumber: cargoDto.adrUnNumber,
-          isTemperatureControlled: cargoDto.isTemperatureControlled,
-          requiredTemperature: cargoDto.requiredTemperature
+          adrClass: cargoDto.adrClass || null,
+          unNumber: cargoDto.adrUnNumber || null,
+          requiresTemperatureControl: cargoDto.isTemperatureControlled || false,
+          temperatureMin: cargoDto.requiredTemperature ? parseFloat(cargoDto.requiredTemperature) : null,
+          temperatureMax: cargoDto.requiredTemperature ? parseFloat(cargoDto.requiredTemperature) : null,
+          stackable: cargoDto.stackable || false,
+          fragile: cargoDto.fragile || false,
         } as any);
         await this.cargoRepo.save(cargo);
       }
@@ -162,6 +164,11 @@ export class OrdersService {
     const updateData: any = { ...dto };
     delete updateData.stops;
     delete updateData.cargoItems;
+
+    if ('price' in updateData) {
+      const p = updateData.price;
+      updateData.price = p && !isNaN(parseFloat(p)) ? parseFloat(p) : null;
+    }
 
     if ('clientId' in updateData) {
       updateData.client = updateData.clientId ? { id: updateData.clientId } : null;
@@ -257,11 +264,13 @@ export class OrdersService {
           lengthCm: cargoDto.lengthCm,
           widthCm: cargoDto.widthCm,
           heightCm: cargoDto.heightCm,
-          isAdr: cargoDto.isAdr,
-          adrClass: cargoDto.adrClass,
-          adrUnNumber: cargoDto.adrUnNumber,
-          isTemperatureControlled: cargoDto.isTemperatureControlled,
-          requiredTemperature: cargoDto.requiredTemperature
+          adrClass: cargoDto.adrClass || null,
+          unNumber: cargoDto.adrUnNumber || null,
+          requiresTemperatureControl: cargoDto.isTemperatureControlled || false,
+          temperatureMin: cargoDto.requiredTemperature ? parseFloat(cargoDto.requiredTemperature) : null,
+          temperatureMax: cargoDto.requiredTemperature ? parseFloat(cargoDto.requiredTemperature) : null,
+          stackable: cargoDto.stackable || false,
+          fragile: cargoDto.fragile || false,
         } as any);
         await this.cargoRepo.save(cargo);
       }

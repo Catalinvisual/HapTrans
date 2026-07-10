@@ -12,10 +12,18 @@ export class TrucksService {
     @InjectRepository(TruckDocument) private docsRepo: Repository<TruckDocument>,
   ) {}
 
-  findAll() { return this.repo.find({ relations: ['documents'] }); }
-  findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['documents', 'trips'] }); }
-  create(dto: Partial<Truck>) { return this.repo.save(this.repo.create(dto)); }
-  update(id: string, dto: Partial<Truck>) { return this.repo.update(id, dto); }
+  findAll() { return this.repo.find({ relations: ['documents', 'driver', 'driver.user'] }); }
+  findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['documents', 'trips', 'driver', 'driver.user'] }); }
+  create(dto: any) { 
+    const data = { ...dto };
+    if (data.driverId) { data.driver = { id: data.driverId }; delete data.driverId; }
+    return this.repo.save(this.repo.create(data)); 
+  }
+  update(id: string, dto: any) { 
+    const data = { ...dto };
+    if ('driverId' in data) { data.driver = data.driverId ? { id: data.driverId } : null; delete data.driverId; }
+    return this.repo.update(id, data); 
+  }
   remove(id: string) { return this.repo.delete(id); }
 
   addDocument(truckId: string, doc: Partial<TruckDocument>) {

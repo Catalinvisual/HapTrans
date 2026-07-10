@@ -131,23 +131,12 @@ export default function PlanningPage() {
 
   const handleAssignDriver = async (truckId: string, driverId: string) => {
     try {
+      await api.patch(`/trucks/${truckId}`, { driverId: driverId || null });
       const trip = trips.find(tr => tr.truck?.id === truckId && tr.status === 'planning');
       if (trip) {
         await api.patch(`/trips/${trip.id}`, { driverId: driverId || null });
-        toast.success('Șoferul a fost actualizat pe cursă!');
-      } else {
-        await api.post('/trips', {
-          truckId,
-          driverId: driverId || null,
-          status: 'planning',
-          tripNumber: `TR-${Date.now().toString().slice(-6)}`,
-          pickupAddress: '',
-          dropoffAddress: '',
-          pickupDate: new Date().toISOString(),
-          dropoffDate: new Date(Date.now() + 86400000).toISOString(),
-        });
-        toast.success('Cursă nouă creată cu șoferul selectat!');
       }
+      toast.success('Șoferul a fost alocat camionului!');
       loadData();
     } catch (e) {
       toast.error('Eroare la alocarea șoferului');
@@ -400,7 +389,7 @@ export default function PlanningPage() {
                         <div className="mt-2 text-xs">
                           <span className="text-text-secondary font-semibold">{t('assigned_driver')}</span>
                           <select
-                            value={stats.driverId || ''}
+                            value={truck.driver?.id || stats.driverId || ''}
                             onChange={e => handleAssignDriver(truck.id, e.target.value)}
                             onClick={e => e.stopPropagation()}
                             className="w-full text-xs bg-white dark:bg-card border border-border/80 rounded-lg p-1.5 font-semibold text-text-primary focus:outline-none focus:border-primary mt-1"
@@ -637,7 +626,7 @@ export default function PlanningPage() {
                       <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0 w-full md:w-auto mt-2 md:mt-0">
                         <div className="w-full sm:w-44 text-xs">
                           <select
-                            value={stats.driverId || ''}
+                            value={truck.driver?.id || stats.driverId || ''}
                             onChange={e => handleAssignDriver(truck.id, e.target.value)}
                             className="w-full bg-white dark:bg-card border border-border/80 rounded-lg p-1.5 font-semibold text-text-primary focus:outline-none focus:border-primary"
                           >

@@ -18,7 +18,7 @@
     --color-text: 13 27 42;
     --color-text-secondary: 107 114 128;
     --color-text-light: 156 163 175;
-    --color-border: 243 244 246;
+    --color-border: 209 213 219;
   }
 
   .dark {
@@ -58,6 +58,7 @@
 @layer components {
   .input {
     @apply w-full px-3 py-2 bg-card border border-border rounded-lg text-sm
+    hover:border-gray-400 dark:hover:border-gray-500
     focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 text-text;
   }
   .btn-primary {

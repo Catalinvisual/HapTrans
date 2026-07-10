@@ -677,6 +677,7 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
       plannerView: "Planificateur (Glisser-Déposer)",
       orderRef: "Commande",
       unassignedOrders: "Commandes Non Assignées",
+      unassigned_orders: "Commandes Non Assignées",
 
       website_hub_saved_success: "Modifications enregistrées avec succès!",
       website_hub_tabs_jobs: "Carrières / Emplois",

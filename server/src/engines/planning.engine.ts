@@ -159,6 +159,7 @@ export class PlanningEngine {
       }
 
       order.status = OrderStatus.ASSIGNED;
+      (order as any).trip = trip;
       await this.orderRepo.save(order as any);
     }
 

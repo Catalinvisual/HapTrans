@@ -16,6 +16,7 @@ const DAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 export default function CustomDatePicker({ dateValue, timeValue, onDateChange, onTimeChange, label }: CustomDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isTimeOpen, setIsTimeOpen] = useState(false);
+  const [timeOpenUpward, setTimeOpenUpward] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const containerRef = useRef<HTMLDivElement>(null);
   const timeRef = useRef<HTMLDivElement>(null);
@@ -44,12 +45,29 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const [dateOpenUpward, setDateOpenUpward] = useState(false);
+
   const openPopup = () => {
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
-      setPopupPos({ top: rect.bottom + 8, left: rect.left, width: 320 });
+      const popupHeight = 310;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      
+      // Open upward if not enough space below AND there is more space above than below
+      setDateOpenUpward(spaceBelow < popupHeight && spaceAbove > spaceBelow);
     }
     setIsOpen(true);
+  };
+
+  const toggleTime = () => {
+    if (!isTimeOpen && timeRef.current) {
+      const rect = timeRef.current.getBoundingClientRect();
+      const pickerHeight = 192; // h-48 is 12rem = 192px
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setTimeOpenUpward(spaceBelow < pickerHeight && rect.top > spaceBelow);
+    }
+    setIsTimeOpen(!isTimeOpen);
   };
 
   const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
@@ -141,7 +159,7 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
           onClick={openPopup}
           className="input flex-1 bg-white dark:bg-card text-sm flex items-center justify-between cursor-pointer hover:border-primary/50 transition-colors"
         >
-          <span className={dateValue ? 'text-text-primary' : 'text-text-muted'}>
+          <span className={`${dateValue ? 'text-text-primary' : 'text-text-muted'} whitespace-nowrap`}>
             {formatDisplayDate()}
           </span>
           <CalendarIcon className="w-4 h-4 text-text-secondary" />
@@ -150,8 +168,8 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
         {/* Time Input Custom */}
         <div className="relative w-28" ref={timeRef}>
           <div
-            onClick={() => setIsTimeOpen(!isTimeOpen)}
-            className="input w-full bg-white dark:bg-card text-sm pl-8 flex items-center cursor-pointer hover:border-primary/50 transition-colors h-[38px]"
+            onClick={toggleTime}
+            className="input w-full bg-white dark:bg-card text-sm pl-8 flex relative items-center cursor-pointer hover:border-primary/50 transition-colors h-[38px]"
           >
             <Clock className="w-4 h-4 text-text-secondary absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <span className={timeValue ? 'text-text-primary' : 'text-text-muted'}>
@@ -160,7 +178,9 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
           </div>
           
           {isTimeOpen && (
-            <div className="absolute top-full mt-1 right-0 w-[140px] bg-card border border-border rounded-xl shadow-xl z-[999] p-2 flex gap-1 h-48">
+            <div className={`absolute right-0 w-[140px] bg-card border border-border rounded-xl shadow-xl z-[999] p-2 flex gap-1 h-48 ${
+              timeOpenUpward ? 'bottom-full mb-1' : 'top-full mt-1'
+            }`}>
               <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
                 {Array.from({ length: 24 }).map((_, i) => {
                   const h = String(i).padStart(2, '0');
@@ -198,11 +218,13 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
         </div>
       </div>
 
-      {isOpen && typeof document !== 'undefined' && createPortal(
+      {isOpen && (
         <div
           id="custom-datepicker-popup"
-          className="fixed z-[9999] bg-card border border-border rounded-xl shadow-2xl p-4 w-[280px]"
-          style={{ top: popupPos.top, left: popupPos.left, animation: 'fadeUp 0.15s ease-out' }}
+          className={`absolute left-0 z-[9999] bg-card border border-border rounded-xl shadow-2xl p-4 w-[280px] ${
+            dateOpenUpward ? 'bottom-full mb-2' : 'top-full mt-2'
+          }`}
+          style={{ animation: 'fadeUp 0.15s ease-out' }}
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
@@ -230,8 +252,7 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
           <div className="grid grid-cols-7 gap-1 place-items-center">
             {renderCalendar()}
           </div>
-        </div>,
-        document.body
+        </div>
       )}
     </div>
   );

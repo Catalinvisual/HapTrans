@@ -208,13 +208,23 @@ export default function OrdersPage() {
                           
                           const handleCopyTrackingLink = (e: React.MouseEvent) => {
                             e.stopPropagation();
-                            navigator.clipboard.writeText(trackingUrl)
-                              .then(() => {
+                            if (navigator.clipboard && window.isSecureContext) {
+                              navigator.clipboard.writeText(trackingUrl)
+                                .then(() => toast.success(t('copiedToClipboard', 'Tracking link copied to clipboard!')))
+                                .catch(() => toast.error('Failed to copy link'));
+                            } else {
+                              const textArea = document.createElement("textarea");
+                              textArea.value = trackingUrl;
+                              document.body.appendChild(textArea);
+                              textArea.select();
+                              try {
+                                document.execCommand('copy');
                                 toast.success(t('copiedToClipboard', 'Tracking link copied to clipboard!'));
-                              })
-                              .catch(() => {
+                              } catch (err) {
                                 toast.error('Failed to copy link');
-                              });
+                              }
+                              document.body.removeChild(textArea);
+                            }
                           };
 
                           return (
