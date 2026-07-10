@@ -212,7 +212,7 @@ export default function OrdersPage() {
                           <button 
                             title="Create Invoice"
                             onClick={(e) => { e.stopPropagation(); toast.success('Invoice generation started'); }}
-                            className="p-2 text-text-secondary hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                            className="p-2 text-text-secondary hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors "
                           >
                             <FileText className="w-4 h-4" />
                           </button>
@@ -246,7 +246,7 @@ export default function OrdersPage() {
                             <button 
                               title="Live Tracking Link"
                               onClick={handleCopyTrackingLink}
-                              className="p-2 text-text-secondary hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                              className="p-2 text-text-secondary hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors "
                             >
                               <Activity className="w-4 h-4" />
                             </button>
@@ -255,14 +255,14 @@ export default function OrdersPage() {
                         <button 
                           title="Edit Order"
                           onClick={(e) => { e.stopPropagation(); handleEdit(order.id); }}
-                          className="p-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                          className="p-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors "
                         >
                           <ChevronRight className="w-5 h-5" />
                         </button>
                         <button 
                           title="Delete Order"
                           onClick={(e) => { e.stopPropagation(); handleDeleteClick(order.id); }}
-                          className="p-2 text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                          className="p-2 text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors "
                         >
                           <Trash2 className="w-5 h-5" />
                         </button>

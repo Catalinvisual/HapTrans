@@ -377,19 +377,19 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
   };
 
   const clientOptions: SelectOpt[] = [
-    { value: '', label: 'Select a client...' },
+    { value: '', label: t('select_client_default', 'Select a client...') },
     ...clients.map(c => ({ value: c.id, label: c.name })),
   ];
   const transportOptions: SelectOpt[] = [
-    { value: 'ftl', label: 'FTL (Full Truckload)' },
-    { value: 'ltl', label: 'LTL (Groupage)' },
-    { value: 'express', label: 'Express' },
+    { value: 'ftl', label: t('transport_ftl', 'FTL (Full Truckload)') },
+    { value: 'ltl', label: t('transport_ltl', 'LTL (Groupage)') },
+    { value: 'express', label: t('transport_express', 'Express') },
   ];
   const priorityOptions: SelectOpt[] = [
-    { value: 'low', label: 'Low' },
-    { value: 'normal', label: 'Normal' },
-    { value: 'high', label: 'High' },
-    { value: 'critical', label: '🔴 Critical' },
+    { value: 'low', label: t('priority_low', 'Low') },
+    { value: 'normal', label: t('priority_normal', 'Normal') },
+    { value: 'high', label: t('priority_high', 'High') },
+    { value: 'critical', label: t('priority_critical', '🔴 Critical') },
   ];
   const currencyOptions: SelectOpt[] = [
     { value: 'EUR', label: '€ EUR' },
@@ -397,12 +397,14 @@ export default function OrderWizard({ isOpen, onClose, onSaved, orderId }: Order
     { value: 'RON', label: 'RON' },
   ];
   const unitOptions: SelectOpt[] = [
-    { value: 'pallet', label: 'Pallets (EUR)' },
-    { value: 'box', label: 'Boxes' },
-    { value: 'package', label: 'Packages' },
-    { value: 'container', label: 'Container' },
+    { value: 'pallet', label: t('unit_pallets', 'Pallets (EUR)') },
+    { value: 'kg', label: t('unit_kg', 'Kilograms') },
+    { value: 'ton', label: t('unit_tons', 'Tons') },
+    { value: 'box', label: t('unit_boxes', 'Boxes') },
+    { value: 'package', label: t('unit_packages', 'Packages') },
+    { value: 'container', label: t('unit_container', 'Container') },
     { value: 'machine', label: 'Machine' },
-    { value: 'other', label: 'Other' },
+    { value: 'other', label: t('unit_other', 'Other') },
   ];
 
   const modalContent = (

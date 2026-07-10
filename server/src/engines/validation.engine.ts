@@ -30,7 +30,7 @@ export class ValidationEngine {
   }
 
   validateOrderAssignment(order: Order, trip: Trip): void {
-    if (order.status !== OrderStatus.DRAFT && order.status !== OrderStatus.PARTIALLY_ASSIGNED) {
+    if (order.status !== OrderStatus.DRAFT && order.status !== OrderStatus.PARTIALLY_ASSIGNED && order.status !== OrderStatus.UNASSIGNED) {
       throw new BadRequestException(`Order ${order.orderNumber} is not available for assignment`);
     }
     // Check if trip company matches order company

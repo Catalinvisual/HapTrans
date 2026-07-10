@@ -234,7 +234,7 @@ export default function TripDetailsPage() {
                       <div className={`absolute -left-[35px] top-1 w-4 h-4 rounded-full border-4 ${markerBorderClass} bg-card z-10`}></div>
                       {!isLast && <div className="absolute -left-[28px] top-5 w-0.5 h-full bg-border -z-0"></div>}
                       
-                      <div className="absolute -left-[70px] top-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center">
+                      <div className="absolute -left-[70px] top-0  transition-opacity flex flex-col items-center">
                         <button disabled={isFirst} onClick={() => handleReorder('up')} className="p-1 text-text-secondary hover:text-primary disabled:opacity-30">▲</button>
                         <button disabled={isLast} onClick={() => handleReorder('down')} className="p-1 text-text-secondary hover:text-primary disabled:opacity-30">▼</button>
                       </div>
