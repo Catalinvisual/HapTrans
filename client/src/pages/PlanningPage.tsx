@@ -84,7 +84,7 @@ export default function PlanningPage() {
           status: 'planning',
           price: order.price ? Number(order.price) : undefined,
           currency: order.currency || 'EUR',
-          tripNumber: `TR-${order.orderNumber || order.referenceNumber || Date.now().toString().slice(-6)}`,
+          tripNumber: order.orderNumber || order.referenceNumber || `TR-${Date.now().toString().slice(-6)}`,
           pickupAddress: order.stops?.find((s: any) => s.type === 'pickup')?.address || '',
           dropoffAddress: order.stops?.find((s: any) => s.type === 'dropoff')?.address || '',
           pickupDate: order.stops?.find((s: any) => s.type === 'pickup')?.scheduledDate || new Date().toISOString(),

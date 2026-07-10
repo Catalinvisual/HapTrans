@@ -71,9 +71,14 @@ export class TripsService {
   }
 
   async create(dto: any, user?: any): Promise<Trip> {
+    const refCode = dto.referenceNumber || dto.tripNumber || 'HC-TRIP';
+    const cleanRef = refCode.startsWith('HC-') ? refCode : `HC-${refCode}`;
+    const trackingToken = `${cleanRef}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
     const tripPayload: any = {
       ...dto,
       tripNumber: dto.referenceNumber || dto.tripNumber,
+      trackingToken,
       company: dto.companyId ? { id: dto.companyId } : (user?.companyId ? { id: user.companyId } : null),
       truck: dto.truckId ? { id: dto.truckId } : null,
       driver: dto.driverId ? { id: dto.driverId } : null,
@@ -107,7 +112,9 @@ export class TripsService {
 
     // 1. Generate Tracking Token on Dispatch
     if (dto.status === 'dispatched' && !existing.trackingToken) {
-      const token = 'TR-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+      const refCode = existing.tripNumber || existing.orders?.[0]?.orderNumber || 'HC-TRIP';
+      const cleanRef = refCode.startsWith('HC-') ? refCode : `HC-${refCode}`;
+      const token = `${cleanRef}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
       updateData.trackingToken = token;
     }
 

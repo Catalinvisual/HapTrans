@@ -217,8 +217,8 @@ export default function OrdersPage() {
                             <FileText className="w-4 h-4" />
                           </button>
                         )}
-                        {(order.status === 'in_transit' || order.status === 'assigned') && (() => {
-                          const trackingToken = order.trip?.trackingToken || order.id;
+                        {(order.status === 'in_transit' || order.status === 'assigned') && order.trip?.trackingToken && (() => {
+                          const trackingToken = order.trip.trackingToken;
                           const trackingUrl = `${window.location.origin}/track/${trackingToken}`;
                           
                           const handleCopyTrackingLink = (e: React.MouseEvent) => {
