@@ -79,7 +79,7 @@ export default function MaintenancePage() {
   };
 
   const STATUS = { scheduled:'badge-primary', in_progress:'badge-warning', done:'badge-success' };
-  const filtered = records.filter(r => r.truck?.plateNumber?.toLowerCase().includes(search.toLowerCase()) || r.description?.toLowerCase().includes(search.toLowerCase()));
+  const filtered = records.filter(r => (r.truck?.plateNumber || '').toLowerCase().includes(search.toLowerCase()) || (r.description || '').toLowerCase().includes(search.toLowerCase()));
 
   const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 

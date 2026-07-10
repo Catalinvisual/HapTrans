@@ -300,7 +300,7 @@ export default function LiveMapPage() {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return;
 
-    let foundTruck = trucks.find(t => t.plateNumber?.toLowerCase().includes(query));
+    let foundTruck = trucks.find(t => (t.plateNumber || '').toLowerCase().includes(query));
 
     if (!foundTruck) {
       const foundTrip = tripsList.find(t => {

@@ -38,9 +38,9 @@ export default function TripsPage() {
 
   const filteredTrips = trips.filter(tr => {
     const matchesSearch = 
-      tr.tripNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      tr.truck?.plateNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      tr.driver?.firstName?.toLowerCase().includes(search.toLowerCase());
+      (tr.tripNumber || '').toLowerCase().includes(search.toLowerCase()) ||
+      (tr.truck?.plateNumber || '').toLowerCase().includes(search.toLowerCase()) ||
+      (tr.driver?.firstName || '').toLowerCase().includes(search.toLowerCase());
     
     if (!matchesSearch) return false;
     if (statusFilter === 'all') return true;
