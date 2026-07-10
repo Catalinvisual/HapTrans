@@ -22,7 +22,9 @@ export class OrdersService {
 
   findAll(status?: string) {
     const findOptions: any = { 
-      relations: ['client', 'stops', 'cargoItems', 'trip'] 
+      relations: ['client', 'stops', 'cargoItems', 'trip'],
+      relationLoadStrategy: 'query',
+      order: { createdAt: 'DESC' }
     };
     if (status) {
       const statuses = status.split(',');
