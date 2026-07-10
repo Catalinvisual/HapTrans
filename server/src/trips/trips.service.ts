@@ -49,7 +49,7 @@ export class TripsService {
   }
 
   findOne(id: string) {
-    return this.repo.findOne({ where: { id }, relations: ['truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'messages', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders'] });
+    return this.repo.findOne({ where: { id }, relations: ['truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'messages', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.client'] });
   }
 
   async findByTrackingToken(trackingToken: string): Promise<Trip | null> {
@@ -89,7 +89,28 @@ export class TripsService {
   }
 
   async assignOrders(tripId: string, orderIds: string[]) {
-    return this.planningEngine.assignOrdersToTrip(tripId, orderIds);
+    const result = await this.planningEngine.assignOrdersToTrip(tripId, orderIds);
+    
+    // Send tracking email to clients of newly assigned orders
+    const updatedTrip = await this.findOne(tripId);
+    if (updatedTrip && updatedTrip.trackingToken && updatedTrip.orders) {
+      for (const order of updatedTrip.orders) {
+        // Only send for the orders we just assigned
+        if (orderIds.includes(order.id) && order.client?.contactEmail) {
+          const tripPayload = {
+            status: updatedTrip.status,
+            referenceNumber: updatedTrip.tripNumber,
+            pickupAddress: updatedTrip.stops?.find(s => s.tasks?.some(t => t.type === 'load'))?.address || 'N/A',
+            dropoffAddress: updatedTrip.stops?.find(s => s.tasks?.some(t => t.type === 'unload'))?.address || 'N/A',
+            client: order.client
+          };
+          await this.resendService.sendTripStatusEmail(tripPayload, updatedTrip.trackingToken, updatedTrip.company)
+            .catch(err => console.error('Failed to send tracking email on assign:', err));
+        }
+      }
+    }
+    
+    return result;
   }
 
   async update(id: string, dto: any, user?: any) {
