@@ -68,18 +68,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           <div className="flex items-center gap-2">
             {company?.logo ? (
               <img src={company.logo} alt="Logo" className="h-8 w-auto object-contain" />
-            ) : (
-              <>
-                <svg viewBox="0 0 100 100" fill="currentColor" className="w-7 h-7 text-primary">
-                  <path d="M32 10 L46 10 L38 50 L48 50 L45.2 64 L35.2 64 L30 90 L16 90 L21.2 64 L5.2 64 L8 50 L24 50 Z" />
-                  <path d="M68 90 L54 90 L62 50 L52 50 L54.8 36 L64.8 36 L70 10 L84 10 L78.8 36 L94.8 36 L92 50 L76 50 Z" />
-                </svg>
-                <div className="flex items-center text-xl tracking-tight italic">
-                  <span className="font-black text-primary">HAP</span>
-                  <span className="font-black text-secondary">CARGO</span>
-                </div>
-              </>
-            )}
+            ) : null}
           </div>
           <button className="md:hidden text-text-secondary hover:bg-surface p-1 rounded-md" onClick={onClose}>
             <X className="w-5 h-5" />

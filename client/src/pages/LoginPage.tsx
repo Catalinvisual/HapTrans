@@ -17,6 +17,18 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'https://haptrans-production.up.railway.app/api';
+    fetch(`${apiUrl}/public/company-settings`)
+      .then(r => r.json())
+      .then(data => {
+        if (data?.logo) setLogoUrl(data.logo);
+      })
+      .catch(e => console.error('Failed to load logo', e));
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -64,7 +76,9 @@ export default function LoginPage() {
         <div className="bg-card/5 backdrop-blur-xl border border-white/10 rounded-3xl p-10 shadow-2xl animate-fade-in-up">
           <div className="flex flex-col items-center mb-8">
             <div className="flex flex-col items-center gap-2 mb-2">
-              <img src="/footer-logo.png" alt="Company Logo" className="h-20 w-auto max-w-full object-contain" />
+              {logoUrl ? (
+                <img src={logoUrl} alt="Company Logo" className="h-20 w-auto max-w-full object-contain" />
+              ) : null}
             </div>
             <p className="text-white/50 text-sm mt-1">{t('loginSubtitle')}</p>
           </div>

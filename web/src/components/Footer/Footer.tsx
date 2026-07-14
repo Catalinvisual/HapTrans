@@ -68,7 +68,9 @@ const Footer = () => {
       <div className={styles.container}>
         <div className={styles.column}>
           <Link href="/" className={styles.logo}>
-            <img src="/footer-logo.png" alt="Logo" style={{ height: '42px', width: 'auto', objectFit: 'contain' }} />
+            {company?.logo ? (
+              <img src={company.logo} alt="Logo" style={{ height: '42px', width: 'auto', objectFit: 'contain' }} />
+            ) : null}
           </Link>
           <p className={styles.desc}>
             {t('footerDesc') || 'Livrăm marfa dumneavoastră la timp, în siguranță și cu transparență totală pe întreg teritoriul Europei.'}
