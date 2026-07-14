@@ -1,5 +1,6 @@
 'use client';
 import React, { useState } from 'react';
+import Image from 'next/image';
 import styles from './Hero.module.css';
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'react-hot-toast';
@@ -124,6 +125,15 @@ const Hero = () => {
 
   return (
     <section className={styles.hero}>
+      <Image 
+        src="/hero-nou.jpg" 
+        alt="Hero Background" 
+        fill 
+        style={{ objectFit: 'cover', objectPosition: 'center center', zIndex: 0 }} 
+        quality={100} 
+        unoptimized={true} /* bypasses compression entirely so it matches original quality exactly */
+        priority
+      />
       <div className={styles.container}>
         
         {/* Left Content */}
