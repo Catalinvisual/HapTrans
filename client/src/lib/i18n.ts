@@ -820,6 +820,7 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
       website_hub_tabs_services: 'Servicii',
       website_hub_tabs_fleet: 'Flotă',
       website_hub_tabs_contact: 'Contact',
+
     }
   },
   en: { translation: {
@@ -900,6 +901,25 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
       pickup_no_gps: "Pickup location has no valid GPS coordinates. Select an address from the list.",
       dropoff_no_gps: "Dropoff location has no valid GPS coordinates. Select an address from the list.",
       both_addresses_need_gps: "Both addresses must have valid GPS coordinates (geocoded) to save the order.",
+
+      dashboard: "Dashboard",
+      trips: "Trips",
+      liveMap: "Live Map",
+      trucks: "Trucks",
+      planning: "Planning",
+      drivers: "Drivers",
+      clients: "Clients",
+      chat: "Chat",
+      documents: "Documents",
+      invoices: "Invoices",
+      financial: "Financial",
+      payroll: "Payroll",
+      maintenance: "Maintenance",
+      expenses: "Expenses",
+      websiteCms: "Website CMS",
+      users: "Users",
+      settings: "Settings",
+      loginSubtitle: "Manage your fleet efficiently",
     },
   },
   nl: { translation: {

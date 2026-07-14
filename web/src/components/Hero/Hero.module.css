@@ -1,20 +1,21 @@
 .hero {
   position: relative;
-  min-height: calc(100vh - 80px);
+  min-height: 70vh;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-top: 80px; /* Header offset */
   background-image: url('/hero-nou.jpg');
   background-size: cover;
-  background-position: center bottom;
+  background-position: center center;
   background-repeat: no-repeat;
 }
 
 .heroOverlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.4) 40%, transparent 100%);
+  /* Eliminat efectul de gradient pentru claritate maximă */
+  background: transparent;
   z-index: 1;
 }
 
