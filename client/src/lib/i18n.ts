@@ -2712,6 +2712,73 @@ resources.fr = {
 delete (resources as any).frBase;
 delete (resources as any).frExtra;
 
+const enExtra = {
+  translation: {
+    noReference: "Trip Without Reference",
+    systemUnknown: "System / Unknown",
+    onDate: "on",
+    tripDispatched: "Trip dispatched to driver!",
+    dispatchError: "Error dispatching trip",
+    dispatchTrip: "Dispatch Trip",
+    trackingLinkCopied: "Tracking link copied!",
+    clientTrackingLink: "Client Tracking Link",
+    routeDetails: "Route Details",
+    stopIndex: "Stop {{index}}",
+    orderRef: "Order",
+    pallets: "Pallets",
+    weight: "Weight",
+    volume: "Volume",
+    distance: "Distance",
+    liveEta: "Smart ETA",
+    plannedEta: "Planned ETA",
+    tripOrders: "Orders",
+    cargoAndReferences: "Cargo & References",
+    truckCapacity: "Truck Capacity (Estimated)",
+    loadingReference: "Loading Reference",
+    unloadingReference: "Unloading Reference",
+    cmrReference: "CMR Reference",
+    internalNotes: "Internal Notes",
+    crewAllocation: "Crew Assignment",
+    driver: "Driver",
+    truck: "Truck",
+    unassigned: "Unassigned",
+    financial: "Financial",
+    clientPrice: "Client Price",
+    totalCost: "Total Cost",
+    netProfit: "Net Profit",
+    profitMargin: "Profit Margin",
+    attachments: "Attachments",
+    tripDocuments: "Trip Documents",
+    noDocuments: "No documents attached",
+    taskDocuments: "Stop Documents",
+    signature: "Driver/Client Signature",
+    invoices: "Invoices",
+    noInvoices: "No invoice",
+    eventHistory: "Event History",
+    noEvents: "No events recorded.",
+    load: "Load",
+    unload: "Unload",
+    assigned: "Assigned",
+    inProgress: "In Progress",
+    completed: "Completed",
+    cancelled: "Cancelled",
+    dispatched: "Dispatched",
+    new: "New",
+    draft: "Draft",
+    planned: "Planned",
+    delivered: "Delivered",
+    invoiced: "Invoiced",
+    paid: "Paid"
+  }
+};
+
+resources.en = {
+  translation: {
+    ...((resources as any).en?.translation || {}),
+    ...enExtra.translation
+  }
+};
+
 i18n.use(initReactI18next).init({
   resources,
   lng: localStorage.getItem('hapcargo_lang') || 'ro',
