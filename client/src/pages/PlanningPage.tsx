@@ -454,7 +454,7 @@ export default function PlanningPage() {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`bg-card border rounded-xl px-3 py-2.5 cursor-grab active:cursor-grabbing transition-all select-none
+                            className={`bg-card border rounded-xl px-3 py-2.5 cursor-grab-custom active:cursor-grabbing-custom transition-all select-none
                               ${snapshot.isDragging
                                 ? 'shadow-2xl ring-2 ring-primary border-primary rotate-1 scale-105'
                                 : 'border-border hover:border-primary/40 hover:shadow-md'

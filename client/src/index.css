@@ -109,6 +109,13 @@
   .animate-slide-in      { animation: slideIn 0.3s ease-out; }
   .animate-pulse-dot     { animation: pulseDot 2s infinite; }
 
+  /* Custom SVG Cursors for Grab/Grabbing to fix OS bugs */
+  .cursor-grab-custom { cursor: url('/cursors/grab-light.svg') 12 12, grab !important; }
+  .cursor-grabbing-custom, body[data-rbd-drag-handle-context-id] { cursor: url('/cursors/grabbing-light.svg') 12 12, grabbing !important; }
+  .dark .cursor-grab-custom { cursor: url('/cursors/grab-dark.svg') 12 12, grab !important; }
+  .dark .cursor-grabbing-custom, .dark body[data-rbd-drag-handle-context-id] { cursor: url('/cursors/grabbing-dark.svg') 12 12, grabbing !important; }
+
+
   /* Custom scrollbar for panels & modals */
   .custom-scrollbar::-webkit-scrollbar { width: 10px; }
   .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
