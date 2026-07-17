@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Truck as TruckIcon, Package, Loader2, MapPin, Calendar, ArrowRight, CheckCircle2, AlertTriangle, ArrowUp, ArrowDown, Trash2, GripVertical } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { Truck as TruckIcon, Package, Loader2, MapPin, Calendar, ArrowRight, CheckCircle2, AlertTriangle, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
@@ -170,6 +170,16 @@ export default function PlanningPage() {
     }
   };
 
+  const handleDragEnd = async (result: any) => {
+    const { destination, source, draggableId } = result;
+    if (!destination) return;
+    if (destination.droppableId === source.droppableId) return;
+
+    if (source.droppableId === 'unassigned-orders' && destination.droppableId !== 'unassigned-orders') {
+       await assignOrderToTruck(draggableId, destination.droppableId);
+    }
+  };
+
   const unassigned = orders.filter(o => ['draft', 'unassigned', 'pending'].includes(o.status));
 
   // Helper to calculate totals for each truck's trip
@@ -280,18 +290,9 @@ export default function PlanningPage() {
     });
   };
 
-  const onDragEnd = (result: any) => {
-    const { source, destination, draggableId } = result;
-    if (!destination) return;
-    if (destination.droppableId === 'unassigned-orders') return;
-    
-    // Attempt assignment
-    assignOrderToTruck(draggableId, destination.droppableId);
-  };
-
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
     <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
+      <DragDropContext onDragEnd={handleDragEnd}>
       {/* Main Layout Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
@@ -312,7 +313,9 @@ export default function PlanningPage() {
                 <p className="font-semibold text-text-primary">{t('no_unassigned_orders')}</p>
               </div>
             ) : (
-              <table className="w-full text-left border-collapse min-w-[900px]">
+              <Droppable droppableId="unassigned-orders" direction="vertical">
+                {(provided) => (
+              <table className="w-full text-left border-collapse min-w-[900px]" ref={provided.innerRef} {...provided.droppableProps}>
                 <thead>
                   <tr className="bg-surface/50 border-b border-border text-xs uppercase font-bold text-text-secondary">
                     <th className="p-4 pl-6">{t('ref_table_header')}</th>
@@ -324,14 +327,8 @@ export default function PlanningPage() {
                     <th className="p-4 pr-6 text-right">{t('action_table_header')}</th>
                   </tr>
                 </thead>
-                <Droppable droppableId="unassigned-orders">
-                  {(provided) => (
-                    <tbody 
-                      className="divide-y divide-border/60 text-sm"
-                      {...provided.droppableProps}
-                      ref={provided.innerRef}
-                    >
-                      {unassigned.map((order, index) => {
+                <tbody className="divide-y divide-border/60 text-sm">
+                  {unassigned.map((order, index) => {
                     const pickup = order.stops?.find((s: any) => s.type === 'pickup');
                     const dropoff = order.stops?.find((s: any) => s.type === 'dropoff');
                     const weight = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || 0;
@@ -345,7 +342,8 @@ export default function PlanningPage() {
                         ref={provided.innerRef}
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
-                        className={`hover:bg-surface/20 transition-colors ${snapshot.isDragging ? 'bg-surface shadow-lg table' : ''}`}
+                        className={`hover:bg-surface/20 transition-colors ${snapshot.isDragging ? 'bg-surface shadow-lg opacity-90' : ''}`}
+                        style={{...provided.draggableProps.style, display: snapshot.isDragging ? 'table' : ''}}
                       >
                         <td className="p-4 pl-6">
                           <span className="font-bold text-primary">{order.orderNumber || order.referenceNumber || 'Comandă'}</span>
@@ -386,9 +384,6 @@ export default function PlanningPage() {
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
-                          <span className="inline-flex items-center text-text-secondary opacity-50 cursor-grab active:cursor-grabbing p-1.5">
-                            <GripVertical className="w-4 h-4" />
-                          </span>
                         </td>
                       </tr>
                         )}
@@ -397,9 +392,9 @@ export default function PlanningPage() {
                   })}
                   {provided.placeholder}
                 </tbody>
-              )}
-              </Droppable>
               </table>
+                )}
+              </Droppable>
             )}
           </div>
         </div>
@@ -424,20 +419,20 @@ export default function PlanningPage() {
               const hasWarning = stats.weight > maxWeight || stats.ldm > maxLdm;
 
               return (
-                <Droppable droppableId={truck.id} key={truck.id}>
+                <Droppable key={truck.id} droppableId={truck.id}>
                   {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      onClick={() => stats.tripId && setSelectedTripId(stats.tripId)}
-                      className={`relative bg-card border rounded-2xl p-5 transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[220px] shadow-sm hover:shadow-md
-                        ${selectedTripId === stats.tripId && stats.tripId
-                          ? 'border-primary shadow-sm bg-primary/5'
-                          : 'border-border hover:border-primary/30 hover:bg-surface/50'
-                        }
-                        ${snapshot.isDraggingOver ? 'ring-2 ring-primary bg-primary/10' : ''}
-                      `}
-                    >
+                <div
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  onClick={() => stats.tripId && setSelectedTripId(stats.tripId)}
+                  className={`relative bg-card border rounded-2xl p-5 transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[220px] shadow-sm hover:shadow-md
+                    ${selectedTripId === stats.tripId && stats.tripId
+                      ? 'border-primary shadow-sm bg-primary/5'
+                      : snapshot.isDraggingOver
+                      ? 'border-primary bg-primary/10 scale-[1.02] shadow-lg ring-2 ring-primary/50'
+                      : 'border-border hover:border-primary/30 hover:bg-surface/50'
+                    }`}
+                >
                   <div>
                     <div className="flex justify-between items-start mb-3">
                       <div>
@@ -511,7 +506,7 @@ export default function PlanningPage() {
                   </div>
                   {provided.placeholder}
                 </div>
-                )}
+                  )}
                 </Droppable>
               );
             })}
@@ -570,6 +565,7 @@ export default function PlanningPage() {
         )}
 
       </div>
+      </DragDropContext>
 
       {selectedOrderToAssign && (() => {
         const order = selectedOrderToAssign;
@@ -739,6 +735,5 @@ export default function PlanningPage() {
         );
       })()}
     </div>
-    </DragDropContext>
   );
 }

@@ -210,11 +210,42 @@ export class TripsService {
   }
 
   async getStats(month?: number, year?: number, preloadedTrips?: Trip[]) {
-    return { totalRevenue: 0, totalCost: 0, profit: 0, totalKm: 0, costPerKm: 0, active: 0, tripsCount: 0 };
+    const trips = preloadedTrips || await this.findAllForDashboard();
+    const filtered = trips.filter(t => {
+      if (!month || !year) return true;
+      const d = new Date(t.createdAt);
+      return d.getMonth() + 1 === Number(month) && d.getFullYear() === Number(year);
+    });
+
+    const totalRevenue = filtered.reduce((s, t) => {
+      const orderRev = t.orders?.reduce((sum, o) => sum + (Number(o.price) || 0), 0) || 0;
+      return s + (orderRev || Number(t.estimatedProfit) || 0);
+    }, 0);
+
+    const totalCost = filtered.reduce((s, t) => {
+      const addedCosts = t.costs?.reduce((sc, c) => sc + Number(c.amount), 0) || 0;
+      const estCost = (Number(t.distanceKm) || 0) * (Number(t.truck?.costPerKm) || 1.15);
+      return s + addedCosts + estCost;
+    }, 0);
+
+    const profit = totalRevenue - totalCost;
+    const totalKm = filtered.reduce((s, t) => s + (Number(t.distanceKm) || 0), 0);
+    const active = filtered.filter(t => ['planned', 'started', 'driving', 'loading', 'in_progress', 'dispatched'].includes(t.status)).length;
+    const tripsCount = filtered.length;
+
+    return { totalRevenue, totalCost, profit, totalKm, costPerKm: totalKm > 0 ? totalCost / totalKm : 0, active, tripsCount };
   }
 
   async getMonthlyProfits() {
-    return [];
+    const allTrips = await this.findAllForDashboard();
+    const now = new Date();
+    const results = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const stats = await this.getStats(d.getMonth() + 1, d.getFullYear(), allTrips);
+      results.push({ month: d.toLocaleString('ro', { month: 'short' }), ...stats });
+    }
+    return results;
   }
 
   async updateStopStatus(stopId: string, status: string) {

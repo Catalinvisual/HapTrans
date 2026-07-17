@@ -512,7 +512,7 @@ export default function TripDetailsPage() {
                 </div>
 
                 <div className="flex items-center justify-between p-3 bg-surface rounded-xl border border-border">
-                  <span className="text-sm font-semibold text-text-secondary">Marjă Profit</span>
+                  <span className="text-sm font-semibold text-text-secondary">{t('profitMargin', 'Marjă Profit')}</span>
                   <span className={`font-bold ${
                     profitMargin >= 10 ? 'text-green-600' :
                     profitMargin >= 0 ? 'text-yellow-600' : 'text-red-500'

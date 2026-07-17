@@ -118,32 +118,25 @@ export default function OrderDetailsPage() {
             </div>
             
             <div className="card p-5">
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Package className="text-orange-500" /> Cargo Summary</h3>
-              <div className="bg-surface/50 p-4 rounded-xl space-y-2">
-                <div className="flex justify-between"><span className="text-text-secondary">Type</span><span className="font-bold">{order.transportType?.toUpperCase()}</span></div>
-                <div className="flex justify-between"><span className="text-text-secondary">Total Weight</span><span className="font-bold">{order.cargoItems?.reduce((a:number, c:any)=>a+Number(c.weightKg||0),0)} kg</span></div>
-                <div className="flex justify-between"><span className="text-text-secondary">Total LDM</span><span className="font-bold">{order.cargoItems?.reduce((a:number, c:any)=>a+Number(c.ldm||0),0).toFixed(1)} LDM</span></div>
-                <div className="flex justify-between"><span className="text-text-secondary">Total Volume</span><span className="font-bold">{order.cargoItems?.reduce((a:number, c:any)=>a+Number(c.volumeCbm||0),0).toFixed(1)} m³</span></div>
-              </div>
+              <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Package className="text-orange-500" /> Cargo Items</h3>
 
-              {order.cargoItems && order.cargoItems.length > 0 && (
-                <div className="mt-6 border-t border-border pt-4">
-                  <h4 className="font-bold mb-3 text-sm text-text-secondary uppercase">Cargo Items</h4>
-                  <div className="space-y-3">
-                    {order.cargoItems.map((item: any, idx: number) => (
-                      <div key={idx} className="bg-surface border border-border p-3 rounded-lg text-sm flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                        <div>
-                          <p className="font-bold">{item.quantity}x {item.type} <span className="text-text-secondary font-normal ml-1">({item.description || 'No description'})</span></p>
-                        </div>
-                        <div className="flex gap-4 text-xs font-semibold text-text-secondary bg-black/5 p-1.5 rounded">
-                          <span>{item.weightKg} kg</span>
-                          {item.ldm > 0 && <span>{item.ldm} LDM</span>}
-                          {item.volumeCbm > 0 && <span>{item.volumeCbm} m³</span>}
-                        </div>
+              {order.cargoItems && order.cargoItems.length > 0 ? (
+                <div className="space-y-3">
+                  {order.cargoItems.map((item: any, idx: number) => (
+                    <div key={idx} className="bg-surface border border-border p-3 rounded-lg text-sm flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                      <div>
+                        <p className="font-bold">{item.quantity}x {item.type} <span className="text-text-secondary font-normal ml-1">({item.description || 'No description'})</span></p>
                       </div>
-                    ))}
-                  </div>
+                      <div className="flex gap-4 text-xs font-semibold text-text-secondary bg-black/5 p-1.5 rounded">
+                        <span>{item.weightKg} kg</span>
+                        {item.ldm > 0 && <span>{item.ldm} LDM</span>}
+                        {item.volumeCbm > 0 && <span>{item.volumeCbm} m³</span>}
+                      </div>
+                    </div>
+                  ))}
                 </div>
+              ) : (
+                <p className="text-text-secondary">No cargo items recorded.</p>
               )}
             </div>
             
