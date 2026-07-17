@@ -47,7 +47,7 @@ export class DriversService {
     const savedDriver = await this.repo.save(driver);
 
     if (dto.truckId) {
-      await this.trucksRepo.update(dto.truckId, { driver: { id: savedDriver.id } as any });
+      await this.trucksRepo.update(dto.truckId, { driver: { id: (savedDriver as any).id } as any });
     }
 
     return savedDriver;
@@ -85,11 +85,11 @@ export class DriversService {
 
     if ('truckId' in dto) {
       // First, remove this driver from any existing truck
-      await this.trucksRepo.update({ driver: { id: savedDriver.id } as any }, { driver: null } as any);
+      await this.trucksRepo.update({ driver: { id: (savedDriver as any).id } as any }, { driver: null } as any);
       
       // Then assign to the new truck if provided
       if (dto.truckId) {
-        await this.trucksRepo.update(dto.truckId, { driver: { id: savedDriver.id } as any });
+        await this.trucksRepo.update(dto.truckId, { driver: { id: (savedDriver as any).id } as any });
       }
     }
 
