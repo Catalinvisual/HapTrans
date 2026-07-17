@@ -71,18 +71,22 @@ export class TripsService {
   }
 
   async create(dto: any, user?: any): Promise<Trip> {
-    const refCode = dto.referenceNumber || dto.tripNumber || 'HC-TRIP';
-    const cleanRef = refCode.startsWith('HC-') ? refCode : `HC-${refCode}`;
-    const trackingToken = `${cleanRef}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const count = await this.repo.count();
+    const seq = String(count + 1).padStart(6, '0');
+    const year = new Date().getFullYear();
+    const generatedTripNumber = `TR-${year}-${seq}`;
+    const tripNumber = dto.referenceNumber || dto.tripNumber || generatedTripNumber;
+    
+    const trackingToken = `${tripNumber}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
     const tripPayload: any = {
       ...dto,
-      tripNumber: dto.referenceNumber || dto.tripNumber,
+      tripNumber,
       trackingToken,
       company: dto.companyId ? { id: dto.companyId } : (user?.companyId ? { id: user.companyId } : null),
       truck: dto.truckId ? { id: dto.truckId } : null,
       driver: dto.driverId ? { id: dto.driverId } : null,
-      status: TripStatus.PLANNING,
+      status: TripStatus.PLANNED,
     };
     const trip = this.repo.create(tripPayload);
     return this.repo.save(trip) as any as Promise<Trip>;

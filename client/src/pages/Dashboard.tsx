@@ -1,210 +1,119 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { TrendingUp, TrendingDown, Truck, AlertTriangle, FileWarning, Clock } from 'lucide-react';
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { TrendingUp, Truck, AlertTriangle, FileWarning, Clock, Package, DollarSign, Activity, Users } from 'lucide-react';
 import api from '../lib/api';
-import { formatDate } from '../lib/dateUtils';
-import DieselWidget from '../components/DieselWidget';
+import { useAuthStore } from '../store/authStore';
 
-interface DashboardData {
-  stats: { profit: number; revenue: number; totalCost: number; costPerKm: number; active: number; activeTrucks: number; tripsCount: number };
-  monthlyProfits: Array<{ month: string; profit: number; totalRevenue: number; totalCost: number }>;
-  overdueInvoices: any[];
-  expiringDocs: any[];
-  profitByRoute?: Array<{ route: string; profit: number }>;
-  topClients?: Array<{ name: string; profit: number }>;
-}
-
-function StatCard({ title, value, unit, trend, color }: any) {
-  const isPositive = trend >= 0;
+function StatCard({ title, value, icon: Icon, color, suffix }: any) {
   return (
-    <div className="stat-card">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">{title}</span>
-        {trend !== undefined && (
-          <span className={`flex items-center gap-1 text-xs font-semibold ${isPositive ? 'text-success' : 'text-error'}`}>
-            {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-          </span>
-        )}
+    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
+      <div>
+        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">{title}</span>
+        <div className="flex items-baseline gap-1">
+          <span className={`text-3xl font-black ${color || 'text-gray-900 dark:text-white'}`}>{value}</span>
+          {suffix && <span className="text-sm font-bold text-gray-400">{suffix}</span>}
+        </div>
       </div>
-      <div className="mt-2">
-        <span className={`text-2xl font-bold ${color || 'text-text'}`}>{value}</span>
-        {unit && <span className="text-sm text-text-secondary ml-1">{unit}</span>}
+      <div className={`w-12 h-12 rounded-full flex items-center justify-center bg-gray-50 dark:bg-gray-700 ${color}`}>
+        <Icon className="w-6 h-6" />
       </div>
     </div>
   );
 }
 
 export default function Dashboard() {
-  const { t, i18n } = useTranslation();
-  const [data, setData] = useState<DashboardData | null>(null);
+  const { t } = useTranslation();
+  const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuthStore();
+  
+  // Use the user's role if available, otherwise default to manager
+  const role = user?.role === 'dispatcher' ? 'dispatcher' : 'manager';
 
   useEffect(() => {
-    api.get('/dashboard').then((r) => { setData(r.data); setLoading(false); }).catch(() => setLoading(false));
-  }, []);
+    api.get(`/dashboard?role=${role}`)
+      .then((r) => { setData(r.data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [role]);
 
-  const getTranslatedMonth = (monthStr: string) => {
-    const m = monthStr.toLowerCase().replace('.', '');
-    const map: Record<string, string> = {
-      'ian': 'jan', 'feb': 'feb', 'mar': 'mar', 'apr': 'apr', 'mai': 'may', 'iun': 'jun',
-      'iul': 'jul', 'aug': 'aug', 'sep': 'sep', 'oct': 'oct', 'noi': 'nov', 'dec': 'dec'
-    };
-    const key = map[m] || m;
-    return t(key);
-  };
-
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        <span className="text-sm text-text-secondary">{t('loading')}</span>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
       </div>
-    </div>
-  );
+    );
+  }
 
-  const s = data?.stats;
-  const profitColor = (s?.profit ?? 0) >= 0 ? 'text-success' : 'text-error';
-
-  return (
-    <div className="space-y-6 animate-fade-in">
-
-      {/* Diesel Prices Widget */}
-      <DieselWidget avgConsumptionL100={32} />
-
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title={t('profit')} value={`€${(s?.profit ?? 0).toLocaleString(i18n.language)}`} color={profitColor} trend={s?.profit} />
-        <StatCard title={t('revenue')} value={`€${(s?.totalRevenue ?? 0).toLocaleString(i18n.language)}`} color="text-success" />
-        <StatCard title={t('activeTrips')} value={s?.active ?? 0} color="text-primary" />
-        <StatCard title={t('activeTrucks')} value={s?.activeTrucks ?? 0} color="text-text" />
-        <StatCard title={t('costPerKm')} value={`€${(s?.costPerKm ?? 0).toFixed(2)}`} unit="/km" />
-        <StatCard title={t('totalTrips')} value={s?.tripsCount ?? 0} color="text-text" />
-        <StatCard title={t('costs')} value={`€${(s?.totalCost ?? 0).toLocaleString(i18n.language)}`} color="text-error" />
-        <div className="stat-card flex flex-col justify-between cursor-pointer hover:bg-warning/5 transition-colors" onClick={() => document.getElementById('expiring-docs-section')?.scrollIntoView({ behavior: 'smooth' })}>
-          <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">{t('expiringDocuments')}</span>
-          <div className="flex items-center gap-2 mt-2">
-            <AlertTriangle className="w-5 h-5 text-warning" />
-            <span className="text-2xl font-bold text-warning">{data?.expiringDocs?.length ?? 0}</span>
+  if (role === 'dispatcher') {
+    return (
+      <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dispatcher Dashboard</h1>
+            <p className="text-sm text-gray-500">Live operational overview</p>
           </div>
         </div>
-      </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="card">
-          <h3 className="text-sm font-semibold text-text mb-4">{t('profitByMonth')}</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={data?.monthlyProfits ?? []}>
-              <defs>
-                <linearGradient id="profitGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#FF7A1A" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#FF7A1A" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} tickFormatter={getTranslatedMonth} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `€${v}`} />
-              <Tooltip formatter={(v: any) => [`€${Number(v || 0).toLocaleString(i18n.language)}`, '']} />
-              <Area type="monotone" dataKey="profit" stroke="#FF7A1A" strokeWidth={2} fill="url(#profitGrad)" name={t('profit')} />
-              <Area type="monotone" dataKey="totalRevenue" stroke="#16A34A" strokeWidth={2} fill="none" name={t('revenue')} />
-            </AreaChart>
-          </ResponsiveContainer>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard title="Orders Waiting" value={data?.ordersWaiting || 0} icon={Package} color="text-orange-500" />
+          <StatCard title="Orders Delayed" value={data?.ordersDelayed || 0} icon={AlertTriangle} color="text-red-500" />
+          <StatCard title="Trucks Available" value={data?.trucksAvailable || 0} icon={Truck} color="text-blue-500" />
+          <StatCard title="Active Trips" value={data?.tripsActive || 0} icon={Activity} color="text-green-500" />
+          <StatCard title="Free Drivers" value={data?.driversFree || 0} icon={Users} color="text-purple-500" />
+          <StatCard title="Avg Plan Time" value={data?.avgPlanningTime || '-'} icon={Clock} color="text-gray-600" />
         </div>
 
-        <div className="card">
-          <h3 className="text-sm font-semibold text-text mb-4">{t('revenueVsCosts')}</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={data?.monthlyProfits ?? []} barSize={20}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} tickFormatter={getTranslatedMonth} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `€${v}`} />
-              <Tooltip formatter={(v: any) => [`€${Number(v || 0).toLocaleString(i18n.language)}`, '']} />
-              <Legend />
-              <Bar dataKey="totalRevenue" fill="#16A34A" name={t('revenue')} radius={[4, 4, 0, 0]} />
-              <Bar dataKey="totalCost" fill="#DC2626" name={t('costs')} radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="card">
-          <h3 className="text-sm font-semibold text-text mb-4">{t('topProfitableRoutes') || 'Top Rute Profitabile'}</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={data?.profitByRoute ?? []} layout="vertical" margin={{ left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={true} stroke="rgba(0,0,0,0.05)" />
-              <XAxis type="number" hide />
-              <YAxis dataKey="route" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
-              <Tooltip cursor={{ fill: 'rgba(0,0,0,0.02)' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }} formatter={(value: number) => `€${value.toLocaleString(i18n.language)}`} />
-              <Bar dataKey="profit" fill="#10B981" radius={[0, 4, 4, 0]} barSize={24} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="card">
-          <h3 className="text-sm font-semibold text-text mb-4">{t('topClientsProfit') || 'Top Clienți (Profit)'}</h3>
-          <div className="space-y-4 mt-2">
-            {(data?.topClients ?? []).filter(c => c.profit > 0).map((client, idx) => (
-              <div key={idx} className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center text-primary font-bold text-xs">
-                    {idx + 1}
-                  </div>
-                  <span className="font-semibold text-text">{client.name}</span>
-                </div>
-                <span className={`text-sm font-bold ${client.profit >= 0 ? 'text-success' : 'text-error'}`}>
-                  €{client.profit.toLocaleString(i18n.language)}
-                </span>
+        {/* Dispatcher Actions */}
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+            <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+              <Package className="text-orange-500" /> Action Required
+            </h3>
+            {data?.ordersWaiting > 0 ? (
+              <div className="p-4 bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800 rounded-xl">
+                <p className="font-semibold text-orange-800 dark:text-orange-300">You have {data.ordersWaiting} orders waiting to be planned.</p>
+                <a href="/planning" className="inline-block mt-3 text-sm font-bold bg-orange-600 text-white px-4 py-2 rounded-lg">Go to Planning Board</a>
               </div>
-            ))}
-            {(data?.topClients?.length ?? 0) === 0 && (
-              <div className="text-sm text-text-secondary text-center mt-8">Nu există date suficiente</div>
+            ) : (
+              <p className="text-gray-500">No urgent actions pending.</p>
             )}
           </div>
         </div>
+      </div>
+    );
+  }
 
-        {(data?.expiringDocs?.length ?? 0) > 0 && (
-          <div id="expiring-docs-section" className="card border-l-4 border-warning">
-            <div className="flex items-center gap-2 mb-3">
-              <FileWarning className="w-5 h-5 text-warning" />
-              <h3 className="font-semibold text-sm text-text">{t('expiringDocuments')} ({data?.expiringDocs.length})</h3>
-            </div>
-            <div className="space-y-2">
-              {data?.expiringDocs.slice(0, 4).map((d: any) => (
-                <div key={d.id} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
-                  <span className="text-text font-medium">{d.title}</span>
-                  <span className="badge-warning">{formatDate(d.expiryDate)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {(data?.overdueInvoices?.length ?? 0) > 0 && (
-          <div className="card border-l-4 border-error">
-            <div className="flex items-center gap-2 mb-3">
-              <Clock className="w-5 h-5 text-error" />
-              <h3 className="font-semibold text-sm text-text">{t('overdueInvoices')} ({data?.overdueInvoices.length})</h3>
-            </div>
-            <div className="space-y-2">
-              {data?.overdueInvoices.slice(0, 4).map((inv: any) => (
-                <div key={inv.id} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
-                  <span className="text-text font-medium">{inv.invoiceNumber} — {inv.client?.name}</span>
-                  <span className="badge-error">€{Number(inv.amount).toLocaleString(i18n.language)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {(data?.expiringDocs?.length ?? 0) === 0 && (data?.overdueInvoices?.length ?? 0) === 0 && (
-          <div className="card border-l-4 border-success lg:col-span-2">
-            <div className="flex items-center gap-2">
-              <Truck className="w-5 h-5 text-success" />
-              <span className="text-sm font-medium text-success">{t('allClearNoAlerts')}</span>
-            </div>
-          </div>
-        )}
+  // Manager Role View
+  return (
+    <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manager Dashboard</h1>
+          <p className="text-sm text-gray-500">Financial and fleet performance</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard title="Revenue (Today)" value={data?.revenueToday || 0} suffix="€" icon={DollarSign} color="text-green-500" />
+        <StatCard title="Profit (Today)" value={data?.profitToday || 0} suffix="€" icon={TrendingUp} color="text-emerald-500" />
+        <StatCard title="Fleet Utilization" value={data?.fleetUtilization || 0} suffix="%" icon={Truck} color="text-blue-500" />
+        <StatCard title="On-Time Delivery" value={data?.onTimeDeliveryRate || 0} suffix="%" icon={Clock} color="text-purple-500" />
+      </div>
+
+      <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+          <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+            <FileWarning className="text-red-500" /> Financial Alerts
+          </h3>
+          {data?.invoicesWaiting > 0 ? (
+             <div className="p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-xl">
+               <p className="font-semibold text-red-800 dark:text-red-300">You have {data.invoicesWaiting} overdue invoices.</p>
+               <a href="/invoices" className="inline-block mt-3 text-sm font-bold bg-red-600 text-white px-4 py-2 rounded-lg">View Invoices</a>
+             </div>
+          ) : (
+            <p className="text-gray-500">All invoices are up to date.</p>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -5,9 +5,11 @@ import api from '../lib/api';
 import OrderWizard from '../components/orders/OrderWizard';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 export default function OrdersPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -158,7 +160,11 @@ export default function OrdersPage() {
                   const cargoCount = order.cargoItems?.length || 0;
 
                   return (
-                    <tr key={order.id} className="hover:bg-surface/30 transition-colors group">
+                    <tr 
+                      key={order.id} 
+                      onClick={() => navigate(`/orders/${order.id}`)}
+                      className="hover:bg-surface/30 transition-colors group cursor-pointer"
+                    >
                       <td className="p-4">
                         <div className="font-semibold text-primary">{order.orderNumber || order.referenceNumber || '—'}</div>
                         <div className="text-xs text-text-secondary mt-1">{order.customerReference && `Ref: ${order.customerReference}`}</div>

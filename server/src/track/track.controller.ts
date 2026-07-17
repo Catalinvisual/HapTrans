@@ -1,70 +1,73 @@
-import { Controller, Get, Req, Param, NotFoundException } from '@nestjs/common';
-import { TripsService } from '../trips/trips.service';
+import { Controller, Get, Param, NotFoundException } from '@nestjs/common';
+import { OrdersService } from '../orders/orders.service';
 
 @Controller('track')
 export class TrackController {
-  constructor(private readonly tripsService: TripsService) {}
+  constructor(private readonly ordersService: OrdersService) {}
 
   @Get(':token')
-  async trackTrip(@Param('token') token: string) {
+  async trackOrder(@Param('token') token: string) {
     if (!token) {
       throw new NotFoundException('Tracking link invalid or expired.');
     }
     
     token = token.replace(/^\/+|\/+$/g, '').split('?')[0].split('#')[0];
-    const trip = await this.tripsService.findByTrackingToken(token);
+    const order = await this.ordersService.findByTrackingToken(token);
     
-    if (!trip) {
+    if (!order) {
       throw new NotFoundException('Tracking link invalid or expired.');
     }
 
-    const sortedStops = trip.stops
-      ? [...trip.stops].sort((a: any, b: any) => a.sequence - b.sequence)
+    const sortedStops = order.stops
+      ? [...order.stops].sort((a: any, b: any) => a.sequence - b.sequence)
       : [];
 
+    const isDelivered = order.status === 'delivered' || order.status === 'pod_received' || order.status === 'invoiced' || order.status === 'paid';
+
     return {
-      referenceNumber: trip.tripNumber,
-      status: trip.status,
-      updatedAt: trip.updatedAt,
-      driverName: trip.driver?.user?.name || null,
-      truckPlate: trip.truck?.plateNumber || null,
-      currentLat: trip.truck?.currentLat || null,
-      currentLng: trip.truck?.currentLng || null,
+      orderNumber: order.orderNumber,
+      customerReference: order.customerReference,
+      status: order.status,
+      updatedAt: order.updatedAt,
+      // Time windows
+      pickupWindow: sortedStops.find((s: any) => s.type === 'pickup') ? `${(sortedStops.find((s: any) => s.type === 'pickup') as any).timeFrom || ''} - ${(sortedStops.find((s: any) => s.type === 'pickup') as any).timeUntil || ''}` : null,
+      deliveryWindow: sortedStops.find((s: any) => s.type === 'delivery') ? `${(sortedStops.find((s: any) => s.type === 'delivery') as any).timeFrom || ''} - ${(sortedStops.find((s: any) => s.type === 'delivery') as any).timeUntil || ''}` : null,
+      
+      currentLat: order.trip?.truck?.currentLat || null,
+      currentLng: order.trip?.truck?.currentLng || null,
       stops: sortedStops.map(s => ({
         id: s.id,
         sequence: s.sequence,
         address: s.address,
         companyName: s.companyName,
         country: s.country,
-        status: s.status,
-        eta: s.eta,
-        etaStatus: s.etaStatus,
-        type: s.type || (s.tasks?.some((t: any) => t.type === 'load') ? 'pickup' : 'delivery')
+        type: s.type,
       })),
-      documents: trip.documents?.map(doc => ({
+      
+      // POD only available if delivered
+      documents: isDelivered && order.documents ? order.documents.filter((doc: any) => doc.type === 'pod').map((doc: any) => ({
         id: doc.id,
         name: doc.fileName,
         url: doc.fileUrl,
-        type: doc.documentType,
-      })) || []
+        type: doc.type,
+      })) : []
     };
   }
 
   @Get(':token/eta')
   async getEta(@Param('token') token: string) {
     token = token.replace(/^\/+|\/+$/g, '').split('?')[0].split('#')[0];
-    const trip = await this.tripsService.findByTrackingToken(token);
-    if (!trip) {
+    const order = await this.ordersService.findByTrackingToken(token);
+    if (!order) {
       throw new NotFoundException('Tracking link invalid or expired.');
     }
-    const nextStop = trip.stops
-      ?.sort((a: any, b: any) => a.sequence - b.sequence)
-      .find(s => s.status !== 'completed');
 
     return {
-      eta: nextStop?.eta || null,
-      etaStatus: nextStop?.etaStatus || 'on_time',
-      nextStopAddress: nextStop?.address || null,
+      originalEtaPickup: order.originalEtaPickup,
+      currentEtaPickup: order.currentEtaPickup,
+      originalEtaDelivery: order.originalEtaDelivery,
+      currentEtaDelivery: order.currentEtaDelivery,
+      delayMinutes: order.delayMinutes
     };
   }
 }

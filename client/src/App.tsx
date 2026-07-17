@@ -14,6 +14,7 @@ import Dashboard from './pages/Dashboard';
 // ─── Lazy-loaded (load only when user navigates there) ────────────────────
 const TripsPage        = lazy(() => import('./pages/TripsPage'));
 const OrdersPage       = lazy(() => import('./pages/OrdersPage'));
+const OrderDetailsPage = lazy(() => import('./pages/OrderDetailsPage'));
 const TripDetailsPage  = lazy(() => import('./pages/TripDetailsPage'));
 const TrucksPage       = lazy(() => import('./pages/TrucksPage'));
 const DriversPage      = lazy(() => import('./pages/DriversPage'));
@@ -88,6 +89,7 @@ export default function App() {
             <Route path="trips" element={<Suspense fallback={<PageLoader />}><TripsPage /></Suspense>} />
             <Route path="trips/:id" element={<Suspense fallback={<PageLoader />}><TripDetailsPage /></Suspense>} />
             <Route path="orders" element={<Suspense fallback={<PageLoader />}><OrdersPage /></Suspense>} />
+            <Route path="orders/:id" element={<Suspense fallback={<PageLoader />}><OrderDetailsPage /></Suspense>} />
             <Route path="trucks" element={<Suspense fallback={<PageLoader />}><TrucksPage /></Suspense>} />
             <Route path="drivers" element={<Suspense fallback={<PageLoader />}><DriversPage /></Suspense>} />
             <Route path="clients" element={<Suspense fallback={<PageLoader />}><ClientsPage /></Suspense>} />

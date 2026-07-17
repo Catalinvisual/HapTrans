@@ -10,14 +10,16 @@ import { OrderStop } from './order-stop.entity';
 
 export enum OrderStatus {
   DRAFT = 'draft',
-  UNASSIGNED = 'unassigned', // replaces 'confirmed'
+  NEW = 'new',
   PLANNED = 'planned',
-  PARTIALLY_ASSIGNED = 'partially_assigned',
   ASSIGNED = 'assigned',
   LOADING = 'loading',
   IN_TRANSIT = 'in_transit',
   DELIVERED = 'delivered',
-  CLOSED = 'closed',
+  POD_RECEIVED = 'pod_received',
+  READY_FOR_INVOICE = 'ready_for_invoice',
+  INVOICED = 'invoiced',
+  PAID = 'paid',
   CANCELLED = 'cancelled',
 }
 
@@ -59,6 +61,28 @@ export class Order {
   @Column({ type: 'varchar', default: 'draft' })
   status: string;
 
+  @Column({ nullable: true, unique: true })
+  trackingToken: string; // e.g. HC-A1B2C3D4
+
+  // --- ETA & Tracking ---
+  @Column({ type: 'timestamp', nullable: true })
+  originalEtaPickup: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  currentEtaPickup: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  originalEtaDelivery: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  currentEtaDelivery: Date;
+
+  @Column({ type: 'int', default: 0 })
+  delayMinutes: number; // calculated as (currentEta - originalEta) in minutes
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  distanceKm: number;
+
   @Column({ type: 'varchar', default: 'ftl' })
   transportType: string;
 
@@ -84,7 +108,13 @@ export class Order {
 
   // Financials
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, nullable: true })
-  price: number;
+  price: number; // Revenue
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, nullable: true })
+  estimatedCost: number; // Configurable engine output
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, nullable: true })
+  estimatedProfit: number; // Price - estimatedCost
 
   @Column({ nullable: true })
   currency: string;

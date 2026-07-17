@@ -40,15 +40,23 @@ export class OrdersService {
     });
   }
 
+  findByTrackingToken(trackingToken: string) {
+    return this.repo.findOne({
+      where: { trackingToken },
+      relations: ['stops', 'cargoItems', 'trip', 'trip.truck', 'documents']
+    });
+  }
+
   async create(dto: any) {
     try {
       // 1. Validate
       this.validationEngine.validateOrder(dto);
 
-      // Generate sequential order number: HAP-00001
+      // Generate sequential order number: HC-YYYY-XXXXXX
       const count = await this.repo.count();
-      const seq = String(count + 1).padStart(5, '0');
-      const orderNumber = dto.orderNumber || `HC-${seq}`;
+      const seq = String(count + 1).padStart(6, '0');
+      const year = new Date().getFullYear();
+      const orderNumber = dto.orderNumber || `HC-${year}-${seq}`;
 
       // Determine initial status based on completeness
       let status = OrderStatus.DRAFT;
@@ -88,13 +96,17 @@ export class OrdersService {
       }
 
       if (dto.clientId && hasStops && hasCargo && processedStops.every(s => s.latitude && s.longitude)) {
-        status = OrderStatus.UNASSIGNED;
+        status = OrderStatus.NEW; // Replaced UNASSIGNED
       }
+
+      // Generate tracking token
+      const trackingToken = `HC-${nanoid(8).toUpperCase()}`;
 
       const order = this.repo.create({
         company: dto.companyId ? { id: dto.companyId } as any : null,
         client: dto.clientId ? { id: dto.clientId } as any : null,
         orderNumber,
+        trackingToken,
         internalReference: orderNumber,
         customerReference: dto.customerReference || null,
         contactPerson: dto.contactPerson || null,
@@ -266,7 +278,7 @@ export class OrdersService {
           hasStops &&
           hasCargo &&
           processedStops.every(s => s.latitude && s.longitude);
-        if (isComplete) updateData.status = OrderStatus.UNASSIGNED;
+        if (isComplete) updateData.status = OrderStatus.NEW;
       }
 
       await this.repo.update(id, updateData);

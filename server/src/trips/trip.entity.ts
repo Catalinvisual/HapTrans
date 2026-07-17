@@ -12,13 +12,13 @@ import { Order } from '../orders/order.entity';
 import { Stop } from './stop.entity';
 
 export enum TripStatus {
-  PLANNING = 'planning',
-  DISPATCHED = 'dispatched',
-  READY = 'ready',
-  ACTIVE = 'active', // replaces 'started'
-  DRIVING = 'driving',
+  PLANNED = 'planned',
+  ASSIGNED = 'assigned',
+  DRIVER_ACCEPTED = 'driver_accepted',
+  STARTED = 'started',
   LOADING = 'loading',
-  WAITING = 'waiting',
+  DRIVING = 'driving',
+  PARTIALLY_DELIVERED = 'partially_delivered',
   COMPLETED = 'completed',
   CLOSED = 'closed',
   CANCELLED = 'cancelled',
@@ -35,10 +35,10 @@ export class Trip {
   @Column({ unique: true, nullable: true })
   tripNumber: string; // e.g. TR-2026-000231
 
-  @Column({ nullable: true, unique: true })
-  trackingToken: string; // e.g. "ORD-G5KQZUKH" — generated on dispatch
+  @Column({ unique: true, nullable: true })
+  trackingToken: string;
 
-  @Column({ type: 'varchar', default: 'planning' })
+  @Column({ type: 'varchar', default: 'planned' })
   status: string;
 
   // Assignments

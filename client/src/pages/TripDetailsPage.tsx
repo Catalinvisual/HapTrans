@@ -29,6 +29,7 @@ export default function TripDetailsPage() {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const [trip, setTrip] = useState<any>(null);
+  const [timeline, setTimeline] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuthStore();
   const isDispatcher = user?.role === 'dispatcher';
@@ -36,8 +37,12 @@ export default function TripDetailsPage() {
   useEffect(() => {
     const fetchTrip = async (isInitial = false) => {
       try {
-        const { data } = await api.get(`/trips/${id}`);
-        setTrip(data);
+        const [tripRes, timelineRes] = await Promise.all([
+          api.get(`/trips/${id}`),
+          api.get(`/timeline/trip/${id}`).catch(() => ({ data: [] }))
+        ]);
+        setTrip(tripRes.data);
+        setTimeline(timelineRes.data);
       } catch (err) {
         if (isInitial) {
           toast.error(t('errorLoadingTrip', 'Cursa nu a putut fi încărcată'));
@@ -684,6 +689,36 @@ export default function TripDetailsPage() {
           
         </div>
       </div>
+
+      {/* Timeline Section */}
+      <div className="card p-6 bg-card border border-border rounded-2xl shadow-sm mt-6">
+        <h3 className="font-bold text-lg text-text mb-4 flex items-center gap-2">
+          <Clock className="w-5 h-5 text-purple-500" />
+          {t('eventHistory', 'Istoric Evenimente')}
+        </h3>
+        {timeline.length === 0 ? (
+          <p className="text-text-secondary">{t('noEvents', 'Niciun eveniment înregistrat.')}</p>
+        ) : (
+          <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
+            {timeline.map((event: any, index: number) => (
+              <div key={index} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full border-white bg-blue-100 text-blue-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-surface p-4 rounded-xl shadow-sm border border-border">
+                  <div className="flex justify-between items-center mb-1">
+                    <p className="font-bold text-text-primary">{event.action}</p>
+                    <span className="text-xs text-text-secondary">{new Date(event.createdAt).toLocaleString()}</span>
+                  </div>
+                  <p className="text-sm text-text-secondary">By: {event.user?.name || 'System'}</p>
+                  {event.details && <pre className="mt-2 text-xs bg-black/5 p-2 rounded text-text-secondary overflow-x-auto">{event.details}</pre>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }

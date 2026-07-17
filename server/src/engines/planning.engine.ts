@@ -6,6 +6,7 @@ import { Order, OrderStatus } from '../orders/order.entity';
 import { Stop } from '../trips/stop.entity';
 import { StopTask, TaskType } from '../trips/stop-task.entity';
 import { ValidationEngine } from './validation.engine';
+import { OptimizationEngine } from './optimization.engine';
 import { OrderStopType } from '../orders/order-stop.entity';
 
 @Injectable()
@@ -15,7 +16,8 @@ export class PlanningEngine {
     @InjectRepository(Order) private orderRepo: Repository<Order>,
     @InjectRepository(Stop) private stopRepo: Repository<Stop>,
     @InjectRepository(StopTask) private taskRepo: Repository<StopTask>,
-    private validationEngine: ValidationEngine
+    private validationEngine: ValidationEngine,
+    private optimizationEngine: OptimizationEngine
   ) {}
 
   validateAssignment(order: Order, trip: Trip): { warnings: string[] } {
@@ -107,6 +109,11 @@ export class PlanningEngine {
 
     for (const order of orders) {
       this.validationEngine.validateOrderAssignment(order, trip);
+      
+      const optResult = await this.optimizationEngine.checkAssignmentFeasibility(trip, order);
+      if (!optResult.feasible) {
+        throw new BadRequestException(`Planificarea a fost blocată: ${optResult.warnings.join(', ')}`);
+      }
     }
 
     const newTasksToSave: StopTask[] = [];

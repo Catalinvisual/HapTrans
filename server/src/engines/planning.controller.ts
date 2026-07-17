@@ -1,6 +1,7 @@
 import { Controller, Post, Get, Body, Param, UseGuards, BadRequestException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PlanningEngine } from './planning.engine';
+import { SuggestionEngine } from './suggestion.engine';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from '../orders/order.entity';
@@ -12,6 +13,7 @@ import { Truck } from '../trucks/truck.entity';
 export class PlanningController {
   constructor(
     private readonly planningEngine: PlanningEngine,
+    private readonly suggestionEngine: SuggestionEngine,
     @InjectRepository(Order) private readonly orderRepo: Repository<Order>,
     @InjectRepository(Trip) private readonly tripRepo: Repository<Trip>,
     @InjectRepository(Truck) private readonly truckRepo: Repository<Truck>,
@@ -117,5 +119,19 @@ export class PlanningController {
       availableLdm: Math.max(0, maxLdm - usedLdm),
       availableVolumeCbm: Math.max(0, maxVolume - usedVolume),
     };
+  }
+
+  @Get('suggestions/:orderId')
+  async getSuggestions(@Param('orderId') orderId: string) {
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId },
+      relations: ['cargoItems', 'stops']
+    });
+    
+    if (!order) {
+      throw new BadRequestException('Order not found');
+    }
+
+    return this.suggestionEngine.generateSuggestions(order);
   }
 }
