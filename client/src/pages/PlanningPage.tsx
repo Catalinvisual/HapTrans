@@ -385,7 +385,7 @@ export default function PlanningPage() {
           {/* ═══════════════════════════════════════
               LEFT — Compact Order Cards
           ════════════════════════════════════════ */}
-          <div className="w-[320px] xl:w-[360px] shrink-0 flex flex-col gap-3 sticky top-6" style={{ maxHeight: 'calc(100vh - 100px)', overflowY: 'auto' }}>
+          <div className="w-[320px] xl:w-[360px] shrink-0 flex flex-col gap-3 sticky top-6 z-50" style={{ maxHeight: 'calc(100vh - 100px)', overflowY: 'auto' }}>
 
             {/* Header */}
             <div className="flex items-center justify-between">
@@ -514,7 +514,7 @@ export default function PlanningPage() {
           {/* ═══════════════════════════════════════
               RIGHT — Trucks / Active Fleet
           ════════════════════════════════════════ */}
-          <div className="flex-1 min-w-0 flex flex-col gap-4">
+          <div className="flex-1 min-w-0 flex flex-col gap-4 relative z-0">
             <div className="flex items-center gap-2">
               <TruckIcon className="w-5 h-5 text-primary" />
               <h2 className="font-bold text-text-primary text-lg">{t('active_fleet_title', 'Flotă Activă')}</h2>
