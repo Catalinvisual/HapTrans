@@ -245,7 +245,7 @@ export default function TripDetailsPage() {
                       </div>
 
                       <span className={`text-xs font-bold ${textClass} uppercase tracking-wider mb-1 block flex justify-between`}>
-                        {t('stopIndex', 'Stop {{index}}', { index: stop.sequence })} - {t(stop.status)}
+                        {t('stopIndex', 'Stop {{index}}', { index: stop.sequence })} - {t(stop.status, stop.status?.replace(/_/g, ' ') || '')}
                         {stop.eta && (
                           <span className={`px-2 py-0.5 rounded ${stop.etaStatus === 'delayed' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                             ETA: {formatDate(stop.eta)}
