@@ -4,6 +4,7 @@ import { Box, Plus, Search, Loader2, MapPin, Truck, ChevronRight, FileText, Acti
 import api from '../lib/api';
 import OrderWizard from '../components/orders/OrderWizard';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import Pagination from '../components/Pagination';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,6 +14,8 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -47,6 +50,8 @@ export default function OrdersPage() {
     if (statusFilter === 'all') return true;
     return o.status === statusFilter;
   });
+
+  const paginatedOrders = filteredOrders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleEdit = (id: string) => {
     setSelectedOrderId(id);
@@ -152,7 +157,7 @@ export default function OrdersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredOrders.map(order => {
+                {paginatedOrders.map(order => {
                   const pickup = order.stops?.find((s: any) => s.type === 'pickup');
                   const dropoff = order.stops?.find((s: any) => s.type === 'dropoff');
                   const cargoWeight = order.cargoItems?.reduce((sum: number, item: any) => sum + Number(item.weightKg || 0), 0) || 0;
@@ -280,6 +285,13 @@ export default function OrdersPage() {
             </table>
           </div>
         )}
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filteredOrders.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={setItemsPerPage}
+        />
       </div>
 
       <OrderWizard 

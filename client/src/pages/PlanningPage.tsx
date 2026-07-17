@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import Pagination from '../components/Pagination';
 import { Truck as TruckIcon, Package, Loader2, MapPin, Calendar, ArrowRight, CheckCircle2, AlertTriangle, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
@@ -18,6 +19,8 @@ export default function PlanningPage() {
   const [selectedOrderToAssign, setSelectedOrderToAssign] = useState<any | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const loadData = async (silent = false) => {
     try {
@@ -170,6 +173,20 @@ export default function PlanningPage() {
     }
   };
 
+  const handleDeleteTrip = async (e: React.MouseEvent, tripId: string) => {
+    e.stopPropagation();
+    if (window.confirm("Confirmi ștergerea acestei curse?")) {
+      try {
+        await api.delete(`/trips/${tripId}`);
+        toast.success(t('global_delete_success', 'Deleted successfully'));
+        if (selectedTripId === tripId) setSelectedTripId(null);
+        loadData();
+      } catch (err) {
+        toast.error(t('global_delete_error', 'Failed to delete'));
+      }
+    }
+  };
+
   const handleDragEnd = async (result: any) => {
     const { destination, source, draggableId } = result;
     if (!destination) return;
@@ -290,6 +307,8 @@ export default function PlanningPage() {
     });
   };
 
+  const paginatedUnassigned = unassigned.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
       <DragDropContext onDragEnd={handleDragEnd}>
@@ -328,7 +347,7 @@ export default function PlanningPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60 text-sm">
-                  {unassigned.map((order, index) => {
+                  {paginatedUnassigned.map((order, index) => {
                     const pickup = order.stops?.find((s: any) => s.type === 'pickup');
                     const dropoff = order.stops?.find((s: any) => s.type === 'dropoff');
                     const weight = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || 0;
@@ -393,6 +412,13 @@ export default function PlanningPage() {
                   {provided.placeholder}
                 </tbody>
               </table>
+              <Pagination
+                currentPage={currentPage}
+                totalItems={unassigned.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={setItemsPerPage}
+              />
                 )}
               </Droppable>
             )}
@@ -499,9 +525,18 @@ export default function PlanningPage() {
                       {t('orders_in_trip', { count: stats.count })}
                     </span>
                     {stats.tripId && (
-                      <span className="text-primary font-bold hover:underline">
-                        {t('view_stops')} &rarr;
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <button 
+                          onClick={(e) => handleDeleteTrip(e, stats.tripId!)}
+                          className="text-red-500 hover:text-red-600 p-1 rounded-md hover:bg-red-50 transition-colors"
+                          title="Delete Trip"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <span className="text-primary font-bold hover:underline">
+                          {t('view_stops')} &rarr;
+                        </span>
+                      </div>
                     )}
                   </div>
                   {provided.placeholder}

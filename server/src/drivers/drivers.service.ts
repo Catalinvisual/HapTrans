@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Driver } from './driver.entity';
 import { DriverDocument } from './driver-document.entity';
 import { User } from '../users/user.entity';
+import { Truck } from '../trucks/truck.entity';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -12,11 +13,12 @@ export class DriversService {
     @InjectRepository(Driver) private repo: Repository<Driver>,
     @InjectRepository(DriverDocument) private docsRepo: Repository<DriverDocument>,
     @InjectRepository(User) private usersRepo: Repository<User>,
+    @InjectRepository(Truck) private trucksRepo: Repository<Truck>,
   ) {}
 
-  findAll() { return this.repo.find({ relations: ['user', 'documents'] }); }
-  findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['user', 'documents', 'trips'] }); }
-  findByUserId(userId: string) { return this.repo.findOne({ where: { user: { id: userId } }, relations: ['user'] }); }
+  findAll() { return this.repo.find({ relations: ['user', 'documents', 'trucks'] }); }
+  findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['user', 'documents', 'trips', 'trucks'] }); }
+  findByUserId(userId: string) { return this.repo.findOne({ where: { user: { id: userId } }, relations: ['user', 'trucks'] }); }
 
   async create(dto: any) {
     const exists = await this.usersRepo.findOne({ where: { email: dto.email } });
@@ -42,7 +44,13 @@ export class DriversService {
       tachoCardExpiry: dto.tachoCardExpiry ? new Date(dto.tachoCardExpiry) : null as any,
       status: dto.status || 'available'
     } as any);
-    return this.repo.save(driver);
+    const savedDriver = await this.repo.save(driver);
+
+    if (dto.truckId) {
+      await this.trucksRepo.update(dto.truckId, { driver: { id: savedDriver.id } as any });
+    }
+
+    return savedDriver;
   }
 
   async update(id: string, dto: any) {
@@ -73,7 +81,19 @@ export class DriversService {
     if (dto.tachoCardExpiry !== undefined) driver.tachoCardExpiry = dto.tachoCardExpiry ? new Date(dto.tachoCardExpiry) : null as any;
     if (dto.status !== undefined) driver.status = dto.status;
 
-    return this.repo.save(driver);
+    const savedDriver = await this.repo.save(driver);
+
+    if ('truckId' in dto) {
+      // First, remove this driver from any existing truck
+      await this.trucksRepo.update({ driver: { id: savedDriver.id } as any }, { driver: null } as any);
+      
+      // Then assign to the new truck if provided
+      if (dto.truckId) {
+        await this.trucksRepo.update(dto.truckId, { driver: { id: savedDriver.id } as any });
+      }
+    }
+
+    return savedDriver;
   }
 
   remove(id: string) { return this.repo.delete(id); }

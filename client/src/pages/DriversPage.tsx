@@ -41,6 +41,7 @@ export default function DriversPage() {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(formStore.driversShowForm);
   const [editId, setEditId] = useState<string | null>(formStore.driversEditId);
+  const [trucks, setTrucks] = useState<any[]>([]);
   const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
 
   const fpOptions = useMemo(() => ({
@@ -68,6 +69,7 @@ export default function DriversPage() {
     medicalExpiry: '',
     tachoCardExpiry: '',
     status: 'available',
+    truckId: '',
   });
 
   useEffect(() => {
@@ -86,8 +88,16 @@ export default function DriversPage() {
     }
   };
 
+  const loadTrucks = async () => {
+    try {
+      const r = await api.get('/trucks');
+      setTrucks(r.data);
+    } catch (err) {}
+  };
+
   useEffect(() => {
     loadDrivers();
+    loadTrucks();
   }, []);
 
   const isExpiringSoon = (date: string) => date && new Date(date) < new Date(Date.now() + 30 * 86400000);
@@ -148,7 +158,7 @@ export default function DriversPage() {
       setForm({
         name: '', email: '', password: '', phone: '',
         licenseNumber: '', dailyRate: '', grossSalary: '', licenseExpiry: '', medicalExpiry: '', tachoCardExpiry: '',
-        status: 'available',
+        status: 'available', truckId: '',
       });
       loadDrivers();
     } catch (err: any) {
@@ -170,6 +180,7 @@ export default function DriversPage() {
       medicalExpiry: d.medicalExpiry ? d.medicalExpiry.slice(0, 10) : '',
       tachoCardExpiry: d.tachoCardExpiry ? d.tachoCardExpiry.slice(0, 10) : '',
       status: d.status || 'available',
+      truckId: d.trucks?.[0]?.id || '',
     });
     setEditId(d.id);
     setShowForm(true);
@@ -207,7 +218,7 @@ export default function DriversPage() {
         setForm({
           name: '', email: '', password: '', phone: '', licenseNumber: '',
           licenseExpiry: '', medicalExpiry: '', tachoCardExpiry: '', status: 'active',
-          bankAccountName: '', bankAccountNumber: '', grossSalary: '', dailyRate: '', notes: ''
+          bankAccountName: '', bankAccountNumber: '', grossSalary: '', dailyRate: '', notes: '', truckId: ''
         });
         setEditId(null);
         setShowForm(true);
@@ -365,6 +376,17 @@ export default function DriversPage() {
                   { value: 'vacation', label: t('vacation'), color: 'text-warning' },
                 ]}
               />
+            </div>
+
+            {/* Truck Assignment */}
+            <div>
+              <label className="label font-semibold">{t('truck', 'Camion / Autotractor')}</label>
+              <select className="input" value={form.truckId} onChange={e => setForm({ ...form, truckId: e.target.value })}>
+                <option value="">{t('no_truck', 'Fără camion (Liber)')}</option>
+                {trucks.map(t => (
+                  <option key={t.id} value={t.id}>{t.plateNumber} {t.brand}</option>
+                ))}
+              </select>
             </div>
 
             {/* Document Expirations */}

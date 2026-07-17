@@ -964,7 +964,6 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
       invoices: "Facturen",
       noInvoices: "Geen facturen",
       eventHistory: "Gebeurtenisgeschiedenis",
-      eventHistory: "Gebeurtenisgeschiedenis",
       noEvents: "Geen gebeurtenissen.",
       pending: "In Afwachting",
       arrived: "Aangekomen",
@@ -973,6 +972,9 @@ smartDispatchAddressError: "Veuillez d'abord saisir l'adresse de chargement (Pic
       inProgress: "Bezig",
       cancelled: "Geannuleerd",
       delayed: "Vertraagd",
+      dispatched: "Verzonden",
+      load: "Laden",
+      unload: "Lossen",
       profitMargin: "Winstmarge",
       global_delete_title: "Bevestig verwijdering",
       global_delete_message: "Weet u zeker dat u dit item wilt verwijderen? Deze actie is onomkeerbaar.",
@@ -1632,6 +1634,12 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
       website_hub_tabs_services: 'Diensten',
       website_hub_tabs_fleet: 'Wagenpark',
       website_hub_tabs_contact: 'Contact',
+      financial: 'Financieel',
+      invoices: 'Facturen',
+      load: 'Laden',
+      unload: 'Lossen',
+      dispatched: 'Verzonden',
+      financialDetails: 'Financiële Details',
 },
   },
   de: { translation: {
@@ -2706,8 +2714,8 @@ delete (resources as any).frExtra;
 
 i18n.use(initReactI18next).init({
   resources,
-  lng: localStorage.getItem('hapcargo_lang') || 'nl',
-  fallbackLng: 'nl',
+  lng: localStorage.getItem('hapcargo_lang') || 'ro',
+  fallbackLng: 'ro',
   interpolation: { escapeValue: false },
 });
 

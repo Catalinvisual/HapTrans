@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Truck, MapPin, Search, Loader2, ArrowRight, Eye, MoreHorizontal, Calendar, Package, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import Pagination from '../components/Pagination';
 import toast from 'react-hot-toast';
 
 export default function TripsPage() {
@@ -15,6 +16,8 @@ export default function TripsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [tripToDelete, setTripToDelete] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const fetchTrips = async () => {
     try {
@@ -46,6 +49,8 @@ export default function TripsPage() {
     if (statusFilter === 'all') return true;
     return tr.status === statusFilter;
   });
+
+  const paginatedTrips = filteredTrips.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleDispatch = async (tripId: string) => {
     try {
@@ -143,7 +148,7 @@ export default function TripsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredTrips.map(trip => {
+                {paginatedTrips.map(trip => {
                   const driverName = trip.driver ? (trip.driver.firstName ? `${trip.driver.firstName} ${trip.driver.lastName || ''}`.trim() : trip.driver.name || 'Unknown Driver') : 'No Driver';
                   // Get stops sorted by sequence
                   const stops = trip.stops ? [...trip.stops].sort((a: any, b: any) => a.sequence - b.sequence) : [];
@@ -289,6 +294,13 @@ export default function TripsPage() {
             </table>
           </div>
         )}
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filteredTrips.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          onItemsPerPageChange={setItemsPerPage}
+        />
       </div>
       
       <ConfirmDeleteModal

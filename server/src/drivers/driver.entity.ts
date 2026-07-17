@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Trip } from '../trips/trip.entity';
+import { Truck } from '../trucks/truck.entity';
 import { DriverDocument } from './driver-document.entity';
 
 export enum DriverStatus {
@@ -51,6 +52,9 @@ export class Driver {
 
   @OneToMany(() => Trip, (trip) => trip.driver)
   trips: Trip[];
+
+  @OneToMany(() => Truck, (truck) => truck.driver)
+  trucks: Truck[];
 
   @OneToMany(() => DriverDocument, (doc) => doc.driver)
   documents: DriverDocument[];
