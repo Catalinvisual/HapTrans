@@ -284,7 +284,7 @@ export default function PlanningPage() {
       if (existingTrip) {
         await api.post(`/trips/${existingTrip.id}/assign-orders`, { orderIds: [orderId] });
         await api.patch(`/orders/${orderId}`, { status: 'assigned' });
-        toast.success(`✅ Comandă adăugată la cursa existentă (${truck.plateNumber})`);
+        toast.success(`${t('order_added_existing_trip', '✅ Comandă adăugată la cursa existentă')} (${truck.plateNumber})`);
       } else {
         const tripRes = await api.post('/trips', {
           truckId,
@@ -300,11 +300,12 @@ export default function PlanningPage() {
         });
         await api.post(`/trips/${tripRes.data.id}/assign-orders`, { orderIds: [orderId] });
         await api.patch(`/orders/${orderId}`, { status: 'assigned' });
-        toast.success(`✅ Cursă nouă creată și comanda asignată (${truck.plateNumber})`);
+        toast.success(`${t('new_trip_created_assigned', '✅ Cursă nouă creată și comanda asignată')} (${truck.plateNumber})`);
       }
       await loadData();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Eroare la asignarea comenzii');
+      const msg = err?.response?.data?.message;
+      toast.error(Array.isArray(msg) ? msg.join(', ') : (msg || err?.message || 'Eroare la asignarea comenzii'));
     } finally {
       setAssigning(null);
     }
