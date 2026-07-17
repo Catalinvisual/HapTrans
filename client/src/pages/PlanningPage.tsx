@@ -18,6 +18,7 @@ function OrderDetailDrawer({ order, onClose, onPlanTrip, onDelete }: {
   onPlanTrip: (order: any) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   if (!order) return null;
   const pickup = order.stops?.find((s: any) => s.type === 'pickup');
   const dropoff = order.stops?.find((s: any) => s.type === 'dropoff');
@@ -71,7 +72,7 @@ function OrderDetailDrawer({ order, onClose, onPlanTrip, onDelete }: {
           {/* Route */}
           <div className="bg-surface/50 rounded-xl border border-border p-4">
             <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5" /> Rută
+              <MapPin className="w-3.5 h-3.5" /> {t('route_section', 'Rută')}
             </h3>
             <div className="space-y-3">
               {pickup && (
@@ -80,7 +81,7 @@ function OrderDetailDrawer({ order, onClose, onPlanTrip, onDelete }: {
                     <div className="w-2 h-2 rounded-full bg-blue-500" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-blue-600 uppercase">Pickup</p>
+                    <p className="text-xs font-bold text-blue-600 uppercase">{t('loading_stop', '📦 ÎNCĂRCARE')}</p>
                     <p className="font-semibold text-sm text-text-primary">{pickup.companyName || pickup.city || 'TBD'}</p>
                     <p className="text-xs text-text-secondary">{pickup.address || '—'}</p>
                     {pickup.dateFrom && (
@@ -101,7 +102,7 @@ function OrderDetailDrawer({ order, onClose, onPlanTrip, onDelete }: {
                     <div className="w-2 h-2 rounded-full bg-green-500" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-green-600 uppercase">Delivery</p>
+                    <p className="text-xs font-bold text-green-600 uppercase">{t('unloading_stop', '🚛 DESCĂRCARE')}</p>
                     <p className="font-semibold text-sm text-text-primary">{dropoff.companyName || dropoff.city || 'TBD'}</p>
                     <p className="text-xs text-text-secondary">{dropoff.address || '—'}</p>
                     {dropoff.dateFrom && (
@@ -119,11 +120,11 @@ function OrderDetailDrawer({ order, onClose, onPlanTrip, onDelete }: {
           {/* Cargo */}
           <div className="bg-surface/50 rounded-xl border border-border p-4">
             <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <Package className="w-3.5 h-3.5" /> Marfă
+              <Package className="w-3.5 h-3.5" /> {t('cargo_section', 'Marfă')}
             </h3>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-card rounded-lg p-3 border border-border/60">
-                <p className="text-xs text-text-secondary">Greutate</p>
+                <p className="text-xs text-text-secondary">{t('weight_kg', 'Greutate')}</p>
                 <p className="font-black text-lg text-text-primary">{weight.toLocaleString()} <span className="text-sm font-semibold">kg</span></p>
               </div>
               <div className="bg-card rounded-lg p-3 border border-border/60">
@@ -131,11 +132,11 @@ function OrderDetailDrawer({ order, onClose, onPlanTrip, onDelete }: {
                 <p className="font-black text-lg text-text-primary">{ldm.toFixed(1)} <span className="text-sm font-semibold">LDM</span></p>
               </div>
               <div className="bg-card rounded-lg p-3 border border-border/60">
-                <p className="text-xs text-text-secondary">Volum</p>
+                <p className="text-xs text-text-secondary">{t('volume_cbm', 'Volum')}</p>
                 <p className="font-black text-lg text-text-primary">{volume.toFixed(1)} <span className="text-sm font-semibold">m³</span></p>
               </div>
               <div className="bg-card rounded-lg p-3 border border-border/60">
-                <p className="text-xs text-text-secondary">Cantitate</p>
+                <p className="text-xs text-text-secondary">{t('quantity_pcs', 'Cantitate')}</p>
                 <p className="font-black text-lg text-text-primary">{qty} <span className="text-sm font-semibold">buc</span></p>
               </div>
             </div>
@@ -401,7 +402,7 @@ export default function PlanningPage() {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Caută comandă..."
+                placeholder={t('search_order_placeholder', 'Caută comandă...')}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="input w-full text-xs py-2 pl-3 pr-8"
@@ -449,7 +450,7 @@ export default function PlanningPage() {
                                 ? 'shadow-2xl ring-2 ring-primary border-primary rotate-1 scale-105'
                                 : 'border-border hover:border-primary/40 hover:shadow-md'
                               }`}
-                            style={provided.draggableProps.style}
+                            style={{ ...provided.draggableProps.style, zIndex: snapshot.isDragging ? 9999 : 'auto' }}
                           >
                             {/* Top row */}
                             <div className="flex items-center justify-between gap-2">
@@ -506,7 +507,7 @@ export default function PlanningPage() {
 
             {/* Hint */}
             <p className="text-center text-[10px] text-text-muted py-1">
-              ☰ Trage comanda pe un camion din dreapta sau apasă <Info className="inline w-3 h-3" /> pentru detalii
+              {t('drag_hint', '☰ Trage comanda pe un camion din dreapta')} <Info className="inline w-3 h-3" />
             </p>
           </div>
 
@@ -549,7 +550,7 @@ export default function PlanningPage() {
                         {snapshot.isDraggingOver && (
                           <div className="absolute inset-0 flex items-center justify-center rounded-2xl pointer-events-none z-10">
                             <div className="bg-primary text-white font-black text-sm px-5 py-2.5 rounded-xl shadow-lg flex items-center gap-2">
-                              <TruckIcon className="w-4 h-4" /> Plasează aici
+                              <TruckIcon className="w-4 h-4" /> {t('drop_here_label', 'Plasează aici')}
                             </div>
                           </div>
                         )}
@@ -573,7 +574,7 @@ export default function PlanningPage() {
                               onClick={() => navigate(`/trips/${stats.tripId}`)}
                               className="flex items-center gap-1 text-xs font-bold text-primary hover:underline bg-primary/5 border border-primary/20 px-2 py-1 rounded-lg hover:bg-primary/10 transition-colors"
                             >
-                              <ExternalLink className="w-3 h-3" /> Cursă
+                              <ExternalLink className="w-3 h-3" /> {t('truck_label', 'Cursă')}
                             </button>
                           )}
                         </div>
@@ -589,7 +590,7 @@ export default function PlanningPage() {
                             onClick={e => e.stopPropagation()}
                             className="w-full text-xs bg-white dark:bg-card border border-border/80 rounded-lg px-2 py-1.5 font-semibold text-text-primary focus:outline-none focus:border-primary"
                           >
-                            <option value="">Fără Șofer</option>
+                            <option value="">{t('no_driver_option', 'Fără Șofer')}</option>
                             {drivers.map((d: any) => (
                               <option key={d.id} value={d.id}>{d.user?.name || 'Șofer'}</option>
                             ))}
@@ -621,8 +622,8 @@ export default function PlanningPage() {
                         {/* Orders in trip */}
                         <div className="mt-auto pt-3 border-t border-border/60">
                           <p className="text-[10px] font-bold text-text-secondary mb-1.5">
-                            {stats.count === 0 ? 'Nicio comandă asignată' : `${stats.count} comenzi în cursă`}
-                            {stats.stops.length > 0 && <span className="ml-1 text-primary">· {stats.stops.length} opriri</span>}
+                            {stats.count === 0 ? t('no_orders_assigned', 'Nicio comandă asignată') : `${stats.count} ${t('orders_in_trip_label', 'comenzi în cursă')}`}
+                            {stats.stops.length > 0 && <span className="ml-1 text-primary">· {stats.stops.length} {t('stops_count', 'opriri')}</span>}
                           </p>
                           {stats.orders.slice(0, 3).map((o: any) => (
                             <div key={o.id} className="flex items-center justify-between text-[11px] bg-surface/60 border border-border/30 rounded-lg px-2 py-1 mb-1">
