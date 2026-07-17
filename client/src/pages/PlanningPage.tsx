@@ -333,9 +333,12 @@ export default function PlanningPage() {
 
   const handleDragEnd = async (result: any) => {
     // Fix for Chromium Windows bug where cursor turns white/invisible after dropping
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
+    // Must be in setTimeout because react-beautiful-dnd restores focus asynchronously AFTER this callback
+    setTimeout(() => {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    }, 50);
     
     const { destination, source, draggableId } = result;
     if (!destination) return;
