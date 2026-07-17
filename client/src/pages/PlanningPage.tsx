@@ -334,6 +334,7 @@ export default function PlanningPage() {
             ) : (
               <Droppable droppableId="unassigned-orders" direction="vertical">
                 {(provided) => (
+                  <>
               <table className="w-full text-left border-collapse min-w-[900px]" ref={provided.innerRef} {...provided.droppableProps}>
                 <thead>
                   <tr className="bg-surface/50 border-b border-border text-xs uppercase font-bold text-text-secondary">
@@ -419,6 +420,7 @@ export default function PlanningPage() {
                 onPageChange={setCurrentPage}
                 onItemsPerPageChange={setItemsPerPage}
               />
+                  </>
                 )}
               </Droppable>
             )}
