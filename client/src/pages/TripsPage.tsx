@@ -232,7 +232,7 @@ export default function TripsPage() {
                                 return (w > 0 || items > 0) ? (
                                   <div key={`cargo-${o.id}`} className="flex items-center gap-1 text-xs text-text-secondary">
                                     <Package className="w-3.5 h-3.5" />
-                                    <span>{items} items {w > 0 && `(${Number(w).toLocaleString()} kg)`} {ldm > 0 && `• ${ldm.toFixed(1)} LDM`}</span>
+                                    <span>{items} {t('pallets', 'pallets')} {w > 0 && `(${Number(w).toLocaleString()} kg)`} {ldm > 0 && `• ${ldm.toFixed(1)} LDM`}</span>
                                   </div>
                                 ) : null;
                               })}

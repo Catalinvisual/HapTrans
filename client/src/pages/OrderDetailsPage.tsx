@@ -96,8 +96,8 @@ export default function OrderDetailsPage() {
       {/* Tab Content */}
       <div className="mt-6">
         {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="card p-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="card p-5 lg:col-span-2">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><MapPin className="text-primary" /> Route Info</h3>
               <div className="space-y-4">
                 {order.stops?.map((stop: any, idx: number) => (
@@ -124,6 +124,41 @@ export default function OrderDetailsPage() {
                 <div className="flex justify-between"><span className="text-text-secondary">Total Weight</span><span className="font-bold">{order.cargoItems?.reduce((a:number, c:any)=>a+Number(c.weightKg||0),0)} kg</span></div>
                 <div className="flex justify-between"><span className="text-text-secondary">Total LDM</span><span className="font-bold">{order.cargoItems?.reduce((a:number, c:any)=>a+Number(c.ldm||0),0).toFixed(1)} LDM</span></div>
                 <div className="flex justify-between"><span className="text-text-secondary">Total Volume</span><span className="font-bold">{order.cargoItems?.reduce((a:number, c:any)=>a+Number(c.volumeCbm||0),0).toFixed(1)} m³</span></div>
+              </div>
+
+              {order.cargoItems && order.cargoItems.length > 0 && (
+                <div className="mt-6 border-t border-border pt-4">
+                  <h4 className="font-bold mb-3 text-sm text-text-secondary uppercase">Cargo Items</h4>
+                  <div className="space-y-3">
+                    {order.cargoItems.map((item: any, idx: number) => (
+                      <div key={idx} className="bg-surface border border-border p-3 rounded-lg text-sm flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                        <div>
+                          <p className="font-bold">{item.quantity}x {item.type} <span className="text-text-secondary font-normal ml-1">({item.description || 'No description'})</span></p>
+                        </div>
+                        <div className="flex gap-4 text-xs font-semibold text-text-secondary bg-black/5 p-1.5 rounded">
+                          <span>{item.weightKg} kg</span>
+                          {item.ldm > 0 && <span>{item.ldm} LDM</span>}
+                          {item.volumeCbm > 0 && <span>{item.volumeCbm} m³</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="card p-5">
+              <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><FileText className="text-blue-500" /> References & Notes</h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between"><span className="text-text-secondary">Customer Ref</span><span className="font-bold">{order.customerReference || '—'}</span></div>
+                <div className="flex justify-between"><span className="text-text-secondary">Booking Ref</span><span className="font-bold">{order.bookingReference || '—'}</span></div>
+                <div className="flex justify-between"><span className="text-text-secondary">CMR Ref</span><span className="font-bold">{order.CMRReference || '—'}</span></div>
+                <div className="flex justify-between"><span className="text-text-secondary">Loading Ref</span><span className="font-bold">{order.loadingReference || '—'}</span></div>
+                <div className="flex justify-between"><span className="text-text-secondary">Unloading Ref</span><span className="font-bold">{order.unloadingReference || '—'}</span></div>
+                <div className="mt-4 pt-4 border-t border-border">
+                  <span className="text-text-secondary block mb-1">Internal Notes</span>
+                  <p className="text-text-primary whitespace-pre-wrap bg-surface p-3 rounded-lg border border-border/50 shadow-inner">{order.internalNotes || '—'}</p>
+                </div>
               </div>
             </div>
           </div>

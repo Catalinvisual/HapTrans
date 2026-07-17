@@ -24,7 +24,9 @@ export default function TrucksPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   
-  const [form, setForm] = useState(formStore.trucksForm || { plateNumber: '', brand: '', model: '', year: '', payloadCapacity: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '' });
+  const [drivers, setDrivers] = useState<any[]>([]);
+  
+  const [form, setForm] = useState(formStore.trucksForm || { plateNumber: '', brand: '', model: '', year: '', payloadCapacity: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '', driverId: '' });
   const [editId, setEditId] = useState<string | null>(formStore.trucksEditId);
   const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
 
@@ -44,7 +46,10 @@ export default function TrucksPage() {
       setDeleteId(null);
     }
   };
-  const load = () => api.get('/trucks').then(r => { setTrucks(r.data); setLoading(false); });
+  const load = () => {
+    api.get('/trucks').then(r => { setTrucks(r.data); setLoading(false); });
+    api.get('/drivers').then(r => setDrivers(r.data));
+  };
   useEffect(() => { load(); }, []);
 
   const handleSubmit = async (e?: any) => {
@@ -52,7 +57,7 @@ export default function TrucksPage() {
     try {
       if (editId) { await api.patch(`/trucks/${editId}`, form); toast.success(t('truckUpdated')); }
       else { await api.post('/trucks', form); toast.success(t('truckAdded')); }
-      setShowForm(false); setEditId(null); setForm({ plateNumber: '', brand: '', model: '', year: '', payloadCapacity: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '' });
+      setShowForm(false); setEditId(null); setForm({ plateNumber: '', brand: '', model: '', year: '', payloadCapacity: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '', driverId: '' });
       load();
     } catch { toast.error(t('saveError')); }
   };
@@ -73,7 +78,7 @@ export default function TrucksPage() {
   useShortcuts({
     'shift+n': () => {
       if (!showForm) {
-        setForm({ plateNumber: '', brand: '', model: '', year: '', payloadCapacity: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '' });
+        setForm({ plateNumber: '', brand: '', model: '', year: '', payloadCapacity: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '', driverId: '' });
         setEditId(null);
         setShowForm(true);
       }
@@ -95,7 +100,7 @@ export default function TrucksPage() {
     selectedIndex: selectedRowIndex,
     setSelectedIndex: setSelectedRowIndex,
     onOpen: (truck) => {
-      setForm({ plateNumber: truck.plateNumber, brand: truck.brand, model: truck.model, year: truck.year, payloadCapacity: truck.payloadCapacity, fuelConsumption: truck.fuelConsumption, totalMileage: truck.totalMileage || '', nextMaintenanceMileage: truck.nextMaintenanceMileage || '' });
+      setForm({ plateNumber: truck.plateNumber, brand: truck.brand, model: truck.model, year: truck.year, payloadCapacity: truck.payloadCapacity, fuelConsumption: truck.fuelConsumption, totalMileage: truck.totalMileage || '', nextMaintenanceMileage: truck.nextMaintenanceMileage || '', driverId: truck.driver?.id || '' });
       setEditId(truck.id);
       setShowForm(true);
     },
@@ -126,7 +131,7 @@ export default function TrucksPage() {
             ].map(f => (
               <div key={f.key}>
                 <label className="label font-semibold">{f.label}</label>
-                <input type={f.type || 'text'} className="input" value={(form as any)[f.key]}
+                <input type={f.type || 'text'} className="input" value={(form as any)[f.key] || ''}
                   onChange={e => {
                     let val = e.target.value;
                     if (f.key === 'plateNumber') val = val.toUpperCase();
@@ -134,6 +139,15 @@ export default function TrucksPage() {
                   }} required={f.required} autoFocus={f.key === 'plateNumber'} />
               </div>
             ))}
+            <div>
+              <label className="label font-semibold">{t('driver', 'Șofer')}</label>
+              <select className="input" value={(form as any).driverId || ''} onChange={e => setForm({ ...form, driverId: e.target.value })}>
+                <option value="">{t('no_driver', 'Fără șofer')}</option>
+                {drivers.map(d => (
+                  <option key={d.id} value={d.id}>{d.user?.name || 'Șofer'}</option>
+                ))}
+              </select>
+            </div>
             <div className="flex gap-3 col-span-1 md:col-span-2 lg:col-span-3 pt-3 border-t border-border mt-2">
               <button type="submit" className="btn-primary px-6 py-2.5 font-bold shadow-md shadow-primary/20">{t('save')}</button>
               <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="btn-secondary px-6 py-2.5 font-bold">{t('cancel')}</button>
@@ -166,7 +180,7 @@ export default function TrucksPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-surface border-b border-border">
-                {[t('plateNumber'), t('brand'), t('model'), t('year'), t('capacity'), t('consumption'), t('maintenance'), t('status'), t('documents'), t('actions')].map(h => (
+                {[t('plateNumber'), t('brand'), t('model'), t('year'), t('driver', 'Șofer'), t('capacity'), t('consumption'), t('maintenance'), t('status'), t('documents'), t('actions')].map(h => (
                   <th key={h} className={`table-header ${h === t('actions') ? 'text-right pr-4' : ''}`}>{h}</th>
                 ))}
               </tr>
@@ -181,7 +195,7 @@ export default function TrucksPage() {
                     className={`hover:bg-surface/60 transition-colors cursor-pointer ${selectedRowIndex === idx ? 'bg-primary/5 ring-1 ring-inset ring-primary' : ''}`}
                     onClick={(e) => {
                       if ((e.target as HTMLElement).closest('button, select, input, a, .interactive-click')) return;
-                      setForm({ plateNumber: truck.plateNumber, brand: truck.brand, model: truck.model, year: truck.year, payloadCapacity: truck.payloadCapacity, fuelConsumption: truck.fuelConsumption, totalMileage: truck.totalMileage || '', nextMaintenanceMileage: truck.nextMaintenanceMileage || '' });
+                      setForm({ plateNumber: truck.plateNumber, brand: truck.brand, model: truck.model, year: truck.year, payloadCapacity: truck.payloadCapacity, fuelConsumption: truck.fuelConsumption, totalMileage: truck.totalMileage || '', nextMaintenanceMileage: truck.nextMaintenanceMileage || '', driverId: truck.driver?.id || '' });
                       setEditId(truck.id);
                       setShowForm(true);
                     }}>
@@ -189,6 +203,13 @@ export default function TrucksPage() {
                   <td className="table-cell font-medium text-text">{truck.brand}</td>
                   <td className="table-cell text-text">{truck.model}</td>
                   <td className="table-cell text-text-secondary">{truck.year || '—'}</td>
+                  <td className="table-cell text-text-secondary">
+                    {truck.driver?.user?.name ? (
+                      <span className="font-semibold text-primary bg-primary/10 px-2 py-1 rounded-md">{truck.driver.user.name}</span>
+                    ) : (
+                      <span className="text-xs text-text-secondary italic">{t('no_driver', 'Fără șofer')}</span>
+                    )}
+                  </td>
                   <td className="table-cell text-text-secondary">{truck.payloadCapacity ? `${truck.payloadCapacity}t` : '—'}</td>
                   <td className="table-cell text-text-secondary">{truck.fuelConsumption ? `${truck.fuelConsumption}l` : '—'}</td>
                   <td className="table-cell">
@@ -222,7 +243,7 @@ export default function TrucksPage() {
                   </td>
                   <td className="table-cell">
                     <div className="flex items-center justify-end gap-1 pr-2">
-                      <button onClick={() => { setForm({ plateNumber: truck.plateNumber, brand: truck.brand, model: truck.model, year: truck.year, payloadCapacity: truck.payloadCapacity, fuelConsumption: truck.fuelConsumption, totalMileage: truck.totalMileage || '', nextMaintenanceMileage: truck.nextMaintenanceMileage || '' }); setEditId(truck.id); setShowForm(true); }} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary-light transition-all">
+                      <button onClick={() => { setForm({ plateNumber: truck.plateNumber, brand: truck.brand, model: truck.model, year: truck.year, payloadCapacity: truck.payloadCapacity, fuelConsumption: truck.fuelConsumption, totalMileage: truck.totalMileage || '', nextMaintenanceMileage: truck.nextMaintenanceMileage || '', driverId: truck.driver?.id || '' }); setEditId(truck.id); setShowForm(true); }} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary-light transition-all">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button onClick={() => setDeleteId(truck.id)} className="p-1.5 text-text-secondary hover:text-error rounded-lg hover:bg-red-50 transition-all">
