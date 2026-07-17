@@ -331,6 +331,11 @@ export default function PlanningPage() {
   };
 
   const handleDragEnd = async (result: any) => {
+    // Fix for Chromium Windows bug where cursor turns white/invisible after dropping
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    
     const { destination, source, draggableId } = result;
     if (!destination) return;
     if (destination.droppableId === source.droppableId) return;
