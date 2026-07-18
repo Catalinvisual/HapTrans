@@ -112,8 +112,8 @@
   /* Custom SVG/PNG Cursors for Grab/Grabbing to fix OS bugs */
   .cursor-grab-custom { cursor: url('/cursors/hand-drag-light.png') 16 16, pointer !important; }
   .cursor-grabbing-custom, body[data-rbd-drag-handle-context-id] { cursor: url('/cursors/hand-drag-light.png') 16 16, pointer !important; }
-  .dark .cursor-grab-custom { cursor: url('/cursors/hand-drag-dark.svg') 16 16, pointer !important; }
-  .dark .cursor-grabbing-custom, .dark body[data-rbd-drag-handle-context-id] { cursor: url('/cursors/hand-drag-dark.svg') 16 16, pointer !important; }
+  .dark .cursor-grab-custom { cursor: url('/cursors/hand-drag-dark.png') 16 16, pointer !important; }
+  .dark .cursor-grabbing-custom, .dark body[data-rbd-drag-handle-context-id] { cursor: url('/cursors/hand-drag-dark.png') 16 16, pointer !important; }
 
 
   /* Custom scrollbar for panels & modals */
