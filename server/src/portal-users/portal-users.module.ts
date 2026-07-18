@@ -3,9 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PortalUser } from './portal-user.entity';
 import { PortalUsersService } from './portal-users.service';
 import { PortalUsersController } from './portal-users.controller';
+import { EmailModule } from '../email/email.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PortalUser])],
+  imports: [TypeOrmModule.forFeature([PortalUser]), EmailModule],
   providers: [PortalUsersService],
   controllers: [PortalUsersController],
   exports: [PortalUsersService],

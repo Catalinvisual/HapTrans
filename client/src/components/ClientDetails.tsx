@@ -6,7 +6,9 @@ import toast from 'react-hot-toast';
 import AddressAutocomplete from './AddressAutocomplete';
 import CustomSelect from './CustomSelect';
 import ClientPortalAccess from './ClientPortalAccess';
-
+import InvoicesPage from '../pages/InvoicesPage';
+import TripsPage from '../pages/TripsPage';
+import DocumentsPage from '../pages/DocumentsPage';
 export default function ClientDetails({ client, onBack }: { client: any, onBack: () => void }) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('general');
@@ -256,15 +258,21 @@ export default function ClientDetails({ client, onBack }: { client: any, onBack:
           </div>
         )}
 
-        {(activeTab === 'invoices' || activeTab === 'trips' || activeTab === 'documents') && (
-          <div className="py-8 text-center text-text-secondary">
-            <div className="bg-surface w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Building2 className="w-8 h-8 text-text-secondary opacity-50" />
-            </div>
-            <p className="font-semibold text-lg">{t('comingSoon')}</p>
-            <p className="text-sm max-w-md mx-auto mt-2">
-              {t('viewDesc', { tab: t(`tab${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`, activeTab.charAt(0).toUpperCase() + activeTab.slice(1)).toLowerCase() })}
-            </p>
+        {activeTab === 'invoices' && (
+          <div className="py-2">
+            <InvoicesPage embeddedClientId={client.id} />
+          </div>
+        )}
+
+        {activeTab === 'trips' && (
+          <div className="py-2">
+            <TripsPage embeddedClientId={client.id} />
+          </div>
+        )}
+
+        {activeTab === 'documents' && (
+          <div className="py-2">
+            <DocumentsPage embeddedClientId={client.id} />
           </div>
         )}
       </div>

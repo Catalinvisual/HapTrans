@@ -7,7 +7,7 @@ import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Pagination from '../components/Pagination';
 import toast from 'react-hot-toast';
 
-export default function TripsPage() {
+export default function TripsPage({ embeddedClientId }: { embeddedClientId?: string }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [trips, setTrips] = useState<any[]>([]);
@@ -39,7 +39,8 @@ export default function TripsPage() {
     fetchTrips();
   }, [statusFilter]);
 
-  const filteredTrips = trips.filter(tr => {
+  const displayTrips = embeddedClientId ? trips.filter((t: any) => t.client?.id === embeddedClientId) : trips;
+  const filteredTrips = displayTrips.filter(tr => {
     const matchesSearch = 
       (tr.tripNumber || '').toLowerCase().includes(search.toLowerCase()) ||
       (tr.truck?.plateNumber || '').toLowerCase().includes(search.toLowerCase()) ||

@@ -86,10 +86,14 @@ const Header = () => {
 
           {mobileMenuOpen && (
             <div className={styles.mobileNavFooter}>
-              <a href="https://app.hapcargo.ro/portal/login" target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ width: '100%', padding: '0.9rem', fontSize: '1rem', backgroundColor: '#FF5A00', borderRadius: '0.5rem 2.5rem 0.5rem 2.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: '#fff', textDecoration: 'none' }} onClick={() => setMobileMenuOpen(false)}>
+              <Link href="/track" className="btn btn-primary" style={{ width: '100%', padding: '0.9rem', fontSize: '1rem', backgroundColor: '#FF5A00', borderRadius: '0.5rem 2.5rem 0.5rem 2.5rem', marginBottom: '10px' }} onClick={() => setMobileMenuOpen(false)}>
+                {t('trackOrder') || 'TRACK ORDER'}
+              </Link>
+              <a href="https://app.hapcargo.ro/portal/login" target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ width: '100%', padding: '0.9rem', fontSize: '1rem', backgroundColor: '#1e293b', borderRadius: '0.5rem 2.5rem 0.5rem 2.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: '#fff', textDecoration: 'none' }} onClick={() => setMobileMenuOpen(false)}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
                 {t('clientLogin') || 'Portal Clienți'}
               </a>
+
             </div>
           )}
         </nav>
@@ -118,9 +122,12 @@ const Header = () => {
           <Link href="/cere-oferta" className={`btn btn-primary ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#fff', color: '#FF5A00', border: '2px solid #FF5A00', borderRadius: '1.5rem 0.3rem 1.5rem 0.3rem' }}>
             {t('navQuote') || 'Cere ofertă'}
           </Link>
-          <a href="https://app.hapcargo.ro/portal/login" target="_blank" rel="noopener noreferrer" className={`btn btn-primary ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#FF5A00', borderRadius: '0.3rem 1.5rem 0.3rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#fff', textDecoration: 'none' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-            {t('clientLogin') || 'Portal Clienți'}
+          <Link href="/track" className={`btn btn-primary ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#FF5A00', borderRadius: '0.3rem 1.5rem 0.3rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#fff', textDecoration: 'none', border: '2px solid #FF5A00' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            {t('trackOrder') || 'TRACK ORDER'}
+          </Link>
+          <a href="https://app.hapcargo.ro/portal/login" target="_blank" rel="noopener noreferrer" className={`btn ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem', fontSize: '0.9rem', backgroundColor: '#1e293b', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', textDecoration: 'none', width: '42px', height: '42px', marginLeft: '0.5rem' }} title={t('clientLogin') || 'Portal Clienți'}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
           </a>
 
           <button className={styles.mobileMenuBtn} onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>

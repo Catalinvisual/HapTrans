@@ -4,12 +4,14 @@ import { Repository } from 'typeorm';
 import { PortalUser, PortalUserStatus } from './portal-user.entity';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
+import { ResendService } from '../email/resend.service';
 
 @Injectable()
 export class PortalUsersService {
   constructor(
     @InjectRepository(PortalUser)
     private repo: Repository<PortalUser>,
+    private resendService: ResendService,
   ) {}
 
   async findAllForClient(clientId: string) {
@@ -53,10 +55,13 @@ export class PortalUsersService {
 
     await this.repo.save(user);
 
-    // TODO: Send real email here
-    // For now we just return the raw token so admin can copy it
+    const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://app.hapcargo.ro';
+    const inviteLink = `${baseUrl}/portal/set-password?token=${token}&email=${encodeURIComponent(email)}`;
+    
+    await this.resendService.sendPortalInviteEmail(email, name || '', inviteLink);
+
     return { 
-      message: 'Invitation created', 
+      message: 'Invitation created and email sent', 
       inviteLink: `/portal/set-password?token=${token}&email=${encodeURIComponent(email)}` 
     };
   }

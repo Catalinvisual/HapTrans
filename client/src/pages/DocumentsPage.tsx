@@ -8,7 +8,7 @@ import { formatDate } from '../lib/dateUtils';
 import CustomSelect from '../components/CustomSelect';
 import Pagination from '../components/Pagination';
 
-export default function DocumentsPage() {
+export default function DocumentsPage({ embeddedClientId }: { embeddedClientId?: string }) {
   const { t, i18n } = useTranslation();
   const [docs, setDocs] = useState<any[]>([]);
   const [trips, setTrips] = useState<any[]>([]);
@@ -118,10 +118,15 @@ export default function DocumentsPage() {
     }
   };
 
+  const displayDocs = embeddedClientId ? docs.filter(doc => {
+    const trip = trips.find((t: any) => t.id === doc.trip?.id);
+    return trip?.client?.id === embeddedClientId;
+  }) : docs;
+
   return (
     <div className="space-y-5 animate-fade-in">
 
-      {showForm && (
+      {showForm && !embeddedClientId && (
         <div className="card animate-fade-in bg-card border border-border rounded-2xl p-6 shadow-md mb-6">
           <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">
             {t('uploadDocument')}

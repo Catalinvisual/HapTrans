@@ -382,4 +382,44 @@ export class ResendService {
       console.error('Error sending quote reply email:', e);
     }
   }
+
+  async sendPortalInviteEmail(email: string, name: string, inviteLink: string, company?: any) {
+    const logoUrl = await this.getLogoUrl(company);
+    const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; vertical-align: middle;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
+
+    const htmlContent = `
+      <html>
+      <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; background-color: #ffffff; margin: 0; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 24px; margin-top: 10px;">
+          ${logoHtml}
+        </div>
+        <p>Dear ${name || 'Client'},</p>
+        <p>You have been invited to access the HapCargo Client Portal.</p>
+        <p>Please click the button below to set up your password and activate your account:</p>
+        <br/>
+        <a href="${inviteLink}" style="background-color: #ff5a00; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Set Password & Login</a>
+        <br/><br/>
+        <p style="font-size: 13px; color: #666;">If the button doesn't work, copy and paste this link in your browser:<br/>${inviteLink}</p>
+        <br/>
+        <p>Best regards,<br/>The HapCargo Team</p>
+      </body>
+      </html>
+    `;
+
+    try {
+      if (process.env.RESEND_API_KEY) {
+        const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+        await this.resend.emails.send({
+          from: `HapCargo <${fromEmail}>`,
+          to: email,
+          subject: 'Invitation to HapCargo Client Portal',
+          html: htmlContent,
+        });
+      } else {
+        console.log('[MOCK EMAIL] Portal Invite to:', email, inviteLink);
+      }
+    } catch (e) {
+      console.error('Error sending portal invite email:', e);
+    }
+  }
 }

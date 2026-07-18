@@ -18,7 +18,7 @@ import { useTableShortcuts } from '../hooks/useTableShortcuts';
 
 const STATUS_COLORS: Record<string, string> = { draft:'badge-gray', approved:'bg-indigo-100 text-indigo-700', sent:'badge-primary', paid:'badge-success', overdue:'badge-error', cancelled:'badge-error' };
 
-export default function InvoicesPage() {
+export default function InvoicesPage({ embeddedClientId }: { embeddedClientId?: string }) {
   const formStore = useFormStore();
   const { t, i18n } = useTranslation();
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -432,7 +432,8 @@ export default function InvoicesPage() {
     }
   };
 
-  const filtered = invoices.filter(i => {
+  const displayInvoices = embeddedClientId ? invoices.filter((inv: any) => inv.client?.id === embeddedClientId) : invoices;
+  const filtered = displayInvoices.filter(i => {
     const query = search.toLowerCase();
     return (
       (i.invoiceNumber || '').toLowerCase().includes(query) ||
