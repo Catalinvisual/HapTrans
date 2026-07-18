@@ -17,7 +17,7 @@ export class PortalInvoicesController {
     return this.repo.find({
       where: { client: { id: clientId } },
       order: { createdAt: 'DESC' },
-      relations: ['order'],
+      relations: ['trip', 'trip.orders'],
     });
   }
 
@@ -26,7 +26,7 @@ export class PortalInvoicesController {
     const clientId = req.user.client?.id || req.user.clientId;
     return this.repo.findOne({
       where: { id, client: { id: clientId } },
-      relations: ['order'],
+      relations: ['trip', 'trip.orders'],
     });
   }
 }

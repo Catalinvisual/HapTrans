@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Truck, MapPin, Search } from 'lucide-react';
 import portalApi from '../../lib/portalApi';
+import { Link } from 'react-router-dom';
 
 export default function PortalTripsPage() {
   const { t } = useTranslation();
@@ -50,9 +51,9 @@ export default function PortalTripsPage() {
                   <p className="flex justify-between"><span className="text-text-secondary">Orders:</span> <span className="font-bold">{trip.orders?.length || 0}</span></p>
                 </div>
 
-                <button className="w-full mt-4 btn-secondary py-2 text-primary font-bold hover:bg-primary hover:text-white transition-colors">
+                <Link to={`/track/${trip.trackingToken}`} className="block text-center w-full mt-4 btn-secondary py-2 text-primary font-bold hover:bg-primary hover:text-white transition-colors">
                   View Map
-                </button>
+                </Link>
               </div>
             ))}
           </div>

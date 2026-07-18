@@ -12,6 +12,18 @@ export default function PortalLayout() {
   const [user, setUser] = useState<any>(null);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_URL}/public/company-settings`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.logo) {
+          setCompanyLogo(data.logo);
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('portal_user');
@@ -58,10 +70,14 @@ export default function PortalLayout() {
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded bg-primary flex items-center justify-center">
-                <Truck className="w-5 h-5 text-white" />
-              </div>
-              <span className="font-bold text-lg hidden sm:block text-primary">HapTrans Portal</span>
+              {companyLogo ? (
+                <img src={companyLogo} alt="Logo" className="h-8 max-w-[150px] object-contain" />
+              ) : (
+                <div className="w-8 h-8 rounded bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
+                  <Truck className="w-5 h-5 text-white" />
+                </div>
+              )}
+              <span className="font-bold text-xl hidden sm:block text-text ml-2 tracking-tight">Portal</span>
             </div>
           </div>
 
@@ -100,13 +116,16 @@ export default function PortalLayout() {
               <RouterLink
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all group relative ${
                   location.pathname === item.path
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-text-secondary hover:text-primary hover:bg-surface-hover'
+                    ? 'text-primary bg-primary/10'
+                    : 'text-text-secondary hover:text-text hover:bg-surface-hover'
                 }`}
               >
-                <item.icon className={`w-5 h-5 ${location.pathname === item.path ? 'text-primary' : 'opacity-70'}`} />
+                {location.pathname === item.path && (
+                  <div className="absolute left-0 top-2 bottom-2 w-1 bg-primary rounded-r-full" />
+                )}
+                <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${location.pathname === item.path ? 'text-primary' : 'opacity-70'}`} />
                 {item.label}
               </RouterLink>
             ))}
@@ -123,13 +142,16 @@ export default function PortalLayout() {
                     key={item.path}
                     to={item.path}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all group relative ${
                       location.pathname === item.path
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-text-secondary hover:text-primary hover:bg-surface-hover'
+                        ? 'text-primary bg-primary/10'
+                        : 'text-text-secondary hover:text-text hover:bg-surface-hover'
                     }`}
                   >
-                    <item.icon className="w-5 h-5" />
+                    {location.pathname === item.path && (
+                      <div className="absolute left-0 top-2 bottom-2 w-1 bg-primary rounded-r-full" />
+                    )}
+                    <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${location.pathname === item.path ? 'text-primary' : 'opacity-70'}`} />
                     {item.label}
                   </RouterLink>
                 ))}
