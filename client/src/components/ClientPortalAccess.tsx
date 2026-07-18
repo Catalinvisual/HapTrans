@@ -80,10 +80,10 @@ export default function ClientPortalAccess({ clientId }: { clientId: string }) {
           <button type="submit" className="btn-primary py-2 px-6 whitespace-nowrap">{t('sendInvite', 'Send Invite')}</button>
         </form>
         {inviteLink && (
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
-            <p className="font-semibold text-blue-800 mb-1">{t('inviteGenerated', 'Invitation Link Generated!')}</p>
-            <p className="text-blue-600 text-xs mb-2">{t('inviteManualSendDesc', 'Since email delivery is not yet configured, please copy and send this link manually to the user:')}</p>
-            <code className="block bg-white p-2 border border-blue-100 rounded text-xs select-all break-all text-blue-900">{inviteLink}</code>
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
+            <p className="font-semibold text-green-800 mb-1">{t('inviteSentSuccess', 'Invitation Email Sent!')}</p>
+            <p className="text-green-700 text-xs mb-2">{t('inviteManualSendDesc', 'An invitation has been sent via email to this user. You can also copy the link manually if needed:')}</p>
+            <code className="block bg-white p-2 border border-green-100 rounded text-xs select-all break-all text-green-900">{inviteLink}</code>
           </div>
         )}
       </div>
