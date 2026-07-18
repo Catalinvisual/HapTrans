@@ -215,19 +215,10 @@ export default function ClientsPage() {
                     <td className="table-cell">
                       <div className="flex items-center gap-2">
                         <button onClick={() => setSelectedClient(c)} className="btn-secondary py-1.5 px-3 text-xs font-bold bg-primary/5 text-primary hover:bg-primary/10 border-transparent">
-                          View Details
+                          {t('viewDetails', 'View Details')}
                         </button>
                         <button onClick={() => {
-                          setEditId(c.id);
-                          setForm({
-                            name: c.name || '',
-                            cui: c.cui || '',
-                            address: c.address || '',
-                            contactName: c.contactName || '',
-                            contactEmail: c.contactEmail || '',
-                            phone: c.phone || '',
-                          });
-                          setShowForm(true);
+                          setSelectedClient(c);
                         }} className="p-1.5 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-colors" title={t('edit')}>
                           <Pencil className="w-4 h-4" />
                         </button>

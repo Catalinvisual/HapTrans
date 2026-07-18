@@ -97,7 +97,7 @@ export default function ClientDetails({ client, onBack }: { client: any, onBack:
               activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-text'
             }`}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {t(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`, tab.charAt(0).toUpperCase() + tab.slice(1))}
           </button>
         ))}
       </div>
@@ -263,7 +263,7 @@ export default function ClientDetails({ client, onBack }: { client: any, onBack:
             </div>
             <p className="font-semibold text-lg">{t('comingSoon')}</p>
             <p className="text-sm max-w-md mx-auto mt-2">
-              {t('viewDesc', { tab: activeTab })}
+              {t('viewDesc', { tab: t(`tab${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`, activeTab.charAt(0).toUpperCase() + activeTab.slice(1)).toLowerCase() })}
             </p>
           </div>
         )}
