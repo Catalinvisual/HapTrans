@@ -1,17 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Package, MapPin, Calendar, ArrowRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import portalApi from '../../lib/portalApi';
 import { formatDate } from '../../lib/dateUtils';
+import Pagination from '../../components/Pagination';
 
 export default function PortalOrdersPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = parseInt(searchParams.get('page') || '1');
+  const limit = parseInt(searchParams.get('limit') || '10');
+  const search = searchParams.get('search') || '';
+  const filter = searchParams.get('filter') || 'all';
 
   useEffect(() => {
     portalApi.get('/portal/orders').then(r => {
@@ -33,6 +37,23 @@ export default function PortalOrdersPage() {
     return true;
   });
 
+  const totalPages = Math.ceil(filteredOrders.length / limit);
+  const paginatedOrders = filteredOrders.slice((page - 1) * limit, page * limit);
+
+  const updateParams = (updates: Record<string, string>) => {
+    const newParams = new URLSearchParams(searchParams);
+    Object.entries(updates).forEach(([k, v]) => {
+      if (v) newParams.set(k, v);
+      else newParams.delete(k);
+    });
+    setSearchParams(newParams);
+  };
+
+  const handlePageChange = (newPage: number) => updateParams({ page: newPage.toString() });
+  const handleLimitChange = (newLimit: number) => updateParams({ page: '1', limit: newLimit.toString() });
+  const handleSearchChange = (val: string) => updateParams({ page: '1', search: val });
+  const handleFilterChange = (val: string) => updateParams({ page: '1', filter: val });
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -50,14 +71,14 @@ export default function PortalOrdersPage() {
               className="input pl-9" 
               placeholder="Search reference, city..." 
               value={search} 
-              onChange={e => setSearch(e.target.value)} 
+              onChange={e => handleSearchChange(e.target.value)} 
             />
           </div>
           <div className="flex items-center gap-2 overflow-x-auto pb-1">
             {['all', 'active', 'completed', 'cancelled'].map(f => (
               <button
                 key={f}
-                onClick={() => setFilter(f)}
+                onClick={() => handleFilterChange(f)}
                 className={`px-4 py-2 rounded-lg text-sm font-semibold capitalize whitespace-nowrap transition-colors ${
                   filter === f ? 'bg-primary text-white' : 'bg-surface hover:bg-surface-hover border border-border'
                 }`}
@@ -74,7 +95,7 @@ export default function PortalOrdersPage() {
           <div className="py-12 text-center text-text-secondary">No orders found.</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredOrders.map(o => (
+            {paginatedOrders.map(o => (
               <div 
                 key={o.id} 
                 onClick={() => navigate(`/portal/orders/${o.id}`)}
@@ -124,6 +145,18 @@ export default function PortalOrdersPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {filteredOrders.length > 0 && (
+          <div className="p-4 border-t border-border mt-4 flex justify-center">
+            <Pagination
+              currentPage={page}
+              totalItems={filteredOrders.length}
+              itemsPerPage={limit}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleLimitChange}
+            />
           </div>
         )}
       </div>

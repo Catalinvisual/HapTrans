@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Invoice } from './invoice.entity';
 import { InvoiceItem } from './invoice-item.entity';
+import { Payment } from '../payments/payment.entity';
 import { InvoicesController } from './invoices.controller';
 import { InvoicesService } from './invoices.service';
 import { PdfService } from './pdf.service';
@@ -35,7 +36,7 @@ import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Invoice, InvoiceItem]),
+    TypeOrmModule.forFeature([Invoice, InvoiceItem, Payment]),
     MulterModule.register({ storage }),
     UsersModule,
   ],

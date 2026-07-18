@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Truck, MapPin, Search } from 'lucide-react';
+import { useSearchParams, Link } from 'react-router-dom';
 import portalApi from '../../lib/portalApi';
-import { Link } from 'react-router-dom';
+import Pagination from '../../components/Pagination';
 
 export default function PortalTripsPage() {
   const { t } = useTranslation();
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = parseInt(searchParams.get('page') || '1');
+  const limit = parseInt(searchParams.get('limit') || '10');
 
   useEffect(() => {
     portalApi.get('/portal/trips').then(r => {
@@ -15,6 +20,17 @@ export default function PortalTripsPage() {
       setLoading(false);
     });
   }, []);
+
+  const totalPages = Math.ceil(trips.length / limit);
+  const paginatedTrips = trips.slice((page - 1) * limit, page * limit);
+
+  const handlePageChange = (newPage: number) => {
+    setSearchParams({ page: newPage.toString(), limit: limit.toString() });
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    setSearchParams({ page: '1', limit: newLimit.toString() });
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -29,7 +45,7 @@ export default function PortalTripsPage() {
           <div className="py-12 text-center text-text-secondary">No active trips found.</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {trips.map(trip => (
+            {paginatedTrips.map(trip => (
               <div key={trip.id} className="bg-surface border border-border p-4 rounded-xl hover:border-primary/50 transition-colors">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3">
@@ -62,6 +78,18 @@ export default function PortalTripsPage() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {trips.length > 0 && (
+          <div className="p-4 border-t border-border mt-4 flex justify-center">
+            <Pagination
+              currentPage={page}
+              totalItems={trips.length}
+              itemsPerPage={limit}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleLimitChange}
+            />
           </div>
         )}
       </div>

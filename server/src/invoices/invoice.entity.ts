@@ -2,11 +2,13 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDat
 import { Trip } from '../trips/trip.entity';
 import { Client } from '../clients/client.entity';
 import { InvoiceItem } from './invoice-item.entity';
+import { Payment } from '../payments/payment.entity';
 
 export enum InvoiceStatus {
   DRAFT = 'draft',
   APPROVED = 'approved',
   SENT = 'sent',
+  VIEWED = 'viewed',
   PAID = 'paid',
   OVERDUE = 'overdue',
   CANCELLED = 'cancelled',
@@ -61,6 +63,9 @@ export class Invoice {
 
   @OneToMany(() => InvoiceItem, item => item.invoice, { cascade: true, eager: true })
   items: InvoiceItem[];
+
+  @OneToMany(() => Payment, payment => payment.invoice, { cascade: true, eager: true })
+  payments: Payment[];
 
   @Column({ type: 'date', nullable: true })
   issueDate: Date;
