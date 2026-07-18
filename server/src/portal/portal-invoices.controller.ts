@@ -12,7 +12,7 @@ export class PortalInvoicesController {
   ) {}
 
   @Get()
-  async findAll(@Request() req) {
+  async findAll(@Request() req: any) {
     const clientId = req.user.client?.id || req.user.clientId;
     return this.repo.find({
       where: { client: { id: clientId } },
@@ -22,7 +22,7 @@ export class PortalInvoicesController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string, @Request() req) {
+  async findOne(@Param('id') id: string, @Request() req: any) {
     const clientId = req.user.client?.id || req.user.clientId;
     return this.repo.findOne({
       where: { id, client: { id: clientId } },

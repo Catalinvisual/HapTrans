@@ -2,8 +2,8 @@ import { Controller, Get, UseGuards, Request } from '@nestjs/common';
 import { PortalJwtAuthGuard } from '../portal-auth/portal-jwt-auth.guard';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Order } from '../orders/order.entity';
-import { Invoice } from '../invoices/invoice.entity';
-import { Repository } from 'typeorm';
+import { Invoice, InvoiceStatus } from '../invoices/invoice.entity';
+import { Repository, In } from 'typeorm';
 
 @Controller('portal/dashboard')
 @UseGuards(PortalJwtAuthGuard)
@@ -14,7 +14,7 @@ export class PortalDashboardController {
   ) {}
 
   @Get('stats')
-  async getStats(@Request() req) {
+  async getStats(@Request() req: any) {
     const clientId = req.user.client?.id || req.user.clientId;
     
     // Calculate Today's Shipments
@@ -30,7 +30,7 @@ export class PortalDashboardController {
     });
 
     const outstandingInvoices = await this.invoicesRepo.find({
-      where: { client: { id: clientId }, status: 'unpaid' },
+      where: { client: { id: clientId }, status: In([InvoiceStatus.SENT, InvoiceStatus.OVERDUE, InvoiceStatus.APPROVED]) },
     });
 
     const outstandingBalance = outstandingInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);

@@ -49,7 +49,7 @@ export class PortalUsersService {
 
     user.inviteToken = hashedToken;
     user.inviteTokenExpires = expires;
-    user.inviteTokenUsedAt = null;
+    user.inviteTokenUsedAt = null as any;
 
     await this.repo.save(user);
 

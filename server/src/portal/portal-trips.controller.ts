@@ -12,7 +12,7 @@ export class PortalTripsController {
   ) {}
 
   @Get()
-  async findAll(@Request() req) {
+  async findAll(@Request() req: any) {
     const clientId = req.user.client?.id || req.user.clientId;
     // We only want trips that have an order belonging to this client.
     // We can use query builder for this.
@@ -27,7 +27,7 @@ export class PortalTripsController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string, @Request() req) {
+  async findOne(@Param('id') id: string, @Request() req: any) {
     const clientId = req.user.client?.id || req.user.clientId;
     return this.repo.createQueryBuilder('trip')
       .innerJoinAndSelect('trip.orders', 'order')
