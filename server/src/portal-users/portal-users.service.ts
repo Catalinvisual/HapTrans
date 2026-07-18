@@ -55,7 +55,7 @@ export class PortalUsersService {
 
     await this.repo.save(user);
 
-    const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://app.hapcargo.ro';
+    const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
     const inviteLink = `${baseUrl}/portal/set-password?token=${token}&email=${encodeURIComponent(email)}`;
     
     await this.resendService.sendPortalInviteEmail(email, name || '', inviteLink);
