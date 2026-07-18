@@ -64,8 +64,8 @@ export default function PortalLayout() {
     <div className="min-h-screen bg-background text-text flex flex-col font-sans transition-colors duration-200">
       {/* Header */}
       <header className="sticky top-0 z-40 w-full bg-surface border-b border-border shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-4">
             <button className="lg:hidden p-2 -ml-2 text-text-secondary hover:text-primary" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -108,15 +108,15 @@ export default function PortalLayout() {
       </header>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto">
+      <div className="flex-1 flex w-full">
         {/* Sidebar - Desktop */}
-        <aside className="hidden lg:block w-64 shrink-0 py-8 pr-8">
-          <nav className="space-y-1">
+        <aside className="hidden lg:block w-64 shrink-0 py-6 px-4 border-r border-border min-h-[calc(100vh-4rem)] bg-surface/30">
+          <nav className="space-y-1.5">
             {menuItems.map((item) => (
               <RouterLink
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all group relative ${
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-all group relative ${
                   location.pathname === item.path
                     ? 'text-primary bg-primary/10'
                     : 'text-text-secondary hover:text-text hover:bg-surface-hover'
@@ -161,7 +161,7 @@ export default function PortalLayout() {
         )}
 
         {/* Page Content */}
-        <main className="flex-1 min-w-0 py-8 px-4 sm:px-6 lg:px-0">
+        <main className="flex-1 min-w-0 py-8 px-6 lg:px-10">
           <RouterOutlet />
         </main>
       </div>

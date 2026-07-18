@@ -42,9 +42,9 @@ export default function PortalInvoicesPage() {
               <tbody>
                 {invoices.map(inv => (
                   <tr key={inv.id} className="border-b border-border hover:bg-surface/50">
-                    <td className="p-3 font-semibold text-text">{inv.number}</td>
+                    <td className="p-3 font-semibold text-text">{inv.invoiceNumber || '—'}</td>
                     <td className="p-3 text-text-secondary">{formatDate(inv.createdAt)}</td>
-                    <td className="p-3">{inv.trip?.orders?.[0]?.referenceNumber || '—'}</td>
+                    <td className="p-3">{inv.trip?.orders?.[0]?.referenceNumber || (inv.trip?.id ? `TRIP-${inv.trip.id.slice(0, 8).toUpperCase()}` : '—')}</td>
                     <td className="p-3 font-bold text-primary">€{Number(inv.total).toLocaleString()}</td>
                     <td className="p-3">
                       <span className={`px-2 py-1 rounded text-xs font-bold capitalize ${

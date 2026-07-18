@@ -51,9 +51,15 @@ export default function PortalTripsPage() {
                   <p className="flex justify-between"><span className="text-text-secondary">Orders:</span> <span className="font-bold">{trip.orders?.length || 0}</span></p>
                 </div>
 
-                <Link to={`/track/${trip.trackingToken}`} className="block text-center w-full mt-4 btn-secondary py-2 text-primary font-bold hover:bg-primary hover:text-white transition-colors">
-                  View Map
-                </Link>
+                {trip.orders?.[0]?.trackingToken ? (
+                  <Link to={`/track/${trip.orders[0].trackingToken}`} className="block text-center w-full mt-4 btn-secondary py-2 text-primary font-bold hover:bg-primary hover:text-white transition-colors">
+                    View Map
+                  </Link>
+                ) : (
+                  <button disabled className="w-full mt-4 btn-secondary py-2 text-text-secondary opacity-50 cursor-not-allowed font-bold">
+                    No map available
+                  </button>
+                )}
               </div>
             ))}
           </div>
