@@ -30,7 +30,7 @@ export class ValidationEngine {
   }
 
   validateOrderAssignment(order: Order, trip: Trip): void {
-    if (order.status !== OrderStatus.DRAFT && order.status !== OrderStatus.NEW && order.status !== OrderStatus.ASSIGNED) {
+    if (![OrderStatus.DRAFT, OrderStatus.NEW, OrderStatus.ASSIGNED, 'pending', 'unassigned'].includes(order.status)) {
       throw new BadRequestException(`Order ${order.orderNumber} is not available for assignment`);
     }
     // Check if trip company matches order company

@@ -35,6 +35,9 @@ import { OrdersModule } from './orders/orders.module';
 
 import { EnginesModule } from './engines/engines.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { PortalUsersModule } from './portal-users/portal-users.module';
+import { PortalAuthModule } from './portal-auth/portal-auth.module';
+import { PortalModule } from './portal/portal.module';
 
 @Module({
   imports: [
@@ -58,6 +61,9 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
       }),
       inject: [ConfigService],
     }),
+    PortalUsersModule,
+    PortalAuthModule,
+    PortalModule,
     AuthModule,
     UsersModule,
     ClientsModule,

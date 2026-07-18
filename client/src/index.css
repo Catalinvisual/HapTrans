@@ -110,10 +110,10 @@
   .animate-pulse-dot     { animation: pulseDot 2s infinite; }
 
   /* Custom SVG/PNG Cursors for Grab/Grabbing to fix OS bugs */
-  .cursor-grab-custom { cursor: url('/cursors/grab-light.png') 16 8, pointer !important; }
-  .cursor-grabbing-custom, body[data-rbd-drag-handle-context-id] { cursor: url('/cursors/grabbing-light.png') 16 8, pointer !important; }
-  .dark .cursor-grab-custom { cursor: url('/cursors/grab-dark.svg') 16 4, pointer !important; }
-  .dark .cursor-grabbing-custom, .dark body[data-rbd-drag-handle-context-id] { cursor: url('/cursors/grabbing-dark.svg') 16 4, pointer !important; }
+  .cursor-grab-custom { cursor: url('/cursors/hand-drag-light.png') 16 16, pointer !important; }
+  .cursor-grabbing-custom, body[data-rbd-drag-handle-context-id] { cursor: url('/cursors/hand-drag-light.png') 16 16, pointer !important; }
+  .dark .cursor-grab-custom { cursor: url('/cursors/hand-drag-dark.svg') 16 16, pointer !important; }
+  .dark .cursor-grabbing-custom, .dark body[data-rbd-drag-handle-context-id] { cursor: url('/cursors/hand-drag-dark.svg') 16 16, pointer !important; }
 
 
   /* Custom scrollbar for panels & modals */

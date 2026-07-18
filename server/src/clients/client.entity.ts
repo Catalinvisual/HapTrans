@@ -4,6 +4,7 @@ import { ClientRate } from './client-rate.entity';
 import { Order } from '../orders/order.entity';
 
 import { Company } from '../companies/company.entity';
+import { PortalUser } from '../portal-users/portal-user.entity';
 
 @Entity('clients')
 export class Client {
@@ -45,6 +46,9 @@ export class Client {
 
   @Column({ default: 'standard' })
   vatRule: string;
+
+  @OneToMany(() => PortalUser, (user) => user.client)
+  portalUsers: PortalUser[];
 
   @OneToMany(() => ClientRate, rate => rate.client)
   rates: ClientRate[];

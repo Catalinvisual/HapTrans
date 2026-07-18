@@ -578,6 +578,15 @@ export default function Layout() {
                 <Download className="w-4 h-4" />
               </button>
             )}
+            {/* Client Portal Link */}
+            <button 
+              onClick={() => window.open('/portal/login', '_blank')}
+              title={t('client_portal', 'Client Portal')}
+              className="px-3 h-9 flex items-center justify-center gap-2 rounded-xl bg-primary text-white border border-primary/20 hover:bg-primary-light transition-all shadow-sm font-semibold text-sm"
+            >
+              <Truck className="w-4 h-4" />
+              <span className="hidden sm:inline">Client Portal</span>
+            </button>
             {/* Global Search Icon */}
             <button 
               onClick={() => setIsSearchOpen(true)}

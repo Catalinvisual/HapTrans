@@ -112,7 +112,8 @@ export class PlanningEngine {
       
       const optResult = await this.optimizationEngine.checkAssignmentFeasibility(trip, order);
       if (!optResult.feasible) {
-        throw new BadRequestException(`Planificarea a fost blocată: ${optResult.warnings.join(', ')}`);
+        // Just log the warnings, but allow the assignment (frontend warns and asks for confirmation)
+        console.warn(`Assignment warnings for Order ${order.orderNumber}: ${optResult.warnings.join(', ')}`);
       }
     }
 

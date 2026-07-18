@@ -284,7 +284,7 @@ export default function PlanningPage() {
       if (existingTrip) {
         await api.post(`/trips/${existingTrip.id}/assign-orders`, { orderIds: [orderId] });
         await api.patch(`/orders/${orderId}`, { status: 'assigned' });
-        toast.success(`${t('order_added_existing_trip', '✅ Comandă adăugată la cursa existentă')} (${truck.plateNumber})`);
+        toast.success(`✅ ${t('assigned_to_existing_trip', { plate: truck.plateNumber })}`);
       } else {
         const tripRes = await api.post('/trips', {
           truckId,
@@ -300,7 +300,7 @@ export default function PlanningPage() {
         });
         await api.post(`/trips/${tripRes.data.id}/assign-orders`, { orderIds: [orderId] });
         await api.patch(`/orders/${orderId}`, { status: 'assigned' });
-        toast.success(`${t('new_trip_created_assigned', '✅ Cursă nouă creată și comanda asignată')} (${truck.plateNumber})`);
+        toast.success(`✅ ${t('new_trip_created_assigned', { plate: truck.plateNumber })}`);
       }
       await loadData();
     } catch (err: any) {
@@ -523,7 +523,7 @@ export default function PlanningPage() {
           {/* ═══════════════════════════════════════
               RIGHT — Trucks / Active Fleet
           ════════════════════════════════════════ */}
-          <div className="flex-1 min-w-0 flex flex-col gap-4 relative z-0">
+          <div className="flex-1 min-w-0 flex flex-col gap-4">
             <div className="flex items-center gap-2">
               <TruckIcon className="w-5 h-5 text-primary" />
               <h2 className="font-bold text-text-primary text-lg">{t('active_fleet_title', 'Flotă Activă')}</h2>
@@ -552,7 +552,7 @@ export default function PlanningPage() {
                         {...provided.droppableProps}
                         className={`relative bg-card border rounded-2xl p-5 transition-all duration-200 shadow-sm flex flex-col min-h-[200px]
                           ${snapshot.isDraggingOver
-                            ? 'border-primary bg-primary/8 scale-[1.01] shadow-xl ring-2 ring-primary/40'
+                            ? 'border-primary bg-primary/8 scale-[1.01] shadow-xl ring-2 ring-primary/40 z-[-1]'
                             : 'border-border hover:border-primary/30 hover:shadow-md'}`}
                       >
                         {/* Drop overlay */}

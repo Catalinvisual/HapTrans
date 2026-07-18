@@ -5,6 +5,7 @@ import api from '../lib/api';
 import toast from 'react-hot-toast';
 import AddressAutocomplete from './AddressAutocomplete';
 import CustomSelect from './CustomSelect';
+import ClientPortalAccess from './ClientPortalAccess';
 
 export default function ClientDetails({ client, onBack }: { client: any, onBack: () => void }) {
   const { t } = useTranslation();
@@ -87,12 +88,12 @@ export default function ClientDetails({ client, onBack }: { client: any, onBack:
         </div>
       </div>
 
-      <div className="flex items-center gap-2 border-b border-border">
-        {['general', 'rates', 'invoices', 'trips', 'documents'].map(tab => (
+      <div className="flex items-center gap-2 border-b border-border overflow-x-auto">
+        {['general', 'portal', 'rates', 'invoices', 'trips', 'documents'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-3 font-semibold text-sm transition-colors border-b-2 ${
+            className={`px-4 py-3 font-semibold text-sm transition-colors border-b-2 whitespace-nowrap ${
               activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-text'
             }`}
           >
@@ -153,6 +154,10 @@ export default function ClientDetails({ client, onBack }: { client: any, onBack:
               <Save className="w-4 h-4" /> {t('saveSettings')}
             </button>
           </form>
+        )}
+
+        {activeTab === 'portal' && (
+          <ClientPortalAccess clientId={client.id} />
         )}
 
         {activeTab === 'rates' && (

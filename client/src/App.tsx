@@ -34,6 +34,18 @@ const WebsiteHubPage   = lazy(() => import('./pages/WebsiteHubPage'));
 const SharedDocumentPage = lazy(() => import('./pages/SharedDocumentPage'));
 const TrackingPage     = lazy(() => import('./pages/TrackingPage'));
 
+// ─── Portal Pages (Lazy) ──────────────────────────────────────────────────
+const PortalLayout           = lazy(() => import('./layouts/PortalLayout'));
+const PortalLoginPage        = lazy(() => import('./pages/portal/PortalLoginPage'));
+const PortalSetPasswordPage  = lazy(() => import('./pages/portal/PortalSetPasswordPage'));
+const PortalDashboardPage    = lazy(() => import('./pages/portal/PortalDashboardPage'));
+const PortalOrdersPage       = lazy(() => import('./pages/portal/PortalOrdersPage'));
+const PortalOrderDetailsPage = lazy(() => import('./pages/portal/PortalOrderDetailsPage'));
+const PortalTripsPage        = lazy(() => import('./pages/portal/PortalTripsPage'));
+const PortalInvoicesPage     = lazy(() => import('./pages/portal/PortalInvoicesPage'));
+const PortalDocumentsPage    = lazy(() => import('./pages/portal/PortalDocumentsPage'));
+const PortalSupportPage      = lazy(() => import('./pages/portal/PortalSupportPage'));
+
 // ─── Loading fallback ─────────────────────────────────────────────────────
 function PageLoader() {
   return (
@@ -72,6 +84,21 @@ export default function App() {
               </Suspense>
             }
           />
+
+          {/* ─── Client Portal Routes ─────────────────────────────────────────── */}
+          <Route path="/portal/login" element={<Suspense fallback={<PageLoader />}><PortalLoginPage /></Suspense>} />
+          <Route path="/portal/set-password" element={<Suspense fallback={<PageLoader />}><PortalSetPasswordPage /></Suspense>} />
+          
+          <Route path="/portal" element={<Suspense fallback={<PageLoader />}><PortalLayout /></Suspense>}>
+            <Route index element={<Navigate to="/portal/dashboard" replace />} />
+            <Route path="dashboard" element={<Suspense fallback={<PageLoader />}><PortalDashboardPage /></Suspense>} />
+            <Route path="orders" element={<Suspense fallback={<PageLoader />}><PortalOrdersPage /></Suspense>} />
+            <Route path="orders/:id" element={<Suspense fallback={<PageLoader />}><PortalOrderDetailsPage /></Suspense>} />
+            <Route path="trips" element={<Suspense fallback={<PageLoader />}><PortalTripsPage /></Suspense>} />
+            <Route path="invoices" element={<Suspense fallback={<PageLoader />}><PortalInvoicesPage /></Suspense>} />
+            <Route path="documents" element={<Suspense fallback={<PageLoader />}><PortalDocumentsPage /></Suspense>} />
+            <Route path="support" element={<Suspense fallback={<PageLoader />}><PortalSupportPage /></Suspense>} />
+          </Route>
 
           <Route
             path="/"
