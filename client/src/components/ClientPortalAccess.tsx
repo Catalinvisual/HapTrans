@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Mail, ShieldAlert, KeyRound, Ban, CheckCircle2, Clock } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
+import ConfirmModal from './ConfirmModal';
 
 export default function ClientPortalAccess({ clientId }: { clientId: string }) {
   const { t } = useTranslation();
@@ -10,6 +11,8 @@ export default function ClientPortalAccess({ clientId }: { clientId: string }) {
   const [loading, setLoading] = useState(true);
   const [inviteForm, setInviteForm] = useState({ email: '', name: '' });
   const [inviteLink, setInviteLink] = useState('');
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     // Prefill form if client details are available
@@ -64,7 +67,6 @@ export default function ClientPortalAccess({ clientId }: { clientId: string }) {
   };
 
   const handleDelete = async (userId: string) => {
-    if (!window.confirm(t('confirmDeleteInvite', 'Are you sure you want to delete this portal access?'))) return;
     try {
       await api.delete(`/portal-users/${userId}`);
       toast.success(t('inviteDeleted', 'Portal access deleted successfully'));
@@ -138,7 +140,7 @@ export default function ClientPortalAccess({ clientId }: { clientId: string }) {
                   <td className="p-3 flex justify-end gap-2">
                     {u.status !== 'suspended' && <button onClick={() => handleStatusChange(u.id, 'suspended')} className="p-1.5 text-text-secondary hover:text-orange-600 rounded-lg hover:bg-orange-50 transition-colors" title="Suspend"><Ban className="w-4 h-4" /></button>}
                     {u.status !== 'active' && <button onClick={() => handleStatusChange(u.id, 'active')} className="p-1.5 text-text-secondary hover:text-success rounded-lg hover:bg-green-50 transition-colors" title="Activate"><CheckCircle2 className="w-4 h-4" /></button>}
-                    <button onClick={() => handleDelete(u.id)} className="p-1.5 text-text-secondary hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => { setUserToDelete(u.id); setDeleteModalOpen(true); }} className="p-1.5 text-text-secondary hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
                   </td>
                 </tr>
               ))}
@@ -146,6 +148,20 @@ export default function ClientPortalAccess({ clientId }: { clientId: string }) {
           </table>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => { setDeleteModalOpen(false); setUserToDelete(null); }}
+        onConfirm={() => {
+          if (userToDelete) {
+            handleDelete(userToDelete);
+          }
+        }}
+        title={t('deleteInvite', 'Delete Portal Access')}
+        message={t('confirmDeleteInvite', 'Are you sure you want to delete this portal access? This action cannot be undone.')}
+        confirmText={t('delete', 'Delete')}
+        type="danger"
+      />
     </div>
   );
 }

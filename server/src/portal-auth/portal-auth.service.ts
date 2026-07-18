@@ -31,8 +31,7 @@ export class PortalAuthService {
     }
 
     // Update last login
-    user.lastLogin = new Date();
-    await this.usersService.updateStatus(user.id, user.status); // Just saving user, wait, we don't have save method exposed.
+    await this.usersService.updateLoginDate(user.id);
 
     const payload = { sub: user.id, email: user.email, type: 'portal', clientId: user.clientId };
     return {

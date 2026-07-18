@@ -76,4 +76,10 @@ export class PortalUsersService {
     const user = await this.findOne(id);
     return this.repo.remove(user);
   }
+
+  async updateLoginDate(id: string) {
+    const user = await this.findOne(id);
+    user.lastLogin = new Date();
+    return this.repo.save(user);
+  }
 }
