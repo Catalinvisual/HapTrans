@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, UseGuards, Request } from '@nestjs/common';
 import { PortalUsersService } from './portal-users.service';
 import { PortalUserStatus } from './portal-user.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -21,5 +21,10 @@ export class PortalUsersController {
   @Patch(':id/status')
   updateStatus(@Param('id') id: string, @Body() dto: { status: PortalUserStatus }) {
     return this.service.updateStatus(id, dto.status);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.service.remove(id);
   }
 }

@@ -11,6 +11,19 @@ export default function ClientPortalAccess({ clientId }: { clientId: string }) {
   const [inviteForm, setInviteForm] = useState({ email: '', name: '' });
   const [inviteLink, setInviteLink] = useState('');
 
+  useEffect(() => {
+    // Prefill form if client details are available
+    api.get(`/clients/${clientId}`).then(res => {
+      if (res.data) {
+        setInviteForm(prev => ({
+          ...prev,
+          name: prev.name || res.data.contactName || res.data.name || '',
+          email: prev.email || res.data.contactEmail || res.data.email || ''
+        }));
+      }
+    }).catch(() => {});
+  }, [clientId]);
+
   const loadUsers = async () => {
     setLoading(true);
     try {
@@ -47,6 +60,17 @@ export default function ClientPortalAccess({ clientId }: { clientId: string }) {
       loadUsers();
     } catch {
       toast.error('Failed to update status');
+    }
+  };
+
+  const handleDelete = async (userId: string) => {
+    if (!window.confirm(t('confirmDeleteInvite', 'Are you sure you want to delete this portal access?'))) return;
+    try {
+      await api.delete(`/portal-users/${userId}`);
+      toast.success(t('inviteDeleted', 'Portal access deleted successfully'));
+      loadUsers();
+    } catch {
+      toast.error(t('deleteInviteFailed', 'Failed to delete portal access'));
     }
   };
 
@@ -114,7 +138,7 @@ export default function ClientPortalAccess({ clientId }: { clientId: string }) {
                   <td className="p-3 flex justify-end gap-2">
                     {u.status !== 'suspended' && <button onClick={() => handleStatusChange(u.id, 'suspended')} className="p-1.5 text-text-secondary hover:text-orange-600 rounded-lg hover:bg-orange-50 transition-colors" title="Suspend"><Ban className="w-4 h-4" /></button>}
                     {u.status !== 'active' && <button onClick={() => handleStatusChange(u.id, 'active')} className="p-1.5 text-text-secondary hover:text-success rounded-lg hover:bg-green-50 transition-colors" title="Activate"><CheckCircle2 className="w-4 h-4" /></button>}
-                    {/* For demo, we might want a disable/delete but let's keep it simple */}
+                    <button onClick={() => handleDelete(u.id)} className="p-1.5 text-text-secondary hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
                   </td>
                 </tr>
               ))}

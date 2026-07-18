@@ -55,7 +55,7 @@ export class PortalUsersService {
 
     await this.repo.save(user);
 
-    const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
+    const baseUrl = process.env.FRONTEND_URL || 'https://joyful-exploration-production.up.railway.app';
     const inviteLink = `${baseUrl}/portal/set-password?token=${token}&email=${encodeURIComponent(email)}`;
     
     await this.resendService.sendPortalInviteEmail(email, name || '', inviteLink);
@@ -70,5 +70,10 @@ export class PortalUsersService {
     const user = await this.findOne(id);
     user.status = status;
     return this.repo.save(user);
+  }
+
+  async remove(id: string) {
+    const user = await this.findOne(id);
+    return this.repo.remove(user);
   }
 }
