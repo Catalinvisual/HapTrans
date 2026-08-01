@@ -8,24 +8,24 @@ import {
 import { useState, useEffect } from 'react';
 
 export const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, key: 'dashboard', color: 'text-blue-500' },
-  { to: '/trips', icon: Route, key: 'trips', color: 'text-orange-500' },
-  { to: '/orders', icon: Box, key: 'orders', color: 'text-indigo-500' },
-  { to: '/map', icon: Map, key: 'liveMap', color: 'text-green-500' },
-  { to: '/trucks', icon: Truck, key: 'trucks', color: 'text-amber-500' },
-  { to: '/planning', icon: CalendarDays, key: 'planning', color: 'text-purple-500' },
-  { to: '/drivers', icon: UserCheck, key: 'drivers', color: 'text-teal-500' },
-  { to: '/clients', icon: Users, key: 'clients', color: 'text-cyan-500' },
-  { to: '/chat', icon: MessageSquare, key: 'chat', color: 'text-emerald-500' },
-  { to: '/documents', icon: FileText, key: 'documents', color: 'text-rose-500' },
-  { to: '/invoices', icon: Receipt, key: 'invoices', color: 'text-red-500' },
-  { to: '/financial', icon: BarChart3, key: 'financial', color: 'text-yellow-500' },
-  { to: '/payroll', icon: Banknote, key: 'payroll', color: 'text-lime-500' },
-  { to: '/maintenance', icon: Wrench, key: 'maintenance', color: 'text-zinc-500' },
-  { to: '/expenses', icon: Wallet, key: 'expenses', color: 'text-fuchsia-500' },
-  { to: '/website-cms', icon: Globe, key: 'websiteCms', color: 'text-primary' },
-  { to: '/users', icon: UserCog, key: 'users', color: 'text-sky-500' },
-  { to: '/settings', icon: Settings, key: 'settings', color: 'text-slate-500' },
+  { to: '/dashboard', icon: LayoutDashboard, key: 'dashboard' },
+  { to: '/trips', icon: Route, key: 'trips' },
+  { to: '/orders', icon: Box, key: 'orders' },
+  { to: '/map', icon: Map, key: 'liveMap' },
+  { to: '/trucks', icon: Truck, key: 'trucks' },
+  { to: '/planning', icon: CalendarDays, key: 'planning' },
+  { to: '/drivers', icon: UserCheck, key: 'drivers' },
+  { to: '/clients', icon: Users, key: 'clients' },
+  { to: '/chat', icon: MessageSquare, key: 'chat' },
+  { to: '/documents', icon: FileText, key: 'documents' },
+  { to: '/invoices', icon: Receipt, key: 'invoices' },
+  { to: '/financial', icon: BarChart3, key: 'financial' },
+  { to: '/payroll', icon: Banknote, key: 'payroll' },
+  { to: '/maintenance', icon: Wrench, key: 'maintenance' },
+  { to: '/expenses', icon: Wallet, key: 'expenses' },
+  { to: '/website-cms', icon: Globe, key: 'websiteCms' },
+  { to: '/users', icon: UserCog, key: 'users' },
+  { to: '/settings', icon: Settings, key: 'settings' },
 ];
 
 interface SidebarProps {
@@ -76,11 +76,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 ${isCollapsed ? 'w-20' : 'w-64 md:w-56'} bg-card border-r border-border flex flex-col h-full transform transition-all duration-300 ease-in-out md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className={`px-4 py-5 border-b border-border flex items-center relative ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 ${isCollapsed ? 'w-16' : 'w-64 md:w-56'} bg-card border-r border-border flex flex-col h-full transform transition-all duration-300 ease-in-out md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className={`px-4 py-5 border-b border-border flex items-center relative ${isCollapsed ? 'justify-center pl-1' : 'justify-between'}`}>
           <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
             {company?.logo ? (
-              <img src={company.logo} alt="Logo" className={`h-8 w-auto object-contain transition-all duration-300 ${isCollapsed ? 'w-8 h-8 object-cover object-left' : ''}`} />
+              <img src={company.logo} alt="Logo" className={`h-8 w-auto object-contain transition-all duration-300 ${isCollapsed ? 'w-[40px] h-8 object-cover object-left' : ''}`} />
             ) : null}
           </div>
           
@@ -105,10 +105,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               to={item.to}
               title={isCollapsed ? t(item.key) : undefined}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group ${
                   isActive 
-                    ? 'bg-primary/10 font-semibold' 
-                    : 'hover:bg-surface'
+                    ? 'bg-primary text-white font-semibold shadow-md shadow-primary/20' 
+                    : 'text-text-secondary hover:bg-surface hover:text-primary'
                 } ${isCollapsed ? 'justify-center' : 'justify-start'}`
               }
               onClick={() => {
@@ -119,9 +119,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             >
               {({ isActive }) => (
                 <>
-                  <item.icon className={`w-5 h-5 flex-shrink-0 transition-all duration-300 ${isActive ? 'text-primary drop-shadow-sm scale-110' : item.color} group-hover:scale-110`} strokeWidth={isActive ? 2.5 : 2} />
+                  <item.icon className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${isActive ? 'scale-110 text-white' : 'group-hover:scale-110'}`} strokeWidth={isActive ? 2.5 : 2} />
                   {!isCollapsed && (
-                    <span className={`truncate text-sm capitalize transition-colors ${isActive ? 'text-primary' : 'text-text-secondary group-hover:text-text'}`}>
+                    <span className={`truncate text-sm capitalize transition-colors ${isActive ? 'text-white' : ''}`}>
                       {t(item.key)}
                     </span>
                   )}
