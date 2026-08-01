@@ -28,7 +28,7 @@ const CACHE_KEY = 'hapcargo_diesel_prices_v4';
 const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
 
 export default function DieselWidget({ avgConsumptionL100 = 32 }: { avgConsumptionL100?: number }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const lang = i18n.language || 'ro';
   const [prices, setPrices] = useState<DieselPrice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,7 +78,7 @@ export default function DieselWidget({ avgConsumptionL100 = 32 }: { avgConsumpti
             <Fuel className="w-4 h-4 text-amber-600" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-text">{L.title}</h3>
+            <h3 className="text-sm font-bold text-text">{t('euDieselPrices') || L.title}</h3>
             {lastUpdated && (
               <p className="text-xs text-text-secondary">
                 {formatDate(lastUpdated.toISOString())} {lastUpdated.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' })}
@@ -147,7 +147,7 @@ export default function DieselWidget({ avgConsumptionL100 = 32 }: { avgConsumpti
           {/* Cost Calculator */}
           {nlPrice > 0 && (
             <div className="border-t border-border pt-3 mt-3">
-              <p className="text-xs text-text-secondary mb-2 font-medium">💡 {L.calcTitle} {avgConsumptionL100}L/100km)</p>
+              <p className="text-xs text-text-secondary mb-2 font-medium">💡 {t('fuelCostCalculator')}</p>
               <div className="grid grid-cols-3 gap-2">
                 {[100, 500, 1000].map(km => (
                   <div key={km} className="bg-surface rounded-lg p-2 text-center">

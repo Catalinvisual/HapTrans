@@ -5,6 +5,7 @@ import { AppToaster } from './components/AppToaster';
 import PWAReloadPrompt from './components/PWAReloadPrompt';
 import Layout from './components/Layout';
 import { ShortcutProvider } from './lib/ShortcutContext';
+import { SaveConfirmProvider } from './components/SaveConfirmProvider';
 import { Loader2 } from 'lucide-react';
 
 // ─── Eager-loaded (critical path, very small) ─────────────────────────────
@@ -62,8 +63,9 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <ShortcutProvider>
-      <BrowserRouter>
+    <SaveConfirmProvider>
+      <ShortcutProvider>
+        <BrowserRouter>
         <AppToaster />
         <PWAReloadPrompt />
         <Routes>
@@ -136,5 +138,6 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </ShortcutProvider>
+    </SaveConfirmProvider>
   );
 }

@@ -1,3 +1,4 @@
+import { useSaveConfirm } from "../components/SaveConfirmProvider";
 import { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, AlertCircle, Plus, Pencil, Trash2, ChevronDown, User, Phone, FileText, Calendar, Key, Mail, Download } from 'lucide-react';
@@ -8,33 +9,32 @@ import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import ExportModal from '../components/ExportModal';
 import { formatDate } from '../lib/dateUtils';
-
 import CustomSelect from '../components/CustomSelect';
-
 const STATUS_COLORS: Record<string, string> = {
   available: 'text-success',
   in_trip: 'text-primary',
   off: 'text-text-secondary',
   sick: 'text-error',
-  vacation: 'text-warning',
+  vacation: 'text-warning'
 };
-
 const STATUS_LABELS: Record<string, string> = {
   available: 'available',
   in_trip: 'inTrip',
   off: 'unavailable',
   sick: 'sick',
-  vacation: 'vacation',
+  vacation: 'vacation'
 };
-
 import { useFormStore } from '../store/formStore';
 import Pagination from '../components/Pagination';
 import { useShortcuts } from '../hooks/useShortcuts';
 import { useTableShortcuts } from '../hooks/useTableShortcuts';
-
 export default function DriversPage() {
+  const confirmSave = useSaveConfirm();
   const formStore = useFormStore();
-  const { t, i18n } = useTranslation();
+  const {
+    t,
+    i18n
+  } = useTranslation();
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -43,7 +43,6 @@ export default function DriversPage() {
   const [editId, setEditId] = useState<string | null>(formStore.driversEditId);
   const [trucks, setTrucks] = useState<any[]>([]);
   const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
-
   const fpOptions = useMemo(() => ({
     altInput: true,
     altFormat: 'd/m/Y',
@@ -51,7 +50,6 @@ export default function DriversPage() {
     allowInput: false,
     minDate: 'today'
   }), []);
-
   const [showExport, setShowExport] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -69,50 +67,50 @@ export default function DriversPage() {
     medicalExpiry: '',
     tachoCardExpiry: '',
     status: 'available',
-    truckId: '',
+    truckId: ''
   });
-
   useEffect(() => {
-    formStore.setFormState('drivers', { showForm, editId, form });
+    formStore.setFormState('drivers', {
+      showForm,
+      editId,
+      form
+    });
   }, [showForm, editId, form]);
-
   const loadDrivers = async () => {
     setLoading(true);
     try {
       const r = await api.get('/drivers');
       setDrivers(r.data);
     } catch (err) {
-      toast.error('Eroare la încărcarea șoferilor.');
+      toast.error(t("toast_eroareLaNcR"));
     } finally {
       setLoading(false);
     }
   };
-
   const loadTrucks = async () => {
     try {
       const r = await api.get('/trucks');
       setTrucks(r.data);
     } catch (err) {}
   };
-
   useEffect(() => {
     loadDrivers();
     loadTrucks();
   }, []);
-
   const isExpiringSoon = (date: string) => date && new Date(date) < new Date(Date.now() + 30 * 86400000);
   const isExpired = (date: string) => date && new Date(date) < new Date();
-
   const generatePassword = () => {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+';
     let pass = '';
     for (let i = 0; i < 12; i++) {
       pass += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    setForm({ ...form, password: pass });
+    setForm({
+      ...form,
+      password: pass
+    });
     toast.success(t('passwordGenerated'));
   };
-
   const isPastDate = (val: string) => {
     if (editId || !val) return false;
     const today = new Date();
@@ -121,7 +119,6 @@ export default function DriversPage() {
     selected.setHours(0, 0, 0, 0);
     return selected < today;
   };
-
   const getErrorMessage = () => {
     const lg = i18n?.language || 'en';
     if (lg === 'ro') return 'Data nu poate fi în trecut.';
@@ -132,7 +129,6 @@ export default function DriversPage() {
     if (lg === 'pl') return 'Data nie może być w przeszłości.';
     return 'Date cannot be in the past.';
   };
-
   const handleSubmit = async (e?: any) => {
     if (e && e.preventDefault) e.preventDefault();
     if (isPastDate(form.licenseExpiry) || isPastDate(form.medicalExpiry) || isPastDate(form.tachoCardExpiry)) {
@@ -141,24 +137,35 @@ export default function DriversPage() {
     }
     try {
       if (editId) {
+        const isConfirmed = await confirmSave();
+        if (!isConfirmed) return;
         // Edit driver
         await api.patch(`/drivers/${editId}`, form);
-        toast.success('Șofer actualizat cu succes!');
+        toast.success(t("toast_OferActualiza"));
       } else {
         // Add driver
         if (!form.email || !form.password) {
-          toast.error('Emailul și parola sunt obligatorii pentru șoferi noi!');
+          toast.error(t("toast_emailulIParo"));
           return;
         }
         await api.post('/drivers', form);
-        toast.success('Șofer creat cu succes!');
+        toast.success(t("toast_OferCreatCu"));
       }
       setShowForm(false);
       setEditId(null);
       setForm({
-        name: '', email: '', password: '', phone: '',
-        licenseNumber: '', dailyRate: '', grossSalary: '', licenseExpiry: '', medicalExpiry: '', tachoCardExpiry: '',
-        status: 'available', truckId: '',
+        name: '',
+        email: '',
+        password: '',
+        phone: '',
+        licenseNumber: '',
+        dailyRate: '',
+        grossSalary: '',
+        licenseExpiry: '',
+        medicalExpiry: '',
+        tachoCardExpiry: '',
+        status: 'available',
+        truckId: ''
       });
       loadDrivers();
     } catch (err: any) {
@@ -166,12 +173,12 @@ export default function DriversPage() {
       toast.error(msg);
     }
   };
-
   const handleEdit = (d: any) => {
     setForm({
       name: d.user?.name || '',
       email: d.user?.email || '',
-      password: '', // Leave blank unless changing
+      password: '',
+      // Leave blank unless changing
       phone: d.phone || '',
       licenseNumber: d.licenseNumber || '',
       dailyRate: d.dailyRate || '',
@@ -180,14 +187,12 @@ export default function DriversPage() {
       medicalExpiry: d.medicalExpiry ? d.medicalExpiry.slice(0, 10) : '',
       tachoCardExpiry: d.tachoCardExpiry ? d.tachoCardExpiry.slice(0, 10) : '',
       status: d.status || 'available',
-      truckId: d.trucks?.[0]?.id || '',
+      truckId: d.trucks?.[0]?.id || ''
     });
     setEditId(d.id);
     setShowForm(true);
   };
-
   const handleDelete = (id: string) => setDeleteId(id);
-
   const executeDelete = async () => {
     if (!deleteId) return;
     try {
@@ -196,35 +201,40 @@ export default function DriversPage() {
       loadDrivers();
     } catch (err) {
       toast.error(t('error') || 'Eroare la ștergerea șoferului.');
-    } finally { setDeleteId(null); }
+    } finally {
+      setDeleteId(null);
+    }
   };
-
   const filtered = drivers.filter(d => {
     const query = search.toLowerCase();
-    return (
-      (d.user?.name || '').toLowerCase().includes(query) ||
-      (d.user?.email || '').toLowerCase().includes(query) ||
-      (d.licenseNumber || '').toLowerCase().includes(query) ||
-      (d.phone || '').toLowerCase().includes(query) ||
-      (d.status || '').toLowerCase().includes(query)
-    );
+    return (d.user?.name || '').toLowerCase().includes(query) || (d.user?.email || '').toLowerCase().includes(query) || (d.licenseNumber || '').toLowerCase().includes(query) || (d.phone || '').toLowerCase().includes(query) || (d.status || '').toLowerCase().includes(query);
   }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-
   const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
   useShortcuts({
     'shift+n': () => {
       if (!showForm) {
         setForm({
-          name: '', email: '', password: '', phone: '', licenseNumber: '',
-          licenseExpiry: '', medicalExpiry: '', tachoCardExpiry: '', status: 'active',
-          bankAccountName: '', bankAccountNumber: '', grossSalary: '', dailyRate: '', notes: '', truckId: ''
+          name: '',
+          email: '',
+          password: '',
+          phone: '',
+          licenseNumber: '',
+          licenseExpiry: '',
+          medicalExpiry: '',
+          tachoCardExpiry: '',
+          status: 'active',
+          bankAccountName: '',
+          bankAccountNumber: '',
+          grossSalary: '',
+          dailyRate: '',
+          notes: '',
+          truckId: ''
         });
         setEditId(null);
         setShowForm(true);
       }
     },
-    'ctrl+s': (e) => {
+    'ctrl+s': e => {
       if (showForm) {
         handleSubmit(e);
       }
@@ -235,21 +245,17 @@ export default function DriversPage() {
       }
     }
   });
-
   useTableShortcuts({
     items: currentTableItems,
     selectedIndex: selectedRowIndex,
     setSelectedIndex: setSelectedRowIndex,
-    onOpen: (d) => handleEdit(d),
-    onDelete: (d) => handleDelete(d.id),
+    onOpen: d => handleEdit(d),
+    onDelete: d => handleDelete(d.id),
     isActive: !showForm
   });
+  return <div className="space-y-5 animate-fade-in">
 
-  return (
-    <div className="space-y-5 animate-fade-in">
-
-      {showForm && (
-        <div className="card animate-fade-in bg-card border border-border rounded-2xl p-6 shadow-md">
+      {showForm && <div className="card animate-fade-in bg-card border border-border rounded-2xl p-6 shadow-md">
           <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">
             {editId ? t('editDriver') : t('addDriver')}
           </h3>
@@ -259,13 +265,10 @@ export default function DriversPage() {
               <label className="label font-semibold flex items-center gap-1">
                 <User className="w-4 h-4 text-primary" /> {t('name')}
               </label>
-              <input
-                className="input"
-                value={form.name}
-                onChange={e => setForm({ ...form, name: e.target.value })}
-                placeholder={t('name')}
-                required
-              />
+              <input className="input" value={form.name} onChange={e => setForm({
+            ...form,
+            name: e.target.value
+          })} placeholder={t('name')} required />
             </div>
 
             {/* Email */}
@@ -273,14 +276,10 @@ export default function DriversPage() {
               <label className="label font-semibold flex items-center gap-1">
                 <Mail className="w-4 h-4 text-primary" /> {t('email')}
               </label>
-              <input
-                type="email"
-                className="input"
-                value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
-                placeholder="driver@company.com"
-                required
-              />
+              <input type="email" className="input" value={form.email} onChange={e => setForm({
+            ...form,
+            email: e.target.value
+          })} placeholder="driver@company.com" required />
             </div>
 
             {/* Password */}
@@ -289,20 +288,11 @@ export default function DriversPage() {
                 <Key className="w-4 h-4 text-primary" /> {editId ? t('newPasswordOptional') || 'Parolă Nouă (Opțional)' : t('password')}
               </label>
               <div className="relative">
-                <input
-                  type="text"
-                  className="input pr-10"
-                  value={form.password}
-                  onChange={e => setForm({ ...form, password: e.target.value })}
-                  placeholder={editId ? t('leaveBlankToKeepUnchanged') || 'Lăsați gol' : '••••••••'}
-                  required={!editId}
-                />
-                <button
-                  type="button"
-                  onClick={generatePassword}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-primary hover:text-primary-dark rounded transition-colors"
-                  title={t('generatePasswordBtn') || 'Generează parolă'}
-                >
+                <input type="text" className="input pr-10" value={form.password} onChange={e => setForm({
+              ...form,
+              password: e.target.value
+            })} placeholder={editId ? t('leaveBlankToKeepUnchanged') || 'Lăsați gol' : '••••••••'} required={!editId} />
+                <button type="button" onClick={generatePassword} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-primary hover:text-primary-dark rounded transition-colors" title={t('generatePasswordBtn') || 'Generează parolă'}>
                   <Key className="w-4 h-4" />
                 </button>
               </div>
@@ -313,12 +303,10 @@ export default function DriversPage() {
               <label className="label font-semibold flex items-center gap-1">
                 <Phone className="w-4 h-4 text-primary" /> {t('phone')}
               </label>
-              <input
-                className="input"
-                value={form.phone}
-                onChange={e => setForm({ ...form, phone: e.target.value })}
-                placeholder="+1 234 567 8900"
-              />
+              <input className="input" value={form.phone} onChange={e => setForm({
+            ...form,
+            phone: e.target.value
+          })} placeholder="+1 234 567 8900" />
             </div>
 
             {/* License Number */}
@@ -326,12 +314,10 @@ export default function DriversPage() {
               <label className="label font-semibold flex items-center gap-1">
                 <FileText className="w-4 h-4 text-primary" /> {t('licenseNumber')}
               </label>
-              <input
-                className="input"
-                value={form.licenseNumber}
-                onChange={e => setForm({ ...form, licenseNumber: e.target.value })}
-                placeholder="ID-123456..."
-              />
+              <input className="input" value={form.licenseNumber} onChange={e => setForm({
+            ...form,
+            licenseNumber: e.target.value
+          })} placeholder="ID-123456..." />
             </div>
 
             {/* Daily Rate (Onbelaste vergoeding) */}
@@ -339,13 +325,10 @@ export default function DriversPage() {
               <label className="label font-semibold flex items-center gap-1">
                 <span className="w-4 h-4 text-primary font-bold text-center">€</span> {t('dailyAllowance') || 'Onbelaste vergoeding (€/zi)'}
               </label>
-              <input
-                type="number"
-                className="input"
-                value={form.dailyRate}
-                onChange={e => setForm({ ...form, dailyRate: e.target.value })}
-                placeholder="e.g. 55"
-              />
+              <input type="number" className="input" value={form.dailyRate} onChange={e => setForm({
+            ...form,
+            dailyRate: e.target.value
+          })} placeholder="e.g. 55" />
             </div>
 
             {/* Gross Salary (Bruto Salaris) */}
@@ -353,39 +336,50 @@ export default function DriversPage() {
               <label className="label font-semibold flex items-center gap-1">
                 <span className="w-4 h-4 text-primary font-bold text-center">€</span> {t('grossSalary') || 'Bruto Salaris (€/luna)'}
               </label>
-              <input
-                type="number"
-                className="input"
-                value={form.grossSalary}
-                onChange={e => setForm({ ...form, grossSalary: e.target.value })}
-                placeholder="e.g. 2500"
-              />
+              <input type="number" className="input" value={form.grossSalary} onChange={e => setForm({
+            ...form,
+            grossSalary: e.target.value
+          })} placeholder="e.g. 2500" />
             </div>
 
             {/* Status Selection */}
             <div>
               <label className="label font-semibold">{t('status')}</label>
-              <CustomSelect
-                value={form.status}
-                onChange={val => setForm({ ...form, status: val })}
-                options={[
-                  { value: 'available', label: t('available'), color: 'text-success' },
-                  { value: 'in_trip', label: t('inTrip'), color: 'text-primary' },
-                  { value: 'off', label: t('unavailable'), color: 'text-text-secondary' },
-                  { value: 'sick', label: t('sick'), color: 'text-error' },
-                  { value: 'vacation', label: t('vacation'), color: 'text-warning' },
-                ]}
-              />
+              <CustomSelect value={form.status} onChange={val => setForm({
+            ...form,
+            status: val
+          })} options={[{
+            value: 'available',
+            label: t('available'),
+            color: 'text-success'
+          }, {
+            value: 'in_trip',
+            label: t('inTrip'),
+            color: 'text-primary'
+          }, {
+            value: 'off',
+            label: t('unavailable'),
+            color: 'text-text-secondary'
+          }, {
+            value: 'sick',
+            label: t('sick'),
+            color: 'text-error'
+          }, {
+            value: 'vacation',
+            label: t('vacation'),
+            color: 'text-warning'
+          }]} />
             </div>
 
             {/* Truck Assignment */}
             <div>
               <label className="label font-semibold">{t('truck', 'Camion / Autotractor')}</label>
-              <select className="input" value={form.truckId} onChange={e => setForm({ ...form, truckId: e.target.value })}>
+              <select className="input" value={form.truckId} onChange={e => setForm({
+            ...form,
+            truckId: e.target.value
+          })}>
                 <option value="">{t('no_truck', 'Fără camion (Liber)')}</option>
-                {trucks.map(t => (
-                  <option key={t.id} value={t.id}>{t.plateNumber} {t.brand}</option>
-                ))}
+                {trucks.map(t => <option key={t.id} value={t.id}>{t.plateNumber} {t.brand}</option>)}
               </select>
             </div>
 
@@ -394,16 +388,17 @@ export default function DriversPage() {
               <label className="label font-semibold flex items-center gap-1">
                 <Calendar className="w-4 h-4 text-primary" /> {t('licenseExpiry')}
               </label>
-              <Flatpickr
-                type="hidden"
-                value={form.licenseExpiry}
-                onChange={(dates, dateStr) => setForm({...form, licenseExpiry: dateStr})}
-                onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
-                onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
-                className={`input bg-card ${isPastDate(form.licenseExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
-                options={fpOptions}
-                placeholder="DD/MM/YYYY"
-              />
+              <Flatpickr type="hidden" value={form.licenseExpiry} onChange={(dates, dateStr) => setForm({
+            ...form,
+            licenseExpiry: dateStr
+          })} onClick={e => {
+            e.stopPropagation();
+            const fp = (e.target as any)._flatpickr;
+            if (fp) fp.open();
+          }} onFocus={e => {
+            const fp = (e.target as any)._flatpickr;
+            if (fp) fp.open();
+          }} className={`input bg-card ${isPastDate(form.licenseExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={fpOptions} placeholder="DD/MM/YYYY" />
               {isPastDate(form.licenseExpiry) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
 
@@ -411,16 +406,17 @@ export default function DriversPage() {
               <label className="label font-semibold flex items-center gap-1">
                 <Calendar className="w-4 h-4 text-primary" /> {t('medicalExpiry')}
               </label>
-              <Flatpickr
-                type="hidden"
-                value={form.medicalExpiry}
-                onChange={(dates, dateStr) => setForm({...form, medicalExpiry: dateStr})}
-                onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
-                onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
-                className={`input bg-card ${isPastDate(form.medicalExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
-                options={fpOptions}
-                placeholder="DD/MM/YYYY"
-              />
+              <Flatpickr type="hidden" value={form.medicalExpiry} onChange={(dates, dateStr) => setForm({
+            ...form,
+            medicalExpiry: dateStr
+          })} onClick={e => {
+            e.stopPropagation();
+            const fp = (e.target as any)._flatpickr;
+            if (fp) fp.open();
+          }} onFocus={e => {
+            const fp = (e.target as any)._flatpickr;
+            if (fp) fp.open();
+          }} className={`input bg-card ${isPastDate(form.medicalExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={fpOptions} placeholder="DD/MM/YYYY" />
               {isPastDate(form.medicalExpiry) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
 
@@ -428,16 +424,17 @@ export default function DriversPage() {
               <label className="label font-semibold flex items-center gap-1">
                 <Calendar className="w-4 h-4 text-primary" /> {t('tachoCardExpiry')}
               </label>
-              <Flatpickr
-                type="hidden"
-                value={form.tachoCardExpiry}
-                onChange={(dates, dateStr) => setForm({...form, tachoCardExpiry: dateStr})}
-                onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
-                onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
-                className={`input bg-card ${isPastDate(form.tachoCardExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`}
-                options={fpOptions}
-                placeholder="DD/MM/YYYY"
-              />
+              <Flatpickr type="hidden" value={form.tachoCardExpiry} onChange={(dates, dateStr) => setForm({
+            ...form,
+            tachoCardExpiry: dateStr
+          })} onClick={e => {
+            e.stopPropagation();
+            const fp = (e.target as any)._flatpickr;
+            if (fp) fp.open();
+          }} onFocus={e => {
+            const fp = (e.target as any)._flatpickr;
+            if (fp) fp.open();
+          }} className={`input bg-card ${isPastDate(form.tachoCardExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={fpOptions} placeholder="DD/MM/YYYY" />
               {isPastDate(form.tachoCardExpiry) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
 
@@ -446,20 +443,15 @@ export default function DriversPage() {
               <button type="submit" className="btn-primary px-6 py-2.5 font-bold shadow-md shadow-primary/20">
                 {t('save')}
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForm(false);
-                  setEditId(null);
-                }}
-                className="btn-secondary px-6 py-2.5 font-bold"
-              >
+              <button type="button" onClick={() => {
+            setShowForm(false);
+            setEditId(null);
+          }} className="btn-secondary px-6 py-2.5 font-bold">
                 {t('cancel')}
               </button>
             </div>
           </form>
-        </div>
-      )}
+        </div>}
 
       {/* Table */}
       <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
@@ -467,12 +459,7 @@ export default function DriversPage() {
           <div className="flex items-center gap-3 flex-1 max-w-md">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-              <input
-                className="input pl-9 py-2 text-sm"
-                placeholder={t('search')}
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
+              <input className="input pl-9 py-2 text-sm" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold border-primary/20 hover:border-primary/50 text-primary transition-all">
               <Download className="w-4 h-4" /> {t('export')}
@@ -482,18 +469,23 @@ export default function DriversPage() {
             <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
               {filtered.length} {t('results')}
             </span>
-            <button
-              onClick={() => {
-                setEditId(null);
-                setForm({
-                  name: '', email: '', password: '', phone: '',
-                  licenseNumber: '', dailyRate: '', grossSalary: '', licenseExpiry: '', medicalExpiry: '', tachoCardExpiry: '',
-                  status: 'available',
-                });
-                setShowForm(!showForm);
-              }}
-              className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold"
-            >
+            <button onClick={() => {
+            setEditId(null);
+            setForm({
+              name: '',
+              email: '',
+              password: '',
+              phone: '',
+              licenseNumber: '',
+              dailyRate: '',
+              grossSalary: '',
+              licenseExpiry: '',
+              medicalExpiry: '',
+              tachoCardExpiry: '',
+              status: 'available'
+            });
+            setShowForm(!showForm);
+          }} className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold">
               <Plus className="w-4 h-4" /> {t('addDriver')}
             </button>
           </div>
@@ -502,23 +494,14 @@ export default function DriversPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-surface border-b border-border">
-                {[t('name'), t('email'), t('phone'), t('licenseNumber'), t('grossSalary') || 'Bruto Salaris', t('dailyAllowance') || 'Vergoeding/zi', t('expLicense'), t('expMedical'), t('expTacho'), t('status'), t('documents'), t('actions')].map(h => (
-                  <th key={h} className="table-header whitespace-nowrap">{h}</th>
-                ))}
+                {[t('name'), t('email'), t('phone'), t('licenseNumber'), t('grossSalary'), t('dailyAllowance'), t('expLicense'), t('expMedical'), t('expTacho'), t('status'), t('documents'), t('actions')].map(h => <th key={h} className="table-header whitespace-nowrap">{h}</th>)}
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr><td colSpan={10} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={10} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
-              ) : currentTableItems.map((d: any, idx: number) => (
-                <tr key={d.id} 
-                    className={`hover:bg-surface/60 transition-colors cursor-pointer ${selectedRowIndex === idx ? 'bg-primary/5 ring-1 ring-inset ring-primary' : ''}`}
-                    onClick={(e) => {
-                      if ((e.target as HTMLElement).closest('button, select, input, a, .interactive-click')) return;
-                      handleEdit(d);
-                    }}>
+              {loading ? <tr><td colSpan={10} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr> : filtered.length === 0 ? <tr><td colSpan={10} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr> : currentTableItems.map((d: any, idx: number) => <tr key={d.id} className={`hover:bg-surface/60 transition-colors cursor-pointer ${selectedRowIndex === idx ? 'bg-primary/5 ring-1 ring-inset ring-primary' : ''}`} onClick={e => {
+              if ((e.target as HTMLElement).closest('button, select, input, a, .interactive-click')) return;
+              handleEdit(d);
+            }}>
                   <td className="table-cell font-bold text-text">{d.user?.name || '—'}</td>
                   <td className="table-cell text-xs">{d.user?.email || '—'}</td>
                   <td className="table-cell text-xs font-medium text-text-secondary">{d.phone || '—'}</td>
@@ -529,97 +512,104 @@ export default function DriversPage() {
                   <td className="table-cell text-xs font-semibold text-primary">
                     {d.dailyRate ? `€${Number(d.dailyRate).toFixed(2)}` : '—'}
                   </td>
-                  {[d.licenseExpiry, d.medicalExpiry, d.tachoCardExpiry].map((date, i) => (
-                    <td key={i} className="table-cell whitespace-nowrap">
-                       {date ? (
-                        <span className={`flex items-center gap-1 text-xs font-semibold ${isExpired(date) ? 'text-error' : isExpiringSoon(date) ? 'text-warning' : 'text-success'}`}>
+                  {[d.licenseExpiry, d.medicalExpiry, d.tachoCardExpiry].map((date, i) => <td key={i} className="table-cell whitespace-nowrap">
+                       {date ? <span className={`flex items-center gap-1 text-xs font-semibold ${isExpired(date) ? 'text-error' : isExpiringSoon(date) ? 'text-warning' : 'text-success'}`}>
                           {(isExpired(date) || isExpiringSoon(date)) && <AlertCircle className="w-3.5 h-3.5" />}
                           {formatDate(date)}
-                        </span>
-                      ) : '—'}
-                    </td>
-                  ))}
+                        </span> : '—'}
+                    </td>)}
                   <td className="table-cell">
-                    <CustomSelect
-                      className="w-36 text-xs"
-                      value={d.status || 'available'}
-                      onChange={async (val) => {
-                        try {
-                          await api.patch(`/drivers/${d.id}`, { status: val });
-                          toast.success(t('statusUpdated'));
-                          loadDrivers();
-                        } catch {
-                          toast.error(t('error'));
-                        }
-                      }}
-                      options={[
-                        { value: 'available', label: t('available'), color: 'text-success' },
-                        { value: 'in_trip', label: t('inTrip'), color: 'text-primary' },
-                        { value: 'off', label: t('unavailable'), color: 'text-text-secondary' },
-                        { value: 'sick', label: t('sick'), color: 'text-error' },
-                        { value: 'vacation', label: t('vacation'), color: 'text-warning' },
-                      ]}
-                    />
+                    <CustomSelect className="w-36 text-xs" value={d.status || 'available'} onChange={async val => {
+                  try {
+                    await api.patch(`/drivers/${d.id}`, {
+                      status: val
+                    });
+                    toast.success(t('statusUpdated'));
+                    loadDrivers();
+                  } catch {
+                    toast.error(t('error'));
+                  }
+                }} options={[{
+                  value: 'available',
+                  label: t('available'),
+                  color: 'text-success'
+                }, {
+                  value: 'in_trip',
+                  label: t('inTrip'),
+                  color: 'text-primary'
+                }, {
+                  value: 'off',
+                  label: t('unavailable'),
+                  color: 'text-text-secondary'
+                }, {
+                  value: 'sick',
+                  label: t('sick'),
+                  color: 'text-error'
+                }, {
+                  value: 'vacation',
+                  label: t('vacation'),
+                  color: 'text-warning'
+                }]} />
                   </td>
                   <td className="table-cell text-xs font-semibold text-primary">{d.documents?.length || 0} {t('documents').toLowerCase()}</td>
                   <td className="table-cell">
                     <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleEdit(d)}
-                        className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary-light transition-all"
-                      >
+                      <button onClick={() => handleEdit(d)} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary-light transition-all">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button
-                        onClick={() => handleDelete(d.id)}
-                        className="p-1.5 text-text-secondary hover:text-error rounded-lg hover:bg-red-50 transition-all"
-                      >
+                      <button onClick={() => handleDelete(d.id)} className="p-1.5 text-text-secondary hover:text-error rounded-lg hover:bg-red-50 transition-all">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </td>
-                </tr>
-              ))}
+                </tr>)}
             </tbody>
           </table>
         </div>
-        <Pagination
-          currentPage={currentPage}
-          totalItems={filtered.length}
-          itemsPerPage={itemsPerPage}
-          onPageChange={setCurrentPage}
-          onItemsPerPageChange={setItemsPerPage}
-        />
+        <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </div>
 
-      <ExportModal
-        isOpen={showExport}
-        onClose={() => setShowExport(false)}
-        data={filtered}
-        filename="Soferi_HapCargo"
-        getDateField={item => item.createdAt}
-        headers={[
-          { key: 'createdAt', label: 'Data Inregistrare', transform: val => val ? formatDate(val) : '' },
-          { key: 'name', label: 'Nume Sofer', transform: (_, item) => item?.user?.name || '' },
-          { key: 'email', label: 'Email', transform: (_, item) => item?.user?.email || '' },
-          { key: 'phone', label: 'Telefon' },
-          { key: 'licenseNumber', label: 'Numar Permis' },
-          { key: 'grossSalary', label: t('grossSalary') || 'Bruto Salaris (€)' },
-          { key: 'dailyRate', label: t('dailyAllowance') || 'Vergoeding (€)' },
-          { key: 'licenseExpiry', label: 'Expirare Permis', transform: val => val ? formatDate(val) : '' },
-          { key: 'medicalExpiry', label: 'Expirare Aviz Medical', transform: val => val ? formatDate(val) : '' },
-          { key: 'tachoCardExpiry', label: 'Expirare Cartela Tacho', transform: val => val ? formatDate(val) : '' },
-          { key: 'status', label: 'Status' },
-        ]}
-      />
+      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={filtered} filename="Soferi_HapCargo" getDateField={item => item.createdAt} headers={[{
+      key: 'createdAt',
+      label: 'Data Inregistrare',
+      transform: val => val ? formatDate(val) : ''
+    }, {
+      key: 'name',
+      label: 'Nume Sofer',
+      transform: (_, item) => item?.user?.name || ''
+    }, {
+      key: 'email',
+      label: 'Email',
+      transform: (_, item) => item?.user?.email || ''
+    }, {
+      key: 'phone',
+      label: 'Telefon'
+    }, {
+      key: 'licenseNumber',
+      label: 'Numar Permis'
+    }, {
+      key: 'grossSalary',
+      label: t('grossSalary')
+    }, {
+      key: 'dailyRate',
+      label: t('dailyAllowance')
+    }, {
+      key: 'licenseExpiry',
+      label: 'Expirare Permis',
+      transform: val => val ? formatDate(val) : ''
+    }, {
+      key: 'medicalExpiry',
+      label: 'Expirare Aviz Medical',
+      transform: val => val ? formatDate(val) : ''
+    }, {
+      key: 'tachoCardExpiry',
+      label: 'Expirare Cartela Tacho',
+      transform: val => val ? formatDate(val) : ''
+    }, {
+      key: 'status',
+      label: 'Status'
+    }]} />
     
-      <ConfirmModal
-        isOpen={!!deleteId}
-        onClose={() => setDeleteId(null)}
-        onConfirm={executeDelete}
-        title={t('confirm')}
-        message={t('confirmDelete')}
-      />
-    </div>
-  );
+      <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={executeDelete} title={t('confirm')} message={t('confirmDelete')} />
+    </div>;
 }

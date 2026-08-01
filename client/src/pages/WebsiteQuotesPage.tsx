@@ -8,7 +8,6 @@ import 'flatpickr/dist/themes/light.css';
 import { QuoteReplyForm } from './QuoteReplyForm';
 import { useNavigate } from 'react-router-dom';
 import Pagination from '../components/Pagination';
-
 interface QuoteReply {
   id: string;
   quoteRequestId: string;
@@ -20,7 +19,6 @@ interface QuoteReply {
   sentBy?: string;
   sentAt: string;
 }
-
 interface QuoteRequest {
   id: string;
   companyName: string;
@@ -54,7 +52,6 @@ interface QuoteRequest {
   holidaySurcharge?: boolean;
   replies?: QuoteReply[];
 }
-
 const formatDate = (dateString: string) => {
   if (!dateString) return '-';
   const parts = dateString.split('-');
@@ -96,7 +93,14 @@ const translations: Record<string, Record<string, string>> = {
     modify_status: 'Modifică Status',
     received_at: 'Primită la:',
     loading_requests: 'Se încarcă cererile...',
-    reply: 'Răspunde', send_reply: 'Trimite Oferta', price_eur: 'Preț (€)', valid_until: 'Valabil până la', reply_history: 'Istoric Răspunsuri', reply_message: 'Mesaj / Ofertă', reply_success: 'Răspuns trimis cu succes!', create_transport: 'Creează cursă din ofertă'
+    reply: 'Răspunde',
+    send_reply: 'Trimite Oferta',
+    price_eur: 'Preț (€)',
+    valid_until: 'Valabil până la',
+    reply_history: 'Istoric Răspunsuri',
+    reply_message: 'Mesaj / Ofertă',
+    reply_success: 'Răspuns trimis cu succes!',
+    create_transport: 'Creează cursă din ofertă'
   },
   en: {
     filter_requests: 'Filter requests:',
@@ -128,7 +132,14 @@ const translations: Record<string, Record<string, string>> = {
     modify_status: 'Modify Status',
     received_at: 'Received at:',
     loading_requests: 'Loading requests...',
-    reply: 'Reply', send_reply: 'Send Offer', price_eur: 'Price (€)', valid_until: 'Valid until', reply_history: 'Reply History', reply_message: 'Message / Offer', reply_success: 'Reply sent successfully!', create_transport: 'Create transport from quote'
+    reply: 'Reply',
+    send_reply: 'Send Offer',
+    price_eur: 'Price (€)',
+    valid_until: 'Valid until',
+    reply_history: 'Reply History',
+    reply_message: 'Message / Offer',
+    reply_success: 'Reply sent successfully!',
+    create_transport: 'Create transport from quote'
   },
   nl: {
     filter_requests: 'Verzoeken filteren:',
@@ -160,7 +171,14 @@ const translations: Record<string, Record<string, string>> = {
     modify_status: 'Status wijzigen',
     received_at: 'Ontvangen op:',
     loading_requests: 'Verzoeken laden...',
-    reply: 'Beantwoorden', send_reply: 'Offerte verzenden', price_eur: 'Prijs (€)', valid_until: 'Geldig tot', reply_history: 'Antwoordgeschiedenis', reply_message: 'Bericht / Offerte', reply_success: 'Antwoord succesvol verzonden!', create_transport: 'Maak transport van offerte'
+    reply: 'Beantwoorden',
+    send_reply: 'Offerte verzenden',
+    price_eur: 'Prijs (€)',
+    valid_until: 'Geldig tot',
+    reply_history: 'Antwoordgeschiedenis',
+    reply_message: 'Bericht / Offerte',
+    reply_success: 'Antwoord succesvol verzonden!',
+    create_transport: 'Maak transport van offerte'
   },
   de: {
     filter_requests: 'Anfragen filtern:',
@@ -192,7 +210,14 @@ const translations: Record<string, Record<string, string>> = {
     modify_status: 'Status ändern',
     received_at: 'Erhalten am:',
     loading_requests: 'Lade Anfragen...',
-    reply: 'Antworten', send_reply: 'Angebot senden', price_eur: 'Preis (€)', valid_until: 'Gültig bis', reply_history: 'Antwortverlauf', reply_message: 'Nachricht / Angebot', reply_success: 'Antwort erfolgreich gesendet!', create_transport: 'Transport aus Angebot erstellen'
+    reply: 'Antworten',
+    send_reply: 'Angebot senden',
+    price_eur: 'Preis (€)',
+    valid_until: 'Gültig bis',
+    reply_history: 'Antwortverlauf',
+    reply_message: 'Nachricht / Angebot',
+    reply_success: 'Antwort erfolgreich gesendet!',
+    create_transport: 'Transport aus Angebot erstellen'
   },
   fr: {
     filter_requests: 'Filtrer les demandes:',
@@ -224,7 +249,14 @@ const translations: Record<string, Record<string, string>> = {
     modify_status: 'Modifier le statut',
     received_at: 'Reçu le :',
     loading_requests: 'Chargement des demandes...',
-    reply: 'Répondre', send_reply: 'Envoyer l\'offre', price_eur: 'Prix (€)', valid_until: 'Valable jusqu\'au', reply_history: 'Historique des réponses', reply_message: 'Message / Offre', reply_success: 'Réponse envoyée avec succès !', create_transport: 'Créer un transport à partir du devis'
+    reply: 'Répondre',
+    send_reply: 'Envoyer l\'offre',
+    price_eur: 'Prix (€)',
+    valid_until: 'Valable jusqu\'au',
+    reply_history: 'Historique des réponses',
+    reply_message: 'Message / Offre',
+    reply_success: 'Réponse envoyée avec succès !',
+    create_transport: 'Créer un transport à partir du devis'
   },
   es: {
     filter_requests: 'Filtrar solicitudes:',
@@ -256,10 +288,16 @@ const translations: Record<string, Record<string, string>> = {
     modify_status: 'Modificar estado',
     received_at: 'Recibido en:',
     loading_requests: 'Cargando solicitudes...',
-    reply: 'Responder', send_reply: 'Enviar Oferta', price_eur: 'Precio (€)', valid_until: 'Válido hasta', reply_history: 'Historial de Respuestas', reply_message: 'Mensaje / Oferta', reply_success: '¡Respuesta enviada con éxito!', create_transport: 'Crear transporte a partir de cotización'
+    reply: 'Responder',
+    send_reply: 'Enviar Oferta',
+    price_eur: 'Precio (€)',
+    valid_until: 'Válido hasta',
+    reply_history: 'Historial de Respuestas',
+    reply_message: 'Mensaje / Oferta',
+    reply_success: '¡Respuesta enviada con éxito!',
+    create_transport: 'Crear transporte a partir de cotización'
   }
 };
-
 const WebsiteQuotesPage = () => {
   const [quotes, setQuotes] = useState<QuoteRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -268,12 +306,12 @@ const WebsiteQuotesPage = () => {
   const [expandedQuoteId, setExpandedQuoteId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const { i18n } = useTranslation();
+  const {
+    i18n
+  } = useTranslation();
   const navigate = useNavigate();
-  
   const currentLang = i18n.language?.substring(0, 2).toLowerCase() || 'ro';
   const tLocal = (key: string) => translations[currentLang]?.[key] || translations['en'][key] || key;
-
   const fpOptions = useMemo(() => ({
     altInput: true,
     altFormat: 'd/m/Y',
@@ -281,10 +319,11 @@ const WebsiteQuotesPage = () => {
     allowInput: false,
     minDate: 'today'
   }), []);
-
   const fetchQuotes = async () => {
     try {
-      const { data } = await api.get('/quotes');
+      const {
+        data
+      } = await api.get('/quotes');
       setQuotes(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to fetch quote requests', error);
@@ -293,26 +332,24 @@ const WebsiteQuotesPage = () => {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     fetchQuotes();
   }, []);
-
   const updateStatus = async (id: string, status: string) => {
     try {
-      await api.patch(`/quotes/${id}`, { status });
+      await api.patch(`/quotes/${id}`, {
+        status
+      });
       fetchQuotes();
     } catch (error) {
       console.error('Failed to update quote status', error);
     }
   };
-
   const handleCreateTripFromQuote = (quote: QuoteRequest) => {
     let finalNotes = quote.notes || '';
     if (quote.truckType) {
       finalNotes += (finalNotes ? '\n' : '') + `Requested Truck: ${quote.truckType}`;
     }
-
     const prefilledData = {
       pickupCompanyName: quote.companyName,
       pickupAddress: quote.loadingLocation,
@@ -326,14 +363,18 @@ const WebsiteQuotesPage = () => {
       volumeCbm: quote.cargoVolumeM3,
       notes: finalNotes,
       price: quote.replies && quote.replies.length > 0 ? quote.replies[quote.replies.length - 1].price : '',
-      clientName: quote.companyName, // if we want to try matching or saving it
+      clientName: quote.companyName,
+      // if we want to try matching or saving it
       contactPerson: quote.contactPerson,
       phone: quote.phone,
       email: quote.email
     };
-    navigate('/trips', { state: { createFromQuote: prefilledData } });
+    navigate('/trips', {
+      state: {
+        createFromQuote: prefilledData
+      }
+    });
   };
-
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
       new: 'bg-orange-100 text-orange-800 border-orange-200',
@@ -343,16 +384,11 @@ const WebsiteQuotesPage = () => {
       accepted: 'bg-green-100 text-green-800 border-green-200',
       rejected: 'bg-red-100 text-red-800 border-red-200'
     };
-    
     const displayStatus = status || 'new';
-
-    return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${colors[displayStatus] || 'bg-surface text-text border-border'}`}>
+    return <span className={`px-3 py-1 rounded-full text-xs font-medium border ${colors[displayStatus] || 'bg-surface text-text border-border'}`}>
         {tLocal(`status_${displayStatus}`).toUpperCase()}
-      </span>
-    );
+      </span>;
   };
-
   const filteredQuotes = quotes.filter(q => {
     if (statusFilter !== 'all' && q.status !== statusFilter) return false;
     if (dateFilter) {
@@ -361,21 +397,30 @@ const WebsiteQuotesPage = () => {
     }
     return true;
   });
-
-  const statusOptions = [
-    { value: 'all', label: tLocal('all_statuses') },
-    { value: 'new', label: tLocal('status_new') },
-    { value: 'reviewing', label: tLocal('status_reviewing') },
-    { value: 'contacted', label: tLocal('status_contacted') },
-    { value: 'quoted', label: tLocal('status_quoted') },
-    { value: 'accepted', label: tLocal('status_accepted') },
-    { value: 'rejected', label: tLocal('status_rejected') },
-  ];
-
+  const statusOptions = [{
+    value: 'all',
+    label: tLocal('all_statuses')
+  }, {
+    value: 'new',
+    label: tLocal('status_new')
+  }, {
+    value: 'reviewing',
+    label: tLocal('status_reviewing')
+  }, {
+    value: 'contacted',
+    label: tLocal('status_contacted')
+  }, {
+    value: 'quoted',
+    label: tLocal('status_quoted')
+  }, {
+    value: 'accepted',
+    label: tLocal('status_accepted')
+  }, {
+    value: 'rejected',
+    label: tLocal('status_rejected')
+  }];
   if (loading) return <div className="p-8">{tLocal('loading_requests')}</div>;
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-surface p-4 rounded-xl border border-border">
         <div className="flex items-center gap-2">
           <Filter className="w-5 h-5 text-text-secondary" />
@@ -383,78 +428,66 @@ const WebsiteQuotesPage = () => {
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
           <div className="w-full sm:w-48 relative z-50">
-            <CustomSelect 
-              value={statusFilter} 
-              onChange={setStatusFilter}
-              options={statusOptions}
-            />
+            <CustomSelect value={statusFilter} onChange={setStatusFilter} options={statusOptions} />
           </div>
           
-          <div className="relative w-full sm:w-auto z-40" onClick={(e) => { const inp = e.currentTarget.querySelector('input'); if (inp) { const fp = (inp as any)._flatpickr; if (fp) fp.open(); else inp.focus(); } }}>
-            <Flatpickr
-              type="hidden"
-              value={dateFilter}
-              onChange={(dates, dateStr) => setDateFilter(dateStr)}
-              onClick={(e) => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
-              onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
-              className="w-full sm:w-40 px-3 py-2 border border-border rounded-lg focus:ring-primary focus:border-primary text-sm bg-card cursor-pointer pl-10"
-              options={fpOptions}
-              placeholder="dd/mm/yyyy"
-            />
+          <div className="relative w-full sm:w-auto z-40" onClick={e => {
+          const inp = e.currentTarget.querySelector('input');
+          if (inp) {
+            const fp = (inp as any)._flatpickr;
+            if (fp) fp.open();else inp.focus();
+          }
+        }}>
+            <Flatpickr type="hidden" value={dateFilter} onChange={(dates, dateStr) => setDateFilter(dateStr)} onClick={e => {
+            e.stopPropagation();
+            const fp = (e.target as any)._flatpickr;
+            if (fp) fp.open();
+          }} onFocus={e => {
+            const fp = (e.target as any)._flatpickr;
+            if (fp) fp.open();
+          }} className="w-full sm:w-40 px-3 py-2 border border-border rounded-lg focus:ring-primary focus:border-primary text-sm bg-card cursor-pointer pl-10" options={fpOptions} placeholder="dd/mm/yyyy" />
             <Calendar className="w-4 h-4 text-text-light absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
           
-          {(statusFilter !== 'all' || dateFilter) && (
-            <button 
-              onClick={() => { setStatusFilter('all'); setDateFilter(''); }}
-              className="text-sm text-primary hover:text-primary-dark font-medium whitespace-nowrap px-2"
-            >
+          {(statusFilter !== 'all' || dateFilter) && <button onClick={() => {
+          setStatusFilter('all');
+          setDateFilter('');
+        }} className="text-sm text-primary hover:text-primary-dark font-medium whitespace-nowrap px-2">
               {tLocal('clear_filters')}
-            </button>
-          )}
+            </button>}
         </div>
       </div>
 
       <div className="grid gap-4">
-        {filteredQuotes.length === 0 ? (
-          <div className="bg-card rounded-xl shadow-sm border border-border">
+        {filteredQuotes.length === 0 ? <div className="bg-card rounded-xl shadow-sm border border-border">
             <div className="p-8 text-center text-text-secondary">
               {tLocal('no_requests_found')}
             </div>
-          </div>
-        ) : (
-          filteredQuotes.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((quote) => {
-            const isExpanded = expandedQuoteId === quote.id;
-            const createdAtDate = quote.createdAt ? new Date(quote.createdAt) : null;
-            
-            return (
-              <div key={quote.id} className="bg-card rounded-xl shadow-sm overflow-hidden border border-border transition-all">
+          </div> : filteredQuotes.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(quote => {
+        const isExpanded = expandedQuoteId === quote.id;
+        const createdAtDate = quote.createdAt ? new Date(quote.createdAt) : null;
+        return <div key={quote.id} className="bg-card rounded-xl shadow-sm overflow-hidden border border-border transition-all">
                 {/* Header Row (Clickable) */}
-                <div 
-                  className="p-4 flex items-center justify-between cursor-pointer hover:bg-surface"
-                  onClick={() => setExpandedQuoteId(isExpanded ? null : quote.id)}
-                >
+                <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-surface" onClick={() => setExpandedQuoteId(isExpanded ? null : quote.id)}>
                   <div className="flex items-center gap-4">
                     <div className="flex flex-col">
                       <div className="flex items-center gap-3 flex-wrap">
                         <h3 className="text-lg font-semibold">{quote.companyName}</h3>
-                        {quote.isUrgent && (
-                          <span className="bg-red-100 text-red-800 text-xs font-bold px-2 py-0.5 rounded uppercase border border-red-200">
+                        {quote.isUrgent && <span className="bg-red-100 text-red-800 text-xs font-bold px-2 py-0.5 rounded uppercase border border-red-200">
                             {tLocal('urgent')}
-                          </span>
-                        )}
-                        {quote.adrSurcharge && <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded border border-amber-200">⚠️ ADR</span>}
-                        {quote.nightSurcharge && <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 rounded border border-blue-200">🌙 Noapte / Express</span>}
-                        {quote.weekendSurcharge && <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded border border-emerald-200">📅 Weekend</span>}
-                        {quote.holidaySurcharge && <span className="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-0.5 rounded border border-purple-200">🏛️ Sărbători Legale</span>}
-                        {quote.estimatedPrice && (
-                          <span className="bg-green-100 text-green-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-green-200 flex items-center gap-1 shadow-sm">
-                            ⚡ Calculator: {quote.estimatedPrice}
-                          </span>
-                        )}
+                          </span>}
+                        {quote.adrSurcharge && <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded border border-amber-200">{t("jsx_ADR")}</span>}
+                        {quote.nightSurcharge && <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 rounded border border-blue-200">{t("jsx_NoapteExp")}</span>}
+                        {quote.weekendSurcharge && <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded border border-emerald-200">{t("jsx_Weekend")}</span>}
+                        {quote.holidaySurcharge && <span className="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-0.5 rounded border border-purple-200">{t("jsx_SRbToriL")}</span>}
+                        {quote.estimatedPrice && <span className="bg-green-100 text-green-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-green-200 flex items-center gap-1 shadow-sm">{t("jsx_Calculator")}{quote.estimatedPrice}
+                          </span>}
                       </div>
                       <p className="text-sm text-text-secondary mt-1">
-                        {createdAtDate ? formatDate(createdAtDate.toISOString().split('T')[0]) : '-'} {createdAtDate ? createdAtDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''} • {quote.loadingLocation} ➔ {quote.unloadingLocation}
+                        {createdAtDate ? formatDate(createdAtDate.toISOString().split('T')[0]) : '-'} {createdAtDate ? createdAtDate.toLocaleTimeString('en-GB', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  }) : ''} • {quote.loadingLocation} ➔ {quote.unloadingLocation}
                       </p>
                     </div>
                   </div>
@@ -467,30 +500,25 @@ const WebsiteQuotesPage = () => {
                 </div>
 
                 {/* Collapsible Body */}
-                {isExpanded && (
-                  <div className="border-t border-border bg-surface/30">
+                {isExpanded && <div className="border-t border-border bg-surface/30">
                     <div className="flex flex-col lg:flex-row">
                       <div className="p-6 flex-1 border-b lg:border-b-0 lg:border-r border-border">
-                        {quote.estimatedPrice && (
-                          <div className="p-4 bg-green-50 text-green-900 rounded-xl text-sm border border-green-200 mb-6 flex items-center justify-between shadow-sm">
+                        {quote.estimatedPrice && <div className="p-4 bg-green-50 text-green-900 rounded-xl text-sm border border-green-200 mb-6 flex items-center justify-between shadow-sm">
                             <div>
-                              <span className="font-bold uppercase text-xs text-green-700 tracking-wider block mb-1">⚡ Estimare preț prin calculatorul de pe site</span>
+                              <span className="font-bold uppercase text-xs text-green-700 tracking-wider block mb-1">{t("jsx_EstimarePre")}</span>
                               <span className="text-xl font-extrabold text-green-800">{quote.estimatedPrice}</span>
-                              {quote.distanceKm && <span className="text-text-secondary ml-2 font-medium">(Distanță rută: {quote.distanceKm} km)</span>}
+                              {quote.distanceKm && <span className="text-text-secondary ml-2 font-medium">{t("jsx_DistanRut")}{quote.distanceKm}{t("jsx_km")}</span>}
                             </div>
-                          </div>
-                        )}
-                        {(quote.adrSurcharge || quote.nightSurcharge || quote.weekendSurcharge || quote.holidaySurcharge) && (
-                          <div className="p-4 bg-surface rounded-xl border border-border mb-6 shadow-sm">
-                            <span className="font-bold uppercase text-xs text-text-secondary tracking-wider block mb-2">Opțiuni / Tarife Speciale Selectate</span>
+                          </div>}
+                        {(quote.adrSurcharge || quote.nightSurcharge || quote.weekendSurcharge || quote.holidaySurcharge) && <div className="p-4 bg-surface rounded-xl border border-border mb-6 shadow-sm">
+                            <span className="font-bold uppercase text-xs text-text-secondary tracking-wider block mb-2">{t("jsx_opIuniTarif")}</span>
                             <div className="flex flex-wrap gap-2">
-                              {quote.adrSurcharge && <span className="bg-amber-100 text-amber-800 font-bold text-xs px-2.5 py-1 rounded-full border border-amber-300">⚠️ ADR (Mărfuri Periculoase)</span>}
-                              {quote.nightSurcharge && <span className="bg-blue-100 text-blue-800 font-bold text-xs px-2.5 py-1 rounded-full border border-blue-300">🌙 Transit Noapte / Express</span>}
-                              {quote.weekendSurcharge && <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-2.5 py-1 rounded-full border border-emerald-300">📅 Transit Weekend</span>}
-                              {quote.holidaySurcharge && <span className="bg-purple-100 text-purple-800 font-bold text-xs px-2.5 py-1 rounded-full border border-purple-300">🏛️ Transit Sărbători Legale</span>}
+                              {quote.adrSurcharge && <span className="bg-amber-100 text-amber-800 font-bold text-xs px-2.5 py-1 rounded-full border border-amber-300">{t("jsx_ADRMRfuri")}</span>}
+                              {quote.nightSurcharge && <span className="bg-blue-100 text-blue-800 font-bold text-xs px-2.5 py-1 rounded-full border border-blue-300">{t("jsx_TransitNoap")}</span>}
+                              {quote.weekendSurcharge && <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-2.5 py-1 rounded-full border border-emerald-300">{t("jsx_TransitWeek")}</span>}
+                              {quote.holidaySurcharge && <span className="bg-purple-100 text-purple-800 font-bold text-xs px-2.5 py-1 rounded-full border border-purple-300">{t("jsx_TransitSR")}</span>}
                             </div>
-                          </div>
-                        )}
+                          </div>}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 text-sm">
                           <div>
                             <p className="text-text-secondary mb-1 text-xs uppercase font-semibold">{tLocal('contact')}</p>
@@ -511,9 +539,7 @@ const WebsiteQuotesPage = () => {
                           <div>
                             <p className="text-text-secondary mb-1 text-xs uppercase font-semibold">{tLocal('required_truck')}</p>
                             <p className="font-medium">🚚 {tLocal('type')}: {quote.truckType || '-'}</p>
-                            {quote.temperatureRequired && (
-                              <p className="font-medium text-primary">❄️ {tLocal('temp')}: {quote.temperatureRequired}</p>
-                            )}
+                            {quote.temperatureRequired && <p className="font-medium text-primary">❄️ {tLocal('temp')}: {quote.temperatureRequired}</p>}
                           </div>
                         </div>
 
@@ -524,110 +550,69 @@ const WebsiteQuotesPage = () => {
                                 <span className="w-2 h-2 rounded-full bg-primary"></span> {tLocal('loading')}
                               </p>
                               <p className="font-medium text-base mb-1">{quote.loadingLocation}</p>
-                              {(quote.loadingDate || quote.loadingTime) && (
-                                <p className="text-sm text-text-secondary flex items-center gap-1">
+                              {(quote.loadingDate || quote.loadingTime) && <p className="text-sm text-text-secondary flex items-center gap-1">
                                   📅 {formatDate(quote.loadingDate)} 🕒 {quote.loadingTime || '-'}
-                                </p>
-                              )}
+                                </p>}
                             </div>
                             <div className="p-4">
                               <p className="text-xs text-text-secondary uppercase tracking-wider font-semibold mb-2 flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-green-500"></span> {tLocal('unloading')}
                               </p>
                               <p className="font-medium text-base mb-1">{quote.unloadingLocation}</p>
-                              {(quote.unloadingDate || quote.unloadingTime) && (
-                                <p className="text-sm text-text-secondary flex items-center gap-1">
+                              {(quote.unloadingDate || quote.unloadingTime) && <p className="text-sm text-text-secondary flex items-center gap-1">
                                   📅 {formatDate(quote.unloadingDate)} 🕒 {quote.unloadingTime || '-'}
-                                </p>
-                              )}
+                                </p>}
                             </div>
                           </div>
                         </div>
 
-                        {quote.notes && (
-                          <div className="p-3 bg-orange-50 text-orange-900 rounded-md text-sm border border-orange-100 mb-4">
+                        {quote.notes && <div className="p-3 bg-orange-50 text-orange-900 rounded-md text-sm border border-orange-100 mb-4">
                             <strong>{tLocal('client_notes')}:</strong> {quote.notes}
-                          </div>
-                        )}
+                          </div>}
 
-                        {quote.attachmentUrl && (
-                          <div className="flex items-center gap-3">
-                            <a 
-                              href={quote.attachmentUrl} 
-                              target="_blank" 
-                              rel="noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 text-primary text-sm font-medium rounded-lg transition-colors border border-orange-200"
-                            >
+                        {quote.attachmentUrl && <div className="flex items-center gap-3">
+                            <a href={quote.attachmentUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 text-primary text-sm font-medium rounded-lg transition-colors border border-orange-200">
                               <Eye className="w-4 h-4" />
                               {tLocal('view_file')}
                             </a>
-                            <a 
-                              href={quote.attachmentUrl} 
-                              download
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-surface hover:bg-border text-text-secondary text-sm font-medium rounded-lg transition-colors border border-border"
-                            >
+                            <a href={quote.attachmentUrl} download onClick={e => e.stopPropagation()} className="inline-flex items-center gap-2 px-4 py-2 bg-surface hover:bg-border text-text-secondary text-sm font-medium rounded-lg transition-colors border border-border">
                               <Download className="w-4 h-4" />
                               {tLocal('download_file')}
                             </a>
-                          </div>
-                        )}
+                          </div>}
 
-                        <QuoteReplyForm 
-                          quoteId={quote.id} 
-                          replies={quote.replies} 
-                          tLocal={tLocal} 
-                          onReplyAdded={fetchQuotes} 
-                        />
+                        <QuoteReplyForm quoteId={quote.id} replies={quote.replies} tLocal={tLocal} onReplyAdded={fetchQuotes} />
                       </div>
                       
-                      <div className="p-6 lg:w-64 bg-card flex flex-col gap-2 relative z-10" onClick={(e) => e.stopPropagation()}>
+                      <div className="p-6 lg:w-64 bg-card flex flex-col gap-2 relative z-10" onClick={e => e.stopPropagation()}>
                         <p className="text-xs text-text-secondary text-center mb-1 font-semibold uppercase">{tLocal('modify_status')}</p>
                         
-                        <CustomSelect 
-                          value={quote.status}
-                          onChange={(val) => updateStatus(quote.id, val)}
-                          options={statusOptions.filter(o => o.value !== 'all')}
-                        />
+                        <CustomSelect value={quote.status} onChange={val => updateStatus(quote.id, val)} options={statusOptions.filter(o => o.value !== 'all')} />
 
-                        {quote.status === 'accepted' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCreateTripFromQuote(quote);
-                            }}
-                            className="mt-4 w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-                          >
+                        {quote.status === 'accepted' && <button onClick={e => {
+                  e.stopPropagation();
+                  handleCreateTripFromQuote(quote);
+                }} className="mt-4 w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
                             <Truck className="w-4 h-4" />
                             {tLocal('create_transport')}
-                          </button>
-                        )}
+                          </button>}
 
                         <div className="mt-auto pt-4 border-t border-border text-center">
                           <p className="text-xs text-text-light">{tLocal('received_at')}</p>
                           <p className="text-sm font-medium text-text-secondary">
-                            {createdAtDate ? `${createdAtDate.toLocaleDateString('en-GB')} ${createdAtDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                            {createdAtDate ? `${createdAtDate.toLocaleDateString('en-GB')} ${createdAtDate.toLocaleTimeString('en-GB', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}` : ''}
                           </p>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
+                  </div>}
+              </div>;
+      })}
       </div>
-      <Pagination
-        currentPage={currentPage}
-        totalItems={filteredQuotes.length}
-        itemsPerPage={itemsPerPage}
-        onPageChange={setCurrentPage}
-        onItemsPerPageChange={setItemsPerPage}
-      />
-    </div>
-  );
+      <Pagination currentPage={currentPage} totalItems={filteredQuotes.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
+    </div>;
 };
-
 export default WebsiteQuotesPage;

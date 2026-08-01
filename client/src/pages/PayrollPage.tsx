@@ -7,14 +7,12 @@ import { formatDate } from '../lib/dateUtils';
 import CustomSelect from '../components/CustomSelect';
 import { generatePayrollPdfBase64 } from '../lib/payrollPdfGenerator';
 import Pagination from '../components/Pagination';
-
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
-
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 export default function PayrollPage() {
-  const { t, i18n } = useTranslation();
+  const {
+    t,
+    i18n
+  } = useTranslation();
   const [payrolls, setPayrolls] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
@@ -22,7 +20,6 @@ export default function PayrollPage() {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-
   const loadPayrolls = async () => {
     setLoading(true);
     try {
@@ -34,34 +31,39 @@ export default function PayrollPage() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     if (i18n.language) {
       loadPayrolls();
     }
   }, [selectedMonth, selectedYear, i18n.language, t]);
-
   const handleGenerate = async () => {
     const loadingToast = toast.loading(t('toast_calcPayrolls'));
     try {
-      await api.post('/payrolls/generate', { month: selectedMonth, year: selectedYear });
-      toast.success(t('toast_calcSuccess'), { id: loadingToast });
+      await api.post('/payrolls/generate', {
+        month: selectedMonth,
+        year: selectedYear
+      });
+      toast.success(t('toast_calcSuccess'), {
+        id: loadingToast
+      });
       loadPayrolls();
     } catch (err) {
-      toast.error(t('errGenPayrolls'), { id: loadingToast });
+      toast.error(t('errGenPayrolls'), {
+        id: loadingToast
+      });
     }
   };
-
   const handleUpdate = async (id: string, field: string, value: any) => {
     try {
-      await api.patch(`/payrolls/${id}`, { [field]: value });
+      await api.patch(`/payrolls/${id}`, {
+        [field]: value
+      });
       toast.success(t('toast_updateSuccess'));
       loadPayrolls();
     } catch {
       toast.error(t('errUpdate'));
     }
   };
-
   const handleDownloadPdf = async (p: any) => {
     const loadingToast = toast.loading(t('generatingPdf'));
     try {
@@ -72,19 +74,20 @@ export default function PayrollPage() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success(t('toast_downloadSuccess'), { id: loadingToast });
+      toast.success(t('toast_downloadSuccess'), {
+        id: loadingToast
+      });
     } catch (err) {
-      toast.error(t('errGenerate'), { id: loadingToast });
+      toast.error(t('errGenerate'), {
+        id: loadingToast
+      });
     }
   };
-
   const filtered = payrolls.filter(p => {
     const q = search.toLowerCase();
     return (p.user?.name || '').toLowerCase().includes(q);
   });
-
-  return (
-    <div className="space-y-5 animate-fade-in">
+  return <div className="space-y-5 animate-fade-in">
       <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
         <div className="p-4 border-b border-border flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
           <div className="flex items-center gap-3 w-full xl:w-auto">
@@ -101,26 +104,19 @@ export default function PayrollPage() {
             <div className="flex items-center gap-2 bg-surface/50 border border-border rounded-xl p-1.5 shrink-0">
               <div className="flex items-center gap-1.5 px-2">
                 <Filter className="w-4 h-4 text-text-secondary" />
-                <span className="text-sm font-semibold text-text-secondary">Luna:</span>
+                <span className="text-sm font-semibold text-text-secondary">{t("jsx_luna")}</span>
               </div>
-              <CustomSelect 
-                className="w-28 text-sm font-semibold shadow-sm"
-                value={String(selectedMonth)}
-                onChange={val => setSelectedMonth(Number(val))}
-                options={MONTHS.map((m, i) => ({ value: String(i+1), label: m }))}
-              />
-              <CustomSelect 
-                className="w-24 text-sm font-semibold shadow-sm"
-                value={String(selectedYear)}
-                onChange={val => setSelectedYear(Number(val))}
-                options={[2024, 2025, 2026, 2027].map(y => ({ value: String(y), label: String(y) }))}
-              />
+              <CustomSelect className="w-28 text-sm font-semibold shadow-sm" value={String(selectedMonth)} onChange={val => setSelectedMonth(Number(val))} options={MONTHS.map((m, i) => ({
+              value: String(i + 1),
+              label: m
+            }))} />
+              <CustomSelect className="w-24 text-sm font-semibold shadow-sm" value={String(selectedYear)} onChange={val => setSelectedYear(Number(val))} options={[2024, 2025, 2026, 2027].map(y => ({
+              value: String(y),
+              label: String(y)
+            }))} />
             </div>
 
-            <button 
-              onClick={handleGenerate}
-              className="btn-primary py-2 px-4 text-sm font-bold flex items-center gap-2 shrink-0 shadow-md shadow-primary/20"
-            >
+            <button onClick={handleGenerate} className="btn-primary py-2 px-4 text-sm font-bold flex items-center gap-2 shrink-0 shadow-md shadow-primary/20">
               <RefreshCw className="w-4 h-4" /> {t('generatePayroll')}
             </button>
           </div>
@@ -143,10 +139,7 @@ export default function PayrollPage() {
               </tr>
             </thead>
             <tbody>
-              {loading ? <tr><td colSpan={10} className="text-center py-8 text-text-secondary">{t('loading')}</td></tr>
-              : filtered.length === 0 ? <tr><td colSpan={10} className="text-center py-8 text-text-secondary">{t('noPayrollData')}</td></tr>
-              : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(p => (
-                <tr key={p.id} className="hover:bg-surface/60 transition-colors border-b border-border/50 last:border-0">
+              {loading ? <tr><td colSpan={10} className="text-center py-8 text-text-secondary">{t('loading')}</td></tr> : filtered.length === 0 ? <tr><td colSpan={10} className="text-center py-8 text-text-secondary">{t('noPayrollData')}</td></tr> : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(p => <tr key={p.id} className="hover:bg-surface/60 transition-colors border-b border-border/50 last:border-0">
                   <td className="table-cell font-bold text-text">
                     {p.user?.name || '-'}
                     <div className="text-[10px] font-normal text-text-secondary mt-0.5">{t('payroll_holiday')}: €{Number(p.holidayAllowance).toFixed(2)}</div>
@@ -161,16 +154,8 @@ export default function PayrollPage() {
                   <td className="table-cell font-bold text-primary text-right">€{Number(p.totalAllowance).toFixed(2)}</td>
                   <td className="table-cell min-w-[120px] text-right">
                     <div className="flex flex-col gap-1.5 items-end">
-                      <input 
-                        type="number" className="input py-1 px-2 text-xs border-success/30 focus:border-success focus:ring-success/20 bg-success/5" placeholder={t('bonuses')} className="input py-1 px-2 text-xs border-success/30 focus:border-success focus:ring-success/20 bg-success/5 w-24 text-right" 
-                        defaultValue={p.bonuses || ''}
-                        onBlur={e => handleUpdate(p.id, 'bonuses', Number(e.target.value) || 0)}
-                      />
-                      <input 
-                        type="number" className="input py-1 px-2 text-xs border-error/30 focus:border-error focus:ring-error/20 bg-error/5" placeholder={t('deductions')} className="input py-1 px-2 text-xs border-error/30 focus:border-error focus:ring-error/20 bg-error/5 w-24 text-right" 
-                        defaultValue={p.deductions || ''}
-                        onBlur={e => handleUpdate(p.id, 'deductions', Number(e.target.value) || 0)}
-                      />
+                      <input type="number" className="input py-1 px-2 text-xs border-success/30 focus:border-success focus:ring-success/20 bg-success/5" placeholder={t('bonuses')} className="input py-1 px-2 text-xs border-success/30 focus:border-success focus:ring-success/20 bg-success/5 w-24 text-right" defaultValue={p.bonuses || ''} onBlur={e => handleUpdate(p.id, 'bonuses', Number(e.target.value) || 0)} />
+                      <input type="number" className="input py-1 px-2 text-xs border-error/30 focus:border-error focus:ring-error/20 bg-error/5" placeholder={t('deductions')} className="input py-1 px-2 text-xs border-error/30 focus:border-error focus:ring-error/20 bg-error/5 w-24 text-right" defaultValue={p.deductions || ''} onBlur={e => handleUpdate(p.id, 'deductions', Number(e.target.value) || 0)} />
                     </div>
                   </td>
                   <td className="table-cell text-right">
@@ -179,41 +164,32 @@ export default function PayrollPage() {
                     </div>
                   </td>
                   <td className="table-cell">
-                    <CustomSelect 
-                      className="w-28 text-xs"
-                      value={p.status} 
-                      onChange={val => handleUpdate(p.id, 'status', val)} 
-                      options={[
-                        { value: 'draft', label: 'Draft', color: 'text-text-secondary' },
-                        { value: 'paid', label: 'Plătit', color: 'text-success' },
-                        { value: 'sent', label: 'Trimis', color: 'text-primary' },
-                      ]}
-                    />
+                    <CustomSelect className="w-28 text-xs" value={p.status} onChange={val => handleUpdate(p.id, 'status', val)} options={[{
+                  value: 'draft',
+                  label: 'Draft',
+                  color: 'text-text-secondary'
+                }, {
+                  value: 'paid',
+                  label: 'Plătit',
+                  color: 'text-success'
+                }, {
+                  value: 'sent',
+                  label: 'Trimis',
+                  color: 'text-primary'
+                }]} />
                   </td>
                   <td className="table-cell">
                     <div className="flex items-center gap-1">
-                      <button 
-                        onClick={() => handleDownloadPdf(p)}
-                        className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary-light rounded transition-colors" 
-                        title="Descarcă Fluturaș"
-                      >
+                      <button onClick={() => handleDownloadPdf(p)} className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary-light rounded transition-colors" title="Descarcă Fluturaș">
                         <Download className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
-                </tr>
-              ))}
+                </tr>)}
             </tbody>
           </table>
         </div>
-        <Pagination
-          currentPage={currentPage}
-          totalItems={filtered.length}
-          itemsPerPage={itemsPerPage}
-          onPageChange={setCurrentPage}
-          onItemsPerPageChange={setItemsPerPage}
-        />
+        <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </div>
-    </div>
-  );
+    </div>;
 }

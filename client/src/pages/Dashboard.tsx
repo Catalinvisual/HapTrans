@@ -131,7 +131,7 @@ export default function Dashboard() {
       {/* Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="card">
-          <h3 className="text-sm font-semibold text-text mb-4">{t('topProfitableRoutes') || 'Top Rute Profitabile'}</h3>
+          <h3 className="text-sm font-semibold text-text mb-4">{t('topProfitableRoutes')}</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={data?.profitByRoute ?? []} layout="vertical" margin={{ left: 20 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={true} stroke="rgba(0,0,0,0.05)" />
@@ -144,7 +144,7 @@ export default function Dashboard() {
         </div>
 
         <div className="card">
-          <h3 className="text-sm font-semibold text-text mb-4">{t('topClientsProfit') || 'Top Clienți (Profit)'}</h3>
+          <h3 className="text-sm font-semibold text-text mb-4">{t('topClientsProfit')}</h3>
           <div className="space-y-4 mt-2">
             {(data?.topClients ?? []).filter(c => c.profit > 0).map((client, idx) => (
               <div key={idx} className="flex items-center justify-between">
@@ -160,7 +160,7 @@ export default function Dashboard() {
               </div>
             ))}
             {(data?.topClients?.length ?? 0) === 0 && (
-              <div className="text-sm text-text-secondary text-center mt-8">Nu există date suficiente</div>
+              <div className="text-sm text-text-secondary text-center mt-8">{t('notEnoughData')}</div>
             )}
           </div>
         </div>

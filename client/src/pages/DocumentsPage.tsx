@@ -7,9 +7,15 @@ import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
 import CustomSelect from '../components/CustomSelect';
 import Pagination from '../components/Pagination';
-
-export default function DocumentsPage({ embeddedClientId }: { embeddedClientId?: string }) {
-  const { t, i18n } = useTranslation();
+export default function DocumentsPage({
+  embeddedClientId
+}: {
+  embeddedClientId?: string;
+}) {
+  const {
+    t,
+    i18n
+  } = useTranslation();
   const [docs, setDocs] = useState<any[]>([]);
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +28,6 @@ export default function DocumentsPage({ embeddedClientId }: { embeddedClientId?:
   const [notes, setNotes] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-
   const executeDelete = async () => {
     if (!deleteId) return;
     try {
@@ -30,17 +35,20 @@ export default function DocumentsPage({ embeddedClientId }: { embeddedClientId?:
       toast.success(t('documentDeleted'));
       load();
     } catch {
-      toast.error('Error');
+      toast.error(t("toast_error"));
     } finally {
       setDeleteId(null);
     }
   };
   const load = async () => {
     const [d, tr] = await Promise.all([api.get('/documents'), api.get('/trips')]);
-    setDocs(d.data); setTrips(tr.data); setLoading(false);
+    setDocs(d.data);
+    setTrips(tr.data);
+    setLoading(false);
   };
-  useEffect(() => { load(); }, []);
-
+  useEffect(() => {
+    load();
+  }, []);
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) return;
@@ -50,32 +58,39 @@ export default function DocumentsPage({ embeddedClientId }: { embeddedClientId?:
     const extension = file.name.split('.').pop() || 'pdf';
     const cleanType = docType.replace(/[^a-zA-Z0-9_-]/g, '_');
     const finalName = selectedTrip?.referenceNumber ? `${selectedTrip.referenceNumber}_${cleanType}.${extension}` : `${cleanType}.${extension}`;
-    const newFile = new File([file], finalName, { type: file.type });
+    const newFile = new File([file], finalName, {
+      type: file.type
+    });
     fd.append('file', newFile);
     fd.append('tripId', tripId);
     fd.append('type', docType);
     if (notes) fd.append('notes', notes);
     setUploading(true);
     try {
-      await api.post('/documents/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success(t('success') || 'Document încărcat!'); 
-      setFile(null); 
+      await api.post('/documents/upload', fd, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      toast.success(t('success') || 'Document încărcat!');
+      setFile(null);
       setNotes('');
       setShowForm(false);
       load();
-    } catch { toast.error(t('uploadError')); }
-    finally { setUploading(false); }
+    } catch {
+      toast.error(t('uploadError'));
+    } finally {
+      setUploading(false);
+    }
   };
-
   const handlePreview = async (doc: any) => {
     try {
       const res = await api.get(`/documents/${doc.id}/preview-url`);
       window.open(res.data.url, '_blank');
     } catch {
-      toast.error('Error loading document preview');
+      toast.error(t("toast_errorLoadingD"));
     }
   };
-
   const handleDownload = async (doc: any) => {
     try {
       const res = await api.get(`/documents/${doc.id}/preview-url`);
@@ -88,22 +103,20 @@ export default function DocumentsPage({ embeddedClientId }: { embeddedClientId?:
       document.body.removeChild(link);
       toast.success(t('documentDownloaded'));
     } catch {
-      toast.error('Error downloading document');
+      toast.error(t("toast_errorDownloadi"));
     }
   };
-
   const handleShare = async (doc: any) => {
     try {
       const res = await api.post(`/documents/${doc.id}/share`);
       const origin = window.location.origin;
       const shareUrl = `${origin}/shared/documents/${res.data.token}`;
-      
       if (navigator.share) {
         try {
           await navigator.share({
             title: doc.fileName,
             text: `Document: ${doc.fileName}`,
-            url: shareUrl,
+            url: shareUrl
           });
           toast.success(t('documentShared'));
         } catch (err: any) {
@@ -114,75 +127,58 @@ export default function DocumentsPage({ embeddedClientId }: { embeddedClientId?:
         toast.success(t('copiedToClipboard') || 'Link copiat!');
       }
     } catch {
-      toast.error('Error generating share link');
+      toast.error(t("toast_errorGeneratin"));
     }
   };
-
   const displayDocs = embeddedClientId ? docs.filter(doc => {
     const trip = trips.find((t: any) => t.id === doc.trip?.id);
     return trip?.client?.id === embeddedClientId;
   }) : docs;
+  return <div className="space-y-5 animate-fade-in">
 
-  return (
-    <div className="space-y-5 animate-fade-in">
-
-      {showForm && !embeddedClientId && (
-        <div className="card animate-fade-in bg-card border border-border rounded-2xl p-6 shadow-md mb-6">
+      {showForm && !embeddedClientId && <div className="card animate-fade-in bg-card border border-border rounded-2xl p-6 shadow-md mb-6">
           <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">
             {t('uploadDocument')}
           </h3>
           <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-end">
           <div>
             <label className="label">{t('reference') || 'Referinta'}</label>
-            <CustomSelect
-              value={tripId}
-              onChange={val => setTripId(val)}
-              placeholder={t('noTrip')}
-              options={trips.map((tr: any) => ({
-                value: tr.id,
-                label: tr.referenceNumber ? `${tr.referenceNumber} | ${tr.pickupAddress?.slice(0,20)}...` : `${tr.pickupAddress?.slice(0,20)}...`
-              }))}
-            />
+            <CustomSelect value={tripId} onChange={val => setTripId(val)} placeholder={t('noTrip')} options={trips.map((tr: any) => ({
+            value: tr.id,
+            label: tr.referenceNumber ? `${tr.referenceNumber} | ${tr.pickupAddress?.slice(0, 20)}...` : `${tr.pickupAddress?.slice(0, 20)}...`
+          }))} />
           </div>
           <div>
             <label className="label">{t('documentType')}</label>
-            <CustomSelect
-              value={docType}
-              onChange={val => setDocType(val)}
-              options={[
-                { value: 'CMR', label: 'CMR' },
-                { value: 'Aviz', label: t('aviz') !== 'aviz' ? t('aviz').charAt(0).toUpperCase() + t('aviz').slice(1) : 'Aviz' },
-                { value: 'Factură', label: t('invoices') },
-                { value: 'Foto încărcare', label: t('loadingPhoto') },
-                { value: 'Foto marfă', label: t('cargoPhoto') },
-                { value: 'Altele', label: t('other') }
-              ]}
-            />
+            <CustomSelect value={docType} onChange={val => setDocType(val)} options={[{
+            value: 'CMR',
+            label: 'CMR'
+          }, {
+            value: 'Aviz',
+            label: t('aviz') !== 'aviz' ? t('aviz').charAt(0).toUpperCase() + t('aviz').slice(1) : 'Aviz'
+          }, {
+            value: 'Factură',
+            label: t('invoices')
+          }, {
+            value: 'Foto încărcare',
+            label: t('loadingPhoto')
+          }, {
+            value: 'Foto marfă',
+            label: t('cargoPhoto')
+          }, {
+            value: 'Altele',
+            label: t('other')
+          }]} />
           </div>
           <div>
             <label className="label">{t('notes') || 'Comentarii'}</label>
-            <input 
-              type="text" 
-              className="input py-2" 
-              placeholder={t('notesPlaceholder') !== 'notesPlaceholder' ? t('notesPlaceholder') : 'Detalii opționale...'} 
-              value={notes} 
-              onChange={e => setNotes(e.target.value)} 
-            />
+            <input type="text" className="input py-2" placeholder={t('notesPlaceholder') !== 'notesPlaceholder' ? t('notesPlaceholder') : 'Detalii opționale...'} value={notes} onChange={e => setNotes(e.target.value)} />
           </div>
           <div>
             <label className="label">{t('file')}</label>
             <div className="relative">
-              <input 
-                type="file" 
-                id="file-upload" 
-                className="hidden" 
-                onChange={e => setFile(e.target.files?.[0] || null)} 
-                required 
-              />
-              <label 
-                htmlFor="file-upload" 
-                className="input py-2 flex items-center justify-between cursor-pointer bg-card"
-              >
+              <input type="file" id="file-upload" className="hidden" onChange={e => setFile(e.target.files?.[0] || null)} required />
+              <label htmlFor="file-upload" className="input py-2 flex items-center justify-between cursor-pointer bg-card">
                 <span className={`truncate ${file ? 'text-text' : 'text-text-secondary'}`}>
                   {file ? file.name : t('noFileChosen') || 'Niciun fișier ales'}
                 </span>
@@ -196,13 +192,17 @@ export default function DocumentsPage({ embeddedClientId }: { embeddedClientId?:
               <button type="submit" disabled={!file || uploading} className="btn-primary px-6 py-2.5 font-bold shadow-md shadow-primary/20">
                 <Upload className="w-4 h-4" /> {t('save') || 'Salveaza'}
               </button>
-              <button type="button" onClick={() => { setShowForm(false); setFile(null); setTripId(''); setNotes(''); }} className="btn-secondary px-6 py-2.5 font-bold">
+              <button type="button" onClick={() => {
+            setShowForm(false);
+            setFile(null);
+            setTripId('');
+            setNotes('');
+          }} className="btn-secondary px-6 py-2.5 font-bold">
                 {t('cancel') || 'Anuleaza'}
               </button>
             </div>
           </form>
-        </div>
-      )}
+        </div>}
       <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
         <div className="p-4 border-b border-border flex items-center justify-end">
           <button onClick={() => setShowForm(!showForm)} className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold">
@@ -213,19 +213,12 @@ export default function DocumentsPage({ embeddedClientId }: { embeddedClientId?:
           <table className="w-full">
             <thead>
               <tr className="bg-surface border-b border-border">
-                {[t('file'), t('type'), t('notes') !== 'notes' ? t('notes') : 'Notițe', t('reference') || 'Referinta', t('uploadedBy'), t('date'), t('actions')].map(h => (
-                  <th key={h} className="table-header">{h}</th>
-                ))}
+                {[t('file'), t('type'), t('notes') !== 'notes' ? t('notes') : 'Notițe', t('reference') || 'Referinta', t('uploadedBy'), t('date'), t('actions')].map(h => <th key={h} className="table-header">{h}</th>)}
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr><td colSpan={7} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
-              ) : docs.length === 0 ? (
-                <tr><td colSpan={7} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr>
-              ) : docs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(doc => {
-                return (
-                  <tr key={doc.id} className="hover:bg-surface/60 transition-colors">
+              {loading ? <tr><td colSpan={7} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr> : docs.length === 0 ? <tr><td colSpan={7} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr> : docs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(doc => {
+              return <tr key={doc.id} className="hover:bg-surface/60 transition-colors">
                     <td className="table-cell">
                       <div className="flex items-center gap-2">
                         <FileText className="w-4 h-4 text-primary flex-shrink-0" />
@@ -236,12 +229,7 @@ export default function DocumentsPage({ embeddedClientId }: { embeddedClientId?:
                     </td>
                     <td className="table-cell">
                       <span className="badge-primary">
-                        {doc.type === 'CMR' ? 'CMR' : 
-                         doc.type === 'Aviz' ? (t('aviz') !== 'aviz' ? t('aviz').charAt(0).toUpperCase() + t('aviz').slice(1) : 'Aviz') :
-                         doc.type === 'Factură' ? t('invoices') :
-                         doc.type === 'Foto încărcare' ? t('loadingPhoto') :
-                         doc.type === 'Foto marfă' ? t('cargoPhoto') :
-                         doc.type === 'Altele' ? t('other') : doc.type}
+                        {doc.type === 'CMR' ? 'CMR' : doc.type === 'Aviz' ? t('aviz') !== 'aviz' ? t('aviz').charAt(0).toUpperCase() + t('aviz').slice(1) : 'Aviz' : doc.type === 'Factură' ? t('invoices') : doc.type === 'Foto încărcare' ? t('loadingPhoto') : doc.type === 'Foto marfă' ? t('cargoPhoto') : doc.type === 'Altele' ? t('other') : doc.type}
                       </span>
                     </td>
                     <td className="table-cell text-xs italic text-text-secondary max-w-[150px] truncate" title={doc.notes || ''}>
@@ -263,28 +251,14 @@ export default function DocumentsPage({ embeddedClientId }: { embeddedClientId?:
                         </button>
                       </div>
                     </td>
-                  </tr>
-                );
-              })}
+                  </tr>;
+            })}
             </tbody>
           </table>
         </div>
-        <Pagination
-          currentPage={currentPage}
-          totalItems={docs.length}
-          itemsPerPage={itemsPerPage}
-          onPageChange={setCurrentPage}
-          onItemsPerPageChange={setItemsPerPage}
-        />
+        <Pagination currentPage={currentPage} totalItems={docs.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </div>
     
-      <ConfirmModal
-        isOpen={!!deleteId}
-        onClose={() => setDeleteId(null)}
-        onConfirm={executeDelete}
-        title={t('confirm')}
-        message={t('confirm') || 'Esti sigur ca vrei sa stergi documentul?'}
-      />
-    </div>
-  );
+      <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={executeDelete} title={t('confirm')} message={t('confirm') || 'Esti sigur ca vrei sa stergi documentul?'} />
+    </div>;
 }
