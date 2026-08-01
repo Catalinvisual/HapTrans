@@ -98,7 +98,7 @@ const WebsiteLeadsPage = () => {
       </span>;
   };
   if (loading) return <div className="p-8">{t('common.loading', 'Se încarcă cererile...')}</div>;
-  return <div className="p-8 space-y-6">
+  return <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-text">{t('leads.title', 'Cereri Website (Leads)')}</h1>
         <p className="text-text-secondary mt-2">{t('leads.subtitle', 'Gestionează cererile de ofertă venite de pe site-ul public hapcargo.com.')}</p>

@@ -77,7 +77,7 @@ export default function TripsPage({
       setTripToDelete(null);
     }
   };
-  return <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
+  return <div className="max-w-[1600px] mx-auto space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
         </div>

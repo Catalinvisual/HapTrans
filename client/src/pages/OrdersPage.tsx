@@ -68,7 +68,7 @@ export default function OrdersPage() {
     setSelectedOrderId(null);
     setIsModalOpen(true);
   };
-  return <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
+  return <div className="max-w-[1600px] mx-auto space-y-6 animate-fade-in">
       <div className="card overflow-hidden border border-border">
         <div className="p-4 border-b border-border bg-surface/30 flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 w-full">

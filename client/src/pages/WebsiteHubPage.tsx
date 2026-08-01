@@ -98,7 +98,7 @@ const WebsiteHubPage = () => {
   const getCmsKey = (tab: string, lang: string) => {
     return `${tab}_${lang}`;
   };
-  return <div className="p-4 md:p-8 space-y-6">
+  return <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-text flex items-center gap-3">
