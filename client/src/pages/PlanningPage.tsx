@@ -433,7 +433,7 @@ export default function PlanningPage() {
             {filteredUnassigned.length === 0 && <div className="bg-card border border-border rounded-2xl py-10 flex flex-col items-center text-center">
                 <CheckCircle2 className="w-10 h-10 text-green-500 mb-2 opacity-60" />
                 <p className="text-sm font-semibold text-text-primary">
-                  {unassigned.length === 0 ? t("Toate_comenzile_sunt_planificate_") : t('noResult')}
+                  {unassigned.length === 0 ? t("allOrdersPlanned") : t('noResult')}
                 </p>
               </div>}
 
