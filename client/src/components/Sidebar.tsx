@@ -2,28 +2,30 @@ import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Route, Truck, Users, UserCheck, Map, MessageSquare, FileText,
-  Receipt, BarChart3, Wrench, Settings, UserCog, X, Banknote, Wallet, CalendarDays, Globe, Box
+  Receipt, BarChart3, Wrench, Settings, UserCog, X, Banknote, Wallet, CalendarDays, Globe, Box,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 export const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, key: 'dashboard' },
-  { to: '/trips', icon: Route, key: 'trips' },
-  { to: '/orders', icon: Box, key: 'orders' },
-  { to: '/map', icon: Map, key: 'liveMap' },
-  { to: '/trucks', icon: Truck, key: 'trucks' },
-  { to: '/planning', icon: CalendarDays, key: 'planning' },
-  { to: '/drivers', icon: UserCheck, key: 'drivers' },
-  { to: '/clients', icon: Users, key: 'clients' },
-  { to: '/chat', icon: MessageSquare, key: 'chat' },
-  { to: '/documents', icon: FileText, key: 'documents' },
-  { to: '/invoices', icon: Receipt, key: 'invoices' },
-  { to: '/financial', icon: BarChart3, key: 'financial' },
-  { to: '/payroll', icon: Banknote, key: 'payroll' },
-  { to: '/maintenance', icon: Wrench, key: 'maintenance' },
-  { to: '/expenses', icon: Wallet, key: 'expenses' },
-  { to: '/website-cms', icon: Globe, key: 'websiteCms' },
-  { to: '/users', icon: UserCog, key: 'users' },
-  { to: '/settings', icon: Settings, key: 'settings' },
+  { to: '/dashboard', icon: LayoutDashboard, key: 'dashboard', color: 'text-blue-500' },
+  { to: '/trips', icon: Route, key: 'trips', color: 'text-orange-500' },
+  { to: '/orders', icon: Box, key: 'orders', color: 'text-indigo-500' },
+  { to: '/map', icon: Map, key: 'liveMap', color: 'text-green-500' },
+  { to: '/trucks', icon: Truck, key: 'trucks', color: 'text-amber-500' },
+  { to: '/planning', icon: CalendarDays, key: 'planning', color: 'text-purple-500' },
+  { to: '/drivers', icon: UserCheck, key: 'drivers', color: 'text-teal-500' },
+  { to: '/clients', icon: Users, key: 'clients', color: 'text-cyan-500' },
+  { to: '/chat', icon: MessageSquare, key: 'chat', color: 'text-emerald-500' },
+  { to: '/documents', icon: FileText, key: 'documents', color: 'text-rose-500' },
+  { to: '/invoices', icon: Receipt, key: 'invoices', color: 'text-red-500' },
+  { to: '/financial', icon: BarChart3, key: 'financial', color: 'text-yellow-500' },
+  { to: '/payroll', icon: Banknote, key: 'payroll', color: 'text-lime-500' },
+  { to: '/maintenance', icon: Wrench, key: 'maintenance', color: 'text-zinc-500' },
+  { to: '/expenses', icon: Wallet, key: 'expenses', color: 'text-fuchsia-500' },
+  { to: '/website-cms', icon: Globe, key: 'websiteCms', color: 'text-primary' },
+  { to: '/users', icon: UserCog, key: 'users', color: 'text-sky-500' },
+  { to: '/settings', icon: Settings, key: 'settings', color: 'text-slate-500' },
 ];
 
 interface SidebarProps {
@@ -38,6 +40,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { t } = useTranslation();
   const { user } = useAuthStore();
   const { company } = useSettingsStore();
+
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('sidebarCollapsed') === 'true';
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', isCollapsed.toString());
+  }, [isCollapsed]);
 
   const isDispatcher = user?.role === 'dispatcher';
   const restrictedKeys = ['financial', 'payroll', 'expenses', 'websiteCms', 'users', 'settings'];
@@ -63,37 +76,57 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 md:w-48 bg-card border-r border-border flex flex-col h-full transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="px-5 py-5 border-b border-border flex justify-between items-center">
-          <div className="flex items-center gap-2">
+      <aside className={`fixed inset-y-0 left-0 z-50 ${isCollapsed ? 'w-20' : 'w-64 md:w-56'} bg-card border-r border-border flex flex-col h-full transform transition-all duration-300 ease-in-out md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className={`px-4 py-5 border-b border-border flex items-center relative ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+          <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
             {company?.logo ? (
-              <img src={company.logo} alt="Logo" className="h-8 w-auto object-contain" />
+              <img src={company.logo} alt="Logo" className={`h-8 w-auto object-contain transition-all duration-300 ${isCollapsed ? 'w-8 h-8 object-cover' : ''}`} />
             ) : null}
           </div>
+          
+          <button 
+            className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-card border border-border rounded-full items-center justify-center text-text-secondary hover:text-primary hover:border-primary transition-colors z-10"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            title={isCollapsed ? t('expand', 'Expand') : t('collapse', 'Collapse')}
+          >
+            {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          </button>
+
           <button className="md:hidden text-text-secondary hover:bg-surface p-1 rounded-md" onClick={onClose}>
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 overflow-x-hidden">
           {filteredNavItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
+              title={isCollapsed ? t(item.key) : undefined}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
                   isActive 
-                    ? 'bg-primary/10 text-primary font-medium' 
-                    : 'text-text-secondary hover:bg-surface hover:text-text'
-                }`
+                    ? 'bg-primary/10 font-semibold' 
+                    : 'hover:bg-surface'
+                } ${isCollapsed ? 'justify-center' : 'justify-start'}`
               }
-              onClick={onClose}
+              onClick={() => {
+                if (window.innerWidth < 768) {
+                  onClose();
+                }
+              }}
             >
-              <item.icon className={`w-5 h-5 ${item.key === 'websiteCms' ? 'text-primary' : ''}`} />
-              <span className="truncate text-base md:text-sm capitalize">
-                {t(item.key)}
-              </span>
+              {({ isActive }) => (
+                <>
+                  <item.icon className={`w-5 h-5 flex-shrink-0 transition-all duration-300 ${isActive ? 'text-primary drop-shadow-sm scale-110' : item.color} group-hover:scale-110`} strokeWidth={isActive ? 2.5 : 2} />
+                  {!isCollapsed && (
+                    <span className={`truncate text-sm capitalize transition-colors ${isActive ? 'text-primary' : 'text-text-secondary group-hover:text-text'}`}>
+                      {t(item.key)}
+                    </span>
+                  )}
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
