@@ -80,7 +80,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className={`px-4 py-5 border-b border-border flex items-center relative ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
             {company?.logo ? (
-              <img src={company.logo} alt="Logo" className={`h-8 w-auto object-contain transition-all duration-300 ${isCollapsed ? 'w-8 h-8 object-cover' : ''}`} />
+              <img src={company.logo} alt="Logo" className={`h-8 w-auto object-contain transition-all duration-300 ${isCollapsed ? 'w-8 h-8 object-cover object-left' : ''}`} />
             ) : null}
           </div>
           
