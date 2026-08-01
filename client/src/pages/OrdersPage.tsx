@@ -74,14 +74,13 @@ export default function OrdersPage() {
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 w-full">
             <div className="relative w-full max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary" />
-              <input type="text" placeholder="Search by reference, client..." value={search} onChange={e => setSearch(e.target.value)} className="input pl-10 w-full bg-white" />
+              <input type="text" placeholder={t('searchPlaceholder', 'Search by reference, client...')} value={search} onChange={e => setSearch(e.target.value)} className="input pl-10 w-full bg-white" />
             </div>
             <button onClick={handleCreate} className="btn-primary flex items-center gap-2 shadow-lg hover:shadow-xl transition-all">
               <Plus className="w-5 h-5" />
               {t('addOrder', 'Create Order')}
             </button>
           </div>
-          
           <div className="flex flex-wrap gap-2 border-t border-border/40 pt-3">
             {['all', 'draft', 'unassigned', 'planned', 'in_transit', 'delivered', 'closed'].map(tab => <button key={tab} onClick={() => setStatusFilter(tab)} className={`px-4 py-2 text-xs font-semibold rounded-lg border transition-all ${statusFilter === tab ? 'bg-primary text-white border-primary shadow-sm' : 'bg-surface border-border text-text-secondary hover:border-primary/50'}`}>
                 {t(`status_${tab}`, tab.replace('_', ' ').toUpperCase())}

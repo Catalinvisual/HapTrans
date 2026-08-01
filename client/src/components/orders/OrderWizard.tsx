@@ -14,15 +14,18 @@ interface OrderWizardProps {
 }
 const STEPS = [{
   id: 'general',
-  title: 'General Info',
+  titleKey: 'stepGeneral',
+  fallbackTitle: 'General Info',
   icon: FileText
 }, {
   id: 'route',
-  title: 'Pickup & Delivery',
+  titleKey: 'stepRoute',
+  fallbackTitle: 'Pickup & Delivery',
   icon: MapPin
 }, {
   id: 'cargo',
-  title: 'Cargo Items',
+  titleKey: 'stepCargo',
+  fallbackTitle: 'Cargo Items',
   icon: Box
 }];
 interface SelectOpt {
@@ -474,7 +477,7 @@ export default function OrderWizard({
             <h2 className="text-xl font-bold text-text-primary">
               {orderId ? t('editOrder', 'Edit Order') : t('createOrder', 'Create New Order')}
             </h2>
-            <p className="text-sm text-text-secondary mt-0.5">{t("jsx_step")}{currentStep + 1} of {STEPS.length} — {STEPS[currentStep].title}
+            <p className="text-sm text-text-secondary mt-0.5">{t("jsx_step")}{currentStep + 1} of {STEPS.length} — {t(STEPS[currentStep].titleKey, STEPS[currentStep].fallbackTitle)}
             </p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-surface rounded-xl transition-colors text-text-secondary">
@@ -521,7 +524,7 @@ export default function OrderWizard({
                     </button>
                   </div>
                   <span className={`text-xs mt-2 font-semibold text-center leading-tight ${isActive ? 'text-primary' : 'text-text-secondary'}`}>
-                    {step.title}
+                    {t(step.titleKey, step.fallbackTitle)}
                   </span>
                 </div>;
           })}
@@ -596,7 +599,7 @@ export default function OrderWizard({
                       equipmentRequirements: newReqs
                     });
                   }} className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${selected ? 'bg-primary text-white border-primary shadow-sm' : 'bg-surface border-border text-text-secondary hover:border-primary/50'}`}>
-                          {eq.toUpperCase()}
+                          {t(`eq_${eq}`, eq.toUpperCase())}
                         </button>;
                 })}
                   </div>
@@ -608,7 +611,7 @@ export default function OrderWizard({
                 <textarea value={form.notes} onChange={e => setForm({
               ...form,
               notes: e.target.value
-            })} className="input w-full min-h-[80px] resize-none" placeholder="Additional instructions or notes..." />
+            })} className="input w-full min-h-[80px] resize-none" placeholder={t('additionalNotesPlaceholder', 'Additional instructions or notes...')} />
               </div>
             </div>}
 
