@@ -76,9 +76,9 @@ export default function ConfirmModal({
         <div className={`w-12 h-12 rounded-full ${getIconBg()} flex items-center justify-center mb-4`}>
           {getIcon()}
         </div>
-        <h3 className="text-lg font-bold text-text mb-2">{title || t('confirm')}</h3>
+        <h3 className="text-lg font-bold text-text mb-2">{title || (type === 'danger' ? t('delete') : t('confirm'))}</h3>
         <p className="text-text-secondary text-sm mb-6">
-          {message || t('confirmDelete') || 'Ești sigur că vrei să continui?'}
+          {message || (type === 'danger' ? t('confirmDelete', 'Ești sigur că vrei să ștergi acest element? Această acțiune este ireversibilă.') : t('confirm', 'Ești sigur că vrei să continui?'))}
         </p>
         <div className="flex gap-3 w-full">
           <button onClick={handleClose} className="btn-secondary flex-1 py-2.5 font-semibold capitalize">

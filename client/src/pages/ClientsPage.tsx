@@ -279,6 +279,6 @@ export default function ClientsPage() {
       label: 'Phone'
     }]} />
     
-      <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={executeDelete} title={t('confirm')} message={t('confirmDelete')} />
+      <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={executeDelete} type="danger" />
     </div>;
 }

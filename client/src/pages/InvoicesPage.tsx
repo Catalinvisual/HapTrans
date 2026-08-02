@@ -966,6 +966,6 @@ export default function InvoicesPage({
           </div>
         </div>, document.body)}
 
-      <ConfirmModal isOpen={!!deleteId} title={t('deleteInvoice') || 'Sterge Factura'} message={t('deleteConfirm') || 'Sunteti sigur? Aceasta actiune este ireversibila.'} onConfirm={executeDelete} onCancel={() => setDeleteId(null)} />
+      <ConfirmModal isOpen={!!deleteId} onConfirm={executeDelete} onCancel={() => setDeleteId(null)} type="danger" />
     </div>;
 }

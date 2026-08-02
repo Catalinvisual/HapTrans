@@ -608,6 +608,6 @@ export default function DriversPage() {
       label: 'Status'
     }]} />
     
-      <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={executeDelete} title={t('confirm')} message={t('confirmDelete')} />
+      <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={executeDelete} type="danger" />
     </div>;
 }

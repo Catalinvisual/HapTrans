@@ -259,6 +259,6 @@ export default function DocumentsPage({
         <Pagination currentPage={currentPage} totalItems={docs.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </div>
     
-      <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={executeDelete} title={t('confirm')} message={t('confirm') || 'Esti sigur ca vrei sa stergi documentul?'} />
+      <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={executeDelete} type="danger" />
     </div>;
 }

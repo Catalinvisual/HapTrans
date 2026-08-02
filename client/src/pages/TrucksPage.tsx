@@ -211,7 +211,7 @@ export default function TrucksPage() {
               </select>
             </div>
             <div className="flex gap-3 col-span-1 md:col-span-2 lg:col-span-3 pt-3 border-t border-border mt-2">
-              <button type="submit" className="btn-primary px-6 py-2.5 font-bold shadow-md shadow-primary/20">{t('save')}</button>
+              <button type="submit" className="btn-primary px-6 py-2.5 font-bold shadow-md shadow-primary/20">{t('saveBtn', 'Salvează')}</button>
               <button type="button" onClick={() => {
             setShowForm(false);
             setEditId(null);
@@ -236,7 +236,18 @@ export default function TrucksPage() {
               {filtered.length} {t('results')}
             </span>
             <button onClick={() => {
-            setShowForm(!showForm);
+            setForm({
+              plateNumber: '',
+              brand: '',
+              model: '',
+              year: '',
+              payloadCapacity: '',
+              fuelConsumption: '',
+              totalMileage: '',
+              nextMaintenanceMileage: '',
+              driverId: ''
+            });
+            setShowForm(true);
             setEditId(null);
           }} className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold">
               <Plus className="w-4 h-4" /> {t('addTruck')}
@@ -357,6 +368,6 @@ export default function TrucksPage() {
       label: 'Status'
     }]} />
     
-      <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={executeDelete} title={t('confirm')} message={t('confirmDelete')} />
+      <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={executeDelete} type="danger" />
     </div>;
 }
