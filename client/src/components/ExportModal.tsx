@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { X, Download, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import Flatpickr from 'react-flatpickr';
+import 'flatpickr/dist/themes/light.css';
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -240,20 +242,40 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
             <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-surface border border-border animate-fade-in">
               <div>
                 <label className="label text-xs font-bold text-text-secondary">{tExport.startDate}</label>
-                <input
-                  type="date"
-                  className="input py-2 text-sm bg-card"
+                <Flatpickr
                   value={startDate}
-                  onChange={e => setStartDate(e.target.value)}
+                  onChange={(dates) => {
+                    if (dates.length > 0) {
+                      const d = dates[0];
+                      const year = d.getFullYear();
+                      const month = String(d.getMonth() + 1).padStart(2, '0');
+                      const day = String(d.getDate()).padStart(2, '0');
+                      setStartDate(`${year}-${month}-${day}`);
+                    } else {
+                      setStartDate('');
+                    }
+                  }}
+                  className="input py-2 text-sm bg-card w-full"
+                  options={{ dateFormat: 'Y-m-d' }}
                 />
               </div>
               <div>
                 <label className="label text-xs font-bold text-text-secondary">{tExport.endDate}</label>
-                <input
-                  type="date"
-                  className="input py-2 text-sm bg-card"
+                <Flatpickr
                   value={endDate}
-                  onChange={e => setEndDate(e.target.value)}
+                  onChange={(dates) => {
+                    if (dates.length > 0) {
+                      const d = dates[0];
+                      const year = d.getFullYear();
+                      const month = String(d.getMonth() + 1).padStart(2, '0');
+                      const day = String(d.getDate()).padStart(2, '0');
+                      setEndDate(`${year}-${month}-${day}`);
+                    } else {
+                      setEndDate('');
+                    }
+                  }}
+                  className="input py-2 text-sm bg-card w-full"
+                  options={{ dateFormat: 'Y-m-d' }}
                 />
               </div>
             </div>

@@ -99,15 +99,6 @@ const WebsiteHubPage = () => {
     return `${tab}_${lang}`;
   };
   return <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-text flex items-center gap-3">
-            <Globe className="w-8 h-8 text-primary" />
-            {t('websiteHub', 'Website Hub')}
-          </h1>
-          <p className="text-text-secondary mt-2">{t('websiteHubSubtitle', 'Gestionează toate setările, paginile și cererile venite de pe site-ul public.')}</p>
-        </div>
-      </div>
 
       <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
         {/* Tabs Header */}
