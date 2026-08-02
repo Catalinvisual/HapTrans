@@ -82,7 +82,7 @@ export default function OrdersPage() {
             </button>
           </div>
           <div className="flex flex-wrap gap-2 border-t border-border/40 pt-3">
-            {['all', 'draft', 'unassigned', 'planned', 'in_transit', 'delivered', 'closed'].map(tab => <button key={tab} onClick={() => setStatusFilter(tab)} className={`px-4 py-2 text-xs font-semibold rounded-lg border transition-all ${statusFilter === tab ? 'bg-primary text-white border-primary shadow-sm' : 'bg-surface border-border text-text-secondary hover:border-primary/50'}`}>
+            {['all', 'draft', 'new', 'planned', 'in_transit', 'delivered', 'closed'].map(tab => <button key={tab} onClick={() => setStatusFilter(tab)} className={`px-4 py-2 text-xs font-semibold rounded-lg border transition-all ${statusFilter === tab ? 'bg-primary text-white border-primary shadow-sm' : 'bg-surface border-border text-text-secondary hover:border-primary/50'}`}>
                 {t(`status_${tab}`, tab.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()))}
               </button>)}
           </div>
@@ -152,7 +152,7 @@ export default function OrdersPage() {
                         </div>
                       </td>
                       <td className="p-4">
-                        <span className={`badge ${order.status === 'draft' ? 'badge-warning' : order.status === 'unassigned' ? 'badge-gray' : order.status === 'assigned' ? 'badge-primary' : order.status === 'in_transit' ? 'badge-primary' : 'badge-success'}`}>
+                        <span className={`badge ${order.status === 'draft' ? 'badge-warning' : order.status === 'new' ? 'badge-gray' : order.status === 'assigned' ? 'badge-primary' : order.status === 'in_transit' ? 'badge-primary' : 'badge-success'}`}>
                           {order.status || 'pending'}
                         </span>
                       </td>

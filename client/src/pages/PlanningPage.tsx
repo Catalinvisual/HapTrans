@@ -217,7 +217,7 @@ export default function PlanningPage() {
   const loadData = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const [trucksRes, ordersRes, tripsRes, driversRes] = await Promise.all([api.get('/trucks'), api.get('/orders?status=draft,unassigned,pending'), api.get('/trips?status=planning,dispatched'), api.get('/drivers')]);
+      const [trucksRes, ordersRes, tripsRes, driversRes] = await Promise.all([api.get('/trucks'), api.get('/orders?status=draft,new,pending'), api.get('/trips?status=planning,dispatched'), api.get('/drivers')]);
       setTrucks(trucksRes.data.filter((t: any) => t.status === 'active'));
       setOrders(ordersRes.data);
       setTrips(tripsRes.data);
@@ -344,7 +344,7 @@ export default function PlanningPage() {
       await assignOrderToTruck(draggableId, destination.droppableId);
     }
   };
-  const unassigned = orders.filter(o => ['draft', 'unassigned', 'pending'].includes(o.status));
+  const unassigned = orders.filter(o => ['draft', 'new', 'pending'].includes(o.status));
   const filteredUnassigned = searchQuery ? unassigned.filter(o => (o.orderNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) || (o.referenceNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) || (o.client?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || o.stops?.some((s: any) => (s.address || '').toLowerCase().includes(searchQuery.toLowerCase()))) : unassigned;
   const getTruckStats = (truckId: string) => {
     const trip = trips.find(tr => tr.truck?.id === truckId && tr.status === 'planning');

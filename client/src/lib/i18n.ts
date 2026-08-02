@@ -21,7 +21,7 @@ const resources = {
       "status_in_transit": "În tranzit",
       "status_planned": "Planificat",
       "status_unassigned": "Neasignat",
-      "status_draft": "Proiect",
+      "status_draft": "Proiect",`n      "status_new": "Nou",
       "status_all": "Toate",
       "searchPlaceholder": "Cauta dupa referinta, client...",
       "dashboard": "Panou control",
@@ -2257,7 +2257,7 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
       "status_in_transit": "In transit",
       "status_planned": "Planned",
       "status_unassigned": "Unassigned",
-      "status_draft": "Draft",
+      "status_draft": "Draft",`n      "status_new": "New",
       "status_all": "All",
       "searchPlaceholder": "Search by reference, client...",
       "dashboard": "Dashboard",
@@ -3415,7 +3415,7 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
       "status_in_transit": "Onderweg",
       "status_planned": "Gepland",
       "status_unassigned": "Niet toegewezen",
-      "status_draft": "Voorlopige versie",
+      "status_draft": "Voorlopige versie",`n      "status_new": "Nieuw",
       "status_all": "Alles",
       "searchPlaceholder": "Zoek op referentie, klant...",
       "dashboard": "Dashboard",
@@ -4576,7 +4576,7 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
       "status_in_transit": "Unterwegs",
       "status_planned": "Geplant",
       "status_unassigned": "Nicht zugewiesen",
-      "status_draft": "Entwurf",
+      "status_draft": "Entwurf",`n      "status_new": "Neu",
       "status_all": "Alle",
       "searchPlaceholder": "Suche nach Referenz, Kunde...",
       "dashboard": "Dashboard",
@@ -5734,5 +5734,6 @@ i18n.use(initReactI18next).init({
 });
 
 export default i18n;
+
 
 
