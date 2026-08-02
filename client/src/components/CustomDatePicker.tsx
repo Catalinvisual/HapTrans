@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface CustomDatePickerProps {
   dateValue: string; // YYYY-MM-DD
@@ -10,10 +11,10 @@ interface CustomDatePickerProps {
   label?: string;
 }
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const DAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+
 
 export default function CustomDatePicker({ dateValue, timeValue, onDateChange, onTimeChange, label }: CustomDatePickerProps) {
+  const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [isTimeOpen, setIsTimeOpen] = useState(false);
   const [timeOpenUpward, setTimeOpenUpward] = useState(false);
@@ -48,7 +49,16 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
 
 
   useEffect(() => {
-    const handleScroll = () => {
+    const handleScroll = (e: Event) => {
+      const target = e.target as Node;
+      const datePopup = document.getElementById('custom-datepicker-popup');
+      const timePopup = document.getElementById('custom-timepicker-popup');
+      
+      // Ignore scrolls that happen INSIDE the popups
+      if (datePopup?.contains(target) || timePopup?.contains(target)) {
+        return;
+      }
+
       if (isOpen) setIsOpen(false);
       if (isTimeOpen) setIsTimeOpen(false);
     };
@@ -159,9 +169,9 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
   };
 
   const formatDisplayDate = () => {
-    if (!dateValue) return 'Select Date';
+    if (!dateValue) return t('selectDate', 'Select Date');
     const d = new Date(dateValue);
-    return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+    return d.toLocaleDateString(i18n.language || 'en', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
   return (
@@ -177,7 +187,7 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
           >
             <CalendarIcon className="w-4 h-4 text-text-secondary absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <span className={dateValue ? 'text-text-primary' : 'text-text-muted'}>
-              {dateValue ? new Date(dateValue).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Select Date'}
+              {dateValue ? new Date(dateValue).toLocaleDateString(i18n.language || 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : t('selectDate', 'Select Date')}
             </span>
           </div>
         </div>
@@ -249,8 +259,8 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
             <button onClick={handlePrevMonth} className="p-1.5 hover:bg-surface rounded-lg transition-colors text-text-secondary">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <div className="font-bold text-sm text-text-primary">
-              {MONTHS[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+            <div className="font-bold text-sm text-text-primary capitalize">
+              {new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toLocaleString(i18n.language || 'en', { month: 'long' })} {currentMonth.getFullYear()}
             </div>
             <button onClick={handleNextMonth} className="p-1.5 hover:bg-surface rounded-lg transition-colors text-text-secondary">
               <ChevronRight className="w-4 h-4" />
@@ -259,11 +269,15 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
 
           {/* Days of week */}
           <div className="grid grid-cols-7 gap-1 mb-2">
-            {DAYS.map(day => (
-              <div key={day} className="text-center text-[10px] font-bold text-text-muted uppercase">
-                {day}
-              </div>
-            ))}
+            {Array.from({ length: 7 }).map((_, i) => {
+              // 2024-01-01 was a Monday
+              const d = new Date(2024, 0, i + 1);
+              return (
+                <div key={i} className="text-center text-[10px] font-bold text-text-muted uppercase">
+                  {d.toLocaleString(i18n.language || 'en', { weekday: 'short' })}
+                </div>
+              );
+            })}
           </div>
 
           {/* Grid */}
