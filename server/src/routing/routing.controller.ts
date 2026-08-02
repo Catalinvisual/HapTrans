@@ -7,6 +7,31 @@ import { RoutingService } from './routing.service';
 export class RoutingController {
   constructor(private readonly routingService: RoutingService) {}
 
+  @Get('estimate')
+  async estimateCost(
+    @Query('fromLat') fromLat: string,
+    @Query('fromLng') fromLng: string,
+    @Query('toLat') toLat: string,
+    @Query('toLng') toLng: string,
+    @Query('weightKg') weightKg?: string,
+  ) {
+    const oLat = parseFloat(fromLat);
+    const oLng = parseFloat(fromLng);
+    const dLat = parseFloat(toLat);
+    const dLng = parseFloat(toLng);
+
+    if (isNaN(oLat) || isNaN(oLng) || isNaN(dLat) || isNaN(dLng)) {
+      return { error: 'Invalid coordinates' };
+    }
+
+    const result = await this.routingService.calculateRoute(oLat, oLng, dLat, dLng, {
+      weightKg: weightKg ? parseFloat(weightKg) : undefined,
+    });
+
+    return result;
+  }
+
+
   @Post('calculate')
   async calculateRoute(@Body() body: {
     originAddress?: string;

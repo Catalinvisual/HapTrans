@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { X, Save, Loader2, ArrowRight, ArrowLeft, Plus, Trash2, Box, MapPin, FileText, ChevronDown, Clock } from 'lucide-react';
+import { X, Save, Loader2, ArrowRight, ArrowLeft, Plus, Trash2, Box, MapPin, FileText, ChevronDown, Clock, Calculator, Fuel, AlertTriangle, TrendingUp, TrendingDown, CheckCircle2 } from 'lucide-react';
 import api from '../../lib/api';
 import toast from 'react-hot-toast';
 import AddressAutocomplete from '../AddressAutocomplete';
@@ -118,6 +118,13 @@ export default function OrderWizard({
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
+
+  // Cost estimator state
+  const [costEstimate, setCostEstimate] = useState<any>(null);
+  const [costLoading, setCostLoading] = useState(false);
+  const [fuelConsumption, setFuelConsumption] = useState(32); // L/100km
+  const [fuelPrice, setFuelPrice] = useState(1.65); // €/L
+  const [confirmedUnprofitable, setConfirmedUnprofitable] = useState(false);
 
   // Progress bar pixel positions computed via refs
   const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -315,6 +322,57 @@ export default function OrderWizard({
     }
   }, [isOpen, orderId]);
   if (!isOpen) return null;
+  const handleCalculateCost = async () => {
+    if (!pickup.latitude || !pickup.longitude || !dropoff.latitude || !dropoff.longitude) {
+      toast.error(t('cost_calc_no_coords', 'Please validate pickup and delivery addresses first (Step 2).'));
+      return;
+    }
+    try {
+      setCostLoading(true);
+      const totalWeightKg = cargoItems.reduce((sum: number, c: any) => sum + (parseFloat(c.weightKg) || 0), 0);
+      const res = await api.get('/routing/estimate', {
+        params: {
+          fromLat: pickup.latitude,
+          fromLng: pickup.longitude,
+          toLat: dropoff.latitude,
+          toLng: dropoff.longitude,
+          weightKg: totalWeightKg || undefined,
+        }
+      });
+      const { distanceKm, durationMin, durationText, tollCost } = res.data;
+      const fuelCost = ((distanceKm / 100) * fuelConsumption * fuelPrice);
+      const totalCost = fuelCost + (tollCost || 0);
+      const agreedPrice = parseFloat(form.price) || 0;
+      const profit = agreedPrice - totalCost;
+      setCostEstimate({
+        distanceKm,
+        durationMin,
+        durationText,
+        tollCost: tollCost || 0,
+        fuelCost,
+        totalCost,
+        agreedPrice,
+        profit,
+      });
+      setConfirmedUnprofitable(false);
+    } catch (err) {
+      toast.error(t('cost_calc_error', 'Cost calculation failed. Please try again.'));
+    } finally {
+      setCostLoading(false);
+    }
+  };
+
+  // Recalculate profit when fuel params or price change
+  useEffect(() => {
+    if (costEstimate) {
+      const fuelCost = ((costEstimate.distanceKm / 100) * fuelConsumption * fuelPrice);
+      const totalCost = fuelCost + costEstimate.tollCost;
+      const agreedPrice = parseFloat(form.price) || 0;
+      const profit = agreedPrice - totalCost;
+      setCostEstimate((prev: any) => ({ ...prev, fuelCost, totalCost, agreedPrice, profit }));
+    }
+  }, [fuelConsumption, fuelPrice, form.price]);
+
   const handleNext = () => {
     if (currentStep === 1) {
       // Validate geocoding coordinates on stop step
@@ -324,6 +382,13 @@ export default function OrderWizard({
       }
       if (!dropoff.latitude || !dropoff.longitude) {
         toast.error(t('dropoff_no_gps', 'Delivery location does not have valid GPS coordinates. Please select an address from the list.'));
+        return;
+      }
+    }
+    if (currentStep === 2) {
+      // On cargo step, require cost calculation acknowledgement if showing unprofitable
+      if (costEstimate && costEstimate.profit < 0 && !confirmedUnprofitable) {
+        toast.error(t('cost_confirm_required', 'Please confirm that you accept the unprofitable order.'));
         return;
       }
     }
@@ -340,6 +405,9 @@ export default function OrderWizard({
     const n = [...cargoItems];
     n[i][field] = value;
     setCargoItems(n);
+    // Reset cost estimate when modal closes
+    setCostEstimate(null);
+    setConfirmedUnprofitable(false);
   };
   const handleSubmit = async () => {
     if (!pickup.latitude || !pickup.longitude || !dropoff.latitude || !dropoff.longitude) {
@@ -860,17 +928,170 @@ export default function OrderWizard({
               </div>
               <button type="button" onClick={handleAddCargo} className="w-full py-3 border-2 border-dashed border-border rounded-xl text-text-secondary hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center gap-2 font-medium">
                 <Plus className="w-4 h-4" />{t("jsx_addCargoItem")}</button>
+
+              {/* ============ COST ESTIMATOR PANEL ============ */}
+              <div className="mt-4 bg-gradient-to-br from-blue-950/5 to-primary/5 border border-primary/20 rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                  <h3 className="font-bold text-base flex items-center gap-2 text-text-primary">
+                    <Calculator className="w-5 h-5 text-primary" />
+                    {t('cost_estimator_title', 'Cost Estimator')}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={handleCalculateCost}
+                    disabled={costLoading || !pickup.latitude || !dropoff.latitude}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md active:scale-95"
+                  >
+                    {costLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}
+                    {t('cost_calculate_btn', 'Calculate Costs')}
+                  </button>
+                </div>
+
+                {/* Fuel parameters */}
+                <div className="grid grid-cols-2 gap-3 mb-4 bg-black/5 p-3 rounded-xl">
+                  <div>
+                    <label className="block text-xs font-bold text-text-secondary mb-1 uppercase tracking-wider">
+                      <Fuel className="w-3 h-3 inline mr-1" />{t('cost_consumption', 'Avg Consumption (L/100km)')}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="10"
+                      max="60"
+                      value={fuelConsumption}
+                      onChange={e => setFuelConsumption(parseFloat(e.target.value) || 32)}
+                      className="input w-full text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-text-secondary mb-1 uppercase tracking-wider">
+                      {t('cost_fuel_price', 'Fuel Price (€/L)')}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.5"
+                      max="5"
+                      value={fuelPrice}
+                      onChange={e => setFuelPrice(parseFloat(e.target.value) || 1.65)}
+                      className="input w-full text-sm"
+                    />
+                  </div>
+                </div>
+
+                {!pickup.latitude || !dropoff.latitude ? (
+                  <p className="text-xs text-text-secondary text-center py-3">
+                    {t('cost_need_addresses', '⚠ Validate pickup & delivery addresses in Step 2 to enable cost calculation.')}
+                  </p>
+                ) : !costEstimate ? (
+                  <p className="text-xs text-text-secondary text-center py-3">
+                    {t('cost_click_calculate', 'Click "Calculate Costs" to estimate transport costs for this route.')}
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Route summary */}
+                    <div className="flex items-center justify-between bg-white/60 dark:bg-card/60 rounded-xl p-3">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-semibold">{t('cost_route_distance', 'Route')}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-black text-base text-primary">{costEstimate.distanceKm} km</span>
+                        <span className="text-xs text-text-secondary ml-2">({costEstimate.durationText})</span>
+                      </div>
+                    </div>
+
+                    {/* Cost breakdown */}
+                    <div className="bg-white/60 dark:bg-card/60 rounded-xl p-3 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-text-secondary flex items-center gap-1.5">
+                          <Fuel className="w-3.5 h-3.5 text-orange-500" />
+                          {t('cost_fuel_cost', 'Fuel Cost')}
+                        </span>
+                        <span className="font-semibold">€{costEstimate.fuelCost.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-text-secondary flex items-center gap-1.5">
+                          <span className="text-base">🛣</span>
+                          {t('cost_toll', 'Road Toll')}
+                        </span>
+                        <span className="font-semibold">€{costEstimate.tollCost.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm pt-2 border-t border-border/50 font-bold">
+                        <span className="text-text-primary">{t('cost_total_cost', 'Total Estimated Cost')}</span>
+                        <span className="text-red-500">€{costEstimate.totalCost.toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    {/* Profit analysis */}
+                    <div className={`rounded-xl p-4 border-2 ${costEstimate.profit >= 0 ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/40'}`}>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-semibold text-text-secondary">{t('cost_agreed_price', 'Agreed Price')}</span>
+                        <span className="font-bold">€{costEstimate.agreedPrice.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className={`text-sm font-bold flex items-center gap-1.5 ${costEstimate.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {costEstimate.profit >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                          {t('cost_estimated_profit', 'Estimated Profit')}
+                        </span>
+                        <span className={`font-black text-lg ${costEstimate.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {costEstimate.profit >= 0 ? '+' : ''}€{costEstimate.profit.toFixed(2)}
+                        </span>
+                      </div>
+                      {costEstimate.profit >= 0 && (
+                        <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          {t('cost_profitable', 'This order is profitable. Margin: {{margin}}%', {
+                            margin: ((costEstimate.profit / costEstimate.agreedPrice) * 100).toFixed(1)
+                          })}
+                        </p>
+                      )}
+                      {costEstimate.profit < 0 && (
+                        <div className="mt-3 bg-red-500/10 border border-red-400/40 rounded-lg p-3">
+                          <p className="text-xs font-bold text-red-600 flex items-center gap-1.5 mb-1">
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            {t('cost_unprofitable_title', '⚠ Warning: Unprofitable Order!')}
+                          </p>
+                          <p className="text-xs text-red-500">
+                            {t('cost_unprofitable_desc', 'The agreed price is lower than estimated transport costs. You can still proceed, but this order will operate at a loss.')}
+                          </p>
+                          <label className="flex items-center gap-2 mt-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={confirmedUnprofitable}
+                              onChange={e => setConfirmedUnprofitable(e.target.checked)}
+                              className="checkbox"
+                            />
+                            <span className="text-xs font-semibold text-red-600">
+                              {t('cost_unprofitable_confirm', 'I understand and accept this unprofitable order')}
+                            </span>
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {/* ============ END COST ESTIMATOR ============ */}
             </div>}
         </div>
 
         {/* Footer */}
-        <div className="p-5 border-t border-border bg-surface/50 flex justify-between items-center shrink-0">
+        <div className="p-5 border-t border-border bg-surface/50 flex justify-between items-center shrink-0 flex-wrap gap-3">
           <button type="button" onClick={onClose} className="btn-secondary">{t("jsx_cancel")}</button>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center flex-wrap">
+            {/* Unprofitable warning banner in footer */}
+            {currentStep === STEPS.length - 1 && costEstimate && costEstimate.profit < 0 && (
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
+                <input type="checkbox" checked={confirmedUnprofitable} onChange={e => setConfirmedUnprofitable(e.target.checked)} className="checkbox" />
+                <AlertTriangle className="w-3.5 h-3.5" />
+                {t('cost_confirm_checkbox', 'Confirm unprofitable order')}
+              </label>
+            )}
             {currentStep > 0 && <button type="button" onClick={handlePrev} className="btn-secondary flex items-center gap-2">
                 <ArrowLeft className="w-4 h-4" />{t("jsx_back")}</button>}
             {currentStep < STEPS.length - 1 ? <button type="button" onClick={handleNext} className="btn-primary flex items-center gap-2 shadow-sm hover:shadow-md">{t("jsx_nextStep")}<ArrowRight className="w-4 h-4" />
-              </button> : <button type="button" onClick={handleSubmit} disabled={loading} className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-150 active:scale-95">
+              </button> : <button type="button" onClick={handleSubmit} disabled={loading || (costEstimate && costEstimate.profit < 0 && !confirmedUnprofitable)} className={`flex items-center gap-2 px-5 py-2.5 text-white rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-150 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed ${costEstimate && costEstimate.profit < 0 && !confirmedUnprofitable ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-600 hover:bg-green-700'}`}>
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{t("jsx_confirmSave")}</button>}
           </div>
         </div>
