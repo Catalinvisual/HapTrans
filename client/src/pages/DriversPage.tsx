@@ -569,13 +569,13 @@ export default function DriversPage() {
         <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </div>
 
-      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={filtered} filename="Soferi_HapCargo" getDateField={item => item.createdAt} headers={[{
+      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={filtered} filename="Drivers_HapCargo" getDateField={item => item.createdAt} headers={[{
       key: 'createdAt',
-      label: 'Data Inregistrare',
+      label: 'Registration Date',
       transform: val => val ? formatDate(val) : ''
     }, {
       key: 'name',
-      label: 'Nume Sofer',
+      label: 'Driver Name',
       transform: (_, item) => item?.user?.name || ''
     }, {
       key: 'email',
@@ -583,10 +583,10 @@ export default function DriversPage() {
       transform: (_, item) => item?.user?.email || ''
     }, {
       key: 'phone',
-      label: 'Telefon'
+      label: 'Phone'
     }, {
       key: 'licenseNumber',
-      label: 'Numar Permis'
+      label: 'License Number'
     }, {
       key: 'grossSalary',
       label: t('grossSalary')
@@ -595,15 +595,15 @@ export default function DriversPage() {
       label: t('dailyAllowance')
     }, {
       key: 'licenseExpiry',
-      label: 'Expirare Permis',
+      label: 'License Expiry',
       transform: val => val ? formatDate(val) : ''
     }, {
       key: 'medicalExpiry',
-      label: 'Expirare Aviz Medical',
+      label: 'Medical Expiry',
       transform: val => val ? formatDate(val) : ''
     }, {
       key: 'tachoCardExpiry',
-      label: 'Expirare Cartela Tacho',
+      label: 'Tacho Card Expiry',
       transform: val => val ? formatDate(val) : ''
     }, {
       key: 'status',

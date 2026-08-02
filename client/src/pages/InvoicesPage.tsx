@@ -889,36 +889,36 @@ export default function InvoicesPage({
         <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </div>
 
-      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={filtered} filename="Facturi_HapCargo" getDateField={item => item.issueDate || item.createdAt} headers={[{
+      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={filtered} filename="Invoices_HapCargo" getDateField={item => item.issueDate || item.createdAt} headers={[{
       key: 'createdAt',
-      label: 'Data Inregistrare',
+      label: 'Registration Date',
       transform: val => val ? formatDate(val) : ''
     }, {
       key: 'invoiceNumber',
-      label: 'Numar Factura'
+      label: 'Invoice Number'
     }, {
       key: 'client',
-      label: 'Nume Client',
+      label: 'Client Name',
       transform: val => val?.name || ''
     }, {
       key: 'amount',
-      label: 'Subtotal Fara TVA (€)',
+      label: 'Subtotal Excl. VAT (€)',
       transform: (val, item) => getInvTotals(item).subtotal.toFixed(2)
     }, {
       key: 'vatPercent',
-      label: 'TVA (%)',
-      transform: (val, item) => item?.vatType === 'REVERSE_CHARGE' ? 'Taxare Inversa (0%)' : item?.vatType === 'EXEMPT' ? 'Scutit (0%)' : `${val || 19}%`
+      label: 'VAT (%)',
+      transform: (val, item) => item?.vatType === 'REVERSE_CHARGE' ? 'Reverse Charge (0%)' : item?.vatType === 'EXEMPT' ? 'Exempt (0%)' : `${val || 19}%`
     }, {
       key: 'total',
-      label: 'Total Cu TVA (€)',
+      label: 'Total Incl. VAT (€)',
       transform: (val, item) => getInvTotals(item).total.toFixed(2)
     }, {
       key: 'issueDate',
-      label: 'Data Emitere',
+      label: 'Issue Date',
       transform: val => val ? formatDate(val) : ''
     }, {
       key: 'dueDate',
-      label: 'Data Scadenta',
+      label: 'Due Date',
       transform: val => val ? formatDate(val) : ''
     }, {
       key: 'status',

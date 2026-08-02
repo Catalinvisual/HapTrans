@@ -189,11 +189,11 @@ const WebsiteCmsPage = () => {
               <button
                 key={lang.code}
                 onClick={() => setSelectedLang(lang.code)}
-                className={\`px-3 py-1.5 rounded-md text-sm font-medium transition-colors \${
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                   selectedLang === lang.code 
                     ? 'bg-card text-primary shadow-sm' 
                     : 'text-text-secondary hover:text-text'
-                }\`}
+                }`}
               >
                 {lang.code}
               </button>
@@ -203,7 +203,7 @@ const WebsiteCmsPage = () => {
 
         <div className="space-y-8">
           {SECTIONS.map((section) => {
-            const key = \`\${section.id}_\${selectedLang}\`;
+            const key = `${section.id}_${selectedLang}`;
             const fallbackKey = section.id;
             const content = data[key] !== undefined ? data[key] : (data[fallbackKey] !== undefined && selectedLang === 'RO' ? data[fallbackKey] : '');
             

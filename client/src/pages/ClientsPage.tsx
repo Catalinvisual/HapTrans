@@ -257,28 +257,28 @@ export default function ClientsPage() {
         <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </div>
 
-      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={filtered} filename="Clienti_HapCargo" getDateField={item => item.createdAt} headers={[{
+      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={filtered} filename="Clients_HapCargo" getDateField={item => item.createdAt} headers={[{
       key: 'createdAt',
-      label: 'Data Inregistrare',
+      label: 'Registration Date',
       transform: val => val ? formatDate(val) : ''
     }, {
       key: 'name',
-      label: 'Nume Client'
+      label: 'Client Name'
     }, {
       key: 'cui',
       label: 'CUI / VAT'
     }, {
       key: 'address',
-      label: 'Adresa'
+      label: 'Address'
     }, {
       key: 'contactName',
-      label: 'Persoana Contact'
+      label: 'Contact Person'
     }, {
       key: 'contactEmail',
-      label: 'Email Contact'
+      label: 'Contact Email'
     }, {
       key: 'phone',
-      label: 'Telefon'
+      label: 'Phone'
     }]} />
     
       <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={executeDelete} title={t('confirm')} message={t('confirmDelete')} />

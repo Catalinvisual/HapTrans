@@ -332,16 +332,16 @@ export default function TrucksPage() {
         <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </div>
 
-      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={filtered} filename="Camioane_HapCargo" getDateField={item => item.createdAt} headers={[{
+      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={filtered} filename="Trucks_HapCargo" getDateField={item => item.createdAt} headers={[{
       key: 'createdAt',
-      label: 'Data Inregistrare',
+      label: 'Registration Date',
       transform: val => val ? formatDate(val) : ''
     }, {
       key: 'plateNumber',
-      label: 'Numar Inmatriculare'
+      label: 'License Plate'
     }, {
       key: 'brand',
-      label: 'Marca'
+      label: 'Brand'
     }, {
       key: 'model',
       label: 'Model'
