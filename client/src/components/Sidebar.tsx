@@ -78,9 +78,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 ${isCollapsed ? 'w-16' : 'w-64 md:w-56'} bg-card border-r border-border flex flex-col h-full transform transition-all duration-300 ease-in-out md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className={`px-4 py-5 border-b border-border flex items-center relative ${isCollapsed ? 'justify-center pl-1' : 'justify-between'}`}>
-          <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
+          <div className="flex items-center justify-center gap-2 overflow-hidden whitespace-nowrap">
             {company?.logo ? (
-              <img src={company.logo} alt="Logo" className={`h-8 w-auto object-contain transition-all duration-300 ${isCollapsed ? 'w-[40px] h-8 object-cover object-left' : ''}`} />
+              <img src={company.logo} alt="Logo" className={`transition-all duration-300 object-contain ${isCollapsed ? 'w-8 h-8' : 'h-8 w-auto'}`} />
             ) : null}
           </div>
           
