@@ -8,6 +8,7 @@ import Pagination from '../components/Pagination';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 export default function OrdersPage() {
+  const confirmSave = useSaveConfirm();
   const {
     t
   } = useTranslation();
