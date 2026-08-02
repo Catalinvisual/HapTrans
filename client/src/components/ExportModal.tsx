@@ -244,7 +244,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
               <div>
                 <label className="label text-xs font-bold text-text-secondary">{tExport.startDate}</label>
                 <Flatpickr
-                  placeholder="YYYY-MM-DD"
+                  placeholder="DD/MM/YYYY"
                   value={startDate}
                   onChange={(dates) => {
                     if (dates.length > 0) {
@@ -264,7 +264,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
               <div>
                 <label className="label text-xs font-bold text-text-secondary">{tExport.endDate}</label>
                 <Flatpickr
-                  placeholder="YYYY-MM-DD"
+                  placeholder="DD/MM/YYYY"
                   value={endDate}
                   onChange={(dates) => {
                     if (dates.length > 0) {

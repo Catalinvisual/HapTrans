@@ -11,6 +11,36 @@ import { Loader2 } from 'lucide-react';
 // ─── Eager-loaded (critical path, very small) ─────────────────────────────
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
+import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import flatpickr from 'flatpickr';
+import { Romanian } from 'flatpickr/dist/l10n/ro.js';
+import { French } from 'flatpickr/dist/l10n/fr.js';
+import { Dutch } from 'flatpickr/dist/l10n/nl.js';
+import { German } from 'flatpickr/dist/l10n/de.js';
+
+function GlobalConfig() {
+  const { i18n } = useTranslation();
+
+  useEffect(() => {
+    flatpickr.setDefaults({
+      altInput: true,
+      altFormat: 'd/m/Y',
+      dateFormat: 'Y-m-d',
+    });
+
+    const locales: Record<string, any> = {
+      ro: Romanian,
+      fr: French,
+      nl: Dutch,
+      de: German,
+    };
+    const locale = locales[i18n.language] || flatpickr.l10ns.default;
+    flatpickr.localize(locale);
+  }, [i18n.language]);
+
+  return null;
+}
 
 // ─── Lazy-loaded (load only when user navigates there) ────────────────────
 const TripsPage        = lazy(() => import('./pages/TripsPage'));
@@ -66,6 +96,7 @@ export default function App() {
     <SaveConfirmProvider>
       <ShortcutProvider>
         <BrowserRouter>
+        <GlobalConfig />
         <AppToaster />
         <PWAReloadPrompt />
         <Routes>
