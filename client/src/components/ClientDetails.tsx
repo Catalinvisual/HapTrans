@@ -37,7 +37,7 @@ export default function ClientDetails({
       const res = await api.get(`/clients/${client.id}/rates`);
       setRates(res.data);
     } catch {
-      toast.error(t("toast_eroareLaNcR"));
+      toast.error(t("toast_eroareLaIncarcare"));
     } finally {
       setLoadingRates(false);
     }
@@ -45,7 +45,8 @@ export default function ClientDetails({
   const handleSaveGeneral = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.patch(`/clients/${client.id}`, generalForm);
+      const { rates, invoices, orders, portalUsers, company, ...updateData } = generalForm as any;
+      await api.patch(`/clients/${client.id}`, updateData);
       toast.success(t("toast_dateGeneraleS"));
     } catch {
       toast.error(t("toast_eroareLaSalva"));
@@ -108,7 +109,7 @@ export default function ClientDetails({
                 <input className="input" value={generalForm.name} onChange={e => setGeneralForm({
               ...generalForm,
               name: e.target.value
-            })} required />
+            })} />
               </div>
               <div>
                 <label className="label">{t('vatCui')}</label>
@@ -208,7 +209,7 @@ export default function ClientDetails({
                   <input className="input" value={rateForm.rateName} onChange={e => setRateForm({
               ...rateForm,
               rateName: e.target.value
-            })} required />
+            })} />
                 </div>
                 <div>
                   <label className="label text-xs">{t('originCity')}</label>
@@ -229,7 +230,7 @@ export default function ClientDetails({
                   <input type="number" className="input" value={rateForm.basePrice} onChange={e => setRateForm({
               ...rateForm,
               basePrice: Number(e.target.value)
-            })} required />
+            })} />
                 </div>
                 <div>
                   <label className="label text-xs">{t('fuelSurcharge')}</label>
