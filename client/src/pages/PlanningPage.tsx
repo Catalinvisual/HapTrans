@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Truck as TruckIcon, Package, Loader2, MapPin, CheckCircle2, AlertTriangle, Trash2, ExternalLink, Users, X, Weight, ChevronRight, Calendar, Euro, ArrowRight, Info } from 'lucide-react';
 import api from '../lib/api';
@@ -37,7 +38,7 @@ function OrderDetailDrawer({
     assigned: 'bg-purple-100 text-purple-700 border-purple-200',
     pending: 'bg-yellow-100 text-yellow-700 border-yellow-200'
   };
-  return <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
+  return typeof document !== 'undefined' ? createPortal(<div className="fixed inset-0 z-[9999] flex justify-end" onClick={onClose}>
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
 
@@ -192,7 +193,7 @@ function OrderDetailDrawer({
           to { transform: translateX(0); opacity: 1; }
         }
       `}</style>
-    </div>;
+    </div>, document.body) : null;
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -632,7 +633,7 @@ export default function PlanningPage() {
       const orderWeight = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || 0;
       const orderLdm = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.ldm || 0), 0) || 0;
       const sortedTrucks = getSortedTrucks(order);
-      return <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{
+      return typeof document !== 'undefined' ? createPortal(<div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{
         backdropFilter: 'blur(4px)',
         backgroundColor: 'rgba(0,0,0,0.55)'
       }}>
@@ -701,7 +702,7 @@ export default function PlanningPage() {
                 <button onClick={() => setSelectedOrderToAssign(null)} className="btn-secondary text-xs py-2 px-4">{t("jsx_anuleaz")}</button>
               </div>
             </div>
-          </div>;
+          </div>, document.body) : null;
     })()}
     </div>;
 }

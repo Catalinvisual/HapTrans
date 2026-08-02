@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { createPortal } from 'react-dom';
 import { X, Save, Loader2, Plus, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
@@ -148,7 +149,7 @@ export default function OrderFormModal({
       setLoading(false);
     }
   };
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+  return createPortal(<div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <div className="bg-card w-full max-w-4xl rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
         <div className="p-6 border-b border-border flex justify-between items-center bg-surface/50">
           <h2 className="text-xl font-semibold">
@@ -333,5 +334,5 @@ export default function OrderFormModal({
           </div>
         </form>
       </div>
-    </div>;
+    </div>, document.body);
 }

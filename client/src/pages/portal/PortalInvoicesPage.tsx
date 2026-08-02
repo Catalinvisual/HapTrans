@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { FileCheck2, Search, Download, CreditCard, Building2, Wallet, Eye } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
@@ -117,7 +118,7 @@ export default function PortalInvoicesPage() {
       </div>
 
       {/* Payment Modal */}
-      {showPaymentModal && <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      {showPaymentModal && typeof document !== 'undefined' && createPortal(<div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4">
           <div className="bg-card w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-fade-in">
             <div className="p-6 border-b border-border bg-surface">
               <div className="flex justify-between items-center">
@@ -181,9 +182,9 @@ export default function PortalInvoicesPage() {
               <button onClick={() => setShowPaymentModal(null)} className="btn-primary w-full py-3 font-bold text-lg">{t("jsx_iUnderstandC")}</button>
             </div>
           </div>
-        </div>}
+        </div>, document.body)}
       {/* Details Modal */}
-      {showDetailsModal && <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      {showDetailsModal && typeof document !== 'undefined' && createPortal(<div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4">
           <div className="bg-card w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden animate-fade-in max-h-[90vh] flex flex-col">
             <div className="p-6 border-b border-border bg-surface shrink-0">
               <div className="flex justify-between items-center">
@@ -252,6 +253,6 @@ export default function PortalInvoicesPage() {
               <button onClick={() => setShowDetailsModal(null)} className="btn-secondary py-2 px-4 font-bold">{t("jsx_close")}</button>
             </div>
           </div>
-        </div>}
+        </div>, document.body)}
     </div>;
 }

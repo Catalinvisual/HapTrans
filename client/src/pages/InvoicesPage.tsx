@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import { useTranslation } from 'react-i18next';
@@ -583,7 +584,7 @@ export default function InvoicesPage({
     };
   };
   return <div className="space-y-5 animate-fade-in">
-      {showForm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+      {showForm && typeof document !== 'undefined' && createPortal(<div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-[90rem] w-full h-[90vh] flex flex-col overflow-hidden">
             <div className="p-6 border-b border-border flex justify-between items-center bg-surface shrink-0">
               <h3 className="font-bold text-xl text-primary">{editId ? t('editDraft', 'Editare Draft / Detalii Complete') : t('newInvoice')}</h3>
@@ -753,7 +754,7 @@ export default function InvoicesPage({
               </div>
             </div>
           </div>
-        </div>}
+        </div>, document.body)}
       <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
         <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 flex-1 max-w-md">
@@ -925,7 +926,7 @@ export default function InvoicesPage({
       label: 'Status'
     }]} />
 
-      {invoiceLangModal.isOpen && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      {invoiceLangModal.isOpen && typeof document !== 'undefined' && createPortal(<div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-card p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4">
             <h3 className="text-xl font-bold mb-2">{t('invoiceLanguageTitle') || 'Invoice Language'}</h3>
             <p className="text-sm text-text-secondary mb-6">{t('invoiceLanguageSub') || 'Choose the language for the generated PDF'}</p>
@@ -962,7 +963,7 @@ export default function InvoicesPage({
               </button>
             </div>
           </div>
-        </div>}
+        </div>, document.body)}
 
       <ConfirmModal isOpen={!!deleteId} title={t('deleteInvoice') || 'Sterge Factura'} message={t('deleteConfirm') || 'Sunteti sigur? Aceasta actiune este ireversibila.'} onConfirm={executeDelete} onCancel={() => setDeleteId(null)} />
     </div>;

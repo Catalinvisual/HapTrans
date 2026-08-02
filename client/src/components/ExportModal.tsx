@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Download, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -186,8 +187,8 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4">
       <div className="bg-card rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-border animate-slide-up">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border bg-surface">
@@ -243,6 +244,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
               <div>
                 <label className="label text-xs font-bold text-text-secondary">{tExport.startDate}</label>
                 <Flatpickr
+                  placeholder="YYYY-MM-DD"
                   value={startDate}
                   onChange={(dates) => {
                     if (dates.length > 0) {
@@ -262,6 +264,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
               <div>
                 <label className="label text-xs font-bold text-text-secondary">{tExport.endDate}</label>
                 <Flatpickr
+                  placeholder="YYYY-MM-DD"
                   value={endDate}
                   onChange={(dates) => {
                     if (dates.length > 0) {
@@ -292,6 +295,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
