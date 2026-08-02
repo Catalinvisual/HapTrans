@@ -307,6 +307,7 @@ const WebsiteQuotesPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const {
+    t,
     i18n
   } = useTranslation();
   const navigate = useNavigate();
