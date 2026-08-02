@@ -131,6 +131,7 @@ export default function DriversPage() {
   };
   const handleSubmit = async (e?: any) => {
     if (e && e.preventDefault) e.preventDefault();
+    if (!await confirmSave()) return;
     if (isPastDate(form.licenseExpiry) || isPastDate(form.medicalExpiry) || isPastDate(form.tachoCardExpiry)) {
       toast.error(getErrorMessage());
       return;

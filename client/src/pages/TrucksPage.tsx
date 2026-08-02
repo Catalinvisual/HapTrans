@@ -70,6 +70,7 @@ export default function TrucksPage() {
   }, []);
   const handleSubmit = async (e?: any) => {
     if (e && e.preventDefault) e.preventDefault();
+    if (!await confirmSave()) return;
     try {
       if (editId) {
         await api.patch(`/trucks/${editId}`, form);

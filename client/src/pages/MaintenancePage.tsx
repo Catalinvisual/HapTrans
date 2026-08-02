@@ -63,6 +63,7 @@ export default function MaintenancePage() {  const confirmSave = useSaveConfirm
 
   const handleSubmit = async (e?: any) => {
     if (e && e.preventDefault) e.preventDefault();
+    if (!await confirmSave()) return;
     if (isPastDate(form.scheduledDate)) {
       toast.error(getErrorMessage());
       return;
@@ -191,3 +192,5 @@ export default function MaintenancePage() {  const confirmSave = useSaveConfirm
     </div>
   );
 }
+
+

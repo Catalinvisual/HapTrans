@@ -137,6 +137,7 @@ export default function ExpensesPage() {
   };
   const handleSubmit = async (e?: any) => {
     if (e && e.preventDefault) e.preventDefault();
+    if (!await confirmSave()) return;
     try {
       const data = {
         ...form,
@@ -389,3 +390,4 @@ export default function ExpensesPage() {
       </div>
     </div>;
 }
+

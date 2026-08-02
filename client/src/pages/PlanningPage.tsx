@@ -4,6 +4,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Truck as TruckIcon, Package, Loader2, MapPin, CheckCircle2, AlertTriangle, Trash2, ExternalLink, Users, X, Weight, ChevronRight, Calendar, Euro, ArrowRight, Info } from 'lucide-react';
 import api from '../lib/api';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import CustomSelect from '../components/CustomSelect';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -555,10 +556,15 @@ export default function PlanningPage() {
                           <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1 mb-1">
                             <Users className="w-3 h-3" /> {t('assigned_driver', 'Șofer')}
                           </label>
-                          <select value={truck.driver?.id || stats.driverId || ''} onChange={e => handleAssignDriver(truck.id, e.target.value)} onClick={e => e.stopPropagation()} className="w-full text-xs bg-white dark:bg-card border border-border/80 rounded-lg px-2 py-1.5 font-semibold text-text-primary focus:outline-none focus:border-primary">
-                            <option value="">{t('no_driver_option', 'Fără Șofer')}</option>
-                            {drivers.map((d: any) => <option key={d.id} value={d.id}>{d.user?.name || 'Șofer'}</option>)}
-                          </select>
+                          <div onClick={e => e.stopPropagation()}>
+                            <CustomSelect value={truck.driver?.id || stats.driverId || ''} onChange={val => handleAssignDriver(truck.id, val)} options={[{
+                            value: '',
+                            label: t('no_driver_option', 'Fără Șofer')
+                          }, ...drivers.map((d: any) => ({
+                            value: d.id,
+                            label: d.user?.name || 'Șofer'
+                          }))]} className="w-full text-xs" />
+                          </div>
                         </div>
 
                         {/* Capacity bars */}

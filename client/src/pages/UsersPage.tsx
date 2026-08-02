@@ -65,6 +65,7 @@ export default function UsersPage() {
   };
   const handleSubmit = async (e?: any) => {
     if (e && e.preventDefault) e.preventDefault();
+    if (!await confirmSave()) return;
     try {
       if (editId) {
         const payload: Partial<typeof form> = {
@@ -394,3 +395,4 @@ export default function UsersPage() {
       <ConfirmModal isOpen={!!deactivateUser} onClose={() => setDeactivateUser(null)} onConfirm={executeDelete} title={t('confirm', 'Confirmare')} message={t('confirmDeleteUser', 'Sunteți sigur că doriți să ștergeți acest utilizator? Această acțiune este ireversibilă.')} />
     </div>;
 }
+

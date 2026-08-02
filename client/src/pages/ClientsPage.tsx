@@ -54,6 +54,7 @@ export default function ClientsPage() {
   }, []);
   const handleSubmit = async (e?: any) => {
     if (e && e.preventDefault) e.preventDefault();
+    if (!await confirmSave()) return;
     try {
       if (editId) {
         await api.patch(`/clients/${editId}`, form);

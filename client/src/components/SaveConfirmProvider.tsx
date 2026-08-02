@@ -48,7 +48,7 @@ export const SaveConfirmProvider = ({ children }: { children: ReactNode }) => {
         onConfirm={handleConfirm}
         title={t('confirmSaveTitle')}
         message={t('confirmSaveMsg')}
-        confirmText={t('save')}
+        confirmText={t('saveBtn', 'Salvează')}
         cancelText={t('cancel')}
         type="info"
       />

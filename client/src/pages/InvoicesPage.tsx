@@ -372,6 +372,7 @@ export default function InvoicesPage({
   };
   const handleSubmit = async (e?: any) => {
     if (e && e.preventDefault) e.preventDefault();
+    if (!await confirmSave()) return;
     if (isPastDate(form.issueDate) || isPastDate(form.dueDate)) {
       toast.error(getErrorMessage());
       return;
@@ -969,3 +970,4 @@ export default function InvoicesPage({
       <ConfirmModal isOpen={!!deleteId} onConfirm={executeDelete} onCancel={() => setDeleteId(null)} type="danger" />
     </div>;
 }
+
