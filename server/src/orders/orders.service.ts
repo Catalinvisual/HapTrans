@@ -180,12 +180,37 @@ export class OrdersService {
         }
       }
 
-      const fullOrder = await this.findOne(savedOrder.id);
+      const fullOrder = await this.findOne(savedOrder.id) as any;
 
-      // 5. Emit Domain Event
-      this.eventEmitter.emit('order.created', fullOrder);
+      // 5b. Auto-calculate route distance & estimated cost
+      const allStops = processedStops.filter(s => s.latitude && s.longitude);
+      if (allStops.length >= 2) {
+        try {
+          const firstStop = allStops[0];
+          const lastStop = allStops[allStops.length - 1];
+          const routeResult = await this.routingService.calculateRoute(
+            firstStop.latitude, firstStop.longitude,
+            lastStop.latitude, lastStop.longitude
+          );
+          if (routeResult) {
+            const estimatedCost = routeResult.tollCost || 0;
+            await this.repo.update(savedOrder.id, {
+              distanceKm: routeResult.distanceKm,
+              estimatedCost: estimatedCost,
+              estimatedProfit: (safeNum(dto.price) || 0) - estimatedCost,
+            } as any);
+          }
+        } catch (e) {
+          console.warn('Route calculation failed, skipping cost estimate:', e.message);
+        }
+      }
 
-      return fullOrder;
+      const updatedOrder = await this.findOne(savedOrder.id);
+
+      // 5c. Emit Domain Event
+      this.eventEmitter.emit('order.created', updatedOrder);
+
+      return updatedOrder;
     } catch (err: any) {
       console.error('=== ORDER CREATE ERROR ===');
       console.error('Message:', err.message);

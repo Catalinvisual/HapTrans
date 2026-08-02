@@ -90,29 +90,35 @@ export default function OrderDetailsPage() {
 
       {/* Tab Content */}
       <div className="mt-6">
-        {activeTab === 'overview' && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {activeTab === 'overview' && (() => {
+          const sortedStops = order.stops ? [...order.stops].sort((a: any, b: any) => {
+            if (a.type === 'pickup' && b.type !== 'pickup') return -1;
+            if (a.type !== 'pickup' && b.type === 'pickup') return 1;
+            return (a.sequence || 0) - (b.sequence || 0);
+          }) : [];
+          return (<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
             {/* General Info & Requirements */}
             <div className="card p-5 lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6 bg-gradient-to-br from-surface to-surface/50 border-primary/20">
               <div>
-                <h3 className="font-bold text-sm text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-2"><Truck className="w-4 h-4 text-primary" /> {t("jsx_transportDetails", "Detalii Transport")}</h3>
+                <h3 className="font-bold text-sm text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-2"><Truck className="w-4 h-4 text-primary" /> {t("jsx_transportDetai", "Transport Details")}</h3>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_transportType", "Tip Transport")}</span><span className="font-bold capitalize">{order.transportType || '—'}</span></div>
-                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_priority", "Prioritate")}</span><span className={`font-bold capitalize ${order.priority === 'urgent' ? 'text-red-500' : ''}`}>{order.priority || '—'}</span></div>
-                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_distance", "Distanță")}</span><span className="font-bold">{order.distanceKm ? `${order.distanceKm} km` : '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_transportType", "Transport Type")}</span><span className="font-bold capitalize">{order.transportType || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_priority", "Priority")}</span><span className={`font-bold capitalize ${order.priority === 'urgent' ? 'text-red-500' : ''}`}>{order.priority || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_distance", "Distance")}</span><span className="font-bold">{order.distanceKm ? `${order.distanceKm} km` : '—'}</span></div>
                 </div>
               </div>
               <div>
-                <h3 className="font-bold text-sm text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> {t("jsx_equipmentReq", "Cerințe Echipament")}</h3>
+                <h3 className="font-bold text-sm text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> {t("jsx_equipReq", "Equipment Requirements")}</h3>
                 <div className="flex flex-wrap gap-2">
-                  {order.equipmentRequirements && order.equipmentRequirements.length > 0 ? order.equipmentRequirements.map((req: string) => <span key={req} className="px-2.5 py-1 bg-green-500/10 text-green-600 border border-green-500/20 rounded-md text-xs font-bold uppercase">{req}</span>) : <span className="text-text-secondary text-sm">{t("jsx_none", "Niciuna")}</span>}
+                  {order.equipmentRequirements && order.equipmentRequirements.length > 0 ? order.equipmentRequirements.map((req: string) => <span key={req} className="px-2.5 py-1 bg-green-500/10 text-green-600 border border-green-500/20 rounded-md text-xs font-bold uppercase">{req}</span>) : <span className="text-text-secondary text-sm">{t("jsx_none", "None")}</span>}
                 </div>
               </div>
               <div>
-                <h3 className="font-bold text-sm text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-2"><MapPin className="w-4 h-4 text-orange-500" /> {t("jsx_contactDetails", "Contact Client")}</h3>
+                <h3 className="font-bold text-sm text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-2"><MapPin className="w-4 h-4 text-orange-500" /> {t("jsx_contactDetails", "Client Contact")}</h3>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_contactPerson", "Persoană Contact")}</span><span className="font-bold">{order.contactPerson || '—'}</span></div>
-                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_contactPhone", "Telefon Contact")}</span><span className="font-bold">{order.contactPhone || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_contactPerson", "Contact Person")}</span><span className="font-bold">{order.contactPerson || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_phoneNumber", "Phone")}</span><span className="font-bold">{order.contactPhone || '—'}</span></div>
                 </div>
               </div>
             </div>
@@ -120,12 +126,12 @@ export default function OrderDetailsPage() {
             <div className="card p-5 lg:col-span-2">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><MapPin className="text-primary" />{t("jsx_routeInfo")}</h3>
               <div className="space-y-6">
-                {order.stops?.map((stop: any, idx: number) => <div key={idx} className="flex gap-4 items-start relative">
+                {sortedStops.map((stop: any, idx: number) => <div key={idx} className="flex gap-4 items-start relative">
                     <div className="flex flex-col items-center">
                       <div className={`w-8 h-8 z-10 rounded-full flex items-center justify-center text-white font-bold shadow-md ${stop.type === 'pickup' ? 'bg-blue-500' : 'bg-green-500'}`}>
                         {idx + 1}
                       </div>
-                      {idx !== order.stops.length - 1 && <div className="absolute top-8 bottom-[-24px] left-4 w-px bg-border -translate-x-1/2"></div>}
+                      {idx !== sortedStops.length - 1 && <div className="absolute top-8 bottom-[-24px] left-4 w-px bg-border -translate-x-1/2"></div>}
                     </div>
                     <div className="flex-1 bg-surface border border-border/50 p-4 rounded-xl">
                       <div className="flex flex-wrap justify-between gap-4 mb-2">
@@ -141,16 +147,16 @@ export default function OrderDetailsPage() {
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-border/50 text-sm">
                         <div>
-                          <p className="text-xs text-text-secondary uppercase tracking-wider font-bold mb-1">{t("jsx_schedule", "Program")}</p>
-                          <p className="font-medium">{new Date(stop.dateFrom || stop.scheduledDate).toLocaleDateString()} {stop.timeFrom || stop.scheduledTime || '00:00'} - {stop.timeUntil || '23:59'}</p>
+                          <p className="text-xs text-text-secondary uppercase tracking-wider font-bold mb-1">{t("jsx_schedule", "Schedule")}</p>
+                          <p className="font-medium">{stop.dateFrom ? new Date(stop.dateFrom).toLocaleDateString() : '—'} {stop.timeFrom || '00:00'} - {stop.timeUntil || '23:59'}</p>
                         </div>
                         {stop.reference && <div>
-                          <p className="text-xs text-text-secondary uppercase tracking-wider font-bold mb-1">{t("jsx_reference", "Referință")}</p>
+                          <p className="text-xs text-text-secondary uppercase tracking-wider font-bold mb-1">{t("jsx_reference", "Reference")}</p>
                           <p className="font-medium">{stop.reference}</p>
                         </div>}
-                        {(stop.contactPerson || stop.contactPhone) && <div className="sm:col-span-2 flex flex-wrap gap-4 bg-black/5 p-2 rounded-lg">
+                        {(stop.contactPerson || stop.phone) && <div className="sm:col-span-2 flex flex-wrap gap-4 bg-black/5 p-2 rounded-lg">
                           {stop.contactPerson && <div><span className="text-xs text-text-secondary">{t("jsx_contact", "Contact")}: </span><span className="font-semibold text-xs">{stop.contactPerson}</span></div>}
-                          {stop.contactPhone && <div><span className="text-xs text-text-secondary">{t("jsx_phone", "Tel")}: </span><span className="font-semibold text-xs">{stop.contactPhone}</span></div>}
+                          {stop.phone && <div><span className="text-xs text-text-secondary">{t("jsx_phone", "Phone")}: </span><span className="font-semibold text-xs">{stop.phone}</span></div>}
                         </div>}
                       </div>
                     </div>
@@ -171,7 +177,7 @@ export default function OrderDetailsPage() {
                         {/* Specifications */}
                         <div className="grid grid-cols-3 gap-2 mb-3 bg-black/5 p-2 rounded-lg">
                           <div className="text-center">
-                            <span className="block text-[10px] text-text-secondary uppercase font-bold">{t("jsx_weight", "Greutate")}</span>
+                            <span className="block text-[10px] text-text-secondary uppercase font-bold">{t("jsx_weight", "Weight")}</span>
                             <span className="font-semibold">{item.weightKg || '-'} kg</span>
                           </div>
                           <div className="text-center border-x border-border/50">
@@ -179,7 +185,7 @@ export default function OrderDetailsPage() {
                             <span className="font-semibold">{item.ldm || '-'}</span>
                           </div>
                           <div className="text-center">
-                            <span className="block text-[10px] text-text-secondary uppercase font-bold">{t("jsx_volume", "Volum")}</span>
+                            <span className="block text-[10px] text-text-secondary uppercase font-bold">{t("jsx_volume", "Volume")}</span>
                             <span className="font-semibold">{item.volumeCbm || '-'} m³</span>
                           </div>
                         </div>
@@ -189,8 +195,8 @@ export default function OrderDetailsPage() {
                           {(item.lengthCm || item.widthCm || item.heightCm) && <span className="px-2 py-1 bg-surface border border-border rounded text-text-secondary">
                             Dim: {item.lengthCm || '-'}x{item.widthCm || '-'}x{item.heightCm || '-'} cm
                           </span>}
-                          {item.stackable && <span className="px-2 py-1 bg-blue-500/10 text-blue-600 border border-blue-500/20 rounded font-bold">Stackable</span>}
-                          {item.fragile && <span className="px-2 py-1 bg-orange-500/10 text-orange-600 border border-orange-500/20 rounded font-bold">Fragile</span>}
+                          {item.stackable && <span className="px-2 py-1 bg-blue-500/10 text-blue-600 border border-blue-500/20 rounded font-bold">{t("jsx_stackable", "Stackable")}</span>}
+                          {item.fragile && <span className="px-2 py-1 bg-orange-500/10 text-orange-600 border border-orange-500/20 rounded font-bold">{t("jsx_fragile", "Fragile")}</span>}
                           {item.isAdr && <span className="px-2 py-1 bg-red-500/10 text-red-600 border border-red-500/20 rounded font-bold">
                             ADR {item.adrClass && `Cls ${item.adrClass}`} {item.adrUnNumber && `UN ${item.adrUnNumber}`}
                           </span>}
@@ -210,11 +216,11 @@ export default function OrderDetailsPage() {
                   <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_cMRRef")}</span><span className="font-bold text-right">{order.CMRReference || '—'}</span></div>
                   <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_loadingRef")}</span><span className="font-bold text-right">{order.loadingReference || '—'}</span></div>
                   <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_unloadingRef")}</span><span className="font-bold text-right">{order.unloadingReference || '—'}</span></div>
-                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_internalRef", "Referință Internă")}</span><span className="font-bold text-right">{order.internalReference || '—'}</span></div>
+                <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_internalRef", "Internal Ref")}</span><span className="font-bold text-right">{order.internalReference || '—'}</span></div>
                 </div>
                 
                 {order.notes && <div className="mt-5 pt-5 border-t border-border">
-                  <span className="text-text-secondary block mb-2 font-bold text-xs uppercase tracking-wider">{t("jsx_notes", "Note Generale")}</span>
+                  <span className="text-text-secondary block mb-2 font-bold text-xs uppercase tracking-wider">{t("jsx_notes", "Notes")}</span>
                   <p className="text-text-primary whitespace-pre-wrap bg-yellow-500/10 p-3 rounded-lg border border-yellow-500/20 text-sm leading-relaxed">{order.notes}</p>
                 </div>}
 
@@ -224,7 +230,9 @@ export default function OrderDetailsPage() {
                 </div>}
               </div>
             </div>
-          </div>}
+          </div>
+          );
+        })()}
 
         {activeTab === 'financials' && <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="card p-5 border-l-4 border-l-blue-500">
@@ -240,7 +248,6 @@ export default function OrderDetailsPage() {
               <p className="text-3xl font-black mt-2 text-green-600">€{order.estimatedProfit || '0.00'}</p>
             </div>
           </div>}
-
         {activeTab === 'timeline' && <div className="card p-5">
             <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Clock className="text-purple-500" />{t("jsx_eventHistory")}</h3>
             {timeline.length === 0 ? <p className="text-text-secondary">{t("jsx_noEventsLogge")}</p> : <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
