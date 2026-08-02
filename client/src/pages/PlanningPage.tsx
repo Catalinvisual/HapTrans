@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Truck as TruckIcon, Package, Loader2, MapPin, CheckCircle2, AlertTriangle, Trash2, ExternalLink, Users, X, Weight, ChevronRight, Calendar, Euro, ArrowRight, Info } from 'lucide-react';
 import api from '../lib/api';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
@@ -214,10 +213,13 @@ export default function PlanningPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [draggingOrderId, setDraggingOrderId] = useState<string | null>(null);
+  const [dragOverTruckId, setDragOverTruckId] = useState<string | null>(null);
+
   const loadData = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const [trucksRes, ordersRes, tripsRes, driversRes] = await Promise.all([api.get('/trucks'), api.get('/orders?status=draft,new,pending'), api.get('/trips?status=planning,dispatched'), api.get('/drivers')]);
+      const [trucksRes, ordersRes, tripsRes, driversRes] = await Promise.all([api.get('/trucks'), api.get('/orders?status=draft,new,pending'), api.get('/trips?status=planned,dispatched'), api.get('/drivers')]);
       setTrucks(trucksRes.data.filter((t: any) => t.status === 'active'));
       setOrders(ordersRes.data);
       setTrips(tripsRes.data);
@@ -255,7 +257,7 @@ export default function PlanningPage() {
         const proceed = window.confirm(`Atenție! Probleme detectate:\n\n${warnings.join('\n')}\n\nContinuați?`);
         if (!proceed) return;
       }
-      const existingTrip = trips.find(tr => tr.truck?.id === truckId && tr.status === 'planning');
+      const existingTrip = trips.find(tr => tr.truck?.id === truckId && tr.status === 'planned');
       if (existingTrip) {
         await api.post(`/trips/${existingTrip.id}/assign-orders`, {
           orderIds: [orderId]
@@ -270,7 +272,7 @@ export default function PlanningPage() {
         const tripRes = await api.post('/trips', {
           truckId,
           driverId: truck.driver?.id || null,
-          status: 'planning',
+          status: 'planned',
           price: order.price ? Number(order.price) : undefined,
           currency: order.currency || 'EUR',
           tripNumber: order.orderNumber || order.referenceNumber || `TR-${Date.now().toString().slice(-6)}`,
@@ -302,7 +304,7 @@ export default function PlanningPage() {
       await api.patch(`/trucks/${truckId}`, {
         driverId: driverId || null
       });
-      const trip = trips.find(tr => tr.truck?.id === truckId && tr.status === 'planning');
+      const trip = trips.find(tr => tr.truck?.id === truckId && tr.status === 'planned');
       if (trip) await api.patch(`/trips/${trip.id}`, {
         driverId: driverId || null
       });
@@ -325,29 +327,45 @@ export default function PlanningPage() {
       setOrderToDelete(null);
     }
   };
-  const handleDragEnd = async (result: any) => {
-    // Fix for Chromium Windows bug where cursor turns white/invisible after dropping
-    // Must be in setTimeout because react-beautiful-dnd restores focus asynchronously AFTER this callback
-    setTimeout(() => {
-      if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
-      }
-    }, 50);
-    const {
-      destination,
-      source,
-      draggableId
-    } = result;
-    if (!destination) return;
-    if (destination.droppableId === source.droppableId) return;
-    if (source.droppableId === 'unassigned-orders' && destination.droppableId !== 'unassigned-orders') {
-      await assignOrderToTruck(draggableId, destination.droppableId);
+  // ── Native HTML5 Drag handlers ──────────────────────────────────────────────
+  const handleDragStart = (e: React.DragEvent, orderId: string) => {
+    e.dataTransfer.setData('orderId', orderId);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingOrderId(orderId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingOrderId(null);
+    setDragOverTruckId(null);
+  };
+
+  const handleTruckDragOver = (e: React.DragEvent, truckId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverTruckId(truckId);
+  };
+
+  const handleTruckDragLeave = (e: React.DragEvent) => {
+    // Only clear if truly leaving the truck card (not entering a child)
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragOverTruckId(null);
     }
   };
+
+  const handleTruckDrop = async (e: React.DragEvent, truckId: string) => {
+    e.preventDefault();
+    setDragOverTruckId(null);
+    setDraggingOrderId(null);
+    const orderId = e.dataTransfer.getData('orderId');
+    if (orderId) {
+      await assignOrderToTruck(orderId, truckId);
+    }
+  };
+
   const unassigned = orders.filter(o => ['draft', 'new', 'pending'].includes(o.status));
   const filteredUnassigned = searchQuery ? unassigned.filter(o => (o.orderNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) || (o.referenceNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) || (o.client?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || o.stops?.some((s: any) => (s.address || '').toLowerCase().includes(searchQuery.toLowerCase()))) : unassigned;
   const getTruckStats = (truckId: string) => {
-    const trip = trips.find(tr => tr.truck?.id === truckId && tr.status === 'planning');
+    const trip = trips.find(tr => tr.truck?.id === truckId && tr.status === 'planned');
     if (!trip) return {
       weight: 0,
       ldm: 0,
@@ -401,16 +419,12 @@ export default function PlanningPage() {
   })).sort((a, b) => a.rec.isCompatible === b.rec.isCompatible ? 0 : a.rec.isCompatible ? -1 : 1);
   if (loading) return <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   return <div className="pt-2 px-4 md:px-6 lg:px-8 pb-8 max-w-[1800px] mx-auto h-full">
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="flex gap-6 items-start h-full">
+      <div className="flex gap-6 items-start">
 
           {/* ═══════════════════════════════════════
               LEFT — Compact Order Cards
            ════════════════════════════════════════ */}
-          <div className="w-[320px] xl:w-[360px] shrink-0 flex flex-col gap-3 sticky top-2 z-50" style={{
-          maxHeight: 'calc(100vh - 80px)',
-          overflowY: 'auto'
-        }}>
+          <div className="w-[320px] xl:w-[360px] shrink-0 flex flex-col gap-3">
 
             {/* Header */}
             <div className="flex items-center justify-between">
@@ -440,19 +454,21 @@ export default function PlanningPage() {
               </div>}
 
             {/* Order cards droppable zone */}
-            <Droppable droppableId="unassigned-orders" direction="vertical">
-              {provided => <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-2">
-                  {filteredUnassigned.map((order, index) => {
+            <div className="space-y-2">
+                {filteredUnassigned.map((order, index) => {
                 const pickup = order.stops?.find((s: any) => s.type === 'pickup');
                 const dropoff = order.stops?.find((s: any) => s.type === 'dropoff');
                 const weight = order.cargoItems?.reduce((s: number, c: any) => s + Number(c.weightKg || 0), 0) || 0;
                 const isUrgent = pickup?.dateFrom && new Date(pickup.dateFrom).getTime() - Date.now() < 86400000 * 2;
-                return <Draggable key={order.id} draggableId={order.id} index={index}>
-                        {(provided, snapshot) => <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={`bg-card border rounded-xl px-3 py-2.5 cursor-grab-custom active:cursor-grabbing-custom transition-all select-none
-                              ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-primary border-primary rotate-1 scale-105' : 'border-border hover:border-primary/40 hover:shadow-md'}`} style={{
-                    ...provided.draggableProps.style,
-                    zIndex: snapshot.isDragging ? 9999 : 'auto'
-                  }}>
+                const isBeingDragged = draggingOrderId === order.id;
+                return <div
+                  key={order.id}
+                  draggable
+                  onDragStart={e => handleDragStart(e, order.id)}
+                  onDragEnd={handleDragEnd}
+                  className={`bg-card border rounded-xl px-3 py-2.5 cursor-grab active:cursor-grabbing transition-all select-none
+                              ${isBeingDragged ? 'opacity-40 scale-95 border-primary' : 'border-border hover:border-primary/40 hover:shadow-md'}`}
+                >
                             {/* Top row */}
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2 min-w-0">
@@ -491,12 +507,9 @@ export default function PlanningPage() {
                               </span>
                               <span className="text-xs font-bold text-primary">€{order.price || '0'}</span>
                             </div>
-                          </div>}
-                      </Draggable>;
+                          </div>;
               })}
-                  {provided.placeholder}
-                </div>}
-            </Droppable>
+                </div>
 
             {/* Hint */}
             <p className="text-center text-[10px] text-text-muted py-1">
@@ -525,11 +538,15 @@ export default function PlanningPage() {
               const weightPct = Math.min(100, stats.weight / maxWeight * 100);
               const ldmPct = Math.min(100, stats.ldm / maxLdm * 100);
               const hasWarning = stats.weight > maxWeight || stats.ldm > maxLdm;
-              return <Droppable key={truck.id} droppableId={truck.id}>
-                    {(provided, snapshot) => <div ref={provided.innerRef} {...provided.droppableProps} className={`relative bg-card border rounded-2xl p-5 transition-all duration-200 shadow-sm flex flex-col min-h-[200px]
-                          ${snapshot.isDraggingOver ? 'border-primary bg-primary/8 scale-[1.01] shadow-xl ring-2 ring-primary/40 z-[-1]' : 'border-border hover:border-primary/30 hover:shadow-md'}`}>
-                        {/* Drop overlay */}
-                        {snapshot.isDraggingOver && <div className="absolute inset-0 flex items-center justify-center rounded-2xl pointer-events-none z-10">
+              return <div
+                    key={truck.id}
+                    onDragOver={e => handleTruckDragOver(e, truck.id)}
+                    onDragLeave={handleTruckDragLeave}
+                    onDrop={e => handleTruckDrop(e, truck.id)}
+                    className={`relative bg-card border rounded-2xl p-5 transition-all duration-200 shadow-sm flex flex-col min-h-[200px]
+                          ${dragOverTruckId === truck.id ? 'border-primary bg-primary/8 shadow-xl ring-2 ring-primary/40' : 'border-border hover:border-primary/30 hover:shadow-md'}`}>
+                      {/* Drop overlay */}
+                      {dragOverTruckId === truck.id && <div className="absolute inset-0 flex items-center justify-center rounded-2xl pointer-events-none z-10">
                             <div className="bg-primary text-white font-black text-sm px-5 py-2.5 rounded-xl shadow-lg flex items-center gap-2">
                               <TruckIcon className="w-4 h-4" /> {t('drop_here_label', 'Plasează aici')}
                             </div>
@@ -606,15 +623,12 @@ export default function PlanningPage() {
                           {stats.orders.length > 3 && <p className="text-[10px] text-text-muted text-center">+{stats.orders.length - 3}{t("jsx_maiMulte")}</p>}
                         </div>
 
-                        {provided.placeholder}
-                      </div>}
-                  </Droppable>;
+                      </div>;
             })}
             </div>
           </div>
 
         </div>
-      </DragDropContext>
 
       {/* Order Detail Drawer */}
       {selectedOrderDetail && <OrderDetailDrawer order={selectedOrderDetail} onClose={() => setSelectedOrderDetail(null)} onPlanTrip={order => {

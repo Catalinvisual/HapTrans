@@ -12,7 +12,6 @@
   "dependencies": {
     "@emnapi/core": "^1.11.2",
     "@emnapi/runtime": "^1.11.2",
-    "@hello-pangea/dnd": "^18.0.1",
     "@hookform/resolvers": "^5.2.2",
     "axios": "^1.16.1",
     "date-fns": "^4.1.0",
