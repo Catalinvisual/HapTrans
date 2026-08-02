@@ -67,8 +67,6 @@ export default function UsersPage() {
     if (e && e.preventDefault) e.preventDefault();
     try {
       if (editId) {
-        const isConfirmed = await confirmSave();
-        if (!isConfirmed) return;
         const payload: Partial<typeof form> = {
           ...form
         };

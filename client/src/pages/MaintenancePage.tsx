@@ -10,8 +10,10 @@ import CustomSelect from '../components/CustomSelect';
 import Pagination from '../components/Pagination';
 import { useShortcuts } from '../hooks/useShortcuts';
 import { useTableShortcuts } from '../hooks/useTableShortcuts';
+import { useSaveConfirm } from '../components/SaveConfirmProvider';
 
-export default function MaintenancePage() {
+export default function MaintenancePage() {  const confirmSave = useSaveConfirm();
+
   const { t, i18n } = useTranslation();
   const [records, setRecords] = useState<any[]>([]);
   const [trucks, setTrucks] = useState<any[]>([]);

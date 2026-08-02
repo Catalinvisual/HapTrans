@@ -137,8 +137,6 @@ export default function DriversPage() {
     }
     try {
       if (editId) {
-        const isConfirmed = await confirmSave();
-        if (!isConfirmed) return;
         // Edit driver
         await api.patch(`/drivers/${editId}`, form);
         toast.success(t("toast_OferActualiza"));

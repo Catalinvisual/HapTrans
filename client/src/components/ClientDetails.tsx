@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Building2, Save, Plus, Trash2, Edit } from 'lucide-react';
+import { useSaveConfirm } from './SaveConfirmProvider';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import AddressAutocomplete from './AddressAutocomplete';
@@ -16,6 +17,7 @@ export default function ClientDetails({
   client: any;
   onBack: () => void;
 }) {
+  const confirmSave = useSaveConfirm();
   const {
     t
   } = useTranslation();
@@ -44,6 +46,8 @@ export default function ClientDetails({
   };
   const handleSaveGeneral = async (e: React.FormEvent) => {
     e.preventDefault();
+    const isConfirmed = await confirmSave();
+    if (!isConfirmed) return;
     try {
       const { rates, invoices, orders, portalUsers, company, ...updateData } = generalForm as any;
       await api.patch(`/clients/${client.id}`, updateData);
@@ -54,6 +58,8 @@ export default function ClientDetails({
   };
   const handleSaveRate = async (e: React.FormEvent) => {
     e.preventDefault();
+    const isConfirmed = await confirmSave();
+    if (!isConfirmed) return;
     try {
       if (rateForm.id) {
         await api.patch(`/clients/rates/${rateForm.id}`, rateForm);

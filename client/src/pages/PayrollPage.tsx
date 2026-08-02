@@ -7,8 +7,10 @@ import { formatDate } from '../lib/dateUtils';
 import CustomSelect from '../components/CustomSelect';
 import { generatePayrollPdfBase64 } from '../lib/payrollPdfGenerator';
 import Pagination from '../components/Pagination';
+import { useSaveConfirm } from '../components/SaveConfirmProvider';
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-export default function PayrollPage() {
+export default function PayrollPage() {  const confirmSave = useSaveConfirm();
+
   const {
     t,
     i18n

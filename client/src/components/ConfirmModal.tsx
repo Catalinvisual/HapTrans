@@ -29,8 +29,6 @@ export default function ConfirmModal({
 }: ConfirmModalProps) {
   const { t } = useTranslation();
 
-  if (!isOpen) return null;
-
   const handleClose = () => {
     if (onCancel) onCancel();
     if (onClose) onClose();
@@ -39,6 +37,8 @@ export default function ConfirmModal({
   useShortcuts({
     'escape': handleClose
   }, isOpen);
+
+  if (!isOpen) return null;
 
   const getIcon = () => {
     switch (type) {

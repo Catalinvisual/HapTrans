@@ -145,8 +145,6 @@ export default function SettingsPage() {
     if (logoInputRef.current) logoInputRef.current.value = '';
   };
   const handleSave = async () => {
-    const isConfirmed = await confirmSave();
-    if (!isConfirmed) return;
     try {
       if (user) {
         const updatePayload: any = {

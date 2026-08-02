@@ -143,8 +143,6 @@ export default function ExpensesPage() {
         amount: Number(form.amount) || 0
       };
       if (editId) {
-        const isConfirmed = await confirmSave();
-        if (!isConfirmed) return;
         await api.patch(`/expenses/${editId}`, data);
       } else {
         await api.post('/expenses', data);

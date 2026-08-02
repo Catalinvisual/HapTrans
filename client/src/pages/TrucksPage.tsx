@@ -72,8 +72,6 @@ export default function TrucksPage() {
     if (e && e.preventDefault) e.preventDefault();
     try {
       if (editId) {
-        const isConfirmed = await confirmSave();
-        if (!isConfirmed) return;
         await api.patch(`/trucks/${editId}`, form);
         toast.success(t('truckUpdated'));
       } else {

@@ -56,8 +56,6 @@ export default function ClientsPage() {
     if (e && e.preventDefault) e.preventDefault();
     try {
       if (editId) {
-        const isConfirmed = await confirmSave();
-        if (!isConfirmed) return;
         await api.patch(`/clients/${editId}`, form);
         toast.success(t('clientUpdated'));
       } else {
