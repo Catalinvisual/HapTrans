@@ -91,53 +91,137 @@ export default function OrderDetailsPage() {
       {/* Tab Content */}
       <div className="mt-6">
         {activeTab === 'overview' && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            {/* General Info & Requirements */}
+            <div className="card p-5 lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6 bg-gradient-to-br from-surface to-surface/50 border-primary/20">
+              <div>
+                <h3 className="font-bold text-sm text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-2"><Truck className="w-4 h-4 text-primary" /> {t("jsx_transportDetails", "Detalii Transport")}</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_transportType", "Tip Transport")}</span><span className="font-bold capitalize">{order.transportType || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_priority", "Prioritate")}</span><span className={`font-bold capitalize ${order.priority === 'urgent' ? 'text-red-500' : ''}`}>{order.priority || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_distance", "Distanță")}</span><span className="font-bold">{order.distanceKm ? `${order.distanceKm} km` : '—'}</span></div>
+                </div>
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> {t("jsx_equipmentReq", "Cerințe Echipament")}</h3>
+                <div className="flex flex-wrap gap-2">
+                  {order.equipmentRequirements && order.equipmentRequirements.length > 0 ? order.equipmentRequirements.map((req: string) => <span key={req} className="px-2.5 py-1 bg-green-500/10 text-green-600 border border-green-500/20 rounded-md text-xs font-bold uppercase">{req}</span>) : <span className="text-text-secondary text-sm">{t("jsx_none", "Niciuna")}</span>}
+                </div>
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-2"><MapPin className="w-4 h-4 text-orange-500" /> {t("jsx_contactDetails", "Contact Client")}</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_contactPerson", "Persoană Contact")}</span><span className="font-bold">{order.contactPerson || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_contactPhone", "Telefon Contact")}</span><span className="font-bold">{order.contactPhone || '—'}</span></div>
+                </div>
+              </div>
+            </div>
+
             <div className="card p-5 lg:col-span-2">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><MapPin className="text-primary" />{t("jsx_routeInfo")}</h3>
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {order.stops?.map((stop: any, idx: number) => <div key={idx} className="flex gap-4 items-start relative">
                     <div className="flex flex-col items-center">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${stop.type === 'pickup' ? 'bg-blue-500' : 'bg-green-500'}`}>
+                      <div className={`w-8 h-8 z-10 rounded-full flex items-center justify-center text-white font-bold shadow-md ${stop.type === 'pickup' ? 'bg-blue-500' : 'bg-green-500'}`}>
                         {idx + 1}
                       </div>
-                      {idx !== order.stops.length - 1 && <div className="w-px h-10 bg-border my-1"></div>}
+                      {idx !== order.stops.length - 1 && <div className="absolute top-8 bottom-[-24px] left-4 w-px bg-border -translate-x-1/2"></div>}
                     </div>
-                    <div>
-                      <p className="font-bold text-text-primary">{stop.companyName || stop.address}</p>
-                      <p className="text-sm text-text-secondary">{stop.type.toUpperCase()} • {stop.timeFrom || '00:00'} - {stop.timeUntil || '23:59'}</p>
+                    <div className="flex-1 bg-surface border border-border/50 p-4 rounded-xl">
+                      <div className="flex flex-wrap justify-between gap-4 mb-2">
+                        <div>
+                          <p className="font-bold text-text-primary text-base">{stop.companyName || stop.address}</p>
+                          <p className="text-xs text-text-secondary mt-0.5">{stop.address}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md ${stop.type === 'pickup' ? 'bg-blue-500/10 text-blue-600' : 'bg-green-500/10 text-green-600'}`}>
+                            {stop.type}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-border/50 text-sm">
+                        <div>
+                          <p className="text-xs text-text-secondary uppercase tracking-wider font-bold mb-1">{t("jsx_schedule", "Program")}</p>
+                          <p className="font-medium">{new Date(stop.dateFrom || stop.scheduledDate).toLocaleDateString()} {stop.timeFrom || stop.scheduledTime || '00:00'} - {stop.timeUntil || '23:59'}</p>
+                        </div>
+                        {stop.reference && <div>
+                          <p className="text-xs text-text-secondary uppercase tracking-wider font-bold mb-1">{t("jsx_reference", "Referință")}</p>
+                          <p className="font-medium">{stop.reference}</p>
+                        </div>}
+                        {(stop.contactPerson || stop.contactPhone) && <div className="sm:col-span-2 flex flex-wrap gap-4 bg-black/5 p-2 rounded-lg">
+                          {stop.contactPerson && <div><span className="text-xs text-text-secondary">{t("jsx_contact", "Contact")}: </span><span className="font-semibold text-xs">{stop.contactPerson}</span></div>}
+                          {stop.contactPhone && <div><span className="text-xs text-text-secondary">{t("jsx_phone", "Tel")}: </span><span className="font-semibold text-xs">{stop.contactPhone}</span></div>}
+                        </div>}
+                      </div>
                     </div>
                   </div>)}
               </div>
             </div>
             
-            <div className="card p-5">
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Package className="text-orange-500" />{t("jsx_cargoItems")}</h3>
+            <div className="space-y-6">
+              <div className="card p-5">
+                <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Package className="text-orange-500" />{t("jsx_cargoItems")}</h3>
+  
+                {order.cargoItems && order.cargoItems.length > 0 ? <div className="space-y-4">
+                    {order.cargoItems.map((item: any, idx: number) => <div key={idx} className="bg-surface border border-border p-4 rounded-xl text-sm">
+                        <div className="flex justify-between items-start gap-4 mb-3">
+                          <p className="font-bold text-base">{item.quantity || '-'}x {item.type} <span className="text-text-secondary text-sm font-medium block mt-0.5">{item.description || 'No description'}</span></p>
+                        </div>
+                        
+                        {/* Specifications */}
+                        <div className="grid grid-cols-3 gap-2 mb-3 bg-black/5 p-2 rounded-lg">
+                          <div className="text-center">
+                            <span className="block text-[10px] text-text-secondary uppercase font-bold">{t("jsx_weight", "Greutate")}</span>
+                            <span className="font-semibold">{item.weightKg || '-'} kg</span>
+                          </div>
+                          <div className="text-center border-x border-border/50">
+                            <span className="block text-[10px] text-text-secondary uppercase font-bold">{t("jsx_ldm", "LDM")}</span>
+                            <span className="font-semibold">{item.ldm || '-'}</span>
+                          </div>
+                          <div className="text-center">
+                            <span className="block text-[10px] text-text-secondary uppercase font-bold">{t("jsx_volume", "Volum")}</span>
+                            <span className="font-semibold">{item.volumeCbm || '-'} m³</span>
+                          </div>
+                        </div>
 
-              {order.cargoItems && order.cargoItems.length > 0 ? <div className="space-y-3">
-                  {order.cargoItems.map((item: any, idx: number) => <div key={idx} className="bg-surface border border-border p-3 rounded-lg text-sm flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                      <div>
-                        <p className="font-bold">{item.quantity}x {item.type} <span className="text-text-secondary font-normal ml-1">({item.description || 'No description'})</span></p>
-                      </div>
-                      <div className="flex gap-4 text-xs font-semibold text-text-secondary bg-black/5 p-1.5 rounded">
-                        <span>{item.weightKg} kg</span>
-                        {item.ldm > 0 && <span>{item.ldm}{t("jsx_lDM")}</span>}
-                        {item.volumeCbm > 0 && <span>{item.volumeCbm} m³</span>}
-                      </div>
-                    </div>)}
-                </div> : <p className="text-text-secondary">{t("jsx_noCargoItems")}</p>}
-            </div>
-            
-            <div className="card p-5">
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><FileText className="text-blue-500" />{t("jsx_referencesNo")}</h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_customerRef")}</span><span className="font-bold">{order.customerReference || '—'}</span></div>
-                <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_bookingRef")}</span><span className="font-bold">{order.bookingReference || '—'}</span></div>
-                <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_cMRRef")}</span><span className="font-bold">{order.CMRReference || '—'}</span></div>
-                <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_loadingRef")}</span><span className="font-bold">{order.loadingReference || '—'}</span></div>
-                <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_unloadingRef")}</span><span className="font-bold">{order.unloadingReference || '—'}</span></div>
-                <div className="mt-4 pt-4 border-t border-border">
-                  <span className="text-text-secondary block mb-1">{t("jsx_internalNotes")}</span>
-                  <p className="text-text-primary whitespace-pre-wrap bg-surface p-3 rounded-lg border border-border/50 shadow-inner">{order.internalNotes || '—'}</p>
+                        {/* Dimensions & Flags */}
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          {(item.lengthCm || item.widthCm || item.heightCm) && <span className="px-2 py-1 bg-surface border border-border rounded text-text-secondary">
+                            Dim: {item.lengthCm || '-'}x{item.widthCm || '-'}x{item.heightCm || '-'} cm
+                          </span>}
+                          {item.stackable && <span className="px-2 py-1 bg-blue-500/10 text-blue-600 border border-blue-500/20 rounded font-bold">Stackable</span>}
+                          {item.fragile && <span className="px-2 py-1 bg-orange-500/10 text-orange-600 border border-orange-500/20 rounded font-bold">Fragile</span>}
+                          {item.isAdr && <span className="px-2 py-1 bg-red-500/10 text-red-600 border border-red-500/20 rounded font-bold">
+                            ADR {item.adrClass && `Cls ${item.adrClass}`} {item.adrUnNumber && `UN ${item.adrUnNumber}`}
+                          </span>}
+                          {item.isTemperatureControlled && <span className="px-2 py-1 bg-cyan-500/10 text-cyan-600 border border-cyan-500/20 rounded font-bold">
+                            Temp: {item.requiredTemperature}°C
+                          </span>}
+                        </div>
+                      </div>)}
+                  </div> : <p className="text-text-secondary">{t("jsx_noCargoItems")}</p>}
+              </div>
+              
+              <div className="card p-5">
+                <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><FileText className="text-blue-500" />{t("jsx_referencesNo")}</h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_customerRef")}</span><span className="font-bold text-right">{order.customerReference || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_bookingRef")}</span><span className="font-bold text-right">{order.bookingReference || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_cMRRef")}</span><span className="font-bold text-right">{order.CMRReference || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_loadingRef")}</span><span className="font-bold text-right">{order.loadingReference || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_unloadingRef")}</span><span className="font-bold text-right">{order.unloadingReference || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-text-secondary">{t("jsx_internalRef", "Referință Internă")}</span><span className="font-bold text-right">{order.internalReference || '—'}</span></div>
                 </div>
+                
+                {order.notes && <div className="mt-5 pt-5 border-t border-border">
+                  <span className="text-text-secondary block mb-2 font-bold text-xs uppercase tracking-wider">{t("jsx_notes", "Note Generale")}</span>
+                  <p className="text-text-primary whitespace-pre-wrap bg-yellow-500/10 p-3 rounded-lg border border-yellow-500/20 text-sm leading-relaxed">{order.notes}</p>
+                </div>}
+
+                {order.internalNotes && <div className="mt-3">
+                  <span className="text-text-secondary block mb-2 font-bold text-xs uppercase tracking-wider">{t("jsx_internalNotes")}</span>
+                  <p className="text-text-primary whitespace-pre-wrap bg-surface p-3 rounded-lg border border-border text-sm leading-relaxed">{order.internalNotes}</p>
+                </div>}
               </div>
             </div>
           </div>}
