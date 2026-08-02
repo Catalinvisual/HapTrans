@@ -1,13 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from './notification.entity';
+import { NotificationsGateway } from './notifications.gateway';
 
 @Injectable()
 export class NotificationsService {
   constructor(
     @InjectRepository(Notification)
     private readonly notificationsRepo: Repository<Notification>,
+    @Inject(forwardRef(() => NotificationsGateway))
+    private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
   async findAll(): Promise<Notification[]> {
@@ -31,7 +34,12 @@ export class NotificationsService {
     }
 
     const notification = this.notificationsRepo.create(data);
-    return this.notificationsRepo.save(notification);
+    const saved = await this.notificationsRepo.save(notification);
+    
+    // Emit real-time notification
+    this.notificationsGateway.emitNewNotification(saved);
+    
+    return saved;
   }
 
   async markAsRead(id: string): Promise<void> {

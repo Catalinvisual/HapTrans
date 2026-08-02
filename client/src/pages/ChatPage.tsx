@@ -202,24 +202,36 @@ export default function ChatPage() {
             </div>
           ) : (
             messages.map((msg, i) => {
+              const isAdmin = msg.sender?.role === 'admin' || msg.sender?.role === 'dispatcher';
               const isMe = msg.sender?.id === user?.id;
-              const senderName = msg.sender?.name || 'Șofer';
+              const isSaaSUser = isMe || isAdmin;
+              const senderName = msg.sender?.name || msg.sender?.username || (isSaaSUser ? 'Admin' : 'Șofer');
+              const isDriverActive = msg.sender?.isActive !== false; // defaults to true if undefined
+
               return (
-                <div key={msg.id || i} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                <div key={msg.id || i} className={`flex ${isSaaSUser ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[70%] rounded-2xl px-4 py-3 shadow-sm border ${
-                    isMe
+                    isSaaSUser
                       ? 'bg-primary border-primary text-white rounded-br-none'
                       : 'bg-card border-border text-text rounded-bl-none'
                   }`}>
-                    {!isMe && (
-                      <div className="text-[10px] font-bold text-primary mb-1 flex items-center gap-1">
+                    {/* Header: Name and Status */}
+                    {isSaaSUser ? (
+                      <div className="text-[10px] font-bold text-white/90 mb-1 flex items-center justify-end gap-1">
+                        {senderName} <User className="w-3 h-3" />
+                      </div>
+                    ) : (
+                      <div className="text-[10px] font-bold text-primary mb-1 flex items-center gap-1.5">
                         <User className="w-3 h-3" /> {senderName}
+                        <div className={`w-1.5 h-1.5 rounded-full ${isDriverActive ? 'bg-success' : 'bg-error'}`} />
                       </div>
                     )}
+                    
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                    <div className={`text-[9px] text-right mt-1.5 flex items-center justify-end gap-1 ${isMe ? 'text-white/70' : 'text-text-secondary'}`}>
+                    
+                    <div className={`text-[9px] text-right mt-1.5 flex items-center justify-end gap-1 ${isSaaSUser ? 'text-white/70' : 'text-text-secondary'}`}>
                       <Clock className="w-2.5 h-2.5" />
-                      {new Date(msg.createdAt).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(msg.createdAt).toLocaleDateString(i18n.language, { day: '2-digit', month: '2-digit', year: 'numeric' })} • {new Date(msg.createdAt).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
                 </div>

@@ -53,13 +53,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           }
         } catch (e) {}
       }
-      const msgText = data.content || (data.fileUrl ? 'Fișier atașat / Attached file' : '');
-      await this.notificationsService.create({
-        type: 'chat',
-        title: `Mesaj de la ${roleLabel}: ${senderName}`,
-        message: `${msgText}${tripContext}`,
-        relatedId: data.tripId,
-      });
+      if (roleLabel === 'Șofer') {
+        const msgText = data.content || (data.fileUrl ? 'Fișier atașat / Attached file' : '');
+        await this.notificationsService.create({
+          type: 'chat',
+          title: `Mesaj de la ${roleLabel}: ${senderName}`,
+          message: `${msgText}${tripContext}`,
+          relatedId: data.tripId,
+        });
+      }
     } catch (e) {
       console.error('Error checking sender for dashboard notification:', e);
     }

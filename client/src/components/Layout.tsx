@@ -13,6 +13,7 @@ import ShortcutsHelpModal from './ShortcutsHelpModal';
 import GlobalSearchModal from './GlobalSearchModal';
 import ConfirmModal from './ConfirmModal';
 import { navItems } from './Sidebar';
+import { io } from 'socket.io-client';
 
 let deferredPrompt: any = null;
 let installPromptListeners: Function[] = [];
@@ -431,8 +432,29 @@ export default function Layout() {
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000);
-    return () => clearInterval(interval);
+    
+    // Connect socket for real-time notifications
+    const apiUrl = import.meta.env.VITE_API_URL || 'https://haptrans-production.up.railway.app/api';
+    const baseUrl = apiUrl.replace('/api', '');
+    
+    const socket = io(baseUrl, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+    });
+    
+    socket.on('newNotification', (data) => {
+      // Small delay to ensure DB sync before fetching
+      setTimeout(fetchNotifications, 500);
+    });
+
+    const interval = setInterval(fetchNotifications, 60000); // keep a fallback sync every minute
+
+    return () => {
+      clearInterval(interval);
+      socket.disconnect();
+    };
   }, []);
 
   useEffect(() => {

@@ -122,12 +122,14 @@ export class DocumentsController {
       if (doc.trip) {
         tripRef = doc.trip.tripNumber || 'Trip';
       }
-      await this.notificationsService.create({
-        type: 'document',
-        title: `Document Nou de la ${roleLabel}: ${uName}`,
-        message: `Fișier ${body.type} încărcat pentru Cursa: ${tripRef}`,
-        relatedId: doc.id,
-      });
+      if (roleLabel === 'Șofer' || roleLabel === 'Client') {
+        await this.notificationsService.create({
+          type: 'document',
+          title: `Document Nou de la ${roleLabel}: ${uName}`,
+          message: `Fișier ${body.type} încărcat pentru Cursa: ${tripRef}`,
+          relatedId: doc.id,
+        });
+      }
     }
 
     return doc;
