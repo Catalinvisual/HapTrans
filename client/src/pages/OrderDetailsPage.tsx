@@ -69,7 +69,7 @@ export default function OrderDetailsPage() {
           <div>
             <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3">{t("jsx_order")}{order.orderNumber}
               <span className={`px-3 py-1 text-xs font-bold uppercase rounded-full border ${getStatusColor(order.status)}`}>
-                {order.status.replace('_', ' ')}
+                {order.status?.replace('_', ' ') || 'UNKNOWN'}
               </span>
             </h1>
             <p className="text-sm text-text-secondary">{t("jsx_client")}{order.client?.name || 'N/A'}</p>

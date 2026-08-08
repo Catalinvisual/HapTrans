@@ -46,7 +46,7 @@ export default function PortalOrderDetailsPage() {
         <div className="ml-auto flex items-center gap-2">
           <span className={`px-3 py-1.5 rounded-lg text-sm font-bold capitalize
             ${order.status === 'delivered' ? 'bg-green-100 text-green-700' : order.status === 'in-transit' ? 'bg-blue-100 text-blue-700' : order.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
-            {order.status.replace('-', ' ')}
+            {order.status?.replace('-', ' ') || 'UNKNOWN'}
           </span>
         </div>
       </div>

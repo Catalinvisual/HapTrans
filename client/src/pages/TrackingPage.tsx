@@ -60,7 +60,7 @@ export default function TrackingPage() {
             <div className="text-right">
               <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-bold shadow-sm ${isDelivered ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-400'}`}>
                 {isDelivered ? <CheckCircle className="w-4 h-4 mr-2" /> : <Truck className="w-4 h-4 mr-2 animate-bounce" />}
-                {data.status.toUpperCase().replace('_', ' ')}
+                {data.status?.toUpperCase().replace('_', ' ') || 'UNKNOWN'}
               </span>
               <p className="text-xs text-gray-400 mt-2 flex items-center justify-end gap-1">
                 <Clock className="w-3 h-3" />{t("jsx_lastUpdated")}{getTimeAgo(data.updatedAt)}
