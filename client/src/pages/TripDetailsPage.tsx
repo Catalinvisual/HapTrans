@@ -64,8 +64,8 @@ export default function TripDetailsPage() {
   if (!trip) return null;
   
   const sortedStops = trip.stops ? [...trip.stops].sort((a: any, b: any) => a.sequence - b.sequence) : [];
-  const pickupRef = trip.orders?.map((o: any) => o.customerReference || o.orderNumber).filter(Boolean).join(', ') || '-';
-  const deliveryRef = trip.orders?.map((o: any) => o.customerReference || o.orderNumber).filter(Boolean).join(', ') || '-';
+  const pickupRef = trip.loadingReference || trip.orders?.map((o: any) => o.customerReference || o.orderNumber).filter(Boolean).join(', ') || '-';
+  const deliveryRef = trip.unloadingReference || trip.orders?.map((o: any) => o.customerReference || o.orderNumber).filter(Boolean).join(', ') || '-';
   
   const addedCosts = trip.costs?.reduce((s: number, c: any) => s + Number(c.amount), 0) || 0;
   // If truck cost per km is 0, use a default fallback (e.g. 1.2) so total isn't 0
@@ -110,7 +110,7 @@ export default function TripDetailsPage() {
               </span>
             </div>
             <p className="text-sm text-text-secondary mt-1 font-medium">
-              {t('createdBy', 'Creat de')} <span className="text-primary font-bold">{trip.dispatcher?.name || trip.createdBy?.name || t('systemUnknown', 'Sistem / Necunoscut')}</span> {t('onDate', 'pe')} {formatDate(trip.createdAt)}
+              {t('createdBy', 'Creat de')} <span className="text-primary font-bold">{trip.dispatcher?.name || trip.dispatcher?.email || trip.createdBy?.name || trip.createdBy?.email || t('systemUnknown', 'Sistem / Necunoscut')}</span> {t('onDate', 'pe')} {formatDate(trip.createdAt)}
             </p>
           </div>
         </div>

@@ -12,7 +12,9 @@ import { Order } from '../orders/order.entity';
 import { Stop } from './stop.entity';
 
 export enum TripStatus {
+  PLANNING = 'planning',
   PLANNED = 'planned',
+  DISPATCHED = 'dispatched',
   ASSIGNED = 'assigned',
   DRIVER_ACCEPTED = 'driver_accepted',
   STARTED = 'started',

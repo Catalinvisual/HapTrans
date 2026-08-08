@@ -129,8 +129,9 @@ export default function TripsPage({
               const stops = trip.stops ? [...trip.stops].sort((a: any, b: any) => a.sequence - b.sequence) : [];
               const pickup = stops[0];
               const dropoff = stops[stops.length - 1];
-              const revenue = trip.orders?.reduce((sum: number, o: any) => sum + Number(o.price || 0), 0) || 0;
-              const cost = Number(trip.distanceKm || 0) * Number(trip.truck?.costPerKm || 0);
+              const revenue = trip.orders?.reduce((sum: number, o: any) => sum + Number(o.price || 0), 0) || Number(trip.price || 0);
+              const truckCost = Number(trip.truck?.costPerKm) || 1.2;
+              const cost = Number(trip.distanceKm || 0) * truckCost;
               const profit = revenue - cost;
               return <tr key={trip.id} className="hover:bg-surface/30 transition-colors group">
                       <td className="px-5 py-3 align-top">
