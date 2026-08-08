@@ -242,7 +242,7 @@ export default function TripDetailsPage() {
                               <div>
                                 <div className={`text-sm font-semibold text-${markerColor}-900 flex items-center gap-2`}>
                                   <Box className={`w-4 h-4 text-${markerColor}-500`} />
-                                  <span className="capitalize">{t(task.type === 'load' ? 'loading_stop' : task.type === 'unload' ? 'unloading_stop' : task.type)}</span> - {t('orderRef', 'Order')}: {task.order?.customerReference || task.order?.orderNumber || '#N/A'}
+                                  <span className="capitalize">{t(task.type === 'load' ? 'loading_stop' : task.type === 'unload' ? 'unloading_stop' : task.type)}</span> - {t('orderRef', 'Order')}: {task.type === 'unload' && task.order?.unloadingReference ? task.order.unloadingReference : (task.order?.customerReference || task.order?.orderNumber || '#N/A')}
                                 </div>
                                 <div className="text-xs text-text-secondary mt-1">
                                   {task.plannedTime ? formatDate(task.plannedTime) : '-'} | {t('pallets')}: {task.pallets || 0} ({task.weightKg || 0}{t("jsx_kg")}</div>

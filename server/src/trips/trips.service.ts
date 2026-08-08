@@ -95,6 +95,7 @@ export class TripsService {
 
   async assignOrders(tripId: string, orderIds: string[]) {
     const result = await this.planningEngine.assignOrdersToTrip(tripId, orderIds);
+    await this.recalculateTripMetrics(tripId);
     
     // Send tracking email to clients of newly assigned orders
     const updatedTrip = await this.findOne(tripId);
@@ -340,6 +341,43 @@ export class TripsService {
       
       // 3. Re-assign order to trip to recreate the tasks and stops silently (without emails)
       await this.planningEngine.assignOrdersToTrip(order.trip.id, [order.id]);
+
+      // 4. Recalculate trip distance and duration
+      await this.recalculateTripMetrics(order.trip.id);
+    }
+  }
+
+  async recalculateTripMetrics(tripId: string) {
+    const trip = await this.repo.findOne({
+      where: { id: tripId },
+      relations: ['stops']
+    });
+    if (!trip || !trip.stops || trip.stops.length < 2) return;
+
+    const sorted = trip.stops.sort((a, b) => a.sequence - b.sequence);
+    let totalDist = 0;
+
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const from = sorted[i];
+      const to = sorted[i+1];
+      if (from.latitude && from.longitude && to.latitude && to.longitude) {
+        try {
+          const res = await this.routingService.calculateRoute(
+             Number(from.latitude), Number(from.longitude),
+             Number(to.latitude), Number(to.longitude)
+          );
+          if (res && res.distanceKm) {
+            totalDist += res.distanceKm;
+          }
+        } catch (e) {
+          console.error('Routing failed in recalculateTripMetrics', e);
+        }
+      }
+    }
+
+    if (totalDist > 0) {
+      trip.distanceKm = totalDist;
+      await this.repo.save(trip);
     }
   }
 }
