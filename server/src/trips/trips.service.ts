@@ -333,17 +333,28 @@ export class TripsService {
   @OnEvent('order.updated')
   async handleOrderUpdated(order: any) {
     if (order.trip && order.trip.id) {
-      // 1. Find all StopTasks for this order and delete them
-      await this.repo.manager.query(`DELETE FROM stop_task WHERE "orderId" = $1`, [order.id]);
-      
-      // 2. Delete empty stops for this trip
-      await this.repo.manager.query(`DELETE FROM stop WHERE "tripId" = $1 AND id NOT IN (SELECT "stopId" FROM stop_task)`, [order.trip.id]);
-      
-      // 3. Re-assign order to trip to recreate the tasks and stops silently (without emails)
-      await this.planningEngine.assignOrdersToTrip(order.trip.id, [order.id]);
+      try {
+        // 1. Find all StopTasks for this order and delete them
+        await this.repo.manager.delete('StopTask', { order: { id: order.id } });
+        
+        // 2. Delete empty stops for this trip
+        const trip = await this.repo.findOne({ where: { id: order.trip.id }, relations: ['stops', 'stops.tasks'] });
+        if (trip && trip.stops) {
+          for (const s of trip.stops) {
+            if (!s.tasks || s.tasks.length === 0) {
+              await this.repo.manager.delete('Stop', { id: s.id });
+            }
+          }
+        }
+        
+        // 3. Re-assign order to trip to recreate the tasks and stops silently (without emails)
+        await this.planningEngine.assignOrdersToTrip(order.trip.id, [order.id]);
 
-      // 4. Recalculate trip distance and duration
-      await this.recalculateTripMetrics(order.trip.id);
+        // 4. Recalculate trip distance and duration
+        await this.recalculateTripMetrics(order.trip.id);
+      } catch (err) {
+        console.error('Error in handleOrderUpdated:', err);
+      }
     }
   }
 
