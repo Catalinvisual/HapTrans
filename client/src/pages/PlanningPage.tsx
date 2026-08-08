@@ -367,39 +367,70 @@ export default function PlanningPage() {
   const filteredUnassigned = searchQuery ? unassigned.filter(o => (o.orderNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) || (o.referenceNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) || (o.client?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || o.stops?.some((s: any) => (s.address || '').toLowerCase().includes(searchQuery.toLowerCase()))) : unassigned;
   const getTruckStats = (truckId: string) => {
     const activeStatuses = ['planning', 'planned', 'dispatched', 'assigned', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'];
-      const trip = trips.find(tr => tr.truck?.id === truckId && activeStatuses.includes(tr.status));
-    if (!trip) return {
+    const activeTrips = trips.filter(tr => tr.truck?.id === truckId && activeStatuses.includes(tr.status));
+
+    if (activeTrips.length === 0) return {
       weight: 0,
       ldm: 0,
+      pallets: 0,
       count: 0,
       orders: [],
       tripId: null,
       driverId: null,
       stops: []
     };
-    let weight = 0;
-    let ldm = 0;
-    (trip.orders || []).forEach((o: any) => o.cargoItems?.forEach((c: any) => {
-      weight += Number(c.weightKg || 0);
-      ldm += Number(c.ldm || 0);
-    }));
-    return {
-      weight,
-      ldm,
-      count: (trip.orders || []).length,
-      orders: trip.orders || [],
-      tripId: trip.id,
-      driverId: trip.driver?.id || null,
-      stops: trip.stops || []
+
+    let maxWeight = -1;
+    let maxStats: any = null;
+
+    for (const trip of activeTrips) {
+      let weight = 0;
+      let ldm = 0;
+      let pallets = 0;
+      
+      (trip.orders || []).forEach((o: any) => o.cargoItems?.forEach((c: any) => {
+        weight += Number(c.weightKg || 0);
+        ldm += Number(c.ldm || 0);
+        pallets += Number(c.quantity || 0);
+      }));
+
+      if (weight > maxWeight) {
+        maxWeight = weight;
+        maxStats = {
+          weight,
+          ldm,
+          pallets,
+          count: (trip.orders || []).length,
+          orders: trip.orders || [],
+          tripId: trip.id,
+          driverId: trip.driver?.id || null,
+          stops: trip.stops || []
+        };
+      }
+    }
+
+    if (maxStats) {
+      const allOrders = activeTrips.flatMap(t => t.orders || []);
+      maxStats.orders = Array.from(new Map(allOrders.map(o => [o.id, o])).values());
+      maxStats.count = maxStats.orders.length;
+    }
+
+    return maxStats || {
+      weight: 0, ldm: 0, pallets: 0, count: 0, orders: [], tripId: null, driverId: null, stops: []
     };
   };
   const getRecommendation = (truck: any, order: any) => {
     const stats = getTruckStats(truck.id);
     const orderWeight = order.cargoItems?.reduce((s: number, c: any) => s + Number(c.weightKg || 0), 0) || 0;
     const orderLdm = order.cargoItems?.reduce((s: number, c: any) => s + Number(c.ldm || 0), 0) || 0;
+    const orderPallets = order.cargoItems?.reduce((s: number, c: any) => s + Number(c.quantity || 0), 0) || 0;
+    
     const maxWeight = truck.maxWeightKg || 24000;
     const maxLdm = truck.maxLdm || 13.6;
-    const isCompatible = stats.weight + orderWeight <= maxWeight && stats.ldm + orderLdm <= maxLdm;
+    const maxPallets = truck.maxPallets || 33;
+    
+    const isCompatible = stats.weight + orderWeight <= maxWeight && stats.ldm + orderLdm <= maxLdm && (stats.pallets || 0) + orderPallets <= maxPallets;
+    
     let badge = t('compatible', 'Compatibil');
     let color = 'bg-green-100 text-green-800 border-green-200';
     if (stats.weight + orderWeight > maxWeight) {
@@ -407,6 +438,9 @@ export default function PlanningPage() {
       color = 'bg-red-100 text-red-800 border-red-200';
     } else if (stats.ldm + orderLdm > maxLdm) {
       badge = `Dep. LDM`;
+      color = 'bg-orange-100 text-orange-800 border-orange-200';
+    } else if ((stats.pallets || 0) + orderPallets > maxPallets) {
+      badge = `Dep. Paleți`;
       color = 'bg-orange-100 text-orange-800 border-orange-200';
     }
     return {
@@ -537,9 +571,11 @@ export default function PlanningPage() {
               const stats = getTruckStats(truck.id);
               const maxWeight = truck.maxWeightKg || 24000;
               const maxLdm = truck.maxLdm || 13.6;
+              const maxPallets = truck.maxPallets || 33;
               const weightPct = Math.min(100, stats.weight / maxWeight * 100);
               const ldmPct = Math.min(100, stats.ldm / maxLdm * 100);
-              const hasWarning = stats.weight > maxWeight || stats.ldm > maxLdm;
+              const palletPct = Math.min(100, (stats.pallets || 0) / maxPallets * 100);
+              const hasWarning = stats.weight > maxWeight || stats.ldm > maxLdm || (stats.pallets || 0) > maxPallets;
               return <div
                     key={truck.id}
                     onDragOver={e => handleTruckDragOver(e, truck.id)}
@@ -610,6 +646,17 @@ export default function PlanningPage() {
                         }} />
                             </div>
                           </div>
+                          <div>
+                            <div className="flex justify-between text-[10px] font-bold mb-0.5 text-text-secondary">
+                              <span>{t('pallets', 'Paleți')} {stats.pallets || 0} / {maxPallets}</span>
+                              <span className={palletPct > 90 ? 'text-red-500' : ''}>{palletPct.toFixed(0)}%</span>
+                            </div>
+                            <div className="w-full bg-surface h-2 rounded-full overflow-hidden border border-border/30">
+                              <div className={`h-full rounded-full transition-all duration-500 ${(stats.pallets || 0) > maxPallets ? 'bg-red-500' : palletPct > 80 ? 'bg-orange-400' : 'bg-orange-500'}`} style={{
+                          width: `${palletPct}%`
+                        }} />
+                            </div>
+                          </div>
                         </div>
 
                         {/* Orders in trip */}
@@ -653,8 +700,9 @@ export default function PlanningPage() {
       const pickup = order.stops?.find((s: any) => s.type === 'pickup');
       const dropoff = order.stops?.find((s: any) => s.type === 'dropoff');
       const orderWeight = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || 0;
-      const orderLdm = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.ldm || 0), 0) || 0;
-      const sortedTrucks = getSortedTrucks(order);
+        const orderLdm = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.ldm || 0), 0) || 0;
+        const orderPallets = order.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.quantity || 0), 0) || 0;
+        const sortedTrucks = getSortedTrucks(order);
       return typeof document !== 'undefined' ? createPortal(<div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{
         backdropFilter: 'blur(4px)',
         backgroundColor: 'rgba(0,0,0,0.55)'
@@ -687,8 +735,10 @@ export default function PlanningPage() {
               const stats = getTruckStats(truck.id);
               const maxWeight = truck.maxWeightKg || 24000;
               const maxLdm = truck.maxLdm || 13.6;
-              const weightPct = Math.min(100, stats.weight / maxWeight * 100);
-              const ldmPct = Math.min(100, stats.ldm / maxLdm * 100);
+              const maxPallets = truck.maxPallets || 33;
+              const weightPct = Math.min(100, (stats.weight + orderWeight) / maxWeight * 100);
+              const ldmPct = Math.min(100, (stats.ldm + orderLdm) / maxLdm * 100);
+              const palletPct = Math.min(100, ((stats.pallets || 0) + orderPallets) / maxPallets * 100);
               return <div key={truck.id} className={`border rounded-xl p-4 flex justify-between items-center gap-4 hover:bg-surface/30 transition-all ${rec.isCompatible ? 'border-green-200 bg-green-50/20' : 'border-border'}`}>
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -706,6 +756,12 @@ export default function PlanningPage() {
                             <div className="flex justify-between text-text-secondary mb-0.5"><span>{t("jsx_lDM")}</span><span>{stats.ldm.toFixed(1)}+{orderLdm.toFixed(1)}/{maxLdm}</span></div>
                             <div className="w-full bg-surface h-1.5 rounded-full"><div className="h-full bg-green-500 rounded-full" style={{
                           width: `${ldmPct}%`
+                        }} /></div>
+                          </div>
+                          <div className="col-span-2">
+                            <div className="flex justify-between text-text-secondary mb-0.5"><span>{t('pallets', 'Paleți')}</span><span>{(stats.pallets || 0)}+{orderPallets}/{maxPallets}</span></div>
+                            <div className="w-full bg-surface h-1.5 rounded-full"><div className="h-full bg-orange-500 rounded-full" style={{
+                          width: `${palletPct}%`
                         }} /></div>
                           </div>
                         </div>

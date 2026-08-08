@@ -31,7 +31,10 @@ export default function TrucksPage() {
     brand: '',
     model: '',
     year: '',
-    payloadCapacity: '',
+    maxWeightKg: '',
+    maxPallets: '',
+    maxLdm: '',
+    maxVolumeCbm: '',
     fuelConsumption: '',
     totalMileage: '',
     nextMaintenanceMileage: '',
@@ -86,7 +89,7 @@ export default function TrucksPage() {
         brand: '',
         model: '',
         year: '',
-        payloadCapacity: '',
+        maxWeightKg: '', maxPallets: '', maxLdm: '', maxVolumeCbm: '',
         fuelConsumption: '',
         totalMileage: '',
         nextMaintenanceMileage: '',
@@ -110,7 +113,7 @@ export default function TrucksPage() {
           brand: '',
           model: '',
           year: '',
-          payloadCapacity: '',
+          maxWeightKg: '', maxPallets: '', maxLdm: '', maxVolumeCbm: '',
           fuelConsumption: '',
           totalMileage: '',
           nextMaintenanceMileage: '',
@@ -141,7 +144,10 @@ export default function TrucksPage() {
         brand: truck.brand,
         model: truck.model,
         year: truck.year,
-        payloadCapacity: truck.payloadCapacity,
+        maxWeightKg: truck.maxWeightKg,
+        maxPallets: truck.maxPallets,
+        maxLdm: truck.maxLdm,
+        maxVolumeCbm: truck.maxVolumeCbm,
         fuelConsumption: truck.fuelConsumption,
         totalMileage: truck.totalMileage || '',
         nextMaintenanceMileage: truck.nextMaintenanceMileage || '',
@@ -183,8 +189,20 @@ export default function TrucksPage() {
           label: t('year'),
           type: 'number'
         }, {
-          key: 'payloadCapacity',
-          label: t('capacity') + ' (t)',
+          key: 'maxWeightKg',
+          label: t('maxWeightKg', 'Max Weight (kg)'),
+          type: 'number'
+        }, {
+          key: 'maxPallets',
+          label: t('maxPallets', 'Max Pallets'),
+          type: 'number'
+        }, {
+          key: 'maxLdm',
+          label: t('maxLdm', 'Max LDM'),
+          type: 'number'
+        }, {
+          key: 'maxVolumeCbm',
+          label: t('maxVolumeCbm', 'Max Volume (m3)'),
           type: 'number'
         }, {
           key: 'fuelConsumption',
@@ -242,7 +260,7 @@ export default function TrucksPage() {
               brand: '',
               model: '',
               year: '',
-              payloadCapacity: '',
+              maxWeightKg: '', maxPallets: '', maxLdm: '', maxVolumeCbm: '',
               fuelConsumption: '',
               totalMileage: '',
               nextMaintenanceMileage: '',
@@ -259,7 +277,7 @@ export default function TrucksPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-surface border-b border-border">
-                {[t('plateNumber'), t('brand'), t('model'), t('year'), t('driver', 'Șofer'), t('capacity'), t('consumption'), t('maintenance'), t('status'), t('documents'), t('actions')].map(h => <th key={h} className={`table-header ${h === t('actions') ? 'text-right pr-4' : ''}`}>{h}</th>)}
+                {[t('plateNumber'), t('brand'), t('model'), t('year'), t('driver', 'Șofer'), t('capacity', 'Capacitate'), t('consumption'), t('maintenance'), t('status'), t('documents'), t('actions')].map(h => <th key={h} className={`table-header ${h === t('actions') ? 'text-right pr-4' : ''}`}>{h}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -270,7 +288,7 @@ export default function TrucksPage() {
                 brand: truck.brand,
                 model: truck.model,
                 year: truck.year,
-                payloadCapacity: truck.payloadCapacity,
+                maxWeightKg: truck.maxWeightKg, maxPallets: truck.maxPallets, maxLdm: truck.maxLdm, maxVolumeCbm: truck.maxVolumeCbm,
                 fuelConsumption: truck.fuelConsumption,
                 totalMileage: truck.totalMileage || '',
                 nextMaintenanceMileage: truck.nextMaintenanceMileage || '',
@@ -286,7 +304,11 @@ export default function TrucksPage() {
                   <td className="table-cell text-text-secondary">
                     {truck.driver?.user?.name ? <span className="font-semibold text-primary bg-primary/10 px-2 py-1 rounded-md">{truck.driver.user.name}</span> : <span className="text-xs text-text-secondary italic">{t('no_driver', 'Fără șofer')}</span>}
                   </td>
-                  <td className="table-cell text-text-secondary">{truck.payloadCapacity ? `${truck.payloadCapacity}t` : '—'}</td>
+                  <td className="table-cell text-text-secondary text-xs">
+                    {truck.maxWeightKg || truck.maxPallets ? 
+                      `${truck.maxWeightKg ? truck.maxWeightKg + 'kg' : ''}${truck.maxWeightKg && truck.maxPallets ? ' / ' : ''}${truck.maxPallets ? truck.maxPallets + 'pal' : ''}` 
+                      : '—'}
+                  </td>
                   <td className="table-cell text-text-secondary">{truck.fuelConsumption ? `${truck.fuelConsumption}l` : '—'}</td>
                   <td className="table-cell">
                     {truck.totalMileage && truck.nextMaintenanceMileage ? (() => {
@@ -319,7 +341,7 @@ export default function TrucksPage() {
                       brand: truck.brand,
                       model: truck.model,
                       year: truck.year,
-                      payloadCapacity: truck.payloadCapacity,
+                      maxWeightKg: truck.maxWeightKg, maxPallets: truck.maxPallets, maxLdm: truck.maxLdm, maxVolumeCbm: truck.maxVolumeCbm,
                       fuelConsumption: truck.fuelConsumption,
                       totalMileage: truck.totalMileage || '',
                       nextMaintenanceMileage: truck.nextMaintenanceMileage || '',
@@ -359,8 +381,11 @@ export default function TrucksPage() {
       key: 'year',
       label: t('year')
     }, {
-      key: 'payloadCapacity',
-      label: `${t('capacity')} (t)`
+      key: 'maxWeightKg',
+      label: t('maxWeightKg', 'Max Weight (kg)')
+    }, {
+      key: 'maxPallets',
+      label: t('maxPallets', 'Max Pallets')
     }, {
       key: 'fuelConsumption',
       label: `${t('consumption')} (l/100km)`

@@ -45,6 +45,9 @@ export class Truck {
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
   maxVolumeCbm: number; // e.g. 90
 
+  @Column({ nullable: true, type: 'int' })
+  maxPallets: number; // e.g. 33
+
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
   costPerKm: number; // For profit margin calculation
 
