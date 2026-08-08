@@ -116,8 +116,9 @@ export default function OrdersPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {paginatedOrders.map(order => {
-              const pickup = order.stops?.find((s: any) => s.type === 'pickup');
-              const dropoff = order.stops?.find((s: any) => s.type === 'dropoff');
+              const stopsArray = Array.isArray(order.stops) ? order.stops : [];
+              const pickup = stopsArray.find((s: any) => s.type === 'pickup');
+              const dropoff = stopsArray.find((s: any) => s.type === 'dropoff');
               const cargoWeight = order.cargoItems?.reduce((sum: number, item: any) => sum + Number(item.weightKg || 0), 0) || 0;
               const cargoLdm = order.cargoItems?.reduce((sum: number, item: any) => sum + Number(item.ldm || 0), 0) || 0;
               const cargoCount = order.cargoItems?.length || 0;

@@ -236,8 +236,9 @@ export default function OrderWizard({
             contactPhone: order?.contactPhone || '',
             equipmentRequirements: Array.isArray(order?.equipmentRequirements) ? order.equipmentRequirements : (typeof order?.equipmentRequirements === 'string' ? [order.equipmentRequirements] : [])
           });
-          const p = order?.stops?.find((s: any) => s.type === 'pickup') || {};
-          const d = order?.stops?.find((s: any) => s.type === 'dropoff') || {};
+          const stopsArray = Array.isArray(order?.stops) ? order.stops : [];
+          const p = stopsArray.find((s: any) => s.type === 'pickup') || {};
+          const d = stopsArray.find((s: any) => s.type === 'dropoff') || {};
           setPickup({
             companyName: p.companyName || '',
             address: p.address || '',

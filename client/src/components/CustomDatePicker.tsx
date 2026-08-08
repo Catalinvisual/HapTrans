@@ -171,6 +171,7 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
   const formatDisplayDate = () => {
     if (!dateValue) return t('selectDate', 'Select Date');
     const d = new Date(dateValue);
+    if (isNaN(d.getTime())) return t('selectDate', 'Select Date');
     return d.toLocaleDateString(i18n.language || 'en', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
@@ -187,7 +188,7 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
           >
             <CalendarIcon className="w-4 h-4 text-text-secondary absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <span className={dateValue ? 'text-text-primary' : 'text-text-muted'}>
-              {dateValue ? new Date(dateValue).toLocaleDateString(i18n.language || 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : t('selectDate', 'Select Date')}
+              {dateValue && !isNaN(new Date(dateValue).getTime()) ? new Date(dateValue).toLocaleDateString(i18n.language || 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : t('selectDate', 'Select Date')}
             </span>
           </div>
         </div>

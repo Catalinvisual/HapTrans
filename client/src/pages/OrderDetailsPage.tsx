@@ -91,7 +91,8 @@ export default function OrderDetailsPage() {
       {/* Tab Content */}
       <div className="mt-6">
         {activeTab === 'overview' && (() => {
-          const sortedStops = order.stops ? [...order.stops].sort((a: any, b: any) => {
+          const stopsArray = Array.isArray(order.stops) ? order.stops : [];
+          const sortedStops = [...stopsArray].sort((a: any, b: any) => {
             if (a.type === 'pickup' && b.type !== 'pickup') return -1;
             if (a.type !== 'pickup' && b.type === 'pickup') return 1;
             return (a.sequence || 0) - (b.sequence || 0);
