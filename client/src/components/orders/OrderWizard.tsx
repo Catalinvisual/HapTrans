@@ -325,6 +325,21 @@ export default function OrderWizard({
       setCurrentStep(0);
     }
   }, [isOpen, orderId]);
+  useEffect(() => {
+    setCostEstimate((prev: any) => {
+      if (!prev) return prev;
+      const fuelCost = ((prev.distanceKm / 100) * fuelConsumption * fuelPrice);
+      const totalCost = fuelCost + prev.tollCost;
+      const agreedPrice = parseFloat(form.price) || 0;
+      const profit = agreedPrice - totalCost;
+      // Prevent unnecessary updates if values haven't changed
+      if (prev.fuelCost === fuelCost && prev.totalCost === totalCost && prev.agreedPrice === agreedPrice && prev.profit === profit) {
+        return prev;
+      }
+      return { ...prev, fuelCost, totalCost, agreedPrice, profit };
+    });
+  }, [fuelConsumption, fuelPrice, form.price]);
+
   if (!isOpen) return null;
   const handleCalculateCost = async () => {
     if (!pickup.latitude || !pickup.longitude || !dropoff.latitude || !dropoff.longitude) {
@@ -365,17 +380,6 @@ export default function OrderWizard({
       setCostLoading(false);
     }
   };
-
-  // Recalculate profit when fuel params or price change
-  useEffect(() => {
-    if (costEstimate) {
-      const fuelCost = ((costEstimate.distanceKm / 100) * fuelConsumption * fuelPrice);
-      const totalCost = fuelCost + costEstimate.tollCost;
-      const agreedPrice = parseFloat(form.price) || 0;
-      const profit = agreedPrice - totalCost;
-      setCostEstimate((prev: any) => ({ ...prev, fuelCost, totalCost, agreedPrice, profit }));
-    }
-  }, [fuelConsumption, fuelPrice, form.price]);
 
   const handleNext = () => {
     if (currentStep === 1) {
