@@ -218,6 +218,7 @@ export default function TripsPage({
                   }} title="Delete Trip" className="p-2 text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors inline-flex items-center">
                           <Trash2 className="w-5 h-5" />
                         </button>
+                        </div>
                       </td>
                     </tr>;
             })}
