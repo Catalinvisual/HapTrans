@@ -49,7 +49,7 @@ export class TripsService {
   }
 
   findOne(id: string) {
-    return this.repo.findOne({ where: { id }, relations: ['truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'messages', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.client'] });
+    return this.repo.findOne({ where: { id }, relations: ['truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'messages', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.client', 'orders.cargoItems'] });
   }
 
   async findByTrackingToken(trackingToken: string): Promise<Trip | null> {
@@ -86,6 +86,7 @@ export class TripsService {
       company: dto.companyId ? { id: dto.companyId } : (user?.companyId ? { id: user.companyId } : null),
       truck: dto.truckId ? { id: dto.truckId } : null,
       driver: dto.driverId ? { id: dto.driverId } : null,
+      dispatcher: user?.id ? { id: user.id } : null,
       status: TripStatus.PLANNED,
     };
     const trip = this.repo.create(tripPayload);
@@ -183,7 +184,7 @@ export class TripsService {
               dropoffAddress: updated.stops?.find(s => s.tasks?.some(t => t.type === 'unload'))?.address || 'N/A',
               client: order.client
             };
-            await this.resendService.sendTripStatusEmail(tripPayload, updated.trackingToken || '', updated.company);
+            await this.resendService.sendTripStatusEmail(tripPayload, updated.trackingToken || '', updated.company).catch(e => console.error('Failed to send email:', e));
           }
         }
       }

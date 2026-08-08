@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Truck, MapPin, Search, Loader2, ArrowRight, Eye, MoreHorizontal, Calendar, Package, Trash2 } from 'lucide-react';
+import { Truck, MapPin, Search, Loader2, ArrowRight, Eye, MoreHorizontal, Calendar, Package, Trash2, Send } from 'lucide-react';
 import api from '../lib/api';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import FilterDropdown from '../components/FilterDropdown';
@@ -208,7 +208,9 @@ export default function TripsPage({
                       </td>
                       <td className="px-5 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {trip.status === 'planning' && <button onClick={(e) => { e.stopPropagation(); handleDispatch(trip.id); }} className="px-3 py-1.5 text-xs bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg shadow-sm transition-all">{t("jsx_trimiteDispat", "Send Dispatch")}</button>}
+                          {trip.status === 'planning' && <button onClick={(e) => { e.stopPropagation(); handleDispatch(trip.id); }} title={t("jsx_trimiteDispat", "Send Dispatch")} className="p-2 text-text-secondary hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-500/10 rounded-lg transition-colors inline-flex items-center">
+                            <Send className="w-5 h-5" />
+                          </button>}
                           <button onClick={() => navigate(`/trips/${trip.id}`)} title="View Details" className="p-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors inline-flex items-center">
                             <Eye className="w-5 h-5" />
                           </button>

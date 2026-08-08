@@ -64,8 +64,8 @@ export default function TripDetailsPage() {
   if (!trip) return null;
   
   const sortedStops = trip.stops ? [...trip.stops].sort((a: any, b: any) => a.sequence - b.sequence) : [];
-  const pickupRef = sortedStops.find(s => s.type === 'pickup')?.reference || trip.loadingReference || '-';
-  const deliveryRef = sortedStops.find(s => s.type === 'dropoff')?.reference || trip.unloadingReference || '-';
+  const pickupRef = trip.orders?.map((o: any) => o.customerReference || o.orderNumber).filter(Boolean).join(', ') || '-';
+  const deliveryRef = trip.orders?.map((o: any) => o.customerReference || o.orderNumber).filter(Boolean).join(', ') || '-';
   
   const addedCosts = trip.costs?.reduce((s: number, c: any) => s + Number(c.amount), 0) || 0;
   // If truck cost per km is 0, use a default fallback (e.g. 1.2) so total isn't 0
@@ -242,7 +242,7 @@ export default function TripDetailsPage() {
                               <div>
                                 <div className={`text-sm font-semibold text-${markerColor}-900 flex items-center gap-2`}>
                                   <Box className={`w-4 h-4 text-${markerColor}-500`} />
-                                  <span className="capitalize">{t(task.type === 'load' ? 'loading_stop' : task.type === 'unload' ? 'unloading_stop' : task.type)}</span> - {t('orderRef', 'Order')}: {task.order?.referenceNumber || '#N/A'}
+                                  <span className="capitalize">{t(task.type === 'load' ? 'loading_stop' : task.type === 'unload' ? 'unloading_stop' : task.type)}</span> - {t('orderRef', 'Order')}: {task.order?.customerReference || task.order?.orderNumber || '#N/A'}
                                 </div>
                                 <div className="text-xs text-text-secondary mt-1">
                                   {task.plannedTime ? formatDate(task.plannedTime) : '-'} | {t('pallets')}: {task.pallets || 0} ({task.weightKg || 0}{t("jsx_kg")}</div>
@@ -325,7 +325,7 @@ export default function TripDetailsPage() {
             {trip.orders && trip.orders.length > 0 ? <div className="space-y-4 mb-6">
                 {trip.orders.map((order: any) => <div key={order.id} className="p-4 bg-surface rounded-xl border border-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
-                      <div className="font-bold text-lg">{order.referenceNumber || t('noReference', 'Fără referință')}</div>
+                      <div className="font-bold text-lg">{order.customerReference || order.orderNumber || t('noReference', 'Fără referință')}</div>
                       <div className="text-sm text-text-secondary">{order.client?.name || '-'}</div>
                     </div>
                     <div className="flex gap-4 text-sm font-semibold">
