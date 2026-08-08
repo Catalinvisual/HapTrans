@@ -96,7 +96,7 @@ export default function OrderDetailsPage() {
             if (a.type === 'pickup' && b.type !== 'pickup') return -1;
             if (a.type !== 'pickup' && b.type === 'pickup') return 1;
             return (a.sequence || 0) - (b.sequence || 0);
-          }) : [];
+          });
           return (<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
             {/* General Info & Requirements */}
