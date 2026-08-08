@@ -109,6 +109,8 @@ export class OrdersService {
         trackingToken,
         internalReference: orderNumber,
         customerReference: dto.customerReference || null,
+          loadingReference: dto.loadingReference || null,
+          unloadingReference: dto.unloadingReference || null,
         contactPerson: dto.contactPerson || null,
         contactPhone: dto.contactPhone || null,
         equipmentRequirements: Array.isArray(dto.equipmentRequirements) ? dto.equipmentRequirements : [],
@@ -272,7 +274,7 @@ export class OrdersService {
       }
 
       // Nullify empty string fields
-      ['customerReference', 'contactPerson', 'contactPhone', 'notes'].forEach(k => {
+      ['customerReference', 'loadingReference', 'unloadingReference', 'contactPerson', 'contactPhone', 'notes'].forEach(k => {
         if (k in updateData && updateData[k] === '') updateData[k] = null;
       });
 

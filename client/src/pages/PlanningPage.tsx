@@ -219,7 +219,7 @@ export default function PlanningPage() {
   const loadData = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const [trucksRes, ordersRes, tripsRes, driversRes] = await Promise.all([api.get('/trucks'), api.get('/orders?status=draft,new,pending'), api.get('/trips?status=planned,dispatched'), api.get('/drivers')]);
+      const [trucksRes, ordersRes, tripsRes, driversRes] = await Promise.all([api.get('/trucks'), api.get('/orders?status=draft,new,pending'), api.get('/trips?status=planning,planned,dispatched,assigned,driver_accepted,started,loading,driving,partially_delivered'), api.get('/drivers')]);
       setTrucks(trucksRes.data.filter((t: any) => t.status === 'active'));
       setOrders(ordersRes.data);
       setTrips(tripsRes.data);
@@ -304,7 +304,8 @@ export default function PlanningPage() {
       await api.patch(`/trucks/${truckId}`, {
         driverId: driverId || null
       });
-      const trip = trips.find(tr => tr.truck?.id === truckId && tr.status === 'planned');
+      const activeStatuses = ['planning', 'planned', 'dispatched', 'assigned', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'];
+      const trip = trips.find(tr => tr.truck?.id === truckId && activeStatuses.includes(tr.status));
       if (trip) await api.patch(`/trips/${trip.id}`, {
         driverId: driverId || null
       });
@@ -365,7 +366,8 @@ export default function PlanningPage() {
   const unassigned = orders.filter(o => ['draft', 'new', 'pending'].includes(o.status));
   const filteredUnassigned = searchQuery ? unassigned.filter(o => (o.orderNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) || (o.referenceNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) || (o.client?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || o.stops?.some((s: any) => (s.address || '').toLowerCase().includes(searchQuery.toLowerCase()))) : unassigned;
   const getTruckStats = (truckId: string) => {
-    const trip = trips.find(tr => tr.truck?.id === truckId && tr.status === 'planned');
+    const activeStatuses = ['planning', 'planned', 'dispatched', 'assigned', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'];
+      const trip = trips.find(tr => tr.truck?.id === truckId && activeStatuses.includes(tr.status));
     if (!trip) return {
       weight: 0,
       ldm: 0,
