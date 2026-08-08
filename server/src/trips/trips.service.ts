@@ -1,4 +1,5 @@
 import { Injectable, Inject, forwardRef, ConflictException, NotFoundException } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Trip, TripStatus } from './trip.entity';
@@ -326,5 +327,19 @@ export class TripsService {
     }
 
     return { success: true, migrated };
+  }
+
+  @OnEvent('order.updated')
+  async handleOrderUpdated(order: any) {
+    if (order.trip && order.trip.id) {
+      // 1. Find all StopTasks for this order and delete them
+      await this.repo.manager.query(`DELETE FROM stop_task WHERE "orderId" = $1`, [order.id]);
+      
+      // 2. Delete empty stops for this trip
+      await this.repo.manager.query(`DELETE FROM stop WHERE "tripId" = $1 AND id NOT IN (SELECT "stopId" FROM stop_task)`, [order.trip.id]);
+      
+      // 3. Re-assign order to trip to recreate the tasks and stops silently (without emails)
+      await this.planningEngine.assignOrdersToTrip(order.trip.id, [order.id]);
+    }
   }
 }

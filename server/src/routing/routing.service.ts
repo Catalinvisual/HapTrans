@@ -85,6 +85,8 @@ export class RoutingService {
         'vehicle[grossWeight]': truckParams?.weightKg || 40000,
         'vehicle[height]': truckParams?.heightCm || 400,
         'vehicle[length]': truckParams?.lengthCm || 1360,
+        'vehicle[tollVehicleType]': 3,
+        'vehicle[emissionType]': 6,
         currency: 'EUR',
       };
 

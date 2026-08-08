@@ -220,6 +220,12 @@ export default function OrderWizard({
   useEffect(() => {
     if (isOpen) {
       api.get('/clients').then(res => setClients(res.data)).catch(console.error);
+
+      api.get('/routing/diesel-prices').then(res => {
+        const nlPrice = res.data?.find((p: any) => p.country === 'NL')?.price;
+        if (nlPrice) setFuelPrice(nlPrice);
+      }).catch(err => console.warn('Failed to fetch diesel prices', err));
+
       if (orderId) {
         api.get(`/orders/${orderId}`).then(res => {
           const order = res.data;
