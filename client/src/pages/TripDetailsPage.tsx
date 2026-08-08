@@ -64,8 +64,8 @@ export default function TripDetailsPage() {
   if (!trip) return null;
   
   const sortedStops = trip.stops ? [...trip.stops].sort((a: any, b: any) => a.sequence - b.sequence) : [];
-  const pickupRef = trip.loadingReference || trip.orders?.map((o: any) => o.customerReference || o.orderNumber).filter(Boolean).join(', ') || '-';
-  const deliveryRef = trip.unloadingReference || trip.orders?.map((o: any) => o.customerReference || o.orderNumber).filter(Boolean).join(', ') || '-';
+  const pickupRef = trip.orders?.map((o: any) => o.loadingReference || o.customerReference || o.orderNumber).filter(Boolean).join(', ') || '-';
+  const deliveryRef = trip.orders?.map((o: any) => o.unloadingReference || o.customerReference || o.orderNumber).filter(Boolean).join(', ') || '-';
   
   const addedCosts = trip.costs?.reduce((s: number, c: any) => s + Number(c.amount), 0) || 0;
   // If truck cost per km is 0, use a default fallback (e.g. 1.2) so total isn't 0

@@ -29,7 +29,7 @@ export class TripsService {
 
   findAll(status?: string) {
     const findOptions: any = { 
-      relations: ['truck', 'driver', 'driver.user', 'stops', 'orders', 'orders.cargoItems'],
+      relations: ['truck', 'driver', 'driver.user', 'stops', 'orders', 'orders.cargoItems', 'costs'],
       relationLoadStrategy: 'query',
       order: { createdAt: 'DESC' }
     };
@@ -49,7 +49,7 @@ export class TripsService {
   }
 
   findOne(id: string) {
-    return this.repo.findOne({ where: { id }, relations: ['truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'messages', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.client', 'orders.cargoItems'] });
+    return this.repo.findOne({ where: { id }, relations: ['truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'messages', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.client', 'orders.cargoItems', 'dispatcher'] });
   }
 
   async findByTrackingToken(trackingToken: string): Promise<Trip | null> {

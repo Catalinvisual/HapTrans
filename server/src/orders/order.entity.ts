@@ -52,6 +52,12 @@ export class Order {
   @Column({ nullable: true })
   internalReference: string;
 
+  @Column({ nullable: true })
+  loadingReference: string;
+
+  @Column({ nullable: true })
+  unloadingReference: string;
+
   @ManyToOne(() => Client, (client) => client.orders, { eager: true })
   client: Client;
 
