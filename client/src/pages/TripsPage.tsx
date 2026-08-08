@@ -124,14 +124,16 @@ export default function TripsPage({
               </thead>
               <tbody className="divide-y divide-border">
                 {paginatedTrips.map(trip => {
-              const driverName = trip.driver ? (trip.driver.user?.name || (trip.driver.firstName ? `${trip.driver.firstName} ${trip.driver.lastName || ''}`.trim() : trip.driver.name) || 'Unknown Driver') : 'No Driver';
+              const driverName = trip.driver ? (trip.driver.user?.name || trip.driver.user?.email || (trip.driver.firstName ? `${trip.driver.firstName} ${trip.driver.lastName || ''}`.trim() : trip.driver.name) || 'Unknown Driver') : 'No Driver';
               // Get stops sorted by sequence
               const stops = trip.stops ? [...trip.stops].sort((a: any, b: any) => a.sequence - b.sequence) : [];
               const pickup = stops[0];
               const dropoff = stops[stops.length - 1];
               const revenue = trip.orders?.reduce((sum: number, o: any) => sum + Number(o.price || 0), 0) || Number(trip.price || 0);
               const truckCost = Number(trip.truck?.costPerKm) || 1.2;
-              const cost = Number(trip.distanceKm || 0) * truckCost;
+              const estimatedCost = Number(trip.distanceKm || 0) * truckCost;
+              const addedCosts = trip.costs?.reduce((s: number, c: any) => s + Number(c.amount), 0) || 0;
+              const cost = estimatedCost > 0 ? estimatedCost + addedCosts : addedCosts;
               const profit = revenue - cost;
               return <tr key={trip.id} className="hover:bg-surface/30 transition-colors group">
                       <td className="px-5 py-3 align-top">
