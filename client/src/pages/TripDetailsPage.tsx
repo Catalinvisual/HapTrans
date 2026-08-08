@@ -68,9 +68,7 @@ export default function TripDetailsPage() {
   const deliveryRef = trip.orders?.map((o: any) => o.unloadingReference).filter(Boolean).join(', ') || '-';
   
   const addedCosts = trip.costs?.reduce((s: number, c: any) => s + Number(c.amount), 0) || 0;
-  // If truck cost per km is 0, use a default fallback (e.g. 1.2) so total isn't 0
-  const costPerKm = Number(trip.truck?.costPerKm) || 1.2;
-  const estimatedCost = Number(trip.distanceKm || 0) * costPerKm;
+  const estimatedCost = trip.orders?.reduce((sum: number, o: any) => sum + (Number(o.estimatedCost) || 0), 0) || 0;
   const totalCost = estimatedCost > 0 ? estimatedCost + addedCosts : addedCosts;
   
   const basePrice = trip.orders?.reduce((sum: number, o: any) => sum + (Number(o.price) || 0), 0) || Number(trip.price || 0);

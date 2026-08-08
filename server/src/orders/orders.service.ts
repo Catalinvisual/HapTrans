@@ -193,11 +193,12 @@ export class OrdersService {
             lastStop.latitude, lastStop.longitude
           );
           if (routeResult) {
-            const estimatedCost = routeResult.tollCost || 0;
+            const estimatedCost = dto.estimatedCost !== undefined ? dto.estimatedCost : (routeResult.tollCost || 0);
+            const estimatedProfit = dto.estimatedProfit !== undefined ? dto.estimatedProfit : ((safeNum(dto.price) || 0) - estimatedCost);
             await this.repo.update(savedOrder.id, {
               distanceKm: routeResult.distanceKm,
               estimatedCost: estimatedCost,
-              estimatedProfit: (safeNum(dto.price) || 0) - estimatedCost,
+              estimatedProfit: estimatedProfit,
             } as any);
           }
         } catch (e) {

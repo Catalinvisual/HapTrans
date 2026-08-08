@@ -442,6 +442,8 @@ export default function OrderWizard({
         customerReference: pickup.reference || null,
         contactPerson: pickup.contactPerson || null,
         contactPhone: pickup.phone || null,
+        estimatedCost: costEstimate ? costEstimate.totalCost : null,
+        estimatedProfit: costEstimate ? costEstimate.profit : null,
         stops: [{
           type: 'pickup',
           sequence: 1,

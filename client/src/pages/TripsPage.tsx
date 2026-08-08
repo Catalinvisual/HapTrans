@@ -130,8 +130,7 @@ export default function TripsPage({
               const pickup = stops[0];
               const dropoff = stops[stops.length - 1];
               const revenue = trip.orders?.reduce((sum: number, o: any) => sum + Number(o.price || 0), 0) || Number(trip.price || 0);
-              const truckCost = Number(trip.truck?.costPerKm) || 1.2;
-              const estimatedCost = Number(trip.distanceKm || 0) * truckCost;
+              const estimatedCost = trip.orders?.reduce((sum: number, o: any) => sum + (Number(o.estimatedCost) || 0), 0) || 0;
               const addedCosts = trip.costs?.reduce((s: number, c: any) => s + Number(c.amount), 0) || 0;
               const cost = estimatedCost > 0 ? estimatedCost + addedCosts : addedCosts;
               const profit = revenue - cost;
