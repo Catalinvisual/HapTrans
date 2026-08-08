@@ -168,7 +168,7 @@ export default function OrderDetailsPage() {
               <div className="card p-5">
                 <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Package className="text-orange-500" />{t("jsx_cargoItems")}</h3>
   
-                {order.cargoItems && order.cargoItems.length > 0 ? <div className="space-y-4">
+                {Array.isArray(order.cargoItems) && order.cargoItems.length > 0 ? <div className="space-y-4">
                     {order.cargoItems.map((item: any, idx: number) => <div key={idx} className="bg-surface border border-border p-4 rounded-xl text-sm">
                         <div className="flex justify-between items-start gap-4 mb-3">
                           <p className="font-bold text-base">{item.quantity || '-'}x {item.type} <span className="text-text-secondary text-sm font-medium block mt-0.5">{item.description || 'No description'}</span></p>

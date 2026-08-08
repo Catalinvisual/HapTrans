@@ -272,7 +272,7 @@ export default function OrderWizard({
             reference: d.reference || '',
             notes: d.notes || ''
           });
-          setCargoItems(order?.cargoItems?.length ? order.cargoItems.map((c: any) => ({
+          setCargoItems(Array.isArray(order?.cargoItems) && order.cargoItems.length > 0 ? order.cargoItems.map((c: any) => ({
             id: c.id,
             description: c.description || '',
             quantity: c.quantity || 1,
