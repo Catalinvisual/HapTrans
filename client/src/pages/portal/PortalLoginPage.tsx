@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, Truck, LogIn } from 'lucide-react';
 import portalApi from '../../lib/portalApi';
-import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
+
 export default function PortalLoginPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

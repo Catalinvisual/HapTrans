@@ -29,8 +29,7 @@ export class TripsService {
 
   findAll(status?: string) {
     const findOptions: any = { 
-      relations: ['truck', 'driver', 'driver.user', 'stops', 'orders', 'orders.cargoItems', 'costs'],
-      relationLoadStrategy: 'query',
+      relations: ['truck', 'driver', 'driver.user', 'stops', 'orders', 'orders.cargoItems', 'costs', 'dispatcher'],
       order: { createdAt: 'DESC' }
     };
     if (status) {
