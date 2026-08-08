@@ -202,7 +202,7 @@ export default function TripsPage({
                       </td>
                       <td className="px-5 py-3 align-top text-xs font-semibold space-y-1">
                         <div className="text-text-primary">{t("jsx_venit")}{revenue.toLocaleString()}</div>
-                        <div className="text-text-secondary">{t("jsx_cost")}{cost.toLocaleString()}</div>
+                        <div className="text-text-secondary">{t("jsx_cost")}{cost > 0 ? `€${cost.toLocaleString()}` : '-'}</div>
                       </td>
                       <td className="px-5 py-3 align-top">
                         <span className={`badge ${trip.status === 'planning' ? 'badge-warning' : trip.status === 'dispatched' ? 'badge-gray' : trip.status === 'active' || trip.status === 'in_progress' ? 'badge-primary' : trip.status === 'completed' ? 'badge-success' : 'badge-gray'}`}>
