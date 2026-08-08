@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Truck, MapPin, Search, Loader2, ArrowRight, Eye, MoreHorizontal, Calendar, Package, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import FilterDropdown from '../components/FilterDropdown';
 import Pagination from '../components/Pagination';
 import toast from 'react-hot-toast';
 export default function TripsPage({
@@ -83,19 +84,20 @@ export default function TripsPage({
         </div>
       </div>
 
-      <div className="card overflow-hidden border border-border">
-        <div className="p-4 border-b border-border bg-surface/30 flex flex-col gap-4">
+      <div className="card p-0 overflow-hidden border border-border">
+        <div className="p-5 border-b border-border bg-surface/30 flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 w-full">
-            <div className="relative w-full max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary" />
-              <input type="text" placeholder={t('searchPlaceholder', 'Search by reference, client...')} value={search} onChange={e => setSearch(e.target.value)} className="input pl-10 w-full bg-white" />
+            <div className="flex items-center gap-3 w-full sm:w-auto flex-1 max-w-md">
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary" />
+                <input type="text" placeholder={t('searchPlaceholder', 'Search by reference, client...')} value={search} onChange={e => setSearch(e.target.value)} className="input pl-10 w-full bg-white" />
+              </div>
+              <FilterDropdown 
+                options={['all', 'planning', 'dispatched', 'active', 'completed', 'cancelled']} 
+                value={statusFilter} 
+                onChange={setStatusFilter} 
+              />
             </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2 border-t border-border/40 pt-3">
-            {['all', 'planning', 'dispatched', 'active', 'completed', 'cancelled'].map(tab => <button key={tab} onClick={() => setStatusFilter(tab)} className={`px-4 py-2 text-xs font-semibold rounded-lg border transition-all ${statusFilter === tab ? 'bg-primary text-white border-primary shadow-sm' : 'bg-surface border-border text-text-secondary hover:border-primary/50'}`}>
-                {t(`status_${tab}`, tab.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()))}
-              </button>)}
           </div>
         </div>
 
@@ -111,12 +113,12 @@ export default function TripsPage({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-surface/50 border-b border-border">
-                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_tripOrders")}</th>
-                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_fleet")}</th>
-                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_routingCargo")}</th>
-                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_financials")}</th>
-                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_status")}</th>
-                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider text-right">{t("jsx_actions")}</th>
+                  <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_tripOrders")}</th>
+                  <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_fleet")}</th>
+                  <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_routingCargo")}</th>
+                  <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_financials")}</th>
+                  <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_status")}</th>
+                  <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider text-right">{t("jsx_actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -130,7 +132,7 @@ export default function TripsPage({
               const cost = Number(trip.distanceKm || 0) * Number(trip.truck?.costPerKm || 0);
               const profit = revenue - cost;
               return <tr key={trip.id} className="hover:bg-surface/30 transition-colors group">
-                      <td className="p-4 align-top">
+                      <td className="px-5 py-3 align-top">
                         <div className="font-semibold text-primary">{trip.tripNumber || trip.id.slice(0, 8)}</div>
                         <div className="text-xs text-text-secondary mt-1 flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
@@ -142,15 +144,15 @@ export default function TripsPage({
                               </div>)}
                           </div>}
                       </td>
-                      <td className="p-4 align-top">
+                      <td className="px-5 py-3 align-top">
                         <div className="font-medium">{trip.truck?.plateNumber || 'No Truck'}</div>
                         <div className="text-xs text-text-secondary mt-1 flex items-center gap-1">
                           <span className={`w-1.5 h-1.5 rounded-full ${trip.driver ? 'bg-green-500' : 'bg-red-400'}`} />
                           {driverName}
                         </div>
                       </td>
-                      <td className="p-4 align-top">
-                        <div className="flex flex-col gap-2 min-w-[280px]">
+                      <td className="px-5 py-3 align-top">
+                        <div className="flex flex-col gap-1.5 min-w-[280px]">
                           {pickup && <div className="flex items-start gap-2">
                               <MapPin className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
                               <div className="flex-1">
@@ -177,7 +179,7 @@ export default function TripsPage({
                           {!pickup && !dropoff && <span className="text-sm text-text-muted">{t("jsx_noStopsDefine")}</span>}
                           
                           {/* Cargo Summary */}
-                          {trip.orders && trip.orders.length > 0 && <div className="mt-2 pt-2 border-t border-border flex flex-wrap gap-3">
+                          {trip.orders && trip.orders.length > 0 && <div className="mt-1.5 pt-1.5 border-t border-border flex flex-wrap gap-3">
                               {trip.orders.map((o: any) => {
                         const w = o.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || 0;
                         const ldm = o.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.ldm || 0), 0) || 0;
@@ -190,18 +192,18 @@ export default function TripsPage({
                             </div>}
                         </div>
                       </td>
-                      <td className="p-4 align-top text-xs font-semibold space-y-1">
+                      <td className="px-5 py-3 align-top text-xs font-semibold space-y-1">
                         <div className="text-text-primary">{t("jsx_venit")}{revenue.toLocaleString()}</div>
                         <div className="text-text-secondary">{t("jsx_cost")}{cost.toLocaleString()}</div>
                         <div className={profit >= 0 ? 'text-green-600' : 'text-red-500'}>{t("jsx_profit")}{profit.toLocaleString()}
                         </div>
                       </td>
-                      <td className="p-4 align-top">
+                      <td className="px-5 py-3 align-top">
                         <span className={`badge ${trip.status === 'planning' ? 'badge-warning' : trip.status === 'dispatched' ? 'badge-gray' : trip.status === 'active' || trip.status === 'in_progress' ? 'badge-primary' : trip.status === 'completed' ? 'badge-success' : 'badge-gray'}`}>
                           {trip.status}
                         </span>
                       </td>
-                      <td className="p-4 text-right space-x-2">
+                      <td className="px-5 py-3 text-right space-x-2">
                         {trip.status === 'planning' && <button onClick={() => handleDispatch(trip.id)} className="px-2.5 py-1 text-xs bg-primary text-white font-bold rounded-lg shadow hover:bg-primary/95 transition-all">{t("jsx_trimiteDispat")}</button>}
                         <button onClick={() => navigate(`/trips/${trip.id}`)} title="View Details" className="p-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors inline-flex items-center">
                           <Eye className="w-5 h-5" />

@@ -5,6 +5,7 @@ import api from '../lib/api';
 import OrderWizard from '../components/orders/OrderWizard';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Pagination from '../components/Pagination';
+import FilterDropdown from '../components/FilterDropdown';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 export default function OrdersPage() {
@@ -69,22 +70,24 @@ export default function OrdersPage() {
     setIsModalOpen(true);
   };
   return <div className="max-w-[1600px] mx-auto space-y-6 animate-fade-in">
-      <div className="card overflow-hidden border border-border">
-        <div className="p-4 border-b border-border bg-surface/30 flex flex-col gap-4">
+      <div className="card p-0 overflow-hidden border border-border">
+        <div className="p-5 border-b border-border bg-surface/30 flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 w-full">
-            <div className="relative w-full max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary" />
-              <input type="text" placeholder={t('searchPlaceholder', 'Search by reference, client...')} value={search} onChange={e => setSearch(e.target.value)} className="input pl-10 w-full bg-white" />
+            <div className="flex items-center gap-3 w-full sm:w-auto flex-1 max-w-md">
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary" />
+                <input type="text" placeholder={t('searchPlaceholder', 'Search by reference, client...')} value={search} onChange={e => setSearch(e.target.value)} className="input pl-10 w-full bg-white" />
+              </div>
+              <FilterDropdown 
+                options={['all', 'draft', 'new', 'planned', 'in_transit', 'delivered', 'closed']} 
+                value={statusFilter} 
+                onChange={setStatusFilter} 
+              />
             </div>
             <button onClick={handleCreate} className="btn-primary flex items-center gap-2 shadow-lg hover:shadow-xl transition-all">
               <Plus className="w-5 h-5" />
               {t('addOrder', 'Create Order')}
             </button>
-          </div>
-          <div className="flex flex-wrap gap-2 border-t border-border/40 pt-3">
-            {['all', 'draft', 'new', 'planned', 'in_transit', 'delivered', 'closed'].map(tab => <button key={tab} onClick={() => setStatusFilter(tab)} className={`px-4 py-2 text-xs font-semibold rounded-lg border transition-all ${statusFilter === tab ? 'bg-primary text-white border-primary shadow-sm' : 'bg-surface border-border text-text-secondary hover:border-primary/50'}`}>
-                {t(`status_${tab}`, tab.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()))}
-              </button>)}
           </div>
         </div>
 
@@ -102,13 +105,13 @@ export default function OrdersPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-surface/50 border-b border-border">
-                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_orderRef")}</th>
-                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_client")}</th>
-                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_routeInfo")}</th>
-                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_type")}</th>
-                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_cargo")}</th>
-                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_status")}</th>
-                  <th className="p-4 font-semibold text-sm text-text-secondary uppercase tracking-wider text-right">{t("jsx_actions")}</th>
+                  <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_orderRef")}</th>
+                  <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_client")}</th>
+                  <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_routeInfo")}</th>
+                  <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_type")}</th>
+                  <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_cargo")}</th>
+                  <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_status")}</th>
+                  <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider text-right">{t("jsx_actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -119,14 +122,14 @@ export default function OrdersPage() {
               const cargoLdm = order.cargoItems?.reduce((sum: number, item: any) => sum + Number(item.ldm || 0), 0) || 0;
               const cargoCount = order.cargoItems?.length || 0;
               return <tr key={order.id} onClick={() => navigate(`/orders/${order.id}`)} className="hover:bg-surface/30 transition-colors group cursor-pointer">
-                      <td className="p-4">
+                      <td className="px-5 py-3">
                         <div className="font-semibold text-primary">{order.orderNumber || order.referenceNumber || '—'}</div>
                         <div className="text-xs text-text-secondary mt-1">{order.customerReference && `Ref: ${order.customerReference}`}</div>
                       </td>
-                      <td className="p-4">
+                      <td className="px-5 py-3">
                         <div className="font-medium">{order.client?.name || '-'}</div>
                       </td>
-                      <td className="p-4">
+                      <td className="px-5 py-3">
                         <div className="flex items-center gap-2 text-sm">
                           <MapPin className="w-4 h-4 text-blue-500 shrink-0" />
                           <span className="truncate max-w-[150px]" title={pickup?.city || pickup?.address || 'TBD'}>
@@ -139,24 +142,24 @@ export default function OrdersPage() {
                           </span>
                         </div>
                       </td>
-                      <td className="p-4">
+                      <td className="px-5 py-3">
                         <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${order.transportType === 'ltl' || order.transportType === 'groupage' ? 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-900/50' : 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/50'}`}>
                           {(order.transportType || 'FTL').toUpperCase()}
                         </span>
                       </td>
-                      <td className="p-4">
+                      <td className="px-5 py-3">
                         <div className="flex flex-col text-sm font-medium">
                           <span>{cargoCount}{t("jsx_itemS")}</span>
                           <span className="text-xs text-text-secondary">
                             {Number(cargoWeight).toLocaleString()}{t("jsx_kg")}{cargoLdm.toFixed(2)}{t("jsx_lDM")}</span>
                         </div>
                       </td>
-                      <td className="p-4">
+                      <td className="px-5 py-3">
                         <span className={`badge ${order.status === 'draft' ? 'badge-warning' : order.status === 'new' ? 'badge-gray' : order.status === 'assigned' ? 'badge-primary' : order.status === 'in_transit' ? 'badge-primary' : 'badge-success'}`}>
                           {order.status || 'pending'}
                         </span>
                       </td>
-                      <td className="p-4 text-right space-x-1">
+                      <td className="px-5 py-3 text-right space-x-1">
                         {order.status === 'completed' && <button title="Create Invoice" onClick={e => {
                     e.stopPropagation();
                     toast.success(t("toast_invoiceGenerat"));

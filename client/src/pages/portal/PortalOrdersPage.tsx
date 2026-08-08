@@ -4,6 +4,7 @@ import { Search, Package, MapPin, Calendar, ArrowRight } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import portalApi from '../../lib/portalApi';
 import { formatDate } from '../../lib/dateUtils';
+import FilterDropdown from '../../components/FilterDropdown';
 import Pagination from '../../components/Pagination';
 export default function PortalOrdersPage() {
   const {
@@ -65,14 +66,16 @@ export default function PortalOrdersPage() {
 
       <div className="card bg-card border border-border rounded-2xl shadow-sm p-4">
         <div className="flex flex-col md:flex-row gap-4 mb-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-            <input className="input pl-9" placeholder="Search reference, city..." value={search} onChange={e => handleSearchChange(e.target.value)} />
-          </div>
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            {['all', 'active', 'completed', 'cancelled'].map(f => <button key={f} onClick={() => handleFilterChange(f)} className={`px-4 py-2 rounded-lg text-sm font-semibold capitalize whitespace-nowrap transition-colors ${filter === f ? 'bg-primary text-white' : 'bg-surface hover:bg-surface-hover border border-border'}`}>
-                {f}
-              </button>)}
+          <div className="flex items-center gap-3 flex-1 max-w-md">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
+              <input className="input pl-9" placeholder="Search reference, city..." value={search} onChange={e => handleSearchChange(e.target.value)} />
+            </div>
+            <FilterDropdown 
+              options={['all', 'active', 'completed', 'cancelled']} 
+              value={filter} 
+              onChange={handleFilterChange} 
+            />
           </div>
         </div>
 
