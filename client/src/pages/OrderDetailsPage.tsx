@@ -111,7 +111,7 @@ export default function OrderDetailsPage() {
               <div>
                 <h3 className="font-bold text-sm text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> {t("jsx_equipReq", "Equipment Requirements")}</h3>
                 <div className="flex flex-wrap gap-2">
-                  {order.equipmentRequirements && order.equipmentRequirements.length > 0 ? order.equipmentRequirements.map((req: string) => <span key={req} className="px-2.5 py-1 bg-green-500/10 text-green-600 border border-green-500/20 rounded-md text-xs font-bold uppercase">{req}</span>) : <span className="text-text-secondary text-sm">{t("jsx_none", "None")}</span>}
+                  {Array.isArray(order.equipmentRequirements) && order.equipmentRequirements.length > 0 ? order.equipmentRequirements.map((req: string) => <span key={req} className="px-2.5 py-1 bg-green-500/10 text-green-600 border border-green-500/20 rounded-md text-xs font-bold uppercase">{req}</span>) : typeof order.equipmentRequirements === 'string' && order.equipmentRequirements ? <span className="px-2.5 py-1 bg-green-500/10 text-green-600 border border-green-500/20 rounded-md text-xs font-bold uppercase">{order.equipmentRequirements}</span> : <span className="text-text-secondary text-sm">{t("jsx_none", "None")}</span>}
                 </div>
               </div>
               <div>

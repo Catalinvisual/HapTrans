@@ -234,7 +234,7 @@ export default function OrderWizard({
             notes: order?.notes || '',
             contactPerson: order?.contactPerson || '',
             contactPhone: order?.contactPhone || '',
-            equipmentRequirements: order?.equipmentRequirements || []
+            equipmentRequirements: Array.isArray(order?.equipmentRequirements) ? order.equipmentRequirements : (typeof order?.equipmentRequirements === 'string' ? [order.equipmentRequirements] : [])
           });
           const p = order?.stops?.find((s: any) => s.type === 'pickup') || {};
           const d = order?.stops?.find((s: any) => s.type === 'dropoff') || {};
@@ -664,7 +664,8 @@ export default function OrderWizard({
                     {['frigo', 'tilt', 'adr', 'mega'].map(eq => {
                   const selected = form.equipmentRequirements.includes(eq);
                   return <button key={eq} type="button" onClick={() => {
-                    const newReqs = selected ? form.equipmentRequirements.filter(r => r !== eq) : [...form.equipmentRequirements, eq];
+                    const reqsArray = Array.isArray(form.equipmentRequirements) ? form.equipmentRequirements : [];
+                    const newReqs = selected ? reqsArray.filter(r => r !== eq) : [...reqsArray, eq];
                     setForm({
                       ...form,
                       equipmentRequirements: newReqs

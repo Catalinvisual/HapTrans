@@ -461,7 +461,7 @@ export default function TripDetailsPage() {
                 
                 <div className="flex items-center justify-between p-3 bg-surface rounded-xl border border-border">
                   <span className="text-sm font-semibold text-text-secondary">{t('totalCost', 'Cost Total')}</span>
-                  <span className="font-bold text-text">€{totalCost.toLocaleString(i18n.language)}</span>
+                  <span className="font-bold text-text">{totalCost > 0 ? `€${totalCost.toLocaleString(i18n.language)}` : '-'}</span>
                 </div>
                 
                 <div className={`flex items-center justify-between p-3 rounded-xl border ${profit >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
