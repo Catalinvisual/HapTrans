@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Package, Truck, FileCheck2, Euro, Activity, Clock } from 'lucide-react';
 import portalApi from '../../lib/portalApi';
 export default function PortalDashboardPage() {
+  const { t } = useTranslation();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {

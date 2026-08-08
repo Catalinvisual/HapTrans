@@ -115,7 +115,8 @@ export default function TripsPage({
                 <tr className="bg-surface/50 border-b border-border">
                   <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_tripOrders")}</th>
                   <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_fleet")}</th>
-                  <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_routingCargo")}</th>
+                  <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_routing", "Routing")}</th>
+                  <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_cargo", "Cargo")}</th>
                   <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_financials")}</th>
                   <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider">{t("jsx_status")}</th>
                   <th className="px-5 py-3 font-semibold text-sm text-text-secondary uppercase tracking-wider text-right">{t("jsx_actions")}</th>
@@ -123,7 +124,7 @@ export default function TripsPage({
               </thead>
               <tbody className="divide-y divide-border">
                 {paginatedTrips.map(trip => {
-              const driverName = trip.driver ? trip.driver.firstName ? `${trip.driver.firstName} ${trip.driver.lastName || ''}`.trim() : trip.driver.name || 'Unknown Driver' : 'No Driver';
+              const driverName = trip.driver ? (trip.driver.user?.name || (trip.driver.firstName ? `${trip.driver.firstName} ${trip.driver.lastName || ''}`.trim() : trip.driver.name) || 'Unknown Driver') : 'No Driver';
               // Get stops sorted by sequence
               const stops = trip.stops ? [...trip.stops].sort((a: any, b: any) => a.sequence - b.sequence) : [];
               const pickup = stops[0];
@@ -177,37 +178,40 @@ export default function TripsPage({
                               </div>
                             </div>}
                           {!pickup && !dropoff && <span className="text-sm text-text-muted">{t("jsx_noStopsDefine")}</span>}
-                          
-                          {/* Cargo Summary */}
-                          {trip.orders && trip.orders.length > 0 && <div className="mt-1.5 pt-1.5 border-t border-border flex flex-wrap gap-3">
-                              {trip.orders.map((o: any) => {
-                        const w = o.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || 0;
-                        const ldm = o.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.ldm || 0), 0) || 0;
-                        const items = o.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.quantity || 1), 0) || 0;
-                        return w > 0 || items > 0 ? <div key={`cargo-${o.id}`} className="flex items-center gap-1 text-xs text-text-secondary">
-                                    <Package className="w-3.5 h-3.5" />
-                                    <span>{items} {t('pallets', 'pallets')} {w > 0 && `(${Number(w).toLocaleString()} kg)`} {ldm > 0 && `• ${ldm.toFixed(1)} LDM`}</span>
-                                  </div> : null;
-                      })}
-                            </div>}
                         </div>
+                      </td>
+                      <td className="px-5 py-3 align-top min-w-[200px]">
+                        {/* Cargo Summary */}
+                        {trip.orders && trip.orders.length > 0 ? <div className="flex flex-col gap-2">
+                            {trip.orders.map((o: any) => {
+                      const w = o.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || 0;
+                      const ldm = o.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.ldm || 0), 0) || 0;
+                      const items = o.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.quantity || 1), 0) || 0;
+                      return w > 0 || items > 0 ? <div key={`cargo-${o.id}`} className="flex items-start gap-2 text-xs text-text-secondary bg-surface/50 p-2 rounded-lg border border-border/50">
+                                  <Package className="w-4 h-4 text-primary shrink-0" />
+                                  <div className="flex flex-col">
+                                    <span className="font-semibold text-text-primary">{items} {t('pallets', 'pallets')}</span>
+                                    <span>{w > 0 && `${Number(w).toLocaleString()} kg`} {ldm > 0 && `• ${ldm.toFixed(1)} LDM`}</span>
+                                  </div>
+                                </div> : null;
+                    })}
+                          </div> : <span className="text-sm text-text-muted">-</span>}
                       </td>
                       <td className="px-5 py-3 align-top text-xs font-semibold space-y-1">
                         <div className="text-text-primary">{t("jsx_venit")}{revenue.toLocaleString()}</div>
                         <div className="text-text-secondary">{t("jsx_cost")}{cost.toLocaleString()}</div>
-                        <div className={profit >= 0 ? 'text-green-600' : 'text-red-500'}>{t("jsx_profit")}{profit.toLocaleString()}
-                        </div>
                       </td>
                       <td className="px-5 py-3 align-top">
                         <span className={`badge ${trip.status === 'planning' ? 'badge-warning' : trip.status === 'dispatched' ? 'badge-gray' : trip.status === 'active' || trip.status === 'in_progress' ? 'badge-primary' : trip.status === 'completed' ? 'badge-success' : 'badge-gray'}`}>
                           {trip.status}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-right space-x-2">
-                        {trip.status === 'planning' && <button onClick={() => handleDispatch(trip.id)} className="px-2.5 py-1 text-xs bg-primary text-white font-bold rounded-lg shadow hover:bg-primary/95 transition-all">{t("jsx_trimiteDispat")}</button>}
-                        <button onClick={() => navigate(`/trips/${trip.id}`)} title="View Details" className="p-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors inline-flex items-center">
-                          <Eye className="w-5 h-5" />
-                        </button>
+                      <td className="px-5 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {trip.status === 'planning' && <button onClick={(e) => { e.stopPropagation(); handleDispatch(trip.id); }} className="px-3 py-1.5 text-xs bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg shadow-sm transition-all">{t("jsx_trimiteDispat", "Send Dispatch")}</button>}
+                          <button onClick={() => navigate(`/trips/${trip.id}`)} title="View Details" className="p-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors inline-flex items-center">
+                            <Eye className="w-5 h-5" />
+                          </button>
                         <button onClick={e => {
                     e.stopPropagation();
                     handleDeleteClick(trip.id);

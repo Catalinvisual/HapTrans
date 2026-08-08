@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, MapPin, Calendar, Clock, Truck, User, Layers, Scale, Box, DollarSign, FileText, FileBadge, Navigation, Eye, Download, Share2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Clock, Truck, User, Layers, Scale, Box, Euro, FileText, FileBadge, Navigation, Eye, Download, Share2 } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
@@ -18,21 +18,18 @@ const STATUS_COLORS: Record<string, string> = {
   paid: 'badge-success',
   overdue: 'badge-error'
 };
+
+const getOrderPallets = (o: any) => o.cargoItems?.reduce((sum: number, c: any) => sum + (c.unit === 'pallet' ? Number(c.quantity || 1) : 0), 0) || Number(o.pallets || 0);
+const getOrderWeight = (o: any) => o.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || Number(o.weightKg || 0);
+
 export default function TripDetailsPage() {
-  const {
-    id
-  } = useParams();
+  const { id } = useParams();
   const navigate = useNavigate();
-  const {
-    t,
-    i18n
-  } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [trip, setTrip] = useState<any>(null);
   const [timeline, setTimeline] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const {
-    user
-  } = useAuthStore();
+  const { user } = useAuthStore();
   const isDispatcher = user?.role === 'dispatcher';
   useEffect(() => {
     const fetchTrip = async (isInitial = false) => {
@@ -65,12 +62,23 @@ export default function TripDetailsPage() {
       </div>;
   }
   if (!trip) return null;
+  
+  const sortedStops = trip.stops ? [...trip.stops].sort((a: any, b: any) => a.sequence - b.sequence) : [];
+  const pickupRef = sortedStops.find(s => s.type === 'pickup')?.reference || trip.loadingReference || '-';
+  const deliveryRef = sortedStops.find(s => s.type === 'dropoff')?.reference || trip.unloadingReference || '-';
+  
   const addedCosts = trip.costs?.reduce((s: number, c: any) => s + Number(c.amount), 0) || 0;
-  const estimatedCost = Number(trip.distanceKm || 0) * Number(trip.truck?.costPerKm || 0);
-  const totalCost = estimatedCost + addedCosts;
+  // If truck cost per km is 0, use a default fallback (e.g. 1.2) so total isn't 0
+  const costPerKm = Number(trip.truck?.costPerKm) || 1.2;
+  const estimatedCost = Number(trip.distanceKm || 0) * costPerKm;
+  const totalCost = estimatedCost > 0 ? estimatedCost + addedCosts : addedCosts;
+  
   const basePrice = trip.orders?.reduce((sum: number, o: any) => sum + (Number(o.price) || 0), 0) || Number(trip.price || 0);
   const profit = basePrice - totalCost;
   const profitMargin = basePrice > 0 ? profit / basePrice * 100 : 0;
+  
+  const totalPallets = trip.orders?.reduce((sum: number, o: any) => sum + getOrderPallets(o), 0) || 0;
+  const totalWeight = trip.orders?.reduce((sum: number, o: any) => sum + getOrderWeight(o), 0) || 0;
   const handleShare = async (url: string, title: string) => {
     if (navigator.share) {
       try {
@@ -102,7 +110,7 @@ export default function TripDetailsPage() {
               </span>
             </div>
             <p className="text-sm text-text-secondary mt-1 font-medium">
-              {t('createdBy', 'Creat de')} <span className="text-primary font-bold">{trip.createdBy?.name || t('systemUnknown', 'Sistem / Necunoscut')}</span> {t('onDate', 'pe')} {formatDate(trip.createdAt)}
+              {t('createdBy', 'Creat de')} <span className="text-primary font-bold">{trip.dispatcher?.name || trip.createdBy?.name || t('systemUnknown', 'Sistem / Necunoscut')}</span> {t('onDate', 'pe')} {formatDate(trip.createdAt)}
             </p>
           </div>
         </div>
@@ -321,8 +329,8 @@ export default function TripDetailsPage() {
                       <div className="text-sm text-text-secondary">{order.client?.name || '-'}</div>
                     </div>
                     <div className="flex gap-4 text-sm font-semibold">
-                      <div className="flex items-center gap-1"><Layers className="w-4 h-4 text-primary" /> {order.pallets || 0}{t("jsx_pal")}</div>
-                      <div className="flex items-center gap-1"><Scale className="w-4 h-4 text-primary" /> {order.weightKg || 0} kg</div>
+                      <div className="flex items-center gap-1"><Layers className="w-4 h-4 text-primary" /> {getOrderPallets(order)}{t("jsx_pal")}</div>
+                      <div className="flex items-center gap-1"><Scale className="w-4 h-4 text-primary" /> {getOrderWeight(order)} kg</div>
                       <span className={`px-2 py-1 rounded badge badge-gray capitalize`}>{t(order.status)}</span>
                     </div>
                   </div>)}
@@ -334,22 +342,22 @@ export default function TripDetailsPage() {
                     <div>
                       <div className="flex justify-between text-xs font-bold mb-1">
                         <span>{t('weight', 'Greutate')}</span>
-                        <span>{trip.orders.reduce((sum: number, o: any) => sum + (o.weightKg || 0), 0)}{t("jsx_kg24000Kg")}</span>
+                        <span>{totalWeight}{t("jsx_kg24000Kg")}</span>
                       </div>
                       <div className="w-full bg-border rounded-full h-2">
                         <div className="bg-primary h-2 rounded-full" style={{
-                      width: `${Math.min(100, trip.orders.reduce((sum: number, o: any) => sum + (o.weightKg || 0), 0) / 24000 * 100)}%`
+                      width: `${Math.min(100, (totalWeight / 24000) * 100)}%`
                     }}></div>
                       </div>
                     </div>
                     <div>
                       <div className="flex justify-between text-xs font-bold mb-1">
                         <span>{t('pallets', 'Paleți')}</span>
-                        <span>{trip.orders.reduce((sum: number, o: any) => sum + (o.pallets || 0), 0)} / 33</span>
+                        <span>{totalPallets} / 33</span>
                       </div>
                       <div className="w-full bg-border rounded-full h-2">
                         <div className="bg-primary h-2 rounded-full" style={{
-                      width: `${Math.min(100, trip.orders.reduce((sum: number, o: any) => sum + (o.pallets || 0), 0) / 33 * 100)}%`
+                      width: `${Math.min(100, (totalPallets / 33) * 100)}%`
                     }}></div>
                       </div>
                     </div>
@@ -389,11 +397,11 @@ export default function TripDetailsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-border pt-4">
               <div>
                 <span className="text-xs font-semibold text-text-secondary block">{t('loadingReference', 'Loading Reference')}</span>
-                <span className="font-bold text-sm text-text">{trip.loadingReference || '-'}</span>
+                <span className="font-bold text-sm text-text">{pickupRef}</span>
               </div>
               <div>
                 <span className="text-xs font-semibold text-text-secondary block">{t('unloadingReference', 'Unloading Reference')}</span>
-                <span className="font-bold text-sm text-text">{trip.unloadingReference || '-'}</span>
+                <span className="font-bold text-sm text-text">{deliveryRef}</span>
               </div>
               <div>
                 <span className="text-xs font-semibold text-text-secondary block">{t('cmrReference', 'CMR Reference')}</span>
@@ -441,7 +449,7 @@ export default function TripDetailsPage() {
 
           {!isDispatcher && <div className="card p-6 bg-card border border-border rounded-2xl shadow-sm">
               <h3 className="font-bold text-lg text-text mb-4 flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-primary" />
+                <Euro className="w-5 h-5 text-primary" />
                 {t('financial', 'Financiar')}
               </h3>
               
@@ -565,7 +573,7 @@ export default function TripDetailsPage() {
               {/* Invoices List */}
               <h4 className="text-sm font-semibold text-text-secondary flex items-center justify-between mt-6">
                 <div className="flex items-center gap-2">
-                  <DollarSign className="w-4 h-4" /> {t('invoices', 'Facturi (Invoices)')}
+                  <Euro className="w-4 h-4" /> {t('invoices', 'Facturi (Invoices)')}
                 </div>
                 <span className="badge-gray px-2 py-0.5 text-xs font-bold">{trip.invoices?.length || 0}</span>
               </h4>

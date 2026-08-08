@@ -224,27 +224,27 @@ export default function OrderWizard({
         api.get(`/orders/${orderId}`).then(res => {
           const order = res.data;
           setForm({
-            clientId: order.client?.id || '',
-            customerReference: order.customerReference || '',
-            internalReference: order.internalReference || '',
-            priority: order.priority || 'normal',
-            transportType: order.transportType || 'ftl',
-            price: order.price?.toString() || '',
-            currency: order.currency || 'EUR',
-            notes: order.notes || '',
-            contactPerson: order.contactPerson || '',
-            contactPhone: order.contactPhone || '',
-            equipmentRequirements: order.equipmentRequirements || []
+            clientId: order?.client?.id || order?.clientId || '',
+            customerReference: order?.customerReference || '',
+            internalReference: order?.internalReference || '',
+            priority: order?.priority || 'normal',
+            transportType: order?.transportType || 'ftl',
+            price: order?.price?.toString() || '',
+            currency: order?.currency || 'EUR',
+            notes: order?.notes || '',
+            contactPerson: order?.contactPerson || '',
+            contactPhone: order?.contactPhone || '',
+            equipmentRequirements: order?.equipmentRequirements || []
           });
-          const p = order.stops?.find((s: any) => s.type === 'pickup') || {};
-          const d = order.stops?.find((s: any) => s.type === 'dropoff') || {};
+          const p = order?.stops?.find((s: any) => s.type === 'pickup') || {};
+          const d = order?.stops?.find((s: any) => s.type === 'dropoff') || {};
           setPickup({
             companyName: p.companyName || '',
             address: p.address || '',
             city: p.city || '',
             country: p.country || '',
             postalCode: p.postalCode || '',
-            scheduledDate: p.dateFrom || (p.scheduledDate ? p.scheduledDate.slice(0, 10) : ''),
+            scheduledDate: p.dateFrom || (p.scheduledDate ? String(p.scheduledDate).slice(0, 10) : ''),
             scheduledTime: p.timeFrom || p.scheduledTime || '',
             latitude: p.latitude ? parseFloat(p.latitude) : null,
             longitude: p.longitude ? parseFloat(p.longitude) : null,
@@ -261,7 +261,7 @@ export default function OrderWizard({
             city: d.city || '',
             country: d.country || '',
             postalCode: d.postalCode || '',
-            scheduledDate: d.dateFrom || (d.scheduledDate ? d.scheduledDate.slice(0, 10) : ''),
+            scheduledDate: d.dateFrom || (d.scheduledDate ? String(d.scheduledDate).slice(0, 10) : ''),
             scheduledTime: d.timeFrom || d.scheduledTime || '',
             latitude: d.latitude ? parseFloat(d.latitude) : null,
             longitude: d.longitude ? parseFloat(d.longitude) : null,
@@ -272,7 +272,7 @@ export default function OrderWizard({
             reference: d.reference || '',
             notes: d.notes || ''
           });
-          setCargoItems(order.cargoItems?.length ? order.cargoItems.map((c: any) => ({
+          setCargoItems(order?.cargoItems?.length ? order.cargoItems.map((c: any) => ({
             id: c.id,
             description: c.description || '',
             quantity: c.quantity || 1,
@@ -283,16 +283,19 @@ export default function OrderWizard({
             lengthCm: c.lengthCm?.toString() || '',
             widthCm: c.widthCm?.toString() || '',
             heightCm: c.heightCm?.toString() || '',
-            stackable: c.stackable || false,
-            fragile: c.fragile || false,
-            isAdr: c.isAdr || false,
+            stackable: Boolean(c.stackable),
+            fragile: Boolean(c.fragile),
+            isAdr: Boolean(c.isAdr),
             adrClass: c.adrClass || '',
             adrUnNumber: c.adrUnNumber || '',
-            isTemperatureControlled: c.isTemperatureControlled || false,
+            isTemperatureControlled: Boolean(c.isTemperatureControlled),
             requiredTemperature: c.requiredTemperature?.toString() || ''
           })) : [{
             ...emptyCargo
           }]);
+        }).catch(err => {
+          console.error("Error fetching order data:", err);
+          toast.error("Failed to load order details.");
         });
       } else {
         setForm({

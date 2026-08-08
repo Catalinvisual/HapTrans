@@ -86,7 +86,7 @@ export default function PortalOrdersPage() {
                     <p className="text-xs text-text-secondary font-medium mb-1">{t("jsx_rEF")}{o.referenceNumber}</p>
                     <span className={`px-2 py-1 rounded text-xs font-bold capitalize
                       ${o.status === 'delivered' ? 'bg-green-100 text-green-700' : o.status === 'in-transit' ? 'bg-blue-100 text-blue-700' : o.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
-                      {o.status.replace('-', ' ')}
+                      {o.status ? o.status.replace('-', ' ') : 'Unknown'}
                     </span>
                   </div>
                   <ArrowRight className="w-5 h-5 text-text-secondary group-hover:text-primary transition-colors" />
