@@ -26,6 +26,8 @@ export default function OrderFormModal({
     clientId: '',
     customerReference: '',
     internalReference: '',
+    loadingReference: '',
+    unloadingReference: '',
     priority: 'normal',
     transportType: 'ftl',
     price: '',
@@ -42,6 +44,8 @@ export default function OrderFormModal({
           clientId: order.client?.id || '',
           customerReference: order.customerReference || '',
           internalReference: order.internalReference || '',
+          loadingReference: order.loadingReference || '',
+          unloadingReference: order.unloadingReference || '',
           priority: order.priority || 'normal',
           transportType: order.transportType || 'ftl',
           price: order.price?.toString() || '',
@@ -55,6 +59,8 @@ export default function OrderFormModal({
           clientId: '',
           customerReference: '',
           internalReference: '',
+          loadingReference: '',
+          unloadingReference: '',
           priority: 'normal',
           transportType: 'ftl',
           price: '',
@@ -199,6 +205,23 @@ export default function OrderFormModal({
                     <input type="text" value={form.internalReference} onChange={e => setForm({
                   ...form,
                   internalReference: e.target.value
+                })} className="input w-full" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">{t('loadingReference', 'Loading Reference')}</label>
+                    <input type="text" value={form.loadingReference} onChange={e => setForm({
+                  ...form,
+                  loadingReference: e.target.value
+                })} className="input w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">{t('unloadingReference', 'Unloading Reference')}</label>
+                    <input type="text" value={form.unloadingReference} onChange={e => setForm({
+                  ...form,
+                  unloadingReference: e.target.value
                 })} className="input w-full" />
                   </div>
                 </div>

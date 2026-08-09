@@ -101,7 +101,7 @@ export default function TripDetailsPage() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-text">
-                {trip.referenceNumber || t('noReference', 'RIT Fără Referință')}
+                {trip.tripNumber || trip.referenceNumber || t('noReference', 'Trip Without Reference')}
               </h1>
               <span className={`${STATUS_COLORS[trip.status] || 'badge-gray'} uppercase px-3 py-1 rounded-lg text-xs font-black shadow-sm`}>
                 {t(trip.status === 'in_progress' ? 'inProgress' : trip.status) || trip.status}
@@ -224,7 +224,7 @@ export default function TripDetailsPage() {
                       <span className={`text-xs font-bold ${textClass} uppercase tracking-wider mb-1 block flex justify-between`}>
                         {t('stopIndex', 'Stop {{index}}', {
                     index: stop.sequence
-                  })} - {t(stop.status, stop.status?.replace(/_/g, ' ') || '')}
+                  }).replace('{{index}}', stop.sequence.toString())} - {t(stop.status, stop.status?.replace(/_/g, ' ') || '')}
                         {stop.eta && <span className={`px-2 py-0.5 rounded ${stop.etaStatus === 'delayed' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{t("jsx_eTA")}{formatDate(stop.eta)}
                           </span>}
                       </span>
@@ -313,29 +313,16 @@ export default function TripDetailsPage() {
             </div>
           </div>
 
-          {/* Orders & Capacity Details */}
+          {/* Capacity Details */}
           <div className="card p-6 bg-card border border-border rounded-2xl shadow-sm">
             <h3 className="font-bold text-lg text-text mb-4 flex items-center gap-2">
               <Box className="w-5 h-5 text-primary" />
-              {trip.orders && trip.orders.length > 0 ? t('tripOrders', 'Comenzi (Orders)') : t('cargoAndReferences', 'Detalii Marfă & Referințe')}
+              {t('truckCapacity', 'Capacitate Camion (Total estimat)')}
             </h3>
 
             {trip.orders && trip.orders.length > 0 ? <div className="space-y-4 mb-6">
-                {trip.orders.map((order: any) => <div key={order.id} className="p-4 bg-surface rounded-xl border border-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div>
-                      <div className="font-bold text-lg">{order.customerReference || order.orderNumber || t('noReference', 'Fără referință')}</div>
-                      <div className="text-sm text-text-secondary">{order.client?.name || '-'}</div>
-                    </div>
-                    <div className="flex gap-4 text-sm font-semibold">
-                      <div className="flex items-center gap-1"><Layers className="w-4 h-4 text-primary" /> {getOrderPallets(order)}{t("jsx_pal")}</div>
-                      <div className="flex items-center gap-1"><Scale className="w-4 h-4 text-primary" /> {getOrderWeight(order)} kg</div>
-                      <span className={`px-2 py-1 rounded badge badge-gray capitalize`}>{t(order.status)}</span>
-                    </div>
-                  </div>)}
-
                 {/* Capacity Summary */}
-                <div className="mt-6 p-4 bg-primary/5 rounded-xl border border-primary/20">
-                  <h4 className="text-sm font-bold text-primary mb-3">{t('truckCapacity', 'Capacitate Camion (Total estimat)')}</h4>
+                <div className="p-4 bg-primary/5 rounded-xl border border-primary/20">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <div className="flex justify-between text-xs font-bold mb-1">
