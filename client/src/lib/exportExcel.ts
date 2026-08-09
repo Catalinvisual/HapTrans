@@ -51,17 +51,6 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  const rr = Math.min(r, w / 2, h / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + rr, y);
-  ctx.arcTo(x + w, y, x + w, y + h, rr);
-  ctx.arcTo(x + w, y + h, x, y + h, rr);
-  ctx.arcTo(x, y + h, x, y, rr);
-  ctx.arcTo(x, y, x + w, y, rr);
-  ctx.closePath();
-}
-
 async function fetchSettingsLogoSrc(): Promise<string | null> {
   try {
     const res = await api.get('/public/company-settings');
@@ -89,7 +78,7 @@ async function toDataUrl(src: string): Promise<string> {
   }
 }
 
-async function buildLogoBadge(bannerH: number): Promise<{ b64: string; width: number; height: number } | null> {
+async function buildLogoImage(bannerH: number): Promise<{ b64: string; width: number; height: number } | null> {
   try {
     let src = await fetchSettingsLogoSrc();
     if (!src) src = HEADER_ICON_URL;
@@ -98,31 +87,27 @@ async function buildLogoBadge(bannerH: number): Promise<{ b64: string; width: nu
     const img = await loadImage(src);
     if (!img.naturalWidth || !img.naturalHeight) return null;
 
-    const badgeH = Math.min(44, Math.round(bannerH - 4));
-    const maxLogoW = 240;
-    const maxLogoH = badgeH - 14;
+    // Keep the logo's own transparent background — no white badge, no rounded corners
+    const maxH = Math.min(36, Math.round(bannerH - 12));
+    const maxW = 260;
     const ratio = img.naturalWidth / img.naturalHeight;
     let lw: number;
     let lh: number;
-    if (ratio > maxLogoW / maxLogoH) {
-      lw = maxLogoW;
-      lh = Math.round(maxLogoW / ratio);
+    if (ratio > maxW / maxH) {
+      lw = maxW;
+      lh = Math.round(maxW / ratio);
     } else {
-      lh = maxLogoH;
-      lw = Math.round(maxLogoH * ratio);
+      lh = maxH;
+      lw = Math.round(maxH * ratio);
     }
-    const badgeW = Math.max(48, Math.round(lw + 24));
 
     const canvas = document.createElement('canvas');
-    canvas.width = badgeW;
-    canvas.height = badgeH;
+    canvas.width = lw;
+    canvas.height = lh;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
-    ctx.fillStyle = '#FFFFFF';
-    roundRectPath(ctx, 0, 0, badgeW, badgeH, 12);
-    ctx.fill();
-    ctx.drawImage(img, (badgeW - lw) / 2, (badgeH - lh) / 2, lw, lh);
-    return { b64: canvas.toDataURL('image/png').split(',')[1] || '', width: badgeW, height: badgeH };
+    ctx.drawImage(img, 0, 0, lw, lh);
+    return { b64: canvas.toDataURL('image/png').split(',')[1] || '', width: lw, height: lh };
   } catch {
     return null;
   }
@@ -175,32 +160,54 @@ export async function exportExcel(opts: ExcelExportOptions): Promise<void> {
     ws.getCell(2, c).fill = solid(PRIMARY);
   }
 
-  // Header logo from SaaS Settings (same as the sidebar header), on a tight
-  // white badge, so the orange banner runs full-width from column A
+  // Transparent SaaS logo (same as the sidebar header) placed directly on the
+  // orange banner, with clear spacing between it and the page title
   let titleIndent = 0;
   let subIndent = 0;
-  const badge = await buildLogoBadge(bannerH);
-  if (badge) {
-    const imageId = wb.addImage({ base64: badge.b64, extension: 'png' });
+  let titleCol = 1;
+  const logo = await buildLogoImage(bannerH);
+  if (logo) {
+    const leftPx = 14;
+    const imageId = wb.addImage({ base64: logo.b64, extension: 'png' });
     ws.addImage(imageId, {
-      tl: { col: 0.04, row: (bannerH - badge.height) / 2 / bannerH },
-      ext: { width: badge.width, height: badge.height },
+      tl: { col: leftPx / 7, row: (bannerH - logo.height) / 2 / rowH1 },
+      ext: { width: logo.width, height: logo.height },
     });
-    // Push title/subtitle clear of the badge regardless of column widths
-    const titlePx = badge.width + 18;
-    titleIndent = Math.ceil(titlePx / 15);
-    subIndent = Math.ceil(titlePx / 8);
+    const logoRight = leftPx + logo.width;
+    const col1Right = (ws.getColumn(1).width || 10) * 7;
+    if (logoRight <= col1Right) {
+      // Logo fits inside the first column — keep the title there, pushed clear of it
+      const titlePx = logoRight + 40;
+      titleIndent = Math.ceil(titlePx / 12);
+      subIndent = Math.ceil(titlePx / 7);
+    } else {
+      // Logo spans columns — start the title at the first column boundary after it
+      let acc = 0;
+      let found = false;
+      for (let c = 1; c <= colCount; c++) {
+        acc += (ws.getColumn(c).width || 10) * 7;
+        if (acc >= logoRight + 40) { titleCol = c + 1; found = true; break; }
+      }
+      if (!found) {
+        // Logo wider than the whole sheet — fall back to an indent
+        const titlePx = logoRight + 40;
+        titleIndent = Math.ceil(titlePx / 12);
+        subIndent = Math.ceil(titlePx / 7);
+      } else if (titleCol > colCount) {
+        titleCol = colCount;
+      }
+    }
   }
 
-  ws.mergeCells(1, 1, 1, colCount);
-  ws.mergeCells(2, 1, 2, colCount);
+  ws.mergeCells(1, titleCol, 1, colCount);
+  ws.mergeCells(2, titleCol, 2, colCount);
 
-  const titleCell = ws.getCell(1, 1);
+  const titleCell = ws.getCell(1, titleCol);
   titleCell.value = title;
   titleCell.font = { name: 'Calibri', size: 22, bold: true, color: { argb: WHITE } };
   titleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: titleIndent };
 
-  const subCell = ws.getCell(2, 1);
+  const subCell = ws.getCell(2, titleCol);
   subCell.value = subtitle;
   subCell.font = { name: 'Calibri', size: 11, color: { argb: 'FFFDEFDE' } };
   subCell.alignment = { vertical: 'middle', horizontal: 'left', indent: subIndent };
