@@ -33,6 +33,15 @@ export class Truck {
   @Column({ nullable: true })
   year: number;
 
+  @Column({ nullable: true })
+  truckType: string; // e.g. Tautliner, Frigo, Box, Mega
+
+  @Column({ nullable: true })
+  euronorm: string; // e.g. Euro 5, Euro 6
+
+  @Column('simple-array', { nullable: true })
+  features: string[]; // e.g. ['ADR', 'Lift', 'Frigo']
+
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
   payloadCapacity: number;
 

@@ -1,4 +1,9 @@
-import { useSaveConfirm } from "../components/SaveConfirmProvider";
+const fs = require('fs');
+const path = require('path');
+
+const pagePath = path.join(__dirname, 'client/src/pages/TrucksPage.tsx');
+
+const content = `import { useSaveConfirm } from "../components/SaveConfirmProvider";
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Pencil, Trash2, Search, AlertCircle, Download, Truck as TruckIcon, Info, Users, ExternalLink, Settings, Battery, CheckCircle2, ChevronRight, Fuel, Wrench, Settings2 } from 'lucide-react';
@@ -61,7 +66,7 @@ export default function TrucksPage() {
   const executeDelete = async () => {
     if (!deleteId) return;
     try {
-      await api.delete(`/trucks/${deleteId}`);
+      await api.delete(\`/trucks/\${deleteId}\`);
       toast.success(t('truckDeleted', 'Camion șters cu succes'));
       load();
     } catch {
@@ -102,7 +107,7 @@ export default function TrucksPage() {
       };
 
       if (editId) {
-        await api.patch(`/trucks/${editId}`, payload);
+        await api.patch(\`/trucks/\${editId}\`, payload);
         toast.success(t('truckUpdated', 'Camion actualizat'));
       } else {
         await api.post('/trucks', payload);
@@ -221,7 +226,7 @@ export default function TrucksPage() {
                   {FEATURES.map(feat => {
                     const active = form.features?.includes(feat.id);
                     return (
-                      <button type="button" key={feat.id} onClick={() => toggleFeature(feat.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 ${active ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-surface border-border text-text-secondary hover:border-text-muted'}`}>
+                      <button type="button" key={feat.id} onClick={() => toggleFeature(feat.id)} className={\`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 \${active ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-surface border-border text-text-secondary hover:border-text-muted'}\`}>
                         <feat.icon className="w-3.5 h-3.5" />
                         {t(feat.label, feat.default)}
                       </button>
@@ -293,7 +298,7 @@ export default function TrucksPage() {
                     </div>
                     <div>
                       <h3 className="text-lg font-black text-text-primary tracking-tight">{truck.plateNumber}</h3>
-                      <p className="text-xs font-semibold text-text-secondary">{truck.brand} {truck.model} {truck.year ? `• ${truck.year}` : ''}</p>
+                      <p className="text-xs font-semibold text-text-secondary">{truck.brand} {truck.model} {truck.year ? \`• \${truck.year}\` : ''}</p>
                     </div>
                   </div>
 
@@ -349,12 +354,12 @@ export default function TrucksPage() {
                     <div className="bg-surface/50 rounded-xl p-3 flex flex-col justify-center items-center text-center border border-border/50">
                       <Fuel className="w-4 h-4 text-text-secondary mb-1" />
                       <span className="text-[10px] text-text-secondary font-semibold uppercase">{t('fuelConsumption', 'Consum')}</span>
-                      <span className="font-bold text-sm text-text-primary">{truck.fuelConsumption ? `${truck.fuelConsumption} L` : '-'}</span>
+                      <span className="font-bold text-sm text-text-primary">{truck.fuelConsumption ? \`\${truck.fuelConsumption} L\` : '-'}</span>
                     </div>
                     <div className="bg-surface/50 rounded-xl p-3 flex flex-col justify-center items-center text-center border border-border/50">
                       <Battery className="w-4 h-4 text-text-secondary mb-1" />
                       <span className="text-[10px] text-text-secondary font-semibold uppercase">{t('costPerKm', 'Cost / km')}</span>
-                      <span className="font-bold text-sm text-text-primary">{truck.costPerKm ? `€${truck.costPerKm}` : '-'}</span>
+                      <span className="font-bold text-sm text-text-primary">{truck.costPerKm ? \`€\${truck.costPerKm}\` : '-'}</span>
                     </div>
                   </div>
 
@@ -401,3 +406,7 @@ export default function TrucksPage() {
 const PackageIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
 );
+`;
+
+fs.writeFileSync(pagePath, content, 'utf8');
+console.log('TrucksPage rewritten successfully');

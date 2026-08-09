@@ -632,6 +632,16 @@ export default function PlanningPage() {
                                 : <span className="px-1.5 py-0.5 text-[9px] font-black rounded border bg-surface text-text-muted border-border uppercase">Liber</span>}
                               {stats.futureTripsCount > 0 && <span className="px-1.5 py-0.5 text-[9px] font-black rounded border bg-purple-100 text-purple-700 border-purple-200">+{stats.futureTripsCount} cursă</span>}
                             </div>
+                            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                              <span className="px-1.5 py-0.5 text-[9px] font-bold rounded border bg-blue-50 text-blue-700 border-blue-200">
+                                {truck.truckType === 'frigo' ? 'Frigo' : truck.truckType === 'mega' ? 'Mega' : truck.truckType === 'flatbed' ? 'Flatbed' : truck.truckType === 'box' ? 'Box' : truck.truckType === 'isoterm' ? 'Izoterm' : 'Tautliner'}
+                              </span>
+                              <span className="px-1.5 py-0.5 text-[9px] font-bold rounded border bg-gray-100 text-gray-700 border-gray-200">
+                                {truck.euronorm || 'Euro 6'}
+                              </span>
+                              {truck.features?.includes('adr') && <span className="px-1.5 py-0.5 text-[9px] font-bold rounded border bg-red-50 text-red-700 border-red-200">ADR</span>}
+                              {truck.features?.includes('lift') && <span className="px-1.5 py-0.5 text-[9px] font-bold rounded border bg-orange-50 text-orange-700 border-orange-200">Lift</span>}
+                            </div>
                             {hasWarning && <span className="text-red-500 flex items-center gap-1 text-xs font-bold mt-0.5">
                                 <AlertTriangle className="w-3.5 h-3.5" />{t("jsx_suprasarcin")}</span>}
                           </div>
