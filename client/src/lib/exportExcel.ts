@@ -22,7 +22,7 @@ const ZEBRA = 'FFF7F0';
 const ACCENT = 'FFE8D5';
 const TEXT_DARK = 'FF1F2937';
 const WHITE = 'FFFFFFFF';
-const BANNER_GRAY = 'FF4B5563';
+const BANNER_GRAY = 'FF5B6472';
 const EMU_PER_PX = 9525;
 
 const HEADER_ICON_URL = headerIconUrl || null;
@@ -308,6 +308,14 @@ export async function exportExcel(opts: ExcelExportOptions): Promise<void> {
   if (rows.length > 0) {
     ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: rows.length + 4, column: colCount } };
   }
+
+  // ── Lock the logo: protect objects, but keep every cell editable ──
+  for (let r = 1; r <= footIdx; r++) {
+    for (let c = 1; c <= colCount; c++) {
+      ws.getCell(r, c).protection = { locked: false };
+    }
+  }
+  await ws.protect('', { objects: false });
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
