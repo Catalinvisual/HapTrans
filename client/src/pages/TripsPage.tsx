@@ -7,7 +7,6 @@ import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Pagination from '../components/Pagination';
 import DataTable from '../components/ui/DataTable';
 import type { Column } from '../components/ui/DataTable';
-import PageHeader from '../components/ui/PageHeader';
 import KpiStrip from '../components/ui/KpiStrip';
 import DetailDrawer from '../components/ui/DetailDrawer';
 import type { TabDef } from '../components/ui/DetailDrawer';
@@ -328,20 +327,10 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
 
   return (
     <div className="max-w-[1700px] mx-auto space-y-4 animate-fade-in">
-      <PageHeader
-        title={t('page_trips', 'Transport trips')}
-        subtitle={t('page_trips_sub', 'Plan, dispatch and monitor every journey')}
-        icon={Truck}
-        actions={[
-          { label: t('export_csv', 'Export CSV'), icon: Download, variant: 'secondary', onClick: () => openExport(sorted) },
-          { label: t('go_to_planning', 'Dispatch board'), icon: Calendar, variant: 'primary', onClick: () => navigate('/planning') },
-        ]}
-      />
-
       <KpiStrip items={kpis} />
 
       <div className="card p-0 overflow-hidden border border-border">
-        <div className="p-3.5 border-b border-border bg-surface/30 flex flex-col gap-3">
+        <div className="p-3 border-b border-border bg-surface/30 flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
@@ -363,7 +352,13 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
                 <FilterXIcon className="w-3.5 h-3.5" />{t('clear_filters', 'Clear')}
               </button>
             )}
-            <span className="ml-auto text-xs text-text-secondary font-medium">{filtered.length} {t('results', 'results')}</span>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs text-text-secondary font-medium">{filtered.length} {t('results', 'results')}</span>
+            <div className="flex items-center gap-2">
+              <button onClick={() => openExport(sorted)} className="btn-secondary py-2 px-3 text-sm font-semibold inline-flex items-center gap-2"><Download className="w-4 h-4" />{t('export_csv', 'Export CSV')}</button>
+              <button onClick={() => navigate('/planning')} className="btn-primary py-2 px-3 text-sm font-semibold inline-flex items-center gap-2"><Calendar className="w-4 h-4" />{t('go_to_planning', 'Dispatch board')}</button>
+            </div>
           </div>
         </div>
 

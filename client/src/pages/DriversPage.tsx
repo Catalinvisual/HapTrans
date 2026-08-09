@@ -16,7 +16,6 @@ import { useShortcuts } from '../hooks/useShortcuts';
 import { useTableShortcuts } from '../hooks/useTableShortcuts';
 import DataTable from '../components/ui/DataTable';
 import type { Column } from '../components/ui/DataTable';
-import PageHeader from '../components/ui/PageHeader';
 import KpiStrip from '../components/ui/KpiStrip';
 import DetailDrawer from '../components/ui/DetailDrawer';
 import type { TabDef } from '../components/ui/DetailDrawer';
@@ -455,36 +454,30 @@ export default function DriversPage() {
   ] : [];
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-[1600px] mx-auto pb-10">
-
-      <PageHeader
-        title={t('page_drivers', 'Drivers')}
-        subtitle={t('page_drivers_sub', 'Manage the team, documents and statuses')}
-        breadcrumb={[t('nav', 'Team'), t('page_drivers', 'Drivers')]}
-        actions={
-          <button onClick={() => { setEditId(null); setForm({ name: '', email: '', password: '', phone: '', licenseNumber: '', dailyRate: '', grossSalary: '', licenseExpiry: '', medicalExpiry: '', tachoCardExpiry: '', status: 'available', truckId: '' }); setShowForm(true); }} className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold">
-            <Plus className="w-4 h-4" /> {t('addDriver', 'Add Driver')}
-          </button>
-        }
-      />
+    <div className="space-y-4 animate-fade-in max-w-[1600px] mx-auto pb-10">
 
       <KpiStrip items={kpis} />
 
       <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
-        <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3 flex-1 max-w-md">
-            <div className="relative flex-1">
+        <div className="p-3 border-b border-border flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-1 min-w-[300px]">
+            <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
               <input className="input pl-9 py-2 text-sm w-full" placeholder={t('search_drivers', 'Search driver, email, license...')} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <CustomSelect className="w-40" value={filters.status} onChange={v => setFilters({ status: v })} options={statusOptions} />
-            <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold">
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
+              {filtered.length} {t('results', 'results')}
+            </span>
+            <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold">
               <Download className="w-4 h-4" /> {t('export', 'Export')}
             </button>
+            <button onClick={() => { setEditId(null); setForm({ name: '', email: '', password: '', phone: '', licenseNumber: '', dailyRate: '', grossSalary: '', licenseExpiry: '', medicalExpiry: '', tachoCardExpiry: '', status: 'available', truckId: '' }); setShowForm(true); }} className="btn-primary flex items-center gap-2 py-2 px-3 text-sm font-semibold">
+              <Plus className="w-4 h-4" /> {t('addDriver', 'Add Driver')}
+            </button>
           </div>
-          <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
-            {filtered.length} {t('results', 'results')}
-          </span>
         </div>
 
         <DataTable

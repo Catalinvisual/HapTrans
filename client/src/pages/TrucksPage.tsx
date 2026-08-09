@@ -10,7 +10,6 @@ import { useFormStore } from '../store/formStore';
 import Pagination from '../components/Pagination';
 import DataTable from '../components/ui/DataTable';
 import type { Column } from '../components/ui/DataTable';
-import PageHeader from '../components/ui/PageHeader';
 import KpiStrip from '../components/ui/KpiStrip';
 import DetailDrawer from '../components/ui/DetailDrawer';
 import type { TabDef } from '../components/ui/DetailDrawer';
@@ -425,38 +424,30 @@ export default function TrucksPage() {
   ] : [];
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-[1600px] mx-auto pb-10">
-      <PageHeader
-        title={t('page_trucks', 'Trucks')}
-        subtitle={t('page_trucks_sub', 'Manage the fleet, assign drivers and track maintenance')}
-        breadcrumb={[t('nav', 'Fleet'), t('page_trucks', 'Trucks')]}
-        actions={
-          <>
-            <button onClick={() => { setForm(initialForm); setShowForm(true); setEditId(null); }} className="btn-primary py-2 px-4 flex items-center gap-2 text-sm font-semibold shadow-md shadow-primary/20">
-              <Plus className="w-4 h-4" /> {t('addTruck', 'Add Truck')}
-            </button>
-          </>
-        }
-      />
-
+    <div className="space-y-4 animate-fade-in max-w-[1600px] mx-auto pb-10">
       <KpiStrip items={kpis} />
 
       <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3 flex-1 max-w-md">
-            <div className="relative flex-1">
+        <div className="p-3 border-b border-border flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-1 min-w-[300px]">
+            <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
               <input className="input pl-9 py-2 text-sm w-full" placeholder={t('search_trucks', 'Search truck, driver...')} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <CustomSelect className="w-40" value={filters.status} onChange={v => setFilters(f => ({ ...f, status: v }))} options={statusOptions} />
             <CustomSelect className="w-44" value={filters.type} onChange={v => setFilters(f => ({ ...f, type: v }))} options={typeOptions} />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-3 py-1.5 rounded-lg border border-border">
+              {filtered.length} {t('results', 'results')}
+            </span>
             <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold">
               <Download className="w-4 h-4" /> <span className="hidden sm:inline">{t('export', 'Export')}</span>
             </button>
+            <button onClick={() => { setForm(initialForm); setShowForm(true); setEditId(null); }} className="btn-primary py-2 px-3 flex items-center gap-2 text-sm font-semibold shadow-md shadow-primary/20">
+              <Plus className="w-4 h-4" /> {t('addTruck', 'Add Truck')}
+            </button>
           </div>
-          <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-3 py-1.5 rounded-lg border border-border">
-            {filtered.length} {t('results', 'results')}
-          </span>
         </div>
 
         <DataTable
