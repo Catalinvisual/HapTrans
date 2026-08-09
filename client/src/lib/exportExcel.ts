@@ -1,4 +1,5 @@
-import footerLogoUrl from '../assets/footer-logo.png?inline';
+import headerIconUrl from '../assets/logo-icon.png?inline';
+import api from './api';
 
 export interface ExcelHeader {
   key: string;
@@ -23,8 +24,7 @@ const ACCENT = 'FFE8D5';
 const TEXT_DARK = 'FF1F2937';
 const WHITE = 'FFFFFFFF';
 
-const LOGO_BASE64 = footerLogoUrl.split(',')[1] || '';
-const LOGO_RATIO = 1018 / 245;
+const HEADER_ICON_URL = headerIconUrl || null;
 
 function solid(color: string) {
   return { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: color } };
@@ -42,14 +42,90 @@ function charWidth(s: string): number {
   return w;
 }
 
-function colStartUnits(ws: any, upToCol: number): number {
-  let total = 0;
-  for (let c = 1; c < upToCol; c++) total += ws.getColumn(c).width || 10;
-  return total;
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('image load failed'));
+    img.src = src;
+  });
 }
 
-async function loadLogoBase64(): Promise<string | null> {
-  return LOGO_BASE64 || null;
+function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+async function fetchSettingsLogoSrc(): Promise<string | null> {
+  try {
+    const res = await api.get('/public/company-settings');
+    const logo = res.data?.logo;
+    if (typeof logo === 'string' && logo.trim()) return logo.trim();
+  } catch {
+    /* settings not available */
+  }
+  return null;
+}
+
+async function toDataUrl(src: string): Promise<string> {
+  try {
+    const response = await fetch(src, { cache: 'no-store' });
+    if (!response.ok) return src;
+    const blob = await response.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error('file read failed'));
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return src;
+  }
+}
+
+async function buildLogoBadge(bannerH: number): Promise<{ b64: string; width: number; height: number } | null> {
+  try {
+    let src = await fetchSettingsLogoSrc();
+    if (!src) src = HEADER_ICON_URL;
+    if (!src) return null;
+    if (src.startsWith('http')) src = await toDataUrl(src);
+    const img = await loadImage(src);
+    if (!img.naturalWidth || !img.naturalHeight) return null;
+
+    const badgeH = Math.min(44, Math.round(bannerH - 4));
+    const maxLogoW = 240;
+    const maxLogoH = badgeH - 14;
+    const ratio = img.naturalWidth / img.naturalHeight;
+    let lw: number;
+    let lh: number;
+    if (ratio > maxLogoW / maxLogoH) {
+      lw = maxLogoW;
+      lh = Math.round(maxLogoW / ratio);
+    } else {
+      lh = maxLogoH;
+      lw = Math.round(maxLogoH * ratio);
+    }
+    const badgeW = Math.max(48, Math.round(lw + 24));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = badgeW;
+    canvas.height = badgeH;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.fillStyle = '#FFFFFF';
+    roundRectPath(ctx, 0, 0, badgeW, badgeH, 12);
+    ctx.fill();
+    ctx.drawImage(img, (badgeW - lw) / 2, (badgeH - lh) / 2, lw, lh);
+    return { b64: canvas.toDataURL('image/png').split(',')[1] || '', width: badgeW, height: badgeH };
+  } catch {
+    return null;
+  }
 }
 
 export async function exportExcel(opts: ExcelExportOptions): Promise<void> {
@@ -87,8 +163,6 @@ export async function exportExcel(opts: ExcelExportOptions): Promise<void> {
     ws.getColumn(i + 1).width = w;
   });
 
-  const totalPx = colStartUnits(ws, colCount + 1) * 7;
-
   const rowH1 = 28;
   const rowH2 = 18;
   const bannerH = rowH1 + rowH2;
@@ -101,47 +175,35 @@ export async function exportExcel(opts: ExcelExportOptions): Promise<void> {
     ws.getCell(2, c).fill = solid(PRIMARY);
   }
 
-  // White logo chip on the LEFT; title + subtitle to its right
-  let titleCol = 1;
-  const logoB64 = await loadLogoBase64();
-  if (logoB64) {
-    let logoW = 190;
-    let logoH = 46;
-    if (totalPx < 480) {
-      logoW = Math.round(totalPx * 0.38);
-      logoH = Math.round(logoW / LOGO_RATIO);
-    }
-    let chipEnd = 1;
-    let chipPx = 0;
-    const maxChipCols = Math.max(1, colCount - 2);
-    while (chipEnd < maxChipCols && chipPx < logoW + 20) {
-      chipEnd += 1;
-      chipPx += (ws.getColumn(chipEnd).width || 10) * 7;
-    }
-    if (chipPx - 10 < logoW) {
-      logoW = Math.max(60, chipPx - 10);
-      logoH = Math.round(logoW / LOGO_RATIO);
-    }
-    for (let c = 1; c <= chipEnd; c++) {
-      ws.getCell(1, c).fill = solid(WHITE);
-      ws.getCell(2, c).fill = solid(WHITE);
-    }
-    const leftUnits = (chipPx - logoW) / 14;
-    const rowAnchor = (bannerH - logoH) / 2 / bannerH;
-    const imageId = wb.addImage({ base64: logoB64, extension: 'png' });
-    ws.addImage(imageId, { tl: { col: Math.max(0, leftUnits), row: rowAnchor }, ext: { width: logoW, height: logoH } });
-    titleCol = chipEnd + 1;
+  // Header logo from SaaS Settings (same as the sidebar header), on a tight
+  // white badge, so the orange banner runs full-width from column A
+  let titleIndent = 0;
+  let subIndent = 0;
+  const badge = await buildLogoBadge(bannerH);
+  if (badge) {
+    const imageId = wb.addImage({ base64: badge.b64, extension: 'png' });
+    ws.addImage(imageId, {
+      tl: { col: 0.04, row: (bannerH - badge.height) / 2 / bannerH },
+      ext: { width: badge.width, height: badge.height },
+    });
+    // Push title/subtitle clear of the badge regardless of column widths
+    const titlePx = badge.width + 18;
+    titleIndent = Math.ceil(titlePx / 15);
+    subIndent = Math.ceil(titlePx / 8);
   }
 
-  const titleCell = ws.getCell(1, titleCol);
+  ws.mergeCells(1, 1, 1, colCount);
+  ws.mergeCells(2, 1, 2, colCount);
+
+  const titleCell = ws.getCell(1, 1);
   titleCell.value = title;
   titleCell.font = { name: 'Calibri', size: 22, bold: true, color: { argb: WHITE } };
-  titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+  titleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: titleIndent };
 
-  const subCell = ws.getCell(2, titleCol);
+  const subCell = ws.getCell(2, 1);
   subCell.value = subtitle;
   subCell.font = { name: 'Calibri', size: 11, color: { argb: 'FFFDEFDE' } };
-  subCell.alignment = { vertical: 'middle', horizontal: 'left' };
+  subCell.alignment = { vertical: 'middle', horizontal: 'left', indent: subIndent };
 
   // ── Row 3: accent strip ─────────────────────────────────────
   const r3 = ws.getRow(3); r3.height = 4;
