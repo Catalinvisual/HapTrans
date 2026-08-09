@@ -236,19 +236,25 @@ export default function TripDetailsPage() {
                       
                       {/* Tasks List for this Stop */}
                       {stop.tasks && stop.tasks.length > 0 && <div className="mt-3 space-y-2">
-                          {stop.tasks.map((task: any) => <div key={task.id} className={`bg-${markerColor}-50/50 p-3 rounded-xl border border-${markerColor}-100/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3`}>
-                              <div>
-                                <div className={`text-sm font-semibold text-${markerColor}-900 flex items-center gap-2`}>
-                                  <Box className={`w-4 h-4 text-${markerColor}-500`} />
-                                  <span className="capitalize">{t(task.type === 'load' ? 'loading_stop' : task.type === 'unload' ? 'unloading_stop' : task.type)}</span> - {t('orderRef', 'Order')}: {task.type === 'unload' && task.order?.unloadingReference ? task.order.unloadingReference : (task.order?.customerReference || task.order?.orderNumber || '#N/A')}
-                                </div>
+                          {stop.tasks.map((task: any) => {
+                              const loadRef = task.order?.loadingReference || task.order?.stops?.find((s: any) => s.type === 'pickup')?.reference || task.order?.customerReference || task.order?.orderNumber || '#N/A';
+                              const unloadRef = task.order?.unloadingReference || task.order?.stops?.find((s: any) => s.type === 'dropoff')?.reference || task.order?.customerReference || task.order?.orderNumber || '#N/A';
+                              const displayRef = task.type === 'unload' ? unloadRef : loadRef;
+                              
+                              return <div key={task.id} className={`bg-${markerColor}-50/50 p-3 rounded-xl border border-${markerColor}-100/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3`}>
+                                <div>
+                                  <div className={`text-sm font-semibold text-${markerColor}-900 flex items-center gap-2`}>
+                                    <Box className={`w-4 h-4 text-${markerColor}-500`} />
+                                    <span className="capitalize">{t(task.type === 'load' ? 'loading_stop' : task.type === 'unload' ? 'unloading_stop' : task.type)}</span> - {t('orderRef', 'Order')}: {displayRef}
+                                  </div>
                                 <div className="text-xs text-text-secondary mt-1">
                                   {task.plannedTime ? formatDate(task.plannedTime) : '-'} | {t('pallets')}: {task.pallets || 0} ({task.weightKg || 0}{t("jsx_kg")}</div>
                               </div>
                               <span className={`text-xs font-bold px-2 py-1 rounded bg-white border shadow-sm ${task.status === 'completed' ? 'border-green-200 text-green-700' : 'border-gray-200 text-gray-600'}`}>
                                 {t(task.status)}
                               </span>
-                            </div>)}
+                            </div>
+                          })}
                         </div>}
                     </div>;
             }) :
