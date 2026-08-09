@@ -118,35 +118,7 @@ const resources = {
       "invoices": "Facturi",
       "financial": "Financiar",
       "payroll": "Salarizare",
-      "mainten,
-      "jsx_reference": "Reference"
-    ,
-      "jsx_timeUntil": "Time Until"
-    ,
-      "jsx_timeFrom": "Time From"
-    ,
-      "jsx_date": "Date"
-    ,
-      "noStops": "No stops exist to calculate capacity."
-    ,
-      "jsx_optimize": "Smart Optimize"
-    ,
-      "truckCapacity": "Leg-by-Leg Capacity"
-    ,
-      "jsx_reference": "Referință"
-    ,
-      "jsx_timeUntil": "Până la"
-    ,
-      "jsx_timeFrom": "De la"
-    ,
-      "jsx_date": "Data"
-    ,
-      "noStops": "Nu există stopuri pentru a calcula capacitatea."
-    ,
-      "jsx_optimize": "Optimizare Inteligentă"
-    ,
-      "truckCapacity": "Capacitate pe Segmente (Leg-by-Leg)"
-    ance": "Mentenanță",
+      "maintenance": "Mentenanță",
       "expenses": "Cheltuieli",
       "websiteCms": "Website Hub",
       "users": "Utilizatori",
@@ -578,21 +550,7 @@ const resources = {
       jsx_unitTypeOpti: "Unit Type (Optional)",
       jsx_weightKgOp: "Weight (kg) (Optional)",
       jsx_volumeMOp: "Volume (m³) (Optional)",
-      jsx_lDMOptional: "LDM (,
-      "jsx_reference": "Référence"
-    ,
-      "jsx_timeUntil": "Heure de Fin"
-    ,
-      "jsx_timeFrom": "Heure de Début"
-    ,
-      "jsx_date": "Date"
-    ,
-      "noStops": "Aucun arrêt pour calculer la capacité."
-    ,
-      "jsx_optimize": "Optimisation Intelligente"
-    ,
-      "truckCapacity": "Capacité par Segment (Leg-by-Leg)"
-    Optional)",
+      jsx_lDMOptional: "LDM (Optional)",
       jsx_cargoDimension: "Cargo Dimensions (L / W / H cm)",
       jsx_stackable: "Stackable",
       jsx_fragile: "Fragile",
@@ -606,84 +564,14 @@ const resources = {
       cost_consumption: "Consum mediu (L/100km)",
       cost_fuel_price: "Preț combustibil (€/L)",
       cost_need_addresses: "⚠ Validează adresele de ridicare și livrare la Pasul 2 pentru a activa calculul.",
-      cost_click_calculate: "Apasă \"Calculează Costurile\" pentru a estima costurile de tr,
-      "jsx_reference": "Referentie"
-    ,
-      "jsx_timeUntil": "Tijd Tot"
-,
-      "jsx_reference": "Referenz"
-    ,
-      "jsx_timeUntil": "Zeit Bis"
-    ,
-      "jsx_timeFrom": "Zeit Von"
-    ,
-      "jsx_date": "Datum"
-    ,
-      "noStops": "Es gibt keine Stopps, um die Kapazität zu berechnen."
-    ,
-      "jsx_optimize": "Intelligente Optimierung"
-    ,
-      "truckCapacity": "Etappenweise Kapazität"
-        ,
-      "jsx_timeFrom": "Tijd Van"
-    ,
-      "jsx_date": "Datum"
-    ,
-      "noStops": "Er zijn geen stops om de capaciteit te berekenen."
-    ,
-      "jsx_optimize": "Slim Optimaliseren"
-    ,
-      "truckCapacity": "Segment-per-Segment Capaciteit"
-    ansport pe acest traseu.",
+      cost_click_calculate: "Apasă \"Calculează Costurile\" pentru a estima costurile de transport pe acest traseu.",
       cost_route_distance: "Traseu",
       cost_fuel_cost: "Cost combustibil",
       cost_toll: "Taxe de drum (Toll)",
       cost_total_cost: "Cost total estimat",
       cost_agreed_price: "Preț agreat",
-      cost_e,
-      "truckCapacity": "Capacitate pe Segmente (Leg-by-Leg)"
-    ,
-      "jsx_optimize": "Optimizare Inteligentă"
-    ,
-      "noStops": "Nu există stopuri pentru a calcula capacitatea."
-    ,
-      "jsx_date": "Data"
-    ,
-      "jsx_timeFrom": "De la"
-    ,
-      "jsx_timeUntil": "Până la"
-    ,
-      "jsx_reference": "Referință"
-    stimated_profit: "Profit estimat",
-      cost_profitable: "Comanda este profitabilă. Marja: {{ma,
-      "jsx_reference": "Referentie"
-    ,
-      "jsx_timeUntil": "Tijd Tot"
-,
-      "jsx_reference": "Referenz"
-    ,
-      "jsx_timeUntil": "Zeit Bis"
-    ,
-      "jsx_timeFrom": "Zeit Von"
-    ,
-      "jsx_date": "Datum"
-    ,
-      "noStops": "Es gibt keine Stopps, um die Kapazität zu berechnen."
-    ,
-      "jsx_optimize": "Intelligente Optimierung"
-    ,
-      "truckCapacity": "Etappenweise Kapazität"
-        ,
-      "jsx_timeFrom": "Tijd Van"
-    ,
-      "jsx_date": "Datum"
-    ,
-      "noStops": "Er zijn geen stops om de capaciteit te berekenen."
-    ,
-      "jsx_optimize": "Slim Optimaliseren"
-    ,
-      "truckCapacity": "Segment-per-Segment Capaciteit"
-    rgin}}%",
+      cost_estimated_profit: "Profit estimat",
+      cost_profitable: "Comanda este profitabilă. Marja: {{margin}}%",
       cost_unprofitable_title: "⚠ Atenție: Comandă neprofitabilă!",
       cost_unprofitable_desc: "Prețul agreat este mai mic decât costurile estimate de transport. Poți continua, dar această comandă va funcționa în pierdere.",
       cost_unprofitable_confirm: "Înțeleg și accept această comandă neprofitabilă",
@@ -1347,6 +1235,13 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
       drag_hint: '☰ Trage comanda pe un camion din dreapta',
       no_driver_option: 'Fără Șofer',
       truck_label: 'Cursă',
+      "truckCapacity": "Capacitate pe Segmente (Leg-by-Leg)",
+      "jsx_optimize": "Optimizare Inteligentă",
+      "noStops": "Nu există stopuri pentru a calcula capacitatea.",
+      "jsx_date": "Data",
+      "jsx_timeFrom": "De la",
+      "jsx_timeUntil": "Până la",
+      "jsx_reference": "Referință"
     },
   },
   frBase: { translation: {
@@ -3804,6 +3699,13 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
       drag_hint: "☰ Drag an order onto a truck on the right",
       no_driver_option: "No Driver",
       truck_label: "Trip",
+      "truckCapacity": "Leg-by-Leg Capacity",
+      "jsx_optimize": "Smart Optimize",
+      "noStops": "No stops exist to calculate capacity.",
+      "jsx_date": "Date",
+      "jsx_timeFrom": "Time From",
+      "jsx_timeUntil": "Time Until",
+      "jsx_reference": "Reference"
     },
   },
   nl: { translation: {
@@ -5062,7 +4964,14 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
       drag_hint: "☰ Sleep een bestelling naar een vrachtwagen aan de rechterkant",
       no_driver_option: "Geen Chauffeur",
       truck_label: "Rit",
-},
+      "truckCapacity": "Segment-per-Segment Capaciteit",
+      "jsx_optimize": "Slim Optimaliseren",
+      "noStops": "Er zijn geen stops om de capaciteit te berekenen.",
+      "jsx_date": "Datum",
+      "jsx_timeFrom": "Tijd Van",
+      "jsx_timeUntil": "Tijd Tot",
+      "jsx_reference": "Referentie"
+    },
   },
   de: { translation: {
       "maxWeightKg": "Max Weight (kg)",
