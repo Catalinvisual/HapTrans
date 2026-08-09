@@ -257,39 +257,31 @@ export default function PlanningPage() {
         const proceed = window.confirm(`Atenție! Probleme detectate:\n\n${warnings.join('\n')}\n\nContinuați?`);
         if (!proceed) return;
       }
-      const existingTrip = trips.find(tr => tr.truck?.id === truckId && tr.status === 'planned');
-      if (existingTrip) {
-        await api.post(`/trips/${existingTrip.id}/assign-orders`, {
-          orderIds: [orderId]
-        });
-        await api.patch(`/orders/${orderId}`, {
-          status: 'assigned'
-        });
-        toast.success(`✅ ${t('assigned_to_existing_trip', {
-          plate: truck.plateNumber
-        })}`);
+      // Smart TMS logic: find the right trip to add the order to
+      const { trip: targetTrip, isNew } = getTargetTripForOrder(truckId, order);
+
+      const pickupStop = order.stops?.find((s: any) => s.type === 'pickup');
+      const dropoffStop = order.stops?.find((s: any) => s.type === 'dropoff');
+
+      if (!isNew && targetTrip) {
+        // GROUPAGE: Add to existing planned trip in same time window
+        await api.post(`/trips/${targetTrip.id}/assign-orders`, { orderIds: [orderId] });
+        toast.success(`✅ Comanda adăugată la Cursa ${targetTrip.tripNumber || ''} (${truck.plateNumber})`);
       } else {
+        // NEW TRIP: Create a dedicated trip and assign
         const tripRes = await api.post('/trips', {
           truckId,
           driverId: truck.driver?.id || null,
           status: 'planned',
           price: order.price ? Number(order.price) : undefined,
           currency: order.currency || 'EUR',
-          tripNumber: order.orderNumber || order.referenceNumber || `TR-${Date.now().toString().slice(-6)}`,
-          pickupAddress: order.stops?.find((s: any) => s.type === 'pickup')?.address || '',
-          dropoffAddress: order.stops?.find((s: any) => s.type === 'dropoff')?.address || '',
-          pickupDate: order.stops?.find((s: any) => s.type === 'pickup')?.scheduledDate || new Date().toISOString(),
-          dropoffDate: order.stops?.find((s: any) => s.type === 'dropoff')?.scheduledDate || new Date(Date.now() + 86400000).toISOString()
+          plannedDeparture: pickupStop?.dateFrom || pickupStop?.scheduledDate || new Date().toISOString(),
+          plannedArrival: dropoffStop?.dateFrom || dropoffStop?.scheduledDate || new Date(Date.now() + 86400000).toISOString(),
+          pickupAddress: pickupStop?.address || '',
+          dropoffAddress: dropoffStop?.address || '',
         });
-        await api.post(`/trips/${tripRes.data.id}/assign-orders`, {
-          orderIds: [orderId]
-        });
-        await api.patch(`/orders/${orderId}`, {
-          status: 'assigned'
-        });
-        toast.success(`✅ ${t('new_trip_created_assigned', {
-          plate: truck.plateNumber
-        })}`);
+        await api.post(`/trips/${tripRes.data.id}/assign-orders`, { orderIds: [orderId] });
+        toast.success(`✅ Cursă nouă creată pentru ${truck.plateNumber}`);
       }
       await loadData();
     } catch (err: any) {
@@ -365,89 +357,123 @@ export default function PlanningPage() {
 
   const unassigned = orders.filter(o => ['draft', 'new', 'pending'].includes(o.status));
   const filteredUnassigned = searchQuery ? unassigned.filter(o => (o.orderNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) || (o.referenceNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) || (o.client?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || o.stops?.some((s: any) => (s.address || '').toLowerCase().includes(searchQuery.toLowerCase()))) : unassigned;
+  // TMS Logic: a truck can have multiple trips planned (sequential).
+  // We show ONE trip at a time: the ACTIVE trip if currently on road,
+  // or the NEXT PLANNED trip. Capacity = that single trip's load only.
+  const IN_PROGRESS_STATUSES = ['dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'];
+  const PLANNED_STATUSES = ['planning', 'planned', 'assigned'];
+
+  const getTruckAllTrips = (truckId: string) => {
+    const all = trips.filter(tr => tr.truck?.id === truckId);
+    const inProgress = all.filter(tr => IN_PROGRESS_STATUSES.includes(tr.status));
+    const planned = all
+      .filter(tr => PLANNED_STATUSES.includes(tr.status))
+      .sort((a: any, b: any) => {
+        const da = a.plannedDeparture ? new Date(a.plannedDeparture).getTime() : new Date(a.createdAt || 0).getTime();
+        const db = b.plannedDeparture ? new Date(b.plannedDeparture).getTime() : new Date(b.createdAt || 0).getTime();
+        return da - db;
+      });
+    return { inProgress, planned, all };
+  };
+
   const getTruckStats = (truckId: string) => {
-    const activeStatuses = ['planning', 'planned', 'dispatched', 'assigned', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'];
-    const activeTrips = trips.filter(tr => tr.truck?.id === truckId && activeStatuses.includes(tr.status));
+    const empty = { weight: 0, ldm: 0, pallets: 0, count: 0, orders: [], tripId: null, tripNumber: null, driverId: null, stops: [], isActive: false, status: null, plannedDeparture: null, futureTripsCount: 0 };
+    const { inProgress, planned, all } = getTruckAllTrips(truckId);
+    // Priority: active trip first, then next planned
+    const currentTrip: any = inProgress[0] || planned[0] || null;
+    if (!currentTrip) return empty;
 
-    if (activeTrips.length === 0) return {
-      weight: 0,
-      ldm: 0,
-      pallets: 0,
-      count: 0,
-      orders: [],
-      tripId: null,
-      driverId: null,
-      stops: []
-    };
+    let weight = 0, ldm = 0, pallets = 0;
+    (currentTrip.orders || []).forEach((o: any) => o.cargoItems?.forEach((c: any) => {
+      weight += Number(c.weightKg || 0);
+      ldm += Number(c.ldm || 0);
+      pallets += Number(c.quantity || 0);
+    }));
 
-    let maxWeight = -1;
-    let maxStats: any = null;
+    const isActive = IN_PROGRESS_STATUSES.includes(currentTrip.status);
+    const futureTripsCount = all.filter(tr =>
+      [...IN_PROGRESS_STATUSES, ...PLANNED_STATUSES].includes(tr.status) && tr.id !== currentTrip.id
+    ).length;
 
-    for (const trip of activeTrips) {
-      let weight = 0;
-      let ldm = 0;
-      let pallets = 0;
-      
-      (trip.orders || []).forEach((o: any) => o.cargoItems?.forEach((c: any) => {
-        weight += Number(c.weightKg || 0);
-        ldm += Number(c.ldm || 0);
-        pallets += Number(c.quantity || 0);
-      }));
-
-      if (weight > maxWeight) {
-        maxWeight = weight;
-        maxStats = {
-          weight,
-          ldm,
-          pallets,
-          count: (trip.orders || []).length,
-          orders: trip.orders || [],
-          tripId: trip.id,
-          driverId: trip.driver?.id || null,
-          stops: trip.stops || []
-        };
-      }
-    }
-
-    if (maxStats) {
-      const allOrders = activeTrips.flatMap(t => t.orders || []);
-      maxStats.orders = Array.from(new Map(allOrders.map(o => [o.id, o])).values());
-      maxStats.count = maxStats.orders.length;
-    }
-
-    return maxStats || {
-      weight: 0, ldm: 0, pallets: 0, count: 0, orders: [], tripId: null, driverId: null, stops: []
+    return {
+      weight, ldm, pallets,
+      count: (currentTrip.orders || []).length,
+      orders: currentTrip.orders || [],
+      tripId: currentTrip.id,
+      tripNumber: currentTrip.tripNumber,
+      driverId: currentTrip.driver?.id || null,
+      stops: currentTrip.stops || [],
+      isActive,
+      status: currentTrip.status,
+      plannedDeparture: currentTrip.plannedDeparture,
+      futureTripsCount,
     };
   };
+
+  // Find which trip an order should be added to when assigned to this truck.
+  // Uses time-window matching (within 3 days) for groupage logic.
+  const getTargetTripForOrder = (truckId: string, order: any) => {
+    const { inProgress, planned } = getTruckAllTrips(truckId);
+    const orderPickupDate = order.stops?.find((s: any) => s.type === 'pickup')?.dateFrom
+      || order.stops?.find((s: any) => s.type === 'pickup')?.scheduledDate;
+
+    const findSamePeriodTrip = (tripList: any[]) => {
+      if (!orderPickupDate) return tripList[0] || null; // no date = use first
+      const pickupTime = new Date(orderPickupDate).getTime();
+      return tripList.find((tr: any) => {
+        if (!tr.plannedDeparture) return true;
+        const diff = Math.abs(pickupTime - new Date(tr.plannedDeparture).getTime());
+        return diff <= 3 * 24 * 60 * 60 * 1000; // within 3 days
+      }) || null;
+    };
+
+    if (inProgress.length === 0 && planned.length > 0) {
+      const match = findSamePeriodTrip(planned);
+      if (match) return { trip: match, isNew: false };
+    }
+    return { trip: null, isNew: true }; // create a new trip
+  };
   const getRecommendation = (truck: any, order: any) => {
-    const stats = getTruckStats(truck.id);
+    const { trip: targetTrip, isNew } = getTargetTripForOrder(truck.id, order);
     const orderWeight = order.cargoItems?.reduce((s: number, c: any) => s + Number(c.weightKg || 0), 0) || 0;
     const orderLdm = order.cargoItems?.reduce((s: number, c: any) => s + Number(c.ldm || 0), 0) || 0;
     const orderPallets = order.cargoItems?.reduce((s: number, c: any) => s + Number(c.quantity || 0), 0) || 0;
-    
     const maxWeight = truck.maxWeightKg || 24000;
     const maxLdm = truck.maxLdm || 13.6;
     const maxPallets = truck.maxPallets || 33;
-    
-    const isCompatible = stats.weight + orderWeight <= maxWeight && stats.ldm + orderLdm <= maxLdm && (stats.pallets || 0) + orderPallets <= maxPallets;
-    
-    let badge = t('compatible', 'Compatibil');
-    let color = 'bg-green-100 text-green-800 border-green-200';
-    if (stats.weight + orderWeight > maxWeight) {
-      badge = `Dep. Greutate (+${Math.round(stats.weight + orderWeight - maxWeight)} kg)`;
-      color = 'bg-red-100 text-red-800 border-red-200';
-    } else if (stats.ldm + orderLdm > maxLdm) {
-      badge = `Dep. LDM`;
-      color = 'bg-orange-100 text-orange-800 border-orange-200';
-    } else if ((stats.pallets || 0) + orderPallets > maxPallets) {
-      badge = `Dep. Paleți`;
-      color = 'bg-orange-100 text-orange-800 border-orange-200';
+    // Current load of the TARGET trip (not all trips combined!)
+    let currentWeight = 0, currentLdm = 0, currentPallets = 0;
+    if (!isNew && targetTrip) {
+      (targetTrip.orders || []).forEach((o: any) => o.cargoItems?.forEach((c: any) => {
+        currentWeight += Number(c.weightKg || 0);
+        currentLdm += Number(c.ldm || 0);
+        currentPallets += Number(c.quantity || 0);
+      }));
     }
-    return {
-      isCompatible,
-      badge,
-      color
-    };
+    const isCompatible = isNew || (
+      currentWeight + orderWeight <= maxWeight
+      && currentLdm + orderLdm <= maxLdm
+      && currentPallets + orderPallets <= maxPallets
+    );
+    let badge = isNew
+      ? `+ Cursă nouă`
+      : t('compatible', 'Compatibil');
+    let color = isNew
+      ? 'bg-blue-100 text-blue-800 border-blue-200'
+      : 'bg-green-100 text-green-800 border-green-200';
+    if (!isNew) {
+      if (currentWeight + orderWeight > maxWeight) {
+        badge = `Dep. Greutate (+${Math.round(currentWeight + orderWeight - maxWeight)} kg)`;
+        color = 'bg-red-100 text-red-800 border-red-200';
+      } else if (currentLdm + orderLdm > maxLdm) {
+        badge = `Dep. LDM`;
+        color = 'bg-orange-100 text-orange-800 border-orange-200';
+      } else if (currentPallets + orderPallets > maxPallets) {
+        badge = `Dep. Paleți`;
+        color = 'bg-orange-100 text-orange-800 border-orange-200';
+      }
+    }
+    return { isCompatible, badge, color, isNew, targetTrip, currentWeight, currentLdm, currentPallets };
   };
   const getSortedTrucks = (order: any) => trucks.map(truck => ({
     truck,
@@ -593,16 +619,24 @@ export default function PlanningPage() {
                         {/* Truck header */}
                         <div className="flex justify-between items-start mb-3">
                           <div>
-                            <h3 className="font-bold text-text-primary text-base flex items-center gap-1.5">
-                              <TruckIcon className="w-4 h-4 text-primary" />
-                              {truck.plateNumber}
-                              {truck.brand && <span className="text-xs text-text-secondary font-normal">({truck.brand})</span>}
-                            </h3>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h3 className="font-bold text-text-primary text-base flex items-center gap-1.5">
+                                <TruckIcon className="w-4 h-4 text-primary" />
+                                {truck.plateNumber}
+                                {truck.brand && <span className="text-xs text-text-secondary font-normal">({truck.brand})</span>}
+                              </h3>
+                              {stats.isActive
+                                ? <span className="px-1.5 py-0.5 text-[9px] font-black rounded border bg-green-100 text-green-700 border-green-200 uppercase">🟢 În Cursă</span>
+                                : stats.tripId
+                                ? <span className="px-1.5 py-0.5 text-[9px] font-black rounded border bg-blue-100 text-blue-700 border-blue-200 uppercase">📋 Planificat</span>
+                                : <span className="px-1.5 py-0.5 text-[9px] font-black rounded border bg-surface text-text-muted border-border uppercase">Liber</span>}
+                              {stats.futureTripsCount > 0 && <span className="px-1.5 py-0.5 text-[9px] font-black rounded border bg-purple-100 text-purple-700 border-purple-200">+{stats.futureTripsCount} cursă</span>}
+                            </div>
                             {hasWarning && <span className="text-red-500 flex items-center gap-1 text-xs font-bold mt-0.5">
                                 <AlertTriangle className="w-3.5 h-3.5" />{t("jsx_suprasarcin")}</span>}
                           </div>
                           {stats.tripId && <button onClick={() => navigate(`/trips/${stats.tripId}`)} className="flex items-center gap-1 text-xs font-bold text-primary hover:underline bg-primary/5 border border-primary/20 px-2 py-1 rounded-lg hover:bg-primary/10 transition-colors">
-                              <ExternalLink className="w-3 h-3" /> {t('truck_label', 'Cursă')}
+                              <ExternalLink className="w-3 h-3" /> {stats.tripNumber || t('truck_label', 'Cursă')}
                             </button>}
                         </div>
 
@@ -659,17 +693,31 @@ export default function PlanningPage() {
                           </div>
                         </div>
 
-                        {/* Orders in trip */}
+                        {/* Orders in current trip */}
                         <div className="mt-auto pt-3 border-t border-border/60">
-                          <p className="text-[10px] font-bold text-text-secondary mb-1.5">
-                            {stats.count === 0 ? t('no_orders_assigned', 'Nicio comandă asignată') : `${stats.count} ${t('orders_in_trip_label', 'comenzi în cursă')}`}
-                            {stats.stops.length > 0 && <span className="ml-1 text-primary">· {stats.stops.length} {t('stops_count', 'opriri')}</span>}
-                          </p>
-                          {stats.orders.slice(0, 3).map((o: any) => <div key={o.id} className="flex items-center justify-between text-[11px] bg-surface/60 border border-border/30 rounded-lg px-2 py-1 mb-1">
-                              <span className="font-bold text-primary">{o.orderNumber || o.referenceNumber || '—'}</span>
-                              <span className="text-text-secondary truncate ml-2">{o.client?.name || '—'}</span>
-                            </div>)}
-                          {stats.orders.length > 3 && <p className="text-[10px] text-text-muted text-center">+{stats.orders.length - 3}{t("jsx_maiMulte")}</p>}
+                          {!stats.tripId ? (
+                            <p className="text-[11px] text-text-muted text-center py-2 italic">Camion liber · Trage o comandă aici</p>
+                          ) : (
+                            <>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <p className="text-[10px] font-bold text-text-secondary">
+                                  {stats.count === 0 ? 'Nicio comandă' : `${stats.count} comenzi în cursă`}
+                                  {stats.stops.length > 0 && <span className="ml-1 text-primary">· {stats.stops.length} opriri</span>}
+                                </p>
+                                {stats.plannedDeparture && (
+                                  <span className="text-[9px] text-text-muted flex items-center gap-0.5">
+                                    <Calendar className="w-3 h-3" />
+                                    {new Date(stats.plannedDeparture).toLocaleDateString('ro-RO', { day: '2-digit', month: 'short' })}
+                                  </span>
+                                )}
+                              </div>
+                              {stats.orders.slice(0, 3).map((o: any) => <div key={o.id} className="flex items-center justify-between text-[11px] bg-surface/60 border border-border/30 rounded-lg px-2 py-1 mb-1">
+                                  <span className="font-bold text-primary">{o.orderNumber || o.referenceNumber || '—'}</span>
+                                  <span className="text-text-secondary truncate ml-2">{o.client?.name || '—'}</span>
+                                </div>)}
+                              {stats.orders.length > 3 && <p className="text-[10px] text-text-muted text-center">+{stats.orders.length - 3} mai multe</p>}
+                            </>
+                          )}
                         </div>
 
                       </div>;
