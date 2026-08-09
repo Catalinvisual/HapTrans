@@ -1,6 +1,6 @@
 import { Controller, Post, Get, Body, Param, UseGuards, BadRequestException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { PlanningEngine } from './planning.engine';
+import { OptimizationEngine } from './optimization.engine';
 import { SuggestionEngine } from './suggestion.engine';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -12,7 +12,7 @@ import { Truck } from '../trucks/truck.entity';
 @UseGuards(JwtAuthGuard)
 export class PlanningController {
   constructor(
-    private readonly planningEngine: PlanningEngine,
+    private readonly optimizationEngine: OptimizationEngine,
     private readonly suggestionEngine: SuggestionEngine,
     @InjectRepository(Order) private readonly orderRepo: Repository<Order>,
     @InjectRepository(Trip) private readonly tripRepo: Repository<Trip>,
@@ -28,7 +28,7 @@ export class PlanningController {
 
     const order = await this.orderRepo.findOne({
       where: { id: orderId },
-      relations: ['cargoItems']
+      relations: ['cargoItems', 'stops']
     });
     if (!order) {
       throw new BadRequestException('Order not found');
@@ -50,75 +50,16 @@ export class PlanningController {
 
     if (!trip) {
       // If no trip exists, validate compatibility with the truck/trailer itself
-      const truck = truckId ? await this.truckRepo.findOne({ where: { id: truckId } }) : null;
+      const truck = truckId ? await this.truckRepo.findOne({ where: { id: truckId }, relations: ['trailer'] }) : null;
       const fakeTrip = new Trip();
       if (truck) {
         fakeTrip.truck = truck;
+        fakeTrip.trailer = (truck as any).trailer || null;
       }
-      return this.planningEngine.validateAssignment(order, fakeTrip);
+      return this.optimizationEngine.checkAssignmentFeasibility(fakeTrip, order);
     }
 
-    return this.planningEngine.validateAssignment(order, trip);
-  }
-
-  @Get('truck-capacity/:truckId')
-  async getTruckCapacity(@Param('truckId') truckId: string) {
-    const truck = await this.truckRepo.findOne({
-      where: { id: truckId },
-    });
-    if (!truck) {
-      throw new BadRequestException('Truck not found');
-    }
-
-    // Find active/planning trip
-    const trip = await this.tripRepo.findOne({
-      where: { truck: { id: truckId }, status: 'planning' },
-      relations: ['stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.cargoItems', 'trailer']
-    });
-
-    const maxWeight = Number(truck.maxWeightKg || trip?.trailer?.payloadCapacityWeight || 24000);
-    const maxLdm = Number(trip?.trailer?.maxLdm || truck.maxLdm || 13.6);
-    const maxVolume = Number(trip?.trailer?.maxVolumeCbm || truck.maxVolumeCbm || 90);
-
-    let usedWeight = 0;
-    let usedLdm = 0;
-    let usedVolume = 0;
-
-    if (trip && trip.stops) {
-      const orderIds = new Set<string>();
-      for (const stop of trip.stops) {
-        if (stop.tasks) {
-          for (const task of stop.tasks) {
-            if (task.order) {
-              orderIds.add(task.order.id);
-            }
-          }
-        }
-      }
-
-      for (const orderId of orderIds) {
-        const tripOrder = trip.orders?.find(o => o.id === orderId);
-        if (tripOrder && tripOrder.cargoItems) {
-          for (const item of tripOrder.cargoItems) {
-            usedWeight += Number(item.weightKg || 0);
-            usedLdm += Number(item.ldm || 0);
-            usedVolume += Number(item.volumeCbm || 0);
-          }
-        }
-      }
-    }
-
-    return {
-      maxWeightKg: maxWeight,
-      maxLdm: maxLdm,
-      maxVolumeCbm: maxVolume,
-      usedWeightKg: usedWeight,
-      usedLdm: usedLdm,
-      usedVolumeCbm: usedVolume,
-      availableWeightKg: Math.max(0, maxWeight - usedWeight),
-      availableLdm: Math.max(0, maxLdm - usedLdm),
-      availableVolumeCbm: Math.max(0, maxVolume - usedVolume),
-    };
+    return this.optimizationEngine.checkAssignmentFeasibility(trip, order);
   }
 
   @Get('suggestions/:orderId')

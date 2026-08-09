@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, MapPin, Calendar, Clock, Truck, User, Layers, Scale, Box, Euro, FileText, FileBadge, Navigation, Eye, Download, Share2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Clock, Truck, User, Layers, Scale, Box, Euro, FileText, FileBadge, Navigation, Eye, Wand2, Download, Share2 } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
@@ -66,6 +66,29 @@ export default function TripDetailsPage() {
   const sortedStops = trip.stops ? [...trip.stops].sort((a: any, b: any) => a.sequence - b.sequence) : [];
   const pickupRef = trip.orders?.map((o: any) => o.loadingReference || o.stops?.find((s: any) => s.type === 'pickup')?.reference || o.customerReference).filter(Boolean).join(', ') || '-';
   const deliveryRef = trip.orders?.map((o: any) => o.unloadingReference || o.stops?.find((s: any) => s.type === 'dropoff')?.reference).filter(Boolean).join(', ') || '-';
+  
+  // Segment calculations
+  const truckMaxWeight = trip.truck?.maxWeightKg || 24000;
+  const truckMaxPallets = 33;
+  let runningWeight = 0;
+  let runningPallets = 0;
+  
+  const segments = sortedStops.map((stop, index) => {
+    let loadW = 0, loadP = 0, unloadW = 0, unloadP = 0;
+    if (stop.tasks) {
+      stop.tasks.forEach((t: any) => {
+        if (t.type === 'load') { loadW += Number(t.weightKg || 0); loadP += Number(t.pallets || 0); }
+        if (t.type === 'unload') { unloadW += Number(t.weightKg || 0); unloadP += Number(t.pallets || 0); }
+      });
+    }
+    runningWeight = runningWeight + loadW - unloadW;
+    runningPallets = runningPallets + loadP - unloadP;
+    return {
+      stopName: stop.city || stop.companyName || `Stop ${index + 1}`,
+      weight: Math.max(0, runningWeight),
+      pallets: Math.max(0, runningPallets)
+    };
+  });
   
   const addedCosts = trip.costs?.reduce((s: number, c: any) => s + Number(c.amount), 0) || 0;
   const estimatedCost = trip.orders?.reduce((sum: number, o: any) => sum + (Number(o.estimatedCost) || 0), 0) || 0;
@@ -175,7 +198,7 @@ export default function TripDetailsPage() {
                 toast.error(t("toast_optimizationFa"));
               }
             }} className="btn-primary py-1.5 px-3 text-xs flex items-center gap-2">
-                  <Eye className="w-3.5 h-3.5" />{t("jsx_optimize")}</button>}
+                  <Wand2 className="w-3.5 h-3.5" />{t("jsx_optimize", "Smart Optimize")}</button>}
             </div>
             
             <div className="relative pl-6 space-y-8">
@@ -324,67 +347,51 @@ export default function TripDetailsPage() {
           <div className="card p-6 bg-card border border-border rounded-2xl shadow-sm">
             <h3 className="font-bold text-lg text-text mb-4 flex items-center gap-2">
               <Box className="w-5 h-5 text-primary" />
-              {t('truckCapacity', 'Capacitate Camion (Total estimat)')}
+              {t('truckCapacity', 'Capacitate pe Segmente (Leg-by-Leg)')}
             </h3>
 
-            {trip.orders && trip.orders.length > 0 ? <div className="space-y-4 mb-6">
-                {/* Capacity Summary */}
-                <div className="p-4 bg-primary/5 rounded-xl border border-primary/20">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <div className="flex justify-between text-xs font-bold mb-1">
-                        <span>{t('weight', 'Greutate')}</span>
-                        <span>{totalWeight}{t("jsx_kg24000Kg")}</span>
+            {segments.length > 0 ? (
+              <div className="space-y-4 mb-6">
+                {segments.map((seg, i) => {
+                   const wPct = Math.min(100, (seg.weight / truckMaxWeight) * 100);
+                   const pPct = Math.min(100, (seg.pallets / truckMaxPallets) * 100);
+                   const overWeight = seg.weight > truckMaxWeight;
+                   const overPallets = seg.pallets > truckMaxPallets;
+                   
+                   return (
+                      <div key={i} className={`p-4 rounded-xl border ${overWeight || overPallets ? 'bg-red-50/50 border-red-200' : 'bg-surface border-border'}`}>
+                        <div className="font-bold text-sm mb-3 text-text">După Stop {i+1}: <span className="text-primary">{seg.stopName}</span></div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <div className="flex justify-between text-xs font-bold mb-1">
+                              <span className={overWeight ? 'text-red-600' : 'text-text-secondary'}>{t('weight', 'Greutate')}</span>
+                              <span className={overWeight ? 'text-red-600' : 'text-text'}>{seg.weight} / {truckMaxWeight} kg</span>
+                            </div>
+                            <div className="w-full bg-border rounded-full h-2 overflow-hidden">
+                              <div className={`h-2 rounded-full ${overWeight ? 'bg-red-500' : 'bg-primary'}`} style={{ width: `${wPct}%` }}></div>
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <div className="flex justify-between text-xs font-bold mb-1">
+                              <span className={overPallets ? 'text-red-600' : 'text-text-secondary'}>{t('pallets', 'Paleți')}</span>
+                              <span className={overPallets ? 'text-red-600' : 'text-text'}>{seg.pallets} / {truckMaxPallets}</span>
+                            </div>
+                            <div className="w-full bg-border rounded-full h-2 overflow-hidden">
+                              <div className={`h-2 rounded-full ${overPallets ? 'bg-red-500' : 'bg-primary'}`} style={{ width: `${pPct}%` }}></div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="w-full bg-border rounded-full h-2">
-                        <div className="bg-primary h-2 rounded-full" style={{
-                      width: `${Math.min(100, (totalWeight / 24000) * 100)}%`
-                    }}></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-xs font-bold mb-1">
-                        <span>{t('pallets', 'Paleți')}</span>
-                        <span>{totalPallets} / 33</span>
-                      </div>
-                      <div className="w-full bg-border rounded-full h-2">
-                        <div className="bg-primary h-2 rounded-full" style={{
-                      width: `${Math.min(100, (totalPallets / 33) * 100)}%`
-                    }}></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div> : <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="p-4 bg-surface rounded-xl border border-border">
-                <span className="text-xs text-text-secondary font-bold block mb-1">{t('pallets', 'PALEȚI').toUpperCase()}</span>
-                <div className="flex items-center gap-2 font-bold text-lg text-text">
-                  <Layers className="w-4 h-4 text-primary" />
-                  {trip.pallets || 0} {trip.palletType ? `(${trip.palletType})` : ''}
-                </div>
+                   );
+                })}
               </div>
-              <div className="p-4 bg-surface rounded-xl border border-border">
-                <span className="text-xs text-text-secondary font-bold block mb-1">{t('weight', 'GREUTATE').toUpperCase()}</span>
-                <div className="flex items-center gap-2 font-bold text-lg text-text">
-                  <Scale className="w-4 h-4 text-primary" />
-                  {trip.weightKg || 0} kg
-                </div>
+            ) : (
+              <div className="p-4 bg-surface rounded-xl border border-border text-center text-sm text-text-muted">
+                {t('noStops', 'Nu există stopuri pentru a calcula capacitatea.')}
               </div>
-              <div className="p-4 bg-surface rounded-xl border border-border">
-                <span className="text-xs text-text-secondary font-bold block mb-1">{t('volume', 'VOLUM').toUpperCase()}</span>
-                <div className="flex items-center gap-2 font-bold text-lg text-text">
-                  <Box className="w-4 h-4 text-primary" />
-                  {trip.volumeCbm || 0} m³
-                </div>
-              </div>
-              <div className="p-4 bg-surface rounded-xl border border-border">
-                <span className="text-xs text-text-secondary font-bold block mb-1">{t('distance', 'DISTANȚĂ').toUpperCase()}</span>
-                <div className="flex items-center gap-2 font-bold text-lg text-text">
-                  <Navigation className="w-4 h-4 text-primary" />
-                  {trip.distanceKm || 0} km
-                </div>
-              </div>
-              </div>}
+            )}
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-border pt-4">
               <div>

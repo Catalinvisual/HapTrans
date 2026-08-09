@@ -20,79 +20,6 @@ export class PlanningEngine {
     private optimizationEngine: OptimizationEngine
   ) {}
 
-  validateAssignment(order: Order, trip: Trip): { warnings: string[] } {
-    const warnings: string[] = [];
-
-    const truck = trip.truck;
-    const trailer = trip.trailer;
-
-    const maxWeight = truck?.maxWeightKg || trailer?.payloadCapacityWeight || 24000;
-    const maxLdm = trailer?.maxLdm || truck?.maxLdm || 13.6;
-    const maxVolume = trailer?.maxVolumeCbm || truck?.maxVolumeCbm || 90;
-
-    let currentWeight = 0;
-    let currentLdm = 0;
-    let currentVolume = 0;
-
-    if (trip.stops && trip.stops.length > 0) {
-      const orderIds = new Set<string>();
-      for (const stop of trip.stops) {
-        if (stop.tasks) {
-          for (const task of stop.tasks) {
-            if (task.order) {
-              orderIds.add(task.order.id);
-            }
-          }
-        }
-      }
-
-      for (const orderId of orderIds) {
-        const tripOrder = trip.orders?.find(o => o.id === orderId);
-        if (tripOrder && tripOrder.cargoItems) {
-          for (const item of tripOrder.cargoItems) {
-            currentWeight += Number(item.weightKg || 0);
-            currentLdm += Number(item.ldm || 0);
-            currentVolume += Number(item.volumeCbm || 0);
-          }
-        }
-      }
-    }
-
-    let newWeight = 0;
-    let newLdm = 0;
-    let newVolume = 0;
-    if (order.cargoItems) {
-      for (const item of order.cargoItems) {
-        newWeight += Number(item.weightKg || 0);
-        newLdm += Number(item.ldm || 0);
-        newVolume += Number(item.volumeCbm || 0);
-      }
-    }
-
-    if (currentWeight + newWeight > maxWeight) {
-      warnings.push(`Greutate depășită: Capacitate ${maxWeight} kg, total ${currentWeight + newWeight} kg.`);
-    }
-    if (currentLdm + newLdm > maxLdm) {
-      warnings.push(`LDM depășit: Capacitate ${maxLdm} LDM, total ${currentLdm + newLdm} LDM.`);
-    }
-    if (currentVolume + newVolume > maxVolume) {
-      warnings.push(`Volum depășit: Capacitate ${maxVolume} CBM, total ${currentVolume + newVolume} CBM.`);
-    }
-
-    if (order.equipmentRequirements && order.equipmentRequirements.length > 0) {
-      const trailerType = trailer?.type?.toLowerCase();
-      for (const req of order.equipmentRequirements) {
-        if (req === 'frigo' && trailerType !== 'frigo') {
-          warnings.push(`Echipament FRIGO cerut de comandă, dar trailerul este ${trailerType || 'standard'}.`);
-        }
-        if (req === 'mega' && trailerType !== 'mega') {
-          warnings.push(`Echipament MEGA cerut de comandă, dar trailerul este ${trailerType || 'standard'}.`);
-        }
-      }
-    }
-
-    return { warnings };
-  }
 
   async assignOrdersToTrip(tripId: string, orderIds: string[]) {
     const trip = await this.tripRepo.findOne({
@@ -112,8 +39,7 @@ export class PlanningEngine {
       
       const optResult = await this.optimizationEngine.checkAssignmentFeasibility(trip, order);
       if (!optResult.feasible) {
-        // Just log the warnings, but allow the assignment (frontend warns and asks for confirmation)
-        console.warn(`Assignment warnings for Order ${order.orderNumber}: ${optResult.warnings.join(', ')}`);
+        throw new BadRequestException(`Eroare de alocare pentru Comanda ${order.orderNumber}:\n${optResult.warnings.join('\n')}`);
       }
     }
 
@@ -187,26 +113,14 @@ export class PlanningEngine {
   async sequenceStops(tripId: string) {
     const trip = await this.tripRepo.findOne({
       where: { id: tripId },
-      relations: ['stops', 'stops.tasks']
+      relations: ['stops', 'stops.tasks', 'stops.tasks.order']
     });
     if (!trip || !trip.stops) return;
     
-    const pickupStops: Stop[] = [];
-    const deliveryStops: Stop[] = [];
+    const sortedStops = await this.optimizationEngine.optimizeTripRoute(trip);
     
-    for (const stop of trip.stops) {
-      const hasLoad = stop.tasks?.some(t => t.type === TaskType.LOAD);
-      if (hasLoad) {
-        pickupStops.push(stop);
-      } else {
-        deliveryStops.push(stop);
-      }
-    }
-    
-    const sorted = [...pickupStops, ...deliveryStops];
-    for (let i = 0; i < sorted.length; i++) {
-      sorted[i].sequence = i + 1;
-      await this.stopRepo.save(sorted[i]);
+    for (let i = 0; i < sortedStops.length; i++) {
+      await this.stopRepo.save(sortedStops[i]);
     }
   }
 }

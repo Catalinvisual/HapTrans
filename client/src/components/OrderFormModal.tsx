@@ -307,6 +307,24 @@ export default function OrderFormModal({
                         <input type="text" value={stop.country || ''} onChange={e => handleStopChange(index, 'country', e.target.value)} className="input w-full text-sm py-1.5" />
                       </div>
                     </div>
+                    <div className="grid grid-cols-3 gap-4 mt-2">
+                      <div>
+                        <label className="block text-xs text-text-secondary mb-1">{t("jsx_date", "Date")}</label>
+                        <input type="date" value={stop.dateFrom || ''} onChange={e => handleStopChange(index, 'dateFrom', e.target.value)} className="input w-full text-sm py-1.5" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-text-secondary mb-1">{t("jsx_timeFrom", "Time From")}</label>
+                        <input type="time" value={stop.timeFrom || ''} onChange={e => handleStopChange(index, 'timeFrom', e.target.value)} className="input w-full text-sm py-1.5" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-text-secondary mb-1">{t("jsx_timeUntil", "Time Until")}</label>
+                        <input type="time" value={stop.timeUntil || ''} onChange={e => handleStopChange(index, 'timeUntil', e.target.value)} className="input w-full text-sm py-1.5" />
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <label className="block text-xs text-text-secondary mb-1">{t("jsx_reference", "Reference")}</label>
+                      <input type="text" value={stop.reference || ''} onChange={e => handleStopChange(index, 'reference', e.target.value)} className="input w-full text-sm py-1.5" placeholder="Stop Reference" />
+                    </div>
                   </div>)}
                 <button type="button" onClick={handleAddStop} className="w-full py-3 border-2 border-dashed border-border rounded-xl text-text-secondary hover:text-primary hover:border-primary transition-colors flex items-center justify-center gap-2">
                   <Plus className="w-4 h-4" />{t("jsx_addStop")}</button>

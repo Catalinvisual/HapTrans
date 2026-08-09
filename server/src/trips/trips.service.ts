@@ -270,7 +270,8 @@ export class TripsService {
   }
 
   async optimizeRoute(tripId: string) {
-    return { success: false, reason: "Not implemented in new architecture yet" };
+    await this.planningEngine.sequenceStops(tripId);
+    return this.findOne(tripId);
   }
 
   async migrateLegacyTrips() {
