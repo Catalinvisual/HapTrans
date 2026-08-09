@@ -216,6 +216,7 @@ export default function OrderWizard({
   const [dropoff, setDropoff] = useState({
     ...emptyStop
   });
+  const [extraStops, setExtraStops] = useState<any[]>([]);
   const [cargoItems, setCargoItems] = useState<any[]>([]);
   useEffect(() => {
     if (isOpen) {
@@ -300,6 +301,25 @@ export default function OrderWizard({
           })) : [{
             ...emptyCargo
           }]);
+          const sortedStops = [...stopsArray].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
+          const middle = sortedStops.length > 2 ? sortedStops.slice(1, -1) : [];
+          setExtraStops(middle.map((s: any) => ({
+            companyName: s.companyName || '',
+            address: s.address || '',
+            city: s.city || '',
+            country: s.country || '',
+            postalCode: s.postalCode || '',
+            scheduledDate: s.dateFrom || (s.scheduledDate ? String(s.scheduledDate).slice(0, 10) : ''),
+            scheduledTime: s.timeFrom || s.scheduledTime || '',
+            latitude: s.latitude ? parseFloat(s.latitude) : null,
+            longitude: s.longitude ? parseFloat(s.longitude) : null,
+            contactPerson: s.contactPerson || '',
+            phone: s.phone || '',
+            dateTo: s.dateTo || '',
+            timeUntil: s.timeUntil || '',
+            reference: s.reference || '',
+            notes: s.notes || ''
+          })));
         }).catch(err => {
           console.error("Error fetching order data:", err);
           toast.error("Failed to load order details.");
@@ -324,6 +344,7 @@ export default function OrderWizard({
         setDropoff({
           ...emptyStop
         });
+        setExtraStops([]);
         setCargoItems([{
           ...emptyCargo
         }]);
@@ -415,6 +436,27 @@ export default function OrderWizard({
     ...emptyCargo
   }]);
   const handleRemoveCargo = (i: number) => setCargoItems(cargoItems.filter((_, idx) => idx !== i));
+  const handleAddExtraStop = () => setExtraStops([...extraStops, {
+    ...emptyStop
+  }]);
+  const handleRemoveExtraStop = (i: number) => setExtraStops(extraStops.filter((_, idx) => idx !== i));
+  const handleExtraStopChange = (i: number, patch: any) => {
+    const n = [...extraStops];
+    n[i] = { ...n[i], ...patch };
+    setExtraStops(n);
+  };
+  const handleExtraStopSelect = (i: number, label: string, city: string, country: string, lat: number | null, lng: number | null) => {
+    const n = [...extraStops];
+    n[i] = {
+      ...n[i],
+      address: label,
+      city: city || n[i].city,
+      country: country || n[i].country,
+      latitude: lat || null,
+      longitude: lng || null
+    };
+    setExtraStops(n);
+  };
   const handleCargoChange = (i: number, field: string, value: any) => {
     const n = [...cargoItems];
     n[i][field] = value;
@@ -449,9 +491,14 @@ export default function OrderWizard({
           sequence: 1,
           ...pickup,
           scheduledDate: pickup.scheduledDate || null
-        }, {
+        }, ...extraStops.map((s, i) => ({
+          type: 'delivery',
+          sequence: i + 2,
+          ...s,
+          scheduledDate: s.scheduledDate || null
+        })), {
           type: 'dropoff',
-          sequence: 2,
+          sequence: extraStops.length + 2,
           ...dropoff,
           scheduledDate: dropoff.scheduledDate || null
         }],
@@ -784,6 +831,50 @@ export default function OrderWizard({
                   })} className="input w-full bg-white dark:bg-card" placeholder="e.g. PO-99812 / Loading Instructions" />
                     </div>
                   </div>
+                </div>
+
+                {/* Intermediate stops */}
+                {extraStops.map((stop, i) => <div key={`extra-${i}`} className="lg:col-span-2 bg-purple-50/40 dark:bg-purple-900/5 border border-purple-200 dark:border-purple-800 rounded-xl p-5 relative">
+                  <div className="absolute -left-3 top-6 w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900 border-4 border-card flex items-center justify-center font-bold text-xs text-purple-600">
+                    {i + 2}
+                  </div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-purple-600 dark:text-purple-400 font-bold flex items-center gap-2">
+                      <MapPin className="w-4 h-4" />{t('stop_intermediate', 'Oprire intermediară')} {i + 1}
+                    </h4>
+                    <button onClick={() => handleRemoveExtraStop(i)} className="p-1.5 text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors" title={t('remove_stop', 'Șterge oprirea')}>
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_companyLocat")}</label>
+                      <input type="text" value={stop.companyName} onChange={e => handleExtraStopChange(i, { companyName: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="e.g. Cross-dock warehouse" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_fullAddress")}</label>
+                      <AddressAutocomplete value={stop.address} onChange={val => handleExtraStopChange(i, { address: val })} onSelectFull={(label, city, country, lat, lng) => handleExtraStopSelect(i, label, city, country, lat, lng)} placeholder="Street, Number, Zip Code" className="input w-full bg-white dark:bg-card" />
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs font-semibold text-text-secondary">{t("jsx_geocoding")}</span>
+                        {stop.latitude && stop.longitude ? <span className="text-xs font-semibold text-green-600 flex items-center gap-1">{t("jsx_Geocoded")}{stop.latitude.toFixed(4)}, {stop.longitude.toFixed(4)})
+                          </span> : <span className="text-xs font-semibold text-red-500">{t("jsx_CoordinatesM")}</span>}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <CustomDatePicker label="Stop Time Window (Min)" dateValue={stop.scheduledDate} timeValue={stop.scheduledTime || ''} onDateChange={v => handleExtraStopChange(i, { scheduledDate: v })} onTimeChange={v => handleExtraStopChange(i, { scheduledTime: v })} />
+                      <CustomDatePicker label="Stop Time Window (Max)" dateValue={stop.dateTo} timeValue={stop.timeUntil || ''} onDateChange={v => handleExtraStopChange(i, { dateTo: v })} onTimeChange={v => handleExtraStopChange(i, { timeUntil: v })} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_referencePO")}</label>
+                      <input type="text" value={stop.reference} onChange={e => handleExtraStopChange(i, { reference: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="e.g. Reference / Instructions" />
+                    </div>
+                  </div>
+                </div>)}
+
+                <div className="lg:col-span-2">
+                  <button onClick={handleAddExtraStop} className="w-full py-2.5 text-sm font-bold text-purple-600 dark:text-purple-400 bg-purple-50/60 dark:bg-purple-900/10 border-2 border-dashed border-purple-300 dark:border-purple-800 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors flex items-center justify-center gap-2">
+                    <Plus className="w-4 h-4" />{t('add_stop', 'Adaugă oprire intermediară')}
+                  </button>
                 </div>
 
                 {/* Delivery */}

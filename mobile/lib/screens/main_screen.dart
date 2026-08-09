@@ -8,6 +8,7 @@ import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
 import '../providers/chat_provider.dart';
 import '../utils/constants.dart';
+import '../utils/trip_status.dart';
 import '../services/notification_service.dart';
 import '../services/background_location_service.dart';
 import 'trips_screen.dart';
@@ -117,13 +118,10 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _updateAutomaticTracking(AuthProvider auth, TripProvider tripProv, ChatProvider chatProv) {
-    // Check if there is an active (in_progress) or confirmed trip
+    // Check if there is an active trip (assigned / accepted / in progress)
     final activeTrip = tripProv.trips.firstWhere(
-      (t) => t['status'] == 'in_progress',
-      orElse: () => tripProv.trips.firstWhere(
-        (t) => t['status'] == 'confirmed',
-        orElse: () => <String, dynamic>{},
-      ),
+      (t) => isActiveTripStatus(t['status']),
+      orElse: () => <String, dynamic>{},
     );
 
     final bool shouldTrack = activeTrip.isNotEmpty;

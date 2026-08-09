@@ -47,6 +47,7 @@ export default function TripsPage({
     const matchesSearch = (tr.tripNumber || '').toLowerCase().includes(search.toLowerCase()) || (tr.truck?.plateNumber || '').toLowerCase().includes(search.toLowerCase()) || (tr.driver?.firstName || '').toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
     if (statusFilter === 'all') return true;
+    if (statusFilter === 'active') return ['assigned', 'dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'].includes(tr.status);
     return tr.status === statusFilter;
   });
   const paginatedTrips = filteredTrips.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -93,7 +94,7 @@ export default function TripsPage({
                 <input type="text" placeholder={t('searchPlaceholder', 'Search by reference, client...')} value={search} onChange={e => setSearch(e.target.value)} className="input pl-10 w-full bg-white" />
               </div>
               <FilterDropdown 
-                options={['all', 'planning', 'dispatched', 'active', 'completed', 'cancelled']} 
+                options={['all', 'planning', 'planned', 'assigned', 'dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered', 'completed', 'closed', 'cancelled']} 
                 value={statusFilter} 
                 onChange={setStatusFilter} 
               />
@@ -130,10 +131,9 @@ export default function TripsPage({
               const pickup = stops[0];
               const dropoff = stops[stops.length - 1];
               const revenue = trip.orders?.reduce((sum: number, o: any) => sum + Number(o.price || 0), 0) || Number(trip.price || 0);
-              const estimatedCost = trip.orders?.reduce((sum: number, o: any) => sum + (Number(o.estimatedCost) || 0), 0) || 0;
+              const cost = Number(trip.estimatedCost || 0);
               const addedCosts = trip.costs?.reduce((s: number, c: any) => s + Number(c.amount), 0) || 0;
-              const cost = estimatedCost > 0 ? estimatedCost + addedCosts : addedCosts;
-              const profit = revenue - cost;
+              const profit = Number(trip.estimatedProfit ?? (revenue - cost - addedCosts));
               return <tr key={trip.id} className="hover:bg-surface/30 transition-colors group">
                       <td className="px-5 py-3 align-top">
                         <div className="font-semibold text-primary">{trip.tripNumber || trip.id.slice(0, 8)}</div>
@@ -163,7 +163,7 @@ export default function TripsPage({
                                   {pickup.address || pickup.city || 'TBD'}
                                 </p>
                                 {pickup.companyName && <p className="text-xs text-text-secondary">{pickup.companyName}</p>}
-                                {pickup.requestedDateFrom && !isNaN(new Date(pickup.requestedDateFrom).getTime()) && <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5 font-semibold">{t("jsx_eTA")}{new Date(pickup.requestedDateFrom).toLocaleString()}
+                                {pickup.timeWindowMin && !isNaN(new Date(pickup.timeWindowMin).getTime()) && <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5 font-semibold">{t("jsx_eTA")}{new Date(pickup.timeWindowMin).toLocaleString()}
                                   </p>}
                               </div>
                             </div>}
@@ -175,7 +175,7 @@ export default function TripsPage({
                                   {dropoff.address || dropoff.city || 'TBD'}
                                 </p>
                                 {dropoff.companyName && <p className="text-xs text-text-secondary">{dropoff.companyName}</p>}
-                                {dropoff.requestedDateFrom && !isNaN(new Date(dropoff.requestedDateFrom).getTime()) && <p className="text-[10px] text-green-600 dark:text-green-400 mt-0.5 font-semibold">{t("jsx_eTA")}{new Date(dropoff.requestedDateFrom).toLocaleString()}
+                                {dropoff.timeWindowMin && !isNaN(new Date(dropoff.timeWindowMin).getTime()) && <p className="text-[10px] text-green-600 dark:text-green-400 mt-0.5 font-semibold">{t("jsx_eTA")}{new Date(dropoff.timeWindowMin).toLocaleString()}
                                   </p>}
                               </div>
                             </div>}
@@ -201,11 +201,13 @@ export default function TripsPage({
                       </td>
                       <td className="px-5 py-3 align-top text-xs font-semibold space-y-1">
                         <div className="text-text-primary">{t("jsx_venit")}{revenue.toLocaleString()}</div>
-                        <div className="text-text-secondary">{t("jsx_cost")}{cost > 0 ? `€${cost.toLocaleString()}` : '-'}</div>
+                        <div className="text-text-secondary">{t("jsx_cost")}{cost > 0 ? cost.toLocaleString() : '-'}</div>
+                        <div className={profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>{t('jsx_profit', 'Profit: €')} {isNaN(profit) ? '-' : profit.toLocaleString()}</div>
+                        {Number(trip.tollCost) > 0 && <div className="text-text-muted">{t('jsx_tolls', 'Tolls')} €{Number(trip.tollCost).toLocaleString()}</div>}
                       </td>
                       <td className="px-5 py-3 align-top">
-                        <span className={`badge ${trip.status === 'planning' ? 'badge-warning' : trip.status === 'dispatched' ? 'badge-gray' : trip.status === 'active' || trip.status === 'in_progress' ? 'badge-primary' : trip.status === 'completed' ? 'badge-success' : 'badge-gray'}`}>
-                          {trip.status}
+                        <span className={`badge ${trip.status === 'planning' ? 'badge-warning' : trip.status === 'planned' ? 'badge-warning' : trip.status === 'dispatched' ? 'badge-gray' : ['assigned', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'].includes(trip.status) ? 'badge-primary' : trip.status === 'completed' ? 'badge-success' : trip.status === 'cancelled' ? 'badge-error' : 'badge-gray'}`}>
+                          {t(`status_${trip.status}`, trip.status.replace(/_/g, ' '))}
                         </span>
                       </td>
                       <td className="px-5 py-3 text-right">

@@ -16,10 +16,12 @@ import { Stop } from '../trips/stop.entity';
 import { StopTask } from '../trips/stop-task.entity';
 import { Truck } from '../trucks/truck.entity';
 import { PlanningController } from './planning.controller';
+import { RoutingModule } from '../routing/routing.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, Trip, Stop, StopTask, Truck])
+    TypeOrmModule.forFeature([Order, Trip, Stop, StopTask, Truck]),
+    RoutingModule
   ],
   controllers: [
     PlanningController

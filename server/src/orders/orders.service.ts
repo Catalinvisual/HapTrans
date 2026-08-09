@@ -7,6 +7,7 @@ import { CargoItem } from './cargo-item.entity';
 import { ValidationEngine } from '../engines/validation.engine';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { RoutingService } from '../routing/routing.service';
+import { ClientsService } from '../clients/clients.service';
 import { nanoid } from 'nanoid';
 
 @Injectable()
@@ -18,7 +19,37 @@ export class OrdersService {
     private validationEngine: ValidationEngine,
     private eventEmitter: EventEmitter2,
     private routingService: RoutingService,
+    private clientsService: ClientsService,
   ) {}
+
+  /**
+   * Returns a suggested price for this client+route based on the client's
+   * active rate card (basePrice, per-km type, fuel surcharge). Null when no rate matches.
+   */
+  async suggestPriceFromClientRate(clientId: string, distanceKm: number, vehicleType?: string): Promise<{ price: number; rateName: string; source: 'client_rate' } | null> {
+    if (!clientId) return null;
+    try {
+      const rates = await this.clientsService.getRates(clientId);
+      const active = rates
+        .filter(r => r.active !== false)
+        .sort((a, b) => new Date(b.validFrom || 0).getTime() - new Date(a.validFrom || 0).getTime());
+
+      let rate = active.find(r => vehicleType && r.vehicleType && String(r.vehicleType).toLowerCase() === String(vehicleType).toLowerCase());
+      if (!rate) rate = active.find(r => !r.vehicleType) || active[0];
+      if (!rate) return null;
+
+      const dist = Number(distanceKm || 0);
+      const priceType = String(rate.priceType || 'fixed').toLowerCase();
+      const base = Number(rate.basePrice || 0);
+      const surcharge = Number(rate.fuelSurchargePercent || 0) / 100;
+      const rawPrice = priceType.includes('km') ? base * dist : base;
+      const price = Math.round(rawPrice * (1 + surcharge) * 100) / 100;
+
+      return { price, rateName: rate.rateName || 'rate card', source: 'client_rate' };
+    } catch (e) {
+      return null;
+    }
+  }
 
   findAll(status?: string) {
     const findOptions: any = { 
@@ -102,6 +133,19 @@ export class OrdersService {
       // Generate tracking token
       const trackingToken = `HC-${nanoid(8).toUpperCase()}`;
 
+      // Apply client rate-card suggestion when no explicit price is provided
+      let finalPrice = safeNum(dto.price) ?? safeNum(dto.agreedPrice);
+      let rateSource: string | null = null;
+      if (finalPrice === null && dto.clientId) {
+        try {
+          const suggestion = await this.suggestPriceFromClientRate(dto.clientId, safeNum(dto.distanceKm) || 0, dto.transportType || dto.freightType);
+          if (suggestion) {
+            finalPrice = suggestion.price;
+            rateSource = suggestion.rateName;
+          }
+        } catch { /* rate suggestion is best-effort */ }
+      }
+
       const order = this.repo.create({
         company: dto.companyId ? { id: dto.companyId } as any : null,
         client: dto.clientId ? { id: dto.clientId } as any : null,
@@ -116,9 +160,9 @@ export class OrdersService {
         equipmentRequirements: Array.isArray(dto.equipmentRequirements) ? dto.equipmentRequirements : [],
         priority: dto.priority || 'normal',
         transportType: dto.transportType || dto.freightType || 'ftl',
-        price: safeNum(dto.price) ?? safeNum(dto.agreedPrice),
+        price: finalPrice,
         currency: dto.currency || 'EUR',
-        notes: dto.notes || null,
+        notes: rateSource ? `${dto.notes ? dto.notes + '\n' : ''}Price suggested from client rate: ${rateSource}`.trim() : (dto.notes || null),
         status: dto.status || status
       } as any);
 

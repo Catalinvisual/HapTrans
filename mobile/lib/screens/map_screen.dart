@@ -8,6 +8,7 @@ import '../providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 import '../providers/trip_provider.dart';
 import '../utils/constants.dart';
+import '../utils/trip_status.dart';
 import '../services/background_location_service.dart';
 
 class MapScreen extends StatefulWidget {
@@ -90,11 +91,8 @@ class _MapScreenState extends State<MapScreen> {
       String? activeTruckId;
       try {
         final activeTrip = tripProv.trips.firstWhere(
-          (t) => t['status'] == 'in_progress',
-          orElse: () => tripProv.trips.firstWhere(
-            (t) => t['status'] == 'confirmed',
-            orElse: () => <String, dynamic>{},
-          ),
+          (t) => isActiveTripStatus(t['status']),
+          orElse: () => <String, dynamic>{},
         );
         if (activeTrip.isNotEmpty && activeTrip['truck'] != null) {
           activeTruckId = activeTrip['truck']['id'];
@@ -135,7 +133,7 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     final locale = context.watch<AuthProvider>().locale.languageCode;
     final tripProv = context.watch<TripProvider>();
-    final bool hasActiveTrip = tripProv.trips.any((t) => t['status'] == 'in_progress' || t['status'] == 'confirmed');
+    final bool hasActiveTrip = tripProv.trips.any((t) => isActiveTripStatus(t['status']));
 
     return Scaffold(
       appBar: AppBar(title: Text({'ro':'Hartă Live','en':'Live Map','nl':'Live Kaart','de':'Live-Karte','fr':'Carte en direct'}[locale] ?? 'Live Map')),

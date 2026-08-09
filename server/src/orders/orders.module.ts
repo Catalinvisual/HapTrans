@@ -7,12 +7,14 @@ import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
 import { EnginesModule } from '../engines/engines.module';
 import { RoutingModule } from '../routing/routing.module';
+import { ClientsModule } from '../clients/clients.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Order, OrderStop, CargoItem]),
     EnginesModule,
-    RoutingModule
+    RoutingModule,
+    ClientsModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

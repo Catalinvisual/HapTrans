@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../utils/constants.dart';
+import '../utils/trip_status.dart';
 import '../services/notification_service.dart';
 
 class ChatProvider extends ChangeNotifier {
@@ -101,18 +102,11 @@ class ChatProvider extends ChangeNotifier {
       // Only notify if this update is for the current driver and was NOT initiated by a driver
       if (!isDriver && (driverUserId == null || driverUserId == currentUserId)) {
         final status = data['status'] ?? '';
-        final statusLabels = {
-          'ro': {'pending': 'În așteptare', 'confirmed': 'Confirmată', 'in_progress': 'În curs', 'completed': 'Finalizată', 'cancelled': 'Anulată!', 'delayed': 'Întârziată'},
-          'en': {'pending': 'Pending', 'confirmed': 'Confirmed', 'in_progress': 'In Progress', 'completed': 'Completed', 'cancelled': 'Cancelled!', 'delayed': 'Delayed'},
-          'nl': {'pending': 'In afwachting', 'confirmed': 'Bevestigd', 'in_progress': 'Bezig', 'completed': 'Voltooid', 'cancelled': 'Geannuleerd!', 'delayed': 'Vertraagd'},
-          'de': {'pending': 'Ausstehend', 'confirmed': 'Bestätigt', 'in_progress': 'In Bearbeitung', 'completed': 'Abgeschlossen', 'cancelled': 'Storniert!', 'delayed': 'Verspätet'},
-          'fr': {'pending': 'En attente', 'confirmed': 'Confirmé', 'in_progress': 'En cours', 'completed': 'Terminé', 'cancelled': 'Annulé!', 'delayed': 'Retardé'},
-        };
+        final label = tripStatusLabel(status, locale);
         final titles = {
           'ro': 'Cursă actualizată', 'en': 'Trip Updated',
           'nl': 'Rit bijgewerkt', 'de': 'Fahrt aktualisiert', 'fr': 'Trajet mis à jour',
         };
-        final label = statusLabels[locale]?[status] ?? status;
         final title = titles[locale] ?? 'Trip Updated';
         NotificationService().showNotification(
           id: DateTime.now().millisecondsSinceEpoch ~/ 1000,

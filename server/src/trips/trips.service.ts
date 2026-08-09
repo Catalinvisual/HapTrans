@@ -13,6 +13,23 @@ import { InvoicesService } from '../invoices/invoices.service';
 import { ResendService } from '../email/resend.service';
 import { RoutingService } from '../routing/routing.service';
 import { PlanningEngine } from '../engines/planning.engine';
+import { PricingEngine } from '../engines/pricing.engine';
+import { CostEngine } from '../engines/cost.engine';
+
+const TRIP_STATUS_FLOW: Record<string, string[]> = {
+  [TripStatus.PLANNING]: [TripStatus.PLANNED, TripStatus.CANCELLED],
+  [TripStatus.PLANNED]: [TripStatus.ASSIGNED, TripStatus.DISPATCHED, TripStatus.CANCELLED, TripStatus.PLANNING],
+  [TripStatus.ASSIGNED]: [TripStatus.DISPATCHED, TripStatus.CANCELLED, TripStatus.PLANNED],
+  [TripStatus.DISPATCHED]: [TripStatus.DRIVER_ACCEPTED, TripStatus.STARTED, TripStatus.CANCELLED],
+  [TripStatus.DRIVER_ACCEPTED]: [TripStatus.LOADING, TripStatus.STARTED, TripStatus.CANCELLED],
+  [TripStatus.LOADING]: [TripStatus.STARTED, TripStatus.CANCELLED],
+  [TripStatus.STARTED]: [TripStatus.DRIVING, TripStatus.COMPLETED, TripStatus.CANCELLED],
+  [TripStatus.DRIVING]: [TripStatus.PARTIALLY_DELIVERED, TripStatus.COMPLETED],
+  [TripStatus.PARTIALLY_DELIVERED]: [TripStatus.COMPLETED, TripStatus.CANCELLED],
+  [TripStatus.COMPLETED]: [TripStatus.CLOSED],
+  [TripStatus.CLOSED]: [],
+  [TripStatus.CANCELLED]: [],
+};
 
 @Injectable()
 export class TripsService {
@@ -26,6 +43,8 @@ export class TripsService {
     private resendService: ResendService,
     private routingService: RoutingService,
     private planningEngine: PlanningEngine,
+    private pricingEngine: PricingEngine,
+    private costEngine: CostEngine,
   ) {}
 
   findAll(status?: string) {
@@ -96,6 +115,7 @@ export class TripsService {
   async assignOrders(tripId: string, orderIds: string[]) {
     const result = await this.planningEngine.assignOrdersToTrip(tripId, orderIds);
     await this.recalculateTripMetrics(tripId);
+    await this.recalculateFinancials(tripId);
     
     // Send tracking email to clients of newly assigned orders
     const updatedTrip = await this.findOne(tripId);
@@ -137,6 +157,15 @@ export class TripsService {
     const existing = await this.findOne(id);
     if (!existing) throw new NotFoundException('Trip not found');
 
+    // 0. Enforce the status state machine
+    if (updateData.status && updateData.status !== existing.status) {
+      const allowed = TRIP_STATUS_FLOW[existing.status] || [];
+      const isMobileStatus = ['driver_accepted', 'started', 'loading', 'driving', 'partially_delivered', 'completed'].includes(updateData.status);
+      if (!allowed.includes(updateData.status) && !isMobileStatus) {
+        throw new ConflictException(`Invalid transition from ${existing.status} to ${updateData.status}`);
+      }
+    }
+
     // 1. Generate Tracking Token on Dispatch
     if (dto.status === 'dispatched' && !existing.trackingToken) {
       const refCode = existing.tripNumber || existing.orders?.[0]?.orderNumber || 'HC-TRIP';
@@ -145,23 +174,13 @@ export class TripsService {
       updateData.trackingToken = token;
     }
 
-    // 2. Financial calculation
-    let revenue = 0;
-    if (existing.orders) {
-      for (const order of existing.orders) {
-        revenue += Number(order.price || 0);
-      }
-    }
-    
-    const distance = dto.distanceKm !== undefined ? Number(dto.distanceKm) : Number(existing.distanceKm || 0);
-    const truck = existing.truck;
-    const cost = distance * Number(truck?.costPerKm || 0);
-    
-    updateData.estimatedProfit = revenue - cost;
-    updateData.actualProfit = revenue - cost;
-
     await this.repo.update(id, updateData);
-    
+
+    // 2. Real financial recalculation (CostEngine + PricingEngine)
+    if (updateData.distanceKm !== undefined || updateData.status !== undefined) {
+      await this.recalculateFinancials(id);
+    }
+
     const updated = await this.findOne(id);
 
     // 3. Status change notifications & Email Send on Dispatch
@@ -368,6 +387,7 @@ export class TripsService {
 
     const sorted = trip.stops.sort((a, b) => a.sequence - b.sequence);
     let totalDist = 0;
+    let totalTolls = 0;
 
     for (let i = 0; i < sorted.length - 1; i++) {
       const from = sorted[i];
@@ -381,6 +401,9 @@ export class TripsService {
           if (res && res.distanceKm) {
             totalDist += res.distanceKm;
           }
+          if (res && res.tollCost) {
+            totalTolls += Number(res.tollCost);
+          }
         } catch (e) {
           console.error('Routing failed in recalculateTripMetrics', e);
         }
@@ -389,7 +412,31 @@ export class TripsService {
 
     if (totalDist > 0) {
       trip.distanceKm = totalDist;
+      trip.tollCost = Math.round(totalTolls * 100) / 100;
       await this.repo.save(trip);
     }
+
+    // 3. Recompute real costs (incl. tolls) and profit once distances are known
+    await this.recalculateFinancials(tripId);
+  }
+
+  /**
+   * Recomputes a trip's real cost (fuel, tolls, driver days, manual costs) and profit
+   * using the CostEngine + PricingEngine and persists them on the trip.
+   */
+  async recalculateFinancials(tripId: string) {
+    const trip = await this.findOne(tripId);
+    if (!trip) return null;
+
+    const financials = await this.pricingEngine.calculateFinancials(trip);
+
+    await this.repo.update(tripId, {
+      estimatedCost: financials.cost,
+      estimatedProfit: financials.profit,
+      actualProfit: financials.profit,
+      tollCost: financials.costBreakdown.tollCost,
+    });
+
+    return financials;
   }
 }

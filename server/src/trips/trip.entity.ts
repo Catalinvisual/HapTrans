@@ -69,6 +69,13 @@ export class Trip {
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
   distanceKm: number;
 
+  // Tolls accumulated from real routing (HERE API) during trip-metric recalculation
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2, default: 0 })
+  tollCost: number;
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2, default: 0 })
+  estimatedCost: number;
+
   // Financials (Managed by Pricing Engine)
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, nullable: true })
   estimatedProfit: number;

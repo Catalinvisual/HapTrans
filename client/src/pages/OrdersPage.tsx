@@ -79,7 +79,7 @@ export default function OrdersPage() {
                 <input type="text" placeholder={t('searchPlaceholder', 'Search by reference, client...')} value={search} onChange={e => setSearch(e.target.value)} className="input pl-10 w-full bg-white" />
               </div>
               <FilterDropdown 
-                options={['all', 'draft', 'new', 'planned', 'in_transit', 'delivered', 'closed']} 
+                options={['all', 'draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoiced', 'paid', 'cancelled']} 
                 value={statusFilter} 
                 onChange={setStatusFilter} 
               />
@@ -156,8 +156,8 @@ export default function OrdersPage() {
                         </div>
                       </td>
                       <td className="px-5 py-3">
-                        <span className={`badge ${order.status === 'draft' ? 'badge-warning' : order.status === 'new' ? 'badge-gray' : order.status === 'assigned' ? 'badge-primary' : order.status === 'in_transit' ? 'badge-primary' : 'badge-success'}`}>
-                          {order.status || 'pending'}
+                        <span className={`badge ${order.status === 'draft' ? 'badge-warning' : order.status === 'new' || order.status === 'planned' ? 'badge-gray' : order.status === 'assigned' ? 'badge-primary' : order.status === 'loading' || order.status === 'in_transit' ? 'badge-primary' : order.status === 'delivered' || order.status === 'pod_received' ? 'badge-warning' : order.status === 'invoiced' || order.status === 'paid' ? 'badge-success' : order.status === 'cancelled' ? 'badge-error' : 'badge-gray'}`}>
+                          {t(`status_${order.status}`, order.status.replace(/_/g, ' '))}
                         </span>
                       </td>
                       <td className="px-5 py-3 text-right space-x-1">

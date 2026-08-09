@@ -49,6 +49,7 @@ const storage = new CloudinaryStorage({
 import { QuoteReply } from './quote-reply.entity';
 import { TripsModule } from '../trips/trips.module';
 import { ClientsModule } from '../clients/clients.module';
+import { OrdersModule } from '../orders/orders.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { ClientsModule } from '../clients/clients.module';
     UsersModule,
     TripsModule,
     ClientsModule,
+    OrdersModule,
     MulterModule.register({
       storage: storage,
     }),

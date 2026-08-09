@@ -100,7 +100,10 @@ const translations: Record<string, Record<string, string>> = {
     reply_history: 'Istoric Răspunsuri',
     reply_message: 'Mesaj / Ofertă',
     reply_success: 'Răspuns trimis cu succes!',
-    create_transport: 'Creează cursă din ofertă'
+    create_transport: 'Creează cursă din ofertă',
+    convert_to_order: 'Transformă în Comandă',
+    quote_converted: 'Comanda a fost creată cu succes!',
+    quote_convert_error: 'Eroare la convertirea ofertei în comandă.'
   },
   en: {
     filter_requests: 'Filter requests:',
@@ -139,7 +142,10 @@ const translations: Record<string, Record<string, string>> = {
     reply_history: 'Reply History',
     reply_message: 'Message / Offer',
     reply_success: 'Reply sent successfully!',
-    create_transport: 'Create transport from quote'
+    create_transport: 'Create transport from quote',
+    convert_to_order: 'Convert to Order',
+    quote_converted: 'Order created successfully!',
+    quote_convert_error: 'Failed to convert quote to order.'
   },
   nl: {
     filter_requests: 'Verzoeken filteren:',
@@ -178,7 +184,10 @@ const translations: Record<string, Record<string, string>> = {
     reply_history: 'Antwoordgeschiedenis',
     reply_message: 'Bericht / Offerte',
     reply_success: 'Antwoord succesvol verzonden!',
-    create_transport: 'Maak transport van offerte'
+    create_transport: 'Maak transport van offerte',
+    convert_to_order: 'Omzetten naar order',
+    quote_converted: 'Order succesvol aangemaakt!',
+    quote_convert_error: 'Kon offerte niet omzetten naar order.'
   },
   de: {
     filter_requests: 'Anfragen filtern:',
@@ -217,7 +226,10 @@ const translations: Record<string, Record<string, string>> = {
     reply_history: 'Antwortverlauf',
     reply_message: 'Nachricht / Angebot',
     reply_success: 'Antwort erfolgreich gesendet!',
-    create_transport: 'Transport aus Angebot erstellen'
+    create_transport: 'Transport aus Angebot erstellen',
+    convert_to_order: 'In Auftrag umwandeln',
+    quote_converted: 'Auftrag erfolgreich erstellt!',
+    quote_convert_error: 'Konnte Angebot nicht in Auftrag umwandeln.'
   },
   fr: {
     filter_requests: 'Filtrer les demandes:',
@@ -256,7 +268,10 @@ const translations: Record<string, Record<string, string>> = {
     reply_history: 'Historique des réponses',
     reply_message: 'Message / Offre',
     reply_success: 'Réponse envoyée avec succès !',
-    create_transport: 'Créer un transport à partir du devis'
+    create_transport: 'Créer un transport à partir du devis',
+    convert_to_order: 'Convertir en commande',
+    quote_converted: 'Commande créée avec succès !',
+    quote_convert_error: 'Échec de la conversion du devis en commande.'
   },
   es: {
     filter_requests: 'Filtrar solicitudes:',
@@ -295,7 +310,10 @@ const translations: Record<string, Record<string, string>> = {
     reply_history: 'Historial de Respuestas',
     reply_message: 'Mensaje / Oferta',
     reply_success: '¡Respuesta enviada con éxito!',
-    create_transport: 'Crear transporte a partir de cotización'
+    create_transport: 'Crear transporte a partir de cotización',
+    convert_to_order: 'Convertir en pedido',
+    quote_converted: '¡Pedido creado con éxito!',
+    quote_convert_error: 'Error al convertir la cotización en pedido.'
   }
 };
 const WebsiteQuotesPage = () => {
@@ -375,6 +393,18 @@ const WebsiteQuotesPage = () => {
         createFromQuote: prefilledData
       }
     });
+  };
+  const handleConvertQuote = async (quote: QuoteRequest) => {
+    try {
+      const res = await api.post(`/quotes/${quote.id}/convert`);
+      const data = res.data;
+      toast.success(tLocal('quote_converted') || 'Comanda a fost creată cu succes!');
+      fetchQuotes();
+      if (data?.orderId) navigate(`/orders/${data.orderId}`);
+    } catch (error) {
+      console.error('Failed to convert quote', error);
+      toast.error(tLocal('quote_convert_error') || 'Eroare la convertirea ofertei în comandă.');
+    }
   };
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
@@ -596,6 +626,14 @@ const WebsiteQuotesPage = () => {
                 }} className="mt-4 w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
                             <Truck className="w-4 h-4" />
                             {tLocal('create_transport')}
+                          </button>}
+
+                        {(quote.status === 'quoted' || quote.status === 'accepted') && <button onClick={e => {
+                  e.stopPropagation();
+                  handleConvertQuote(quote);
+                }} className="w-full px-4 py-2 bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
+                            <Truck className="w-4 h-4" />
+                            {tLocal('convert_to_order')}
                           </button>}
 
                         <div className="mt-auto pt-4 border-t border-border text-center">

@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
 import '../utils/constants.dart';
 import '../utils/date_formatter.dart';
+import '../utils/trip_status.dart';
 import 'chat_screen.dart';
 import 'trip_dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -58,27 +59,11 @@ class _TripsScreenState extends State<TripsScreen> {
   }
 
   Color _statusColor(String status) {
-    return switch (status) {
-      'in_progress' => kPrimary,
-      'loading' => Colors.orange,
-      'unloading' => Colors.deepOrange,
-      'completed' => kSuccess,
-      'cancelled' => kError,
-      'delayed' => kError,
-      'confirmed' => Colors.blue,
-      _ => kTextSecondary,
-    };
+    return tripStatusColor(status);
   }
 
   String _statusLabel(String status, String lang) {
-    final labels = {
-      'ro': {'pending':'În așteptare','confirmed':'Confirmat','in_progress':'În curs','loading':'La încărcare','unloading':'La descărcare','completed':'Finalizat','cancelled':'Anulat','delayed':'Întârziat'},
-      'en': {'pending':'Pending','confirmed':'Confirmed','in_progress':'In progress','loading':'Loading','unloading':'Unloading','completed':'Completed','cancelled':'Cancelled','delayed':'Delayed'},
-      'nl': {'pending':'In afwachting','confirmed':'Bevestigd','in_progress':'Bezig','loading':'Laden','unloading':'Lossen','completed':'Voltooid','cancelled':'Geannuleerd','delayed':'Vertraagd'},
-      'de': {'pending':'In Wartestellung','confirmed':'Bestätigt','in_progress':'Unterwegs','loading':'Beladen','unloading':'Entladen','completed':'Abgeschlossen','cancelled':'Storniert','delayed':'Verspätet'},
-      'fr': {'pending':'En attente','confirmed':'Confirmé','in_progress':'En cours','loading':'Chargement','unloading':'Déchargement','completed':'Terminé','cancelled':'Annulé','delayed':'Retardé'},
-    };
-    return labels[lang]?[status] ?? status;
+    return tripStatusLabel(status, lang);
   }
 
   Widget _buildLogBadge(IconData icon, String text) {
@@ -171,11 +156,11 @@ class _TripsScreenState extends State<TripsScreen> {
 
     // Filter logic
     final filteredTrips = myTrips.where((t) {
-      final status = t['status'] ?? 'pending';
+      final status = t['status'] ?? 'planned';
       if (_selectedFilter == 'active') {
-        return status == 'pending' || status == 'confirmed' || status == 'in_progress' || status == 'loading' || status == 'unloading' || status == 'delayed';
+        return isActiveTripStatus(status);
       } else if (_selectedFilter == 'completed') {
-        return status == 'completed';
+        return status == 'completed' || status == 'closed';
       } else if (_selectedFilter == 'cancelled') {
         return status == 'cancelled';
       }
@@ -310,7 +295,7 @@ class _TripsScreenState extends State<TripsScreen> {
                         separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (ctx, i) {
                           final trip = filteredTrips[i];
-                          final status = trip['status'] ?? 'pending';
+                          final status = trip['status'] ?? 'planned';
                           // Next stop logic
                           final stops = List<Map<String, dynamic>>.from(trip['stops'] ?? []);
                           stops.sort((a, b) => (a['orderIndex'] ?? 0).compareTo(b['orderIndex'] ?? 0));

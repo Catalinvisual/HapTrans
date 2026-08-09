@@ -36,6 +36,13 @@ export class OptimizationEngine {
   }
 
   /**
+   * Public helper: straight-line (haversine) distance between two coordinates.
+   */
+  getDistanceBetween(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    return Math.round(this.getDistance(lat1, lon1, lat2, lon2));
+  }
+
+  /**
    * Deterministic check for assigning an Order to a Trip
    */
   async checkAssignmentFeasibility(trip: Trip, order: Order): Promise<OptimizationResult> {
@@ -188,11 +195,21 @@ export class OptimizationEngine {
 
     const feasible = warnings.length === 0;
 
+    // Real distance estimate: Haversine sum along the sorted sequence
+    let estimatedTotalDistanceKm = 0;
+    for (let i = 0; i < sortedTasks.length - 1; i++) {
+      estimatedTotalDistanceKm += this.getDistance(
+        sortedTasks[i].lat, sortedTasks[i].lng,
+        sortedTasks[i + 1].lat, sortedTasks[i + 1].lng
+      );
+    }
+    estimatedTotalDistanceKm = Math.round(estimatedTotalDistanceKm);
+
     return {
       feasible,
       warnings,
       bestSequence: sortedTasks,
-      estimatedTotalDistanceKm: sortedTasks.length * 50 // Mock
+      estimatedTotalDistanceKm
     };
   }
 

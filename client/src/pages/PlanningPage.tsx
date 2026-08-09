@@ -196,6 +196,128 @@ function OrderDetailDrawer({
     </div>, document.body) : null;
 }
 
+// ─── Dispatch Timeline (Gantt) ────────────────────────────────────────────────
+const TRIP_STATUS_COLORS: Record<string, string> = {
+  planning: 'bg-amber-400 border-amber-500',
+  planned: 'bg-amber-400 border-amber-500',
+  assigned: 'bg-blue-400 border-blue-500',
+  dispatched: 'bg-sky-500 border-sky-600',
+  driver_accepted: 'bg-indigo-400 border-indigo-500',
+  started: 'bg-violet-400 border-violet-500',
+  loading: 'bg-purple-400 border-purple-500',
+  driving: 'bg-primary border-orange-600',
+  partially_delivered: 'bg-teal-400 border-teal-500',
+  completed: 'bg-green-500 border-green-600',
+  closed: 'bg-gray-400 border-gray-500',
+  cancelled: 'bg-red-400 border-red-500',
+};
+
+function PlanningTimeline({ trips, trucks }: { trips: any[]; trucks: any[] }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const now = new Date();
+
+  const relevant = (trips || []).filter(tr =>
+    ['planning', 'planned', 'assigned', 'dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'].includes(tr.status)
+  );
+
+  const rangeStart = new Date(now);
+  rangeStart.setDate(rangeStart.getDate() - 1);
+  rangeStart.setHours(0, 0, 0, 0);
+  const rangeEnd = new Date(now);
+  rangeEnd.setDate(rangeEnd.getDate() + 7);
+  rangeEnd.setHours(23, 59, 59, 999);
+
+  for (const tr of relevant) {
+    const s = tr.plannedDeparture ? new Date(tr.plannedDeparture) : null;
+    const e = tr.plannedArrival ? new Date(tr.plannedArrival) : null;
+    if (s && s < rangeStart) rangeStart.setTime(s.getTime());
+    if (e && e > rangeEnd) rangeEnd.setTime(e.getTime());
+  }
+
+  const rangeMs = Math.max(rangeEnd.getTime() - rangeStart.getTime(), 24 * 60 * 60 * 1000);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const days = Math.ceil(rangeMs / dayMs);
+
+  const leftPct = (d: Date) => Math.max(0, Math.min(100, ((d.getTime() - rangeStart.getTime()) / rangeMs) * 100));
+  const widthPct = (a: Date, b: Date) => {
+    const start = Math.max(a.getTime(), rangeStart.getTime());
+    const end = Math.min(b.getTime(), rangeEnd.getTime());
+    return Math.max(2, ((end - start) / rangeMs) * 100);
+  };
+
+  const activeTrucks = trucks.filter((tr: any) => relevant.some((t: any) => t.truck?.id === tr.id));
+  const trucksWithTrips = [...new Set(relevant.map((tr: any) => tr.truck?.id).filter(Boolean))];
+  const allTrucks = [...new Map([...activeTrucks, ...trucks.filter((tr: any) => trucksWithTrips.includes(tr.id))].map((tr: any) => [tr.id, tr])).values()];
+
+  const todayLeft = leftPct(now);
+
+  return <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+    <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface/30">
+      <div className="flex items-center gap-2">
+        <Calendar className="w-4 h-4 text-primary" />
+        <h3 className="font-bold text-sm text-text-primary">{t('dispatch_timeline', 'Cronologie Dispecerat')}</h3>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        {['planning', 'driving', 'completed', 'cancelled'].map(s => (
+          <span key={s} className="flex items-center gap-1 text-[10px] text-text-secondary">
+            <span className={`w-2.5 h-2.5 rounded-sm ${TRIP_STATUS_COLORS[s]}`} />
+            {t(`status_${s}`, s)}
+          </span>
+        ))}
+      </div>
+    </div>
+
+    <div className="overflow-x-auto">
+      <div className="min-w-[720px]">
+        {/* Day header */}
+        <div className="relative border-b border-border" style={{ height: 28 }}>
+          {Array.from({ length: days }).map((_, i) => {
+            const dayStart = new Date(rangeStart.getTime() + i * dayMs);
+            const isToday = dayStart.toDateString() === now.toDateString();
+            return <div key={i} className="absolute inset-y-0 border-l border-border/40 flex items-center justify-center text-[10px] font-bold uppercase tracking-wide"
+              style={{ left: `${(i / days) * 100}%`, width: `${100 / days}%`, backgroundColor: isToday ? 'rgba(249,115,22,0.08)' : 'transparent', color: isToday ? 'var(--color-primary, #f97316)' : 'var(--color-text-secondary, #666)' }}>
+              {dayStart.toLocaleDateString('ro-RO', { weekday: 'short', day: '2-digit', month: 'short' })}
+            </div>;
+          })}
+        </div>
+
+        {/* Rows */}
+        {allTrucks.length === 0 ? <div className="p-8 text-center text-sm text-text-secondary">{t('no_trips_in_range', 'Nicio cursă în intervalul selectat.')}</div> : allTrucks.map(truck => {
+          const truckTrips = relevant
+            .filter(tr => tr.truck?.id === truck.id)
+            .sort((a: any, b: any) => {
+              const da = a.plannedDeparture ? new Date(a.plannedDeparture).getTime() : Number.MAX_SAFE_INTEGER;
+              const db = b.plannedDeparture ? new Date(b.plannedDeparture).getTime() : Number.MAX_SAFE_INTEGER;
+              return da - db;
+            });
+          return <div key={truck.id} className="relative border-b border-border/50" style={{ height: 52 }}>
+            <div className="absolute inset-y-0 left-0 w-[160px] z-10 flex items-center gap-1.5 px-3 bg-card border-r border-border/50">
+              <TruckIcon className="w-3.5 h-3.5 text-primary shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-text-primary truncate">{truck.plateNumber}</p>
+                <p className="text-[9px] text-text-secondary truncate">{truck.driver?.user?.name || truck.driver?.name || '—'}</p>
+              </div>
+            </div>
+            {truckTrips.map(tr => {
+              const start = tr.plannedDeparture ? new Date(tr.plannedDeparture) : new Date(tr.createdAt || now);
+              const end = tr.plannedArrival ? new Date(tr.plannedArrival) : new Date(start.getTime() + dayMs);
+              const color = TRIP_STATUS_COLORS[tr.status] || TRIP_STATUS_COLORS.planned;
+              const label = `${tr.tripNumber || 'TR'} · ${(tr.orders || []).length}${tr.orders && tr.orders.length > 0 ? ' 📦' : ''}`;
+              return <button key={tr.id} onClick={() => navigate(`/trips/${tr.id}`)} title={`${label} — ${t(`status_${tr.status}`, tr.status)}`}
+                className={`absolute top-1/2 -translate-y-1/2 h-7 rounded-md ${color} text-white text-[10px] font-bold px-2 shadow-sm hover:brightness-110 transition-all overflow-hidden text-left whitespace-nowrap`}
+                style={{ left: `calc(${leftPct(start)}% + 162px)`, width: `calc(${widthPct(start, end)}% - 4px)` }}>
+                <span className="drop-shadow">{label}</span>
+              </button>;
+            })}
+            <div className="absolute inset-y-0 border-l-2 border-dashed border-primary/60 pointer-events-none z-20" style={{ left: `calc(${todayLeft}% + 160px)` }} />
+          </div>;
+        })}
+      </div>
+    </div>
+  </div>;
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function PlanningPage() {
   const {
@@ -215,11 +337,12 @@ export default function PlanningPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [draggingOrderId, setDraggingOrderId] = useState<string | null>(null);
   const [dragOverTruckId, setDragOverTruckId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'board' | 'timeline'>('board');
 
   const loadData = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const [trucksRes, ordersRes, tripsRes, driversRes] = await Promise.all([api.get('/trucks'), api.get('/orders?status=draft,new,pending'), api.get('/trips?status=planning,planned,dispatched,assigned,driver_accepted,started,loading,driving,partially_delivered'), api.get('/drivers')]);
+      const [trucksRes, ordersRes, tripsRes, driversRes] = await Promise.all([api.get('/trucks'), api.get('/orders?status=draft,new,planned'), api.get('/trips?status=planning,planned,dispatched,assigned,driver_accepted,started,loading,driving,partially_delivered'), api.get('/drivers')]);
       setTrucks(trucksRes.data.filter((t: any) => t.status === 'active'));
       setOrders(ordersRes.data);
       setTrips(tripsRes.data);
@@ -355,7 +478,7 @@ export default function PlanningPage() {
     }
   };
 
-  const unassigned = orders.filter(o => ['draft', 'new', 'pending'].includes(o.status));
+  const unassigned = orders.filter(o => ['draft', 'new', 'planned'].includes(o.status));
   const filteredUnassigned = searchQuery ? unassigned.filter(o => (o.orderNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) || (o.referenceNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) || (o.client?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || o.stops?.some((s: any) => (s.address || '').toLowerCase().includes(searchQuery.toLowerCase()))) : unassigned;
   // TMS Logic: a truck can have multiple trips planned (sequential).
   // We show ONE trip at a time: the ACTIVE trip if currently on road,
@@ -583,13 +706,21 @@ export default function PlanningPage() {
               RIGHT — Trucks / Active Fleet
            ════════════════════════════════════════ */}
           <div className="flex-1 min-w-0 flex flex-col gap-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <TruckIcon className="w-5 h-5 text-primary" />
               <h2 className="font-bold text-text-primary text-lg">{t('active_fleet_title', 'Flotă Activă')}</h2>
               <span className="text-xs font-bold px-2 py-1 bg-primary/10 text-primary rounded-full border border-primary/20">{trucks.length}</span>
+              <div className="ml-auto flex items-center gap-1 bg-surface border border-border rounded-xl p-0.5">
+                <button onClick={() => setViewMode('board')} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${viewMode === 'board' ? 'bg-primary text-white shadow-sm' : 'text-text-secondary hover:text-primary'}`}>
+                  {t('view_board', 'Board')}
+                </button>
+                <button onClick={() => setViewMode('timeline')} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${viewMode === 'timeline' ? 'bg-primary text-white shadow-sm' : 'text-text-secondary hover:text-primary'}`}>
+                  {t('view_timeline', 'Cronologie')}
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {viewMode === 'timeline' ? <PlanningTimeline trips={trips} trucks={trucks} /> : <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {trucks.length === 0 ? <div className="col-span-3 bg-card border border-border rounded-2xl p-12 text-center">
                   <TruckIcon className="w-10 h-10 text-text-muted mx-auto mb-2 opacity-40" />
                   <p className="text-text-secondary text-sm">{t("jsx_niciunCamionA")}</p>
@@ -732,7 +863,7 @@ export default function PlanningPage() {
 
                       </div>;
             })}
-            </div>
+            </div>}
           </div>
 
         </div>

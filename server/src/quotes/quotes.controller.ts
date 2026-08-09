@@ -69,4 +69,10 @@ export class QuotesController {
   async convertToTrip(@Param('id') id: string) {
     return this.quotesService.convertToTrip(id);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/convert-to-order')
+  async convertToOrder(@Param('id') id: string) {
+    return this.quotesService.convertToOrder(id);
+  }
 }
