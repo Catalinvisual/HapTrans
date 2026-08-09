@@ -182,7 +182,7 @@ export default function TrucksPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-5">
               {/* Secțiunea 1: Identificare */}
               <div className="xl:col-span-4 pb-2 mb-2 border-b border-border/50">
-                <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Info className="w-4 h-4"/> 1. Identificare & Alocare</h4>
+                <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Info className="w-4 h-4"/>{t('section_identification') || '1. Identificare & Alocare'}</h4>
               </div>
               <div>
                 <label className="label font-semibold">{t('plateNumber', 'Număr Înmatriculare')} <span className="text-red-500">*</span></label>
@@ -201,12 +201,12 @@ export default function TrucksPage() {
 
               {/* Secțiunea 2: Specificații Tehnice */}
               <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
-                <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Settings2 className="w-4 h-4"/> 2. Specificații Tehnice</h4>
+                <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Settings2 className="w-4 h-4"/>{t('section_tech_specs') || '2. Specificații Tehnice'}</h4>
               </div>
               <div>
                 <label className="label font-semibold">{t('truckType', 'Tip Camion')}</label>
                 <select className="input" value={form.truckType} onChange={e => setForm({...form, truckType: e.target.value})}>
-                  {TRUCK_TYPES.map(tOption => <option key={tOption.value} value={tOption.value}>{t(tOption.label, tOption.default)}</option>)}
+                  {TRUCK_TYPES.map(tOption => <option key={tOption.value} value={tOption.value}>{t(tOption.label) || tOption.default}</option>)}
                 </select>
               </div>
               <div>
@@ -223,7 +223,7 @@ export default function TrucksPage() {
                     return (
                       <button type="button" key={feat.id} onClick={() => toggleFeature(feat.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 ${active ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-surface border-border text-text-secondary hover:border-text-muted'}`}>
                         <feat.icon className="w-3.5 h-3.5" />
-                        {t(feat.label, feat.default)}
+                        {t(feat.label) || feat.default}
                       </button>
                     )
                   })}
@@ -232,7 +232,7 @@ export default function TrucksPage() {
 
               {/* Secțiunea 3: Capacitate de Încărcare */}
               <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
-                <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><TruckIcon className="w-4 h-4"/> 3. Capacitate de Încărcare</h4>
+                <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><TruckIcon className="w-4 h-4"/>{t('section_capacity') || '3. Capacitate de Încărcare'}</h4>
               </div>
               <div><label className="label font-semibold">{t('maxWeightKg', 'Max Greutate (kg)')}</label><input type="number" className="input" value={form.maxWeightKg} onChange={e => setForm({...form, maxWeightKg: e.target.value})} /></div>
               <div><label className="label font-semibold">{t('payloadCapacity', 'Capacitate Utilă (kg)')}</label><input type="number" className="input" value={form.payloadCapacity} onChange={e => setForm({...form, payloadCapacity: e.target.value})} /></div>
@@ -243,7 +243,7 @@ export default function TrucksPage() {
 
               {/* Secțiunea 4: Costuri & Mentenanță */}
               <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
-                <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Fuel className="w-4 h-4"/> 4. Costuri & Mentenanță</h4>
+                <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Fuel className="w-4 h-4"/>{t('section_costs') || '4. Costuri & Mentenanță'}</h4>
               </div>
               <div><label className="label font-semibold">{t('costPerKm', 'Cost per km (€)')}</label><input type="number" step="0.01" className="input" value={form.costPerKm} onChange={e => setForm({...form, costPerKm: e.target.value})} /></div>
               <div><label className="label font-semibold">{t('fuelConsumption', 'Consum (l/100km)')}</label><input type="number" step="0.1" className="input" value={form.fuelConsumption} onChange={e => setForm({...form, fuelConsumption: e.target.value})} /></div>
@@ -300,7 +300,7 @@ export default function TrucksPage() {
                   {/* Features & Types badges */}
                   <div className="flex flex-wrap gap-1.5 mt-3">
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                      {TRUCK_TYPES.find(t => t.value === (truck.truckType || 'tautliner'))?.default || 'Tautliner'}
+                      {t(TRUCK_TYPES.find(opt => opt.value === (truck.truckType || 'tautliner'))?.label || 'truck_type_tautliner') || 'Tautliner'}
                     </span>
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-700 border border-gray-200">
                       {truck.euronorm || 'Euro 6'}
@@ -317,11 +317,11 @@ export default function TrucksPage() {
                   
                   {/* Capacity Bars */}
                   <div className="space-y-3 mb-5">
-                    <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2 flex items-center gap-1"><PackageIcon className="w-3 h-3"/> Capacitate Maximă</h4>
+                    <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2 flex items-center gap-1"><PackageIcon className="w-3 h-3"/>{t('max_capacity_label') || 'Capacitate Maximă'}</h4>
                     
                     <div>
                       <div className="flex justify-between text-xs font-semibold text-text-secondary mb-1">
-                        <span>Greutate</span>
+                        <span>{t('weight_label') || 'Greutate'}</span>
                         <span className="text-text-primary">{(truck.payloadCapacity || truck.maxWeightKg || 24000).toLocaleString()} kg</span>
                       </div>
                       <div className="w-full bg-surface h-1.5 rounded-full overflow-hidden"><div className="h-full bg-primary/40 rounded-full w-full"></div></div>
@@ -330,14 +330,14 @@ export default function TrucksPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <div className="flex justify-between text-[11px] font-semibold text-text-secondary mb-1">
-                          <span>Volum LDM</span>
+                          <span>{t('ldm_volume_label') || 'Volum LDM'}</span>
                           <span className="text-text-primary">{truck.maxLdm || 13.6} m</span>
                         </div>
                         <div className="w-full bg-surface h-1.5 rounded-full overflow-hidden"><div className="h-full bg-green-500/40 rounded-full w-full"></div></div>
                       </div>
                       <div>
                         <div className="flex justify-between text-[11px] font-semibold text-text-secondary mb-1">
-                          <span>Paleți</span>
+                          <span>{t('pallets_label') || 'Paleți'}</span>
                           <span className="text-text-primary">{truck.maxPallets || 33}</span>
                         </div>
                         <div className="w-full bg-surface h-1.5 rounded-full overflow-hidden"><div className="h-full bg-orange-500/40 rounded-full w-full"></div></div>

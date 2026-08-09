@@ -626,11 +626,11 @@ export default function PlanningPage() {
                                 {truck.brand && <span className="text-xs text-text-secondary font-normal">({truck.brand})</span>}
                               </h3>
                               {stats.isActive
-                                ? <span className="px-1.5 py-0.5 text-[9px] font-black rounded border bg-green-100 text-green-700 border-green-200 uppercase">🟢 În Cursă</span>
+                                ? <span className="px-1.5 py-0.5 text-[9px] font-black rounded border bg-green-100 text-green-700 border-green-200 uppercase">{t('status_badge_in_trip') || '🟢 În Cursă'}</span>
                                 : stats.tripId
-                                ? <span className="px-1.5 py-0.5 text-[9px] font-black rounded border bg-blue-100 text-blue-700 border-blue-200 uppercase">📋 Planificat</span>
-                                : <span className="px-1.5 py-0.5 text-[9px] font-black rounded border bg-surface text-text-muted border-border uppercase">Liber</span>}
-                              {stats.futureTripsCount > 0 && <span className="px-1.5 py-0.5 text-[9px] font-black rounded border bg-purple-100 text-purple-700 border-purple-200">+{stats.futureTripsCount} cursă</span>}
+                                ? <span className="px-1.5 py-0.5 text-[9px] font-black rounded border bg-blue-100 text-blue-700 border-blue-200 uppercase">{t('status_badge_planned') || '📋 Planificat'}</span>
+                                : <span className="px-1.5 py-0.5 text-[9px] font-black rounded border bg-surface text-text-muted border-border uppercase">{t('status_badge_free') || 'Liber'}</span>}
+                              {stats.futureTripsCount > 0 && <span className="px-1.5 py-0.5 text-[9px] font-black rounded border bg-purple-100 text-purple-700 border-purple-200">+{stats.futureTripsCount} {t('trips_count_badge') || 'cursă'}</span>}
                             </div>
                             <div className="flex items-center gap-1.5 flex-wrap mt-1">
                               <span className="px-1.5 py-0.5 text-[9px] font-bold rounded border bg-blue-50 text-blue-700 border-blue-200">
@@ -712,7 +712,7 @@ export default function PlanningPage() {
                               <div className="flex items-center justify-between mb-1.5">
                                 <p className="text-[10px] font-bold text-text-secondary">
                                   {stats.count === 0 ? 'Nicio comandă' : `${stats.count} comenzi în cursă`}
-                                  {stats.stops.length > 0 && <span className="ml-1 text-primary">· {stats.stops.length} opriri</span>}
+                                  {stats.stops.length > 0 && <span className="ml-1 text-primary">· {stats.stops.length} {t('stops_label') || 'opriri'}</span>}
                                 </p>
                                 {stats.plannedDeparture && (
                                   <span className="text-[9px] text-text-muted flex items-center gap-0.5">
