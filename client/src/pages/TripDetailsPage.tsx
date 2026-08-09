@@ -64,8 +64,8 @@ export default function TripDetailsPage() {
   if (!trip) return null;
   
   const sortedStops = trip.stops ? [...trip.stops].sort((a: any, b: any) => a.sequence - b.sequence) : [];
-  const pickupRef = trip.orders?.map((o: any) => o.loadingReference || o.customerReference).filter(Boolean).join(', ') || '-';
-  const deliveryRef = trip.orders?.map((o: any) => o.unloadingReference).filter(Boolean).join(', ') || '-';
+  const pickupRef = trip.orders?.map((o: any) => o.loadingReference || o.stops?.find((s: any) => s.type === 'pickup')?.reference || o.customerReference).filter(Boolean).join(', ') || '-';
+  const deliveryRef = trip.orders?.map((o: any) => o.unloadingReference || o.stops?.find((s: any) => s.type === 'dropoff')?.reference).filter(Boolean).join(', ') || '-';
   
   const addedCosts = trip.costs?.reduce((s: number, c: any) => s + Number(c.amount), 0) || 0;
   const estimatedCost = trip.orders?.reduce((sum: number, o: any) => sum + (Number(o.estimatedCost) || 0), 0) || 0;

@@ -49,7 +49,7 @@ export class TripsService {
   }
 
   findOne(id: string) {
-    return this.repo.findOne({ where: { id }, relations: ['truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'messages', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.client', 'orders.cargoItems', 'dispatcher'] });
+    return this.repo.findOne({ where: { id }, relations: ['truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'messages', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.client', 'orders.cargoItems', 'orders.stops', 'dispatcher'] });
   }
 
   async findByTrackingToken(trackingToken: string): Promise<Trip | null> {
