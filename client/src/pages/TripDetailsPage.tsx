@@ -237,8 +237,9 @@ export default function TripDetailsPage() {
                       {/* Tasks List for this Stop */}
                       {stop.tasks && stop.tasks.length > 0 && <div className="mt-3 space-y-2">
                           {stop.tasks.map((task: any) => {
-                              const loadRef = task.order?.loadingReference || task.order?.stops?.find((s: any) => s.type === 'pickup')?.reference || task.order?.customerReference || task.order?.orderNumber || '#N/A';
-                              const unloadRef = task.order?.unloadingReference || task.order?.stops?.find((s: any) => s.type === 'dropoff')?.reference || task.order?.customerReference || task.order?.orderNumber || '#N/A';
+                              const fullOrder = trip.orders?.find((o: any) => o.id === task.order?.id) || task.order;
+                              const loadRef = fullOrder?.loadingReference || fullOrder?.stops?.find((s: any) => s.type === 'pickup')?.reference || fullOrder?.customerReference || fullOrder?.orderNumber || '#N/A';
+                              const unloadRef = fullOrder?.unloadingReference || fullOrder?.stops?.find((s: any) => s.type === 'dropoff')?.reference || fullOrder?.customerReference || fullOrder?.orderNumber || '#N/A';
                               const displayRef = task.type === 'unload' ? unloadRef : loadRef;
                               
                               return <div key={task.id} className={`bg-${markerColor}-50/50 p-3 rounded-xl border border-${markerColor}-100/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3`}>
