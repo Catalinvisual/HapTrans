@@ -16,13 +16,14 @@ export interface ExcelExportOptions {
   rows: Record<string, any>[];
 }
 
-const PRIMARY = 'FF5A00';
 const PRIMARY_DARK = 'E04D00';
 const PRIMARY_LIGHT = 'FFF3EA';
 const ZEBRA = 'FFF7F0';
 const ACCENT = 'FFE8D5';
 const TEXT_DARK = 'FF1F2937';
 const WHITE = 'FFFFFFFF';
+const BANNER_GRAY = 'FF4B5563';
+const EMU_PER_PX = 9525;
 
 const HEADER_ICON_URL = headerIconUrl || null;
 
@@ -78,7 +79,7 @@ async function toDataUrl(src: string): Promise<string> {
   }
 }
 
-async function buildLogoImage(bannerH: number): Promise<{ b64: string; width: number; height: number } | null> {
+async function buildLogoImage(bannerH: number): Promise<{ b64: string; width: number; height: number; extension: string } | null> {
   try {
     let src = await fetchSettingsLogoSrc();
     if (!src) src = HEADER_ICON_URL;
@@ -88,8 +89,9 @@ async function buildLogoImage(bannerH: number): Promise<{ b64: string; width: nu
     if (!img.naturalWidth || !img.naturalHeight) return null;
 
     // Keep the logo's own transparent background — no white badge, no rounded corners
-    const maxH = Math.min(36, Math.round(bannerH - 12));
-    const maxW = 260;
+    const bannerPx = bannerH * 96 / 72;
+    const maxH = Math.min(32, Math.round(bannerPx - 28));
+    const maxW = 200;
     const ratio = img.naturalWidth / img.naturalHeight;
     let lw: number;
     let lh: number;
@@ -101,13 +103,25 @@ async function buildLogoImage(bannerH: number): Promise<{ b64: string; width: nu
       lw = Math.round(maxH * ratio);
     }
 
+    // Reuse the original raster bytes (no re-encode) so the logo stays sharp
+    const rasterMatch = /^data:image\/(png|jpeg|jpg|gif);base64,(.+)$/.exec(src);
+    if (rasterMatch) {
+      return {
+        b64: rasterMatch[2],
+        extension: rasterMatch[1] === 'jpg' ? 'jpeg' : rasterMatch[1],
+        width: lw,
+        height: lh,
+      };
+    }
+
+    // SVG / webp / bmp etc: rasterize to PNG at 2x so it stays sharp when Excel scales it down
     const canvas = document.createElement('canvas');
-    canvas.width = lw;
-    canvas.height = lh;
+    canvas.width = lw * 2;
+    canvas.height = lh * 2;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
-    ctx.drawImage(img, 0, 0, lw, lh);
-    return { b64: canvas.toDataURL('image/png').split(',')[1] || '', width: lw, height: lh };
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return { b64: canvas.toDataURL('image/png').split(',')[1] || '', extension: 'png', width: lw, height: lh };
   } catch {
     return null;
   }
@@ -156,43 +170,50 @@ export async function exportExcel(opts: ExcelExportOptions): Promise<void> {
   const r1 = ws.getRow(1); r1.height = rowH1;
   const r2 = ws.getRow(2); r2.height = rowH2;
   for (let c = 1; c <= colCount; c++) {
-    ws.getCell(1, c).fill = solid(PRIMARY);
-    ws.getCell(2, c).fill = solid(PRIMARY);
+    ws.getCell(1, c).fill = solid(BANNER_GRAY);
+    ws.getCell(2, c).fill = solid(BANNER_GRAY);
   }
 
-  // Transparent SaaS logo (same as the sidebar header) placed directly on the
-  // orange banner, with clear spacing between it and the page title
+  // Transparent SaaS logo (same as the sidebar header) pinned to the top-left
+  // of the gray banner, with clear spacing before the page title
   let titleIndent = 0;
   let subIndent = 0;
   let titleCol = 1;
   const logo = await buildLogoImage(bannerH);
   if (logo) {
-    const leftPx = 14;
-    const imageId = wb.addImage({ base64: logo.b64, extension: 'png' });
+    const marginPx = 10;
+    const bannerPx = bannerH * 96 / 72;
+    const topPx = Math.max(0, (bannerPx - logo.height) / 2);
+    const imageId = wb.addImage({ base64: logo.b64, extension: logo.extension });
     ws.addImage(imageId, {
-      tl: { col: leftPx / 7, row: (bannerH - logo.height) / 2 / rowH1 },
+      tl: {
+        nativeCol: 0,
+        nativeColOff: Math.round(marginPx * EMU_PER_PX),
+        nativeRow: 0,
+        nativeRowOff: Math.round(topPx * EMU_PER_PX),
+      },
       ext: { width: logo.width, height: logo.height },
     });
-    const logoRight = leftPx + logo.width;
+    const logoRight = marginPx + logo.width;
+    const gapPx = 48;
+    const targetPx = logoRight + gapPx;
     const col1Right = (ws.getColumn(1).width || 10) * 7;
     if (logoRight <= col1Right) {
       // Logo fits inside the first column — keep the title there, pushed clear of it
-      const titlePx = logoRight + 40;
-      titleIndent = Math.ceil(titlePx / 12);
-      subIndent = Math.ceil(titlePx / 7);
+      titleIndent = Math.ceil(targetPx / 12);
+      subIndent = Math.ceil(targetPx / 7);
     } else {
       // Logo spans columns — start the title at the first column boundary after it
       let acc = 0;
       let found = false;
       for (let c = 1; c <= colCount; c++) {
         acc += (ws.getColumn(c).width || 10) * 7;
-        if (acc >= logoRight + 40) { titleCol = c + 1; found = true; break; }
+        if (acc >= targetPx) { titleCol = c + 1; found = true; break; }
       }
       if (!found) {
-        // Logo wider than the whole sheet — fall back to an indent
-        const titlePx = logoRight + 40;
-        titleIndent = Math.ceil(titlePx / 12);
-        subIndent = Math.ceil(titlePx / 7);
+        // Logo + gap wider than the whole sheet — fall back to an indent
+        titleIndent = Math.ceil(targetPx / 12);
+        subIndent = Math.ceil(targetPx / 7);
       } else if (titleCol > colCount) {
         titleCol = colCount;
       }
