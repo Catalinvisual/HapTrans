@@ -594,12 +594,11 @@ export default function OrderWizard({
     value: 'other',
     label: t('unit_other', 'Other')
   }];
-  const modalContent = <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{
+  const modalContent = <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 md:p-5" style={{
     backdropFilter: 'blur(4px)',
     backgroundColor: 'rgba(0,0,0,0.55)'
   }}>
-      <div className="relative z-50 w-full max-w-6xl bg-card shadow-2xl flex flex-col rounded-2xl overflow-hidden" style={{
-      maxHeight: '92vh',
+      <div className="relative z-50 w-full h-full bg-card shadow-2xl flex flex-col rounded-2xl overflow-hidden" style={{
       animation: 'wizardIn 0.25s cubic-bezier(0.34,1.56,0.64,1)'
     }} onClick={e => e.stopPropagation()}>
         {/* Header */}

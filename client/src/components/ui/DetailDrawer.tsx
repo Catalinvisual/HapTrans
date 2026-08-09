@@ -18,12 +18,11 @@ interface DetailDrawerProps {
   activeTab?: string;
   onTabChange?: (key: string) => void;
   footer?: ReactNode;
-  width?: string;
   children?: ReactNode;
 }
 
 export default function DetailDrawer({
-  open, onClose, title, subtitle, headerRight, tabs, activeTab, onTabChange, footer, width = '560px', children,
+  open, onClose, title, subtitle, headerRight, tabs, activeTab, onTabChange, footer, children,
 }: DetailDrawerProps) {
   useEffect(() => {
     if (!open) return;
@@ -35,9 +34,9 @@ export default function DetailDrawer({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70]">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px] animate-fade-in" onClick={onClose} />
-      <aside className={`absolute inset-y-0 right-0 bg-card shadow-2xl flex flex-col animate-slide-in-right`} style={{ width, maxWidth: '100vw' }}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 md:p-5">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] animate-fade-in" onClick={onClose} />
+      <div className="relative w-full h-full bg-card shadow-2xl flex flex-col rounded-2xl overflow-hidden animate-fade-in-up">
         <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border bg-surface/30">
           <div className="min-w-0">
             <h3 className="font-bold text-base text-text-primary truncate">{title}</h3>
@@ -73,7 +72,7 @@ export default function DetailDrawer({
         </div>
 
         {footer && <div className="px-5 py-3 border-t border-border bg-surface/30 flex items-center gap-2 justify-end">{footer}</div>}
-      </aside>
+      </div>
     </div>
   );
 }
