@@ -16,7 +16,17 @@ export interface ExcelExportOptions {
 const PRIMARY = 'FF5A00';
 const PRIMARY_DARK = 'E04D00';
 const PRIMARY_LIGHT = 'FFF3EA';
-const ZEBRA = 'FAFAFA';
+const ZEBRA = 'FFF7F0';
+const ACCENT = 'FFE8D5';
+const TEXT_DARK = 'FF1F2937';
+const WHITE = 'FFFFFFFF';
+
+const LOGO_SRC = '/footer-logo.png';
+const LOGO_RATIO = 1018 / 245;
+
+function solid(color: string) {
+  return { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: color } };
+}
 
 function cellValue(v: any): any {
   if (v === null || v === undefined || v === '') return '';
@@ -30,6 +40,25 @@ function charWidth(s: string): number {
   return w;
 }
 
+function colStartUnits(ws: any, upToCol: number): number {
+  let total = 0;
+  for (let c = 1; c < upToCol; c++) total += ws.getColumn(c).width || 10;
+  return total;
+}
+
+async function loadLogoBase64(): Promise<string | null> {
+  try {
+    const res = await fetch(LOGO_SRC);
+    if (!res.ok) return null;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  } catch {
+    return null;
+  }
+}
+
 export async function exportExcel(opts: ExcelExportOptions): Promise<void> {
   const mod = (await import('exceljs')) as any;
   const ExcelJS = mod.default ?? mod;
@@ -41,79 +70,168 @@ export async function exportExcel(opts: ExcelExportOptions): Promise<void> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'HapTrans';
   wb.created = new Date();
-  const ws = wb.addWorksheet(sheetName, { views: [{ state: 'frozen', ySplit: 3 }] });
+  const ws = wb.addWorksheet(sheetName, { views: [{ state: 'frozen', ySplit: 4 }] });
+  ws.showGridLines = false;
+  ws.pageSetup = {
+    orientation: 'landscape',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    paperSize: 9,
+    margins: { left: 0.2, right: 0.2, top: 0.3, bottom: 0.3, header: 0.1, footer: 0.1 },
+  };
 
   const colCount = headers.length;
 
-  // ── Title row ─────────────────────────────────────────────
-  ws.mergeCells(1, 1, 1, colCount);
-  const titleCell = ws.getCell(1, 1);
-  titleCell.value = title;
-  titleCell.font = { name: 'Calibri', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
-  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: PRIMARY } };
-  titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
-  ws.getRow(1).height = 34;
-
-  // ── Subtitle row ──────────────────────────────────────────
-  ws.mergeCells(2, 1, 2, colCount);
-  const subCell = ws.getCell(2, 1);
-  subCell.value = subtitle;
-  subCell.font = { name: 'Calibri', size: 11, italic: true, color: { argb: 'FF7A4A00' } };
-  subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: PRIMARY_LIGHT } };
-  subCell.alignment = { vertical: 'middle', horizontal: 'left' };
-  ws.getRow(2).height = 22;
-
-  // ── Header row ────────────────────────────────────────────
-  const headerRow = ws.getRow(3);
+  // ── Column widths (auto, generous) ─────────────────────────
   headers.forEach((h, i) => {
-    const cell = headerRow.getCell(i + 1);
-    cell.value = h.label;
-    cell.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: PRIMARY_DARK } };
-    cell.alignment = { vertical: 'middle', horizontal: h.align || 'center', wrapText: true };
-    cell.border = {
-      top: { style: 'thin', color: { argb: 'FFFFFFFF' } },
-      left: { style: 'thin', color: { argb: 'FFFFFFFF' } },
-      bottom: { style: 'thin', color: { argb: 'FFFFFFFF' } },
-      right: { style: 'thin', color: { argb: 'FFFFFFFF' } },
-    };
-  });
-  headerRow.height = 24;
-
-  // ── Column widths (auto) ──────────────────────────────────
-  headers.forEach((h, i) => {
-    let maxLen = charWidth(h.label) + 2;
+    let maxLen = Math.max(charWidth(h.label), charWidth(title)) + 4;
     for (const r of rows) {
       const len = charWidth(String(cellValue(r[h.key])));
       if (len > maxLen) maxLen = len;
     }
-    const w = Math.max(10, Math.min(42, maxLen + 2));
+    const w = Math.max(12, Math.min(44, maxLen + 3));
     ws.getColumn(i + 1).width = w;
   });
 
-  // ── Data rows ─────────────────────────────────────────────
+  const totalPx = colStartUnits(ws, colCount + 1) * 7;
+
+  // ── Logo (loaded from SaaS asset) ───────────────────────────
+  const logoB64 = await loadLogoBase64();
+  let logoW = 190;
+  let logoH = 46;
+  if (totalPx < 480) {
+    logoW = Math.round(totalPx * 0.38);
+    logoH = Math.round(logoW / LOGO_RATIO);
+  }
+  const chipCols = Math.min(3, Math.max(2, colCount - 1));
+  let chipStart = Math.max(2, colCount - chipCols + 1);
+  let chipPx = 0;
+  for (let c = chipStart; c <= colCount; c++) chipPx += (ws.getColumn(c).width || 10) * 7;
+  while (chipStart > 2 && chipPx < logoW + 24) {
+    chipStart -= 1;
+    chipPx += (ws.getColumn(chipStart).width || 10) * 7;
+  }
+  if (logoB64 && chipPx - 12 < logoW) {
+    logoW = Math.max(80, chipPx - 12);
+    logoH = Math.round(logoW / LOGO_RATIO);
+  }
+
+  const rowH1 = 28;
+  const rowH2 = 18;
+  const bannerH = rowH1 + rowH2;
+
+  // ── Row 1-2: brand banner (full width) ──────────────────────
+  const r1 = ws.getRow(1); r1.height = rowH1;
+  const r2 = ws.getRow(2); r2.height = rowH2;
+  for (let c = 1; c <= colCount; c++) {
+    ws.getCell(1, c).fill = solid(PRIMARY);
+    ws.getCell(2, c).fill = solid(PRIMARY);
+  }
+  const titleCell = ws.getCell(1, 1);
+  titleCell.value = title;
+  titleCell.font = { name: 'Calibri', size: 22, bold: true, color: { argb: WHITE } };
+  titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+
+  const subCell = ws.getCell(2, 1);
+  subCell.value = subtitle;
+  subCell.font = { name: 'Calibri', size: 11, color: { argb: 'FFFDEFDE' } };
+  subCell.alignment = { vertical: 'middle', horizontal: 'left' };
+
+  // White "logo chip" on the banner, top-right
+  if (logoB64) {
+    for (let c = chipStart; c <= colCount; c++) {
+      ws.getCell(1, c).fill = solid(WHITE);
+      ws.getCell(2, c).fill = solid(WHITE);
+    }
+    const leftUnits = colStartUnits(ws, chipStart) + (chipPx - logoW) / 14;
+    const rowAnchor = (bannerH - logoH) / 2 / bannerH;
+    const imageId = wb.addImage({ base64: logoB64, extension: 'png' });
+    ws.addImage(imageId, { tl: { col: Math.max(0, leftUnits), row: rowAnchor }, ext: { width: logoW, height: logoH } });
+  }
+
+  // ── Row 3: accent strip ─────────────────────────────────────
+  const r3 = ws.getRow(3); r3.height = 4;
+  for (let c = 1; c <= colCount; c++) ws.getCell(3, c).fill = solid(PRIMARY_DARK);
+
+  // ── Row 4: column header row ────────────────────────────────
+  const headerRow = ws.getRow(4); headerRow.height = 26;
+  headers.forEach((h, i) => {
+    const cell = headerRow.getCell(i + 1);
+    cell.value = h.label;
+    cell.font = { name: 'Calibri', size: 12, bold: true, color: { argb: WHITE } };
+    cell.fill = solid(PRIMARY_DARK);
+    cell.alignment = { vertical: 'middle', horizontal: h.align || 'center', wrapText: true };
+    if (i < colCount - 1) {
+      cell.border = { right: { style: 'thin', color: { argb: 'FF5A1E00' } } };
+    }
+  });
+
+  // ── Data rows (zebra + soft grid) ───────────────────────────
   rows.forEach((r, ri) => {
-    const row = ws.getRow(ri + 4);
+    const row = ws.getRow(ri + 5); row.height = 21;
     headers.forEach((h, i) => {
       const cell = row.getCell(i + 1);
-      cell.value = cellValue(r[h.key]);
-      cell.font = { name: 'Calibri', size: 11, color: { argb: 'FF1F2937' } };
-      cell.alignment = { vertical: 'middle', horizontal: h.align || (typeof r[h.key] === 'number' ? 'right' : 'left'), wrapText: false };
-      cell.border = {
-        top: { style: 'hair', color: { argb: 'FFD0D0D0' } },
-        bottom: { style: 'hair', color: { argb: 'FFD0D0D0' } },
-        left: { style: 'hair', color: { argb: 'FFD0D0D0' } },
-        right: { style: 'hair', color: { argb: 'FFD0D0D0' } },
+      const v = cellValue(r[h.key]);
+      cell.value = v;
+      cell.font = { name: 'Calibri', size: 11, color: { argb: TEXT_DARK } };
+      cell.alignment = {
+        vertical: 'middle',
+        horizontal: typeof v === 'number' ? 'right' : h.align || 'left',
       };
-      if (ri % 2 === 1) {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ZEBRA } };
-      }
+      if (typeof v === 'number' && v % 1 !== 0) cell.numFmt = '#,##0.00';
+      cell.fill = solid(ri % 2 === 1 ? ZEBRA : WHITE);
+      cell.border = {
+        top: { style: 'hair', color: { argb: ACCENT } },
+        bottom: { style: 'hair', color: { argb: ACCENT } },
+        left: { style: 'hair', color: { argb: ACCENT } },
+        right: { style: 'hair', color: { argb: ACCENT } },
+      };
     });
   });
 
-  // ── Autofilter on the header row ──────────────────────────
+  // ── Totals band ─────────────────────────────────────────────
   if (rows.length > 0) {
-    ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: rows.length + 3, column: colCount } };
+    const trIdx = rows.length + 5;
+    const tr = ws.getRow(trIdx); tr.height = 26;
+    headers.forEach((h, i) => {
+      const cell = tr.getCell(i + 1);
+      cell.fill = solid(PRIMARY_LIGHT);
+      cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: TEXT_DARK } };
+      const nums = rows.map(r => r[h.key]).filter(v => typeof v === 'number');
+      if (nums.length === rows.length && nums.length > 0) {
+        const sum = nums.reduce((a: number, b: number) => a + b, 0);
+        const decimals = nums.some((n: number) => n % 1 !== 0) ? 2 : 0;
+        cell.value = Number(sum.toFixed(decimals));
+        cell.numFmt = `#,##0.${'0'.repeat(decimals)}`;
+        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+      } else if (i === 0) {
+        cell.value = `Total · ${rows.length}`;
+        cell.alignment = { vertical: 'middle', horizontal: 'left' };
+      } else {
+        cell.alignment = { vertical: 'middle', horizontal: 'left' };
+      }
+    });
+  }
+
+  // ── Footer note (full width, brand-tinted) ──────────────────
+  const footIdx = rows.length + 6;
+  const fr = ws.getRow(footIdx); fr.height = 22;
+  for (let c = 1; c <= colCount; c++) {
+    const cell = ws.getCell(footIdx, c);
+    cell.fill = solid(PRIMARY_LIGHT);
+    if (c === 1) {
+      cell.value = 'Prepared with HapTrans · Professional Transport Management';
+      cell.font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FFB0562E' } };
+      cell.alignment = { vertical: 'middle', horizontal: 'left' };
+    } else {
+      cell.alignment = { vertical: 'middle', horizontal: 'left' };
+    }
+  }
+
+  // ── Autofilter on the header row ────────────────────────────
+  if (rows.length > 0) {
+    ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: rows.length + 4, column: colCount } };
   }
 
   const buf = await wb.xlsx.writeBuffer();

@@ -222,14 +222,14 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
     { key: 'status', label: 'Status', transform: (v: any) => v || '' },
     { key: 'truck', label: 'Truck', transform: (_v: any, tr: any) => tr.truck?.plateNumber || '' },
     { key: 'driver', label: 'Driver', transform: (_v: any, tr: any) => tDriverName(tr) },
-    { key: 'pickup', label: 'Pickup', transform: (_v: any, tr: any) => tPickup(tr)?.city || '' },
-    { key: 'dropoff', label: 'Dropoff', transform: (_v: any, tr: any) => tDropoff(tr)?.city || '' },
-    { key: 'distanceKm', label: 'Km', transform: (v: any) => v || '' },
+    { key: 'pickup', label: 'Pickup', transform: (_v: any, tr: any) => { const s = tPickup(tr); return s ? [s.address || s.companyName, s.country].filter(Boolean).join(', ') : ''; } },
+    { key: 'dropoff', label: 'Dropoff', transform: (_v: any, tr: any) => { const s = tDropoff(tr); return s ? [s.address || s.companyName, s.country].filter(Boolean).join(', ') : ''; } },
+    { key: 'distanceKm', label: 'Km', transform: (v: any) => Number(v || 0) },
     { key: 'pallets', label: 'Pallets', transform: (_v: any, tr: any) => tPallets(tr) },
     { key: 'weight', label: 'Weight (kg)', transform: (_v: any, tr: any) => Math.round(tWeight(tr)) },
-    { key: 'revenue', label: 'Revenue', transform: (_v: any, tr: any) => tRevenue(tr).toFixed(2) },
-    { key: 'cost', label: 'Cost', transform: (_v: any, tr: any) => (tCost(tr) + tExtraCost(tr)).toFixed(2) },
-    { key: 'profit', label: 'Profit', transform: (_v: any, tr: any) => tProfit(tr).toFixed(2) },
+    { key: 'revenue', label: 'Revenue', transform: (_v: any, tr: any) => Number(tRevenue(tr)) },
+    { key: 'cost', label: 'Cost', transform: (_v: any, tr: any) => Number(tCost(tr) + tExtraCost(tr)) },
+    { key: 'profit', label: 'Profit', transform: (_v: any, tr: any) => Number(tProfit(tr)) },
   ];
 
   const openExport = (rows: any[]) => {

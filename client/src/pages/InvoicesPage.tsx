@@ -907,7 +907,7 @@ export default function InvoicesPage({
     }, {
       key: 'amount',
       label: 'Subtotal Excl. VAT (€)',
-      transform: (_val, item) => getInvTotals(item).subtotal.toFixed(2)
+      transform: (_val, item) => Number(getInvTotals(item).subtotal.toFixed(2))
     }, {
       key: 'vatPercent',
       label: 'VAT (%)',
@@ -915,7 +915,7 @@ export default function InvoicesPage({
     }, {
       key: 'total',
       label: 'Total Incl. VAT (€)',
-      transform: (_val, item) => getInvTotals(item).total.toFixed(2)
+      transform: (_val, item) => Number(getInvTotals(item).total.toFixed(2))
     }, {
       key: 'issueDate',
       label: 'Issue Date',
