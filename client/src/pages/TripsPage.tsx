@@ -217,6 +217,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
 
   const handleExport = (rows: any[]) => {
     exportCsv(
+      `trips-${new Date().toISOString().split('T')[0]}.csv`,
       rows.map(tr => ({
         [t('trip', 'Trip')]: tr.tripNumber || '',
         [t('status', 'Status')]: tr.status,
@@ -230,8 +231,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
         [t('revenue', 'Revenue')]: tRevenue(tr).toFixed(2),
         [t('cost', 'Cost')]: (tCost(tr) + tExtraCost(tr)).toFixed(2),
         [t('profit', 'Profit')]: tProfit(tr).toFixed(2),
-      })),
-      `trips-${new Date().toISOString().split('T')[0]}.csv`
+      }))
     );
     toast.success(t('exported', 'Export started'));
   };
@@ -505,8 +505,9 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
   };
 
   const Row = ({ label, value, icon }: any) => (
-    <div className="flex items-start justify-between gap-3 py-2 border-b border-border/50 last:border-0">
-      <span className="text-xs text-text-secondary font-medium flex items-center gap-1.5">{icon}{label}</span>
+    <div className="flex items-baseline gap-2 py-2 border-b border-border/50 last:border-0">
+      <span className="text-xs text-text-secondary font-medium flex items-center gap-1.5 whitespace-nowrap">{icon}{label}</span>
+      <span className="flex-1 border-b border-dotted border-text-secondary/40 translate-y-[-2px]" />
       <span className="text-[13px] font-semibold text-text-primary text-right">{value || '—'}</span>
     </div>
   );

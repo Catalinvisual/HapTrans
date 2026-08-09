@@ -182,7 +182,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast.success(`${tExport.successExport} (${filtered.length})`);
     onClose();
   };

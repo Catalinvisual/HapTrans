@@ -437,8 +437,9 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
   const next = ORDER_FLOW[order.status];
 
   const Row = ({ label, value, icon }: any) => (
-    <div className="flex items-start justify-between gap-3 py-2 border-b border-border/50 last:border-0">
-      <span className="text-xs text-text-secondary font-medium flex items-center gap-1.5">{icon}{label}</span>
+    <div className="flex items-baseline gap-2 py-2 border-b border-border/50 last:border-0">
+      <span className="text-xs text-text-secondary font-medium flex items-center gap-1.5 whitespace-nowrap">{icon}{label}</span>
+      <span className="flex-1 border-b border-dotted border-text-secondary/40 translate-y-[-2px]" />
       <span className="text-[13px] font-semibold text-text-primary text-right">{value || '—'}</span>
     </div>
   );
