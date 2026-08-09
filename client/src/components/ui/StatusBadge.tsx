@@ -30,15 +30,22 @@ const TRIP_BADGES: Record<string, string> = {
   cancelled: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900',
 };
 
+const FLEET_BADGES: Record<string, string> = {
+  active: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-400 dark:border-green-900',
+  in_trip: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-900',
+  maintenance: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900',
+  inactive: 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700',
+};
+
 interface StatusBadgeProps {
   status: string;
   label: ReactNode;
-  type?: 'order' | 'trip';
+  type?: 'order' | 'trip' | 'fleet';
   size?: 'sm' | 'md';
 }
 
 export default function StatusBadge({ status, label, type = 'order', size = 'sm' }: StatusBadgeProps) {
-  const map = type === 'trip' ? TRIP_BADGES : ORDER_BADGES;
+  const map = type === 'trip' ? TRIP_BADGES : type === 'fleet' ? FLEET_BADGES : ORDER_BADGES;
   const cls = map[status] || 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700';
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border font-semibold whitespace-nowrap ${size === 'sm' ? 'text-[11px]' : 'text-xs'} ${cls}`}>
