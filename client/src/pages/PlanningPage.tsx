@@ -164,9 +164,9 @@ function OrderDetailDrawer({
               <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-1.5">
                 <Info className="w-3.5 h-3.5" />{t("jsx_referinE")}</h3>
               <div className="space-y-1.5 text-sm">
-                {order.customerReference && <div className="flex items-baseline gap-2"><span className="text-text-secondary text-xs whitespace-nowrap">{t("jsx_refClient")}</span><span className="flex-1 border-b border-dotted border-text-secondary/40 translate-y-[-2px]" /><span className="font-bold text-xs">{order.customerReference}</span></div>}
-                {order.cmrReference && <div className="flex items-baseline gap-2"><span className="text-text-secondary text-xs whitespace-nowrap">{t("jsx_cMR")}</span><span className="flex-1 border-b border-dotted border-text-secondary/40 translate-y-[-2px]" /><span className="font-bold text-xs">{order.cmrReference}</span></div>}
-                {order.loadingReference && <div className="flex items-baseline gap-2"><span className="text-text-secondary text-xs whitespace-nowrap">{t("jsx_refNcRcare")}</span><span className="flex-1 border-b border-dotted border-text-secondary/40 translate-y-[-2px]" /><span className="font-bold text-xs">{order.loadingReference}</span></div>}
+                {order.customerReference && <div className="flex items-baseline gap-1.5 flex-wrap"><span className="text-text-secondary text-xs whitespace-nowrap">{t("jsx_refClient")}:</span><span className="font-bold text-xs">{order.customerReference}</span></div>}
+                {order.cmrReference && <div className="flex items-baseline gap-1.5 flex-wrap"><span className="text-text-secondary text-xs whitespace-nowrap">{t("jsx_cMR")}:</span><span className="font-bold text-xs">{order.cmrReference}</span></div>}
+                {order.loadingReference && <div className="flex items-baseline gap-1.5 flex-wrap"><span className="text-text-secondary text-xs whitespace-nowrap">{t("jsx_refNcRcare")}:</span><span className="font-bold text-xs">{order.loadingReference}</span></div>}
                 {order.internalNotes && <div className="mt-2 pt-2 border-t border-border"><p className="text-xs text-text-secondary">{t("jsx_noteInterne")}</p><p className="text-sm mt-0.5">{order.internalNotes}</p></div>}
               </div>
             </div>}

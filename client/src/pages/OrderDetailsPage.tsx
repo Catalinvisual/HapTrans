@@ -104,9 +104,9 @@ export default function OrderDetailsPage() {
               <div>
                 <h3 className="font-bold text-sm text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-2"><Truck className="w-4 h-4 text-primary" /> {t("jsx_transportDetai", "Transport Details")}</h3>
                 <div className="space-y-2 text-sm">
-                  <div className="flex items-baseline gap-2"><span className="text-text-secondary whitespace-nowrap">{t("jsx_transportType", "Transport Type")}</span><span className="flex-1 border-b border-dotted border-text-secondary/40 translate-y-[-2px]" /><span className="font-bold capitalize">{order.transportType || '—'}</span></div>
-                  <div className="flex items-baseline gap-2"><span className="text-text-secondary whitespace-nowrap">{t("jsx_priority", "Priority")}</span><span className="flex-1 border-b border-dotted border-text-secondary/40 translate-y-[-2px]" /><span className={`font-bold capitalize ${order.priority === 'urgent' ? 'text-red-500' : ''}`}>{order.priority || '—'}</span></div>
-                  <div className="flex items-baseline gap-2"><span className="text-text-secondary whitespace-nowrap">{t("jsx_distance", "Distance")}</span><span className="flex-1 border-b border-dotted border-text-secondary/40 translate-y-[-2px]" /><span className="font-bold">{order.distanceKm ? `${order.distanceKm} km` : '—'}</span></div>
+                  <div className="flex items-baseline gap-1.5 flex-wrap"><span className="text-text-secondary whitespace-nowrap">{t("jsx_transportType", "Transport Type")}:</span><span className="font-bold capitalize">{order.transportType || '—'}</span></div>
+                  <div className="flex items-baseline gap-1.5 flex-wrap"><span className="text-text-secondary whitespace-nowrap">{t("jsx_priority", "Priority")}:</span><span className={`font-bold capitalize ${order.priority === 'urgent' ? 'text-red-500' : ''}`}>{order.priority || '—'}</span></div>
+                  <div className="flex items-baseline gap-1.5 flex-wrap"><span className="text-text-secondary whitespace-nowrap">{t("jsx_distance", "Distance")}:</span><span className="font-bold">{order.distanceKm ? `${order.distanceKm} km` : '—'}</span></div>
                 </div>
               </div>
               <div>
@@ -118,8 +118,8 @@ export default function OrderDetailsPage() {
               <div>
                 <h3 className="font-bold text-sm text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-2"><MapPin className="w-4 h-4 text-orange-500" /> {t("jsx_contactDetails", "Client Contact")}</h3>
                 <div className="space-y-2 text-sm">
-                  <div className="flex items-baseline gap-2"><span className="text-text-secondary whitespace-nowrap">{t("jsx_contactPerson", "Contact Person")}</span><span className="flex-1 border-b border-dotted border-text-secondary/40 translate-y-[-2px]" /><span className="font-bold">{order.contactPerson || '—'}</span></div>
-                  <div className="flex items-baseline gap-2"><span className="text-text-secondary whitespace-nowrap">{t("jsx_phoneNumber", "Phone")}</span><span className="flex-1 border-b border-dotted border-text-secondary/40 translate-y-[-2px]" /><span className="font-bold">{order.contactPhone || '—'}</span></div>
+                  <div className="flex items-baseline gap-1.5 flex-wrap"><span className="text-text-secondary whitespace-nowrap">{t("jsx_contactPerson", "Contact Person")}:</span><span className="font-bold">{order.contactPerson || '—'}</span></div>
+                  <div className="flex items-baseline gap-1.5 flex-wrap"><span className="text-text-secondary whitespace-nowrap">{t("jsx_phoneNumber", "Phone")}:</span><span className="font-bold">{order.contactPhone || '—'}</span></div>
                 </div>
               </div>
             </div>
@@ -212,12 +212,12 @@ export default function OrderDetailsPage() {
               <div className="card p-5">
                 <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><FileText className="text-blue-500" />{t("jsx_referencesNo")}</h3>
                 <div className="space-y-3 text-sm">
-                  <div className="flex items-baseline gap-2"><span className="text-text-secondary whitespace-nowrap">{t("jsx_customerRef")}</span><span className="flex-1 border-b border-dotted border-text-secondary/40 translate-y-[-2px]" /><span className="font-bold text-right">{order.customerReference || '—'}</span></div>
-                  <div className="flex items-baseline gap-2"><span className="text-text-secondary whitespace-nowrap">{t("jsx_bookingRef")}</span><span className="flex-1 border-b border-dotted border-text-secondary/40 translate-y-[-2px]" /><span className="font-bold text-right">{order.bookingReference || '—'}</span></div>
-                  <div className="flex items-baseline gap-2"><span className="text-text-secondary whitespace-nowrap">{t("jsx_cMRRef")}</span><span className="flex-1 border-b border-dotted border-text-secondary/40 translate-y-[-2px]" /><span className="font-bold text-right">{order.CMRReference || '—'}</span></div>
-                  <div className="flex items-baseline gap-2"><span className="text-text-secondary whitespace-nowrap">{t("jsx_loadingRef")}</span><span className="flex-1 border-b border-dotted border-text-secondary/40 translate-y-[-2px]" /><span className="font-bold text-right">{order.loadingReference || '—'}</span></div>
-                  <div className="flex items-baseline gap-2"><span className="text-text-secondary whitespace-nowrap">{t("jsx_unloadingRef")}</span><span className="flex-1 border-b border-dotted border-text-secondary/40 translate-y-[-2px]" /><span className="font-bold text-right">{order.unloadingReference || '—'}</span></div>
-                <div className="flex items-baseline gap-2"><span className="text-text-secondary whitespace-nowrap">{t("jsx_internalRef", "Internal Ref")}</span><span className="flex-1 border-b border-dotted border-text-secondary/40 translate-y-[-2px]" /><span className="font-bold text-right">{order.internalReference || '—'}</span></div>
+                  <div className="flex items-baseline gap-1.5 flex-wrap"><span className="text-text-secondary whitespace-nowrap">{t("jsx_customerRef")}:</span><span className="font-bold">{order.customerReference || '—'}</span></div>
+                  <div className="flex items-baseline gap-1.5 flex-wrap"><span className="text-text-secondary whitespace-nowrap">{t("jsx_bookingRef")}:</span><span className="font-bold">{order.bookingReference || '—'}</span></div>
+                  <div className="flex items-baseline gap-1.5 flex-wrap"><span className="text-text-secondary whitespace-nowrap">{t("jsx_cMRRef")}:</span><span className="font-bold">{order.CMRReference || '—'}</span></div>
+                  <div className="flex items-baseline gap-1.5 flex-wrap"><span className="text-text-secondary whitespace-nowrap">{t("jsx_loadingRef")}:</span><span className="font-bold">{order.loadingReference || '—'}</span></div>
+                  <div className="flex items-baseline gap-1.5 flex-wrap"><span className="text-text-secondary whitespace-nowrap">{t("jsx_unloadingRef")}:</span><span className="font-bold">{order.unloadingReference || '—'}</span></div>
+                <div className="flex items-baseline gap-1.5 flex-wrap"><span className="text-text-secondary whitespace-nowrap">{t("jsx_internalRef", "Internal Ref")}:</span><span className="font-bold">{order.internalReference || '—'}</span></div>
                 </div>
                 
                 {order.notes && <div className="mt-5 pt-5 border-t border-border">
