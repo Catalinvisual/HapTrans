@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { Package, MapPin, CheckCircle, Clock, Truck, FileText, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 export default function TrackingPage() {
+  const { t } = useTranslation();
   const {
     id
   } = useParams<{

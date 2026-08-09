@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, MapPin, Truck, Calendar, Package, Download, Navigation } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Polyline } from 'react-leaflet';
+import { ArrowLeft, Calendar, Package, Download } from 'lucide-react';
+import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import portalApi from '../../lib/portalApi';
 import { formatDate } from '../../lib/dateUtils';
@@ -18,6 +18,7 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 export default function PortalOrderDetailsPage() {
+  const { t } = useTranslation();
   const {
     id
   } = useParams();

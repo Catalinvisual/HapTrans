@@ -901,12 +901,12 @@ export default function PlanningPage() {
                         {/* Orders in current trip */}
                         <div className="mt-auto pt-3 border-t border-border/60">
                           {!stats.tripId ? (
-                            <p className="text-[11px] text-text-muted text-center py-2 italic">Camion liber · Trage o comandă aici</p>
+                            <p className="text-[11px] text-text-muted text-center py-2 italic">{t('truck_free_drop')}</p>
                           ) : (
                             <>
                               <div className="flex items-center justify-between mb-1.5">
                                 <p className="text-[10px] font-bold text-text-secondary">
-                                  {stats.count === 0 ? 'Nicio comandă' : `${stats.count} comenzi în cursă`}
+                                  {stats.count === 0 ? t('no_orders') : t('orders_in_trip_count', { count: stats.count })}
                                   {stats.stops.length > 0 && <span className="ml-1 text-primary">· {stats.stops.length} {t('stops_label') || 'opriri'}</span>}
                                 </p>
                                 {stats.plannedDeparture && (

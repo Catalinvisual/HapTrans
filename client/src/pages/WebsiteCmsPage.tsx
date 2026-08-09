@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Save, Globe, Code, FileText, Truck, Building2 } from 'lucide-react';
-import { api } from '../lib/api';
+import api from '../lib/api';
 import toast from 'react-hot-toast';
-import { useSaveConfirm } from '../components/SaveConfirmProvider';
 
 const LANGUAGES = [
   { code: 'RO', label: 'Română' },

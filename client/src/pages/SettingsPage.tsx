@@ -6,8 +6,8 @@ import toast from 'react-hot-toast';
 import { Save, Building2, User, Server, Upload, X, ImageIcon, Calculator } from 'lucide-react';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import { useSettingsStore } from '../store/settingsStore';
-import { useSaveConfirm } from '../components/SaveConfirmProvider';
-export type { CompanySettings } from '../store/settingsStore';
+import type { CompanySettings } from '../store/settingsStore';
+import { saveCompanySettings } from '../store/settingsStore';
 const PriceInput = ({
   value,
   onChange,
@@ -62,7 +62,6 @@ export default function SettingsPage() {
   const {
     user
   } = useAuthStore();
-  const confirmSave = useSaveConfirm();
   const {
     company,
     updateCompany
@@ -167,13 +166,13 @@ export default function SettingsPage() {
           });
           if (res.data?.url) {
             finalCompany.logo = res.data.url;
-            setCompany(finalCompany);
+            updateCompany(finalCompany);
           }
         } catch (e) {
           console.error('Failed to sync logo to backend', e);
         }
       }
-      localStorage.setItem(COMPANY_KEY, JSON.stringify(finalCompany));
+      saveCompanySettings(finalCompany);
       try {
         await api.post('/settings/company', finalCompany);
       } catch (e) {

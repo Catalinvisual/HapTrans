@@ -35,6 +35,7 @@ export default function InvoicesPage({
     t,
     i18n
   } = useTranslation();
+  const confirmSave = useSaveConfirm();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [trips, setTrips] = useState<any[]>([]);
@@ -411,7 +412,7 @@ export default function InvoicesPage({
       const officialInvoice = approveRes.data;
       const base64Pdf = await generateInvoicePdfBase64(officialInvoice, 'en');
       const arr = base64Pdf.split(',');
-      const mime = arr[0].match(/:(.*?);/)[1];
+      const mime = arr[0].match(/:(.*?);/)?.[1] || 'application/pdf';
       const bstr = atob(arr[1]);
       let n = bstr.length;
       const u8arr = new Uint8Array(n);
@@ -672,7 +673,7 @@ export default function InvoicesPage({
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('vatType')}</label>
-                  <CustomSelect value={form.vatType} onChange={v => setForm(f => ({
+                  <CustomSelect value={form.vatType} onChange={v => setForm((f: any) => ({
                 ...f,
                 vatType: v,
                 vatPercent: v !== 'NORMAL' ? '0' : '19'
@@ -697,7 +698,7 @@ export default function InvoicesPage({
                 
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('issueDate')}</label>
-                  <Flatpickr type="hidden" value={form.issueDate} onChange={(dates, dateStr) => setForm({
+                  <Flatpickr type="hidden" value={form.issueDate} onChange={(_dates, dateStr) => setForm({
                 ...form,
                 issueDate: dateStr
               })} onClick={e => {
@@ -712,7 +713,7 @@ export default function InvoicesPage({
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('dueDate')}</label>
-                  <Flatpickr type="hidden" value={form.dueDate} onChange={(dates, dateStr) => setForm({
+                  <Flatpickr type="hidden" value={form.dueDate} onChange={(_dates, dateStr) => setForm({
                 ...form,
                 dueDate: dateStr
               })} onClick={e => {
@@ -906,7 +907,7 @@ export default function InvoicesPage({
     }, {
       key: 'amount',
       label: 'Subtotal Excl. VAT (€)',
-      transform: (val, item) => getInvTotals(item).subtotal.toFixed(2)
+      transform: (_val, item) => getInvTotals(item).subtotal.toFixed(2)
     }, {
       key: 'vatPercent',
       label: 'VAT (%)',
@@ -914,7 +915,7 @@ export default function InvoicesPage({
     }, {
       key: 'total',
       label: 'Total Incl. VAT (€)',
-      transform: (val, item) => getInvTotals(item).total.toFixed(2)
+      transform: (_val, item) => getInvTotals(item).total.toFixed(2)
     }, {
       key: 'issueDate',
       label: 'Issue Date',

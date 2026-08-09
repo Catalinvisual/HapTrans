@@ -14,7 +14,8 @@ export const QuoteReplyForm = ({
 }: any) => {
   const [showForm, setShowForm] = useState(false);
   const {
-    i18n
+    i18n,
+    t
   } = useTranslation();
   const [formData, setFormData] = useState({
     price: '',

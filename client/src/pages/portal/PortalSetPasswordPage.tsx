@@ -3,7 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, Mail, Truck, ArrowRight } from 'lucide-react';
 import portalApi from '../../lib/portalApi';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 export default function PortalSetPasswordPage() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const email = searchParams.get('email');

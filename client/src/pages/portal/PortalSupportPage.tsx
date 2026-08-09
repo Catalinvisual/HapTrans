@@ -1,5 +1,7 @@
 import { HelpCircle, Mail, Phone, MessageSquare } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 export default function PortalSupportPage() {
+  const { t } = useTranslation();
   return <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold">{t("jsx_supportConta")}</h1>
       

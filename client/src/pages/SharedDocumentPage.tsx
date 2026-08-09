@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../lib/api';
+import { useTranslation } from 'react-i18next';
 export default function SharedDocumentPage() {
+  const { t } = useTranslation();
   const {
     token
   } = useParams();

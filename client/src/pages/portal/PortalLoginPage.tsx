@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, Truck, LogIn } from 'lucide-react';
 import portalApi from '../../lib/portalApi';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 
 export default function PortalLoginPage() {
   const { t } = useTranslation();

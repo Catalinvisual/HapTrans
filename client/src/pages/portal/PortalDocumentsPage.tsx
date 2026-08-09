@@ -1,5 +1,7 @@
 import { FileText } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 export default function PortalDocumentsPage() {
+  const { t } = useTranslation();
   return <div className="space-y-6 animate-fade-in">
       <h1 className="text-2xl font-bold">{t("jsx_documents")}</h1>
       <div className="card bg-card border border-border rounded-2xl shadow-sm p-12 text-center">

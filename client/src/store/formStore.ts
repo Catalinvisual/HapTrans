@@ -49,7 +49,7 @@ export const useFormStore = create<FormState>()(
       clientsShowForm: false,
       clientsEditId: null,
 
-      setFormState: (page, data) => set((state) => {
+      setFormState: (page, data) => set(() => {
         const update: any = {};
         if (data.form !== undefined) update[`${page}Form`] = data.form;
         if (data.showForm !== undefined) update[`${page}ShowForm`] = data.showForm;
