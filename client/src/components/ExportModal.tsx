@@ -1,17 +1,26 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Download, Calendar } from 'lucide-react';
+import { X, Download, Calendar, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
+import { exportExcel, formatDateExcel } from '../lib/exportExcel';
+
+interface ExportHeader {
+  key: string;
+  label: string;
+  transform?: (val: any, item?: any) => string | number;
+}
 
 interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   data: any[];
   filename: string;
-  headers: { key: string; label: string; transform?: (val: any, item?: any) => string }[];
+  title?: string;
+  sheetName?: string;
+  headers: ExportHeader[];
   getDateField: (item: any) => string | Date | null | undefined;
 }
 
@@ -30,7 +39,8 @@ const EXPORT_TRANSLATIONS: Record<string, Record<string, string>> = {
     cancelBtn: 'Renunță',
     errCompleteRange: 'Vă rugăm să selectați intervalul complet de date.',
     errNoRecords: 'Nu există înregistrări în intervalul selectat pentru export.',
-    successExport: 'Export finalizat cu succes!'
+    successExport: 'Export finalizat cu succes!',
+    exporting: 'Se exportă...'
   },
   en: {
     title: 'Export Data to Excel',
@@ -46,7 +56,8 @@ const EXPORT_TRANSLATIONS: Record<string, Record<string, string>> = {
     cancelBtn: 'Cancel',
     errCompleteRange: 'Please select the complete date range.',
     errNoRecords: 'No records found in the selected range for export.',
-    successExport: 'Export completed successfully!'
+    successExport: 'Export completed successfully!',
+    exporting: 'Exporting...'
   },
   nl: {
     title: 'Gegevens Exporteren naar Excel',
@@ -62,7 +73,8 @@ const EXPORT_TRANSLATIONS: Record<string, Record<string, string>> = {
     cancelBtn: 'Annuleren',
     errCompleteRange: 'Selecteer aub het volledige datumbereik.',
     errNoRecords: 'Geen records gevonden in het geselecteerde bereik voor export.',
-    successExport: 'Export succesvol afgerond!'
+    successExport: 'Export succesvol afgerond!',
+    exporting: 'Exporteren...'
   },
   de: {
     title: 'Daten nach Excel exportieren',
@@ -78,7 +90,8 @@ const EXPORT_TRANSLATIONS: Record<string, Record<string, string>> = {
     cancelBtn: 'Abbrechen',
     errCompleteRange: 'Bitte wählen Sie den vollständigen Datumsbereich aus.',
     errNoRecords: 'Keine Datensätze im ausgewählten Bereich für den Export gefunden.',
-    successExport: 'Export erfolgreich abgeschlossen!'
+    successExport: 'Export erfolgreich abgeschlossen!',
+    exporting: 'Exportieren...'
   },
   fr: {
     title: 'Exporter les données vers Excel',
@@ -94,11 +107,19 @@ const EXPORT_TRANSLATIONS: Record<string, Record<string, string>> = {
     cancelBtn: 'Annuler',
     errCompleteRange: 'Veuillez sélectionner l\'intervalle de dates complet.',
     errNoRecords: 'Aucun enregistrement trouvé dans l\'intervalle sélectionné pour l\'export.',
-    successExport: 'Exportation terminée avec succès!'
+    successExport: 'Exportation terminée avec succès!',
+    exporting: 'Exportation...'
   }
 };
 
-export default function ExportModal({ isOpen, onClose, data, filename, headers, getDateField }: ExportModalProps) {
+function dateKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
+export default function ExportModal({ isOpen, onClose, data, filename, title, sheetName, headers, getDateField }: ExportModalProps) {
   const { i18n } = useTranslation();
   const lang = i18n.language || 'ro';
   const tExport = EXPORT_TRANSLATIONS[lang] || EXPORT_TRANSLATIONS['ro'];
@@ -106,20 +127,20 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
   const [rangeType, setRangeType] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleExport = () => {
+  const filteredForRange = (): any[] => {
     const now = new Date();
     let filtered = [...data];
 
     if (rangeType === 'today') {
-      const todayStr = now.toISOString().slice(0, 10);
+      const todayStr = dateKey(now);
       filtered = data.filter(item => {
         const d = getDateField(item);
         if (!d) return false;
-        const dStr = new Date(d).toISOString().slice(0, 10);
-        return dStr === todayStr;
+        return dateKey(new Date(d)) === todayStr;
       });
     } else if (rangeType === 'week') {
       const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -138,13 +159,12 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
     } else if (rangeType === 'custom') {
       if (!startDate || !endDate) {
         toast.error(tExport.errCompleteRange);
-        return;
+        return [];
       }
       const start = new Date(startDate);
       start.setHours(0, 0, 0, 0);
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
-
       filtered = data.filter(item => {
         const d = getDateField(item);
         if (!d) return false;
@@ -152,39 +172,52 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
         return itemDate >= start && itemDate <= end;
       });
     }
+    return filtered;
+  };
 
+  const handleExport = async () => {
+    if (exporting) return;
+    const filtered = filteredForRange();
+    if (rangeType === 'custom' && (!startDate || !endDate)) return;
     if (filtered.length === 0) {
       toast.error(tExport.errNoRecords);
       return;
     }
 
-    // Generate CSV Content with UTF-8 BOM (\uFEFF) and sep=; so Excel opens it in clean separate columns instantly!
-    const separator = ';';
-    const headerRow = headers.map(h => `"${h.label.replace(/"/g, '""')}"`).join(separator);
-    const bodyRows = filtered.map(item => {
-      return headers.map(h => {
-        let val = '';
-        if (h.transform) {
-          val = h.transform(item[h.key], item);
-        } else {
-          val = item[h.key] !== undefined && item[h.key] !== null ? String(item[h.key]) : '';
+    setExporting(true);
+    try {
+      const rows = filtered.map(item => {
+        const row: Record<string, any> = {};
+        for (const h of headers) {
+          row[h.key] = h.transform ? h.transform(item[h.key], item) : item[h.key];
         }
-        return `"${val.replace(/"/g, '""')}"`;
-      }).join(separator);
-    });
+        return row;
+      });
 
-    const csvContent = '\uFEFF' + 'sep=;\n' + [headerRow, ...bodyRows].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${filename}_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast.success(`${tExport.successExport} (${filtered.length})`);
-    onClose();
+      const periodText =
+        rangeType === 'all' ? 'All records'
+        : rangeType === 'today' ? `Date: ${dateKey(new Date())}`
+        : rangeType === 'week' ? `Last 7 days (until ${dateKey(new Date())})`
+        : rangeType === 'month' ? `Last 30 days (until ${dateKey(new Date())})`
+        : `Period: ${formatDateExcel(startDate)} — ${formatDateExcel(endDate)}`;
+
+      await exportExcel({
+        filename,
+        sheetName: sheetName || 'Data',
+        title: title || filename.replace(/[_-]/g, ' '),
+        subtitle: `${periodText} · ${filtered.length} records · Generated on ${dateKey(new Date())}`,
+        headers: headers.map(h => ({ key: h.key, label: h.label })),
+        rows,
+      });
+
+      toast.success(`${tExport.successExport} (${filtered.length})`);
+      onClose();
+    } catch (err) {
+      console.error('Export failed:', err);
+      toast.error(tExport.errCompleteRange);
+    } finally {
+      setExporting(false);
+    }
   };
 
   return createPortal(
@@ -193,7 +226,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border bg-surface">
           <div className="flex items-center gap-2">
-            <Download className="w-5 h-5 text-primary" />
+            <Download className="w-4 h-4 text-primary" />
             <h3 className="font-bold text-text text-lg">{tExport.title}</h3>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-surface transition-colors">
@@ -247,15 +280,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
                   placeholder="DD/MM/YYYY"
                   value={startDate}
                   onChange={(dates) => {
-                    if (dates.length > 0) {
-                      const d = dates[0];
-                      const year = d.getFullYear();
-                      const month = String(d.getMonth() + 1).padStart(2, '0');
-                      const day = String(d.getDate()).padStart(2, '0');
-                      setStartDate(`${year}-${month}-${day}`);
-                    } else {
-                      setStartDate('');
-                    }
+                    setStartDate(dates.length > 0 ? dateKey(dates[0]) : '');
                   }}
                   className="input py-2 text-sm bg-card w-full"
                   options={{ dateFormat: 'Y-m-d' }}
@@ -267,15 +292,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
                   placeholder="DD/MM/YYYY"
                   value={endDate}
                   onChange={(dates) => {
-                    if (dates.length > 0) {
-                      const d = dates[0];
-                      const year = d.getFullYear();
-                      const month = String(d.getMonth() + 1).padStart(2, '0');
-                      const day = String(d.getDate()).padStart(2, '0');
-                      setEndDate(`${year}-${month}-${day}`);
-                    } else {
-                      setEndDate('');
-                    }
+                    setEndDate(dates.length > 0 ? dateKey(dates[0]) : '');
                   }}
                   className="input py-2 text-sm bg-card w-full"
                   options={{ dateFormat: 'Y-m-d' }}
@@ -287,8 +304,9 @@ export default function ExportModal({ isOpen, onClose, data, filename, headers, 
 
         {/* Footer */}
         <div className="flex gap-3 p-5 border-t border-border bg-surface">
-          <button onClick={handleExport} className="btn-primary flex-1 py-2.5 font-bold shadow-md shadow-primary/20">
-            {tExport.exportBtn}
+          <button onClick={handleExport} disabled={exporting} className="btn-primary flex-1 py-2.5 font-bold shadow-md shadow-primary/20 flex items-center justify-center gap-2">
+            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {exporting ? tExport.exporting : tExport.exportBtn}
           </button>
           <button onClick={onClose} className="btn-secondary flex-1 py-2.5 font-bold">
             {tExport.cancelBtn}

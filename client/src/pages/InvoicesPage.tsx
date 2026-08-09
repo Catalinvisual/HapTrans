@@ -893,7 +893,7 @@ export default function InvoicesPage({
         <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </div>
 
-      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={filtered} filename="Invoices_HapCargo" getDateField={item => item.issueDate || item.createdAt} headers={[{
+      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={filtered} filename="Invoices_HapCargo" title="Invoices" sheetName="Invoices" getDateField={item => item.issueDate || item.createdAt} headers={[{
       key: 'createdAt',
       label: 'Registration Date',
       transform: val => val ? formatDate(val) : ''

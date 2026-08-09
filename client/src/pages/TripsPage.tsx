@@ -15,7 +15,7 @@ import BulkBar from '../components/ui/BulkBar';
 import StatusBadge from '../components/ui/StatusBadge';
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
-import { exportCsv } from '../lib/exportCsv';
+import ExportModal from '../components/ExportModal';
 import toast from 'react-hot-toast';
 
 const TRIP_STATUSES = ['planning', 'planned', 'assigned', 'dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered', 'completed', 'closed', 'cancelled'];
@@ -77,6 +77,8 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
   const [drawerTripId, setDrawerTripId] = useState<string | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [tripToDelete, setTripToDelete] = useState<string | null>(null);
+  const [showExport, setShowExport] = useState(false);
+  const [exportRows, setExportRows] = useState<any[]>([]);
 
   const fetchTrips = useCallback(async () => {
     try {
@@ -215,25 +217,24 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
     finally { setDeleteModalOpen(false); setTripToDelete(null); }
   };
 
-  const handleExport = (rows: any[]) => {
-    exportCsv(
-      `trips-${new Date().toISOString().split('T')[0]}.csv`,
-      rows.map(tr => ({
-        [t('trip', 'Trip')]: tr.tripNumber || '',
-        [t('status', 'Status')]: tr.status,
-        [t('truck', 'Truck')]: tr.truck?.plateNumber || '',
-        [t('driver', 'Driver')]: tDriverName(tr),
-        [t('pickup', 'Pickup')]: tPickup(tr)?.city || '',
-        [t('dropoff', 'Dropoff')]: tDropoff(tr)?.city || '',
-        [t('km', 'Km')]: tr.distanceKm || '',
-        [t('pallets', 'Pallets')]: tPallets(tr),
-        [t('weight_kg', 'Weight kg')]: Math.round(tWeight(tr)),
-        [t('revenue', 'Revenue')]: tRevenue(tr).toFixed(2),
-        [t('cost', 'Cost')]: (tCost(tr) + tExtraCost(tr)).toFixed(2),
-        [t('profit', 'Profit')]: tProfit(tr).toFixed(2),
-      }))
-    );
-    toast.success(t('exported', 'Export started'));
+  const tripExportHeaders = [
+    { key: 'tripNumber', label: 'Trip', transform: (v: any) => v || '' },
+    { key: 'status', label: 'Status', transform: (v: any) => v || '' },
+    { key: 'truck', label: 'Truck', transform: (_v: any, tr: any) => tr.truck?.plateNumber || '' },
+    { key: 'driver', label: 'Driver', transform: (_v: any, tr: any) => tDriverName(tr) },
+    { key: 'pickup', label: 'Pickup', transform: (_v: any, tr: any) => tPickup(tr)?.city || '' },
+    { key: 'dropoff', label: 'Dropoff', transform: (_v: any, tr: any) => tDropoff(tr)?.city || '' },
+    { key: 'distanceKm', label: 'Km', transform: (v: any) => v || '' },
+    { key: 'pallets', label: 'Pallets', transform: (_v: any, tr: any) => tPallets(tr) },
+    { key: 'weight', label: 'Weight (kg)', transform: (_v: any, tr: any) => Math.round(tWeight(tr)) },
+    { key: 'revenue', label: 'Revenue', transform: (_v: any, tr: any) => tRevenue(tr).toFixed(2) },
+    { key: 'cost', label: 'Cost', transform: (_v: any, tr: any) => (tCost(tr) + tExtraCost(tr)).toFixed(2) },
+    { key: 'profit', label: 'Profit', transform: (_v: any, tr: any) => tProfit(tr).toFixed(2) },
+  ];
+
+  const openExport = (rows: any[]) => {
+    setExportRows(rows);
+    setShowExport(true);
   };
 
   const columns: Column<any>[] = [
@@ -332,7 +333,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
         subtitle={t('page_trips_sub', 'Plan, dispatch and monitor every journey')}
         icon={Truck}
         actions={[
-          { label: t('export_csv', 'Export CSV'), icon: Download, variant: 'secondary', onClick: () => handleExport(sorted) },
+          { label: t('export_csv', 'Export CSV'), icon: Download, variant: 'secondary', onClick: () => openExport(sorted) },
           { label: t('go_to_planning', 'Dispatch board'), icon: Calendar, variant: 'primary', onClick: () => navigate('/planning') },
         ]}
       />
@@ -401,7 +402,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
           { label: t('bulk_dispatch', 'Dispatch'), icon: Send, variant: 'primary', onClick: () => bulkSetStatus('dispatched') },
           { label: t('bulk_complete', 'Complete'), icon: CheckIcon, variant: 'secondary', onClick: () => bulkSetStatus('completed') },
           { label: t('bulk_cancel', 'Cancel'), icon: Activity, variant: 'secondary', onClick: () => bulkSetStatus('cancelled') },
-          { label: t('bulk_export', 'Export'), icon: Download, variant: 'secondary', onClick: () => handleExport(sorted.filter(tr => selected.has(tr.id))) },
+          { label: t('bulk_export', 'Export'), icon: Download, variant: 'secondary', onClick: () => openExport(sorted.filter(tr => selected.has(tr.id))) },
           { label: t('bulk_delete', 'Delete'), icon: Trash2, variant: 'danger', onClick: bulkDelete },
         ]}
       />
@@ -415,6 +416,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
       )}
 
       <ConfirmDeleteModal isOpen={deleteModalOpen} onClose={() => { setDeleteModalOpen(false); setTripToDelete(null); }} onConfirm={confirmDelete} />
+      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={exportRows} filename="Trips_HapCargo" title="Trips" sheetName="Trips" getDateField={tr => tr.createdAt} headers={tripExportHeaders} />
     </div>
   );
 }

@@ -274,7 +274,7 @@ export default function ClientsPage() {
         <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </div>
 
-      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={filtered} filename="Clients_HapCargo" getDateField={item => item.createdAt} headers={[{
+      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={filtered} filename="Clients_HapCargo" title="Clients" sheetName="Clients" getDateField={item => item.createdAt} headers={[{
       key: 'createdAt',
       label: 'Registration Date',
       transform: val => val ? formatDate(val) : ''

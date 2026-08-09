@@ -18,7 +18,7 @@ import BulkBar from '../components/ui/BulkBar';
 import StatusBadge from '../components/ui/StatusBadge';
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
-import { exportCsv } from '../lib/exportCsv';
+import ExportModal from '../components/ExportModal';
 
 const TRUCK_TYPES = [
   { value: 'tautliner', label: 'truck_type_tautliner', default: 'Prelată (Tautliner)' },
@@ -77,6 +77,7 @@ export default function TrucksPage() {
   const [filters, setFilters] = useState<any>({ status: 'all', type: 'all' });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerTruckId, setDrawerTruckId] = useState<string | null>(null);
+  const [showExport, setShowExport] = useState(false);
 
   const initialForm = {
     plateNumber: '', brand: '', model: '', year: '',
@@ -449,7 +450,7 @@ export default function TrucksPage() {
             </div>
             <CustomSelect className="w-40" value={filters.status} onChange={v => setFilters(f => ({ ...f, status: v }))} options={statusOptions} />
             <CustomSelect className="w-44" value={filters.type} onChange={v => setFilters(f => ({ ...f, type: v }))} options={typeOptions} />
-            <button onClick={() => exportCsv('Trucks_HapCargo', filtered.map(tr => ({ plateNumber: tr.plateNumber, brand: tr.brand, model: tr.model, truckType: truckTypeLabel(tr, t), euronorm: tr.euronorm, driver: driverName(tr.driver), status: tr.status, payload: tr.payloadCapacity || tr.maxWeightKg, maxPallets: tr.maxPallets, costPerKm: tr.costPerKm })))} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold">
+            <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold">
               <Download className="w-4 h-4" /> <span className="hidden sm:inline">{t('export', 'Export')}</span>
             </button>
           </div>
@@ -585,6 +586,18 @@ export default function TrucksPage() {
       )}
 
       <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={executeDelete} type="danger" />
+      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={filtered} filename="Trucks_HapCargo" title="Trucks" sheetName="Trucks" getDateField={tr => tr.createdAt} headers={[
+        { key: 'plateNumber', label: 'Plate Number', transform: (v: any) => v || '' },
+        { key: 'brand', label: 'Brand', transform: (v: any) => v || '' },
+        { key: 'model', label: 'Model', transform: (v: any) => v || '' },
+        { key: 'truckType', label: 'Type', transform: (_v: any, tr: any) => truckTypeLabel(tr, t) },
+        { key: 'euronorm', label: 'Euronorm', transform: (v: any) => v || '' },
+        { key: 'driver', label: 'Driver', transform: (_v: any, tr: any) => driverName(tr.driver) },
+        { key: 'status', label: 'Status', transform: (v: any) => v || '' },
+        { key: 'payload', label: 'Payload (kg)', transform: (_v: any, tr: any) => tr.payloadCapacity || tr.maxWeightKg },
+        { key: 'maxPallets', label: 'Max Pallets', transform: (v: any) => v || '' },
+        { key: 'costPerKm', label: 'Cost per km', transform: (v: any) => v || '' },
+      ]} />
     </div>
   );
 }

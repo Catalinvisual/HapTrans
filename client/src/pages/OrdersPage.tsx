@@ -15,7 +15,8 @@ import BulkBar from '../components/ui/BulkBar';
 import StatusBadge from '../components/ui/StatusBadge';
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
-import { exportCsv } from '../lib/exportCsv';
+import ExportModal from '../components/ExportModal';
+import { formatDateExcel } from '../lib/exportExcel';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -53,6 +54,7 @@ export default function OrdersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(15);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [drawerOrderId, setDrawerOrderId] = useState<string | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -185,24 +187,18 @@ export default function OrdersPage() {
     fetchOrders();
   };
 
-  const handleExport = () => {
-    exportCsv('orders', sorted.map(o => {
-      const pickup = o.stops?.find((s: any) => s.type === 'pickup');
-      const dropoff = o.stops?.find((s: any) => s.type === 'dropoff');
-      return {
-        'Order': o.orderNumber || o.referenceNumber || '',
-        'Client': o.client?.name || '',
-        'Pickup': pickup ? [pickup.city, pickup.country].filter(Boolean).join(', ') : '',
-        'Dropoff': dropoff ? [dropoff.city, dropoff.country].filter(Boolean).join(', ') : '',
-        'Date': pickup?.dateFrom || '',
-        'Type': o.transportType || 'ftl',
-        'Priority': o.priority || 'normal',
-        'Weight (kg)': o.cargoItems?.reduce((s: number, c: any) => s + Number(c.weightKg || 0), 0) || 0,
-        'Price': o.price || 0,
-        'Status': o.status,
-      };
-    }));
-  };
+  const orderExportHeaders = [
+    { key: 'orderNumber', label: 'Order', transform: (_v: any, o: any) => o.orderNumber || o.referenceNumber || '' },
+    { key: 'client', label: 'Client', transform: (_v: any, o: any) => o.client?.name || '' },
+    { key: 'pickup', label: 'Pickup', transform: (_v: any, o: any) => { const p = o.stops?.find((s: any) => s.type === 'pickup'); return p ? [p.city, p.country].filter(Boolean).join(', ') : ''; } },
+    { key: 'dropoff', label: 'Dropoff', transform: (_v: any, o: any) => { const d = o.stops?.find((s: any) => s.type === 'dropoff'); return d ? [d.city, d.country].filter(Boolean).join(', ') : ''; } },
+    { key: 'date', label: 'Date', transform: (_v: any, o: any) => { const p = o.stops?.find((s: any) => s.type === 'pickup'); return p?.dateFrom ? formatDateExcel(p.dateFrom) : ''; } },
+    { key: 'type', label: 'Type', transform: (_v: any, o: any) => o.transportType || 'ftl' },
+    { key: 'priority', label: 'Priority', transform: (_v: any, o: any) => o.priority || 'normal' },
+    { key: 'weight', label: 'Weight (kg)', transform: (_v: any, o: any) => o.cargoItems?.reduce((s: number, c: any) => s + Number(c.weightKg || 0), 0) || 0 },
+    { key: 'price', label: 'Price', transform: (_v: any, o: any) => o.price || 0 },
+    { key: 'status', label: 'Status', transform: (_v: any, o: any) => o.status },
+  ];
 
   const setStatusFilterFromKpi = (status: string) => { setFilter('status', status); setSelected(new Set()); };
 
@@ -301,7 +297,7 @@ export default function OrdersPage() {
         breadcrumb={[t('nav_operations', 'Operations'), t('orders_title', 'Orders')]}
         actions={
           <>
-            <button onClick={handleExport} className="btn-secondary flex items-center gap-2"><Download className="w-4 h-4" />{t('export_csv', 'Export')}</button>
+            <button onClick={() => setShowExport(true)} className="btn-secondary flex items-center gap-2"><Download className="w-4 h-4" />{t('export_csv', 'Export')}</button>
             <button onClick={handleCreate} className="btn-primary flex items-center gap-2 shadow-lg"><Plus className="w-5 h-5" />{t('addOrder', 'Create Order')}</button>
           </>
         }
@@ -370,6 +366,7 @@ export default function OrdersPage() {
       <OrderWizard isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} orderId={selectedOrderId || undefined} onSaved={() => { fetchOrders(); setDrawerOrderId(selectedOrderId); setActiveTab('overview'); }} />
 
       <ConfirmDeleteModal isOpen={deleteModalOpen} onClose={() => { setDeleteModalOpen(false); setOrderToDelete(null); }} onConfirm={confirmDelete} />
+      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={sorted} filename="Orders_HapCargo" title="Orders" sheetName="Orders" getDateField={o => o.stops?.find((s: any) => s.type === 'pickup')?.dateFrom || o.createdAt} headers={orderExportHeaders} />
 
       {drawerOrder && <OrderDetailDrawer
         order={drawerOrder}

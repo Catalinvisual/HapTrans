@@ -21,7 +21,8 @@ import KpiStrip from '../components/ui/KpiStrip';
 import DetailDrawer from '../components/ui/DetailDrawer';
 import type { TabDef } from '../components/ui/DetailDrawer';
 import BulkBar from '../components/ui/BulkBar';
-import { exportCsv } from '../lib/exportCsv';
+import ExportModal from '../components/ExportModal';
+import { formatDateExcel } from '../lib/exportExcel';
 
 const STATUS_COLORS: Record<string, string> = {
   available: 'text-success',
@@ -61,6 +62,7 @@ export default function DriversPage() {
   const [filters, setFilters] = useState<any>({ status: 'all' });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerDriverId, setDrawerDriverId] = useState<string | null>(null);
+  const [showExport, setShowExport] = useState(false);
   const fpOptions = useMemo(() => ({
     altInput: true,
     altFormat: 'd/m/Y',
@@ -476,7 +478,7 @@ export default function DriversPage() {
               <input className="input pl-9 py-2 text-sm w-full" placeholder={t('search_drivers', 'Search driver, email, license...')} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <CustomSelect className="w-40" value={filters.status} onChange={v => setFilters({ status: v })} options={statusOptions} />
-            <button onClick={() => exportCsv('Drivers_HapCargo', filtered.map(d => ({ name: d.user?.name || '', email: d.user?.email || '', phone: d.phone, licenseNumber: d.licenseNumber, truck: driverAssignedTruck(d)?.plateNumber || '', grossSalary: d.user?.grossSalary ?? d.grossSalary, dailyRate: d.user?.dailyRate ?? d.dailyRate, licenseExpiry: d.licenseExpiry ? formatDate(d.licenseExpiry) : '', medicalExpiry: d.medicalExpiry ? formatDate(d.medicalExpiry) : '', tachoCardExpiry: d.tachoCardExpiry ? formatDate(d.tachoCardExpiry) : '', status: d.status })))} className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold">
+            <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold">
               <Download className="w-4 h-4" /> {t('export', 'Export')}
             </button>
           </div>
@@ -644,6 +646,19 @@ export default function DriversPage() {
         </div>}
 
       <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={executeDelete} type="danger" />
+      <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={filtered} filename="Drivers_HapCargo" title="Drivers" sheetName="Drivers" getDateField={d => d.createdAt} headers={[
+        { key: 'name', label: 'Name', transform: (_v: any, d: any) => d.user?.name || '' },
+        { key: 'email', label: 'Email', transform: (_v: any, d: any) => d.user?.email || '' },
+        { key: 'phone', label: 'Phone', transform: (v: any) => v || '' },
+        { key: 'licenseNumber', label: 'License Number', transform: (v: any) => v || '' },
+        { key: 'truck', label: 'Truck', transform: (_v: any, d: any) => driverAssignedTruck(d)?.plateNumber || '' },
+        { key: 'grossSalary', label: 'Gross Salary', transform: (_v: any, d: any) => d.user?.grossSalary ?? d.grossSalary },
+        { key: 'dailyRate', label: 'Daily Rate', transform: (_v: any, d: any) => d.user?.dailyRate ?? d.dailyRate },
+        { key: 'licenseExpiry', label: 'License Expiry', transform: (v: any) => v ? formatDateExcel(v) : '' },
+        { key: 'medicalExpiry', label: 'Medical Expiry', transform: (v: any) => v ? formatDateExcel(v) : '' },
+        { key: 'tachoCardExpiry', label: 'Tacho Expiry', transform: (v: any) => v ? formatDateExcel(v) : '' },
+        { key: 'status', label: 'Status', transform: (v: any) => v || '' },
+      ]} />
     </div>
   );
 }
