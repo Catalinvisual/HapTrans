@@ -1,7 +1,7 @@
 import { useSaveConfirm } from "../components/SaveConfirmProvider";
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Pencil, Search, Download, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Search, Download, Trash2, Users, Percent, Calendar, FileText } from 'lucide-react';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import api from '../lib/api';
 import ConfirmModal from '../components/ConfirmModal';
@@ -11,6 +11,7 @@ import { formatDate } from '../lib/dateUtils';
 import ClientDetails from '../components/ClientDetails';
 import { useFormStore } from '../store/formStore';
 import Pagination from '../components/Pagination';
+import KpiStrip from '../components/ui/KpiStrip';
 import { useShortcuts } from '../hooks/useShortcuts';
 import { useTableShortcuts } from '../hooks/useTableShortcuts';
 export default function ClientsPage() {
@@ -97,6 +98,15 @@ export default function ClientsPage() {
     const query = search.toLowerCase();
     return (c.name || '').toLowerCase().includes(query) || (c.cui || '').toLowerCase().includes(query) || (c.address || '').toLowerCase().includes(query) || (c.contactName || '').toLowerCase().includes(query) || (c.contactEmail || '').toLowerCase().includes(query) || (c.phone || '').toLowerCase().includes(query);
   }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const kpis = [
+    { key: 'total', label: t('clients_total', 'Total clients'), value: clients.length, icon: Users },
+    { key: 'rates', label: t('clients_with_rates', 'Clients with rates'), value: clients.filter(c => (c.rates || []).length > 0).length, color: '#f97316', icon: FileText },
+    { key: 'new_month', label: t('clients_new_month', 'New this month'), value: clients.filter(c => c.createdAt && new Date(c.createdAt) >= monthStart).length, color: '#22c55e', icon: Calendar },
+    { key: 'discount', label: t('clients_discount', 'With discount'), value: clients.filter(c => Number(c.discount || 0) > 0).length, color: '#6366f1', icon: Percent },
+  ];
   const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   useShortcuts({
     'shift+n': () => {
@@ -142,6 +152,8 @@ export default function ClientsPage() {
     }} />;
   }
   return <div className="space-y-5 animate-fade-in">
+
+      <KpiStrip items={kpis} />
 
       {showForm && <div className="card animate-fade-in bg-card border border-border rounded-2xl p-6 shadow-md">
           <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">
@@ -220,11 +232,11 @@ export default function ClientsPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-surface border-b border-border">
-                {[t('name'), t('cui') || 'CUI', t('address'), t('contact') || 'Contact', t('email'), t('phone'), t('actions')].map(h => <th key={h} className="table-header">{h}</th>)}
+                {[t('name'), t('cui') || 'CUI', t('address'), t('contact') || 'Contact', t('email'), t('phone'), t('rates', 'Rates'), t('discount', 'Discount'), t('terms', 'Terms'), t('registered', 'Registered'), t('actions')].map(h => <th key={h} className="table-header whitespace-nowrap">{h}</th>)}
               </tr>
             </thead>
             <tbody>
-              {loading ? <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr> : filtered.length === 0 ? <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr> : currentTableItems.map((c: any, idx: number) => <tr key={c.id} className={`hover:bg-surface/60 transition-colors cursor-pointer ${selectedRowIndex === idx ? 'bg-primary/5 ring-1 ring-inset ring-primary' : ''}`} onClick={e => {
+              {loading ? <tr><td colSpan={11} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr> : filtered.length === 0 ? <tr><td colSpan={11} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr> : currentTableItems.map((c: any, idx: number) => <tr key={c.id} className={`hover:bg-surface/60 transition-colors cursor-pointer ${selectedRowIndex === idx ? 'bg-primary/5 ring-1 ring-inset ring-primary' : ''}`} onClick={e => {
               if ((e.target as HTMLElement).closest('button, select, input, a, .interactive-click')) return;
               setSelectedClient(c);
             }}>
@@ -234,6 +246,12 @@ export default function ClientsPage() {
                   <td className="table-cell text-xs font-medium text-text">{c.contactName || '—'}</td>
                   <td className="table-cell text-xs text-text-secondary">{c.contactEmail || '—'}</td>
                   <td className="table-cell text-xs font-medium text-text-secondary">{c.phone || '—'}</td>
+                  <td className="table-cell text-xs font-bold text-text-secondary">
+                    {(c.rates || []).length > 0 ? <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[11px] font-bold">{c.rates.length} {t('rates', 'rates')}</span> : '—'}
+                  </td>
+                  <td className="table-cell text-xs font-semibold text-text-secondary">{Number(c.discount || 0) > 0 ? `${Number(c.discount)}%` : '—'}</td>
+                  <td className="table-cell text-xs text-text-secondary">{c.paymentTerms ? `${c.paymentTerms} ${t('days', 'days')}` : '—'}</td>
+                  <td className="table-cell text-xs text-text-secondary whitespace-nowrap">{c.createdAt ? formatDate(c.createdAt) : '—'}</td>
                     <td className="table-cell">
                       <div className="flex items-center gap-2">
                         <button onClick={() => setSelectedClient(c)} className="btn-secondary py-1.5 px-3 text-xs font-bold bg-primary/5 text-primary hover:bg-primary/10 border-transparent">

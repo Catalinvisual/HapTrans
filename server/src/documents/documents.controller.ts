@@ -32,6 +32,9 @@ export class DocumentsController {
   @Get('trip/:tripId') 
   findByTrip(@Param('tripId') tripId: string) { return this.service.findByTrip(tripId); }
 
+  @Get('order/:orderId') 
+  findByOrder(@Param('orderId') orderId: string) { return this.service.findByOrder(orderId); }
+
   @UseGuards(JwtAuthGuard)
   @Get(':id/preview-url')
   getPreviewUrl(@Param('id') id: string) {
@@ -100,6 +103,7 @@ export class DocumentsController {
     
     const doc = await this.service.create({
       tripId: body.tripId,
+      orderId: body.orderId,
       type: body.type,
       fileName: file.originalname,
       fileUrl: f.path, // For fallback

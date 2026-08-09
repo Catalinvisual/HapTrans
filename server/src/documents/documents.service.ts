@@ -29,17 +29,22 @@ export class DocumentsService {
   }
 
   findByTrip(tripId: string) { return this.repo.find({ where: { trip: { id: tripId } }, relations: ['uploadedBy'] }); }
+
+  findByOrder(orderId: string) { return this.repo.find({ where: { order: { id: orderId } }, relations: ['uploadedBy'], order: { uploadedAt: 'DESC' } }); }
   
   async create(dto: any): Promise<Document> {
     const hasTrip = dto.tripId && dto.tripId !== 'null' && dto.tripId !== '';
+    const hasOrder = dto.orderId && dto.orderId !== 'null' && dto.orderId !== '';
     const doc = this.repo.create({
       ...dto,
+      documentType: dto.type || dto.documentType || 'other',
       trip: hasTrip ? ({ id: dto.tripId } as any) : null,
+      order: hasOrder ? ({ id: dto.orderId } as any) : null,
       uploadedBy: { id: dto.uploadedById } as any,
     });
     const saved: any = await this.repo.save(doc);
     const savedId = Array.isArray(saved) ? saved[0].id : saved.id;
-    return this.repo.findOne({ where: { id: savedId }, relations: ['trip', 'uploadedBy'] }) as unknown as Promise<Document>;
+    return this.repo.findOne({ where: { id: savedId }, relations: ['trip', 'order', 'uploadedBy'] }) as unknown as Promise<Document>;
   }
 
   generateSignedUrl(document: Document, expiresInSeconds: number) {

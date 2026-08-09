@@ -5,6 +5,10 @@ export class UploadDocumentDto {
   @IsString()
   tripId?: string;
 
+  @IsOptional()
+  @IsString()
+  orderId?: string;
+
   @IsString()
   type: string;
 

@@ -758,7 +758,7 @@ export default function OrderWizard({
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Pickup */}
-                <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-5 relative">
+                <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-5 relative lg:col-start-1 lg:row-start-1">
                   <div className="absolute -left-3 top-6 w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 border-4 border-card flex items-center justify-center font-bold text-xs text-blue-600">A</div>
                   <h4 className="text-blue-600 dark:text-blue-400 font-bold mb-4 flex items-center gap-2">
                     <MapPin className="w-4 h-4" />{t("jsx_pickupDetails")}</h4>
@@ -878,7 +878,7 @@ export default function OrderWizard({
                 </div>
 
                 {/* Delivery */}
-                <div className="bg-green-50/50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-xl p-5 relative">
+                <div className="bg-green-50/50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-xl p-5 relative lg:col-start-2 lg:row-start-1">
                   <div className="absolute -left-3 top-6 w-6 h-6 rounded-full bg-green-100 dark:bg-green-900 border-4 border-card flex items-center justify-center font-bold text-xs text-green-600">B</div>
                   <h4 className="text-green-600 dark:text-green-400 font-bold mb-4 flex items-center gap-2">
                     <MapPin className="w-4 h-4" />{t("jsx_deliveryDetail")}</h4>

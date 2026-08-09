@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Truck as TruckIcon, Package, Loader2, MapPin, CheckCircle2, AlertTriangle, Trash2, ExternalLink, Users, X, Weight, ChevronRight, Calendar, Euro, ArrowRight, Info } from 'lucide-react';
+import { Truck as TruckIcon, Package, Loader2, MapPin, CheckCircle2, AlertTriangle, Trash2, ExternalLink, Users, X, Weight, ChevronRight, Calendar, Euro, ArrowRight, Info, Activity } from 'lucide-react';
 import api from '../lib/api';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import CustomSelect from '../components/CustomSelect';
+import KpiStrip from '../components/ui/KpiStrip';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -213,9 +214,10 @@ const TRIP_STATUS_COLORS: Record<string, string> = {
 };
 
 function PlanningTimeline({ trips, trucks }: { trips: any[]; trucks: any[] }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const now = new Date();
+  const locale = i18n.language || 'en';
 
   const relevant = (trips || []).filter(tr =>
     ['planning', 'planned', 'assigned', 'dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'].includes(tr.status)
@@ -251,6 +253,20 @@ function PlanningTimeline({ trips, trucks }: { trips: any[]; trucks: any[] }) {
   const allTrucks = [...new Map([...activeTrucks, ...trucks.filter((tr: any) => trucksWithTrips.includes(tr.id))].map((tr: any) => [tr.id, tr])).values()];
 
   const todayLeft = leftPct(now);
+  const dayW = 100 / days;
+  const fmt = (d: Date) => d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+  const dayCells = Array.from({ length: days }).map((_, i) => {
+    const dayStart = new Date(rangeStart.getTime() + i * dayMs);
+    const weekend = [0, 6].includes(dayStart.getDay());
+    const isToday = dayStart.toDateString() === now.toDateString();
+    return {
+      dayStart,
+      weekend,
+      isToday,
+      weekday: dayStart.toLocaleDateString(locale, { weekday: 'short' }),
+      dayMonth: dayStart.toLocaleDateString(locale, { day: '2-digit', month: 'short' }),
+    };
+  });
 
   return <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
     <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface/30">
@@ -269,50 +285,66 @@ function PlanningTimeline({ trips, trucks }: { trips: any[]; trucks: any[] }) {
     </div>
 
     <div className="overflow-x-auto">
-      <div className="min-w-[720px]">
-        {/* Day header */}
-        <div className="relative border-b border-border" style={{ height: 28 }}>
-          {Array.from({ length: days }).map((_, i) => {
-            const dayStart = new Date(rangeStart.getTime() + i * dayMs);
-            const isToday = dayStart.toDateString() === now.toDateString();
-            return <div key={i} className="absolute inset-y-0 border-l border-border/40 flex items-center justify-center text-[10px] font-bold uppercase tracking-wide"
-              style={{ left: `${(i / days) * 100}%`, width: `${100 / days}%`, backgroundColor: isToday ? 'rgba(249,115,22,0.08)' : 'transparent', color: isToday ? 'var(--color-primary, #f97316)' : 'var(--color-text-secondary, #666)' }}>
-              {dayStart.toLocaleDateString('ro-RO', { weekday: 'short', day: '2-digit', month: 'short' })}
-            </div>;
+      <div className="min-w-[860px]">
+        <div className="grid grid-cols-[172px_1fr]">
+          {/* Header */}
+          <div className="h-9 flex items-center px-3 bg-surface/40 border-r border-b border-border/60 text-[10px] font-bold uppercase tracking-wider text-text-secondary">
+            {t('truck', 'Camion')}
+          </div>
+          <div className="relative h-9 border-b border-border/60 bg-surface/20">
+            {dayCells.map((d, i) => (
+              <div key={i} className={`absolute inset-y-0 border-l border-border/40 flex flex-col items-center justify-center leading-tight ${d.weekend ? 'bg-black/[0.03] dark:bg-white/[0.03]' : ''}`}
+                style={{ left: `${i * dayW}%`, width: `${dayW}%` }}>
+                <span className={`text-[10px] font-bold uppercase ${d.isToday ? 'text-primary' : 'text-text-secondary'}`}>{d.weekday}</span>
+                <span className={`text-[9px] font-semibold ${d.isToday ? 'text-primary' : 'text-text-muted'}`}>{d.dayMonth}</span>
+              </div>
+            ))}
+            <div className="absolute inset-y-0 z-10 bg-primary/10 border-x-2 border-primary/70" style={{ left: `${todayLeft}%`, width: `${dayW}%` }} />
+          </div>
+
+          {/* Rows */}
+          {allTrucks.length === 0 ? (
+            <div className="col-span-2 p-8 text-center text-sm text-text-secondary">{t('no_trips_in_range', 'Nicio cursă în intervalul selectat.')}</div>
+          ) : allTrucks.map(truck => {
+            const truckTrips = relevant
+              .filter(tr => tr.truck?.id === truck.id)
+              .sort((a: any, b: any) => {
+                const da = a.plannedDeparture ? new Date(a.plannedDeparture).getTime() : Number.MAX_SAFE_INTEGER;
+                const db = b.plannedDeparture ? new Date(b.plannedDeparture).getTime() : Number.MAX_SAFE_INTEGER;
+                return da - db;
+              });
+            return [
+              <div key={`${truck.id}-label`} className="h-14 flex items-center gap-2 px-3 bg-card border-r border-b border-border/50 hover:bg-surface/50 transition-colors">
+                <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                  <TruckIcon className="w-3.5 h-3.5 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold text-text-primary truncate">{truck.plateNumber}</p>
+                  <p className="text-[9px] text-text-secondary truncate">{truck.driver?.user?.name || truck.driver?.name || '—'}</p>
+                </div>
+              </div>,
+              <div key={`${truck.id}-track`} className="relative h-14 border-b border-border/50">
+                {dayCells.map((d, i) => (
+                  <div key={i} className={`absolute inset-y-0 border-l border-border/30 ${d.weekend ? 'bg-black/[0.03] dark:bg-white/[0.03]' : ''}`}
+                    style={{ left: `${i * dayW}%`, width: `${dayW}%` }} />
+                ))}
+                {truckTrips.map(tr => {
+                  const start = tr.plannedDeparture ? new Date(tr.plannedDeparture) : new Date(tr.createdAt || now);
+                  const end = tr.plannedArrival ? new Date(tr.plannedArrival) : new Date(start.getTime() + dayMs);
+                  const color = TRIP_STATUS_COLORS[tr.status] || TRIP_STATUS_COLORS.planned;
+                  const nOrders = (tr.orders || []).length;
+                  const label = `${tr.tripNumber || 'TR'}${nOrders > 0 ? ` · ${nOrders} 📦` : ''} · ${fmt(start)}–${fmt(end)}`;
+                  return <button key={tr.id} onClick={() => navigate(`/trips/${tr.id}`)} title={`${label} — ${t(`status_${tr.status}`, tr.status)}`}
+                    className={`absolute top-1/2 -translate-y-1/2 h-8 rounded-md ${color} text-white text-[10px] font-bold px-2 shadow-sm hover:brightness-110 hover:ring-2 hover:ring-primary/40 transition-all overflow-hidden text-left whitespace-nowrap`}
+                    style={{ left: `${leftPct(start)}%`, width: `calc(${widthPct(start, end)}% - 4px)` }}>
+                    <span className="drop-shadow">{label}</span>
+                  </button>;
+                })}
+                <div className="absolute inset-y-0 z-10 border-l-2 border-dashed border-primary/70 pointer-events-none" style={{ left: `${todayLeft}%` }} />
+              </div>,
+            ];
           })}
         </div>
-
-        {/* Rows */}
-        {allTrucks.length === 0 ? <div className="p-8 text-center text-sm text-text-secondary">{t('no_trips_in_range', 'Nicio cursă în intervalul selectat.')}</div> : allTrucks.map(truck => {
-          const truckTrips = relevant
-            .filter(tr => tr.truck?.id === truck.id)
-            .sort((a: any, b: any) => {
-              const da = a.plannedDeparture ? new Date(a.plannedDeparture).getTime() : Number.MAX_SAFE_INTEGER;
-              const db = b.plannedDeparture ? new Date(b.plannedDeparture).getTime() : Number.MAX_SAFE_INTEGER;
-              return da - db;
-            });
-          return <div key={truck.id} className="relative border-b border-border/50" style={{ height: 52 }}>
-            <div className="absolute inset-y-0 left-0 w-[160px] z-10 flex items-center gap-1.5 px-3 bg-card border-r border-border/50">
-              <TruckIcon className="w-3.5 h-3.5 text-primary shrink-0" />
-              <div className="min-w-0">
-                <p className="text-[11px] font-bold text-text-primary truncate">{truck.plateNumber}</p>
-                <p className="text-[9px] text-text-secondary truncate">{truck.driver?.user?.name || truck.driver?.name || '—'}</p>
-              </div>
-            </div>
-            {truckTrips.map(tr => {
-              const start = tr.plannedDeparture ? new Date(tr.plannedDeparture) : new Date(tr.createdAt || now);
-              const end = tr.plannedArrival ? new Date(tr.plannedArrival) : new Date(start.getTime() + dayMs);
-              const color = TRIP_STATUS_COLORS[tr.status] || TRIP_STATUS_COLORS.planned;
-              const label = `${tr.tripNumber || 'TR'} · ${(tr.orders || []).length}${tr.orders && tr.orders.length > 0 ? ' 📦' : ''}`;
-              return <button key={tr.id} onClick={() => navigate(`/trips/${tr.id}`)} title={`${label} — ${t(`status_${tr.status}`, tr.status)}`}
-                className={`absolute top-1/2 -translate-y-1/2 h-7 rounded-md ${color} text-white text-[10px] font-bold px-2 shadow-sm hover:brightness-110 transition-all overflow-hidden text-left whitespace-nowrap`}
-                style={{ left: `calc(${leftPct(start)}% + 162px)`, width: `calc(${widthPct(start, end)}% - 4px)` }}>
-                <span className="drop-shadow">{label}</span>
-              </button>;
-            })}
-            <div className="absolute inset-y-0 border-l-2 border-dashed border-primary/60 pointer-events-none z-20" style={{ left: `calc(${todayLeft}% + 160px)` }} />
-          </div>;
-        })}
       </div>
     </div>
   </div>;
@@ -321,9 +353,12 @@ function PlanningTimeline({ trips, trucks }: { trips: any[]; trucks: any[] }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function PlanningPage() {
   const {
-    t
+    t,
+    i18n
   } = useTranslation();
   const navigate = useNavigate();
+  const localeMap: Record<string, string> = { ro: 'ro-RO', en: 'en-GB', nl: 'nl-NL', de: 'de-DE', fr: 'fr-FR' };
+  const locale = localeMap[i18n.language?.split('-')[0]] || 'en-GB';
   const [trucks, setTrucks] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [trips, setTrips] = useState<any[]>([]);
@@ -338,6 +373,7 @@ export default function PlanningPage() {
   const [draggingOrderId, setDraggingOrderId] = useState<string | null>(null);
   const [dragOverTruckId, setDragOverTruckId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'board' | 'timeline'>('board');
+  const [truckFilter, setTruckFilter] = useState<'all' | 'busy' | 'planned' | 'free' | 'warning'>('all');
 
   const loadData = async (silent = false) => {
     try {
@@ -602,9 +638,37 @@ export default function PlanningPage() {
     truck,
     rec: getRecommendation(truck, order)
   })).sort((a, b) => a.rec.isCompatible === b.rec.isCompatible ? 0 : a.rec.isCompatible ? -1 : 1);
+
+  const isTruckBusy = (tr: any) => IN_PROGRESS_STATUSES.includes(getTruckStats(tr.id).status);
+  const isTruckPlanned = (tr: any) => { const s = getTruckStats(tr.id); return !!s.tripId && !s.isActive; };
+  const isTruckOverloaded = (tr: any) => {
+    const s = getTruckStats(tr.id);
+    return s.weight > (tr.maxWeightKg || 24000) || s.ldm > (tr.maxLdm || 13.6) || (s.pallets || 0) > (tr.maxPallets || 33);
+  };
+  const busyTrucks = trucks.filter(isTruckBusy);
+  const plannedTrucks = trucks.filter(isTruckPlanned);
+  const freeTrucks = trucks.filter(tr => !getTruckStats(tr.id).tripId);
+  const overloadedTrucks = trucks.filter(isTruckOverloaded);
+  const visibleTrucks = truckFilter === 'all' ? trucks
+    : truckFilter === 'busy' ? busyTrucks
+    : truckFilter === 'planned' ? plannedTrucks
+    : truckFilter === 'free' ? freeTrucks
+    : overloadedTrucks;
+
+  const kpis = [
+    { key: 'unassigned', label: t('kpi_unassigned', 'Unassigned orders'), value: unassigned.length, icon: Package, color: '#f97316', onClick: () => setTruckFilter('all'), active: truckFilter === 'all' && !searchQuery },
+    { key: 'trucks', label: t('kpi_active_trucks', 'Active trucks'), value: trucks.length, icon: TruckIcon, onClick: () => setTruckFilter('all'), active: truckFilter === 'all' },
+    { key: 'busy', label: t('kpi_in_trip', 'Trucks in trip'), value: busyTrucks.length, color: '#6366f1', icon: Activity, onClick: () => setTruckFilter('busy'), active: truckFilter === 'busy' },
+    { key: 'planned', label: t('kpi_planned', 'Trucks planned'), value: plannedTrucks.length, color: '#f59e0b', icon: Calendar, onClick: () => setTruckFilter('planned'), active: truckFilter === 'planned' },
+    { key: 'free', label: t('kpi_free', 'Free trucks'), value: freeTrucks.length, color: '#22c55e', icon: CheckCircle2, onClick: () => setTruckFilter('free'), active: truckFilter === 'free' },
+    { key: 'overload', label: t('kpi_overload', 'Overload warnings'), value: overloadedTrucks.length, color: overloadedTrucks.length > 0 ? '#ef4444' : '#22c55e', icon: AlertTriangle, onClick: () => setTruckFilter('warning'), active: truckFilter === 'warning' },
+  ];
+
   if (loading) return <div className="flex justify-center items-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   return <div className="pt-2 px-4 md:px-6 lg:px-8 pb-8 max-w-[1800px] mx-auto h-full">
-      <div className="flex gap-6 items-start">
+      <div className="space-y-4">
+        <KpiStrip items={kpis} />
+        <div className="flex gap-6 items-start">
 
           {/* ═══════════════════════════════════════
               LEFT — Compact Order Cards
@@ -721,10 +785,10 @@ export default function PlanningPage() {
             </div>
 
             {viewMode === 'timeline' ? <PlanningTimeline trips={trips} trucks={trucks} /> : <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {trucks.length === 0 ? <div className="col-span-3 bg-card border border-border rounded-2xl p-12 text-center">
+              {visibleTrucks.length === 0 ? <div className="col-span-3 bg-card border border-border rounded-2xl p-12 text-center">
                   <TruckIcon className="w-10 h-10 text-text-muted mx-auto mb-2 opacity-40" />
                   <p className="text-text-secondary text-sm">{t("jsx_niciunCamionA")}</p>
-                </div> : trucks.map(truck => {
+                </div> : visibleTrucks.map(truck => {
               const stats = getTruckStats(truck.id);
               const maxWeight = truck.maxWeightKg || 24000;
               const maxLdm = truck.maxLdm || 13.6;
@@ -848,7 +912,7 @@ export default function PlanningPage() {
                                 {stats.plannedDeparture && (
                                   <span className="text-[9px] text-text-muted flex items-center gap-0.5">
                                     <Calendar className="w-3 h-3" />
-                                    {new Date(stats.plannedDeparture).toLocaleDateString('ro-RO', { day: '2-digit', month: 'short' })}
+                                    {new Date(stats.plannedDeparture).toLocaleDateString(locale, { day: '2-digit', month: 'short' })}
                                   </span>
                                 )}
                               </div>
@@ -971,5 +1035,6 @@ export default function PlanningPage() {
             </div>
           </div>, document.body) : null;
     })()}
+      </div>
     </div>;
 }
