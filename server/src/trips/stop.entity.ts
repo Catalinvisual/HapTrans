@@ -32,6 +32,30 @@ export class Stop {
   @Column({ nullable: true })
   country: string;
 
+  @Column({ nullable: true })
+  city: string;
+
+  @Column({ nullable: true })
+  postalCode: string;
+
+  @Column({ nullable: true })
+  contactPerson: string;
+
+  @Column({ nullable: true })
+  phone: string;
+
+  @Column({ nullable: true })
+  email: string;
+
+  @Column({ nullable: true })
+  timeZone: string;
+
+  @Column({ nullable: true })
+  reference: string;
+
+  @Column({ nullable: true, type: 'text' })
+  notes: string;
+
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
   latitude: number;
 

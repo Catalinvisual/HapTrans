@@ -22,6 +22,10 @@ interface FormState {
   clientsShowForm: boolean;
   clientsEditId: string | null;
 
+  trailersForm: any;
+  trailersShowForm: boolean;
+  trailersEditId: string | null;
+
   setFormState: (page: string, data: Partial<{ form: any; showForm: boolean; editId: string | null }>) => void;
   clearAllForms: () => void;
 }
@@ -49,6 +53,10 @@ export const useFormStore = create<FormState>()(
       clientsShowForm: false,
       clientsEditId: null,
 
+      trailersForm: null,
+      trailersShowForm: false,
+      trailersEditId: null,
+
       setFormState: (page, data) => set(() => {
         const update: any = {};
         if (data.form !== undefined) update[`${page}Form`] = data.form;
@@ -63,6 +71,7 @@ export const useFormStore = create<FormState>()(
         driversForm: null, driversShowForm: false, driversEditId: null,
         trucksForm: null, trucksShowForm: false, trucksEditId: null,
         clientsForm: null, clientsShowForm: false, clientsEditId: null,
+        trailersForm: null, trailersShowForm: false, trailersEditId: null,
       }),
     }),
     { name: 'hapcargo_forms' }

@@ -106,6 +106,7 @@ async function bootstrap() {
     // 2. Add companyId to all tables that need it (IF NOT EXISTS)
     await dataSource.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "companyId" uuid`);
     await dataSource.query(`ALTER TABLE "clients" ADD COLUMN IF NOT EXISTS "companyId" uuid`);
+    await dataSource.query(`ALTER TABLE "clients" ADD COLUMN IF NOT EXISTS "discount" numeric(5,2) DEFAULT 0`);
     await dataSource.query(`ALTER TABLE "trucks" ADD COLUMN IF NOT EXISTS "companyId" uuid`);
     await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "companyId" uuid`);
     await dataSource.query(`ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "companyId" uuid`);

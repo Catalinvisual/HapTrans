@@ -473,12 +473,12 @@ export default function OrderWizard({
     try {
       setLoading(true);
       const {
-        internalReference,
         customerReference,
         ...cleanForm
       } = form;
       const payload = {
         ...cleanForm,
+        internalReference: form.internalReference || null,
         clientId: form.clientId || null,
         price: form.price ? parseFloat(form.price) : null,
         customerReference: pickup.reference || null,
@@ -540,8 +540,8 @@ export default function OrderWizard({
     value: 'ftl',
     label: t('transport_ftl', 'FTL (Full Truckload)')
   }, {
-    value: 'ltl',
-    label: t('transport_ltl', 'LTL (Groupage)')
+    value: 'groupage',
+    label: t('transport_groupage', 'Groupage (LTL)')
   }, {
     value: 'express',
     label: t('transport_express', 'Express')
@@ -733,6 +733,15 @@ export default function OrderWizard({
                           {t(`eq_${eq}`, eq.toUpperCase())}
                         </button>;
                 })}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">{t("jsx_internalReference", "Internal Reference")}</label>
+                    <input type="text" value={form.internalReference} onChange={e => setForm({
+                  ...form,
+                  internalReference: e.target.value
+                })} className="input w-full" placeholder={t('internalRefPlaceholder', 'e.g. ORD-2026-004521')} />
                   </div>
                 </div>
               </div>

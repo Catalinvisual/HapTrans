@@ -35,7 +35,7 @@ const DEFAULT_TEMPLATES: Record<string, string> = {
 <br/>
 <h3>🚚 Transport FTL (Full Truck Load)</h3>
 <p>Camion complet dedicat exclusiv mărfii dumneavoastră.</p>
-<h3>📦 Transport LTL (Grupaj)</h3>
+<h3>📦 {t('transport_groupage', 'Groupage (LTL)')}</h3>
 <p>Soluția economică pentru expediții mai mici.</p>
 <h3>⚡ Transport Express</h3>
 <p>Livrăm oriunde în Europa în regim de maximă urgență.</p>`,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, MapPin, Calendar, Clock, Truck, User, Layers, Scale, Box, Euro, FileText, FileBadge, Navigation, Eye, Wand2, Download, Share2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Clock, Truck, User, Layers, Scale, Box, Euro, FileText, FileBadge, Navigation, Eye, Wand2, Download, Share2, Plus, Trash2, Edit2, Save, X, UserCheck, Package, Scale as ScaleIcon, Dock, Clock as ClockIcon, Mail, Phone, MapPin as MapPinIcon } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
@@ -31,6 +31,10 @@ export default function TripDetailsPage() {
   const [loading, setLoading] = useState(true);
   const { user } = useAuthStore();
   const isDispatcher = user?.role === 'dispatcher';
+  const [editingStopId, setEditingStopId] = useState<string | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [stopForm, setStopForm] = useState<any>({});
+  const [taskForm, setTaskForm] = useState<any>({});
   useEffect(() => {
     const fetchTrip = async (isInitial = false) => {
       try {
@@ -49,7 +53,228 @@ export default function TripDetailsPage() {
           setLoading(false);
         }
       }
-    };
+  
+  // Stop & Task Builder handlers
+  const handleAddStop = async () => {
+    if (!trip) return;
+    try {
+      const newStop = {
+        address: "",
+        companyName: "",
+        country: "RO",
+        type: "pickup",
+        timeWindowMin: null,
+        timeWindowMax: null,
+        latitude: null,
+        longitude: null,
+        distanceToStopKm: null,
+        contactPerson: "",
+        phone: "",
+        email: "",
+        reference: "",
+        rampDock: "",
+      };
+      await api.post(`/trips/${trip.id}/stops`, newStop);
+      toast.success(t("stopAdded", "Oprire adăugată"));
+      const res = await api.get(`/trips/${trip.id}`);
+      setTrip(res.data);
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || t("error", "Eroare"));
+    }
+  };
+
+  // Cost handlers
+  const handleAddCost = async () => {
+    if (!trip) return;
+    if (!costForm.amount || Number(costForm.amount) <= 0) { notify.error(t("invalidAmount", "Sumă invalidă")); return; }
+    try {
+      await api.post(`/trips/${trip.id}/costs`, {
+        type: costForm.type,
+        amount: Number(costForm.amount),
+        description: costForm.description,
+        category: costForm.category,
+        driverId: costForm.driverId || undefined,
+        truckId: costForm.truckId || undefined
+      });
+      notify.success(t("costAdded", "Cost adăugat"));
+      setCostForm({ type: "extra", amount: "", description: "", category: "extra", driverId: "", truckId: "" });
+      const res = await api.get(`/trips/${trip.id}`);
+      setTrip(res.data);
+    } catch (e: any) {
+      notify.error(e.response?.data?.message || t("error", "Eroare"));
+    }
+  };
+
+  const handleStartEditCost = (cost: any) => {
+    setEditingCostId(cost.id);
+    setCostForm({
+      type: cost.type,
+      amount: cost.amount,
+      description: cost.description || "",
+      category: cost.category || "extra",
+      driverId: cost.driverId || "",
+      truckId: cost.truckId || ""
+    });
+  };
+
+  const handleCancelEditCost = () => {
+    setEditingCostId(null);
+    setCostForm({ type: "extra", amount: "", description: "", category: "extra", driverId: "", truckId: "" });
+  };
+
+  const handleUpdateCost = async (costId: string) => {
+    try {
+      await api.patch(`/trips/costs/${costId}`, costForm);
+      notify.success(t("costUpdated", "Cost actualizat"));
+      const res = await api.get(`/trips/${trip.id}`);
+      setTrip(res.data);
+      setEditingCostId(null);
+      setCostForm({ type: "extra", amount: "", description: "", category: "extra", driverId: "", truckId: "" });
+    } catch (e: any) {
+      notify.error(e.response?.data?.message || t("error", "Eroare"));
+    }
+  };
+
+  const handleDeleteCost = async (costId: string) => {
+    if (!window.confirm(t("confirmDeleteCost", "Ștergi acest cost?"))) return;
+    try {
+      await api.delete(`/trips/costs/${costId}`);
+      notify.success(t("costDeleted", "Cost șters"));
+      const res = await api.get(`/trips/${trip.id}`);
+      setTrip(res.data);
+    } catch (e: any) {
+      notify.error(e.response?.data?.message || t("error", "Eroare"));
+    }
+  };
+
+  const handleDeleteStop = async (stopId: string) => {
+    if (!window.confirm(t("confirmDeleteStop", "Ștergi această oprire?"))) return;
+    try {
+      await api.delete(`/trips/stops/${stopId}`);
+      toast.success(t("stopDeleted", "Oprire ștearsă"));
+      const res = await api.get(`/trips/${trip.id}`);
+      setTrip(res.data);
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || t("error", "Eroare"));
+    }
+  };
+
+  const handleStartEditStop = (stop: any) => {
+    setEditingStopId(stop.id);
+    setStopForm({
+      address: stop.address || "",
+      companyName: stop.companyName || "",
+      country: stop.country || "RO",
+      type: stop.type || "pickup",
+      timeWindowMin: stop.timeWindowMin ? new Date(stop.timeWindowMin).toISOString().slice(0, 16) : "",
+      timeWindowMax: stop.timeWindowMax ? new Date(stop.timeWindowMax).toISOString().slice(0, 16) : "",
+      latitude: stop.latitude || "",
+      longitude: stop.longitude || "",
+      contactPerson: stop.contactPerson || "",
+      phone: stop.phone || "",
+      email: stop.email || "",
+      reference: stop.reference || "",
+      rampDock: stop.rampDock || "",
+    });
+  };
+
+  const handleCancelEditStop = () => {
+    setEditingStopId(null);
+    setStopForm({});
+  };
+
+  const handleUpdateStop = async (stopId: string) => {
+    try {
+      await api.patch(`/trips/stops/${stopId}`, stopForm);
+      toast.success(t("stopUpdated", "Oprire actualizată"));
+      const res = await api.get(`/trips/${trip.id}`);
+      setTrip(res.data);
+      setEditingStopId(null);
+      setStopForm({});
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || t("error", "Eroare"));
+    }
+  };
+
+  const handleAddTask = async (stopId: string) => {
+    if (!trip) return;
+    try {
+      const newTask = {
+        type: "load",
+        pallets: 0,
+        weightKg: 0,
+        quantity: 0,
+        plannedTime: new Date().toISOString().slice(0, 16),
+        orderId: trip.orders?.[0]?.id || "",
+      };
+      await api.post(`/trips/stops/${stopId}/tasks`, newTask);
+      toast.success(t("taskAdded", "Sarcină adăugată"));
+      const res = await api.get(`/trips/${trip.id}`);
+      setTrip(res.data);
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || t("error", "Eroare"));
+    }
+  };
+
+  const handleStartEditTask = (task: any) => {
+    setEditingTaskId(task.id);
+    setTaskForm({
+      type: task.type || "load",
+      pallets: task.pallets || 0,
+      weightKg: task.weightKg || 0,
+      quantity: task.quantity || 0,
+      plannedTime: task.plannedTime ? new Date(task.plannedTime).toISOString().slice(0, 16) : "",
+      orderId: task.order?.id || "",
+      reference: task.reference || "",
+      issueNote: task.issueNote || "",
+    });
+  };
+
+  const handleCancelEditTask = () => {
+    setEditingTaskId(null);
+    setTaskForm({});
+  };
+
+  const handleUpdateTask = async (taskId: string) => {
+    try {
+      await api.patch(`/trips/tasks/${taskId}`, taskForm);
+      toast.success(t("taskUpdated", "Sarcină actualizată"));
+      const res = await api.get(`/trips/${trip.id}`);
+      setTrip(res.data);
+      setEditingTaskId(null);
+      setTaskForm({});
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || t("error", "Eroare"));
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (!window.confirm(t("confirmDeleteTask", "Ștergi această sarcină?"))) return;
+    try {
+      // No delete endpoint yet - just update status to problem or mark deleted
+      await api.patch(`/trips/tasks/${taskId}`, { status: "problem", issueNote: "Deleted by user" });
+      toast.success(t("taskDeleted", "Sarcină marcată ca problemă"));
+      const res = await api.get(`/trips/${trip.id}`);
+      setTrip(res.data);
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || t("error", "Eroare"));
+    }
+  };
+
+  // Validation helpers
+  const getLoadedPallets = (stop: any) => {
+    return stop.tasks?.filter((t: any) => t.type === "load").reduce((s: number, t: any) => s + (t.pallets || 0), 0) || 0;
+  };
+  const getUnloadedPallets = (stop: any) => {
+    return stop.tasks?.filter((t: any) => t.type === "unload").reduce((s: number, t: any) => s + (t.pallets || 0), 0) || 0;
+  };
+  const getLoadedWeight = (stop: any) => {
+    return stop.tasks?.filter((t: any) => t.type === "load").reduce((s: number, t: any) => s + Number(t.weightKg || 0), 0) || 0;
+  };
+  const getUnloadedWeight = (stop: any) => {
+    return stop.tasks?.filter((t: any) => t.type === "unload").reduce((s: number, t: any) => s + Number(t.weightKg || 0), 0) || 0;
+  };
+  };
     if (id) {
       fetchTrip(true);
       const intervalId = setInterval(() => fetchTrip(false), 5000);
@@ -69,7 +294,7 @@ export default function TripDetailsPage() {
   
   // Segment calculations
   const truckMaxWeight = trip.truck?.maxWeightKg || 24000;
-  const truckMaxPallets = 33;
+  const truckMaxPallets = trip.truck?.maxPallets || 33;
   let runningWeight = 0;
   let runningPallets = 0;
   
@@ -199,6 +424,9 @@ export default function TripDetailsPage() {
               }
             }} className="btn-primary py-1.5 px-3 text-xs flex items-center gap-2">
                   <Wand2 className="w-3.5 h-3.5" />{t("jsx_optimize", "Smart Optimize")}</button>}
+            <button onClick={handleAddStop} className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-2">
+              <Plus className="w-3.5 h-3.5" /> {t("addStop", "Adaugă Oprire")}
+            </button>
             </div>
             
             <div className="relative pl-6 space-y-8">
@@ -258,7 +486,63 @@ export default function TripDetailsPage() {
                       </p>
                       
                       {/* Tasks List for this Stop */}
-                      {stop.tasks && stop.tasks.length > 0 && <div className="mt-3 space-y-2">
+                      
+                       {editingStopId === stop.id && (
+                         <div className="mt-3 p-4 bg-surface/50 rounded-xl border border-border space-y-4">
+                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                             <div>
+                               <label className="label">{t("address", "Adresa")}</label>
+                               <input type="text" className="input" value={stopForm.address} onChange={e => setStopForm({...stopForm, address: e.target.value})} placeholder={t("addressPlaceholder", "Adresa oprire")} />
+                             </div>
+                             <div>
+                               <label className="label">{t("companyName", "Companie")}</label>
+                               <input type="text" className="input" value={stopForm.companyName} onChange={e => setStopForm({...stopForm, companyName: e.target.value})} placeholder={t("companyNamePlaceholder", "Nume companie")} />
+                             </div>
+                             <div>
+                               <label className="label">{t("country", "Țară")}</label>
+                               <input type="text" className="input" value={stopForm.country} onChange={e => setStopForm({...stopForm, country: e.target.value})} placeholder="RO" />
+                             </div>
+                             <div>
+                               <label className="label">{t("type", "Tip")}</label>
+                               <select className="input" value={stopForm.type} onChange={e => setStopForm({...stopForm, type: e.target.value})}>
+                                 <option value="pickup">{t("pickup", "Încărcare")}</option>
+                                 <option value="delivery">{t("delivery", "Descărcare")}</option>
+                                 <option value="customs">{t("customs", "Vamă")}</option>
+                                 <option value="other">{t("other", "Altele")}</option>
+                               </select>
+                             </div>
+                             <div>
+                               <label className="label">{t("timeWindowMin", "Fereastră Min")}</label>
+                               <input type="datetime-local" className="input" value={stopForm.timeWindowMin} onChange={e => setStopForm({...stopForm, timeWindowMin: e.target.value})} />
+                             </div>
+                             <div>
+                               <label className="label">{t("timeWindowMax", "Fereastră Max")}</label>
+                               <input type="datetime-local" className="input" value={stopForm.timeWindowMax} onChange={e => setStopForm({...stopForm, timeWindowMax: e.target.value})} />
+                             </div>
+                             <div>
+                               <label className="label">{t("contactPerson", "Persoană Contact")}</label>
+                               <input type="text" className="input" value={stopForm.contactPerson} onChange={e => setStopForm({...stopForm, contactPerson: e.target.value})} placeholder={t("contactPersonPlaceholder", "Nume persoană contact")} />
+                             </div>
+                             <div>
+                               <label className="label">{t("phone", "Telefon")}</label>
+                               <input type="tel" className="input" value={stopForm.phone} onChange={e => setStopForm({...stopForm, phone: e.target.value})} placeholder={t("phonePlaceholder", "Număr telefon")} />
+                             </div>
+                             <div>
+                               <label className="label">{t("email", "Email")}</label>
+                               <input type="email" className="input" value={stopForm.email} onChange={e => setStopForm({...stopForm, email: e.target.value})} placeholder={t("emailPlaceholder", "Email contact")} />
+                             </div>
+                             <div>
+                               <label className="label">{t("reference", "Referință")}</label>
+                               <input type="text" className="input" value={stopForm.reference} onChange={e => setStopForm({...stopForm, reference: e.target.value})} placeholder={t("referencePlaceholder", "Referință oprire")} />
+                             </div>
+                             <div>
+                               <label className="label">{t("rampDock", "Rampă/Doc")}</label>
+                               <input type="text" className="input" value={stopForm.rampDock} onChange={e => setStopForm({...stopForm, rampDock: e.target.value})} placeholder={t("rampDockPlaceholder", "Rampă/Doc")} />
+                             </div>
+                           </div>
+                         </div>
+                       )}
+                       {stop.tasks && stop.tasks.length > 0 && <div className="mt-3 space-y-2">
                           {stop.tasks.map((task: any) => {
                               const fullOrder = trip.orders?.find((o: any) => o.id === task.order?.id) || task.order;
                               const loadRef = fullOrder?.loadingReference || fullOrder?.stops?.find((s: any) => s.type === 'pickup')?.reference || fullOrder?.customerReference || fullOrder?.orderNumber || '#N/A';
@@ -276,7 +560,9 @@ export default function TripDetailsPage() {
                               </div>
                               <span className={`text-xs font-bold px-2 py-1 rounded bg-white border shadow-sm ${task.status === 'completed' ? 'border-green-200 text-green-700' : 'border-gray-200 text-gray-600'}`}>
                                 {t(task.status)}
-                              </span>
+                              </span><select className="ml-2 text-xs font-bold px-2 py-1 rounded bg-white border shadow-sm" value={task.status || 'pending'} onChange={async e => { const v = e.target.value; try { await api.patch('/trips/tasks/' + task.id + '/status', { status: v }); setTrip((prev: any) => ({ ...prev, stops: prev.stops?.map((st: any) => ({ ...st, tasks: (st.tasks || []).map((tk: any) => tk.id === task.id ? { ...tk, status: v } : tk) })) })); toast.success(t('saved', 'Salvat')); } catch (err: any) { toast.error(err?.response?.data?.message || t('error', 'Eroare')); } }} title={t('change_status', 'Change task status')}>
+{t(['pending', 'completed', 'problem'].map(st => <option key={st} value={st}>{t(st)}</option>))}
+</select>
                             </div>
                           })}
                         </div>}

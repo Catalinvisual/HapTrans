@@ -6,6 +6,7 @@ import { UsersModule } from './users/users.module';
 import { ClientsModule } from './clients/clients.module';
 import { TrucksModule } from './trucks/trucks.module';
 import { DriversModule } from './drivers/drivers.module';
+import { DriverModule } from './driver/driver-trips.module';
 import { TripsModule } from './trips/trips.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { ExpensesModule } from './expenses/expenses.module';
@@ -18,6 +19,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { FirebaseModule } from './firebase/firebase.module';
 import { RoutingModule } from './routing/routing.module';
 import { PayrollModule } from './payroll/payroll.module';
+import { SettlementsModule } from './settlements/settlements.module';
 import { TnasModule } from './tnas/tnas.module';
 
 import { AppController } from './app.controller';
@@ -32,6 +34,7 @@ import { CronModule } from './cron/cron.module';
 import { QuotesModule } from './quotes/quotes.module';
 import { JobApplicationsModule } from './job-applications/job-applications.module';
 import { OrdersModule } from './orders/orders.module';
+import { PaymentsModule } from "./payments/payments.module";
 
 import { EnginesModule } from './engines/engines.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -64,6 +67,7 @@ import { PortalModule } from './portal/portal.module';
     PortalUsersModule,
     PortalAuthModule,
     PortalModule,
+    SettlementsModule,
     AuthModule,
     UsersModule,
     ClientsModule,
@@ -94,6 +98,8 @@ import { PortalModule } from './portal/portal.module';
     QuotesModule,
     JobApplicationsModule,
     OrdersModule,
+    PaymentsModule,
+    DriverModule,
   ],
   controllers: [AppController],
   providers: [AppService],

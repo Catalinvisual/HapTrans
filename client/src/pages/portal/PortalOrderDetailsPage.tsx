@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Calendar, Package, Download } from 'lucide-react';
+import { notify } from '../../components/AppToaster';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import portalApi from '../../lib/portalApi';
@@ -24,6 +25,7 @@ export default function PortalOrderDetailsPage() {
   } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState<any>(null);
+  const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     portalApi.get(`/portal/orders/${id}`).then(r => {
@@ -31,6 +33,7 @@ export default function PortalOrderDetailsPage() {
       setLoading(false);
     });
   }, [id]);
+  useEffect(() => { portalApi.get(`/documents/order/${id}`).then(r => setDocuments(r.data || [])).catch(() => setDocuments([])); }, [id]);
   if (loading) return <div className="p-8 text-center animate-pulse">{t("jsx_loadingOrderD")}</div>;
   if (!order) return <div className="p-8 text-center">{t("jsx_orderNotFound")}</div>;
   const hasTracking = order.trip?.locations && order.trip.locations.length > 0;
@@ -153,32 +156,22 @@ export default function PortalOrderDetailsPage() {
           <div className="card bg-card border border-border rounded-2xl shadow-sm p-6">
             <h3 className="font-bold text-primary mb-4 flex items-center gap-2"><Download className="w-5 h-5" />{t("jsx_documents")}</h3>
             <div className="space-y-3">
-              {/* Placeholder documents, since we didn't implement real file upload yet */}
-              <button className="w-full flex items-center justify-between p-3 rounded-xl border border-border hover:border-primary/50 hover:bg-surface transition-colors group">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center text-red-500">
-                    <span className="font-bold text-xs">{t("jsx_pDF")}</span>
+              {documents.length > 0 ? (documents.map(doc => (
+                <div key={doc.id} className="w-full flex items-center justify-between p-3 rounded-xl border border-border hover:border-primary/50 hover:bg-surface transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center text-red-500">
+                      <span className="font-bold text-xs">{(doc.format || 'pdf').toUpperCase()}</span>
+                    </div>
+                    <div className="text-left">
+                      <p className="font-bold text-sm">{doc.originalFilename || doc.fileName || 'Document'}</p>
+                      <p className="text-xs text-text-secondary">{doc.documentType || '-'}</p>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <p className="font-bold text-sm">{t("jsx_cMRDocument")}</p>
-                    <p className="text-xs text-text-secondary">{t("jsx_cmr1024Pdf")}</p>
-                  </div>
+                  <button onClick={async () => { try { const res = await portalApi.get(`/documents/${doc.id}/preview-url`); const url = res.data?.url; if (url) window.open(url, '_blank'); } catch { notify.error(t('jsx_docError')); } }} className="p-2 rounded-lg text-text-secondary hover:text-primary">
+                    <Download className="w-4 h-4" />
+                  </button>
                 </div>
-                <Download className="w-4 h-4 text-text-secondary group-hover:text-primary" />
-              </button>
-
-              <button className="w-full flex items-center justify-between p-3 rounded-xl border border-border hover:border-primary/50 hover:bg-surface transition-colors group">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center text-red-500">
-                    <span className="font-bold text-xs">{t("jsx_pDF")}</span>
-                  </div>
-                  <div className="text-left">
-                    <p className="font-bold text-sm">{t("jsx_proofOfDelive")}</p>
-                    <p className="text-xs text-text-secondary">{t("jsx_pod1024Pdf")}</p>
-                  </div>
-                </div>
-                <Download className="w-4 h-4 text-text-secondary group-hover:text-primary" />
-              </button>
+              ))) : <p className="text-sm text-text-secondary py-4 text-center">{t('jsx_noDocuments')}</p>}
             </div>
           </div>
 

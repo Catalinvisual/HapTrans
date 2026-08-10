@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Package, Truck, FileCheck2, Euro, Activity, Clock } from 'lucide-react';
 import portalApi from '../../lib/portalApi';
+import { formatDate } from '../../lib/dateUtils';
 export default function PortalDashboardPage() {
   const { t } = useTranslation();
   const [stats, setStats] = useState<any>(null);
@@ -49,11 +50,11 @@ export default function PortalDashboardPage() {
 
         <div className="card p-5 bg-card border border-border rounded-2xl shadow-sm flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600">
-            <Truck className="w-6 h-6" />
+            <Package className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm text-text-secondary font-medium">{t("jsx_currentShipmen")}</p>
-            <p className="text-2xl font-bold">{stats.activeOrders}</p>
+            <p className="text-sm text-text-secondary font-medium">{t("jsx_completedThisM")}</p>
+            <p className="text-2xl font-bold">{stats.completedThisMonth ?? 0}</p>
           </div>
         </div>
       </div>
@@ -64,35 +65,21 @@ export default function PortalDashboardPage() {
             <Activity className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-bold">{t("jsx_recentActivity")}</h2>
           </div>
-          <div className="space-y-4">
-            <div className="flex gap-4">
-              <div className="w-8 h-8 rounded-full bg-surface flex items-center justify-center shrink-0">
-                <Clock className="w-4 h-4 text-text-secondary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">{t("jsx_order1024Cre")}</p>
-                <p className="text-xs text-text-secondary">{t("jsx_2HoursAgo")}</p>
-              </div>
-            </div>
-            <div className="flex gap-4">
-              <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-                <Truck className="w-4 h-4 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">{t("jsx_truckAssigned")}</p>
-                <p className="text-xs text-text-secondary">{t("jsx_5HoursAgo")}</p>
-              </div>
-            </div>
-            <div className="flex gap-4">
-              <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center shrink-0">
-                <Package className="w-4 h-4 text-green-500" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">{t("jsx_order1020Del")}</p>
-                <p className="text-xs text-text-secondary">{t("jsx_1DayAgo")}</p>
-              </div>
-            </div>
-          </div>
+           <div className="space-y-4">
+            {stats.recentActivity?.length > 0 ? stats.recentActivity.map((a: any, i: number) => {
+              const icon = a.status === 'delivered' || a.status === 'pod_received' ? <Package className="w-4 h-4 text-green-500" /> : a.status === 'in-transit' ? <Truck className="w-4 h-4 text-blue-500" /> : <Clock className="w-4 h-4 text-text-secondary" />;
+              const label = a.status === 'delivered' ? t("jsx_orderDeliv") : a.status === 'in-transit' ? t("jsx_orderInTran") : a.status === 'pod_received' ? t("jsx_orderPod") : t("jsx_orderUpdated");
+              return <div key={a.id} className="flex gap-4">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${a.status === 'delivered' ? 'bg-green-50' : a.status === 'in-transit' ? 'bg-blue-50' : 'bg-surface'}`}>
+                  {icon}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{label} {a.orderNumber ? `#${a.orderNumber}` : ''}</p>
+                  <p className="text-xs text-text-secondary">{formatDate(a.updatedAt)}</p>
+                </div>
+              </div>;
+            }) : <p className="text-sm text-text-secondary">{t("jsx_noRecentActivity")}</p>}
+           </div>
         </div>
       </div>
     </div>;

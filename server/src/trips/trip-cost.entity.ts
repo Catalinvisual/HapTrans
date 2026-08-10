@@ -23,6 +23,16 @@ export class TripCost {
   @Column({ nullable: true })
   receiptUrl: string;
 
+  @Column({ nullable: true })
+  driverId: string;
+
+  @Column({ nullable: true })
+  truckId: string;
+
+  @Column({ nullable: true })
+  category: string; // fuel, toll, maintenance, salary, other
+
+
   @CreateDateColumn()
   createdAt: Date;
 }

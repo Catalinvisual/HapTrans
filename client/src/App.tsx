@@ -48,6 +48,7 @@ const OrdersPage       = lazy(() => import('./pages/OrdersPage'));
 const OrderDetailsPage = lazy(() => import('./pages/OrderDetailsPage'));
 const TripDetailsPage  = lazy(() => import('./pages/TripDetailsPage'));
 const TrucksPage       = lazy(() => import('./pages/TrucksPage'));
+const TrailersPage     = lazy(() => import('./pages/TrailersPage'));
 const DriversPage      = lazy(() => import('./pages/DriversPage'));
 const ClientsPage      = lazy(() => import('./pages/ClientsPage'));
 const LiveMapPage      = lazy(() => import('./pages/LiveMapPage'));
@@ -55,6 +56,8 @@ const DocumentsPage    = lazy(() => import('./pages/DocumentsPage'));
 const InvoicesPage     = lazy(() => import('./pages/InvoicesPage'));
 const FinancialPage    = lazy(() => import('./pages/FinancialPage'));
 const PayrollPage      = lazy(() => import('./pages/PayrollPage'));
+const SettlementPage   = lazy(() => import('./pages/SettlementPage'));
+const IftaReportPage   = lazy(() => import('./pages/IftaReportPage'));
 const MaintenancePage  = lazy(() => import('./pages/MaintenancePage'));
 const SettingsPage     = lazy(() => import('./pages/SettingsPage'));
 const ExpensesPage     = lazy(() => import('./pages/ExpensesPage'));
@@ -64,6 +67,11 @@ const PlanningPage     = lazy(() => import('./pages/PlanningPage'));
 const WebsiteHubPage   = lazy(() => import('./pages/WebsiteHubPage'));
 const SharedDocumentPage = lazy(() => import('./pages/SharedDocumentPage'));
 const TrackingPage     = lazy(() => import('./pages/TrackingPage'));
+
+// ─── Driver App Pages (PWA) ──────────────────────────────────────────────
+const DriverLayout           = lazy(() => import('./pages/driver/DriverLayout'));
+const DriverHomePage         = lazy(() => import('./pages/driver/DriverHomePage'));
+const DriverTripDetailPage   = lazy(() => import('./pages/driver/DriverTripDetailPage'));
 
 // ─── Portal Pages (Lazy) ──────────────────────────────────────────────────
 const PortalLayout           = lazy(() => import('./layouts/PortalLayout'));
@@ -118,6 +126,12 @@ export default function App() {
             }
           />
 
+          {/* ─── Driver App Routes (PWA) ─────────────────────────────────────── */}
+          <Route path="/driver" element={<Suspense fallback={<PageLoader />}><DriverLayout /></Suspense>}>
+            <Route index element={<Suspense fallback={<PageLoader />}><DriverHomePage /></Suspense>} />
+            <Route path="trips/:id" element={<Suspense fallback={<PageLoader />}><DriverTripDetailPage /></Suspense>} />
+          </Route>
+
           {/* ─── Client Portal Routes ─────────────────────────────────────────── */}
           <Route path="/portal/login" element={<Suspense fallback={<PageLoader />}><PortalLoginPage /></Suspense>} />
           <Route path="/portal/set-password" element={<Suspense fallback={<PageLoader />}><PortalSetPasswordPage /></Suspense>} />
@@ -151,6 +165,7 @@ export default function App() {
             <Route path="orders" element={<Suspense fallback={<PageLoader />}><OrdersPage /></Suspense>} />
             <Route path="orders/:id" element={<Suspense fallback={<PageLoader />}><OrderDetailsPage /></Suspense>} />
             <Route path="trucks" element={<Suspense fallback={<PageLoader />}><TrucksPage /></Suspense>} />
+            <Route path="trailers" element={<Suspense fallback={<PageLoader />}><TrailersPage /></Suspense>} />
             <Route path="drivers" element={<Suspense fallback={<PageLoader />}><DriversPage /></Suspense>} />
             <Route path="clients" element={<Suspense fallback={<PageLoader />}><ClientsPage /></Suspense>} />
             <Route path="map" element={<Suspense fallback={<PageLoader />}><LiveMapPage /></Suspense>} />
@@ -158,6 +173,8 @@ export default function App() {
             <Route path="invoices" element={<Suspense fallback={<PageLoader />}><InvoicesPage /></Suspense>} />
             <Route path="financial" element={<Suspense fallback={<PageLoader />}><FinancialPage /></Suspense>} />
             <Route path="payroll" element={<Suspense fallback={<PageLoader />}><PayrollPage /></Suspense>} />
+            <Route path="settlements" element={<Suspense fallback={<PageLoader />}><SettlementPage /></Suspense>} />
+            <Route path="ifta" element={<Suspense fallback={<PageLoader />}><IftaReportPage /></Suspense>} />
             <Route path="website-cms" element={<Suspense fallback={<PageLoader />}><WebsiteHubPage /></Suspense>} />
             <Route path="maintenance" element={<Suspense fallback={<PageLoader />}><MaintenancePage /></Suspense>} />
             <Route path="expenses" element={<Suspense fallback={<PageLoader />}><ExpensesPage /></Suspense>} />

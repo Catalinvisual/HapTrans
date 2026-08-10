@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Eye, Download, Share2, Trash2, Mail } from 'lucide-react';
+import { Plus, Search, Eye, Download, Share2, Trash2, Mail, BarChart3, Send } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import ExportModal from '../components/ExportModal';
@@ -52,6 +52,35 @@ export default function InvoicesPage({
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showExport, setShowExport] = useState(false);
+  const [showAging, setShowAging] = useState(false);
+  const [aging, setAging] = useState<any>(null);
+  const [agingLoading, setAgingLoading] = useState(false);
+  const [reminderBusy, setReminderBusy] = useState(false);
+  const loadAging = async () => {
+    setAgingLoading(true);
+    try {
+      const res = await api.get('/invoices/aging');
+      setAging(res.data);
+      setShowAging(true);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || t('agingLoadError'));
+    } finally {
+      setAgingLoading(false);
+    }
+  };
+  const sendReminders = async () => {
+    if (!window.confirm(t('reminderConfirm'))) return;
+    setReminderBusy(true);
+    try {
+      const res = await api.post('/invoices/send-reminders', {});
+      toast.success((t('remindersSent') || 'Reminders sent:') + ' ' + res.data.sent);
+      loadAging();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || t('remindersFailed'));
+    } finally {
+      setReminderBusy(false);
+    }
+  };
   const [previewData, setPreviewData] = useState<string | null>(null);
   const [invoiceLangModal, setInvoiceLangModal] = useState<any>({
     isOpen: false,
@@ -758,6 +787,59 @@ export default function InvoicesPage({
             </div>
           </div>
         </div>, document.body)}
+      {showAging && (
+        <div className="card p-5 bg-card border border-border rounded-2xl shadow-sm space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h3 className="font-bold text-lg text-primary flex items-center gap-2"><BarChart3 className="w-5 h-5" /> {t('agingTitle')}</h3>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setShowAging(false)} className="btn-secondary py-1.5 px-3 text-xs font-semibold">{t('close')}</button>
+              <button onClick={sendReminders} disabled={reminderBusy} className="btn-primary py-1.5 px-3 text-xs font-semibold flex items-center gap-2"><Send className="w-3.5 h-3.5" /> {t('agingSendReminders')}</button>
+            </div>
+          </div>
+          {agingLoading ? (
+            <div className="flex items-center justify-center py-8 text-text-secondary text-sm">{t('loading')}...</div>
+          ) : aging ? (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                <div className="col-span-2 md:col-span-1 p-4 rounded-xl bg-primary/10 border border-primary/20">
+                  <div className="text-xs font-bold uppercase text-text-secondary">{t('agingTotal')}</div>
+                  <div className="text-xl font-bold text-primary mt-1">{'€' + Number(aging.totalReceivable).toFixed(2)}</div>
+                </div>
+                {aging.buckets.map((b: any) => (
+                  <div key={b.label} className={'p-4 rounded-xl border ' + (b.label === 'current' ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700' : b.label === '1-30' ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-700' : b.label === '31-60' ? 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-700' : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-700')}>
+                    <div className="text-xs font-bold uppercase text-text-secondary">{t('agingBucket' + b.label)}</div>
+                    <div className="text-lg font-bold mt-1">{'€' + Number(b.amount).toFixed(2)}</div>
+                    <div className="text-xs text-text-secondary">{b.count} {t('agingInvoices')}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="overflow-x-auto rounded-xl border border-border">
+                <table className="w-full text-sm">
+                  <thead><tr className="bg-surface border-b border-border">
+                    <th className="table-header">{t('client')}</th>
+                    <th className="table-header">{t('agingTotal')}</th>
+                    <th className="table-header">{t('agingDays')}</th>
+                    <th className="table-header">{t('agingInvoices')}</th>
+                  </tr></thead>
+                  <tbody>
+                    {aging.byClient.map((c: any) => (
+                      <tr key={c.id} className="border-b border-border hover:bg-surface/60">
+                        <td className="p-3">{c.name} {c.email ? '(' + c.email + ')' : ''}</td>
+                        <td className="p-3 font-semibold">{'€' + Number(c.total).toFixed(2)}</td>
+                        <td className="p-3 text-orange-600 font-semibold">{c.maxDays > 0 ? c.maxDays + ' ' + t('agingDays') : t('agingBucketcurrent')}</td>
+                        <td className="p-3">{c.invoices.length}</td>
+                      </tr>
+                    ))}
+                    {aging.byClient.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-text-secondary">{t('noResults')}</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : null}
+        </div>
+      )}
+
+
       <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
         <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 flex-1 max-w-md">
@@ -767,6 +849,9 @@ export default function InvoicesPage({
             </div>
             <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold border-primary/20 hover:border-primary/50 text-primary transition-all">
               <Download className="w-4 h-4" /> {t('export')}
+            </button>
+            <button onClick={loadAging} className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold border-primary/20 hover:border-primary/50 text-primary transition-all">
+              <BarChart3 className="w-4 h-4" /> {t('agingTitle')}
             </button>
           </div>
           <div className="flex items-center gap-3">

@@ -202,6 +202,79 @@ export class InvoicesService implements OnModuleInit {
     return this.repo.delete(id); 
   }
 
+
+  async getAgingSummary() {
+    const invoices = await this.repo.createQueryBuilder('inv')
+      .leftJoinAndSelect('inv.client', 'client')
+      .leftJoinAndSelect('inv.items', 'items')
+      .leftJoinAndSelect('inv.payments', 'payments')
+      .where('inv.status != :paid', { paid: InvoiceStatus.PAID })
+      .andWhere('inv.status != :cancelled', { cancelled: InvoiceStatus.CANCELLED })
+      .getMany();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const bucketKey = (dueDate: Date | null): string => {
+      if (!dueDate) return 'current';
+      const due = new Date(dueDate);
+      due.setHours(0, 0, 0, 0);
+      const diffDays = Math.floor((today.getTime() - due.getTime()) / 86400000);
+      if (diffDays <= 0) return 'current';
+      if (diffDays <= 30) return '1-30';
+      if (diffDays <= 60) return '31-60';
+      if (diffDays <= 90) return '61-90';
+      return '90+';
+    };
+
+    const buckets: Record<string, { count: number; amount: number }> = {
+      current: { count: 0, amount: 0 },
+      '1-30': { count: 0, amount: 0 },
+      '31-60': { count: 0, amount: 0 },
+      '61-90': { count: 0, amount: 0 },
+      '90+': { count: 0, amount: 0 },
+    };
+
+    const byClient: Record<string, any> = {};
+
+    for (const inv of invoices) {
+      const amount = Number(inv.total) || Number(inv.amount) || 0;
+      const paidAmount = (inv.payments || []).reduce((sum: number, pm: any) => sum + (Number(pm.amount) || 0), 0);
+      const remaining = Math.max(0, amount - paidAmount);
+      const key = bucketKey(inv.dueDate);
+      buckets[key].count += 1;
+      buckets[key].amount += remaining;
+
+      const clientId = inv.client?.id || 'unknown';
+      const clientName = inv.client?.name || 'N/A';
+      if (!byClient[clientId]) {
+        byClient[clientId] = { id: clientId, name: clientName, email: inv.client?.contactEmail || '', total: 0, maxDays: 0, invoices: [] };
+      }
+      byClient[clientId].total += remaining;
+      const due = inv.dueDate ? new Date(inv.dueDate) : null;
+      if (due) {
+        const d = Math.floor((today.getTime() - new Date(due.getTime()).setHours(0,0,0,0)) / 86400000);
+        byClient[clientId].maxDays = Math.max(byClient[clientId].maxDays, d);
+      }
+      byClient[clientId].invoices.push({
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        amount: remaining,
+        dueDate: inv.dueDate,
+        status: inv.status,
+      });
+    }
+
+    const order: string[] = ['current', '1-30', '31-60', '61-90', '90+'];
+    const totalReceivable = Object.values(buckets).reduce((sum: number, b: any) => sum + b.amount, 0);
+
+    return {
+      totalReceivable,
+      buckets: order.map((k) => ({ label: k, ...buckets[k] })),
+      byClient: Object.values(byClient).sort((a: any, b: any) => b.total - a.total),
+    };
+  }
+
   getOverdue() {
     return this.repo.createQueryBuilder('inv')
       .leftJoinAndSelect('inv.client', 'client')

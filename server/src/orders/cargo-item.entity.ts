@@ -79,6 +79,9 @@ export class CargoItem {
   @Column({ nullable: true })
   currency: string;
 
+  @Column({ nullable: true })
+  stopRef: string; // pickup, dropoff, or extra-0, extra-1, etc.
+
   @CreateDateColumn()
   createdAt: Date;
 

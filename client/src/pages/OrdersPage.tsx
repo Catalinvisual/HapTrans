@@ -207,6 +207,31 @@ export default function OrdersPage() {
     try { await navigator.clipboard.writeText(url); toast.success(t('copiedToClipboard', 'Tracking link copied to clipboard!')); } catch { toast.error(t('toast_failedToCopy')); }
   };
 
+  const handleCreateInvoice = async (o: any) => {
+    try {
+      const paymentTermsDays = o.client?.paymentTermsDays || 30;
+      const issueDate = new Date().toISOString().split('T')[0];
+      const dueDate = new Date(Date.now() + paymentTermsDays * 86400000).toISOString().split('T')[0];
+      const res = await api.post('/invoices', {
+        clientId: o.client?.id,
+        tripId: o.trip?.id || null,
+        amount: Number(o.price || 0),
+        fuelSurcharge: o.client?.defaultFuelSurchargePercent || 0,
+        extraCosts: 0,
+        tollCosts: Number(o.tollCost || 0) || 0,
+        vatPercent: 19,
+        vatType: 'NORMAL',
+        issueDate,
+        dueDate,
+        notes: `Factura pentru comanda ${o.orderNumber || o.referenceNumber || ''}`.trim(),
+      });
+      await api.patch(`/orders/${o.id}`, { status: 'ready_for_invoice' });
+      toast.success(t('toast_invoiceGenerat', 'Factură creată!'));
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('error', 'Eroare'));
+    }
+  };
+
   const drawerOrder = drawerOrderId ? orders.find(o => o.id === drawerOrderId) : null;
 
   const columns: Column<any>[] = [
@@ -278,7 +303,7 @@ export default function OrdersPage() {
     { key: 'status', label: t('status', 'Status'), render: o => <StatusBadge status={o.status} label={t(`status_${o.status}`, o.status.replace(/_/g, ' '))} /> },
     { key: 'actions', label: t('actions', 'Actions'), align: 'right', render: o => (
       <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
-        {o.status === 'completed' && <button title={t('create_invoice', 'Create Invoice')} onClick={() => toast.success(t('toast_invoiceGenerat'))} className="p-1.5 rounded-md text-text-secondary hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10"><FileText className="w-4 h-4" /></button>}
+         {o.status !== 'invoiced' && o.status !== 'paid' && o.status !== 'cancelled' && <button title={t('create_invoice', 'Create Invoice')} onClick={() => handleCreateInvoice(o)} className="p-1.5 rounded-md text-text-secondary hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10"><FileText className="w-4 h-4" /></button>}
         {(o.status === 'in_transit' || o.status === 'assigned') && o.trip?.trackingToken && <button title={t('tracking_link', 'Tracking Link')} onClick={() => copyTracking(o)} className="p-1.5 rounded-md text-text-secondary hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10"><Copy className="w-4 h-4" /></button>}
         <button title={t('edit', 'Edit')} onClick={() => handleEdit(o.id)} className="p-1.5 rounded-md text-text-secondary hover:text-primary hover:bg-primary/10"><Pencil className="w-4 h-4" /></button>
         <button title={t('delete', 'Delete')} onClick={() => handleDeleteClick(o.id)} className="p-1.5 rounded-md text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></button>
@@ -309,7 +334,7 @@ export default function OrdersPage() {
             <CustomSelect className="w-40" value={filters.status} onChange={v => setFilter('status', v)} options={[{ value: 'all', label: t('all_statuses', 'All statuses') }, ...ORDER_STATUSES.map(s => ({ value: s, label: t(`status_${s}`, s.replace(/_/g, ' ')) }))]} />
             <CustomSelect className="w-48" value={filters.client} onChange={v => setFilter('client', v)} options={clientOptions} />
             <CustomSelect className="w-40" value={filters.country} onChange={v => setFilter('country', v)} options={countryOptions} />
-            <CustomSelect className="w-36" value={filters.type} onChange={v => setFilter('type', v)} options={[{ value: 'all', label: t('all_types', 'All types') }, { value: 'ftl', label: 'FTL' }, { value: 'groupage', label: t('groupage', 'Groupage') }, { value: 'express', label: t('express', 'Express') }]} />
+            <CustomSelect className="w-36" value={filters.type} onChange={v => setFilter('type', v)} options={[{ value: 'all', label: t('all_types', 'All types') }, { value: 'ftl', label: 'FTL' }, { value: 'groupage', label: t('transport_groupage', 'Groupage (LTL)') }, { value: 'express', label: t('express', 'Express') }]} />
             <CustomSelect className="w-36" value={filters.priority} onChange={v => setFilter('priority', v)} options={[{ value: 'all', label: t('all_priorities', 'All priorities') }, { value: 'normal', label: t('priority_normal', 'Normal') }, { value: 'high', label: t('priority_high', 'High') }, { value: 'critical', label: t('priority_critical', 'Critical') }]} />
             <input type="date" value={filters.dateFrom} onChange={e => setFilter('dateFrom', e.target.value)} className="input bg-white text-sm w-36" title={t('from_date', 'From date')} />
             <input type="date" value={filters.dateTo} onChange={e => setFilter('dateTo', e.target.value)} className="input bg-white text-sm w-36" title={t('to_date', 'To date')} />

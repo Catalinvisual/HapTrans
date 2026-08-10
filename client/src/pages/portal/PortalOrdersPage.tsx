@@ -6,13 +6,15 @@ import portalApi from '../../lib/portalApi';
 import { formatDate } from '../../lib/dateUtils';
 import FilterDropdown from '../../components/FilterDropdown';
 import Pagination from '../../components/Pagination';
+import RapidTransportModal from '../../components/RapidTransportModal';
 export default function PortalOrdersPage() {
   const {
     t
   } = useTranslation();
   const navigate = useNavigate();
-  const [orders, setOrders] = useState<any[]>([]);
+   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showRequest, setShowRequest] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
@@ -33,7 +35,6 @@ export default function PortalOrdersPage() {
     if (filter === 'cancelled') return o.status === 'cancelled';
     return true;
   });
-  const totalPages = Math.ceil(filteredOrders.length / limit);
   const paginatedOrders = filteredOrders.slice((page - 1) * limit, page * limit);
   const updateParams = (updates: Record<string, string>) => {
     const newParams = new URLSearchParams(searchParams);
@@ -60,7 +61,7 @@ export default function PortalOrdersPage() {
   return <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold">{t("jsx_myOrders")}</h1>
-        <button className="btn-primary py-2 px-4 flex items-center gap-2">
+        <button onClick={() => setShowRequest(true)} className="btn-primary py-2 px-4 flex items-center gap-2">
           <Package className="w-4 h-4" />{t("jsx_newTransportR")}</button>
       </div>
 
@@ -127,5 +128,6 @@ export default function PortalOrdersPage() {
             <Pagination currentPage={page} totalItems={filteredOrders.length} itemsPerPage={limit} onPageChange={handlePageChange} onItemsPerPageChange={handleLimitChange} />
           </div>}
       </div>
+    <RapidTransportModal open={showRequest} onClose={() => setShowRequest(false)} />
     </div>;
 }

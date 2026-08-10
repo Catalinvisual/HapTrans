@@ -6,6 +6,7 @@ import { Trip } from '../trips/trip.entity';
 import { Truck } from '../trucks/truck.entity';
 import { RoutingService } from '../routing/routing.service';
 import { ResendService } from '../email/resend.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class EtaCronService {
@@ -16,6 +17,7 @@ export class EtaCronService {
     @InjectRepository(Truck) private truckRepo: Repository<Truck>,
     private routingService: RoutingService,
     private resendService: ResendService,
+    private notificationsService: NotificationsService,
   ) {}
 
   @Cron('0 */15 * * * *')
@@ -59,6 +61,15 @@ export class EtaCronService {
           if (nextStop.timeWindowMax && newEta > new Date(nextStop.timeWindowMax)) {
             nextStop.etaStatus = 'delayed';
 
+            try {
+              await this.notificationsService.create({
+                type: 'eta',
+                title: 'notif_eta_delayed_title',
+                message: trip.tripNumber || trip.id,
+                relatedId: trip.id,
+              });
+            } catch (e) { this.logger.error('Failed to create ETA delay notification: ' + e.message); }
+
             if (trip.orders && trip.orders.length > 0) {
               for (const order of trip.orders) {
                 if (order.client?.contactEmail) {
@@ -79,6 +90,16 @@ export class EtaCronService {
                 }
               }
             }
+          } else if (nextStop.etaStatus === 'delayed') {
+            nextStop.etaStatus = 'on_time';
+            try {
+              await this.notificationsService.create({
+                type: 'eta',
+                title: 'notif_eta_recovered_title',
+                message: trip.tripNumber || trip.id,
+                relatedId: trip.id,
+              });
+            } catch (e) { this.logger.error('Failed to create ETA recovery notification: ' + e.message); }
           } else {
             nextStop.etaStatus = 'on_time';
           }

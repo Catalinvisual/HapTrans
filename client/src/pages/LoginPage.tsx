@@ -33,7 +33,7 @@ export default function LoginPage() {
       });
       setAuth(data.user, data.access_token);
       toast.success(`${t('welcomeUser')}${data.user.name}!`);
-      navigate('/dashboard');
+      navigate(data.user?.role === 'driver' ? '/driver' : '/dashboard');
     } catch (err: any) {
       const lang = i18n.language;
       let msg = lang === 'en' ? 'Authentication Error: The email or password entered is incorrect. Please verify your credentials and try again.' : lang === 'nl' ? 'Inlogfout: Het ingevoerde e-mailadres of wachtwoord is onjuist. Controleer uw gegevens en probeer het opnieuw.' : lang === 'de' ? 'Anmeldefehler: Die eingegebene E-Mail-Adresse oder das Passwort ist falsch. Bitte überprüfen Sie Ihre Daten und versuchen Sie es erneut.' : lang === 'fr' ? "Erreur d'authentification : L'adresse e-mail ou le mot de passe entré est incorrect. Veuillez vérifier vos identifiants et réessayer." : 'Eroare de autentificare: Emailul sau parola introduse sunt incorecte. Te rugăm să verifici datele și să încerci din nou.';

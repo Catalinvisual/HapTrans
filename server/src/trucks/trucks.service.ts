@@ -31,6 +31,10 @@ export class TrucksService {
     return this.docsRepo.save(d);
   }
 
+  removeDocument(docId: string) {
+    return this.docsRepo.delete(docId);
+  }
+
   getExpiringDocuments(days = 30) {
     const future = new Date();
     future.setDate(future.getDate() + days);

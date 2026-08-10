@@ -29,6 +29,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('joinTrip')
   handleJoinTrip(@ConnectedSocket() client: Socket, @MessageBody() data: { tripId: string }) {
+    // Leave all previously joined trip rooms so only the active room receives real-time events
+    client.rooms.forEach((room) => {
+      if (room !== client.id) client.leave(room);
+    });
     client.join(`trip_${data.tripId}`);
     client.emit('joinedTrip', { tripId: data.tripId });
   }

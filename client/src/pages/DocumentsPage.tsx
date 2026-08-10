@@ -218,7 +218,7 @@ export default function DocumentsPage({
               </tr>
             </thead>
             <tbody>
-              {loading ? <tr><td colSpan={7} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr> : docs.length === 0 ? <tr><td colSpan={7} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr> : docs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(doc => {
+              {loading ? <tr><td colSpan={7} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr> : displayDocs.length === 0 ? <tr><td colSpan={7} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr> : displayDocs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(doc => {
               return <tr key={doc.id} className="hover:bg-surface/60 transition-colors">
                     <td className="table-cell">
                       <div className="flex items-center gap-2">
@@ -257,7 +257,7 @@ export default function DocumentsPage({
             </tbody>
           </table>
         </div>
-        <Pagination currentPage={currentPage} totalItems={docs.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
+        <Pagination currentPage={currentPage} totalItems={displayDocs.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </div>
     
       <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={executeDelete} type="danger" />

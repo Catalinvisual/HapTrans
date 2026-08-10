@@ -29,20 +29,48 @@ export class DashboardService {
 
     const routeProfits: Record<string, number> = {};
     const clientProfits: Record<string, { name: string, profit: number }> = {};
+    const truckProfits: Record<string, { name: string, profit: number }> = {};
+    const driverProfits: Record<string, { name: string, profit: number }> = {};
+
+    const routeLabel = (t: any): string => {
+      const stops = (t.stops || []).slice().sort((a: any, b: any) => (a.sequence || 1) - (b.sequence || 1));
+      if (!stops.length) return t.tripNumber || 'N/A';
+      const loc = (st: any) => [st.city, st.country].filter(Boolean).join(', ') || st.companyName || st.address || '—';
+      return `${loc(stops[0])} ➔ ${loc(stops[stops.length - 1])}`;
+    };
 
     allTrips.forEach(t => {
-      // Using new Actual Profit
+      // Using Actual Profit when available, otherwise Estimated
       const tripProfit = Number(t.actualProfit) || Number(t.estimatedProfit) || 0;
 
       if (tripProfit !== 0) {
-        // Mock routing key since pickupAddress/dropoffAddress is gone from Trip
-        const routeKey = `Origin ➔ Destination`;
+        // Real route breakdown from stops (first = origin, last = destination)
+        const routeKey = routeLabel(t);
         routeProfits[routeKey] = (routeProfits[routeKey] || 0) + tripProfit;
 
-        // Trip no longer has direct client relation (it's on Order), so mocking client profit
-        const cId = 'unknown';
-        if (!clientProfits[cId]) clientProfits[cId] = { name: 'Multiple Orders / Unknown', profit: 0 };
-        clientProfits[cId].profit += tripProfit;
+        // Per truck profit
+        if (t.truck?.id) {
+          if (!truckProfits[t.truck.id]) truckProfits[t.truck.id] = { name: t.truck.plateNumber || 'Camion', profit: 0 };
+          truckProfits[t.truck.id].profit += tripProfit;
+        }
+
+        // Per driver profit
+        if (t.driver?.id) {
+          const dName = t.driver?.user?.name || 'Șofer';
+          if (!driverProfits[t.driver.id]) driverProfits[t.driver.id] = { name: dName, profit: 0 };
+          driverProfits[t.driver.id].profit += tripProfit;
+        }
+
+        // Per client profit: split trip profit proportionally across the trip's orders
+        const orders = (t.orders || []).filter((o: any) => o.client?.id);
+        if (orders.length) {
+          const share = tripProfit / orders.length;
+          orders.forEach((o: any) => {
+            const cId = o.client.id;
+            if (!clientProfits[cId]) clientProfits[cId] = { name: o.client.companyName || o.client.name || 'Client', profit: 0 };
+            clientProfits[cId].profit += share;
+          });
+        }
       }
     });
 
@@ -54,6 +82,14 @@ export class DashboardService {
     const topClients = Object.values(clientProfits)
       .sort((a, b) => b.profit - a.profit)
       .slice(0, 5); // top 5 clients
+
+    const profitByTruck = Object.values(truckProfits)
+      .sort((a, b) => b.profit - a.profit)
+      .slice(0, 5); // top 5 trucks
+
+    const profitByDriver = Object.values(driverProfits)
+      .sort((a, b) => b.profit - a.profit)
+      .slice(0, 5); // top 5 drivers
 
     // Aggregate expiring docs
     const expiringDocs: any[] = [];
@@ -120,6 +156,6 @@ export class DashboardService {
       });
     }
 
-    return { stats: { ...stats, activeTrucks }, monthlyProfits, overdueInvoices, expiringDocs, profitByRoute, topClients };
+    return { stats: { ...stats, activeTrucks }, monthlyProfits, overdueInvoices, expiringDocs, profitByRoute, topClients, profitByTruck, profitByDriver };
   }
 }

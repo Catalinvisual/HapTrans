@@ -2,6 +2,7 @@ import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, Conne
 import { Server, Socket } from 'socket.io';
 import { DriversService } from '../drivers/drivers.service';
 import { TrucksService } from '../trucks/trucks.service';
+import { GeofencingService } from './geofencing.service';
 
 @WebSocketGateway({ cors: { origin: '*' } })
 export class LocationGateway {
@@ -10,6 +11,7 @@ export class LocationGateway {
   constructor(
     private driversService: DriversService,
     private trucksService: TrucksService,
+    private geofencingService: GeofencingService,
   ) {}
 
   @SubscribeMessage('driverLocation')
@@ -31,5 +33,16 @@ export class LocationGateway {
       driverId: resolvedDriverId,
       truckId: resolvedTruckId,
     });
+
+    if (resolvedDriverId && data.lat !== undefined && data.lng !== undefined) {
+      try {
+        const geo = await this.geofencingService.checkStops(resolvedDriverId, Number(data.lat), Number(data.lng));
+        if (geo.arrived) {
+          this.server.emit('geofenceEvent', { stopId: geo.stopId, driverId: resolvedDriverId, arrived: true });
+        }
+      } catch (e) {
+        console.error('Geofencing check failed:', e.message);
+      }
+    }
   }
 }

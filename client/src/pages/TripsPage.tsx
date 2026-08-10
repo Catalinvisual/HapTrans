@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Truck, Search, Loader2, MapPin, FileText, Trash2, Download, ExternalLink, Activity, Calendar, Coins, Route as RouteIcon, User, Package, Send, Boxes, Gauge, Clock, Wallet, Receipt, Banknote } from 'lucide-react';
+import { Truck, Search, Loader2, MapPin, FileText, Trash2, Download, ExternalLink, Activity, Calendar, Coins, Route as RouteIcon, User, Package, Send, Boxes, Gauge, Clock, Wallet, Receipt, Banknote, Sparkles, UploadCloud } from 'lucide-react';
 import api from '../lib/api';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Pagination from '../components/Pagination';
@@ -78,6 +78,11 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
   const [tripToDelete, setTripToDelete] = useState<string | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [exportRows, setExportRows] = useState<any[]>([]);
+  const [showAiImport, setShowAiImport] = useState(false);
+  const [aiFile, setAiFile] = useState<File | null>(null);
+  const [aiPreview, setAiPreview] = useState<any>(null);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiImporting, setAiImporting] = useState(false);
 
   const fetchTrips = useCallback(async () => {
     try {
@@ -93,7 +98,48 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
     }
   }, [t]);
 
-  useEffect(() => { fetchTrips(); }, [fetchTrips]);
+const fs = require("fs");
+let s = fs.readFileSync("Saas HapTrans/client/src/pages/TripsPage.tsx", "utf8");
+let s2 = fs.readFileSync("Saas HapTrans/client/src/pages/TripsPage.tsx", "utf8");
+// build block in literal file
+const block = `  useEffect(() => { fetchTrips(); }, [fetchTrips]);
+
+  const onAiFileChange = (file: File | null) => {
+    setAiFile(file);
+    setAiPreview(null);
+  };
+
+  const scanAiFile = async () => {
+    if (!aiFile) { toast.error(t('ai_pick_file', 'Alege un document (PDF sau imagine)')); return; }
+    setAiBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', aiFile);
+      const r = await api.post('/trips/scan', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setAiPreview(r.data);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || t('ai_scan_failed', 'Scan eșuat'));
+    } finally { setAiBusy(false); }
+  };
+
+  const importAiTrip = async () => {
+    if (!aiFile) return;
+    setAiImporting(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', aiFile);
+      const r = await api.post('/trips/import', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      toast.success(t('ai_imported', 'Cursă creată din document!'));
+      setShowAiImport(false);
+      setAiFile(null);
+      setAiPreview(null);
+      fetchTrips();
+      navigate(\`/trips/\${r.data.id}\`);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || t('ai_import_failed', 'Import eșuat'));
+    } finally { setAiImporting(false); }
+  };`;
+
 
   const truckOptions: SelectOption[] = useMemo(() => {
     const map = new Map<string, number>();
@@ -357,6 +403,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
             <span className="text-xs text-text-secondary font-medium">{filtered.length} {t('results', 'results')}</span>
             <div className="flex items-center gap-2">
               <button onClick={() => openExport(sorted)} className="btn-secondary py-2 px-3 text-sm font-semibold inline-flex items-center gap-2"><Download className="w-4 h-4" />{t('export_csv', 'Export CSV')}</button>
+              <button onClick={() => setShowAiImport(true)} className="btn-secondary py-2 px-3 text-sm font-semibold inline-flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" />{t('ai_import', 'Import AI')}</button>
               <button onClick={() => navigate('/planning')} className="btn-primary py-2 px-3 text-sm font-semibold inline-flex items-center gap-2"><Calendar className="w-4 h-4" />{t('go_to_planning', 'Dispatch board')}</button>
             </div>
           </div>
@@ -411,6 +458,18 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
       )}
 
       <ConfirmDeleteModal isOpen={deleteModalOpen} onClose={() => { setDeleteModalOpen(false); setTripToDelete(null); }} onConfirm={confirmDelete} />
+      <AiImportModal
+        open={showAiImport}
+        onClose={() => { setShowAiImport(false); setAiFile(null); setAiPreview(null); }}
+        file={aiFile}
+        preview={aiPreview}
+        busy={aiBusy}
+        importing={aiImporting}
+        onFileChange={onAiFileChange}
+        onScan={scanAiFile}
+        onImport={importAiTrip}
+      />
+
       <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={exportRows} filename="Trips_HapCargo" title="Trips" sheetName="Trips" getDateField={tr => tr.createdAt} headers={tripExportHeaders} />
     </div>
   );

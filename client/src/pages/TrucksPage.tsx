@@ -37,6 +37,14 @@ const FEATURES = [
   { id: 'mega', label: 'truck_type_mega', default: 'Mega', icon: Boxes },
   { id: 'frigo', label: 'truck_type_frigo', default: 'Frigo', icon: Battery }
 ];
+const TRUCK_DOC_TYPES = [
+  { value: 'apk', label: 'doc_apk', default: 'APK / ITP' },
+  { value: 'insurance', label: 'doc_insurance', default: 'Asigurare' },
+  { value: 'vignet', label: 'doc_vignet', default: 'Vignet / Tolvignette' },
+  { value: 'tir_card', label: 'doc_tir_card', default: 'TIR-caart' },
+  { value: 'cmr', label: 'doc_cmr', default: 'CMR' },
+  { value: 'other', label: 'doc_other', default: 'Altul' },
+];
 const TRUCK_STATUSES: SelectOption[] = [
   { value: 'active', label: 'truck_status_active' },
   { value: 'in_trip', label: 'truck_status_in_trip' },
@@ -77,12 +85,14 @@ export default function TrucksPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerTruckId, setDrawerTruckId] = useState<string | null>(null);
   const [showExport, setShowExport] = useState(false);
+  const [docForm, setDocForm] = useState({ type: 'apk', documentNumber: '', expiryDate: '' });
+  const [docTargetTruckId, setDocTargetTruckId] = useState<string | null>(null);
 
   const initialForm = {
     plateNumber: '', brand: '', model: '', year: '',
     truckType: 'tautliner', euronorm: 'Euro 6', features: [] as string[],
     maxWeightKg: '', maxPallets: '', maxLdm: '', maxVolumeCbm: '', payloadCapacity: '',
-    costPerKm: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '', driverId: ''
+    costPerKm: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '', driverId: '', status: 'active'
   };
 
   const [form, setForm] = useState(formStore.trucksForm || initialForm);
@@ -104,6 +114,39 @@ export default function TrucksPage() {
       setDeleteId(null);
     }
   };
+
+  const saveTruckDoc = async (truckId: string) => {
+    if (!docForm.type || !docForm.expiryDate) {
+      toast.error(t('doc_error', 'Completează tipul și data de expirare'));
+      return;
+    }
+    try {
+      await api.post('/trucks/' + truckId + '/documents', {
+        type: docForm.type,
+        documentNumber: docForm.documentNumber,
+        expiryDate: docForm.expiryDate,
+      });
+      toast.success(t('doc_added', 'Document adăugat'));
+      setDocForm({ type: 'apk', documentNumber: '', expiryDate: '' });
+      setDocTargetTruckId(null);
+      load();
+    } catch {
+      toast.error(t('doc_error_save', 'Eroare la salvarea documentului'));
+    }
+  };
+
+  const deleteTruckDoc = async (docId: string) => {
+    try {
+      await api.delete('/trucks/documents/' + docId);
+      toast.success(t('doc_deleted', 'Document șters'));
+      load();
+    } catch {
+      toast.error(t('doc_error_delete', 'Eroare la ștergere'));
+    }
+  };
+
+  const isDocExpired = (d: any) => !!d.expiryDate && new Date(d.expiryDate) < new Date();
+  const isDocExpiringSoon = (d: any) => !!d.expiryDate && !isDocExpired(d) && new Date(d.expiryDate) < new Date(Date.now() + 30 * 86400000);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -312,7 +355,17 @@ export default function TrucksPage() {
     },
     {
       key: 'docs', label: t('documents', 'Docs'), align: 'center',
-      render: tr => <span className="text-xs font-semibold">{tr.documents?.length || 0}</span>,
+      render: tr => {
+        const expired = (tr.documents || []).filter((d: any) => isDocExpired(d));
+        const soon = (tr.documents || []).filter((d: any) => isDocExpiringSoon(d));
+        return (
+          <div className="flex items-center justify-center gap-1.5">
+            {expired.length > 0 && <AlertTriangle className="w-3.5 h-3.5 text-red-500" title={t('doc_expired', 'Expirat')} />}
+            {soon.length > 0 && <AlertTriangle className="w-3.5 h-3.5 text-amber-500" title={t('doc_expiring', 'Expiră curând')} />}
+            <span className="text-xs font-semibold">{tr.documents?.length || 0}</span>
+          </div>
+        );
+      },
       hideBelow: 'xl',
     },
     {
@@ -407,21 +460,37 @@ export default function TrucksPage() {
     },
     {
       key: 'documents', label: t('tab_documents', 'Documents'), badge: drawerTruck.documents?.length || 0,
-      content: drawerTruck.documents?.length ? (
-        <div className="space-y-2">
-          {drawerTruck.documents.map((d: any) => (
-            <div key={d.id} className="flex items-center justify-between p-3 bg-surface/50 rounded-xl border border-border">
-              <div>
-                <div className="text-sm font-bold text-text-primary">{d.documentType || d.type || 'Document'}</div>
-                <div className="text-[11px] text-text-secondary">{d.fileName}{d.expiryDate ? ` · ${formatDate(d.expiryDate)}` : ''}</div>
-              </div>
-              {d.expiryDate && <span className={`text-[11px] font-bold ${new Date(d.expiryDate) < new Date() ? 'text-red-500' : new Date(d.expiryDate) < new Date(Date.now() + 30 * 86400000) ? 'text-amber-600' : 'text-green-600'}`}>{t('expired', 'Expired')}</span>}
+      content: (
+        <div className="space-y-3">
+          <div className="bg-surface/50 rounded-xl p-3 border border-border space-y-2">
+            <div className="text-xs font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1"><FileText className="w-3.5 h-3.5" />{t('add_document', 'Adaugă Document')}</div>
+            <select className="input" value={docForm.type} onChange={e => setDocForm({ ...docForm, type: e.target.value })}>
+              {TRUCK_DOC_TYPES.map(dt => <option key={dt.value} value={dt.value}>{t(dt.label) || dt.default}</option>)}
+            </select>
+            <input className="input" placeholder={t('document_number', 'Număr document')} value={docForm.documentNumber} onChange={e => setDocForm({ ...docForm, documentNumber: e.target.value })} />
+            <input className="input" type="date" value={docForm.expiryDate} onChange={e => setDocForm({ ...docForm, expiryDate: e.target.value })} />
+            <button className="btn-primary w-full text-sm" onClick={() => saveTruckDoc(drawerTruck.id)}><Plus className="w-3.5 h-3.5 inline mr-1" />{t('save', 'Salvează')}</button>
+          </div>
+          {drawerTruck.documents?.length ? (
+            <div className="space-y-2">
+              {drawerTruck.documents.map((d: any) => (
+                <div key={d.id} className="flex items-center justify-between p-3 bg-surface/50 rounded-xl border border-border">
+                  <div>
+                    <div className="text-sm font-bold text-text-primary">{t(`doc_${d.type || 'other'}`, d.type || 'Document')}</div>
+                    <div className="text-[11px] text-text-secondary">{(d.documentNumber || '—')}{d.expiryDate ? ` · ${formatDate(d.expiryDate)}` : ''}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {d.expiryDate && <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${isDocExpired(d) ? 'bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400' : isDocExpiringSoon(d) ? 'bg-amber-100 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400' : 'bg-green-100 text-green-600 dark:bg-green-950/40 dark:text-green-400'}`}>{isDocExpired(d) ? t('doc_expired', 'Expirat') : isDocExpiringSoon(d) ? t('doc_expiring', 'Expiră curând') : t('doc_valid', 'Valid')}</span>}
+                    <button onClick={() => deleteTruckDoc(d.id)} className="p-1.5 text-text-secondary hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors" title={t('delete', 'Delete')}><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          ) : <div className="text-sm text-text-secondary p-4 text-center">{t('no_documents', 'Niciun document')}</div>}
         </div>
-      ) : <div className="text-sm text-text-secondary p-4 text-center">{t('no_documents', 'No documents yet')}</div>,
+      ),
     },
-  ] : [];
+] : [];
 
   return (
     <div className="space-y-4 animate-fade-in max-w-[1600px] mx-auto pb-10">
@@ -516,6 +585,12 @@ export default function TrucksPage() {
                 <select className="input" value={form.driverId} onChange={e => setForm({...form, driverId: e.target.value})}>
                   <option value="">{t('no_driver', 'No driver')}</option>
                   {drivers.map(d => <option key={d.id} value={d.id}>{driverName(d)}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label font-semibold">{t('status', 'Status')}</label>
+                <select className="input" value={form.status || 'active'} onChange={e => setForm({...form, status: e.target.value})}>
+                  {TRUCK_STATUSES.map(st => <option key={st.value} value={st.value}>{t(st.label, st.value)}</option>)}
                 </select>
               </div>
 

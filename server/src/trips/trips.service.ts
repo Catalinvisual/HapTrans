@@ -1,7 +1,7 @@
 import { Injectable, Inject, forwardRef, ConflictException, NotFoundException } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, Between } from 'typeorm';
 import { Trip, TripStatus } from './trip.entity';
 import { Stop, StopStatus } from './stop.entity';
 import { Truck } from '../trucks/truck.entity';
@@ -60,10 +60,10 @@ export class TripsService {
   }
 
   findAllForDashboard() {
-    // Return minimal trip stub logic
+    // Return trip data enriched with relations needed for dashboard breakdowns
     return this.repo.find({
       select: ['id', 'tripNumber', 'createdAt', 'status', 'distanceKm', 'estimatedProfit', 'actualProfit'],
-      relations: ['costs']
+      relations: ['costs', 'truck', 'driver', 'driver.user', 'stops', 'orders', 'orders.client']
     });
   }
 
@@ -111,6 +111,50 @@ export class TripsService {
     const trip = this.repo.create(tripPayload);
     return this.repo.save(trip) as any as Promise<Trip>;
   }
+  async createFromScan(dto: any, user?: any): Promise<Trip | null> {
+    const toDate = (date?: string, time?: string) => {
+      if (!date) return null;
+      const d = new Date(date);
+      if (time) {
+        const [h, min] = time.split(':').map(Number);
+        if (!isNaN(h)) d.setHours(h || 0, min || 0, 0, 0);
+      }
+      return isNaN(d.getTime()) ? null : d;
+    };
+
+    const trip = await this.create({}, user);
+    const pickupStop = await this.createStop(trip.id, {
+      type: 'pickup',
+      companyName: dto.pickupCompanyName || null,
+      address: dto.pickupAddress || null,
+      timeWindowMin: toDate(dto.pickupDate, dto.pickupTime),
+      timeWindowMax: toDate(dto.pickupDate, dto.pickupTime),
+      notes: [dto.loadingReference ? `Loading ref: ${dto.loadingReference}` : null, dto.notes ? `Note: ${dto.notes}` : null].filter(Boolean).join('\n') || null,
+    });
+
+    const deliveryStop = await this.createStop(trip.id, {
+      type: 'delivery',
+      companyName: dto.dropoffCompanyName || null,
+      address: dto.dropoffAddress || null,
+      timeWindowMin: toDate(dto.dropoffDate, dto.dropoffTime),
+      timeWindowMax: toDate(dto.dropoffDate, dto.dropoffTime),
+      notes: [dto.unloadingReference ? `Unloading ref: ${dto.unloadingReference}` : null, dto.weightKg ? `Greutate: ${dto.weightKg} kg` : null, dto.pallets ? `Paleți: ${dto.pallets}` : null, dto.volumeCbm ? `Volum: ${dto.volumeCbm} m³` : null].filter(Boolean).join('\n') || null,
+    });
+
+    const tripId = trip.id;
+    const pricingData: any = {};
+    if (dto.price) pricingData.price = dto.price;
+    if (dto.weightKg) pricingData.weightKg = dto.weightKg;
+    if (dto.pallets) pricingData.pallets = dto.pallets;
+    if (dto.volumeCbm) pricingData.volumeCbm = dto.volumeCbm;
+    try {
+      await this.recalculateFinancials(tripId);
+    } catch (e) {
+      console.warn('Financial recalculation failed on AI import:', e.message);
+    }
+    return this.findOne(tripId);
+  }
+
 
   async assignOrders(tripId: string, orderIds: string[]) {
     const result = await this.planningEngine.assignOrdersToTrip(tripId, orderIds);
@@ -257,6 +301,52 @@ export class TripsService {
     return { totalRevenue, totalCost, profit, totalKm, costPerKm: totalKm > 0 ? totalCost / totalKm : 0, active, tripsCount };
   }
 
+
+  async getIftaReport(from?: string, to?: string) {
+    const endDate = to ? new Date(to + 'T23:59:59') : new Date();
+    const startDate = from ? new Date(from + 'T00:00:00') : new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+
+    const trips = await this.repo.find({
+      where: { status: TripStatus.COMPLETED, actualArrival: Between(startDate, endDate) },
+      relations: ['stops', 'truck'],
+    });
+
+    const countryKm: Record<string, { km: number; trips: Set<string> }> = {};
+    const truckCountry: Record<string, Record<string, number>> = {};
+    const totalKm = trips.reduce((sum, t) => sum + (Number(t.distanceKm) || 0), 0);
+
+    for (const trip of trips) {
+      const sorted = [...(trip.stops || [])].sort((a, b) => a.sequence - b.sequence);
+      const distance = Number(trip.distanceKm) || 0;
+      const segments = Math.max(1, sorted.length - 1);
+      const plate = trip.truck?.plateNumber || 'N/A';
+
+      sorted.forEach((stop, idx) => {
+        if (idx === 0) return;
+        const country = stop.country || 'N/A';
+        const segKm = distance / segments;
+        if (!countryKm[country]) countryKm[country] = { km: 0, trips: new Set<string>() };
+        countryKm[country].km += segKm;
+        countryKm[country].trips.add(trip.id);
+        if (!truckCountry[plate]) truckCountry[plate] = {};
+        truckCountry[plate][country] = (truckCountry[plate][country] || 0) + segKm;
+      });
+    }
+
+    return {
+      period: { from: startDate, to: endDate },
+      totalKm,
+      byCountry: Object.entries(countryKm)
+        .map(([country, v]) => ({ country, km: Math.round(v.km), trips: v.trips.size }))
+        .sort((a, b) => b.km - a.km),
+      byTruck: Object.entries(truckCountry).map(([plate, countries]) => ({
+        truck: plate,
+        totalKm: Math.round(Object.values(countries).reduce((a, b) => a + b, 0)),
+        countries: Object.entries(countries).map(([c, km]) => ({ country: c, km: Math.round(km) })),
+      })),
+    };
+  }
+
   async getMonthlyProfits() {
     const allTrips = await this.findAllForDashboard();
     const now = new Date();
@@ -288,7 +378,60 @@ export class TripsService {
     return this.repo.manager.save('StopTask', task);
   }
 
-  async optimizeRoute(tripId: string) {
+
+  async createStop(tripId: string, stopData: any) {
+    const trip = await this.findOne(tripId);
+    if (!trip) throw new Error("Trip not found");
+    const sequence = (trip.stops?.length || 0) + 1;
+    const stop = this.repo.manager.create("Stop", {
+      ...stopData,
+      trip: { id: tripId } as any,
+      sequence,
+      status: "pending",
+    });
+    const saved = await this.repo.manager.save("Stop", stop);
+    return this.findOne(tripId);
+  }
+
+  async updateStop(stopId: string, data: any) {
+    const stop = await this.repo.manager.findOne("Stop", { where: { id: stopId }, relations: ["trip"] }) as any;
+    if (!stop) return null;
+    Object.assign(stop, data);
+    await this.repo.manager.save("Stop", stop);
+    return this.findOne(stop.trip?.id || "");
+  }
+
+  async deleteStop(stopId: string) {
+    const stop = await this.repo.manager.findOne("Stop", { where: { id: stopId }, relations: ["trip"] }) as any;
+    if (!stop) return null;
+    const tripId = stop.trip?.id;
+    await this.repo.manager.delete("Stop", stopId);
+    if (tripId) return this.findOne(tripId);
+    return null;
+  }
+
+  async createTask(stopId: string, taskData: any) {
+    const stop = await this.repo.manager.findOne("Stop", { where: { id: stopId }, relations: ["trip"] }) as any;
+    if (!stop) throw new Error("Stop not found");
+    const task = this.repo.manager.create("StopTask", {
+      ...taskData,
+      stop: { id: stopId } as any,
+      status: "pending",
+    });
+    await this.repo.manager.save("StopTask", task);
+    return this.findOne(stop.trip?.id || "");
+  }
+
+  async updateTask(taskId: string, data: any) {
+    const task = await this.repo.manager.findOne("StopTask", { where: { id: taskId }, relations: ["stop", "stop.trip"] }) as any;
+    if (!task) return null;
+    Object.assign(task, data);
+    await this.repo.manager.save("StopTask", task);
+    if (task.stop?.trip) return this.findOne(task.stop.trip.id);
+    return null;
+  }
+
+    async optimizeRoute(tripId: string) {
     await this.planningEngine.sequenceStops(tripId);
     return this.findOne(tripId);
   }

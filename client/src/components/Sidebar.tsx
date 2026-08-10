@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Route, Truck, Users, UserCheck, Map, MessageSquare, FileText,
-  Receipt, BarChart3, Wrench, Settings, UserCog, X, Banknote, Wallet, CalendarDays, Globe, Box,
+  Receipt, BarChart3, Wrench, Settings, UserCog, X, Banknote, Wallet, CalendarDays, Globe, Box, Container,
   ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -13,6 +13,7 @@ export const navItems = [
   { to: '/orders', icon: Box, key: 'orders' },
   { to: '/map', icon: Map, key: 'liveMap' },
   { to: '/trucks', icon: Truck, key: 'trucks' },
+  { to: '/trailers', icon: Container, key: 'trailers' },
   { to: '/planning', icon: CalendarDays, key: 'planning' },
   { to: '/drivers', icon: UserCheck, key: 'drivers' },
   { to: '/clients', icon: Users, key: 'clients' },
@@ -21,6 +22,8 @@ export const navItems = [
   { to: '/invoices', icon: Receipt, key: 'invoices' },
   { to: '/financial', icon: BarChart3, key: 'financial' },
   { to: '/payroll', icon: Banknote, key: 'payroll' },
+  { to: '/settlements', icon: Wallet, key: 'settlements' },
+  { to: '/ifta', icon: BarChart3, key: 'ifta' },
   { to: '/maintenance', icon: Wrench, key: 'maintenance' },
   { to: '/expenses', icon: Wallet, key: 'expenses' },
   { to: '/website-cms', icon: Globe, key: 'websiteCms' },

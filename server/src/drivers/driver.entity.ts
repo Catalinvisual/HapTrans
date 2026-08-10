@@ -36,6 +36,12 @@ export class Driver {
   @Column({ nullable: true, type: 'date' })
   tachoCardExpiry: Date;
 
+  @Column({ type: 'varchar', default: 'per_km' })
+  payMode: string; // per_km | percent
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  payRate: number; // EUR/km or % of trip revenue
+
   @Column({ type: 'enum', enum: DriverStatus, default: DriverStatus.AVAILABLE })
   status: DriverStatus;
 

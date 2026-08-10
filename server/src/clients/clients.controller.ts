@@ -16,4 +16,9 @@ export class ClientsController {
   @Post(':id/rates') createRate(@Param('id') id: string, @Body() dto: any) { return this.service.createRate(id, dto); }
   @Patch('rates/:id') updateRate(@Param('id') id: string, @Body() dto: any) { return this.service.updateRate(id, dto); }
   @Delete('rates/:id') removeRate(@Param('id') id: string) { return this.service.removeRate(id); }
+
+  @Get(':id/locations') getLocations(@Param('id') id: string) { return this.service.getLocations(id); }
+  @Post(':id/locations') createLocation(@Param('id') id: string, @Body() dto: any) { return this.service.createLocation(id, dto); }
+  @Patch('locations/:id') updateLocation(@Param('id') id: string, @Body() dto: any) { return this.service.updateLocation(id, dto); }
+  @Delete('locations/:id') removeLocation(@Param('id') id: string) { return this.service.removeLocation(id); }
 }

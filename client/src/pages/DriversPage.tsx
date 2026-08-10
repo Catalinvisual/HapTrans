@@ -1,7 +1,7 @@
 import { useSaveConfirm } from "../components/SaveConfirmProvider";
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Pencil, Trash2, Search, Download, User, Phone, FileText, Calendar, Key, Mail, Truck as TruckIcon, Coins, AlertCircle, BadgeCheck, CalendarDays } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Download, User, Phone, FileText, Calendar, Key, Mail, Truck as TruckIcon, Coins, AlertCircle, BadgeCheck, CalendarDays, Save } from 'lucide-react';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import api from '../lib/api';
@@ -398,7 +398,57 @@ export default function DriversPage() {
 
   const drawerDriver = drawerDriverId ? drivers.find(d => d.id === drawerDriverId) : null;
 
-  const tabs: TabDef[] = drawerDriver ? [
+  
+  const [hosRows, setHosRows] = useState<any[]>([]);
+  const [hosSummary, setHosSummary] = useState<any>(null);
+  const [loadingHos, setLoadingHos] = useState(false);
+  const [hosForm, setHosForm] = useState<any>({ id: null, date: new Date().toISOString().slice(0, 10), drivingHours: '', workHours: '', breakMinutes: '', notes: '' });
+
+  const loadHos = async (driverId: string) => {
+    setLoadingHos(true);
+    try {
+      const res = await api.get('/drivers/' + driverId + '/hos');
+      setHosRows(res.data.rows || []);
+      setHosSummary(res.data.summary);
+    } catch { /* ignore */ } finally {
+      setLoadingHos(false);
+    }
+  };
+  useEffect(() => {
+    if (drawerDriver?.id) loadHos(drawerDriver.id);
+  }, [drawerDriver?.id]);
+
+  const saveHosEntry = async () => {
+    if (!drawerDriver?.id || !hosForm.date) return;
+    try {
+      await api.post('/drivers/' + drawerDriver.id + '/hos', {
+        date: hosForm.date,
+        drivingHours: Number(hosForm.drivingHours || 0),
+        workHours: Number(hosForm.workHours || 0),
+        breakMinutes: Number(hosForm.breakMinutes || 0),
+        notes: hosForm.notes,
+      });
+      toast.success(t('hos_saved', 'HOS salvat'));
+      setHosForm({ id: null, date: new Date().toISOString().slice(0, 10), drivingHours: '', workHours: '', breakMinutes: '', notes: '' });
+      loadHos(drawerDriver.id);
+    } catch {
+      toast.error(t('hos_save_error', 'Eroare la salvare HOS'));
+    }
+  };
+
+  const deleteHosEntry = async (id: string) => {
+    try {
+      await api.delete('/drivers/hos/' + id);
+      toast.success(t('hos_deleted', 'Înregistrare ștearsă'));
+      if (drawerDriver?.id) loadHos(drawerDriver.id);
+    } catch {
+      toast.error(t('hos_delete_error', 'Eroare la ștergere'));
+    }
+  };
+
+  const hosToday = hosRows.length ? hosRows[hosRows.length - 1] : null;
+
+const tabs: TabDef[] = drawerDriver ? [
     {
       key: 'overview', label: t('tab_overview', 'Overview'),
       content: (
@@ -451,6 +501,76 @@ export default function DriversPage() {
         </div>
       ) : <div className="text-sm text-text-secondary p-4 text-center">{t('no_documents', 'No documents yet')}</div>,
     },
+    {
+      key: 'hos', label: t('hos_tab', 'HOS'), badge: hosSummary?.overDaily ? hosSummary.overDaily : 0,
+      content: (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="bg-surface/50 rounded-xl p-3 border border-border">
+              <div className="text-[10px] font-bold uppercase text-text-secondary">{t('hos_driving_today', 'Conducere azi')}</div>
+              <div className="text-2xl font-black mt-0.5">{hosToday ? hosToday.drivingHours + 'h' : '—'}</div>
+              {hosToday && Number(hosToday.drivingHours) > hosSummary?.maxDaily && <div className="text-[11px] font-bold text-red-500">{t('hos_over_daily', 'Depășire zi')}</div>}
+            </div>
+            <div className="bg-surface/50 rounded-xl p-3 border border-border">
+              <div className="text-[10px] font-bold uppercase text-text-secondary">{t('hos_work_today', 'Muncă azi')}</div>
+              <div className="text-2xl font-black mt-0.5">{hosToday ? hosToday.workHours + 'h' : '—'}</div>
+            </div>
+            <div className="bg-surface/50 rounded-xl p-3 border border-border">
+              <div className="text-[10px] font-bold uppercase text-text-secondary">{t('hos_weekly', 'Săptămâna')}</div>
+              <div className="text-2xl font-black mt-0.5">{hosSummary ? hosSummary.weeklyDriving + 'h' : '—'}</div>
+              <div className="text-[11px] text-text-secondary">{t('hos_weekly_left', 'rămas')}: {hosSummary ? hosSummary.weeklyRemaining + 'h' : '—'}</div>
+            </div>
+          </div>
+
+          <div className="bg-surface/50 rounded-xl p-3 border border-border space-y-2">
+            <div className="text-xs font-bold uppercase tracking-wider text-text-secondary">{t('hos_add_entry', 'Adaugă / editează zi')}</div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <input type="date" className="input" value={hosForm.date} onChange={e => setHosForm({ ...hosForm, date: e.target.value })} />
+              <input type="number" step="0.5" min="0" className="input" placeholder={t('hos_driving', 'Conducere (h)')} value={hosForm.drivingHours} onChange={e => setHosForm({ ...hosForm, drivingHours: e.target.value })} />
+              <input type="number" step="0.5" min="0" className="input" placeholder={t('hos_work', 'Muncă (h)')} value={hosForm.workHours} onChange={e => setHosForm({ ...hosForm, workHours: e.target.value })} />
+              <input type="number" step="5" min="0" className="input" placeholder={t('hos_break', 'Pauză (min)')} value={hosForm.breakMinutes} onChange={e => setHosForm({ ...hosForm, breakMinutes: e.target.value })} />
+            </div>
+            <div className="flex gap-2">
+              <input className="input flex-1" placeholder={t('hos_notes', 'Note')} value={hosForm.notes} onChange={e => setHosForm({ ...hosForm, notes: e.target.value })} />
+              <button className="btn-primary text-sm" onClick={() => saveHosEntry()}><Save className="w-4 h-4 inline mr-1" />{t('save', 'Salvează')}</button>
+            </div>
+          </div>
+
+          {loadingHos ? <p className="text-text-secondary py-4">...</p> : hosRows.length === 0 ? <p className="text-text-secondary py-4 text-center">{t('hos_no_entries', 'Nicio înregistrare HOS')}</p> : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-surface border-b border-border">
+                    <th className="p-3 text-left font-bold text-text-secondary">{t('date', 'Data')}</th>
+                    <th className="p-3 text-left font-bold text-text-secondary">{t('hos_driving', 'Conducere')}</th>
+                    <th className="p-3 text-left font-bold text-text-secondary">{t('hos_work', 'Muncă')}</th>
+                    <th className="p-3 text-left font-bold text-text-secondary">{t('hos_break', 'Pauză')}</th>
+                    <th className="p-3 text-left font-bold text-text-secondary">{t('hos_notes', 'Note')}</th>
+                    <th className="p-3 text-right font-bold text-text-secondary">{t('actions', 'Acțiuni')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {hosRows.map(r => (
+                    <tr key={r.id} className="border-b border-border hover:bg-surface/50">
+                      <td className="p-3 font-semibold">{formatDate(r.date)}</td>
+                      <td className="p-3">{Number(r.drivingHours || 0) > hosSummary?.maxDaily ? <span className="text-red-500 font-bold">{r.drivingHours}h</span> : <span>{r.drivingHours}h</span>}</td>
+                      <td className="p-3">{r.workHours}h</td>
+                      <td className="p-3">{r.breakMinutes}min</td>
+                      <td className="p-3 text-text-secondary">{r.notes || '—'}</td>
+                      <td className="p-3 flex justify-end gap-1">
+                        <button onClick={() => { setHosForm({ id: r.id, date: r.date, drivingHours: r.drivingHours, workHours: r.workHours, breakMinutes: r.breakMinutes, notes: r.notes || '' }); }} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('edit', 'Edit')}><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => deleteHosEntry(r.id)} className="p-1.5 text-text-secondary hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors" title={t('delete', 'Delete')}><Trash2 className="w-3.5 h-3.5" /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ),
+    },
+
   ] : [];
 
   return (

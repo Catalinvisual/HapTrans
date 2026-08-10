@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Truck } from '../trucks/truck.entity';
+import { MaintenanceAttachment } from './maintenance-attachment.entity';
 
 export enum MaintenanceType {
   PREVENTIVE = 'preventive',
@@ -36,6 +37,15 @@ export class Maintenance {
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
   cost: number;
 
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  partsCost: number;
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  laborCost: number;
+
+  @Column({ nullable: true, type: 'int' })
+  odometerKm: number;
+
   @Column({ nullable: true })
   serviceProvider: string;
 
@@ -44,6 +54,9 @@ export class Maintenance {
 
   @Column({ nullable: true, type: 'text' })
   notes: string;
+
+  @OneToMany(() => MaintenanceAttachment, (a) => a.maintenance, { cascade: true })
+  attachments: MaintenanceAttachment[];
 
   @CreateDateColumn()
   createdAt: Date;

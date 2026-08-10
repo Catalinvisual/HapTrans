@@ -363,6 +363,7 @@ export default function PlanningPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [trips, setTrips] = useState<any[]>([]);
   const [drivers, setDrivers] = useState<any[]>([]);
+  const [hosMap, setHosMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState<string | null>(null);
   const [selectedOrderToAssign, setSelectedOrderToAssign] = useState<any | null>(null);
@@ -378,7 +379,10 @@ export default function PlanningPage() {
   const loadData = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const [trucksRes, ordersRes, tripsRes, driversRes] = await Promise.all([api.get('/trucks'), api.get('/orders?status=draft,new,planned'), api.get('/trips?status=planning,planned,dispatched,assigned,driver_accepted,started,loading,driving,partially_delivered'), api.get('/drivers')]);
+      const [trucksRes, ordersRes, tripsRes, driversRes, hosRes] = await Promise.all([api.get('/trucks'), api.get('/orders?status=draft,new,planned'), api.get('/trips?status=planning,planned,dispatched,assigned,driver_accepted,started,loading,driving,partially_delivered'), api.get('/drivers'), api.get('/drivers/hos-summary')]);
+      const hosObj: Record<string, any> = {};
+      (hosRes.data || []).forEach((h: any) => { hosObj[h.driverId] = h; });
+      setHosMap(hosObj);
       setTrucks(trucksRes.data.filter((t: any) => t.status === 'active'));
       setOrders(ordersRes.data);
       setTrips(tripsRes.data);
@@ -854,10 +858,16 @@ export default function PlanningPage() {
                             <CustomSelect value={truck.driver?.id || stats.driverId || ''} onChange={val => handleAssignDriver(truck.id, val)} options={[{
                             value: '',
                             label: t('no_driver_option', 'Fără Șofer')
-                          }, ...drivers.map((d: any) => ({
-                            value: d.id,
-                            label: d.user?.name || 'Șofer'
-                          }))]} className="w-full text-xs" />
+                          }, ...drivers.map((d: any) => {
+                            const hos = hosMap[d.id];
+                            return {
+                              value: d.id,
+                              label: d.user?.name || 'Șofer' + (hos && hos.over ? ' ⚠️ HOS' : hos && hos.remaining < 10 ? ' (' + hos.weeklyDriving + 'h)' : '')
+                            };
+                          })]} className="w-full text-xs" />
+                            {truck.driver?.id && hosMap[truck.driver.id] && hosMap[truck.driver.id].over && (
+                              <div className="text-[10px] font-bold text-red-500 mt-1 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{t('hos_over', 'Depășire HOS săptămânal')}</div>
+                            )}
                           </div>
                         </div>
 

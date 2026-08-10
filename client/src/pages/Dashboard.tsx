@@ -128,7 +128,56 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Profit per truck & driver */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="card">
+          <h3 className="text-sm font-semibold text-text mb-4">{t('profitByTruck')}</h3>
+          <div className="space-y-4 mt-2">
+            {(data?.profitByTruck ?? []).filter(x => x.profit > 0).map((x, idx) => {
+              const max = Math.max(...(data?.profitByTruck ?? []).map(y => Number(y.profit)), 1);
+              return (
+                <div key={idx}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-semibold text-text text-sm">{x.name}</span>
+                    <span className="text-sm font-bold text-success">€{Number(x.profit).toLocaleString(i18n.language)}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-surface-hover overflow-hidden">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(4, (Number(x.profit) / max) * 100)}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+            {(data?.profitByTruck?.length ?? 0) === 0 && (
+              <div className="text-sm text-text-secondary text-center mt-8">{t('notEnoughData')}</div>
+            )}
+          </div>
+        </div>
+        <div className="card">
+          <h3 className="text-sm font-semibold text-text mb-4">{t('profitByDriver')}</h3>
+          <div className="space-y-4 mt-2">
+            {(data?.profitByDriver ?? []).filter(x => x.profit > 0).map((x, idx) => {
+              const max = Math.max(...(data?.profitByDriver ?? []).map(y => Number(y.profit)), 1);
+              return (
+                <div key={idx}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-semibold text-text text-sm">{x.name}</span>
+                    <span className="text-sm font-bold text-success">€{Number(x.profit).toLocaleString(i18n.language)}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-surface-hover overflow-hidden">
+                    <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.max(4, (Number(x.profit) / max) * 100)}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+            {(data?.profitByDriver?.length ?? 0) === 0 && (
+              <div className="text-sm text-text-secondary text-center mt-8">{t('notEnoughData')}</div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Alerts */}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="card">
           <h3 className="text-sm font-semibold text-text mb-4">{t('topProfitableRoutes')}</h3>

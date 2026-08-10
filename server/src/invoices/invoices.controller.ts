@@ -31,6 +31,7 @@ export class InvoicesController {
     }
   }
   @Get() findAll() { return this.service.findAll(); }
+  @Get('aging') getAgingSummary() { return this.service.getAgingSummary(); }
   @Get('overdue') getOverdue() { return this.service.getOverdue(); }
   @Get(':id') findOne(@Param('id') id: string) { return this.service.findOne(id); }
   @Post() create(@Body() dto: any) { return this.service.create(dto); }
@@ -86,6 +87,41 @@ export class InvoicesController {
       return { success: true };
     }
     return { success: false, message: 'Invoice not found' };
+  }
+
+
+  @Post('send-reminders')
+  async sendReminders(@Body() body: { company?: string }) {
+    const overdue = await this.service.getOverdue();
+    if (overdue.length === 0) return { sent: 0 };
+
+    let company = null;
+    try { if (body && body.company) company = JSON.parse(body.company); } catch (e) {}
+
+    const perClient = new Map<string, any>();
+    for (const inv of overdue) {
+      if (!inv.client) continue;
+      const cid = inv.client.id || inv.client.contactEmail || 'x';
+      if (!perClient.has(cid)) {
+        perClient.set(cid, { client: inv.client, invoices: [] });
+      }
+      perClient.get(cid).invoices.push(inv);
+    }
+
+    let sent = 0;
+    for (const entry of perClient.values()) {
+      if (!entry.client.contactEmail) continue;
+      try {
+        await this.resendService.sendInvoiceReminder(entry.invoices, entry.client, company);
+        sent += entry.invoices.length;
+        for (const inv of entry.invoices) {
+          await this.service.update(inv.id, { status: 'overdue', draftReminderLevel: 2 } as any);
+        }
+      } catch (e) {
+        console.error('Failed to send invoice reminder:', e);
+      }
+    }
+    return { sent, clients: perClient.size };
   }
 
   @Post('upload-pdf/:id')

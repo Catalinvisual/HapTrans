@@ -1,25 +1,27 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { FileCheck2, Search, Download, CreditCard, Building2, Wallet, Eye } from 'lucide-react';
+import { Download, CreditCard, Building2, Eye, Package } from 'lucide-react';
+import { notify } from '../../components/AppToaster';
 import { useSearchParams } from 'react-router-dom';
 import portalApi from '../../lib/portalApi';
-import api from '../../lib/api'; // For public settings
 import { formatDate } from '../../lib/dateUtils';
 import Pagination from '../../components/Pagination';
+import RapidTransportModal from '../../components/RapidTransportModal';
 export default function PortalInvoicesPage() {
-  const {
-    t
-  } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showRequest, setShowRequest] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '10');
   const [companySettings, setCompanySettings] = useState<any>(null);
   const [showPaymentModal, setShowPaymentModal] = useState<any>(null);
   const [showDetailsModal, setShowDetailsModal] = useState<any>(null);
-  const [copySuccess, setCopySuccess] = useState('');
+  const [copySuccess, setCopySuccess] = useState("");
+  const [paymentForm, setPaymentForm] = useState({ amount: "", date: new Date().toISOString().slice(0, 10), method: "bank_transfer", reference: "" });
+  const [submitting, setSubmitting] = useState(false);
   useEffect(() => {
     portalApi.get('/portal/invoices').then(r => {
       setInvoices(r.data);
@@ -28,7 +30,6 @@ export default function PortalInvoicesPage() {
     // Fetch company settings for bank details
     fetch(`${import.meta.env.VITE_API_URL}/public/company-settings`).then(res => res.json()).then(data => setCompanySettings(data)).catch(console.error);
   }, []);
-  const totalPages = Math.ceil(invoices.length / limit);
   const paginatedInvoices = invoices.slice((page - 1) * limit, page * limit);
   const handlePageChange = (newPage: number) => {
     setSearchParams({
@@ -47,6 +48,30 @@ export default function PortalInvoicesPage() {
     setCopySuccess(type);
     setTimeout(() => setCopySuccess(''), 2000);
   };
+
+  const handleDownloadPdf = async (inv: any) => {
+    try {
+      const res = await portalApi.post('/invoices/generate-pdf', {
+        invoice: inv,
+        company: companySettings,
+        lang: (i18n.language === 'nl' ? 'nl' : 'en') as 'en' | 'nl',
+      });
+      const { base64 } = res.data || {};
+      if (!base64) { notify.error('PDF negenerat.'); return; }
+      const byteChars = atob(base64);
+      const byteNumbers = new Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (inv.invoiceNumber || 'invoice') + '.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      notify.error(err?.response?.data?.message || 'Eroare generare PDF.');
+    }
+  };
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'paid':
@@ -63,6 +88,8 @@ export default function PortalInvoicesPage() {
   return <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold">{t("jsx_invoicesBill")}</h1>
+        <button onClick={() => setShowRequest(true)} className="btn-primary py-2 px-4 flex items-center gap-2">
+          <Package className="w-4 h-4" />{t("jsx_newTransportR")}</button>
       </div>
 
       <div className="card bg-card border border-border rounded-2xl shadow-sm p-4">
@@ -103,7 +130,7 @@ export default function PortalInvoicesPage() {
                             <CreditCard className="w-3 h-3" />{t("jsx_payNow")}</button>}
                         <button onClick={() => setShowDetailsModal(inv)} className="btn-secondary py-1.5 px-3 flex items-center gap-2 text-xs font-bold">
                           <Eye className="w-3 h-3" />{t("jsx_details")}</button>
-                        <button className="btn-secondary py-1.5 px-3 flex items-center gap-2 text-xs font-bold">
+                        <button onClick={() => handleDownloadPdf(inv)} className="btn-secondary py-1.5 px-3 flex items-center gap-2 text-xs font-bold">
                           <Download className="w-3 h-3" />{t("jsx_pDF")}</button>
                       </td>
                     </tr>;
@@ -254,5 +281,6 @@ export default function PortalInvoicesPage() {
             </div>
           </div>
         </div>, document.body)}
+    <RapidTransportModal open={showRequest} onClose={() => setShowRequest(false)} />
     </div>;
 }

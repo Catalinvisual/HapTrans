@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne } from 'typeorm';
 import { Invoice } from '../invoices/invoice.entity';
 import { ClientRate } from './client-rate.entity';
+import { ClientLocation } from './client-location.entity';
 import { Order } from '../orders/order.entity';
 
 import { Company } from '../companies/company.entity';
@@ -38,6 +39,9 @@ export class Client {
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
   defaultFuelSurchargePercent: number;
 
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
+  discount: number;
+
   @Column({ type: 'int', default: 30 })
   paymentTermsDays: number;
 
@@ -52,6 +56,9 @@ export class Client {
 
   @OneToMany(() => ClientRate, rate => rate.client)
   rates: ClientRate[];
+
+  @OneToMany(() => ClientLocation, loc => loc.client)
+  locations: ClientLocation[];
 
   @OneToMany(() => Order, (order) => order.client)
   orders: Order[];

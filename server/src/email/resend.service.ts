@@ -304,6 +304,65 @@ export class ResendService {
     }
   }
 
+  async sendInvoiceReminder(invoices: any[], client: any, company?: any) {
+    if (!client?.contactEmail || !invoices.length) return;
+
+    const logoUrl = await this.getLogoUrl(company);
+    const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; vertical-align: middle;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
+
+    const rows = invoices.map((inv: any) => {
+      const amount = Number(inv.total) || Number(inv.amount) || 0;
+      return `<tr>
+        <td style="border:1px solid #ddd; padding:8px;">${inv.invoiceNumber}</td>
+        <td style="border:1px solid #ddd; padding:8px;">${formatDMY(inv.dueDate)}</td>
+        <td style="border:1px solid #ddd; padding:8px; text-align:right;">&euro;${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+      </tr>`;
+    }).join('');
+
+    const totalAmount = invoices.reduce((sum: number, inv: any) => sum + (Number(inv.total) || Number(inv.amount) || 0), 0);
+
+    const htmlContent = `
+      <html>
+      <body style="font-family: Arial, sans-serif; color: #333; background-color: #ffffff; margin: 0; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 24px; margin-top: 10px;">
+          ${logoHtml}
+        </div>
+        <h2>Payment Reminder</h2>
+        <p>Dear ${client.companyName || client.name || 'Valued Customer'},</p>
+        <p>This is a friendly reminder that the following invoice(s) are now <strong>past due</strong>:</p>
+        <table style="border-collapse: collapse; width: 100%; margin: 16px 0;">
+          <tr>
+            <th style="border:1px solid #ddd; padding:8px; text-align:left;">Invoice</th>
+            <th style="border:1px solid #ddd; padding:8px; text-align:left;">Due Date</th>
+            <th style="border:1px solid #ddd; padding:8px; text-align:right;">Amount</th>
+          </tr>
+          ${rows}
+        </table>
+        <p><strong>Total Outstanding:</strong> &euro;${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+        <p>Please arrange payment at your earliest convenience. If payment has already been made, please disregard this message.</p>
+        <br/>
+        <p>Thank you for your business.</p>
+      </body>
+      </html>
+    `;
+
+    try {
+      if (process.env.RESEND_API_KEY) {
+        const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+        await this.resend.emails.send({
+          from: `HapCargo <${fromEmail}>`,
+          to: client.contactEmail,
+          subject: 'Payment Reminder - Outstanding Invoices',
+          html: htmlContent,
+        });
+      } else {
+        console.log('[MOCK EMAIL] Payment Reminder to:', client.contactEmail);
+      }
+    } catch (e) {
+      console.error('Error sending payment reminder:', e);
+    }
+  }
+
   async sendQuoteConfirmationEmail(email: string, name: string, company?: any) {
     const logoUrl = await this.getLogoUrl(company);
     const logoHtml = logoUrl ? `<img src="${logoUrl}" style="height:48px; max-width: 250px; object-fit:contain; vertical-align: middle;" alt="HapCargo Logo" />` : `<h2 style="color: #ff5a00; margin: 0; font-size: 24px;">HapCargo</h2>`;
