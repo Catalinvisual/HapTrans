@@ -276,8 +276,8 @@ export default function TrailersPage() {
       </div>
 
       <BulkBar count={selected.size} onClear={() => setSelected(new Set())} actions={[
-        { label: t("setActive", "Activează"), icon: CheckCircleIcon, onClick: () => bulkSetStatus("active") },
-        { label: t("setMaintenance", "Mentenanță"), icon: WrenchIcon, variant: "secondary", onClick: () => bulkSetStatus("maintenance") },
+        { label: t("setActive", "Activează"), icon: CheckCircle2, onClick: () => bulkSetStatus("active") },
+        { label: t("setMaintenance", "Mentenanță"), icon: Wrench, variant: "secondary", onClick: () => bulkSetStatus("maintenance") },
         { label: t("setInactive", "Dezactivează"), icon: Trash2, variant: "danger", onClick: () => bulkSetStatus("inactive") },
       ]} />
 
