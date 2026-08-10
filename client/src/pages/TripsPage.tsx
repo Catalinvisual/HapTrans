@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Truck, Search, Loader2, MapPin, FileText, Trash2, Download, ExternalLink, Activity, Calendar, Coins, Route as RouteIcon, User, Package, Send, Boxes, Gauge, Clock, Wallet, Receipt, Banknote, Sparkles, UploadCloud } from 'lucide-react';
 import api from '../lib/api';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import ConfirmModal from '../components/ConfirmModal';
 import Pagination from '../components/Pagination';
 import DataTable from '../components/ui/DataTable';
 import type { Column } from '../components/ui/DataTable';
@@ -76,6 +77,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
   const [drawerTripId, setDrawerTripId] = useState<string | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [tripToDelete, setTripToDelete] = useState<string | null>(null);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [exportRows, setExportRows] = useState<any[]>([]);
   const [showAiImport, setShowAiImport] = useState(false);
@@ -98,11 +100,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
     }
   }, [t]);
 
-const fs = require("fs");
-let s = fs.readFileSync("Saas HapTrans/client/src/pages/TripsPage.tsx", "utf8");
-let s2 = fs.readFileSync("Saas HapTrans/client/src/pages/TripsPage.tsx", "utf8");
-// build block in literal file
-const block = `  useEffect(() => { fetchTrips(); }, [fetchTrips]);
+  useEffect(() => { fetchTrips(); }, [fetchTrips]);
 
   const onAiFileChange = (file: File | null) => {
     setAiFile(file);
@@ -134,11 +132,11 @@ const block = `  useEffect(() => { fetchTrips(); }, [fetchTrips]);
       setAiFile(null);
       setAiPreview(null);
       fetchTrips();
-      navigate(\`/trips/\${r.data.id}\`);
+      navigate(`/trips/${r.data.id}`);
     } catch (e: any) {
       toast.error(e?.response?.data?.message || t('ai_import_failed', 'Import eșuat'));
     } finally { setAiImporting(false); }
-  };`;
+  };
 
 
   const truckOptions: SelectOption[] = useMemo(() => {
@@ -445,8 +443,17 @@ const block = `  useEffect(() => { fetchTrips(); }, [fetchTrips]);
           { label: t('bulk_complete', 'Complete'), icon: CheckIcon, variant: 'secondary', onClick: () => bulkSetStatus('completed') },
           { label: t('bulk_cancel', 'Cancel'), icon: Activity, variant: 'secondary', onClick: () => bulkSetStatus('cancelled') },
           { label: t('bulk_export', 'Export'), icon: Download, variant: 'secondary', onClick: () => openExport(sorted.filter(tr => selected.has(tr.id))) },
-          { label: t('bulk_delete', 'Delete'), icon: Trash2, variant: 'danger', onClick: bulkDelete },
+          { label: t('bulk_delete', 'Delete'), icon: Trash2, variant: 'danger', onClick: () => setConfirmBulkDelete(true) },
         ]}
+      />
+
+      <ConfirmModal
+        isOpen={confirmBulkDelete}
+        title={t('bulk_delete_confirm_title', 'Confirm bulk delete')}
+        message={t('bulk_delete_confirm_message', 'Are you sure you want to delete {{count}} selected items? This action cannot be undone.', { count: selected.size })}
+        onConfirm={() => { setConfirmBulkDelete(false); bulkDelete(); }}
+        onCancel={() => setConfirmBulkDelete(false)}
+        type="danger"
       />
 
       {drawerTripId && (
@@ -656,9 +663,9 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
         <table className="w-full text-left">
           <thead className="bg-surface/50 border-b border-border">
             <tr>
-              <th className="px-3 py-2 text-[10px] font-bold uppercase text-text-secondary">{t('reference', 'Reference')}</th>
-              <th className="px-3 py-2 text-[10px] font-bold uppercase text-text-secondary">{t('route', 'Route')}</th>
-              <th className="px-3 py-2 text-[10px] font-bold uppercase text-text-secondary text-right">{t('price', 'Price')}</th>
+              <th className="px-3 py-2 text-[10px] font-medium uppercase text-text-secondary">{t('reference', 'Reference')}</th>
+              <th className="px-3 py-2 text-[10px] font-medium uppercase text-text-secondary">{t('route', 'Route')}</th>
+              <th className="px-3 py-2 text-[10px] font-medium uppercase text-text-secondary text-right">{t('price', 'Price')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60">

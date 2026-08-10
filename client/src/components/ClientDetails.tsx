@@ -315,12 +315,12 @@ return <div className="space-y-6 animate-fade-in">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-surface border-b border-border">
-                      <th className="p-3 text-left font-bold text-text-secondary">{t('rateName')}</th>
-                      <th className="p-3 text-left font-bold text-text-secondary">{t("jsx_route")}</th>
-                      <th className="p-3 text-left font-bold text-text-secondary">{t('basePrice')}</th>
-                      <th className="p-3 text-left font-bold text-text-secondary">{t('fuelSurcharge')}</th>
-                      <th className="p-3 text-left font-bold text-text-secondary">{t('tollIncluded')}</th>
-                      <th className="p-3 text-right font-bold text-text-secondary">{t('actions')}</th>
+                      <th className="p-3 text-left font-medium text-text-secondary">{t('rateName')}</th>
+                      <th className="p-3 text-left font-medium text-text-secondary">{t("jsx_route")}</th>
+                      <th className="p-3 text-left font-medium text-text-secondary">{t('basePrice')}</th>
+                      <th className="p-3 text-left font-medium text-text-secondary">{t('fuelSurcharge')}</th>
+                      <th className="p-3 text-left font-medium text-text-secondary">{t('tollIncluded')}</th>
+                      <th className="p-3 text-right font-medium text-text-secondary">{t('actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -435,12 +435,12 @@ return <div className="space-y-6 animate-fade-in">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-surface border-b border-border">
-                      <th className="p-3 text-left font-bold text-text-secondary">{t('locationName')}</th>
-                      <th className="p-3 text-left font-bold text-text-secondary">{t('address')}</th>
-                      <th className="p-3 text-left font-bold text-text-secondary">{t('country')}</th>
-                      <th className="p-3 text-left font-bold text-text-secondary">{t('contactName')}</th>
-                      <th className="p-3 text-left font-bold text-text-secondary">{t('phone')}</th>
-                      <th className="p-3 text-right font-bold text-text-secondary">{t('actions')}</th>
+                      <th className="p-3 text-left font-medium text-text-secondary">{t('locationName')}</th>
+                      <th className="p-3 text-left font-medium text-text-secondary">{t('address')}</th>
+                      <th className="p-3 text-left font-medium text-text-secondary">{t('country')}</th>
+                      <th className="p-3 text-left font-medium text-text-secondary">{t('contactName')}</th>
+                      <th className="p-3 text-left font-medium text-text-secondary">{t('phone')}</th>
+                      <th className="p-3 text-right font-medium text-text-secondary">{t('actions')}</th>
                     </tr>
                   </thead>
                   <tbody>

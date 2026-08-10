@@ -19,7 +19,7 @@ export class Maintenance {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Truck, (truck) => truck.maintenances, { eager: true })
+  @ManyToOne(() => Truck, (truck) => truck.maintenances, { eager: true, onDelete: 'CASCADE' })
   truck: Truck;
 
   @Column({ type: 'enum', enum: MaintenanceType, default: MaintenanceType.PREVENTIVE })

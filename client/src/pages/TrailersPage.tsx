@@ -216,17 +216,7 @@ export default function TrailersPage() {
   ] : [];
 
   return (
-    <div className="p-4 md:p-6 max-w-[1400px] mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold">{t("trailers", "Remorci")}</h1>
-          <p className="text-sm text-text-secondary">{t("trailersSubtitle", "Gestiunea remorcilor din flotă")}</p>
-        </div>
-        <button className="btn-primary flex items-center gap-2" onClick={() => { setForm(initialForm); setEditId(null); setShowForm(true); }}>
-          <Plus className="w-4 h-4" /> {t("addTrailer", "Adaugă Remorcă")}
-        </button>
-      </div>
-
+    <div className="space-y-4 animate-fade-in max-w-[1600px] mx-auto pb-10">
       <KpiStrip
         items={[
           { key: "total", label: t("total", "Total"), value: total, icon: TrailerIcon },
@@ -237,29 +227,29 @@ export default function TrailersPage() {
         ]}
       />
 
-      <div className="flex flex-wrap items-center gap-2 mt-4">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
-          <input className="input pl-9" placeholder={t("search", "Caută...")} value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
+        <div className="p-3 border-b border-border flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-1 min-w-[300px]">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
+              <input className="input pl-9 py-2 text-sm w-full" placeholder={t("search", "Caută...")} value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <CustomSelect className="w-40" value={filters.status} onChange={(v) => setFilters((f) => ({ ...f, status: v }))} options={[{ value: "all", label: t("allStatuses", "Toate statusurile") }, ...TRAILER_STATUSES]} />
+            <CustomSelect className="w-44" value={filters.type} onChange={(v) => setFilters((f) => ({ ...f, type: v }))} options={[{ value: "all", label: t("allTypes", "Toate tipurile") }, ...TRAILER_TYPES.map((o) => ({ value: o.value, label: t(o.label) || o.default }))]} />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-3 py-1.5 rounded-lg border border-border">
+              {filtered.length} {t("results", "results")}
+            </span>
+            <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold">
+              <Download className="w-4 h-4" /> <span className="hidden sm:inline">{t("export", "Export")}</span>
+            </button>
+            <button onClick={() => { setForm(initialForm); setShowForm(true); setEditId(null); }} className="btn-primary py-2 px-3 flex items-center gap-2 text-sm font-semibold shadow-md shadow-primary/20">
+              <Plus className="w-4 h-4" /> {t("addTrailer", "Adaugă Remorcă")}
+            </button>
+          </div>
         </div>
-        <CustomSelect
-          value={filters.status}
-          onChange={(v) => setFilters({ ...filters, status: v })}
-          options={[{ value: "all", label: t("allStatuses", "Toate statusurile") }, ...TRAILER_STATUSES]}
-          className="w-44"
-        />
-        <CustomSelect
-          value={filters.type}
-          onChange={(v) => setFilters({ ...filters, type: v })}
-          options={[{ value: "all", label: t("allTypes", "Toate tipurile") }, ...TRAILER_TYPES.map((o) => ({ value: o.value, label: t(o.label) || o.default }))]}
-          className="w-44"
-        />
-        <button className="btn-secondary flex items-center gap-2" onClick={() => setShowExport(true)}>
-          <Download className="w-4 h-4" /> {t("export", "Export")}
-        </button>
-      </div>
 
-      <div className="mt-4">
         <DataTable
           columns={columns}
           data={paginated}
@@ -270,10 +260,11 @@ export default function TrailersPage() {
           onSelectionChange={setSelected}
           emptyState={<div className="text-center py-10 text-text-secondary">{t("noTrailers", "Nicio remorcă găsită")}</div>}
         />
-        <div className="mt-3">
-          <Pagination total={filtered.length} page={currentPage} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
-        </div>
       </div>
+
+      {filtered.length > itemsPerPage && (
+        <Pagination total={filtered.length} page={currentPage} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
+      )}
 
       <BulkBar count={selected.size} onClear={() => setSelected(new Set())} actions={[
         { label: t("setActive", "Activează"), icon: CheckCircle2, onClick: () => bulkSetStatus("active") },
@@ -323,7 +314,7 @@ export default function TrailersPage() {
       )}
 
       <ConfirmModal
-        open={!!deleteId}
+        isOpen={!!deleteId}
         title={t("confirmDelete", "Confirmă ștergerea")}
         message={t("deleteTrailerConfirm", "Sigur vrei să ștergi această remorcă?")}
         onConfirm={executeDelete}

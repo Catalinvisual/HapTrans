@@ -44,13 +44,13 @@ export class Trip {
   status: string;
 
   // Assignments
-  @ManyToOne(() => Truck, (truck) => truck.trips, { eager: true })
+  @ManyToOne(() => Truck, (truck) => truck.trips, { eager: true, onDelete: 'SET NULL' })
   truck: Truck;
 
-  @ManyToOne(() => Trailer, { nullable: true, eager: true })
+  @ManyToOne(() => Trailer, { nullable: true, eager: true, onDelete: 'SET NULL' })
   trailer: Trailer;
 
-  @ManyToOne(() => Driver, (driver) => driver.trips, { eager: true })
+  @ManyToOne(() => Driver, (driver) => driver.trips, { eager: true, onDelete: 'SET NULL' })
   driver: Driver;
 
   // Timestamps

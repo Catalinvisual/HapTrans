@@ -53,6 +53,7 @@ export default function DriversPage() {
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(formStore.driversShowForm);
   const [editId, setEditId] = useState<string | null>(formStore.driversEditId);
@@ -541,12 +542,12 @@ const tabs: TabDef[] = drawerDriver ? [
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-surface border-b border-border">
-                    <th className="p-3 text-left font-bold text-text-secondary">{t('date', 'Data')}</th>
-                    <th className="p-3 text-left font-bold text-text-secondary">{t('hos_driving', 'Conducere')}</th>
-                    <th className="p-3 text-left font-bold text-text-secondary">{t('hos_work', 'Muncă')}</th>
-                    <th className="p-3 text-left font-bold text-text-secondary">{t('hos_break', 'Pauză')}</th>
-                    <th className="p-3 text-left font-bold text-text-secondary">{t('hos_notes', 'Note')}</th>
-                    <th className="p-3 text-right font-bold text-text-secondary">{t('actions', 'Acțiuni')}</th>
+                    <th className="p-3 text-left font-medium text-text-secondary">{t('date', 'Data')}</th>
+                    <th className="p-3 text-left font-medium text-text-secondary">{t('hos_driving', 'Conducere')}</th>
+                    <th className="p-3 text-left font-medium text-text-secondary">{t('hos_work', 'Muncă')}</th>
+                    <th className="p-3 text-left font-medium text-text-secondary">{t('hos_break', 'Pauză')}</th>
+                    <th className="p-3 text-left font-medium text-text-secondary">{t('hos_notes', 'Note')}</th>
+                    <th className="p-3 text-right font-medium text-text-secondary">{t('actions', 'Acțiuni')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -629,8 +630,17 @@ const tabs: TabDef[] = drawerDriver ? [
       <BulkBar count={selected.size} onClear={() => setSelected(new Set())}>
         <button onClick={() => setBulkStatus('available')} className="px-3 py-1 rounded-lg bg-green-500/90 hover:bg-green-500 text-white text-xs font-bold transition-colors">{t('available', 'Available')}</button>
         <button onClick={() => setBulkStatus('off')} className="px-3 py-1 rounded-lg bg-amber-500/90 hover:bg-amber-500 text-white text-xs font-bold transition-colors">{t('unavailable', 'Off duty')}</button>
-        <button onClick={bulkDelete} className="px-3 py-1 rounded-lg bg-red-500/90 hover:bg-red-500 text-white text-xs font-bold transition-colors"><Trash2 className="w-3.5 h-3.5 inline mr-1" />{t('delete', 'Delete')}</button>
+        <button onClick={() => setConfirmBulkDelete(true)} className="px-3 py-1 rounded-lg bg-red-500/90 hover:bg-red-500 text-white text-xs font-bold transition-colors"><Trash2 className="w-3.5 h-3.5 inline mr-1" />{t('delete', 'Delete')}</button>
       </BulkBar>
+
+      <ConfirmModal
+        isOpen={confirmBulkDelete}
+        title={t('bulk_delete_confirm_title', 'Confirm bulk delete')}
+        message={t('bulk_delete_confirm_message', 'Are you sure you want to delete {{count}} selected items? This action cannot be undone.', { count: selected.size })}
+        onConfirm={() => { setConfirmBulkDelete(false); bulkDelete(); }}
+        onCancel={() => setConfirmBulkDelete(false)}
+        type="danger"
+      />
 
       <DetailDrawer
         open={!!drawerDriver}

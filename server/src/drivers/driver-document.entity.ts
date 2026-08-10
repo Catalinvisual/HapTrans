@@ -6,7 +6,7 @@ export class DriverDocument {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Driver, (driver) => driver.documents)
+  @ManyToOne(() => Driver, (driver) => driver.documents, { onDelete: 'CASCADE' })
   driver: Driver;
 
   @Column()

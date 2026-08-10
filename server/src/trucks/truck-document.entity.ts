@@ -6,7 +6,7 @@ export class TruckDocument {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Truck, (truck) => truck.documents)
+  @ManyToOne(() => Truck, (truck) => truck.documents, { onDelete: 'CASCADE' })
   truck: Truck;
 
   @Column()

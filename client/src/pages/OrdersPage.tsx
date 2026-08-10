@@ -4,6 +4,7 @@ import { Plus, Search, Loader2, MapPin, FileText, Trash2, Box, Download, Pencil,
 import api from '../lib/api';
 import OrderWizard from '../components/orders/OrderWizard';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import ConfirmModal from '../components/ConfirmModal';
 import Pagination from '../components/Pagination';
 import DataTable from '../components/ui/DataTable';
 import type { Column } from '../components/ui/DataTable';
@@ -58,6 +59,7 @@ export default function OrdersPage() {
   const [drawerOrderId, setDrawerOrderId] = useState<string | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
 
   const fetchOrders = useCallback(async () => {
@@ -377,8 +379,17 @@ export default function OrdersPage() {
 
       <BulkBar count={selected.size} onClear={() => setSelected(new Set())}>
         <CustomSelect className="w-44" value="" onChange={v => { if (v) bulkSetStatus(v); }} options={[{ value: '', label: t('bulk_change_status', 'Change status...') }, ...ORDER_STATUSES.filter(s => s !== 'cancelled').map(s => ({ value: s, label: t(`status_${s}`, s.replace(/_/g, ' ')) }))]} />
-        <button onClick={bulkDelete} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/80 hover:bg-red-500 text-white text-sm font-semibold transition-colors"><Trash2 className="w-4 h-4" />{t('delete', 'Delete')}</button>
+        <button onClick={() => setConfirmBulkDelete(true)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/80 hover:bg-red-500 text-white text-sm font-semibold transition-colors"><Trash2 className="w-4 h-4" />{t('delete', 'Delete')}</button>
       </BulkBar>
+
+      <ConfirmModal
+        isOpen={confirmBulkDelete}
+        title={t('bulk_delete_confirm_title', 'Confirm bulk delete')}
+        message={t('bulk_delete_confirm_message', 'Are you sure you want to delete {{count}} selected items? This action cannot be undone.', { count: selected.size })}
+        onConfirm={() => { setConfirmBulkDelete(false); bulkDelete(); }}
+        onCancel={() => setConfirmBulkDelete(false)}
+        type="danger"
+      />
 
       <OrderWizard isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} orderId={selectedOrderId || undefined} onSaved={() => { fetchOrders(); setDrawerOrderId(selectedOrderId); setActiveTab('overview'); }} />
 

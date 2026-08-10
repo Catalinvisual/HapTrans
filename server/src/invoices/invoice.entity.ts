@@ -31,7 +31,7 @@ export class Invoice {
   @ManyToOne(() => Trip, (trip) => trip.invoices, { onDelete: 'CASCADE' })
   trip: Trip;
 
-  @ManyToOne(() => Client, (client) => client.invoices, { eager: true })
+  @ManyToOne(() => Client, (client) => client.invoices, { eager: true, onDelete: 'SET NULL' })
   client: Client;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })

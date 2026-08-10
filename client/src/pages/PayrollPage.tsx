@@ -135,7 +135,7 @@ export default function PayrollPage() {  const confirmSave = useSaveConfirm();
                 <th className="table-header text-center">{t('daysWorked')}</th>
                 <th className="table-header text-primary text-right">{t('payroll_allowance')}</th>
                 <th className="table-header text-right">{t('bonuses')} / {t('deductions')}</th>
-                <th className="table-header font-bold text-success text-right">{t('payroll_totalNet')}</th>
+                <th className="table-header font-medium text-success text-right">{t('payroll_totalNet')}</th>
                 <th className="table-header text-center">{t('status')}</th>
                 <th className="table-header text-center">{t('actions')}</th>
               </tr>

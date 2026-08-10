@@ -58,7 +58,7 @@ export class Order {
   @Column({ nullable: true })
   unloadingReference: string;
 
-  @ManyToOne(() => Client, (client) => client.orders, { eager: true })
+  @ManyToOne(() => Client, (client) => client.orders, { eager: true, onDelete: 'SET NULL' })
   client: Client;
 
   @ManyToOne(() => Trip, (trip) => trip.orders, { nullable: true, onDelete: 'SET NULL' })

@@ -76,6 +76,7 @@ export default function TrucksPage() {
   const [trucks, setTrucks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [showForm, setShowForm] = useState(formStore.trucksShowForm);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -548,8 +549,17 @@ export default function TrucksPage() {
       <BulkBar count={selected.size} onClear={() => setSelected(new Set())}>
         <button onClick={() => setBulkStatus('maintenance')} className="px-3 py-1 rounded-lg bg-amber-500/90 hover:bg-amber-500 text-white text-xs font-bold transition-colors"><Wrench className="w-3.5 h-3.5 inline mr-1" />{t('bulk_set_maintenance', 'Service')}</button>
         <button onClick={() => setBulkStatus('active')} className="px-3 py-1 rounded-lg bg-green-500/90 hover:bg-green-500 text-white text-xs font-bold transition-colors"><CheckCircle2 className="w-3.5 h-3.5 inline mr-1" />{t('bulk_set_active', 'Active')}</button>
-        <button onClick={bulkDelete} className="px-3 py-1 rounded-lg bg-red-500/90 hover:bg-red-500 text-white text-xs font-bold transition-colors"><Trash2 className="w-3.5 h-3.5 inline mr-1" />{t('delete', 'Delete')}</button>
+        <button onClick={() => setConfirmBulkDelete(true)} className="px-3 py-1 rounded-lg bg-red-500/90 hover:bg-red-500 text-white text-xs font-bold transition-colors"><Trash2 className="w-3.5 h-3.5 inline mr-1" />{t('delete', 'Delete')}</button>
       </BulkBar>
+
+      <ConfirmModal
+        isOpen={confirmBulkDelete}
+        title={t('bulk_delete_confirm_title', 'Confirm bulk delete')}
+        message={t('bulk_delete_confirm_message', 'Are you sure you want to delete {{count}} selected items? This action cannot be undone.', { count: selected.size })}
+        onConfirm={() => { setConfirmBulkDelete(false); bulkDelete(); }}
+        onCancel={() => setConfirmBulkDelete(false)}
+        type="danger"
+      />
 
       <DetailDrawer
         open={!!drawerTruck}

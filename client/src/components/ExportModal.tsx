@@ -308,7 +308,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, title, sh
             {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             {exporting ? tExport.exporting : tExport.exportBtn}
           </button>
-          <button onClick={onClose} className="btn-secondary flex-1 py-2.5 font-bold">
+          <button onClick={onClose} className="btn-secondary flex-1 py-2.5 font-bold flex items-center justify-center gap-2">
             {tExport.cancelBtn}
           </button>
         </div>
