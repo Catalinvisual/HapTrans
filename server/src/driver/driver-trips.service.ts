@@ -26,10 +26,27 @@ export class DriverTripsService {
     if (!driver) throw new ForbiddenException('Accountul nu este legat de un șofer');
     const trip = await this.tripsRepo.findOne({
       where: { id, driver: { id: driver.id } },
-      relations: ['truck', 'trailer', 'stops', 'orders', 'costs', 'documents', 'documents.uploadedBy'],
+      relations: this.tripRelations(),
     });
     if (!trip) throw new NotFoundException('Cursa nu a fost găsită');
     return trip;
+  }
+
+  private tripRelations() {
+    return [
+      'truck',
+      'trailer',
+      'driver',
+      'driver.user',
+      'stops',
+      'stops.tasks',
+      'orders',
+      'orders.client',
+      'orders.cargoItems',
+      'costs',
+      'documents',
+      'documents.uploadedBy',
+    ];
   }
 
   async findMyTrips(userId: string) {
@@ -37,7 +54,7 @@ export class DriverTripsService {
     if (!driver) throw new ForbiddenException('Accountul nu este legat de un șofer');
     return this.tripsRepo.find({
       where: { driver: { id: driver.id } },
-      relations: ['truck', 'trailer', 'stops', 'orders', 'costs', 'documents'],
+      relations: this.tripRelations(),
       order: { createdAt: 'DESC' },
     });
   }

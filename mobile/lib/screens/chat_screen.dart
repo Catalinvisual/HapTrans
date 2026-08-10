@@ -5,6 +5,12 @@ import '../providers/trip_provider.dart';
 import '../providers/chat_provider.dart';
 import '../utils/constants.dart';
 import '../utils/date_formatter.dart';
+import '../utils/trip_fields.dart';
+
+String _short(String s) {
+  if (s.isEmpty) return '';
+  return s.length > 15 ? '${s.substring(0, 15)}…' : s;
+}
 
 class ChatListScreen extends StatelessWidget {
   const ChatListScreen({super.key});
@@ -140,11 +146,11 @@ class ChatListScreen extends StatelessWidget {
                     child: Icon(Icons.headset_mic, color: kPrimary),
                   ),
                   title: Text(
-                    trip['client']?['name'] ?? 'Dispecer',
+                    tripClientName(trip),
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   subtitle: Text(
-                    '${trip['pickupAddress'] != null && trip['pickupAddress'].toString().length > 15 ? trip['pickupAddress'].toString().substring(0, 15) + '…' : trip['pickupAddress'] ?? ''} → ${trip['dropoffAddress'] != null && trip['dropoffAddress'].toString().length > 15 ? trip['dropoffAddress'].toString().substring(0, 15) + '…' : trip['dropoffAddress'] ?? ''}',
+                    _short(tripPickup(trip)) → _short(tripDropoff(trip)),
                     style: const TextStyle(fontSize: 12, color: kTextSecondary),
                   ),
                   trailing: const Icon(Icons.chevron_right, color: kTextSecondary),
@@ -260,7 +266,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Text(
             widget.isDirectDriverChat
                 ? (auth.user?['name'] ?? 'Dispecerat')
-                : (widget.trip['client'] != null ? widget.trip['client']['name'] : 'Dispecer'),
+                : tripClientName(widget.trip),
             style: const TextStyle(fontSize: 16),
           ),
           Row(children: [

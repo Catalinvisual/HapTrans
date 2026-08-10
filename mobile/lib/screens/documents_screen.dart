@@ -15,6 +15,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../utils/date_formatter.dart';
+import '../utils/trip_fields.dart';
 
 class DocumentsScreen extends StatefulWidget {
   const DocumentsScreen({super.key});
@@ -177,7 +178,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       final auth = context.read<AuthProvider>();
       final tripProv = context.read<TripProvider>();
       final selectedTrip = tripProv.trips.firstWhere((t) => t['id'] == _selectedTripId, orElse: () => {});
-      final refPrefix = selectedTrip['referenceNumber'] != null ? '${selectedTrip['referenceNumber']}_' : '';
+      final refPrefix = selectedTrip['tripNumber'] != null ? '${selectedTrip['tripNumber']}_' : '';
       final dio = Dio(BaseOptions(
         baseUrl: kApiUrl,
         headers: {'Authorization': 'Bearer ${auth.token}'},
@@ -345,9 +346,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (ctx, i) {
                           final t = trips[i];
-                          final ref = t['referenceNumber'] ?? 'No Ref';
-                          final pickup = t['pickupAddress'] ?? '';
-                          final dropoff = t['dropoffAddress'] ?? '';
+                          final ref = t['tripNumber'] ?? 'No Ref';
+                          final pickup = tripPickup(t);
+                          final dropoff = tripDropoff(t);
                           final isSelected = _selectedTripId == t['id'];
                           
                           return InkWell(
@@ -787,13 +788,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                       const SizedBox(height: 8),
                       Builder(
                         builder: (context) {
-                          final availableTrips = context.watch<TripProvider>().trips
-                              .where((t) => t['driver']?['user']?['id'] == context.read<AuthProvider>().user?['id'])
-                              .toList();
+                          final availableTrips = context.watch<TripProvider>().trips;
                           final selectedTrip = availableTrips.firstWhere((t) => t['id'] == _selectedTripId, orElse: () => <String, dynamic>{});
-                          final selectedRef = selectedTrip.isNotEmpty ? (selectedTrip['referenceNumber'] ?? 'Ref') : l['selectTrip']!;
-                          final selectedPickup = selectedTrip.isNotEmpty ? (selectedTrip['pickupAddress'] ?? '').split(',').first : '';
-                          final selectedDropoff = selectedTrip.isNotEmpty ? (selectedTrip['dropoffAddress'] ?? '').split(',').first : '';
+                          final selectedRef = selectedTrip.isNotEmpty ? (selectedTrip['tripNumber'] ?? 'Ref') : l['selectTrip']!;
+                          final selectedPickup = selectedTrip.isNotEmpty ? tripPickup(selectedTrip).split(',').first : '';
+                          final selectedDropoff = selectedTrip.isNotEmpty ? tripDropoff(selectedTrip).split(',').first : '';
 
                           return GestureDetector(
                             onTap: () => _showTripSelectionSheet(availableTrips, l),

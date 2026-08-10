@@ -68,11 +68,6 @@ const WebsiteHubPage   = lazy(() => import('./pages/WebsiteHubPage'));
 const SharedDocumentPage = lazy(() => import('./pages/SharedDocumentPage'));
 const TrackingPage     = lazy(() => import('./pages/TrackingPage'));
 
-// ─── Driver App Pages (PWA) ──────────────────────────────────────────────
-const DriverLayout           = lazy(() => import('./pages/driver/DriverLayout'));
-const DriverHomePage         = lazy(() => import('./pages/driver/DriverHomePage'));
-const DriverTripDetailPage   = lazy(() => import('./pages/driver/DriverTripDetailPage'));
-
 // ─── Portal Pages (Lazy) ──────────────────────────────────────────────────
 const PortalLayout           = lazy(() => import('./layouts/PortalLayout'));
 const PortalLoginPage        = lazy(() => import('./pages/portal/PortalLoginPage'));
@@ -125,12 +120,6 @@ export default function App() {
               </Suspense>
             }
           />
-
-          {/* ─── Driver App Routes (PWA) ─────────────────────────────────────── */}
-          <Route path="/driver" element={<Suspense fallback={<PageLoader />}><DriverLayout /></Suspense>}>
-            <Route index element={<Suspense fallback={<PageLoader />}><DriverHomePage /></Suspense>} />
-            <Route path="trips/:id" element={<Suspense fallback={<PageLoader />}><DriverTripDetailPage /></Suspense>} />
-          </Route>
 
           {/* ─── Client Portal Routes ─────────────────────────────────────────── */}
           <Route path="/portal/login" element={<Suspense fallback={<PageLoader />}><PortalLoginPage /></Suspense>} />

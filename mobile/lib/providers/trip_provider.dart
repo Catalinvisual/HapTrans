@@ -19,7 +19,7 @@ class TripProvider extends ChangeNotifier {
   Future<void> loadTrips(String token) async {
     _loading = true; notifyListeners();
     try {
-      final res = await _dio(token).get('/trips');
+      final res = await _dio(token).get('/driver/trips');
       _trips = List<Map<String, dynamic>>.from(res.data);
       _error = null;
     } catch (e) {
@@ -34,7 +34,7 @@ class TripProvider extends ChangeNotifier {
 
   Future<void> silentReloadTrips(String token) async {
     try {
-      final res = await _dio(token).get('/trips');
+      final res = await _dio(token).get('/driver/trips');
       _trips = List<Map<String, dynamic>>.from(res.data);
       _error = null;
       notifyListeners();
@@ -48,7 +48,7 @@ class TripProvider extends ChangeNotifier {
 
   Future<bool> updateStatus(String token, String tripId, String status) async {
     try {
-      await _dio(token).patch('/trips/$tripId', data: {'status': status});
+      await _dio(token).patch('/driver/trips/$tripId/status', data: {'status': status});
       await loadTrips(token);
       return true;
     } catch (e) {
@@ -59,6 +59,16 @@ class TripProvider extends ChangeNotifier {
   Future<bool> updateStopStatus(String token, String stopId, String status) async {
     try {
       await _dio(token).patch('/trips/stops/$stopId/status', data: {'status': status});
+      await silentReloadTrips(token);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> updateTaskStatus(String token, String taskId, String status) async {
+    try {
+      await _dio(token).patch('/trips/tasks/$taskId/status', data: {'status': status});
       await silentReloadTrips(token);
       return true;
     } catch (e) {

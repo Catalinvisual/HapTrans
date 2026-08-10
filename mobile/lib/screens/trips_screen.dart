@@ -7,6 +7,7 @@ import '../providers/trip_provider.dart';
 import '../utils/constants.dart';
 import '../utils/date_formatter.dart';
 import '../utils/trip_status.dart';
+import '../utils/trip_fields.dart';
 import 'chat_screen.dart';
 import 'trip_dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -150,9 +151,7 @@ class _TripsScreenState extends State<TripsScreen> {
 
     final userName = auth.user?['name'] ?? 'Șofer';
 
-    final myTrips = tripProv.trips.where((t) =>
-      t['driver']?['user']?['id'] == auth.user?['id']
-    ).toList();
+    final myTrips = tripProv.trips;
 
     // Filter logic
     final filteredTrips = myTrips.where((t) {
@@ -297,15 +296,13 @@ class _TripsScreenState extends State<TripsScreen> {
                           final trip = filteredTrips[i];
                           final status = trip['status'] ?? 'planned';
                           // Next stop logic
-                          final stops = List<Map<String, dynamic>>.from(trip['stops'] ?? []);
-                          stops.sort((a, b) => (a['orderIndex'] ?? 0).compareTo(b['orderIndex'] ?? 0));
-                          final nextStop = stops.firstWhere((s) => s['status'] != 'completed', orElse: () => <String, dynamic>{});
-                          final hasNextStop = nextStop.isNotEmpty;
-                          final nextStopName = hasNextStop ? (nextStop['locationName'] ?? 'Unknown') : 'Completed';
+                          final nextStop = nextStopOf(trip);
+                          final hasNextStop = nextStop != null;
+                          final nextStopName = hasNextStop ? stopLocation(nextStop) : 'Completed';
                           var nextStopEta = '—';
-                          if (hasNextStop && nextStop['plannedArrival'] != null) {
+                          if (hasNextStop && nextStop['eta'] != null) {
                             try {
-                              final dt = DateTime.parse(nextStop['plannedArrival'].toString());
+                              final dt = DateTime.parse(nextStop['eta'].toString());
                               nextStopEta = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
                             } catch (e) {}
                           }
@@ -326,7 +323,7 @@ class _TripsScreenState extends State<TripsScreen> {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'TRIP ${trip['referenceNumber']?.replaceFirst('REF-', '#') ?? '#${trip['id'].toString().substring(0, 4)}'}',
+                                        'TRIP ${trip['tripNumber'] ?? '#${trip['id'].toString().substring(0, 4)}'}',
                                         style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: kText),
                                       ),
                                       Container(
@@ -342,7 +339,7 @@ class _TripsScreenState extends State<TripsScreen> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    '${trip['truck']?['plateNumber'] ?? 'N/A'}  •  ${stops.length} Stops  •  ${(trip['orders'] as List?)?.length ?? 0} Orders',
+                                    '${trip['truck']?['plateNumber'] ?? 'N/A'}  •  ${(trip['stops'] as List?)?.length ?? 0} Stops  •  ${(trip['orders'] as List?)?.length ?? 0} Orders',
                                     style: const TextStyle(color: kTextSecondary, fontSize: 13, fontWeight: FontWeight.w600),
                                   ),
                                   const SizedBox(height: 16),

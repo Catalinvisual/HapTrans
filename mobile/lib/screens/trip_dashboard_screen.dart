@@ -5,8 +5,8 @@ import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
 import '../utils/constants.dart';
 import '../utils/date_formatter.dart';
+import '../utils/trip_fields.dart';
 import 'chat_screen.dart';
-import 'package:dio/dio.dart';
 
 class TripDashboardScreen extends StatefulWidget {
   final Map<String, dynamic> trip;
@@ -52,11 +52,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
     }
   }
 
-  Map<String, dynamic>? get nextStop {
-    final stops = List<Map<String, dynamic>>.from(tripData['stops'] ?? []);
-    stops.sort((a, b) => (a['orderIndex'] ?? 0).compareTo(b['orderIndex'] ?? 0));
-    return stops.cast<Map<String, dynamic>?>().firstWhere((s) => s != null && s['status'] != 'completed', orElse: () => null);
-  }
+  Map<String, dynamic>? get nextStop => nextStopOf(tripData);
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +63,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
         elevation: 0,
         iconTheme: const IconThemeData(color: kText),
         title: Text(
-          'TRIP ${tripData['referenceNumber']?.replaceFirst('REF-', '#') ?? '#${tripData['id'].toString().substring(0, 4)}'}',
+          'TRIP ${tripData['tripNumber'] ?? '#${tripData['id'].toString().substring(0, 4)}'}',
           style: const TextStyle(color: kText, fontWeight: FontWeight.w900, fontSize: 18),
         ),
         actions: [
@@ -123,9 +119,9 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
     final tasks = List<Map<String, dynamic>>.from(stop['tasks'] ?? []);
     final isArrived = stop['status'] == 'arrived';
     var etaStr = '—';
-    if (stop['plannedArrival'] != null) {
+    if (stop['eta'] != null) {
       try {
-        final dt = DateTime.parse(stop['plannedArrival'].toString());
+        final dt = DateTime.parse(stop['eta'].toString());
         etaStr = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
       } catch (e) {}
     }
@@ -159,12 +155,12 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text('Pallets', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            Text('${tripData['pallets'] ?? 0} / 33', style: const TextStyle(fontSize: 12, color: kTextSecondary)),
+                            Text('${totalPallets(tripData)} / 33', style: const TextStyle(fontSize: 12, color: kTextSecondary)),
                           ],
                         ),
                         const SizedBox(height: 4),
                         LinearProgressIndicator(
-                          value: ((tripData['pallets'] ?? 0) / 33).clamp(0.0, 1.0),
+                          value: (totalPallets(tripData) / 33).clamp(0.0, 1.0),
                           backgroundColor: kBorder,
                           color: kPrimary,
                           minHeight: 6,
@@ -182,12 +178,12 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text('Weight', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            Text('${tripData['weightKg'] ?? 0} / 24t', style: const TextStyle(fontSize: 12, color: kTextSecondary)),
+                            Text('${totalWeightKg(tripData).round()} / 24t', style: const TextStyle(fontSize: 12, color: kTextSecondary)),
                           ],
                         ),
                         const SizedBox(height: 4),
                         LinearProgressIndicator(
-                          value: ((double.tryParse(tripData['weightKg']?.toString() ?? '0') ?? 0) / 24000).clamp(0.0, 1.0),
+                          value: (totalWeightKg(tripData) / 24000).clamp(0.0, 1.0),
                           backgroundColor: kBorder,
                           color: Colors.blue,
                           minHeight: 6,
@@ -248,7 +244,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      stop['locationName'] ?? 'Unknown',
+                      stopLocation(stop),
                       style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: kText),
                     ),
                   ),
@@ -297,7 +293,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '$type Order ${task['order']?['referenceNumber']?.replaceFirst('REF-', '#') ?? '#'}',
+                                '$type Order ${task['order']?['orderNumber'] ?? '#'}',
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
@@ -317,7 +313,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
                           ElevatedButton(
                             onPressed: () async {
                               try {
-                                await Dio().patch('$kApiUrl/trips/tasks/${task['id']}/status', data: {'status': 'completed'});
+                                await context.read<TripProvider>().updateTaskStatus(widget.token, task['id'] as String, 'completed');
                                 _refreshTrip();
                               } catch (e) {
                                 debugPrint('Error completing task: $e');
@@ -341,7 +337,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () async {
-                          final query = Uri.encodeComponent(stop['locationName'] ?? '');
+                          final query = Uri.encodeComponent(stopLocation(stop));
                           final uri = Uri.parse('google.navigation:q=$query');
                           if (await canLaunchUrl(uri)) {
                             await launchUrl(uri);
@@ -363,7 +359,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
                       child: ElevatedButton(
                         onPressed: () async {
                           try {
-                            await Dio().patch('$kApiUrl/trips/stops/${stop['id']}/status', data: {'status': 'arrived'});
+                            await context.read<TripProvider>().updateStopStatus(widget.token, stop['id'] as String, 'arrived');
                             _refreshTrip();
                           } catch (e) {
                             debugPrint('Error arriving at stop: $e');
@@ -381,7 +377,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
                       child: ElevatedButton(
                         onPressed: () async {
                           try {
-                            await Dio().patch('$kApiUrl/trips/stops/${stop['id']}/status', data: {'status': 'completed'});
+                            await context.read<TripProvider>().updateStopStatus(widget.token, stop['id'] as String, 'completed');
                             _refreshTrip();
                           } catch (e) {
                             debugPrint('Error completing stop: $e');
@@ -404,8 +400,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
   }
 
   Widget _buildItinerary() {
-    final stops = List<Map<String, dynamic>>.from(tripData['stops'] ?? []);
-    stops.sort((a, b) => (a['orderIndex'] ?? 0).compareTo(b['orderIndex'] ?? 0));
+    final stops = sortedStops(tripData);
 
     if (stops.isEmpty) {
       return const Center(child: Text('No stops mapped.'));
@@ -463,18 +458,18 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        stop['locationName'] ?? 'Unknown',
+                        stopLocation(stop),
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: kText,
                         ),
                       ),
-                      if (stop['plannedArrival'] != null)
+                      if (stop['eta'] != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
-                            formatAppDate(stop['plannedArrival']),
+                            formatAppDate(stop['eta']),
                             style: const TextStyle(fontSize: 12, color: kTextSecondary),
                           ),
                         ),
@@ -494,9 +489,9 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
       padding: const EdgeInsets.all(20),
       children: [
         _InfoRow(Icons.local_shipping_outlined, {'ro':'Camion','en':'Truck'}[widget.locale] ?? 'Truck', tripData['truck']?['plateNumber'] ?? '—'),
-        _InfoRow(Icons.business_outlined, 'Client', tripData['client']?['name'] ?? '—'),
-        _InfoRow(Icons.inventory_2_outlined, 'Pallets', '${tripData['pallets'] ?? 0} EPAL'),
-        _InfoRow(Icons.scale_outlined, 'Weight', '${tripData['weightKg'] ?? 0} kg'),
+        _InfoRow(Icons.business_outlined, 'Client', tripClientName(tripData)),
+        _InfoRow(Icons.inventory_2_outlined, 'Pallets', '${totalPallets(tripData)} EPAL'),
+        _InfoRow(Icons.scale_outlined, 'Weight', '${totalWeightKg(tripData).round()} kg'),
         if (tripData['notes'] != null && tripData['notes'].toString().isNotEmpty)
           _InfoRow(Icons.notes, 'Notes', tripData['notes']),
       ],
