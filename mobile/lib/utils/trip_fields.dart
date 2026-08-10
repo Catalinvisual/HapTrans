@@ -1,6 +1,6 @@
-/// Helpers that map the driver mobile UI to the real HapTrans SaaS schema.
-/// Trips expose `stops` (with `sequence`, `eta`, `companyName`/`city`/`address`),
-/// `orders` (with `client`, `cargoItems`) — not the flat fields the app once assumed.
+// Helpers that map the driver mobile UI to the real HapTrans SaaS schema.
+// Trips expose `stops` (with `sequence`, `eta`, `companyName`/`city`/`address`),
+// `orders` (with `client`, `cargoItems`) — not the flat fields the app once assumed.
 
 String stopLocation(Map<String, dynamic> stop) {
   final name = stop['companyName']?.toString();

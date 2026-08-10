@@ -5,12 +5,9 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
 import '../utils/constants.dart';
-import '../utils/date_formatter.dart';
 import '../utils/trip_status.dart';
 import '../utils/trip_fields.dart';
-import 'chat_screen.dart';
 import 'trip_dashboard_screen.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'package:dio/dio.dart';
 

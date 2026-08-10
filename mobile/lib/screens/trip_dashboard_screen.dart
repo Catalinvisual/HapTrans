@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
 import '../utils/constants.dart';
 import '../utils/date_formatter.dart';
 import '../utils/trip_fields.dart';
-import 'chat_screen.dart';
 
 class TripDashboardScreen extends StatefulWidget {
   final Map<String, dynamic> trip;

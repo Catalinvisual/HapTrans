@@ -1,30 +1,86 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:hapcargo_driver/main.dart';
+import 'package:hapcargo_driver/utils/trip_fields.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('trip_fields helpers', () {
+    test('stopLocation falls back company -> city -> address -> Unknown', () {
+      expect(stopLocation({'companyName': 'Acme', 'city': 'Cluj', 'address': 'Str X'}), 'Acme');
+      expect(stopLocation({'city': 'Cluj', 'address': 'Str X'}), 'Cluj');
+      expect(stopLocation({'address': 'Str X'}), 'Str X');
+      expect(stopLocation({}), 'Unknown');
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    test('sortedStops orders by sequence', () {
+      final trip = {
+        'stops': [
+          {'sequence': 2},
+          {'sequence': 1},
+          {'sequence': 3},
+        ],
+      };
+      final seq = sortedStops(trip).map((s) => s['sequence']).toList();
+      expect(seq, [1, 2, 3]);
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    test('nextStopOf returns first non-completed stop', () {
+      final trip = {
+        'stops': [
+          {'sequence': 1, 'status': 'completed'},
+          {'sequence': 2, 'status': 'arrived'},
+          {'sequence': 3, 'status': 'pending'},
+        ],
+      };
+      expect(nextStopOf(trip)?['sequence'], 2);
+    });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    test('tripPickup/tripDropoff use first/last stop location', () {
+      final trip = {
+        'stops': [
+          {'sequence': 1, 'companyName': 'Pickup Co'},
+          {'sequence': 2, 'companyName': 'Drop Co'},
+        ],
+      };
+      expect(tripPickup(trip), 'Pickup Co');
+      expect(tripDropoff(trip), 'Drop Co');
+    });
+
+    test('totalPallets counts pallet unit quantities', () {
+      final trip = {
+        'orders': [
+          {
+            'cargoItems': [
+              {'unit': 'PALLET', 'quantity': 12},
+              {'unit': 'box', 'quantity': 5},
+            ],
+          },
+          {
+            'cargoItems': [
+              {'unit': 'pallet', 'quantity': 21},
+            ],
+          },
+        ],
+      };
+      expect(totalPallets(trip), 33);
+    });
+
+    test('totalWeightKg sums cargo item weightKg', () {
+      final trip = {
+        'orders': [
+          {'cargoItems': [{'weightKg': 1000.5}, {'weightKg': 500}]},
+        ],
+      };
+      expect(totalWeightKg(trip), 1500.5);
+    });
+
+    test('tripClientName derives from first order client', () {
+      final trip = {
+        'orders': [
+          {'client': {'name': 'Client A'}},
+        ],
+      };
+      expect(tripClientName(trip), 'Client A');
+      expect(tripClientName({}), '—');
+    });
   });
 }

@@ -150,7 +150,7 @@ class ChatListScreen extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   subtitle: Text(
-                    _short(tripPickup(trip)) → _short(tripDropoff(trip)),
+                    '${_short(tripPickup(trip))} → ${_short(tripDropoff(trip))}',
                     style: const TextStyle(fontSize: 12, color: kTextSecondary),
                   ),
                   trailing: const Icon(Icons.chevron_right, color: kTextSecondary),
