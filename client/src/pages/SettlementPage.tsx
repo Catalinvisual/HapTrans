@@ -156,7 +156,7 @@ export default function SettlementPage() {
               <th className="table-header text-right">{t('sett_gross')}</th>
               <th className="table-header text-right">{t('advances')}</th>
               <th className="table-header text-right">{t('deductions')}</th>
-              <th className="table-header font-medium text-success text-right">{t('sett_net')}</th>
+              <th className="table-header text-right">{t('sett_net')}</th>
               <th className="table-header text-center">{t('status')}</th>
               <th className="table-header text-center">{t('actions')}</th>
             </tr>

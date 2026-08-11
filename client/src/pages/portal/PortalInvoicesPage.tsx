@@ -97,14 +97,14 @@ export default function PortalInvoicesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-surface border-b border-border">
-                  <th className="p-3 text-left font-medium text-text-secondary">{t("jsx_invoice")}</th>
-                  <th className="p-3 text-left font-medium text-text-secondary">{t("jsx_issueDate")}</th>
-                  <th className="p-3 text-left font-medium text-text-secondary">{t("jsx_dueDate")}</th>
-                  <th className="p-3 text-left font-medium text-text-secondary">{t("jsx_orderRef")}</th>
-                  <th className="p-3 text-left font-medium text-text-secondary">{t("jsx_total")}</th>
-                  <th className="p-3 text-left font-medium text-text-secondary">{t("jsx_balance")}</th>
-                  <th className="p-3 text-left font-medium text-text-secondary">{t("jsx_status")}</th>
-                  <th className="p-3 text-right font-medium text-text-secondary">{t("jsx_actions")}</th>
+                  <th className="table-header">{t("jsx_invoice")}</th>
+                  <th className="table-header">{t("jsx_issueDate")}</th>
+                  <th className="table-header">{t("jsx_dueDate")}</th>
+                  <th className="table-header">{t("jsx_orderRef")}</th>
+                  <th className="table-header">{t("jsx_total")}</th>
+                  <th className="table-header">{t("jsx_balance")}</th>
+                  <th className="table-header">{t("jsx_status")}</th>
+                  <th className="table-header text-right">{t("jsx_actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -246,11 +246,11 @@ export default function PortalInvoicesPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-surface border-b border-border">
-                          <th className="p-2 text-left font-medium text-text-secondary">{t("jsx_date")}</th>
-                          <th className="p-2 text-left font-medium text-text-secondary">{t("jsx_method")}</th>
-                          <th className="p-2 text-left font-medium text-text-secondary">{t("jsx_reference")}</th>
-                          <th className="p-2 text-right font-medium text-text-secondary">{t("jsx_amount")}</th>
-                          <th className="p-2 text-right font-medium text-text-secondary">{t("jsx_status")}</th>
+                          <th className="table-header">{t("jsx_date")}</th>
+                          <th className="table-header">{t("jsx_method")}</th>
+                          <th className="table-header">{t("jsx_reference")}</th>
+                          <th className="table-header text-right">{t("jsx_amount")}</th>
+                          <th className="table-header text-right">{t("jsx_status")}</th>
                         </tr>
                       </thead>
                       <tbody>

@@ -16,6 +16,7 @@ import StatusBadge from '../components/ui/StatusBadge';
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
 import ExportModal from '../components/ExportModal';
+import AiImportModal from '../components/AiImportModal';
 import toast from 'react-hot-toast';
 
 const TRIP_STATUSES = ['planning', 'planned', 'assigned', 'dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered', 'completed', 'closed', 'cancelled'];
@@ -663,9 +664,9 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
         <table className="w-full text-left">
           <thead className="bg-surface/50 border-b border-border">
             <tr>
-              <th className="px-3 py-2 text-[10px] font-medium uppercase text-text-secondary">{t('reference', 'Reference')}</th>
-              <th className="px-3 py-2 text-[10px] font-medium uppercase text-text-secondary">{t('route', 'Route')}</th>
-              <th className="px-3 py-2 text-[10px] font-medium uppercase text-text-secondary text-right">{t('price', 'Price')}</th>
+              <th className="table-header">{t('reference', 'Reference')}</th>
+              <th className="table-header">{t('route', 'Route')}</th>
+              <th className="table-header text-right">{t('price', 'Price')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60">

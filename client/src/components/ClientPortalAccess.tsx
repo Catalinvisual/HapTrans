@@ -134,11 +134,11 @@ export default function ClientPortalAccess({
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-surface border-b border-border">
-                <th className="p-3 text-left font-medium text-text-secondary">{t('user', 'User')}</th>
-                <th className="p-3 text-left font-medium text-text-secondary">{t('email', 'Email')}</th>
-                <th className="p-3 text-left font-medium text-text-secondary">{t('status', 'Status')}</th>
-                <th className="p-3 text-left font-medium text-text-secondary">{t('lastLogin', 'Last Login')}</th>
-                <th className="p-3 text-right font-medium text-text-secondary">{t('actions', 'Actions')}</th>
+                <th className="table-header">{t('user', 'User')}</th>
+                <th className="table-header">{t('email', 'Email')}</th>
+                <th className="table-header">{t('status', 'Status')}</th>
+                <th className="table-header">{t('lastLogin', 'Last Login')}</th>
+                <th className="table-header text-right">{t('actions', 'Actions')}</th>
               </tr>
             </thead>
             <tbody>

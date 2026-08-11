@@ -542,12 +542,12 @@ const tabs: TabDef[] = drawerDriver ? [
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-surface border-b border-border">
-                    <th className="p-3 text-left font-medium text-text-secondary">{t('date', 'Data')}</th>
-                    <th className="p-3 text-left font-medium text-text-secondary">{t('hos_driving', 'Conducere')}</th>
-                    <th className="p-3 text-left font-medium text-text-secondary">{t('hos_work', 'Muncă')}</th>
-                    <th className="p-3 text-left font-medium text-text-secondary">{t('hos_break', 'Pauză')}</th>
-                    <th className="p-3 text-left font-medium text-text-secondary">{t('hos_notes', 'Note')}</th>
-                    <th className="p-3 text-right font-medium text-text-secondary">{t('actions', 'Acțiuni')}</th>
+                    <th className="table-header">{t('date', 'Data')}</th>
+                    <th className="table-header">{t('hos_driving', 'Conducere')}</th>
+                    <th className="table-header">{t('hos_work', 'Muncă')}</th>
+                    <th className="table-header">{t('hos_break', 'Pauză')}</th>
+                    <th className="table-header">{t('hos_notes', 'Note')}</th>
+                    <th className="table-header text-right">{t('actions', 'Acțiuni')}</th>
                   </tr>
                 </thead>
                 <tbody>

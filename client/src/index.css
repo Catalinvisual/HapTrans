@@ -90,7 +90,7 @@
     @apply bg-orange-50 text-primary font-semibold;
   }
   .table-header {
-    @apply text-xs font-medium text-text-secondary uppercase tracking-wider px-2 py-2 text-left bg-surface;
+    @apply px-3.5 py-2.5 font-medium text-[11px] text-text-secondary uppercase tracking-wider whitespace-nowrap text-left bg-surface;
   }
   .table-cell {
     @apply px-2 py-2 text-sm text-text border-b border-border;
