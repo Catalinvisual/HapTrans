@@ -12,6 +12,11 @@ export class PlanningController {
     return this.planningService.getBoard(req.user, query);
   }
 
+  @Get('pool')
+  pool(@Request() req: any, @Query() query: any) {
+    return this.planningService.pool(req.user, query);
+  }
+
   @Post('orders/validate')
   validateAssignment(@Request() req: any, @Body() body: any) {
     return this.planningService.validateAssignment(req.user, body);

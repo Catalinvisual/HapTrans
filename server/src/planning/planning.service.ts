@@ -301,6 +301,59 @@ export class PlanningService {
 
   // ─── Board ──────────────────────────────────────────────────────────────────
 
+  /**
+   * Lightweight pool: ALL unplanned orders (no date-range filter), used by the
+   * planning page pool when the "All" grouping is selected. Applies the same
+   * filters as the board's order list but ignores the day/week range.
+   */
+  async pool(user: any, q: any) {
+    const companyId = user?.companyId || null;
+    const search = (q.search || '').toString().trim();
+    const limit = Math.min(Number(q.limit) || 500, 500);
+    const offset = Math.max(Number(q.offset) || 0, 0);
+
+    const orderQb = this.orderRepo
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.client', 'client')
+      .leftJoinAndSelect('order.cargoItems', 'cargoItems')
+      .leftJoinAndSelect('order.stops', 'stops')
+      .where('order.tripId IS NULL')
+      .andWhere('order.status IN (:...statuses)', { statuses: UNPLANNED_ORDER_STATUSES })
+      .andWhere(this.companyBracket(companyId, 'order.companyId'));
+
+    if (q.clientId) orderQb.andWhere('order.clientId IN (:...cids)', { cids: String(q.clientId).split(',') });
+    if (q.priority) orderQb.andWhere('order.priority IN (:...prios)', { prios: String(q.priority).split(',') });
+    if (q.equipment) {
+      const eqs = String(q.equipment).split(',');
+      eqs.forEach((eq, i) => {
+        orderQb.andWhere(`:eq${i} = ANY(order.equipmentRequirements)`, { [`eq${i}`]: eq });
+      });
+    }
+    if (q.status) {
+      const statuses = String(q.status).split(',').filter((s) => UNPLANNED_ORDER_STATUSES.includes(s));
+      if (statuses.length) orderQb.andWhere('order.status IN (:...stat)', { stat: statuses });
+    }
+    if (search) {
+      const like = `%${search}%`;
+      orderQb.andWhere(
+        new Brackets((b) => {
+          b.where('order."orderNumber" ILIKE :q', { q: like })
+            .orWhere('order."customerReference" ILIKE :q', { q: like })
+            .orWhere('order."internalReference" ILIKE :q', { q: like })
+            .orWhere('order."loadingReference" ILIKE :q', { q: like })
+            .orWhere('client.name ILIKE :q', { q: like })
+            .orWhere('stops.address ILIKE :q', { q: like })
+            .orWhere('stops.city ILIKE :q', { q: like })
+            .orWhere('stops.postalCode ILIKE :q', { q: like })
+            .orWhere('stops.country ILIKE :q', { q: like });
+        }),
+      );
+    }
+
+    const orders = await orderQb.orderBy('order.createdAt', 'ASC').offset(offset).limit(limit).getMany();
+    return { orders };
+  }
+
   async getBoard(user: any, q: any) {
     const companyId = user?.companyId || null;
     const fromStr = (q.from as string) || dayStr(new Date());

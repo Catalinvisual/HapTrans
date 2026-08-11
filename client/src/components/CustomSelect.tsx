@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
 export interface SelectOption {
   value: string;
@@ -24,6 +25,7 @@ export default function CustomSelect({
   className = '',
   disabled = false
 }: CustomSelectProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -55,13 +57,6 @@ export default function CustomSelect({
       window.removeEventListener('resize', handleScroll);
     };
   }, [isOpen]);
-  useEffect(() => {
-    if (isOpen) {
-      setFocusedIndex(options.findIndex(o => o.value === value));
-    } else {
-      setFocusedIndex(-1);
-    }
-  }, [isOpen, value, options]);
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isOpen) {
       if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -88,15 +83,19 @@ export default function CustomSelect({
     }
   };
   const toggleDropdown = () => {
-    if (!isOpen && wrapperRef.current) {
+    const nextOpen = !isOpen;
+    if (!nextOpen) {
+      setFocusedIndex(-1);
+    } else if (wrapperRef.current) {
       const rect = wrapperRef.current.getBoundingClientRect();
       setCoords({
         left: rect.left,
         top: rect.bottom + window.scrollY,
         width: rect.width
       });
+      setFocusedIndex(options.findIndex(o => o.value === value));
     }
-    setIsOpen(!isOpen);
+    setIsOpen(nextOpen);
   };
   const selectedOption = options.find(o => o.value === value);
   return <div className={`relative ${className}`} ref={wrapperRef}>
@@ -117,7 +116,7 @@ export default function CustomSelect({
       top: coords.top,
       width: coords.width
     }}>
-          {options.length === 0 ? <div className="px-4 py-3 text-sm text-text-secondary">{t("jsx_noOptions")}</div> : options.map((option, index) => <div key={option.value} onClick={() => {
+          {options.length === 0 ? <div className="px-4 py-3 text-sm text-text-secondary">{t("jsx_noOptions", "No options")}</div> : options.map((option, index) => <div key={option.value} onClick={() => {
         if (!option.disabled) {
           onChange(option.value);
           setIsOpen(false);

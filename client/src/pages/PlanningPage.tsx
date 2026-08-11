@@ -255,9 +255,8 @@ function OrderDetailDrawer({ order, onClose, onPlan, onDelete }: any) {
   const pickup = order.stops?.find((s: any) => s.type === 'pickup');
   const dropoff = order.stops?.find((s: any) => s.type === 'dropoff');
   const cargo = sumCargo([order]);
-  return typeof document !== 'undefined' ? createPortal(<div className="fixed inset-0 z-[9999] flex justify-end" onClick={onClose}>
-    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-    <div className="relative w-full max-w-md bg-card shadow-2xl flex flex-col h-full overflow-y-auto border-l border-border" style={{ animation: 'slideInRight 0.22s ease-out' }} onClick={(e) => e.stopPropagation()}>
+  return typeof document !== 'undefined' ? createPortal(<div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ backdropFilter: 'blur(4px)', backgroundColor: 'rgba(0,0,0,0.55)' }} onClick={onClose}>
+    <div className="relative w-full max-w-lg bg-card shadow-2xl rounded-2xl flex flex-col overflow-y-auto border border-border" style={{ maxHeight: '85vh', animation: 'fadeInUp 0.18s ease-out' }} onClick={(e) => e.stopPropagation()}>
       <div className="flex items-start justify-between p-5 border-b border-border bg-surface/40 shrink-0">
         <div>
           <h2 className="text-xl font-black text-text-primary">{order.orderNumber || order.referenceNumber || '—'}</h2>
@@ -646,7 +645,7 @@ export default function PlanningPage() {
   const [trailerFilter, setTrailerFilter] = useState('');
   const [clients, setClients] = useState<any[]>([]);
   const [trailers, setTrailers] = useState<any[]>([]);
-  const [poolGroupBy, setPoolGroupBy] = useState<'none' | 'day' | 'client' | 'priority'>('none');
+  const [poolGroupBy, setPoolGroupBy] = useState<'all' | 'day' | 'client' | 'priority'>('all');
   const [poolSortBy, setPoolSortBy] = useState<'priority' | 'date' | 'weight' | 'pallets' | 'price' | 'client'>('priority');
   const [boardGroup, setBoardGroup] = useState<'vehicle' | 'driver' | 'trailer'>('vehicle');
   const [truckFilter, setTruckFilter] = useState<'all' | 'busy' | 'planned' | 'free' | 'warning'>('all');
@@ -688,6 +687,8 @@ export default function PlanningPage() {
   const [highlightResourceId, setHighlightResourceId] = useState<string | null>(null);
   const [dateMenuOpen, setDateMenuOpen] = useState(false);
   const [poolColsOpen, setPoolColsOpen] = useState(false);
+  const [poolColsCoords, setPoolColsCoords] = useState({ left: 0, top: 0, width: 192 });
+  const poolColsBtnRef = useRef<HTMLButtonElement>(null);
   const [poolCols, setPoolCols] = useState<Record<string, boolean>>(() => {
     try { return { ...DEFAULT_POOL_COLS, ...(JSON.parse(localStorage.getItem('planning_pool_cols') || '{}')) }; }
     catch { return { ...DEFAULT_POOL_COLS }; }
@@ -767,9 +768,25 @@ export default function PlanningPage() {
     }
   }, [from, to, debouncedSearch, statusFilter, vehicleFilter, driverFilter, priorityFilter, equipmentFilter, clientFilter, trailerFilter, t]);
 
+  const [poolOrders, setPoolOrders] = useState<any[] | null>(null);
+
+  const loadPool = useCallback(async () => {
+    try {
+      const params: any = {};
+      if (debouncedSearch) params.search = debouncedSearch;
+      if (statusFilter) params.status = statusFilter;
+      if (priorityFilter) params.priority = priorityFilter;
+      if (equipmentFilter) params.equipment = equipmentFilter;
+      if (clientFilter) params.clientId = clientFilter;
+      const res = await api.get('/planning/pool', { params });
+      setPoolOrders(res.data?.orders || []);
+    } catch { /* silent - keep current pool */ }
+  }, [debouncedSearch, statusFilter, priorityFilter, equipmentFilter, clientFilter]);
+
   useEffect(() => { loadBoard(); }, [loadBoard]);
+  useEffect(() => { loadPool(); }, [loadPool]);
   useEffect(() => { const id = setTimeout(() => setDebouncedSearch(search), 400); return () => clearTimeout(id); }, [search]);
-  useEffect(() => { const id = setInterval(() => loadBoard(true), 30000); return () => clearInterval(id); }, [loadBoard]);
+  useEffect(() => { const id = setInterval(() => { loadBoard(true); loadPool(); }, 30000); return () => clearInterval(id); }, [loadBoard, loadPool]);
 
   useEffect(() => {
     if (viewMode !== 'map') return;
@@ -835,6 +852,7 @@ export default function PlanningPage() {
   const resources = data?.resources || [];
   const trips = data?.trips || [];
   const orders = data?.orders || [];
+  const poolList = poolOrders ?? orders;
   const drivers = data?.drivers || [];
   const hosSummary = data?.hosSummary || {};
   const counts = data?.counts || {};
@@ -925,7 +943,7 @@ export default function PlanningPage() {
 
   // Pool grouping
   const groupedPool = useMemo(() => {
-    const list = orders;
+    const list = poolList;
     const groups: { key: string; label: string; items: any[] }[] = [];
     const bucket = new Map<string, { label: string; items: any[] }>();
     for (const o of list) {
@@ -952,7 +970,7 @@ export default function PlanningPage() {
       else items.sort((a: any, b: any) => (orderPriority[a.priority || 'normal'] ?? 9) - (orderPriority[b.priority || 'normal'] ?? 9));
     }
     return groups;
-  }, [orders, poolGroupBy, poolSortBy, t]);
+  }, [poolList, poolGroupBy, poolSortBy, t]);
 
   // ── KPI ────────────────────────────────────────────────────────────────────
   const kpis = [
@@ -1003,6 +1021,7 @@ export default function PlanningPage() {
       const res = await fn();
       toast.success(successMsg);
       await loadBoard(true);
+      loadPool();
       return res;
     } catch (e: any) {
       const msg = e?.response?.data?.message;
@@ -1442,28 +1461,42 @@ export default function PlanningPage() {
           <div className="flex items-center justify-between shrink-0">
             <h2 className="font-bold text-text-primary text-sm flex items-center gap-1.5"><Package className="w-4 h-4 text-primary" />{t('unassigned_orders', 'Comenzi Neasignate')}</h2>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold px-2 py-0.5 bg-primary/10 text-primary rounded-full border border-primary/20">{orders.length}</span>
+                <span className="text-xs font-bold px-2 py-0.5 bg-primary/10 text-primary rounded-full border border-primary/20">{poolList.length}</span>
               <div className="relative">
-                <button onClick={() => setPoolColsOpen(!poolColsOpen)} title={t('jsx_cols', 'Configurează coloanele')} className={`p-1 hover:bg-surface rounded text-text-secondary hover:text-primary ${poolColsOpen ? 'bg-surface text-primary' : ''}`}><Columns3 className="w-3.5 h-3.5" /></button>
-                {poolColsOpen && (
-                  <div className="absolute right-0 top-full mt-1 z-50 w-48 bg-card border border-border rounded-xl shadow-xl p-2 text-[11px]">
-                    <p className="font-bold text-text-primary px-1 mb-1">{t('jsx_cols', 'Configurează coloanele')}</p>
-                    {Object.keys(DEFAULT_POOL_COLS).map((k) => (
-                      <label key={k} className="flex items-center gap-2 px-1 py-1 rounded-lg hover:bg-surface cursor-pointer">
-                        <input type="checkbox" checked={!!poolCols[k]} onChange={(e) => setPoolCols({ ...poolCols, [k]: e.target.checked })} className="accent-primary" />
-                        <span className="capitalize text-text-primary">{t(`pool_col_${k}`, k)}</span>
-                      </label>
-                    ))}
-                    <div className="flex justify-between mt-1 pt-1 border-t border-border">
-                      <button onClick={() => setPoolCols({ ...DEFAULT_POOL_COLS })} className="px-1.5 py-0.5 rounded hover:bg-surface text-text-secondary font-bold">{t('jsx_reset', 'Reset')}</button>
-                      <button onClick={() => setPoolColsOpen(false)} className="px-1.5 py-0.5 rounded hover:bg-surface text-primary font-bold">{t('jsx_done', 'Gata')}</button>
+                <button ref={poolColsBtnRef} onClick={() => {
+                  if (!poolColsOpen && poolColsBtnRef.current) {
+                    const r = poolColsBtnRef.current.getBoundingClientRect();
+                    const w = 192; const estH = 280;
+                    setPoolColsCoords({
+                      left: Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8)),
+                      top: Math.max(8, Math.min(r.bottom + 4, window.innerHeight - estH - 8)),
+                      width: w,
+                    });
+                  }
+                  setPoolColsOpen(!poolColsOpen);
+                }} title={t('jsx_cols', 'Configureaza coloanele')} className={`p-1 hover:bg-surface rounded text-text-secondary hover:text-primary ${poolColsOpen ? 'bg-surface text-primary' : ''}`}><Columns3 className="w-3.5 h-3.5" /></button>
+                {poolColsOpen && typeof document !== 'undefined' && createPortal(
+                  <div className="fixed inset-0 z-[9999]" onMouseDown={() => setPoolColsOpen(false)}>
+                    <div className="absolute bg-card border border-border rounded-xl shadow-xl p-2 text-[11px]" style={{ left: poolColsCoords.left, top: poolColsCoords.top, width: poolColsCoords.width }} onMouseDown={(e) => e.stopPropagation()}>
+                      <p className="font-bold text-text-primary px-1 mb-1">{t('jsx_cols', 'Configureaza coloanele')}</p>
+                      {Object.keys(DEFAULT_POOL_COLS).map((k) => (
+                        <label key={k} className="flex items-center gap-2 px-1 py-1 rounded-lg hover:bg-surface cursor-pointer">
+                          <input type="checkbox" checked={!!poolCols[k]} onChange={(e) => setPoolCols({ ...poolCols, [k]: e.target.checked })} className="accent-primary" />
+                          <span className="capitalize text-text-primary">{t(`pool_col_${k}`, k)}</span>
+                        </label>
+                      ))}
+                      <div className="flex justify-between mt-1 pt-1 border-t border-border">
+                        <button onClick={() => setPoolCols({ ...DEFAULT_POOL_COLS })} className="px-1.5 py-0.5 rounded hover:bg-surface text-text-secondary font-bold">{t('jsx_reset', 'Reset')}</button>
+                        <button onClick={() => setPoolColsOpen(false)} className="px-1.5 py-0.5 rounded hover:bg-surface text-primary font-bold">{t('jsx_done', 'Gata')}</button>
+                      </div>
                     </div>
-                  </div>
+                  </div>,
+                  document.body
                 )}
               </div>
-              <button onClick={() => { const s = new Set<string>(); if (bulkSelected.size < orders.length) orders.forEach((o: any) => s.add(o.id)); setBulkSelected(s); }} className="p-1 hover:bg-surface rounded text-text-secondary hover:text-primary" title={t('jsx_selectAll', 'Selectează toate')}><CheckSquare className="w-3.5 h-3.5" /></button>
+              <button onClick={() => { const s = new Set<string>(); if (bulkSelected.size < poolList.length) poolList.forEach((o: any) => s.add(o.id)); setBulkSelected(s); }} className="p-1 hover:bg-surface rounded text-text-secondary hover:text-primary" title={t('jsx_selectAll', 'Selectează toate')}><CheckSquare className="w-3.5 h-3.5" /></button>
               <button onClick={() => setPoolCollapsed(true)} title={t('jsx_collapsePool', 'Restrânge panoul')} className="p-1 hover:bg-surface rounded text-text-secondary hover:text-primary"><ChevronsLeft className="w-3.5 h-3.5" /></button>
-              <CustomSelect value={poolGroupBy} onChange={(v) => setPoolGroupBy(v as any)} options={[{ value: 'none', label: t('jsx_noGroup', 'Fără grupare') }, { value: 'day', label: t('jsx_groupDay', 'Pe zi') }, { value: 'client', label: t('jsx_groupClient', 'Pe client') }, { value: 'priority', label: t('jsx_groupPriority', 'Pe prioritate') }]} className="w-32 text-xs" />
+              <CustomSelect value={poolGroupBy} onChange={(v) => setPoolGroupBy(v as any)} options={[{ value: 'all', label: t('jsx_groupAll', 'Toate') }, { value: 'day', label: t('jsx_groupDay', 'Pe zi') }, { value: 'client', label: t('jsx_groupClient', 'Pe client') }, { value: 'priority', label: t('jsx_groupPriority', 'Pe prioritate') }]} className="w-32 text-xs" />
               <CustomSelect value={poolSortBy} onChange={(v) => setPoolSortBy(v as any)} options={[
                 { value: 'priority', label: t('jsx_sortPriority', 'Prioritate') },
                 { value: 'date', label: t('jsx_sortDate', 'Dată') },
@@ -1487,7 +1520,7 @@ export default function PlanningPage() {
 
           {/* Pool list */}
           <div className="flex-1 overflow-y-auto space-y-3 pr-1 pb-4">
-            {orders.length === 0 && !loading && <div className="bg-card border border-border rounded-2xl py-10 flex flex-col items-center text-center">
+            {poolList.length === 0 && !loading && <div className="bg-card border border-border rounded-2xl py-10 flex flex-col items-center text-center">
               <CheckCircle2 className="w-10 h-10 text-green-500 mb-2 opacity-60" />
               <p className="text-sm font-semibold text-text-primary">{t("allOrdersPlanned", 'Toate comenzile sunt planificate!')}</p>
             </div>}
@@ -1577,10 +1610,10 @@ export default function PlanningPage() {
             </div>
           </div>
 
-          {!loading && orders.length > 0 && freeCount > 0 && (
+          {!loading && poolList.length > 0 && freeCount > 0 && (
             <div className="flex items-center gap-2 bg-amber-100/70 border border-amber-200 rounded-xl px-3 py-2 text-xs shadow-sm">
               <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-              <span className="text-amber-800 font-black">{t('jsx_unplannedBanner', 'Comenzi neplanificate')}: {orders.length}</span>
+              <span className="text-amber-800 font-black">{t('jsx_unplannedBanner', 'Comenzi neplanificate')}: {poolList.length}</span>
               <span className="text-amber-700 text-[11px] hidden md:inline">{t('jsx_unplannedHint', 'Există resurse disponibile în interval.')}</span>
               <div className="ml-auto flex gap-1.5">
                 <button onClick={() => { setPoolCollapsed(false); setPoolGroupBy('priority'); }} className="px-2.5 py-1 text-[11px] font-bold text-amber-800 bg-amber-200/70 hover:bg-amber-200 rounded-lg">{t('jsx_showPool', 'Vezi panou')}</button>
@@ -1860,3 +1893,6 @@ export default function PlanningPage() {
     </div>
   );
 }
+
+
+
