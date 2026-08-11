@@ -35,6 +35,7 @@ import { QuotesModule } from './quotes/quotes.module';
 import { JobApplicationsModule } from './job-applications/job-applications.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from "./payments/payments.module";
+import { PlanningModule } from './planning/planning.module';
 
 import { EnginesModule } from './engines/engines.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -100,6 +101,7 @@ import { PortalModule } from './portal/portal.module';
     OrdersModule,
     PaymentsModule,
     DriverModule,
+    PlanningModule,
   ],
   controllers: [AppController],
   providers: [AppService],

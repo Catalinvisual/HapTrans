@@ -21,6 +21,7 @@ export default {
           DEFAULT: 'rgb(var(--color-text) / <alpha-value>)',
           secondary: 'rgb(var(--color-text-secondary) / <alpha-value>)',
           light: 'rgb(var(--color-text-light) / <alpha-value>)',
+          muted: 'rgb(var(--color-text-muted) / <alpha-value>)',
         },
         border: 'rgb(var(--color-border) / <alpha-value>)',
       },

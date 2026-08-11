@@ -18,6 +18,7 @@
     --color-text: 13 27 42;
     --color-text-secondary: 107 114 128;
     --color-text-light: 156 163 175;
+    --color-text-muted: 156 163 175;
     --color-border: 209 213 219;
   }
 
@@ -35,6 +36,7 @@
     --color-text: 248 250 252;
     --color-text-secondary: 148 163 184;
     --color-text-light: 100 116 139;
+    --color-text-muted: 100 116 139;
     --color-border: 51 65 85;
     color-scheme: dark;
   }
@@ -292,3 +294,11 @@ input[readonly] {
   background: transparent !important;
   background-color: transparent !important;
 }
+
+@media print {
+  body.print-mode > #root { display: none !important; }
+  body.print-mode .print-overlay { position: static !important; background: none !important; padding: 0 !important; overflow: visible !important; display: block !important; backdrop-filter: none !important; }
+  body.print-mode .print-toolbar { display: none !important; }
+  body.print-mode .print-panel { width: 100% !important; max-width: none !important; box-shadow: none !important; border: none !important; border-radius: 0 !important; }
+}
+

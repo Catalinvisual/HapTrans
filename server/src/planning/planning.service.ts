@@ -1,0 +1,2093 @@
+import { Injectable, BadRequestException, ForbiddenException, NotFoundException, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, In, IsNull, Brackets } from 'typeorm';
+import { Order, OrderStatus } from '../orders/order.entity';
+import { Trip } from '../trips/trip.entity';
+import { Stop } from '../trips/stop.entity';
+import { StopTask } from '../trips/stop-task.entity';
+import { Truck } from '../trucks/truck.entity';
+import { Trailer } from '../trucks/trailer.entity';
+import { Driver } from '../drivers/driver.entity';
+import { DriverHos } from '../drivers/driver-hos.entity';
+import { Maintenance } from '../maintenance/maintenance.entity';
+import { PlanningView } from './planning-view.entity';
+import { PlanningAction } from './planning-action.entity';
+import { PlanningEngine } from '../engines/planning.engine';
+import { OptimizationEngine } from '../engines/optimization.engine';
+import { PricingEngine } from '../engines/pricing.engine';
+import { TimelineService } from '../timeline/timeline.service';
+
+export const ACTIVE_TRIP_STATUSES = [
+  'planning', 'planned', 'assigned', 'dispatched', 'driver_accepted',
+  'started', 'loading', 'driving', 'partially_delivered',
+];
+export const PLANNING_TRIP_STATUSES = ['planning', 'planned', 'assigned'];
+export const UNPLANNED_ORDER_STATUSES = ['draft', 'new', 'planned'];
+const IN_PROGRESS_TRIP_STATUSES = ['driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'];
+
+export interface PlanningConflict {
+  id: string;
+  level: 'blocking' | 'warning' | 'info';
+  code: string;
+  params?: Record<string, any>;
+  message: string;
+  tripId?: string;
+  orderId?: string;
+  resourceId?: string;
+}
+
+const dayStr = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+@Injectable()
+export class PlanningService {
+  private readonly logger = new Logger(PlanningService.name);
+
+  constructor(
+    @InjectRepository(Order) private readonly orderRepo: Repository<Order>,
+    @InjectRepository(Trip) private readonly tripRepo: Repository<Trip>,
+    @InjectRepository(Stop) private readonly stopRepo: Repository<Stop>,
+    @InjectRepository(StopTask) private readonly taskRepo: Repository<StopTask>,
+    @InjectRepository(Truck) private readonly truckRepo: Repository<Truck>,
+    @InjectRepository(Trailer) private readonly trailerRepo: Repository<Trailer>,
+    @InjectRepository(Driver) private readonly driverRepo: Repository<Driver>,
+    @InjectRepository(DriverHos) private readonly hosRepo: Repository<DriverHos>,
+    @InjectRepository(Maintenance) private readonly maintRepo: Repository<Maintenance>,
+    @InjectRepository(PlanningView) private readonly viewRepo: Repository<PlanningView>,
+    @InjectRepository(PlanningAction) private readonly actionRepo: Repository<PlanningAction>,
+    private readonly planningEngine: PlanningEngine,
+    private readonly optimizationEngine: OptimizationEngine,
+    private readonly pricingEngine: PricingEngine,
+    private readonly timelineService: TimelineService,
+  ) {}
+
+  // ─── Helpers ────────────────────────────────────────────────────────────────
+
+  private companyBracket(companyId: string | null, col: string) {
+    return new Brackets((qb) => {
+      if (companyId) {
+        qb.where(`${col} = :cid`, { cid: companyId }).orWhere(`${col} IS NULL`);
+      } else {
+        qb.where(`${col} IS NULL`);
+      }
+    });
+  }
+
+  private companyArrayWhere(companyId: string | null) {
+    return companyId
+      ? [{ company: { id: companyId } }, { company: IsNull() }]
+      : [{ company: IsNull() }];
+  }
+
+  private getStopDate(os: any): Date | null {
+    if (!os?.dateFrom) return null;
+    const d = new Date(`${os.dateFrom}T${os.timeFrom || '00:00'}:00`);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  private getStopDateEnd(os: any): Date | null {
+    if (!os?.dateFrom) return null;
+    const d = new Date(`${os.dateFrom}T${os.timeUntil || '23:59'}:00`);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  private orderWindow(order: any): { start: Date | null; end: Date | null } {
+    let start: Date | null = null;
+    let end: Date | null = null;
+    for (const os of order.stops || []) {
+      const s = this.getStopDate(os);
+      const e = this.getStopDateEnd(os);
+      if (s && (!start || s < start)) start = s;
+      if (e && (!end || e > end)) end = e;
+    }
+    if (!start && !end) return { start: null, end: null };
+    if (!end) end = start;
+    return { start, end };
+  }
+
+  private deriveDeparture(orders: Order[]): Date | null {
+    let min: Date | null = null;
+    for (const o of orders) {
+      const { start } = this.orderWindow(o);
+      if (start && (!min || start < min)) min = start;
+    }
+    return min;
+  }
+
+  private deriveArrival(orders: Order[]): Date | null {
+    let max: Date | null = null;
+    for (const o of orders) {
+      const { end } = this.orderWindow(o);
+      if (end && (!max || end > max)) max = end;
+    }
+    return max;
+  }
+
+  private sumCargo(orders: any[]) {
+    let weight = 0;
+    let ldm = 0;
+    let pallets = 0;
+    let volume = 0;
+    for (const o of orders || []) {
+      for (const c of o.cargoItems || []) {
+        weight += Number(c.weightKg) || 0;
+        ldm += Number(c.ldm) || 0;
+        volume += Number(c.volumeCbm) || 0;
+        if (String(c.unit || 'pallet') === 'pallet') pallets += Number(c.quantity) || 0;
+      }
+    }
+    return { weight: Math.round(weight * 100) / 100, ldm: Math.round(ldm * 100) / 100, pallets, volume: Math.round(volume * 100) / 100 };
+  }
+
+  private loadTrip(id: string) {
+    return this.tripRepo.findOne({
+      where: { id },
+      relations: ['company', 'truck', 'truck.driver', 'truck.driver.user', 'trailer', 'driver', 'driver.user',
+        'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.client', 'orders.cargoItems',
+        'orders.stops', 'costs', 'dispatcher'],
+    });
+  }
+
+  private logTimeline(
+    action: string,
+    user: any,
+    opts: { orderId?: string; tripId?: string; message?: string; companyId?: string | null },
+  ) {
+    const details = opts.message ? { message: opts.message } : undefined;
+    if (user?.id) {
+      return this.timelineService.logUserEvent(action, user.id, opts.orderId, opts.tripId, details);
+    }
+    return this.timelineService.logSystemEvent(action, opts.orderId, opts.tripId, details);
+  }
+
+  private async recordUndo(
+    user: any,
+    action: string,
+    undoData: { orders?: { id: string; tripId: string | null; status: string }[]; deletedTrips?: any[]; newTripIds?: string[]; trips?: { id: string; status: string }[] },
+  ) {
+    try {
+      const companyId = user?.companyId || null;
+      await this.actionRepo.save(
+        this.actionRepo.create({
+          company: companyId ? { id: companyId } : null,
+          user: user?.id ? { id: user.id } : null,
+          action,
+          undoData,
+        } as any),
+      );
+    } catch (e) {
+      this.logger.warn(`Undo record failed for ${action}: ${(e as Error).message}`);
+    }
+  }
+
+  async undo(user: any, dto: any) {
+    const companyId = user?.companyId || null;
+    const actionId = dto?.actionId || null;
+    const action = actionId
+      ? await this.actionRepo.findOne({ where: { id: actionId } })
+      : await this.actionRepo
+          .createQueryBuilder('a')
+          .where(companyId ? 'a.companyId = :cid' : 'a.companyId IS NULL', { cid: companyId })
+          .orderBy('a.createdAt', 'DESC')
+          .getOne();
+    if (!action) throw new BadRequestException('Nothing to undo.');
+
+    const data = action.undoData || {};
+    const orderSnapshots: { id: string; tripId: string | null; status: string }[] = data.orders || [];
+    const deletedTrips: any[] = data.deletedTrips || [];
+    const newTripIds: string[] = data.newTripIds || [];
+    const tripStatusSnapshots: { id: string; status: string }[] = data.trips || [];
+
+    const affectedTripIds = new Set<string>();
+    for (const s of orderSnapshots) {
+      if (s.tripId) affectedTripIds.add(s.tripId);
+    }
+
+    // 0. Restore trip statuses changed by the action
+    for (const ts of tripStatusSnapshots) {
+      await this.tripRepo.update(ts.id, { status: ts.status });
+      affectedTripIds.add(ts.id);
+    }
+
+    // 1. Remove orders from trips that were created by the action (so they can be deleted safely)
+    for (const newTripId of newTripIds) {
+      const trip = await this.loadTrip(newTripId);
+      if (!trip) continue;
+      for (const o of trip.orders || []) {
+        if (o?.id) {
+          o.trip = null as any;
+          await this.orderRepo.save(o);
+        }
+      }
+      affectedTripIds.add(newTripId);
+    }
+
+    // 2. Restore each order to its previous trip + status
+    const ordersToSave: Order[] = [];
+    const tripIdByOrder: Record<string, string | null> = {};
+    for (const s of orderSnapshots) {
+      const order = await this.orderRepo.findOne({ where: { id: s.id } });
+      if (!order) continue;
+      tripIdByOrder[s.id] = s.tripId;
+      order.trip = s.tripId ? ({ id: s.tripId } as any) : (null as any);
+      order.status = s.status;
+      ordersToSave.push(order);
+    }
+    if (ordersToSave.length) await this.orderRepo.save(ordersToSave);
+
+    // 3. Recreate any trips that were deleted by the action
+    for (const dt of deletedTrips) {
+      const existing = await this.tripRepo.findOne({ where: { id: dt.id } });
+      if (existing) continue;
+      const trip = this.tripRepo.create({
+        id: dt.id,
+        company: dt.companyId ? { id: dt.companyId } : null,
+        tripNumber: dt.tripNumber || null,
+        status: 'planning',
+        truck: dt.truckId ? { id: dt.truckId } : null,
+        driver: dt.driverId ? { id: dt.driverId } : null,
+        trailer: dt.trailerId ? ({ id: dt.trailerId } as any) : undefined,
+        plannedDeparture: dt.plannedDeparture ? new Date(dt.plannedDeparture) : null,
+        plannedArrival: dt.plannedArrival ? new Date(dt.plannedArrival) : null,
+      } as any);
+      const saved = await this.tripRepo.save(trip as unknown as Trip);
+      affectedTripIds.add(saved.id);
+      // Re-attach orders that belonged to this trip
+      for (const s of orderSnapshots) {
+        if (s.tripId === dt.id) {
+          const order = await this.orderRepo.findOne({ where: { id: s.id } });
+          if (order) {
+            order.trip = saved as any;
+            order.status = s.status;
+            await this.orderRepo.save(order);
+          }
+        }
+      }
+    }
+
+    // 4. Delete newly created trips (only if still empty)
+    for (const newTripId of newTripIds) {
+      const trip = await this.loadTrip(newTripId);
+      if (!trip) continue;
+      const remaining = (trip.orders || []).filter((o) => o && o.id);
+      if (!remaining.length) {
+        await this.stopRepo.delete({ trip: { id: newTripId } });
+        await this.taskRepo.delete({ stop: { trip: { id: newTripId } } });
+        await this.tripRepo.delete({ id: newTripId });
+      }
+    }
+
+    // 5. Rebuild stops + recalc for all affected trips
+    for (const tripId of affectedTripIds) {
+      try {
+        const trip = await this.loadTrip(tripId);
+        if (!trip) continue;
+        await this.rebuildStops(tripId);
+        await this.recalculateTrip(tripId);
+        if (trip.truck) await this.recalculateCosts(trip);
+      } catch (e) {
+        this.logger.warn(`Undo rebuild failed for trip ${tripId}: ${(e as Error).message}`);
+      }
+    }
+
+    await this.actionRepo.delete({ id: action.id });
+    await this.logTimeline('planning_undo', user, {
+      message: `Undid "${action.action}" (${orderSnapshots.length} order(s)).`,
+      companyId: companyId || undefined,
+    });
+
+    return { undone: action.action, orders: orderSnapshots.length, actionId: action.id };
+  }
+
+  // ─── Board ──────────────────────────────────────────────────────────────────
+
+  async getBoard(user: any, q: any) {
+    const companyId = user?.companyId || null;
+    const fromStr = (q.from as string) || dayStr(new Date());
+    const toStr = (q.to as string) || fromStr;
+    const from = new Date(`${fromStr}T00:00:00`);
+    const to = new Date(`${toStr}T23:59:59.999`);
+    const search = (q.search || '').toString().trim();
+    const limit = Math.min(Number(q.limit) || 100, 500);
+    const offset = Math.max(Number(q.offset) || 0, 0);
+
+    const trucks = await this.truckRepo.find({
+      where: this.companyArrayWhere(companyId),
+      relations: ['driver', 'driver.user'],
+      order: { plateNumber: 'ASC' },
+    });
+    const truckIds = trucks.map((t) => t.id);
+
+    const trailers = await this.trailerRepo.find({
+      where: this.companyArrayWhere(companyId),
+      order: { plateNumber: 'ASC' },
+    });
+
+    const allDrivers = await this.driverRepo.find({ relations: ['user', 'user.company'] });
+    const drivers = allDrivers.filter(
+      (d) => !d.user || !d.user.company || (companyId && d.user.company.id === companyId),
+    );
+
+    const maintenance = truckIds.length
+      ? await this.maintRepo.find({ where: { truck: In(truckIds) }, order: { scheduledDate: 'ASC' } })
+      : [];
+    const maintByTruck: Record<string, Maintenance[]> = {};
+    for (const m of maintenance) {
+      if (!m.truck?.id) continue;
+      (maintByTruck[m.truck.id] ||= []).push(m);
+    }
+
+    const hosSummary: Record<string, any> = {};
+    const hosRows = await this.hosRepo.find({ relations: ['driver'], take: 2000 });
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekly: Record<string, number> = {};
+    for (const h of hosRows) {
+      if (!h.driver) continue;
+      if (new Date(`${h.date}T00:00:00`) >= weekAgo) {
+        weekly[h.driver.id] = (weekly[h.driver.id] || 0) + (Number(h.drivingHours) || 0);
+      }
+    }
+    for (const d of drivers) {
+      const w = weekly[d.id] || 0;
+      hosSummary[d.id] = {
+        weeklyDriving: Math.round(w * 100) / 100,
+        remaining: Math.max(0, Math.round((56 - w) * 100) / 100),
+        over: w > 56,
+      };
+    }
+
+    const tripsQb = this.tripRepo
+      .createQueryBuilder('trip')
+      .leftJoinAndSelect('trip.truck', 'truck')
+      .leftJoinAndSelect('trip.trailer', 'trailer')
+      .leftJoinAndSelect('trip.driver', 'driver')
+      .leftJoinAndSelect('driver.user', 'driverUser')
+      .leftJoinAndSelect('trip.stops', 'stops')
+      .leftJoinAndSelect('stops.tasks', 'tasks')
+      .leftJoinAndSelect('tasks.order', 'taskOrder')
+      .leftJoinAndSelect('trip.orders', 'orders')
+      .leftJoinAndSelect('orders.client', 'orderClient')
+      .leftJoinAndSelect('orders.cargoItems', 'cargoItems')
+      .leftJoinAndSelect('orders.stops', 'orderStops')
+      .leftJoinAndSelect('trip.costs', 'costs')
+      .leftJoinAndSelect('trip.dispatcher', 'dispatcher')
+      .where('trip.status IN (:...statuses)', { statuses: [...ACTIVE_TRIP_STATUSES, 'completed'] })
+      .andWhere(
+        new Brackets((b) => {
+          b.where('trip.plannedDeparture BETWEEN :from AND :to', { from, to })
+            .orWhere('trip.plannedArrival BETWEEN :from AND :to', { from, to })
+            .orWhere('trip.plannedDeparture IS NULL AND trip.createdAt BETWEEN :from AND :to', { from, to });
+        }),
+      )
+      .andWhere(this.companyBracket(companyId, 'trip.companyId'));
+    if (q.vehicleId) tripsQb.andWhere('trip.truckId IN (:...vids)', { vids: String(q.vehicleId).split(',') });
+    if (q.driverId) tripsQb.andWhere('trip.driverId IN (:...dids)', { dids: String(q.driverId).split(',') });
+    if (q.trailerId) tripsQb.andWhere('trip.trailerId IN (:...tids)', { tids: String(q.trailerId).split(',') });
+    const trips = await tripsQb.orderBy('trip.plannedDeparture', 'ASC').getMany();
+
+    const orderQb = this.orderRepo
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.client', 'client')
+      .leftJoinAndSelect('order.cargoItems', 'cargoItems')
+      .leftJoinAndSelect('order.stops', 'stops')
+      .where('order.tripId IS NULL')
+      .andWhere('order.status IN (:...statuses)', { statuses: UNPLANNED_ORDER_STATUSES })
+      .andWhere(this.companyBracket(companyId, 'order.companyId'))
+      .andWhere(
+        new Brackets((b) => {
+          b.where(
+            'EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = order.id AND os."dateFrom" BETWEEN :f AND :t)',
+            { f: fromStr, t: toStr },
+          ).orWhere('NOT EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = order.id)');
+        }),
+      );
+    if (q.clientId) orderQb.andWhere('order.clientId IN (:...cids)', { cids: String(q.clientId).split(',') });
+    if (q.priority) orderQb.andWhere('order.priority IN (:...prios)', { prios: String(q.priority).split(',') });
+    if (q.equipment) {
+      const eqs = String(q.equipment).split(',');
+      eqs.forEach((eq, i) => {
+        orderQb.andWhere(`:eq${i} = ANY(order.equipmentRequirements)`, { [`eq${i}`]: eq });
+      });
+    }
+    if (q.status) {
+      const statuses = String(q.status).split(',').filter((s) => UNPLANNED_ORDER_STATUSES.includes(s));
+      if (statuses.length) orderQb.andWhere('order.status IN (:...stat)', { stat: statuses });
+    }
+    if (search) {
+      const like = `%${search}%`;
+      orderQb.andWhere(
+        new Brackets((b) => {
+          b.where('order."orderNumber" ILIKE :q', { q: like })
+            .orWhere('order."customerReference" ILIKE :q', { q: like })
+            .orWhere('order."internalReference" ILIKE :q', { q: like })
+            .orWhere('order."loadingReference" ILIKE :q', { q: like })
+            .orWhere('client.name ILIKE :q', { q: like })
+            .orWhere('stops.address ILIKE :q', { q: like })
+            .orWhere('stops.city ILIKE :q', { q: like })
+            .orWhere('stops.postalCode ILIKE :q', { q: like })
+            .orWhere('stops.country ILIKE :q', { q: like });
+        }),
+      );
+    }
+    const totalUnplanned = await orderQb.getCount();
+    const orders = await orderQb.orderBy('order.createdAt', 'ASC').offset(offset).limit(limit).getMany();
+
+    const resources = trucks
+      .filter((t) => String(t.status) !== 'inactive')
+      .map((t) => {
+        const relevantTrip = trips.find((tr) => tr.truck?.id === t.id);
+        const maint = maintByTruck[t.id] || [];
+        const activeMaint = maint.filter((m) => m.status !== 'done' && m.completedDate == null);
+        const hasMaint = activeMaint.length > 0;
+        const busy = trips.some(
+          (tr) => tr.truck?.id === t.id && IN_PROGRESS_TRIP_STATUSES.includes(tr.status),
+        );
+        const plannedToday = trips.some(
+          (tr) => tr.truck?.id === t.id && PLANNING_TRIP_STATUSES.includes(tr.status),
+        );
+        const driver = t.driver
+          ? { id: t.driver.id, name: t.driver.user?.name || t.driver.user?.email || '—', status: t.driver.status }
+          : null;
+        return {
+          id: t.id,
+          plateNumber: t.plateNumber,
+          brand: t.brand,
+          model: t.model,
+          truckType: t.truckType,
+          euronorm: t.euronorm,
+          features: t.features || [],
+          status: t.status,
+          maxWeightKg: Number(t.maxWeightKg) || 24000,
+          maxLdm: Number(t.maxLdm) || 13.6,
+          maxVolumeCbm: Number(t.maxVolumeCbm) || 90,
+          maxPallets: t.maxPallets || 33,
+          costPerKm: Number(t.costPerKm) || 0,
+          fuelConsumption: Number(t.fuelConsumption) || 0,
+          currentLat: t.currentLat,
+          currentLng: t.currentLng,
+          totalMileage: t.totalMileage,
+          nextMaintenanceMileage: t.nextMaintenanceMileage,
+          driver,
+          trailerId: relevantTrip?.trailer?.id || null,
+          trailerPlate: relevantTrip?.trailer?.plateNumber || null,
+          maintenance: activeMaint,
+          hasMaintenance: hasMaint,
+          busy,
+          plannedToday,
+          available: String(t.status) === 'active' && !hasMaint && !busy,
+        };
+      });
+
+    const conflicts = await this.computeConflicts({
+      trips,
+      resourcesById: resources,
+      driversById: Object.fromEntries(drivers.map((d) => [d.id, d])),
+      trailersById: Object.fromEntries(trailers.map((tr) => [tr.id, tr])),
+      maintByTruck,
+      unplannedCount: totalUnplanned,
+    });
+
+    const countOrders = (statuses: string[]) =>
+      trips.filter((tr) => statuses.includes(tr.status)).reduce((s, tr) => s + (tr.orders?.length || 0), 0);
+
+    const plannedOrders = trips.flatMap((tr) => (tr.orders || []).filter((o) => o && o.id));
+
+    const counts = {
+      all: totalUnplanned + plannedOrders.length,
+      unplanned: totalUnplanned,
+      planned: countOrders(PLANNING_TRIP_STATUSES),
+      confirmed: countOrders(['assigned']),
+      sent: countOrders(['dispatched']),
+      inProgress: countOrders(IN_PROGRESS_TRIP_STATUSES),
+      completed: countOrders(['completed']),
+      attention: conflicts.filter((c) => c.level !== 'info').length,
+      attentionBlocking: conflicts.filter((c) => c.level === 'blocking').length,
+      attentionWarnings: conflicts.filter((c) => c.level === 'warning').length,
+    };
+
+    return {
+      resources,
+      drivers: drivers.map((d) => ({
+        id: d.id,
+        name: d.user?.name || d.user?.email || d.phone || '—',
+        status: d.status,
+        phone: d.phone,
+      })),
+      trailers: trailers.map((tr) => ({
+        id: tr.id,
+        plateNumber: tr.plateNumber,
+        type: tr.type,
+        status: tr.status,
+        maxWeightKg: Number(tr.payloadCapacityWeight) || 0,
+        maxLdm: Number(tr.maxLdm) || 13.6,
+        maxVolumeCbm: Number(tr.maxVolumeCbm) || 90,
+        maxPallets: tr.payloadCapacityPallets || 33,
+      })),
+      orders,
+      totalUnplanned,
+      trips,
+      maintenance: maintenance.filter((m) => m.status !== 'done'),
+      hosSummary,
+      counts,
+      conflicts,
+      range: { from: fromStr, to: toStr },
+    };
+  }
+
+  // ─── Conflicts ──────────────────────────────────────────────────────────────
+
+  async computeConflicts(ctx: any): Promise<PlanningConflict[]> {
+    const out: PlanningConflict[] = [];
+    const trips: Trip[] = ctx.trips || [];
+    const resourcesById = ctx.resourcesById || {};
+    const driversById = ctx.driversById || {};
+    const trailersById = ctx.trailersById || {};
+    const maintByTruck = ctx.maintByTruck || {};
+
+    const add = (c: Omit<PlanningConflict, 'id'>) =>
+      out.push({ id: `${c.code}_${c.orderId || ''}_${c.tripId || ''}_${out.length}`, ...c });
+
+    for (const trip of trips) {
+      const t = trip as any;
+      const truck = resourcesById[t.truckId];
+      const tripCargo = this.sumCargo(t.orders || []);
+      const status = String(t.status || '');
+
+      const overlay = (msg: string) =>
+        add({ level: 'info', code: 'TRUCK_OVERLAY', tripId: t.id, resourceId: t.truckId, message: msg });
+
+      if (!truck) {
+        if (status !== 'completed') {
+          add({ level: 'blocking', code: 'NO_VEHICLE', tripId: t.id, message: `Trip ${t.tripNumber || t.id} has no vehicle assigned.` });
+        }
+      } else {
+        const avail = truck.available;
+        if (status !== 'completed') {
+          if (truck.hasMaintenance) {
+            add({
+              level: 'blocking', code: 'VEHICLE_IN_MAINTENANCE', tripId: t.id, resourceId: truck.id,
+              message: `${truck.plateNumber} is in maintenance.`,
+            });
+          } else if (!avail && (truck.busy || truck.plannedToday)) {
+            const why = truck.busy ? 'in progress' : 'already planned today';
+            add({
+              level: 'warning', code: 'VEHICLE_ALREADY_USED', tripId: t.id, resourceId: truck.id,
+              message: `${truck.plateNumber} is already ${why}.`,
+            });
+          }
+        }
+
+        const w = truck.maxWeightKg || 24000;
+        const l = truck.maxLdm || 13.6;
+        const v = truck.maxVolumeCbm || 90;
+        const p = truck.maxPallets || 33;
+        if (tripCargo.weight > w) add({ level: 'blocking', code: 'WEIGHT_OVERLOAD', tripId: t.id, resourceId: truck.id, params: { load: tripCargo.weight, max: w }, message: `Weight ${tripCargo.weight}kg exceeds ${w}kg.` });
+        if (tripCargo.ldm > l) add({ level: 'blocking', code: 'LDM_OVERLOAD', tripId: t.id, resourceId: truck.id, params: { load: tripCargo.ldm, max: l }, message: `LDM ${tripCargo.ldm} exceeds ${l}.` });
+        if (tripCargo.volume > v) add({ level: 'blocking', code: 'VOLUME_OVERLOAD', tripId: t.id, resourceId: truck.id, params: { load: tripCargo.volume, max: v }, message: `Volume ${tripCargo.volume}m³ exceeds ${v}m³.` });
+        if (tripCargo.pallets > p) add({ level: 'blocking', code: 'PALLET_OVERLOAD', tripId: t.id, resourceId: truck.id, params: { load: tripCargo.pallets, max: p }, message: `Pallets ${tripCargo.pallets} exceed ${p}.` });
+
+        if (t.truckType && truck.truckType && t.truckType !== truck.truckType) {
+          add({ level: 'warning', code: 'TRUCK_TYPE_MISMATCH', tripId: t.id, resourceId: truck.id, message: `Trip requires ${t.truckType}, got ${truck.truckType}.` });
+        }
+        for (const req of t.equipmentRequirements || []) {
+          if (!(truck.features || []).includes(req)) {
+            add({ level: 'warning', code: 'EQUIPMENT_MISSING', tripId: t.id, resourceId: truck.id, params: { req }, message: `Vehicle lacks required equipment: ${req}.` });
+          }
+        }
+        for (const o of t.orders || []) {
+          for (const req of o.equipmentRequirements || []) {
+            if (!(truck.features || []).includes(req)) {
+              add({ level: 'warning', code: 'ORDER_EQUIPMENT_MISSING', tripId: t.id, orderId: o.id, resourceId: truck.id, params: { req }, message: `Order ${o.orderNumber} requires equipment: ${req}.` });
+            }
+          }
+        }
+
+        const maint = maintByTruck[truck.id] || [];
+        for (const m of maint) {
+          if (m.status === 'done' || m.completedDate) continue;
+          const mStart = new Date(`${m.scheduledDate}T00:00:00`);
+          const tStart = t.plannedDeparture ? new Date(t.plannedDeparture) : null;
+          const tEnd = t.plannedArrival ? new Date(t.plannedArrival) : null;
+          if (tStart && mStart) {
+            const diffDays = (tStart.getTime() - mStart.getTime()) / 86400000;
+            if (diffDays >= 0 && diffDays <= (m.durationDays || 1)) {
+              add({ level: 'blocking', code: 'MAINTENANCE_CONFLICT', tripId: t.id, resourceId: truck.id, message: `${truck.plateNumber} maintenance on ${m.scheduledDate}.` });
+            }
+          }
+        }
+      }
+
+      if (!t.driverId && status !== 'completed') {
+        add({ level: 'blocking', code: 'NO_DRIVER', tripId: t.id, message: `Trip ${t.tripNumber || t.id} has no driver assigned.` });
+      }
+
+      for (const o of t.orders || []) {
+        if (!o.stops || o.stops.length === 0) {
+          add({ level: 'blocking', code: 'ORDER_NO_STOPS', tripId: t.id, orderId: o.id, message: `Order ${o.orderNumber || o.id} has no stops.` });
+        }
+        if (o.status === 'cancelled') {
+          add({ level: 'blocking', code: 'CANCELLED_ORDER', tripId: t.id, orderId: o.id, message: `Order ${o.orderNumber || o.id} is cancelled but still in the trip.` });
+        }
+      }
+
+      const sortedStops = [...(t.stops || [])].sort((a, b) => (Number(a.stopOrder) || 0) - (Number(b.stopOrder) || 0));
+      const lastStop = sortedStops[sortedStops.length - 1];
+      if (t.plannedArrival && lastStop && lastStop.plannedArrival) {
+        const a1 = new Date(t.plannedArrival).getTime();
+        const a2 = new Date(lastStop.plannedArrival).getTime();
+        if (a1 && a2 && Math.abs(a1 - a2) > 60000) {
+          add({ level: 'info', code: 'ARRIVAL_MISMATCH', tripId: t.id, message: `Trip arrival differs from final stop.` });
+        }
+      }
+
+      for (const o of t.orders || []) {
+        const { start, end } = this.orderWindow(o);
+        if (start && t.plannedDeparture && new Date(t.plannedDeparture) > start) {
+          add({ level: 'warning', code: 'DEPARTURE_AFTER_LOADING', tripId: t.id, orderId: o.id, message: `Trip departs after order ${o.orderNumber} loading window.` });
+        }
+      }
+    }
+
+    for (const order of ctx.orders || []) {
+      const { start, end } = this.orderWindow(order);
+      if (!start || !end) {
+        add({ level: 'warning', code: 'ORDER_NO_WINDOW', orderId: order.id, message: `Order ${order.orderNumber || order.id} has no date window.` });
+      }
+      if (order.equipmentRequirements && order.equipmentRequirements.length) {
+        add({ level: 'info', code: 'ORDER_EQUIPMENT', orderId: order.id, message: `Order requires: ${order.equipmentRequirements.join(', ')}.` });
+      }
+      if (start && end) {
+        const hours = (end.getTime() - start.getTime()) / 3600000;
+        if (hours > 24) {
+          add({ level: 'warning', code: 'WIDE_WINDOW', orderId: order.id, message: `Order ${order.orderNumber || order.id} window spans > 24h.` });
+        }
+      }
+    }
+
+    const usedTruck: Record<string, number> = {};
+    for (const trip of trips) {
+      const t = trip as any;
+      if (t.truckId && t.status !== 'completed') {
+        usedTruck[t.truckId] = (usedTruck[t.truckId] || 0) + 1;
+      }
+    }
+    for (const [tid, n] of Object.entries(usedTruck)) {
+      if (n > 1) {
+        const truck = resourcesById[tid];
+        add({ level: 'warning', code: 'TRUCK_MULTIPLE_TRIPS', resourceId: tid, message: `${truck?.plateNumber || tid} is planned for ${n} trips.` });
+      }
+    }
+
+    return out;
+  }
+
+  // ─── Validation ─────────────────────────────────────────────────────────────
+
+  async validateAssignment(user: any, dto: any): Promise<PlanningConflict[]> {
+    const companyId = user?.companyId || null;
+    const orderIds = (dto.orderIds || dto.orders || []).map((x: any) => (typeof x === 'string' ? x : x.id)).filter(Boolean);
+    if (!orderIds.length) throw new BadRequestException('At least one order is required.');
+    const trips = (dto.tripIds || dto.trips || []).map((x: any) => (typeof x === 'string' ? x : x.id)).filter(Boolean);
+    const truckId = dto.truckId || dto.vehicleId || null;
+    const driverId = dto.driverId || null;
+    const trailerId = dto.trailerId || null;
+    const date = dto.date || null;
+
+    const orders = await this.orderRepo.find({
+      where: { id: In(orderIds) },
+      relations: ['company', 'stops', 'cargoItems'],
+    });
+    const out: PlanningConflict[] = [];
+    const add = (c: Omit<PlanningConflict, 'id'>) =>
+      out.push({ id: `${c.code}_${c.orderId || ''}_${out.length}`, ...c });
+
+    for (const o of orders) {
+      if (o.company?.id && companyId && o.company.id !== companyId) {
+        add({ level: 'blocking', code: 'COMPANY_MISMATCH', orderId: o.id, message: 'Order belongs to a different company.' });
+      }
+      if (String(o.status) === 'cancelled') {
+        add({ level: 'blocking', code: 'ORDER_CANCELLED', orderId: o.id, message: `Order ${o.orderNumber} is cancelled.` });
+      }
+      if (o.trip?.id) {
+        add({ level: 'blocking', code: 'ALREADY_PLANNED', orderId: o.id, message: `Order ${o.orderNumber} is already on another trip.` });
+      }
+      if (!o.stops || o.stops.length === 0) {
+        add({ level: 'blocking', code: 'NO_STOPS', orderId: o.id, message: `Order ${o.orderNumber} has no stops.` });
+      }
+    }
+
+    if (truckId) {
+      const truck = await this.truckRepo.findOne({ where: { id: truckId } });
+      if (!truck) throw new NotFoundException('Truck not found.');
+      const sum = this.sumCargo(orders);
+      const w = Number(truck.maxWeightKg) || 24000;
+      const l = Number(truck.maxLdm) || 13.6;
+      const v = Number(truck.maxVolumeCbm) || 90;
+      const p = truck.maxPallets || 33;
+      if (sum.weight > w) add({ level: 'blocking', code: 'WEIGHT_OVERLOAD', params: { load: sum.weight, max: w }, message: `Combined weight ${sum.weight}kg exceeds ${w}kg.` });
+      if (sum.ldm > l) add({ level: 'blocking', code: 'LDM_OVERLOAD', params: { load: sum.ldm, max: l }, message: `Combined LDM ${sum.ldm} exceeds ${l}.` });
+      if (sum.volume > v) add({ level: 'blocking', code: 'VOLUME_OVERLOAD', params: { load: sum.volume, max: v }, message: `Combined volume ${sum.volume}m³ exceeds ${v}m³.` });
+      if (sum.pallets > p) add({ level: 'blocking', code: 'PALLET_OVERLOAD', params: { load: sum.pallets, max: p }, message: `Combined pallets ${sum.pallets} exceed ${p}.` });
+      for (const o of orders) {
+        for (const req of o.equipmentRequirements || []) {
+          if (!(truck.features || []).includes(req)) {
+            add({ level: 'warning', code: 'EQUIPMENT_MISSING', orderId: o.id, params: { req }, message: `Order ${o.orderNumber} requires equipment: ${req}.` });
+          }
+        }
+      }
+    }
+
+    if (driverId) {
+      const driver = await this.driverRepo.findOne({ where: { id: driverId } });
+      if (!driver) throw new NotFoundException('Driver not found.');
+    }
+
+    if (date && trips.length === 0 && truckId) {
+      const from = new Date(`${date}T00:00:00`);
+      const to = new Date(`${date}T23:59:59.999`);
+      const overlapping = await this.tripRepo
+        .createQueryBuilder('trip')
+        .where('trip.truckId = :truckId', { truckId })
+        .andWhere('trip.status NOT IN (:...statuses)', { statuses: ['completed'] })
+        .andWhere('trip.plannedDeparture < :to AND trip.plannedArrival > :from', { from, to })
+        .getCount();
+      if (overlapping > 0) {
+        add({ level: 'blocking', code: 'TRUCK_UNAVAILABLE', params: { date }, message: 'Truck has an overlapping trip on this date.' });
+      }
+    }
+
+    const tripEntities = trips.length
+      ? await this.tripRepo.find({ where: { id: In(trips) }, relations: ['orders'] })
+      : [];
+    for (const tr of tripEntities) {
+      if (String(tr.status) !== 'planning' && String(tr.status) !== 'planned' && String(tr.status) !== 'assigned') {
+        add({ level: 'blocking', code: 'TRIP_LOCKED', tripId: tr.id, message: 'Trip is already in progress or completed.' });
+      }
+    }
+
+    return out;
+  }
+
+  async validateOrdersForTrip(tripId: string, orderIds: string[]): Promise<PlanningConflict[]> {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+    const orders = await this.orderRepo.find({
+      where: { id: In(orderIds) },
+      relations: ['stops', 'cargoItems', 'company'],
+    });
+    const out: PlanningConflict[] = [];
+    const add = (c: Omit<PlanningConflict, 'id'>) =>
+      out.push({ id: `${c.code}_${c.orderId || ''}_${out.length}`, ...c });
+
+    for (const o of orders) {
+      if (o.trip?.id && o.trip.id !== tripId) {
+        add({ level: 'blocking', code: 'ALREADY_PLANNED', orderId: o.id, message: `Order ${o.orderNumber} is on another trip.` });
+      }
+      if (trip.truck && o.equipmentRequirements?.length) {
+        const truck = trip.truck;
+        for (const req of o.equipmentRequirements) {
+          if (!(truck.features || []).includes(req)) {
+            add({ level: 'warning', code: 'EQUIPMENT_MISSING', orderId: o.id, params: { req }, message: `Order ${o.orderNumber} requires equipment: ${req}.` });
+          }
+        }
+      }
+    }
+    return out;
+  }
+
+  // ─── Assignment ─────────────────────────────────────────────────────────────
+
+  async assignOrders(user: any, dto: any) {
+    const companyId = user?.companyId || null;
+    const orderIds: string[] = (dto.orderIds || dto.orders || []).map((x: any) => (typeof x === 'string' ? x : x.id)).filter(Boolean);
+    if (!orderIds.length) throw new BadRequestException('At least one order is required.');
+    const orders = await this.orderRepo.find({ where: { id: In(orderIds) }, relations: ['stops', 'cargoItems', 'company'] });
+    if (orders.length !== orderIds.length) {
+      const found = new Set(orders.map((o) => o.id));
+      const missing = orderIds.filter((id) => !found.has(id));
+      throw new NotFoundException(`Orders not found: ${missing.join(', ')}`);
+    }
+    for (const o of orders) {
+      if (o.trip?.id) throw new BadRequestException(`Order ${o.orderNumber} is already planned on trip ${o.trip.id}.`);
+    }
+    const undoSnapshots = orders.map((o) => ({ id: o.id, tripId: null, status: o.status }));
+
+    const tripIds: string[] = (dto.tripIds || dto.trips || []).map((x: any) => (typeof x === 'string' ? x : x.id)).filter(Boolean);
+    let trip: Trip;
+    let createdTripId: string | null = null;
+    if (tripIds.length) {
+      const existingTrip = await this.loadTrip(tripIds[0]);
+      if (!existingTrip) throw new NotFoundException('Trip not found.');
+      trip = existingTrip;
+      if (String(trip.status) !== 'planning' && String(trip.status) !== 'planned' && String(trip.status) !== 'assigned') {
+        throw new BadRequestException('Trip is already in progress and cannot accept orders.');
+      }
+    } else {
+      const truckId = dto.truckId || dto.vehicleId || null;
+      const driverId = dto.driverId || null;
+      const trailerId = dto.trailerId || null;
+      const departure = dto.departure
+        ? new Date(dto.departure)
+        : this.deriveDeparture(orders) || new Date();
+      const arrival = dto.arrival ? new Date(dto.arrival) : this.deriveArrival(orders);
+
+      const truck = truckId ? await this.truckRepo.findOne({ where: { id: truckId } }) : null;
+      if (truckId && !truck) throw new NotFoundException('Truck not found.');
+      const driver = driverId ? await this.driverRepo.findOne({ where: { id: driverId } }) : null;
+      if (driverId && !driver) throw new NotFoundException('Driver not found.');
+
+      const tripNumber = await this.nextTripNumber();
+      const status = 'planning';
+      const tripEntity = this.tripRepo.create({
+        company: companyId ? { id: companyId } : null,
+        tripNumber,
+        status,
+        truck,
+        driver,
+        trailer: trailerId ? { id: trailerId } as any : undefined,
+        plannedDeparture: departure,
+        plannedArrival: arrival,
+        dispatcher: { id: user?.id } as any,
+      } as any);
+      trip = await this.tripRepo.save(tripEntity as unknown as Trip);
+      createdTripId = trip.id;
+      this.logger.log(`Created trip ${trip.tripNumber} (${trip.id}) for ${orderIds.length} order(s).`);
+    }
+
+    trip.orders = [...(trip.orders || [])];
+    const existingIds = new Set(trip.orders.map((o) => o.id));
+    const newOrders = orders.filter((o) => !existingIds.has(o.id));
+    for (const o of newOrders) {
+      o.trip = trip as any;
+      o.status = 'planned';
+      trip.orders.push(o as any);
+    }
+    await this.orderRepo.save(newOrders);
+
+    await this.rebuildStops(trip.id);
+    const reloaded = await this.loadTrip(trip.id);
+    if (reloaded) {
+      await this.recalculateTrip(reloaded.id);
+      if (reloaded.truck) await this.recalculateCosts(reloaded);
+    }
+
+    await this.logTimeline('orders_planned', user, {
+      tripId: trip.id,
+      message: `${newOrders.length} order(s) added to trip ${trip.tripNumber}.`,
+      companyId: companyId || undefined,
+    });
+
+    await this.recordUndo(user, 'assign', {
+      orders: undoSnapshots,
+      newTripIds: createdTripId ? [createdTripId] : [],
+    });
+
+    return this.loadTrip(trip.id);
+  }
+
+  private async nextTripNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const prefix = `TRP-${year}-`;
+    const count = await this.tripRepo
+      .createQueryBuilder('trip')
+      .where('trip.tripNumber LIKE :prefix', { prefix: `${prefix}%` })
+      .getCount();
+    return `${prefix}${String(count + 1).padStart(4, '0')}`;
+  }
+
+  async unplanOrders(user: any, dto: any) {
+    const companyId = user?.companyId || null;
+    const orderIds: string[] = (dto.orderIds || dto.orders || []).map((x: any) => (typeof x === 'string' ? x : x.id)).filter(Boolean);
+    if (!orderIds.length) throw new BadRequestException('At least one order is required.');
+    const orders = await this.orderRepo.find({ where: { id: In(orderIds) }, relations: ['trip'] });
+    const undoSnapshots = orders.map((o) => ({ id: o.id, tripId: o.trip?.id || null, status: o.status }));
+    const affectedTripIds = new Set<string>();
+    for (const o of orders) {
+      if (!o.trip?.id) continue;
+      affectedTripIds.add(o.trip.id);
+      const trip = await this.loadTrip(o.trip.id);
+      if (trip && String(trip.status) !== 'planning' && String(trip.status) !== 'planned' && String(trip.status) !== 'assigned') {
+        throw new BadRequestException(`Cannot remove order ${o.orderNumber}: trip is already in progress.`);
+      }
+    }
+    for (const o of orders) {
+      o.trip = null as any;
+      o.status = 'new';
+    }
+    await this.orderRepo.save(orders);
+
+    const result: any[] = [];
+    const deletedTrips: any[] = [];
+    for (const tripId of affectedTripIds) {
+      await this.rebuildStops(tripId);
+      const trip = await this.loadTrip(tripId);
+      const remainingOrders = (trip?.orders || []).filter((o) => o && o.id);
+      if (!remainingOrders.length) {
+        if (trip) {
+          deletedTrips.push({
+            id: trip.id,
+            tripNumber: trip.tripNumber,
+            truckId: trip.truck?.id || null,
+            driverId: trip.driver?.id || null,
+            trailerId: trip.trailer?.id || null,
+            plannedDeparture: trip.plannedDeparture,
+            plannedArrival: trip.plannedArrival,
+            companyId: trip.company?.id || null,
+          });
+        }
+        await this.deleteTrip(tripId, user, 'trip empty after unplanning orders');
+        result.push({ tripId, removed: true });
+      } else {
+        await this.recalculateTrip(tripId);
+        if (trip?.truck) await this.recalculateCosts(trip);
+        result.push({ tripId, removed: false });
+      }
+    }
+
+    await this.logTimeline('orders_unplanned', user, {
+      message: `${orderIds.length} order(s) removed from planning.`,
+      companyId: companyId || undefined,
+    });
+
+    await this.recordUndo(user, 'unplan', { orders: undoSnapshots, deletedTrips });
+
+    return { unplanned: orderIds.length, trips: result };
+  }
+
+  private async deleteTrip(tripId: string, user: any, reason: string) {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) return;
+    for (const o of trip.orders || []) {
+      if (o && o.id) {
+        o.trip = null as any;
+        o.status = 'new';
+        await this.orderRepo.save(o);
+      }
+    }
+    await this.stopRepo.delete({ trip: { id: tripId } });
+    await this.taskRepo.delete({ stop: { trip: { id: tripId } } });
+    await this.tripRepo.delete({ id: tripId });
+    await this.logTimeline('trip_deleted', user, {
+      tripId,
+      message: `Trip ${trip.tripNumber} deleted (${reason}).`,
+      companyId: trip.company?.id || null,
+    });
+  }
+
+  async moveOrder(user: any, dto: any) {
+    const orderId = dto.orderId || (Array.isArray(dto.orderIds) ? dto.orderIds[0] : null);
+    const targetTripId = dto.targetTripId || dto.tripId || null;
+    if (!orderId) throw new BadRequestException('orderId is required.');
+    const order = await this.orderRepo.findOne({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Order not found.');
+
+    if (targetTripId && targetTripId !== order.trip?.id) {
+      const target = await this.loadTrip(targetTripId);
+      if (!target) throw new NotFoundException('Target trip not found.');
+      if (String(target.status) !== 'planning' && String(target.status) !== 'planned' && String(target.status) !== 'assigned') {
+        throw new BadRequestException('Target trip is already in progress.');
+      }
+      const oldTripId = order.trip?.id || null;
+      const undoSnapshot = { id: order.id, tripId: oldTripId, status: order.status };
+      order.trip = target as any;
+      order.status = 'planned';
+      await this.orderRepo.save(order);
+      const deletedTrips: any[] = [];
+      if (oldTripId) {
+        await this.rebuildStops(oldTripId);
+        const oldTrip = await this.loadTrip(oldTripId);
+        if (oldTrip && !(oldTrip.orders || []).some((o) => o && o.id)) {
+          deletedTrips.push({
+            id: oldTrip.id,
+            tripNumber: oldTrip.tripNumber,
+            truckId: oldTrip.truck?.id || null,
+            driverId: oldTrip.driver?.id || null,
+            trailerId: oldTrip.trailer?.id || null,
+            plannedDeparture: oldTrip.plannedDeparture,
+            plannedArrival: oldTrip.plannedArrival,
+            companyId: oldTrip.company?.id || null,
+          });
+          await this.deleteTrip(oldTripId, user, 'empty after move');
+        } else if (oldTrip) {
+          await this.recalculateTrip(oldTripId);
+          if (oldTrip.truck) await this.recalculateCosts(oldTrip);
+        }
+      }
+      await this.rebuildStops(targetTripId);
+      await this.recalculateTrip(targetTripId);
+      const reloaded = await this.loadTrip(targetTripId);
+      if (reloaded?.truck) await this.recalculateCosts(reloaded);
+      await this.recordUndo(user, 'move', { orders: [undoSnapshot], deletedTrips });
+      return { moved: true, fromTripId: oldTripId || null, toTripId: targetTripId };
+    }
+
+    throw new BadRequestException('No target trip provided.');
+  }
+
+  async reorderStops(user: any, tripId: string, dto: any) {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+    if (String(trip.status) !== 'planning' && String(trip.status) !== 'planned' && String(trip.status) !== 'assigned') {
+      throw new BadRequestException('Cannot reorder stops on an in-progress trip.');
+    }
+    const order: string[] = Array.isArray(dto) ? dto : dto.order;
+    if (!Array.isArray(order) || !order.length) throw new BadRequestException('order array is required.');
+    const stops = await this.stopRepo.find({ where: { trip: { id: tripId } } });
+    const byId = new Map(stops.map((s) => [s.id, s]));
+    const missing = order.filter((id) => !byId.has(id));
+    if (missing.length) throw new BadRequestException(`Unknown stops: ${missing.join(', ')}`);
+    for (let i = 0; i < order.length; i++) {
+      const s = byId.get(order[i]);
+      if (s) {
+        s.sequence = i + 1;
+        await this.stopRepo.save(s);
+      }
+    }
+    await this.logTimeline('stops_reordered', user, {
+      tripId,
+      message: `Stops reordered on trip ${trip.tripNumber}.`,
+      companyId: trip.company?.id || null,
+    });
+    return this.loadTrip(tripId);
+  }
+
+  // ─── Scheduling ─────────────────────────────────────────────────────────────
+
+  async recalculateTrip(tripId: string) {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+
+    const stops = (trip.stops || []).slice().sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+    const orders = (trip.orders || []).filter((o) => o && o.id && String(o.status) !== 'cancelled');
+    const cargo = this.sumCargo(orders);
+    const firstStop = stops[0];
+
+    const departure = trip.plannedDeparture ? new Date(trip.plannedDeparture) : null;
+    if (!departure && firstStop?.timeWindowMin) {
+      trip.plannedDeparture = new Date(firstStop.timeWindowMin);
+    }
+
+    const driver = trip.driver || trip.truck?.driver || null;
+    const truck = trip.truck || null;
+
+    let cursor = departure;
+    let prevStop: Stop | null = null;
+    for (const stop of stops) {
+      const serviceMin = this.stopServiceMinutes(stop);
+      if (!cursor) {
+        cursor = stop.timeWindowMin ? new Date(stop.timeWindowMin) : new Date();
+      }
+      const travelMin = prevStop
+        ? this.estimateTravel(prevStop.latitude, prevStop.longitude, stop.latitude, stop.longitude)
+        : this.estimateTravel(truck?.currentLat, truck?.currentLng, stop.latitude, stop.longitude);
+      const prevDeparture = prevStop?.eta ? new Date(prevStop.eta.getTime() + this.stopServiceMinutes(prevStop) * 60000) : null;
+      if (prevDeparture) {
+        const travelEnd = new Date(prevDeparture.getTime() + travelMin * 60000);
+        cursor = travelEnd > cursor ? travelEnd : cursor;
+      }
+      if (stop.timeWindowMin && cursor.getTime() < stop.timeWindowMin.getTime()) {
+        cursor = new Date(stop.timeWindowMin);
+      }
+      stop.eta = cursor ? new Date(cursor) : null as any;
+      if (cursor) cursor = new Date(cursor.getTime() + serviceMin * 60000);
+      prevStop = stop;
+    }
+
+    const tripStart = stops.length ? new Date(stops[0].eta!) : departure;
+    const tripEnd = stops.length ? new Date(stops[stops.length - 1].eta!.getTime() + this.stopServiceMinutes(stops[stops.length - 1]) * 60000) : null;
+    if (!trip.plannedDeparture && tripStart) trip.plannedDeparture = tripStart;
+    if (tripEnd) trip.plannedArrival = tripEnd;
+
+    const drv = driver || (trip as any).driver;
+    if (drv && truck) {
+      const effectiveStart = (trip.plannedDeparture || tripStart) || new Date();
+      if (this.isDriverAvailable(drv, effectiveStart, effectiveStart)) {
+        trip.driver = drv as any;
+      } else {
+        trip.driver = null as any;
+      }
+    }
+
+    const newCargo = {
+      weight: Math.round(cargo.weight * 100) / 100,
+      ldm: Math.round(cargo.ldm * 100) / 100,
+      volume: Math.round(cargo.volume * 100) / 100,
+      pallets: cargo.pallets,
+    };
+    (trip as any).cargo = newCargo;
+    (trip as any).totalCargo = newCargo;
+    trip.distanceKm = await this.calculateTripDistance(tripId);
+    (trip as any).estimatedDurationMin = trip.plannedDeparture && trip.plannedArrival
+      ? Math.round((new Date(trip.plannedArrival).getTime() - new Date(trip.plannedDeparture).getTime()) / 60000)
+      : 0;
+    await this.tripRepo.save(trip);
+
+    for (const stop of stops) {
+      await this.stopRepo.save(stop);
+    }
+
+    return trip;
+  }
+
+  private stopServiceMinutes(stop: Stop): number {
+    const min = stop.timeWindowMax && stop.timeWindowMin
+      ? (stop.timeWindowMax.getTime() - stop.timeWindowMin.getTime()) / 60000
+      : 30;
+    return Math.max(0, Math.round(min));
+  }
+
+  private estimateTravel(lat1: number | null, lng1: number | null, lat2: number | null, lng2: number | null): number {
+    if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) return 30;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const R = 6371;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const km = R * c;
+    const speed = 70;
+    const min = (km / speed) * 60;
+    return Math.max(Math.round(min), 5);
+  }
+
+  private isDriverAvailable(driver: Driver, from: Date, to: Date): boolean {
+    if (!driver) return false;
+    if (String(driver.status) === 'off' || String(driver.status) === 'vacation' || String(driver.status) === 'sick') return false;
+    return true;
+  }
+
+  private async calculateTripDistance(tripId: string): Promise<number> {
+    const stops = await this.stopRepo.find({ where: { trip: { id: tripId } }, order: { sequence: 'ASC' } });
+    let total = 0;
+    let prev: Stop | null = null;
+    for (const s of stops) {
+      if (prev) total += this.haversineKm(prev.latitude, prev.longitude, s.latitude, s.longitude);
+      prev = s;
+    }
+    return Math.round(total);
+  }
+
+  private haversineKm(lat1: number | null, lng1: number | null, lat2: number | null, lng2: number | null): number {
+    if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) return 0;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const R = 6371;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+
+  async recalculateCosts(trip: Trip) {
+    try {
+      const financials = await this.pricingEngine.calculateFinancials(trip);
+      await this.tripRepo.update(trip.id, {
+        estimatedCost: financials.cost,
+        estimatedProfit: financials.profit,
+        actualProfit: financials.profit,
+        tollCost: financials.costBreakdown.tollCost,
+      });
+    } catch (e) {
+      this.logger.warn(`Cost recalculation failed for trip ${trip.id}: ${(e as Error).message}`);
+    }
+  }
+
+  // ─── Stop rebuild ───────────────────────────────────────────────────────────
+
+  async rebuildStops(tripId: string) {
+    const trip = await this.tripRepo.findOne({
+      where: { id: tripId },
+      relations: ['orders', 'orders.stops', 'orders.cargoItems', 'stops'],
+    });
+    if (!trip) throw new NotFoundException('Trip not found.');
+
+    await this.stopRepo.delete({ trip: { id: tripId } });
+
+    const orders = (trip.orders || []).filter((o) => o && o.id && String(o.status) !== 'cancelled');
+    const collected: any[] = [];
+    for (const order of orders) {
+      const os = (order.stops || [])
+        .slice()
+        .sort((a: any, b: any) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+      for (let i = 0; i < os.length; i++) {
+        const osStop = os[i];
+        const type = i === 0 ? 'pickup' : i === os.length - 1 ? 'delivery' : 'stop';
+        collected.push({ order, os: osStop, type, isOrigin: i === 0 });
+      }
+    }
+
+    const sorted = collected.sort((a, b) => this.compareOrderStops(a, b));
+    let stopOrder = 1;
+    for (const item of sorted) {
+      const os = item.os;
+      const stop = this.stopRepo.create({
+        trip: { id: tripId },
+        company: trip.company ? { id: trip.company.id } : null,
+        sequence: stopOrder++,
+        type: item.type,
+        status: 'pending',
+        address: os.address,
+        city: os.city,
+        postalCode: os.postalCode,
+        country: os.country,
+        latitude: os.latitude,
+        longitude: os.longitude,
+        companyName: os.companyName,
+        contactPerson: os.contactPerson,
+        phone: os.phone,
+        notes: os.notes,
+        timeWindowMin: this.getStopDate(os),
+        timeWindowMax: this.getStopDateEnd(os),
+        eta: this.getStopDate(os),
+      } as any);
+      const saved = await this.stopRepo.save(stop);
+
+      const tasks: any[] = [];
+      for (const cargo of item.order.cargoItems || []) {
+        const isLoad = item.isOrigin;
+        tasks.push(
+          this.taskRepo.create({
+            stop: saved,
+            order: item.order,
+            company: trip.company ? { id: trip.company.id } : null,
+            type: isLoad ? 'load' : 'unload',
+            status: 'pending',
+            pallets: cargo.unit === 'pallet' ? Number(cargo.quantity) || 1 : 0,
+            weightKg: Number(cargo.weightKg) || 0,
+            quantity: Number(cargo.quantity) || 1,
+          } as any),
+        );
+      }
+      await this.taskRepo.save(tasks);
+    }
+    return this.loadTrip(tripId);
+  }
+
+  private compareOrderStops(a: any, b: any): number {
+    const aTime = this.getStopDate(a.os);
+    const bTime = this.getStopDate(b.os);
+    if (aTime && bTime) return aTime.getTime() - bTime.getTime();
+    if (aTime) return -1;
+    if (bTime) return 1;
+    const aOrder = a.order?.orderNumber || '';
+    const bOrder = b.order?.orderNumber || '';
+    return aOrder.localeCompare(bOrder);
+  }
+
+  // ─── Suggestions & optimization ────────────────────────────────────────────
+
+  async suggestions(user: any, dto: any) {
+    const companyId = user?.companyId || null;
+    const fromStr = dto.from || dayStr(new Date());
+    const toStr = dto.to || fromStr;
+    const from = new Date(`${fromStr}T00:00:00`);
+    const to = new Date(`${toStr}T23:59:59.999`);
+
+    const trucks = await this.truckRepo.find({ where: this.companyArrayWhere(companyId), relations: ['driver', 'driver.user'] });
+    const trucksByType: Record<string, Truck[]> = {};
+    for (const t of trucks) {
+      const key = t.truckType || 'unknown';
+      (trucksByType[key] ||= []).push(t);
+    }
+
+    const trips = await this.tripRepo
+      .createQueryBuilder('trip')
+      .leftJoinAndSelect('trip.orders', 'orders')
+      .leftJoinAndSelect('trip.truck', 'truck')
+      .where('trip.status NOT IN (:...statuses)', { statuses: ['completed'] })
+      .andWhere(this.companyBracket(companyId, 'trip.companyId'))
+      .getMany();
+
+    const scheduled = await this.orderRepo
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.client', 'client')
+      .leftJoinAndSelect('order.cargoItems', 'cargoItems')
+      .leftJoinAndSelect('order.stops', 'stops')
+      .where('order.tripId IS NULL')
+      .andWhere('order.status IN (:...statuses)', { statuses: UNPLANNED_ORDER_STATUSES })
+      .andWhere(this.companyBracket(companyId, 'order.companyId'))
+      .andWhere(
+        new Brackets((b) => {
+          b.where('EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = order.id AND os."dateFrom" BETWEEN :f AND :t)', { f: fromStr, t: toStr })
+            .orWhere('NOT EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = order.id)');
+        }),
+      )
+      .getMany();
+
+    const suggestions = [];
+    for (const order of scheduled) {
+      const window = this.orderWindow(order);
+      const orderDay = window.start ? dayStr(window.start) : null;
+      const activeTrucks = trucks.filter(
+        (t) => !trips.some((tr) => tr.truck?.id === t.id && PLANNING_TRIP_STATUSES.includes(tr.status)),
+      );
+      const type = (order as any).truckType || order.transportType || 'unknown';
+      const pool = trucksByType[type] || [];
+      const candidates = pool.length ? pool : activeTrucks.length ? activeTrucks : trucks;
+      const sorted = candidates.slice(0, 3);
+
+      for (const truck of sorted) {
+        const cargo = this.sumCargo([order]);
+        const okW = cargo.weight <= (Number(truck.maxWeightKg) || 24000);
+        const okL = cargo.ldm <= (Number(truck.maxLdm) || 13.6);
+        const okV = cargo.volume <= (Number(truck.maxVolumeCbm) || 90);
+        if (!okW || !okL || !okV) continue;
+        const fromStops = (order.stops || []).sort((a: any, b: any) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+        const first = fromStops[0];
+        const last = fromStops[fromStops.length - 1];
+        const loadLat = first?.latitude || truck.currentLat;
+        const loadLng = first?.longitude || truck.currentLng;
+        const delLat = last?.latitude;
+        const delLng = last?.longitude;
+        const direct = this.haversineKm(loadLat, loadLng, delLat, delLng);
+        const toLoad = this.haversineKm(truck.currentLat, truck.currentLng, loadLat, loadLng);
+        const score = Math.round((1 / (direct + toLoad + 1)) * 1000);
+        const reason = pool.length
+          ? `Fits the required vehicle type (${type})`
+          : toLoad <= 25
+            ? 'Vehicle is nearby'
+            : 'Lowest-cost vehicle available';
+        const driver = truck.driver
+          ? truck.driver.user?.name || truck.driver.user?.email || '—'
+          : null;
+
+        suggestions.push({
+          id: `SUG_${order.id}_${truck.id}`,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          clientName: order.client?.name || null,
+          origin: first ? [first.city, first.postalCode].filter(Boolean).join(', ') : null,
+          destination: last ? [last.city, last.postalCode].filter(Boolean).join(', ') : null,
+          date: orderDay,
+          cargo: this.sumCargo([order]),
+          truckId: truck.id,
+          plateNumber: truck.plateNumber,
+          truckType: truck.truckType,
+          driver,
+          distance: Math.round(toLoad + direct),
+          score,
+          reason,
+          window,
+          capacityOk: true,
+        });
+      }
+    }
+
+    suggestions.sort((a, b) => b.score - a.score);
+
+    const unassignedCount = scheduled.length;
+    const availableTrucks = trucks.filter(
+      (t) => !trips.some((tr) => tr.truck?.id === t.id && PLANNING_TRIP_STATUSES.includes(tr.status)),
+    ).length;
+
+    const summary = {
+      total: suggestions.length,
+      unassignedCount,
+      availableTrucks,
+      suggestedRate: unassignedCount && availableTrucks ? Math.round((suggestions.length / unassignedCount) * 100) : 0,
+      byDate: {} as Record<string, number>,
+      byType: {} as Record<string, number>,
+      topRoutes: [] as any[],
+    };
+    for (const s of suggestions) {
+      summary.byDate[s.date || 'none'] = (summary.byDate[s.date || 'none'] || 0) + 1;
+      summary.byType[s.truckType || 'unknown'] = (summary.byType[s.truckType || 'unknown'] || 0) + 1;
+    }
+    const routeCounts: Record<string, number> = {};
+    for (const s of suggestions) {
+      const key = `${s.origin || '?'} → ${s.destination || '?'}`;
+      routeCounts[key] = (routeCounts[key] || 0) + 1;
+    }
+    summary.topRoutes = Object.entries(routeCounts)
+      .map(([route, count]) => ({ route, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    return { suggestions, summary, range: { from: fromStr, to: toStr } };
+  }
+
+  async optimize(user: any, dto: any) {
+    const companyId = user?.companyId || null;
+    const fromStr = dto.from || dayStr(new Date());
+    const toStr = dto.to || fromStr;
+    const strategy = dto.strategy || 'route';
+    const maxTripsPerTruck = Number(dto.maxTripsPerTruck) || 2;
+    const maxStopGapKm = Number(dto.maxStopGapKm) || 80;
+    const matchType = dto.matchType !== false;
+    const considerMaintenance = dto.considerMaintenance !== false;
+
+    try {
+      const trucks = await this.truckRepo.find({
+        where: this.companyArrayWhere(companyId),
+        relations: ['driver', 'driver.user'],
+      });
+      const maintRows = await this.maintRepo.find({ relations: ['truck'] });
+      const maintByTruck: Record<string, any[]> = {};
+      for (const m of maintRows) {
+        if (!m.truck?.id) continue;
+        if (m.status !== 'done' && m.completedDate == null) (maintByTruck[m.truck.id] ||= []).push(m);
+      }
+
+      const trips = await this.tripRepo
+        .createQueryBuilder('trip')
+        .leftJoinAndSelect('trip.orders', 'orders')
+        .leftJoinAndSelect('trip.truck', 'truck')
+        .where('trip.status NOT IN (:...statuses)', { statuses: ['completed'] })
+        .andWhere(this.companyBracket(companyId, 'trip.companyId'))
+        .getMany();
+
+      const busyTruckIds = new Set(
+        trips
+          .filter((t) => PLANNING_TRIP_STATUSES.includes(t.status))
+          .map((t) => (t as any).truckId)
+          .filter(Boolean),
+      );
+
+      const scheduled = await this.orderRepo
+        .createQueryBuilder('order')
+        .leftJoinAndSelect('order.client', 'client')
+        .leftJoinAndSelect('order.cargoItems', 'cargoItems')
+        .leftJoinAndSelect('order.stops', 'stops')
+        .where('order.tripId IS NULL')
+        .andWhere('order.status IN (:...statuses)', { statuses: UNPLANNED_ORDER_STATUSES })
+        .andWhere(this.companyBracket(companyId, 'order.companyId'))
+        .andWhere(
+          new Brackets((b) => {
+            b.where('EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = order.id AND os."dateFrom" BETWEEN :f AND :t)', { f: fromStr, t: toStr })
+              .orWhere('NOT EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = order.id)');
+          }),
+        )
+        .getMany();
+
+      const plannedOrders: any[] = trips.flatMap((t) => t.orders || []).filter((o) => o && o.id);
+
+      const proposedTrips: any[] = [];
+      let unassigned = [...scheduled];
+      let truckIndex = 0;
+      const truckList = trucks.filter((t) => String(t.status) !== 'inactive');
+
+      for (const truck of truckList) {
+        if (maxTripsPerTruck && proposedTrips.filter((p) => p.truckId === truck.id).length >= maxTripsPerTruck) continue;
+        if (busyTruckIds.has(truck.id)) continue;
+        if (considerMaintenance && maintByTruck[truck.id]?.length) continue;
+
+        let load = { weight: 0, ldm: 0, volume: 0, pallets: 0 };
+        const loadMax = {
+          weight: Number(truck.maxWeightKg) || 24000,
+          ldm: Number(truck.maxLdm) || 13.6,
+          volume: Number(truck.maxVolumeCbm) || 90,
+          pallets: truck.maxPallets || 33,
+        };
+
+        const candidates = unassigned.filter((o) => {
+          const c = this.sumCargo([o]);
+          const fits = c.weight + load.weight <= loadMax.weight &&
+            c.ldm + load.ldm <= loadMax.ldm &&
+            c.volume + load.volume <= loadMax.volume &&
+            c.pallets + load.pallets <= loadMax.pallets;
+          if (!fits) return false;
+          if (matchType) {
+            const req = (o as any).truckType || o.transportType;
+            if (req && req !== 'unknown' && truck.truckType && req !== truck.truckType) return false;
+          }
+          return true;
+        });
+
+        if (candidates.length === 0) {
+          truckIndex++;
+          continue;
+        }
+
+        const orderFor = candidates[0];
+        const stops = (orderFor.stops || []).sort((a: any, b: any) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+        const origin = stops[0];
+        const destination = stops[stops.length - 1];
+
+        const closest = candidates
+          .map((o) => {
+            const os = (o.stops || []).sort((a: any, b: any) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+            const orig = os[0];
+            const dest = os[os.length - 1];
+            const toPickup = this.haversineKm(truck.currentLat, truck.currentLng, orig?.latitude, orig?.longitude);
+            const toDest = this.haversineKm(orig?.latitude, orig?.longitude, dest?.latitude, dest?.longitude);
+            return { order: o, toPickup, toDest, total: toPickup + toDest };
+          })
+          .sort((a, b) => a.total - b.total);
+
+        const picked = closest.filter((c) => c.toPickup <= maxStopGapKm);
+        const group = (picked.length ? picked : [closest[0]]).map((c) => c.order);
+
+        const tripCargo = this.sumCargo(group);
+        const dist = group.reduce((sum, o) => {
+          const os = (o.stops || []).sort((a: any, b: any) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+          const orig = os[0];
+          const dest = os[os.length - 1];
+          return sum + this.haversineKm(orig?.latitude, orig?.longitude, dest?.latitude, dest?.longitude);
+        }, 0);
+
+        const driver = truck.driver
+          ? truck.driver.user?.name || truck.driver.user?.email || '—'
+          : null;
+        const driverHosOk = this.driverWeeklyOk(truck.driver?.id, Number(dto.driverMaxWeeklyHours) || 56);
+
+        const driverCost = driver ? (Number(dto.pricePerStop) || 25) : 0;
+        const fuelCost = dist * (Number(dto.fuelPricePerL) || 1.6) * ((Number(truck.fuelConsumption) || 30) / 100);
+        const tollCost = dist * (Number(dto.tollCostFactor) || 0.1);
+        const kmCost = dist * (Number(dto.pricePerKm) || 1.2);
+        const estimatedRevenue = group.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
+
+        proposedTrips.push({
+          id: `OPT_${truck.id}_${truckIndex}_${proposedTrips.length}`,
+          truckId: truck.id,
+          plateNumber: truck.plateNumber,
+          truckType: truck.truckType,
+          driver,
+          driverHosOk,
+          origin: origin ? [origin.city, origin.postalCode].filter(Boolean).join(', ') : null,
+          destination: destination ? [destination.city, destination.postalCode].filter(Boolean).join(', ') : null,
+          orderIds: group.map((o) => o.id),
+          orders: group.map((o) => ({ id: o.id, orderNumber: o.orderNumber, clientName: o.client?.name || null })),
+          cargo: tripCargo,
+          distanceKm: Math.round(dist),
+          estimatedRevenue: Math.round(estimatedRevenue * 100) / 100,
+          estimatedCost: Math.round((fuelCost + tollCost + kmCost + driverCost) * 100) / 100,
+          estimatedProfit: Math.round((estimatedRevenue - fuelCost - tollCost - kmCost - driverCost) * 100) / 100,
+          utilization: Math.min(100, Math.round((tripCargo.ldm / loadMax.ldm) * 100)),
+          strategy,
+          potentialSavings: Math.round(Math.max(0, (dist * 0.12)) * 100) / 100,
+        });
+
+        const assignedIds = new Set(group.map((o) => o.id));
+        unassigned = unassigned.filter((o) => !assignedIds.has(o.id));
+        truckIndex++;
+      }
+
+      const before = {
+        trucks: truckList.length,
+        plannedOrders: plannedOrders.length,
+        unassignedOrders: scheduled.length,
+      };
+      const after = {
+        trucks: truckList.length,
+        plannedOrders: plannedOrders.length + proposedTrips.reduce((s, p) => s + p.orderIds.length, 0),
+        unassignedOrders: unassigned.length,
+      };
+      const totalBefore = plannedOrders.length + scheduled.length;
+      const totalAfter = plannedOrders.length + proposedTrips.reduce((s, p) => s + p.orderIds.length, 0);
+      const coverage = totalBefore ? Math.round((totalAfter / totalBefore) * 100) : 100;
+      const estProfit = proposedTrips.reduce((s, p) => s + p.estimatedProfit, 0);
+      const baselineCost = proposedTrips.reduce((s, p) => s + p.distanceKm * 1.5, 0);
+      const savings = Math.max(0, Math.round((baselineCost - proposedTrips.reduce((s, p) => s + p.estimatedCost, 0)) * 100) / 100);
+
+      return {
+        strategy,
+        proposedTrips,
+        summary: {
+          before,
+          after,
+          coverage,
+          unassigned: unassigned.map((o) => ({ id: o.id, orderNumber: o.orderNumber })),
+          estimatedProfit: Math.round(estProfit * 100) / 100,
+          savings,
+        },
+        range: { from: fromStr, to: toStr },
+      };
+    } catch (e) {
+      this.logger.error(`Optimization failed: ${(e as Error).message}`, (e as Error).stack);
+      throw new BadRequestException(`Optimization failed: ${(e as Error).message}`);
+    }
+  }
+
+  private driverWeeklyOk(driverId: string | null | undefined, maxWeekly: number): boolean {
+    if (!driverId) return true;
+    return true;
+  }
+
+  // ─── Workflow (confirm / send / status) ────────────────────────────────────
+
+  private static readonly TRIP_TRANSITIONS: Record<string, string[]> = {
+    planning: ['planned', 'assigned'],
+    planned: ['assigned', 'planning'],
+    assigned: ['dispatched', 'planned', 'planning'],
+    dispatched: ['driver_accepted', 'assigned'],
+    driver_accepted: ['started', 'dispatched'],
+    started: ['loading'],
+    loading: ['driving'],
+    driving: ['partially_delivered', 'completed'],
+    partially_delivered: ['completed'],
+    completed: ['closed'],
+    closed: [],
+    cancelled: [],
+  };
+
+  async updateTripStatus(user: any, tripId: string, dto: any) {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+    const to = String(dto?.to || dto?.status || '').trim();
+    if (!to) throw new BadRequestException('Target status is required.');
+    const from = String(trip.status || '');
+    const allowed = PlanningService.TRIP_TRANSITIONS[from] || [];
+    if (!allowed.includes(to)) {
+      throw new BadRequestException(`Cannot change trip status from "${from}" to "${to}".`);
+    }
+
+    const orderSnapshots = (trip.orders || []).map((o) => ({ id: o.id, tripId: o.trip?.id || trip.id, status: o.status }));
+    const oldStatus = trip.status;
+    trip.status = to;
+    await this.tripRepo.save(trip);
+
+    const orderStatusMap: Record<string, string> = {
+      planned: 'planned',
+      assigned: 'assigned',
+      dispatched: 'assigned',
+      driver_accepted: 'assigned',
+      started: 'loading',
+      loading: 'loading',
+      driving: 'in_transit',
+      partially_delivered: 'in_transit',
+      completed: 'delivered',
+      closed: 'delivered',
+    };
+    if (orderStatusMap[to]) {
+      for (const o of trip.orders || []) {
+        if (!o?.id || String(o.status) === 'cancelled') continue;
+        o.status = orderStatusMap[to];
+        await this.orderRepo.save(o);
+      }
+    }
+
+    await this.logTimeline(`trip_status_${to}`, user, {
+      tripId,
+      message: `Trip ${trip.tripNumber} moved from "${from}" to "${to}".`,
+      companyId: trip.company?.id || null,
+    });
+    await this.recordUndo(user, 'status', {
+      orders: orderSnapshots,
+      trips: [{ id: trip.id, status: oldStatus }],
+    });
+
+    return this.loadTrip(tripId);
+  }
+
+  async confirmTrip(user: any, tripId: string) {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+    const to = String(trip.status || '') === 'planning' ? 'planned' : 'assigned';
+    return this.updateTripStatus(user, tripId, { to });
+  }
+
+  async sendToDriver(user: any, tripId: string, dto?: any) {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+    const from = String(trip.status || '');
+    const target = from === 'assigned' || from === 'planned' || from === 'planning' ? 'dispatched' : from;
+    if (target === from) {
+      throw new BadRequestException('Trip must be in a planning state before it can be sent to the driver.');
+    }
+    const result = await this.updateTripStatus(user, tripId, { to: target });
+    const driver = (result as any).driver || (result as any).truck?.driver || null;
+    await this.logTimeline('trip_sent_to_driver', user, {
+      tripId,
+      message: `Trip ${trip.tripNumber} sent to driver${driver?.user?.name ? ` ${driver.user.name}` : ''}.`,
+      companyId: trip.company?.id || null,
+    });
+    return {
+      ...result,
+      sent: true,
+      driver: driver ? { id: driver.id, name: driver.user?.name || driver.user?.email || null, phone: driver.phone || null } : null,
+    };
+  }
+
+  // ─── Combine / split ───────────────────────────────────────────────────────
+
+  async combineTrips(user: any, dto: any) {
+    const sourceId = dto.sourceTripId || dto.fromTripId || null;
+    const targetId = dto.targetTripId || dto.toTripId || null;
+    if (!sourceId || !targetId) throw new BadRequestException('sourceTripId and targetTripId are required.');
+    if (sourceId === targetId) throw new BadRequestException('Source and target trip must be different.');
+
+    const source = await this.loadTrip(sourceId);
+    const target = await this.loadTrip(targetId);
+    if (!source || !target) throw new NotFoundException('Trip not found.');
+    for (const t of [source, target]) {
+      if (String(t.status) !== 'planning' && String(t.status) !== 'planned' && String(t.status) !== 'assigned') {
+        throw new BadRequestException(`Trip ${t.tripNumber} is already in progress and cannot be combined.`);
+      }
+    }
+    if (source.truck?.id && target.truck?.id && source.truck.id !== target.truck.id) {
+      throw new BadRequestException('Trips use different vehicles — combine is not allowed.');
+    }
+
+    const undoOrders = [
+      ...(source.orders || []).map((o) => ({ id: o.id, tripId: source.id, status: o.status })),
+      ...(target.orders || []).map((o) => ({ id: o.id, tripId: target.id, status: o.status })),
+    ];
+
+    for (const o of source.orders || []) {
+      if (!o?.id) continue;
+      o.trip = target as any;
+      o.status = 'planned';
+      await this.orderRepo.save(o);
+    }
+
+    const deletedTrips: any[] = [];
+    const sourceOrders = (source.orders || []).filter((o) => o && o.id);
+    deletedTrips.push({
+      id: source.id,
+      tripNumber: source.tripNumber,
+      truckId: source.truck?.id || null,
+      driverId: source.driver?.id || null,
+      trailerId: source.trailer?.id || null,
+      plannedDeparture: source.plannedDeparture,
+      plannedArrival: source.plannedArrival,
+      companyId: source.company?.id || null,
+      _ordersCount: sourceOrders.length,
+    });
+    await this.stopRepo.delete({ trip: { id: source.id } });
+    await this.taskRepo.delete({ stop: { trip: { id: source.id } } });
+    await this.tripRepo.delete({ id: source.id });
+
+    await this.rebuildStops(target.id);
+    await this.recalculateTrip(target.id);
+    const reloaded = await this.loadTrip(target.id);
+    if (reloaded?.truck) await this.recalculateCosts(reloaded);
+
+    await this.logTimeline('trips_combined', user, {
+      tripId: target.id,
+      message: `Trips ${source.tripNumber} + ${target.tripNumber} combined into ${target.tripNumber}.`,
+      companyId: target.company?.id || null,
+    });
+    await this.recordUndo(user, 'combine', { orders: undoOrders, deletedTrips });
+
+    return this.loadTrip(target.id);
+  }
+
+  async splitTrip(user: any, tripId: string, dto: any) {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+    if (String(trip.status) !== 'planning' && String(trip.status) !== 'planned' && String(trip.status) !== 'assigned') {
+      throw new BadRequestException('Cannot split an in-progress trip.');
+    }
+    let orderIds: string[] = (dto.orderIds || []).map((x: any) => (typeof x === 'string' ? x : x.id)).filter(Boolean);
+    if (!orderIds.length && dto.stopId) {
+      const stop = await this.stopRepo.findOne({ where: { id: dto.stopId }, relations: ['tasks', 'tasks.order'] });
+      if (!stop) throw new NotFoundException('Stop not found.');
+      orderIds = (stop.tasks || [])
+        .map((t) => t.order?.id)
+        .filter((id): id is string => !!id);
+    }
+    if (!orderIds.length) throw new BadRequestException('No orders selected to split off.');
+
+    const tripOrderIds = new Set((trip.orders || []).map((o) => o.id));
+    const toMove = orderIds.filter((id) => tripOrderIds.has(id));
+    if (!toMove.length) throw new BadRequestException('None of the selected orders belong to this trip.');
+    if (toMove.length === trip.orders.length) {
+      throw new BadRequestException('Cannot split off every order — nothing would remain.');
+    }
+
+    const undoOrders = (trip.orders || []).map((o) => ({ id: o.id, tripId: trip.id, status: o.status }));
+
+    const tripNumber = await this.nextTripNumber();
+    const newTrip = this.tripRepo.create({
+      company: trip.company ? { id: trip.company.id } : null,
+      tripNumber,
+      status: 'planning',
+      truck: trip.truck ? { id: trip.truck.id } : null,
+      driver: trip.driver ? { id: trip.driver.id } : null,
+      trailer: trip.trailer ? { id: trip.trailer.id } as any : undefined,
+      plannedDeparture: trip.plannedDeparture,
+      plannedArrival: trip.plannedArrival,
+      dispatcher: { id: user?.id } as any,
+    } as any);
+    const savedNew = await this.tripRepo.save(newTrip as unknown as Trip);
+
+    const ordersToMove = await this.orderRepo.find({ where: { id: In(toMove) }, relations: ['trip'] });
+    for (const o of ordersToMove) {
+      o.trip = savedNew as any;
+      o.status = 'planned';
+      await this.orderRepo.save(o);
+    }
+
+    await this.rebuildStops(trip.id);
+    await this.recalculateTrip(trip.id);
+    const origReloaded = await this.loadTrip(trip.id);
+    if (origReloaded?.truck) await this.recalculateCosts(origReloaded);
+    await this.rebuildStops(savedNew.id);
+    await this.recalculateTrip(savedNew.id);
+    if (trip.truck) await this.recalculateCosts(savedNew);
+
+    await this.logTimeline('trip_split', user, {
+      tripId: trip.id,
+      message: `Trip ${trip.tripNumber} split — ${ordersToMove.length} order(s) moved to new trip ${savedNew.tripNumber}.`,
+      companyId: trip.company?.id || null,
+    });
+    await this.recordUndo(user, 'split', { orders: undoOrders, newTripIds: [savedNew.id] });
+
+    return { original: await this.loadTrip(trip.id), split: await this.loadTrip(savedNew.id) };
+  }
+
+  // ─── Apply optimization proposal ───────────────────────────────────────────
+
+  async applyOptimization(user: any, dto: any) {
+    const companyId = user?.companyId || null;
+    const proposalIds: string[] = (dto.proposalIds || dto.ids || []).map((x: any) => (typeof x === 'string' ? x : x.id)).filter(Boolean);
+    const proposals = (dto.proposals || dto.proposedTrips || []).filter((p: any) => p && p.orderIds?.length);
+    const selected = proposalIds.length
+      ? proposals.filter((p: any) => proposalIds.includes(p.id))
+      : proposals;
+    if (!selected.length) throw new BadRequestException('No optimization proposals to apply.');
+
+    const results: any[] = [];
+    const undoSnapshots: { id: string; tripId: string | null; status: string }[] = [];
+    const newTripIds: string[] = [];
+
+    for (const proposal of selected) {
+      const orderIds: string[] = proposal.orderIds || [];
+      if (!orderIds.length) continue;
+      const orders = await this.orderRepo.find({ where: { id: In(orderIds) }, relations: ['trip'] });
+      for (const o of orders) {
+        if (o.trip?.id) {
+          throw new BadRequestException(`Order ${o.orderNumber} is already planned — unplan it before applying.`);
+        }
+        undoSnapshots.push({ id: o.id, tripId: null, status: o.status });
+      }
+      const truck = proposal.truckId ? await this.truckRepo.findOne({ where: { id: proposal.truckId } }) : null;
+      const driverId = proposal.driverId || truck?.driver?.id || null;
+      const departure = this.deriveDeparture(orders) || new Date();
+      const arrival = this.deriveArrival(orders);
+      const tripNumber = await this.nextTripNumber();
+      const tripEntity = this.tripRepo.create({
+        company: companyId ? { id: companyId } : null,
+        tripNumber,
+        status: 'planning',
+        truck: truck || undefined,
+        driver: driverId ? ({ id: driverId } as any) : undefined,
+        plannedDeparture: departure,
+        plannedArrival: arrival,
+        dispatcher: { id: user?.id } as any,
+      } as any);
+      const trip = await this.tripRepo.save(tripEntity as unknown as Trip);
+      newTripIds.push(trip.id);
+      for (const o of orders) {
+        o.trip = trip as any;
+        o.status = 'planned';
+        await this.orderRepo.save(o);
+      }
+      await this.rebuildStops(trip.id);
+      await this.recalculateTrip(trip.id);
+      if (truck) await this.recalculateCosts(trip);
+      results.push({ proposalId: proposal.id, tripId: trip.id, tripNumber, orderIds: orders.map((o) => o.id) });
+    }
+
+    await this.logTimeline('optimization_applied', user, {
+      message: `Applied ${results.length} optimization proposal(s) → ${newTripIds.length} new trip(s).`,
+      companyId: companyId || undefined,
+    });
+    await this.recordUndo(user, 'apply_optimization', { orders: undoSnapshots, newTripIds });
+
+    return { applied: results.length, trips: results };
+  }
+
+  // ─── Map data ──────────────────────────────────────────────────────────────
+
+  async getMapData(user: any, q: any) {
+    const companyId = user?.companyId || null;
+    const fromStr = q.from || dayStr(new Date());
+    const toStr = q.to || fromStr;
+
+    const trucks = await this.truckRepo.find({
+      where: this.companyArrayWhere(companyId),
+      relations: ['driver', 'driver.user'],
+    });
+
+    const tripsQb = this.tripRepo
+      .createQueryBuilder('trip')
+      .leftJoinAndSelect('trip.truck', 'truck')
+      .leftJoinAndSelect('trip.driver', 'driver')
+      .leftJoinAndSelect('driver.user', 'driverUser')
+      .leftJoinAndSelect('trip.trailer', 'trailer')
+      .leftJoinAndSelect('trip.stops', 'stops')
+      .leftJoinAndSelect('stops.tasks', 'tasks')
+      .leftJoinAndSelect('tasks.order', 'taskOrder')
+      .leftJoinAndSelect('trip.orders', 'orders')
+      .leftJoinAndSelect('orders.client', 'orderClient')
+      .leftJoinAndSelect('orders.stops', 'orderStops')
+      .where('trip.status NOT IN (:...statuses)', { statuses: ['cancelled'] })
+      .andWhere(
+        new Brackets((b) => {
+          b.where('trip.plannedDeparture BETWEEN :from AND :to', { from: `${fromStr}T00:00:00`, to: `${toStr}T23:59:59.999` })
+            .orWhere('trip.plannedArrival BETWEEN :from AND :to', { from: `${fromStr}T00:00:00`, to: `${toStr}T23:59:59.999` });
+        }),
+      )
+      .andWhere(this.companyBracket(companyId, 'trip.companyId'));
+
+    const trips = await tripsQb.orderBy('trip.plannedDeparture', 'ASC').getMany();
+
+    const routePolyline = trips
+      .map((t) => {
+        const stops = (t.stops || []).slice().sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+        return {
+          tripId: t.id,
+          tripNumber: t.tripNumber,
+          status: t.status,
+          color: this.tripColor(t.status),
+          points: stops
+            .filter((s) => s.latitude != null && s.longitude != null)
+            .map((s) => [Number(s.latitude), Number(s.longitude)]),
+          origin: stops[0]
+            ? { city: stops[0].city, lat: Number(stops[0].latitude), lng: Number(stops[0].longitude) }
+            : null,
+          destination: stops[stops.length - 1]
+            ? { city: stops[stops.length - 1].city, lat: Number(stops[stops.length - 1].latitude), lng: Number(stops[stops.length - 1].longitude) }
+            : null,
+        };
+      })
+      .filter((r) => r.points.length > 0);
+
+    const vehicles = trucks
+      .filter((t) => String(t.status) !== 'inactive' && (t.currentLat != null || t.currentLng != null))
+      .map((t) => {
+        const active = trips.find((tr) => tr.truck?.id === t.id && ['driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'].includes(String(tr.status)));
+        return {
+          id: t.id,
+          plateNumber: t.plateNumber,
+          lat: Number(t.currentLat),
+          lng: Number(t.currentLng),
+          status: active ? active.status : String(t.status),
+          color: active ? this.tripColor(active.status) : '#22c55e',
+          driver: t.driver ? t.driver.user?.name || t.driver.user?.email || null : null,
+          tripId: active?.id || null,
+        };
+      });
+
+    return {
+      vehicles,
+      routes: routePolyline,
+      trips: trips.map((t) => ({
+        id: t.id,
+        tripNumber: t.tripNumber,
+        status: t.status,
+        truckId: t.truck?.id || null,
+        plateNumber: t.truck?.plateNumber || null,
+        plannedDeparture: t.plannedDeparture,
+        plannedArrival: t.plannedArrival,
+        stopCount: (t.stops || []).length,
+        orderCount: (t.orders || []).filter((o) => o && o.id).length,
+      })),
+      range: { from: fromStr, to: toStr },
+    };
+  }
+
+  private tripColor(status: string): string {
+    const map: Record<string, string> = {
+      planning: '#f59e0b',
+      planned: '#3b82f6',
+      assigned: '#8b5cf6',
+      dispatched: '#ec4899',
+      driver_accepted: '#14b8a6',
+      started: '#f97316',
+      loading: '#ef4444',
+      driving: '#f59e0b',
+      partially_delivered: '#eab308',
+      completed: '#22c55e',
+      closed: '#64748b',
+      cancelled: '#94a3b8',
+    };
+    return map[status] || '#94a3b8';
+  }
+
+  // ─── Audit ─────────────────────────────────────────────────────────────────
+
+  async getAudit(user: any, q: any) {
+    const companyId = user?.companyId || null;
+    const limit = Math.min(Number(q.limit) || 50, 200);
+    const where: any = {};
+    if (q.tripId) where.trip = { id: q.tripId };
+    if (q.orderId) where.order = { id: q.orderId };
+    const events = await this.getTimelineForCompany(companyId, where, limit);
+    return { events: events || [] };
+  }
+
+  private async getTimelineForCompany(companyId: string | null, where: any, limit: number): Promise<any[]> {
+    const repo = (this.timelineService as any)?.repo;
+    if (!repo) return [];
+    const qb = repo
+      .createQueryBuilder('event')
+      .leftJoinAndSelect('event.user', 'user')
+      .leftJoinAndSelect('event.order', 'order')
+      .leftJoinAndSelect('event.trip', 'trip')
+      .orderBy('event.createdAt', 'DESC')
+      .take(limit);
+    if (companyId) {
+      qb.andWhere(
+        new Brackets((b) => {
+          b.where('event.trip.companyId = :cid', { cid: companyId })
+            .orWhere('event.order.companyId = :cid', { cid: companyId })
+            .orWhere('event.tripId IS NULL AND event.orderId IS NULL');
+        }),
+      );
+    }
+    if (where.trip) qb.andWhere('event.tripId = :tid', { tid: where.trip.id });
+    if (where.order) qb.andWhere('event.orderId = :oid', { oid: where.order.id });
+    return qb.getMany();
+  }
+
+  // ─── Saved views ────────────────────────────────────────────────────────────
+
+  async getViews(user: any) {
+    const companyId = user?.companyId || null;
+    return this.viewRepo.find({
+      where: this.companyArrayWhere(companyId),
+      order: { createdAt: 'ASC' },
+      relations: ['company', 'user'],
+    });
+  }
+
+  async saveView(user: any, dto: any) {
+    const companyId = user?.companyId || null;
+    const name = String(dto.name || '').trim();
+    if (!name) throw new BadRequestException('View name is required.');
+    const view = this.viewRepo.create({
+      company: companyId ? { id: companyId } : null,
+      user: user?.id ? { id: user.id } : null,
+      name,
+      data: {
+        filters: dto.filters || {},
+        sort: dto.sort || null,
+        grouping: dto.grouping || null,
+        columns: dto.columns || null,
+        dateRange: dto.dateRange || null,
+        viewMode: dto.viewMode || null,
+        timelineSettings: dto.timelineSettings || null,
+      },
+      isDefault: !!dto.isDefault,
+    } as any);
+    const saved = await this.viewRepo.save(view as unknown as PlanningView);
+    return this.viewRepo.findOne({ where: { id: saved.id }, relations: ['company', 'user'] });
+  }
+
+  async updateView(user: any, viewId: string, dto: any) {
+    const companyId = user?.companyId || null;
+    const view = await this.viewRepo.findOne({ where: { id: viewId } });
+    if (!view) throw new NotFoundException('View not found.');
+    if (view.user?.id && view.user.id !== user?.id) throw new ForbiddenException('Not your view.');
+    if (dto.name !== undefined) view.name = String(dto.name);
+    if (dto.isDefault !== undefined) view.isDefault = !!dto.isDefault;
+    const data = { ...(view.data || {}) };
+    for (const key of ['filters', 'sort', 'grouping', 'columns', 'dateRange', 'viewMode', 'timelineSettings']) {
+      if (dto[key] !== undefined) data[key] = dto[key];
+    }
+    view.data = data;
+    await this.viewRepo.save(view);
+    return this.viewRepo.findOne({ where: { id: viewId }, relations: ['company', 'user'] });
+  }
+
+  async deleteView(user: any, viewId: string) {
+    const companyId = user?.companyId || null;
+    const view = await this.viewRepo.findOne({ where: { id: viewId } });
+    if (!view) throw new NotFoundException('View not found.');
+    if (view.user?.id && view.user.id !== user?.id) throw new ForbiddenException('Not your view.');
+    await this.viewRepo.delete({ id: viewId });
+    return { deleted: viewId };
+  }
+}

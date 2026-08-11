@@ -1,5 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import { planningResources } from './planningI18n';
 
 const resources = {
   ro: { translation: {
@@ -7352,6 +7353,12 @@ resources.en = {
     ...enExtra.translation
   }
 };
+
+for (const lng of Object.keys(planningResources)) {
+  const bundle = planningResources[lng];
+  if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
+  Object.assign((resources as any)[lng].translation, bundle.translation);
+}
 
 i18n.use(initReactI18next).init({
   resources,
