@@ -666,7 +666,7 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
             <tr>
               <th className="table-header">{t('reference', 'Reference')}</th>
               <th className="table-header">{t('route', 'Route')}</th>
-              <th className="table-header text-right">{t('price', 'Price')}</th>
+              <th className="table-header">{t('price', 'Price')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60">

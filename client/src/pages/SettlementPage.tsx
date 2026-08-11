@@ -150,15 +150,15 @@ export default function SettlementPage() {
           <thead>
             <tr className="bg-surface border-b border-border">
               <th className="table-header">{t('employee')}</th>
-              <th className="table-header text-center">{t('sett_trips')}</th>
-              <th className="table-header text-right">{t('sett_distance')}</th>
-              <th className="table-header text-right">{t('sett_revenue')}</th>
-              <th className="table-header text-right">{t('sett_gross')}</th>
-              <th className="table-header text-right">{t('advances')}</th>
-              <th className="table-header text-right">{t('deductions')}</th>
-              <th className="table-header text-right">{t('sett_net')}</th>
-              <th className="table-header text-center">{t('status')}</th>
-              <th className="table-header text-center">{t('actions')}</th>
+              <th className="table-header">{t('sett_trips')}</th>
+              <th className="table-header">{t('sett_distance')}</th>
+              <th className="table-header">{t('sett_revenue')}</th>
+              <th className="table-header">{t('sett_gross')}</th>
+              <th className="table-header">{t('advances')}</th>
+              <th className="table-header">{t('deductions')}</th>
+              <th className="table-header">{t('sett_net')}</th>
+              <th className="table-header">{t('status')}</th>
+              <th className="table-header">{t('actions')}</th>
             </tr>
           </thead>
           <tbody>

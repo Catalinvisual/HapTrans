@@ -129,15 +129,15 @@ export default function PayrollPage() {  const confirmSave = useSaveConfirm();
             <thead>
               <tr className="bg-surface border-b border-border">
                 <th className="table-header">{t('employee')}</th>
-                <th className="table-header text-right">{t('payroll_gross')}</th>
-                <th className="table-header text-right">{t('payroll_tax')}</th>
-                <th className="table-header text-right">{t('payroll_net')}</th>
-                <th className="table-header text-center">{t('daysWorked')}</th>
-                <th className="table-header text-right">{t('payroll_allowance')}</th>
-                <th className="table-header text-right">{t('bonuses')} / {t('deductions')}</th>
-                <th className="table-header text-right">{t('payroll_totalNet')}</th>
-                <th className="table-header text-center">{t('status')}</th>
-                <th className="table-header text-center">{t('actions')}</th>
+                <th className="table-header">{t('payroll_gross')}</th>
+                <th className="table-header">{t('payroll_tax')}</th>
+                <th className="table-header">{t('payroll_net')}</th>
+                <th className="table-header">{t('daysWorked')}</th>
+                <th className="table-header">{t('payroll_allowance')}</th>
+                <th className="table-header">{t('bonuses')} / {t('deductions')}</th>
+                <th className="table-header">{t('payroll_totalNet')}</th>
+                <th className="table-header">{t('status')}</th>
+                <th className="table-header">{t('actions')}</th>
               </tr>
             </thead>
             <tbody>

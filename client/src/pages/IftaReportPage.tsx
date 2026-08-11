@@ -72,8 +72,8 @@ export default function IftaReportPage() {
             <table className="w-full text-sm">
               <thead><tr className="bg-surface border-b border-border">
                 <th className="table-header">{t('ifta_country')}</th>
-                <th className="table-header text-right">{t('ifta_km')}</th>
-                <th className="table-header text-center">{t('ifta_trips')}</th>
+                <th className="table-header">{t('ifta_km')}</th>
+                <th className="table-header">{t('ifta_trips')}</th>
               </tr></thead>
               <tbody>
                 {filteredCountries.map((c: any) => (
@@ -97,7 +97,7 @@ export default function IftaReportPage() {
               <thead><tr className="bg-surface border-b border-border">
                 <th className="table-header">{t('truck')}</th>
                 <th className="table-header">{t('ifta_country')}</th>
-                <th className="table-header text-right">{t('ifta_km')}</th>
+                <th className="table-header">{t('ifta_km')}</th>
               </tr></thead>
               <tbody>
                 {(report?.byTruck || []).map((tr: any) => (

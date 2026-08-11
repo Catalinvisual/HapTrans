@@ -547,7 +547,7 @@ const tabs: TabDef[] = drawerDriver ? [
                     <th className="table-header">{t('hos_work', 'Muncă')}</th>
                     <th className="table-header">{t('hos_break', 'Pauză')}</th>
                     <th className="table-header">{t('hos_notes', 'Note')}</th>
-                    <th className="table-header text-right">{t('actions', 'Acțiuni')}</th>
+                    <th className="table-header">{t('actions', 'Acțiuni')}</th>
                   </tr>
                 </thead>
                 <tbody>

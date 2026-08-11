@@ -104,7 +104,7 @@ export default function PortalInvoicesPage() {
                   <th className="table-header">{t("jsx_total")}</th>
                   <th className="table-header">{t("jsx_balance")}</th>
                   <th className="table-header">{t("jsx_status")}</th>
-                  <th className="table-header text-right">{t("jsx_actions")}</th>
+                  <th className="table-header">{t("jsx_actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -249,8 +249,8 @@ export default function PortalInvoicesPage() {
                           <th className="table-header">{t("jsx_date")}</th>
                           <th className="table-header">{t("jsx_method")}</th>
                           <th className="table-header">{t("jsx_reference")}</th>
-                          <th className="table-header text-right">{t("jsx_amount")}</th>
-                          <th className="table-header text-right">{t("jsx_status")}</th>
+                          <th className="table-header">{t("jsx_amount")}</th>
+                          <th className="table-header">{t("jsx_status")}</th>
                         </tr>
                       </thead>
                       <tbody>

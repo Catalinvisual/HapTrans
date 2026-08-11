@@ -138,7 +138,7 @@ export default function ClientPortalAccess({
                 <th className="table-header">{t('email', 'Email')}</th>
                 <th className="table-header">{t('status', 'Status')}</th>
                 <th className="table-header">{t('lastLogin', 'Last Login')}</th>
-                <th className="table-header text-right">{t('actions', 'Actions')}</th>
+                <th className="table-header">{t('actions', 'Actions')}</th>
               </tr>
             </thead>
             <tbody>

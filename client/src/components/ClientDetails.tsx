@@ -320,7 +320,7 @@ return <div className="space-y-6 animate-fade-in">
                       <th className="table-header">{t('basePrice')}</th>
                       <th className="table-header">{t('fuelSurcharge')}</th>
                       <th className="table-header">{t('tollIncluded')}</th>
-                      <th className="table-header text-right">{t('actions')}</th>
+                      <th className="table-header">{t('actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -440,7 +440,7 @@ return <div className="space-y-6 animate-fade-in">
                       <th className="table-header">{t('country')}</th>
                       <th className="table-header">{t('contactName')}</th>
                       <th className="table-header">{t('phone')}</th>
-                      <th className="table-header text-right">{t('actions')}</th>
+                      <th className="table-header">{t('actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
