@@ -48,23 +48,25 @@ const PAGE_TITLES: Record<string, Record<string, string>> = {
   '/website-cms': { ro: 'Conținut Website', en: 'Website Content', nl: 'Website Content' },
 };
 
-// Shared AudioContext to perfectly bypass browser autoplay restrictions
+// Shared AudioContext to safely handle sound notifications only after user interaction
 let sharedAudioCtx: AudioContext | null = null;
-if (typeof window !== 'undefined') {
-  const initAudio = () => {
-    try {
+const getAudioContext = () => {
+  try {
+    if (!sharedAudioCtx && typeof window !== 'undefined') {
       // @ts-ignore
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (!sharedAudioCtx && AudioContextClass) {
+      if (AudioContextClass) {
         sharedAudioCtx = new AudioContextClass();
-      } else if (sharedAudioCtx && sharedAudioCtx.state === 'suspended') {
-        sharedAudioCtx.resume();
       }
-    } catch (e) {}
-  };
-  window.addEventListener('pointerdown', initAudio, { passive: true });
-  window.addEventListener('keydown', initAudio, { passive: true });
-}
+    }
+    if (sharedAudioCtx && sharedAudioCtx.state === 'suspended') {
+      sharedAudioCtx.resume().catch(() => {});
+    }
+    return sharedAudioCtx;
+  } catch (e) {
+    return null;
+  }
+};
 
 const formatNotification = (n: any, lang: string, t: any) => {
   if (!n) return { title: '', message: '' };
@@ -396,17 +398,9 @@ export default function Layout() {
   });
   const playNotificationSound = () => {
     try {
-      if (!sharedAudioCtx) {
-        // @ts-ignore
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (AudioContextClass) sharedAudioCtx = new AudioContextClass();
-      }
-      if (!sharedAudioCtx) return;
-      if (sharedAudioCtx.state === 'suspended') {
-        sharedAudioCtx.resume();
-      }
+      const ctx = getAudioContext();
+      if (!ctx || ctx.state !== 'running') return;
       
-      const ctx = sharedAudioCtx;
       const osc1 = ctx.createOscillator();
       const gain1 = ctx.createGain();
       osc1.type = 'sine';
@@ -428,9 +422,7 @@ export default function Layout() {
       gain2.connect(ctx.destination);
       osc2.start(ctx.currentTime + 0.12);
       osc2.stop(ctx.currentTime + 0.6);
-    } catch (e) {
-      console.error('Audio playback error:', e);
-    }
+    } catch (e) {}
   };
 
   useEffect(() => {

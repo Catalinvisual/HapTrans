@@ -446,8 +446,10 @@ export class PlanningService {
       .leftJoinAndSelect('order.stops', 'stops')
       .where('order.tripId IS NULL')
       .andWhere('order.status IN (:...statuses)', { statuses: UNPLANNED_ORDER_STATUSES })
-      .andWhere(this.companyBracket(companyId, 'order.companyId'))
-      .andWhere(
+      .andWhere(this.companyBracket(companyId, 'order.companyId'));
+
+    if (q.dateStrict === 'true') {
+      orderQb.andWhere(
         new Brackets((b) => {
           b.where(
             'EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = order.id AND os."dateFrom" BETWEEN :f AND :t)',
@@ -455,6 +457,8 @@ export class PlanningService {
           ).orWhere('NOT EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = order.id)');
         }),
       );
+    }
+
     if (q.clientId) orderQb.andWhere('order.clientId IN (:...cids)', { cids: String(q.clientId).split(',') });
     if (q.priority) orderQb.andWhere('order.priority IN (:...prios)', { prios: String(q.priority).split(',') });
     if (q.equipment) {

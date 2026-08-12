@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { PlanningService } from './planning.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -52,6 +52,16 @@ export class PlanningController {
     return this.planningService.recalculateTrip(tripId);
   }
 
+  @Put('trips/:tripId/reorder')
+  reorderStopsPut(@Request() req: any, @Param('tripId') tripId: string, @Body() body: any) {
+    return this.planningService.reorderStops(req.user, tripId, body);
+  }
+
+  @Put('trips/:tripId/recalculate')
+  recalculateTripPut(@Param('tripId') tripId: string) {
+    return this.planningService.recalculateTrip(tripId);
+  }
+
   @Get('suggestions')
   suggestions(@Request() req: any, @Query() query: any) {
     return this.planningService.suggestions(req.user, query);
@@ -90,6 +100,11 @@ export class PlanningController {
   @Post('trips/:tripId/split')
   splitTrip(@Request() req: any, @Param('tripId') tripId: string, @Body() body: any) {
     return this.planningService.splitTrip(req.user, tripId, body);
+  }
+
+  @Get('map')
+  getMap(@Request() req: any, @Query() query: any) {
+    return this.planningService.getMapData(req.user, query);
   }
 
   @Get('map-data')

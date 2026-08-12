@@ -1555,9 +1555,8 @@ export default function PlanningPage() {
   const [search, setSearch] = useState<string>('');
 
   // Data State
-  const [boardData, setBoardData] = useState<any>(null);
-  const [mapData, setMapData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [actionsLoading, setActionsLoading] = useState<boolean>(false);
 
   // Selected Entities
@@ -1580,6 +1579,7 @@ export default function PlanningPage() {
   // 1. Fetch Board & Map Data
   const loadData = useCallback(async () => {
     setIsLoading(true);
+    setFetchError(null);
     try {
       // Calculate date range based on view mode
       const curr = parseDay(selectedDate);
@@ -1596,7 +1596,7 @@ export default function PlanningPage() {
         to = dayStr(addDays(curr, 2));
       }
 
-      const [boardRes, mapRes] = await Promise.all([
+      const [boardRes, mapRes] = await Promise.allSettled([
         api.get('/planning/board', {
           params: {
             from,
@@ -1612,14 +1612,30 @@ export default function PlanningPage() {
         }),
       ]);
 
-      setBoardData(boardRes.data);
-      setMapData(mapRes.data);
+      if (boardRes.status === 'fulfilled') {
+        setBoardData(boardRes.value.data);
+      } else {
+        const errMsg =
+          boardRes.reason?.response?.data?.message ||
+          boardRes.reason?.message ||
+          'Unable to load planning board data.';
+        setFetchError(errMsg);
+        toast.error(errMsg);
+      }
+
+      if (mapRes.status === 'fulfilled') {
+        setMapData(mapRes.value.data);
+      } else {
+        console.warn('Map data request issue:', mapRes.reason);
+      }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || t('jsx_loadError', 'Failed to load board data'));
+      const errMsg = err.response?.data?.message || err.message || 'Unable to load planning data';
+      setFetchError(errMsg);
+      toast.error(errMsg);
     } finally {
       setIsLoading(false);
     }
-  }, [selectedDate, viewMode, search, truckFilter, driverFilter, statusFilter, t]);
+  }, [selectedDate, viewMode, search, truckFilter, driverFilter, statusFilter]);
 
   useEffect(() => {
     loadData();
@@ -1929,6 +1945,19 @@ export default function PlanningPage() {
                   <div className="flex justify-center py-12">
                     <Loader2 className="w-6 h-6 animate-spin text-primary" />
                   </div>
+                ) : fetchError ? (
+                  <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                    <AlertTriangle className="w-7 h-7 text-amber-500 mb-2" />
+                    <p className="font-bold text-text-primary text-xs">Failed to load pool orders</p>
+                    <p className="text-[11px] text-text-secondary mt-1 mb-3">{fetchError}</p>
+                    <button
+                      onClick={loadData}
+                      className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 font-bold"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>{t('jsx_recalc', 'Retry')}</span>
+                    </button>
+                  </div>
                 ) : (boardData?.orders || []).length === 0 ? (
                   <div className="text-center py-12 px-4">
                     <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
@@ -1975,11 +2004,29 @@ export default function PlanningPage() {
                     {t('map_loading', 'Loading schedule…')}
                   </p>
                 </div>
+              ) : fetchError ? (
+                <div className="flex flex-col items-center justify-center h-full py-24 px-4 text-center">
+                  <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mb-3">
+                    <AlertTriangle className="w-6 h-6" />
+                  </div>
+                  <p className="font-bold text-text-primary text-base">Unable to load planning data</p>
+                  <p className="text-xs text-text-secondary max-w-sm mt-1 mb-4">{fetchError}</p>
+                  <button
+                    onClick={loadData}
+                    className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-bold shadow-md"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>{t('jsx_recalc', 'Retry')}</span>
+                  </button>
+                </div>
               ) : (boardData?.resources || []).length === 0 ? (
-                <div className="text-center py-24">
-                  <TruckIcon className="w-10 h-10 text-text-muted mx-auto mb-2" />
+                <div className="text-center py-24 px-4">
+                  <TruckIcon className="w-10 h-10 text-text-muted mx-auto mb-2 opacity-50" />
                   <p className="font-bold text-text-primary text-sm">
-                    {t('jsx_noTrips', 'No vehicles or trips found.')}
+                    {t('jsx_noTrips', 'No vehicles or trips found for this period.')}
+                  </p>
+                  <p className="text-xs text-text-secondary mt-1">
+                    Try selecting another date or adjusting status filters.
                   </p>
                 </div>
               ) : (
