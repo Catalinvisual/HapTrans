@@ -216,7 +216,7 @@ export default function OrdersPage() {
       const paymentTermsDays = o.client?.paymentTermsDays || 30;
       const issueDate = new Date().toISOString().split('T')[0];
       const dueDate = new Date(Date.now() + paymentTermsDays * 86400000).toISOString().split('T')[0];
-      const res = await api.post('/invoices', {
+      await api.post('/invoices', {
         clientId: o.client?.id,
         tripId: o.trip?.id || null,
         amount: Number(o.price || 0),
@@ -299,12 +299,12 @@ export default function OrdersPage() {
     { key: 'priority', label: t('priority', 'Priority'), render: o => {
       const p = o.priority || 'normal';
       const cls = p === 'critical' ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900' : p === 'high' ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900' : 'bg-surface text-text-secondary border-border';
-      return <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-full border ${cls}`}>{t(`priority_${p}`, p)}</span>;
+      return <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-full border ${cls}`}>{t(`priority_${p}`, p) as string}</span>;
     } },
     { key: 'price', label: t('price', 'Price'), sortable: true, align: 'right', render: o => (
       <div className="text-right font-bold text-text-primary whitespace-nowrap">€{Number(o.price || 0).toLocaleString()}</div>
     ) },
-    { key: 'status', label: t('status', 'Status'), render: o => <StatusBadge status={o.status} label={t(`status_${o.status}`, o.status.replace(/_/g, ' '))} /> },
+    { key: 'status', label: t('status', 'Status'), render: o => <StatusBadge status={o.status} label={t(`status_${o.status}`, o.status.replace(/_/g, ' ')) as string} /> },
     { key: 'actions', label: t('actions', 'Actions'), align: 'right', render: o => (
       <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
          {o.status !== 'invoiced' && o.status !== 'paid' && o.status !== 'cancelled' && <button title={t('create_invoice', 'Create Invoice')} onClick={() => handleCreateInvoice(o)} className="p-1.5 rounded-md text-text-secondary hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10"><FileText className="w-4 h-4" /></button>}
@@ -414,7 +414,7 @@ export default function OrdersPage() {
   );
 }
 
-function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, onDelete, onStatusChange, onRefetch, t, navigate }: any) {
+function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, onDelete, onStatusChange, t, navigate }: any) {
   const [documents, setDocuments] = useState<any[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [uploading, setUploading] = useState(false);

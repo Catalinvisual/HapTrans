@@ -114,7 +114,7 @@ async function createBaseDocument(title: string, company: CompanySettings | null
 // ─── Generators ──────────────────────────────────────────────────────────────
 
 export async function generateOrderPdf(order: any, company: CompanySettings | null) {
-  const { doc, pageWidth, startY } = await createBaseDocument(`Transport Order: ${order?.orderNumber || 'N/A'}`, company, 'landscape');
+  const { doc, startY } = await createBaseDocument(`Transport Order: ${order?.orderNumber || 'N/A'}`, company, 'landscape');
   let currentY = startY;
 
   // Order Info Section

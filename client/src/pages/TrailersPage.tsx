@@ -52,6 +52,7 @@ export default function TrailersPage() {
   const { t } = useTranslation();
   const company = useSettingsStore(s => s.company);
   const [trailers, setTrailers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(formStore.trailersShowForm);
   const [search, setSearch] = useState("");
