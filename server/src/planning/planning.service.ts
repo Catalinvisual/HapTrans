@@ -920,7 +920,7 @@ export class PlanningService {
     const existingIds = new Set(trip.orders.map((o) => o.id));
     const newOrders = orders.filter((o) => !existingIds.has(o.id));
     for (const o of newOrders) {
-      o.trip = trip as any;
+      o.trip = { id: trip.id } as any;
       o.status = 'planned';
       trip.orders.push(o as any);
     }
@@ -1051,7 +1051,7 @@ export class PlanningService {
       }
       const oldTripId = order.trip?.id || null;
       const undoSnapshot = { id: order.id, tripId: oldTripId, status: order.status };
-      order.trip = target as any;
+      order.trip = { id: target.id } as any;
       order.status = 'planned';
       await this.orderRepo.save(order);
       const deletedTrips: any[] = [];
