@@ -58,7 +58,7 @@ export default function DataTable<T>({
         <thead className="sticky top-0 z-10">
           <tr className="bg-surface/80 backdrop-blur border-b border-border">
             {selectable && (
-              <th className="px-3 py-3 w-10">
+              <th className="table-header px-3 py-3 w-10">
                 <input type="checkbox" className="w-4 h-4 accent-orange-500 cursor-pointer" checked={allSelected} onChange={toggleAll} />
               </th>
             )}
@@ -66,10 +66,10 @@ export default function DataTable<T>({
               <th
                 key={col.key}
                 onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                className={`px-3.5 py-2.5 font-medium text-[11px] text-text-secondary uppercase tracking-wider whitespace-nowrap select-none text-left ${col.sortable ? 'cursor-pointer hover:text-primary' : ''} ${col.hideBelow ? `hidden ${col.hideBelow === 'lg' ? 'lg:table-cell' : col.hideBelow === 'md' ? 'md:table-cell' : 'sm:table-cell'}` : ''}`}
+                className={`table-header px-3.5 py-2.5 font-medium text-[11px] text-text-secondary uppercase tracking-wider whitespace-nowrap select-none text-left ${col.sortable ? 'cursor-pointer hover:text-primary' : ''} ${col.hideBelow ? `hidden ${col.hideBelow === 'lg' ? 'lg:table-cell' : col.hideBelow === 'md' ? 'md:table-cell' : 'sm:table-cell'}` : ''}`}
                 style={{ width: col.width }}
               >
-                <span className="inline-flex items-center gap-1">
+                <span className="inline-flex items-center gap-1 font-medium text-[11px] text-text-secondary">
                   {col.label}
                   {col.sortable && (sortKey === col.key ? (sortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-primary" /> : <ArrowDown className="w-3 h-3 text-primary" />) : <ChevronsUpDown className="w-3 h-3 opacity-40" />)}
                 </span>

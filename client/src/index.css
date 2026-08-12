@@ -51,6 +51,14 @@
   body {
     @apply bg-surface text-text font-sans antialiased;
   }
+  th {
+    @apply font-medium text-[11px] text-text-secondary uppercase tracking-wider text-left;
+    font-weight: 500 !important;
+    color: rgb(var(--color-text-secondary)) !important;
+    font-size: 11px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+  }
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { @apply bg-surface; }
   ::-webkit-scrollbar-thumb { @apply bg-orange-500 rounded-full; }
