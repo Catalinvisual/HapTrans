@@ -8,7 +8,7 @@ import {
   Undo2, SplitSquareHorizontal, Send, ShieldCheck,
   LayoutGrid, Clock, Map as MapIcon, Sparkles, CheckSquare, Square, RefreshCw,
   ChevronsLeft, ChevronsRight, Plus, ArrowUp, ArrowDown, Layers, Navigation,
-  Printer, Maximize2, Minimize2, RotateCcw, Filter,
+  Printer, Maximize2, Minimize2, RotateCcw, Filter, List,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -458,7 +458,7 @@ function ResourceRow({
       >
         {/* Hour grid lines */}
         <div className="absolute inset-0 flex pointer-events-none">
-          {Array.from({ length: 24 }, (_, h) => (
+          {Array.from({ length: hoursVisible }, (_, h) => (
             <div key={h} className="flex-1 border-r border-border/20 last:border-0" />
           ))}
         </div>
@@ -849,7 +849,7 @@ export default function PlanningPage() {
 
   // ── State ──
   const [selectedDate, setSelectedDate] = useState<string>(() => dayStr(new Date()));
-  const [viewMode, setViewMode] = useState<'day' | 'week' | 'timeline' | 'map'>('day');
+  const [viewMode, setViewMode] = useState<'all' | 'day' | 'week' | 'timeline' | 'map'>('all');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [truckFilter, setTruckFilter] = useState('');
@@ -876,6 +876,11 @@ export default function PlanningPage() {
   // ── Date range ──
   const { from, to, totalMinutes, hoursVisible, fromDateObj } = useMemo(() => {
     const curr = parseDay(selectedDate);
+    if (viewMode === 'all') {
+      const start = addDays(curr, -15);
+      const end = addDays(curr, 15);
+      return { from: dayStr(start), to: dayStr(end), totalMinutes: 31 * 24 * 60, hoursVisible: 31, fromDateObj: start };
+    }
     if (viewMode === 'week') {
       const start = addDays(curr, -((curr.getDay() + 6) % 7));
       return { from: dayStr(start), to: dayStr(addDays(start, 6)), totalMinutes: 7 * 24 * 60, hoursVisible: 7, fromDateObj: start };
@@ -883,6 +888,33 @@ export default function PlanningPage() {
     // day / timeline / map — same range
     return { from: selectedDate, to: selectedDate, totalMinutes: 24 * 60, hoursVisible: 24, fromDateObj: curr };
   }, [selectedDate, viewMode]);
+
+  const poolRef = useRef<HTMLDivElement>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName);
+      if (isInput) return;
+
+      const pool = poolRef.current;
+      const timeline = timelineRef.current;
+      if (!pool || !timeline) return;
+      const active = document.activeElement;
+
+      if (e.key === 'ArrowLeft' && active === timeline && timeline.scrollLeft <= 0) {
+        e.preventDefault();
+        pool.focus();
+      } else if (e.key === 'ArrowRight' && active === pool) {
+        e.preventDefault();
+        timeline.focus();
+      } else if (e.key.startsWith('Arrow') && active !== pool && active !== timeline) {
+        timeline.focus();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   // ── Load data ──
   const loadData = useCallback(async () => {
@@ -911,10 +943,11 @@ export default function PlanningPage() {
 
   // ── Shortcuts ──
   useShortcuts({
-    '1': () => setViewMode('day'),
-    '2': () => setViewMode('week'),
-    '3': () => setViewMode('timeline'),
-    '4': () => setViewMode('map'),
+    '1': () => setViewMode('all'),
+    '2': () => setViewMode('day'),
+    '3': () => setViewMode('week'),
+    '4': () => setViewMode('timeline'),
+    '5': () => setViewMode('map'),
     'u': () => setPoolCollapsed(p => !p),
     'o': () => setShowOptimizeModal(true),
     'f': () => setIsFullscreen(p => !p),
@@ -1039,7 +1072,7 @@ export default function PlanningPage() {
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-base font-black text-text-primary whitespace-nowrap">{t('jsx_planningTitle','Planning & Dispatch')}</h1>
           <div className="flex bg-surface p-0.5 rounded-xl border border-border">
-            {([['day', t('jsx_day','Day'), Clock],['week', t('jsx_week','Week'), Calendar],['timeline', t('view_timeline','Timeline'), LayoutGrid],['map', t('jsx_map','Map'), MapIcon]] as [string, string, any][]).map(([id, label, Icon]) => (
+            {([['all', t('jsx_all','All'), List],['day', t('jsx_day','Day'), Clock],['week', t('jsx_week','Week'), Calendar],['timeline', t('view_timeline','Timeline'), LayoutGrid],['map', t('jsx_map','Map'), MapIcon]] as [string, string, any][]).map(([id, label, Icon]) => (
               <button key={id} onClick={() => setViewMode(id as any)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === id ? 'bg-card text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}>
                 <Icon className="w-3.5 h-3.5" /><span className="hidden sm:inline">{label}</span>
               </button>
@@ -1205,7 +1238,7 @@ export default function PlanningPage() {
               </div>
 
               {/* Pool cards */}
-              <div className="flex-1 overflow-y-auto p-2 space-y-2">
+              <div ref={poolRef} tabIndex={0} className="flex-1 overflow-y-auto p-2 space-y-2 outline-none focus:ring-2 focus:ring-inset focus:ring-primary/20">
                 {isLoading ? (
                   <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
                 ) : fetchError ? (
@@ -1280,7 +1313,7 @@ export default function PlanningPage() {
               </div>
 
               {/* Timeline grid */}
-              <div className="flex-1 overflow-auto relative">
+              <div ref={timelineRef} tabIndex={0} className="flex-1 overflow-auto relative outline-none focus:ring-2 focus:ring-inset focus:ring-primary/20">
                 {isLoading ? (
                   <div className="flex flex-col items-center justify-center h-full gap-3">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
