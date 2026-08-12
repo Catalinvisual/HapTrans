@@ -401,9 +401,9 @@ function TripBlock({
 
 // ─── Resource Row (Gantt Row) ────────────────────────────────────────────────────────
 function ResourceRow({
-  resource, trips, fromDate, totalMinutes, selectedTripId, onSelectTrip, onDropOrder, draggingId,
+  resource, trips, fromDate, totalMinutes, hoursVisible, selectedTripId, onSelectTrip, onDropOrder, draggingId,
 }: {
-  resource: any; trips: any[]; fromDate: string; totalMinutes: number; selectedTripId: string | null;
+  resource: any; trips: any[]; fromDate: string; totalMinutes: number; hoursVisible: number; selectedTripId: string | null;
   onSelectTrip: (id: string) => void; onDropOrder: (resourceId: string) => void; draggingId: string | null;
 }) {
   const { t } = useTranslation();
