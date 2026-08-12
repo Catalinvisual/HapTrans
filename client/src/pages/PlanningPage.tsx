@@ -897,6 +897,17 @@ export default function PlanningPage() {
       const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName);
       if (isInput) return;
 
+      const code = e.code;
+      if (code === 'Digit1' || code === 'Numpad1' || e.key === '1') { e.preventDefault(); setViewMode('all'); return; }
+      if (code === 'Digit2' || code === 'Numpad2' || e.key === '2') { e.preventDefault(); setViewMode('day'); return; }
+      if (code === 'Digit3' || code === 'Numpad3' || e.key === '3') { e.preventDefault(); setViewMode('week'); return; }
+      if (code === 'Digit4' || code === 'Numpad4' || e.key === '4') { e.preventDefault(); setViewMode('timeline'); return; }
+      if (code === 'Digit5' || code === 'Numpad5' || e.key === '5') { e.preventDefault(); setViewMode('map'); return; }
+      if (/^(Digit[6-9]|Digit0|Numpad[6-9]|Numpad0)$/.test(code) || /^[6-90]$/.test(e.key)) {
+         e.preventDefault();
+         return; 
+      }
+
       const pool = poolRef.current;
       const timeline = timelineRef.current;
       if (!pool || !timeline) return;
@@ -943,11 +954,6 @@ export default function PlanningPage() {
 
   // ── Shortcuts ──
   useShortcuts({
-    '1': () => setViewMode('all'),
-    '2': () => setViewMode('day'),
-    '3': () => setViewMode('week'),
-    '4': () => setViewMode('timeline'),
-    '5': () => setViewMode('map'),
     'u': () => setPoolCollapsed(p => !p),
     'o': () => setShowOptimizeModal(true),
     'f': () => setIsFullscreen(p => !p),
