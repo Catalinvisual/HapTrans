@@ -1,5 +1,5 @@
 import {
-  useEffect, useRef, useState, useCallback, useMemo, ReactNode
+  useEffect, useRef, useState, useCallback, useMemo
 } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -7,8 +7,8 @@ import {
   Users, X, ChevronRight, ChevronLeft, Calendar, ArrowRight, Info, Activity, Search,
   Undo2, SplitSquareHorizontal, Send, ShieldCheck,
   LayoutGrid, Clock, Map as MapIcon, Sparkles, CheckSquare, Square, RefreshCw,
-  ChevronsLeft, ChevronsRight, Container, Plus, ArrowUp, ArrowDown, Layers, Navigation,
-  Printer, Download, Maximize2, Minimize2, RotateCcw, Settings2, Filter,
+  ChevronsLeft, ChevronsRight, Plus, ArrowUp, ArrowDown, Layers, Navigation,
+  Printer, Maximize2, Minimize2, RotateCcw, Filter,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -20,7 +20,6 @@ import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import CustomSelect from '../components/CustomSelect';
-import type { SelectOption } from '../components/CustomSelect';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const dayStr = (d: Date) =>
@@ -357,7 +356,6 @@ function TripBlock({
         style={{
           background: `linear-gradient(135deg, ${hex}28 0%, ${hex}12 100%)`,
           boxShadow: isSelected ? `0 4px 20px ${hex}50, 0 0 0 2px ${hex}` : undefined,
-          ringColor: isSelected ? hex : undefined,
         }}
       >
         {/* Color accent strip at top */}
@@ -488,40 +486,7 @@ function ResourceRow({
   );
 }
 
-// ─── Timeline Header (time scale) ───────────────────────────────────────────
-function TimelineHeader({ viewMode, fromDate, hoursVisible }: { viewMode: string; fromDate: string; hoursVisible: number }) {
-  if (viewMode === 'week') {
-    const days: { label: string; pct: number }[] = [];
-    for (let i = 0; i < 7; i++) {
-      const d = addDays(parseDay(fromDate), i);
-      days.push({
-        label: d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }),
-        pct: 100 / 7,
-      });
-    }
-    return (
-      <div className="flex border-b border-border bg-surface/50 sticky top-0 z-20 ml-56">
-        {days.map((d, i) => (
-          <div key={i} className="flex-1 text-center text-[10px] font-bold text-text-secondary py-2 border-r border-border/40 last:border-0">
-            {d.label}
-          </div>
-        ))}
-      </div>
-    );
-  }
 
-  const hours: number[] = [];
-  for (let h = 0; h < hoursVisible; h++) hours.push(h);
-  return (
-    <div className="flex border-b border-border bg-surface/50 sticky top-0 z-20 ml-56">
-      {hours.map(h => (
-        <div key={h} className="flex-1 text-center text-[10px] font-bold text-text-secondary py-2 border-r border-border/40 last:border-0 min-w-[2.5rem]">
-          {String(h).padStart(2, '0')}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 // ─── Trip Detail Drawer ──────────────────────────────────────────────────────
 function TripDetailDrawer({
@@ -564,7 +529,6 @@ function TripDetailDrawer({
   const trailer = trip.trailer || tripSummary.trailer || trailers.find((trl: any) => trl.id === (trip.trailerId || tripSummary.trailerId)) || null;
   const stops = (trip.stops || tripSummary.stops || []).slice().sort((a: any, b: any) => (a.sequence || a.stopOrder || 0) - (b.sequence || b.stopOrder || 0));
   const orders = (trip.orders || tripSummary.orders || []).filter((o: any) => o?.id);
-  const cargo = sumCargo(orders);
   const revenue = orders.reduce((s: number, o: any) => s + (Number(o.price) || 0), 0);
   const tripConflicts = (conflicts || []).filter((c: any) => c.tripId === (trip.id || tripSummary.id));
   const st = String((trip.status || tripSummary.status || 'planning')).toLowerCase();
@@ -812,12 +776,11 @@ function OrderDetailDrawer({ order, onClose, onPlan }: { order: any; onClose: ()
 function OptimizationModal({ onClose, onApply, isLoading }: { onClose: () => void; onApply: (p: any[]) => void; isLoading: boolean }) {
   const { t } = useTranslation();
   const [proposals, setProposals] = useState<any[]>([]);
-  const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    api.post('/planning/optimize', {}).then(r => { setProposals(r.data?.proposedTrips || []); setSummary(r.data?.summary || null); }).catch(err => toast.error(err.response?.data?.message || 'Optimization failed')).finally(() => setLoading(false));
+    api.post('/planning/optimize', {}).then(r => { setProposals(r.data?.proposedTrips || []); }).catch(err => toast.error(err.response?.data?.message || 'Optimization failed')).finally(() => setLoading(false));
   }, []);
 
   return typeof document !== 'undefined' ? createPortal(
