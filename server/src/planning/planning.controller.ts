@@ -42,6 +42,17 @@ export class PlanningController {
     return this.planningService.moveOrder(req.user, body);
   }
 
+  @Post('optimize')
+  optimize(@Request() req: any) {
+    // Mock implementation for AI optimizer
+    return { proposedTrips: [] };
+  }
+
+  @Post('optimize/apply')
+  applyOptimization(@Request() req: any, @Body() body: any) {
+    return { success: true };
+  }
+
   @Post('trips/:tripId/reorder')
   reorderStops(@Request() req: any, @Param('tripId') tripId: string, @Body() body: any) {
     return this.planningService.reorderStops(req.user, tripId, body);

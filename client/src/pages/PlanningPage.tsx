@@ -425,10 +425,10 @@ function ResourceRow({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <p className="font-black text-text-primary text-xs truncate">{resource.plateNumber || '—'}</p>
+              <p className="font-black text-text-primary text-xs truncate">{resource.plateNumber || resource.name || resource.user?.name || '—'}</p>
               <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDot}`} />
             </div>
-            <p className="text-[10px] text-text-muted truncate">{resource.brand || ''} {resource.model || ''}</p>
+            <p className="text-[10px] text-text-muted truncate">{resource.brand ? `${resource.brand} ${resource.model || ''}` : (resource.phone || '')}</p>
           </div>
         </div>
         {resource.driver?.name && (
@@ -1015,9 +1015,20 @@ export default function PlanningPage() {
 
   // ── Filtered resources for display ──
   const displayResources = useMemo(() => {
-    if (!truckFilter) return resources;
-    return resources.filter(r => r.id === truckFilter || r.plateNumber === truckFilter);
-  }, [resources, truckFilter]);
+    let list = resources;
+    if (grouping === 'driver') {
+      list = (boardData?.drivers || resources.map((r: any) => r.driver).filter(Boolean))
+        .filter((d: any, i: number, arr: any[]) => d && arr.findIndex((x: any) => x.id === d.id) === i);
+    }
+    
+    if (grouping === 'truck') {
+      if (truckFilter) list = list.filter((r: any) => r.id === truckFilter || r.plateNumber === truckFilter);
+      if (driverFilter) list = list.filter((r: any) => r.driver?.id === driverFilter);
+    } else if (grouping === 'driver') {
+      if (driverFilter) list = list.filter((d: any) => d.id === driverFilter);
+    }
+    return list;
+  }, [resources, truckFilter, driverFilter, grouping, boardData]);
 
   return (
     <div className={`flex flex-col gap-0 bg-background text-text-primary print:bg-white ${isFullscreen ? 'fixed inset-0 z-[9000] p-0' : 'h-[calc(100vh-4rem)]'}`}>
@@ -1172,10 +1183,25 @@ export default function PlanningPage() {
           {!poolCollapsed && (
             <>
               {/* Sort controls */}
-              <div className="flex gap-1 p-2 border-b border-border bg-surface/10 flex-wrap">
-                {([['priority','Prio'],['date','Date'],['weight','Wt'],['client','Client']] as [string,string][]).map(([id,lbl]) => (
-                  <button key={id} onClick={() => setSortPool(id as any)} className={`text-[9px] px-1.5 py-0.5 rounded font-bold transition-colors ${sortPool === id ? 'bg-primary text-white' : 'text-text-secondary border border-border hover:text-text-primary'}`}>{lbl}</button>
-                ))}
+              <div className="flex items-center justify-between p-2 border-b border-border bg-surface/10 flex-wrap gap-2">
+                <div className="flex items-center gap-1.5">
+                  <input 
+                    type="checkbox" 
+                    className="rounded text-primary focus:ring-primary w-3.5 h-3.5 cursor-pointer border-border" 
+                    checked={sortedOrders.length > 0 && selectedPoolOrderIds.size === sortedOrders.length}
+                    onChange={(e) => {
+                      if (e.target.checked) setSelectedPoolOrderIds(new Set(sortedOrders.map(o => o.id)));
+                      else setSelectedPoolOrderIds(new Set());
+                    }}
+                    title={t('jsx_selectAll','Select All')}
+                  />
+                  <span className="text-[10px] font-bold text-text-secondary">{t('jsx_selectAll','All')}</span>
+                </div>
+                <div className="flex gap-1">
+                  {([['priority','Prio'],['date','Date'],['weight','Wt'],['client','Client']] as [string,string][]).map(([id,lbl]) => (
+                    <button key={id} onClick={() => setSortPool(id as any)} className={`text-[9px] px-1.5 py-0.5 rounded font-bold transition-colors ${sortPool === id ? 'bg-primary text-white' : 'text-text-secondary border border-border hover:text-text-primary'}`}>{lbl}</button>
+                  ))}
+                </div>
               </div>
 
               {/* Pool cards */}
@@ -1268,7 +1294,7 @@ export default function PlanningPage() {
                     <button onClick={loadData} className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-bold shadow-md"><RefreshCw className="w-3.5 h-3.5" /><span>{t('jsx_recalc','Retry')}</span></button>
                   </div>
                 ) : (
-                  <div className="min-w-[800px]">
+                  <div className="min-w-max w-full">
                     {/* Time scale header */}
                     <div className="flex border-b border-border bg-surface/60 sticky top-0 z-20 shadow-sm">
                       <div className="w-56 shrink-0 border-r border-border/60 bg-surface/80 flex items-center px-3 py-2 sticky left-0 z-30">
@@ -1296,7 +1322,7 @@ export default function PlanningPage() {
                       </div>
                     ) : (
                       displayResources.map(res => {
-                        const resTrips = trips.filter(tr => tr.truck?.id === res.id || tr.truckId === res.id);
+                        const resTrips = trips.filter(tr => grouping === 'driver' ? tr.driver?.id === res.id : (tr.truck?.id === res.id || tr.truckId === res.id));
                         return (
                           <ResourceRow
                             key={res.id}
