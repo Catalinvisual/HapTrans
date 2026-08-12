@@ -1377,6 +1377,7 @@ export default function PlanningPage() {
                             trips={resTrips}
                             fromDate={from}
                             totalMinutes={totalMinutes}
+                            hoursVisible={hoursVisible}
                             selectedTripId={selectedTripId}
                             onSelectTrip={setSelectedTripId}
                             onDropOrder={handleDropOrder}

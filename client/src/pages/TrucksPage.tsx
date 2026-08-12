@@ -91,7 +91,6 @@ export default function TrucksPage() {
   const [drawerTruckId, setDrawerTruckId] = useState<string | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [docForm, setDocForm] = useState({ type: 'apk', documentNumber: '', expiryDate: '' });
-  const [docTargetTruckId, setDocTargetTruckId] = useState<string | null>(null);
 
   const initialForm = {
     plateNumber: '', brand: '', model: '', year: '',
@@ -133,7 +132,6 @@ export default function TrucksPage() {
       });
       toast.success(t('doc_added', 'Document adăugat'));
       setDocForm({ type: 'apk', documentNumber: '', expiryDate: '' });
-      setDocTargetTruckId(null);
       load();
     } catch {
       toast.error(t('doc_error_save', 'Eroare la salvarea documentului'));
@@ -206,7 +204,7 @@ export default function TrucksPage() {
 
   const statusOptions: SelectOption[] = useMemo(() => [
     { value: 'all', label: t('all_statuses', 'All statuses') },
-    ...TRUCK_STATUSES.map(s => ({ value: s.value, label: t(s.label, s.value.replace(/_/g, ' ')) })),
+    ...TRUCK_STATUSES.map(s => ({ value: s.value, label: t(s.label as string, s.value.replace(/_/g, ' ')) as string })),
   ], [t]);
 
   const filtered = useMemo(() => {
@@ -311,7 +309,7 @@ export default function TrucksPage() {
     },
     {
       key: 'status', label: t('status', 'Status'),
-      render: tr => <StatusBadge type="fleet" status={tr.status || 'active'} label={t(`truck_status_${tr.status || 'active'}`, (tr.status || 'active').replace(/_/g, ' '))} />,
+      render: tr => <StatusBadge type="fleet" status={tr.status || 'active'} label={t(`truck_status_${tr.status || 'active'}`, (tr.status || 'active').replace(/_/g, ' ')) as string} />,
     },
     {
       key: 'payload', label: t('payload', 'Payload'), align: 'right',
@@ -326,7 +324,7 @@ export default function TrucksPage() {
     {
       key: 'ldm', label: t('maxLdm', 'LDM'), align: 'right',
       render: tr => <span className="text-xs font-semibold">{Number(tr.maxLdm || 0) ? `${Number(tr.maxLdm)} m` : '—'}</span>,
-      hideBelow: 'xl',
+      hideBelow: 'lg',
     },
     {
       key: 'fuel', label: t('fuel_consumption', 'Fuel'), align: 'right',
@@ -365,13 +363,13 @@ export default function TrucksPage() {
         const soon = (tr.documents || []).filter((d: any) => isDocExpiringSoon(d));
         return (
           <div className="flex items-center justify-center gap-1.5">
-            {expired.length > 0 && <AlertTriangle className="w-3.5 h-3.5 text-red-500" title={t('doc_expired', 'Expirat')} />}
-            {soon.length > 0 && <AlertTriangle className="w-3.5 h-3.5 text-amber-500" title={t('doc_expiring', 'Expiră curând')} />}
+            {expired.length > 0 && <span title={t('doc_expired', 'Expirat') as string}><AlertTriangle className="w-3.5 h-3.5 text-red-500" /></span>}
+            {soon.length > 0 && <span title={t('doc_expiring', 'Expiră curând') as string}><AlertTriangle className="w-3.5 h-3.5 text-amber-500" /></span>}
             <span className="text-xs font-semibold">{tr.documents?.length || 0}</span>
           </div>
         );
       },
-      hideBelow: 'xl',
+      hideBelow: 'lg',
     },
     {
       key: 'actions', label: t('actions', 'Actions'), align: 'right',
@@ -419,7 +417,7 @@ export default function TrucksPage() {
             <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary">{t('euronorm', 'Euronorm')}</div><div className="text-sm font-bold mt-0.5">{drawerTruck.euronorm || 'Euro 6'}</div></div>
           </div>
           <div className="flex flex-wrap gap-1.5">
-            <StatusBadge type="fleet" status={drawerTruck.status || 'active'} label={t(`truck_status_${drawerTruck.status || 'active'}`, (drawerTruck.status || 'active').replace(/_/g, ' '))} size="md" />
+            <StatusBadge type="fleet" status={drawerTruck.status || 'active'} label={t(`truck_status_${drawerTruck.status || 'active'}`, (drawerTruck.status || 'active').replace(/_/g, ' ')) as string} size="md" />
             {(drawerTruck.features || []).map((f: string) => (
               <span key={f} className="px-2 py-0.5 rounded text-[10px] font-bold bg-surface border border-border text-text-secondary uppercase">{t(`feat_${f}`, f)}</span>
             ))}
@@ -487,7 +485,7 @@ export default function TrucksPage() {
               {drawerTruck.documents.map((d: any) => (
                 <div key={d.id} className="flex items-center justify-between p-3 bg-surface/50 rounded-xl border border-border">
                   <div>
-                    <div className="text-sm font-bold text-text-primary">{t(`doc_${d.type || 'other'}`, d.type || 'Document')}</div>
+                    <div className="text-sm font-bold text-text-primary">{t(`doc_${d.type || 'other'}`, d.type || 'Document') as string}</div>
                     <div className="text-[11px] text-text-secondary">{(d.documentNumber || '—')}{d.expiryDate ? ` · ${formatDate(d.expiryDate)}` : ''}</div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -610,7 +608,7 @@ export default function TrucksPage() {
               <div>
                 <label className="label font-semibold">{t('status', 'Status')}</label>
                 <select className="input" value={form.status || 'active'} onChange={e => setForm({...form, status: e.target.value})}>
-                  {TRUCK_STATUSES.map(st => <option key={st.value} value={st.value}>{t(st.label, st.value)}</option>)}
+                  {TRUCK_STATUSES.map(st => <option key={st.value} value={st.value}>{t(st.label as string, st.value) as string}</option>)}
                 </select>
               </div>
 

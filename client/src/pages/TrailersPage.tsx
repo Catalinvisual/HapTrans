@@ -52,7 +52,6 @@ export default function TrailersPage() {
   const { t } = useTranslation();
   const company = useSettingsStore(s => s.company);
   const [trailers, setTrailers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(formStore.trailersShowForm);
   const [search, setSearch] = useState("");
@@ -183,7 +182,7 @@ export default function TrailersPage() {
       key: "status",
       label: t("status", "Status"),
       sortable: true,
-      render: (r) => <StatusBadge status={r.status} category="fleet" label={r.status} />,
+      render: (r) => <StatusBadge status={r.status} label={r.status} />,
     },
     {
       key: "actions", label: t("actions", "Acțiuni"), align: "right",
@@ -227,7 +226,7 @@ export default function TrailersPage() {
           <div><div className="text-xs text-text-secondary">{t("maxLdm", "Max LDM")}</div><div className="font-semibold">{drawerTrailer.maxLdm ? Number(drawerTrailer.maxLdm) : "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("maxPallets", "Paleți")}</div><div className="font-semibold">{drawerTrailer.payloadCapacityPallets || "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("maxVolumeCbm", "Volum m³")}</div><div className="font-semibold">{drawerTrailer.maxVolumeCbm ? Number(drawerTrailer.maxVolumeCbm) + " m³" : "—"}</div></div>
-          <div><div className="text-xs text-text-secondary">{t("status", "Status")}</div><div><StatusBadge status={drawerTrailer.status} category="fleet" label={drawerTrailer.status} /></div></div>
+          <div><div className="text-xs text-text-secondary">{t("status", "Status")}</div><div><StatusBadge status={drawerTrailer.status} label={drawerTrailer.status} /></div></div>
         </div>
       ),
     },
@@ -281,7 +280,7 @@ export default function TrailersPage() {
       </div>
 
       {filtered.length > itemsPerPage && (
-        <Pagination total={filtered.length} page={currentPage} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
+        <Pagination totalItems={filtered.length} currentPage={currentPage} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       )}
 
       <BulkBar count={selected.size} onClear={() => setSelected(new Set())} actions={[
@@ -298,7 +297,7 @@ export default function TrailersPage() {
         tabs={detailTabs}
         headerRight={
           drawerTrailer ? (
-            <button className="btn-secondary px-3 py-1.5 text-xs flex items-center gap-1.5" onClick={() => startEdit(drawerTrailer)}>
+            <button className="btn-secondary px-3 py-1.5 text-xs flex items-center gap-1.5" onClick={() => openEdit(drawerTrailer)}>
               <Pencil className="w-3.5 h-3.5" /> {t("edit", "Editează")}
             </button>
           ) : null
@@ -326,7 +325,7 @@ export default function TrailersPage() {
             <div><label className="label font-semibold">{t("maxPallets", "Paleți")}</label><input type="number" className="input" value={form.payloadCapacityPallets} onChange={(e) => setForm({ ...form, payloadCapacityPallets: e.target.value })} min="0" /></div>
             <div><label className="label font-semibold">{t("maxLdm", "Max LDM")}</label><input type="number" step="0.1" className="input" value={form.maxLdm} onChange={(e) => setForm({ ...form, maxLdm: e.target.value })} min="0" /></div>
             <div><label className="label font-semibold">{t("maxVolumeCbm", "Volum (m³)")}</label><input type="number" step="0.1" className="input" value={form.maxVolumeCbm} onChange={(e) => setForm({ ...form, maxVolumeCbm: e.target.value })} min="0" /></div>
-            <div><label className="label font-semibold">{t("status", "Status")}</label><CustomSelect value={form.status} onChange={(v) => setForm({ ...form, status: v })} options={TRAILER_STATUSES.map((o) => ({ value: o.value, label: t(o.label) }))} /></div>
+            <div><label className="label font-semibold">{t("status", "Status")}</label><CustomSelect value={form.status} onChange={(v) => setForm({ ...form, status: v })} options={TRAILER_STATUSES.map((o) => ({ value: o.value, label: t(o.label as string) as string }))} /></div>
           </form>
         </DetailDrawer>
       )}
