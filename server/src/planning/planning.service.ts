@@ -1147,14 +1147,15 @@ export class PlanningService {
       prevStop = stop;
     }
 
-    const tripStart = stops.length ? new Date(stops[0].eta!) : departure;
-    const tripEnd = stops.length ? new Date(stops[stops.length - 1].eta!.getTime() + this.stopServiceMinutes(stops[stops.length - 1]) * 60000) : null;
-    if (!trip.plannedDeparture && tripStart) trip.plannedDeparture = tripStart;
+    const tripStart = stops.length && stops[0].eta ? new Date(stops[0].eta) : (departure || new Date());
+    const lastStop = stops.length ? stops[stops.length - 1] : null;
+    const tripEnd = lastStop && lastStop.eta ? new Date(lastStop.eta.getTime() + this.stopServiceMinutes(lastStop) * 60000) : null;
+    trip.plannedDeparture = tripStart;
     if (tripEnd) trip.plannedArrival = tripEnd;
 
     const drv = driver || (trip as any).driver;
     if (drv && truck) {
-      const effectiveStart = (trip.plannedDeparture || tripStart) || new Date();
+      const effectiveStart = trip.plannedDeparture || new Date();
       if (this.isDriverAvailable(drv, effectiveStart, effectiveStart)) {
         trip.driver = drv as any;
       } else {
@@ -1170,6 +1171,8 @@ export class PlanningService {
     };
     (trip as any).cargo = newCargo;
     (trip as any).totalCargo = newCargo;
+    const revenue = orders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
+    (trip as any).totalRevenue = revenue;
     trip.distanceKm = await this.calculateTripDistance(tripId);
     (trip as any).estimatedDurationMin = trip.plannedDeparture && trip.plannedArrival
       ? Math.round((new Date(trip.plannedArrival).getTime() - new Date(trip.plannedDeparture).getTime()) / 60000)
@@ -1265,7 +1268,7 @@ export class PlanningService {
       for (let i = 0; i < os.length; i++) {
         const osStop = os[i];
         const type = i === 0 ? 'pickup' : i === os.length - 1 ? 'delivery' : 'stop';
-        collected.push({ order, os: osStop, type, isOrigin: i === 0 });
+        collected.push({ order, os: osStop, type, isOrigin: i === 0, orderStopIndex: i });
       }
     }
 
@@ -1317,11 +1320,24 @@ export class PlanningService {
   }
 
   private compareOrderStops(a: any, b: any): number {
+    // If same order, strictly preserve order stop index (pickup before delivery)
+    if (a.order?.id === b.order?.id) {
+      return (a.orderStopIndex || 0) - (b.orderStopIndex || 0);
+    }
+    // Pickups generally precede deliveries across different orders if times are close
     const aTime = this.getStopDate(a.os);
     const bTime = this.getStopDate(b.os);
-    if (aTime && bTime) return aTime.getTime() - bTime.getTime();
-    if (aTime) return -1;
-    if (bTime) return 1;
+    if (aTime && bTime) {
+      const diff = aTime.getTime() - bTime.getTime();
+      if (diff !== 0) return diff;
+    } else if (aTime) {
+      return -1;
+    } else if (bTime) {
+      return 1;
+    }
+    // If times are equal or unspecified, pickups go before deliveries
+    if (a.isOrigin && !b.isOrigin) return -1;
+    if (!a.isOrigin && b.isOrigin) return 1;
     const aOrder = a.order?.orderNumber || '';
     const bOrder = b.order?.orderNumber || '';
     return aOrder.localeCompare(bOrder);
@@ -2013,19 +2029,55 @@ export class PlanningService {
         };
       });
 
+    const allStops = trips.flatMap((t) =>
+      (t.stops || [])
+        .slice()
+        .sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0))
+        .filter((s) => s.latitude != null && s.longitude != null)
+        .map((s) => ({
+          id: s.id,
+          tripId: t.id,
+          tripNumber: t.tripNumber,
+          tripStatus: t.status,
+          sequence: s.sequence,
+          type: s.type,
+          companyName: s.companyName,
+          address: s.address,
+          city: s.city,
+          country: s.country,
+          lat: Number(s.latitude),
+          lng: Number(s.longitude),
+          eta: s.eta,
+          timeWindowMin: s.timeWindowMin,
+          timeWindowMax: s.timeWindowMax,
+          tasksCount: (s.tasks || []).length,
+          tasks: (s.tasks || []).map((tk: any) => ({
+            type: tk.type,
+            pallets: tk.pallets,
+            weightKg: tk.weightKg,
+            orderNumber: tk.order?.orderNumber,
+          })),
+        })),
+    );
+
     return {
       vehicles,
       routes: routePolyline,
+      stops: allStops,
       trips: trips.map((t) => ({
         id: t.id,
         tripNumber: t.tripNumber,
         status: t.status,
         truckId: t.truck?.id || null,
         plateNumber: t.truck?.plateNumber || null,
+        driverName: t.driver?.user?.name || t.driver?.user?.email || t.truck?.driver?.user?.name || null,
+        trailerPlate: t.trailer?.plateNumber || null,
         plannedDeparture: t.plannedDeparture,
         plannedArrival: t.plannedArrival,
         stopCount: (t.stops || []).length,
         orderCount: (t.orders || []).filter((o) => o && o.id).length,
+        distanceKm: t.distanceKm || 0,
+        revenue: (t.orders || []).reduce((sum, o) => sum + (Number(o?.price) || 0), 0),
       })),
       range: { from: fromStr, to: toStr },
     };
