@@ -68,7 +68,7 @@ export class PlanningService {
       if (companyId) {
         qb.where(`${col} = :cid`, { cid: companyId }).orWhere(`${col} IS NULL`);
       } else {
-        qb.where(`${col} IS NULL`);
+        qb.where('1=1');
       }
     });
   }
@@ -76,7 +76,7 @@ export class PlanningService {
   private companyArrayWhere(companyId: string | null) {
     return companyId
       ? [{ company: { id: companyId } }, { company: IsNull() }]
-      : [{ company: IsNull() }];
+      : [{}];
   }
 
   private getStopDate(os: any): Date | null {
