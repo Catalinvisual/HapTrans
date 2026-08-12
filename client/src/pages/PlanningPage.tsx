@@ -1607,9 +1607,15 @@ export default function PlanningPage() {
             status: statusFilter || undefined,
           },
         }),
-        api.get('/planning/map', {
-          params: { from, to },
-        }),
+        api
+          .get('/planning/map-data', {
+            params: { from, to },
+          })
+          .catch(() =>
+            api.get('/planning/map', {
+              params: { from, to },
+            })
+          ),
       ]);
 
       if (boardRes.status === 'fulfilled') {
