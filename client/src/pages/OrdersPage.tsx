@@ -19,6 +19,8 @@ import ExportModal from '../components/ExportModal';
 import { formatDateExcel } from '../lib/exportExcel';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { useSettingsStore } from '../store/settingsStore';
+import { generateOrderPdf } from '../lib/pdfGenerator';
 
 const ORDER_STATUSES = ['draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoiced', 'paid', 'cancelled'];
 const ORDER_FLOW: Record<string, string> = {
@@ -602,6 +604,10 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
       onTabChange={setActiveTab}
       footer={
         <>
+          <button onClick={async () => {
+             const company = useSettingsStore.getState().company;
+             try { await generateOrderPdf(order, company); } catch (e) { toast.error(t('error_pdf', 'Failed to generate PDF')); }
+          }} className="btn-secondary flex items-center gap-1.5 text-sm" title="Download PDF"><FileText className="w-4 h-4" />{t('pdf', 'PDF')}</button>
           <button onClick={() => navigate(`/orders/${order.id}`)} className="btn-secondary flex items-center gap-1.5 text-sm"><ExternalLink className="w-4 h-4" />{t('open_order', 'Open page')}</button>
           {next && <button onClick={() => onStatusChange(order)} className="btn-primary text-sm flex items-center gap-1.5"><ArrowRight className="w-4 h-4" />{t('advance_to', 'Advance → {s}', { s: t(`status_${next}`, next.replace(/_/g, ' ')) })}</button>}
           <button onClick={() => onEdit(order.id)} className="btn-secondary text-sm flex items-center gap-1.5"><Pencil className="w-4 h-4" />{t('edit', 'Edit')}</button>

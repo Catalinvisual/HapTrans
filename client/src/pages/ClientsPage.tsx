@@ -14,12 +14,15 @@ import Pagination from '../components/Pagination';
 import KpiStrip from '../components/ui/KpiStrip';
 import { useShortcuts } from '../hooks/useShortcuts';
 import { useTableShortcuts } from '../hooks/useTableShortcuts';
+import { useSettingsStore } from '../store/settingsStore';
+import { generateClientPdf } from '../lib/pdfGenerator';
 export default function ClientsPage() {
   const confirmSave = useSaveConfirm();
   const formStore = useFormStore();
   const {
     t
   } = useTranslation();
+  const company = useSettingsStore(s => s.company);
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -257,12 +260,18 @@ export default function ClientsPage() {
                         <button onClick={() => setSelectedClient(c)} className="btn-secondary py-1.5 px-3 text-xs font-bold bg-primary/5 text-primary hover:bg-primary/10 border-transparent">
                           {t('viewDetails', 'View Details')}
                         </button>
+                        <button onClick={async (e) => {
+                          e.stopPropagation();
+                          try { await generateClientPdf(c, company); } catch (err) { toast.error(t('error_pdf', 'Failed to generate PDF')); }
+                        }} className="p-1.5 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-colors" title={t('pdf', 'Download PDF')}>
+                          <FileText className="w-4 h-4" />
+                        </button>
                         <button onClick={() => {
                     setSelectedClient(c);
                   }} className="p-1.5 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-colors" title={t('edit')}>
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(c.id)} className="p-1.5 text-text-secondary hover:text-error rounded hover:bg-red-50 transition-colors" title={t('delete')}>
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }} className="p-1.5 text-text-secondary hover:text-error rounded hover:bg-red-50 transition-colors" title={t('delete')}>
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>

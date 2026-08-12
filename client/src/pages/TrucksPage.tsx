@@ -18,6 +18,9 @@ import StatusBadge from '../components/ui/StatusBadge';
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
 import ExportModal from '../components/ExportModal';
+import { useSettingsStore } from '../store/settingsStore';
+import { generateTruckPdf } from '../lib/pdfGenerator';
+import { FileText } from 'lucide-react';
 
 const TRUCK_TYPES = [
   { value: 'tautliner', label: 'truck_type_tautliner', default: 'Prelată (Tautliner)' },
@@ -72,6 +75,7 @@ export default function TrucksPage() {
   const confirmSave = useSaveConfirm();
   const formStore = useFormStore();
   const { t } = useTranslation();
+  const company = useSettingsStore(s => s.company);
 
   const [trucks, setTrucks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -373,6 +377,12 @@ export default function TrucksPage() {
       key: 'actions', label: t('actions', 'Actions'), align: 'right',
       render: tr => (
         <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+          <button onClick={async (e) => {
+             e.stopPropagation();
+             try { await generateTruckPdf(tr, company); } catch (err) { toast.error(t('error_pdf', 'Failed to generate PDF')); }
+          }} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('pdf', 'Download PDF')}>
+            <FileText className="w-3.5 h-3.5" />
+          </button>
           <button onClick={() => openEdit(tr)} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('edit', 'Edit')}><Pencil className="w-3.5 h-3.5" /></button>
           <button onClick={() => setDeleteId(tr.id)} className="p-1.5 text-text-secondary hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors" title={t('delete', 'Delete')}><Trash2 className="w-3.5 h-3.5" /></button>
         </div>

@@ -17,6 +17,9 @@ import StatusBadge from "../components/ui/StatusBadge";
 import CustomSelect from "../components/CustomSelect";
 import type { SelectOption } from "../components/CustomSelect";
 import ExportModal from "../components/ExportModal";
+import { useSettingsStore } from '../store/settingsStore';
+import { generateTrailerPdf } from '../lib/pdfGenerator';
+import { FileText } from 'lucide-react';
 
 const TRAILER_TYPES = [
   { value: "mega", label: "trailer_type_mega", default: "Mega" },
@@ -47,7 +50,7 @@ export default function TrailersPage() {
   const confirmSave = useSaveConfirm();
   const formStore = useFormStore();
   const { t } = useTranslation();
-
+  const company = useSettingsStore(s => s.company);
   const [trailers, setTrailers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -146,6 +149,17 @@ export default function TrailersPage() {
 
   useEffect(() => { setCurrentPage(1); }, [search, filters]);
 
+  const openEdit = (tr: any) => {
+    setForm({
+      plateNumber: tr.plateNumber || "", type: tr.type || "standard", brand: tr.brand || "", year: tr.year || "",
+      payloadCapacityWeight: tr.payloadCapacityWeight ?? "", maxLdm: tr.maxLdm ?? "", maxVolumeCbm: tr.maxVolumeCbm ?? "",
+      payloadCapacityPallets: tr.payloadCapacityPallets ?? "", status: tr.status || "active",
+    });
+    setEditId(tr.id);
+    setShowForm(true);
+    setDrawerId(null);
+  };
+
   const columns: Column<any>[] = [
     {
       key: "plateNumber",
@@ -171,18 +185,22 @@ export default function TrailersPage() {
       sortable: true,
       render: (r) => <StatusBadge status={r.status} category="fleet" label={r.status} />,
     },
+    {
+      key: "actions", label: t("actions", "Acțiuni"), align: "right",
+      render: (tr) => (
+        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <button onClick={async (e) => {
+             e.stopPropagation();
+             try { await generateTrailerPdf(tr, company); } catch (err) { toast.error(t('error_pdf', 'Eroare generare PDF')); }
+          }} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('pdf', 'Download PDF')}>
+            <FileText className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={() => openEdit(tr)} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t("edit", "Editează")}><Pencil className="w-3.5 h-3.5" /></button>
+          <button onClick={() => setDeleteId(tr.id)} className="p-1.5 text-text-secondary hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors" title={t("delete", "Șterge")}><Trash2 className="w-3.5 h-3.5" /></button>
+        </div>
+      ),
+    },
   ];
-
-  const startEdit = (tr: any) => {
-    setForm({
-      plateNumber: tr.plateNumber || "", type: tr.type || "standard", brand: tr.brand || "", year: tr.year || "",
-      payloadCapacityWeight: tr.payloadCapacityWeight ?? "", maxLdm: tr.maxLdm ?? "", maxVolumeCbm: tr.maxVolumeCbm ?? "",
-      payloadCapacityPallets: tr.payloadCapacityPallets ?? "", status: tr.status || "active",
-    });
-    setEditId(tr.id);
-    setShowForm(true);
-    setDrawerId(null);
-  };
 
   const bulkSetStatus = async (status: string) => {
     for (const id of selected) {

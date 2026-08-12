@@ -8,7 +8,7 @@ import {
   Undo2, SplitSquareHorizontal, Send, ShieldCheck,
   LayoutGrid, Clock, Map as MapIcon, Sparkles, CheckSquare, Square, RefreshCw,
   ChevronsLeft, ChevronsRight, Plus, ArrowUp, ArrowDown, Layers, Navigation,
-  Printer, Maximize2, Minimize2, RotateCcw, Filter, List,
+  Printer, Maximize2, Minimize2, RotateCcw, Filter, List, FileText,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -20,6 +20,8 @@ import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import CustomSelect from '../components/CustomSelect';
+import { useSettingsStore } from '../store/settingsStore';
+import { generateOrderPdf } from '../lib/pdfGenerator';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const dayStr = (d: Date) =>
@@ -746,6 +748,7 @@ function TripDetailDrawer({
 // ─── Order Detail Drawer ─────────────────────────────────────────────────────
 function OrderDetailDrawer({ order, onClose, onPlan }: { order: any; onClose: () => void; onPlan?: (order: any) => void }) {
   const { t } = useTranslation();
+  const company = useSettingsStore(s => s.company);
   if (!order) return null;
   const pickup = (order.stops || []).find((s: any) => s.type === 'pickup') || order.stops?.[0];
   const dropoff = (order.stops || []).filter((s: any) => s.type === 'delivery' || s.type === 'dropoff').pop() || order.stops?.[order.stops?.length - 1];
@@ -759,7 +762,12 @@ function OrderDetailDrawer({ order, onClose, onPlan }: { order: any; onClose: ()
             <h2 className="text-xl font-black text-text-primary">{order.orderNumber || '—'}</h2>
             <p className="text-sm text-text-secondary mt-0.5">{order.client?.name || '—'}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-surface rounded-xl text-text-secondary hover:text-text-primary"><X className="w-5 h-5" /></button>
+          <div className="flex gap-1.5">
+            <button onClick={() => generateOrderPdf(order, company)} className="p-1.5 bg-card border border-border shadow-sm hover:bg-surface rounded-xl text-text-secondary hover:text-primary transition-colors group relative" title="Download PDF">
+              <FileText className="w-5 h-5" />
+            </button>
+            <button onClick={onClose} className="p-1.5 hover:bg-surface rounded-xl text-text-secondary hover:text-text-primary transition-colors"><X className="w-5 h-5" /></button>
+          </div>
         </div>
         <div className="flex-1 p-5 space-y-4">
           <div className="bg-surface/50 rounded-2xl border border-border p-4 space-y-3">
