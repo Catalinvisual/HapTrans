@@ -35,6 +35,8 @@ export default function TripDetailsPage() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [stopForm, setStopForm] = useState<any>({});
   const [taskForm, setTaskForm] = useState<any>({});
+  const [costForm, setCostForm] = useState<any>({ type: "extra", amount: "", description: "", category: "extra", driverId: "", truckId: "" });
+  const [editingCostId, setEditingCostId] = useState<string | null>(null);
   useEffect(() => {
     const fetchTrip = async (isInitial = false) => {
       try {
@@ -90,7 +92,7 @@ export default function TripDetailsPage() {
   // Cost handlers
   const handleAddCost = async () => {
     if (!trip) return;
-    if (!costForm.amount || Number(costForm.amount) <= 0) { notify.error(t("invalidAmount", "Sumă invalidă")); return; }
+    if (!costForm.amount || Number(costForm.amount) <= 0) { toast.error(t("invalidAmount", "Sumă invalidă")); return; }
     try {
       await api.post(`/trips/${trip.id}/costs`, {
         type: costForm.type,
@@ -100,12 +102,12 @@ export default function TripDetailsPage() {
         driverId: costForm.driverId || undefined,
         truckId: costForm.truckId || undefined
       });
-      notify.success(t("costAdded", "Cost adăugat"));
+      toast.success(t("costAdded", "Cost adăugat"));
       setCostForm({ type: "extra", amount: "", description: "", category: "extra", driverId: "", truckId: "" });
       const res = await api.get(`/trips/${trip.id}`);
       setTrip(res.data);
     } catch (e: any) {
-      notify.error(e.response?.data?.message || t("error", "Eroare"));
+      toast.error(e.response?.data?.message || t("error", "Eroare"));
     }
   };
 
@@ -129,13 +131,13 @@ export default function TripDetailsPage() {
   const handleUpdateCost = async (costId: string) => {
     try {
       await api.patch(`/trips/costs/${costId}`, costForm);
-      notify.success(t("costUpdated", "Cost actualizat"));
+      toast.success(t("costUpdated", "Cost actualizat"));
       const res = await api.get(`/trips/${trip.id}`);
       setTrip(res.data);
       setEditingCostId(null);
       setCostForm({ type: "extra", amount: "", description: "", category: "extra", driverId: "", truckId: "" });
     } catch (e: any) {
-      notify.error(e.response?.data?.message || t("error", "Eroare"));
+      toast.error(e.response?.data?.message || t("error", "Eroare"));
     }
   };
 
@@ -143,11 +145,11 @@ export default function TripDetailsPage() {
     if (!window.confirm(t("confirmDeleteCost", "Ștergi acest cost?"))) return;
     try {
       await api.delete(`/trips/costs/${costId}`);
-      notify.success(t("costDeleted", "Cost șters"));
+      toast.success(t("costDeleted", "Cost șters"));
       const res = await api.get(`/trips/${trip.id}`);
       setTrip(res.data);
     } catch (e: any) {
-      notify.error(e.response?.data?.message || t("error", "Eroare"));
+      toast.error(e.response?.data?.message || t("error", "Eroare"));
     }
   };
 
@@ -471,9 +473,9 @@ export default function TripDetailsPage() {
                       </div>
 
                       <span className={`text-xs font-bold ${textClass} uppercase tracking-wider mb-1 block flex justify-between`}>
-                        {t('stopIndex', 'Stop {{index}}', {
+                        {String(t('stopIndex', 'Stop {{index}}', {
                     index: stop.sequence
-                  }).replace('{{index}}', stop.sequence.toString())} - {t(stop.status, stop.status?.replace(/_/g, ' ') || '')}
+                  })).replace('{{index}}', stop.sequence.toString())} - {t(stop.status || '', stop.status?.replace(/_/g, ' ') || '')}
                         {stop.eta && <span className={`px-2 py-0.5 rounded ${stop.etaStatus === 'delayed' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{t("jsx_eTA")}{formatDate(stop.eta)}
                           </span>}
                       </span>
@@ -559,7 +561,7 @@ export default function TripDetailsPage() {
                               <span className={`text-xs font-bold px-2 py-1 rounded bg-white border shadow-sm ${task.status === 'completed' ? 'border-green-200 text-green-700' : 'border-gray-200 text-gray-600'}`}>
                                 {t(task.status)}
                               </span><select className="ml-2 text-xs font-bold px-2 py-1 rounded bg-white border shadow-sm" value={task.status || 'pending'} onChange={async e => { const v = e.target.value; try { await api.patch('/trips/tasks/' + task.id + '/status', { status: v }); setTrip((prev: any) => ({ ...prev, stops: prev.stops?.map((st: any) => ({ ...st, tasks: (st.tasks || []).map((tk: any) => tk.id === task.id ? { ...tk, status: v } : tk) })) })); toast.success(t('saved', 'Salvat')); } catch (err: any) { toast.error(err?.response?.data?.message || t('error', 'Eroare')); } }} title={t('change_status', 'Change task status')}>
-{t(['pending', 'completed', 'problem'].map(st => <option key={st} value={st}>{t(st)}</option>))}
+{['pending', 'completed', 'problem'].map(st => <option key={st} value={st}>{t(st)}</option>)}
 </select>
                             </div>
                           })}

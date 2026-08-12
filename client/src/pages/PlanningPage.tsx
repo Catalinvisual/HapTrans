@@ -647,8 +647,8 @@ function TripDetailDrawer({
                     </div>
                     {isPlanning && (
                       <div className="flex flex-col gap-0.5 shrink-0">
-                        <button disabled={idx === 0 || actionsLoading} onClick={() => moveStop(idx, 'up')} className="p-1 rounded hover:bg-surface text-text-secondary disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
-                        <button disabled={idx === stops.length - 1 || actionsLoading} onClick={() => moveStop(idx, 'down')} className="p-1 rounded hover:bg-surface text-text-secondary disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
+                        <button disabled={idx === 0 || !!loadingAction} onClick={() => moveStop(idx, 'up')} className="p-1 rounded hover:bg-surface text-text-secondary disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
+                        <button disabled={idx === stops.length - 1 || !!loadingAction} onClick={() => moveStop(idx, 'down')} className="p-1 rounded hover:bg-surface text-text-secondary disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
                       </div>
                     )}
                   </div>
@@ -1350,7 +1350,7 @@ export default function PlanningPage() {
       )}
 
       {showOptimizeModal && (
-        <OptimizationModal onClose={() => setShowOptimizeModal(false)} onApply={handleApplyOptimization} isLoading={actionsLoading} />
+        <OptimizationModal onClose={() => setShowOptimizeModal(false)} onApply={handleApplyOptimization} isLoading={!!loadingAction} />
       )}
     </div>
   );
