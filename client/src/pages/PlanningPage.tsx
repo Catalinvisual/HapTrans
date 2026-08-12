@@ -491,11 +491,11 @@ function ResourceRow({
 // ─── Trip Detail Drawer ──────────────────────────────────────────────────────
 function TripDetailDrawer({
   tripSummary, resources = [], drivers = [], trailers = [], conflicts = [],
-  onClose, onAction, onReorderStops, actionsLoading,
+  onClose, onAction, onReorderStops, loadingAction,
 }: {
   tripSummary: any; resources?: any[]; drivers?: any[]; trailers?: any[]; conflicts?: any[];
-  onClose: () => void; onAction: (action: string, tripId: string) => void;
-  onReorderStops: (tripId: string, stopIds: string[]) => void; actionsLoading?: boolean;
+  onClose: () => void; onAction: (action: string, tripId: string, payload?: any) => void;
+  onReorderStops: (tripId: string, stopIds: string[]) => void; loadingAction?: string | null;
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -535,6 +535,17 @@ function TripDetailDrawer({
   const isPlanning = ['planning', 'planned', 'assigned'].includes(st);
   const col = TRIP_COLORS[st] || TRIP_COLORS.planning;
   const tripId = trip.id || tripSummary.id;
+  const { origin, dest } = tripOriginDestination(trip);
+
+  const formatAuditDetails = (details: string) => {
+    if (!details) return null;
+    try {
+      const parsed = JSON.parse(details);
+      return parsed.message || details;
+    } catch {
+      return details;
+    }
+  };
 
   const moveStop = (idx: number, dir: 'up' | 'down') => {
     const target = dir === 'up' ? idx - 1 : idx + 1;
@@ -556,9 +567,9 @@ function TripDetailDrawer({
               {detailLoading && <Loader2 className="w-4 h-4 animate-spin text-text-muted" />}
             </div>
             <p className="text-xs text-text-secondary mt-1 flex items-center gap-2">
-              <span>{stops[0]?.city || stops[0]?.address?.split(',')[0] || '—'}</span>
+              <span>{origin}</span>
               <ArrowRight className="w-3 h-3 text-text-muted" />
-              <span>{stops[stops.length - 1]?.city || stops[stops.length - 1]?.address?.split(',')[0] || '—'}</span>
+              <span>{dest}</span>
               {(trip.distanceKm || tripSummary.distanceKm) && <><span>·</span><span className="font-semibold text-text-primary">{trip.distanceKm || tripSummary.distanceKm} km</span></>}
             </p>
           </div>
@@ -685,7 +696,7 @@ function TripDetailDrawer({
                   <span className="w-2 h-2 rounded-full bg-primary mt-1 shrink-0" />
                   <div>
                     <p className="font-bold text-text-primary capitalize">{String(ev.action || '').replace(/_/g, ' ')}</p>
-                    {ev.details && <p className="text-text-secondary mt-0.5">{ev.details}</p>}
+                    {ev.details && <p className="text-text-secondary mt-0.5">{formatAuditDetails(ev.details)}</p>}
                     <p className="text-[10px] text-text-muted mt-1">{ev.user?.name || 'System'} · {new Date(ev.createdAt).toLocaleString()}</p>
                   </div>
                 </div>
@@ -698,18 +709,28 @@ function TripDetailDrawer({
         {isPlanning && (
           <div className="p-4 border-t border-border bg-surface/50 flex flex-wrap gap-2 justify-between shrink-0">
             <div className="flex flex-wrap gap-2">
-              {[
-                ['confirm', t('jsx_context_confirm','Confirm'), <ShieldCheck className="w-4 h-4 text-emerald-500" />],
-                ['send', t('jsx_context_send','Send to Driver'), <Send className="w-4 h-4 text-primary" />],
-                ['split', t('jsx_context_split','Split'), <SplitSquareHorizontal className="w-4 h-4 text-amber-500" />],
-              ].map(([action, label, icon]: any) => (
-                <button key={action} disabled={actionsLoading} onClick={() => onAction(action, tripId)} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold">
-                  {actionsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : icon}<span>{label}</span>
+              {st === 'planning' || st === 'planned' ? (
+                <button disabled={!!loadingAction} onClick={() => onAction('confirm', tripId)} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold">
+                  {loadingAction === 'confirm' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4 text-emerald-500" />}
+                  <span>{t('jsx_context_confirm','Confirm')}</span>
                 </button>
-              ))}
+              ) : null}
+              {st === 'planning' || st === 'planned' || st === 'assigned' ? (
+                <button disabled={!!loadingAction} onClick={() => onAction('send', tripId)} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold">
+                  {loadingAction === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 text-primary" />}
+                  <span>{t('jsx_context_send','Send to Driver')}</span>
+                </button>
+              ) : null}
+              {orders.length > 1 ? (
+                <button disabled={!!loadingAction} onClick={() => onAction('split', tripId)} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold">
+                  {loadingAction === 'split' ? <Loader2 className="w-4 h-4 animate-spin" /> : <SplitSquareHorizontal className="w-4 h-4 text-amber-500" />}
+                  <span>{t('jsx_context_split','Split')}</span>
+                </button>
+              ) : null}
             </div>
-            <button disabled={actionsLoading} onClick={() => onAction('unplan-all', tripId)} className="btn-secondary text-xs py-2 px-3 text-red-500 hover:bg-red-500/10 flex items-center gap-1.5 font-bold">
-              <Undo2 className="w-4 h-4" /><span>{t('jsx_context_unplan','Unplan All')}</span>
+            <button disabled={!!loadingAction} onClick={() => onAction('unplan-all', tripId, { orderIds: orders.map((o: any) => o.id) })} className="btn-secondary text-xs py-2 px-3 text-red-500 hover:bg-red-500/10 flex items-center gap-1.5 font-bold">
+              {loadingAction === 'unplan-all' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
+              <span>{t('jsx_context_unplan','Unplan Trip')}</span>
             </button>
           </div>
         )}
@@ -835,7 +856,7 @@ export default function PlanningPage() {
   const [mapData, setMapData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [actionsLoading, setActionsLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -897,8 +918,8 @@ export default function PlanningPage() {
   });
 
   // ── Actions ──
-  const handleTripAction = async (action: string, tripId: string) => {
-    setActionsLoading(true);
+  const handleTripAction = async (action: string, tripId: string, payload?: any) => {
+    setLoadingAction(action);
     try {
       if (action === 'confirm') {
         // Uses the dedicated planning endpoint that handles planning→planned→assigned transition
@@ -912,8 +933,7 @@ export default function PlanningPage() {
         await api.post(`/planning/trips/${tripId}/split`, {});
         toast.success(t('jsx_splitOk','Trip split'));
       } else if (action === 'unplan-all') {
-        const trip = boardData?.trips?.find((tr: any) => tr.id === tripId);
-        const orderIds = (trip?.orders || []).map((o: any) => o.id).filter(Boolean);
+        const orderIds = payload?.orderIds || [];
         if (!orderIds.length) { toast.error('No orders to unplan'); return; }
         await api.post('/planning/unplan', { orderIds });
         toast.success(t('jsx_unplannedOk','Orders unplanned'));
@@ -921,33 +941,33 @@ export default function PlanningPage() {
       }
       loadData();
     } catch (err: any) { toast.error(err.response?.data?.message || t('jsx_actionError','Action failed')); }
-    finally { setActionsLoading(false); }
+    finally { setLoadingAction(null); }
   };
 
   const handleReorderStops = async (tripId: string, stopIds: string[]) => {
-    setActionsLoading(true);
+    setLoadingAction('reorder');
     try { await api.put(`/planning/trips/${tripId}/reorder`, { order: stopIds }); toast.success(t('stops_reordered','Stops reordered')); loadData(); }
     catch (err: any) { toast.error(err.response?.data?.message || 'Failed to reorder stops'); }
-    finally { setActionsLoading(false); }
+    finally { setLoadingAction(null); }
   };
 
   const handleDropOrder = async (resourceId: string) => {
     const orderIds = draggingOrderId ? [draggingOrderId] : Array.from(selectedPoolOrderIds);
     if (!orderIds.length) return;
-    setActionsLoading(true);
+    setLoadingAction('assign');
     try {
       await api.post('/planning/assign', { orderIds, truckId: resourceId, date: selectedDate });
       toast.success(t('jsx_assignedOk','Orders assigned'));
       setSelectedPoolOrderIds(new Set()); setDraggingOrderId(null); loadData();
     } catch (err: any) { toast.error(err.response?.data?.message || 'Assignment failed'); }
-    finally { setActionsLoading(false); }
+    finally { setLoadingAction(null); }
   };
 
   const handleApplyOptimization = async (proposals: any[]) => {
-    setActionsLoading(true);
+    setLoadingAction('optimize');
     try { await api.post('/planning/optimize/apply', { proposals }); toast.success(t('jsx_appliedOk','Optimization applied')); setShowOptimizeModal(false); loadData(); }
     catch (err: any) { toast.error(err.response?.data?.message || 'Failed to apply'); }
-    finally { setActionsLoading(false); }
+    finally { setLoadingAction(null); }
   };
 
   const handleUndo = async () => {
@@ -1314,7 +1334,7 @@ export default function PlanningPage() {
           onClose={() => setSelectedTripId(null)}
           onAction={handleTripAction}
           onReorderStops={handleReorderStops}
-          actionsLoading={actionsLoading}
+          loadingAction={loadingAction}
         />
       )}
 

@@ -57,6 +57,17 @@ export default function CustomSelect({
       window.removeEventListener('resize', handleScroll);
     };
   }, [isOpen]);
+
+  // Auto-scroll to focused item
+  useEffect(() => {
+    if (isOpen && focusedIndex >= 0 && dropdownRef.current) {
+      const el = dropdownRef.current.children[focusedIndex] as HTMLElement;
+      if (el && el.scrollIntoView) {
+        el.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [focusedIndex, isOpen]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isOpen) {
       if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
