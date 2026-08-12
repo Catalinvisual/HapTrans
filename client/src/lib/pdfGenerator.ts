@@ -37,44 +37,38 @@ async function addImageToDoc(doc: jsPDF, url: string, x: number, y: number, maxW
 async function createBaseDocument(title: string, company: CompanySettings | null, orientation: 'portrait' | 'landscape' = 'landscape') {
   const doc = new jsPDF(orientation, 'pt', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
+  
+  // Calculate dynamic header height
+  let headerHeight = 120; // default
+  if (company) {
+    let detailsCount = [company.address, company.cui, company.iban, company.email, company.phone].filter(Boolean).length;
+    headerHeight = 40 + (company.logo ? 60 : 0) + 15 + (detailsCount * 12) + 15;
+    if (headerHeight < 100) headerHeight = 100;
+  }
+
   let cursorY = 40;
 
   // Header Background
   doc.setFillColor(248, 250, 252);
-  doc.rect(0, 0, pageWidth, 100, 'F');
+  doc.rect(0, 0, pageWidth, headerHeight, 'F');
 
-  // Title
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.setTextColor(30, 41, 59); // text-slate-800
-  doc.text(title, 40, cursorY + 15);
+  let leftCursorY = cursorY;
 
-  // Date
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(100, 116, 139); // text-slate-500
-  doc.text(`Generated: ${fmtDateTime(new Date())}`, 40, cursorY + 32);
-
-  // Company Details (Right aligned)
+  // Left Side: Logo & Company Details
   if (company) {
-    let rightCursorY = cursorY - 10;
-    let textStartX = pageWidth - 40;
-
-    // If logo exists, draw it and adjust text start X
     if (company.logo) {
-      const logoWidth = 60;
-      const logoHeight = 60;
-      await addImageToDoc(doc, company.logo, pageWidth - 40 - logoWidth, 20, logoWidth, logoHeight);
-      textStartX = pageWidth - 40 - logoWidth - 15;
+      const logoMaxWidth = 180;
+      const logoMaxHeight = 60;
+      await addImageToDoc(doc, company.logo, 40, 20, logoMaxWidth, logoMaxHeight);
+      leftCursorY = 20 + logoMaxHeight + 15; // Move below logo
+    } else {
+      leftCursorY = cursorY;
     }
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(15, 23, 42);
-    
-    // Calculate width of company name to right align
-    const nameWidth = doc.getStringUnitWidth(company.name || 'Company') * 14;
-    doc.text(company.name || 'Company', textStartX - nameWidth, rightCursorY + 15);
+    doc.text(company.name || 'Company', 40, leftCursorY);
     
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
@@ -88,18 +82,33 @@ async function createBaseDocument(title: string, company: CompanySettings | null
     ].filter(Boolean) as string[];
 
     details.forEach(det => {
-      rightCursorY += 12;
-      const w = doc.getStringUnitWidth(det) * 9;
-      doc.text(det, textStartX - w, rightCursorY + 15);
+      leftCursorY += 12;
+      doc.text(det, 40, leftCursorY);
     });
   }
+
+  // Right Side: Title & Date
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18); // Slightly smaller
+  doc.setTextColor(30, 41, 59); // text-slate-800
+  
+  const titleWidth = doc.getStringUnitWidth(title) * 18;
+  doc.text(title, pageWidth - 40 - titleWidth, cursorY + 15);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(100, 116, 139); // text-slate-500
+  
+  const dateStr = `Generated: ${fmtDateTime(new Date())}`;
+  const dateWidth = doc.getStringUnitWidth(dateStr) * 10;
+  doc.text(dateStr, pageWidth - 40 - dateWidth, cursorY + 32);
 
   // Draw separator line
   doc.setDrawColor(226, 232, 240); // slate-200
   doc.setLineWidth(1);
-  doc.line(40, 100, pageWidth - 40, 100);
+  doc.line(40, headerHeight, pageWidth - 40, headerHeight);
 
-  return { doc, pageWidth, startY: 130 };
+  return { doc, pageWidth, startY: headerHeight + 30 };
 }
 
 // ─── Generators ──────────────────────────────────────────────────────────────
