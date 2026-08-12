@@ -19,6 +19,8 @@ import { useShortcuts } from '../hooks/useShortcuts';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import CustomSelect from '../components/CustomSelect';
+import type { SelectOption } from '../components/CustomSelect';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const dayStr = (d: Date) =>
@@ -319,7 +321,7 @@ function PoolOrderCard({
   );
 }
 
-// ─── Timeline Trip Block ─────────────────────────────────────────────────────
+// ─── Timeline Trip Block ──────────────────────────────────────────────────────────────────────
 function TripBlock({
   trip, isSelected, onClick, fromDate, totalMinutes,
 }: {
@@ -331,38 +333,75 @@ function TripBlock({
 
   const st = String(trip.status || 'planning').toLowerCase();
   const col = TRIP_COLORS[st] || TRIP_COLORS.planning;
+  const hex = TRIP_HEX[st] || TRIP_HEX.planning;
   const { origin, dest } = tripOriginDestination(trip);
   const cargo = sumCargo(trip.orders || []);
   const revenue = (trip.orders || []).reduce((s: number, o: any) => s + (Number(o.price) || 0), 0);
+  const ordersCount = (trip.orders || []).filter((o: any) => o?.id).length;
+  const isNarrow = pos.width < 8; // < 8% wide = very narrow block
 
   return (
     <div
-      className="absolute top-1 bottom-1 cursor-pointer group"
-      style={{ left: `${pos.left}%`, width: `${pos.width}%`, minWidth: '3rem' }}
+      className="absolute top-1.5 bottom-1.5 cursor-pointer group/block z-[5]"
+      style={{ left: `${pos.left}%`, width: `${pos.width}%`, minWidth: '2.5rem' }}
       onClick={onClick}
     >
-      <div className={`h-full rounded-xl border-2 px-2 py-1 flex flex-col justify-center overflow-hidden transition-all ${col.bg} ${col.border} ${
-        isSelected ? 'ring-2 ring-primary ring-offset-1 shadow-lg scale-y-105' : 'hover:shadow-md hover:scale-y-102'
-      }`}>
-        <div className="flex items-center gap-1 min-w-0">
-          <span className={`text-[10px] font-black truncate ${col.text}`}>{trip.tripNumber || '—'}</span>
-          <span className={`shrink-0 px-1 py-0 text-[8px] font-black rounded uppercase ${col.text} opacity-80`}>{t(`status_${st}`, st)}</span>
-        </div>
-        <div className="text-[9px] text-text-secondary truncate mt-0.5 hidden sm:block">
-          {origin !== '—' ? origin : ''}{origin !== '—' && dest !== '—' ? ' → ' : ''}{dest !== '—' ? dest : ''}
-        </div>
-        <div className="text-[9px] text-text-muted mt-0.5 hidden md:flex items-center gap-1.5">
-          <span>{fmtTime(trip.plannedDeparture)}</span>
-          {trip.plannedArrival && <><ArrowRight className="w-2 h-2" /><span>{fmtTime(trip.plannedArrival)}</span></>}
-          {cargo.weight > 0 && <span>· {cargo.weight.toLocaleString()}kg</span>}
-          {revenue > 0 && <span className="font-bold text-primary">· €{revenue.toLocaleString()}</span>}
+      <div
+        className={`h-full rounded-xl border-2 overflow-hidden transition-all duration-150 flex flex-col justify-between ${
+          col.border
+        } ${
+          isSelected
+            ? 'ring-2 ring-offset-1 shadow-xl scale-y-[1.06] z-10'
+            : 'hover:shadow-lg hover:scale-y-[1.04]'
+        }`}
+        style={{
+          background: `linear-gradient(135deg, ${hex}28 0%, ${hex}12 100%)`,
+          boxShadow: isSelected ? `0 4px 20px ${hex}50, 0 0 0 2px ${hex}` : undefined,
+          ringColor: isSelected ? hex : undefined,
+        }}
+      >
+        {/* Color accent strip at top */}
+        <div className="h-0.5 w-full" style={{ background: hex }} />
+
+        <div className="px-2 py-1 flex flex-col justify-center flex-1 min-h-0 overflow-hidden">
+          {/* Trip number + status badge */}
+          <div className="flex items-center gap-1 min-w-0">
+            <span className={`text-[10px] font-black truncate ${col.text}`} style={{ maxWidth: isNarrow ? '100%' : '60%' }}>
+              {trip.tripNumber || '—'}
+            </span>
+            {!isNarrow && (
+              <span className={`shrink-0 px-1 py-0 text-[8px] font-black rounded-sm uppercase ${col.text} opacity-80`}>
+                {t(`status_${st}`, st)}
+              </span>
+            )}
+          </div>
+
+          {/* Route */}
+          {!isNarrow && origin !== '—' && (
+            <div className="text-[9px] text-text-secondary truncate mt-0.5 hidden sm:flex items-center gap-0.5">
+              <MapPin className="w-2 h-2 shrink-0 text-blue-500" />
+              <span className="truncate">{origin}</span>
+              {dest !== '—' && <><ArrowRight className="w-2 h-2 shrink-0" /><span className="truncate">{dest}</span></>}
+            </div>
+          )}
+
+          {/* Times + metadata */}
+          {!isNarrow && (
+            <div className="hidden md:flex items-center gap-1.5 mt-0.5">
+              <span className="text-[9px] text-text-muted font-medium">{fmtTime(trip.plannedDeparture)}</span>
+              {trip.plannedArrival && <><ArrowRight className="w-2 h-2 text-text-muted" /><span className="text-[9px] text-text-muted">{fmtTime(trip.plannedArrival)}</span></>}
+              {cargo.weight > 0 && <span className="text-[9px] text-text-muted">· {cargo.weight.toLocaleString()}kg</span>}
+              {revenue > 0 && <span className="text-[9px] font-black" style={{ color: hex }}>€{revenue.toLocaleString()}</span>}
+              {ordersCount > 0 && <span className="text-[9px] text-text-muted">· {ordersCount}&#x20;ord</span>}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Resource Row (Gantt Row) ────────────────────────────────────────────────
+// ─── Resource Row (Gantt Row) ────────────────────────────────────────────────────────
 function ResourceRow({
   resource, trips, fromDate, totalMinutes, selectedTripId, onSelectTrip, onDropOrder, draggingId,
 }: {
@@ -374,46 +413,57 @@ function ResourceRow({
   const cargo = sumCargo(trips.flatMap((tr: any) => tr.orders || []));
   const mw = resource.maxWeightKg || 24000;
   const mp = resource.maxPallets || 33;
-  const mv = resource.maxVolumeCbm || 90;
-  const ml = resource.maxLdm || 13.6;
   const st = String(resource.status || 'available').toLowerCase();
-  const statusColor = { active:'text-emerald-500', available:'text-emerald-500', assigned:'text-blue-500', driving:'text-amber-500', maintenance:'text-red-500', inactive:'text-slate-400' }[st] || 'text-text-secondary';
+  const statusDot = { active:'bg-emerald-400', available:'bg-emerald-400', assigned:'bg-blue-400', driving:'bg-amber-400', maintenance:'bg-red-400', inactive:'bg-slate-400' }[st] || 'bg-slate-400';
+  const hasTrips = trips.length > 0;
 
   return (
-    <div className="flex border-b border-border/40 min-h-[72px] group hover:bg-surface/30 transition-colors">
+    <div className="flex border-b-2 border-border min-h-[76px] group hover:bg-primary/[0.02] transition-colors">
       {/* Resource Column — sticky left */}
-      <div className="w-56 shrink-0 p-2.5 border-r border-border/40 flex flex-col justify-center gap-1 bg-card sticky left-0 z-10">
+      <div className="w-56 shrink-0 px-3 py-2.5 border-r-2 border-border flex flex-col justify-center gap-1.5 bg-card sticky left-0 z-10 shadow-[2px_0_6px_rgba(0,0,0,0.06)]">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center border border-border shrink-0">
-            <TruckIcon className="w-4 h-4 text-primary" />
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center border shrink-0 shadow-sm ${hasTrips ? 'bg-primary/10 border-primary/20' : 'bg-surface border-border'}`}>
+            <TruckIcon className={`w-4 h-4 ${hasTrips ? 'text-primary' : 'text-text-muted'}`} />
           </div>
-          <div className="min-w-0">
-            <p className="font-black text-text-primary text-xs truncate">{resource.plateNumber || '—'}</p>
-            <p className="text-[10px] text-text-secondary truncate">{resource.brand || ''} {resource.model || ''}</p>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <p className="font-black text-text-primary text-xs truncate">{resource.plateNumber || '—'}</p>
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDot}`} />
+            </div>
+            <p className="text-[10px] text-text-muted truncate">{resource.brand || ''} {resource.model || ''}</p>
           </div>
-          <span className={`text-[9px] font-bold shrink-0 ${statusColor}`}>{t(`status_${st}`,st)}</span>
         </div>
         {resource.driver?.name && (
           <div className="flex items-center gap-1 text-[10px] text-text-secondary">
             <Users className="w-3 h-3 shrink-0 text-text-muted" />
-            <span className="truncate">{resource.driver.name}</span>
+            <span className="truncate font-medium">{resource.driver.name}</span>
           </div>
         )}
         {cargo.weight > 0 && (
-          <div className="grid grid-cols-2 gap-1 pt-1">
-            <CapBar label={t('pool_col_weight','Wt')} value={Math.round(cargo.weight / 100) / 10} max={Math.round(mw / 100) / 10} unit="t" />
-            <CapBar label={t('pool_col_pallets','Plt')} value={cargo.pallets} max={mp} />
+          <div className="grid grid-cols-2 gap-1 pt-1.5 border-t border-border/40">
+            <CapBar label="Wt" value={Math.round(cargo.weight / 100) / 10} max={Math.round(mw / 100) / 10} unit="t" />
+            <CapBar label="Plt" value={cargo.pallets} max={mp} />
           </div>
         )}
       </div>
 
       {/* Timeline Area */}
       <div
-        className={`relative flex-1 transition-colors ${isDragOver && draggingId ? 'bg-primary/10 ring-2 ring-primary/40 ring-inset' : ''}`}
+        className={`relative flex-1 transition-all duration-150 ${
+          isDragOver && draggingId
+            ? 'bg-primary/10 ring-2 ring-primary/40 ring-inset'
+            : 'bg-gradient-to-b from-surface/20 via-transparent to-surface/10'
+        }`}
         onDragOver={e => { if (draggingId) { e.preventDefault(); setIsDragOver(true); } }}
         onDragLeave={() => setIsDragOver(false)}
         onDrop={e => { e.preventDefault(); setIsDragOver(false); onDropOrder(resource.id); }}
       >
+        {/* Hour grid lines */}
+        <div className="absolute inset-0 flex pointer-events-none">
+          {Array.from({ length: 24 }, (_, h) => (
+            <div key={h} className="flex-1 border-r border-border/20 last:border-0" />
+          ))}
+        </div>
         {/* Drop hint */}
         {isDragOver && draggingId && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
@@ -475,10 +525,10 @@ function TimelineHeader({ viewMode, fromDate, hoursVisible }: { viewMode: string
 
 // ─── Trip Detail Drawer ──────────────────────────────────────────────────────
 function TripDetailDrawer({
-  trip, resources = [], drivers = [], trailers = [], conflicts = [],
+  tripSummary, resources = [], drivers = [], trailers = [], conflicts = [],
   onClose, onAction, onReorderStops, actionsLoading,
 }: {
-  trip: any; resources?: any[]; drivers?: any[]; trailers?: any[]; conflicts?: any[];
+  tripSummary: any; resources?: any[]; drivers?: any[]; trailers?: any[]; conflicts?: any[];
   onClose: () => void; onAction: (action: string, tripId: string) => void;
   onReorderStops: (tripId: string, stopIds: string[]) => void; actionsLoading?: boolean;
 }) {
@@ -486,34 +536,47 @@ function TripDetailDrawer({
   const navigate = useNavigate();
   const [auditEvents, setAuditEvents] = useState<any[] | null>(null);
   const [activeTab, setActiveTab] = useState<'stops' | 'orders' | 'financial' | 'audit'>('stops');
+  // Full trip detail fetched from server when drawer opens (ensures stops/orders are populated)
+  const [tripDetail, setTripDetail] = useState<any>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
     setAuditEvents(null);
-    if (trip?.id) {
-      api.get(`/planning/audit?tripId=${trip.id}`)
+    setTripDetail(null);
+    if (tripSummary?.id) {
+      // Fetch full trip detail to ensure stops, orders, etc. are populated
+      setDetailLoading(true);
+      api.get(`/trips/${tripSummary.id}`)
+        .then(r => setTripDetail(r.data))
+        .catch(() => setTripDetail(tripSummary)) // fallback to summary
+        .finally(() => setDetailLoading(false));
+      api.get(`/planning/audit?tripId=${tripSummary.id}`)
         .then(r => setAuditEvents(r.data?.events || []))
         .catch(() => setAuditEvents([]));
     }
-  }, [trip?.id]);
+  }, [tripSummary?.id]);
 
-  if (!trip) return null;
-  const truck = trip.truck || resources.find((r: any) => r.id === trip.truckId) || null;
-  const driver = trip.driver || truck?.driver || drivers.find((d: any) => d.id === trip.driverId) || null;
-  const trailer = trip.trailer || trailers.find((trl: any) => trl.id === trip.trailerId) || null;
-  const stops = (trip.stops || []).slice().sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
-  const orders = (trip.orders || []).filter((o: any) => o?.id);
+  if (!tripSummary) return null;
+  // Use fetched detail if available, otherwise use the summary from the board
+  const trip = tripDetail || tripSummary;
+  const truck = trip.truck || tripSummary.truck || resources.find((r: any) => r.id === (trip.truckId || tripSummary.truckId)) || null;
+  const driver = trip.driver || truck?.driver || drivers.find((d: any) => d.id === (trip.driverId || tripSummary.driverId)) || null;
+  const trailer = trip.trailer || tripSummary.trailer || trailers.find((trl: any) => trl.id === (trip.trailerId || tripSummary.trailerId)) || null;
+  const stops = (trip.stops || tripSummary.stops || []).slice().sort((a: any, b: any) => (a.sequence || a.stopOrder || 0) - (b.sequence || b.stopOrder || 0));
+  const orders = (trip.orders || tripSummary.orders || []).filter((o: any) => o?.id);
   const cargo = sumCargo(orders);
   const revenue = orders.reduce((s: number, o: any) => s + (Number(o.price) || 0), 0);
-  const tripConflicts = (conflicts || []).filter((c: any) => c.tripId === trip.id);
-  const st = String(trip.status || 'planning').toLowerCase();
+  const tripConflicts = (conflicts || []).filter((c: any) => c.tripId === (trip.id || tripSummary.id));
+  const st = String((trip.status || tripSummary.status || 'planning')).toLowerCase();
   const isPlanning = ['planning', 'planned', 'assigned'].includes(st);
   const col = TRIP_COLORS[st] || TRIP_COLORS.planning;
+  const tripId = trip.id || tripSummary.id;
 
   const moveStop = (idx: number, dir: 'up' | 'down') => {
     const target = dir === 'up' ? idx - 1 : idx + 1;
     if (target < 0 || target >= stops.length) return;
     const s = [...stops]; [s[idx], s[target]] = [s[target], s[idx]];
-    onReorderStops(trip.id, s.map((x: any) => x.id));
+    onReorderStops(tripId, s.map((x: any) => x.id));
   };
 
   return typeof document !== 'undefined' ? createPortal(
@@ -524,16 +587,19 @@ function TripDetailDrawer({
         <div className="p-5 border-b border-border bg-surface/40 flex items-start justify-between gap-4 shrink-0">
           <div>
             <div className="flex items-center gap-3">
-              <h2 className="text-xl font-black text-text-primary">{trip.tripNumber || 'Trip'}</h2>
+              <h2 className="text-xl font-black text-text-primary">{trip.tripNumber || tripSummary.tripNumber || 'Trip'}</h2>
               <span className={`px-2.5 py-0.5 text-xs font-black rounded-full border-2 uppercase ${col.border} ${col.text}`}>{t(`status_${st}`, st)}</span>
+              {detailLoading && <Loader2 className="w-4 h-4 animate-spin text-text-muted" />}
             </div>
             <p className="text-xs text-text-secondary mt-1 flex items-center gap-2">
-              <span>{stops[0]?.city || '—'}</span><ArrowRight className="w-3 h-3 text-text-muted" /><span>{stops[stops.length - 1]?.city || '—'}</span>
-              {trip.distanceKm && <><span>·</span><span className="font-semibold text-text-primary">{trip.distanceKm} km</span></>}
+              <span>{stops[0]?.city || stops[0]?.address?.split(',')[0] || '—'}</span>
+              <ArrowRight className="w-3 h-3 text-text-muted" />
+              <span>{stops[stops.length - 1]?.city || stops[stops.length - 1]?.address?.split(',')[0] || '—'}</span>
+              {(trip.distanceKm || tripSummary.distanceKm) && <><span>·</span><span className="font-semibold text-text-primary">{trip.distanceKm || tripSummary.distanceKm} km</span></>}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => navigate(`/trips/${trip.id}`)} className="btn-secondary text-xs py-1.5 px-2.5 flex items-center gap-1">
+            <button onClick={() => navigate(`/trips/${tripId}`)} className="btn-secondary text-xs py-1.5 px-2.5 flex items-center gap-1">
               <ExternalLink className="w-3.5 h-3.5" /><span>{t('jsx_context_openTrip','Open')}</span>
             </button>
             <button onClick={onClose} className="p-1.5 hover:bg-surface rounded-xl text-text-secondary hover:text-text-primary"><X className="w-5 h-5" /></button>
@@ -557,7 +623,7 @@ function TripDetailDrawer({
 
         {/* Tabs */}
         <div className="flex border-b border-border bg-surface/20 px-5 gap-5 text-xs shrink-0">
-          {[['stops',`${t('jsx_stops','Stops')} (${stops.length})`,MapPin],['orders',`${t('jsx_orders','Orders')} (${orders.length})`,Package],['financial',t('financial_breakdown','Financials'),Activity],['audit',t('jsx_audit','Audit'),Clock]].map(([id,label,Icon]: any) => (
+          {[['stops',`${t('jsx_stops','Stops')} (${detailLoading ? '…' : stops.length})`,MapPin],['orders',`${t('jsx_orders','Orders')} (${detailLoading ? '…' : orders.length})`,Package],['financial',t('financial_breakdown','Financials'),Activity],['audit',t('jsx_audit','Audit'),Clock]].map(([id,label,Icon]: any) => (
             <button key={id} onClick={() => setActiveTab(id)} className={`py-3 flex items-center gap-1.5 border-b-2 transition-colors ${activeTab === id ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'}`}>
               <Icon className="w-3.5 h-3.5" /><span>{label}</span>
             </button>
@@ -566,7 +632,13 @@ function TripDetailDrawer({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {tripConflicts.length > 0 && (
+          {detailLoading && (
+            <div className="flex items-center justify-center gap-2 py-4">
+              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              <span className="text-xs text-text-secondary">Loading trip details…</span>
+            </div>
+          )}
+          {!detailLoading && tripConflicts.length > 0 && (
             <div className="bg-red-500/5 rounded-2xl border border-red-500/20 p-3 space-y-1.5">
               <h3 className="text-xs font-bold text-red-600 flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" />{t('jsx_attention','Conflicts')} ({tripConflicts.length})</h3>
               {tripConflicts.map((c: any) => (
@@ -667,12 +739,12 @@ function TripDetailDrawer({
                 ['send', t('jsx_context_send','Send to Driver'), <Send className="w-4 h-4 text-primary" />],
                 ['split', t('jsx_context_split','Split'), <SplitSquareHorizontal className="w-4 h-4 text-amber-500" />],
               ].map(([action, label, icon]: any) => (
-                <button key={action} disabled={actionsLoading} onClick={() => onAction(action, trip.id)} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold">
-                  {icon}<span>{label}</span>
+                <button key={action} disabled={actionsLoading} onClick={() => onAction(action, tripId)} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold">
+                  {actionsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : icon}<span>{label}</span>
                 </button>
               ))}
             </div>
-            <button disabled={actionsLoading} onClick={() => onAction('unplan-all', trip.id)} className="btn-secondary text-xs py-2 px-3 text-red-500 hover:bg-red-500/10 flex items-center gap-1.5 font-bold">
+            <button disabled={actionsLoading} onClick={() => onAction('unplan-all', tripId)} className="btn-secondary text-xs py-2 px-3 text-red-500 hover:bg-red-500/10 flex items-center gap-1.5 font-bold">
               <Undo2 className="w-4 h-4" /><span>{t('jsx_context_unplan','Unplan All')}</span>
             </button>
           </div>
@@ -865,13 +937,24 @@ export default function PlanningPage() {
   const handleTripAction = async (action: string, tripId: string) => {
     setActionsLoading(true);
     try {
-      if (action === 'confirm') { await api.post(`/trips/${tripId}/status`, { status: 'assigned' }); toast.success(t('jsx_confirmedOk','Trip confirmed')); }
-      else if (action === 'send') { await api.post(`/trips/${tripId}/status`, { status: 'dispatched' }); toast.success(t('jsx_sentOk','Trip dispatched')); }
-      else if (action === 'split') { await api.post(`/planning/trips/${tripId}/split`, {}); toast.success(t('jsx_splitOk','Trip split')); }
-      else if (action === 'unplan-all') {
+      if (action === 'confirm') {
+        // Uses the dedicated planning endpoint that handles planning→planned→assigned transition
+        await api.post(`/planning/trips/${tripId}/confirm`);
+        toast.success(t('jsx_confirmedOk','Trip confirmed'));
+      } else if (action === 'send') {
+        // Uses the dedicated planning endpoint that transitions to dispatched
+        await api.post(`/planning/trips/${tripId}/send-to-driver`, {});
+        toast.success(t('jsx_sentOk','Trip dispatched'));
+      } else if (action === 'split') {
+        await api.post(`/planning/trips/${tripId}/split`, {});
+        toast.success(t('jsx_splitOk','Trip split'));
+      } else if (action === 'unplan-all') {
         const trip = boardData?.trips?.find((tr: any) => tr.id === tripId);
-        const orderIds = (trip?.orders || []).map((o: any) => o.id);
-        await api.post('/planning/unplan', { orderIds }); toast.success(t('jsx_unplannedOk','Orders unplanned')); setSelectedTripId(null);
+        const orderIds = (trip?.orders || []).map((o: any) => o.id).filter(Boolean);
+        if (!orderIds.length) { toast.error('No orders to unplan'); return; }
+        await api.post('/planning/unplan', { orderIds });
+        toast.success(t('jsx_unplannedOk','Orders unplanned'));
+        setSelectedTripId(null);
       }
       loadData();
     } catch (err: any) { toast.error(err.response?.data?.message || t('jsx_actionError','Action failed')); }
@@ -999,33 +1082,56 @@ export default function PlanningPage() {
           />
         </div>
 
-        {/* Status */}
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="text-xs bg-card border border-border rounded-xl px-2.5 py-1.5 text-text-primary focus:outline-none focus:ring-1 focus:ring-primary">
-          <option value="">{t('status_all','All Statuses')}</option>
-          {['planning','planned','assigned','dispatched','driver_accepted','started','loading','driving','partially_delivered','completed','closed','cancelled'].map(s => (
-            <option key={s} value={s}>{t(`status_${s}`,s)}</option>
-          ))}
-        </select>
+        {/* Status — using the app-wide CustomSelect for consistent modern styling */}
+        <div className="w-44">
+          <CustomSelect
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { value: '', label: t('status_all','All Statuses') },
+              ...['planning','planned','assigned','dispatched','driver_accepted','started','loading','driving','partially_delivered','completed','closed','cancelled']
+                .map(s => ({ value: s, label: t(`status_${s}`, s.replace(/_/g,' ')) }))
+            ]}
+          />
+        </div>
 
         {/* Trucks */}
-        <select value={truckFilter} onChange={e => setTruckFilter(e.target.value)} className="text-xs bg-card border border-border rounded-xl px-2.5 py-1.5 text-text-primary focus:outline-none focus:ring-1 focus:ring-primary max-w-[10rem]">
-          <option value="">{t('jsx_allVehicles','All Trucks')}</option>
-          {resources.map((r: any) => <option key={r.id} value={r.id}>{r.plateNumber}</option>)}
-        </select>
+        <div className="w-40">
+          <CustomSelect
+            value={truckFilter}
+            onChange={setTruckFilter}
+            options={[
+              { value: '', label: t('jsx_allVehicles','All Trucks') },
+              ...resources.map((r: any) => ({ value: r.id, label: r.plateNumber }))
+            ]}
+          />
+        </div>
 
         {/* Drivers */}
-        <select value={driverFilter} onChange={e => setDriverFilter(e.target.value)} className="text-xs bg-card border border-border rounded-xl px-2.5 py-1.5 text-text-primary focus:outline-none focus:ring-1 focus:ring-primary max-w-[10rem]">
-          <option value="">{t('jsx_allDrivers','All Drivers')}</option>
-          {(boardData?.drivers || resources.map((r: any) => r.driver).filter(Boolean)).filter((d: any, i: number, arr: any[]) => d && arr.findIndex((x: any) => x.id === d.id) === i).map((d: any) => (
-            <option key={d.id} value={d.id}>{d.name || d.user?.name}</option>
-          ))}
-        </select>
+        <div className="w-40">
+          <CustomSelect
+            value={driverFilter}
+            onChange={setDriverFilter}
+            options={[
+              { value: '', label: t('jsx_allDrivers','All Drivers') },
+              ...(boardData?.drivers || resources.map((r: any) => r.driver).filter(Boolean))
+                .filter((d: any, i: number, arr: any[]) => d && arr.findIndex((x: any) => x.id === d.id) === i)
+                .map((d: any) => ({ value: d.id, label: d.name || d.user?.name || '—' }))
+            ]}
+          />
+        </div>
 
         {/* Priority */}
-        <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} className="text-xs bg-card border border-border rounded-xl px-2.5 py-1.5 text-text-primary focus:outline-none focus:ring-1 focus:ring-primary">
-          <option value="">{t('jsx_allPriorities','Priority')}</option>
-          {['critical','high','normal','low'].map(p => <option key={p} value={p}>{t(`priority_${p}`,p)}</option>)}
-        </select>
+        <div className="w-32">
+          <CustomSelect
+            value={priorityFilter}
+            onChange={setPriorityFilter}
+            options={[
+              { value: '', label: t('jsx_allPriorities','Priority') },
+              ...['critical','high','normal','low'].map(p => ({ value: p, label: t(`priority_${p}`, p) }))
+            ]}
+          />
+        </div>
 
         {activeFilterCount > 0 && (
           <button onClick={() => { setSearch(''); setStatusFilter(''); setTruckFilter(''); setDriverFilter(''); setPriorityFilter(''); }} className="flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-600 bg-red-500/10 border border-red-500/20 px-2.5 py-1.5 rounded-xl transition-colors">
@@ -1237,7 +1343,7 @@ export default function PlanningPage() {
       {/* ── DRAWERS & MODALS ────────────────────────────────────────────── */}
       {selectedTrip && (
         <TripDetailDrawer
-          trip={selectedTrip}
+          tripSummary={selectedTrip}
           resources={resources}
           drivers={boardData?.drivers || []}
           trailers={boardData?.trailers || []}

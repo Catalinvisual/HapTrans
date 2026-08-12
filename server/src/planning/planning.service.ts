@@ -538,7 +538,9 @@ export class PlanningService {
 
     const conflicts = await this.computeConflicts({
       trips,
-      resourcesById: resources,
+      // Convert resources array to a dictionary keyed by truck id so that
+      // computeConflicts can look up resources by truckId correctly.
+      resourcesById: Object.fromEntries(resources.map((r) => [r.id, r])),
       driversById: Object.fromEntries(drivers.map((d) => [d.id, d])),
       trailersById: Object.fromEntries(trailers.map((tr) => [tr.id, tr])),
       maintByTruck,
@@ -607,14 +609,14 @@ export class PlanningService {
 
     for (const trip of trips) {
       const t = trip as any;
-      const truck = resourcesById[t.truckId];
+      // Use the resource dict first; fall back to the embedded truck relation so
+      // that trips with a valid (but e.g. inactive) truck don't get false NO_VEHICLE.
+      const truckFromRelation = t.truck || null;
+      const truck = resourcesById[t.truckId] || resourcesById[truckFromRelation?.id] || truckFromRelation || null;
       const tripCargo = this.sumCargo(t.orders || []);
       const status = String(t.status || '');
 
-      const overlay = (msg: string) =>
-        add({ level: 'info', code: 'TRUCK_OVERLAY', tripId: t.id, resourceId: t.truckId, message: msg });
-
-      if (!truck) {
+      if (!truck && !truckFromRelation) {
         if (status !== 'completed') {
           add({ level: 'blocking', code: 'NO_VEHICLE', tripId: t.id, message: `Trip ${t.tripNumber || t.id} has no vehicle assigned.` });
         }
@@ -675,7 +677,9 @@ export class PlanningService {
         }
       }
 
-      if (!t.driverId && status !== 'completed') {
+      // Check for NO_DRIVER using either the raw FK, or the populated driver relation.
+      const hasDriver = !!(t.driverId || t.driver?.id || t.truck?.driver?.id);
+      if (!hasDriver && status !== 'completed') {
         add({ level: 'blocking', code: 'NO_DRIVER', tripId: t.id, message: `Trip ${t.tripNumber || t.id} has no driver assigned.` });
       }
 
