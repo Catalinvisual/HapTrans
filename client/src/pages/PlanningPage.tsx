@@ -1,19 +1,16 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Truck as TruckIcon, Package, Loader2, MapPin, CheckCircle2, AlertTriangle, Trash2, ExternalLink,
+  Truck as TruckIcon, Package, Loader2, MapPin, CheckCircle2, AlertTriangle, ExternalLink,
   Users, X, ChevronRight, ChevronLeft, Calendar, ArrowRight, Info, Activity, Search,
-  Save, Undo2, SplitSquareHorizontal, Send, ShieldCheck,
+  Undo2, SplitSquareHorizontal, Send, ShieldCheck,
   LayoutGrid, Clock, Map as MapIcon, Sparkles, CheckSquare, Square, RefreshCw,
-  ChevronsLeft, ChevronsRight, Maximize2, Minimize2, Settings2, Columns3, Printer, Container, Plus, Download,
-  ArrowUp, ArrowDown, Filter, Layers, Navigation, Eye, EyeOff, Check, CornerDownRight, RotateCcw
+  ChevronsLeft, ChevronsRight, Container, Plus,
+  ArrowUp, ArrowDown, Layers, Navigation, Trash2
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import api from '../lib/api';
-import ConfirmModal from '../components/ConfirmModal';
-import CustomSelect from '../components/CustomSelect';
-import ExportModal from '../components/ExportModal';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
 import { useShortcuts } from '../hooks/useShortcuts';
@@ -68,32 +65,6 @@ const CONFLICT_LEVELS: Record<string, string> = {
   blocking: 'bg-red-500 text-white',
   warning: 'bg-amber-500 text-white',
   info: 'bg-sky-500 text-white',
-};
-
-const DEFAULT_POOL_COLS: Record<string, boolean> = {
-  client: true,
-  weight: true,
-  pallets: true,
-  volume: true,
-  ldm: true,
-  priority: true,
-  stops: true,
-  date: true,
-};
-
-const TRIP_TRANSITIONS: Record<string, string[]> = {
-  planning: ['planned', 'assigned'],
-  planned: ['assigned', 'planning'],
-  assigned: ['dispatched', 'planned', 'planning'],
-  dispatched: ['driver_accepted', 'assigned'],
-  driver_accepted: ['started', 'dispatched'],
-  started: ['loading'],
-  loading: ['driving'],
-  driving: ['partially_delivered', 'completed'],
-  partially_delivered: ['completed'],
-  completed: ['closed'],
-  closed: [],
-  cancelled: [],
 };
 
 function fmtTime(d: any) {
@@ -191,8 +162,7 @@ function PlanningMap({
       });
 
       map.on('error', (e) => {
-        // Soft fallback for style issues
-        console.warn('Map style error:', e);
+        console.warn('Map style warning:', e);
       });
 
       mapInstance.current = map;
@@ -273,7 +243,6 @@ function PlanningMap({
     // 1. Remove old route layers/sources
     try {
       if (map.getLayer('routes-layer')) map.removeLayer('routes-layer');
-      if (map.getLayer('routes-selected-layer')) map.removeLayer('routes-selected-layer');
       if (map.getSource('routes-source')) map.removeSource('routes-source');
     } catch {
       /* ignore */
@@ -443,7 +412,7 @@ function PlanningMap({
 
   return (
     <div className="relative h-full w-full rounded-2xl overflow-hidden border border-border bg-surface/30">
-      {/* Map Canvas Container (Always rendered) */}
+      {/* Map Canvas Container */}
       <div ref={mapContainerRef} className="h-full w-full" />
 
       {/* Floating Map Controls */}
@@ -548,7 +517,7 @@ function PoolOrderCard({
       ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
       : 'bg-surface text-text-secondary border border-border/50';
 
-  const visibleCols: [string, React.ReactNode][] = [
+  const allCols: [string, ReactNode][] = [
     ['client', order.client?.name || '—'],
     ['weight', cargo.weight > 0 ? `${cargo.weight.toLocaleString()} kg` : '—'],
     ['pallets', cargo.pallets > 0 ? `${cargo.pallets} plt` : '—'],
@@ -562,7 +531,9 @@ function PoolOrderCard({
     ],
     ['stops', `${(order.stops || []).length} ${t('jsx_stops', 'stops')}`],
     ['date', pickup?.dateFrom ? `${fmtShort(pickup.dateFrom)} ${pickup.timeFrom || ''}` : '—'],
-  ].filter(([k]) => cols?.[k]);
+  ];
+
+  const visibleCols = allCols.filter(([k]) => !cols || !!cols[k]);
 
   return (
     <div
@@ -884,6 +855,135 @@ function ResourceRowHeader({
   );
 }
 
+// ─── Order Detail Drawer ────────────────────────────────────────────────────
+function OrderDetailDrawer({
+  order,
+  onClose,
+  onPlan,
+}: {
+  order: any;
+  onClose: () => void;
+  onPlan?: (order: any) => void;
+}) {
+  const { t } = useTranslation();
+  if (!order) return null;
+  const pickup = (order.stops || []).find((s: any) => s.type === 'pickup') || order.stops?.[0];
+  const dropoff =
+    (order.stops || []).filter((s: any) => s.type === 'delivery' || s.type === 'dropoff').pop() ||
+    order.stops?.[order.stops?.length - 1];
+  const cargo = sumCargo([order]);
+
+  return typeof document !== 'undefined'
+    ? createPortal(
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          style={{ backdropFilter: 'blur(6px)', backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={onClose}
+        >
+          <div
+            className="relative w-full max-w-lg bg-card shadow-2xl rounded-3xl flex flex-col overflow-y-auto border border-border animate-in zoom-in-95 duration-150"
+            style={{ maxHeight: '85vh' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between p-5 border-b border-border bg-surface/40 shrink-0">
+              <div>
+                <h2 className="text-xl font-black text-text-primary">
+                  {order.orderNumber || order.referenceNumber || '—'}
+                </h2>
+                <p className="text-sm text-text-secondary mt-0.5">{order.client?.name || '—'}</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-1.5 hover:bg-surface rounded-xl text-text-secondary hover:text-text-primary transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 p-5 space-y-4">
+              {/* Route */}
+              <div className="bg-surface/50 rounded-2xl border border-border p-4 space-y-3">
+                <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-primary" /> {t('route_section', 'Route')}
+                </h3>
+                {pickup && (
+                  <div className="flex gap-2.5 items-start">
+                    <span className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                      ↑
+                    </span>
+                    <div>
+                      <p className="text-xs font-bold text-blue-600 uppercase">{t('loading_stop', 'Pickup')}</p>
+                      <p className="font-semibold text-sm text-text-primary">{pickup.companyName || pickup.city || '—'}</p>
+                      <p className="text-xs text-text-secondary">{pickup.address || ''}</p>
+                      {pickup.dateFrom && (
+                        <p className="text-xs text-blue-500 mt-0.5">
+                          {fmtDate(pickup.dateFrom)} {pickup.timeFrom || ''}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {dropoff && (
+                  <div className="flex gap-2.5 items-start pt-2 border-t border-border/40">
+                    <span className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                      ↓
+                    </span>
+                    <div>
+                      <p className="text-xs font-bold text-emerald-600 uppercase">{t('unloading_stop', 'Delivery')}</p>
+                      <p className="font-semibold text-sm text-text-primary">{dropoff.companyName || dropoff.city || '—'}</p>
+                      <p className="text-xs text-text-secondary">{dropoff.address || ''}</p>
+                      {dropoff.dateFrom && (
+                        <p className="text-xs text-emerald-500 mt-0.5">
+                          {fmtDate(dropoff.dateFrom)} {dropoff.timeFrom || ''}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Cargo specs */}
+              <div className="bg-surface/50 rounded-2xl border border-border p-4">
+                <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  <Package className="w-3.5 h-3.5 text-primary" /> {t('cargo_section', 'Cargo')}
+                </h3>
+                <div className="grid grid-cols-2 gap-2.5 text-xs">
+                  <div className="bg-card rounded-xl p-3 border border-border/60">
+                    <p className="text-text-secondary">{t('pool_col_weight', 'Weight')}</p>
+                    <p className="font-black text-base text-text-primary">{cargo.weight.toLocaleString()} kg</p>
+                  </div>
+                  <div className="bg-card rounded-xl p-3 border border-border/60">
+                    <p className="text-text-secondary">{t('pool_col_pallets', 'Pallets')}</p>
+                    <p className="font-black text-base text-text-primary">{cargo.pallets} plt</p>
+                  </div>
+                  <div className="bg-card rounded-xl p-3 border border-border/60">
+                    <p className="text-text-secondary">{t('pool_col_volume', 'Volume')}</p>
+                    <p className="font-black text-base text-text-primary">{cargo.volume.toFixed(1)} m³</p>
+                  </div>
+                  <div className="bg-card rounded-xl p-3 border border-border/60">
+                    <p className="text-text-secondary">{t('revenue', 'Price')}</p>
+                    <p className="font-black text-base text-primary">€{Number(order.price || 0).toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-5 py-4 border-t border-border bg-surface/40 flex justify-end gap-2 shrink-0">
+              <button
+                onClick={() => onPlan?.(order)}
+                className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-bold"
+              >
+                <TruckIcon className="w-4 h-4" />
+                <span>{t('jsx_planNow', 'Plan Now')}</span>
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )
+    : null;
+}
+
 // ─── Trip Detail Drawer (Complete Operational Control) ──────────────────────
 function TripDetailDrawer({
   trip,
@@ -893,7 +993,6 @@ function TripDetailDrawer({
   conflicts = [],
   onClose,
   onAction,
-  onStatusChange,
   onReorderStops,
   actionsLoading,
 }: {
@@ -904,7 +1003,6 @@ function TripDetailDrawer({
   conflicts?: any[];
   onClose: () => void;
   onAction: (action: string, tripId: string, payload?: any) => void;
-  onStatusChange: (tripId: string, newStatus: string) => void;
   onReorderStops: (tripId: string, stopIds: string[]) => void;
   actionsLoading?: boolean;
 }) {
@@ -1551,10 +1649,11 @@ export default function PlanningPage() {
   // Primary State
   const [selectedDate, setSelectedDate] = useState<string>(() => dayStr(new Date()));
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'timeline' | 'map'>('day');
-  const [grouping, setGrouping] = useState<'truck' | 'driver' | 'trailer'>('truck');
   const [search, setSearch] = useState<string>('');
 
   // Data State
+  const [boardData, setBoardData] = useState<any>(null);
+  const [mapData, setMapData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [actionsLoading, setActionsLoading] = useState<boolean>(false);
@@ -1564,17 +1663,12 @@ export default function PlanningPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [selectedPoolOrderIds, setSelectedPoolOrderIds] = useState<Set<string>>(new Set());
 
-  // Drawers & Modals
+  // Modals
   const [showOptimizeModal, setShowOptimizeModal] = useState<boolean>(false);
-  const [showFiltersDrawer, setShowFiltersDrawer] = useState<boolean>(false);
-  const [showExportModal, setShowExportModal] = useState<boolean>(false);
   const [poolCollapsed, setPoolCollapsed] = useState<boolean>(false);
 
   // Quick Filters
   const [statusFilter, setStatusFilter] = useState<string>('');
-  const [truckFilter, setTruckFilter] = useState<string>('');
-  const [driverFilter, setDriverFilter] = useState<string>('');
-  const [priorityFilter, setPriorityFilter] = useState<string>('');
 
   // 1. Fetch Board & Map Data
   const loadData = useCallback(async () => {
@@ -1601,9 +1695,7 @@ export default function PlanningPage() {
           params: {
             from,
             to,
-            search,
-            vehicleId: truckFilter || undefined,
-            driverId: driverFilter || undefined,
+            search: search || undefined,
             status: statusFilter || undefined,
           },
         }),
@@ -1641,7 +1733,7 @@ export default function PlanningPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedDate, viewMode, search, truckFilter, driverFilter, statusFilter]);
+  }, [selectedDate, viewMode, search, statusFilter]);
 
   useEffect(() => {
     loadData();
@@ -2131,9 +2223,20 @@ export default function PlanningPage() {
           conflicts={boardData?.conflicts || []}
           onClose={() => setSelectedTripId(null)}
           onAction={handleTripAction}
-          onStatusChange={(tripId, newStatus) => handleTripAction('change-status', tripId)}
           onReorderStops={handleReorderStops}
           actionsLoading={actionsLoading}
+        />
+      )}
+
+      {/* ─── ORDER DETAIL DRAWER ──────────────────────────────────────────── */}
+      {selectedOrder && (
+        <OrderDetailDrawer
+          order={selectedOrder}
+          onClose={() => setSelectedOrderId(null)}
+          onPlan={(order) => {
+            setSelectedPoolOrderIds(new Set([order.id]));
+            setSelectedOrderId(null);
+          }}
         />
       )}
 
