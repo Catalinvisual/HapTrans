@@ -527,12 +527,15 @@ function TripDetailDrawer({
   const truck = trip.truck || tripSummary.truck || resources.find((r: any) => r.id === (trip.truckId || tripSummary.truckId)) || null;
   const driver = trip.driver || truck?.driver || drivers.find((d: any) => d.id === (trip.driverId || tripSummary.driverId)) || null;
   const trailer = trip.trailer || tripSummary.trailer || trailers.find((trl: any) => trl.id === (trip.trailerId || tripSummary.trailerId)) || null;
-  const stops = (trip.stops || tripSummary.stops || []).slice().sort((a: any, b: any) => (a.sequence || a.stopOrder || 0) - (b.sequence || b.stopOrder || 0));
-  const orders = (trip.orders || tripSummary.orders || []).filter((o: any) => o?.id);
+  const stops = (trip.stops?.length ? trip.stops : (tripSummary.stops?.length ? tripSummary.stops : [])).slice().sort((a: any, b: any) => (a.sequence || a.stopOrder || 0) - (b.sequence || b.stopOrder || 0));
+  const orders = (trip.orders?.length ? trip.orders : (tripSummary.orders?.length ? tripSummary.orders : [])).filter((o: any) => o?.id);
   const revenue = orders.reduce((s: number, o: any) => s + (Number(o.price) || 0), 0);
   const tripConflicts = (conflicts || []).filter((c: any) => c.tripId === (trip.id || tripSummary.id));
   const st = String((trip.status || tripSummary.status || 'planning')).toLowerCase();
+  
   const isPlanning = ['planning', 'planned', 'assigned'].includes(st);
+  const isConfirmed = ['assigned', 'dispatched', 'driver_accepted', 'started', 'driving', 'partially_delivered', 'completed', 'closed'].includes(st);
+  const isDispatched = ['dispatched', 'driver_accepted', 'started', 'driving', 'partially_delivered', 'completed', 'closed'].includes(st);
   const col = TRIP_COLORS[st] || TRIP_COLORS.planning;
   const tripId = trip.id || tripSummary.id;
   const { origin, dest } = tripOriginDestination(trip);
@@ -706,34 +709,34 @@ function TripDetailDrawer({
         </div>
 
         {/* Footer */}
-        {isPlanning && (
-          <div className="p-4 border-t border-border bg-surface/50 flex flex-wrap gap-2 justify-between shrink-0">
-            <div className="flex flex-wrap gap-2">
-              {st === 'planning' || st === 'planned' ? (
-                <button disabled={!!loadingAction} onClick={() => onAction('confirm', tripId)} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold">
-                  {loadingAction === 'confirm' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4 text-emerald-500" />}
-                  <span>{t('jsx_context_confirm','Confirm')}</span>
-                </button>
-              ) : null}
-              {st === 'planning' || st === 'planned' || st === 'assigned' ? (
-                <button disabled={!!loadingAction} onClick={() => onAction('send', tripId)} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold">
-                  {loadingAction === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 text-primary" />}
-                  <span>{t('jsx_context_send','Send to Driver')}</span>
-                </button>
-              ) : null}
-              {orders.length > 1 ? (
-                <button disabled={!!loadingAction} onClick={() => onAction('split', tripId)} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold">
-                  {loadingAction === 'split' ? <Loader2 className="w-4 h-4 animate-spin" /> : <SplitSquareHorizontal className="w-4 h-4 text-amber-500" />}
-                  <span>{t('jsx_context_split','Split')}</span>
-                </button>
-              ) : null}
-            </div>
+        <div className="p-4 border-t border-border bg-surface/50 flex flex-wrap gap-2 justify-between shrink-0">
+          <div className="flex flex-wrap gap-2">
+            {isPlanning || isConfirmed ? (
+              <button disabled={!!loadingAction || isConfirmed} onClick={() => onAction('confirm', tripId)} className={`btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold ${isConfirmed ? 'opacity-100 cursor-default bg-emerald-500/10 text-emerald-600 border-emerald-500/30' : ''}`}>
+                {loadingAction === 'confirm' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className={`w-4 h-4 ${isConfirmed ? '' : 'text-emerald-500'}`} />}
+                <span>{isConfirmed ? t('jsx_context_confirmed','Confirmed') : t('jsx_context_confirm','Confirm')}</span>
+              </button>
+            ) : null}
+            {isPlanning || isDispatched || st === 'assigned' ? (
+              <button disabled={!!loadingAction || isDispatched || !isConfirmed} onClick={() => onAction('send', tripId)} className={`btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold ${isDispatched ? 'opacity-100 cursor-default bg-primary/10 text-primary border-primary/30' : ''} ${!isConfirmed && !isDispatched ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                {loadingAction === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : (isDispatched ? <CheckCircle2 className="w-4 h-4" /> : <Send className="w-4 h-4 text-primary" />)}
+                <span>{isDispatched ? t('jsx_context_sent','Sent to Driver') : t('jsx_context_send','Send to Driver')}</span>
+              </button>
+            ) : null}
+            {isPlanning && orders.length > 1 ? (
+              <button disabled={!!loadingAction} onClick={() => onAction('split', tripId)} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold">
+                {loadingAction === 'split' ? <Loader2 className="w-4 h-4 animate-spin" /> : <SplitSquareHorizontal className="w-4 h-4 text-amber-500" />}
+                <span>{t('jsx_context_split','Split')}</span>
+              </button>
+            ) : null}
+          </div>
+          {isPlanning && (
             <button disabled={!!loadingAction} onClick={() => onAction('unplan-all', tripId, { orderIds: orders.map((o: any) => o.id) })} className="btn-secondary text-xs py-2 px-3 text-red-500 hover:bg-red-500/10 flex items-center gap-1.5 font-bold">
               {loadingAction === 'unplan-all' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
-              <span>{t('jsx_context_unplan','Unplan Trip')}</span>
+              <span>{orders.length === 1 ? t('jsx_context_unplan','Unplan') : t('jsx_context_unplan_all','Unplan All')}</span>
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>, document.body
   ) : null;

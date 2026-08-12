@@ -38,11 +38,12 @@ export default function TripDetailsPage() {
   useEffect(() => {
     const fetchTrip = async (isInitial = false) => {
       try {
-        const [tripRes, timelineRes] = await Promise.all([api.get(`/trips/${id}`), api.get(`/timeline/trip/${id}`).catch(() => ({
-          data: []
-        }))]);
+        const [tripRes, timelineRes] = await Promise.all([
+          api.get(`/trips/${id}`), 
+          api.get(`/planning/audit?tripId=${id}`).catch(() => ({ data: { events: [] } }))
+        ]);
         setTrip(tripRes.data);
-        setTimeline(timelineRes.data);
+        setTimeline(timelineRes.data?.events || []);
       } catch (err) {
         if (isInitial) {
           toast.error(t('errorLoadingTrip', 'Cursa nu a putut fi încărcată'));
@@ -53,7 +54,10 @@ export default function TripDetailsPage() {
           setLoading(false);
         }
       }
-  
+    };
+    fetchTrip(true);
+  }, [id, t, navigate]);
+
   // Stop & Task Builder handlers
   const handleAddStop = async () => {
     if (!trip) return;
@@ -274,13 +278,7 @@ export default function TripDetailsPage() {
   const getUnloadedWeight = (stop: any) => {
     return stop.tasks?.filter((t: any) => t.type === "unload").reduce((s: number, t: any) => s + Number(t.weightKg || 0), 0) || 0;
   };
-  };
-    if (id) {
-      fetchTrip(true);
-      const intervalId = setInterval(() => fetchTrip(false), 5000);
-      return () => clearInterval(intervalId);
-    }
-  }, [id, navigate, t]);
+
   if (loading) {
     return <div className="flex items-center justify-center h-[70vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
