@@ -654,6 +654,7 @@ function TripDetailDrawer({
                   </div>
                 );
               })}
+              {stops.length === 0 && <p className="text-xs text-text-secondary text-center py-6">{t('no_stops', 'Nu există opriri (Aceasta pare o cursă goală/coruptă)')}</p>}
             </div>
           )}
 
