@@ -184,7 +184,7 @@ export default function TrailersPage() {
       key: "status",
       label: t("status", "Status"),
       sortable: true,
-      render: (r) => <StatusBadge status={r.status} label={r.status} />,
+      render: (r) => <StatusBadge type="fleet" status={r.status} label={r.status} />,
     },
     {
       key: "actions", label: t("actions", "Acțiuni"), align: "right",
@@ -228,7 +228,7 @@ export default function TrailersPage() {
           <div><div className="text-xs text-text-secondary">{t("maxLdm", "Max LDM")}</div><div className="font-semibold">{drawerTrailer.maxLdm ? Number(drawerTrailer.maxLdm) : "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("maxPallets", "Paleți")}</div><div className="font-semibold">{drawerTrailer.payloadCapacityPallets || "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("maxVolumeCbm", "Volum m³")}</div><div className="font-semibold">{drawerTrailer.maxVolumeCbm ? Number(drawerTrailer.maxVolumeCbm) + " m³" : "—"}</div></div>
-          <div><div className="text-xs text-text-secondary">{t("status", "Status")}</div><div><StatusBadge status={drawerTrailer.status} label={drawerTrailer.status} /></div></div>
+          <div><div className="text-xs text-text-secondary">{t("status", "Status")}</div><div><StatusBadge type="fleet" status={drawerTrailer.status} label={drawerTrailer.status} /></div></div>
         </div>
       ),
     },
@@ -276,6 +276,7 @@ export default function TrailersPage() {
           onRowClick={(r) => setDrawerId(r.id)}
           selectable
           selected={selected}
+          loading={loading}
           onSelectionChange={setSelected}
           emptyState={<div className="text-center py-10 text-text-secondary">{t("noTrailers", "Nicio remorcă găsită")}</div>}
         />

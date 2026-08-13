@@ -458,7 +458,14 @@ export default function TrucksPage() {
             <div className="text-2xl font-black text-text-primary">{(Number(drawerTruck.totalMileage || 0)).toLocaleString()} <span className="text-xs text-text-secondary">km</span></div>
             <div className="mt-3 text-[10px] font-bold uppercase text-text-secondary mb-1">{t('next_service', 'Next service')}: {Number(drawerTruck.nextMaintenanceMileage || 0).toLocaleString()} km</div>
             <div className="w-full bg-surface h-2 rounded-full overflow-hidden">
-              <div className="h-full bg-primary/60 rounded-full" style={{ width: `${Number(drawerTruck.nextMaintenanceMileage) ? Math.min(100, Math.max(0, Math.round((Number(drawerTruck.totalMileage || 0) / Number(drawerTruck.nextMaintenanceMileage)) * 100))) : 0}%` }} />
+              {(() => {
+                const next = Number(drawerTruck.nextMaintenanceMileage || 0);
+                const total = Number(drawerTruck.totalMileage || 0);
+                const left = next - total;
+                const barColor = left <= 0 ? 'bg-red-500' : left <= 3000 ? 'bg-amber-500' : 'bg-green-500/80';
+                const pct = next > 0 ? Math.min(100, Math.max(0, Math.round((total / next) * 100))) : 0;
+                return <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />;
+              })()}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -474,9 +481,7 @@ export default function TrucksPage() {
         <div className="space-y-3">
           <div className="bg-surface/50 rounded-xl p-3 border border-border space-y-2">
             <div className="text-xs font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1"><FileText className="w-3.5 h-3.5" />{t('add_document', 'Adaugă Document')}</div>
-            <select className="input" value={docForm.type} onChange={e => setDocForm({ ...docForm, type: e.target.value })}>
-              {TRUCK_DOC_TYPES.map(dt => <option key={dt.value} value={dt.value}>{t(dt.label) || dt.default}</option>)}
-            </select>
+            <CustomSelect className="w-full" value={docForm.type} onChange={v => setDocForm({ ...docForm, type: v })} options={TRUCK_DOC_TYPES.map(dt => ({ value: dt.value, label: t(dt.label) || dt.default }))} />
             <input className="input" placeholder={t('document_number', 'Număr document')} value={docForm.documentNumber} onChange={e => setDocForm({ ...docForm, documentNumber: e.target.value })} />
             <input className="input" type="date" value={docForm.expiryDate} onChange={e => setDocForm({ ...docForm, expiryDate: e.target.value })} />
             <button className="btn-primary w-full text-sm" onClick={() => saveTruckDoc(drawerTruck.id)}><Plus className="w-3.5 h-3.5 inline mr-1" />{t('save', 'Salvează')}</button>
@@ -617,16 +622,11 @@ export default function TrucksPage() {
             <div><label className="label font-semibold">{t('year', 'Year')} </label><input type="number" className="input" value={form.year} onChange={e => setForm({...form, year: e.target.value})} /></div>
             <div className="xl:col-span-2">
               <label className="label font-semibold">{t('driver', 'Assigned Driver')}</label>
-              <select className="input" value={form.driverId} onChange={e => setForm({...form, driverId: e.target.value})}>
-                <option value="">{t('no_driver', 'No driver')}</option>
-                {drivers.map(d => <option key={d.id} value={d.id}>{driverName(d)}</option>)}
-              </select>
+              <CustomSelect value={form.driverId} onChange={v => setForm({...form, driverId: v})} options={[{ value: '', label: t('no_driver', 'No driver') }, ...drivers.map(d => ({ value: d.id, label: driverName(d) }))]} />
             </div>
             <div>
               <label className="label font-semibold">{t('status', 'Status')}</label>
-              <select className="input" value={form.status || 'active'} onChange={e => setForm({...form, status: e.target.value})}>
-                {TRUCK_STATUSES.map(st => <option key={st.value} value={st.value}>{t(st.label as string, st.value) as string}</option>)}
-              </select>
+              <CustomSelect value={form.status || 'active'} onChange={v => setForm({...form, status: v})} options={TRUCK_STATUSES.map(st => ({ value: st.value, label: t(st.label as string, st.value) as string }))} />
             </div>
 
             <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
@@ -634,15 +634,11 @@ export default function TrucksPage() {
             </div>
             <div>
               <label className="label font-semibold">{t('truckType', 'Truck Type')}</label>
-              <select className="input" value={form.truckType} onChange={e => setForm({...form, truckType: e.target.value})}>
-                {TRUCK_TYPES.map(tOption => <option key={tOption.value} value={tOption.value}>{t(tOption.label) || tOption.default}</option>)}
-              </select>
+              <CustomSelect value={form.truckType} onChange={v => setForm({...form, truckType: v})} options={TRUCK_TYPES.map(tOption => ({ value: tOption.value, label: t(tOption.label) || tOption.default }))} />
             </div>
             <div>
               <label className="label font-semibold">{t('euronorm', 'Euronorm')}</label>
-              <select className="input" value={form.euronorm} onChange={e => setForm({...form, euronorm: e.target.value})}>
-                {EURONORMS.map(en => <option key={en} value={en}>{en}</option>)}
-              </select>
+              <CustomSelect value={form.euronorm} onChange={v => setForm({...form, euronorm: v})} options={EURONORMS.map(en => ({ value: en, label: en }))} />
             </div>
             <div className="xl:col-span-2">
               <label className="label font-semibold">{t('features', 'Features')}</label>
