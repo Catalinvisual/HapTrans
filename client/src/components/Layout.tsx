@@ -5,8 +5,9 @@ import { formatDate } from '../lib/dateUtils';
 import Sidebar from './Sidebar';
 import LanguageDropdown from './LanguageDropdown';
 import { useAuthStore } from '../store/authStore';
-import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard, Search, User, Download, Moon, Sun } from 'lucide-react';
+import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard, Search, User, Download, Moon, Sun, BellRing } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { useShortcuts } from '../hooks/useShortcuts';
 import ShortcutsHelpModal from './ShortcutsHelpModal';
@@ -325,6 +326,34 @@ export default function Layout() {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  const [osNotificationsEnabled, setOsNotificationsEnabled] = useState(() => {
+    return typeof window !== 'undefined' && localStorage.getItem('osNotifications') === 'true';
+  });
+
+  const toggleOsNotifications = async () => {
+    if (!osNotificationsEnabled) {
+      if (!("Notification" in window)) {
+        toast.error(t('notif_os_unsupported', 'This browser does not support desktop notifications.'));
+        return;
+      }
+      let permission = Notification.permission;
+      if (permission !== "granted") {
+        permission = await Notification.requestPermission();
+      }
+      if (permission === "granted") {
+        setOsNotificationsEnabled(true);
+        localStorage.setItem('osNotifications', 'true');
+        toast.success(t('notif_os_enabled', 'Desktop notifications enabled!'));
+      } else {
+        toast.error(t('notif_os_denied', 'Permission for desktop notifications was denied.'));
+      }
+    } else {
+      setOsNotificationsEnabled(false);
+      localStorage.setItem('osNotifications', 'false');
+      toast.success(t('notif_os_disabled', 'Desktop notifications disabled.'));
+    }
+  };
+
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('theme') === 'dark' ||
@@ -500,6 +529,13 @@ export default function Layout() {
             lastNotifIdRef.current = latest.id;
             setPopupNotif(latest);
             playNotificationSound();
+
+            const osEnabled = localStorage.getItem('osNotifications') === 'true';
+            if (osEnabled && "Notification" in window && Notification.permission === "granted") {
+               const { title, message } = formatNotification(latest, lang, t);
+               new Notification(title, { body: message });
+            }
+
             setTimeout(() => {
               setPopupNotif((current: any) => current?.id === latest.id ? null : current);
             }, 6000);
@@ -637,11 +673,20 @@ export default function Layout() {
                 <div className="absolute top-12 right-0 w-80 bg-card rounded-xl shadow-xl border border-border overflow-hidden z-50 flex flex-col max-h-[420px]">
                   <div className="p-3 border-b border-border flex justify-between items-center bg-surface">
                     <span className="font-semibold text-text text-sm">{t('notif_title')}</span>
-                    {unreadCount > 0 && (
-                      <button onClick={() => markAsRead('all')} className="text-xs text-primary hover:underline flex items-center gap-1">
-                        <CheckCheck className="w-3 h-3" /> {t('notif_mark_all_read')}
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={toggleOsNotifications} 
+                        title={osNotificationsEnabled ? t('notif_os_disable', 'Disable Desktop Notifications') : t('notif_os_enable', 'Enable Desktop Notifications')} 
+                        className={`p-1.5 rounded-md transition-colors ${osNotificationsEnabled ? 'text-primary bg-primary/10' : 'text-text-secondary hover:bg-surface'}`}
+                      >
+                         <BellRing className="w-4 h-4" />
                       </button>
-                    )}
+                      {unreadCount > 0 && (
+                        <button onClick={() => markAsRead('all')} className="text-xs text-primary hover:underline flex items-center gap-1">
+                          <CheckCheck className="w-3 h-3" /> {t('notif_mark_all_read')}
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="overflow-y-auto flex-1 p-2">
                     {notifications.length === 0 ? (

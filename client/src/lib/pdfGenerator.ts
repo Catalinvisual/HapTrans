@@ -1,9 +1,31 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { CompanySettings } from '../store/settingsStore';
+import { useAuthStore } from '../store/authStore';
 import { format } from 'date-fns';
 
 // ─── Formatting Helpers ────────────────────────────────────────────────────────
+
+function normalizeText(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/ș/g, 's')
+    .replace(/Ș/g, 'S')
+    .replace(/ț/g, 't')
+    .replace(/Ț/g, 'T')
+    .replace(/ă/g, 'a')
+    .replace(/Ă/g, 'A')
+    .replace(/î/g, 'i')
+    .replace(/Î/g, 'I')
+    .replace(/â/g, 'a')
+    .replace(/Â/g, 'A');
+}
+
+function formatStatus(status: string): string {
+  if (!status) return '—';
+  return status.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
 
 const fmtDate = (d: any) => {
   if (!d) return '—';
@@ -68,13 +90,13 @@ async function createBaseDocument(title: string, company: CompanySettings | null
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(15, 23, 42);
-    doc.text(company.name || 'Company', 40, leftCursorY);
+    doc.text(normalizeText(company.name || 'Company'), 40, leftCursorY);
     
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(71, 85, 105);
     const details = [
-      company.address ? `${company.address}, ${company.city || ''} ${company.country || ''}`.trim() : null,
+      company.address ? normalizeText(`${company.address}, ${company.city || ''} ${company.country || ''}`.trim()) : null,
       company.cui ? `VAT: ${company.cui}` : null,
       company.iban ? `IBAN: ${company.iban}` : null,
       company.email ? `Email: ${company.email}` : null,
@@ -92,14 +114,17 @@ async function createBaseDocument(title: string, company: CompanySettings | null
   doc.setFontSize(18); // Slightly smaller
   doc.setTextColor(30, 41, 59); // text-slate-800
   
-  const titleWidth = doc.getStringUnitWidth(title) * 18;
-  doc.text(title, pageWidth - 40 - titleWidth, cursorY + 15);
+  const titleWidth = doc.getStringUnitWidth(normalizeText(title)) * 18;
+  doc.text(normalizeText(title), pageWidth - 40 - titleWidth, cursorY + 15);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(100, 116, 139); // text-slate-500
   
-  const dateStr = `Generated: ${fmtDateTime(new Date())}`;
+  const user = useAuthStore.getState().user;
+  const userName = user?.name || user?.email || '';
+  const datePrefix = userName ? `${normalizeText(userName)} : Generated: ` : 'Generated: ';
+  const dateStr = `${datePrefix}${fmtDateTime(new Date())}`;
   const dateWidth = doc.getStringUnitWidth(dateStr) * 10;
   doc.text(dateStr, pageWidth - 40 - dateWidth, cursorY + 32);
 
@@ -130,11 +155,11 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
     styles: { fontSize: 10, cellPadding: 3, textColor: [71, 85, 105] },
     columnStyles: { 0: { fontStyle: 'bold', textColor: [30, 41, 59], cellWidth: 100 } },
     body: [
-      ['Status', order?.status?.toUpperCase() || '—'],
-      ['Client', order?.client?.name || '—'],
-      ['Reference', order?.reference || '—'],
+      ['Status', formatStatus(order?.status)],
+      ['Client', normalizeText(order?.client?.name || '—')],
+      ['Reference', normalizeText(order?.orderNumber || order?.referenceNumber || order?.customerReference || '—')],
       ['Price', `EUR ${order?.price || 0}`],
-      ['Transport Type', order?.transportType?.toUpperCase() || 'FTL'],
+      ['Transport Type', (order?.transportType || 'ftl').toUpperCase()],
     ],
     margin: { left: 40 },
   });
@@ -148,10 +173,31 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
   currentY += 10;
 
   const stopsData = (order?.stops || []).sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0)).map((s: any, i: number) => {
-    const typeStr = (s.type === 'pickup' ? 'PICKUP' : 'DELIVERY');
-    const address = `${s.companyName || ''}\n${s.address || ''}\n${s.postalCode || ''} ${s.city || ''} ${s.country || ''}`.trim();
+    const isPickup = s.type === 'pickup';
+    const isDropoff = s.type === 'dropoff';
+    const typeStr = (isPickup ? 'PICKUP' : 'DELIVERY');
+    
+    let finalAddr = s.address || '';
+    if (s.city && !finalAddr.includes(s.city)) {
+       finalAddr += (finalAddr ? ', ' : '') + s.city;
+    }
+    if (s.country && !finalAddr.includes(s.country)) {
+       finalAddr += (finalAddr ? ', ' : '') + s.country;
+    }
+    const address = [s.companyName, finalAddr].filter(Boolean).join('\n');
+    
     const date = `${fmtDate(s.dateFrom)}${s.timeFrom ? ' ' + s.timeFrom : ''}`;
-    return [i + 1, typeStr, address, date, s.reference || '—'];
+
+    let ref = s.reference;
+    if (isPickup && order?.loadingReference) ref = order.loadingReference;
+    if (isDropoff && order?.unloadingReference) ref = order.unloadingReference;
+    if (!ref || ref.toLowerCase() === 'loading' || ref.toLowerCase() === 'unloading') {
+       if (isPickup) ref = order?.loadingReference || order?.customerReference || '—';
+       else if (isDropoff) ref = order?.unloadingReference || order?.customerReference || '—';
+       else ref = '—';
+    }
+
+    return [i + 1, typeStr, normalizeText(address), date, normalizeText(ref)];
   });
 
   if (stopsData.length > 0) {
@@ -177,7 +223,7 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
 
   const cargoData = (order?.cargoItems || []).map((c: any) => {
     return [
-      c.description || '—',
+      normalizeText(c.description || '—'),
       c.quantity || '0',
       c.unit || '—',
       c.weightKg ? `${c.weightKg} kg` : '—',
