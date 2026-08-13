@@ -20,7 +20,9 @@ import type { SelectOption } from '../components/CustomSelect';
 import ExportModal from '../components/ExportModal';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateTruckPdf } from '../lib/pdfGenerator';
-import { FileText } from 'lucide-react';
+import { FileText, Calendar } from 'lucide-react';
+import Flatpickr from 'react-flatpickr';
+import 'flatpickr/dist/themes/light.css';
 
 const TRUCK_TYPES = [
   { value: 'tautliner', label: 'truck_type_tautliner', default: 'Prelată (Tautliner)' },
@@ -92,6 +94,14 @@ export default function TrucksPage() {
   const [drawerTab, setDrawerTab] = useState('overview');
   const [showExport, setShowExport] = useState(false);
   const [docForm, setDocForm] = useState({ type: 'apk', documentNumber: '', expiryDate: '' });
+
+  const fpOptions = useMemo(() => ({
+    altInput: true,
+    altFormat: 'd/m/Y',
+    dateFormat: 'Y-m-d',
+    allowInput: false,
+    minDate: 'today'
+  }), []);
 
   const initialForm = {
     plateNumber: '', brand: '', model: '', year: '',
@@ -483,7 +493,18 @@ export default function TrucksPage() {
             <div className="text-xs font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1"><FileText className="w-3.5 h-3.5" />{t('add_document', 'Adaugă Document')}</div>
             <CustomSelect className="w-full" value={docForm.type} onChange={v => setDocForm({ ...docForm, type: v })} options={TRUCK_DOC_TYPES.map(dt => ({ value: dt.value, label: t(dt.label) || dt.default }))} />
             <input className="input" placeholder={t('document_number', 'Număr document')} value={docForm.documentNumber} onChange={e => setDocForm({ ...docForm, documentNumber: e.target.value })} />
-            <input className="input" type="date" value={docForm.expiryDate} onChange={e => setDocForm({ ...docForm, expiryDate: e.target.value })} />
+            
+            <div className="relative">
+              <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
+              <Flatpickr 
+                value={docForm.expiryDate} 
+                onChange={(_, dateStr) => setDocForm({ ...docForm, expiryDate: dateStr })} 
+                className="input pl-9 w-full bg-card" 
+                options={fpOptions} 
+                placeholder={t('expiry_date', 'Data expirării (DD/MM/YYYY)')} 
+              />
+            </div>
+            
             <button className="btn-primary w-full text-sm" onClick={() => saveTruckDoc(drawerTruck.id)}><Plus className="w-3.5 h-3.5 inline mr-1" />{t('save', 'Salvează')}</button>
           </div>
           {drawerTruck.documents?.length ? (
