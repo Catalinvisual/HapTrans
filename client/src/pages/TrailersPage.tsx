@@ -61,6 +61,7 @@ export default function TrailersPage() {
   const [filters, setFilters] = useState<any>({ status: "all", type: "all" });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerId, setDrawerId] = useState<string | null>(null);
+  const [drawerTab, setDrawerTab] = useState('info');
   const [showExport, setShowExport] = useState(false);
 
   const initialForm = {
@@ -292,10 +293,12 @@ export default function TrailersPage() {
 
       <DetailDrawer
         open={!!drawerTrailer}
-        onClose={() => setDrawerId(null)}
+        onClose={() => { setDrawerId(null); setDrawerTab('info'); }}
         title={drawerTrailer?.plateNumber || ""}
         subtitle={drawerTrailer ? typeLabel(drawerTrailer, t) : ""}
         tabs={detailTabs}
+        activeTab={drawerTab}
+        onTabChange={setDrawerTab}
         headerRight={
           drawerTrailer ? (
             <button className="btn-secondary px-3 py-1.5 text-xs flex items-center gap-1.5" onClick={() => openEdit(drawerTrailer)}>

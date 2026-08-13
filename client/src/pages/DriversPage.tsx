@@ -62,6 +62,7 @@ export default function DriversPage() {
   const [filters, setFilters] = useState<any>({ status: 'all' });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerDriverId, setDrawerDriverId] = useState<string | null>(null);
+  const [drawerTab, setDrawerTab] = useState('overview');
   const [showExport, setShowExport] = useState(false);
   const fpOptions = useMemo(() => ({
     altInput: true,
@@ -644,10 +645,12 @@ const tabs: TabDef[] = drawerDriver ? [
 
       <DetailDrawer
         open={!!drawerDriver}
-        onClose={() => setDrawerDriverId(null)}
+        onClose={() => { setDrawerDriverId(null); setDrawerTab('overview'); }}
         title={drawerDriver?.user?.name || ''}
         subtitle={drawerDriver?.user?.email || ''}
         tabs={tabs}
+        activeTab={drawerTab}
+        onTabChange={setDrawerTab}
       />
 
       {showForm && <div className="card animate-fade-in bg-card border border-border rounded-2xl p-6 shadow-md">

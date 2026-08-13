@@ -89,6 +89,7 @@ export default function TrucksPage() {
   const [filters, setFilters] = useState<any>({ status: 'all', type: 'all' });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerTruckId, setDrawerTruckId] = useState<string | null>(null);
+  const [drawerTab, setDrawerTab] = useState('overview');
   const [showExport, setShowExport] = useState(false);
   const [docForm, setDocForm] = useState({ type: 'apk', documentNumber: '', expiryDate: '' });
 
@@ -571,103 +572,113 @@ export default function TrucksPage() {
 
       <DetailDrawer
         open={!!drawerTruck}
-        onClose={() => setDrawerTruckId(null)}
+        onClose={() => { setDrawerTruckId(null); setDrawerTab('overview'); }}
         title={drawerTruck?.plateNumber || ''}
         subtitle={drawerTruck ? `${drawerTruck.brand} ${drawerTruck.model}` : ''}
         tabs={tabs}
+        activeTab={drawerTab}
+        onTabChange={setDrawerTab}
+        headerRight={
+          drawerTruck ? (
+            <button className="btn-secondary px-3 py-1.5 text-xs flex items-center gap-1.5" onClick={() => { setDrawerTruckId(null); openEdit(drawerTruck); }}>
+              <Pencil className="w-3.5 h-3.5" /> {t('edit', 'Edit')}
+            </button>
+          ) : null
+        }
       />
 
-      {showForm && (
-        <div className="bg-card border border-border rounded-2xl shadow-xl overflow-hidden relative">
-          <div className="bg-surface/50 border-b border-border px-6 py-4 flex items-center justify-between">
-            <h3 className="font-bold text-lg text-text-primary flex items-center gap-2">
-              <TruckIcon className="w-5 h-5 text-primary" />
-              {editId ? t('editTruck', 'Edit Truck') : t('addTruck', 'Add Truck')}
-            </h3>
+      <DetailDrawer
+        open={showForm}
+        onClose={() => { setShowForm(false); setEditId(null); }}
+        title={
+          <span className="flex items-center gap-2">
+            <TruckIcon className="w-5 h-5 text-primary" />
+            {editId ? t('editTruck', 'Edit Truck') : t('addTruck', 'Add Truck')}
+          </span>
+        }
+        footer={
+          <div className="flex gap-3 justify-end w-full">
+            <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="btn-secondary px-6 py-2.5 font-bold">{t('cancel', 'Cancel')}</button>
+            <button type="button" onClick={handleSubmit} className="btn-primary px-8 py-2.5 font-bold shadow-md shadow-primary/20">{t('save', 'Save')}</button>
           </div>
-
-          <form onSubmit={handleSubmit} className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-5">
-              <div className="xl:col-span-4 pb-2 mb-2 border-b border-border/50">
-                <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Info className="w-4 h-4"/>{t('section_identification') || '1. Identification & Allocation'}</h4>
-              </div>
-              <div>
-                <label className="label font-semibold">{t('plateNumber', 'License Plate')} <span className="text-red-500">*</span></label>
-                <input type="text" className="input uppercase" value={form.plateNumber} onChange={e => setForm({...form, plateNumber: e.target.value.toUpperCase()})} required autoFocus />
-              </div>
-              <div><label className="label font-semibold">{t('brand', 'Brand')} <span className="text-red-500">*</span></label><input type="text" className="input" value={form.brand} onChange={e => setForm({...form, brand: e.target.value})} required /></div>
-              <div><label className="label font-semibold">{t('model', 'Model')} <span className="text-red-500">*</span></label><input type="text" className="input" value={form.model} onChange={e => setForm({...form, model: e.target.value})} required /></div>
-              <div><label className="label font-semibold">{t('year', 'Year')} </label><input type="number" className="input" value={form.year} onChange={e => setForm({...form, year: e.target.value})} /></div>
-              <div className="xl:col-span-2">
-                <label className="label font-semibold">{t('driver', 'Assigned Driver')}</label>
-                <select className="input" value={form.driverId} onChange={e => setForm({...form, driverId: e.target.value})}>
-                  <option value="">{t('no_driver', 'No driver')}</option>
-                  {drivers.map(d => <option key={d.id} value={d.id}>{driverName(d)}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="label font-semibold">{t('status', 'Status')}</label>
-                <select className="input" value={form.status || 'active'} onChange={e => setForm({...form, status: e.target.value})}>
-                  {TRUCK_STATUSES.map(st => <option key={st.value} value={st.value}>{t(st.label as string, st.value) as string}</option>)}
-                </select>
-              </div>
-
-              <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
-                <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Settings2 className="w-4 h-4"/>{t('section_tech_specs') || '2. Technical Specs'}</h4>
-              </div>
-              <div>
-                <label className="label font-semibold">{t('truckType', 'Truck Type')}</label>
-                <select className="input" value={form.truckType} onChange={e => setForm({...form, truckType: e.target.value})}>
-                  {TRUCK_TYPES.map(tOption => <option key={tOption.value} value={tOption.value}>{t(tOption.label) || tOption.default}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="label font-semibold">{t('euronorm', 'Euronorm')}</label>
-                <select className="input" value={form.euronorm} onChange={e => setForm({...form, euronorm: e.target.value})}>
-                  {EURONORMS.map(en => <option key={en} value={en}>{en}</option>)}
-                </select>
-              </div>
-              <div className="xl:col-span-2">
-                <label className="label font-semibold">{t('features', 'Features')}</label>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {FEATURES.map(feat => {
-                    const active = form.features?.includes(feat.id);
-                    return (
-                      <button type="button" key={feat.id} onClick={() => toggleFeature(feat.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 ${active ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-surface border-border text-text-secondary hover:border-text-muted'}`}>
-                        <feat.icon className="w-3.5 h-3.5" />
-                        {t(feat.label) || feat.default}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
-                <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Boxes className="w-4 h-4"/>{t('section_capacity') || '3. Load Capacity'}</h4>
-              </div>
-              <div><label className="label font-semibold">{t('maxWeightKg', 'Max Weight (kg)')}</label><input type="number" className="input" value={form.maxWeightKg} onChange={e => setForm({...form, maxWeightKg: e.target.value})} /></div>
-              <div><label className="label font-semibold">{t('payloadCapacity', 'Payload Capacity (kg)')}</label><input type="number" className="input" value={form.payloadCapacity} onChange={e => setForm({...form, payloadCapacity: e.target.value})} /></div>
-              <div><label className="label font-semibold">{t('maxPallets', 'Max Pallets')}</label><input type="number" className="input" value={form.maxPallets} onChange={e => setForm({...form, maxPallets: e.target.value})} /></div>
-              <div><label className="label font-semibold">{t('maxLdm', 'Max LDM')}</label><input type="number" step="0.1" className="input" value={form.maxLdm} onChange={e => setForm({...form, maxLdm: e.target.value})} /></div>
-              <div><label className="label font-semibold">{t('maxVolumeCbm', 'Max Volume (m³)')}</label><input type="number" className="input" value={form.maxVolumeCbm} onChange={e => setForm({...form, maxVolumeCbm: e.target.value})} /></div>
-              <div className="xl:col-span-3"></div>
-
-              <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
-                <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Fuel className="w-4 h-4"/>{t('section_costs') || '4. Costs & Maintenance'}</h4>
-              </div>
-              <div><label className="label font-semibold">{t('costPerKm', 'Cost per km (€)')}</label><input type="number" step="0.01" className="input" value={form.costPerKm} onChange={e => setForm({...form, costPerKm: e.target.value})} /></div>
-              <div><label className="label font-semibold">{t('fuelConsumption', 'Consumption (l/100km)')}</label><input type="number" step="0.1" className="input" value={form.fuelConsumption} onChange={e => setForm({...form, fuelConsumption: e.target.value})} /></div>
-              <div><label className="label font-semibold">{t('totalMileage', 'Total Mileage')}</label><input type="number" className="input" value={form.totalMileage} onChange={e => setForm({...form, totalMileage: e.target.value})} /></div>
-              <div><label className="label font-semibold">{t('nextMaintenanceMileage', 'Next Maintenance (km)')}</label><input type="number" className="input" value={form.nextMaintenanceMileage} onChange={e => setForm({...form, nextMaintenanceMileage: e.target.value})} /></div>
+        }
+      >
+        <form onSubmit={handleSubmit} className="p-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-5">
+            <div className="xl:col-span-4 pb-2 mb-2 border-b border-border/50">
+              <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Info className="w-4 h-4"/>{t('section_identification') || '1. Identification & Allocation'}</h4>
+            </div>
+            <div>
+              <label className="label font-semibold">{t('plateNumber', 'License Plate')} <span className="text-red-500">*</span></label>
+              <input type="text" className="input uppercase" value={form.plateNumber} onChange={e => setForm({...form, plateNumber: e.target.value.toUpperCase()})} required autoFocus />
+            </div>
+            <div><label className="label font-semibold">{t('brand', 'Brand')} <span className="text-red-500">*</span></label><input type="text" className="input" value={form.brand} onChange={e => setForm({...form, brand: e.target.value})} required /></div>
+            <div><label className="label font-semibold">{t('model', 'Model')} <span className="text-red-500">*</span></label><input type="text" className="input" value={form.model} onChange={e => setForm({...form, model: e.target.value})} required /></div>
+            <div><label className="label font-semibold">{t('year', 'Year')} </label><input type="number" className="input" value={form.year} onChange={e => setForm({...form, year: e.target.value})} /></div>
+            <div className="xl:col-span-2">
+              <label className="label font-semibold">{t('driver', 'Assigned Driver')}</label>
+              <select className="input" value={form.driverId} onChange={e => setForm({...form, driverId: e.target.value})}>
+                <option value="">{t('no_driver', 'No driver')}</option>
+                {drivers.map(d => <option key={d.id} value={d.id}>{driverName(d)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label font-semibold">{t('status', 'Status')}</label>
+              <select className="input" value={form.status || 'active'} onChange={e => setForm({...form, status: e.target.value})}>
+                {TRUCK_STATUSES.map(st => <option key={st.value} value={st.value}>{t(st.label as string, st.value) as string}</option>)}
+              </select>
             </div>
 
-            <div className="flex gap-3 pt-6 mt-6 border-t border-border bg-surface/30 -mx-6 -mb-6 px-6 py-4 justify-end">
-              <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="btn-secondary px-6 py-2.5 font-bold">{t('cancel', 'Cancel')}</button>
-              <button type="submit" className="btn-primary px-8 py-2.5 font-bold shadow-md shadow-primary/20">{t('save', 'Save')}</button>
+            <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
+              <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Settings2 className="w-4 h-4"/>{t('section_tech_specs') || '2. Technical Specs'}</h4>
             </div>
-          </form>
-        </div>
-      )}
+            <div>
+              <label className="label font-semibold">{t('truckType', 'Truck Type')}</label>
+              <select className="input" value={form.truckType} onChange={e => setForm({...form, truckType: e.target.value})}>
+                {TRUCK_TYPES.map(tOption => <option key={tOption.value} value={tOption.value}>{t(tOption.label) || tOption.default}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label font-semibold">{t('euronorm', 'Euronorm')}</label>
+              <select className="input" value={form.euronorm} onChange={e => setForm({...form, euronorm: e.target.value})}>
+                {EURONORMS.map(en => <option key={en} value={en}>{en}</option>)}
+              </select>
+            </div>
+            <div className="xl:col-span-2">
+              <label className="label font-semibold">{t('features', 'Features')}</label>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {FEATURES.map(feat => {
+                  const active = form.features?.includes(feat.id);
+                  return (
+                    <button type="button" key={feat.id} onClick={() => toggleFeature(feat.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 ${active ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-surface border-border text-text-secondary hover:border-text-muted'}`}>
+                      <feat.icon className="w-3.5 h-3.5" />
+                      {t(feat.label) || feat.default}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
+              <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Boxes className="w-4 h-4"/>{t('section_capacity') || '3. Load Capacity'}</h4>
+            </div>
+            <div><label className="label font-semibold">{t('maxWeightKg', 'Max Weight (kg)')}</label><input type="number" className="input" value={form.maxWeightKg} onChange={e => setForm({...form, maxWeightKg: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('payloadCapacity', 'Payload Capacity (kg)')}</label><input type="number" className="input" value={form.payloadCapacity} onChange={e => setForm({...form, payloadCapacity: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('maxPallets', 'Max Pallets')}</label><input type="number" className="input" value={form.maxPallets} onChange={e => setForm({...form, maxPallets: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('maxLdm', 'Max LDM')}</label><input type="number" step="0.1" className="input" value={form.maxLdm} onChange={e => setForm({...form, maxLdm: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('maxVolumeCbm', 'Max Volume (m³)')}</label><input type="number" className="input" value={form.maxVolumeCbm} onChange={e => setForm({...form, maxVolumeCbm: e.target.value})} /></div>
+            <div className="xl:col-span-3"></div>
+
+            <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
+              <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Fuel className="w-4 h-4"/>{t('section_costs') || '4. Costs & Maintenance'}</h4>
+            </div>
+            <div><label className="label font-semibold">{t('costPerKm', 'Cost per km (€)')}</label><input type="number" step="0.01" className="input" value={form.costPerKm} onChange={e => setForm({...form, costPerKm: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('fuelConsumption', 'Consumption (l/100km)')}</label><input type="number" step="0.1" className="input" value={form.fuelConsumption} onChange={e => setForm({...form, fuelConsumption: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('totalMileage', 'Total Mileage')}</label><input type="number" className="input" value={form.totalMileage} onChange={e => setForm({...form, totalMileage: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('nextMaintenanceMileage', 'Next Maintenance (km)')}</label><input type="number" className="input" value={form.nextMaintenanceMileage} onChange={e => setForm({...form, nextMaintenanceMileage: e.target.value})} /></div>
+          </div>
+        </form>
+      </DetailDrawer>
 
       <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={executeDelete} type="danger" />
       <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={filtered} filename="Trucks_HapCargo" title="Trucks" sheetName="Trucks" getDateField={tr => tr.createdAt} headers={[
