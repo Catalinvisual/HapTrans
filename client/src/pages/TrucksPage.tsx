@@ -88,6 +88,7 @@ export default function TrucksPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(15);
   const [drivers, setDrivers] = useState<any[]>([]);
+  const [trailers, setTrailers] = useState<any[]>([]);
   const [filters, setFilters] = useState<any>({ status: 'all', type: 'all' });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerTruckId, setDrawerTruckId] = useState<string | null>(null);
@@ -107,7 +108,7 @@ export default function TrucksPage() {
     plateNumber: '', brand: '', model: '', year: '',
     truckType: 'tautliner', euronorm: 'Euro 6', features: [] as string[],
     maxWeightKg: '', maxPallets: '', maxLdm: '', maxVolumeCbm: '', payloadCapacity: '',
-    costPerKm: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '', driverId: '', status: 'active'
+    costPerKm: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '', driverId: '', trailerId: '', status: 'active'
   };
 
   const [form, setForm] = useState(formStore.trucksForm || initialForm);
@@ -164,10 +165,11 @@ export default function TrucksPage() {
 
   const load = useCallback(() => {
     setLoading(true);
-    Promise.all([api.get('/trucks'), api.get('/drivers')])
-      .then(([trucksRes, driversRes]) => {
+    Promise.all([api.get('/trucks'), api.get('/drivers'), api.get('/trailers')])
+      .then(([trucksRes, driversRes, trailersRes]) => {
         setTrucks(trucksRes.data);
         setDrivers(driversRes.data);
+        setTrailers(trailersRes.data);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -190,6 +192,7 @@ export default function TrucksPage() {
         totalMileage: form.totalMileage ? Number(form.totalMileage) : null,
         nextMaintenanceMileage: form.nextMaintenanceMileage ? Number(form.nextMaintenanceMileage) : null,
         year: form.year ? Number(form.year) : null,
+        trailerId: form.trailerId || null,
       };
 
       if (editId) {
@@ -433,9 +436,15 @@ export default function TrucksPage() {
               <span key={f} className="px-2 py-0.5 rounded text-[10px] font-bold bg-surface border border-border text-text-secondary uppercase">{t(`feat_${f}`, f)}</span>
             ))}
           </div>
-          <div className="bg-surface/50 rounded-xl p-3 border border-border">
-            <div className="text-[10px] font-bold uppercase text-text-secondary mb-1 flex items-center gap-1"><Users className="w-3 h-3" />{t('driver', 'Driver')}</div>
-            {drawerTruck.driver ? <div className="text-sm font-bold text-text-primary">{driverName(drawerTruck.driver)}</div> : <div className="text-sm text-text-muted italic">{t('no_driver_assigned', 'No driver assigned')}</div>}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-surface/50 rounded-xl p-3 border border-border">
+              <div className="text-[10px] font-bold uppercase text-text-secondary mb-1 flex items-center gap-1"><Users className="w-3 h-3" />{t('driver', 'Driver')}</div>
+              {drawerTruck.driver ? <div className="text-sm font-bold text-text-primary">{driverName(drawerTruck.driver)}</div> : <div className="text-sm text-text-muted italic">{t('no_driver_assigned', 'No driver assigned')}</div>}
+            </div>
+            <div className="bg-surface/50 rounded-xl p-3 border border-border">
+              <div className="text-[10px] font-bold uppercase text-text-secondary mb-1 flex items-center gap-1"><TruckIcon className="w-3 h-3" />{t('trailer', 'Trailer')}</div>
+              {drawerTruck.trailer ? <div className="text-sm font-bold text-text-primary">{drawerTruck.trailer.plateNumber}</div> : <div className="text-sm text-text-muted italic">{t('no_trailer_assigned', 'No trailer assigned')}</div>}
+            </div>
           </div>
           <div className="text-xs text-text-secondary">{t('created_at', 'Created')}: {formatDate(drawerTruck.createdAt)}</div>
         </div>
@@ -642,8 +651,13 @@ export default function TrucksPage() {
             <div><label className="label font-semibold">{t('model', 'Model')} <span className="text-red-500">*</span></label><input type="text" className="input" value={form.model} onChange={e => setForm({...form, model: e.target.value})} required /></div>
             <div><label className="label font-semibold">{t('year', 'Year')} </label><input type="number" className="input" value={form.year} onChange={e => setForm({...form, year: e.target.value})} /></div>
             <div className="xl:col-span-2">
-              <label className="label font-semibold">{t('driver', 'Assigned Driver')}</label>
-              <CustomSelect value={form.driverId} onChange={v => setForm({...form, driverId: v})} options={[{ value: '', label: t('no_driver', 'No driver') }, ...drivers.map(d => ({ value: d.id, label: driverName(d) }))]} />
+                <label className="label">{t('driver', 'Driver')}</label>
+                <CustomSelect value={form.driverId} onChange={val => setForm({ ...form, driverId: val })} options={[{ value: '', label: t('no_driver', 'No driver') }, ...drivers.map(dr => ({ value: dr.id, label: driverName(dr) }))]} />
+            </div>
+              
+            <div className="xl:col-span-2">
+                <label className="label">{t('trailer', 'Trailer')}</label>
+                <CustomSelect value={form.trailerId} onChange={val => setForm({ ...form, trailerId: val })} options={[{ value: '', label: t('no_trailer', 'No trailer') }, ...trailers.map(tr => ({ value: tr.id, label: tr.plateNumber }))]} />
             </div>
             <div>
               <label className="label font-semibold">{t('status', 'Status')}</label>

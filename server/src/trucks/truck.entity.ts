@@ -3,6 +3,7 @@ import { Trip } from '../trips/trip.entity';
 import { TruckDocument } from './truck-document.entity';
 import { Maintenance } from '../maintenance/maintenance.entity';
 import { Driver } from '../drivers/driver.entity';
+import { Trailer } from './trailer.entity';
 
 import { Company } from '../companies/company.entity';
 
@@ -83,6 +84,9 @@ export class Truck {
 
   @ManyToOne(() => Driver, { nullable: true, onDelete: 'SET NULL' })
   driver: Driver;
+
+  @ManyToOne(() => Trailer, { nullable: true, onDelete: 'SET NULL' })
+  trailer: Trailer;
 
   @OneToMany(() => TruckDocument, (doc) => doc.truck)
   documents: TruckDocument[];

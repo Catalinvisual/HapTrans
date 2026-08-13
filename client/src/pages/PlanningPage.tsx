@@ -481,6 +481,12 @@ function ResourceRow({
             <span className="truncate font-medium">{resource.driver.name}</span>
           </div>
         )}
+        {resource.trailer && (
+          <div className="flex items-center gap-1 text-[10px] text-text-secondary mt-0.5">
+            <TruckIcon className="w-3 h-3 shrink-0 text-text-muted opacity-80" />
+            <span className="truncate font-medium" title={t('trailer', 'Trailer')}>T: {resource.trailer.plateNumber}</span>
+          </div>
+        )}
         {cargo.weight > 0 && (
           <div className="grid grid-cols-2 gap-1 pt-1.5 border-t border-border/40">
             <CapBar label="Wt" value={Math.round(cargo.weight / 100) / 10} max={Math.round(mw / 100) / 10} unit="t" />

@@ -366,7 +366,7 @@ export class PlanningService {
 
     const trucks = await this.truckRepo.find({
       where: this.companyArrayWhere(companyId),
-      relations: ['driver', 'driver.user'],
+      relations: ['driver', 'driver.user', 'trailer'],
       order: { plateNumber: 'ASC' },
     });
     const truckIds = trucks.map((t) => t.id);
