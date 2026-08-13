@@ -586,6 +586,7 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
         </div>
         <div className="bg-surface/40 rounded-xl p-4 border border-border">
           <div className="text-[10px] font-bold uppercase text-text-secondary mb-1">{t('timestamps', 'Timestamps')}</div>
+          <Row label={t('created_by', 'Created by')} value={order.createdBy?.name || order.createdBy?.email || '—'} />
           <Row label={t('created_at', 'Created')} value={order.createdAt ? new Date(order.createdAt).toLocaleString() : '—'} />
           <Row label={t('updated_at', 'Updated')} value={order.updatedAt ? new Date(order.updatedAt).toLocaleString() : '—'} />
         </div>
@@ -609,7 +610,7 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
              try { await generateOrderPdf(order, company); } catch (e) { toast.error(t('error_pdf', 'Failed to generate PDF')); }
           }} className="btn-secondary flex items-center gap-1.5 text-sm" title="Download PDF"><FileText className="w-4 h-4" />{t('pdf', 'PDF')}</button>
           <button onClick={() => navigate(`/orders/${order.id}`)} className="btn-secondary flex items-center gap-1.5 text-sm"><ExternalLink className="w-4 h-4" />{t('open_order', 'Open page')}</button>
-          {next && <button onClick={() => onStatusChange(order)} className="btn-primary text-sm flex items-center gap-1.5"><ArrowRight className="w-4 h-4" />{t('advance_to', 'Advance → {s}', { s: t(`status_${next}`, next.replace(/_/g, ' ')) })}</button>}
+          {next && <button onClick={() => onStatusChange(order)} className="btn-primary text-sm flex items-center gap-1.5"><ArrowRight className="w-4 h-4" />{t('advance_to', 'Advance → {{s}}', { s: t(`status_${next}`, next.replace(/_/g, ' ')) })}</button>}
           <button onClick={() => onEdit(order.id)} className="btn-secondary text-sm flex items-center gap-1.5"><Pencil className="w-4 h-4" />{t('edit', 'Edit')}</button>
           <button onClick={() => onDelete(order.id)} className="btn-secondary text-sm flex items-center gap-1.5 text-red-600 border-red-200 hover:bg-red-50"><Trash2 className="w-4 h-4" />{t('delete', 'Delete')}</button>
         </>

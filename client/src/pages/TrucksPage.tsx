@@ -499,9 +499,9 @@ export default function TrucksPage() {
       content: (
         <div className="space-y-3">
           <div className="bg-surface/50 rounded-xl p-3 border border-border space-y-2">
-            <div className="text-xs font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1"><FileText className="w-3.5 h-3.5" />{t('add_document', 'Adaugă Document')}</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-text-secondary flex items-center gap-1"><FileText className="w-3.5 h-3.5" />{t('add_document', 'Add Document')}</div>
             <CustomSelect className="w-full" value={docForm.type} onChange={v => setDocForm({ ...docForm, type: v })} options={TRUCK_DOC_TYPES.map(dt => ({ value: dt.value, label: t(dt.label) || dt.default }))} />
-            <input className="input" placeholder={t('document_number', 'Număr document')} value={docForm.documentNumber} onChange={e => setDocForm({ ...docForm, documentNumber: e.target.value })} />
+            <input className="input" placeholder={t('document_number', 'Document number')} value={docForm.documentNumber} onChange={e => setDocForm({ ...docForm, documentNumber: e.target.value })} />
             
             <div className="relative">
               <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
@@ -510,11 +510,11 @@ export default function TrucksPage() {
                 onChange={(_, dateStr) => setDocForm({ ...docForm, expiryDate: dateStr })} 
                 className="input pl-9 w-full bg-card" 
                 options={fpOptions} 
-                placeholder={t('expiry_date', 'Data expirării (DD/MM/YYYY)')} 
+                placeholder={t('expiry_date', 'Expiry Date (DD/MM/YYYY)')} 
               />
             </div>
             
-            <button className="btn-primary w-full text-sm" onClick={() => saveTruckDoc(drawerTruck.id)}><Plus className="w-3.5 h-3.5 inline mr-1" />{t('save', 'Salvează')}</button>
+            <button className="btn-primary w-full text-sm" onClick={() => saveTruckDoc(drawerTruck.id)}><Plus className="w-3.5 h-3.5 inline mr-1" />{t('save', 'Save')}</button>
           </div>
           {drawerTruck.documents?.length ? (
             <div className="space-y-2">

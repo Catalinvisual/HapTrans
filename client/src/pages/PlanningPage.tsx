@@ -1249,7 +1249,7 @@ export default function PlanningPage() {
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
           <button onClick={() => navigate('/orders/new')} className="btn-primary text-xs py-2 px-3 flex items-center gap-1.5 font-black shadow shadow-primary/20">
-            <Plus className="w-4 h-4" /><span className="hidden sm:inline">{t('jsx_newTransport','+ New')}</span>
+            <Plus className="w-4 h-4" /><span className="hidden sm:inline">{t('jsx_newTransport','New')}</span>
           </button>
         </div>
       </div>
