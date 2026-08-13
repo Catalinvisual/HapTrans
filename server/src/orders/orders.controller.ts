@@ -19,15 +19,15 @@ export class OrdersController {
 
   @Post()
   create(@Body() dto: any, @Request() req: any) {
-    if (req.user?.companyId) {
-      dto.companyId = req.user.companyId;
+    if (req.user?.company?.id) {
+      dto.companyId = req.user.company.id;
     }
-    return this.ordersService.create(dto);
+    return this.ordersService.create(dto, req.user);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: any) {
-    return this.ordersService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: any, @Request() req: any) {
+    return this.ordersService.update(id, dto, req.user);
   }
 
   @Delete(':id')

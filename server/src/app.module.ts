@@ -42,6 +42,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { PortalUsersModule } from './portal-users/portal-users.module';
 import { PortalAuthModule } from './portal-auth/portal-auth.module';
 import { PortalModule } from './portal/portal.module';
+import { ActionLogsModule } from './action-logs/action-logs.module';
 
 @Module({
   imports: [
@@ -102,6 +103,7 @@ import { PortalModule } from './portal/portal.module';
     PaymentsModule,
     DriverModule,
     PlanningModule,
+    ActionLogsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -526,6 +526,7 @@ export class PlanningService {
           totalMileage: t.totalMileage,
           nextMaintenanceMileage: t.nextMaintenanceMileage,
           driver,
+          trailer: t.trailer ? { id: t.trailer.id, plateNumber: t.trailer.plateNumber } : null,
           trailerId: relevantTrip?.trailer?.id || null,
           trailerPlate: relevantTrip?.trailer?.plateNumber || null,
           maintenance: activeMaint,

@@ -23,6 +23,43 @@ import CustomSelect from '../components/CustomSelect';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateOrderPdf } from '../lib/pdfGenerator';
 
+function useResizableSidebar(initialWidth: number = 288, minWidth: number = 200, maxWidth: number = 600) {
+  const [width, setWidth] = useState(initialWidth);
+  const [isResizing, setIsResizing] = useState(false);
+  const widthRef = useRef(width);
+
+  useEffect(() => { widthRef.current = width; }, [width]);
+
+  const startResizing = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      let newWidth = e.clientX;
+      if (newWidth < minWidth) newWidth = minWidth;
+      if (newWidth > maxWidth) newWidth = maxWidth;
+      setWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, minWidth, maxWidth]);
+
+  return { width, isResizing, startResizing };
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const dayStr = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -1003,6 +1040,8 @@ export default function PlanningPage() {
   const [grouping, setGrouping] = useState<'truck' | 'driver' | 'trailer'>('truck');
   const [attentionActive, setAttentionActive] = useState(false);
 
+  const { width: poolWidth, isResizing: isPoolResizing, startResizing: startPoolResizing } = useResizableSidebar(288, 200, 600);
+
   // ── Date range ──
   const { from, to, totalMinutes, hoursVisible, fromDateObj } = useMemo(() => {
     const curr = parseDay(selectedDate);
@@ -1362,7 +1401,17 @@ export default function PlanningPage() {
       <div className="flex-1 flex overflow-hidden">
 
         {/* ORDER POOL (left panel) */}
-        <div className={`flex flex-col border-r border-border bg-card shrink-0 transition-all duration-300 overflow-hidden ${poolCollapsed ? 'w-10' : 'w-72'} print:hidden`}>
+        <div 
+          className={`relative flex flex-col border-r border-border bg-card shrink-0 overflow-hidden print:hidden ${isPoolResizing ? 'select-none transition-none' : 'transition-all duration-300'}`}
+          style={{ width: poolCollapsed ? 40 : poolWidth }}
+        >
+          {/* Drag Handle */}
+          {!poolCollapsed && (
+            <div
+              onMouseDown={startPoolResizing}
+              className={`absolute top-0 right-0 w-1.5 h-full cursor-col-resize z-10 hover:bg-primary/30 transition-colors ${isPoolResizing ? 'bg-primary/50' : ''}`}
+            />
+          )}
           {/* Pool header */}
           <div className={`flex items-center justify-between p-2.5 border-b border-border bg-surface/30 shrink-0 ${poolCollapsed ? 'flex-col gap-2' : ''}`}>
             {!poolCollapsed && (

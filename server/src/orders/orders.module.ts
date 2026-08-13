@@ -8,6 +8,7 @@ import { OrdersService } from './orders.service';
 import { EnginesModule } from '../engines/engines.module';
 import { RoutingModule } from '../routing/routing.module';
 import { ClientsModule } from '../clients/clients.module';
+import { ActionLogsModule } from '../action-logs/action-logs.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ClientsModule } from '../clients/clients.module';
     EnginesModule,
     RoutingModule,
     ClientsModule,
+    ActionLogsModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

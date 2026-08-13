@@ -9,6 +9,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { RoutingService } from '../routing/routing.service';
 import { ClientsService } from '../clients/clients.service';
 import { nanoid } from 'nanoid';
+import { ActionLogsService } from '../action-logs/action-logs.service';
 
 @Injectable()
 export class OrdersService {
@@ -20,6 +21,7 @@ export class OrdersService {
     private eventEmitter: EventEmitter2,
     private routingService: RoutingService,
     private clientsService: ClientsService,
+    private actionLogsService: ActionLogsService,
   ) {}
 
   /**
@@ -78,7 +80,7 @@ export class OrdersService {
     });
   }
 
-  async create(dto: any) {
+  async create(dto: any, user?: any) {
     try {
       // 1. Validate
       this.validationEngine.validateOrder(dto);
@@ -257,6 +259,10 @@ export class OrdersService {
       // 5c. Emit Domain Event
       this.eventEmitter.emit('order.created', updatedOrder);
 
+      if (user) {
+        await this.actionLogsService.logAction('Order', savedOrder.id, 'CREATED', user, null, dto.companyId);
+      }
+
       return updatedOrder;
     } catch (err: any) {
       console.error('=== ORDER CREATE ERROR ===');
@@ -268,7 +274,7 @@ export class OrdersService {
     }
   }
 
-  async update(id: string, dto: any) {
+  async update(id: string, dto: any, user?: any) {
     try {
       // Helper: safely parse a number, returns null on empty/NaN
       const safeNum = (v: any): number | null => {
@@ -417,6 +423,13 @@ export class OrdersService {
 
       const fullOrder = await this.findOne(id);
       this.eventEmitter.emit('order.updated', fullOrder);
+
+      if (user) {
+        // Find which fields were updated, simplify by logging dto keys
+        const updatedFields = Object.keys(dto).filter(k => dto[k] !== undefined);
+        await this.actionLogsService.logAction('Order', id, 'UPDATED', user, { updatedFields }, (fullOrder as any).company?.id);
+      }
+
       return fullOrder;
     } catch (err: any) {
       console.error('=== ORDER UPDATE ERROR ===');

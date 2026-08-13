@@ -418,11 +418,17 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
   const [documents, setDocuments] = useState<any[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [actionLogs, setActionLogs] = useState<any[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'documents') {
       setDocsLoading(true);
       api.get(`/documents/order/${order.id}`).then(r => setDocuments(r.data)).catch(() => setDocuments([])).finally(() => setDocsLoading(false));
+    }
+    if (activeTab === 'notes') {
+      setLogsLoading(true);
+      api.get(`/action-logs/Order/${order.id}`).then(r => setActionLogs(r.data)).catch(() => setActionLogs([])).finally(() => setLogsLoading(false));
     }
   }, [activeTab, order.id]);
 
@@ -585,10 +591,36 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
           <Row label={t('unloading_reference', 'Unloading ref')} value={order.unloadingReference} />
         </div>
         <div className="bg-surface/40 rounded-xl p-4 border border-border">
-          <div className="text-[10px] font-bold uppercase text-text-secondary mb-1">{t('timestamps', 'Timestamps')}</div>
-          <Row label={t('created_by', 'Created by')} value={order.createdBy?.name || order.createdBy?.email || '—'} />
-          <Row label={t('created_at', 'Created')} value={order.createdAt ? new Date(order.createdAt).toLocaleString() : '—'} />
-          <Row label={t('updated_at', 'Updated')} value={order.updatedAt ? new Date(order.updatedAt).toLocaleString() : '—'} />
+          <div className="text-[10px] font-bold uppercase text-text-secondary mb-3">{t('activity_timeline', 'Activity Timeline')}</div>
+          {logsLoading ? (
+            <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+          ) : actionLogs.length === 0 ? (
+            <div className="text-sm text-text-muted">{t('no_activity_recorded', 'No activity recorded yet.')}</div>
+          ) : (
+            <div className="space-y-4">
+              {actionLogs.map((log: any) => (
+                <div key={log.id} className="flex gap-3">
+                  <div className="w-2 mt-1.5 shrink-0 flex flex-col items-center">
+                    <div className="w-2 h-2 rounded-full bg-primary" />
+                    <div className="w-px h-full bg-border mt-1" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-text-primary">
+                      {log.action === 'CREATED' ? t('order_created', 'Order created') : t('order_updated', 'Order updated')}
+                    </div>
+                    <div className="text-xs text-text-secondary mt-0.5">
+                      {t('by', 'by')} {log.user?.name || log.user?.email || 'System'} · {new Date(log.createdAt).toLocaleString()}
+                    </div>
+                    {log.action === 'UPDATED' && log.details?.updatedFields && (
+                      <div className="text-[10px] text-text-muted mt-1 uppercase tracking-wide">
+                        {t('edited_fields', 'Edited')}: {log.details.updatedFields.join(', ')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     ) },
