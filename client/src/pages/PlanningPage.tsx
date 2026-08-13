@@ -339,16 +339,19 @@ function TripBlock({
   const cargo = sumCargo(trip.orders || []);
   const revenue = (trip.orders || []).reduce((s: number, o: any) => s + (Number(o.price) || 0), 0);
   const ordersCount = (trip.orders || []).filter((o: any) => o?.id).length;
-  const isNarrow = pos.width < 8; // < 8% wide = very narrow block
+  const driverName = trip.driver?.name || trip.truck?.driver?.name || '';
+  const blockWidthPct = pos.width;
+  const isVeryNarrow = blockWidthPct < 4;
+  const isNarrow = blockWidthPct < 10;
 
   return (
     <div
-      className="absolute top-1.5 bottom-1.5 cursor-pointer group/block z-[5]"
-      style={{ left: `${pos.left}%`, width: `${pos.width}%`, minWidth: '2.5rem' }}
+      className="absolute top-1 bottom-1 cursor-pointer group/block z-[5]"
+      style={{ left: `${pos.left}%`, width: `${pos.width}%`, minWidth: '3rem' }}
       onClick={onClick}
     >
       <div
-        className={`h-full rounded-xl border-2 overflow-hidden transition-all duration-150 flex flex-col justify-between ${
+        className={`h-full rounded-xl border-2 overflow-hidden transition-all duration-150 flex flex-col ${
           col.border
         } ${
           isSelected
@@ -361,38 +364,52 @@ function TripBlock({
         }}
       >
         {/* Color accent strip at top */}
-        <div className="h-0.5 w-full" style={{ background: hex }} />
+        <div className="h-[3px] w-full shrink-0" style={{ background: hex }} />
 
-        <div className="px-2 py-1 flex flex-col justify-center flex-1 min-h-0 overflow-hidden">
-          {/* Trip number + status badge */}
+        <div className="px-2 py-1 flex flex-col justify-between flex-1 min-h-0 overflow-hidden gap-px">
+          {/* Row 1: Trip number + status */}
           <div className="flex items-center gap-1 min-w-0">
-            <span className={`text-[10px] font-black truncate ${col.text}`} style={{ maxWidth: isNarrow ? '100%' : '60%' }}>
+            <span className={`font-black truncate ${col.text} ${isVeryNarrow ? 'text-[8px]' : 'text-[10px]'}`} style={{ maxWidth: isNarrow ? '100%' : '65%' }}>
               {trip.tripNumber || '—'}
             </span>
-            {!isNarrow && (
-              <span className={`shrink-0 px-1 py-0 text-[8px] font-black rounded-sm uppercase ${col.text} opacity-80`}>
+            {!isVeryNarrow && (
+              <span className={`shrink-0 px-1 py-0 text-[7px] font-black rounded-sm uppercase ${col.text} opacity-80`}>
                 {t(`status_${st}`, st)}
               </span>
             )}
           </div>
 
-          {/* Route */}
+          {/* Row 2: Route */}
           {!isNarrow && origin !== '—' && (
-            <div className="text-[9px] text-text-secondary truncate mt-0.5 hidden sm:flex items-center gap-0.5">
+            <div className="text-[8px] text-text-secondary truncate flex items-center gap-0.5">
               <MapPin className="w-2 h-2 shrink-0 text-blue-500" />
               <span className="truncate">{origin}</span>
-              {dest !== '—' && <><ArrowRight className="w-2 h-2 shrink-0" /><span className="truncate">{dest}</span></>}
+              {dest !== '—' && <><ArrowRight className="w-1.5 h-1.5 shrink-0 opacity-60" /><span className="truncate">{dest}</span></>}
             </div>
           )}
 
-          {/* Times + metadata */}
-          {!isNarrow && (
-            <div className="hidden md:flex items-center gap-1.5 mt-0.5">
-              <span className="text-[9px] text-text-muted font-medium">{fmtTime(trip.plannedDeparture)}</span>
-              {trip.plannedArrival && <><ArrowRight className="w-2 h-2 text-text-muted" /><span className="text-[9px] text-text-muted">{fmtTime(trip.plannedArrival)}</span></>}
-              {cargo.weight > 0 && <span className="text-[9px] text-text-muted">· {cargo.weight.toLocaleString()}kg</span>}
-              {revenue > 0 && <span className="text-[9px] font-black" style={{ color: hex }}>€{revenue.toLocaleString()}</span>}
-              {ordersCount > 0 && <span className="text-[9px] text-text-muted">· {ordersCount}&#x20;ord</span>}
+          {/* Row 3: Driver + departure/arrival */}
+          {!isVeryNarrow && (
+            <div className="flex items-center gap-1 flex-wrap">
+              {driverName && (
+                <span className="text-[8px] text-text-muted font-semibold truncate flex items-center gap-0.5">
+                  <Users className="w-2 h-2 shrink-0" />{driverName}
+                </span>
+              )}
+              {!isNarrow && trip.plannedDeparture && (
+                <span className="text-[8px] text-text-muted">
+                  {fmtTime(trip.plannedDeparture)}{trip.plannedArrival ? ` → ${fmtTime(trip.plannedArrival)}` : ''}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Row 4: Cargo + revenue */}
+          {!isVeryNarrow && (cargo.weight > 0 || revenue > 0) && (
+            <div className="flex items-center gap-1">
+              {cargo.weight > 0 && <span className="text-[8px] text-text-muted">{cargo.weight.toLocaleString()}kg</span>}
+              {revenue > 0 && <span className="text-[8px] font-black" style={{ color: hex }}>€{revenue.toLocaleString()}</span>}
+              {ordersCount > 0 && <span className="text-[8px] text-text-muted">·{ordersCount}ord</span>}
             </div>
           )}
         </div>
@@ -403,10 +420,10 @@ function TripBlock({
 
 // ─── Resource Row (Gantt Row) ────────────────────────────────────────────────────────
 function ResourceRow({
-  resource, trips, fromDate, totalMinutes, hoursVisible, selectedTripId, onSelectTrip, onDropOrder, draggingId,
+  resource, trips, fromDate, totalMinutes, hoursVisible, selectedTripId, onSelectTrip, onDropOrder, draggingId, draggingOrder,
 }: {
   resource: any; trips: any[]; fromDate: string; totalMinutes: number; hoursVisible: number; selectedTripId: string | null;
-  onSelectTrip: (id: string) => void; onDropOrder: (resourceId: string) => void; draggingId: string | null;
+  onSelectTrip: (id: string) => void; onDropOrder: (resourceId: string) => void; draggingId: string | null; draggingOrder?: any;
 }) {
   const { t } = useTranslation();
   const [isDragOver, setIsDragOver] = useState(false);
@@ -414,16 +431,41 @@ function ResourceRow({
   const mw = resource.maxWeightKg || 24000;
   const mp = resource.maxPallets || 33;
   const st = String(resource.status || 'available').toLowerCase();
+  const isMaintenance = st === 'maintenance';
   const statusDot = { active:'bg-emerald-400', available:'bg-emerald-400', assigned:'bg-blue-400', driving:'bg-amber-400', maintenance:'bg-red-400', inactive:'bg-slate-400' }[st] || 'bg-slate-400';
   const hasTrips = trips.length > 0;
 
+  // Smart capacity feedback for drag-over
+  const draggingWeight = draggingOrder ? sumCargo([draggingOrder]).weight : 0;
+  const weightRemaining = mw - cargo.weight;
+  const canAcceptDrag = !isMaintenance && draggingId && (draggingWeight === 0 || weightRemaining >= draggingWeight);
+
+  const dragZoneClass = isDragOver && draggingId
+    ? (isMaintenance
+        ? 'bg-red-500/10 ring-2 ring-red-500/40 ring-inset'
+        : canAcceptDrag
+          ? 'bg-emerald-500/10 ring-2 ring-emerald-500/40 ring-inset'
+          : 'bg-red-500/10 ring-2 ring-red-500/40 ring-inset')
+    : 'bg-gradient-to-b from-surface/20 via-transparent to-surface/10';
+
   return (
-    <div className="flex border-b-2 border-border min-h-[76px] group hover:bg-primary/[0.02] transition-colors">
+    <div className={`flex border-b-2 border-border min-h-[96px] group transition-colors ${isMaintenance ? 'bg-red-500/[0.02] hover:bg-red-500/[0.04]' : 'hover:bg-primary/[0.02]'}`}>
       {/* Resource Column — sticky left */}
-      <div className="w-56 shrink-0 px-3 py-2.5 border-r-2 border-border flex flex-col justify-center gap-1.5 bg-card sticky left-0 z-10 shadow-[2px_0_6px_rgba(0,0,0,0.06)]">
+      <div className={`w-56 shrink-0 px-3 py-2.5 border-r-2 flex flex-col justify-center gap-1.5 sticky left-0 z-10 shadow-[2px_0_6px_rgba(0,0,0,0.06)] ${
+        isMaintenance ? 'bg-red-500/5 border-red-500/30' : 'bg-card border-border'
+      }`}>
+        {/* Maintenance banner */}
+        {isMaintenance && (
+          <div className="flex items-center gap-1 px-1.5 py-1 rounded-lg bg-red-500/10 border border-red-500/20 mb-0.5">
+            <span className="text-[10px]">🔧</span>
+            <span className="text-[9px] font-black text-red-600 uppercase tracking-wide">In Maintenance</span>
+          </div>
+        )}
         <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center border shrink-0 shadow-sm ${hasTrips ? 'bg-primary/10 border-primary/20' : 'bg-surface border-border'}`}>
-            <TruckIcon className={`w-4 h-4 ${hasTrips ? 'text-primary' : 'text-text-muted'}`} />
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center border shrink-0 shadow-sm ${
+            isMaintenance ? 'bg-red-500/10 border-red-500/30' : hasTrips ? 'bg-primary/10 border-primary/20' : 'bg-surface border-border'
+          }`}>
+            <TruckIcon className={`w-4 h-4 ${isMaintenance ? 'text-red-500' : hasTrips ? 'text-primary' : 'text-text-muted'}`} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
@@ -449,14 +491,10 @@ function ResourceRow({
 
       {/* Timeline Area */}
       <div
-        className={`relative flex-1 transition-all duration-150 ${
-          isDragOver && draggingId
-            ? 'bg-primary/10 ring-2 ring-primary/40 ring-inset'
-            : 'bg-gradient-to-b from-surface/20 via-transparent to-surface/10'
-        }`}
-        onDragOver={e => { if (draggingId) { e.preventDefault(); setIsDragOver(true); } }}
+        className={`relative flex-1 transition-all duration-150 ${dragZoneClass}`}
+        onDragOver={e => { if (draggingId && !isMaintenance) { e.preventDefault(); setIsDragOver(true); } }}
         onDragLeave={() => setIsDragOver(false)}
-        onDrop={e => { e.preventDefault(); setIsDragOver(false); onDropOrder(resource.id); }}
+        onDrop={e => { e.preventDefault(); setIsDragOver(false); if (!isMaintenance) onDropOrder(resource.id); }}
       >
         {/* Hour grid lines */}
         <div className="absolute inset-0 flex pointer-events-none">
@@ -464,11 +502,31 @@ function ResourceRow({
             <div key={h} className="flex-1 border-r border-border/20 last:border-0" />
           ))}
         </div>
+
+        {/* Maintenance overlay */}
+        {isMaintenance && (
+          <div
+            className="absolute inset-0 flex items-center justify-center pointer-events-none z-[4]"
+            style={{ background: 'repeating-linear-gradient(-45deg, rgba(239,68,68,0.06) 0px, rgba(239,68,68,0.06) 10px, transparent 10px, transparent 20px)' }}
+          >
+            <span className="text-[10px] font-black text-red-500/50 uppercase tracking-widest px-3 py-1 rounded-full border border-red-500/20 bg-card/80">
+              🔧 {t('status_maintenance', 'Maintenance')}
+            </span>
+          </div>
+        )}
+
         {/* Drop hint */}
         {isDragOver && draggingId && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-            <div className="px-3 py-1.5 rounded-full bg-primary text-white text-xs font-bold shadow-lg flex items-center gap-1.5">
-              <Plus className="w-3.5 h-3.5" />{t('drop_here_label','Drop here')}
+            <div className={`px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-lg flex items-center gap-1.5 ${
+              isMaintenance ? 'bg-red-500' : canAcceptDrag ? 'bg-emerald-500' : 'bg-red-500'
+            }`}>
+              {isMaintenance
+                ? <><AlertTriangle className="w-3.5 h-3.5" />In maintenance — cannot assign</>
+                : canAcceptDrag
+                  ? <><Plus className="w-3.5 h-3.5" />{t('drop_here_label','Drop here')}</>
+                  : <><AlertTriangle className="w-3.5 h-3.5" />Capacity exceeded</>
+              }
             </div>
           </div>
         )}
@@ -533,6 +591,7 @@ function TripDetailDrawer({
   const orders = (trip.orders?.length ? trip.orders : (tripSummary.orders?.length ? tripSummary.orders : [])).filter((o: any) => o?.id);
   const revenue = orders.reduce((s: number, o: any) => s + (Number(o.price) || 0), 0);
   const tripConflicts = (conflicts || []).filter((c: any) => c.tripId === (trip.id || tripSummary.id));
+  const blockingConflicts = tripConflicts.filter((c: any) => c.level === 'blocking');
   const st = String((trip.status || tripSummary.status || 'planning')).toLowerCase();
   
   const isPlanning = ['planning', 'planned', 'assigned'].includes(st);
@@ -631,32 +690,67 @@ function TripDetailDrawer({
           )}
 
           {activeTab === 'stops' && (
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {stops.map((s: any, idx: number) => {
                 const isPu = s.type === 'pickup';
+                const hasTimeWindow = s.dateFrom || s.timeFrom;
                 return (
-                  <div key={s.id || idx} className="bg-card border border-border rounded-xl p-3 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${isPu ? 'bg-blue-500/10 text-blue-600 border border-blue-500/20' : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'}`}>{idx + 1}</span>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-text-primary text-sm truncate">{s.companyName || s.city || '—'}</span>
-                          <span className={`text-[8px] font-bold rounded px-1 uppercase ${isPu ? 'text-blue-600 bg-blue-500/10' : 'text-emerald-600 bg-emerald-500/10'}`}>{isPu ? t('loading_stop','Pickup') : t('unloading_stop','Delivery')}</span>
+                  <div key={s.id || idx} className={`bg-card border rounded-xl overflow-hidden ${isPu ? 'border-blue-500/25' : 'border-emerald-500/25'}`}>
+                    {/* Stop header */}
+                    <div className={`px-3 py-2 flex items-center justify-between gap-2 ${isPu ? 'bg-blue-500/5' : 'bg-emerald-500/5'}`}>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-xs shrink-0 text-white ${
+                          isPu ? 'bg-blue-500' : 'bg-emerald-500'
+                        }`}>{idx + 1}</span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-text-primary text-sm truncate">{s.companyName || s.city || '—'}</span>
+                            <span className={`text-[8px] font-bold rounded px-1 uppercase ${isPu ? 'text-blue-600 bg-blue-500/10' : 'text-emerald-600 bg-emerald-500/10'}`}>{isPu ? t('loading_stop','Pickup') : t('unloading_stop','Delivery')}</span>
+                          </div>
+                          <p className="text-xs text-text-secondary truncate">{s.address}{s.postalCode ? `, ${s.postalCode}` : ''} {s.country || ''}</p>
                         </div>
-                        <p className="text-xs text-text-secondary truncate">{s.address}{s.postalCode ? `, ${s.postalCode}` : ''} {s.country || ''}</p>
-                        {s.eta && <p className="text-[10px] text-text-muted">ETA: <span className="font-semibold text-text-primary">{fmtTime(s.eta)} {fmtShort(s.eta)}</span></p>}
                       </div>
+                      {isPlanning && (
+                        <div className="flex flex-col gap-0.5 shrink-0">
+                          <button disabled={idx === 0 || !!loadingAction} onClick={() => moveStop(idx, 'up')} className="p-1 rounded hover:bg-surface text-text-secondary disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
+                          <button disabled={idx === stops.length - 1 || !!loadingAction} onClick={() => moveStop(idx, 'down')} className="p-1 rounded hover:bg-surface text-text-secondary disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
+                        </div>
+                      )}
                     </div>
-                    {isPlanning && (
-                      <div className="flex flex-col gap-0.5 shrink-0">
-                        <button disabled={idx === 0 || !!loadingAction} onClick={() => moveStop(idx, 'up')} className="p-1 rounded hover:bg-surface text-text-secondary disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
-                        <button disabled={idx === stops.length - 1 || !!loadingAction} onClick={() => moveStop(idx, 'down')} className="p-1 rounded hover:bg-surface text-text-secondary disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
-                      </div>
-                    )}
+                    {/* Stop operational details */}
+                    <div className="px-3 py-2 space-y-1.5">
+                      {hasTimeWindow && (
+                        <div className="flex items-center gap-1.5 text-[10px]">
+                          <Clock className="w-3 h-3 text-text-muted shrink-0" />
+                          <span className="font-semibold text-text-primary">
+                            {s.dateFrom ? fmtShort(s.dateFrom) : ''}{s.timeFrom ? ` ${s.timeFrom}` : ''}
+                            {(s.dateTo || s.timeUntil) ? ` → ${s.dateTo ? fmtShort(s.dateTo) : ''}${s.timeUntil ? ` ${s.timeUntil}` : ''}` : ''}
+                          </span>
+                          <span className="text-text-muted">time window</span>
+                        </div>
+                      )}
+                      {s.eta && (
+                        <div className="flex items-center gap-1.5 text-[10px]">
+                          <Navigation className="w-3 h-3 text-amber-500 shrink-0" />
+                          <span className="text-text-muted">ETA:</span>
+                          <span className="font-semibold text-amber-600">{fmtTime(s.eta)} {fmtShort(s.eta)}</span>
+                        </div>
+                      )}
+                      {s.reference && (
+                        <div className="flex items-center gap-1.5 text-[10px]">
+                          <FileText className="w-3 h-3 text-text-muted shrink-0" />
+                          <span className="text-text-muted">Ref:</span>
+                          <span className="font-semibold text-text-primary">{s.reference}</span>
+                        </div>
+                      )}
+                      {s.notes && (
+                        <p className="text-[10px] text-text-secondary italic border-t border-border/40 pt-1">{s.notes}</p>
+                      )}
+                    </div>
                   </div>
                 );
               })}
-              {stops.length === 0 && <p className="text-xs text-text-secondary text-center py-6">{t('no_stops', 'Nu există opriri (Aceasta pare o cursă goală/coruptă)')}</p>}
+              {stops.length === 0 && <p className="text-xs text-text-secondary text-center py-6">{t('no_stops', 'No stops defined')}</p>}
             </div>
           )}
 
@@ -712,33 +806,54 @@ function TripDetailDrawer({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border bg-surface/50 flex flex-wrap gap-2 justify-between shrink-0">
-          <div className="flex flex-wrap gap-2">
-            {isPlanning || isConfirmed ? (
-              <button disabled={!!loadingAction || isConfirmed} onClick={() => onAction('confirm', tripId)} className={`btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold ${isConfirmed ? 'opacity-100 cursor-default bg-emerald-500/10 text-emerald-600 border-emerald-500/30' : ''}`}>
-                {loadingAction === 'confirm' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className={`w-4 h-4 ${isConfirmed ? '' : 'text-emerald-500'}`} />}
-                <span>{isConfirmed ? t('jsx_context_confirmed','Confirmed') : t('jsx_context_confirm','Confirm')}</span>
-              </button>
-            ) : null}
-            {isPlanning || isDispatched || st === 'assigned' ? (
-              <button disabled={!!loadingAction || isDispatched || !isConfirmed} onClick={() => onAction('send', tripId)} className={`btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold ${isDispatched ? 'opacity-100 cursor-default bg-primary/10 text-primary border-primary/30' : ''} ${!isConfirmed && !isDispatched ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                {loadingAction === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : (isDispatched ? <CheckCircle2 className="w-4 h-4" /> : <Send className="w-4 h-4 text-primary" />)}
-                <span>{isDispatched ? t('jsx_context_sent','Sent to Driver') : t('jsx_context_send','Send to Driver')}</span>
-              </button>
-            ) : null}
-            {isPlanning && orders.length > 1 ? (
-              <button disabled={!!loadingAction} onClick={() => onAction('split', tripId)} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold">
-                {loadingAction === 'split' ? <Loader2 className="w-4 h-4 animate-spin" /> : <SplitSquareHorizontal className="w-4 h-4 text-amber-500" />}
-                <span>{t('jsx_context_split','Split')}</span>
-              </button>
-            ) : null}
-          </div>
-          {isPlanning && (
-            <button disabled={!!loadingAction} onClick={() => onAction('unplan-all', tripId, { orderIds: orders.map((o: any) => o.id) })} className="btn-secondary text-xs py-2 px-3 text-red-500 hover:bg-red-500/10 flex items-center gap-1.5 font-bold">
-              {loadingAction === 'unplan-all' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
-              <span>{orders.length === 1 ? t('jsx_context_unplan','Unplan') : t('jsx_context_unplan_all','Unplan All')}</span>
-            </button>
+        <div className="p-4 border-t border-border bg-surface/50 flex flex-col gap-2.5 shrink-0">
+          {/* Blocking conflict alert */}
+          {blockingConflicts.length > 0 && (
+            <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/25">
+              <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-bold text-red-600">⛔ Cannot confirm — blocking conflict</p>
+                <p className="text-[10px] text-red-500/80 mt-0.5">{blockingConflicts[0]?.message || 'Resolve blocking issues before confirming'}</p>
+              </div>
+            </div>
           )}
+          <div className="flex flex-wrap gap-2 justify-between">
+            <div className="flex flex-wrap gap-2">
+              {isPlanning || isConfirmed ? (
+                <button
+                  disabled={!!loadingAction || isConfirmed || blockingConflicts.length > 0}
+                  onClick={() => onAction('confirm', tripId)}
+                  title={blockingConflicts.length > 0 ? 'Resolve blocking conflicts first' : undefined}
+                  className={`btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold ${
+                    isConfirmed ? 'opacity-100 cursor-default bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
+                    : blockingConflicts.length > 0 ? 'opacity-50 cursor-not-allowed border-red-500/30 text-red-500'
+                    : ''
+                  }`}
+                >
+                  {loadingAction === 'confirm' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className={`w-4 h-4 ${isConfirmed ? '' : blockingConflicts.length > 0 ? 'text-red-500' : 'text-emerald-500'}`} />}
+                  <span>{isConfirmed ? t('jsx_context_confirmed','Confirmed') : t('jsx_context_confirm','Confirm')}</span>
+                </button>
+              ) : null}
+              {isPlanning || isDispatched || st === 'assigned' ? (
+                <button disabled={!!loadingAction || isDispatched || !isConfirmed} onClick={() => onAction('send', tripId)} className={`btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold ${isDispatched ? 'opacity-100 cursor-default bg-primary/10 text-primary border-primary/30' : ''} ${!isConfirmed && !isDispatched ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  {loadingAction === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : (isDispatched ? <CheckCircle2 className="w-4 h-4" /> : <Send className="w-4 h-4 text-primary" />)}
+                  <span>{isDispatched ? t('jsx_context_sent','Sent to Driver') : t('jsx_context_send','Send to Driver')}</span>
+                </button>
+              ) : null}
+              {isPlanning && orders.length > 1 ? (
+                <button disabled={!!loadingAction} onClick={() => onAction('split', tripId)} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold">
+                  {loadingAction === 'split' ? <Loader2 className="w-4 h-4 animate-spin" /> : <SplitSquareHorizontal className="w-4 h-4 text-amber-500" />}
+                  <span>{t('jsx_context_split','Split')}</span>
+                </button>
+              ) : null}
+            </div>
+            {isPlanning && (
+              <button disabled={!!loadingAction} onClick={() => onAction('unplan-all', tripId, { orderIds: orders.map((o: any) => o.id) })} className="btn-secondary text-xs py-2 px-3 text-red-500 hover:bg-red-500/10 flex items-center gap-1.5 font-bold">
+                {loadingAction === 'unplan-all' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
+                <span>{orders.length === 1 ? t('jsx_context_unplan','Unplan') : t('jsx_context_unplan_all','Unplan All')}</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>, document.body
@@ -880,6 +995,7 @@ export default function PlanningPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sortPool, setSortPool] = useState<'priority' | 'date' | 'weight' | 'client'>('priority');
   const [grouping, setGrouping] = useState<'truck' | 'driver' | 'trailer'>('truck');
+  const [attentionActive, setAttentionActive] = useState(false);
 
   // ── Date range ──
   const { from, to, totalMinutes, hoursVisible, fromDateObj } = useMemo(() => {
@@ -1057,6 +1173,14 @@ export default function PlanningPage() {
 
   const selectedTrip = useMemo(() => trips.find(tr => tr.id === selectedTripId) || null, [trips, selectedTripId]);
   const selectedOrder = useMemo(() => orders.find(o => o.id === selectedOrderId) || null, [orders, selectedOrderId]);
+  const draggingOrder = useMemo(() => draggingOrderId ? orders.find(o => o.id === draggingOrderId) || null : null, [orders, draggingOrderId]);
+
+  // Trips with blocking conflicts (for attention filter)
+  const conflictTripIds = useMemo(() => {
+    const ids = new Set<string>();
+    (boardData?.conflicts || []).filter((c: any) => c.level === 'blocking').forEach((c: any) => { if (c.tripId) ids.add(c.tripId); });
+    return ids;
+  }, [boardData?.conflicts]);
 
   const activeFilterCount = [search, statusFilter, truckFilter, driverFilter, priorityFilter].filter(Boolean).length;
 
@@ -1074,8 +1198,17 @@ export default function PlanningPage() {
     } else if (grouping === 'driver') {
       if (driverFilter) list = list.filter((d: any) => d.id === driverFilter);
     }
+
+    // Attention filter: show only resources with blocking conflicts
+    if (attentionActive && conflictTripIds.size > 0) {
+      list = list.filter((r: any) => {
+        const resTrips = trips.filter(tr => grouping === 'driver' ? tr.driver?.id === r.id : (tr.truck?.id === r.id || tr.truckId === r.id));
+        return resTrips.some(tr => conflictTripIds.has(tr.id));
+      });
+    }
+
     return list;
-  }, [resources, truckFilter, driverFilter, grouping, boardData]);
+  }, [resources, truckFilter, driverFilter, grouping, boardData, attentionActive, conflictTripIds, trips]);
 
   return (
     <div className={`flex flex-col gap-0 bg-background text-text-primary print:bg-white ${isFullscreen ? 'fixed inset-0 z-[9000] p-0' : 'h-[calc(100vh-4rem)]'}`}>
@@ -1193,19 +1326,30 @@ export default function PlanningPage() {
 
       {/* ── KPI STRIP ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-5 gap-0 border-b border-border shrink-0 print:hidden">
-        {[
-          ['', t('kpi_planned','Planned'), counts.planned || trips.filter((tr: any) => ['planned','assigned','dispatched'].includes(tr.status)).length || 0, 'blue'],
-          ['unassigned', t('kpi_unassigned','Unassigned'), boardData?.totalUnplanned || orders.length || 0, 'amber'],
-          ['attention', t('jsx_attention','Attention'), (boardData?.conflicts || []).filter((c: any) => c.level === 'blocking').length || counts.attention || 0, 'red'],
-          ['driving', t('status_driving','Driving'), counts.inProgress || trips.filter((tr: any) => ['driving','started','loading'].includes(tr.status)).length || 0, 'emerald'],
-          ['delayed', t('status_delayed','Delayed'), boardData?.delayedTrips || 0, 'purple'],
-        ].map(([filter, label, value, color]) => (
-          <button key={label as string} onClick={() => setStatusFilter(statusFilter === filter ? '' : filter as string)}
-            className={`py-2.5 px-4 flex items-center justify-between gap-2 text-xs font-bold border-r border-border last:border-0 transition-all hover:bg-surface/60 ${statusFilter === filter ? 'bg-surface' : ''}`}>
-            <span className="text-text-secondary">{label}</span>
-            <span className={`px-2 py-0.5 rounded-full font-black bg-${color}-500/10 text-${color}-600`}>{value}</span>
-          </button>
-        ))}
+        {([
+          { filter: '', label: t('kpi_planned','Planned'), value: counts.planned || trips.filter((tr: any) => ['planned','assigned','dispatched'].includes(tr.status)).length || 0, color: 'blue', isAttention: false },
+          { filter: 'unassigned', label: t('kpi_unassigned','Unassigned'), value: boardData?.totalUnplanned || orders.length || 0, color: 'amber', isAttention: false },
+          { filter: 'attention', label: t('jsx_attention','Attention'), value: (boardData?.conflicts || []).filter((c: any) => c.level === 'blocking').length || counts.attention || 0, color: 'red', isAttention: true },
+          { filter: 'driving', label: t('status_driving','Driving'), value: counts.inProgress || trips.filter((tr: any) => ['driving','started','loading'].includes(tr.status)).length || 0, color: 'emerald', isAttention: false },
+          { filter: 'delayed', label: t('status_delayed','Delayed'), value: boardData?.delayedTrips || 0, color: 'purple', isAttention: false },
+        ] as { filter: string; label: string; value: number; color: string; isAttention: boolean }[]).map(({ filter, label, value, color, isAttention }) => {
+          const isActive = isAttention ? attentionActive : statusFilter === filter;
+          return (
+            <button
+              key={label}
+              onClick={() => {
+                if (isAttention) { setAttentionActive(a => !a); }
+                else { setStatusFilter(statusFilter === filter ? '' : filter); }
+              }}
+              className={`py-2.5 px-4 flex items-center justify-between gap-2 text-xs font-bold border-r border-border last:border-0 transition-all hover:bg-surface/60 ${isActive ? `bg-${color}-500/10` : ''}`}
+            >
+              <span className={`${isActive ? `text-${color}-700 dark:text-${color}-400` : 'text-text-secondary'}`}>{label}</span>
+              <span className={`px-2 py-0.5 rounded-full font-black transition-all ${
+                isActive ? `bg-${color}-500 text-white` : `bg-${color}-500/10 text-${color}-600`
+              }`}>{value}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* ── MAIN CONTENT ───────────────────────────────────────────────── */}
@@ -1382,6 +1526,7 @@ export default function PlanningPage() {
                             onSelectTrip={setSelectedTripId}
                             onDropOrder={handleDropOrder}
                             draggingId={draggingOrderId}
+                            draggingOrder={draggingOrder}
                           />
                         );
                       })
