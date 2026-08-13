@@ -24,32 +24,6 @@ import ExportModal from '../components/ExportModal';
 import { formatDateExcel } from '../lib/exportExcel';
 
 const STATUS_COLORS: Record<string, string> = {
-import { useSaveConfirm } from "../components/SaveConfirmProvider";
-import { useEffect, useState, useMemo, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Plus, Pencil, Trash2, Search, Download, User, Phone, FileText, Calendar, Key, Mail, Truck as TruckIcon, Coins, AlertCircle, BadgeCheck, CalendarDays, Save } from 'lucide-react';
-import Flatpickr from 'react-flatpickr';
-import 'flatpickr/dist/themes/light.css';
-import api from '../lib/api';
-import ConfirmModal from '../components/ConfirmModal';
-import toast from 'react-hot-toast';
-import { formatDate } from '../lib/dateUtils';
-import CustomSelect from '../components/CustomSelect';
-import type { SelectOption } from '../components/CustomSelect';
-import { useFormStore } from '../store/formStore';
-import Pagination from '../components/Pagination';
-import { useShortcuts } from '../hooks/useShortcuts';
-import { useTableShortcuts } from '../hooks/useTableShortcuts';
-import DataTable from '../components/ui/DataTable';
-import type { Column } from '../components/ui/DataTable';
-import KpiStrip from '../components/ui/KpiStrip';
-import DetailDrawer from '../components/ui/DetailDrawer';
-import type { TabDef } from '../components/ui/DetailDrawer';
-import BulkBar from '../components/ui/BulkBar';
-import ExportModal from '../components/ExportModal';
-import { formatDateExcel } from '../lib/exportExcel';
-
-const STATUS_COLORS: Record<string, string> = {
   available: 'text-success',
   in_trip: 'text-primary',
   off: 'text-text-secondary',
@@ -669,6 +643,114 @@ const tabs: TabDef[] = drawerDriver ? [
         tabs={tabs}
         activeTab={drawerTab}
         onTabChange={setDrawerTab}
+      />
+
+      {showForm && <div className="card animate-fade-in bg-card border border-border rounded-2xl p-6 shadow-md">
+          <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">
+            {editId ? t('editDriver') : t('addDriver')}
+          </h3>
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {/* Name */}
+            <div>
+              <label className="label font-semibold flex items-center gap-1">
+                <User className="w-4 h-4 text-primary" /> {t('name')}
+              </label>
+              <input className="input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={t('name')} required />
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="label font-semibold flex items-center gap-1">
+                <Mail className="w-4 h-4 text-primary" /> {t('email')}
+              </label>
+              <input type="email" className="input" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="driver@company.com" required />
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="label font-semibold flex items-center gap-1">
+                <Key className="w-4 h-4 text-primary" /> {editId ? t('newPasswordOptional') || 'New Password (Optional)' : t('password')}
+              </label>
+              <div className="relative">
+                <input type="text" className="input pr-10" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder={editId ? t('leaveBlankToKeepUnchanged') || 'Leave blank' : '••••••••'} required={!editId} />
+                <button type="button" onClick={generatePassword} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-primary hover:text-primary-dark rounded transition-colors" title={t('generatePasswordBtn') || 'Generate password'}>
+                  <Key className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Phone */}
+            <div>
+              <label className="label font-semibold flex items-center gap-1">
+                <Phone className="w-4 h-4 text-primary" /> {t('phone')}
+              </label>
+              <input className="input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+1 234 567 8900" />
+            </div>
+
+            {/* License Number */}
+            <div>
+              <label className="label font-semibold flex items-center gap-1">
+                <FileText className="w-4 h-4 text-primary" /> {t('licenseNumber')}
+              </label>
+              <input className="input" value={form.licenseNumber} onChange={e => setForm({ ...form, licenseNumber: e.target.value })} placeholder="ID-123456..." />
+            </div>
+
+            {/* Daily Rate */}
+            <div>
+              <label className="label font-semibold flex items-center gap-1">
+                <span className="w-4 h-4 text-primary font-bold text-center">€</span> {t('dailyAllowance') || 'Daily allowance (€/day)'}
+              </label>
+              <input type="number" className="input" value={form.dailyRate} onChange={e => setForm({ ...form, dailyRate: e.target.value })} placeholder="e.g. 55" />
+            </div>
+
+            {/* Gross Salary */}
+            <div>
+              <label className="label font-semibold flex items-center gap-1">
+                <span className="w-4 h-4 text-primary font-bold text-center">€</span> {t('grossSalary') || 'Gross salary (€/month)'}
+              </label>
+              <input type="number" className="input" value={form.grossSalary} onChange={e => setForm({ ...form, grossSalary: e.target.value })} placeholder="e.g. 2500" />
+            </div>
+
+            {/* Status Selection */}
+            <div>
+              <label className="label font-semibold">{t('status')}</label>
+              <CustomSelect value={form.status} onChange={val => setForm({ ...form, status: val })} options={STATUS_OPTIONS.map(s => ({ value: s.value, label: t(s.label), color: STATUS_COLORS[s.value] }))} />
+            </div>
+
+            {/* Truck Assignment */}
+            <div>
+              <label className="label font-semibold">{t('truck', 'Truck')}</label>
+              <CustomSelect value={form.truckId} onChange={val => setForm({ ...form, truckId: val })} options={[{ value: '', label: t('no_truck', 'No truck (free)') }, ...trucks.map(tr => ({ value: tr.id, label: `${tr.plateNumber} ${tr.brand}` }))]} />
+            </div>
+
+            {/* Document Expirations */}
+            <div>
+              <label className="label font-semibold flex items-center gap-1">
+                <Calendar className="w-4 h-4 text-primary" /> {t('licenseExpiry')}
+              </label>
+              <Flatpickr type="hidden" value={form.licenseExpiry} onChange={(_, dateStr) => setForm({ ...form, licenseExpiry: dateStr })} onClick={e => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} onFocus={e => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} className={`input bg-card ${isPastDate(form.licenseExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={fpOptions} placeholder="DD/MM/YYYY" />
+              {isPastDate(form.licenseExpiry) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
+            </div>
+
+            <div>
+              <label className="label font-semibold flex items-center gap-1">
+                <Calendar className="w-4 h-4 text-primary" /> {t('medicalExpiry')}
+              </label>
+              <Flatpickr type="hidden" value={form.medicalExpiry} onChange={(_, dateStr) => setForm({ ...form, medicalExpiry: dateStr })} onClick={e => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} onFocus={e => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} className={`input bg-card ${isPastDate(form.medicalExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={fpOptions} placeholder="DD/MM/YYYY" />
+              {isPastDate(form.medicalExpiry) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
+            </div>
+
+            <div>
+              <label className="label font-semibold flex items-center gap-1">
+                <Calendar className="w-4 h-4 text-primary" /> {t('tachoCardExpiry')}
+              </label>
+              <Flatpickr type="hidden" value={form.tachoCardExpiry} onChange={(_, dateStr) => setForm({ ...form, tachoCardExpiry: dateStr })} onClick={e => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} onFocus={e => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} className={`input bg-card ${isPastDate(form.tachoCardExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={fpOptions} placeholder="DD/MM/YYYY" />
+              {isPastDate(form.tachoCardExpiry) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 md:col-span-2 lg:col-span-3 pt-3 border-t border-border mt-2">
+              <button type="submit" className="btn-primary px-6 py-2.5 font-bold shadow-md shadow-primary/20">
                 {t('save')}
               </button>
               <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="btn-secondary px-6 py-2.5 font-bold">
