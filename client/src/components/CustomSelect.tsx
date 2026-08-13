@@ -44,8 +44,11 @@ export default function CustomSelect({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
   useEffect(() => {
     const handleScroll = (e: Event) => {
+      // Don't close if scroll happens inside the dropdown itself
+      if (isOpen && dropdownRef.current && dropdownRef.current.contains(e.target as Node)) return;
       if (isOpen && dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsOpen(false);
       }
@@ -57,6 +60,42 @@ export default function CustomSelect({
       window.removeEventListener('resize', handleScroll);
     };
   }, [isOpen]);
+
+  // ── Global keyboard trap: when dropdown is open, capture arrow/enter/escape
+  // at document level (capture phase) so they never reach useShortcuts or
+  // the browser's native scroll handlers. Restored automatically on close.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const trap = (e: KeyboardEvent) => {
+      if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape', ' '].includes(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (e.key === 'ArrowDown') {
+          setFocusedIndex(prev => (prev + 1) % options.length);
+        } else if (e.key === 'ArrowUp') {
+          setFocusedIndex(prev => (prev - 1 + options.length) % options.length);
+        } else if (e.key === 'Enter') {
+          setFocusedIndex(prev => {
+            if (prev >= 0 && prev < options.length && !options[prev].disabled) {
+              onChange(options[prev].value);
+              setIsOpen(false);
+            }
+            return prev;
+          });
+        } else if (e.key === 'Escape') {
+          setIsOpen(false);
+          // Return focus to the trigger button
+          wrapperRef.current?.querySelector('button')?.focus();
+        }
+      }
+    };
+
+    // Use capture phase so we intercept before any bubbling handlers
+    document.addEventListener('keydown', trap, true);
+    return () => document.removeEventListener('keydown', trap, true);
+  }, [isOpen, options, onChange]);
 
   // Auto-scroll to focused item
   useEffect(() => {
@@ -76,21 +115,10 @@ export default function CustomSelect({
       }
       return;
     }
-    if (e.key === 'ArrowDown') {
+    // When open, the global trap handles everything — just prevent default here too
+    if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key)) {
       e.preventDefault();
-      setFocusedIndex(prev => (prev + 1) % options.length);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setFocusedIndex(prev => (prev - 1 + options.length) % options.length);
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (focusedIndex >= 0 && focusedIndex < options.length && !options[focusedIndex].disabled) {
-        onChange(options[focusedIndex].value);
-        setIsOpen(false);
-      }
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      setIsOpen(false);
+      e.stopPropagation();
     }
   };
   const toggleDropdown = () => {
