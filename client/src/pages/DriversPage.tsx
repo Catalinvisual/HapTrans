@@ -714,7 +714,7 @@ const tabs: TabDef[] = drawerDriver ? [
             {/* Status Selection */}
             <div>
               <label className="label font-semibold">{t('status')}</label>
-              <CustomSelect value={form.status} onChange={val => setForm({ ...form, status: val })} options={STATUS_OPTIONS.map(s => ({ value: s.value, label: t(s.label), color: STATUS_COLORS[s.value] }))} />
+              <CustomSelect value={form.status} onChange={val => setForm({ ...form, status: val })} options={STATUS_OPTIONS.map(s => ({ value: s.value, label: t(s.label as string), color: STATUS_COLORS[s.value] }))} />
             </div>
 
             {/* Truck Assignment */}
