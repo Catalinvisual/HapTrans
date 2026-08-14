@@ -77,7 +77,7 @@ const driverName = (d: any) => d?.user?.name || d?.user?.email || '—';
 export default function TrucksPage() {
   const confirmSave = useSaveConfirm();
   const formStore = useFormStore();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const company = useSettingsStore(s => s.company);
 
   const [trucks, setTrucks] = useState<any[]>([]);

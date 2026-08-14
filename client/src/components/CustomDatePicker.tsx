@@ -17,7 +17,6 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
   const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [isTimeOpen, setIsTimeOpen] = useState(false);
-  const [timeOpenUpward, setTimeOpenUpward] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const containerRef = useRef<HTMLDivElement>(null);
   const timeRef = useRef<HTMLDivElement>(null);
@@ -168,12 +167,6 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
   };
 
-  const formatDisplayDate = () => {
-    if (!dateValue) return t('selectDate', 'Select Date');
-    const d = new Date(dateValue);
-    if (isNaN(d.getTime())) return t('selectDate', 'Select Date');
-    return d.toLocaleDateString(i18n.language || 'en', { day: 'numeric', month: 'long', year: 'numeric' });
-  };
 
   return (
     <div className="flex flex-col gap-1.5 w-full">

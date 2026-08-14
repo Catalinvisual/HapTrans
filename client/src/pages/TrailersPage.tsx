@@ -52,7 +52,7 @@ const typeLabel = (tl: any, t: any) => {
 export default function TrailersPage() {
   const confirmSave = useSaveConfirm();
   const formStore = useFormStore();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const company = useSettingsStore(s => s.company);
   const [trailers, setTrailers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -226,7 +226,7 @@ export default function TrailersPage() {
       sortable: true,
       render: (r) => {
         const opt = TRAILER_STATUSES.find(o => o.value === r.status);
-        const translatedLabel = opt ? t(opt.label) : r.status;
+        const translatedLabel = opt ? t(opt.label as string) : r.status;
         return <StatusBadge type="fleet" status={r.status} label={translatedLabel} />;
       },
     },
@@ -272,7 +272,7 @@ export default function TrailersPage() {
           <div><div className="text-xs text-text-secondary">{t("maxLdm", "Max LDM")}</div><div className="font-semibold">{drawerTrailer.maxLdm ? Number(drawerTrailer.maxLdm) : "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("maxPallets", "Paleți")}</div><div className="font-semibold">{drawerTrailer.payloadCapacityPallets || "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("maxVolumeCbm", "Volum m³")}</div><div className="font-semibold">{drawerTrailer.maxVolumeCbm ? Number(drawerTrailer.maxVolumeCbm) + " m³" : "—"}</div></div>
-          <div><div className="text-xs text-text-secondary">{t("status", "Status")}</div><div><StatusBadge type="fleet" status={drawerTrailer.status} label={t(TRAILER_STATUSES.find(o => o.value === drawerTrailer.status)?.label || drawerTrailer.status)} /></div></div>
+          <div><div className="text-xs text-text-secondary">{t("status", "Status")}</div><div><StatusBadge type="fleet" status={drawerTrailer.status} label={t((TRAILER_STATUSES.find(o => o.value === drawerTrailer.status)?.label as string) || drawerTrailer.status)} /></div></div>
           <div className="mt-6 pt-4 border-t border-border/60 grid grid-cols-2 gap-3 text-xs text-text-secondary col-span-1 sm:col-span-2">
             <div className="flex items-start gap-2 bg-surface/30 p-2.5 rounded-xl border border-border/40">
               <div className="p-1.5 bg-primary/10 rounded-lg text-primary mt-0.5 shrink-0">
