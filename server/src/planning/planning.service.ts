@@ -1142,6 +1142,7 @@ export class PlanningService {
     const orderSubset = (subset: Stop[], startNode: any) => {
       if (subset.length === 0) return [];
       
+      // Check if stop has an active time window set
       const hasTime = (s: any) => !!s.timeWindowMin;
       const fixed = subset.filter(hasTime).sort((a, b) => {
         const ta = a.timeWindowMin ? new Date(a.timeWindowMin).getTime() : 0;
