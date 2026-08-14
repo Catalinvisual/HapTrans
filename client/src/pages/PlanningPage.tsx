@@ -1047,6 +1047,34 @@ function TruckDayModal({
   const [dragState, setDragState] = useState<{ tripId: string; section: 'loadings' | 'unloadings'; fromIdx: number } | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const [expandedTrips, setExpandedTrips] = useState<Set<string>>(() => new Set(truckTrips.map(t => t.id)));
+  const [combining, setCombining] = useState(false);
+
+  const editableTrips = truckTrips.filter(tr =>
+    ['planning', 'planned', 'assigned'].includes(String(tr.status).toLowerCase())
+  );
+
+  const handleCombineAll = async () => {
+    if (editableTrips.length < 2) return;
+    setCombining(true);
+    try {
+      const targetTrip = editableTrips[0];
+      const sourceTrips = editableTrips.slice(1);
+      
+      for (const src of sourceTrips) {
+        await api.post('/planning/combine', {
+          sourceTripId: src.id,
+          targetTripId: targetTrip.id
+        });
+      }
+      
+      toast.success(t('trips_combined_success', 'All active trips of the day have been combined successfully!'));
+      onRefetch();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('combine_error', 'Failed to combine trips'));
+    } finally {
+      setCombining(false);
+    }
+  };
 
   // Populate or sync state when props change
   useEffect(() => {
@@ -1188,6 +1216,24 @@ function TruckDayModal({
               </div>
             ))}
           </div>
+
+          {/* Combine button */}
+          {editableTrips.length >= 2 && (
+            <div className="mt-3.5 flex justify-end">
+              <button
+                onClick={handleCombineAll}
+                disabled={combining}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-600 text-white shadow-md active:scale-95 transition-all disabled:opacity-50"
+              >
+                {combining ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Layers className="w-3.5 h-3.5" />
+                )}
+                {t('combine_trips_action', 'Combine all trips (Unește cursele zilei)')}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ── Body ── */}
