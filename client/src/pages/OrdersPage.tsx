@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Loader2, MapPin, FileText, Trash2, Box, Download, Pencil, ExternalLink, Activity, Copy, FilterX, Coins, Weight, Boxes, BadgeEuro, ArrowRight, Flag, Phone, User, Clock } from 'lucide-react';
+import { Plus, Search, Loader2, MapPin, FileText, Trash2, Box, Download, Pencil, ExternalLink, Activity, Copy, FilterX, Coins, Weight, Boxes, BadgeEuro, ArrowRight, Flag, Phone, User, Clock, Sparkles } from 'lucide-react';
 import api from '../lib/api';
 import OrderWizard from '../components/orders/OrderWizard';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
@@ -18,17 +18,13 @@ import type { SelectOption } from '../components/CustomSelect';
 import ActivityTimeline from '../components/ActivityTimeline';
 import ExportModal from '../components/ExportModal';
 import { formatDateExcel } from '../lib/exportExcel';
+import AiImportModal from '../components/AiImportModal';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateOrderPdf } from '../lib/pdfGenerator';
 
 const ORDER_STATUSES = ['draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoiced', 'paid', 'cancelled'];
-const ORDER_FLOW: Record<string, string> = {
-  draft: 'new', new: 'planned', planned: 'assigned', assigned: 'loading', loading: 'in_transit',
-  in_transit: 'delivered', delivered: 'pod_received', pod_received: 'ready_for_invoice',
-  ready_for_invoice: 'invoiced', invoiced: 'paid',
-};
 
 function sortValue(o: any, key: string): any {
   switch (key) {
@@ -64,6 +60,51 @@ export default function OrdersPage() {
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+
+  const [showAiImport, setShowAiImport] = useState(false);
+  const [aiImporting, setAiImporting] = useState(false);
+  const [aiFile, setAiFile] = useState<File | null>(null);
+  const [aiPreview, setAiPreview] = useState<any>(null);
+  const [aiBusy, setAiBusy] = useState(false);
+
+  const onAiFileChange = (file: File | null) => {
+    setAiFile(file);
+    setAiPreview(null);
+  };
+
+  const scanAiFile = async () => {
+    if (!aiFile) { toast.error(t('ai_pick_file', 'Alege un document (PDF sau imagine)')); return; }
+    setAiBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', aiFile);
+      const r = await api.post('/orders/scan', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setAiPreview(r.data);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || t('ai_scan_failed', 'Scan eșuat'));
+    } finally { setAiBusy(false); }
+  };
+
+  const importAiOrder = async () => {
+    if (!aiFile) return;
+    setAiImporting(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', aiFile);
+      const r = await api.post('/orders/import', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      toast.success(t('ai_imported', 'Comandă creată din document!'));
+      setShowAiImport(false);
+      setAiFile(null);
+      setAiPreview(null);
+      fetchOrders();
+      if (r.data?.id) {
+        setDrawerOrderId(r.data.id);
+        setActiveTab('overview');
+      }
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || t('ai_import_failed', 'Import eșuat'));
+    } finally { setAiImporting(false); }
+  };
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -183,13 +224,6 @@ export default function OrdersPage() {
     }
   };
 
-  const advanceStatus = async (o: any) => {
-    const next = ORDER_FLOW[o.status];
-    if (!next) return;
-    await api.patch(`/orders/${o.id}`, { status: next });
-    toast.success(t('status_advanced', 'Status → {next}', { next: t(`status_${next}`, next) }));
-    fetchOrders();
-  };
 
   const orderExportHeaders = [
     { key: 'orderNumber', label: 'Order', transform: (_v: any, o: any) => o.orderNumber || o.referenceNumber || '' },
@@ -347,6 +381,7 @@ export default function OrdersPage() {
           </div>
           <div className="flex items-center gap-2 shrink-0 xl:ml-auto">
             <span className="text-xs text-text-secondary font-medium whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
+            <button onClick={() => setShowAiImport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold"><Sparkles className="w-4 h-4 text-primary" />{t('ai_import', 'Import AI')}</button>
             <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold"><Download className="w-4 h-4" />{t('export_csv', 'Export')}</button>
             <button onClick={handleCreate} className="btn-primary py-2 px-3 flex items-center gap-2 text-sm font-semibold shadow-md shadow-primary/20"><Plus className="w-4 h-4" />{t('addOrder', 'Create Order')}</button>
           </div>
@@ -406,16 +441,30 @@ export default function OrdersPage() {
         onClose={() => setDrawerOrderId(null)}
         onEdit={id => { setDrawerOrderId(null); handleEdit(id); }}
         onDelete={id => { setDrawerOrderId(null); handleDeleteClick(id); }}
-        onStatusChange={advanceStatus}
         onRefetch={fetchOrders}
         t={t}
+        i18n={i18n}
         navigate={navigate}
       />}
+
+      <AiImportModal
+        open={showAiImport}
+        onClose={() => { setShowAiImport(false); setAiFile(null); setAiPreview(null); }}
+        file={aiFile}
+        preview={aiPreview}
+        busy={aiBusy}
+        importing={aiImporting}
+        onFileChange={onAiFileChange}
+        onScan={scanAiFile}
+        onImport={importAiOrder}
+        hint={t('ai_import_hint_order', 'Încarcă o confirmare de tarif, CMR sau ordin de transport (PDF/imagine). AI-ul extrage datele și creează comanda.')}
+        confirmLabel={t('ai_import_confirm_order', 'Creează Comanda')}
+      />
     </div>
   );
 }
 
-function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, onDelete, onStatusChange, t, navigate }: any) {
+function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, onDelete, t, i18n, navigate }: any) {
   const [documents, setDocuments] = useState<any[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -461,7 +510,6 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
   const weight = order.cargoItems?.reduce((s: number, c: any) => s + Number(c.weightKg || 0), 0) || 0;
   const ldm = order.cargoItems?.reduce((s: number, c: any) => s + Number(c.ldm || 0), 0) || 0;
   const volume = order.cargoItems?.reduce((s: number, c: any) => s + Number(c.volumeCbm || 0), 0) || 0;
-  const next = ORDER_FLOW[order.status];
 
   const Row = ({ label, value, icon }: any) => (
     <div className="flex items-baseline gap-1.5 py-2 border-b border-border/50 last:border-0 flex-wrap">

@@ -10,7 +10,6 @@ import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
-import { useSettingsStore } from '../store/settingsStore';
 import ActivityTimeline from '../components/ActivityTimeline';
 import { useFormStore } from '../store/formStore';
 import Pagination from '../components/Pagination';

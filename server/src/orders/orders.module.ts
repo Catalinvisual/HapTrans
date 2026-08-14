@@ -9,14 +9,21 @@ import { EnginesModule } from '../engines/engines.module';
 import { RoutingModule } from '../routing/routing.module';
 import { ClientsModule } from '../clients/clients.module';
 import { ActionLogsModule } from '../action-logs/action-logs.module';
+import { TripsModule } from '../trips/trips.module';
+import { MulterModule } from '@nestjs/platform-express';
+import * as multer from 'multer';
+
+const storage = multer.memoryStorage();
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Order, OrderStop, CargoItem]),
+    MulterModule.register({ storage }),
     EnginesModule,
     RoutingModule,
     ClientsModule,
     ActionLogsModule,
+    TripsModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

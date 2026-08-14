@@ -1,11 +1,16 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, Query, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { TripScannerService } from '../trips/trip-scanner.service';
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(
+    private readonly ordersService: OrdersService,
+    private readonly tripScannerService: TripScannerService,
+  ) {}
 
   @Get()
   findAll(@Query('status') status?: string) {
@@ -23,6 +28,19 @@ export class OrdersController {
       dto.companyId = req.user.company.id;
     }
     return this.ordersService.create(dto, req.user);
+  }
+
+  @Post('scan')
+  @UseInterceptors(FileInterceptor('file'))
+  scanFile(@UploadedFile() file: Express.Multer.File) {
+    return this.tripScannerService.scanTripDocument(file.buffer, file.mimetype);
+  }
+
+  @Post('import')
+  @UseInterceptors(FileInterceptor('file'))
+  async importRateConfirmation(@UploadedFile() file: Express.Multer.File, @Request() req: any) {
+    const extracted = await this.tripScannerService.scanTripDocument(file.buffer, file.mimetype);
+    return this.ordersService.createFromScan(extracted, req.user);
   }
 
   @Patch(':id')

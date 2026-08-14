@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Truck, Search, Loader2, MapPin, FileText, Trash2, Download, ExternalLink, Activity, Calendar, Coins, Route as RouteIcon, User, Package, Send, Boxes, Gauge, Clock, Wallet, Receipt, Banknote, Sparkles, UploadCloud } from 'lucide-react';
+import { Truck, Search, Loader2, FileText, Trash2, Download, ExternalLink, Activity, Calendar, Coins, Route as RouteIcon, User, Send, Boxes, Gauge, Clock, Wallet, Receipt, Banknote } from 'lucide-react';
 import api from '../lib/api';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import ConfirmModal from '../components/ConfirmModal';
@@ -16,7 +16,6 @@ import StatusBadge from '../components/ui/StatusBadge';
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
 import ExportModal from '../components/ExportModal';
-import AiImportModal from '../components/AiImportModal';
 import ActivityTimeline from '../components/ActivityTimeline';
 import toast from 'react-hot-toast';
 
@@ -82,11 +81,6 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [exportRows, setExportRows] = useState<any[]>([]);
-  const [showAiImport, setShowAiImport] = useState(false);
-  const [aiFile, setAiFile] = useState<File | null>(null);
-  const [aiPreview, setAiPreview] = useState<any>(null);
-  const [aiBusy, setAiBusy] = useState(false);
-  const [aiImporting, setAiImporting] = useState(false);
 
   const fetchTrips = useCallback(async () => {
     try {
@@ -104,41 +98,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
 
   useEffect(() => { fetchTrips(); }, [fetchTrips]);
 
-  const onAiFileChange = (file: File | null) => {
-    setAiFile(file);
-    setAiPreview(null);
-  };
 
-  const scanAiFile = async () => {
-    if (!aiFile) { toast.error(t('ai_pick_file', 'Alege un document (PDF sau imagine)')); return; }
-    setAiBusy(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', aiFile);
-      const r = await api.post('/trips/scan', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      setAiPreview(r.data);
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message || t('ai_scan_failed', 'Scan eșuat'));
-    } finally { setAiBusy(false); }
-  };
-
-  const importAiTrip = async () => {
-    if (!aiFile) return;
-    setAiImporting(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', aiFile);
-      const r = await api.post('/trips/import', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success(t('ai_imported', 'Cursă creată din document!'));
-      setShowAiImport(false);
-      setAiFile(null);
-      setAiPreview(null);
-      fetchTrips();
-      navigate(`/trips/${r.data.id}`);
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message || t('ai_import_failed', 'Import eșuat'));
-    } finally { setAiImporting(false); }
-  };
 
 
   const truckOptions: SelectOption[] = useMemo(() => {
@@ -209,7 +169,6 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
   const activeCount = base.filter(tr => TRIP_ACTIVE.includes(tr.status)).length;
   const planningCount = base.filter(tr => TRIP_PLANNING.includes(tr.status)).length;
   const completedCount = base.filter(tr => ['completed', 'closed'].includes(tr.status)).length;
-  const cancelledCount = base.filter(tr => tr.status === 'cancelled').length;
 
   const kpiActiveKey = `${filters.status}_${filters.truck}_${filters.driver}`;
   const kpis = [
@@ -342,7 +301,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
       const p = tProfit(tr);
       return <span className={`font-bold ${p >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{isNaN(p) ? '—' : `€${p.toLocaleString()}`}</span>;
     } },
-    { key: 'status', label: t('status', 'Status'), sortable: true, className: 'min-w-[110px]', render: tr => <StatusBadge type="trip" status={tr.status} label={t(`status_${tr.status}`, tr.status.replace(/_/g, ' '))} /> },
+    { key: 'status', label: t('status', 'Status'), sortable: true, className: 'min-w-[110px]', render: tr => <StatusBadge type="trip" status={tr.status} label={t(`status_${tr.status}`, tr.status.replace(/_/g, ' ')) as string} /> },
     { key: 'actions', label: '', align: 'right', className: 'min-w-[90px]', render: tr => (
       <div className="flex items-center justify-end gap-0.5">
         {tr.status === 'planning' && (
@@ -403,7 +362,6 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
             <span className="text-xs text-text-secondary font-medium">{filtered.length} {t('results', 'results')}</span>
             <div className="flex items-center gap-2">
               <button onClick={() => openExport(sorted)} className="btn-secondary py-2 px-3 text-sm font-semibold inline-flex items-center gap-2"><Download className="w-4 h-4" />{t('export_csv', 'Export CSV')}</button>
-              <button onClick={() => setShowAiImport(true)} className="btn-secondary py-2 px-3 text-sm font-semibold inline-flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" />{t('ai_import', 'Import AI')}</button>
               <button onClick={() => navigate('/planning')} className="btn-primary py-2 px-3 text-sm font-semibold inline-flex items-center gap-2"><Calendar className="w-4 h-4" />{t('go_to_planning', 'Dispatch board')}</button>
             </div>
           </div>
@@ -465,19 +423,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
           onRefetch={fetchTrips}
         />
       )}
-
       <ConfirmDeleteModal isOpen={deleteModalOpen} onClose={() => { setDeleteModalOpen(false); setTripToDelete(null); }} onConfirm={confirmDelete} />
-      <AiImportModal
-        open={showAiImport}
-        onClose={() => { setShowAiImport(false); setAiFile(null); setAiPreview(null); }}
-        file={aiFile}
-        preview={aiPreview}
-        busy={aiBusy}
-        importing={aiImporting}
-        onFileChange={onAiFileChange}
-        onScan={scanAiFile}
-        onImport={importAiTrip}
-      />
 
       <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={exportRows} filename="Trips_HapCargo" title="Trips" sheetName="Trips" getDateField={tr => tr.createdAt} headers={tripExportHeaders} />
     </div>
@@ -514,7 +460,6 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const [timeline, setTimeline] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
   const [docsLoading, setDocsLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -531,7 +476,6 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     if (!trip) return;
-    api.get(`/timeline/trip/${trip.id}`).then(r => setTimeline(r.data)).catch(() => setTimeline([]));
     api.get(`/documents/trip/${trip.id}`).then(r => setDocuments(r.data)).catch(() => setDocuments([])).finally(() => setDocsLoading(false));
   }, [trip]);
 
@@ -595,7 +539,7 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
     { key: 'overview', label: t('tab_overview', 'Overview'), content: (
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <StatusBadge type="trip" status={trip.status} label={t(`status_${trip.status}`, trip.status.replace(/_/g, ' '))} size="md" />
+          <StatusBadge type="trip" status={trip.status} label={t(`status_${trip.status}`, trip.status.replace(/_/g, ' ')) as string} size="md" />
           <button onClick={() => navigate(`/trips/${trip.id}`)} className="text-xs font-bold text-primary hover:underline flex items-center gap-1">{t('open_full_page', 'Open full page')} <ExternalLink className="w-3 h-3" /></button>
         </div>
         <div className="grid grid-cols-3 gap-3">
@@ -735,7 +679,7 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
             {(trip.invoices || []).map((inv: any) => (
               <div key={inv.id} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0 text-[12px]">
                 <span className="font-semibold">{inv.invoiceNumber || 'Invoice'}</span>
-                <span className="flex items-center gap-2"><StatusBadge type="order" status={inv.status || 'draft'} label={t(`status_${inv.status || 'draft'}`, inv.status || 'draft')} /><span className="font-bold">€{Number(inv.total || 0).toLocaleString()}</span></span>
+                <span className="flex items-center gap-2"><StatusBadge type="order" status={inv.status || 'draft'} label={t(`status_${inv.status || 'draft'}`, inv.status || 'draft') as string} /><span className="font-bold">€{Number(inv.total || 0).toLocaleString()}</span></span>
               </div>
             ))}
           </div>

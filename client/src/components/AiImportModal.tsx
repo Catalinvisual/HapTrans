@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Sparkles, UploadCloud, Loader2, MapPin, FileText, Package, Coins, AlertTriangle, X } from 'lucide-react';
+import { Sparkles, UploadCloud, Loader2, FileText, Coins, AlertTriangle } from 'lucide-react';
 
 const FIELD_LABELS = [
   ['pickupCompanyName', 'Company (loading)'],
@@ -17,7 +17,7 @@ const FIELD_LABELS = [
   ['unloadingReference', 'Unloading ref'],
 ];
 
-export default function AiImportModal({ open, onClose, file, preview, busy, importing, onFileChange, onScan, onImport }: any) {
+export default function AiImportModal({ open, onClose, file, preview, busy, importing, onFileChange, onScan, onImport, hint, confirmLabel }: any) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -31,7 +31,7 @@ export default function AiImportModal({ open, onClose, file, preview, busy, impo
           <button onClick={onClose} className="text-text-secondary hover:text-text p-1 text-xl leading-none">×</button>
         </div>
 
-        <p className="text-sm text-text-secondary mb-4">{t('ai_import_hint', 'Încarcă o confirmare de tarif, CMR sau ordin de transport (PDF/imagine). AI-ul extrage datele și creează cursa.')}</p>
+        <p className="text-sm text-text-secondary mb-4">{hint || t('ai_import_hint', 'Încarcă o confirmare de tarif, CMR sau ordin de transport (PDF/imagine). AI-ul extrage datele și creează cursa.')}</p>
 
         <div
           onClick={() => inputRef.current?.click()}
@@ -77,7 +77,7 @@ export default function AiImportModal({ open, onClose, file, preview, busy, impo
             </div>
             <div className="flex gap-3 mt-4">
               <button onClick={onImport} disabled={importing} className="btn-primary flex-1 py-2.5 font-bold flex items-center justify-center gap-2 disabled:opacity-50">
-                {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Coins className="w-4 h-4" />} {t('ai_import_confirm', 'Creează Cursa')}
+                {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Coins className="w-4 h-4" />} {confirmLabel || t('ai_import_confirm', 'Creează Cursa')}
               </button>
               <button onClick={onClose} disabled={importing} className="btn-secondary px-4 font-bold">{t('cancel', 'Anulează')}</button>
             </div>

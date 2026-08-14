@@ -441,6 +441,73 @@ export class OrdersService {
     }
   }
 
+  async createFromScan(dto: any, user?: any): Promise<Order | null> {
+    const toDate = (date?: string) => {
+      if (!date) return '';
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return '';
+      return d.toISOString().split('T')[0];
+    };
+
+    let clientId = dto.clientId || null;
+    if (!clientId) {
+      const clients = await this.clientsService.findAll();
+      if (clients && clients.length > 0) {
+        const match = clients.find(c => 
+          dto.pickupCompanyName && c.name.toLowerCase().includes(dto.pickupCompanyName.toLowerCase())
+        );
+        clientId = match ? match.id : clients[0].id;
+      }
+    }
+
+    const stops = [
+      {
+        type: 'pickup',
+        companyName: dto.pickupCompanyName || 'Loading location',
+        address: dto.pickupAddress || '',
+        dateFrom: toDate(dto.pickupDate),
+        timeFrom: dto.pickupTime || '',
+        dateTo: toDate(dto.pickupDate),
+        timeTo: dto.pickupTime || '',
+      },
+      {
+        type: 'dropoff',
+        companyName: dto.dropoffCompanyName || 'Delivery location',
+        address: dto.dropoffAddress || '',
+        dateFrom: toDate(dto.dropoffDate),
+        timeFrom: dto.dropoffTime || '',
+        dateTo: toDate(dto.dropoffDate),
+        timeTo: dto.dropoffTime || '',
+      }
+    ];
+
+    const cargoItems = [
+      {
+        description: dto.notes || 'Cargo',
+        weightKg: dto.weightKg || 0,
+        pallets: dto.pallets || 0,
+        palletType: dto.palletType || 'Euro',
+        volumeCbm: dto.volumeCbm || 0
+      }
+    ];
+
+    const orderDto = {
+      companyId: user?.company?.id || null,
+      clientId,
+      price: dto.price || 0,
+      loadingReference: dto.loadingReference || null,
+      unloadingReference: dto.unloadingReference || null,
+      customerReference: dto.loadingReference || null,
+      notes: dto.notes || null,
+      stops,
+      cargoItems,
+      priority: 'normal',
+      transportType: 'ftl',
+    };
+
+    return this.create(orderDto, user);
+  }
+
   remove(id: string) {
     this.eventEmitter.emit('order.deleted', { id });
     return this.repo.delete(id);
