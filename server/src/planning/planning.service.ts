@@ -1142,10 +1142,10 @@ export class PlanningService {
     const orderSubset = (subset: Stop[], startNode: any) => {
       if (subset.length === 0) return [];
       
-      const hasTime = (s: any) => !!(s.timeWindowMin || s.dateFrom);
+      const hasTime = (s: any) => !!s.timeWindowMin;
       const fixed = subset.filter(hasTime).sort((a, b) => {
-        const ta = a.timeWindowMin ? new Date(a.timeWindowMin).getTime() : (a.dateFrom ? new Date(a.dateFrom + 'T' + (a.timeFrom || '00:00')).getTime() : 0);
-        const tb = b.timeWindowMin ? new Date(b.timeWindowMin).getTime() : (b.dateFrom ? new Date(b.dateFrom + 'T' + (b.timeFrom || '00:00')).getTime() : 0);
+        const ta = a.timeWindowMin ? new Date(a.timeWindowMin).getTime() : 0;
+        const tb = b.timeWindowMin ? new Date(b.timeWindowMin).getTime() : 0;
         return ta - tb;
       });
       const free = subset.filter(s => !hasTime(s));
