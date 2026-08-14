@@ -1126,68 +1126,79 @@ export class PlanningService {
     const stops = await this.stopRepo.find({ where: { trip: { id: tripId } } });
     if (stops.length < 2) return this.loadTrip(tripId);
 
-    // Separate stops with mandatory time window from free stops
-    const hasMandatoryTime = (s: any) => !!(s.timeWindowMin || s.dateFrom);
-    const fixedStops = stops.filter(hasMandatoryTime)
-      .sort((a, b) => {
-        const ta = a.timeWindowMin ? new Date(a.timeWindowMin).getTime() : (a as any).dateFrom ? new Date((a as any).dateFrom + 'T' + ((a as any).timeFrom || '00:00')).getTime() : 0;
-        const tb = b.timeWindowMin ? new Date(b.timeWindowMin).getTime() : (b as any).dateFrom ? new Date((b as any).dateFrom + 'T' + ((b as any).timeFrom || '00:00')).getTime() : 0;
-        return ta - tb;
-      });
-    const freeStops = stops.filter(s => !hasMandatoryTime(s));
-
-    // Greedy nearest-neighbor: start from first fixed stop (or first free pickup)
+    // Euclidean distance helper
     const euclidean = (a: any, b: any) => {
-      if (!a?.latitude || !a?.longitude || !b?.latitude || !b?.longitude) return 99999;
-      const dlat = Number(a.latitude) - Number(b.latitude);
-      const dlng = Number(a.longitude) - Number(b.longitude);
+      const latA = a ? Number(a.latitude) : null;
+      const lngA = a ? Number(a.longitude) : null;
+      const latB = b ? Number(b.latitude) : null;
+      const lngB = b ? Number(b.longitude) : null;
+      if (latA === null || lngA === null || latB === null || lngB === null || isNaN(latA) || isNaN(lngA) || isNaN(latB) || isNaN(lngB)) return 99999;
+      const dlat = latA - latB;
+      const dlng = lngA - lngB;
       return Math.sqrt(dlat * dlat + dlng * dlng);
     };
 
-    // Build optimized free-stop chain using nearest-neighbor from a start point
-    const orderedFree: any[] = [];
-    const remaining = [...freeStops];
-    // Sort pickups before deliveries as a base heuristic
-    remaining.sort((a, b) => {
-      if (a.type === 'pickup' && b.type !== 'pickup') return -1;
-      if (a.type !== 'pickup' && b.type === 'pickup') return 1;
-      return 0;
-    });
+    // Subset sorting helper respecting time requirements
+    const orderSubset = (subset: Stop[], startNode: any) => {
+      if (subset.length === 0) return [];
+      
+      const hasTime = (s: any) => !!(s.timeWindowMin || s.dateFrom);
+      const fixed = subset.filter(hasTime).sort((a, b) => {
+        const ta = a.timeWindowMin ? new Date(a.timeWindowMin).getTime() : (a.dateFrom ? new Date(a.dateFrom + 'T' + (a.timeFrom || '00:00')).getTime() : 0);
+        const tb = b.timeWindowMin ? new Date(b.timeWindowMin).getTime() : (b.dateFrom ? new Date(b.dateFrom + 'T' + (b.timeFrom || '00:00')).getTime() : 0);
+        return ta - tb;
+      });
+      const free = subset.filter(s => !hasTime(s));
 
-    // Greedy nearest-neighbor chain
-    let currentRef: any = fixedStops[0] || remaining[0];
-    while (remaining.length > 0) {
-      let bestIdx = 0;
-      let bestDist = Infinity;
-      for (let i = 0; i < remaining.length; i++) {
-        const d = euclidean(currentRef, remaining[i]);
-        if (d < bestDist) { bestDist = d; bestIdx = i; }
+      const orderedFree: Stop[] = [];
+      const remaining = [...free];
+      let current = startNode || fixed[0] || remaining[0];
+
+      while (remaining.length > 0) {
+        let bestIdx = 0;
+        let bestDist = Infinity;
+        for (let i = 0; i < remaining.length; i++) {
+          const d = euclidean(current, remaining[i]);
+          if (d < bestDist) {
+            bestDist = d;
+            bestIdx = i;
+          }
+        }
+        const next = remaining.splice(bestIdx, 1)[0];
+        orderedFree.push(next);
+        current = next;
       }
-      const next = remaining.splice(bestIdx, 1)[0];
-      orderedFree.push(next);
-      currentRef = next;
-    }
 
-    // Merge: interleave fixed-time stops at their required positions,
-    // free stops fill the remaining slots
-    const finalOrder: any[] = [];
-    let freeIdx = 0;
-    // Build slots: for each position, insert fixed stop if it's "due" or next free stop
-    const allSlots = stops.length;
-    let fixedIdx = 0;
-    for (let i = 0; i < allSlots; i++) {
-      const nextFixed = fixedStops[fixedIdx];
-      const nextFree = orderedFree[freeIdx];
-      if (nextFixed && (!nextFree || fixedIdx < fixedStops.length)) {
-        finalOrder.push(nextFixed);
-        fixedIdx++;
-      } else if (nextFree) {
-        finalOrder.push(nextFree);
-        freeIdx++;
+      // Merge fixed and free
+      const result: Stop[] = [];
+      let fixedIdx = 0;
+      let freeIdx = 0;
+      for (let i = 0; i < subset.length; i++) {
+        const nextFixed = fixed[fixedIdx];
+        const nextFree = orderedFree[freeIdx];
+        if (nextFixed && (!nextFree || fixedIdx < fixed.length)) {
+          result.push(nextFixed);
+          fixedIdx++;
+        } else if (nextFree) {
+          result.push(nextFree);
+          freeIdx++;
+        }
       }
-    }
+      return result;
+    };
 
-    // Save new sequences
+    // Partition stops: pickups first (loading), deliveries second (unloading)
+    const pickups = stops.filter(s => s.type !== 'delivery');
+    const deliveries = stops.filter(s => s.type === 'delivery');
+
+    const startRef = trip.truck?.currentLat ? { latitude: trip.truck.currentLat, longitude: trip.truck.currentLng } : null;
+    const orderedPickups = orderSubset(pickups, startRef);
+    const lastPickup = orderedPickups[orderedPickups.length - 1] || startRef;
+    const orderedDeliveries = orderSubset(deliveries, lastPickup);
+
+    const finalOrder = [...orderedPickups, ...orderedDeliveries];
+
+    // Save optimized sequence
     for (let i = 0; i < finalOrder.length; i++) {
       const s = finalOrder[i];
       s.sequence = i + 1;
@@ -1196,7 +1207,7 @@ export class PlanningService {
 
     await this.logTimeline('stops_auto_ordered', user, {
       tripId,
-      message: `Stops auto-ordered (smart route) on trip ${trip.tripNumber}.`,
+      message: `Stops auto-ordered (smart load routing) on trip ${trip.tripNumber}.`,
       companyId: trip.company?.id || null,
     });
 
