@@ -15,6 +15,7 @@ import { RoutingService } from '../routing/routing.service';
 import { PlanningEngine } from '../engines/planning.engine';
 import { PricingEngine } from '../engines/pricing.engine';
 import { CostEngine } from '../engines/cost.engine';
+import { ActionLogsService } from '../action-logs/action-logs.service';
 
 const TRIP_STATUS_FLOW: Record<string, string[]> = {
   [TripStatus.PLANNING]: [TripStatus.PLANNED, TripStatus.CANCELLED],
@@ -45,6 +46,7 @@ export class TripsService {
     private planningEngine: PlanningEngine,
     private pricingEngine: PricingEngine,
     private costEngine: CostEngine,
+    private actionLogs: ActionLogsService,
   ) {}
 
   findAll(status?: string) {
@@ -109,7 +111,13 @@ export class TripsService {
       status: TripStatus.PLANNED,
     };
     const trip = this.repo.create(tripPayload);
-    return this.repo.save(trip) as any as Promise<Trip>;
+    const saved = await this.repo.save(trip) as any as Promise<Trip>;
+
+    if (user) {
+      await this.actionLogs.logAction('Trip', (await saved).id, 'CREATED', user, {});
+    }
+
+    return saved;
   }
   async createFromScan(dto: any, user?: any): Promise<Trip | null> {
     const toDate = (date?: string, time?: string) => {
@@ -251,6 +259,13 @@ export class TripsService {
             await this.resendService.sendTripStatusEmail(tripPayload, updated.trackingToken || '', updated.company).catch(e => console.error('Failed to send email:', e));
           }
         }
+      }
+    }
+
+    if (user) {
+      const updatedFields = Object.keys(dto);
+      if (updatedFields.length > 0) {
+        await this.actionLogs.logAction('Trip', id, 'UPDATED', user, { updatedFields });
       }
     }
 

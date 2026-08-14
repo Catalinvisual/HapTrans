@@ -52,6 +52,9 @@ export class Trailer {
   @Column({ type: 'enum', enum: TrailerStatus, default: TrailerStatus.ACTIVE })
   status: TrailerStatus;
 
+  @Column({ type: 'date', nullable: true })
+  apkExpiry: Date;
+
   @CreateDateColumn()
   createdAt: Date;
 

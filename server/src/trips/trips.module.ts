@@ -16,6 +16,7 @@ import { TripScannerService } from "./trip-scanner.service";
 import { ChatModule } from "../chat/chat.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { InvoicesModule } from "../invoices/invoices.module";
+import { ActionLogsModule } from "../action-logs/action-logs.module";
 import { v2 as cloudinary } from "cloudinary";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import { RoutingModule } from "../routing/routing.module";
@@ -47,6 +48,7 @@ const storage = multer.memoryStorage();
     forwardRef(() => ClientsModule),
     forwardRef(() => TrucksModule),
     UsersModule,
+    ActionLogsModule,
   ],
   controllers: [TripsController, TripCostController],
   providers: [TripsService, TripCostService, TripScannerService, ResendService],

@@ -20,9 +20,10 @@ import type { SelectOption } from '../components/CustomSelect';
 import ExportModal from '../components/ExportModal';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateTruckPdf } from '../lib/pdfGenerator';
-import { FileText, Calendar } from 'lucide-react';
+import { FileText, Calendar, Clock } from 'lucide-react';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
+import ActivityTimeline from '../components/ActivityTimeline';
 
 const TRUCK_TYPES = [
   { value: 'tautliner', label: 'truck_type_tautliner', default: 'Prelată (Tautliner)' },
@@ -352,6 +353,32 @@ export default function TrucksPage() {
     {
       key: 'service', label: t('next_service', 'Next service'), width: '130px',
       render: tr => {
+        // 1. Check if an APK document exists
+        const apkDoc = (tr.documents || []).find((d: any) => d.type === 'apk');
+        if (apkDoc?.expiryDate) {
+          const daysLeft = Math.ceil((new Date(apkDoc.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+          const barColor = daysLeft <= 0 || daysLeft < 15 ? 'bg-red-500 animate-pulse' : daysLeft < 30 ? 'bg-amber-500' : 'bg-green-500/60';
+          const pct = Math.max(0, Math.min(100, Math.round((daysLeft / 365) * 100)));
+          return (
+            <div className="min-w-[110px]">
+              <div className="flex justify-between text-[10px] font-semibold mb-1">
+                <span className="text-text-secondary">APK: {new Date(apkDoc.expiryDate).toLocaleDateString(i18n.language || 'en-GB')}</span>
+                {daysLeft <= 0 ? (
+                  <span className="text-red-500 font-bold">{t('service_overdue', 'Overdue')}</span>
+                ) : (
+                  <span className={daysLeft < 15 ? 'text-red-500 font-bold' : daysLeft < 30 ? 'text-amber-600 font-semibold' : 'text-green-600 font-semibold'}>
+                    {daysLeft}d
+                  </span>
+                )}
+              </div>
+              <div className="w-full bg-surface h-1.5 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct || 100}%` }} />
+              </div>
+            </div>
+          );
+        }
+
+        // 2. Fall back to mileage-based next service
         const next = Number(tr.nextMaintenanceMileage || 0);
         const total = Number(tr.totalMileage || 0);
         if (!next) return <span className="text-xs text-text-muted">—</span>;
@@ -446,12 +473,35 @@ export default function TrucksPage() {
               {drawerTruck.trailer ? <div className="text-sm font-bold text-text-primary">{drawerTruck.trailer.plateNumber}</div> : <div className="text-sm text-text-muted italic">{t('no_trailer_assigned', 'No trailer assigned')}</div>}
             </div>
           </div>
-          <div className="text-xs text-text-secondary">{t('created_at', 'Created')}: {formatDate(drawerTruck.createdAt)}</div>
+          <div className="mt-6 pt-4 border-t border-border/60 grid grid-cols-2 gap-3 text-xs text-text-secondary">
+            <div className="flex items-start gap-2 bg-surface/30 p-2.5 rounded-xl border border-border/40">
+              <div className="p-1.5 bg-primary/10 rounded-lg text-primary mt-0.5 shrink-0">
+                <CalendarDays className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">{t('created_at', 'Created')}</div>
+                <div className="font-semibold text-text-primary mt-0.5">{formatDate(drawerTruck.createdAt)}</div>
+              </div>
+            </div>
+            <div className="flex items-start gap-2 bg-surface/30 p-2.5 rounded-xl border border-border/40">
+              <div className="p-1.5 bg-blue-100 dark:bg-blue-950/40 rounded-lg text-blue-600 dark:text-blue-400 mt-0.5 shrink-0">
+                <Clock className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">{t('last_updated', 'Last updated')}</div>
+                <div className="font-semibold text-text-primary mt-0.5">{formatDate(drawerTruck.updatedAt)}</div>
+              </div>
+            </div>
+          </div>
         </div>
       ),
     },
     {
-      key: 'specs', label: t('tab_specs', 'Specs'),
+      key: 'activity', label: t('tab_activity', 'Activity'),
+      content: <ActivityTimeline entityType="Truck" entityId={drawerTruck.id} />
+    },
+    {
+      key: 'specs', label: t('tab_specs', 'Specifications'),
       content: (
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Boxes className="w-3 h-3" />{t('payload', 'Payload')}</div><div className="text-lg font-black mt-0.5">{(Number(drawerTruck.payloadCapacity || drawerTruck.maxWeightKg || 0)).toLocaleString()} <span className="text-xs text-text-secondary">kg</span></div></div>
@@ -475,17 +525,43 @@ export default function TrucksPage() {
           <div className="bg-surface/50 rounded-xl p-4 border border-border">
             <div className="text-[10px] font-bold uppercase text-text-secondary mb-1 flex items-center gap-1"><Gauge className="w-3 h-3" />{t('mileage', 'Mileage')}</div>
             <div className="text-2xl font-black text-text-primary">{(Number(drawerTruck.totalMileage || 0)).toLocaleString()} <span className="text-xs text-text-secondary">km</span></div>
-            <div className="mt-3 text-[10px] font-bold uppercase text-text-secondary mb-1">{t('next_service', 'Next service')}: {Number(drawerTruck.nextMaintenanceMileage || 0).toLocaleString()} km</div>
-            <div className="w-full bg-surface h-2 rounded-full overflow-hidden">
-              {(() => {
-                const next = Number(drawerTruck.nextMaintenanceMileage || 0);
-                const total = Number(drawerTruck.totalMileage || 0);
-                const left = next - total;
-                const barColor = left <= 0 ? 'bg-red-500' : left <= 3000 ? 'bg-amber-500' : 'bg-green-500/80';
-                const pct = next > 0 ? Math.min(100, Math.max(0, Math.round((total / next) * 100))) : 0;
-                return <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />;
-              })()}
-            </div>
+            {(() => {
+              const apkDoc = (drawerTruck.documents || []).find((d: any) => d.type === 'apk');
+              if (apkDoc?.expiryDate) {
+                const daysLeft = Math.ceil((new Date(apkDoc.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                const barColor = daysLeft <= 0 || daysLeft < 15 ? 'bg-red-500 animate-pulse' : daysLeft < 30 ? 'bg-amber-500' : 'bg-green-500/80';
+                const pct = Math.max(0, Math.min(100, Math.round((daysLeft / 365) * 100)));
+                return (
+                  <>
+                    <div className="mt-3 text-[10px] font-bold uppercase text-text-secondary mb-1">
+                      {t('next_service', 'Next service')} (APK): {new Date(apkDoc.expiryDate).toLocaleDateString(i18n.language || 'en-GB')} 
+                      {daysLeft <= 0 ? (
+                        <span className="text-red-500 font-bold ml-1">({t('service_overdue', 'Overdue')})</span>
+                      ) : (
+                        <span className={daysLeft < 15 ? 'text-red-500 font-bold ml-1' : 'ml-1'}>({daysLeft} days left)</span>
+                      )}
+                    </div>
+                    <div className="w-full bg-surface h-2 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct || 100}%` }} />
+                    </div>
+                  </>
+                );
+              }
+
+              const next = Number(drawerTruck.nextMaintenanceMileage || 0);
+              const total = Number(drawerTruck.totalMileage || 0);
+              const left = next - total;
+              const barColor = left <= 0 ? 'bg-red-500' : left <= 3000 ? 'bg-amber-500' : 'bg-green-500/80';
+              const pct = next > 0 ? Math.min(100, Math.max(0, Math.round((total / next) * 100))) : 0;
+              return (
+                <>
+                  <div className="mt-3 text-[10px] font-bold uppercase text-text-secondary mb-1">{t('next_service', 'Next service')}: {next.toLocaleString()} km</div>
+                  <div className="w-full bg-surface h-2 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+                  </div>
+                </>
+              );
+            })()}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Fuel className="w-3 h-3" />{t('fuel_consumption', 'Fuel')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.fuelConsumption ? `${drawerTruck.fuelConsumption} L` : '—'}</div></div>

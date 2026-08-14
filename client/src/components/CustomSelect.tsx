@@ -150,7 +150,7 @@ export default function CustomSelect({
         <ChevronDown className={`w-4 h-4 text-text-secondary transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {isOpen && typeof document !== 'undefined' && createPortal(<div ref={dropdownRef} className="absolute z-[9999] mt-1 bg-card border border-border rounded-xl shadow-xl overflow-y-auto max-h-60 animate-fade-in-up py-1" style={{
+      {isOpen && typeof document !== 'undefined' && createPortal(<div ref={dropdownRef} className="absolute z-[9999] mt-1.5 bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 overflow-y-auto max-h-60 animate-fade-in-up py-1.5" style={{
       left: coords.left,
       top: coords.top,
       width: coords.width
@@ -160,14 +160,14 @@ export default function CustomSelect({
           onChange(option.value);
           setIsOpen(false);
         }
-      }} className={`px-4 py-2.5 flex flex-col cursor-pointer transition-colors border-b border-border last:border-b-0 ${option.disabled ? 'opacity-50 cursor-not-allowed bg-surface' : focusedIndex === index ? 'bg-primary/10 border-l-2 border-primary' : 'hover:bg-primary/5 border-l-2 border-l-transparent'}`}>
+      }} className={`mx-1.5 px-3 py-2 flex flex-col cursor-pointer transition-all duration-200 rounded-lg ${option.disabled ? 'opacity-50 cursor-not-allowed bg-surface' : focusedIndex === index ? 'bg-primary text-white shadow-md' : 'hover:bg-primary/10'}`}>
                 <div className="flex items-center gap-2">
                   {option.color && <div className={`w-2 h-2 rounded-full flex-shrink-0 ${option.color.replace('text-', 'bg-')}`} />}
-                  <span className={`font-medium text-sm truncate ${option.color || 'text-text'}`}>
+                  <span className={`font-medium text-[13px] truncate ${focusedIndex === index && !option.disabled ? 'text-white' : option.color || 'text-text-primary'}`}>
                     {option.label}
                   </span>
                 </div>
-                {option.subLabel && <span className="text-xs text-text-secondary mt-0.5 ml-4 truncate">
+                {option.subLabel && <span className={`text-[11px] mt-0.5 ml-4 truncate ${focusedIndex === index && !option.disabled ? 'text-white/80' : 'text-text-secondary'}`}>
                     {option.subLabel}
                   </span>}
               </div>)}

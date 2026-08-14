@@ -493,7 +493,7 @@ export class PlanningService {
     const resources = trucks
       .filter((t) => String(t.status) !== 'inactive')
       .map((t) => {
-        const relevantTrip = trips.find((tr) => tr.truck?.id === t.id);
+        const relevantTrip = trips.find((tr) => tr.truck?.id === t.id && tr.trailer) || trips.find((tr) => tr.truck?.id === t.id);
         const maint = maintByTruck[t.id] || [];
         const activeMaint = maint.filter((m) => m.status !== 'done' && m.completedDate == null);
         const hasMaint = activeMaint.length > 0;

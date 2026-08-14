@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Loader2, MapPin, FileText, Trash2, Box, Download, Pencil, ExternalLink, Activity, Copy, FilterX, Coins, Weight, Boxes, BadgeEuro, ArrowRight, Flag, Phone, User } from 'lucide-react';
+import { Plus, Search, Loader2, MapPin, FileText, Trash2, Box, Download, Pencil, ExternalLink, Activity, Copy, FilterX, Coins, Weight, Boxes, BadgeEuro, ArrowRight, Flag, Phone, User, Clock } from 'lucide-react';
 import api from '../lib/api';
 import OrderWizard from '../components/orders/OrderWizard';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
@@ -15,6 +15,7 @@ import BulkBar from '../components/ui/BulkBar';
 import StatusBadge from '../components/ui/StatusBadge';
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
+import ActivityTimeline from '../components/ActivityTimeline';
 import ExportModal from '../components/ExportModal';
 import { formatDateExcel } from '../lib/exportExcel';
 import toast from 'react-hot-toast';
@@ -418,17 +419,10 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
   const [documents, setDocuments] = useState<any[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [actionLogs, setActionLogs] = useState<any[]>([]);
-  const [logsLoading, setLogsLoading] = useState(false);
-
   useEffect(() => {
     if (activeTab === 'documents') {
       setDocsLoading(true);
       api.get(`/documents/order/${order.id}`).then(r => setDocuments(r.data)).catch(() => setDocuments([])).finally(() => setDocsLoading(false));
-    }
-    if (activeTab === 'notes') {
-      setLogsLoading(true);
-      api.get(`/action-logs/Order/${order.id}`).then(r => setActionLogs(r.data)).catch(() => setActionLogs([])).finally(() => setLogsLoading(false));
     }
   }, [activeTab, order.id]);
 
@@ -510,6 +504,33 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
           <Row icon={<FileText className="w-3 h-3" />} label={t('distance', 'Distance')} value={order.distanceKm ? `${Number(order.distanceKm).toLocaleString()} km` : '—'} />
         </div>
         {order.notes && <div className="bg-surface/40 rounded-xl p-3 border border-border text-[13px] text-text-primary whitespace-pre-wrap">{order.notes}</div>}
+        <div className="mt-6 pt-4 border-t border-border/60 grid grid-cols-2 gap-3 text-xs text-text-secondary">
+          <div className="flex items-start gap-2 bg-surface/30 p-2.5 rounded-xl border border-border/40">
+            <div className="p-1.5 bg-primary/10 rounded-lg text-primary mt-0.5 shrink-0">
+              <User className="w-3.5 h-3.5" />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">{t('created_by', 'Created by')}</div>
+              <div className="font-semibold text-text-primary mt-0.5 truncate max-w-[120px]" title={order.createdBy?.name || order.createdBy?.email || 'System'}>
+                {order.createdBy?.name || order.createdBy?.email || 'System'}
+              </div>
+              <div className="text-[10px] text-text-muted mt-0.5">{order.createdAt ? new Date(order.createdAt).toLocaleString(i18n.language || 'en-GB') : '—'}</div>
+            </div>
+          </div>
+          <div className="flex items-start gap-2 bg-surface/30 p-2.5 rounded-xl border border-border/40">
+            <div className="p-1.5 bg-blue-100 dark:bg-blue-950/40 rounded-lg text-blue-600 dark:text-blue-400 mt-0.5 shrink-0">
+              <Clock className="w-3.5 h-3.5" />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">{t('last_updated', 'Last updated')}</div>
+              <div className="font-semibold text-text-primary mt-0.5">—</div>
+              <div className="text-[10px] text-text-muted mt-0.5">{order.updatedAt ? new Date(order.updatedAt).toLocaleString(i18n.language || 'en-GB') : '—'}</div>
+            </div>
+          </div>
+        </div>
+        <div className="mt-4">
+          <ActivityTimeline entityType="Order" entityId={order.id} createdAt={order.createdAt} createdBy={order.createdBy?.name || order.createdBy?.email} />
+        </div>
       </div>
     ) },
     { key: 'cargo', label: t('tab_cargo', 'Cargo'), badge: order.cargoItems?.length || 0, content: (
@@ -590,38 +611,6 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
           <Row label={t('loading_reference', 'Loading ref')} value={order.loadingReference} />
           <Row label={t('unloading_reference', 'Unloading ref')} value={order.unloadingReference} />
         </div>
-        <div className="bg-surface/40 rounded-xl p-4 border border-border">
-          <div className="text-[10px] font-bold uppercase text-text-secondary mb-3">{t('activity_timeline', 'Activity Timeline')}</div>
-          {logsLoading ? (
-            <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
-          ) : actionLogs.length === 0 ? (
-            <div className="text-sm text-text-muted">{t('no_activity_recorded', 'No activity recorded yet.')}</div>
-          ) : (
-            <div className="space-y-4">
-              {actionLogs.map((log: any) => (
-                <div key={log.id} className="flex gap-3">
-                  <div className="w-2 mt-1.5 shrink-0 flex flex-col items-center">
-                    <div className="w-2 h-2 rounded-full bg-primary" />
-                    <div className="w-px h-full bg-border mt-1" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-text-primary">
-                      {log.action === 'CREATED' ? t('order_created', 'Order created') : t('order_updated', 'Order updated')}
-                    </div>
-                    <div className="text-xs text-text-secondary mt-0.5">
-                      {t('by', 'by')} {log.user?.name || log.user?.email || 'System'} · {new Date(log.createdAt).toLocaleString()}
-                    </div>
-                    {log.action === 'UPDATED' && log.details?.updatedFields && (
-                      <div className="text-[10px] text-text-muted mt-1 uppercase tracking-wide">
-                        {t('edited_fields', 'Edited')}: {log.details.updatedFields.join(', ')}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
     ) },
   ];
@@ -642,7 +631,6 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
              try { await generateOrderPdf(order, company); } catch (e) { toast.error(t('error_pdf', 'Failed to generate PDF')); }
           }} className="btn-secondary flex items-center gap-1.5 text-sm" title="Download PDF"><FileText className="w-4 h-4" />{t('pdf', 'PDF')}</button>
           <button onClick={() => navigate(`/orders/${order.id}`)} className="btn-secondary flex items-center gap-1.5 text-sm"><ExternalLink className="w-4 h-4" />{t('open_order', 'Open page')}</button>
-          {next && <button onClick={() => onStatusChange(order)} className="btn-primary text-sm flex items-center gap-1.5"><ArrowRight className="w-4 h-4" />{t('advance_to', 'Advance → {{s}}', { s: t(`status_${next}`, next.replace(/_/g, ' ')) })}</button>}
           <button onClick={() => onEdit(order.id)} className="btn-secondary text-sm flex items-center gap-1.5"><Pencil className="w-4 h-4" />{t('edit', 'Edit')}</button>
           <button onClick={() => onDelete(order.id)} className="btn-secondary text-sm flex items-center gap-1.5 text-red-600 border-red-200 hover:bg-red-50"><Trash2 className="w-4 h-4" />{t('delete', 'Delete')}</button>
         </>

@@ -7,9 +7,10 @@ import { User } from '../users/user.entity';
 import { Truck } from '../trucks/truck.entity';
 import { DriversController } from './drivers.controller';
 import { DriversService } from './drivers.service';
+import { ActionLogsModule } from '../action-logs/action-logs.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Driver, DriverDocument, DriverHos, User, Truck])],
+  imports: [TypeOrmModule.forFeature([Driver, DriverDocument, DriverHos, User, Truck]), ActionLogsModule],
   controllers: [DriversController],
   providers: [DriversService],
   exports: [DriversService],

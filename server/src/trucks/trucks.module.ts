@@ -7,9 +7,10 @@ import { TrucksController } from './trucks.controller';
 import { TrailersController } from './trailers.controller';
 import { TrucksService } from './trucks.service';
 import { TrailersService } from './trailers.service';
+import { ActionLogsModule } from '../action-logs/action-logs.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Truck, Trailer, TruckDocument])],
+  imports: [TypeOrmModule.forFeature([Truck, Trailer, TruckDocument]), ActionLogsModule],
   controllers: [TrucksController, TrailersController],
   providers: [TrucksService, TrailersService],
   exports: [TrucksService],

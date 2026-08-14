@@ -19,7 +19,10 @@ import type { SelectOption } from "../components/CustomSelect";
 import ExportModal from "../components/ExportModal";
 import { useSettingsStore } from '../store/settingsStore';
 import { generateTrailerPdf } from '../lib/pdfGenerator';
-import { FileText } from 'lucide-react';
+import { FileText, Calendar, Clock } from 'lucide-react';
+import ActivityTimeline from '../components/ActivityTimeline';
+import Flatpickr from 'react-flatpickr';
+import 'flatpickr/dist/themes/light.css';
 
 const TRAILER_TYPES = [
   { value: "mega", label: "trailer_type_mega", default: "Mega" },
@@ -67,7 +70,15 @@ export default function TrailersPage() {
   const initialForm = {
     plateNumber: "", type: "standard", brand: "", year: "",
     payloadCapacityWeight: "", maxLdm: "", maxVolumeCbm: "", payloadCapacityPallets: "", status: "active",
+    apkExpiry: "",
   };
+
+  const fpOptions = useMemo(() => ({
+    altInput: true,
+    altFormat: 'd/m/Y',
+    dateFormat: 'Y-m-d',
+    allowInput: false
+  }), []);
 
   const [form, setForm] = useState(formStore.trailersForm || initialForm);
   const [editId, setEditId] = useState<string | null>(formStore.trailersEditId);
@@ -109,6 +120,7 @@ export default function TrailersPage() {
         maxVolumeCbm: form.maxVolumeCbm ? Number(form.maxVolumeCbm) : null,
         payloadCapacityPallets: form.payloadCapacityPallets ? Number(form.payloadCapacityPallets) : null,
         year: form.year ? Number(form.year) : null,
+        apkExpiry: form.apkExpiry || null,
       };
       if (editId) {
         await api.patch("/trailers/" + editId, payload);
@@ -155,6 +167,7 @@ export default function TrailersPage() {
       plateNumber: tr.plateNumber || "", type: tr.type || "standard", brand: tr.brand || "", year: tr.year || "",
       payloadCapacityWeight: tr.payloadCapacityWeight ?? "", maxLdm: tr.maxLdm ?? "", maxVolumeCbm: tr.maxVolumeCbm ?? "",
       payloadCapacityPallets: tr.payloadCapacityPallets ?? "", status: tr.status || "active",
+      apkExpiry: tr.apkExpiry ? tr.apkExpiry.slice(0, 10) : "",
     });
     setEditId(tr.id);
     setShowForm(true);
@@ -181,10 +194,41 @@ export default function TrailersPage() {
     { key: "pallets", label: t("maxPallets", "Paleți"), sortable: true, render: (r) => r.payloadCapacityPallets || "—", align: "right" },
     { key: "cbm", label: t("maxVolumeCbm", "Volum m³"), sortable: true, render: (r) => (r.maxVolumeCbm ? Number(r.maxVolumeCbm) + " m³" : "—"), align: "right" },
     {
+      key: "service",
+      label: t("next_service", "Următoarea revizie"),
+      render: (r) => {
+        if (!r.apkExpiry) return <span className="text-xs text-text-muted">—</span>;
+        const daysLeft = Math.ceil((new Date(r.apkExpiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        const barColor = daysLeft <= 0 || daysLeft < 15 ? 'bg-red-500 animate-pulse' : daysLeft < 30 ? 'bg-amber-500' : 'bg-green-500/60';
+        const pct = Math.max(0, Math.min(100, Math.round((daysLeft / 365) * 100)));
+        return (
+          <div className="min-w-[110px]">
+            <div className="flex justify-between text-[10px] font-semibold mb-1">
+              <span className="text-text-secondary">{new Date(r.apkExpiry).toLocaleDateString(i18n.language || 'en-GB')}</span>
+              {daysLeft <= 0 ? (
+                <span className="text-red-500 font-bold">{t('service_overdue', 'Overdue')}</span>
+              ) : (
+                <span className={daysLeft < 15 ? 'text-red-500 font-bold' : daysLeft < 30 ? 'text-amber-600 font-semibold' : 'text-green-600 font-semibold'}>
+                  {daysLeft}d
+                </span>
+              )}
+            </div>
+            <div className="w-full bg-surface h-1.5 rounded-full overflow-hidden">
+              <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct || 100}%` }} />
+            </div>
+          </div>
+        );
+      }
+    },
+    {
       key: "status",
       label: t("status", "Status"),
       sortable: true,
-      render: (r) => <StatusBadge type="fleet" status={r.status} label={r.status} />,
+      render: (r) => {
+        const opt = TRAILER_STATUSES.find(o => o.value === r.status);
+        const translatedLabel = opt ? t(opt.label) : r.status;
+        return <StatusBadge type="fleet" status={r.status} label={translatedLabel} />;
+      },
     },
     {
       key: "actions", label: t("actions", "Acțiuni"), align: "right",
@@ -228,9 +272,34 @@ export default function TrailersPage() {
           <div><div className="text-xs text-text-secondary">{t("maxLdm", "Max LDM")}</div><div className="font-semibold">{drawerTrailer.maxLdm ? Number(drawerTrailer.maxLdm) : "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("maxPallets", "Paleți")}</div><div className="font-semibold">{drawerTrailer.payloadCapacityPallets || "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("maxVolumeCbm", "Volum m³")}</div><div className="font-semibold">{drawerTrailer.maxVolumeCbm ? Number(drawerTrailer.maxVolumeCbm) + " m³" : "—"}</div></div>
-          <div><div className="text-xs text-text-secondary">{t("status", "Status")}</div><div><StatusBadge type="fleet" status={drawerTrailer.status} label={drawerTrailer.status} /></div></div>
+          <div><div className="text-xs text-text-secondary">{t("status", "Status")}</div><div><StatusBadge type="fleet" status={drawerTrailer.status} label={t(TRAILER_STATUSES.find(o => o.value === drawerTrailer.status)?.label || drawerTrailer.status)} /></div></div>
+          <div className="mt-6 pt-4 border-t border-border/60 grid grid-cols-2 gap-3 text-xs text-text-secondary col-span-1 sm:col-span-2">
+            <div className="flex items-start gap-2 bg-surface/30 p-2.5 rounded-xl border border-border/40">
+              <div className="p-1.5 bg-primary/10 rounded-lg text-primary mt-0.5 shrink-0">
+                <Calendar className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">{t('created_at', 'Created')}</div>
+                <div className="font-semibold text-text-primary mt-0.5">{drawerTrailer.createdAt ? new Date(drawerTrailer.createdAt).toLocaleDateString(i18n.language || 'en-GB') : '—'}</div>
+              </div>
+            </div>
+            <div className="flex items-start gap-2 bg-surface/30 p-2.5 rounded-xl border border-border/40">
+              <div className="p-1.5 bg-blue-100 dark:bg-blue-950/40 rounded-lg text-blue-600 dark:text-blue-400 mt-0.5 shrink-0">
+                <Clock className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">{t('last_updated', 'Last updated')}</div>
+                <div className="font-semibold text-text-primary mt-0.5">{drawerTrailer.updatedAt ? new Date(drawerTrailer.updatedAt).toLocaleDateString(i18n.language || 'en-GB') : '—'}</div>
+              </div>
+            </div>
+          </div>
         </div>
       ),
+    },
+    {
+      key: "activity",
+      label: t("tab_activity", "Activity"),
+      content: <ActivityTimeline entityType="Trailer" entityId={drawerTrailer.id} />,
     },
   ] : [];
 
@@ -330,6 +399,19 @@ export default function TrailersPage() {
             <div><label className="label font-semibold">{t("maxPallets", "Paleți")}</label><input type="number" className="input" value={form.payloadCapacityPallets} onChange={(e) => setForm({ ...form, payloadCapacityPallets: e.target.value })} min="0" /></div>
             <div><label className="label font-semibold">{t("maxLdm", "Max LDM")}</label><input type="number" step="0.1" className="input" value={form.maxLdm} onChange={(e) => setForm({ ...form, maxLdm: e.target.value })} min="0" /></div>
             <div><label className="label font-semibold">{t("maxVolumeCbm", "Volum (m³)")}</label><input type="number" step="0.1" className="input" value={form.maxVolumeCbm} onChange={(e) => setForm({ ...form, maxVolumeCbm: e.target.value })} min="0" /></div>
+            <div>
+              <label className="label font-semibold">{t("next_service", "Următoarea revizie (APK)")}</label>
+              <div className="relative">
+                <Calendar className="w-4 h-4 text-text-secondary absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+                <Flatpickr
+                  value={form.apkExpiry}
+                  onChange={(_, dateStr) => setForm({ ...form, apkExpiry: dateStr })}
+                  className="input pl-9 bg-card cursor-pointer hover:border-primary/50 transition-colors h-[38px] w-full"
+                  options={fpOptions}
+                  placeholder="DD/MM/YYYY"
+                />
+              </div>
+            </div>
             <div><label className="label font-semibold">{t("status", "Status")}</label><CustomSelect value={form.status} onChange={(v) => setForm({ ...form, status: v })} options={TRAILER_STATUSES.map((o) => ({ value: o.value, label: t(o.label as string) as string }))} /></div>
           </form>
         </DetailDrawer>

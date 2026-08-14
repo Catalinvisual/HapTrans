@@ -1,7 +1,7 @@
 import { useSaveConfirm } from "../components/SaveConfirmProvider";
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Pencil, Trash2, Search, Download, User, Phone, FileText, Calendar, Key, Mail, Truck as TruckIcon, Coins, AlertCircle, BadgeCheck, CalendarDays, Save } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Download, User, Phone, FileText, Calendar, Key, Mail, Truck as TruckIcon, Coins, AlertCircle, BadgeCheck, CalendarDays, Save, Clock } from 'lucide-react';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import api from '../lib/api';
@@ -10,6 +10,8 @@ import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
+import { useSettingsStore } from '../store/settingsStore';
+import ActivityTimeline from '../components/ActivityTimeline';
 import { useFormStore } from '../store/formStore';
 import Pagination from '../components/Pagination';
 import { useShortcuts } from '../hooks/useShortcuts';
@@ -466,7 +468,26 @@ const tabs: TabDef[] = drawerDriver ? [
               </div>
             ))}
           </div>
-          <div className="text-xs text-text-secondary flex items-center gap-1"><Mail className="w-3 h-3" />{t('created_at', 'Registered')}: {formatDate(drawerDriver.createdAt)}</div>
+          <div className="mt-6 pt-4 border-t border-border/60 grid grid-cols-2 gap-3 text-xs text-text-secondary">
+            <div className="flex items-start gap-2 bg-surface/30 p-2.5 rounded-xl border border-border/40">
+              <div className="p-1.5 bg-primary/10 rounded-lg text-primary mt-0.5 shrink-0">
+                <Calendar className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">{t('created_at', 'Registered')}</div>
+                <div className="font-semibold text-text-primary mt-0.5">{formatDate(drawerDriver.createdAt)}</div>
+              </div>
+            </div>
+            <div className="flex items-start gap-2 bg-surface/30 p-2.5 rounded-xl border border-border/40">
+              <div className="p-1.5 bg-blue-100 dark:bg-blue-950/40 rounded-lg text-blue-600 dark:text-blue-400 mt-0.5 shrink-0">
+                <Clock className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">{t('last_updated', 'Last updated')}</div>
+                <div className="font-semibold text-text-primary mt-0.5">{formatDate(drawerDriver.updatedAt)}</div>
+              </div>
+            </div>
+          </div>
         </div>
       ),
     },
@@ -563,6 +584,11 @@ const tabs: TabDef[] = drawerDriver ? [
           )}
         </div>
       ),
+    },
+    {
+      key: 'activity',
+      label: t('tab_activity', 'Activity'),
+      content: <ActivityTimeline entityType="Driver" entityId={drawerDriver.id} />,
     },
 
   ] : [];

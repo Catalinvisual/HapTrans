@@ -8,6 +8,7 @@ import { Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Truck } from '../trucks/truck.entity';
 import * as bcrypt from 'bcrypt';
+import { ActionLogsService } from '../action-logs/action-logs.service';
 
 @Injectable()
 export class DriversService {
@@ -17,13 +18,14 @@ export class DriversService {
     @InjectRepository(DriverHos) private hosRepo: Repository<DriverHos>,
     @InjectRepository(User) private usersRepo: Repository<User>,
     @InjectRepository(Truck) private trucksRepo: Repository<Truck>,
+    private actionLogs: ActionLogsService,
   ) {}
 
   findAll() { return this.repo.find({ relations: ['user', 'documents', 'trucks'] }); }
   findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['user', 'documents', 'trips', 'trucks'] }); }
   findByUserId(userId: string) { return this.repo.findOne({ where: { user: { id: userId } }, relations: ['user', 'trucks'] }); }
 
-  async create(dto: any) {
+  async create(dto: any, userParam?: any) {
     const exists = await this.usersRepo.findOne({ where: { email: dto.email } });
     if (exists) throw new ConflictException('Email already in use');
     
@@ -53,10 +55,14 @@ export class DriversService {
       await this.trucksRepo.update(dto.truckId, { driver: { id: (savedDriver as any).id } as any });
     }
 
+    if (userParam) {
+      await this.actionLogs.logAction('Driver', (savedDriver as any).id, 'CREATED', userParam, {});
+    }
+
     return savedDriver;
   }
 
-  async update(id: string, dto: any) {
+  async update(id: string, dto: any, userParam?: any) {
     const driver = await this.repo.findOne({ where: { id }, relations: ['user'] });
     if (!driver) throw new Error('Driver not found');
 
@@ -95,6 +101,13 @@ export class DriversService {
       // Then assign to the new truck if provided
       if (dto.truckId) {
         await this.trucksRepo.update(dto.truckId, { driver: { id: (savedDriver as any).id } as any });
+      }
+    }
+
+    if (userParam) {
+      const updatedFields = Object.keys(dto);
+      if (updatedFields.length > 0) {
+        await this.actionLogs.logAction('Driver', id, 'UPDATED', userParam, { updatedFields });
       }
     }
 

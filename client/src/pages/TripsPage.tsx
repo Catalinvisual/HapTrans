@@ -17,6 +17,7 @@ import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
 import ExportModal from '../components/ExportModal';
 import AiImportModal from '../components/AiImportModal';
+import ActivityTimeline from '../components/ActivityTimeline';
 import toast from 'react-hot-toast';
 
 const TRIP_STATUSES = ['planning', 'planned', 'assigned', 'dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered', 'completed', 'closed', 'cancelled'];
@@ -760,25 +761,9 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
         {!docsLoading && documents.length === 0 && <div className="text-sm text-text-secondary text-center py-6">{t('no_documents', 'No documents yet')}</div>}
       </div>
     ) },
-    { key: 'timeline', label: t('tab_timeline', 'Timeline'), badge: timeline.length, content: (
-      <div className="space-y-0">
-        {timeline.length === 0 && <div className="text-sm text-text-secondary text-center py-10">{t('no_timeline', 'No timeline events')}</div>}
-        {timeline.map((ev: any, i: number) => (
-          <div key={ev.id || i} className="relative pl-7 pb-5 last:pb-0">
-            {i < timeline.length - 1 && <div className="absolute left-[9px] top-5 bottom-0 w-px bg-border" />}
-            <div className={`absolute left-0 top-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center ${ev.type === 'USER' ? 'bg-primary border-primary text-white' : 'bg-gray-300 dark:bg-gray-700 border-gray-400 dark:border-gray-600 text-white'}`}>
-              <span className="text-[8px] font-black">{ev.type === 'USER' ? 'U' : 'S'}</span>
-            </div>
-            <div className="bg-surface/40 rounded-xl p-3 border border-border">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[13px] font-bold text-text-primary">{t(`timeline_${ev.action}`, ev.action.replace(/_/g, ' '))}</span>
-                <span className="text-[10px] text-text-secondary">{ev.createdAt ? new Date(ev.createdAt).toLocaleString() : ''}</span>
-              </div>
-              {ev.user && <div className="text-[11px] text-text-secondary mt-0.5">{ev.user.name || ev.user.email}</div>}
-              {ev.details && <div className="text-[11px] text-text-muted mt-1 whitespace-pre-wrap">{typeof ev.details === 'string' ? ev.details : JSON.stringify(ev.details)}</div>}
-            </div>
-          </div>
-        ))}
+    { key: 'timeline', label: t('tab_timeline', 'Timeline'), content: (
+      <div className="py-2">
+        <ActivityTimeline entityType="Trip" entityId={trip.id} />
       </div>
     ) },
   ];

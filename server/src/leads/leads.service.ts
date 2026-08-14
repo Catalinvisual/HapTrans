@@ -51,12 +51,13 @@ export class LeadsService {
     // Find or create client
     let client = await this.clientsService.findByEmail(lead.email);
     if (!client) {
-      client = await this.clientsService.create({
+      const clientDto = {
         name: lead.name,
         contactEmail: lead.email,
         phone: lead.phone,
         address: lead.from,
-      });
+      };
+      client = await this.clientsService.create(clientDto as any, null);
     }
 
     // Create trip mock

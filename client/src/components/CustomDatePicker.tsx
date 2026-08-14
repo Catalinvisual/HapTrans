@@ -128,16 +128,16 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
       const isSelected = dateValue === dateStr;
       const isToday = dateObj.getTime() === today.getTime();
 
-      let className = "w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all ";
+      let className = "w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all duration-200 ";
       
       if (isPast) {
-        className += "text-text-muted cursor-not-allowed line-through opacity-50";
+        className += "text-text-muted/40 cursor-not-allowed opacity-35";
       } else if (isSelected) {
-        className += "bg-primary text-white font-bold shadow-md shadow-primary/30";
+        className += "bg-primary text-white font-bold shadow-lg shadow-primary/35 scale-105 hover:bg-primary-dark";
       } else if (isToday) {
-        className += "border border-primary text-primary font-bold cursor-pointer hover:bg-primary/10";
+        className += "border-2 border-primary text-primary font-bold cursor-pointer hover:bg-primary/10 hover:scale-105";
       } else {
-        className += "text-text-primary cursor-pointer hover:bg-surface";
+        className += "text-text-primary cursor-pointer hover:bg-surface hover:text-primary hover:scale-105 font-medium";
       }
 
       days.push(

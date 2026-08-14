@@ -32,6 +32,7 @@ export class ActionLogsService {
   async getLogsForEntity(entityType: string, entityId: string, companyId: string) {
     return this.repo.find({
       where: { entityType, entityId, companyId },
+      relations: ['user'],
       order: { createdAt: 'DESC' },
     });
   }

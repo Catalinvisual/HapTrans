@@ -101,12 +101,14 @@ export class QuotesService {
     // Find or create client
     let client = await this.clientsService.findByEmail(quote.email);
     if (!client) {
-      client = await this.clientsService.create({
+      const clientDto = {
         name: quote.companyName || 'Client from Quote',
+        contactName: quote.contactPerson,
         contactEmail: quote.email,
-        phone: quote.phone || '',
+        phone: quote.phone,
         address: quote.loadingLocation || '',
-      });
+      };
+      client = await this.clientsService.create(clientDto as any, null);
     }
 
     const order = await this.ordersService.create({

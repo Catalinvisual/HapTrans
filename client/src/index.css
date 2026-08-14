@@ -310,3 +310,8 @@ input[readonly] {
   body.print-mode .print-panel { width: 100% !important; max-width: none !important; box-shadow: none !important; border: none !important; border-radius: 0 !important; }
 }
 
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+

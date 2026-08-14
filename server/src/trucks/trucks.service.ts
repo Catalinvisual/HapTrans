@@ -5,26 +5,43 @@ import { Truck } from './truck.entity';
 import { TruckDocument } from './truck-document.entity';
 import { Not } from 'typeorm';
 import { TruckStatus } from './truck.entity';
+import { ActionLogsService } from '../action-logs/action-logs.service';
+
 @Injectable()
 export class TrucksService {
   constructor(
     @InjectRepository(Truck) private repo: Repository<Truck>,
     @InjectRepository(TruckDocument) private docsRepo: Repository<TruckDocument>,
+    private actionLogs: ActionLogsService,
   ) {}
 
   findAll() { return this.repo.find({ relations: ['documents', 'driver', 'driver.user', 'trailer'] }); }
   findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['documents', 'trips', 'driver', 'driver.user', 'trailer'] }); }
-  create(dto: any) { 
+  async create(dto: any, user: any) { 
     const data = { ...dto };
     if (data.driverId) { data.driver = { id: data.driverId }; delete data.driverId; }
     if (data.trailerId) { data.trailer = { id: data.trailerId }; delete data.trailerId; }
-    return this.repo.save(this.repo.create(data)); 
+    const saved = await this.repo.save(this.repo.create(data)); 
+    if (user) {
+      await this.actionLogs.logAction('Truck', (saved as any).id, 'CREATED', user, {});
+    }
+    return saved;
   }
-  update(id: string, dto: any) { 
+  async update(id: string, dto: any, user: any) { 
     const data = { ...dto };
     if ('driverId' in data) { data.driver = data.driverId ? { id: data.driverId } : null; delete data.driverId; }
     if ('trailerId' in data) { data.trailer = data.trailerId ? { id: data.trailerId } : null; delete data.trailerId; }
-    return this.repo.update(id, data); 
+    
+    const existing = await this.repo.findOne({ where: { id } });
+    await this.repo.update(id, data); 
+    
+    if (user && existing) {
+      const updatedFields = Object.keys(dto).filter(k => (existing as any)[k] !== dto[k]);
+      if (updatedFields.length > 0) {
+        await this.actionLogs.logAction('Truck', id, 'UPDATED', user, { updatedFields });
+      }
+    }
+    return this.repo.findOne({ where: { id } });
   }
   remove(id: string) { return this.repo.delete(id); }
 

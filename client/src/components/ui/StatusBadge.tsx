@@ -47,9 +47,10 @@ interface StatusBadgeProps {
 export default function StatusBadge({ status, label, type = 'order', size = 'sm' }: StatusBadgeProps) {
   const map = type === 'trip' ? TRIP_BADGES : type === 'fleet' ? FLEET_BADGES : ORDER_BADGES;
   const cls = map[status] || 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700';
+  const isPulsing = ['active', 'in_trip', 'loading', 'in_transit', 'driving', 'maintenance'].includes(status);
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border font-semibold whitespace-nowrap ${size === 'sm' ? 'text-[11px]' : 'text-xs'} ${cls}`}>
-      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
+      <span className={`w-1.5 h-1.5 rounded-full bg-current ${isPulsing ? 'animate-pulse' : 'opacity-70'}`} />
       {label}
     </span>
   );

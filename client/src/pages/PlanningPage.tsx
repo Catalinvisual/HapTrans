@@ -377,6 +377,7 @@ function TripBlock({
   const revenue = (trip.orders || []).reduce((s: number, o: any) => s + (Number(o.price) || 0), 0);
   const ordersCount = (trip.orders || []).filter((o: any) => o?.id).length;
   const driverName = trip.driver?.name || trip.truck?.driver?.name || '';
+  const trailerPlate = trip.trailer?.plateNumber || trip.trailerPlate || trip.truck?.trailer?.plateNumber || '';
   const blockWidthPct = pos.width;
   const isVeryNarrow = blockWidthPct < 4;
   const isNarrow = blockWidthPct < 10;
@@ -431,6 +432,11 @@ function TripBlock({
               {driverName && (
                 <span className="text-[8px] text-text-muted font-semibold truncate flex items-center gap-0.5">
                   <Users className="w-2 h-2 shrink-0" />{driverName}
+                </span>
+              )}
+              {trailerPlate && (
+                <span className="text-[8px] text-text-muted font-semibold truncate flex items-center gap-0.5" title={t('trailer', 'Trailer')}>
+                  <TruckIcon className="w-2 h-2 shrink-0 opacity-80" />{trailerPlate}
                 </span>
               )}
               {!isNarrow && trip.plannedDeparture && (
@@ -1288,7 +1294,7 @@ export default function PlanningPage() {
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
           <button onClick={() => navigate('/orders/new')} className="btn-primary text-xs py-2 px-3 flex items-center gap-1.5 font-black shadow shadow-primary/20">
-            <Plus className="w-4 h-4" /><span className="hidden sm:inline">{t('jsx_newTransport','New')}</span>
+            <span className="hidden sm:inline">{t('jsx_newTransport','New transport')}</span>
           </button>
         </div>
       </div>
@@ -1398,11 +1404,11 @@ export default function PlanningPage() {
       </div>
 
       {/* ── MAIN CONTENT ───────────────────────────────────────────────── */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden bg-surface/50 p-2 gap-2">
 
         {/* ORDER POOL (left panel) */}
         <div 
-          className={`relative flex flex-col border-r border-border bg-card shrink-0 overflow-hidden print:hidden ${isPoolResizing ? 'select-none transition-none' : 'transition-all duration-300'}`}
+          className={`relative flex flex-col border border-border rounded-xl shadow-sm bg-card shrink-0 overflow-hidden print:hidden ${isPoolResizing ? 'select-none transition-none' : 'transition-all duration-300'}`}
           style={{ width: poolCollapsed ? 40 : poolWidth }}
         >
           {/* Drag Handle */}
@@ -1489,7 +1495,7 @@ export default function PlanningPage() {
         </div>
 
         {/* MAIN WORKSPACE */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden bg-card rounded-xl border border-border shadow-sm">
           {viewMode === 'map' ? (
             <PlanningMap mapData={mapData} selectedTripId={selectedTripId} onSelectTrip={setSelectedTripId} isLoading={isLoading} />
           ) : (
