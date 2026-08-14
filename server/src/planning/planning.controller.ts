@@ -54,6 +54,11 @@ export class PlanningController {
     return this.planningService.recalculateTrip(tripId);
   }
 
+  @Post('trips/:tripId/auto-order')
+  autoOrderStops(@Request() req: any, @Param('tripId') tripId: string) {
+    return this.planningService.autoOrderStops(req.user, tripId);
+  }
+
   @Put('trips/:tripId/reorder')
   reorderStopsPut(@Request() req: any, @Param('tripId') tripId: string, @Body() body: any) {
     return this.planningService.reorderStops(req.user, tripId, body);

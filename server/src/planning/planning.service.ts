@@ -1114,6 +1114,98 @@ export class PlanningService {
     return this.loadTrip(tripId);
   }
 
+  async autoOrderStops(user: any, tripId: string): Promise<any> {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+
+    const statuses = ['planning', 'planned', 'assigned'];
+    if (!statuses.includes(String(trip.status))) {
+      throw new BadRequestException('Cannot auto-order stops on an in-progress trip.');
+    }
+
+    const stops = await this.stopRepo.find({ where: { trip: { id: tripId } } });
+    if (stops.length < 2) return this.loadTrip(tripId);
+
+    // Separate stops with mandatory time window from free stops
+    const hasMandatoryTime = (s: any) => !!(s.timeWindowMin || s.dateFrom);
+    const fixedStops = stops.filter(hasMandatoryTime)
+      .sort((a, b) => {
+        const ta = a.timeWindowMin ? new Date(a.timeWindowMin).getTime() : (a as any).dateFrom ? new Date((a as any).dateFrom + 'T' + ((a as any).timeFrom || '00:00')).getTime() : 0;
+        const tb = b.timeWindowMin ? new Date(b.timeWindowMin).getTime() : (b as any).dateFrom ? new Date((b as any).dateFrom + 'T' + ((b as any).timeFrom || '00:00')).getTime() : 0;
+        return ta - tb;
+      });
+    const freeStops = stops.filter(s => !hasMandatoryTime(s));
+
+    // Greedy nearest-neighbor: start from first fixed stop (or first free pickup)
+    const euclidean = (a: any, b: any) => {
+      if (!a?.latitude || !a?.longitude || !b?.latitude || !b?.longitude) return 99999;
+      const dlat = Number(a.latitude) - Number(b.latitude);
+      const dlng = Number(a.longitude) - Number(b.longitude);
+      return Math.sqrt(dlat * dlat + dlng * dlng);
+    };
+
+    // Build optimized free-stop chain using nearest-neighbor from a start point
+    const orderedFree: any[] = [];
+    const remaining = [...freeStops];
+    // Sort pickups before deliveries as a base heuristic
+    remaining.sort((a, b) => {
+      if (a.type === 'pickup' && b.type !== 'pickup') return -1;
+      if (a.type !== 'pickup' && b.type === 'pickup') return 1;
+      return 0;
+    });
+
+    // Greedy nearest-neighbor chain
+    let currentRef: any = fixedStops[0] || remaining[0];
+    while (remaining.length > 0) {
+      let bestIdx = 0;
+      let bestDist = Infinity;
+      for (let i = 0; i < remaining.length; i++) {
+        const d = euclidean(currentRef, remaining[i]);
+        if (d < bestDist) { bestDist = d; bestIdx = i; }
+      }
+      const next = remaining.splice(bestIdx, 1)[0];
+      orderedFree.push(next);
+      currentRef = next;
+    }
+
+    // Merge: interleave fixed-time stops at their required positions,
+    // free stops fill the remaining slots
+    const finalOrder: any[] = [];
+    let freeIdx = 0;
+    // Build slots: for each position, insert fixed stop if it's "due" or next free stop
+    const allSlots = stops.length;
+    let fixedIdx = 0;
+    for (let i = 0; i < allSlots; i++) {
+      const nextFixed = fixedStops[fixedIdx];
+      const nextFree = orderedFree[freeIdx];
+      if (nextFixed && (!nextFree || fixedIdx < fixedStops.length)) {
+        finalOrder.push(nextFixed);
+        fixedIdx++;
+      } else if (nextFree) {
+        finalOrder.push(nextFree);
+        freeIdx++;
+      }
+    }
+
+    // Save new sequences
+    for (let i = 0; i < finalOrder.length; i++) {
+      const s = finalOrder[i];
+      s.sequence = i + 1;
+      await this.stopRepo.save(s);
+    }
+
+    await this.logTimeline('stops_auto_ordered', user, {
+      tripId,
+      message: `Stops auto-ordered (smart route) on trip ${trip.tripNumber}.`,
+      companyId: trip.company?.id || null,
+    });
+
+    // Recalculate ETAs after reordering
+    try { await this.recalculateTrip(tripId); } catch {}
+
+    return this.loadTrip(tripId);
+  }
+
   // ─── Scheduling ─────────────────────────────────────────────────────────────
 
   async recalculateTrip(tripId: string) {

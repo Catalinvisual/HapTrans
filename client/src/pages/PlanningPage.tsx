@@ -9,6 +9,7 @@ import {
   LayoutGrid, Clock, Map as MapIcon, Sparkles, CheckSquare, Square, RefreshCw,
   ChevronsLeft, ChevronsRight, Plus, ArrowUp, ArrowDown, Layers, Navigation,
   Printer, Maximize2, Minimize2, RotateCcw, Filter, List, FileText,
+  GripVertical, Zap, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -463,10 +464,11 @@ function TripBlock({
 
 // ─── Resource Row (Gantt Row) ────────────────────────────────────────────────────────
 function ResourceRow({
-  resource, trips, fromDate, totalMinutes, hoursVisible, selectedTripId, onSelectTrip, onDropOrder, draggingId, draggingOrder,
+  resource, trips, fromDate, totalMinutes, hoursVisible, selectedTripId, onSelectTrip, onDropOrder, draggingId, draggingOrder, onSelectResource,
 }: {
   resource: any; trips: any[]; fromDate: string; totalMinutes: number; hoursVisible: number; selectedTripId: string | null;
   onSelectTrip: (id: string) => void; onDropOrder: (resourceId: string) => void; draggingId: string | null; draggingOrder?: any;
+  onSelectResource: (resource: any) => void;
 }) {
   const { t } = useTranslation();
   const [isDragOver, setIsDragOver] = useState(false);
@@ -493,10 +495,14 @@ function ResourceRow({
 
   return (
     <div className={`flex border-b-2 border-border min-h-[96px] group transition-colors ${isMaintenance ? 'bg-red-500/[0.02] hover:bg-red-500/[0.04]' : 'hover:bg-primary/[0.02]'}`}>
-      {/* Resource Column — sticky left */}
-      <div className={`w-56 shrink-0 px-3 py-2.5 border-r-2 flex flex-col justify-center gap-1.5 sticky left-0 z-10 shadow-[2px_0_6px_rgba(0,0,0,0.06)] ${
-        isMaintenance ? 'bg-red-500/5 border-red-500/30' : 'bg-card border-border'
-      }`}>
+      {/* Resource Column — sticky left — CLICKABLE */}
+      <div
+        className={`w-56 shrink-0 px-3 py-2.5 border-r-2 flex flex-col justify-center gap-1.5 sticky left-0 z-10 shadow-[2px_0_6px_rgba(0,0,0,0.06)] cursor-pointer group/truck transition-colors ${
+          isMaintenance ? 'bg-red-500/5 border-red-500/30 hover:bg-red-500/10' : 'bg-card border-border hover:bg-primary/5'
+        }`}
+        onClick={() => onSelectResource(resource)}
+        title="Click to view day schedule"
+      >
         {/* Maintenance banner */}
         {isMaintenance && (
           <div className="flex items-center gap-1 px-1.5 py-1 rounded-lg bg-red-500/10 border border-red-500/20 mb-0.5">
@@ -505,8 +511,8 @@ function ResourceRow({
           </div>
         )}
         <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center border shrink-0 shadow-sm ${
-            isMaintenance ? 'bg-red-500/10 border-red-500/30' : hasTrips ? 'bg-primary/10 border-primary/20' : 'bg-surface border-border'
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center border shrink-0 shadow-sm transition-colors ${
+            isMaintenance ? 'bg-red-500/10 border-red-500/30' : hasTrips ? 'bg-primary/10 border-primary/20 group-hover/truck:bg-primary/20' : 'bg-surface border-border'
           }`}>
             <TruckIcon className={`w-4 h-4 ${isMaintenance ? 'text-red-500' : hasTrips ? 'text-primary' : 'text-text-muted'}`} />
           </div>
@@ -536,6 +542,12 @@ function ResourceRow({
             <CapBar label="Plt" value={cargo.pallets} max={mp} />
           </div>
         )}
+        {/* Click hint */}
+        <div className="absolute bottom-1.5 right-2 opacity-0 group-hover/truck:opacity-100 transition-opacity">
+          <span className="text-[8px] text-primary font-bold flex items-center gap-0.5">
+            <ExternalLink className="w-2.5 h-2.5" />Day view
+          </span>
+        </div>
       </div>
 
       {/* Timeline Area */}
@@ -1014,6 +1026,338 @@ function OptimizationModal({ onClose, onApply, isLoading }: { onClose: () => voi
   ) : null;
 }
 
+// ─── Truck Day Modal ─────────────────────────────────────────────────────────
+function TruckDayModal({
+  resource, trips, selectedDate, onClose, onRefetch,
+}: {
+  resource: any; trips: any[]; selectedDate: string; onClose: () => void; onRefetch: () => void;
+}) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+
+  // Collect all stops across trips for this truck on this day, grouped by trip
+  const truckTrips = trips.filter(tr =>
+    tr.truck?.id === resource.id || tr.truckId === resource.id
+  );
+
+  // State: track stops per-trip for drag-and-drop
+  const [tripStops, setTripStops] = useState<Record<string, any[]>>(() => {
+    const map: Record<string, any[]> = {};
+    for (const tr of truckTrips) {
+      map[tr.id] = (tr.stops || []).slice().sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
+    }
+    return map;
+  });
+  const [savingTripId, setSavingTripId] = useState<string | null>(null);
+  const [autoOrderingId, setAutoOrderingId] = useState<string | null>(null);
+  const [dragState, setDragState] = useState<{ tripId: string; fromIdx: number } | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const [expandedTrips, setExpandedTrips] = useState<Set<string>>(() => new Set(truckTrips.map(t => t.id)));
+
+  const toggleTrip = (id: string) => setExpandedTrips(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  // ── Drag handlers ──
+  const onDragStart = (tripId: string, idx: number) => {
+    setDragState({ tripId, fromIdx: idx });
+    setDragOverIdx(idx);
+  };
+  const onDragEnterStop = (tripId: string, idx: number) => {
+    if (!dragState || dragState.tripId !== tripId) return;
+    if (idx === dragState.fromIdx) return;
+    // Reorder preview in local state
+    setTripStops(prev => {
+      const stops = [...(prev[tripId] || [])];
+      const item = stops.splice(dragState.fromIdx, 1)[0];
+      stops.splice(idx, 0, item);
+      return { ...prev, [tripId]: stops };
+    });
+    setDragState({ tripId, fromIdx: idx });
+    setDragOverIdx(idx);
+  };
+  const onDragEnd = async (tripId: string) => {
+    setDragOverIdx(null);
+    if (!dragState) return;
+    const stops = tripStops[tripId] || [];
+    setSavingTripId(tripId);
+    try {
+      await api.put(`/planning/trips/${tripId}/reorder`, { order: stops.map((s: any) => s.id) });
+      toast.success(t('stops_reordered', 'Stop order saved'));
+      onRefetch();
+    } catch {
+      toast.error(t('stops_reorder_error', 'Failed to save stop order'));
+    } finally {
+      setSavingTripId(null);
+      setDragState(null);
+    }
+  };
+
+  // ── Auto-order ──
+  const handleAutoOrder = async (tripId: string) => {
+    setAutoOrderingId(tripId);
+    try {
+      await api.post(`/planning/trips/${tripId}/auto-order`);
+      toast.success(t('stops_auto_ordered', 'Smart route applied!'));
+      // Reload trip data locally after auto-order
+      const res = await api.get(`/trips/${tripId}`);
+      const newStops = (res.data.stops || []).slice().sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
+      setTripStops(prev => ({ ...prev, [tripId]: newStops }));
+      onRefetch();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('auto_order_error', 'Auto-order failed'));
+    } finally {
+      setAutoOrderingId(null);
+    }
+  };
+
+  const totalOrders = truckTrips.reduce((s, tr) => s + (tr.orders?.length || 0), 0);
+  const totalWeight = truckTrips.reduce((s, tr) => s + sumCargo(tr.orders || []).weight, 0);
+  const totalRevenue = truckTrips.reduce((s, tr) => s + (tr.orders || []).reduce((ss: number, o: any) => ss + (Number(o.price) || 0), 0), 0);
+
+  return typeof document !== 'undefined' ? createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      style={{ backdropFilter: 'blur(8px)', backgroundColor: 'rgba(0,0,0,0.65)' }}
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-2xl bg-card rounded-3xl shadow-2xl border border-border flex flex-col animate-in zoom-in-95 duration-200"
+        style={{ maxHeight: '90vh' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* ── Header ── */}
+        <div className="px-6 py-4 border-b border-border bg-gradient-to-r from-primary/5 via-transparent to-transparent rounded-t-3xl shrink-0">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center shadow-sm">
+                <TruckIcon className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-black text-text-primary">
+                    {resource.plateNumber || resource.name || '—'}
+                  </h2>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-surface border border-border text-text-secondary font-bold">
+                    {resource.brand} {resource.model}
+                  </span>
+                </div>
+                {resource.driver?.name && (
+                  <p className="text-xs text-text-secondary flex items-center gap-1 mt-0.5">
+                    <Users className="w-3 h-3 text-text-muted" />{resource.driver.name}
+                  </p>
+                )}
+              </div>
+            </div>
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-surface text-text-secondary hover:text-text-primary transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* KPI row */}
+          <div className="grid grid-cols-4 gap-2 mt-4">
+            {[
+              { label: t('jsx_day', 'Day'), value: new Date(selectedDate + 'T12:00').toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }), icon: Calendar, color: 'text-primary' },
+              { label: t('trips', 'Trips'), value: truckTrips.length, icon: Layers, color: 'text-violet-500' },
+              { label: t('kpi_orders', 'Orders'), value: totalOrders, icon: Package, color: 'text-amber-500' },
+              { label: t('revenue', 'Revenue'), value: `€${totalRevenue.toLocaleString()}`, icon: Activity, color: 'text-emerald-500' },
+            ].map(({ label, value, icon: Icon, color }) => (
+              <div key={label} className="bg-surface/60 rounded-xl p-2.5 border border-border/60 flex items-center gap-2">
+                <Icon className={`w-4 h-4 shrink-0 ${color}`} />
+                <div className="min-w-0">
+                  <p className="text-[9px] text-text-secondary uppercase font-bold tracking-wide">{label}</p>
+                  <p className={`text-sm font-black ${color} truncate`}>{value}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Body ── */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {truckTrips.length === 0 && (
+            <div className="text-center py-16">
+              <TruckIcon className="w-10 h-10 text-text-muted mx-auto mb-3 opacity-30" />
+              <p className="font-bold text-text-primary">{t('no_trips_today', 'No trips assigned for this day')}</p>
+              <p className="text-xs text-text-secondary mt-1">{t('assign_orders_hint', 'Drag orders from the pool to assign them to this truck')}</p>
+            </div>
+          )}
+
+          {truckTrips.map((tr) => {
+            const st = String(tr.status || 'planning').toLowerCase();
+            const col = TRIP_COLORS[st] || TRIP_COLORS.planning;
+            const hex = TRIP_HEX[st] || '#6366f1';
+            const stops = tripStops[tr.id] || [];
+            const isExpanded = expandedTrips.has(tr.id);
+            const isEditable = ['planning', 'planned', 'assigned'].includes(st);
+            const trOrders = (tr.orders || []).filter((o: any) => o?.id);
+            const cargo = sumCargo(trOrders);
+            const rev = trOrders.reduce((s: number, o: any) => s + (Number(o.price) || 0), 0);
+
+            return (
+              <div key={tr.id} className={`rounded-2xl border-2 overflow-hidden ${col.border} bg-card shadow-sm`}>
+                {/* Trip header */}
+                <div
+                  className="px-4 py-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-surface/40 transition-colors"
+                  style={{ background: `linear-gradient(135deg, ${hex}12 0%, transparent 100%)` }}
+                  onClick={() => toggleTrip(tr.id)}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: hex }} />
+                    <span className="font-black text-text-primary text-sm">{tr.tripNumber || '—'}</span>
+                    <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${col.text}`}>
+                      {t(`status_${st}`, st)}
+                    </span>
+                    <span className="text-xs text-text-secondary">
+                      {stops.length} {t('stops', 'stops')} · {trOrders.length} {t('orders', 'orders')}
+                    </span>
+                    {cargo.weight > 0 && (
+                      <span className="text-xs text-text-muted">· {cargo.weight.toLocaleString()} kg</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-sm font-black text-emerald-500">€{rev.toLocaleString()}</span>
+                    {isEditable && (
+                      <button
+                        onClick={e => { e.stopPropagation(); handleAutoOrder(tr.id); }}
+                        disabled={!!autoOrderingId || !!savingTripId}
+                        title={t('auto_order_tooltip', 'Smart auto-order stops by proximity')}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black bg-amber-500/10 text-amber-600 border border-amber-500/30 hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                      >
+                        {autoOrderingId === tr.id
+                          ? <Loader2 className="w-3 h-3 animate-spin" />
+                          : <Zap className="w-3 h-3" />}
+                        {t('auto_order', 'Auto-order')}
+                      </button>
+                    )}
+                    <button
+                      onClick={e => { e.stopPropagation(); navigate(`/trips/${tr.id}`); }}
+                      className="p-1.5 rounded-lg hover:bg-surface text-text-secondary hover:text-primary transition-colors"
+                      title={t('jsx_context_openTrip', 'Open trip')}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </button>
+                    {isExpanded ? <ChevronUp className="w-4 h-4 text-text-muted" /> : <ChevronDown className="w-4 h-4 text-text-muted" />}
+                  </div>
+                </div>
+
+                {/* Stops list */}
+                {isExpanded && (
+                  <div className="px-3 pb-3 pt-1 space-y-1.5">
+                    {stops.length === 0 && (
+                      <p className="text-xs text-text-secondary text-center py-4">{t('no_stops', 'No stops defined')}</p>
+                    )}
+                    {stops.map((s: any, idx: number) => {
+                      const isPu = s.type === 'pickup';
+                      const isDragging = dragState?.tripId === tr.id && dragState?.fromIdx === idx;
+                      const isDragOver = dragState?.tripId === tr.id && dragOverIdx === idx && dragState.fromIdx !== idx;
+                      return (
+                        <div
+                          key={s.id || idx}
+                          draggable={isEditable}
+                          onDragStart={() => isEditable && onDragStart(tr.id, idx)}
+                          onDragEnter={() => isEditable && onDragEnterStop(tr.id, idx)}
+                          onDragEnd={() => isEditable && onDragEnd(tr.id)}
+                          onDragOver={e => e.preventDefault()}
+                          className={`flex items-center gap-2.5 rounded-xl p-2.5 border transition-all ${
+                            isDragging ? 'opacity-40 scale-95 border-dashed border-primary/40 bg-primary/5' :
+                            isDragOver ? 'border-primary bg-primary/5 shadow-md scale-[1.01]' :
+                            isPu ? 'border-blue-500/25 bg-blue-500/5 hover:bg-blue-500/10' : 'border-emerald-500/25 bg-emerald-500/5 hover:bg-emerald-500/10'
+                          } ${isEditable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                        >
+                          {/* Drag handle */}
+                          {isEditable && (
+                            <GripVertical className="w-4 h-4 text-text-muted shrink-0 opacity-50 hover:opacity-100 transition-opacity" />
+                          )}
+
+                          {/* Sequence badge */}
+                          <span className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-[10px] shrink-0 text-white ${isPu ? 'bg-blue-500' : 'bg-emerald-500'}`}>
+                            {idx + 1}
+                          </span>
+
+                          {/* Stop type indicator */}
+                          <div className={`w-1.5 h-8 rounded-full shrink-0 ${isPu ? 'bg-blue-500' : 'bg-emerald-500'}`} />
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-[9px] font-black uppercase ${isPu ? 'text-blue-600' : 'text-emerald-600'}`}>
+                                {isPu ? t('loading_stop', 'Pickup') : t('unloading_stop', 'Delivery')}
+                              </span>
+                              <span className="font-bold text-text-primary text-xs truncate">
+                                {s.companyName || s.city || '—'}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-text-secondary truncate">{s.address}{s.city ? `, ${s.city}` : ''} {s.country || ''}</p>
+                            {(s.dateFrom || s.timeFrom) && (
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <Clock className="w-2.5 h-2.5 text-amber-500 shrink-0" />
+                                <span className="text-[10px] font-semibold text-amber-600">
+                                  {s.dateFrom ? new Date(s.dateFrom + 'T12:00').toLocaleDateString([], { day: '2-digit', month: 'short' }) : ''}
+                                  {s.timeFrom ? ` ${s.timeFrom}` : ''}
+                                  {s.timeUntil ? ` – ${s.timeUntil}` : ''}
+                                </span>
+                              </div>
+                            )}
+                            {s.eta && (
+                              <div className="flex items-center gap-1">
+                                <Navigation className="w-2.5 h-2.5 text-primary shrink-0" />
+                                <span className="text-[10px] text-primary font-semibold">
+                                  ETA: {new Date(s.eta).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Cargo of related order */}
+                          {s.reference && (
+                            <span className="text-[9px] font-bold text-text-muted bg-surface px-1.5 py-0.5 rounded shrink-0">
+                              {s.reference}
+                            </span>
+                          )}
+
+                          {savingTripId === tr.id && (
+                            <Loader2 className="w-3 h-3 animate-spin text-primary shrink-0" />
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {isEditable && stops.length > 1 && (
+                      <p className="text-[10px] text-text-muted text-center pt-1 flex items-center justify-center gap-1">
+                        <GripVertical className="w-3 h-3" />
+                        {t('drag_to_reorder', 'Drag to reorder stops — driver sees the updated sequence instantly')}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ── Footer ── */}
+        <div className="px-6 py-3 border-t border-border bg-surface/40 rounded-b-3xl flex items-center justify-between shrink-0">
+          <div className="text-xs text-text-secondary flex items-center gap-1.5">
+            <Users className="w-3.5 h-3.5 text-text-muted" />
+            <span>{resource.driver?.name || t('no_driver', 'No driver assigned')}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-text-secondary">
+              {totalWeight > 0 ? `${totalWeight.toLocaleString()} kg · ` : ''}{t('total', 'Total')}: <span className="font-black text-emerald-500">€{totalRevenue.toLocaleString()}</span>
+            </span>
+            <button onClick={onClose} className="btn-secondary text-xs py-2 px-4 font-bold">
+              {t('jsx_close', 'Close')}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>, document.body
+  ) : null;
+}
+
 // ─── MAIN PAGE ───────────────────────────────────────────────────────────────
 export default function PlanningPage() {
   const { t } = useTranslation();
@@ -1045,6 +1389,7 @@ export default function PlanningPage() {
   const [sortPool, setSortPool] = useState<'priority' | 'date' | 'weight' | 'client'>('priority');
   const [grouping, setGrouping] = useState<'truck' | 'driver' | 'trailer'>('truck');
   const [attentionActive, setAttentionActive] = useState(false);
+  const [selectedResource, setSelectedResource] = useState<any | null>(null);
 
   const { width: poolWidth, isResizing: isPoolResizing, startResizing: startPoolResizing } = useResizableSidebar(288, 200, 600);
 
@@ -1588,6 +1933,7 @@ export default function PlanningPage() {
                             onDropOrder={handleDropOrder}
                             draggingId={draggingOrderId}
                             draggingOrder={draggingOrder}
+                            onSelectResource={setSelectedResource}
                           />
                         );
                       })
@@ -1632,6 +1978,16 @@ export default function PlanningPage() {
 
       {showOptimizeModal && (
         <OptimizationModal onClose={() => setShowOptimizeModal(false)} onApply={handleApplyOptimization} isLoading={!!loadingAction} />
+      )}
+
+      {selectedResource && (
+        <TruckDayModal
+          resource={selectedResource}
+          trips={trips}
+          selectedDate={selectedDate}
+          onClose={() => setSelectedResource(null)}
+          onRefetch={loadData}
+        />
       )}
     </div>
   );
