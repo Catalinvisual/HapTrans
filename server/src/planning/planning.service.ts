@@ -1123,7 +1123,10 @@ export class PlanningService {
       throw new BadRequestException('Cannot auto-order stops on an in-progress trip.');
     }
 
-    const stops = await this.stopRepo.find({ where: { trip: { id: tripId } } });
+    const stops = await this.stopRepo.find({ 
+      where: { trip: { id: tripId } },
+      relations: ['tasks', 'tasks.order']
+    });
     if (stops.length < 2) return this.loadTrip(tripId);
 
     // Euclidean distance helper
@@ -1138,66 +1141,49 @@ export class PlanningService {
       return Math.sqrt(dlat * dlat + dlng * dlng);
     };
 
-    // Subset sorting helper respecting time requirements
-    const orderSubset = (subset: Stop[], startNode: any) => {
-      if (subset.length === 0) return [];
-      
-      // Check if stop has an active time window set
-      const hasTime = (s: any) => !!s.timeWindowMin;
-      const fixed = subset.filter(hasTime).sort((a, b) => {
-        const ta = a.timeWindowMin ? new Date(a.timeWindowMin).getTime() : 0;
-        const tb = b.timeWindowMin ? new Date(b.timeWindowMin).getTime() : 0;
-        return ta - tb;
+    // Precedence-constrained Greedy TSP
+    const finalOrder: Stop[] = [];
+    const remaining = [...stops];
+    const visitedOrderIds = new Set<string>();
+
+    let current = trip.truck?.currentLat ? { latitude: trip.truck.currentLat, longitude: trip.truck.currentLng } : null;
+
+    const hasTime = (s: any) => !!s.timeWindowMin;
+
+    while (remaining.length > 0) {
+      // Find valid next stops (Deliveries are only valid if their Pickup was visited)
+      const validNextStops = remaining.filter(s => {
+        if (s.type !== 'delivery') return true;
+        const orderId = s.tasks?.[0]?.order?.id;
+        if (!orderId) return true;
+        return visitedOrderIds.has(orderId);
       });
-      const free = subset.filter(s => !hasTime(s));
 
-      const orderedFree: Stop[] = [];
-      const remaining = [...free];
-      let current = startNode || fixed[0] || remaining[0];
+      // Fallback if data is corrupted and precedence can't be met
+      const candidates = validNextStops.length > 0 ? validNextStops : remaining;
 
-      while (remaining.length > 0) {
-        let bestIdx = 0;
-        let bestDist = Infinity;
-        for (let i = 0; i < remaining.length; i++) {
-          const d = euclidean(current, remaining[i]);
-          if (d < bestDist) {
-            bestDist = d;
-            bestIdx = i;
-          }
-        }
-        const next = remaining.splice(bestIdx, 1)[0];
-        orderedFree.push(next);
-        current = next;
+      // Pick the best among valid candidates
+      candidates.sort((a, b) => {
+        const timeA = hasTime(a) ? new Date(a.timeWindowMin).getTime() : Infinity;
+        const timeB = hasTime(b) ? new Date(b.timeWindowMin).getTime() : Infinity;
+        if (timeA !== timeB) return timeA - timeB;
+        
+        return euclidean(current, a) - euclidean(current, b);
+      });
+
+      const next = candidates[0];
+      finalOrder.push(next);
+      
+      if (next.type !== 'delivery') {
+        const orderId = next.tasks?.[0]?.order?.id;
+        if (orderId) visitedOrderIds.add(orderId);
       }
-
-      // Merge fixed and free
-      const result: Stop[] = [];
-      let fixedIdx = 0;
-      let freeIdx = 0;
-      for (let i = 0; i < subset.length; i++) {
-        const nextFixed = fixed[fixedIdx];
-        const nextFree = orderedFree[freeIdx];
-        if (nextFixed && (!nextFree || fixedIdx < fixed.length)) {
-          result.push(nextFixed);
-          fixedIdx++;
-        } else if (nextFree) {
-          result.push(nextFree);
-          freeIdx++;
-        }
-      }
-      return result;
-    };
-
-    // Partition stops: pickups first (loading), deliveries second (unloading)
-    const pickups = stops.filter(s => s.type !== 'delivery');
-    const deliveries = stops.filter(s => s.type === 'delivery');
-
-    const startRef = trip.truck?.currentLat ? { latitude: trip.truck.currentLat, longitude: trip.truck.currentLng } : null;
-    const orderedPickups = orderSubset(pickups, startRef);
-    const lastPickup = orderedPickups[orderedPickups.length - 1] || startRef;
-    const orderedDeliveries = orderSubset(deliveries, lastPickup);
-
-    const finalOrder = [...orderedPickups, ...orderedDeliveries];
+      
+      current = next;
+      
+      const idx = remaining.findIndex(s => s.id === next.id);
+      if (idx !== -1) remaining.splice(idx, 1);
+    }
 
     // Save optimized sequence
     for (let i = 0; i < finalOrder.length; i++) {

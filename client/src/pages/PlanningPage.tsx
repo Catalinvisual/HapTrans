@@ -1040,11 +1040,11 @@ function TruckDayModal({
     tr.truck?.id === resource.id || tr.truckId === resource.id
   );
 
-  // State: track stops per-trip, separated by type
-  const [tripStops, setTripStops] = useState<Record<string, { loadings: any[]; unloadings: any[] }>>({});
+  // State: track stops per-trip
+  const [tripStops, setTripStops] = useState<Record<string, any[]>>({});
   const [savingTripId, setSavingTripId] = useState<string | null>(null);
   const [autoOrderingId, setAutoOrderingId] = useState<string | null>(null);
-  const [dragState, setDragState] = useState<{ tripId: string; section: 'loadings' | 'unloadings'; fromIdx: number } | null>(null);
+  const [dragState, setDragState] = useState<{ tripId: string; fromIdx: number } | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const [expandedTrips, setExpandedTrips] = useState<Set<string>>(() => new Set(truckTrips.map(t => t.id)));
   const [combining, setCombining] = useState(false);
@@ -1078,13 +1078,10 @@ function TruckDayModal({
 
   // Populate or sync state when props change
   useEffect(() => {
-    const map: Record<string, { loadings: any[]; unloadings: any[] }> = {};
+    const map: Record<string, any[]> = {};
     for (const tr of truckTrips) {
       const sorted = (tr.stops || []).slice().sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
-      map[tr.id] = {
-        loadings: sorted.filter((s: any) => s.type !== 'delivery'),
-        unloadings: sorted.filter((s: any) => s.type === 'delivery'),
-      };
+      map[tr.id] = sorted;
     }
     setTripStops(map);
   }, [trips, selectedDate]);
@@ -1096,30 +1093,24 @@ function TruckDayModal({
   });
 
   // ── Drag handlers ──
-  const onDragStart = (tripId: string, section: 'loadings' | 'unloadings', idx: number) => {
-    setDragState({ tripId, section, fromIdx: idx });
+  const onDragStart = (tripId: string, idx: number) => {
+    setDragState({ tripId, fromIdx: idx });
     setDragOverIdx(idx);
   };
 
-  const onDragEnterStop = (tripId: string, section: 'loadings' | 'unloadings', idx: number) => {
-    if (!dragState || dragState.tripId !== tripId || dragState.section !== section) return;
+  const onDragEnterStop = (tripId: string, idx: number) => {
+    if (!dragState || dragState.tripId !== tripId) return;
     if (idx === dragState.fromIdx) return;
     
     setTripStops(prev => {
       const current = prev[tripId];
       if (!current) return prev;
-      const list = [...(current[section] || [])];
+      const list = [...current];
       const item = list.splice(dragState.fromIdx, 1)[0];
       list.splice(idx, 0, item);
-      return {
-        ...prev,
-        [tripId]: {
-          ...current,
-          [section]: list
-        }
-      };
+      return { ...prev, [tripId]: list };
     });
-    setDragState({ tripId, section, fromIdx: idx });
+    setDragState({ tripId, fromIdx: idx });
     setDragOverIdx(idx);
   };
 
@@ -1128,10 +1119,30 @@ function TruckDayModal({
     if (!dragState) return;
     const current = tripStops[tripId];
     if (!current) return;
-    const merged = [...(current.loadings || []), ...(current.unloadings || [])];
+
+    // Logic guard: verify precedence constraints for same-order pickups/deliveries
+    const orderIndexMap = new Map<string, number>();
+    for (let i = 0; i < current.length; i++) {
+      const stop = current[i];
+      const orderId = stop.orderId || stop.tasks?.[0]?.order?.id;
+      if (!orderId) continue;
+      if (stop.type !== 'delivery') {
+        orderIndexMap.set(orderId, i);
+      } else {
+        const pickupIdx = orderIndexMap.get(orderId);
+        if (pickupIdx !== undefined && pickupIdx > i) {
+          // A delivery was placed before its pickup! Revert & warn.
+          toast.error(t('delivery_before_pickup', 'Invalid sequence: A delivery cannot happen before its pickup!'));
+          setDragState(null);
+          onRefetch(); // Reset to backend state
+          return;
+        }
+      }
+    }
+    
     setSavingTripId(tripId);
     try {
-      await api.put(`/planning/trips/${tripId}/reorder`, { order: merged.map((s: any) => s.id) });
+      await api.put(`/planning/trips/${tripId}/reorder`, { order: current.map((s: any) => s.id) });
       toast.success(t('stops_reordered', 'Stop order saved'));
       onRefetch();
     } catch {
@@ -1250,7 +1261,7 @@ function TruckDayModal({
             const st = String(tr.status || 'planning').toLowerCase();
             const col = TRIP_COLORS[st] || TRIP_COLORS.planning;
             const hex = TRIP_HEX[st] || '#6366f1';
-            const { loadings = [], unloadings = [] } = tripStops[tr.id] || {};
+            const currentStops = tripStops[tr.id] || [];
             const isExpanded = expandedTrips.has(tr.id);
             const isEditable = ['planning', 'planned', 'assigned'].includes(st);
             const trOrders = (tr.orders || []).filter((o: any) => o?.id);
@@ -1272,7 +1283,7 @@ function TruckDayModal({
                       {t(`status_${st}`, st)}
                     </span>
                     <span className="text-xs text-text-secondary">
-                      {loadings.length + unloadings.length} {t('stops', 'stops')} · {trOrders.length} {t('orders', 'orders')}
+                      {currentStops.length} {t('stops', 'stops')} · {trOrders.length} {t('orders', 'orders')}
                     </span>
                     {cargo.weight > 0 && (
                       <span className="text-xs text-text-muted">· {cargo.weight.toLocaleString()} kg</span>
@@ -1304,163 +1315,92 @@ function TruckDayModal({
                   </div>
                 </div>
 
-                {/* Stops list separated logically */}
+                {/* Unified Stops list */}
                 {isExpanded && (
-                  <div className="p-3 bg-surface/30 space-y-4">
-                    {/* 1. LOADINGS (PICKUPS) */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-1.5 px-1 py-0.5 text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-                        <MapPin className="w-3 h-3 shrink-0" />
-                        <span>{t('loadings_section', 'Încărcări (Pickups)')} ({loadings.length})</span>
-                      </div>
-                      
-                      {loadings.length === 0 ? (
-                        <p className="text-[11px] text-text-muted italic px-2 py-1">{t('no_loadings', 'No loadings defined')}</p>
-                      ) : (
-                        loadings.map((s: any, idx: number) => {
-                          const isDragging = dragState?.tripId === tr.id && dragState?.section === 'loadings' && dragState?.fromIdx === idx;
-                          const isDragOver = dragState?.tripId === tr.id && dragState?.section === 'loadings' && dragOverIdx === idx && dragState.fromIdx !== idx;
-                          return (
-                            <div
-                              key={s.id || idx}
-                              draggable={isEditable}
-                              onDragStart={() => isEditable && onDragStart(tr.id, 'loadings', idx)}
-                              onDragEnter={() => isEditable && onDragEnterStop(tr.id, 'loadings', idx)}
-                              onDragEnd={() => isEditable && onDragEnd(tr.id)}
-                              onDragOver={e => e.preventDefault()}
-                              className={`flex items-center gap-2.5 rounded-xl p-2.5 border transition-all ${
-                                isDragging ? 'opacity-40 scale-95 border-dashed border-primary/40 bg-primary/5' :
-                                isDragOver ? 'border-primary bg-primary/5 shadow-md scale-[1.01]' :
-                                'border-blue-500/20 bg-blue-500/[0.04] dark:bg-blue-500/[0.02] hover:bg-blue-500/[0.08]'
-                              } ${isEditable ? 'cursor-grab active:cursor-grabbing' : ''}`}
-                            >
-                              {isEditable && (
-                                <GripVertical className="w-4 h-4 text-text-muted shrink-0 opacity-50 hover:opacity-100 transition-opacity" />
-                              )}
-                              <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[9px] shrink-0 text-white bg-blue-500">
-                                {idx + 1}
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[8px] font-bold rounded px-1 uppercase text-blue-600 bg-blue-500/10">
-                                    {t('loading_stop', 'Loading')}
-                                  </span>
-                                  <span className="font-bold text-text-primary text-xs truncate">
-                                    {s.companyName || s.city || '—'}
-                                  </span>
-                                </div>
-                                <p className="text-[10px] text-text-secondary truncate mt-0.5">{s.address}{s.city ? `, ${s.city}` : ''} {s.country || ''}</p>
-                                {(s.dateFrom || s.timeFrom) && (
-                                  <div className="flex items-center gap-1 mt-0.5">
-                                    <Clock className="w-2.5 h-2.5 text-amber-500 shrink-0" />
-                                    <span className="text-[10px] font-semibold text-amber-600">
-                                      {s.dateFrom ? new Date(s.dateFrom + 'T12:00').toLocaleDateString([], { day: '2-digit', month: 'short' }) : ''}
-                                      {s.timeFrom ? ` ${s.timeFrom}` : ''}
-                                    </span>
-                                  </div>
-                                )}
-                                {s.eta && (
-                                  <div className="flex items-center gap-1">
-                                    <Navigation className="w-2.5 h-2.5 text-primary shrink-0" />
-                                    <span className="text-[10px] text-primary font-semibold">
-                                      ETA: {new Date(s.eta).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                              {s.reference && (
-                                <span className="text-[9px] font-bold text-text-muted bg-surface px-1.5 py-0.5 rounded shrink-0">
-                                  {s.reference}
-                                </span>
-                              )}
-                              {savingTripId === tr.id && (
-                                <Loader2 className="w-3 h-3 animate-spin text-primary shrink-0" />
-                              )}
-                            </div>
-                          );
-                        })
-                      )}
+                  <div className="p-3 bg-surface/30 space-y-2">
+                    <div className="flex items-center gap-1.5 px-1 py-0.5 text-[10px] font-black text-text-secondary uppercase tracking-wider">
+                      <MapPin className="w-3 h-3 shrink-0" />
+                      <span>{t('stops_timeline', 'Stops Timeline')} ({currentStops.length})</span>
                     </div>
 
-                    {/* 2. UNLOADINGS (DELIVERIES) */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-1.5 px-1 py-0.5 text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                        <CheckCircle2 className="w-3 h-3 shrink-0" />
-                        <span>{t('unloadings_section', 'Descărcări (Deliveries)')} ({unloadings.length})</span>
-                      </div>
+                    {currentStops.length === 0 ? (
+                      <p className="text-[11px] text-text-muted italic px-2 py-1">{t('no_stops_defined', 'No stops defined')}</p>
+                    ) : (
+                      currentStops.map((s: any, idx: number) => {
+                        const isDragging = dragState?.tripId === tr.id && dragState?.fromIdx === idx;
+                        const isDragOver = dragState?.tripId === tr.id && dragOverIdx === idx && dragState.fromIdx !== idx;
+                        const isDelivery = s.type === 'delivery';
+                        const colorClass = isDelivery ? 'emerald' : 'blue';
+                        const bgClass = isDelivery ? 'bg-emerald-500' : 'bg-blue-500';
+                        const textClass = isDelivery ? 'text-emerald-600' : 'text-blue-600';
+                        const bgLightClass = isDelivery ? 'bg-emerald-500/10' : 'bg-blue-500/10';
 
-                      {unloadings.length === 0 ? (
-                        <p className="text-[11px] text-text-muted italic px-2 py-1">{t('no_unloadings', 'No deliveries defined')}</p>
-                      ) : (
-                        unloadings.map((s: any, idx: number) => {
-                          const isDragging = dragState?.tripId === tr.id && dragState?.section === 'unloadings' && dragState?.fromIdx === idx;
-                          const isDragOver = dragState?.tripId === tr.id && dragState?.section === 'unloadings' && dragOverIdx === idx && dragState.fromIdx !== idx;
-                          return (
-                            <div
-                              key={s.id || idx}
-                              draggable={isEditable}
-                              onDragStart={() => isEditable && onDragStart(tr.id, 'unloadings', idx)}
-                              onDragEnter={() => isEditable && onDragEnterStop(tr.id, 'unloadings', idx)}
-                              onDragEnd={() => isEditable && onDragEnd(tr.id)}
-                              onDragOver={e => e.preventDefault()}
-                              className={`flex items-center gap-2.5 rounded-xl p-2.5 border transition-all ${
-                                isDragging ? 'opacity-40 scale-95 border-dashed border-primary/40 bg-primary/5' :
-                                isDragOver ? 'border-primary bg-primary/5 shadow-md scale-[1.01]' :
-                                'border-emerald-500/20 bg-emerald-500/[0.04] dark:bg-emerald-500/[0.02] hover:bg-emerald-500/[0.08]'
-                              } ${isEditable ? 'cursor-grab active:cursor-grabbing' : ''}`}
-                            >
-                              {isEditable && (
-                                <GripVertical className="w-4 h-4 text-text-muted shrink-0 opacity-50 hover:opacity-100 transition-opacity" />
-                              )}
-                              <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[9px] shrink-0 text-white bg-emerald-500">
-                                {loadings.length + idx + 1}
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[8px] font-bold rounded px-1 uppercase text-emerald-600 bg-emerald-500/10">
-                                    {t('unloading_stop', 'Delivery')}
-                                  </span>
-                                  <span className="font-bold text-text-primary text-xs truncate">
-                                    {s.companyName || s.city || '—'}
+                        return (
+                          <div
+                            key={s.id || idx}
+                            draggable={isEditable}
+                            onDragStart={() => isEditable && onDragStart(tr.id, idx)}
+                            onDragEnter={() => isEditable && onDragEnterStop(tr.id, idx)}
+                            onDragEnd={() => isEditable && onDragEnd(tr.id)}
+                            onDragOver={e => e.preventDefault()}
+                            className={`flex items-center gap-2.5 rounded-xl p-2.5 border transition-all ${
+                              isDragging ? 'opacity-40 scale-95 border-dashed border-primary/40 bg-primary/5' :
+                              isDragOver ? 'border-primary bg-primary/5 shadow-md scale-[1.01]' :
+                              isDelivery ? 'border-emerald-500/20 bg-emerald-500/[0.04] dark:bg-emerald-500/[0.02] hover:bg-emerald-500/[0.08]' :
+                              'border-blue-500/20 bg-blue-500/[0.04] dark:bg-blue-500/[0.02] hover:bg-blue-500/[0.08]'
+                            } ${isEditable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                          >
+                            {isEditable && (
+                              <GripVertical className="w-4 h-4 text-text-muted shrink-0 opacity-50 hover:opacity-100 transition-opacity" />
+                            )}
+                            <span className={`w-5 h-5 rounded-full flex items-center justify-center font-black text-[9px] shrink-0 text-white ${bgClass}`}>
+                              {idx + 1}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`text-[8px] font-bold rounded px-1 uppercase ${textClass} ${bgLightClass}`}>
+                                  {isDelivery ? t('unloading_stop', 'Delivery') : t('loading_stop', 'Loading')}
+                                </span>
+                                <span className="font-bold text-text-primary text-xs truncate">
+                                  {s.companyName || s.city || '—'}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-text-secondary truncate mt-0.5">{s.address}{s.city ? `, ${s.city}` : ''} {s.country || ''}</p>
+                              {(s.dateFrom || s.timeFrom) && (
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <Clock className="w-2.5 h-2.5 text-amber-500 shrink-0" />
+                                  <span className="text-[10px] font-semibold text-amber-600">
+                                    {s.dateFrom ? new Date(s.dateFrom + 'T12:00').toLocaleDateString([], { day: '2-digit', month: 'short' }) : ''}
+                                    {s.timeFrom ? ` ${s.timeFrom}` : ''}
                                   </span>
                                 </div>
-                                <p className="text-[10px] text-text-secondary truncate mt-0.5">{s.address}{s.city ? `, ${s.city}` : ''} {s.country || ''}</p>
-                                {(s.dateFrom || s.timeFrom) && (
-                                  <div className="flex items-center gap-1 mt-0.5">
-                                    <Clock className="w-2.5 h-2.5 text-amber-500 shrink-0" />
-                                    <span className="text-[10px] font-semibold text-amber-600">
-                                      {s.dateFrom ? new Date(s.dateFrom + 'T12:00').toLocaleDateString([], { day: '2-digit', month: 'short' }) : ''}
-                                      {s.timeFrom ? ` ${s.timeFrom}` : ''}
-                                    </span>
-                                  </div>
-                                )}
-                                {s.eta && (
-                                  <div className="flex items-center gap-1">
-                                    <Navigation className="w-2.5 h-2.5 text-primary shrink-0" />
-                                    <span className="text-[10px] text-primary font-semibold">
-                                      ETA: {new Date(s.eta).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                              {s.reference && (
-                                <span className="text-[9px] font-bold text-text-muted bg-surface px-1.5 py-0.5 rounded shrink-0">
-                                  {s.reference}
-                                </span>
                               )}
-                              {savingTripId === tr.id && (
-                                <Loader2 className="w-3 h-3 animate-spin text-primary shrink-0" />
+                              {s.eta && (
+                                <div className="flex items-center gap-1">
+                                  <Navigation className="w-2.5 h-2.5 text-primary shrink-0" />
+                                  <span className="text-[10px] text-primary font-semibold">
+                                    ETA: {new Date(s.eta).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
                               )}
                             </div>
-                          );
-                        })
-                      )}
-                    </div>
+                            {s.reference && (
+                              <span className="text-[9px] font-bold text-text-muted bg-surface px-1.5 py-0.5 rounded shrink-0">
+                                {s.reference}
+                              </span>
+                            )}
+                            {savingTripId === tr.id && (
+                              <Loader2 className="w-3 h-3 animate-spin text-primary shrink-0" />
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
 
-                    {isEditable && (loadings.length > 1 || unloadings.length > 1) && (
+                    {isEditable && currentStops.length > 1 && (
                       <p className="text-[10px] text-text-muted text-center pt-2 border-t border-border/40 flex items-center justify-center gap-1">
                         <GripVertical className="w-3 h-3 text-text-muted opacity-60" />
-                        {t('drag_to_reorder_ltl', 'Reorder loadings or unloadings independently. All pickups will execute before deliveries.')}
+                        {t('drag_to_reorder_all', 'Drag stops to reorder. You cannot place a delivery before its pickup.')}
                       </p>
                     )}
                   </div>
