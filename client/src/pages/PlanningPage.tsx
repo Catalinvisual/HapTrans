@@ -1330,7 +1330,6 @@ function TruckDayModal({
                         const isDragging = dragState?.tripId === tr.id && dragState?.fromIdx === idx;
                         const isDragOver = dragState?.tripId === tr.id && dragOverIdx === idx && dragState.fromIdx !== idx;
                         const isDelivery = s.type === 'delivery';
-                        const colorClass = isDelivery ? 'emerald' : 'blue';
                         const bgClass = isDelivery ? 'bg-emerald-500' : 'bg-blue-500';
                         const textClass = isDelivery ? 'text-emerald-600' : 'text-blue-600';
                         const bgLightClass = isDelivery ? 'bg-emerald-500/10' : 'bg-blue-500/10';
