@@ -4,6 +4,7 @@ import { TruckDocument } from './truck-document.entity';
 import { Maintenance } from '../maintenance/maintenance.entity';
 import { Driver } from '../drivers/driver.entity';
 import { Trailer } from './trailer.entity';
+import { LoadingAccess, LoadingRule } from '../planning/planning-profile.entity';
 
 import { Company } from '../companies/company.entity';
 
@@ -57,6 +58,12 @@ export class Truck {
 
   @Column({ nullable: true, type: 'int' })
   maxPallets: number; // e.g. 33
+
+  @Column({ type: 'enum', enum: LoadingAccess, nullable: true })
+  loadingAccess: LoadingAccess; // how the trailer is loaded/unloaded (rear, side, …)
+
+  @Column({ type: 'enum', enum: LoadingRule, nullable: true })
+  loadingRule: LoadingRule; // LIFO/FIFO rule for the loading sequence
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
   costPerKm: number; // For profit margin calculation

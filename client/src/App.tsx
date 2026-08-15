@@ -64,6 +64,7 @@ const ExpensesPage     = lazy(() => import('./pages/ExpensesPage'));
 const UsersPage        = lazy(() => import('./pages/UsersPage'));
 const ChatPage         = lazy(() => import('./pages/ChatPage'));
 const PlanningPage     = lazy(() => import('./pages/PlanningPage'));
+const TruckRoutePlannerPage = lazy(() => import('./pages/TruckRoutePlannerPage'));
 const WebsiteHubPage   = lazy(() => import('./pages/WebsiteHubPage'));
 const SharedDocumentPage = lazy(() => import('./pages/SharedDocumentPage'));
 const TrackingPage     = lazy(() => import('./pages/TrackingPage'));
@@ -171,6 +172,7 @@ export default function App() {
             <Route path="users" element={<Suspense fallback={<PageLoader />}><UsersPage /></Suspense>} />
             <Route path="chat" element={<Suspense fallback={<PageLoader />}><ChatPage /></Suspense>} />
             <Route path="planning" element={<Suspense fallback={<PageLoader />}><PlanningPage /></Suspense>} />
+            <Route path="planning/planner/:truckId" element={<Suspense fallback={<PageLoader />}><TruckRoutePlannerPage /></Suspense>} />
           </Route>
         </Routes>
       </BrowserRouter>

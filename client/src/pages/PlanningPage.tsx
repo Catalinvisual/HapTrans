@@ -1205,9 +1205,19 @@ function TruckDayModal({
                 )}
               </div>
             </div>
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-surface text-text-secondary hover:text-text-primary transition-colors">
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate(`/planning/planner/${resource.id}?date=${selectedDate}`)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black bg-primary text-white shadow-md hover:opacity-90 active:scale-95 transition-all"
+                title={t('pln_open_planner', 'Open Route & Load Planner')}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                {t('pln_open_planner', 'Route & Load Planner')}
+              </button>
+              <button onClick={onClose} className="p-2 rounded-xl hover:bg-surface text-text-secondary hover:text-text-primary transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* KPI row */}
@@ -1310,6 +1320,13 @@ function TruckDayModal({
                       title={t('jsx_context_openTrip', 'Open trip')}
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); navigate(`/planning/planner/${resource.id}?date=${selectedDate}&trip=${tr.id}`); }}
+                      className="p-1.5 rounded-lg hover:bg-primary/10 text-text-secondary hover:text-primary transition-colors"
+                      title={t('pln_open_planner', 'Route & Load Planner')}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
                     </button>
                     {isExpanded ? <ChevronUp className="w-4 h-4 text-text-muted" /> : <ChevronDown className="w-4 h-4 text-text-muted" />}
                   </div>
