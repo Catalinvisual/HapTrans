@@ -8,7 +8,7 @@ import {
   Undo2, SplitSquareHorizontal, Send, ShieldCheck,
   LayoutGrid, Clock, Map as MapIcon, Sparkles, CheckSquare, Square, RefreshCw,
   ChevronsLeft, ChevronsRight, Plus, ArrowUp, ArrowDown, Layers, Navigation,
-  Printer, Maximize2, Minimize2, RotateCcw, Filter, List, FileText,
+  Printer, Maximize2, Minimize2, RotateCcw, Filter, List, FileText, Pencil,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
