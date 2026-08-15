@@ -751,14 +751,33 @@ function TripDetailDrawer({
       return;
     }
 
-    // 4. Order specific issue -> Opens order wizard on cargo/details
+    // 4. Time window / Stop sequence / Route / GPS issues -> Opens Step 2 (Pickup & Delivery, index 1)
+    if (type.includes('time') || type.includes('route') || type.includes('stop') || type.includes('window') || type.includes('sequence') || msg.includes('time') || msg.includes('window') || msg.includes('late') || msg.includes('delay') || msg.includes('route') || msg.includes('gps') || msg.includes('stop')) {
+      const targetId = c.orderId || (stops.find((s: any) => s.orderId)?.orderId) || orders[0]?.id;
+      if (targetId && onEditOrder) {
+        onEditOrder(targetId, 1, 'stops');
+        return;
+      }
+      setActiveTab('stops');
+      return;
+    }
+
+    // 5. Client / Price / General issues -> Opens Step 1 (General Info, index 0)
+    if (type.includes('client') || type.includes('price') || msg.includes('client') || msg.includes('price') || msg.includes('rate') || msg.includes('reference')) {
+      const targetId = c.orderId || orders[0]?.id;
+      if (targetId && onEditOrder) {
+        onEditOrder(targetId, 0, 'client');
+        return;
+      }
+    }
+
+    // 6. Generic Order specific issue -> opens on Step 3 (Cargo)
     if (c.orderId) {
       if (onEditOrder) onEditOrder(c.orderId, 2, 'cargo');
       else navigate(`/orders/${c.orderId}`);
       return;
     }
 
-    // 5. Default: Time window / Stop sequence
     setActiveTab('stops');
   };
 

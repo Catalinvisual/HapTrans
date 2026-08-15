@@ -123,12 +123,14 @@ export default function OrderWizard({
   const [clients, setClients] = useState<any[]>([]);
 
   const resolveTargetStep = (h?: string | null, s?: number | null) => {
+    if (h) {
+      const lower = String(h).toLowerCase();
+      if (['cargo', 'weight', 'ldm', 'volume', 'pallet', 'quantity', 'box', 'item', 'kg', 'cbm', 'adr', 'temp'].some(k => lower.includes(k))) return 2;
+      if (['stop', 'pickup', 'delivery', 'route', 'gps', 'time', 'date', 'address', 'window', 'late', 'loc'].some(k => lower.includes(k))) return 1;
+      if (['general', 'client', 'price', 'ref', 'priority', 'type', 'status'].some(k => lower.includes(k))) return 0;
+    }
     if (typeof s === 'number' && s >= 0 && s <= 2) {
       return s;
-    }
-    if (h) {
-      if (['cargo', 'weight', 'ldm', 'volume', 'pallets', 'quantity'].includes(h)) return 2;
-      if (['stops', 'pickup', 'delivery', 'route', 'gps', 'time', 'date'].includes(h)) return 1;
     }
     return 0;
   };
