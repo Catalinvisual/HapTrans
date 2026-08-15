@@ -112,7 +112,25 @@ export default function TruckRoutePlannerPage() {
   const [mapReady, setMapReady] = useState(false);
 
   const sortedStops = useMemo(() => {
-    return [...(routePlan?.stops || [])].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
+    const raw = [...(routePlan?.stops || [])].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
+    let cumPal = 0;
+    let cumWt = 0;
+    return raw.map((s: any) => {
+      const pal = Number(s.pallets) || 0;
+      const wt = Number(s.weightKg) || 0;
+      if (s.type === 'pickup') {
+        cumPal += pal;
+        cumWt += wt;
+      } else {
+        cumPal = Math.max(0, cumPal - pal);
+        cumWt = Math.max(0, cumWt - wt);
+      }
+      return {
+        ...s,
+        liveCumPal: Math.max(0, cumPal),
+        liveCumWt: Math.max(0, cumWt),
+      };
+    });
   }, [routePlan]);
 
   // Dynamically compute live metrics (peak load, distance, duration) from the stops
@@ -787,9 +805,9 @@ export default function TruckRoutePlannerPage() {
                   <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
                     <span className="text-[10px] font-bold text-text-secondary">
                       {isPickup ? (
-                        <span>{t('pln_onboard_after', 'On board after')}: <strong className="text-text-primary">{Math.round(stop.cumulativePallets || 0)} pal · {Math.round(stop.cumulativeWeightKg || 0)} kg</strong></span>
+                        <span>{t('pln_onboard_after', 'On board after')}: <strong className="text-text-primary">{Math.round(stop.liveCumPal ?? stop.cumulativePallets ?? 0)} pal · {Math.round(stop.liveCumWt ?? stop.cumulativeWeightKg ?? 0)} kg</strong></span>
                       ) : (
-                        <span>{t('pln_remaining_truck', 'Remaining on truck')}: <strong className="text-text-primary">{Math.round(stop.cumulativePallets || 0)} pal · {Math.round(stop.cumulativeWeightKg || 0)} kg</strong></span>
+                        <span>{t('pln_remaining_truck', 'Remaining on truck')}: <strong className="text-text-primary">{Math.round(stop.liveCumPal ?? stop.cumulativePallets ?? 0)} pal · {Math.round(stop.liveCumWt ?? stop.cumulativeWeightKg ?? 0)} kg</strong></span>
                       )}
                     </span>
                     {stop.loadingSequence != null && (

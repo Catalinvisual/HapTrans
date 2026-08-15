@@ -543,12 +543,6 @@ function ResourceRow({
             <CapBar label="Plt" value={cargo.pallets} max={mp} />
           </div>
         )}
-        {/* Click hint / Route planner button in top right */}
-        <div className="absolute top-2 right-2 opacity-0 group-hover/truck:opacity-100 transition-opacity bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-md px-1.5 py-0.5 shadow-sm">
-          <span className="text-[8px] font-black flex items-center gap-0.5">
-            <Sparkles className="w-2.5 h-2.5" />{t('pln_planner', 'Route Planner')}
-          </span>
-        </div>
       </div>
 
       {/* Timeline Area */}
