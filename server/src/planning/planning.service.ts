@@ -2624,6 +2624,12 @@ export class PlanningService {
         stopLdm = oc.ldm;
         stopVolume = oc.volumeCbm;
       }
+      if (stopLdm === 0 && stopPallets > 0) {
+        stopLdm = Math.round(stopPallets * 0.4 * 100) / 100;
+      }
+      if (stopVolume === 0 && stopPallets > 0) {
+        stopVolume = Math.round(stopPallets * 2.5 * 10) / 10;
+      }
 
       if (isPickup) {
         cumulativePallets += stopPallets;
@@ -2905,8 +2911,10 @@ export class PlanningService {
     for (const stop of stops) {
       const pallets = Number(stop.pallets) || 0;
       const weight = Number(stop.weightKg) || 0;
-      const ldm = Number(stop.loadingMeters) || 0;
-      const vol = Number(stop.volumeCbm) || 0;
+      let ldm = Number(stop.loadingMeters) || 0;
+      let vol = Number(stop.volumeCbm) || 0;
+      if (ldm === 0 && pallets > 0) ldm = Math.round(pallets * 0.4 * 100) / 100;
+      if (vol === 0 && pallets > 0) vol = Math.round(pallets * 2.5 * 10) / 10;
 
       if (stop.type === 'pickup') {
         cumulativePallets += pallets;

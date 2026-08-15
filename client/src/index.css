@@ -174,14 +174,35 @@ input[readonly] {
   font-weight: 600 !important;
 }
 
+/* Custom modern highlight for TODAY in Flatpickr (Emerald green ring instead of red) */
+.flatpickr-day.today {
+  border: 1.5px solid #10b981 !important;
+  background: rgba(16, 185, 129, 0.12) !important;
+  color: #047857 !important;
+  font-weight: 800 !important;
+  border-radius: 9999px !important;
+}
+
+.flatpickr-day.today:hover {
+  background: rgba(16, 185, 129, 0.22) !important;
+  border-color: #10b981 !important;
+  color: #065f46 !important;
+}
+
+.flatpickr-day.today.selected {
+  background: #f97316 !important;
+  border-color: #f97316 !important;
+  color: #ffffff !important;
+}
+
 /* Custom premium styling for disabled past dates in Flatpickr */
 .flatpickr-day.flatpickr-disabled,
 .flatpickr-day.flatpickr-disabled:hover {
-  color: #334155 !important;
+  color: #94a3b8 !important;
   background: transparent !important;
   border: none !important;
   text-decoration: line-through !important;
-  opacity: 0.8 !important;
+  opacity: 0.6 !important;
   cursor: not-allowed !important;
 }
 
@@ -237,6 +258,18 @@ input[readonly] {
   background-color: #334155 !important;
   border-color: #334155 !important;
   color: #f8fafc !important;
+}
+
+.dark .flatpickr-calendar .flatpickr-day.today {
+  border: 1.5px solid #34d399 !important;
+  background: rgba(52, 211, 153, 0.15) !important;
+  color: #6ee7b7 !important;
+  font-weight: 800 !important;
+}
+
+.dark .flatpickr-calendar .flatpickr-day.today:hover {
+  background: rgba(52, 211, 153, 0.25) !important;
+  color: #a7f3d0 !important;
 }
 
 .dark .flatpickr-calendar .flatpickr-day.selected,

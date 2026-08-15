@@ -274,16 +274,18 @@ function PlanningMap({
 
 // ─── Capacity Bar ────────────────────────────────────────────────────────────
 function CapBar({ label, value, max, unit = '' }: { label: string; value: number; max: number; unit?: string }) {
-  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
-  const color = pct > 100 ? 'bg-red-500' : pct > 80 ? 'bg-amber-500' : 'bg-primary';
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  const displayPct = Math.min(100, pct);
+  const color = pct > 95 ? 'bg-red-500' : pct > 75 ? 'bg-amber-500' : 'bg-emerald-500';
+  const textColor = pct > 95 ? 'text-red-500 font-bold' : pct > 75 ? 'text-amber-600 font-bold' : 'text-text-primary';
   return (
     <div className="min-w-0">
       <div className="flex items-center justify-between text-[9px] font-bold text-text-secondary mb-0.5">
         <span>{label}</span>
-        <span className={pct > 100 ? 'text-red-500' : 'text-text-primary'}>{value > 0 ? `${value.toLocaleString()}` : '—'}{unit && value > 0 ? unit : ''}</span>
+        <span className={textColor}>{value > 0 ? `${value.toLocaleString()}` : '—'}{unit && value > 0 ? unit : ''}</span>
       </div>
-      <div className="w-full h-1 rounded-full bg-border/50 overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+      <div className="w-full h-1.5 rounded-full bg-border/50 overflow-hidden border border-border/30">
+        <div className={`h-full rounded-full transition-all duration-300 ${color}`} style={{ width: `${displayPct}%` }} />
       </div>
     </div>
   );
@@ -541,9 +543,9 @@ function ResourceRow({
             <CapBar label="Plt" value={cargo.pallets} max={mp} />
           </div>
         )}
-        {/* Click hint */}
-        <div className="absolute bottom-1.5 right-2 opacity-0 group-hover/truck:opacity-100 transition-opacity">
-          <span className="text-[8px] text-primary font-bold flex items-center gap-0.5">
+        {/* Click hint / Route planner button in top right */}
+        <div className="absolute top-2 right-2 opacity-0 group-hover/truck:opacity-100 transition-opacity bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-md px-1.5 py-0.5 shadow-sm">
+          <span className="text-[8px] font-black flex items-center gap-0.5">
             <Sparkles className="w-2.5 h-2.5" />{t('pln_planner', 'Route Planner')}
           </span>
         </div>
@@ -1575,10 +1577,12 @@ export default function PlanningPage() {
                       </div>
                       <div className="flex flex-1">
                         {Array.from({ length: hoursVisible }, (_, h) => (
-                          <div key={h} className="flex-1 text-center text-[10px] font-bold text-text-secondary py-2 border-r border-border/30 last:border-0 min-w-[2.5rem]">
-                            {viewMode === 'week'
-                              ? addDays(fromDateObj, h).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
-                              : `${String(h).padStart(2,'0')}:00`
+                          <div key={h} className="flex-1 text-center text-[10px] font-bold text-text-secondary py-2 border-r border-border/30 last:border-0 min-w-[3.25rem]">
+                            {viewMode === 'all'
+                              ? addDays(fromDateObj, h).toLocaleDateString([], { day: 'numeric', month: 'short' })
+                              : viewMode === 'week'
+                                ? addDays(fromDateObj, h).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
+                                : `${String(h).padStart(2,'0')}:00`
                             }
                           </div>
                         ))}

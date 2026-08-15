@@ -132,8 +132,10 @@ export default function TruckRoutePlannerPage() {
       const s = sortedStops[i];
       const pal = Number(s.pallets) || 0;
       const wt = Number(s.weightKg) || 0;
-      const ldm = Number(s.loadingMeters) || 0;
-      const vol = Number(s.volumeCbm) || 0;
+      let ldm = Number(s.loadingMeters) || 0;
+      let vol = Number(s.volumeCbm) || 0;
+      if (ldm === 0 && pal > 0) ldm = Math.round(pal * 0.4 * 100) / 100;
+      if (vol === 0 && pal > 0) vol = Math.round(pal * 2.5 * 10) / 10;
 
       if (s.type === 'pickup') {
         cumPal += pal;
