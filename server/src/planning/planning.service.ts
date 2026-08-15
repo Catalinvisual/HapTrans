@@ -2786,6 +2786,9 @@ export class PlanningService {
         routePlan.maxLdm = caps.maxLdm;
         routePlan.maxVolumeCbm = caps.maxVolumeCbm;
       }
+      if (routePlan.stops && routePlan.stops.length > 0) {
+        this.recomputeCumulativeLoads(routePlan.stops, routePlan);
+      }
     }
 
     return routePlan;
@@ -2899,6 +2902,30 @@ export class PlanningService {
 
   // Recomputes cumulative load metrics on stops (mutates them) and returns peaks
   private recomputeCumulativeLoads(stops: RoutePlanStop[], routePlan: TruckRoutePlan) {
+    // Sync delivery cargo with pickup cargo per order
+    const pickupCargoByOrder = new Map<string, { pallets: number; weightKg: number; ldm: number; volumeCbm: number }>();
+    for (const stop of stops) {
+      if (stop.orderId && (stop.type === 'pickup' || String(stop.type).toLowerCase() === 'load')) {
+        const p = Number(stop.pallets) || 0;
+        const w = Number(stop.weightKg) || 0;
+        const l = Number(stop.loadingMeters) || (p > 0 ? Math.round(p * 0.4 * 100) / 100 : 0);
+        const v = Number(stop.volumeCbm) || (p > 0 ? Math.round(p * 2.5 * 10) / 10 : 0);
+        pickupCargoByOrder.set(stop.orderId, { pallets: p, weightKg: w, ldm: l, volumeCbm: v });
+      }
+    }
+
+    for (const stop of stops) {
+      if (stop.orderId && (stop.type === 'delivery' || String(stop.type).toLowerCase() === 'dropoff' || String(stop.type).toLowerCase() === 'unload')) {
+        const pickupCargo = pickupCargoByOrder.get(stop.orderId);
+        if (pickupCargo && (Number(stop.pallets) !== pickupCargo.pallets || Number(stop.weightKg) !== pickupCargo.weightKg)) {
+          stop.pallets = pickupCargo.pallets;
+          stop.weightKg = pickupCargo.weightKg;
+          stop.loadingMeters = pickupCargo.ldm;
+          stop.volumeCbm = pickupCargo.volumeCbm;
+        }
+      }
+    }
+
     let cumulativePallets = 0;
     let cumulativeWeight = 0;
     let cumulativeLdm = 0;

@@ -113,22 +113,65 @@ export default function TruckRoutePlannerPage() {
 
   const sortedStops = useMemo(() => {
     const raw = [...(routePlan?.stops || [])].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
+
+    // Map pickup cargo per order
+    const orderCargo = new Map<string, { pal: number; wt: number; ldm: number; vol: number }>();
+    raw.forEach((s: any) => {
+      if (s.orderId && s.type === 'pickup') {
+        const p = Number(s.pallets) || 0;
+        const w = Number(s.weightKg) || 0;
+        const l = Number(s.loadingMeters) || (p > 0 ? Math.round(p * 0.4 * 100) / 100 : 0);
+        const v = Number(s.volumeCbm) || (p > 0 ? Math.round(p * 2.5 * 10) / 10 : 0);
+        orderCargo.set(s.orderId, { pal: p, wt: w, ldm: l, vol: v });
+      }
+    });
+
     let cumPal = 0;
     let cumWt = 0;
+    let cumLdm = 0;
+    let cumVol = 0;
+
     return raw.map((s: any) => {
-      const pal = Number(s.pallets) || 0;
-      const wt = Number(s.weightKg) || 0;
+      let pal = Number(s.pallets) || 0;
+      let wt = Number(s.weightKg) || 0;
+      let ldm = Number(s.loadingMeters) || 0;
+      let vol = Number(s.volumeCbm) || 0;
+
+      if (s.orderId && s.type === 'delivery') {
+        const matched = orderCargo.get(s.orderId);
+        if (matched) {
+          pal = matched.pal;
+          wt = matched.wt;
+          ldm = matched.ldm;
+          vol = matched.vol;
+        }
+      }
+
+      if (ldm === 0 && pal > 0) ldm = Math.round(pal * 0.4 * 100) / 100;
+      if (vol === 0 && pal > 0) vol = Math.round(pal * 2.5 * 10) / 10;
+
       if (s.type === 'pickup') {
         cumPal += pal;
         cumWt += wt;
+        cumLdm += ldm;
+        cumVol += vol;
       } else {
         cumPal = Math.max(0, cumPal - pal);
         cumWt = Math.max(0, cumWt - wt);
+        cumLdm = Math.max(0, cumLdm - ldm);
+        cumVol = Math.max(0, cumVol - vol);
       }
+
       return {
         ...s,
+        pallets: pal,
+        weightKg: wt,
+        loadingMeters: ldm,
+        volumeCbm: vol,
         liveCumPal: Math.max(0, cumPal),
         liveCumWt: Math.max(0, cumWt),
+        liveCumLdm: Math.max(0, cumLdm),
+        liveCumVol: Math.max(0, cumVol),
       };
     });
   }, [routePlan]);
