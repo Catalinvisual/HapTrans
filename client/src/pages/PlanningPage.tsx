@@ -620,6 +620,7 @@ function TripDetailDrawer({
   // Full trip detail fetched from server when drawer opens (ensures stops/orders are populated)
   const [tripDetail, setTripDetail] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     setAuditEvents(null);
@@ -674,9 +675,63 @@ function TripDetailDrawer({
     onReorderStops(tripId, s.map((x: any) => x.id));
   };
 
+  const handleResolveConflict = (c: any) => {
+    const msg = String(c?.message || '').toLowerCase();
+    const type = String(c?.type || '').toLowerCase();
+
+    // 1. Truck maintenance / vehicle status
+    if (type.includes('vehicle') || msg.includes('maintenance') || msg.includes('truck') || msg.includes('itp') || (truck?.plateNumber && msg.includes(truck.plateNumber.toLowerCase()))) {
+      navigate('/trucks' + (truck?.plateNumber ? `?search=${encodeURIComponent(truck.plateNumber)}` : ''));
+      return;
+    }
+
+    // 2. Capacity overload (Weight, LDM, Volume, Pallets)
+    if (type.includes('capacity') || msg.includes('weight') || msg.includes('exceed') || msg.includes('ldm') || msg.includes('volume') || msg.includes('pallet')) {
+      if (truck?.id) {
+        navigate(`/planning/planner/${truck.id}?date=${trip.plannedDeparture ? String(trip.plannedDeparture).split('T')[0] : ''}&trip=${tripId}`);
+      } else {
+        setActiveTab('orders');
+      }
+      return;
+    }
+
+    // 3. Driver issues / HOS
+    if (type.includes('driver') || msg.includes('driver') || msg.includes('hos') || msg.includes('rest')) {
+      navigate('/drivers' + (driver?.name ? `?search=${encodeURIComponent(driver.name)}` : ''));
+      return;
+    }
+
+    // 4. Order specific issue
+    if (c.orderId) {
+      navigate(`/orders/${c.orderId}`);
+      return;
+    }
+
+    // 5. Default: Time window / Stop sequence
+    setActiveTab('stops');
+  };
+
+  const getConflictActionLabel = (c: any) => {
+    const msg = String(c?.message || '').toLowerCase();
+    const type = String(c?.type || '').toLowerCase();
+    if (type.includes('vehicle') || msg.includes('maintenance') || msg.includes('truck') || msg.includes('itp') || (truck?.plateNumber && msg.includes(truck.plateNumber.toLowerCase()))) {
+      return t('pln_fix_truck', 'Manage Truck');
+    }
+    if (type.includes('capacity') || msg.includes('weight') || msg.includes('exceed') || msg.includes('ldm') || msg.includes('volume') || msg.includes('pallet')) {
+      return t('pln_open_planner', 'Open Route Planner');
+    }
+    if (type.includes('driver') || msg.includes('driver') || msg.includes('hos')) {
+      return t('pln_fix_driver', 'Manage Driver');
+    }
+    if (c.orderId) {
+      return t('pln_edit_order', 'Edit Order');
+    }
+    return t('pln_view_stops', 'View Stops');
+  };
+
   return typeof document !== 'undefined' ? createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-end" style={{ backdropFilter: 'blur(6px)', backgroundColor: 'rgba(0,0,0,0.55)' }} onClick={onClose}>
-      <div className="relative w-full max-w-xl h-full bg-card shadow-2xl flex flex-col border-l border-border animate-in slide-in-from-right duration-200" onClick={e => e.stopPropagation()}>
+      <div className={`relative w-full ${isExpanded ? 'max-w-4xl lg:max-w-5xl' : 'max-w-xl'} h-full bg-card shadow-2xl flex flex-col border-l border-border animate-in slide-in-from-right duration-200 transition-all`} onClick={e => e.stopPropagation()}>
 
         {/* Header */}
         <div className="p-5 border-b border-border bg-surface/40 flex items-start justify-between gap-4 shrink-0">
@@ -705,6 +760,9 @@ function TripDetailDrawer({
             )}
             <button onClick={() => navigate(`/trips/${tripId}`)} className="btn-secondary text-xs py-1.5 px-2.5 flex items-center gap-1">
               <ExternalLink className="w-3.5 h-3.5" /><span>{t('jsx_context_openTrip','Open')}</span>
+            </button>
+            <button onClick={() => setIsExpanded(p => !p)} className="p-1.5 hover:bg-surface rounded-xl text-text-secondary hover:text-text-primary transition-colors" title={isExpanded ? t('collapse', 'Collapse') : t('expand', 'Expand')}>
+              {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
             <button onClick={onClose} className="p-1.5 hover:bg-surface rounded-xl text-text-secondary hover:text-text-primary"><X className="w-5 h-5" /></button>
           </div>
@@ -743,12 +801,31 @@ function TripDetailDrawer({
             </div>
           )}
           {!detailLoading && tripConflicts.length > 0 && (
-            <div className="bg-red-500/5 rounded-2xl border border-red-500/20 p-3 space-y-1.5">
-              <h3 className="text-xs font-bold text-red-600 flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" />{t('jsx_attention','Conflicts')} ({tripConflicts.length})</h3>
-              {tripConflicts.map((c: any) => (
-                <div key={c.id} className="text-xs flex gap-2 bg-card/80 p-2 rounded-xl border border-red-500/20">
-                  <span className="px-1.5 text-[8px] font-black uppercase rounded bg-red-500 text-white shrink-0">{c.level}</span>
-                  <span className="text-text-primary">{c.message}</span>
+            <div className="bg-red-500/5 rounded-2xl border border-red-500/20 p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-red-600 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  {t('jsx_attention', 'Attention / Conflicts')} ({tripConflicts.length})
+                </h3>
+                <span className="text-[10px] text-red-500 font-semibold">{t('pln_click_to_resolve', 'Click an issue to resolve')}</span>
+              </div>
+              {tripConflicts.map((c: any, cIdx: number) => (
+                <div
+                  key={c.id || cIdx}
+                  onClick={() => handleResolveConflict(c)}
+                  className="group text-xs flex items-center justify-between gap-2.5 bg-card hover:bg-red-500/10 p-2.5 rounded-xl border border-red-500/25 hover:border-red-500/50 cursor-pointer transition-all shadow-xs active:scale-[0.99]"
+                  title="Click to navigate and fix this issue"
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="px-1.5 py-0.5 text-[8px] font-black uppercase rounded bg-red-500 text-white shrink-0 shadow-xs">
+                      {c.level}
+                    </span>
+                    <span className="text-text-primary font-medium truncate">{c.message}</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-red-600 shrink-0 group-hover:text-red-700">
+                    <span className="hidden sm:inline">{getConflictActionLabel(c)}</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -874,11 +951,21 @@ function TripDetailDrawer({
         <div className="p-4 border-t border-border bg-surface/50 flex flex-col gap-2.5 shrink-0">
           {/* Blocking conflict alert */}
           {blockingConflicts.length > 0 && (
-            <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/25">
-              <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-bold text-red-600">⛔ Cannot confirm — blocking conflict</p>
-                <p className="text-[10px] text-red-500/80 mt-0.5">{blockingConflicts[0]?.message || 'Resolve blocking issues before confirming'}</p>
+            <div
+              onClick={() => handleResolveConflict(blockingConflicts[0])}
+              className="flex items-start justify-between gap-2 px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/25 hover:bg-red-500/15 cursor-pointer transition-colors group"
+              title="Click to resolve this blocking conflict"
+            >
+              <div className="flex items-start gap-2 min-w-0 flex-1">
+                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-red-600">⛔ Cannot confirm — blocking conflict</p>
+                  <p className="text-[10px] text-red-500/80 mt-0.5 truncate">{blockingConflicts[0]?.message || 'Resolve blocking issues before confirming'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-[10px] font-bold text-red-600 shrink-0 mt-1">
+                <span className="hidden sm:inline">{getConflictActionLabel(blockingConflicts[0])}</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
               </div>
             </div>
           )}
