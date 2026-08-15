@@ -71,7 +71,8 @@ export class PlanningEngine {
             latitude: os.latitude,
             longitude: os.longitude,
             sequence: addressToStopMap.size + 1,
-            status: 'pending'
+            status: 'pending',
+            type: os.type
           };
           tripStop = this.stopRepo.create(newStopPayload) as any as Stop;
           const savedStop = await this.stopRepo.save(tripStop as any) as any as Stop;

@@ -375,7 +375,7 @@ export default function OrderWizard({
           ...emptyCargo
         }]);
       }
-      setCurrentStep(0);
+      // Removed setCurrentStep(0) so the modal respects initialStep / highlightSection
     }
   }, [isOpen, orderId]);
   useEffect(() => {
