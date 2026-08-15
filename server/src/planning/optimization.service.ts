@@ -70,9 +70,16 @@ export class OptimizationService {
       };
     }
 
-    // Build distance matrix using HERE Maps / ORS
-    const distanceMatrix = await this.buildDistanceMatrix(stops);
-    const timeMatrix = this.buildTimeMatrix(stops, distanceMatrix);
+    // Build real road distance and time matrix using RoutingService (HERE / Google / ORS + Caching) (§7, §8, §9, §13)
+    const points = stops.map((s) => ({ lat: s.latitude || 0, lng: s.longitude || 0 }));
+    const matrixResult = await this.routingService.calculateMatrix(points, {
+      weightKg: Number(routePlan.maxWeightKg) || 40000,
+      heightCm: 400,
+      lengthCm: 1360,
+    });
+
+    const distanceMatrix = matrixResult.distanceMatrix;
+    const timeMatrix = this.buildTimeMatrix(stops, matrixResult.timeMatrix);
 
     // Compute before metrics against real distance/time matrices
     const beforeMetricsWithMatrix = this.calculateRouteMetricsFromStops(stops, distanceMatrix, timeMatrix);
@@ -171,7 +178,7 @@ export class OptimizationService {
     return matrix;
   }
 
-  private buildTimeMatrix(stops: RoutePlanStop[], distanceMatrix: number[][]): number[][] {
+  private buildTimeMatrix(stops: RoutePlanStop[], drivingTimeMatrix: number[][]): number[][] {
     const n = stops.length;
     const matrix: number[][] = Array(n).fill(null).map(() => Array(n).fill(0));
 
@@ -180,9 +187,7 @@ export class OptimizationService {
         if (i === j) {
           matrix[i][j] = 0;
         } else {
-          // Estimate time: distance / avg speed (50 km/h) + service time at origin
-          const distKm = distanceMatrix[i][j];
-          const driveTimeMinutes = Math.round((distKm / 50) * 60);
+          const driveTimeMinutes = drivingTimeMatrix[i]?.[j] ?? 30;
           const serviceTimeMinutes = stops[i].serviceDurationMinutes || 30;
           matrix[i][j] = driveTimeMinutes + serviceTimeMinutes;
         }

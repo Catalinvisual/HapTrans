@@ -20,6 +20,9 @@ export class Truck {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid', nullable: true })
+  companyId: string | null;
+
   @ManyToOne(() => Company, { nullable: true, onDelete: 'CASCADE' })
   company: Company;
 

@@ -46,6 +46,9 @@ export class User {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ type: 'uuid', nullable: true })
+  companyId: string | null;
+
   @ManyToOne(() => Company, (company) => company.users, { nullable: true })
   company: Company;
 

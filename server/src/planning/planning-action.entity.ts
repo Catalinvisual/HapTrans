@@ -7,21 +7,37 @@ export class PlanningAction {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Company, { nullable: true, onDelete: 'CASCADE' })
-  company: Company;
+  @Column({ type: 'uuid', nullable: true })
+  companyId: string | null;
 
-  @ManyToOne(() => User, { nullable: true, onDelete: 'CASCADE' })
-  user: User;
+  @Column({ type: 'uuid', nullable: true })
+  userId: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  truckId: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  routePlanId: string | null;
 
   @Index()
   @Column({ type: 'varchar' })
   action: string;
 
-  // JSON payload needed to reverse the action:
-  // { orders: [{ id, tripId, status }], deletedTrips: [{ id, tripNumber, truckId, driverId, trailerId, plannedDeparture, plannedArrival, companyId }], newTripIds: string[] }
   @Column({ type: 'jsonb', nullable: true })
   undoData: any;
 
+  @Column({ type: 'jsonb', nullable: true })
+  beforeState: any;
+
+  @Column({ type: 'jsonb', nullable: true })
+  afterState: any;
+
   @CreateDateColumn()
   createdAt: Date;
+
+  @ManyToOne(() => Company, { nullable: true, onDelete: 'CASCADE' })
+  company: Company;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'CASCADE' })
+  user: User;
 }

@@ -293,9 +293,11 @@ async function bootstrap() {
 
     console.log('v7.0 raw SQL migration completed successfully!');
 
-    // NOW run TypeORM synchronize to handle any remaining differences
-    await dataSource.synchronize();
-    console.log('TypeORM synchronization completed.');
+    // NOW run explicit TypeORM migrations (non-destructive, idempotent)
+    // replaces the previous dataSource.synchronize() which could alter schema
+    // in production based on entity drift.
+    await dataSource.runMigrations();
+    console.log('TypeORM migrations completed.');
   } catch (err) {
     console.error('Migration failed, but server will still start:', err.message);
   }

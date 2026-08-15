@@ -61,7 +61,9 @@ import { ActionLogsModule } from './action-logs/action-logs.module';
         password: config.get('DB_PASSWORD') || config.get('DB_PASS'),
         database: config.get('DB_DATABASE') || config.get('DB_NAME'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: false, // Turned off here; we run it manually in main.ts
+        migrations: [__dirname + '/migrations/*{.ts,.js}'],
+        migrationsRun: true,
+        synchronize: false,
         logging: false,
       }),
       inject: [ConfigService],

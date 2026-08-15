@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { PlanningProfile, PlanningProfileType, LoadingRule, LoadingAccess } from './planning-profile.entity';
@@ -56,7 +56,7 @@ export class PlanningService {
 
   // ─── Planning Profiles ───
 
-  async getDefaultProfile(companyId?: string): Promise<PlanningProfile> {
+  async getDefaultProfile(companyId?: string | null): Promise<PlanningProfile> {
     const query = this.profileRepo.createQueryBuilder('profile')
       .where('profile.isDefault = true')
       .andWhere('profile.isActive = true');
@@ -74,7 +74,7 @@ export class PlanningService {
     return profile;
   }
 
-  async createDefaultProfile(companyId?: string): Promise<PlanningProfile> {
+  async createDefaultProfile(companyId?: string | null): Promise<PlanningProfile> {
     const profile = new PlanningProfile();
     profile.name = 'Standard Transport';
     profile.description = 'Balanced optimization for standard transport operations';
@@ -188,21 +188,53 @@ export class PlanningService {
 
   // ─── Truck Route Plans ───
 
-  async getOrCreateRoutePlan(truckId: string, planningDate: string, tripId?: string): Promise<TruckRoutePlan> {
+  // Tenancy helper: resources with companyId NULL are treated as global
+  // (legacy/data created before tenancy). A company-scoped user may only
+  // access resources of their own company or unassigned ones.
+  private assertCompanyAccess(resourceCompanyId: string | null | undefined, userCompanyId: string | null | undefined): void {
+    if (!userCompanyId) return; // global admin / no company binding
+    if (!resourceCompanyId) return; // unassigned resource is globally visible
+    if (resourceCompanyId !== userCompanyId) {
+      throw new ForbiddenException('This resource belongs to another company');
+    }
+  }
+
+  private async assertTruckAccess(truckId: string, userCompanyId?: string | null): Promise<Truck> {
+    const truck = await this.truckRepo.findOne({ where: { id: truckId } });
+    if (!truck) throw new NotFoundException('Truck not found');
+    this.assertCompanyAccess((truck as any).companyId, userCompanyId);
+    return truck;
+  }
+
+  private async assertRoutePlanAccess(routePlanId: string, userCompanyId?: string | null): Promise<TruckRoutePlan> {
+    const routePlan = await this.routePlanRepo.findOne({ where: { id: routePlanId } });
+    if (!routePlan) throw new NotFoundException('Route plan not found');
+    this.assertCompanyAccess((routePlan as any).companyId, userCompanyId);
+    return routePlan;
+  }
+
+  private async assertShipmentAccess(shipmentId: string, userCompanyId?: string | null): Promise<Shipment> {
+    const shipment = await this.shipmentRepo.findOne({ where: { id: shipmentId } });
+    if (!shipment) throw new NotFoundException('Shipment not found');
+    this.assertCompanyAccess((shipment as any).companyId, userCompanyId);
+    return shipment;
+  }
+
+  async getOrCreateRoutePlan(truckId: string, planningDate: string, tripId?: string, userCompanyId?: string | null): Promise<TruckRoutePlan> {
+    const truck = await this.assertTruckAccess(truckId, userCompanyId);
+
     let routePlan = await this.routePlanRepo.findOne({
       where: { truckId, planningDate, isCurrent: true },
       relations: ['stops', 'stops.order', 'truck', 'driver', 'trip'],
     });
 
     if (!routePlan) {
-      const truck = await this.truckRepo.findOne({ where: { id: truckId }, relations: ['driver', 'trailer'] });
-      if (!truck) throw new NotFoundException('Truck not found');
-
-      const profile = await this.getDefaultProfile();
+      const profile = await this.getDefaultProfile(userCompanyId);
 
       routePlan = new TruckRoutePlan();
       routePlan.truck = { id: truckId } as any;
       routePlan.truckId = truckId;
+      routePlan.company = (truck as any).companyId ? { id: (truck as any).companyId } as any : null;
       routePlan.driver = truck.driver ? { id: truck.driver.id } as any : null;
       routePlan.driverId = truck.driver?.id ?? null;
       routePlan.trip = tripId ? { id: tripId } as any : null;
@@ -212,10 +244,11 @@ export class PlanningService {
       routePlan.isCurrent = true;
       routePlan.isOptimized = false;
       routePlan.feasibilityStatus = RouteFeasibilityStatus.FEASIBLE;
-      routePlan.maxPallets = truck.maxPallets || 33;
-      routePlan.maxWeightKg = truck.maxWeightKg || (truck.trailer?.payloadCapacityWeight || 24000);
-      routePlan.maxLdm = truck.maxLdm || (truck.trailer?.maxLdm || 13.6);
-      routePlan.maxVolumeCbm = truck.maxVolumeCbm || (truck.trailer?.maxVolumeCbm || 90);
+      const caps = this.resolveTruckCapacity(truck);
+      routePlan.maxPallets = caps.maxPallets;
+      routePlan.maxWeightKg = caps.maxWeightKg;
+      routePlan.maxLdm = caps.maxLdm;
+      routePlan.maxVolumeCbm = caps.maxVolumeCbm;
       routePlan.optimizationMetadata = {
         profileUsed: profile.name,
         profileId: profile.id,
@@ -255,10 +288,11 @@ export class PlanningService {
     routePlan.isCurrent = true;
     routePlan.isOptimized = false;
     routePlan.feasibilityStatus = RouteFeasibilityStatus.FEASIBLE;
-    routePlan.maxPallets = trip.truck.maxPallets || 33;
-    routePlan.maxWeightKg = trip.truck.maxWeightKg || 24000;
-    routePlan.maxLdm = trip.truck.maxLdm || 13.6;
-    routePlan.maxVolumeCbm = trip.truck.maxVolumeCbm || 90;
+    const caps = this.resolveTruckCapacity(trip.truck);
+    routePlan.maxPallets = caps.maxPallets;
+    routePlan.maxWeightKg = caps.maxWeightKg;
+    routePlan.maxLdm = caps.maxLdm;
+    routePlan.maxVolumeCbm = caps.maxVolumeCbm;
 
     const savedPlan = await this.routePlanRepo.save(routePlan);
 
@@ -366,7 +400,8 @@ export class PlanningService {
     return this.routePlanRepo.save(savedPlan);
   }
 
-  async getRoutePlan(truckId: string, planningDate: string): Promise<TruckRoutePlan | null> {
+  async getRoutePlan(truckId: string, planningDate: string, userCompanyId?: string | null): Promise<TruckRoutePlan | null> {
+    await this.assertTruckAccess(truckId, userCompanyId);
     return this.routePlanRepo.findOne({
       where: { truckId, planningDate, isCurrent: true },
       relations: ['stops', 'stops.order', 'truck', 'driver', 'trip'],
@@ -374,8 +409,27 @@ export class PlanningService {
     });
   }
 
-  async saveRoutePlan(routePlan: TruckRoutePlan, auditAction: string = 'route_saved'): Promise<TruckRoutePlan> {
+  async saveRoutePlan(
+    routePlan: TruckRoutePlan & { auditAction?: string },
+    userCompanyId?: string | null,
+    userId?: string | null,
+  ): Promise<TruckRoutePlan> {
     if (!routePlan.id) throw new BadRequestException('Route plan id is required');
+
+    // ── Optimistic concurrency: reject stale client saves (1.5) ──
+    // The client must send the version it last loaded; if someone else
+    // saved in the meantime the DB version will differ and we refuse silently
+    // overwriting their work.
+    const latest = await this.routePlanRepo.findOne({ where: { id: routePlan.id } });
+    if (latest && typeof latest.version === 'number' && typeof routePlan.version === 'number' && latest.version !== routePlan.version) {
+      throw new BadRequestException({
+        message: 'This route plan has been changed by another user. Please reload the latest version before saving.',
+        code: 'CONCURRENT_SAVE_CONFLICT',
+        currentVersion: latest.version,
+      });
+    }
+
+    await this.assertRoutePlanAccess(routePlan.id, userCompanyId);
 
     // Normalize stop ordering before persisting
     const stops = [...(routePlan.stops || [])].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
@@ -410,9 +464,18 @@ export class PlanningService {
         ? RouteFeasibilityStatus.WARNING
         : RouteFeasibilityStatus.FEASIBLE;
 
+    // Capture before-state for the audit log (current DB snapshot).
+    const before = await this.routePlanRepo.findOne({
+      where: { id: routePlan.id },
+      relations: ['stops', 'stops.order', 'truck', 'driver', 'trip'],
+      order: { stops: { sequence: 'ASC' } },
+    });
+
+    routePlan.version = (routePlan.version || 0) + 1;
+
     const saved = await this.routePlanRepo.save(routePlan);
 
-    await this.recordAction(auditAction, {
+    await this.recordAction(routePlan.auditAction || 'route_saved', {
       routePlanId: saved.id,
       truckId: saved.truckId,
       planningDate: saved.planningDate,
@@ -424,7 +487,7 @@ export class PlanningService {
       hardConflicts: hardConflicts.length,
       conflicts: validation.conflicts.length,
       warnings: validation.warnings.length,
-    });
+    }, userCompanyId, userId, before, saved);
 
     const reloaded = await this.getRoutePlanById(saved.id);
     if (!reloaded) throw new NotFoundException('Route plan not found after save');
@@ -724,8 +787,8 @@ export class PlanningService {
     return completeness;
   }
 
-  async validateRoutePlanForTruck(truckId: string, planningDate: string): Promise<RouteValidationResult> {
-    const routePlan = await this.getRoutePlan(truckId, planningDate);
+  async validateRoutePlanForTruck(truckId: string, planningDate: string, userCompanyId?: string | null): Promise<RouteValidationResult> {
+    const routePlan = await this.getRoutePlan(truckId, planningDate, userCompanyId);
     if (!routePlan) {
       throw new NotFoundException('No route plan found for this truck and date');
     }
@@ -739,10 +802,23 @@ export class PlanningService {
 
   // ─── Audit trail ───
 
-  async recordAction(action: string, payload: any): Promise<PlanningAction> {
+  async recordAction(
+    action: string,
+    payload: any,
+    companyId?: string | null,
+    userId?: string | null,
+    beforeState?: any,
+    afterState?: any,
+  ): Promise<PlanningAction> {
     const entry = this.planningActionRepo.create({
       action,
       undoData: payload || {},
+      companyId: companyId ?? null,
+      userId: userId ?? null,
+      truckId: (payload && payload.truckId) || null,
+      routePlanId: (payload && payload.routePlanId) || null,
+      beforeState: beforeState ?? null,
+      afterState: afterState ?? null,
     });
     return this.planningActionRepo.save(entry);
   }
@@ -760,7 +836,8 @@ export class PlanningService {
     return qb.getMany();
   }
 
-  async recalculateRoutePlan(routePlanId: string): Promise<TruckRoutePlan> {
+  async recalculateRoutePlan(routePlanId: string, userCompanyId?: string | null): Promise<TruckRoutePlan> {
+    await this.assertRoutePlanAccess(routePlanId, userCompanyId);
     const routePlan = await this.routePlanRepo.findOne({
       where: { id: routePlanId },
       relations: ['stops', 'stops.order', 'truck', 'driver', 'trip'],
@@ -792,7 +869,8 @@ export class PlanningService {
     return saved;
   }
 
-  async optimizeRoutePlan(routePlanId: string, profileId?: string): Promise<TruckRoutePlan> {
+  async optimizeRoutePlan(routePlanId: string, profileId?: string, userCompanyId?: string | null): Promise<TruckRoutePlan> {
+    await this.assertRoutePlanAccess(routePlanId, userCompanyId);
     const routePlan = await this.routePlanRepo.findOne({
       where: { id: routePlanId },
       relations: ['stops', 'stops.order', 'truck', 'driver', 'trip'],
@@ -855,7 +933,8 @@ export class PlanningService {
     return routePlan;
   }
 
-  async reorderStops(routePlanId: string, stopIds: string[]): Promise<TruckRoutePlan> {
+  async reorderStops(routePlanId: string, stopIds: string[], userCompanyId?: string | null): Promise<TruckRoutePlan> {
+    await this.assertRoutePlanAccess(routePlanId, userCompanyId);
     const routePlan = await this.routePlanRepo.findOne({
       where: { id: routePlanId },
       relations: ['stops', 'truck'],
@@ -900,7 +979,8 @@ export class PlanningService {
     return routePlan;
   }
 
-  async lockStop(routePlanId: string, stopId: string, lockSequence: boolean = false): Promise<RoutePlanStop> {
+  async lockStop(routePlanId: string, stopId: string, lockSequence: boolean = false, userCompanyId?: string | null): Promise<RoutePlanStop> {
+    await this.assertRoutePlanAccess(routePlanId, userCompanyId);
     const stop = await this.routePlanStopRepo.findOne({ where: { id: stopId, routePlanId } });
     if (!stop) throw new NotFoundException('Stop not found');
 
@@ -911,7 +991,8 @@ export class PlanningService {
     return saved;
   }
 
-  async unlockStop(routePlanId: string, stopId: string): Promise<RoutePlanStop> {
+  async unlockStop(routePlanId: string, stopId: string, userCompanyId?: string | null): Promise<RoutePlanStop> {
+    await this.assertRoutePlanAccess(routePlanId, userCompanyId);
     const stop = await this.routePlanStopRepo.findOne({ where: { id: stopId, routePlanId } });
     if (!stop) throw new NotFoundException('Stop not found');
 
@@ -922,7 +1003,8 @@ export class PlanningService {
     return saved;
   }
 
-  async lockShipment(shipmentId: string): Promise<Shipment> {
+  async lockShipment(shipmentId: string, userCompanyId?: string | null): Promise<Shipment> {
+    await this.assertShipmentAccess(shipmentId, userCompanyId);
     const shipment = await this.shipmentRepo.findOne({ where: { id: shipmentId } });
     if (!shipment) throw new NotFoundException('Shipment not found');
     shipment.locked = true;
@@ -931,7 +1013,8 @@ export class PlanningService {
     return saved;
   }
 
-  async unlockShipment(shipmentId: string): Promise<Shipment> {
+  async unlockShipment(shipmentId: string, userCompanyId?: string | null): Promise<Shipment> {
+    await this.assertShipmentAccess(shipmentId, userCompanyId);
     const shipment = await this.shipmentRepo.findOne({ where: { id: shipmentId } });
     if (!shipment) throw new NotFoundException('Shipment not found');
     shipment.locked = false;
@@ -940,7 +1023,8 @@ export class PlanningService {
     return saved;
   }
 
-  async resetRoutePlan(routePlanId: string): Promise<TruckRoutePlan> {
+  async resetRoutePlan(routePlanId: string, userCompanyId?: string | null): Promise<TruckRoutePlan> {
+    await this.assertRoutePlanAccess(routePlanId, userCompanyId);
     const routePlan = await this.routePlanRepo.findOne({
       where: { id: routePlanId },
       relations: ['stops', 'trip'],
@@ -975,5 +1059,27 @@ export class PlanningService {
     });
 
     return this.routePlanRepo.save(newPlan);
+  }
+
+  // Resolves physical capacity of a truck, using the truck's own values and
+  // falling back to trailer values where the truck itself is unknown.
+  // Throws if the truck has no known capacity — the owner must confirm real
+  // physical capacities before the vehicle may be used for production planning.
+  private resolveTruckCapacity(truck: Truck): {
+    maxPallets: number; maxWeightKg: number; maxLdm: number; maxVolumeCbm: number;
+  } {
+    const maxPallets = truck.maxPallets ?? truck.trailer?.payloadCapacityPallets;
+    const maxWeightKg = truck.maxWeightKg ?? truck.trailer?.payloadCapacityWeight;
+    const maxLdm = truck.maxLdm ?? truck.trailer?.maxLdm;
+    const maxVolumeCbm = truck.maxVolumeCbm ?? truck.trailer?.maxVolumeCbm;
+
+    // Any null capacity means the physical reality is unconfirmed by the owner.
+    if (maxPallets == null || maxWeightKg == null || maxLdm == null || maxVolumeCbm == null) {
+      throw new BadRequestException({
+        message: 'PLANNING DATA INCOMPLETE',
+        detail: `Truck ${truck.truckType ?? ''} (${truck.plateNumber}) has incomplete capacity data (pallets/weight/LDM/volume). Confirm with the owner before planning.`,
+      });
+    }
+    return { maxPallets, maxWeightKg, maxLdm, maxVolumeCbm };
   }
 }

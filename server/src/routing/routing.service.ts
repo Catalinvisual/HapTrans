@@ -2,23 +2,65 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { decode as flexDecode } from '@here/flexpolyline';
+import { LatLng, MatrixResult, RouteSummaryResult, RoutingOptions } from './routing-provider.interface';
+
+interface CachedMatrixItem {
+  distanceKm: number;
+  durationMin: number;
+  timestamp: number;
+  source: string;
+}
 
 @Injectable()
 export class RoutingService {
   private readonly logger = new Logger(RoutingService.name);
   private readonly hereKey: string;
   private readonly orsKey: string;
+  private readonly googleKey: string;
+
+  // In-memory Routing Cache for pair distances and durations (§9, §31)
+  private readonly matrixCache = new Map<string, CachedMatrixItem>();
+  private readonly CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days TTL
 
   constructor(private config: ConfigService) {
     this.hereKey = (this.config.get('HERE_API_KEY') || '').trim();
     this.orsKey = (this.config.get('ORS_API_KEY') || '').trim();
+    this.googleKey = (this.config.get('GOOGLE_ROUTES_API_KEY') || this.config.get('GOOGLE_MAPS_API_KEY') || '').trim();
+  }
+
+  // ─── Cache Helpers ────────────────────────────────────────────────────────
+  private getCacheKey(origin: LatLng, dest: LatLng): string {
+    return `${origin.lat.toFixed(4)},${origin.lng.toFixed(4)}->${dest.lat.toFixed(4)},${dest.lng.toFixed(4)}`;
+  }
+
+  private getFromCache(origin: LatLng, dest: LatLng): CachedMatrixItem | null {
+    const key = this.getCacheKey(origin, dest);
+    const item = this.matrixCache.get(key);
+    if (!item) return null;
+    if (Date.now() - item.timestamp > this.CACHE_TTL_MS) {
+      this.matrixCache.delete(key);
+      return null;
+    }
+    return item;
+  }
+
+  private setInCache(origin: LatLng, dest: LatLng, distanceKm: number, durationMin: number, source: string) {
+    const key = this.getCacheKey(origin, dest);
+    this.matrixCache.set(key, {
+      distanceKm: Math.round(distanceKm * 100) / 100,
+      durationMin: Math.round(durationMin),
+      timestamp: Date.now(),
+      source,
+    });
   }
 
   // ─── Autocomplete Address (HERE Maps) ──────────────────────────────────────
   async autocompleteAddress(query: string): Promise<any[]> {
     try {
+      if (!this.hereKey) return [];
       const res = await axios.get('https://autocomplete.search.hereapi.com/v1/autocomplete', {
         params: { q: query, apiKey: this.hereKey, limit: 5 },
+        timeout: 5000,
       });
       if (res.data?.items) {
         return res.data.items.map((item: any) => {
@@ -52,6 +94,7 @@ export class RoutingService {
   // ─── Geocoding: address → {lat, lng} ───────────────────────────────────────
   async geocode(address: string): Promise<{ lat: number; lng: number; label: string } | null> {
     try {
+      if (!this.hereKey) return null;
       const res = await axios.get('https://geocode.search.hereapi.com/v1/geocode', {
         params: { q: address, apiKey: this.hereKey, limit: 1 },
         timeout: 8000,
@@ -69,123 +112,98 @@ export class RoutingService {
     }
   }
 
-  // ─── Routing: calculate truck route with HERE Maps ─────────────────────────
+  // ─── Routing: calculate truck route with HERE / ORS ────────────────────────
   async calculateRoute(
     originLat: number, originLng: number,
     destLat: number, destLng: number,
-    truckParams?: { weightKg?: number; heightCm?: number; lengthCm?: number }
-  ) {
+    truckParams?: RoutingOptions
+  ): Promise<RouteSummaryResult | null> {
+    const origin = { lat: originLat, lng: originLng };
+    const dest = { lat: destLat, lng: destLng };
+
+    // Check cache first
+    const cached = this.getFromCache(origin, dest);
+    if (cached && !truckParams) {
+      return {
+        distanceKm: cached.distanceKm,
+        durationMin: cached.durationMin,
+        durationText: `${Math.floor(cached.durationMin / 60)}h ${cached.durationMin % 60}m`,
+        source: cached.source as any,
+      };
+    }
+
     try {
-      const params: any = {
-        transportMode: 'truck',
-        origin: `${originLat},${originLng}`,
-        destination: `${destLat},${destLng}`,
-        return: 'summary,polyline,tolls',
-        apiKey: this.hereKey,
-        'vehicle[grossWeight]': Math.max(40000, truckParams?.weightKg || 40000),
-        'vehicle[height]': truckParams?.heightCm || 400,
-        'vehicle[length]': truckParams?.lengthCm || 1360,
-        'vehicle[tollVehicleType]': 3,
-        'vehicle[emissionType]': 6,
-        currency: 'EUR',
-      };
+      if (this.hereKey) {
+        const params: any = {
+          transportMode: 'truck',
+          origin: `${originLat},${originLng}`,
+          destination: `${destLat},${destLng}`,
+          return: 'summary,polyline,tolls',
+          apiKey: this.hereKey,
+          'vehicle[grossWeight]': Math.max(40000, truckParams?.weightKg || 40000),
+          'vehicle[height]': truckParams?.heightCm || 400,
+          'vehicle[length]': truckParams?.lengthCm || 1360,
+          'vehicle[tollVehicleType]': 3,
+          'vehicle[emissionType]': 6,
+          currency: 'EUR',
+        };
 
-      const res = await axios.get('https://router.hereapi.com/v8/routes', {
-        params,
-        timeout: 12000,
-      });
+        const res = await axios.get('https://router.hereapi.com/v8/routes', {
+          params,
+          timeout: 12000,
+        });
 
-      const route = res.data.routes?.[0];
-      if (!route) return null;
+        const route = res.data.routes?.[0];
+        if (route) {
+          const section = route.sections?.[0];
+          const summary = section?.summary;
 
-      const section = route.sections?.[0];
-      const summary = section?.summary;
+          const distanceKm = Math.round((summary?.length || 0) / 1000);
+          const durationSec = summary?.duration || 0;
+          const durationMin = Math.round(durationSec / 60);
+          const hours = Math.floor(durationMin / 60);
+          const mins = durationMin % 60;
 
-      const EXCHANGE_RATES: Record<string, number> = {
-        'EUR': 1,
-        'HUF': 390,
-        'PLN': 4.3,
-        'RON': 4.97,
-        'CZK': 25.3,
-        'BGN': 1.95,
-        'SEK': 11.6,
-        'DKK': 7.45,
-        'CHF': 0.98,
-        'GBP': 0.85,
-        'TRY': 34.5,
-        'RSD': 117.2,
-        'BAM': 1.95,
-        'MKD': 61.5,
-        'NOK': 11.8,
-      };
-
-      // Extract toll costs
-      let tollCost = 0;
-      let tollCurrency = 'EUR';
-      const tolls = section?.tolls || [];
-      tolls.forEach((toll: any) => {
-        if (toll.fares && toll.fares.length > 0) {
-          let minFareEUR = Number.MAX_VALUE;
-          toll.fares.forEach((fare: any) => {
-            const priceObj = fare.convertedPrice || fare.price;
-            if (priceObj?.value !== undefined) {
-              const val = parseFloat(priceObj.value);
-              const currency = priceObj.currency || 'EUR';
-              
-              const rate = EXCHANGE_RATES[currency] || 1;
-              const valueInEUR = currency === 'EUR' ? val : val / rate;
-
-              if (valueInEUR < minFareEUR) {
-                minFareEUR = valueInEUR;
+          let coordinates: number[][] = [];
+          if (section?.polyline) {
+            try {
+              const decoded = flexDecode(section.polyline);
+              if (decoded && decoded.polyline) {
+                coordinates = decoded.polyline.map((p: any) => [p[1], p[0]]); // format: [lng, lat]
               }
+            } catch (err) {
+              this.logger.error('Failed to decode flexpolyline: ' + err.message);
             }
-          });
-          if (minFareEUR !== Number.MAX_VALUE) {
-            tollCost += minFareEUR;
           }
-        }
-      });
 
-      const distanceKm = Math.round((summary?.length || 0) / 1000);
-      const durationSec = summary?.duration || 0;
-      const durationMin = Math.round(durationSec / 60);
-      const hours = Math.floor(durationMin / 60);
-      const mins = durationMin % 60;
+          this.setInCache(origin, dest, distanceKm, durationMin, 'here');
 
-      let coordinates: number[][] = [];
-      if (section?.polyline) {
-        try {
-          const decoded = flexDecode(section.polyline);
-          if (decoded && decoded.polyline) {
-            coordinates = decoded.polyline.map((p: any) => [p[1], p[0]]); // format: [lng, lat]
-          }
-        } catch (err) {
-          this.logger.error('Failed to decode flexpolyline: ' + err.message);
+          return {
+            distanceKm,
+            durationMin,
+            durationText: `${hours}h ${mins}m`,
+            tollCost: 0,
+            tollCurrency: 'EUR',
+            polyline: section?.polyline || null,
+            coordinates,
+            source: 'here',
+          };
         }
       }
-
-      return {
-        distanceKm,
-        durationMin,
-        durationText: `${hours}h ${mins}m`,
-        tollCost: parseFloat(tollCost.toFixed(2)),
-        tollCurrency,
-        polyline: section?.polyline || null,
-        coordinates,
-        source: 'here',
-      };
     } catch (e) {
       this.logger.warn(`HERE routing failed: ${e.message}. Falling back to ORS...`);
-      return this.calculateRouteORS(originLat, originLng, destLat, destLng);
     }
+
+    return this.calculateRouteORS(originLat, originLng, destLat, destLng);
   }
 
   // ─── Fallback: OpenRouteService ────────────────────────────────────────────
   async calculateRouteORS(
     originLat: number, originLng: number,
     destLat: number, destLng: number
-  ) {
+  ): Promise<RouteSummaryResult | null> {
     try {
+      if (!this.orsKey) return null;
       const res = await axios.post(
         'https://api.openrouteservice.org/v2/directions/driving-hgv',
         {
@@ -209,6 +227,8 @@ export class RoutingService {
       const hours = Math.floor(durationMin / 60);
       const mins = durationMin % 60;
 
+      this.setInCache({ lat: originLat, lng: originLng }, { lat: destLat, lng: destLng }, distanceKm, durationMin, 'ors');
+
       return {
         distanceKm,
         durationMin,
@@ -225,37 +245,175 @@ export class RoutingService {
     }
   }
 
+  // ─── Real Road Distance & Time Matrix (§7, §8, §9, §10, §13) ───────────────
+  async calculateMatrix(points: LatLng[], options?: RoutingOptions): Promise<MatrixResult> {
+    const n = points.length;
+    const distanceMatrix: number[][] = Array(n).fill(0).map(() => Array(n).fill(0));
+    const timeMatrix: number[][] = Array(n).fill(0).map(() => Array(n).fill(0));
+
+    if (n === 0) {
+      return { distanceMatrix: [], timeMatrix: [], source: 'cache', cachedPairsCount: 0, calculatedPairsCount: 0 };
+    }
+
+    let cachedCount = 0;
+    let missingPairs: { fromIdx: number; toIdx: number; origin: LatLng; dest: LatLng }[] = [];
+
+    // Step 1: Check cache for each (i, j) pair
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (i === j) {
+          distanceMatrix[i][j] = 0;
+          timeMatrix[i][j] = 0;
+          continue;
+        }
+
+        const p1 = points[i];
+        const p2 = points[j];
+
+        if (!p1?.lat || !p1?.lng || !p2?.lat || !p2?.lng) {
+          // Missing coordinates fallback
+          distanceMatrix[i][j] = 50;
+          timeMatrix[i][j] = 60;
+          continue;
+        }
+
+        const cached = this.getFromCache(p1, p2);
+        if (cached) {
+          distanceMatrix[i][j] = cached.distanceKm;
+          timeMatrix[i][j] = cached.durationMin;
+          cachedCount++;
+        } else {
+          missingPairs.push({ fromIdx: i, toIdx: j, origin: p1, dest: p2 });
+        }
+      }
+    }
+
+    if (missingPairs.length === 0) {
+      return {
+        distanceMatrix,
+        timeMatrix,
+        source: 'cache',
+        cachedPairsCount: cachedCount,
+        calculatedPairsCount: 0,
+      };
+    }
+
+    let providerSource: 'google' | 'here' | 'ors' | 'haversine_fallback' = 'here';
+
+    // Step 2: Try ORS Matrix API if configured (very efficient for batch n x n)
+    let solvedViaMatrixApi = false;
+    if (this.orsKey && missingPairs.length > 2) {
+      try {
+        const locations = points.map(p => [p.lng, p.lat]);
+        const res = await axios.post(
+          'https://api.openrouteservice.org/v2/matrix/driving-hgv',
+          {
+            locations,
+            metrics: ['distance', 'duration'],
+          },
+          {
+            headers: { Authorization: this.orsKey, 'Content-Type': 'application/json' },
+            timeout: 15000,
+          }
+        );
+
+        if (res.data?.distances && res.data?.durations) {
+          for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+              if (i === j) continue;
+              const distMeters = res.data.distances[i]?.[j] || 0;
+              const durSec = res.data.durations[i]?.[j] || 0;
+              const distKm = Math.round((distMeters / 1000) * 100) / 100;
+              const durMin = Math.round(durSec / 60);
+
+              distanceMatrix[i][j] = distKm;
+              timeMatrix[i][j] = durMin;
+              this.setInCache(points[i], points[j], distKm, durMin, 'ors');
+            }
+          }
+          solvedViaMatrixApi = true;
+          providerSource = 'ors';
+        }
+      } catch (err) {
+        this.logger.warn(`ORS Matrix API call failed (${err.message}). Falling back to point-to-point router...`);
+      }
+    }
+
+    // Step 3: If matrix API wasn't used or failed, resolve remaining missing pairs via point-to-point
+    if (!solvedViaMatrixApi) {
+      for (const pair of missingPairs) {
+        try {
+          const route = await this.calculateRoute(pair.origin.lat, pair.origin.lng, pair.dest.lat, pair.dest.lng, options);
+          if (route) {
+            distanceMatrix[pair.fromIdx][pair.toIdx] = route.distanceKm;
+            timeMatrix[pair.fromIdx][pair.toIdx] = route.durationMin;
+            this.setInCache(pair.origin, pair.dest, route.distanceKm, route.durationMin, route.source);
+            providerSource = route.source as any;
+          } else {
+            // Haversine fallback for this specific pair
+            const hDist = this.haversineDistance(pair.origin.lat, pair.origin.lng, pair.dest.lat, pair.dest.lng);
+            const distKm = Math.round(hDist * 1.25); // Road network tortuosity factor (~1.25x)
+            const durMin = Math.round((distKm / 60) * 60); // 60 km/h truck average
+            distanceMatrix[pair.fromIdx][pair.toIdx] = distKm;
+            timeMatrix[pair.fromIdx][pair.toIdx] = durMin;
+            providerSource = 'haversine_fallback';
+          }
+        } catch (e) {
+          const hDist = this.haversineDistance(pair.origin.lat, pair.origin.lng, pair.dest.lat, pair.dest.lng);
+          const distKm = Math.round(hDist * 1.25);
+          distanceMatrix[pair.fromIdx][pair.toIdx] = distKm;
+          timeMatrix[pair.fromIdx][pair.toIdx] = Math.round((distKm / 60) * 60);
+          providerSource = 'haversine_fallback';
+        }
+      }
+    }
+
+    return {
+      distanceMatrix,
+      timeMatrix,
+      source: providerSource,
+      cachedPairsCount: cachedCount,
+      calculatedPairsCount: missingPairs.length,
+    };
+  }
+
+  private haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
   private cachedPrices: any[] = [];
   private lastPricesFetch: number = 0;
 
-  // ─── Diesel prices via fuel-prices.eu (European Commission Weekly Oil Bulletin) ──
+  // ─── Diesel prices via fuel-prices.eu ──────────────────────────────────────
   async getDieselPrices() {
-    // Return cached prices if fetched within the last 4 hours
     if (this.cachedPrices.length > 0 && Date.now() - this.lastPricesFetch < 4 * 60 * 60 * 1000) {
       return this.cachedPrices;
     }
 
-    // fuel-prices.eu aggregates the official EC Weekly Oil Bulletin data
     try {
-      const fp = await axios.get('https://www.fuel-prices.eu/', { 
+      const fp = await axios.get('https://www.fuel-prices.eu/', {
         timeout: 10000,
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9',
         }
       });
       const html = fp.data;
       const prices: any[] = [];
-      
       const targetCountries = ['RO', 'NL', 'DE', 'FR', 'BE', 'PL', 'HU', 'AT'];
-      
       const rx = /const rawData = (\[.*?\]);/;
       const match = html.match(rx);
-      
+
       if (match && match[1]) {
         const rawData = JSON.parse(match[1]);
-        
         for (const item of rawData) {
           const code = item.country_code;
           if (targetCountries.includes(code) && item.cur_dsl) {
@@ -264,34 +422,19 @@ export class RoutingService {
           }
         }
       }
-      
-      if (prices.length > 0) {
-        // Ensure all target countries are present, fallback to static if some are missing
-        const staticFallback: Record<string, number> = {
-          'RO': 1.81, 'NL': 2.27, 'DE': 1.92, 'FR': 2.12, 'BE': 2.07, 'PL': 1.57, 'HU': 1.72, 'AT': 1.90
-        };
-        
-        for (const code of targetCountries) {
-          if (!prices.find(p => p.country === code)) {
-             prices.push({ country: code, price: staticFallback[code], currency: 'EUR', unit: 'L', source: 'static-fallback' });
-          }
-        }
 
+      if (prices.length > 0) {
         this.cachedPrices = prices;
         this.lastPricesFetch = Date.now();
         return prices;
       }
     } catch (e) {
       this.logger.warn(`fuel-prices.eu scrape failed: ${e.message}.`);
-      // If we have stale cached prices, better to return them than the hardcoded static ones
       if (this.cachedPrices.length > 0) {
-        this.logger.log('Using stale cached prices as fallback.');
         return this.cachedPrices;
       }
     }
 
-    this.logger.warn('Using fallback static prices.');
-    // Fallback: real 2026 EU diesel prices
     return [
       { country: 'RO', flag: '🇷🇴', price: 1.81, currency: 'EUR', unit: 'L', source: 'static' },
       { country: 'NL', flag: '🇳🇱', price: 2.27, currency: 'EUR', unit: 'L', source: 'static' },
