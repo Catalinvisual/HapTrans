@@ -1233,9 +1233,7 @@ export default function PlanningPage() {
   const [selectedPoolOrderIds, setSelectedPoolOrderIds] = useState<Set<string>>(new Set());
   const [draggingOrderId, setDraggingOrderId] = useState<string | null>(null);
 
-  const [wizardOrderId, setWizardOrderId] = useState<string | null>(null);
-  const [wizardInitialStep, setWizardInitialStep] = useState<number>(0);
-  const [wizardHighlight, setWizardHighlight] = useState<string | null>(null);
+  const [wizardConfig, setWizardConfig] = useState<{ orderId: string; initialStep: number; highlight: string | null } | null>(null);
   const [drawerRefreshKey, setDrawerRefreshKey] = useState(0);
 
   const [searchParams] = useSearchParams();
@@ -1836,9 +1834,7 @@ export default function PlanningPage() {
             const s = (step !== undefined && step !== null)
               ? step
               : (['cargo', 'weight', 'ldm', 'volume', 'pallets', 'quantity'].includes(h) ? 2 : (['stops', 'pickup', 'delivery', 'route', 'time'].includes(h) ? 1 : 0));
-            setWizardOrderId(orderId);
-            setWizardInitialStep(s);
-            setWizardHighlight(h);
+            setWizardConfig({ orderId, initialStep: s, highlight: h });
           }}
           loadingAction={loadingAction}
           refreshKey={drawerRefreshKey}
@@ -1857,16 +1853,16 @@ export default function PlanningPage() {
         <OptimizationModal onClose={() => setShowOptimizeModal(false)} onApply={handleApplyOptimization} isLoading={!!loadingAction} />
       )}
 
-      {wizardOrderId && (
+      {wizardConfig && (
         <OrderWizard
-          key={`${wizardOrderId}-${wizardInitialStep}-${wizardHighlight}`}
-          isOpen={!!wizardOrderId}
-          orderId={wizardOrderId}
-          initialStep={wizardInitialStep}
-          highlightSection={wizardHighlight}
-          onClose={() => setWizardOrderId(null)}
+          key={`${wizardConfig.orderId}-${wizardConfig.initialStep}-${wizardConfig.highlight}`}
+          isOpen={true}
+          orderId={wizardConfig.orderId}
+          initialStep={wizardConfig.initialStep}
+          highlightSection={wizardConfig.highlight}
+          onClose={() => setWizardConfig(null)}
           onSaved={() => {
-            setWizardOrderId(null);
+            setWizardConfig(null);
             loadData();
             setDrawerRefreshKey(k => k + 1);
             toast.success(t('order_saved_success', 'Comandă actualizată cu succes!'));
