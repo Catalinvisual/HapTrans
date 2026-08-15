@@ -679,16 +679,16 @@ function TripDetailDrawer({
     const msg = String(c?.message || '').toLowerCase();
     const type = String(c?.type || '').toLowerCase();
 
-    // 1. Truck maintenance / vehicle status
+    // 1. Truck maintenance / vehicle status -> Opens Trucks page and triggers Edit Modal directly
     if (type.includes('vehicle') || msg.includes('maintenance') || msg.includes('truck') || msg.includes('itp') || (truck?.plateNumber && msg.includes(truck.plateNumber.toLowerCase()))) {
-      navigate('/trucks' + (truck?.plateNumber ? `?search=${encodeURIComponent(truck.plateNumber)}` : ''));
+      navigate('/trucks?editId=' + encodeURIComponent(truck?.id || '') + '&search=' + encodeURIComponent(truck?.plateNumber || ''));
       return;
     }
 
-    // 2. Capacity overload (Weight, LDM, Volume, Pallets)
+    // 2. Capacity overload (Weight, LDM, Volume, Pallets) -> Opens the overloaded order edit modal directly or switches to orders tab
     if (type.includes('capacity') || msg.includes('weight') || msg.includes('exceed') || msg.includes('ldm') || msg.includes('volume') || msg.includes('pallet')) {
-      if (truck?.id) {
-        navigate(`/planning/planner/${truck.id}?date=${trip.plannedDeparture ? String(trip.plannedDeparture).split('T')[0] : ''}&trip=${tripId}`);
+      if (orders.length === 1) {
+        navigate(`/orders/${orders[0].id}`);
       } else {
         setActiveTab('orders');
       }
@@ -715,10 +715,12 @@ function TripDetailDrawer({
     const msg = String(c?.message || '').toLowerCase();
     const type = String(c?.type || '').toLowerCase();
     if (type.includes('vehicle') || msg.includes('maintenance') || msg.includes('truck') || msg.includes('itp') || (truck?.plateNumber && msg.includes(truck.plateNumber.toLowerCase()))) {
-      return t('pln_fix_truck', 'Manage Truck');
+      return t('pln_fix_truck', 'Manage Truck') + (truck?.plateNumber ? ` (${truck.plateNumber})` : '');
     }
     if (type.includes('capacity') || msg.includes('weight') || msg.includes('exceed') || msg.includes('ldm') || msg.includes('volume') || msg.includes('pallet')) {
-      return t('pln_open_planner', 'Open Route Planner');
+      return orders.length === 1
+        ? `${t('pln_edit_order', 'Edit Order')} (${orders[0].orderNumber || ''})`
+        : `${t('pln_review_orders', 'Review Orders')} (${orders.length})`;
     }
     if (type.includes('driver') || msg.includes('driver') || msg.includes('hos')) {
       return t('pln_fix_driver', 'Manage Driver');
@@ -730,7 +732,7 @@ function TripDetailDrawer({
   };
 
   return typeof document !== 'undefined' ? createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-end" style={{ backdropFilter: 'blur(6px)', backgroundColor: 'rgba(0,0,0,0.55)' }} onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-end bg-black/15 transition-colors" onClick={onClose}>
       <div className={`relative w-full ${isExpanded ? 'max-w-4xl lg:max-w-5xl' : 'max-w-xl'} h-full bg-card shadow-2xl flex flex-col border-l border-border animate-in slide-in-from-right duration-200 transition-all`} onClick={e => e.stopPropagation()}>
 
         {/* Header */}
@@ -897,16 +899,33 @@ function TripDetailDrawer({
           )}
 
           {activeTab === 'orders' && (
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {orders.map((o: any) => {
                 const oc = sumCargo([o]);
                 return (
-                  <div key={o.id} className="bg-card border border-border rounded-xl p-3 flex items-center justify-between">
-                    <div className="min-w-0">
-                      <span className="font-bold text-primary text-sm">{o.orderNumber || '—'}</span>
-                      <p className="text-xs text-text-secondary">{o.client?.name || ''} {oc.weight > 0 ? `· ${oc.weight.toLocaleString()} kg` : ''}{oc.pallets > 0 ? ` · ${oc.pallets} plt` : ''}</p>
+                  <div key={o.id} className="bg-card border border-border/80 hover:border-primary/50 rounded-xl p-3.5 flex items-center justify-between gap-3 transition-colors group">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-primary text-sm">{o.orderNumber || '—'}</span>
+                        {o.client?.name && <span className="text-xs font-semibold text-text-primary truncate">· {o.client.name}</span>}
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-[11px] text-text-secondary mt-1.5">
+                        <span className="px-1.5 py-0.5 bg-surface rounded font-medium">{oc.pallets || o.pallets || 0} pal</span>
+                        <span className="px-1.5 py-0.5 bg-surface rounded font-medium">{(oc.weight || o.weightKg || 0).toLocaleString()} kg</span>
+                        {(oc.ldm || o.loadingMeters) && <span className="px-1.5 py-0.5 bg-surface rounded font-medium">{oc.ldm || o.loadingMeters} LDM</span>}
+                        {(oc.volume || o.volumeCbm) && <span className="px-1.5 py-0.5 bg-surface rounded font-medium">{oc.volume || o.volumeCbm} m³</span>}
+                      </div>
                     </div>
-                    <span className="font-black text-text-primary">€{Number(o.price || 0).toLocaleString()}</span>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="font-black text-text-primary text-sm">€{Number(o.price || 0).toLocaleString()}</span>
+                      <button
+                        onClick={() => navigate(`/orders/${o.id}`)}
+                        className="p-1.5 bg-surface hover:bg-primary hover:text-white rounded-lg text-text-secondary transition-all"
+                        title={t('edit_order', 'Edit Order Details')}
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 );
               })}

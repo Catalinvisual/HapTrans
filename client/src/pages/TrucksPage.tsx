@@ -17,10 +17,10 @@ import BulkBar from '../components/ui/BulkBar';
 import StatusBadge from '../components/ui/StatusBadge';
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
-import ExportModal from '../components/ExportModal';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateTruckPdf } from '../lib/pdfGenerator';
 import { FileText, Calendar, Clock } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import ActivityTimeline from '../components/ActivityTimeline';
@@ -287,6 +287,21 @@ export default function TrucksPage() {
     setEditId(truck.id);
     setShowForm(true);
   };
+
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const editIdParam = searchParams.get('editId') || searchParams.get('edit');
+    const searchParam = searchParams.get('search');
+    if (searchParam && !search) {
+      setSearch(searchParam);
+    }
+    if ((editIdParam || searchParam) && trucks.length > 0) {
+      const tr = trucks.find(t => (editIdParam && t.id === editIdParam) || (searchParam && t.plateNumber?.toLowerCase().includes(searchParam.toLowerCase())));
+      if (tr) {
+        openEdit(tr);
+      }
+    }
+  }, [trucks, searchParams]);
 
   const toggleFeature = (id: string) => {
     const feats = form.features || [];
