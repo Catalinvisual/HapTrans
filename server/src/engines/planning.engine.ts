@@ -21,7 +21,7 @@ export class PlanningEngine {
   ) {}
 
 
-  async assignOrdersToTrip(tripId: string, orderIds: string[]) {
+  async assignOrdersToTrip(tripId: string, orderIds: string[], force = false) {
     const trip = await this.tripRepo.findOne({
       where: { id: tripId },
       relations: ['company', 'stops', 'stops.tasks', 'orders', 'orders.cargoItems', 'truck', 'trailer']
@@ -34,12 +34,14 @@ export class PlanningEngine {
       relations: ['company', 'stops', 'cargoItems']
     });
 
-    for (const order of orders) {
-      this.validationEngine.validateOrderAssignment(order, trip);
-      
-      const optResult = await this.optimizationEngine.checkAssignmentFeasibility(trip, order);
-      if (!optResult.feasible) {
-        throw new BadRequestException(`Eroare de alocare pentru Comanda ${order.orderNumber}:\n${optResult.warnings.join('\n')}`);
+    if (!force) {
+      for (const order of orders) {
+        this.validationEngine.validateOrderAssignment(order, trip);
+        
+        const optResult = await this.optimizationEngine.checkAssignmentFeasibility(trip, order);
+        if (!optResult.feasible) {
+          throw new BadRequestException(`Eroare de alocare pentru Comanda ${order.orderNumber}:\n${optResult.warnings.join('\n')}`);
+        }
       }
     }
 

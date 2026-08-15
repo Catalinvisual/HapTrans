@@ -526,7 +526,7 @@ export class TripsService {
         }
         
         // 3. Re-assign order to trip to recreate the tasks and stops silently (without emails)
-        await this.planningEngine.assignOrdersToTrip(order.trip.id, [order.id]);
+        await this.planningEngine.assignOrdersToTrip(order.trip.id, [order.id], true);
 
         // 4. Recalculate trip distance and duration
         await this.recalculateTripMetrics(order.trip.id);
