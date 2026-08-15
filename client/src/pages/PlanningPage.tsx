@@ -18,7 +18,7 @@ import 'flatpickr/dist/flatpickr.min.css';
 import { useShortcuts } from '../hooks/useShortcuts';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import CustomSelect from '../components/CustomSelect';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateOrderPdf } from '../lib/pdfGenerator';
@@ -679,9 +679,9 @@ function TripDetailDrawer({
     const msg = String(c?.message || '').toLowerCase();
     const type = String(c?.type || '').toLowerCase();
 
-    // 1. Truck maintenance / vehicle status -> Opens Trucks page and triggers Edit Modal directly
+    // 1. Truck maintenance / vehicle status -> Opens Trucks page, highlights Status field and returns to TRP on save
     if (type.includes('vehicle') || msg.includes('maintenance') || msg.includes('truck') || msg.includes('itp') || (truck?.plateNumber && msg.includes(truck.plateNumber.toLowerCase()))) {
-      navigate('/trucks?editId=' + encodeURIComponent(truck?.id || '') + '&search=' + encodeURIComponent(truck?.plateNumber || ''));
+      navigate('/trucks?editId=' + encodeURIComponent(truck?.id || '') + '&search=' + encodeURIComponent(truck?.plateNumber || '') + '&highlight=status&returnToTrip=' + encodeURIComponent(tripId));
       return;
     }
 
@@ -1160,6 +1160,14 @@ export default function PlanningPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [selectedPoolOrderIds, setSelectedPoolOrderIds] = useState<Set<string>>(new Set());
   const [draggingOrderId, setDraggingOrderId] = useState<string | null>(null);
+
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const openTripParam = searchParams.get('openTrip') || searchParams.get('tripId');
+    if (openTripParam) {
+      setSelectedTripId(openTripParam);
+    }
+  }, [searchParams]);
 
   const [poolCollapsed, setPoolCollapsed] = useState(false);
   const [showOptimizeModal, setShowOptimizeModal] = useState(false);

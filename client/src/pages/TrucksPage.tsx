@@ -21,7 +21,7 @@ import ExportModal from '../components/ExportModal';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateTruckPdf } from '../lib/pdfGenerator';
 import { FileText, Calendar, Clock } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import ActivityTimeline from '../components/ActivityTimeline';
@@ -76,6 +76,7 @@ const maintOverdue = (truck: any) => {
 const driverName = (d: any) => d?.user?.name || d?.user?.email || '—';
 
 export default function TrucksPage() {
+  const navigate = useNavigate();
   const confirmSave = useSaveConfirm();
   const formStore = useFormStore();
   const { t, i18n } = useTranslation();
@@ -97,6 +98,10 @@ export default function TrucksPage() {
   const [drawerTab, setDrawerTab] = useState('overview');
   const [showExport, setShowExport] = useState(false);
   const [docForm, setDocForm] = useState({ type: 'apk', documentNumber: '', expiryDate: '' });
+
+  const [searchParams] = useSearchParams();
+  const highlightParam = searchParams.get('highlight');
+  const returnToTrip = searchParams.get('returnToTrip');
 
   const fpOptions = useMemo(() => ({
     altInput: true,
@@ -208,6 +213,9 @@ export default function TrucksPage() {
       setEditId(null);
       setForm(initialForm);
       load();
+      if (returnToTrip) {
+        navigate(`/planning?openTrip=${encodeURIComponent(returnToTrip)}`);
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.message || t('saveError', 'Eroare la salvare'));
     }
@@ -283,13 +291,13 @@ export default function TrucksPage() {
       truckType: truck.truckType || 'tautliner', euronorm: truck.euronorm || 'Euro 6', features: truck.features || [],
       maxWeightKg: truck.maxWeightKg || '', maxPallets: truck.maxPallets || '', maxLdm: truck.maxLdm || '', maxVolumeCbm: truck.maxVolumeCbm || '',
       payloadCapacity: truck.payloadCapacity || '', costPerKm: truck.costPerKm || '', fuelConsumption: truck.fuelConsumption || '',
-      totalMileage: truck.totalMileage || '', nextMaintenanceMileage: truck.nextMaintenanceMileage || '', driverId: truck.driver?.id || ''
+      totalMileage: truck.totalMileage || '', nextMaintenanceMileage: truck.nextMaintenanceMileage || '', driverId: truck.driver?.id || '',
+      trailerId: truck.trailer?.id || '', status: truck.status || 'active'
     });
     setEditId(truck.id);
     setShowForm(true);
   };
 
-  const [searchParams] = useSearchParams();
   useEffect(() => {
     const editIdParam = searchParams.get('editId') || searchParams.get('edit');
     const searchParam = searchParams.get('search');
@@ -716,7 +724,13 @@ export default function TrucksPage() {
 
       <DetailDrawer
         open={showForm}
-        onClose={() => { setShowForm(false); setEditId(null); }}
+        onClose={() => {
+          setShowForm(false);
+          setEditId(null);
+          if (returnToTrip) {
+            navigate(`/planning?openTrip=${encodeURIComponent(returnToTrip)}`);
+          }
+        }}
         title={
           <span className="flex items-center gap-2">
             <TruckIcon className="w-5 h-5 text-primary" />
@@ -725,7 +739,19 @@ export default function TrucksPage() {
         }
         footer={
           <div className="flex gap-3 justify-end w-full">
-            <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="btn-secondary px-6 py-2.5 font-bold">{t('cancel', 'Cancel')}</button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowForm(false);
+                setEditId(null);
+                if (returnToTrip) {
+                  navigate(`/planning?openTrip=${encodeURIComponent(returnToTrip)}`);
+                }
+              }}
+              className="btn-secondary px-6 py-2.5 font-bold"
+            >
+              {t('cancel', 'Cancel')}
+            </button>
             <button type="button" onClick={handleSubmit} className="btn-primary px-8 py-2.5 font-bold shadow-md shadow-primary/20">{t('save', 'Save')}</button>
           </div>
         }
@@ -751,8 +777,15 @@ export default function TrucksPage() {
                 <label className="label">{t('trailer', 'Trailer')}</label>
                 <CustomSelect value={form.trailerId} onChange={val => setForm({ ...form, trailerId: val })} options={[{ value: '', label: t('no_trailer', 'No trailer') }, ...trailers.map(tr => ({ value: tr.id, label: tr.plateNumber }))]} />
             </div>
-            <div>
-              <label className="label font-semibold">{t('status', 'Status')}</label>
+            <div className={`transition-all ${highlightParam === 'status' ? 'p-3 rounded-2xl bg-orange-500/10 border-2 border-orange-500 ring-4 ring-orange-500/30 animate-pulse shadow-lg shadow-orange-500/20' : ''}`}>
+              <div className="flex items-center justify-between mb-1">
+                <label className="label font-semibold mb-0">{t('status', 'Status')}</label>
+                {highlightParam === 'status' && (
+                  <span className="text-[10px] font-black uppercase text-orange-600 bg-orange-500/20 px-2 py-0.5 rounded-full animate-bounce">
+                    ⚠️ Conflict Target
+                  </span>
+                )}
+              </div>
               <CustomSelect value={form.status || 'active'} onChange={v => setForm({...form, status: v})} options={TRUCK_STATUSES.map(st => ({ value: st.value, label: t(st.label as string, st.value) as string }))} />
             </div>
 

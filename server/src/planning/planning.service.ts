@@ -522,8 +522,8 @@ export class PlanningService {
       .map((t) => {
         const relevantTrip = trips.find((tr) => tr.truck?.id === t.id && tr.trailer) || trips.find((tr) => tr.truck?.id === t.id);
         const maint = maintByTruck[t.id] || [];
-        const activeMaint = maint.filter((m) => m.status !== 'done' && m.completedDate == null);
-        const hasMaint = activeMaint.length > 0;
+        const activeMaint = maint.filter((m) => m.status === 'in_progress' && m.completedDate == null);
+        const hasMaint = String(t.status).toLowerCase() === 'maintenance';
         const busy = trips.some(
           (tr) => tr.truck?.id === t.id && IN_PROGRESS_TRIP_STATUSES.includes(tr.status),
         );
