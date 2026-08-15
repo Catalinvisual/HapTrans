@@ -9,7 +9,6 @@ import {
   LayoutGrid, Clock, Map as MapIcon, Sparkles, CheckSquare, Square, RefreshCw,
   ChevronsLeft, ChevronsRight, Plus, ArrowUp, ArrowDown, Layers, Navigation,
   Printer, Maximize2, Minimize2, RotateCcw, Filter, List, FileText,
-  GripVertical, Zap, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';

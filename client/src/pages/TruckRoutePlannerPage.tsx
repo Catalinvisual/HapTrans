@@ -7,8 +7,8 @@ import 'flatpickr/dist/themes/light.css';
 import {
   Truck as TruckIcon, Package, Loader2, MapPin, AlertTriangle, X, Calendar, ArrowUp, ArrowDown,
   Lock, Unlock, RotateCcw, RefreshCw, Sparkles, Save, ChevronLeft, Scale, Ruler, Box, Layers,
-  CheckCircle2, Info, Route as RouteIcon, ClipboardList, Timer, GripVertical, GripHorizontal,
-  ShieldAlert, CircleCheck, CircleSlash, ArrowRight, Navigation, Layers as LayersIcon,
+  CheckCircle2, Info, Route as RouteIcon, ClipboardList, GripVertical, GripHorizontal,
+  ShieldAlert, CircleCheck, CircleSlash, ArrowRight, Navigation,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -21,7 +21,7 @@ const FEASIBILITY_STYLE: Record<string, { bg: string; text: string; label: strin
   no_solution: { bg: 'bg-red-500/15 border-red-500/40', text: 'text-red-600', label: 'pln_no_solution' },
 };
 
-function fmtDate(d: string | Date | null | undefined, t: (k: string, fb: string) => string) {
+function fmtDate(d: string | Date | null | undefined) {
   if (!d) return '—';
   const date = typeof d === 'string' ? new Date(d) : d;
   if (isNaN(date.getTime())) return '—';
@@ -66,7 +66,6 @@ export default function TruckRoutePlannerPage() {
   const [date, setDate] = useState<string>(queryDate || new Date().toISOString().split('T')[0]);
 
   const [routePlan, setRoutePlan] = useState<any>(null);
-  const [profiles, setProfiles] = useState<any[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -87,6 +86,75 @@ export default function TruckRoutePlannerPage() {
   const sortedStops = useMemo(() => {
     return [...(routePlan?.stops || [])].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
   }, [routePlan]);
+
+  // Dynamically compute live metrics (peak load, distance, duration) from the stops
+  const metrics = useMemo(() => {
+    let cumPal = 0;
+    let cumWt = 0;
+    let cumLdm = 0;
+    let cumVol = 0;
+    let peakPal = 0;
+    let peakWt = 0;
+    let peakLdm = 0;
+    let peakVol = 0;
+    let totalDist = Number(routePlan?.totalDistanceKm) || 0;
+    let totalDur = Number(routePlan?.totalDurationMinutes) || 0;
+
+    for (let i = 0; i < sortedStops.length; i++) {
+      const s = sortedStops[i];
+      const pal = Number(s.pallets) || 0;
+      const wt = Number(s.weightKg) || 0;
+      const ldm = Number(s.loadingMeters) || 0;
+      const vol = Number(s.volumeCbm) || 0;
+
+      if (s.type === 'pickup') {
+        cumPal += pal;
+        cumWt += wt;
+        cumLdm += ldm;
+        cumVol += vol;
+      } else {
+        cumPal = Math.max(0, cumPal - pal);
+        cumWt = Math.max(0, cumWt - wt);
+        cumLdm = Math.max(0, cumLdm - ldm);
+        cumVol = Math.max(0, cumVol - vol);
+      }
+
+      peakPal = Math.max(peakPal, cumPal);
+      peakWt = Math.max(peakWt, cumWt);
+      peakLdm = Math.max(peakLdm, cumLdm);
+      peakVol = Math.max(peakVol, cumVol);
+
+      if (i < sortedStops.length - 1 && totalDist === 0) {
+        const next = sortedStops[i + 1];
+        if (s.latitude && s.longitude && next.latitude && next.longitude) {
+          const lat1 = Number(s.latitude);
+          const lon1 = Number(s.longitude);
+          const lat2 = Number(next.latitude);
+          const lon2 = Number(next.longitude);
+          const dLat = (lat2 - lat1) * (Math.PI / 180);
+          const dLon = (lon2 - lon1) * (Math.PI / 180);
+          const a =
+            Math.sin(dLat / 2) ** 2 +
+            Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) ** 2;
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          totalDist += 6371 * c * 1.25;
+        }
+      }
+    }
+
+    if (totalDur === 0 && totalDist > 0) {
+      totalDur = Math.round((totalDist / 65) * 60 + sortedStops.length * 30);
+    }
+
+    return {
+      peakPallets: Number(routePlan?.peakPallets) || peakPal,
+      peakWeightKg: Number(routePlan?.peakWeightKg) || peakWt,
+      peakLdm: Number(routePlan?.peakLdm) || peakLdm,
+      peakVolumeCbm: Number(routePlan?.peakVolumeCbm) || peakVol,
+      totalDistanceKm: Math.round(totalDist),
+      totalDurationMinutes: Math.round(totalDur),
+    };
+  }, [sortedStops, routePlan]);
 
   const loadPlan = async (d: string, silent = false) => {
     if (!truckId) return;
@@ -118,7 +186,6 @@ export default function TruckRoutePlannerPage() {
   const loadProfiles = useCallback(async () => {
     try {
       const profs = await planningApi.getProfiles();
-      setProfiles(profs || []);
       if (profs?.length && !selectedProfile) setSelectedProfile(profs[0].id);
     } catch {
       // profiles are optional
@@ -227,7 +294,7 @@ export default function TruckRoutePlannerPage() {
     if (stopsWithCoords.length) {
       try { map.fitBounds(bounds, { padding: 80, maxZoom: 13 }); } catch {}
     }
-  }, [mapReady, sortedStops, t]);
+  }, [mapReady, sortedStops]);
 
   const fitRouteBounds = () => {
     const map = mapInstance.current;
@@ -487,7 +554,7 @@ export default function TruckRoutePlannerPage() {
           </div>
 
           <span className={`px-2.5 py-1 rounded-lg border text-xs font-black uppercase ${fsStyle.bg} ${fsStyle.text}`}>
-            {t(fsStyle.label, feasibility)}
+            {String(t(fsStyle.label, feasibility))}
           </span>
           {routePlan?.isOptimized && (
             <span className="px-2.5 py-1 rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-600 text-xs font-black uppercase flex items-center gap-1">
@@ -542,10 +609,10 @@ export default function TruckRoutePlannerPage() {
 
       {/* ── Capacity strip ── */}
       <div className="shrink-0 px-4 py-2.5 border-b border-border bg-surface/40 grid grid-cols-2 md:grid-cols-4 gap-3">
-        <LoadBar label={t('pallets', 'Pallets')} value={routePlan?.peakPallets || 0} max={cap.maxPallets} icon={Box} color="bg-blue-500" />
-        <LoadBar label={t('weight_kg', 'Weight')} value={routePlan?.peakWeightKg || 0} max={cap.maxWeightKg} icon={Scale} color="bg-emerald-500" />
-        <LoadBar label={t('jsx_ldm', 'LDM')} value={routePlan?.peakLdm || 0} max={cap.maxLdm} icon={Ruler} color="bg-violet-500" />
-        <LoadBar label={t('jsx_volume', 'Volume')} value={routePlan?.peakVolumeCbm || 0} max={cap.maxVolumeCbm} icon={Box} color="bg-amber-500" />
+        <LoadBar label={t('pallets', 'Pallets')} value={metrics.peakPallets} max={cap.maxPallets} icon={Box} color="bg-blue-500" />
+        <LoadBar label={t('weight_kg', 'Weight')} value={metrics.peakWeightKg} max={cap.maxWeightKg} icon={Scale} color="bg-emerald-500" />
+        <LoadBar label={t('jsx_ldm', 'LDM')} value={metrics.peakLdm} max={cap.maxLdm} icon={Ruler} color="bg-violet-500" />
+        <LoadBar label={t('jsx_volume', 'Volume')} value={metrics.peakVolumeCbm} max={cap.maxVolumeCbm} icon={Box} color="bg-amber-500" />
       </div>
 
       {/* ── Body ── */}
@@ -558,8 +625,8 @@ export default function TruckRoutePlannerPage() {
               <span className="text-[10px] font-bold text-text-muted">({sortedStops.length})</span>
             </h2>
             <span className="text-[11px] font-bold text-text-secondary">
-              {t('pln_total_dist', 'Dist')}: <span className="text-text-primary font-black">{Math.round(routePlan?.totalDistanceKm || 0)} km</span> ·{' '}
-              {t('pln_duration', 'Dur')}: <span className="text-text-primary font-black">{Math.round((routePlan?.totalDurationMinutes || 0) / 60)}h</span>
+              {t('pln_total_dist', 'Dist')}: <span className="text-text-primary font-black">{metrics.totalDistanceKm} km</span> ·{' '}
+              {t('pln_duration', 'Dur')}: <span className="text-text-primary font-black">{Math.round(metrics.totalDurationMinutes / 60)}h</span>
             </span>
           </div>
 
@@ -667,18 +734,20 @@ export default function TruckRoutePlannerPage() {
                   <div className="mt-2 grid grid-cols-3 gap-1.5 text-[10px]">
                     <div className="rounded-lg bg-surface px-2 py-1">
                       <p className="text-text-muted uppercase font-bold text-[8px]">{t('pln_eta', 'ETA')}</p>
-                      <p className="font-bold text-text-primary truncate">{fmtDate(stop.eta, t)}</p>
+                      <p className="font-bold text-text-primary truncate">{fmtDate(stop.eta)}</p>
                     </div>
                     <div className="rounded-lg bg-surface px-2 py-1">
                       <p className="text-text-muted uppercase font-bold text-[8px]">{t('pln_window', 'Window')}</p>
                       <p className="font-bold text-text-primary truncate">
-                        {stop.timeWindowStart ? fmtDate(stop.timeWindowStart, t).split(',')[1] : '—'}
-                        {stop.timeWindowEnd ? ` – ${fmtDate(stop.timeWindowEnd, t).split(',')[1]}` : ''}
+                        {stop.timeWindowStart ? fmtDate(stop.timeWindowStart).split(',')[1] : '—'}
+                        {stop.timeWindowEnd ? ` – ${fmtDate(stop.timeWindowEnd).split(',')[1]}` : ''}
                       </p>
                     </div>
                     <div className="rounded-lg bg-surface px-2 py-1">
-                      <p className="text-text-muted uppercase font-bold text-[8px]">{t('pln_cargo', 'Cargo')}</p>
-                      <p className="font-bold text-text-primary truncate">
+                      <p className="text-text-muted uppercase font-bold text-[8px]">
+                        {isPickup ? t('pln_to_load', 'To load') : t('pln_to_unload', 'To unload')}
+                      </p>
+                      <p className={`font-bold truncate ${isPickup ? 'text-blue-600' : 'text-emerald-600'}`}>
                         {Math.round(stop.pallets || 0)} {t('unit_pallets', 'pal')} · {Math.round(stop.weightKg || 0)} kg
                       </p>
                     </div>
@@ -686,7 +755,11 @@ export default function TruckRoutePlannerPage() {
 
                   <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
                     <span className="text-[10px] font-bold text-text-secondary">
-                      {t('pln_load_after', 'Load after')}: {Math.round(stop.cumulativePallets || 0)} {t('unit_pallets', 'pal')} · {Math.round(stop.cumulativeWeightKg || 0)} kg
+                      {isPickup ? (
+                        <span>{t('pln_onboard_after', 'On board after')}: <strong className="text-text-primary">{Math.round(stop.cumulativePallets || 0)} pal · {Math.round(stop.cumulativeWeightKg || 0)} kg</strong></span>
+                      ) : (
+                        <span>{t('pln_remaining_truck', 'Remaining on truck')}: <strong className="text-text-primary">{Math.round(stop.cumulativePallets || 0)} pal · {Math.round(stop.cumulativeWeightKg || 0)} kg</strong></span>
+                      )}
                     </span>
                     {stop.loadingSequence != null && (
                       <span className="text-[10px] font-bold text-violet-600">
@@ -763,7 +836,7 @@ export default function TruckRoutePlannerPage() {
               <ClipboardList className="w-4 h-4 text-primary" />{t('pln_load_plan', 'Loading Sequence & Load Timeline')}
               {routePlan?.optimizationMetadata?.loadingRule && (
                 <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-violet-500/10 border border-violet-500/30 text-violet-600">
-                  {t(`pln_rule_${routePlan.optimizationMetadata.loadingRule}`, String(routePlan.optimizationMetadata.loadingRule).toUpperCase())}
+                  {String(t(`pln_rule_${routePlan.optimizationMetadata.loadingRule}`, String(routePlan.optimizationMetadata.loadingRule).toUpperCase()))}
                 </span>
               )}
             </h3>
@@ -794,7 +867,7 @@ export default function TruckRoutePlannerPage() {
           <div className="mt-3">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] font-black uppercase tracking-wide text-text-secondary">{t('pln_pallets_over_route', 'Pallets on board over the route')}</span>
-              <span className="text-[10px] text-text-muted">{t('pln_max', 'max')}: {Math.round(routePlan?.peakPallets || 0)} / {Math.round(cap.maxPallets)}</span>
+              <span className="text-[10px] text-text-muted">{t('pln_max', 'max')}: {Math.round(metrics.peakPallets)} / {Math.round(cap.maxPallets)}</span>
             </div>
             <div className="flex items-end gap-1 h-20">
               {sortedStops.map((stop: any) => {
