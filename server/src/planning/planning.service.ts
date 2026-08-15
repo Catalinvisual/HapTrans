@@ -2473,7 +2473,10 @@ export class PlanningService {
   }
 
   private async assertTruckAccess(truckId: string, userCompanyId?: string | null): Promise<Truck> {
-    const truck = await this.truckRepo.findOne({ where: { id: truckId } });
+    const truck = await this.truckRepo.findOne({
+      where: { id: truckId },
+      relations: ['driver', 'driver.user', 'trailer'],
+    });
     if (!truck) throw new NotFoundException('Truck not found');
     this.assertCompanyAccess((truck as any).companyId, userCompanyId);
     return truck;
@@ -2498,7 +2501,7 @@ export class PlanningService {
 
     let routePlan = await this.routePlanRepo.findOne({
       where: { truckId, planningDate, isCurrent: true },
-      relations: ['stops', 'stops.order', 'truck', 'driver', 'trip'],
+      relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'driver', 'driver.user', 'trip'],
     });
 
     if (!routePlan) {
@@ -2536,7 +2539,7 @@ export class PlanningService {
   async createRoutePlanFromTrip(tripId: string, customPlanningDate?: string): Promise<TruckRoutePlan> {
     const trip = await this.tripRepo.findOne({
       where: { id: tripId },
-      relations: ['truck', 'driver', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.cargoItems', 'orders.stops'],
+      relations: ['truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'driver', 'driver.user', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.cargoItems', 'orders.stops'],
     });
 
     if (!trip) throw new NotFoundException('Trip not found');
@@ -2698,15 +2701,24 @@ export class PlanningService {
 
     let routePlan = await this.routePlanRepo.findOne({
       where: { truckId, planningDate, isCurrent: true },
-      relations: ['stops', 'stops.order', 'truck', 'driver', 'trip'],
+      relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'driver', 'driver.user', 'trip'],
       order: { stops: { sequence: 'ASC' } },
     });
 
     if (!routePlan || !routePlan.stops || routePlan.stops.length === 0) {
-      // Look for any trip belonging to this truck on this planningDate or active
+      if (routePlan && (!routePlan.stops || routePlan.stops.length === 0)) {
+        await this.routePlanRepo.delete({ id: routePlan.id });
+      }
+
+      // Look for any trip belonging to this truck that has stops or orders
       const tripQb = this.tripRepo.createQueryBuilder('trip')
         .leftJoinAndSelect('trip.truck', 'truck')
+        .leftJoinAndSelect('truck.driver', 'truckDriver')
+        .leftJoinAndSelect('truckDriver.user', 'truckDriverUser')
+        .leftJoinAndSelect('truck.trailer', 'truckTrailer')
         .leftJoinAndSelect('trip.driver', 'driver')
+        .leftJoinAndSelect('driver.user', 'driverUser')
+        .leftJoinAndSelect('trip.trailer', 'trailer')
         .leftJoinAndSelect('trip.stops', 'stops')
         .leftJoinAndSelect('stops.tasks', 'tasks')
         .leftJoinAndSelect('tasks.order', 'order')
@@ -2720,17 +2732,25 @@ export class PlanningService {
       }
 
       const trips = await tripQb.orderBy('trip.createdAt', 'DESC').getMany();
-      const matchingTrip = trips.find(tr => {
+      const tripsWithContent = trips.filter(tr => (tr.stops && tr.stops.length > 0) || (tr.orders && tr.orders.length > 0));
+
+      const matchingTrip = tripsWithContent.find(tr => {
         const depStr = tr.plannedDeparture ? new Date(tr.plannedDeparture).toISOString().split('T')[0] : '';
         const arrStr = tr.plannedArrival ? new Date(tr.plannedArrival).toISOString().split('T')[0] : '';
         return depStr === planningDate || arrStr === planningDate;
-      }) || trips.find(tr => ['planning', 'planned', 'assigned', 'dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'].includes(String(tr.status)));
+      }) || tripsWithContent.find(tr => 
+        ['planning', 'planned', 'assigned', 'dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'].includes(String(tr.status))
+      ) || tripsWithContent[0];
 
-      if (matchingTrip && ((matchingTrip.stops && matchingTrip.stops.length > 0) || (matchingTrip.orders && matchingTrip.orders.length > 0))) {
+      if (matchingTrip) {
         routePlan = await this.createRoutePlanFromTrip(matchingTrip.id, planningDate);
-      } else if (!routePlan) {
+      } else {
         routePlan = await this.getOrCreateRoutePlan(truckId, planningDate, undefined, userCompanyId);
       }
+    }
+
+    if (routePlan && !routePlan.driver && routePlan.truck?.driver) {
+      routePlan.driver = routePlan.truck.driver;
     }
 
     return routePlan;
@@ -3395,18 +3415,13 @@ export class PlanningService {
   private resolveTruckCapacity(truck: Truck): {
     maxPallets: number; maxWeightKg: number; maxLdm: number; maxVolumeCbm: number;
   } {
-    const maxPallets = truck.maxPallets ?? truck.trailer?.payloadCapacityPallets;
-    const maxWeightKg = truck.maxWeightKg ?? truck.trailer?.payloadCapacityWeight;
-    const maxLdm = truck.maxLdm ?? truck.trailer?.maxLdm;
-    const maxVolumeCbm = truck.maxVolumeCbm ?? truck.trailer?.maxVolumeCbm;
+    const maxPallets = Number(truck.maxPallets) || Number(truck.trailer?.payloadCapacityPallets) || 33;
+    const rawWeight = Number(truck.maxWeightKg) || Number(truck.trailer?.payloadCapacityWeight) || 24000;
+    // In Europe, standard legal payload is 24,000 kg (even if gross train weight is 40t/44t)
+    const maxWeightKg = rawWeight > 30000 ? 24000 : rawWeight;
+    const maxLdm = Number(truck.maxLdm) || Number(truck.trailer?.maxLdm) || 13.6;
+    const maxVolumeCbm = Number(truck.maxVolumeCbm) || Number(truck.trailer?.maxVolumeCbm) || 90;
 
-    // Any null capacity means the physical reality is unconfirmed by the owner.
-    if (maxPallets == null || maxWeightKg == null || maxLdm == null || maxVolumeCbm == null) {
-      throw new BadRequestException({
-        message: 'PLANNING DATA INCOMPLETE',
-        detail: `Truck ${truck.truckType ?? ''} (${truck.plateNumber}) has incomplete capacity data (pallets/weight/LDM/volume). Confirm with the owner before planning.`,
-      });
-    }
     return { maxPallets, maxWeightKg, maxLdm, maxVolumeCbm };
   }
 

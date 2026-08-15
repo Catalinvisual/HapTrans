@@ -363,7 +363,7 @@ export default function TruckRoutePlannerPage() {
               {routePlan?.truck?.plateNumber || t('pln_planner', 'Truck Route & Load Planner')}
             </h1>
             <p className="text-xs text-text-secondary truncate">
-              {routePlan?.driver?.name || t('pln_no_driver', 'No driver')} · {routePlan?.trip?.tripNumber || ''}
+              {routePlan?.driver?.user?.name || routePlan?.driver?.name || routePlan?.truck?.driver?.user?.name || routePlan?.truck?.driver?.name || t('pln_no_driver', 'No driver')} {routePlan?.trip?.tripNumber ? `· ${routePlan.trip.tripNumber}` : ''}
             </p>
           </div>
         </div>
