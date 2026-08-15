@@ -674,7 +674,7 @@ function TripDetailDrawer({
   const driver = trip.driver || truck?.driver || drivers.find((d: any) => d.id === (trip.driverId || tripSummary.driverId)) || null;
   const trailer = trip.trailer || tripSummary.trailer || trailers.find((trl: any) => trl.id === (trip.trailerId || tripSummary.trailerId)) || null;
   const stops = (trip.stops?.length ? trip.stops : (tripSummary.stops?.length ? tripSummary.stops : [])).slice().sort((a: any, b: any) => (a.sequence || a.stopOrder || 0) - (b.sequence || b.stopOrder || 0));
-  const orders = (trip.orders?.length ? trip.orders : (tripSummary.orders?.length ? tripSummary.orders : [])).filter((o: any) => o?.id);
+  const orders = (trip.orders?.length ? trip.orders : (tripSummary.orders?.length ? tripSummary.orders : [])).map((o: any) => o?.order || o).filter((o: any) => o?.id);
   const revenue = orders.reduce((s: number, o: any) => s + (Number(o.price) || 0), 0);
   const tripConflicts = (conflicts || []).filter((c: any) => c.tripId === (trip.id || tripSummary.id));
   const blockingConflicts = tripConflicts.filter((c: any) => c.level === 'blocking');
@@ -736,8 +736,9 @@ function TripDetailDrawer({
         }
       }
 
-      if (targetOrder && onEditOrder) {
-        onEditOrder(targetOrder.id, 2, conflictField);
+      const targetId = targetOrder?.id || c.orderId || (stops.find((s: any) => s.orderId)?.orderId);
+      if (targetId && onEditOrder) {
+        onEditOrder(targetId, 2, conflictField);
         return;
       }
       setActiveTab('orders');

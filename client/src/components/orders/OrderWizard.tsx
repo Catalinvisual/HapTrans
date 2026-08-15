@@ -89,7 +89,7 @@ function ModalSelect({
         </span>
         <ChevronDown className={`w-4 h-4 text-text-secondary flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && typeof document !== 'undefined' && createPortal(<div ref={dropRef} className="fixed z-[9999] bg-card border border-border rounded-xl shadow-2xl overflow-y-auto max-h-[250px] custom-scrollbar py-1" style={{
+      {open && typeof document !== 'undefined' && createPortal(<div ref={dropRef} className="fixed z-[25000] bg-card border border-border rounded-xl shadow-2xl overflow-y-auto max-h-[250px] custom-scrollbar py-1" style={{
       top: dropPos.top,
       left: dropPos.left,
       width: dropPos.width
@@ -122,25 +122,24 @@ export default function OrderWizard({
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
 
-  const getStartingStep = () => {
-    if (typeof initialStep === 'number' && initialStep >= 0 && initialStep <= 2) {
-      return initialStep;
+  const resolveTargetStep = (h?: string | null, s?: number | null) => {
+    if (typeof s === 'number' && s >= 0 && s <= 2) {
+      return s;
     }
-    if (highlightSection) {
-      if (['cargo', 'weight', 'ldm', 'volume', 'pallets', 'quantity'].includes(highlightSection)) return 2;
-      if (['stops', 'pickup', 'delivery', 'route', 'gps', 'time', 'date'].includes(highlightSection)) return 1;
-      if (['general', 'client', 'price', 'reference'].includes(highlightSection)) return 0;
+    if (h) {
+      if (['cargo', 'weight', 'ldm', 'volume', 'pallets', 'quantity'].includes(h)) return 2;
+      if (['stops', 'pickup', 'delivery', 'route', 'gps', 'time', 'date'].includes(h)) return 1;
     }
     return 0;
   };
 
-  const [currentStep, setCurrentStep] = useState(getStartingStep);
+  const [currentStep, setCurrentStep] = useState<number>(() => resolveTargetStep(highlightSection, initialStep));
   const [isHighlightDismissed, setIsHighlightDismissed] = useState(false);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (isOpen) {
       setIsHighlightDismissed(false);
-      setCurrentStep(getStartingStep());
+      setCurrentStep(resolveTargetStep(highlightSection, initialStep));
     }
   }, [isOpen, initialStep, highlightSection, orderId]);
 
