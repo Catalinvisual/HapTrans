@@ -122,10 +122,14 @@ export default function OrderWizard({
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
   const [currentStep, setCurrentStep] = useState(initialStep);
+  const [isHighlightDismissed, setIsHighlightDismissed] = useState(false);
 
   useEffect(() => {
-    if (isOpen && typeof initialStep === 'number') {
-      setCurrentStep(initialStep);
+    if (isOpen) {
+      setIsHighlightDismissed(false);
+      if (typeof initialStep === 'number') {
+        setCurrentStep(initialStep);
+      }
     }
   }, [isOpen, initialStep]);
 
@@ -468,6 +472,7 @@ export default function OrderWizard({
     setExtraStops(n);
   };
   const handleCargoChange = (i: number, field: string, value: any) => {
+    setIsHighlightDismissed(true);
     const n = [...cargoItems];
     n[i][field] = value;
     setCargoItems(n);
@@ -982,48 +987,51 @@ export default function OrderWizard({
                 <p className="text-sm text-text-secondary">{t("jsx_whatAreWeTra")}</p>
               </div>
               <div className="space-y-3">
-                {cargoItems.map((cargo, index) => <div
-                  key={index}
-                  className={`border rounded-xl p-4 relative group transition-all ${
-                    highlightSection ? 'bg-orange-500/10 border-2 border-orange-500 ring-4 ring-orange-500/30 animate-pulse shadow-xl shadow-orange-500/20' : 'bg-surface/50 border-border'
-                  }`}
-                >
-                    {highlightSection && (
-                      <div className="mb-3 flex items-center justify-between">
-                        <span className="text-[11px] font-black uppercase text-orange-600 bg-orange-500/20 px-2.5 py-0.5 rounded-full animate-bounce">
-                          ⚠️ Conflict Target — Adjust Pallets / Weight / LDM / Volume
-                        </span>
+                {cargoItems.map((cargo, index) => {
+                  const isHighlighted = Boolean(highlightSection && !isHighlightDismissed);
+                  return (
+                    <div
+                      key={index}
+                      className={`border rounded-xl p-4 relative group transition-all bg-surface/50 ${
+                        isHighlighted ? 'border-2 border-orange-500 ring-4 ring-orange-500/40 animate-pulse shadow-lg shadow-orange-500/20' : 'border-border'
+                      }`}
+                    >
+                      {isHighlighted && (
+                        <div className="mb-3 flex items-center justify-between">
+                          <span className="text-[11px] font-black uppercase text-orange-600 bg-orange-500/20 px-2.5 py-0.5 rounded-full animate-bounce">
+                            ⚠️ Conflict Target — Adjust Pallets / Weight / LDM / Volume
+                          </span>
+                        </div>
+                      )}
+                      {cargoItems.length > 1 && <button type="button" onClick={() => handleRemoveCargo(index)} className="absolute top-3 right-3 p-1.5 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>}
+                      <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
+                        <div className="col-span-2">
+                          <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_cargoDescripti")}</label>
+                          <input type="text" value={cargo.description} onChange={e => handleCargoChange(index, 'description', e.target.value)} className="input w-full" placeholder="e.g. Pallets of electronics" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_quantityOptio")}</label>
+                          <input type="number" value={cargo.quantity != null ? cargo.quantity : ''} onChange={e => handleCargoChange(index, 'quantity', e.target.value)} className={`input w-full ${isHighlighted ? 'border-orange-500 font-bold' : ''}`} min="1" placeholder="Optional" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_unitTypeOpti")}</label>
+                          <ModalSelect value={cargo.unit || 'pallet'} onChange={v => handleCargoChange(index, 'unit', v)} options={unitOptions} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_weightKgOp")}</label>
+                          <input type="number" step="0.1" value={cargo.weightKg || ''} onChange={e => handleCargoChange(index, 'weightKg', e.target.value)} className={`input w-full ${isHighlighted ? 'border-orange-500 font-bold' : ''}`} placeholder="Optional" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_volumeMOp")}</label>
+                          <input type="number" step="0.01" value={cargo.volumeCbm || ''} onChange={e => handleCargoChange(index, 'volumeCbm', e.target.value)} className={`input w-full ${isHighlighted ? 'border-orange-500 font-bold' : ''}`} placeholder="Optional" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_lDMOptional")}</label>
+                          <input type="number" step="0.01" value={cargo.ldm || ''} onChange={e => handleCargoChange(index, 'ldm', e.target.value)} className={`input w-full ${isHighlighted ? 'border-orange-500 font-bold' : ''}`} placeholder="Optional" />
+                        </div>
                       </div>
-                    )}
-                    {cargoItems.length > 1 && <button type="button" onClick={() => handleRemoveCargo(index)} className="absolute top-3 right-3 p-1.5 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>}
-                    <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
-                      <div className="col-span-2">
-                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_cargoDescripti")}</label>
-                        <input type="text" value={cargo.description} onChange={e => handleCargoChange(index, 'description', e.target.value)} className="input w-full" placeholder="e.g. Pallets of electronics" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_quantityOptio")}</label>
-                        <input type="number" value={cargo.quantity || ''} onChange={e => handleCargoChange(index, 'quantity', e.target.value)} className={`input w-full ${highlightSection ? 'border-orange-500 font-bold' : ''}`} min="1" placeholder="Optional" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_unitTypeOpti")}</label>
-                        <ModalSelect value={cargo.unit || 'pallet'} onChange={v => handleCargoChange(index, 'unit', v)} options={unitOptions} />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_weightKgOp")}</label>
-                        <input type="number" step="0.1" value={cargo.weightKg || ''} onChange={e => handleCargoChange(index, 'weightKg', e.target.value)} className={`input w-full ${highlightSection ? 'border-orange-500 font-bold' : ''}`} placeholder="Optional" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_volumeMOp")}</label>
-                        <input type="number" step="0.01" value={cargo.volumeCbm || ''} onChange={e => handleCargoChange(index, 'volumeCbm', e.target.value)} className={`input w-full ${highlightSection ? 'border-orange-500 font-bold' : ''}`} placeholder="Optional" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_lDMOptional")}</label>
-                        <input type="number" step="0.01" value={cargo.ldm || ''} onChange={e => handleCargoChange(index, 'ldm', e.target.value)} className={`input w-full ${highlightSection ? 'border-orange-500 font-bold' : ''}`} placeholder="Optional" />
-                      </div>
-                    </div>
                     
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 pt-3 border-t border-border/40">
                       <div>
@@ -1062,7 +1070,9 @@ export default function OrderWizard({
                         {cargo.isTemperatureControlled && <input type="number" step="0.5" value={cargo.requiredTemperature || ''} onChange={e => handleCargoChange(index, 'requiredTemperature', e.target.value)} className="input p-1 text-xs mt-1 w-full" placeholder="Temp °C" />}
                       </div>
                     </div>
-                  </div>)}
+                  </div>
+                );
+              })}
               </div>
               <button type="button" onClick={handleAddCargo} className="w-full py-3 border-2 border-dashed border-border rounded-xl text-text-secondary hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center gap-2 font-medium">
                 <Plus className="w-4 h-4" />{t("jsx_addCargoItem")}</button>

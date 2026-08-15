@@ -92,12 +92,37 @@ function fmtShort(d: any) {
 function sumCargo(orders: any[]) {
   let weight = 0, ldm = 0, pallets = 0, volume = 0, hasLdm = false;
   for (const o of orders || []) {
-    for (const c of o?.cargoItems || []) {
-      weight += Number(c.weightKg) || 0;
-      if (c.ldm != null && Number(c.ldm) > 0) { ldm += Number(c.ldm); hasLdm = true; }
-      volume += Number(c.volumeCbm) || 0;
-      if (String(c.unit || 'pallet').toLowerCase() === 'pallet') pallets += Number(c.quantity) || 0;
+    let orderPallets = 0;
+    let orderWeight = 0;
+    let orderVolume = 0;
+    let orderLdm = 0;
+    let orderHasLdm = false;
+
+    if (Array.isArray(o?.cargoItems) && o.cargoItems.length > 0) {
+      for (const c of o.cargoItems) {
+        orderWeight += Number(c.weightKg) || 0;
+        if (c.ldm != null && Number(c.ldm) > 0) {
+          orderLdm += Number(c.ldm);
+          orderHasLdm = true;
+        }
+        orderVolume += Number(c.volumeCbm) || 0;
+        orderPallets += Number(c.quantity != null ? c.quantity : 0);
+      }
+    } else {
+      orderWeight = Number(o?.weightKg || o?.totalWeightKg || 0);
+      orderPallets = Number(o?.pallets || o?.totalPallets || 0);
+      orderVolume = Number(o?.volumeCbm || o?.totalVolumeCbm || 0);
+      if (o?.loadingMeters != null && Number(o.loadingMeters) > 0) {
+        orderLdm = Number(o.loadingMeters);
+        orderHasLdm = true;
+      }
     }
+
+    weight += orderWeight;
+    pallets += orderPallets;
+    volume += orderVolume;
+    ldm += orderLdm;
+    if (orderHasLdm) hasLdm = true;
   }
   return { weight, ldm, hasLdm, pallets, volume, ldmFormatted: hasLdm ? ldm.toFixed(1) : '—' };
 }
@@ -608,13 +633,14 @@ function ResourceRow({
 // ─── Trip Detail Drawer ──────────────────────────────────────────────────────
 function TripDetailDrawer({
   tripSummary, resources = [], drivers = [], trailers = [], conflicts = [],
-  onClose, onAction, onReorderStops, onEditOrder, loadingAction,
+  onClose, onAction, onReorderStops, onEditOrder, loadingAction, refreshKey,
 }: {
   tripSummary: any; resources?: any[]; drivers?: any[]; trailers?: any[]; conflicts?: any[];
   onClose: () => void; onAction: (action: string, tripId: string, payload?: any) => void;
   onReorderStops: (tripId: string, stopIds: string[]) => void;
   onEditOrder?: (orderId: string, initialStep?: number, highlight?: string) => void;
   loadingAction?: string | null;
+  refreshKey?: number;
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -639,7 +665,7 @@ function TripDetailDrawer({
         .then(r => setAuditEvents(r.data?.events || []))
         .catch(() => setAuditEvents([]));
     }
-  }, [tripSummary?.id]);
+  }, [tripSummary?.id, refreshKey]);
 
   if (!tripSummary) return null;
   // Use fetched detail if available, otherwise use the summary from the board
@@ -1182,6 +1208,7 @@ export default function PlanningPage() {
   const [wizardOrderId, setWizardOrderId] = useState<string | null>(null);
   const [wizardInitialStep, setWizardInitialStep] = useState<number>(0);
   const [wizardHighlight, setWizardHighlight] = useState<string | null>(null);
+  const [drawerRefreshKey, setDrawerRefreshKey] = useState(0);
 
   const [searchParams] = useSearchParams();
   useEffect(() => {
@@ -1782,6 +1809,7 @@ export default function PlanningPage() {
             setWizardHighlight(highlight ?? null);
           }}
           loadingAction={loadingAction}
+          refreshKey={drawerRefreshKey}
         />
       )}
 
@@ -1807,6 +1835,7 @@ export default function PlanningPage() {
           onSaved={() => {
             setWizardOrderId(null);
             loadData();
+            setDrawerRefreshKey(k => k + 1);
             toast.success(t('order_saved_success', 'Comandă actualizată cu succes!'));
           }}
         />
