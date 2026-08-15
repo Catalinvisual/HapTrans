@@ -2769,8 +2769,17 @@ export class PlanningService {
       }
     }
 
-    if (routePlan && !routePlan.driver && routePlan.truck?.driver) {
-      routePlan.driver = routePlan.truck.driver;
+    if (routePlan) {
+      if (!routePlan.driver && routePlan.truck?.driver) {
+        routePlan.driver = routePlan.truck.driver;
+      }
+      if (routePlan.truck) {
+        const caps = this.resolveTruckCapacity(routePlan.truck);
+        routePlan.maxPallets = caps.maxPallets;
+        routePlan.maxWeightKg = caps.maxWeightKg;
+        routePlan.maxLdm = caps.maxLdm;
+        routePlan.maxVolumeCbm = caps.maxVolumeCbm;
+      }
     }
 
     return routePlan;
@@ -3449,17 +3458,14 @@ export class PlanningService {
 
   // Resolves physical capacity of a truck, using the truck's own values and
   // falling back to trailer values where the truck itself is unknown.
-  // Throws if the truck has no known capacity — the owner must confirm real
-  // physical capacities before the vehicle may be used for production planning.
   private resolveTruckCapacity(truck: Truck): {
     maxPallets: number; maxWeightKg: number; maxLdm: number; maxVolumeCbm: number;
   } {
-    const maxPallets = Number(truck.maxPallets) || Number(truck.trailer?.payloadCapacityPallets) || 33;
-    const rawWeight = Number(truck.maxWeightKg) || Number(truck.trailer?.payloadCapacityWeight) || 24000;
-    // In Europe, standard legal payload is 24,000 kg (even if gross train weight is 40t/44t)
-    const maxWeightKg = rawWeight > 30000 ? 24000 : rawWeight;
-    const maxLdm = Number(truck.maxLdm) || Number(truck.trailer?.maxLdm) || 13.6;
-    const maxVolumeCbm = Number(truck.maxVolumeCbm) || Number(truck.trailer?.maxVolumeCbm) || 90;
+    const maxPallets = truck.maxPallets != null ? Number(truck.maxPallets) : (Number(truck.trailer?.payloadCapacityPallets) || 33);
+    const rawWeight = (truck.payloadCapacity != null ? Number(truck.payloadCapacity) : null) || (truck.maxWeightKg != null ? Number(truck.maxWeightKg) : null) || Number(truck.trailer?.payloadCapacityWeight) || 24000;
+    const maxWeightKg = rawWeight > 30000 && truck.payloadCapacity ? Number(truck.payloadCapacity) : (rawWeight > 30000 ? 24000 : rawWeight);
+    const maxLdm = truck.maxLdm != null ? Number(truck.maxLdm) : (Number(truck.trailer?.maxLdm) || 13.6);
+    const maxVolumeCbm = truck.maxVolumeCbm != null ? Number(truck.maxVolumeCbm) : (Number(truck.trailer?.maxVolumeCbm) || 85);
 
     return { maxPallets, maxWeightKg, maxLdm, maxVolumeCbm };
   }

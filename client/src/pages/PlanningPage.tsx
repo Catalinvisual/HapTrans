@@ -309,7 +309,7 @@ function PoolOrderCard({
       onDragStart={e => { e.dataTransfer.setData('orderId', order.id); e.dataTransfer.effectAllowed = 'move'; setDraggingId(order.id); }}
       onDragEnd={() => setDraggingId(null)}
       onClick={() => onDetail?.(order)}
-      className={`group rounded-2xl p-3 cursor-grab active:cursor-grabbing transition-all select-none border ${
+      className={`group rounded-2xl p-3 cursor-pointer transition-all select-none border ${
         isDragging ? 'opacity-40 scale-95 border-primary shadow-lg bg-primary/5'
         : selected ? 'border-primary ring-1 ring-primary/30 shadow bg-card'
         : 'border-border hover:border-primary/50 hover:shadow bg-card'

@@ -30,25 +30,53 @@ function fmtDate(d: string | Date | null | undefined) {
   });
 }
 
-function LoadBar({ label, value, max, icon: Icon, color }: { label: string; value: number; max: number; icon: any; color: string }) {
+function LoadBar({ label, value, max, icon: Icon, unit = '' }: { label: string; value: number; max: number; icon: any; unit?: string }) {
   const numVal = Number(value) || 0;
   const numMax = Number(max) || 1;
-  const pct = numMax > 0 ? Math.min(100, (numVal / numMax) * 100) : 0;
-  const over = numMax > 0 && numVal > numMax;
+  const pct = numMax > 0 ? (numVal / numMax) * 100 : 0;
+  const displayPct = Math.min(100, pct);
+
+  // 3-Color progression:
+  // <= 75%: Green (emerald)
+  // 75% - 95%: Orange (amber)
+  // > 95% or overloaded: Red
+  let barColor = 'bg-emerald-500';
+  let textColor = 'text-emerald-600 font-semibold';
+  let iconColor = 'text-emerald-500';
+  if (pct > 95) {
+    barColor = 'bg-red-500';
+    textColor = 'text-red-500 font-black';
+    iconColor = 'text-red-500';
+  } else if (pct > 75) {
+    barColor = 'bg-amber-500';
+    textColor = 'text-amber-600 font-bold';
+    iconColor = 'text-amber-500';
+  } else {
+    textColor = 'text-text-secondary';
+    iconColor = 'text-text-muted';
+  }
+
+  const formatVal = (v: number) => {
+    if (label.toLowerCase().includes('ldm')) return Number(v).toFixed(2);
+    if (label.toLowerCase().includes('volume')) return Number(v).toFixed(1);
+    if (label.toLowerCase().includes('weight')) return Math.round(v).toLocaleString();
+    return Math.round(v).toString();
+  };
+
   return (
     <div className="flex items-center gap-2">
-      <Icon className={`w-3.5 h-3.5 shrink-0 ${over ? 'text-red-500' : 'text-text-muted'}`} />
+      <Icon className={`w-3.5 h-3.5 shrink-0 ${iconColor}`} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between text-[10px] mb-0.5">
           <span className="font-bold text-text-secondary uppercase tracking-wide">{label}</span>
-          <span className={over ? 'text-red-500 font-black' : 'text-text-secondary'}>
-            {Math.round(numVal).toLocaleString()} / {Math.round(numMax).toLocaleString()}
+          <span className={textColor}>
+            {formatVal(numVal)} / {formatVal(numMax)}{unit ? ` ${unit}` : ''}
           </span>
         </div>
-        <div className="h-1.5 rounded-full bg-surface overflow-hidden">
+        <div className="h-1.5 rounded-full bg-surface overflow-hidden border border-border/40">
           <div
-            className={`h-full rounded-full transition-all duration-500 ${over ? 'bg-red-500' : color}`}
-            style={{ width: `${pct}%` }}
+            className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+            style={{ width: `${displayPct}%` }}
           />
         </div>
       </div>
@@ -506,11 +534,12 @@ export default function TruckRoutePlannerPage() {
   const fsStyle = FEASIBILITY_STYLE[feasibility] || FEASIBILITY_STYLE.feasible;
 
   // Real capacity limits directly from truck / routePlan
+  const truckObj = routePlan?.truck || routePlan?.trip?.truck;
   const cap = {
-    maxPallets: Number(routePlan?.maxPallets) || Number(routePlan?.truck?.maxPallets) || 26,
-    maxWeightKg: Number(routePlan?.maxWeightKg) || Number(routePlan?.truck?.maxWeightKg) || 24000,
-    maxLdm: Number(routePlan?.maxLdm) || Number(routePlan?.truck?.maxLdm) || 13.6,
-    maxVolumeCbm: Number(routePlan?.maxVolumeCbm) || Number(routePlan?.truck?.maxVolumeCbm) || 90,
+    maxPallets: Number(truckObj?.maxPallets) || Number(routePlan?.maxPallets) || 33,
+    maxWeightKg: Number(truckObj?.payloadCapacity) || Number(truckObj?.maxWeightKg) || Number(routePlan?.maxWeightKg) || 24000,
+    maxLdm: Number(truckObj?.maxLdm) || Number(routePlan?.maxLdm) || 13.6,
+    maxVolumeCbm: Number(truckObj?.maxVolumeCbm) || Number(routePlan?.maxVolumeCbm) || 85,
   };
 
   return (
@@ -535,9 +564,9 @@ export default function TruckRoutePlannerPage() {
         </div>
 
         <div className="flex items-center gap-2 ml-1">
-          {/* Modern Flatpickr Calendar */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface border border-border">
-            <Calendar className="w-4 h-4 text-primary" />
+          {/* Modern Flatpickr Calendar with full date visibility */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface border border-border shrink-0 min-w-[135px]">
+            <Calendar className="w-4 h-4 text-primary shrink-0" />
             <Flatpickr
               value={date}
               onChange={([d]) => {
@@ -549,7 +578,7 @@ export default function TruckRoutePlannerPage() {
                 }
               }}
               options={{ dateFormat: 'd/m/Y', allowInput: false }}
-              className="bg-transparent text-xs font-bold text-text-primary outline-none w-24 cursor-pointer"
+              className="bg-transparent text-xs font-bold text-text-primary outline-none w-28 cursor-pointer"
             />
           </div>
 
@@ -609,10 +638,10 @@ export default function TruckRoutePlannerPage() {
 
       {/* ── Capacity strip ── */}
       <div className="shrink-0 px-4 py-2.5 border-b border-border bg-surface/40 grid grid-cols-2 md:grid-cols-4 gap-3">
-        <LoadBar label={t('pallets', 'Pallets')} value={metrics.peakPallets} max={cap.maxPallets} icon={Box} color="bg-blue-500" />
-        <LoadBar label={t('weight_kg', 'Weight')} value={metrics.peakWeightKg} max={cap.maxWeightKg} icon={Scale} color="bg-emerald-500" />
-        <LoadBar label={t('jsx_ldm', 'LDM')} value={metrics.peakLdm} max={cap.maxLdm} icon={Ruler} color="bg-violet-500" />
-        <LoadBar label={t('jsx_volume', 'Volume')} value={metrics.peakVolumeCbm} max={cap.maxVolumeCbm} icon={Box} color="bg-amber-500" />
+        <LoadBar label={t('pallets', 'Pallets')} value={metrics.peakPallets} max={cap.maxPallets} icon={Box} />
+        <LoadBar label={t('weight_kg', 'Weight')} value={metrics.peakWeightKg} max={cap.maxWeightKg} icon={Scale} unit="kg" />
+        <LoadBar label={t('jsx_ldm', 'LDM')} value={metrics.peakLdm} max={cap.maxLdm} icon={Ruler} unit="m" />
+        <LoadBar label={t('jsx_volume', 'Volume')} value={metrics.peakVolumeCbm} max={cap.maxVolumeCbm} icon={Box} unit="m³" />
       </div>
 
       {/* ── Body ── */}
