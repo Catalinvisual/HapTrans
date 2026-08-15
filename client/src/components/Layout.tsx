@@ -51,8 +51,24 @@ const PAGE_TITLES: Record<string, Record<string, string>> = {
 
 // Shared AudioContext to safely handle sound notifications only after user interaction
 let sharedAudioCtx: AudioContext | null = null;
+let userHasInteracted = false;
+
+if (typeof window !== 'undefined') {
+  const unlockAudio = () => {
+    userHasInteracted = true;
+    if (sharedAudioCtx && sharedAudioCtx.state === 'suspended') {
+      sharedAudioCtx.resume().catch(() => {});
+    }
+    window.removeEventListener('pointerdown', unlockAudio);
+    window.removeEventListener('keydown', unlockAudio);
+  };
+  window.addEventListener('pointerdown', unlockAudio, { passive: true });
+  window.addEventListener('keydown', unlockAudio, { passive: true });
+}
+
 const getAudioContext = () => {
   try {
+    if (!userHasInteracted) return null;
     if (!sharedAudioCtx && typeof window !== 'undefined') {
       // @ts-ignore
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
