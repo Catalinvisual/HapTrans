@@ -1855,6 +1855,7 @@ export default function PlanningPage() {
 
       {wizardOrderId && (
         <OrderWizard
+          key={`${wizardOrderId}-${wizardInitialStep}-${wizardHighlight}`}
           isOpen={!!wizardOrderId}
           orderId={wizardOrderId}
           initialStep={wizardInitialStep}

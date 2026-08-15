@@ -121,17 +121,28 @@ export default function OrderWizard({
   } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
-  const [currentStep, setCurrentStep] = useState(initialStep);
+
+  const resolveTargetStep = () => {
+    if (highlightSection) {
+      if (['cargo', 'weight', 'ldm', 'volume', 'pallets', 'quantity'].includes(highlightSection)) return 2;
+      if (['stops', 'pickup', 'delivery', 'route', 'gps', 'time', 'date'].includes(highlightSection)) return 1;
+      if (['general', 'client', 'price', 'reference'].includes(highlightSection)) return 0;
+    }
+    if (typeof initialStep === 'number' && initialStep >= 0 && initialStep <= 2) {
+      return initialStep;
+    }
+    return 0;
+  };
+
+  const [currentStep, setCurrentStep] = useState(resolveTargetStep);
   const [isHighlightDismissed, setIsHighlightDismissed] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isOpen) {
       setIsHighlightDismissed(false);
-      if (typeof initialStep === 'number') {
-        setCurrentStep(initialStep);
-      }
+      setCurrentStep(resolveTargetStep());
     }
-  }, [isOpen, initialStep]);
+  }, [isOpen, initialStep, highlightSection, orderId]);
 
   // Cost estimator state
   const [costEstimate, setCostEstimate] = useState<any>(null);
