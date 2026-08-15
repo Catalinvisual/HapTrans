@@ -1609,7 +1609,10 @@ export default function PlanningPage() {
                             onDropOrder={handleDropOrder}
                             draggingId={draggingOrderId}
                             draggingOrder={draggingOrder}
-                            onOpenPlanner={(r) => navigate(`/planning/planner/${r.id}?date=${selectedDate}`)}
+                            onOpenPlanner={(r) => {
+                              const tripParam = resTrips[0]?.id ? `&trip=${resTrips[0].id}` : '';
+                              navigate(`/planning/planner/${r.id}?date=${selectedDate}${tripParam}`);
+                            }}
                           />
                         );
                       })

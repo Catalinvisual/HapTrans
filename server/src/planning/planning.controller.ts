@@ -248,6 +248,15 @@ export class PlanningController {
     return this.planningService.resetRoutePlan(routePlan.id, this.userCompanyId(req));
   }
 
+  @Post('trucks/:truckId/route/reset')
+  async resetRoutePlanAlt(
+    @Req() req: any,
+    @Param('truckId') truckId: string,
+    @Body() body: { date?: string },
+  ): Promise<TruckRoutePlan> {
+    return this.resetRoutePlan(req, truckId, body);
+  }
+
   @Post('trucks/:truckId/reorder')
   async reorderRouteStops(
     @Req() req: any,
@@ -260,6 +269,15 @@ export class PlanningController {
       throw new NotFoundException('No route plan found for this truck and date');
     }
     return this.planningService.reorderRoutePlanStops(routePlan.id, body.stopIds, this.userCompanyId(req));
+  }
+
+  @Post('trucks/:truckId/route/reorder')
+  async reorderRouteStopsAlt(
+    @Req() req: any,
+    @Param('truckId') truckId: string,
+    @Body() body: { date?: string; stopIds: string[] },
+  ): Promise<TruckRoutePlan> {
+    return this.reorderRouteStops(req, truckId, body);
   }
 
   @Post('trucks/:truckId/validate')
@@ -283,6 +301,14 @@ export class PlanningController {
     return this.planningService.saveRoutePlan(payload, this.userCompanyId(req), req.user?.id);
   }
 
+  @Get('trucks/:truckId/actions')
+  async getTruckAuditActions(
+    @Param('truckId') truckId: string,
+    @Query('date') date?: string,
+  ) {
+    return this.planningService.getAuditActions(truckId, date);
+  }
+
   @Post('routes/:routePlanId/lock-stop')
   async lockStop(
     @Req() req: any,
@@ -292,6 +318,15 @@ export class PlanningController {
     return this.planningService.lockStop(routePlanId, body.stopId, body.lockSequence, this.userCompanyId(req));
   }
 
+  @Post('stops/:stopId/lock')
+  async lockStopByStopId(
+    @Req() req: any,
+    @Param('stopId') stopId: string,
+    @Body() body: { routePlanId: string; lockSequence?: boolean },
+  ): Promise<RoutePlanStop> {
+    return this.planningService.lockStop(body.routePlanId, stopId, body.lockSequence, this.userCompanyId(req));
+  }
+
   @Post('routes/:routePlanId/unlock-stop')
   async unlockStop(
     @Req() req: any,
@@ -299,6 +334,15 @@ export class PlanningController {
     @Body() body: { stopId: string },
   ): Promise<RoutePlanStop> {
     return this.planningService.unlockStop(routePlanId, body.stopId, this.userCompanyId(req));
+  }
+
+  @Post('stops/:stopId/unlock')
+  async unlockStopByStopId(
+    @Req() req: any,
+    @Param('stopId') stopId: string,
+    @Body() body: { routePlanId: string },
+  ): Promise<RoutePlanStop> {
+    return this.planningService.unlockStop(body.routePlanId, stopId, this.userCompanyId(req));
   }
 
   @Post('shipments/:shipmentId/lock')
@@ -315,5 +359,12 @@ export class PlanningController {
     @Param('shipmentId') shipmentId: string,
   ): Promise<Shipment> {
     return this.planningService.unlockShipment(shipmentId, this.userCompanyId(req));
+  }
+
+  @Post('shipments/from-orders')
+  async createShipmentsFromOrders(
+    @Body() body: { orderIds: string[] },
+  ): Promise<Shipment[]> {
+    return this.planningService.createShipmentsFromOrders(body.orderIds || []);
   }
 }

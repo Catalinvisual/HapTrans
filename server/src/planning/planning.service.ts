@@ -2533,15 +2533,15 @@ export class PlanningService {
     return routePlan;
   }
 
-  async createRoutePlanFromTrip(tripId: string): Promise<TruckRoutePlan> {
+  async createRoutePlanFromTrip(tripId: string, customPlanningDate?: string): Promise<TruckRoutePlan> {
     const trip = await this.tripRepo.findOne({
       where: { id: tripId },
-      relations: ['truck', 'driver', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.cargoItems'],
+      relations: ['truck', 'driver', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.cargoItems', 'orders.stops'],
     });
 
     if (!trip) throw new NotFoundException('Trip not found');
 
-    const planningDate = trip.plannedDeparture ? trip.plannedDeparture.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    const planningDate = customPlanningDate || (trip.plannedDeparture ? new Date(trip.plannedDeparture).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
 
     // Deactivate existing current plan for this truck/date
     await this.routePlanRepo.update(
@@ -2552,8 +2552,8 @@ export class PlanningService {
     const routePlan = new TruckRoutePlan();
     routePlan.truck = { id: trip.truck.id } as any;
     routePlan.truckId = trip.truck.id;
-    routePlan.driver = trip.driver ? { id: trip.driver.id } as any : null;
-    routePlan.driverId = trip.driver?.id ?? null;
+    routePlan.driver = trip.driver ? { id: trip.driver.id } as any : (trip.truck?.driver ? { id: trip.truck.driver.id } as any : null);
+    routePlan.driverId = routePlan.driver?.id ?? null;
     routePlan.trip = { id: trip.id } as any;
     routePlan.tripId = trip.id;
     routePlan.planningDate = planningDate;
@@ -2569,8 +2569,22 @@ export class PlanningService {
 
     const savedPlan = await this.routePlanRepo.save(routePlan);
 
-    // Convert trip stops to route plan stops
-    const sortedStops = [...trip.stops].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+    // Build stops: either from trip.stops, or from trip.orders
+    let stopList: any[] = [];
+    if (trip.stops && trip.stops.length > 0) {
+      stopList = [...trip.stops].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+    } else if (trip.orders && trip.orders.length > 0) {
+      for (const ord of trip.orders) {
+        const orderStops = (ord.stops || []).slice().sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
+        for (const os of orderStops) {
+          stopList.push({
+            ...os,
+            tasks: [{ type: os.type === 'pickup' ? TaskType.LOAD : TaskType.UNLOAD, order: ord }],
+          });
+        }
+      }
+    }
+
     let cumulativePallets = 0;
     let cumulativeWeight = 0;
     let cumulativeLdm = 0;
@@ -2578,9 +2592,9 @@ export class PlanningService {
     let pickupCount = 0;
     let deliveryCount = 0;
 
-    for (let i = 0; i < sortedStops.length; i++) {
-      const stop = sortedStops[i];
-      const isPickup = stop.type === 'pickup';
+    for (let i = 0; i < stopList.length; i++) {
+      const stop = stopList[i];
+      const isPickup = String(stop.type).toLowerCase() === 'pickup' || String(stop.type).toLowerCase() === 'load';
       const tasks = stop.tasks || [];
       
       let stopPallets = 0;
@@ -2588,14 +2602,19 @@ export class PlanningService {
       let stopLdm = 0;
       let stopVolume = 0;
 
+      let orderObj = tasks[0]?.order || trip.orders?.find((o: any) => o.id === stop.orderId || o.id === stop.order?.id) || (trip.orders && trip.orders.length === 1 ? trip.orders[0] : null);
+
       for (const task of tasks) {
-        if (task.type === TaskType.LOAD) {
-          stopPallets += Number(task.pallets) || 0;
-          stopWeight += Number(task.weightKg) || 0;
-        } else if (task.type === TaskType.UNLOAD) {
-          stopPallets += Number(task.pallets) || 0;
-          stopWeight += Number(task.weightKg) || 0;
-        }
+        stopPallets += Number(task.pallets) || 0;
+        stopWeight += Number(task.weightKg) || 0;
+      }
+
+      if (stopPallets === 0 && stopWeight === 0 && orderObj?.cargoItems) {
+        const oc = this.calculateCargo(orderObj);
+        stopPallets = oc.pallets;
+        stopWeight = oc.weightKg;
+        stopLdm = oc.ldm;
+        stopVolume = oc.volumeCbm;
       }
 
       if (isPickup) {
@@ -2619,20 +2638,20 @@ export class PlanningService {
       const routePlanStop = new RoutePlanStop();
       routePlanStop.routePlan = { id: savedPlan.id } as any;
       routePlanStop.routePlanId = savedPlan.id;
-      routePlanStop.order = tasks[0]?.order ? { id: tasks[0].order.id } as any : null;
-      routePlanStop.orderId = tasks[0]?.order?.id;
+      routePlanStop.order = orderObj ? { id: orderObj.id } as any : null;
+      routePlanStop.orderId = orderObj?.id || null;
       routePlanStop.type = isPickup ? RouteStopType.PICKUP : RouteStopType.DELIVERY;
       routePlanStop.sequence = i + 1;
-      routePlanStop.address = stop.address;
-      routePlanStop.companyName = stop.companyName;
-      routePlanStop.city = stop.city;
-      routePlanStop.country = stop.country;
-      routePlanStop.postalCode = stop.postalCode;
-      routePlanStop.latitude = stop.latitude;
-      routePlanStop.longitude = stop.longitude;
-      routePlanStop.scheduledDate = stop.timeWindowMin ? stop.timeWindowMin.toISOString().split('T')[0] : planningDate;
-      routePlanStop.timeWindowStart = stop.timeWindowMin;
-      routePlanStop.timeWindowEnd = stop.timeWindowMax;
+      routePlanStop.address = stop.address || '';
+      routePlanStop.companyName = stop.companyName || '';
+      routePlanStop.city = stop.city || '';
+      routePlanStop.country = stop.country || '';
+      routePlanStop.postalCode = stop.postalCode || '';
+      routePlanStop.latitude = stop.latitude ? Number(stop.latitude) : (undefined as any);
+      routePlanStop.longitude = stop.longitude ? Number(stop.longitude) : (undefined as any);
+      routePlanStop.scheduledDate = stop.timeWindowMin ? new Date(stop.timeWindowMin).toISOString().split('T')[0] : (stop.dateFrom || planningDate);
+      routePlanStop.timeWindowStart = stop.timeWindowMin || (stop.dateFrom ? new Date(stop.dateFrom + 'T' + (stop.timeFrom || '00:00') + ':00') : null);
+      routePlanStop.timeWindowEnd = stop.timeWindowMax || (stop.dateFrom ? new Date(stop.dateFrom + 'T' + (stop.timeUntil || '23:59') + ':00') : null);
       routePlanStop.timeWindowSoft = false;
       routePlanStop.eta = stop.eta;
       routePlanStop.serviceDurationMinutes = 30;
@@ -2640,7 +2659,7 @@ export class PlanningService {
       routePlanStop.weightKg = stopWeight;
       routePlanStop.loadingMeters = stopLdm;
       routePlanStop.volumeCbm = stopVolume;
-      routePlanStop.status = stop.status as RouteStopStatus;
+      routePlanStop.status = (stop.status as RouteStopStatus) || RouteStopStatus.PENDING;
       routePlanStop.locked = false;
       routePlanStop.cumulativePallets = cumulativePallets;
       routePlanStop.cumulativeWeightKg = cumulativeWeight;
@@ -2651,7 +2670,7 @@ export class PlanningService {
     }
 
     // Update route plan totals
-    savedPlan.stopCount = sortedStops.length;
+    savedPlan.stopCount = stopList.length;
     savedPlan.pickupCount = pickupCount;
     savedPlan.deliveryCount = deliveryCount;
     savedPlan.peakPallets = cumulativePallets;
@@ -2659,7 +2678,7 @@ export class PlanningService {
 
     // Assign loading sequence based on the truck's loading rule
     try {
-      const rule = (trip.truck.loadingRule) || (await this.getDefaultProfile()).defaultLoadingRule || LoadingRule.LIFO;
+      const rule = (trip.truck?.loadingRule) || (await this.getDefaultProfile()).defaultLoadingRule || LoadingRule.LIFO;
       const allStops = await this.routePlanStopRepo.find({ where: { routePlanId: savedPlan.id } });
       this.computeLoadingSequence(allStops, rule);
       for (const s of allStops) {
@@ -2670,16 +2689,51 @@ export class PlanningService {
       // loading sequence is best-effort on plan creation
     }
 
-    return this.routePlanRepo.save(savedPlan);
+    await this.routePlanRepo.save(savedPlan);
+    return (await this.getRoutePlan(trip.truck.id, planningDate, (trip.company as any)?.id))!;
   }
 
   async getRoutePlan(truckId: string, planningDate: string, userCompanyId?: string | null): Promise<TruckRoutePlan | null> {
     await this.assertTruckAccess(truckId, userCompanyId);
-    return this.routePlanRepo.findOne({
+
+    let routePlan = await this.routePlanRepo.findOne({
       where: { truckId, planningDate, isCurrent: true },
       relations: ['stops', 'stops.order', 'truck', 'driver', 'trip'],
       order: { stops: { sequence: 'ASC' } },
     });
+
+    if (!routePlan || !routePlan.stops || routePlan.stops.length === 0) {
+      // Look for any trip belonging to this truck on this planningDate or active
+      const tripQb = this.tripRepo.createQueryBuilder('trip')
+        .leftJoinAndSelect('trip.truck', 'truck')
+        .leftJoinAndSelect('trip.driver', 'driver')
+        .leftJoinAndSelect('trip.stops', 'stops')
+        .leftJoinAndSelect('stops.tasks', 'tasks')
+        .leftJoinAndSelect('tasks.order', 'order')
+        .leftJoinAndSelect('trip.orders', 'orders')
+        .leftJoinAndSelect('orders.cargoItems', 'cargoItems')
+        .leftJoinAndSelect('orders.stops', 'orderStops')
+        .where('truck.id = :truckId', { truckId });
+
+      if (userCompanyId) {
+        tripQb.andWhere('(trip.companyId = :companyId OR trip.companyId IS NULL)', { companyId: userCompanyId });
+      }
+
+      const trips = await tripQb.orderBy('trip.createdAt', 'DESC').getMany();
+      const matchingTrip = trips.find(tr => {
+        const depStr = tr.plannedDeparture ? new Date(tr.plannedDeparture).toISOString().split('T')[0] : '';
+        const arrStr = tr.plannedArrival ? new Date(tr.plannedArrival).toISOString().split('T')[0] : '';
+        return depStr === planningDate || arrStr === planningDate;
+      }) || trips.find(tr => ['planning', 'planned', 'assigned', 'dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'].includes(String(tr.status)));
+
+      if (matchingTrip && ((matchingTrip.stops && matchingTrip.stops.length > 0) || (matchingTrip.orders && matchingTrip.orders.length > 0))) {
+        routePlan = await this.createRoutePlanFromTrip(matchingTrip.id, planningDate);
+      } else if (!routePlan) {
+        routePlan = await this.getOrCreateRoutePlan(truckId, planningDate, undefined, userCompanyId);
+      }
+    }
+
+    return routePlan;
   }
 
   async saveRoutePlan(
