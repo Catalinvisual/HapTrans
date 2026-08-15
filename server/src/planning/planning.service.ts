@@ -2573,20 +2573,25 @@ export class PlanningService {
     const savedPlan = await this.routePlanRepo.save(routePlan);
 
     // Build stops: either from trip.stops, or from trip.orders
-    let stopList: any[] = [];
+    let rawStopList: any[] = [];
     if (trip.stops && trip.stops.length > 0) {
-      stopList = [...trip.stops].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+      rawStopList = [...trip.stops];
     } else if (trip.orders && trip.orders.length > 0) {
       for (const ord of trip.orders) {
-        const orderStops = (ord.stops || []).slice().sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
+        const orderStops = (ord.stops || []).slice();
         for (const os of orderStops) {
-          stopList.push({
+          rawStopList.push({
             ...os,
             tasks: [{ type: os.type === 'pickup' ? TaskType.LOAD : TaskType.UNLOAD, order: ord }],
           });
         }
       }
     }
+
+    // Sort stops: strictly place all pickups before deliveries for every order
+    const pickups = rawStopList.filter(s => String(s.type).toLowerCase() === 'pickup' || String(s.type).toLowerCase() === 'load');
+    const deliveries = rawStopList.filter(s => String(s.type).toLowerCase() !== 'pickup' && String(s.type).toLowerCase() !== 'load');
+    const stopList = [...pickups, ...deliveries];
 
     let cumulativePallets = 0;
     let cumulativeWeight = 0;
@@ -2672,12 +2677,27 @@ export class PlanningService {
       await this.routePlanStopRepo.save(routePlanStop);
     }
 
+    // Calculate real road distance & duration
+    let totalDistKm = 0;
+    for (let i = 0; i < stopList.length - 1; i++) {
+      const s1 = stopList[i];
+      const s2 = stopList[i + 1];
+      if (s1.latitude && s1.longitude && s2.latitude && s2.longitude) {
+        const d = this.haversineDistance(Number(s1.latitude), Number(s1.longitude), Number(s2.latitude), Number(s2.longitude)) * 1.25;
+        totalDistKm += d;
+      }
+    }
+    const totalDurationMin = Math.round((totalDistKm / 65) * 60 + stopList.length * 30);
+
     // Update route plan totals
     savedPlan.stopCount = stopList.length;
     savedPlan.pickupCount = pickupCount;
     savedPlan.deliveryCount = deliveryCount;
     savedPlan.peakPallets = cumulativePallets;
     savedPlan.peakWeightKg = cumulativeWeight;
+    savedPlan.totalDistanceKm = Math.round(totalDistKm);
+    savedPlan.totalDurationMinutes = totalDurationMin;
+    savedPlan.totalDrivingTimeMinutes = Math.round((totalDistKm / 65) * 60);
 
     // Assign loading sequence based on the truck's loading rule
     try {
@@ -3027,20 +3047,25 @@ export class PlanningService {
       }
     }
 
-    // Pickup must precede its delivery
+    // Pickup must precede its delivery for each order/shipment
     const shipmentStops = new Map<string, { pickup: RoutePlanStop | null; delivery: RoutePlanStop | null }>();
     for (const stop of stops) {
-      if (!stop.shipmentId) continue;
-      const entry = shipmentStops.get(stop.shipmentId) || { pickup: null, delivery: null };
+      const key = stop.orderId || stop.shipmentId;
+      if (!key) continue;
+      const entry = shipmentStops.get(key) || { pickup: null, delivery: null };
       if (stop.type === 'pickup') entry.pickup = stop;
       else entry.delivery = stop;
-      shipmentStops.set(stop.shipmentId, entry);
+      shipmentStops.set(key, entry);
     }
-    for (const [shipmentId, { pickup, delivery }] of shipmentStops) {
+    for (const [key, { pickup, delivery }] of shipmentStops) {
       if (pickup && delivery && pickup.sequence >= delivery.sequence) {
         conflicts.push({
-          type: 'pickup_after_delivery', shipmentId, stopId: pickup.id, severity: 'error', hard: true,
-          message: `Pickup (seq ${pickup.sequence}) must occur before delivery (seq ${delivery.sequence})`,
+          type: 'pickup_after_delivery',
+          orderId: key,
+          stopId: delivery.id,
+          severity: 'error',
+          hard: true,
+          message: `Delivery (seq ${delivery.sequence}) cannot occur before pickup (seq ${pickup.sequence}) for the same order`,
         });
       }
     }
@@ -3305,6 +3330,20 @@ export class PlanningService {
     this.recomputeCumulativeLoads(ordered, routePlan);
     this.computeLoadingSequence(ordered, loadingRule);
 
+    let totalDistKm = 0;
+    for (let i = 0; i < ordered.length - 1; i++) {
+      const s1 = ordered[i];
+      const s2 = ordered[i + 1];
+      if (s1.latitude && s1.longitude && s2.latitude && s2.longitude) {
+        const d = this.haversineDistance(Number(s1.latitude), Number(s1.longitude), Number(s2.latitude), Number(s2.longitude)) * 1.25;
+        totalDistKm += d;
+      }
+    }
+    const totalDurationMin = Math.round((totalDistKm / 65) * 60 + ordered.length * 30);
+    routePlan.totalDistanceKm = Math.round(totalDistKm);
+    routePlan.totalDurationMinutes = totalDurationMin;
+    routePlan.totalDrivingTimeMinutes = Math.round((totalDistKm / 65) * 60);
+
     const validation = this.validateRoutePlan(ordered, routePlan, loadingRule);
     routePlan.conflicts = validation.conflicts;
     routePlan.warnings = validation.warnings;
@@ -3423,6 +3462,22 @@ export class PlanningService {
     const maxVolumeCbm = Number(truck.maxVolumeCbm) || Number(truck.trailer?.maxVolumeCbm) || 90;
 
     return { maxPallets, maxWeightKg, maxLdm, maxVolumeCbm };
+  }
+
+  private haversineDistance(lat1: any, lon1: any, lat2: any, lon2: any): number {
+    const l1 = Number(lat1) || 0;
+    const ln1 = Number(lon1) || 0;
+    const l2 = Number(lat2) || 0;
+    const ln2 = Number(lon2) || 0;
+    const R = 6371;
+    const dLat = (l2 - l1) * (Math.PI / 180);
+    const dLon = (ln2 - ln1) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(l1 * (Math.PI / 180)) * Math.cos(l2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
   }
 
 }

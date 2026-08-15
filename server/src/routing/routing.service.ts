@@ -30,7 +30,11 @@ export class RoutingService {
 
   // ─── Cache Helpers ────────────────────────────────────────────────────────
   private getCacheKey(origin: LatLng, dest: LatLng): string {
-    return `${origin.lat.toFixed(4)},${origin.lng.toFixed(4)}->${dest.lat.toFixed(4)},${dest.lng.toFixed(4)}`;
+    const oLat = Number(origin?.lat) || 0;
+    const oLng = Number(origin?.lng) || 0;
+    const dLat = Number(dest?.lat) || 0;
+    const dLng = Number(dest?.lng) || 0;
+    return `${oLat.toFixed(4)},${oLng.toFixed(4)}->${dLat.toFixed(4)},${dLng.toFixed(4)}`;
   }
 
   private getFromCache(origin: LatLng, dest: LatLng): CachedMatrixItem | null {
@@ -377,13 +381,17 @@ export class RoutingService {
     };
   }
 
-  private haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  private haversineDistance(lat1: any, lon1: any, lat2: any, lon2: any): number {
+    const l1 = Number(lat1) || 0;
+    const ln1 = Number(lon1) || 0;
+    const l2 = Number(lat2) || 0;
+    const ln2 = Number(lon2) || 0;
     const R = 6371;
-    const dLat = (lat2 - lat1) * (Math.PI / 180);
-    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const dLat = (l2 - l1) * (Math.PI / 180);
+    const dLon = (ln2 - ln1) * (Math.PI / 180);
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+      Math.cos(l1 * (Math.PI / 180)) * Math.cos(l2 * (Math.PI / 180)) *
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;

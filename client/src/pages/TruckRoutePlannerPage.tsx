@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import Flatpickr from 'react-flatpickr';
+import 'flatpickr/dist/themes/light.css';
 import {
   Truck as TruckIcon, Package, Loader2, MapPin, AlertTriangle, X, Calendar, ArrowUp, ArrowDown,
   Lock, Unlock, RotateCcw, RefreshCw, Sparkles, Save, ChevronLeft, Scale, Ruler, Box, Layers,
   CheckCircle2, Info, Route as RouteIcon, ClipboardList, Timer, GripVertical, GripHorizontal,
-  ShieldAlert, CircleCheck, CircleSlash,
+  ShieldAlert, CircleCheck, CircleSlash, ArrowRight, Navigation, Layers as LayersIcon,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -29,8 +31,10 @@ function fmtDate(d: string | Date | null | undefined, t: (k: string, fb: string)
 }
 
 function LoadBar({ label, value, max, icon: Icon, color }: { label: string; value: number; max: number; icon: any; color: string }) {
-  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
-  const over = max > 0 && value > max;
+  const numVal = Number(value) || 0;
+  const numMax = Number(max) || 1;
+  const pct = numMax > 0 ? Math.min(100, (numVal / numMax) * 100) : 0;
+  const over = numMax > 0 && numVal > numMax;
   return (
     <div className="flex items-center gap-2">
       <Icon className={`w-3.5 h-3.5 shrink-0 ${over ? 'text-red-500' : 'text-text-muted'}`} />
@@ -38,7 +42,7 @@ function LoadBar({ label, value, max, icon: Icon, color }: { label: string; valu
         <div className="flex items-center justify-between text-[10px] mb-0.5">
           <span className="font-bold text-text-secondary uppercase tracking-wide">{label}</span>
           <span className={over ? 'text-red-500 font-black' : 'text-text-secondary'}>
-            {Math.round(value).toLocaleString()} / {Math.round(max).toLocaleString()}
+            {Math.round(numVal).toLocaleString()} / {Math.round(numMax).toLocaleString()}
           </span>
         </div>
         <div className="h-1.5 rounded-full bg-surface overflow-hidden">
@@ -73,6 +77,7 @@ export default function TruckRoutePlannerPage() {
   const [validationResult, setValidationResult] = useState<any>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [activeStopId, setActiveStopId] = useState<string | null>(null);
 
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<maplibregl.Map | null>(null);
@@ -132,15 +137,31 @@ export default function TruckRoutePlannerPage() {
       center: [18.5, 47], zoom: 6, attributionControl: false,
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
-    map.on('load', () => setMapReady(true));
+    map.on('load', () => {
+      setMapReady(true);
+      map.resize();
+    });
     mapInstance.current = map;
-    return () => { if (mapInstance.current) { mapInstance.current.remove(); mapInstance.current = null; } };
+
+    const resizeObserver = new ResizeObserver(() => {
+      map.resize();
+    });
+    if (mapRef.current) resizeObserver.observe(mapRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+      }
+    };
   }, []);
 
   // Draw stops + route
   useEffect(() => {
     const map = mapInstance.current;
     if (!map || !mapReady) return;
+    map.resize();
     markersRef.current.forEach(m => { try { m.remove(); } catch {} });
     markersRef.current = [];
     try { if (map.getLayer('plan-routes')) map.removeLayer('plan-routes'); if (map.getSource('plan-routes')) map.removeSource('plan-routes'); } catch {}
@@ -149,7 +170,7 @@ export default function TruckRoutePlannerPage() {
     const bounds = new maplibregl.LngLatBounds();
 
     if (stopsWithCoords.length >= 2) {
-      const coords = stopsWithCoords.map((s: any) => [s.longitude, s.latitude]);
+      const coords = stopsWithCoords.map((s: any) => [Number(s.longitude), Number(s.latitude)]);
       coords.forEach((c: any) => bounds.extend(c));
       map.addSource('plan-routes', {
         type: 'geojson',
@@ -158,29 +179,79 @@ export default function TruckRoutePlannerPage() {
       map.addLayer({
         id: 'plan-routes', type: 'line', source: 'plan-routes',
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#6366f1', 'line-width': 4, 'line-opacity': 0.85 },
+        paint: { 'line-color': '#f97316', 'line-width': 4, 'line-opacity': 0.9 },
       });
     }
 
     for (const s of sortedStops) {
       if (!s.latitude || !s.longitude) continue;
-      bounds.extend([s.longitude, s.latitude]);
+      const lng = Number(s.longitude);
+      const lat = Number(s.latitude);
+      bounds.extend([lng, lat]);
+
+      const isPickup = s.type === 'pickup';
       const el = document.createElement('div');
-      el.className = `w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-white text-[10px] font-black shadow-lg cursor-pointer ${s.type === 'pickup' ? 'bg-blue-600' : 'bg-emerald-600'} ${s.locked ? 'ring-2 ring-amber-400' : ''}`;
+      el.className = `w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-white text-[11px] font-black shadow-xl cursor-pointer transition-transform hover:scale-125 ${isPickup ? 'bg-blue-600' : 'bg-emerald-600'} ${s.locked ? 'ring-2 ring-amber-400' : ''}`;
       el.textContent = String(s.sequence || '·');
-      el.title = `${s.type === 'pickup' ? t('pln_pickup', 'Pickup') : t('pln_delivery', 'Delivery')} ${s.sequence}`;
-      markersRef.current.push(new maplibregl.Marker({ element: el }).setLngLat([s.longitude, s.latitude]).addTo(map));
+
+      const popupHtml = `
+        <div style="padding: 6px; font-family: inherit;">
+          <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: ${isPickup ? '#2563eb' : '#059669'}; margin-bottom: 2px;">
+            ${isPickup ? 'PICKUP' : 'DELIVERY'} #${s.sequence}
+          </div>
+          <div style="font-size: 13px; font-weight: 700; color: #1e293b; line-height: 1.2;">
+            ${s.companyName || s.city || s.address}
+          </div>
+          <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+            ${s.address ? s.address + ', ' : ''}${s.city || ''}
+          </div>
+          <div style="font-size: 11px; font-weight: 600; color: #334155; margin-top: 4px; border-top: 1px solid #e2e8f0; padding-top: 4px;">
+            Cargo: ${Math.round(s.pallets || 0)} pal · ${Math.round(s.weightKg || 0)} kg
+          </div>
+        </div>
+      `;
+
+      const popup = new maplibregl.Popup({ offset: 15, closeButton: false }).setHTML(popupHtml);
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([lng, lat])
+        .setPopup(popup)
+        .addTo(map);
+
+      el.addEventListener('click', () => {
+        setActiveStopId(s.id);
+      });
+
+      markersRef.current.push(marker);
     }
 
     if (stopsWithCoords.length) {
-      try { map.fitBounds(bounds, { padding: 70, maxZoom: 13 }); } catch {}
+      try { map.fitBounds(bounds, { padding: 80, maxZoom: 13 }); } catch {}
     }
   }, [mapReady, sortedStops, t]);
+
+  const fitRouteBounds = () => {
+    const map = mapInstance.current;
+    if (!map) return;
+    const stopsWithCoords = sortedStops.filter((s: any) => s.latitude && s.longitude);
+    if (!stopsWithCoords.length) return;
+    const bounds = new maplibregl.LngLatBounds();
+    stopsWithCoords.forEach((s: any) => bounds.extend([Number(s.longitude), Number(s.latitude)]));
+    map.fitBounds(bounds, { padding: 80, maxZoom: 13 });
+  };
+
+  const focusStop = (stop: any) => {
+    if (!stop?.latitude || !stop?.longitude || !mapInstance.current) return;
+    setActiveStopId(stop.id);
+    mapInstance.current.flyTo({
+      center: [Number(stop.longitude), Number(stop.latitude)],
+      zoom: 11,
+      essential: true,
+    });
+  };
 
   const handleOptimize = async () => {
     setActionLoading('optimize');
     try {
-      // Compute-only preview — nothing is persisted until the dispatcher applies it
       const plan = await planningApi.optimizeRoutePlan(truckId, date, selectedProfile || undefined);
       setProposedPlan(plan);
       setShowProposal(true);
@@ -260,8 +331,33 @@ export default function TruckRoutePlannerPage() {
     }
   };
 
-  // Reorder via a compute-only call (not persisted until Save) — §45
+  // Validates that all pickups occur strictly before deliveries for the same order
+  const validatePickupBeforeDelivery = (stopsList: any[]): boolean => {
+    const byOrder = new Map<string, { pickupIdx: number; deliveryIdx: number }>();
+    for (let i = 0; i < stopsList.length; i++) {
+      const s = stopsList[i];
+      const key = s.orderId || s.shipmentId;
+      if (!key) continue;
+      const entry = byOrder.get(key) || { pickupIdx: -1, deliveryIdx: -1 };
+      if (s.type === 'pickup') entry.pickupIdx = i;
+      else entry.deliveryIdx = i;
+      byOrder.set(key, entry);
+    }
+    for (const [, { pickupIdx, deliveryIdx }] of byOrder) {
+      if (pickupIdx >= 0 && deliveryIdx >= 0 && deliveryIdx < pickupIdx) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // Reorder via a compute-only call (not persisted until Save)
   const applyReorder = async (ordered: any[]) => {
+    if (!validatePickupBeforeDelivery(ordered)) {
+      toast.error(t('pln_pickup_before_delivery', 'Delivery cannot be scheduled before pickup for the same order!'));
+      return;
+    }
+
     setRoutePlan((prev: any) => ({
       ...prev,
       stops: ordered.map((s: any, i: number) => ({ ...s, sequence: i + 1 })),
@@ -300,19 +396,16 @@ export default function TruckRoutePlannerPage() {
     if (!routePlan) return;
     setActionLoading('validate');
     try {
-      const result = await planningApi.validateRoutePlan(truckId, date);
-      setValidationResult(result);
-      const c = result?.conflicts?.length || 0;
-      const w = result?.warnings?.length || 0;
-      const m = result?.completeness?.length || 0;
-      if (c + w + m === 0) {
-        toast.success(t('pln_validate_ok', 'Plan is valid'));
+      const res = await planningApi.validateRoutePlan(truckId, date);
+      setValidationResult(res);
+      setShowLoadPanel(true);
+      const totalIssues = (res.conflicts?.length || 0) + (res.warnings?.length || 0) + (res.completeness?.length || 0);
+      if (totalIssues === 0) {
+        toast.success(t('pln_validate_clean', 'Route plan is valid and feasible!'));
+      } else if (res.conflicts?.length) {
+        toast.error(`${res.conflicts.length} conflict(s) found in route plan.`);
       } else {
-        setShowLoadPanel(true);
-        toast(`${c} ${t('pln_conflicts', 'conflicts')} · ${w} ${t('pln_warnings', 'warnings')} · ${m} ${t('pln_missing_data', 'missing data')}`, {
-          icon: <ShieldAlert className="w-4 h-4 text-amber-500" />,
-          duration: 5000,
-        });
+        toast((t('pln_validate_warnings', 'Plan valid with warnings.')), { icon: '⚠️' });
       }
     } catch (err: any) {
       toast.error(err?.response?.data?.message || t('pln_validate_error', 'Validation failed'));
@@ -321,19 +414,19 @@ export default function TruckRoutePlannerPage() {
     }
   };
 
-  const handleToggleLock = async (stop: any, lockSequence: boolean) => {
-    if (!routePlan) return;
-    setActionLoading(`lock-${stop.id}`);
+  const handleToggleLock = async (stop: any, lockSequence = false) => {
+    setActionLoading(stop.id);
     try {
-      const updated = stop.locked
-        ? await planningApi.unlockStop(stop.id, routePlan.id)
-        : await planningApi.lockStop(stop.id, routePlan.id, lockSequence);
-      setRoutePlan((prev: any) => ({
-        ...prev,
-        stops: (prev.stops || []).map((s: any) => (s.id === updated.id ? updated : s)),
-      }));
+      if (stop.locked) {
+        await planningApi.unlockStop(stop.id, routePlan.id);
+        toast.success(t('pln_unlocked', 'Stop unlocked'));
+      } else {
+        await planningApi.lockStop(stop.id, routePlan.id, lockSequence);
+        toast.success(t('pln_locked', 'Stop locked in sequence'));
+      }
+      await loadPlan(date, true);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || t('pln_lock_error', 'Lock update failed'));
+      toast.error(err?.response?.data?.message || t('pln_lock_error', 'Lock action failed'));
     } finally {
       setActionLoading(null);
     }
@@ -345,7 +438,13 @@ export default function TruckRoutePlannerPage() {
   const feasibility = routePlan?.feasibilityStatus || 'feasible';
   const fsStyle = FEASIBILITY_STYLE[feasibility] || FEASIBILITY_STYLE.feasible;
 
-  const cap = routePlan || { maxPallets: 33, maxWeightKg: 24000, maxLdm: 13.6, maxVolumeCbm: 90 };
+  // Real capacity limits directly from truck / routePlan
+  const cap = {
+    maxPallets: Number(routePlan?.maxPallets) || Number(routePlan?.truck?.maxPallets) || 26,
+    maxWeightKg: Number(routePlan?.maxWeightKg) || Number(routePlan?.truck?.maxWeightKg) || 24000,
+    maxLdm: Number(routePlan?.maxLdm) || Number(routePlan?.truck?.maxLdm) || 13.6,
+    maxVolumeCbm: Number(routePlan?.maxVolumeCbm) || Number(routePlan?.truck?.maxVolumeCbm) || 90,
+  };
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -369,15 +468,24 @@ export default function TruckRoutePlannerPage() {
         </div>
 
         <div className="flex items-center gap-2 ml-1">
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface border border-border">
-            <Calendar className="w-4 h-4 text-text-muted" />
-            <input
-              type="date"
+          {/* Modern Flatpickr Calendar */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface border border-border">
+            <Calendar className="w-4 h-4 text-primary" />
+            <Flatpickr
               value={date}
-              onChange={e => setDate(e.target.value)}
-              className="bg-transparent text-sm font-semibold text-text-primary outline-none w-32"
+              onChange={([d]) => {
+                if (d) {
+                  const y = d.getFullYear();
+                  const m = String(d.getMonth() + 1).padStart(2, '0');
+                  const day = String(d.getDate()).padStart(2, '0');
+                  setDate(`${y}-${m}-${day}`);
+                }
+              }}
+              options={{ dateFormat: 'd/m/Y', allowInput: false }}
+              className="bg-transparent text-xs font-bold text-text-primary outline-none w-24 cursor-pointer"
             />
           </div>
+
           <span className={`px-2.5 py-1 rounded-lg border text-xs font-black uppercase ${fsStyle.bg} ${fsStyle.text}`}>
             {t(fsStyle.label, feasibility)}
           </span>
@@ -434,28 +542,28 @@ export default function TruckRoutePlannerPage() {
 
       {/* ── Capacity strip ── */}
       <div className="shrink-0 px-4 py-2.5 border-b border-border bg-surface/40 grid grid-cols-2 md:grid-cols-4 gap-3">
-        <LoadBar label={t('pallets', 'Pallets')} value={routePlan?.peakPallets || 0} max={Number(cap.maxPallets) || 1} icon={Box} color="bg-blue-500" />
-        <LoadBar label={t('weight_kg', 'Weight')} value={routePlan?.peakWeightKg || 0} max={Number(cap.maxWeightKg) || 1} icon={Scale} color="bg-emerald-500" />
-        <LoadBar label={t('jsx_ldm', 'LDM')} value={routePlan?.peakLdm || 0} max={Number(cap.maxLdm) || 1} icon={Ruler} color="bg-violet-500" />
-        <LoadBar label={t('jsx_volume', 'Volume')} value={routePlan?.peakVolumeCbm || 0} max={Number(cap.maxVolumeCbm) || 1} icon={Box} color="bg-amber-500" />
+        <LoadBar label={t('pallets', 'Pallets')} value={routePlan?.peakPallets || 0} max={cap.maxPallets} icon={Box} color="bg-blue-500" />
+        <LoadBar label={t('weight_kg', 'Weight')} value={routePlan?.peakWeightKg || 0} max={cap.maxWeightKg} icon={Scale} color="bg-emerald-500" />
+        <LoadBar label={t('jsx_ldm', 'LDM')} value={routePlan?.peakLdm || 0} max={cap.maxLdm} icon={Ruler} color="bg-violet-500" />
+        <LoadBar label={t('jsx_volume', 'Volume')} value={routePlan?.peakVolumeCbm || 0} max={cap.maxVolumeCbm} icon={Box} color="bg-amber-500" />
       </div>
 
       {/* ── Body ── */}
       <div className="flex-1 overflow-hidden flex">
-        {/* Route sequence */}
-        <section className="w-full lg:w-96 xl:w-[26rem] shrink-0 border-r border-border bg-card flex flex-col">
+        {/* Route sequence list */}
+        <section className="w-full lg:w-96 xl:w-[28rem] shrink-0 border-r border-border bg-card flex flex-col">
           <div className="px-4 py-2.5 border-b border-border flex items-center justify-between shrink-0">
             <h2 className="text-sm font-black text-text-primary flex items-center gap-2">
               <RouteIcon className="w-4 h-4 text-primary" />{t('pln_route_seq', 'Route Sequence')}
               <span className="text-[10px] font-bold text-text-muted">({sortedStops.length})</span>
             </h2>
-            <span className="text-[10px] text-text-muted">
-              {t('pln_total_dist', 'Dist')}: {Math.round(routePlan?.totalDistanceKm || 0)} km ·{' '}
-              {t('pln_duration', 'Dur')}: {Math.round((routePlan?.totalDurationMinutes || 0) / 60)}h
+            <span className="text-[11px] font-bold text-text-secondary">
+              {t('pln_total_dist', 'Dist')}: <span className="text-text-primary font-black">{Math.round(routePlan?.totalDistanceKm || 0)} km</span> ·{' '}
+              {t('pln_duration', 'Dur')}: <span className="text-text-primary font-black">{Math.round((routePlan?.totalDurationMinutes || 0) / 60)}h</span>
             </span>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
             {loading && (
               <div className="flex items-center justify-center py-16">
                 <Loader2 className="w-7 h-7 animate-spin text-primary opacity-70" />
@@ -484,16 +592,16 @@ export default function TruckRoutePlannerPage() {
               const warnFor = (routePlan?.warnings || []).filter((w: any) => w.stopId === stop.id);
               const prevIdx = idx > 0 ? idx - 1 : -1;
               const nextIdx = idx < sortedStops.length - 1 ? idx + 1 : -1;
+              const isActive = activeStopId === stop.id;
+
               return (
                 <div
                   key={stop.id}
-                  draggable={!stop.locked && !actionLoading}
-                  onDragStart={(e) => { if (!stop.locked) { e.dataTransfer.setData('text/plain', stop.id); e.dataTransfer.effectAllowed = 'move'; setDragId(stop.id); } }}
-                  onDragEnd={() => { setDragId(null); setDragOverId(null); }}
+                  onClick={() => focusStop(stop)}
                   onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverId(stop.id); }}
                   onDragLeave={() => setDragOverId((id) => (id === stop.id ? null : id))}
                   onDrop={(e) => { e.preventDefault(); handleDrop(stop.id); }}
-                  className={`rounded-xl border p-3 bg-surface/40 transition-all cursor-grab active:cursor-grabbing ${isPickup ? 'border-blue-500/25' : 'border-emerald-500/25'} ${stop.locked ? 'border-amber-400/60 ring-1 ring-amber-400/30 cursor-not-allowed' : ''} ${dragOverId === stop.id && dragId !== stop.id ? 'ring-2 ring-primary/70 border-primary scale-[1.01]' : ''} ${dragId === stop.id ? 'opacity-40' : ''}`}
+                  className={`rounded-xl border p-3 bg-surface/50 hover:bg-surface/80 transition-all cursor-pointer ${isPickup ? 'border-blue-500/25 hover:border-blue-500/40' : 'border-emerald-500/25 hover:border-emerald-500/40'} ${stop.locked ? 'border-amber-400/60 ring-1 ring-amber-400/30' : ''} ${dragOverId === stop.id && dragId !== stop.id ? 'ring-2 ring-primary border-primary scale-[1.01]' : ''} ${dragId === stop.id ? 'opacity-40' : ''} ${isActive ? 'ring-2 ring-primary shadow-md' : ''}`}
                 >
                   <div className="flex items-start gap-2.5">
                     <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-black shrink-0 ${isPickup ? 'bg-blue-600' : 'bg-emerald-600'}`}>
@@ -505,11 +613,21 @@ export default function TruckRoutePlannerPage() {
                           {isPickup ? t('pln_pickup', 'Pickup') : t('pln_delivery', 'Delivery')}
                           {stop.shipmentId && <span className="text-text-muted normal-case ml-1">· {stop.shipmentId.slice(0, 8)}</span>}
                         </span>
-                        <div className="flex items-center gap-0.5 shrink-0">
+                        <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
                           {!stop.locked && (
-                            <span className="p-1 text-text-muted/60 select-none" title={t('pln_drag_hint', 'Drag to reorder (saved on Save)')}>
+                            <div
+                              draggable={!stop.locked && !actionLoading}
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData('text/plain', stop.id);
+                                e.dataTransfer.effectAllowed = 'move';
+                                setDragId(stop.id);
+                              }}
+                              onDragEnd={() => { setDragId(null); setDragOverId(null); }}
+                              className="p-1 rounded text-text-muted hover:text-text-primary cursor-grab active:cursor-grabbing hover:bg-surface"
+                              title={t('pln_drag_hint', 'Drag to reorder')}
+                            >
                               <GripVertical className="w-3.5 h-3.5" />
-                            </span>
+                            </div>
                           )}
                           <button
                             onClick={() => handleToggleLock(stop, false)}
@@ -549,19 +667,19 @@ export default function TruckRoutePlannerPage() {
                   <div className="mt-2 grid grid-cols-3 gap-1.5 text-[10px]">
                     <div className="rounded-lg bg-surface px-2 py-1">
                       <p className="text-text-muted uppercase font-bold text-[8px]">{t('pln_eta', 'ETA')}</p>
-                      <p className="font-bold text-text-primary">{fmtDate(stop.eta, t)}</p>
+                      <p className="font-bold text-text-primary truncate">{fmtDate(stop.eta, t)}</p>
                     </div>
                     <div className="rounded-lg bg-surface px-2 py-1">
                       <p className="text-text-muted uppercase font-bold text-[8px]">{t('pln_window', 'Window')}</p>
-                      <p className="font-bold text-text-primary">
+                      <p className="font-bold text-text-primary truncate">
                         {stop.timeWindowStart ? fmtDate(stop.timeWindowStart, t).split(',')[1] : '—'}
                         {stop.timeWindowEnd ? ` – ${fmtDate(stop.timeWindowEnd, t).split(',')[1]}` : ''}
                       </p>
                     </div>
                     <div className="rounded-lg bg-surface px-2 py-1">
                       <p className="text-text-muted uppercase font-bold text-[8px]">{t('pln_cargo', 'Cargo')}</p>
-                      <p className="font-bold text-text-primary">
-                        {Math.round(stop.pallets || 0)} {t('unit_pallets', 'pallets')} · {Math.round(stop.weightKg || 0)} kg
+                      <p className="font-bold text-text-primary truncate">
+                        {Math.round(stop.pallets || 0)} {t('unit_pallets', 'pal')} · {Math.round(stop.weightKg || 0)} kg
                       </p>
                     </div>
                   </div>
@@ -592,15 +710,27 @@ export default function TruckRoutePlannerPage() {
           </div>
         </section>
 
-        {/* Main: map + panels */}
-        <div className="flex-1 min-w-0 flex flex-col">
-          <div className="flex-1 relative min-h-0">
-            <div ref={mapRef} className="absolute inset-0" />
+        {/* Interactive Map on Right Side */}
+        <div className="flex-1 min-w-0 flex flex-col relative">
+          <div className="flex-1 w-full h-full relative min-h-0">
+            <div ref={mapRef} className="absolute inset-0 w-full h-full" />
             {!mapReady && (
-              <div className="absolute inset-0 flex items-center justify-center bg-background">
-                <Loader2 className="w-6 h-6 animate-spin text-primary opacity-60" />
+              <div className="absolute inset-0 flex items-center justify-center bg-card/60 backdrop-blur-sm z-10">
+                <Loader2 className="w-8 h-8 animate-spin text-primary opacity-75" />
               </div>
             )}
+
+            {/* Map Floating Toolbar */}
+            <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-card/90 backdrop-blur border border-border rounded-xl p-1.5 shadow-lg">
+              <button
+                onClick={fitRouteBounds}
+                className="p-1.5 rounded-lg hover:bg-surface text-text-secondary hover:text-primary transition-colors flex items-center gap-1 text-xs font-bold"
+                title={t('pln_fit_route', 'Fit full route on map')}
+              >
+                <Navigation className="w-4 h-4 text-primary" />
+                <span>{t('pln_fit_route', 'Fit Route')}</span>
+              </button>
+            </div>
           </div>
 
           {/* Optimization results bar */}
@@ -627,13 +757,13 @@ export default function TruckRoutePlannerPage() {
 
       {/* ── Load Plan panel (LIFO/FIFO + timeline) ── */}
       {showLoadPanel && (
-        <div className="shrink-0 border-t border-border bg-card px-4 py-3">
+        <div className="shrink-0 border-t border-border bg-card px-4 py-3 max-h-72 overflow-y-auto">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-black text-text-primary flex items-center gap-2">
               <ClipboardList className="w-4 h-4 text-primary" />{t('pln_load_plan', 'Loading Sequence & Load Timeline')}
               {routePlan?.optimizationMetadata?.loadingRule && (
                 <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-violet-500/10 border border-violet-500/30 text-violet-600">
-                  {t(`pln_rule_${routePlan.optimizationMetadata.loadingRule}`, routePlan.optimizationMetadata.loadingRule.toUpperCase())}
+                  {t(`pln_rule_${routePlan.optimizationMetadata.loadingRule}`, String(routePlan.optimizationMetadata.loadingRule).toUpperCase())}
                 </span>
               )}
             </h3>
@@ -670,7 +800,7 @@ export default function TruckRoutePlannerPage() {
               {sortedStops.map((stop: any) => {
                 const pct = Math.min(100, ((stop.cumulativePallets || 0) / (Number(cap.maxPallets) || 1)) * 100);
                 return (
-                  <div key={stop.id} className="flex-1 flex flex-col items-center gap-0.5 group">
+                  <div key={stop.id} className="flex-1 flex flex-col items-center gap-0.5 group cursor-pointer" onClick={() => focusStop(stop)}>
                     <div className="w-full flex items-end justify-center bg-surface/60 rounded-t overflow-hidden" style={{ height: '100%' }}>
                       <div
                         className={`w-full transition-all duration-500 ${stop.type === 'pickup' ? 'bg-blue-500' : 'bg-emerald-500'} ${stop.locked ? 'ring-1 ring-amber-400' : ''}`}
@@ -742,7 +872,7 @@ export default function TruckRoutePlannerPage() {
         </div>
       )}
 
-      {/* ── Optimization preview (Apply / Cancel) ── */}
+      {/* ── Optimization preview modal (Apply / Cancel) ── */}
       {showProposal && proposedPlan && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
