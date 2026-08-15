@@ -122,25 +122,27 @@ export default function OrderWizard({
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
 
-  const resolveTargetStep = () => {
-    if (highlightSection) {
-      if (['cargo', 'weight', 'ldm', 'volume', 'pallets', 'quantity'].includes(highlightSection)) return 2;
-      if (['stops', 'pickup', 'delivery', 'route', 'gps', 'time', 'date'].includes(highlightSection)) return 1;
-      if (['general', 'client', 'price', 'reference'].includes(highlightSection)) return 0;
+  const resolveTargetStep = (h?: string | null, s?: number) => {
+    const hSec = h !== undefined ? h : highlightSection;
+    const initS = s !== undefined ? s : initialStep;
+    if (hSec) {
+      if (['cargo', 'weight', 'ldm', 'volume', 'pallets', 'quantity'].includes(hSec)) return 2;
+      if (['stops', 'pickup', 'delivery', 'route', 'gps', 'time', 'date'].includes(hSec)) return 1;
+      if (['general', 'client', 'price', 'reference'].includes(hSec)) return 0;
     }
-    if (typeof initialStep === 'number' && initialStep >= 0 && initialStep <= 2) {
-      return initialStep;
+    if (typeof initS === 'number' && initS >= 0 && initS <= 2) {
+      return initS;
     }
     return 0;
   };
 
-  const [currentStep, setCurrentStep] = useState(resolveTargetStep);
+  const [currentStep, setCurrentStep] = useState(() => resolveTargetStep(highlightSection, initialStep));
   const [isHighlightDismissed, setIsHighlightDismissed] = useState(false);
 
   useLayoutEffect(() => {
     if (isOpen) {
       setIsHighlightDismissed(false);
-      setCurrentStep(resolveTargetStep());
+      setCurrentStep(resolveTargetStep(highlightSection, initialStep));
     }
   }, [isOpen, initialStep, highlightSection, orderId]);
 
@@ -620,11 +622,11 @@ export default function OrderWizard({
     value: 'other',
     label: t('unit_other', 'Other')
   }];
-  const modalContent = <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 md:p-5" style={{
-    backdropFilter: 'blur(4px)',
-    backgroundColor: 'rgba(0,0,0,0.55)'
+  const modalContent = <div className="fixed inset-0 z-[20000] flex items-center justify-center p-3 md:p-5" style={{
+    backdropFilter: 'blur(6px)',
+    backgroundColor: 'rgba(0,0,0,0.65)'
   }}>
-      <div className="relative z-50 w-full h-full bg-card shadow-2xl flex flex-col rounded-2xl overflow-hidden" style={{
+      <div className="relative z-[20001] w-full max-w-6xl h-[92vh] max-h-[950px] bg-card shadow-2xl flex flex-col rounded-2xl overflow-hidden border border-border" style={{
       animation: 'wizardIn 0.25s cubic-bezier(0.34,1.56,0.64,1)'
     }} onClick={e => e.stopPropagation()}>
         {/* Header */}

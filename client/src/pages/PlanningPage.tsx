@@ -1832,9 +1832,13 @@ export default function PlanningPage() {
           onAction={handleTripAction}
           onReorderStops={handleReorderStops}
           onEditOrder={(orderId, step, highlight) => {
+            const h = highlight || 'cargo';
+            const s = (step !== undefined && step !== null)
+              ? step
+              : (['cargo', 'weight', 'ldm', 'volume', 'pallets', 'quantity'].includes(h) ? 2 : (['stops', 'pickup', 'delivery', 'route', 'time'].includes(h) ? 1 : 0));
             setWizardOrderId(orderId);
-            setWizardInitialStep(step ?? 0);
-            setWizardHighlight(highlight ?? null);
+            setWizardInitialStep(s);
+            setWizardHighlight(h);
           }}
           loadingAction={loadingAction}
           refreshKey={drawerRefreshKey}
