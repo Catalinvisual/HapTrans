@@ -113,7 +113,7 @@ export default function OrderWizard({
   onClose,
   onSaved,
   orderId,
-  initialStep = 0,
+  initialStep,
   highlightSection,
 }: OrderWizardProps) {
   const {
@@ -122,27 +122,25 @@ export default function OrderWizard({
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
 
-  const resolveTargetStep = (h?: string | null, s?: number) => {
-    const hSec = h !== undefined ? h : highlightSection;
-    const initS = s !== undefined ? s : initialStep;
-    if (hSec) {
-      if (['cargo', 'weight', 'ldm', 'volume', 'pallets', 'quantity'].includes(hSec)) return 2;
-      if (['stops', 'pickup', 'delivery', 'route', 'gps', 'time', 'date'].includes(hSec)) return 1;
-      if (['general', 'client', 'price', 'reference'].includes(hSec)) return 0;
+  const getStartingStep = () => {
+    if (typeof initialStep === 'number' && initialStep >= 0 && initialStep <= 2) {
+      return initialStep;
     }
-    if (typeof initS === 'number' && initS >= 0 && initS <= 2) {
-      return initS;
+    if (highlightSection) {
+      if (['cargo', 'weight', 'ldm', 'volume', 'pallets', 'quantity'].includes(highlightSection)) return 2;
+      if (['stops', 'pickup', 'delivery', 'route', 'gps', 'time', 'date'].includes(highlightSection)) return 1;
+      if (['general', 'client', 'price', 'reference'].includes(highlightSection)) return 0;
     }
     return 0;
   };
 
-  const [currentStep, setCurrentStep] = useState(() => resolveTargetStep(highlightSection, initialStep));
+  const [currentStep, setCurrentStep] = useState(getStartingStep);
   const [isHighlightDismissed, setIsHighlightDismissed] = useState(false);
 
   useLayoutEffect(() => {
     if (isOpen) {
       setIsHighlightDismissed(false);
-      setCurrentStep(resolveTargetStep(highlightSection, initialStep));
+      setCurrentStep(getStartingStep());
     }
   }, [isOpen, initialStep, highlightSection, orderId]);
 
@@ -676,8 +674,8 @@ export default function OrderWizard({
               zIndex: 2
             }}>
                   <div className="bg-white dark:bg-card rounded-full ring-[6px] ring-white dark:ring-card">
-                    <button type="button" onClick={() => idx <= currentStep && setCurrentStep(idx)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 focus:outline-none
-                        ${isActive ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-110' : isPast ? 'bg-primary/20 text-primary cursor-pointer hover:bg-primary/30' : 'bg-surface border-2 border-border text-text-muted cursor-default'}`}>
+                    <button type="button" onClick={() => (orderId || idx <= currentStep) && setCurrentStep(idx)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 focus:outline-none
+                        ${isActive ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-110' : (orderId || isPast) ? 'bg-primary/20 text-primary cursor-pointer hover:bg-primary/30' : 'bg-surface border-2 border-border text-text-muted cursor-default'}`}>
                       <StepIcon className="w-5 h-5" />
                     </button>
                   </div>
