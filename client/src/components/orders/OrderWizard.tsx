@@ -989,17 +989,20 @@ export default function OrderWizard({
               <div className="space-y-3">
                 {cargoItems.map((cargo, index) => {
                   const isHighlighted = Boolean(highlightSection && !isHighlightDismissed);
+                  const isWeightTarget = isHighlighted && (highlightSection === 'weight' || highlightSection === 'cargo');
+                  const isPalletsTarget = isHighlighted && (highlightSection === 'pallets' || highlightSection === 'quantity' || highlightSection === 'cargo');
+                  const isLdmTarget = isHighlighted && (highlightSection === 'ldm' || highlightSection === 'cargo');
+                  const isVolumeTarget = isHighlighted && (highlightSection === 'volume' || highlightSection === 'cargo');
+
                   return (
                     <div
                       key={index}
-                      className={`border rounded-xl p-4 relative group transition-all bg-surface/50 ${
-                        isHighlighted ? 'border-2 border-orange-500 ring-4 ring-orange-500/40 animate-pulse shadow-lg shadow-orange-500/20' : 'border-border'
-                      }`}
+                      className="border border-border rounded-xl p-4 relative group bg-surface/50 transition-all"
                     >
                       {isHighlighted && (
                         <div className="mb-3 flex items-center justify-between">
                           <span className="text-[11px] font-black uppercase text-orange-600 bg-orange-500/20 px-2.5 py-0.5 rounded-full animate-bounce">
-                            ⚠️ Conflict Target — Adjust Pallets / Weight / LDM / Volume
+                            ⚠️ Conflict Target — Adjust {highlightSection === 'weight' ? 'Weight (kg)' : highlightSection === 'ldm' ? 'LDM' : highlightSection === 'volume' ? 'Volume (m³)' : highlightSection === 'pallets' ? 'Quantity (Pallets)' : 'Cargo Specs'}
                           </span>
                         </div>
                       )}
@@ -1012,24 +1015,64 @@ export default function OrderWizard({
                           <input type="text" value={cargo.description} onChange={e => handleCargoChange(index, 'description', e.target.value)} className="input w-full" placeholder="e.g. Pallets of electronics" />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_quantityOptio")}</label>
-                          <input type="number" value={cargo.quantity != null ? cargo.quantity : ''} onChange={e => handleCargoChange(index, 'quantity', e.target.value)} className={`input w-full ${isHighlighted ? 'border-orange-500 font-bold' : ''}`} min="1" placeholder="Optional" />
+                          <label className="block text-xs font-semibold text-text-secondary mb-1.5 flex items-center justify-between">
+                            <span>{t("jsx_quantityOptio")}</span>
+                            {isPalletsTarget && <span className="text-[9px] text-orange-500 font-bold uppercase">Target</span>}
+                          </label>
+                          <input
+                            type="number"
+                            value={cargo.quantity != null ? cargo.quantity : ''}
+                            onChange={e => handleCargoChange(index, 'quantity', e.target.value)}
+                            className={`input w-full transition-all ${isPalletsTarget ? 'border-2 border-orange-500 ring-4 ring-orange-500/50 shadow-md shadow-orange-500/30 animate-pulse font-bold' : ''}`}
+                            min="1"
+                            placeholder="Optional"
+                          />
                         </div>
                         <div>
                           <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_unitTypeOpti")}</label>
                           <ModalSelect value={cargo.unit || 'pallet'} onChange={v => handleCargoChange(index, 'unit', v)} options={unitOptions} />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_weightKgOp")}</label>
-                          <input type="number" step="0.1" value={cargo.weightKg || ''} onChange={e => handleCargoChange(index, 'weightKg', e.target.value)} className={`input w-full ${isHighlighted ? 'border-orange-500 font-bold' : ''}`} placeholder="Optional" />
+                          <label className="block text-xs font-semibold text-text-secondary mb-1.5 flex items-center justify-between">
+                            <span>{t("jsx_weightKgOp")}</span>
+                            {isWeightTarget && <span className="text-[9px] text-orange-500 font-bold uppercase">Target</span>}
+                          </label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={cargo.weightKg || ''}
+                            onChange={e => handleCargoChange(index, 'weightKg', e.target.value)}
+                            className={`input w-full transition-all ${isWeightTarget ? 'border-2 border-orange-500 ring-4 ring-orange-500/50 shadow-md shadow-orange-500/30 animate-pulse font-bold' : ''}`}
+                            placeholder="Optional"
+                          />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_volumeMOp")}</label>
-                          <input type="number" step="0.01" value={cargo.volumeCbm || ''} onChange={e => handleCargoChange(index, 'volumeCbm', e.target.value)} className={`input w-full ${isHighlighted ? 'border-orange-500 font-bold' : ''}`} placeholder="Optional" />
+                          <label className="block text-xs font-semibold text-text-secondary mb-1.5 flex items-center justify-between">
+                            <span>{t("jsx_volumeMOp")}</span>
+                            {isVolumeTarget && <span className="text-[9px] text-orange-500 font-bold uppercase">Target</span>}
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={cargo.volumeCbm || ''}
+                            onChange={e => handleCargoChange(index, 'volumeCbm', e.target.value)}
+                            className={`input w-full transition-all ${isVolumeTarget ? 'border-2 border-orange-500 ring-4 ring-orange-500/50 shadow-md shadow-orange-500/30 animate-pulse font-bold' : ''}`}
+                            placeholder="Optional"
+                          />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_lDMOptional")}</label>
-                          <input type="number" step="0.01" value={cargo.ldm || ''} onChange={e => handleCargoChange(index, 'ldm', e.target.value)} className={`input w-full ${isHighlighted ? 'border-orange-500 font-bold' : ''}`} placeholder="Optional" />
+                          <label className="block text-xs font-semibold text-text-secondary mb-1.5 flex items-center justify-between">
+                            <span>{t("jsx_lDMOptional")}</span>
+                            {isLdmTarget && <span className="text-[9px] text-orange-500 font-bold uppercase">Target</span>}
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={cargo.ldm || ''}
+                            onChange={e => handleCargoChange(index, 'ldm', e.target.value)}
+                            className={`input w-full transition-all ${isLdmTarget ? 'border-2 border-orange-500 ring-4 ring-orange-500/50 shadow-md shadow-orange-500/30 animate-pulse font-bold' : ''}`}
+                            placeholder="Optional"
+                          />
                         </div>
                       </div>
                     

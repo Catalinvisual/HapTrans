@@ -714,14 +714,33 @@ function TripDetailDrawer({
       return;
     }
 
-    // 2. Capacity overload (Weight, LDM, Volume, Pallets) -> Opens the overloaded order edit modal directly on Step 3 (Cargo) or switches to orders tab
+    // 2. Capacity overload (Weight, LDM, Volume, Pallets) -> Opens the overloaded order edit modal directly on Step 3 (Cargo) with the exact problem field highlighted
     if (type.includes('capacity') || msg.includes('weight') || msg.includes('exceed') || msg.includes('ldm') || msg.includes('volume') || msg.includes('pallet')) {
-      if (orders.length === 1) {
-        if (onEditOrder) onEditOrder(orders[0].id, 2, 'cargo');
-        else navigate(`/orders/${orders[0].id}`);
-      } else {
-        setActiveTab('orders');
+      let conflictField: 'weight' | 'ldm' | 'volume' | 'pallets' | 'cargo' = 'cargo';
+      if (msg.includes('weight')) conflictField = 'weight';
+      else if (msg.includes('ldm')) conflictField = 'ldm';
+      else if (msg.includes('volume')) conflictField = 'volume';
+      else if (msg.includes('pallet')) conflictField = 'pallets';
+
+      // If multiple orders, find the order that contributes most to the conflicting metric
+      let targetOrder = orders[0];
+      if (orders.length > 1) {
+        if (conflictField === 'ldm') {
+          targetOrder = [...orders].sort((a, b) => sumCargo([b]).ldm - sumCargo([a]).ldm)[0] || orders[0];
+        } else if (conflictField === 'weight') {
+          targetOrder = [...orders].sort((a, b) => sumCargo([b]).weight - sumCargo([a]).weight)[0] || orders[0];
+        } else if (conflictField === 'volume') {
+          targetOrder = [...orders].sort((a, b) => sumCargo([b]).volume - sumCargo([a]).volume)[0] || orders[0];
+        } else if (conflictField === 'pallets') {
+          targetOrder = [...orders].sort((a, b) => sumCargo([b]).pallets - sumCargo([a]).pallets)[0] || orders[0];
+        }
       }
+
+      if (targetOrder && onEditOrder) {
+        onEditOrder(targetOrder.id, 2, conflictField);
+        return;
+      }
+      setActiveTab('orders');
       return;
     }
 
@@ -933,11 +952,20 @@ function TripDetailDrawer({
             <div className="space-y-2.5">
               {orders.map((o: any) => {
                 const oc = sumCargo([o]);
+                let activeHighlight = 'cargo';
+                const conflict = tripConflicts.find((c: any) => c.level === 'blocking') || tripConflicts[0];
+                if (conflict) {
+                  const cm = String(conflict.message || '').toLowerCase();
+                  if (cm.includes('weight')) activeHighlight = 'weight';
+                  else if (cm.includes('ldm')) activeHighlight = 'ldm';
+                  else if (cm.includes('volume')) activeHighlight = 'volume';
+                  else if (cm.includes('pallet')) activeHighlight = 'pallets';
+                }
                 return (
                   <div
                     key={o.id}
                     onClick={() => {
-                      if (onEditOrder) onEditOrder(o.id, 2, 'cargo');
+                      if (onEditOrder) onEditOrder(o.id, 2, activeHighlight);
                       else navigate(`/orders/${o.id}`);
                     }}
                     className="bg-card border border-border/80 hover:border-primary/50 hover:bg-surface/50 cursor-pointer rounded-xl p-3.5 flex items-center justify-between gap-3 transition-all group shadow-xs"
@@ -960,7 +988,7 @@ function TripDetailDrawer({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (onEditOrder) onEditOrder(o.id, 2, 'cargo');
+                          if (onEditOrder) onEditOrder(o.id, 2, activeHighlight);
                           else navigate(`/orders/${o.id}`);
                         }}
                         className="px-2.5 py-1.5 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs"
