@@ -11,6 +11,8 @@ interface OrderWizardProps {
   onClose: () => void;
   onSaved: () => void;
   orderId?: string | null;
+  initialStep?: number;
+  highlightSection?: string | null;
 }
 const STEPS = [{
   id: 'general',
@@ -110,14 +112,22 @@ export default function OrderWizard({
   isOpen,
   onClose,
   onSaved,
-  orderId
+  orderId,
+  initialStep = 0,
+  highlightSection,
 }: OrderWizardProps) {
   const {
     t
   } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentStep, setCurrentStep] = useState(initialStep);
+
+  useEffect(() => {
+    if (isOpen && typeof initialStep === 'number') {
+      setCurrentStep(initialStep);
+    }
+  }, [isOpen, initialStep]);
 
   // Cost estimator state
   const [costEstimate, setCostEstimate] = useState<any>(null);
@@ -972,7 +982,19 @@ export default function OrderWizard({
                 <p className="text-sm text-text-secondary">{t("jsx_whatAreWeTra")}</p>
               </div>
               <div className="space-y-3">
-                {cargoItems.map((cargo, index) => <div key={index} className="bg-surface/50 border border-border rounded-xl p-4 relative group">
+                {cargoItems.map((cargo, index) => <div
+                  key={index}
+                  className={`border rounded-xl p-4 relative group transition-all ${
+                    highlightSection ? 'bg-orange-500/10 border-2 border-orange-500 ring-4 ring-orange-500/30 animate-pulse shadow-xl shadow-orange-500/20' : 'bg-surface/50 border-border'
+                  }`}
+                >
+                    {highlightSection && (
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="text-[11px] font-black uppercase text-orange-600 bg-orange-500/20 px-2.5 py-0.5 rounded-full animate-bounce">
+                          ⚠️ Conflict Target — Adjust Pallets / Weight / LDM / Volume
+                        </span>
+                      </div>
+                    )}
                     {cargoItems.length > 1 && <button type="button" onClick={() => handleRemoveCargo(index)} className="absolute top-3 right-3 p-1.5 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors">
                         <Trash2 className="w-4 h-4" />
                       </button>}
@@ -983,7 +1005,7 @@ export default function OrderWizard({
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_quantityOptio")}</label>
-                        <input type="number" value={cargo.quantity || ''} onChange={e => handleCargoChange(index, 'quantity', e.target.value)} className="input w-full" min="1" placeholder="Optional" />
+                        <input type="number" value={cargo.quantity || ''} onChange={e => handleCargoChange(index, 'quantity', e.target.value)} className={`input w-full ${highlightSection ? 'border-orange-500 font-bold' : ''}`} min="1" placeholder="Optional" />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_unitTypeOpti")}</label>
@@ -991,15 +1013,15 @@ export default function OrderWizard({
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_weightKgOp")}</label>
-                        <input type="number" step="0.1" value={cargo.weightKg || ''} onChange={e => handleCargoChange(index, 'weightKg', e.target.value)} className="input w-full" placeholder="Optional" />
+                        <input type="number" step="0.1" value={cargo.weightKg || ''} onChange={e => handleCargoChange(index, 'weightKg', e.target.value)} className={`input w-full ${highlightSection ? 'border-orange-500 font-bold' : ''}`} placeholder="Optional" />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_volumeMOp")}</label>
-                        <input type="number" step="0.01" value={cargo.volumeCbm || ''} onChange={e => handleCargoChange(index, 'volumeCbm', e.target.value)} className="input w-full" placeholder="Optional" />
+                        <input type="number" step="0.01" value={cargo.volumeCbm || ''} onChange={e => handleCargoChange(index, 'volumeCbm', e.target.value)} className={`input w-full ${highlightSection ? 'border-orange-500 font-bold' : ''}`} placeholder="Optional" />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_lDMOptional")}</label>
-                        <input type="number" step="0.01" value={cargo.ldm || ''} onChange={e => handleCargoChange(index, 'ldm', e.target.value)} className="input w-full" placeholder="Optional" />
+                        <input type="number" step="0.01" value={cargo.ldm || ''} onChange={e => handleCargoChange(index, 'ldm', e.target.value)} className={`input w-full ${highlightSection ? 'border-orange-500 font-bold' : ''}`} placeholder="Optional" />
                       </div>
                     </div>
                     

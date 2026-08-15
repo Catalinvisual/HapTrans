@@ -22,6 +22,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import CustomSelect from '../components/CustomSelect';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateOrderPdf } from '../lib/pdfGenerator';
+import OrderWizard from '../components/orders/OrderWizard';
 
 function useResizableSidebar(initialWidth: number = 288, minWidth: number = 200, maxWidth: number = 600) {
   const [width, setWidth] = useState(initialWidth);
@@ -607,11 +608,13 @@ function ResourceRow({
 // ─── Trip Detail Drawer ──────────────────────────────────────────────────────
 function TripDetailDrawer({
   tripSummary, resources = [], drivers = [], trailers = [], conflicts = [],
-  onClose, onAction, onReorderStops, loadingAction,
+  onClose, onAction, onReorderStops, onEditOrder, loadingAction,
 }: {
   tripSummary: any; resources?: any[]; drivers?: any[]; trailers?: any[]; conflicts?: any[];
   onClose: () => void; onAction: (action: string, tripId: string, payload?: any) => void;
-  onReorderStops: (tripId: string, stopIds: string[]) => void; loadingAction?: string | null;
+  onReorderStops: (tripId: string, stopIds: string[]) => void;
+  onEditOrder?: (orderId: string, initialStep?: number, highlight?: string) => void;
+  loadingAction?: string | null;
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -685,10 +688,11 @@ function TripDetailDrawer({
       return;
     }
 
-    // 2. Capacity overload (Weight, LDM, Volume, Pallets) -> Opens the overloaded order edit modal directly or switches to orders tab
+    // 2. Capacity overload (Weight, LDM, Volume, Pallets) -> Opens the overloaded order edit modal directly on Step 3 (Cargo) or switches to orders tab
     if (type.includes('capacity') || msg.includes('weight') || msg.includes('exceed') || msg.includes('ldm') || msg.includes('volume') || msg.includes('pallet')) {
       if (orders.length === 1) {
-        navigate(`/orders/${orders[0].id}`);
+        if (onEditOrder) onEditOrder(orders[0].id, 2, 'cargo');
+        else navigate(`/orders/${orders[0].id}`);
       } else {
         setActiveTab('orders');
       }
@@ -701,9 +705,10 @@ function TripDetailDrawer({
       return;
     }
 
-    // 4. Order specific issue
+    // 4. Order specific issue -> Opens order wizard on cargo/details
     if (c.orderId) {
-      navigate(`/orders/${c.orderId}`);
+      if (onEditOrder) onEditOrder(c.orderId, 2, 'cargo');
+      else navigate(`/orders/${c.orderId}`);
       return;
     }
 
@@ -903,7 +908,15 @@ function TripDetailDrawer({
               {orders.map((o: any) => {
                 const oc = sumCargo([o]);
                 return (
-                  <div key={o.id} className="bg-card border border-border/80 hover:border-primary/50 rounded-xl p-3.5 flex items-center justify-between gap-3 transition-colors group">
+                  <div
+                    key={o.id}
+                    onClick={() => {
+                      if (onEditOrder) onEditOrder(o.id, 2, 'cargo');
+                      else navigate(`/orders/${o.id}`);
+                    }}
+                    className="bg-card border border-border/80 hover:border-primary/50 hover:bg-surface/50 cursor-pointer rounded-xl p-3.5 flex items-center justify-between gap-3 transition-all group shadow-xs"
+                    title={t('click_to_edit_order', 'Click to edit cargo')}
+                  >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="font-black text-primary text-sm">{o.orderNumber || '—'}</span>
@@ -916,14 +929,19 @@ function TripDetailDrawer({
                         {(oc.volume || o.volumeCbm) && <span className="px-1.5 py-0.5 bg-surface rounded font-medium">{oc.volume || o.volumeCbm} m³</span>}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-2.5 shrink-0">
                       <span className="font-black text-text-primary text-sm">€{Number(o.price || 0).toLocaleString()}</span>
                       <button
-                        onClick={() => navigate(`/orders/${o.id}`)}
-                        className="p-1.5 bg-surface hover:bg-primary hover:text-white rounded-lg text-text-secondary transition-all"
-                        title={t('edit_order', 'Edit Order Details')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onEditOrder) onEditOrder(o.id, 2, 'cargo');
+                          else navigate(`/orders/${o.id}`);
+                        }}
+                        className="px-2.5 py-1.5 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs"
+                        title={t('edit_order_cargo', 'Edit Cargo Items')}
                       >
-                        <ExternalLink className="w-3.5 h-3.5" />
+                        <Pencil className="w-3.5 h-3.5" />
+                        <span>{t('edit', 'Edit')}</span>
                       </button>
                     </div>
                   </div>
@@ -1160,6 +1178,10 @@ export default function PlanningPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [selectedPoolOrderIds, setSelectedPoolOrderIds] = useState<Set<string>>(new Set());
   const [draggingOrderId, setDraggingOrderId] = useState<string | null>(null);
+
+  const [wizardOrderId, setWizardOrderId] = useState<string | null>(null);
+  const [wizardInitialStep, setWizardInitialStep] = useState<number>(0);
+  const [wizardHighlight, setWizardHighlight] = useState<string | null>(null);
 
   const [searchParams] = useSearchParams();
   useEffect(() => {
@@ -1754,6 +1776,11 @@ export default function PlanningPage() {
           onClose={() => setSelectedTripId(null)}
           onAction={handleTripAction}
           onReorderStops={handleReorderStops}
+          onEditOrder={(orderId, step, highlight) => {
+            setWizardOrderId(orderId);
+            setWizardInitialStep(step ?? 0);
+            setWizardHighlight(highlight ?? null);
+          }}
           loadingAction={loadingAction}
         />
       )}
@@ -1768,6 +1795,21 @@ export default function PlanningPage() {
 
       {showOptimizeModal && (
         <OptimizationModal onClose={() => setShowOptimizeModal(false)} onApply={handleApplyOptimization} isLoading={!!loadingAction} />
+      )}
+
+      {wizardOrderId && (
+        <OrderWizard
+          isOpen={!!wizardOrderId}
+          orderId={wizardOrderId}
+          initialStep={wizardInitialStep}
+          highlightSection={wizardHighlight}
+          onClose={() => setWizardOrderId(null)}
+          onSaved={() => {
+            setWizardOrderId(null);
+            loadData();
+            toast.success(t('order_saved_success', 'Comandă actualizată cu succes!'));
+          }}
+        />
       )}
     </div>
   );
