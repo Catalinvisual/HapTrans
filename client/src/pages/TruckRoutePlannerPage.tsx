@@ -6,7 +6,7 @@ import {
   Package, Loader2, MapPin, AlertTriangle, X, ArrowUp, ArrowDown,
   Lock, Unlock, RotateCcw, Sparkles, Save,
   CheckCircle2, Info, Route as RouteIcon, ClipboardList, GripVertical, GripHorizontal,
-  ShieldAlert, ArrowRight, Navigation, ArrowLeft, ShieldCheck,
+  ShieldAlert, ArrowRight, Navigation, ArrowLeft, ShieldCheck, Send,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -436,6 +436,23 @@ export default function TruckRoutePlannerPage() {
     }
   };
 
+  const handleDispatchToDriver = async () => {
+    if (!effectiveTripId) {
+      toast.error('No associated TRP found to dispatch.');
+      return;
+    }
+    setActionLoading('dispatch');
+    try {
+      await planningApi.sendToDriver(effectiveTripId, { routeInfo: 'Dispatched from Route Planner' });
+      toast.success(t('jsx_sentOk', 'Trip dispatched to driver'));
+      await loadPlan(date, true);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('pln_validate_error', 'Dispatch failed'));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleReopenPlanning = async () => {
     if (!effectiveTripId) {
       toast.error('No associated TRP found to reopen.');
@@ -715,25 +732,47 @@ export default function TruckRoutePlannerPage() {
           </button>
 
           {isPlanningLocked ? (
-            <button
-              onClick={() => setShowReopenModal(true)}
-              disabled={!!actionLoading}
-              className="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5 font-bold text-amber-600 hover:bg-amber-500/10 border-amber-500/30"
-              title={t('action_reopen_planning', 'Reopen Planning')}
-            >
-              <Unlock className="w-4 h-4" />
-              <span>{t('action_reopen_planning', 'Reopen Planning')}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDispatchToDriver}
+                disabled={!!actionLoading}
+                className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-black shadow-md shadow-primary/20 bg-emerald-600 hover:bg-emerald-700 text-white"
+                title={effectiveTripStatus === 'dispatched' ? t('action_send_update', 'Send Update') : t('action_send_to_driver', 'Send to Driver')}
+              >
+                {actionLoading === 'dispatch' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                <span>{effectiveTripStatus === 'dispatched' ? t('action_send_update', 'Send Update') : t('action_send_to_driver', 'Send to Driver')}</span>
+              </button>
+              <button
+                onClick={() => setShowReopenModal(true)}
+                disabled={!!actionLoading}
+                className="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5 font-bold text-amber-600 hover:bg-amber-500/10 border-amber-500/30"
+                title={t('action_reopen_planning', 'Reopen Planning')}
+              >
+                <Unlock className="w-4 h-4" />
+                <span>{t('action_reopen_planning', 'Reopen Planning')}</span>
+              </button>
+            </div>
           ) : (
-            <button
-              onClick={() => setShowConfirmModal(true)}
-              disabled={!!actionLoading || isNotFeasible}
-              className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-black shadow-md shadow-primary/20 disabled:opacity-40"
-              title={t('action_confirm_plan', 'Confirm Plan')}
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>{t('action_confirm_plan', 'Confirm Plan')}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowConfirmModal(true)}
+                disabled={!!actionLoading || isNotFeasible}
+                className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-black shadow-md shadow-primary/20 disabled:opacity-40"
+                title={t('action_confirm_plan', 'Confirm Plan')}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{t('action_confirm_plan', 'Confirm Plan')}</span>
+              </button>
+              <button
+                onClick={handleDispatchToDriver}
+                disabled={!!actionLoading}
+                className="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5 font-bold text-emerald-600 hover:bg-emerald-500/10 border-emerald-500/30"
+                title={t('action_send_to_driver', 'Send to Driver')}
+              >
+                {actionLoading === 'dispatch' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                <span>{t('action_send_to_driver', 'Send to Driver')}</span>
+              </button>
+            </div>
           )}
         </div>
       </header>

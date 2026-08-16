@@ -6,7 +6,7 @@ import { ChevronDown, Check } from 'lucide-react';
 export interface SelectOption {
   value: string;
   label: React.ReactNode;
-  color?: string; // e.g., 'bg-emerald-500', 'text-emerald-500', '#10B981', etc.
+  color?: string; // e.g., 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', etc.
   disabled?: boolean;
   subLabel?: string;
 }
@@ -62,23 +62,24 @@ const COLOR_MAP: Record<string, string> = {
   'text-cyan-500': '#06B6D4',
   'text-cyan-600': '#0891B2',
   'cyan': '#06B6D4',
-  'bg-slate-400': '#94A3B8',
-  'bg-slate-500': '#64748B',
-  'text-slate-400': '#94A3B8',
-  'text-slate-500': '#64748B',
-  'slate': '#94A3B8',
 };
 
+function hasVisibleDot(color?: string): boolean {
+  if (!color) return false;
+  const c = color.toLowerCase().trim();
+  if (c.includes('slate') || c.includes('gray') || c.includes('grey') || c === 'transparent') return false;
+  return true;
+}
+
 function resolveDotColor(color?: string): string {
-  if (!color) return '#94A3B8';
+  if (!color) return '#10B981';
   if (color.startsWith('#') || color.startsWith('rgb')) return color;
   const found = COLOR_MAP[color.toLowerCase()];
   if (found) return found;
-  // Try extracting core color name
   for (const [k, v] of Object.entries(COLOR_MAP)) {
     if (color.includes(k)) return v;
   }
-  return '#94A3B8';
+  return '#10B981';
 }
 
 export default function CustomSelect({
@@ -209,19 +210,21 @@ export default function CustomSelect({
       <button
         type="button"
         disabled={disabled}
-        className={`w-full flex items-center justify-between px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-left ${
+        className={`w-full flex items-center justify-between px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-left ${
           disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-primary/50 focus:border-primary focus:ring-2 focus:ring-primary/20'
         } transition-all shadow-sm`}
         onClick={toggleDropdown}
         onKeyDown={handleKeyDown}
       >
-        <div className="flex items-center gap-2.5 truncate">
+        <div className="flex items-center gap-2 truncate">
           {selectedOption ? (
             <>
-              <div
-                className="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-sm"
-                style={{ backgroundColor: resolveDotColor(selectedOption.color) }}
-              />
+              {hasVisibleDot(selectedOption.color) && (
+                <div
+                  className="w-2 h-2 rounded-full flex-shrink-0 shadow-sm"
+                  style={{ backgroundColor: resolveDotColor(selectedOption.color) }}
+                />
+              )}
               <span className="font-semibold text-slate-800 dark:text-slate-100 truncate text-[13px]">
                 {selectedOption.label}
               </span>
@@ -255,7 +258,8 @@ export default function CustomSelect({
               options.map((option, index) => {
                 const isSelected = option.value === value;
                 const isFocused = focusedIndex === index;
-                const dotColor = resolveDotColor(option.color);
+                const showDot = hasVisibleDot(option.color);
+                const dotColor = showDot ? resolveDotColor(option.color) : undefined;
 
                 return (
                   <div
@@ -277,10 +281,12 @@ export default function CustomSelect({
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-sm"
-                        style={{ backgroundColor: dotColor }}
-                      />
+                      {showDot && (
+                        <div
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-sm"
+                          style={{ backgroundColor: dotColor }}
+                        />
+                      )}
                       <div className="flex flex-col min-w-0">
                         <span className={`text-[13px] truncate ${isSelected ? 'font-black text-primary' : 'font-medium'}`}>
                           {option.label}

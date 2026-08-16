@@ -48,6 +48,39 @@ const dayStr = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 
+function vehicleHasEquipment(truck?: any, trailer?: any, req?: string): boolean {
+  if (!req) return true;
+  const target = req.toLowerCase().trim();
+  const available: string[] = [
+    ...(truck?.features || []),
+    ...(truck?.equipment || []),
+    ...(truck?.equipmentRequirements || []),
+    ...(trailer?.features || []),
+    ...(trailer?.equipment || []),
+    ...(trailer?.equipmentRequirements || []),
+    ...(truck?.type ? [truck.type] : []),
+    ...(truck?.truckType ? [truck.truckType] : []),
+    ...(trailer?.type ? [trailer.type] : []),
+    ...(trailer?.trailerType ? [trailer.trailerType] : []),
+  ].map((s) => String(s).toLowerCase().trim());
+
+  // Match synonyms
+  if (target === 'tautliner' || target === 'curtainside' || target === 'standard' || target === 'prelata') {
+    if (available.length === 0 || available.some((a) => a.includes('tautliner') || a.includes('curtain') || a.includes('standard') || a.includes('prelata') || a.includes('mega') || a.includes('box'))) return true;
+  }
+  if (target === 'mega') {
+    if (available.length === 0 || available.some((a) => a.includes('mega') || a.includes('tautliner') || a.includes('curtain'))) return true;
+  }
+  if (target === 'frigo' || target === 'reefer' || target === 'isotherm') {
+    if (available.some((a) => a.includes('frigo') || a.includes('reefer') || a.includes('isotherm') || a.includes('temp'))) return true;
+  }
+  if (target === 'lift' || target === 'tail_lift' || target === 'taillift' || target === 'oblon') {
+    if (available.some((a) => a.includes('lift') || a.includes('oblon'))) return true;
+  }
+
+  return available.some((a) => a.includes(target) || target.includes(a));
+}
+
 export interface RouteValidationResult {
   conflicts: any[];
   warnings: any[];
@@ -678,13 +711,13 @@ export class PlanningService {
           add({ level: 'warning', code: 'TRUCK_TYPE_MISMATCH', tripId: t.id, resourceId: truck.id, message: `Trip requires ${t.truckType}, got ${truck.truckType}.` });
         }
         for (const req of t.equipmentRequirements || []) {
-          if (!(truck.features || []).includes(req)) {
+          if (!vehicleHasEquipment(truck, t.trailer, req)) {
             add({ level: 'warning', code: 'EQUIPMENT_MISSING', tripId: t.id, resourceId: truck.id, params: { req }, message: `Vehicle lacks required equipment: ${req}.` });
           }
         }
         for (const o of t.orders || []) {
           for (const req of o.equipmentRequirements || []) {
-            if (!(truck.features || []).includes(req)) {
+            if (!vehicleHasEquipment(truck, t.trailer, req)) {
               add({ level: 'warning', code: 'ORDER_EQUIPMENT_MISSING', tripId: t.id, orderId: o.id, resourceId: truck.id, params: { req }, message: `Order ${o.orderNumber} requires equipment: ${req}.` });
             }
           }
@@ -820,7 +853,7 @@ export class PlanningService {
       if (sum.pallets > p) add({ level: 'blocking', code: 'PALLET_OVERLOAD', params: { load: sum.pallets, max: p }, message: `Combined pallets ${sum.pallets} exceed ${p}.` });
       for (const o of orders) {
         for (const req of o.equipmentRequirements || []) {
-          if (!(truck.features || []).includes(req)) {
+          if (!vehicleHasEquipment(truck, null, req)) {
             add({ level: 'warning', code: 'EQUIPMENT_MISSING', orderId: o.id, params: { req }, message: `Order ${o.orderNumber} requires equipment: ${req}.` });
           }
         }
@@ -876,7 +909,7 @@ export class PlanningService {
       if (trip.truck && o.equipmentRequirements?.length) {
         const truck = trip.truck;
         for (const req of o.equipmentRequirements) {
-          if (!(truck.features || []).includes(req)) {
+          if (!vehicleHasEquipment(truck, trip.trailer, req)) {
             add({ level: 'warning', code: 'EQUIPMENT_MISSING', orderId: o.id, params: { req }, message: `Order ${o.orderNumber} requires equipment: ${req}.` });
           }
         }

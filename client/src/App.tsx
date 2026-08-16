@@ -124,6 +124,14 @@ export default function App() {
               </Suspense>
             }
           />
+          <Route
+            path="/tracking/:token"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <TrackingPage />
+              </Suspense>
+            }
+          />
 
           {/* ─── Client Portal Routes ─────────────────────────────────────────── */}
           <Route path="/portal/login" element={<Suspense fallback={<PageLoader />}><PortalLoginPage /></Suspense>} />
@@ -162,6 +170,8 @@ export default function App() {
             <Route path="drivers" element={<Suspense fallback={<PageLoader />}><DriversPage /></Suspense>} />
             <Route path="clients" element={<Suspense fallback={<PageLoader />}><ClientsPage /></Suspense>} />
             <Route path="map" element={<Suspense fallback={<PageLoader />}><LiveMapPage /></Suspense>} />
+            <Route path="tracking" element={<Suspense fallback={<PageLoader />}><LiveMapPage /></Suspense>} />
+            <Route path="track" element={<Suspense fallback={<PageLoader />}><LiveMapPage /></Suspense>} />
             <Route path="documents" element={<Suspense fallback={<PageLoader />}><DocumentsPage /></Suspense>} />
             <Route path="invoices" element={<Suspense fallback={<PageLoader />}><InvoicesPage /></Suspense>} />
             <Route path="financial" element={<Suspense fallback={<PageLoader />}><FinancialPage /></Suspense>} />

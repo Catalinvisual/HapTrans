@@ -82,7 +82,7 @@ export default function TachographPage() {
   };
 
   const activityOptions: SelectOption[] = [
-    { value: 'ALL', label: t('filter_all_activities', 'All Activities'), color: 'bg-slate-400' },
+    { value: 'ALL', label: t('filter_all_activities', 'All Activities') },
     { value: 'DRIVING', label: t('act_driving', 'Driving'), color: 'bg-emerald-500' },
     { value: 'BREAK', label: t('act_break', 'Break'), color: 'bg-amber-500' },
     { value: 'REST', label: t('act_rest', 'Rest'), color: 'bg-indigo-500' },

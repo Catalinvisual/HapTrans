@@ -198,14 +198,14 @@ export default function TelematicsPage() {
   };
 
   const statusOptions: SelectOption[] = [
-    { value: 'ALL', label: t('filter_all_statuses', 'All Statuses'), color: 'bg-slate-400' },
+    { value: 'ALL', label: t('filter_all_statuses', 'All Statuses') },
     { value: 'LIVE', label: 'LIVE', color: 'bg-emerald-500' },
     { value: 'STALE', label: 'STALE', color: 'bg-amber-500' },
     { value: 'OFFLINE', label: 'OFFLINE', color: 'bg-rose-500' },
   ];
 
   const providerOptions: SelectOption[] = [
-    { value: 'ALL', label: t('filter_all_providers', 'All Providers'), color: 'bg-slate-400' },
+    { value: 'ALL', label: t('filter_all_providers', 'All Providers') },
     { value: 'test_simulator', label: 'Test Simulator', color: 'bg-indigo-500' },
     { value: 'vdo', label: 'VDO TIS-Web', color: 'bg-blue-500' },
     { value: 'stoneridge', label: 'Stoneridge', color: 'bg-purple-500' },

@@ -781,7 +781,20 @@ function TripDetailDrawer({
       return;
     }
 
-    // 5. Client / Price / General issues -> Opens Step 1 (General Info, index 0)
+    // 5. Equipment / Feature mismatch issues -> Opens Step 1 (Requirements / Equipment, index 0)
+    if (type.includes('equipment') || msg.includes('equipment') || msg.includes('tautliner') || msg.includes('mega') || msg.includes('frigo') || msg.includes('lift')) {
+      const targetId = c.orderId || orders[0]?.id;
+      if (targetId && onEditOrder) {
+        onEditOrder(targetId, 0, 'equipment');
+        return;
+      }
+      if (truck?.id) {
+        navigate(`/trucks?search=${encodeURIComponent(truck.plateNumber || '')}`);
+        return;
+      }
+    }
+
+    // 6. Client / Price / General issues -> Opens Step 1 (General Info, index 0)
     if (type.includes('client') || type.includes('price') || msg.includes('client') || msg.includes('price') || msg.includes('rate') || msg.includes('reference')) {
       const targetId = c.orderId || orders[0]?.id;
       if (targetId && onEditOrder) {
@@ -790,7 +803,7 @@ function TripDetailDrawer({
       }
     }
 
-    // 6. Generic Order specific issue -> opens on Step 3 (Cargo)
+    // 7. Generic Order specific issue -> opens on Step 3 (Cargo)
     if (c.orderId) {
       if (onEditOrder) onEditOrder(c.orderId, 2, 'cargo');
       else navigate(`/orders/${c.orderId}`);
@@ -803,6 +816,9 @@ function TripDetailDrawer({
   const getConflictActionLabel = (c: any) => {
     const msg = String(c?.message || '').toLowerCase();
     const type = String(c?.type || '').toLowerCase();
+    if (type.includes('equipment') || msg.includes('equipment')) {
+      return t('pln_edit_order_equipment', 'Edit Equipment Req');
+    }
     if (type.includes('vehicle') || msg.includes('maintenance') || msg.includes('truck') || msg.includes('itp') || (truck?.plateNumber && msg.includes(truck.plateNumber.toLowerCase()))) {
       return t('pln_fix_truck', 'Manage Truck') + (truck?.plateNumber ? ` (${truck.plateNumber})` : '');
     }
@@ -933,6 +949,35 @@ function TripDetailDrawer({
 
           {activeTab === 'stops' && (
             <div className="space-y-2.5">
+              {/* Stops Top Action Bar */}
+              <div className="flex items-center justify-between p-3 bg-surface/70 rounded-xl border border-border">
+                <div className="text-xs font-bold text-text-primary flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-primary" />
+                  <span>{stops.length} {t('stops', 'Stops')} · {isConfirmed ? t('status_confirmed', 'Confirmed') : t(`status_${st}`, st)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {st === 'planning' || st === 'planned' ? (
+                    <button
+                      disabled={!!loadingAction || blockingConflicts.length > 0}
+                      onClick={() => onAction('confirm', tripId)}
+                      className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5 font-black shadow-xs"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>{t('action_confirm_plan', 'Confirm Plan')}</span>
+                    </button>
+                  ) : (
+                    <button
+                      disabled={!!loadingAction}
+                      onClick={() => onAction('send', tripId, { routeInfo: 'Dispatched from Stops Ordering' })}
+                      className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5 font-black shadow-md shadow-primary/20"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{isDispatched ? t('action_send_update', 'Send Update') : t('action_send_to_driver', 'Send to Driver')}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {stops.map((s: any, idx: number) => {
                 const isPu = s.type === 'pickup';
                 const hasTimeWindow = s.dateFrom || s.timeFrom;
@@ -1146,11 +1191,19 @@ function TripDetailDrawer({
                   </span>
                   <button
                     disabled={!!loadingAction}
-                    onClick={() => onAction('open-dispatch-modal', tripId, trip)}
+                    onClick={() => onAction('send', tripId, { routeInfo: 'Dispatched from TRP' })}
                     className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-black shadow-md shadow-primary/20"
                   >
-                    <Send className="w-4 h-4" />
+                    {loadingAction === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                     <span>{t('action_send_to_driver', 'Send to Driver')}</span>
+                  </button>
+                  <button
+                    disabled={!!loadingAction}
+                    onClick={() => onAction('reopen', tripId)}
+                    className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>{t('action_reopen_planning', 'Reopen Planning')}</span>
                   </button>
                 </div>
               ) : isDispatched ? (
@@ -1167,11 +1220,19 @@ function TripDetailDrawer({
                   </button>
                   <button
                     disabled={!!loadingAction}
-                    onClick={() => onAction('open-dispatch-modal', tripId, trip)}
+                    onClick={() => onAction('send', tripId, { routeInfo: 'Updated Route Plan' })}
                     className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold"
                   >
-                    <Send className="w-4 h-4" />
+                    {loadingAction === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                     <span>{t('action_send_update', 'Send Update')}</span>
+                  </button>
+                  <button
+                    disabled={!!loadingAction}
+                    onClick={() => onAction('reopen', tripId)}
+                    className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>{t('action_reopen_planning', 'Reopen Planning')}</span>
                   </button>
                 </div>
               ) : null}
@@ -1445,11 +1506,6 @@ export default function PlanningPage() {
 
   // ── Actions ──
   const handleTripAction = async (action: string, tripId: string, payload?: any) => {
-    if (action === 'open-dispatch-modal') {
-      setDispatchModalTrip(payload || { id: tripId });
-      return;
-    }
-
     setLoadingAction(action);
     try {
       if (action === 'confirm') {
@@ -1458,10 +1514,9 @@ export default function PlanningPage() {
       } else if (action === 'reopen') {
         await planningApi.reopenPlanning(tripId);
         toast.success(t('reopen_planning_ok', 'Planning reopened'));
-      } else if (action === 'send') {
-        await planningApi.sendToDriver(tripId, payload);
+      } else if (action === 'send' || action === 'open-dispatch-modal') {
+        await planningApi.sendToDriver(tripId, payload || { routeInfo: 'Dispatched from Planning' });
         toast.success(t('jsx_sentOk', 'Trip dispatched to driver'));
-        setDispatchModalTrip(null);
       } else if (action === 'unassign-order') {
         const orderId = payload?.orderId;
         if (!orderId) return;
