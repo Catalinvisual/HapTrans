@@ -22,6 +22,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import CustomSelect from '../components/CustomSelect';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateOrderPdf } from '../lib/pdfGenerator';
+import { planningApi } from '../lib/planningApi';
 import OrderWizard from '../components/orders/OrderWizard';
 
 function useResizableSidebar(initialWidth: number = 300, minWidth: number = 220, maxWidth: number = 650) {
@@ -852,7 +853,7 @@ function TripDetailDrawer({
                   trip.validationStatus === 'warning' ? 'bg-amber-500/10 border-amber-500/30 text-amber-600' :
                   'bg-red-500/10 border-red-500/30 text-red-600'
                 }`}>
-                  {t(`status_${trip.validationStatus}`, trip.validationStatus)}
+                  {String(t(`status_${trip.validationStatus}`, trip.validationStatus))}
                 </span>
               )}
               {detailLoading && <Loader2 className="w-4 h-4 animate-spin text-text-muted" />}

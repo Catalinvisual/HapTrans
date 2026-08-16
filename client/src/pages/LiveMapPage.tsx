@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Navigation, Truck, Play, Pause, Square, Map as MapIcon, Layers, Search } from 'lucide-react';
+import { Navigation, Truck, Map as MapIcon, Search } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import api from '../lib/api';
@@ -371,8 +371,6 @@ export default function LiveMapPage() {
           activeDriverTrucks[trip.driver.id] = trip.truck;
         }
       });
-      const lang = i18n.language || 'ro';
-      const truckWord = TRUCK_TRANSLATIONS[lang] || TRUCK_TRANSLATIONS['ro'];
       const plottedDriverIds = new Set<string>();
 
       // Plot trucks with coordinates
@@ -444,7 +442,7 @@ export default function LiveMapPage() {
     };
     animationFramesRef.current[truckId] = requestAnimationFrame(step);
   };
-  const updateTrimmedRouteLine = (truckId: string, currentPos: [number, number], routeCoords: [number, number][]) => {
+  const updateTrimmedRouteLine = (_truckId: string, currentPos: [number, number], routeCoords: [number, number][]) => {
     if (!mapInstance.current) return;
     const snap = findClosestPointOnRoute(currentPos, routeCoords);
     if (!snap) return;
@@ -453,7 +451,7 @@ export default function LiveMapPage() {
     try {
       const source = mapInstance.current.getSource(sourceId);
       if (source) {
-        source.setData({
+        (source as any).setData({
           type: 'Feature',
           geometry: {
             type: 'LineString',
@@ -462,9 +460,43 @@ export default function LiveMapPage() {
           properties: {}
         });
       }
-    } catch (e) {
-      console.warn('Error updating route line data', e);
+    } catch (err) {
+      // Fallback
     }
+  };
+  const createMarkerElement = (id: string, label: string, color: string, svgIcon: string, isTruck: boolean, lng: number, lat: number, popupText: string = '', isLive: boolean = false) => {
+    const el = document.createElement('div');
+    el.className = 'custom-marker';
+    el.style.display = 'flex';
+    el.style.flexDirection = 'column';
+    el.style.alignItems = 'center';
+    el.style.cursor = 'pointer';
+    el.style.transform = 'translate(-50%, -50%)'; // Anchor center
+    const lang = i18n.language || 'ro';
+    const driverWord = DRIVER_TRANSLATIONS[lang] || DRIVER_TRANSLATIONS['ro'];
+    const pulseHtml = isLive ? `<div style="position:absolute;width:100%;height:100%;border-radius:50%;background:${color};opacity:0.6;animation:ping 2s cubic-bezier(0,0,0.2,1) infinite;"></div>` : '';
+    el.innerHTML = `
+      <div class="marker-label" style="background:#0F172A;color:#FFFFFF;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:bold;white-space:nowrap;box-shadow:0 4px 10px rgba(0,0,0,0.3);margin-bottom:6px;border:1.5px solid #FF7A1A;display:flex;align-items:center;gap:6px">
+        ${isTruck ? '<span style="color:#FF7A1A">🚚</span>' : '👤'} ${label}
+      </div>
+      <div style="width:38px;height:38px;background:${color};border-radius:50%;display:flex;align-items:center;justify-content:center;border:2.5px solid white;box-shadow:0 0 15px rgba(255,122,26,0.6)">
+        ${svgIcon}
+      </div>
+    `;
+    el.addEventListener('click', () => {
+      let truck = trucksStateRef.current.find((t: any) => t.id === id);
+      if (!truck) {
+        const drv = driversStateRef.current.find((d: any) => d.id === id);
+        if (drv && drv.truck) {
+          truck = trucksStateRef.current.find((t: any) => t.id === drv.truck.id) || drv.truck;
+        }
+      }
+      if (truck) {
+        focusedTruckRef.current = truck;
+        drawRoute(truck);
+      }
+    }, true);
+    return el;
   };
   const addMarker = (id: string, lng: number, lat: number, label: string, popupText: string, isTruck: boolean = true) => {
     if (!mapInstance.current || !window.maplibregl) return;
@@ -879,8 +911,6 @@ export default function LiveMapPage() {
       } else {
         plateNumber = activeTrip?.truck?.plateNumber || currentDriver?.truck?.plateNumber || 'SV 19 HAP';
       }
-      const lang = i18n.language || 'ro';
-      const truckWord = TRUCK_TRANSLATIONS[lang] || TRUCK_TRANSLATIONS['ro'];
       const label = plateNumber;
 
       // Smoothly update the marker coordinate
