@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Route, Truck, Users, UserCheck, Map, MessageSquare, FileText,
   Receipt, BarChart3, Wrench, Settings, UserCog, X, Banknote, Wallet, CalendarDays, Globe, Box, Container,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Radio, Timer
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -14,6 +14,8 @@ export const navItems = [
   { to: '/map', icon: Map, key: 'liveMap' },
   { to: '/trucks', icon: Truck, key: 'trucks' },
   { to: '/trailers', icon: Container, key: 'trailers' },
+  { to: '/telematics', icon: Radio, key: 'telematics' },
+  { to: '/tachograph', icon: Timer, key: 'tachograph' },
   { to: '/planning', icon: CalendarDays, key: 'planning' },
   { to: '/drivers', icon: UserCheck, key: 'drivers' },
   { to: '/clients', icon: Users, key: 'clients' },

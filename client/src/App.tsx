@@ -68,6 +68,9 @@ const TruckRoutePlannerPage = lazy(() => import('./pages/TruckRoutePlannerPage')
 const WebsiteHubPage   = lazy(() => import('./pages/WebsiteHubPage'));
 const SharedDocumentPage = lazy(() => import('./pages/SharedDocumentPage'));
 const TrackingPage     = lazy(() => import('./pages/TrackingPage'));
+const TelematicsPage   = lazy(() => import('./pages/TelematicsPage'));
+const TachographPage   = lazy(() => import('./pages/TachographPage'));
+const TelematicsSimulatorPage = lazy(() => import('./pages/TelematicsSimulatorPage'));
 
 // ─── Portal Pages (Lazy) ──────────────────────────────────────────────────
 const PortalLayout           = lazy(() => import('./layouts/PortalLayout'));
@@ -173,6 +176,9 @@ export default function App() {
             <Route path="chat" element={<Suspense fallback={<PageLoader />}><ChatPage /></Suspense>} />
             <Route path="planning" element={<Suspense fallback={<PageLoader />}><PlanningPage /></Suspense>} />
             <Route path="planning/planner/:truckId" element={<Suspense fallback={<PageLoader />}><TruckRoutePlannerPage /></Suspense>} />
+            <Route path="telematics" element={<Suspense fallback={<PageLoader />}><TelematicsPage /></Suspense>} />
+            <Route path="tachograph" element={<Suspense fallback={<PageLoader />}><TachographPage /></Suspense>} />
+            <Route path="telematics/simulator" element={<Suspense fallback={<PageLoader />}><TelematicsSimulatorPage /></Suspense>} />
           </Route>
         </Routes>
       </BrowserRouter>

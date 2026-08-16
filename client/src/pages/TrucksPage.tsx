@@ -653,6 +653,86 @@ export default function TrucksPage() {
         </div>
       ),
     },
+    {
+      key: 'telematics',
+      label: t('tab_telematics', 'Telematică & Tahograf'),
+      content: (
+        <div className="space-y-4">
+          {/* Telematics Header */}
+          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-surface/60 border border-border">
+            <div>
+              <div className="text-[10px] font-black uppercase text-text-secondary tracking-wider">Status Conexiune CAN-bus</div>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  LIVE (Test Simulator / FMS)
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  const res = await api.post('/telematics/test-connection', {
+                    provider: 'test_simulator',
+                    truckId: drawerTruck.id,
+                  });
+                  if (res.data.success) {
+                    toast.success(res.data.message || 'Conexiune validă!');
+                  } else {
+                    toast.error(res.data.message || 'Conexiune eșuată');
+                  }
+                } catch (e) {
+                  toast.error('Eroare la testarea conexiunii');
+                }
+              }}
+              className="px-3 py-1.5 rounded-xl bg-primary text-white text-xs font-bold shadow-sm hover:bg-primary/90 transition-all"
+            >
+              Test Connection
+            </button>
+          </div>
+
+          {/* Device & Tachograph Info */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3.5 rounded-2xl bg-surface/50 border border-border space-y-1">
+              <div className="text-[10px] font-black uppercase text-text-secondary">Dispozitiv Telematic</div>
+              <div className="font-black text-sm text-text-primary">TEL-{drawerTruck.plateNumber.replace(/\s+/g, '')}</div>
+              <div className="text-xs text-text-secondary">Tip: OBD-II / FMS Gateway</div>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-surface/50 border border-border space-y-1">
+              <div className="text-[10px] font-black uppercase text-text-secondary">Tahograf Digital</div>
+              <div className="font-black text-sm text-text-primary">VDO DTCO 4.1b</div>
+              <div className="text-xs text-emerald-600 font-bold">Smart Tachograph Gen 2</div>
+            </div>
+          </div>
+
+          {/* Live Telemetry */}
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="p-3 rounded-xl bg-surface/40 border border-border">
+              <div className="text-[10px] font-bold text-text-secondary uppercase">Viteză Live</div>
+              <div className="text-base font-black text-text-primary mt-0.5">82 km/h</div>
+            </div>
+            <div className="p-3 rounded-xl bg-surface/40 border border-border">
+              <div className="text-[10px] font-bold text-text-secondary uppercase">Activitate</div>
+              <div className="text-base font-black text-emerald-600 mt-0.5">DRIVING</div>
+            </div>
+            <div className="p-3 rounded-xl bg-surface/40 border border-border">
+              <div className="text-[10px] font-bold text-text-secondary uppercase">Pauză în</div>
+              <div className="text-base font-black text-amber-600 mt-0.5">2h 15m</div>
+            </div>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 font-medium flex items-center justify-between">
+            <span>Card Șofer: <strong className="text-slate-900">E123456789000100 (Valid)</strong></span>
+            <button
+              onClick={() => navigate('/telematics/simulator')}
+              className="text-primary font-bold hover:underline"
+            >
+              Deschide în Simulator →
+            </button>
+          </div>
+        </div>
+      ),
+    },
 ] : [];
 
   return (

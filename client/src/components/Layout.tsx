@@ -44,7 +44,10 @@ const PAGE_TITLES: Record<string, Record<string, string>> = {
   '/maintenance': { ro: 'Mentenanță', en: 'Maintenance', nl: 'Onderhoud' },
   '/settings': { ro: 'Setări', en: 'Settings', nl: 'Instellingen' },
   '/users': { ro: 'Utilizatori', en: 'Users', nl: 'Gebruikers' },
-  '/planning': { ro: 'Planificare', en: 'Planning', nl: 'Planning' },
+  '/planning': { ro: 'Planificare', en: 'Planning', nl: 'Planning', de: 'Planung', fr: 'Planification' },
+  '/telematics': { ro: 'Telematică & Dispozitive', en: 'Telematics Hub', nl: 'Telematicahub', de: 'Telematik-Hub', fr: 'Hub Télématique' },
+  '/tachograph': { ro: 'Monitorizare Tahograf', en: 'Tachograph Live', nl: 'Tachograaf Live', de: 'Tachograph Live', fr: 'Tachygraphe en direct' },
+  '/telematics/simulator': { ro: 'Simulator Telematică', en: 'Telematics Simulator', nl: 'Telematicasimulator', de: 'Telematik-Simulator', fr: 'Simulateur Télématique' },
   '/chat': { ro: 'Chat Dispecerat', en: 'Dispatch Chat', nl: 'Dispatch Chat' },
   '/website-cms': { ro: 'Conținut Website', en: 'Website Content', nl: 'Website Content' },
 };

@@ -363,6 +363,17 @@ const en: Record<string, string> = {
   pln_blocking_issues: 'Blocking Issues',
   pln_blocking_hint: 'These issues must be resolved before confirming the transport plan.',
   pln_confirmed_locked: 'Plan is confirmed and locked. Click Reopen Planning to make edits.',
+  telematics: 'Telematics',
+  tachograph: 'Tachograph',
+  telematics_hub_title: 'Telematics & Digital Tachograph Hub',
+  telematics_hub_subtitle: 'Real-time CAN-bus, GPS tracking, Smart 2 tachograph and driver compliance',
+  add_telematics_connection: '+ Add Telematics Connection',
+  open_simulator: 'Test Simulator',
+  tachograph_monitoring_title: 'Tachograph & Driving Compliance (CE 561/2006)',
+  tachograph_monitoring_subtitle: 'Live monitoring of driving hours, mandatory breaks, and daily rest',
+  simulator_cockpit_title: 'Telematics & Tachograph Test Simulator',
+  simulator_cockpit_subtitle: 'Interactive multi-truck simulation environment with time scaling and scenarios',
+  tab_telematics: 'Telematics & Tachograph',
 };
 
 const ro: Record<string, string> = {
@@ -727,6 +738,17 @@ const ro: Record<string, string> = {
   pln_blocking_issues: 'Probleme Blocante',
   pln_blocking_hint: 'Aceste probleme trebuie rezolvate înainte de a confirma planul de transport.',
   pln_confirmed_locked: 'Planul este confirmat și blocat. Faceți clic pe Redeschide Planificarea pentru modificări.',
+  telematics: 'Telematică',
+  tachograph: 'Tahograf',
+  telematics_hub_title: 'Telematică & Tahograf Digital',
+  telematics_hub_subtitle: 'Monitorizare CAN-bus, GPS live, tahograf Smart 2 și conformitate timpi',
+  add_telematics_connection: '+ Adaugă Conexiune Telematică',
+  open_simulator: 'Simulator Test',
+  tachograph_monitoring_title: 'Monitorizare Tahograf & Timpi de Conducere (CE 561/2006)',
+  tachograph_monitoring_subtitle: 'Supraveghere în timp real a orelor de conducere, pauzelor obligatorii și odihnei zilnice',
+  simulator_cockpit_title: 'Simulator Test Telematică & Tahograf',
+  simulator_cockpit_subtitle: 'Mediu de simulare interactiv multi-camion cu accelerare de timp și scenarii operaționale',
+  tab_telematics: 'Telematică & Tahograf',
 };
 
 const nl: Record<string, string> = {
@@ -1091,6 +1113,17 @@ const nl: Record<string, string> = {
   pln_blocking_issues: 'Blokkerende Problemen',
   pln_blocking_hint: 'Deze problemen moeten worden opgelost voordat het transportplan kan worden bevestigd.',
   pln_confirmed_locked: 'Plan is bevestigd en vergrendeld. Klik op Planning Heropenen om wijzigingen aan te brengen.',
+  telematics: 'Telematica',
+  tachograph: 'Tachograaf',
+  telematics_hub_title: 'Telematica & Digitale Tachograaf',
+  telematics_hub_subtitle: 'Real-time CAN-bus, GPS tracking, Smart 2 tachograaf en rij-/rusttijden',
+  add_telematics_connection: '+ Telematicaverbinding Toevoegen',
+  open_simulator: 'Testsimulator',
+  tachograph_monitoring_title: 'Tachograafbewaking & Rijtijden (EG 561/2006)',
+  tachograph_monitoring_subtitle: 'Live toezicht op rijtijden, verplichte pauzes en dagelijkse rusttijden',
+  simulator_cockpit_title: 'Telematica- & Tachograafsimulator',
+  simulator_cockpit_subtitle: 'Interactieve multi-vrachtwagen testomgeving met tijdsversnelling en scenario\'s',
+  tab_telematics: 'Telematica & Tachograaf',
 };
 
 const de: Record<string, string> = {
@@ -1455,6 +1488,17 @@ const de: Record<string, string> = {
   pln_blocking_issues: 'Blockierende Probleme',
   pln_blocking_hint: 'Diese Probleme müssen behoben werden, bevor der Transportplan bestätigt werden kann.',
   pln_confirmed_locked: 'Der Plan ist bestätigt und gesperrt. Klicken Sie auf Planung Wiedereröffnen, um Änderungen vorzunehmen.',
+  telematics: 'Telematik',
+  tachograph: 'Tachograph',
+  telematics_hub_title: 'Telematik & Digitaler Tachograph',
+  telematics_hub_subtitle: 'Echtzeit-CAN-Bus, GPS-Tracking, Smart 2-Tachograph und Lenk-/Ruhezeiten',
+  add_telematics_connection: '+ Telematikverbindung Hinzufügen',
+  open_simulator: 'Testsimulator',
+  tachograph_monitoring_title: 'Tachograph-Überwachung & Lenkzeiten (EG 561/2006)',
+  tachograph_monitoring_subtitle: 'Live-Überwachung von Lenkzeiten, Pflichtpausen und täglicher Ruhezeit',
+  simulator_cockpit_title: 'Telematik- & Tachograph-Simulator',
+  simulator_cockpit_subtitle: 'Interaktive Multi-Lkw-Simulationsumgebung mit Zeitraffer und Szenarien',
+  tab_telematics: 'Telematik & Tachograph',
 };
 
 const fr: Record<string, string> = {
@@ -1819,6 +1863,17 @@ const fr: Record<string, string> = {
   pln_blocking_issues: 'Problèmes Bloquants',
   pln_blocking_hint: 'Ces problèmes doivent être résolus avant de pouvoir confirmer le plan de transport.',
   pln_confirmed_locked: 'Le plan est confirmé et verrouillé. Cliquez sur Rouvrir la Planification pour apporter des modifications.',
+  telematics: 'Télématique',
+  tachograph: 'Tachygraphe',
+  telematics_hub_title: 'Hub Télématique & Tachygraphe Numérique',
+  telematics_hub_subtitle: 'CAN-bus en temps réel, suivi GPS, tachygraphe Smart 2 et temps de conduite',
+  add_telematics_connection: '+ Ajouter une Connexion Télématique',
+  open_simulator: 'Simulateur Test',
+  tachograph_monitoring_title: 'Surveillance Tachygraphe & Temps de Conduite (CE 561/2006)',
+  tachograph_monitoring_subtitle: 'Surveillance en direct des heures de conduite, pauses obligatoires et repos quotidien',
+  simulator_cockpit_title: 'Simulateur Test Télématique & Tachygraphe',
+  simulator_cockpit_subtitle: 'Environnement de simulation interactif multi-camions avec accélération temporelle et scénarios',
+  tab_telematics: 'Télématique & Tachygraphe',
 };
 
 export const planningResources: Record<string, { translation: Record<string, string> }> = {

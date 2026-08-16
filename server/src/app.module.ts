@@ -43,6 +43,7 @@ import { PortalUsersModule } from './portal-users/portal-users.module';
 import { PortalAuthModule } from './portal-auth/portal-auth.module';
 import { PortalModule } from './portal/portal.module';
 import { ActionLogsModule } from './action-logs/action-logs.module';
+import { TelematicsModule } from './telematics/telematics.module';
 
 @Module({
   imports: [
@@ -106,6 +107,7 @@ import { ActionLogsModule } from './action-logs/action-logs.module';
     DriverModule,
     PlanningModule,
     ActionLogsModule,
+    TelematicsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
