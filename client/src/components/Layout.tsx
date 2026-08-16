@@ -5,7 +5,7 @@ import { formatDate } from '../lib/dateUtils';
 import Sidebar from './Sidebar';
 import LanguageDropdown from './LanguageDropdown';
 import { useAuthStore } from '../store/authStore';
-import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard, Search, User, Download, Moon, Sun, BellRing } from 'lucide-react';
+import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard, Search, Download, Moon, Sun, BellRing } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
@@ -484,7 +484,7 @@ export default function Layout() {
       reconnectionDelay: 1000,
     });
     
-    socket.on('newNotification', (data) => {
+    socket.on('newNotification', () => {
       // Small delay to ensure DB sync before fetching
       setTimeout(fetchNotifications, 500);
     });
