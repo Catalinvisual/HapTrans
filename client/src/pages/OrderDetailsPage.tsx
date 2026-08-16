@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
-import { Loader2, ArrowLeft, Package, MapPin, Clock, FileText, CheckCircle, Truck, DollarSign, Activity } from 'lucide-react';
+import { Loader2, ArrowLeft, Package, MapPin, Clock, FileText, CheckCircle, Truck, Activity } from 'lucide-react';
 import toast from 'react-hot-toast';
 export default function OrderDetailsPage() {
   const {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Loader2, MapPin, FileText, Trash2, Box, Download, Pencil, ExternalLink, Activity, Copy, FilterX, Coins, Weight, Boxes, BadgeEuro, ArrowRight, Flag, Phone, User, Clock, Sparkles } from 'lucide-react';
+import { Plus, Search, Loader2, MapPin, FileText, Trash2, Box, Download, Pencil, ExternalLink, Activity, Copy, FilterX, Coins, Weight, Boxes, BadgeEuro, ArrowRight, Flag, Phone, User, Sparkles } from 'lucide-react';
 import api from '../lib/api';
 import OrderWizard from '../components/orders/OrderWizard';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
@@ -443,7 +443,6 @@ export default function OrdersPage() {
         onDelete={id => { setDrawerOrderId(null); handleDeleteClick(id); }}
         onRefetch={fetchOrders}
         t={t}
-        i18n={i18n}
         navigate={navigate}
       />}
 
@@ -464,7 +463,7 @@ export default function OrdersPage() {
   );
 }
 
-function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, onDelete, t, i18n, navigate }: any) {
+function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, onDelete, t, navigate }: any) {
   const [documents, setDocuments] = useState<any[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
