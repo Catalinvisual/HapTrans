@@ -152,11 +152,11 @@ describe('TRP Lifecycle, Validation, and Dispatch Architecture — Complete Test
       });
 
       // Query from Planning / Route Planner view
-      const synthesizedRoutePlan = await service.getRoutePlanByTrip('TRP-TEST-001');
+      const synthesizedRoutePlan: any = await service.getRoutePlanByTrip('TRP-TEST-001');
 
-      expect(synthesizedRoutePlan.truck.plateNumber).toBe('AB 26 SET');
-      expect(synthesizedRoutePlan.driver.name).toBe('Driver A');
-      expect(synthesizedRoutePlan.trailer.plateNumber).toBe('Trailer A');
+      expect(synthesizedRoutePlan.truck?.plateNumber).toBe('AB 26 SET');
+      expect(synthesizedRoutePlan.driver?.name).toBe('Driver A');
+      expect(synthesizedRoutePlan.trailer?.plateNumber).toBe('Trailer A');
       expect(synthesizedRoutePlan.stops[0].address).toContain('Best');
       expect(synthesizedRoutePlan.stops[1].address).toContain('Paris');
       expect(synthesizedRoutePlan.tripStatus).toBe('planning');
@@ -169,13 +169,14 @@ describe('TRP Lifecycle, Validation, and Dispatch Architecture — Complete Test
   // ═══════════════════════════════════════════════════════════════════════════
   describe('2. End-to-End TRP Lifecycle & Driver Execution', () => {
     it('should transition smoothly: planning -> validated -> confirmed -> dispatched -> driver_received -> driver_accepted', async () => {
-      const trip = {
+      const trip: any = {
         id: 'trip-e2e',
         companyId: 'comp-01',
         tripNumber: 'TRP-E2E-001',
         status: 'planning',
         validationStatus: 'not_validated',
         dispatchVersion: 0,
+        confirmedAt: null,
         truck: { id: 't1', plateNumber: 'B-100-E2E', features: ['frigo'], payloadCapacity: 24000, maxPallets: 33 },
         driver: { id: 'd1', name: 'Liviu Driver' },
         trailer: { id: 'tr1', plateNumber: 'TR-100' },
@@ -205,10 +206,10 @@ describe('TRP Lifecycle, Validation, and Dispatch Architecture — Complete Test
 
       // Step 2: Confirm Plan
       const confirmed = await service.confirmTrip(mockUser, 'trip-e2e');
-      expect(confirmed.status).toBe('confirmed');
-      expect(confirmed.confirmedAt).toBeDefined();
+      expect(confirmed?.status).toBe('confirmed');
+      expect(confirmed?.confirmedAt).toBeDefined();
       trip.status = 'confirmed';
-      trip.confirmedAt = confirmed.confirmedAt;
+      trip.confirmedAt = confirmed?.confirmedAt;
 
       // Step 3: Send to Driver (Dispatch v1)
       const dispatched = await service.sendToDriver(mockUser, 'trip-e2e', { routeInfo: 'Standard route' });
@@ -220,15 +221,15 @@ describe('TRP Lifecycle, Validation, and Dispatch Architecture — Complete Test
 
       // Step 4: Driver Received
       const received = await service.driverReceived('trip-e2e');
-      expect(received.status).toBe('driver_received');
-      expect(received.driverAcknowledgedAt).toBeDefined();
+      expect(received?.status).toBe('driver_received');
+      expect(received?.driverAcknowledgedAt).toBeDefined();
       trip.status = 'driver_received';
 
       // Step 5: Driver Accepted (Distinct from Dispatched and Received)
       const accepted = await service.driverAccepted('trip-e2e');
-      expect(accepted.status).toBe('driver_accepted');
-      expect(accepted.driverAcceptedAt).toBeDefined();
-      expect(accepted.status).not.toBe('dispatched');
+      expect(accepted?.status).toBe('driver_accepted');
+      expect(accepted?.driverAcceptedAt).toBeDefined();
+      expect(accepted?.status).not.toBe('dispatched');
     });
   });
 
@@ -376,9 +377,9 @@ describe('TRP Lifecycle, Validation, and Dispatch Architecture — Complete Test
 
       const reopened = await service.reopenPlanning(mockUser, 't-reopen');
 
-      expect(reopened.status).toBe('planning');
-      expect(reopened.validationOutdated).toBe(true);
-      expect(reopened.confirmedAt).toBeNull();
+      expect(reopened?.status).toBe('planning');
+      expect(reopened?.validationOutdated).toBe(true);
+      expect(reopened?.confirmedAt).toBeNull();
     });
   });
 
