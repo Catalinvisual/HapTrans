@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -14,8 +14,6 @@ import {
   ArrowRight,
   ShieldCheck,
   Truck,
-  Activity,
-  Navigation,
   Key,
   ExternalLink,
   Wifi,
@@ -547,6 +545,20 @@ export default function TelematicsPage() {
                       className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl font-medium"
                     />
                   </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase">Device Type</label>
+                    <div className="mt-1">
+                      <CustomSelect
+                        value={deviceType}
+                        onChange={(val) => setDeviceType(val)}
+                        options={[
+                          { value: 'OBD_FMS', label: 'OBD / FMS CAN Gateway' },
+                          { value: 'DIRECT_CAN', label: 'Direct CAN-Bus Tap' },
+                          { value: 'STANDALONE_GPS', label: 'Standalone GPS Tracker' },
+                        ]}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -572,6 +584,16 @@ export default function TelematicsPage() {
                         className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl font-medium"
                       />
                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase">Serial Number / SN</label>
+                    <input
+                      type="text"
+                      value={tachographSerial}
+                      onChange={(e) => setTachographSerial(e.target.value)}
+                      placeholder="ex: SN-99482011"
+                      className="w-full mt-1 p-2.5 border border-slate-200 rounded-xl font-medium"
+                    />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase">{t('wiz_tacho_gen', 'Smart Tachograph Generation')}</label>

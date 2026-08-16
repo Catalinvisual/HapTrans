@@ -1,21 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   Sliders,
-  Play,
-  Pause,
-  RotateCcw,
   Zap,
   Wifi,
   WifiOff,
-  UserCheck,
-  AlertTriangle,
   Radio,
   Truck,
-  Timer,
-  Navigation,
-  CheckCircle2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
