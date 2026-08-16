@@ -2001,19 +2001,23 @@ export class PlanningService {
     }
 
     // 3. Check Sequence (Pickups before Deliveries)
-    const stops = (trip.stops || []).sort((a, b) => a.sequence - b.sequence);
+    const stops = (trip.stops || []).sort((a: any, b: any) => a.sequence - b.sequence);
     const orderStopMap = new Map<string, { pickupSeq: number | null; deliverySeq: number | null }>();
     for (const s of stops) {
-      for (const t of s.tasks || []) {
-        if (t.order?.id) {
-          const entry = orderStopMap.get(t.order.id) || { pickupSeq: null, deliverySeq: null };
-          if (t.type === 'load' || String(s.type).toLowerCase() === 'pickup') {
-            if (entry.pickupSeq === null || s.sequence < entry.pickupSeq) entry.pickupSeq = s.sequence;
-          } else {
-            if (entry.deliverySeq === null || s.sequence > entry.deliverySeq) entry.deliverySeq = s.sequence;
-          }
-          orderStopMap.set(t.order.id, entry);
+      const ordIds = new Set<string>();
+      if ((s as any).orderId) ordIds.add((s as any).orderId);
+      if ((s as any).order?.id) ordIds.add((s as any).order.id);
+      for (const t of (s as any).tasks || []) {
+        if (t.order?.id) ordIds.add(t.order.id);
+      }
+      for (const ordId of ordIds) {
+        const entry = orderStopMap.get(ordId) || { pickupSeq: null, deliverySeq: null };
+        if (String(s.type).toLowerCase() === 'pickup') {
+          if (entry.pickupSeq === null || s.sequence < entry.pickupSeq) entry.pickupSeq = s.sequence;
+        } else {
+          if (entry.deliverySeq === null || s.sequence < entry.deliverySeq) entry.deliverySeq = s.sequence;
         }
+        orderStopMap.set(ordId, entry);
       }
     }
     for (const [ordId, { pickupSeq, deliverySeq }] of orderStopMap) {
