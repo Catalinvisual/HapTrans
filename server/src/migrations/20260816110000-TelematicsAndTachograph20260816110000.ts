@@ -7,7 +7,7 @@ export class TelematicsAndTachograph20260816110000 implements MigrationInterface
     // 1. telematics_devices
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "telematics_devices" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "truck_id" varchar,
         "provider" varchar(50) NOT NULL DEFAULT 'test_simulator',
         "provider_device_id" varchar(100),
@@ -31,7 +31,7 @@ export class TelematicsAndTachograph20260816110000 implements MigrationInterface
     // 2. tachographs
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "tachographs" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "truck_id" varchar,
         "telematics_device_id" varchar,
         "provider" varchar(50) NOT NULL DEFAULT 'test_simulator',
@@ -52,7 +52,7 @@ export class TelematicsAndTachograph20260816110000 implements MigrationInterface
     // 3. driver_tachograph_cards
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "driver_tachograph_cards" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "driver_id" varchar,
         "card_number" varchar(50) NOT NULL,
         "card_issuer" varchar(50) NOT NULL DEFAULT 'ARR / RDW',
@@ -120,7 +120,7 @@ export class TelematicsAndTachograph20260816110000 implements MigrationInterface
     // 6. tachograph_activity_events
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "tachograph_activity_events" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "truck_id" varchar,
         "driver_id" varchar,
         "trip_id" varchar,
