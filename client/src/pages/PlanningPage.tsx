@@ -24,15 +24,33 @@ import { useSettingsStore } from '../store/settingsStore';
 import { generateOrderPdf } from '../lib/pdfGenerator';
 import OrderWizard from '../components/orders/OrderWizard';
 
-function useResizableSidebar(initialWidth: number = 288, minWidth: number = 200, maxWidth: number = 600) {
-  const [width, setWidth] = useState(initialWidth);
+function useResizableSidebar(initialWidth: number = 300, minWidth: number = 220, maxWidth: number = 650) {
+  const [width, setWidth] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('planning_pool_width');
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= minWidth && parsed <= maxWidth) return parsed;
+      }
+    }
+    return initialWidth;
+  });
   const [isResizing, setIsResizing] = useState(false);
   const widthRef = useRef(width);
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(width);
 
-  useEffect(() => { widthRef.current = width; }, [width]);
+  useEffect(() => { 
+    widthRef.current = width; 
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('planning_pool_width', String(width));
+    }
+  }, [width]);
 
   const startResizing = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
+    startXRef.current = e.clientX;
+    startWidthRef.current = widthRef.current;
     setIsResizing(true);
   }, []);
 
@@ -40,7 +58,8 @@ function useResizableSidebar(initialWidth: number = 288, minWidth: number = 200,
     if (!isResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      let newWidth = e.clientX;
+      const delta = e.clientX - startXRef.current;
+      let newWidth = startWidthRef.current + delta;
       if (newWidth < minWidth) newWidth = minWidth;
       if (newWidth > maxWidth) newWidth = maxWidth;
       setWidth(newWidth);
@@ -1629,20 +1648,13 @@ export default function PlanningPage() {
       </div>
 
       {/* ── MAIN CONTENT ───────────────────────────────────────────────── */}
-      <div className="flex-1 flex overflow-hidden bg-surface/50 p-2 gap-2">
+      <div className="flex-1 flex overflow-hidden bg-surface/50 p-2 gap-0">
 
         {/* ORDER POOL (left panel) */}
         <div 
           className={`relative flex flex-col border border-border rounded-xl shadow-sm bg-card shrink-0 overflow-hidden print:hidden ${isPoolResizing ? 'select-none transition-none' : 'transition-all duration-300'}`}
           style={{ width: poolCollapsed ? 40 : poolWidth }}
         >
-          {/* Drag Handle */}
-          {!poolCollapsed && (
-            <div
-              onMouseDown={startPoolResizing}
-              className={`absolute top-0 right-0 w-1.5 h-full cursor-col-resize z-10 hover:bg-primary/30 transition-colors ${isPoolResizing ? 'bg-primary/50' : ''}`}
-            />
-          )}
           {/* Pool header */}
           <div className={`flex items-center justify-between p-2.5 border-b border-border bg-surface/30 shrink-0 ${poolCollapsed ? 'flex-col gap-2' : ''}`}>
             {!poolCollapsed && (
@@ -1682,7 +1694,7 @@ export default function PlanningPage() {
               </div>
 
               {/* Pool cards */}
-              <div ref={poolRef} tabIndex={0} className="flex-1 overflow-y-auto p-2 space-y-2 outline-none focus:ring-2 focus:ring-inset focus:ring-primary/20">
+              <div ref={poolRef} tabIndex={0} className="flex-1 overflow-y-auto p-2 space-y-2 outline-none focus:ring-2 focus:ring-inset focus:ring-primary/20 custom-scrollbar">
                 {isLoading ? (
                   <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
                 ) : fetchError ? (
@@ -1718,6 +1730,25 @@ export default function PlanningPage() {
             </>
           )}
         </div>
+
+        {/* Resizer Splitter (between Order Pool and Main Workspace) */}
+        {!poolCollapsed && (
+          <div
+            onMouseDown={startPoolResizing}
+            className={`group relative flex items-center justify-center w-3 cursor-col-resize shrink-0 select-none z-10 mx-0.5 transition-colors ${
+              isPoolResizing ? 'bg-primary/20' : 'hover:bg-primary/10'
+            } rounded-lg`}
+            title={t('drag_to_resize', 'Trage pentru a redimensiona')}
+          >
+            <div
+              className={`w-1 rounded-full transition-all ${
+                isPoolResizing
+                  ? 'bg-primary h-12'
+                  : 'bg-border/90 group-hover:bg-primary/80 h-8 group-hover:h-12'
+              }`}
+            />
+          </div>
+        )}
 
         {/* MAIN WORKSPACE */}
         <div className="flex-1 flex flex-col overflow-hidden bg-card rounded-xl border border-border shadow-sm">

@@ -552,30 +552,6 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
           <Row icon={<FileText className="w-3 h-3" />} label={t('distance', 'Distance')} value={order.distanceKm ? `${Number(order.distanceKm).toLocaleString()} km` : '—'} />
         </div>
         {order.notes && <div className="bg-surface/40 rounded-xl p-3 border border-border text-[13px] text-text-primary whitespace-pre-wrap">{order.notes}</div>}
-        <div className="mt-6 pt-4 border-t border-border/60 grid grid-cols-2 gap-3 text-xs text-text-secondary">
-          <div className="flex items-start gap-2 bg-surface/30 p-2.5 rounded-xl border border-border/40">
-            <div className="p-1.5 bg-primary/10 rounded-lg text-primary mt-0.5 shrink-0">
-              <User className="w-3.5 h-3.5" />
-            </div>
-            <div>
-              <div className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">{t('created_by', 'Created by')}</div>
-              <div className="font-semibold text-text-primary mt-0.5 truncate max-w-[120px]" title={order.createdBy?.name || order.createdBy?.email || 'System'}>
-                {order.createdBy?.name || order.createdBy?.email || 'System'}
-              </div>
-              <div className="text-[10px] text-text-muted mt-0.5">{order.createdAt ? new Date(order.createdAt).toLocaleString(i18n.language || 'en-GB') : '—'}</div>
-            </div>
-          </div>
-          <div className="flex items-start gap-2 bg-surface/30 p-2.5 rounded-xl border border-border/40">
-            <div className="p-1.5 bg-blue-100 dark:bg-blue-950/40 rounded-lg text-blue-600 dark:text-blue-400 mt-0.5 shrink-0">
-              <Clock className="w-3.5 h-3.5" />
-            </div>
-            <div>
-              <div className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">{t('last_updated', 'Last updated')}</div>
-              <div className="font-semibold text-text-primary mt-0.5">—</div>
-              <div className="text-[10px] text-text-muted mt-0.5">{order.updatedAt ? new Date(order.updatedAt).toLocaleString(i18n.language || 'en-GB') : '—'}</div>
-            </div>
-          </div>
-        </div>
         <div className="mt-4">
           <ActivityTimeline entityType="Order" entityId={order.id} createdAt={order.createdAt} createdBy={order.createdBy?.name || order.createdBy?.email} />
         </div>

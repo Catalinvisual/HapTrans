@@ -3,23 +3,29 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { Package, MapPin, CheckCircle, Clock, Truck, FileText, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'https://haptrans-production.up.railway.app/api';
+
 export default function TrackingPage() {
   const { t } = useTranslation();
-  const {
-    id
-  } = useParams<{
-    id: string;
-  }>(); // Tracking Token
+  const { token, id } = useParams<{ token?: string; id?: string }>();
+  const trackingToken = token || id;
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
   useEffect(() => {
     fetchData();
-  }, [id]);
+  }, [trackingToken]);
+
   const fetchData = async () => {
+    if (!trackingToken) {
+      setError('Tracking link invalid or expired.');
+      setLoading(false);
+      return;
+    }
     try {
-      const res = await axios.get(`${API_URL}/track/${id}`);
+      const res = await axios.get(`${API_BASE}/track/${trackingToken}`);
       setData(res.data);
       setLoading(false);
     } catch (err) {

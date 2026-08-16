@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Truck } from './truck.entity';
@@ -20,7 +20,18 @@ export class TrucksService {
   async create(dto: any, user: any) { 
     const data = { ...dto };
     if (data.driverId) { data.driver = { id: data.driverId }; delete data.driverId; }
-    if (data.trailerId) { data.trailer = { id: data.trailerId }; delete data.trailerId; }
+    if (data.trailerId) {
+      const existingWithTrailer = await this.repo.findOne({
+        where: { trailer: { id: data.trailerId } },
+      });
+      if (existingWithTrailer) {
+        throw new BadRequestException(
+          `Remorca este deja atribuită camionului ${existingWithTrailer.plateNumber}. Nu se poate atribui simultan la două camioane.`,
+        );
+      }
+      data.trailer = { id: data.trailerId };
+      delete data.trailerId;
+    }
     const saved = await this.repo.save(this.repo.create(data)); 
     if (user) {
       await this.actionLogs.logAction('Truck', (saved as any).id, 'CREATED', user, {});
@@ -30,7 +41,22 @@ export class TrucksService {
   async update(id: string, dto: any, user: any) { 
     const data = { ...dto };
     if ('driverId' in data) { data.driver = data.driverId ? { id: data.driverId } : null; delete data.driverId; }
-    if ('trailerId' in data) { data.trailer = data.trailerId ? { id: data.trailerId } : null; delete data.trailerId; }
+    if ('trailerId' in data) {
+      if (data.trailerId) {
+        const existingWithTrailer = await this.repo.findOne({
+          where: { trailer: { id: data.trailerId }, id: Not(id) },
+        });
+        if (existingWithTrailer) {
+          throw new BadRequestException(
+            `Remorca este deja atribuită camionului ${existingWithTrailer.plateNumber}. Nu se poate atribui simultan la două camioane.`,
+          );
+        }
+        data.trailer = { id: data.trailerId };
+      } else {
+        data.trailer = null;
+      }
+      delete data.trailerId;
+    }
     
     const existing = await this.repo.findOne({ where: { id } });
     await this.repo.update(id, data); 
@@ -41,7 +67,7 @@ export class TrucksService {
         await this.actionLogs.logAction('Truck', id, 'UPDATED', user, { updatedFields });
       }
     }
-    return this.repo.findOne({ where: { id } });
+    return this.repo.findOne({ where: { id }, relations: ['documents', 'trips', 'driver', 'driver.user', 'trailer'] });
   }
   remove(id: string) { return this.repo.delete(id); }
 

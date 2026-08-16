@@ -231,6 +231,19 @@ export default function TrucksPage() {
     ...TRUCK_STATUSES.map(s => ({ value: s.value, label: t(s.label as string, s.value.replace(/_/g, ' ')) as string })),
   ], [t]);
 
+  const trailerOptions: SelectOption[] = useMemo(() => [
+    { value: '', label: t('no_trailer', 'No trailer') },
+    ...trailers.map(tr => {
+      const assignedTruck = trucks.find(t => t.trailer?.id === tr.id && t.id !== editId);
+      return {
+        value: tr.id,
+        label: tr.plateNumber,
+        subLabel: assignedTruck ? `${t('assigned_to', 'Atribuit la')} ${assignedTruck.plateNumber}` : undefined,
+        disabled: !!assignedTruck,
+      };
+    }),
+  ], [trailers, trucks, editId, t]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return trucks.filter(tr => {
@@ -326,6 +339,11 @@ export default function TrucksPage() {
         <div>
           <div className="font-bold text-text-primary flex items-center gap-2">
             <TruckIcon className="w-3.5 h-3.5 text-primary" />{tr.plateNumber}
+            {tr.trailer && (
+              <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 font-bold px-1.5 py-0.2 rounded-md" title={`${t('trailer', 'Trailer')}: ${tr.trailer.plateNumber}`}>
+                +{tr.trailer.plateNumber}
+              </span>
+            )}
           </div>
           <div className="text-[11px] text-text-secondary">{tr.brand} {tr.model}{tr.year ? ` · ${tr.year}` : ''}</div>
         </div>
@@ -775,7 +793,7 @@ export default function TrucksPage() {
               
             <div className="xl:col-span-2">
                 <label className="label">{t('trailer', 'Trailer')}</label>
-                <CustomSelect value={form.trailerId} onChange={val => setForm({ ...form, trailerId: val })} options={[{ value: '', label: t('no_trailer', 'No trailer') }, ...trailers.map(tr => ({ value: tr.id, label: tr.plateNumber }))]} />
+                <CustomSelect value={form.trailerId} onChange={val => setForm({ ...form, trailerId: val })} options={trailerOptions} />
             </div>
             <div className={`transition-all ${highlightParam === 'status' ? 'p-3 rounded-2xl bg-orange-500/10 border-2 border-orange-500 ring-4 ring-orange-500/30 animate-pulse shadow-lg shadow-orange-500/20' : ''}`}>
               <div className="flex items-center justify-between mb-1">

@@ -30,8 +30,8 @@ export class TrackController {
       status: order.status,
       updatedAt: order.updatedAt,
       // Time windows
-      pickupWindow: sortedStops.find((s: any) => s.type === 'pickup') ? `${(sortedStops.find((s: any) => s.type === 'pickup') as any).timeFrom || ''} - ${(sortedStops.find((s: any) => s.type === 'pickup') as any).timeUntil || ''}` : null,
-      deliveryWindow: sortedStops.find((s: any) => s.type === 'delivery') ? `${(sortedStops.find((s: any) => s.type === 'delivery') as any).timeFrom || ''} - ${(sortedStops.find((s: any) => s.type === 'delivery') as any).timeUntil || ''}` : null,
+      pickupWindow: sortedStops.find((s: any) => s.type === 'pickup') ? `${(sortedStops.find((s: any) => s.type === 'pickup') as any).timeFrom || ''} - ${(sortedStops.find((s: any) => s.type === 'pickup') as any).timeUntil || ''}`.replace(/^ - $/, '') || null : null,
+      deliveryWindow: sortedStops.find((s: any) => s.type === 'delivery' || s.type === 'dropoff') ? `${(sortedStops.find((s: any) => s.type === 'delivery' || s.type === 'dropoff') as any).timeFrom || ''} - ${(sortedStops.find((s: any) => s.type === 'delivery' || s.type === 'dropoff') as any).timeUntil || ''}`.replace(/^ - $/, '') || null : null,
       
       currentLat: order.trip?.truck?.currentLat || null,
       currentLng: order.trip?.truck?.currentLng || null,

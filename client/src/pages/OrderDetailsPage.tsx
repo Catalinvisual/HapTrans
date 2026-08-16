@@ -21,11 +21,12 @@ export default function OrderDetailsPage() {
   useEffect(() => {
     const fetchOrder = async () => {
       try {
-        const [orderRes, timelineRes] = await Promise.all([api.get(`/orders/${id}`), api.get(`/timeline/order/${id}`).catch(() => ({
-          data: []
-        }))]);
+        const [orderRes, timelineRes] = await Promise.all([
+          api.get(`/orders/${id}`),
+          api.get(`/action-logs/Order/${id}`).catch(() => ({ data: [] }))
+        ]);
         setOrder(orderRes.data);
-        setTimeline(timelineRes.data);
+        setTimeline(timelineRes.data || []);
       } catch (err) {
         toast.error(t("toast_failedToLoad"));
         navigate('/orders');
@@ -249,24 +250,52 @@ export default function OrderDetailsPage() {
               <p className="text-3xl font-black mt-2 text-green-600">€{order.estimatedProfit || '0.00'}</p>
             </div>
           </div>}
-        {activeTab === 'timeline' && <div className="card p-5">
-            <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Clock className="text-purple-500" />{t("jsx_eventHistory")}</h3>
-            {timeline.length === 0 ? <p className="text-text-secondary">{t("jsx_noEventsLogge")}</p> : <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
-                {timeline.map((event: any, index: number) => <div key={index} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-full border-white bg-blue-100 text-blue-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
-                      <CheckCircle className="w-5 h-5" />
-                    </div>
-                    <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-surface p-4 rounded-xl shadow-sm border border-border">
-                      <div className="flex justify-between items-center mb-1">
-                        <p className="font-bold text-text-primary">{event.action}</p>
-                        <span className="text-xs text-text-secondary">{new Date(event.createdAt).toLocaleString()}</span>
+        {activeTab === 'timeline' && (() => {
+          const displayTimeline = [...timeline];
+          if (!displayTimeline.some((e: any) => e.action === 'CREATED' || e.action === 'Order Created') && order.createdAt) {
+            displayTimeline.unshift({
+              id: 'synthetic-created',
+              action: t('action_order_created', 'Order Created'),
+              createdAt: order.createdAt,
+              user: { name: order.createdBy?.name || order.createdBy?.email || 'System' },
+              details: null
+            });
+          }
+          return (
+            <div className="card p-5">
+              <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Clock className="text-purple-500" />{t("jsx_eventHistory", "Event History")}</h3>
+              {displayTimeline.length === 0 ? (
+                <p className="text-text-secondary">{t("jsx_noEventsLogge", "No events logged yet.")}</p>
+              ) : (
+                <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
+                  {displayTimeline.map((event: any, index: number) => (
+                    <div key={event.id || index} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-full border-white bg-primary/10 text-primary shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+                        <CheckCircle className="w-5 h-5" />
                       </div>
-                      <p className="text-sm text-text-secondary">{t("jsx_by")}{event.user?.name || 'System'}</p>
-                      {event.details && <pre className="mt-2 text-xs bg-black/5 p-2 rounded text-text-secondary overflow-x-auto">{event.details}</pre>}
+                      <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-surface p-4 rounded-xl shadow-sm border border-border">
+                        <div className="flex justify-between items-center mb-1">
+                          <p className="font-bold text-text-primary capitalize">{event.action}</p>
+                          <span className="text-xs text-text-secondary">{new Date(event.createdAt).toLocaleString()}</span>
+                        </div>
+                        <p className="text-sm text-text-secondary">{t("jsx_by", "by ")}{event.user?.name || event.user?.email || 'System'}</p>
+                        {event.details && typeof event.details === 'object' ? (
+                          event.details.updatedFields ? (
+                            <p className="mt-1 text-xs text-text-muted">Fields: {event.details.updatedFields.join(', ')}</p>
+                          ) : (
+                            <pre className="mt-2 text-xs bg-black/5 p-2 rounded text-text-secondary overflow-x-auto">{JSON.stringify(event.details, null, 2)}</pre>
+                          )
+                        ) : event.details ? (
+                          <pre className="mt-2 text-xs bg-black/5 p-2 rounded text-text-secondary overflow-x-auto">{event.details}</pre>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>)}
-              </div>}
-          </div>}
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
     </div>;
 }
