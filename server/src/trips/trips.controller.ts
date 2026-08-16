@@ -17,6 +17,26 @@ export class TripsController {
 
   @Get() findAll(@Query("status") status?: string) { return this.service.findAll(status); }
 
+  @Get("driver/trips")
+  findDriverTrips(@Request() req: any) {
+    return this.service.findForDriver(req.user);
+  }
+
+  @Post(":id/report-issue")
+  reportIssue(@Param("id") id: string, @Body() body: any, @Request() req: any) {
+    return this.service.reportIssue(id, req.user, body);
+  }
+
+  @Post(":id/report-delay")
+  reportDelay(@Param("id") id: string, @Body() body: any, @Request() req: any) {
+    return this.service.reportDelay(id, req.user, body);
+  }
+
+  @Post(":id/pod")
+  savePod(@Param("id") id: string, @Body() body: any, @Request() req: any) {
+    return this.service.savePod(id, req.user, body);
+  }
+
   @Post("migrate-legacy") 
   migrateLegacy() { return this.service.migrateLegacyTrips(); }
 

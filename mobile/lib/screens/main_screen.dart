@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:badges/badges.dart' as badges;
 import 'package:permission_handler/permission_handler.dart';
 import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
@@ -11,10 +10,10 @@ import '../utils/constants.dart';
 import '../utils/trip_status.dart';
 import '../services/notification_service.dart';
 import '../services/background_location_service.dart';
+import 'home_screen.dart';
 import 'trips_screen.dart';
-import 'map_screen.dart';
+import 'tachograph_screen.dart';
 import 'documents_screen.dart';
-import 'chat_screen.dart';
 import 'profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -38,7 +37,6 @@ class _MainScreenState extends State<MainScreen> {
       final tripProv = context.read<TripProvider>();
       final chatProv = context.read<ChatProvider>();
 
-      // Check and request location permissions on startup (foreground + background always)
       _checkAndRequestPermissions();
 
       tripProv.addListener(() {
@@ -60,7 +58,6 @@ class _MainScreenState extends State<MainScreen> {
         });
         chatProv.connectGlobal(auth.token!, auth.user?['id'] ?? '', locale: auth.locale.languageCode);
         
-        // Start polling every 8 seconds silently for real-time trip additions!
         _pollingTimer = Timer.periodic(const Duration(seconds: 8), (timer) {
           if (mounted && auth.token != null) {
             tripProv.silentReloadTrips(auth.token!).then((_) {
@@ -76,7 +73,6 @@ class _MainScreenState extends State<MainScreen> {
           }
         });
         
-        // Sync FCM token immediately and keep trying every 30s until it works
         _syncFcmNow(auth);
         Timer.periodic(const Duration(seconds: 30), (t) {
           if (!mounted) { t.cancel(); return; }
@@ -89,11 +85,9 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _checkAndRequestPermissions() async {
     if (!mounted) return;
     try {
-      // Add a 1-second delay to let the screen transitions settle down
       await Future.delayed(const Duration(milliseconds: 1000));
       if (!mounted) return;
 
-      // 1. Check foreground location permission
       var status = await Permission.location.status;
       bool requested = false;
       if (!status.isGranted) {
@@ -108,7 +102,6 @@ class _MainScreenState extends State<MainScreen> {
         await Future.delayed(const Duration(milliseconds: 1000));
       }
       
-      // 2. Request background location permission (always)
       if (mounted) {
         await BackgroundLocationService.requestAlwaysLocationPermission(context);
       }
@@ -118,7 +111,6 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _updateAutomaticTracking(AuthProvider auth, TripProvider tripProv, ChatProvider chatProv) {
-    // Check if there is an active trip (assigned / accepted / in progress)
     final activeTrip = tripProv.trips.firstWhere(
       (t) => isActiveTripStatus(t['status']),
       orElse: () => <String, dynamic>{},
@@ -165,7 +157,6 @@ class _MainScreenState extends State<MainScreen> {
     } else {
       auth.syncFcmToken();
     }
-    // Always (re)register the callback in case it was overwritten
     notif.onTokenReady = (token) => auth.syncFcmTokenValue(token);
   }
 
@@ -179,35 +170,24 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final chat = context.watch<ChatProvider>();
-    final driverId = auth.user?['id'] ?? '';
-    final token = auth.token ?? '';
     final locale = auth.locale.languageCode;
 
-    final screens = [
-      const TripsScreen(),
-      MapScreen(isActive: _selectedIndex == 1),
-      const DocumentsScreen(),
-      ChatScreen(
-        trip: {
-          'id': 'driver_$driverId',
-          'client': const {'name': 'Dispecerat'},
-        },
-        token: token,
-        locale: locale,
-        isDirectDriverChat: true,
-      ),
-      const ProfileScreen(),
+    final screens = const [
+      HomeScreen(),
+      TripsScreen(),
+      TachographScreen(),
+      DocumentsScreen(),
+      ProfileScreen(),
     ];
 
     final labels = {
-      'ro': ['Curse', 'Hartă', 'Documente', 'Chat', 'Profil'],
-      'en': ['Trips', 'Map', 'Documents', 'Chat', 'Profile'],
-      'nl': ['Ritten', 'Kaart', 'Documenten', 'Chat', 'Profiel'],
-      'de': ['Fahrten', 'Karte', 'Dokumente', 'Chat', 'Profil'],
-      'fr': ['Courses', 'Carte', 'Documents', 'Chat', 'Profil'],
+      'ro': ['Acasă', 'Curse', 'Tahograf', 'Documente', 'Profil'],
+      'en': ['Home', 'Trips', 'Tachograph', 'Documents', 'Profile'],
+      'nl': ['Home', 'Ritten', 'Tachograaf', 'Documenten', 'Profiel'],
+      'de': ['Home', 'Touren', 'Tachograph', 'Dokumente', 'Profil'],
+      'fr': ['Accueil', 'Courses', 'Tachygraphe', 'Documents', 'Profil'],
     };
-    final nav = labels[locale] ?? labels['ro']!;
+    final nav = labels[locale] ?? labels['en'] ?? labels['ro']!;
 
     return Scaffold(
       body: IndexedStack(index: _selectedIndex, children: screens),
@@ -215,27 +195,14 @@ class _MainScreenState extends State<MainScreen> {
         selectedIndex: _selectedIndex,
         onDestinationSelected: (i) {
           setState(() => _selectedIndex = i);
-          if (i == 3) {
-            context.read<ChatProvider>().setChatScreenActive(true);
-          } else {
-            context.read<ChatProvider>().setChatScreenActive(false);
-          }
         },
         backgroundColor: kCard,
         indicatorColor: kPrimaryLight,
         destinations: [
-          NavigationDestination(icon: const Icon(Icons.route_outlined), selectedIcon: const Icon(Icons.route, color: kPrimary), label: nav[0]),
-          NavigationDestination(icon: const Icon(Icons.map_outlined), selectedIcon: const Icon(Icons.map, color: kPrimary), label: nav[1]),
-          NavigationDestination(icon: const Icon(Icons.description_outlined), selectedIcon: const Icon(Icons.description, color: kPrimary), label: nav[2]),
-          NavigationDestination(
-            icon: badges.Badge(
-              showBadge: chat.unreadCount > 0,
-              badgeContent: Text('${chat.unreadCount}', style: const TextStyle(color: Colors.white, fontSize: 10)),
-              child: const Icon(Icons.chat_outlined),
-            ),
-            selectedIcon: const Icon(Icons.chat, color: kPrimary),
-            label: nav[3],
-          ),
+          NavigationDestination(icon: const Icon(Icons.home_outlined), selectedIcon: const Icon(Icons.home, color: kPrimary), label: nav[0]),
+          NavigationDestination(icon: const Icon(Icons.route_outlined), selectedIcon: const Icon(Icons.route, color: kPrimary), label: nav[1]),
+          NavigationDestination(icon: const Icon(Icons.timer_outlined), selectedIcon: const Icon(Icons.timer, color: kPrimary), label: nav[2]),
+          NavigationDestination(icon: const Icon(Icons.description_outlined), selectedIcon: const Icon(Icons.description, color: kPrimary), label: nav[3]),
           NavigationDestination(icon: const Icon(Icons.person_outline), selectedIcon: const Icon(Icons.person, color: kPrimary), label: nav[4]),
         ],
       ),

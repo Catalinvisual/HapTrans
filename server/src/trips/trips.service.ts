@@ -61,6 +61,71 @@ export class TripsService {
     return this.repo.find(findOptions);
   }
 
+  async findForDriver(user: any) {
+    if (!user) return [];
+    const userId = user.id;
+    if (user.role === 'admin' || user.role === 'dispatcher') {
+      return this.findAll();
+    }
+    return this.repo.createQueryBuilder('trip')
+      .leftJoinAndSelect('trip.truck', 'truck')
+      .leftJoinAndSelect('trip.trailer', 'trailer')
+      .leftJoinAndSelect('trip.driver', 'driver')
+      .leftJoinAndSelect('driver.user', 'driverUser')
+      .leftJoinAndSelect('trip.stops', 'stops')
+      .leftJoinAndSelect('stops.tasks', 'tasks')
+      .leftJoinAndSelect('tasks.order', 'taskOrder')
+      .leftJoinAndSelect('trip.orders', 'orders')
+      .leftJoinAndSelect('orders.cargoItems', 'cargoItems')
+      .leftJoinAndSelect('orders.stops', 'orderStops')
+      .leftJoinAndSelect('orders.client', 'orderClient')
+      .leftJoinAndSelect('trip.costs', 'costs')
+      .where('driverUser.id = :userId OR driver.id = :userId', { userId })
+      .orderBy('trip.createdAt', 'DESC')
+      .getMany();
+  }
+
+  async reportIssue(tripId: string, user: any, data: { category: string; description: string; stopId?: string; photoUrls?: string[] }) {
+    const trip = await this.findOne(tripId);
+    if (!trip) throw new NotFoundException('Trip not found');
+    await this.actionLogs.logAction('Trip', tripId, 'ISSUE_REPORTED', user, {
+      category: data.category,
+      description: data.description,
+      stopId: data.stopId,
+      photoUrls: data.photoUrls,
+    });
+    return { success: true, message: 'Issue reported successfully' };
+  }
+
+  async reportDelay(tripId: string, user: any, data: { reason: string; estimatedDelayMinutes: number; stopId?: string }) {
+    const trip = await this.findOne(tripId);
+    if (!trip) throw new NotFoundException('Trip not found');
+    await this.actionLogs.logAction('Trip', tripId, 'DELAY_REPORTED', user, {
+      reason: data.reason,
+      estimatedDelayMinutes: data.estimatedDelayMinutes,
+      stopId: data.stopId,
+    });
+    return { success: true, message: 'Delay reported successfully' };
+  }
+
+  async savePod(tripId: string, user: any, data: { orderId?: string; stopId?: string; recipientName: string; signatureBase64?: string; photoUrls?: string[]; notes?: string }) {
+    const trip = await this.findOne(tripId);
+    if (!trip) throw new NotFoundException('Trip not found');
+    if (data.orderId) {
+      await this.repo.manager.update('Order', { id: data.orderId }, { status: 'delivered' });
+    }
+    if (data.stopId) {
+      await this.repo.manager.update('Stop', { id: data.stopId }, { status: 'completed' });
+    }
+    await this.actionLogs.logAction('Trip', tripId, 'POD_SAVED', user, {
+      recipientName: data.recipientName,
+      orderId: data.orderId,
+      stopId: data.stopId,
+      notes: data.notes,
+    });
+    return { success: true, message: 'POD saved successfully' };
+  }
+
   findAllForDashboard() {
     // Return trip data enriched with relations needed for dashboard breakdowns
     return this.repo.find({
