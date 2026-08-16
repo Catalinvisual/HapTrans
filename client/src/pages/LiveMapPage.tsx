@@ -1,14 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigation, Truck, Play, Pause, Square, Map as MapIcon, Layers, Search } from 'lucide-react';
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import api from '../lib/api';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
-declare global {
-  interface Window {
-    maplibregl: any;
-  }
-}
 const TRUCK_TRANSLATIONS: Record<string, string> = {
   ro: 'Camion',
   en: 'Truck',
@@ -239,16 +236,8 @@ export default function LiveMapPage() {
   const animationFramesRef = useRef<Record<string, number>>({});
   const lastUpdateTimesRef = useRef<Record<string, number>>({});
   useEffect(() => {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css';
-    document.head.appendChild(link);
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js';
-    script.onload = () => initMap();
-    document.head.appendChild(script);
+    initMap();
     return () => {
-      document.head.removeChild(link);
       if (mapInstance.current) {
         mapInstance.current.remove();
         mapInstance.current = null;
@@ -258,6 +247,7 @@ export default function LiveMapPage() {
       animationFramesRef.current = {};
     };
   }, []);
+
   useEffect(() => {
     if (!mapInstance.current) return;
     const style = isSatellite ? {
@@ -296,16 +286,16 @@ export default function LiveMapPage() {
       }
     });
   }, [isSatellite]);
+
   const initMap = () => {
-    if (!mapRef.current || !window.maplibregl) return;
-    mapInstance.current = new window.maplibregl.Map({
+    if (!mapRef.current) return;
+    mapInstance.current = new maplibregl.Map({
       container: mapRef.current,
       style: 'https://tiles.openfreemap.org/styles/bright',
       center: [5.2913, 52.1326],
       zoom: 8,
       pitch: 45,
-      // Set pitch for 3D effect
-      attributionControl: false // Remove MapLibre logo/attribution to clean up UI
+      attributionControl: false
     });
 
     // Add 3D buildings layer
@@ -320,7 +310,6 @@ export default function LiveMapPage() {
           'filter': ['==', 'extrude', 'true'],
           'type': 'fill-extrusion',
           'minzoom': 14,
-          // Buildings appear when zoomed in
           'paint': {
             'fill-extrusion-color': '#d4d4d8',
             'fill-extrusion-height': ['get', 'render_height'],
@@ -329,20 +318,15 @@ export default function LiveMapPage() {
           }
         }, labelLayerId);
       } catch (e) {
-        // Fallback silențios
+        // Fallback
       }
     });
 
-    // Add basic navigation controls without pitch
-    mapInstance.current.addControl(new window.maplibregl.NavigationControl({
+    mapInstance.current.addControl(new maplibregl.NavigationControl({
       showCompass: true,
       visualizePitch: true
     }), 'top-right');
 
-    // mapInstance.current.addControl(new window.maplibregl.AttributionControl({
-    //   customAttribution: '© OpenStreetMap contributors',
-    //   compact: true,
-    // }), 'bottom-right');
     loadLocations();
   };
   const handleSearch = (e: React.FormEvent) => {
@@ -546,9 +530,9 @@ export default function LiveMapPage() {
     const subtextHtml = label !== popupText && popupText && !isPlaceholder ? `<div style="font-size:11px;color:#475569;display:flex;align-items:center;gap:4px">
          <span style="font-weight:bold;color:#FF7A1A">${driverWord}:</span> ${popupText}
        </div>` : '';
-    const marker = new window.maplibregl.Marker({
+    const marker = new maplibregl.Marker({
       element: el
-    }).setLngLat([lng, lat]).setPopup(new window.maplibregl.Popup({
+    }).setLngLat([lng, lat]).setPopup(new maplibregl.Popup({
       offset: 30
     }).setHTML(`
         <div style="font-family:sans-serif;padding:6px 8px;min-width:140px">
@@ -729,7 +713,7 @@ export default function LiveMapPage() {
 
         // Remove old ETA popup if exists
         if ((window as any).etaPopup) (window as any).etaPopup.remove();
-        (window as any).etaPopup = new window.maplibregl.Popup({
+        (window as any).etaPopup = new maplibregl.Popup({
           closeOnClick: false,
           offset: 15
         }).setLngLat(dest).setHTML(`
