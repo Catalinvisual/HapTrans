@@ -6,13 +6,6 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import api from '../lib/api';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
-const TRUCK_TRANSLATIONS: Record<string, string> = {
-  ro: 'Camion',
-  en: 'Truck',
-  nl: 'Vrachtwagen',
-  de: 'LKW',
-  fr: 'Camion'
-};
 const DRIVER_TRANSLATIONS: Record<string, string> = {
   ro: 'Șofer',
   en: 'Driver',
@@ -464,42 +457,8 @@ export default function LiveMapPage() {
       // Fallback
     }
   };
-  const createMarkerElement = (id: string, label: string, color: string, svgIcon: string, isTruck: boolean, lng: number, lat: number, popupText: string = '', isLive: boolean = false) => {
-    const el = document.createElement('div');
-    el.className = 'custom-marker';
-    el.style.display = 'flex';
-    el.style.flexDirection = 'column';
-    el.style.alignItems = 'center';
-    el.style.cursor = 'pointer';
-    el.style.transform = 'translate(-50%, -50%)'; // Anchor center
-    const lang = i18n.language || 'ro';
-    const driverWord = DRIVER_TRANSLATIONS[lang] || DRIVER_TRANSLATIONS['ro'];
-    const pulseHtml = isLive ? `<div style="position:absolute;width:100%;height:100%;border-radius:50%;background:${color};opacity:0.6;animation:ping 2s cubic-bezier(0,0,0.2,1) infinite;"></div>` : '';
-    el.innerHTML = `
-      <div class="marker-label" style="background:#0F172A;color:#FFFFFF;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:bold;white-space:nowrap;box-shadow:0 4px 10px rgba(0,0,0,0.3);margin-bottom:6px;border:1.5px solid #FF7A1A;display:flex;align-items:center;gap:6px">
-        ${isTruck ? '<span style="color:#FF7A1A">🚚</span>' : '👤'} ${label}
-      </div>
-      <div style="width:38px;height:38px;background:${color};border-radius:50%;display:flex;align-items:center;justify-content:center;border:2.5px solid white;box-shadow:0 0 15px rgba(255,122,26,0.6)">
-        ${svgIcon}
-      </div>
-    `;
-    el.addEventListener('click', () => {
-      let truck = trucksStateRef.current.find((t: any) => t.id === id);
-      if (!truck) {
-        const drv = driversStateRef.current.find((d: any) => d.id === id);
-        if (drv && drv.truck) {
-          truck = trucksStateRef.current.find((t: any) => t.id === drv.truck.id) || drv.truck;
-        }
-      }
-      if (truck) {
-        focusedTruckRef.current = truck;
-        drawRoute(truck);
-      }
-    }, true);
-    return el;
-  };
   const addMarker = (id: string, lng: number, lat: number, label: string, popupText: string, isTruck: boolean = true) => {
-    if (!mapInstance.current || !window.maplibregl) return;
+    if (!mapInstance.current) return;
     const existingMarker = markersRef.current[id];
     if (existingMarker) {
       const startLngLat = existingMarker.getLngLat();
@@ -541,7 +500,7 @@ export default function LiveMapPage() {
         ${svgIcon}
       </div>
     `;
-    el.addEventListener('click', e => {
+    el.addEventListener('click', () => {
       let truck = trucksStateRef.current.find((t: any) => t.id === id);
       if (!truck) {
         const drv = driversStateRef.current.find((d: any) => d.id === id);
@@ -943,6 +902,7 @@ export default function LiveMapPage() {
         // Update popup info
         const popup = existingMarker.getPopup();
         if (popup) {
+          const lang = i18n.language || 'ro';
           const driverWord = DRIVER_TRANSLATIONS[lang] || DRIVER_TRANSLATIONS['ro'];
           const isPlaceholder = driverName === '?ofer' || driverName === 'Șofer';
           const subHtml = !isPlaceholder && driverName ? `<div style="font-size:11px;color:#475569;display:flex;align-items:center;gap:4px">
