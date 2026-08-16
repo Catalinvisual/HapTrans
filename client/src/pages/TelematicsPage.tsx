@@ -198,18 +198,18 @@ export default function TelematicsPage() {
   };
 
   const statusOptions: SelectOption[] = [
-    { value: 'ALL', label: t('filter_all_statuses', 'All Statuses') },
-    { value: 'LIVE', label: 'LIVE', color: 'text-emerald-600' },
-    { value: 'STALE', label: 'STALE', color: 'text-amber-600' },
-    { value: 'OFFLINE', label: 'OFFLINE', color: 'text-rose-600' },
+    { value: 'ALL', label: t('filter_all_statuses', 'All Statuses'), color: 'bg-slate-400' },
+    { value: 'LIVE', label: 'LIVE', color: 'bg-emerald-500' },
+    { value: 'STALE', label: 'STALE', color: 'bg-amber-500' },
+    { value: 'OFFLINE', label: 'OFFLINE', color: 'bg-rose-500' },
   ];
 
   const providerOptions: SelectOption[] = [
-    { value: 'ALL', label: t('filter_all_providers', 'All Providers') },
-    { value: 'test_simulator', label: 'Test Simulator' },
-    { value: 'vdo', label: 'VDO TIS-Web' },
-    { value: 'stoneridge', label: 'Stoneridge' },
-    { value: 'generic', label: 'Generic FMS' },
+    { value: 'ALL', label: t('filter_all_providers', 'All Providers'), color: 'bg-slate-400' },
+    { value: 'test_simulator', label: 'Test Simulator', color: 'bg-indigo-500' },
+    { value: 'vdo', label: 'VDO TIS-Web', color: 'bg-blue-500' },
+    { value: 'stoneridge', label: 'Stoneridge', color: 'bg-purple-500' },
+    { value: 'generic', label: 'Generic FMS', color: 'bg-cyan-500' },
   ];
 
   const truckSelectOptions: SelectOption[] = [

@@ -82,14 +82,14 @@ export default function TachographPage() {
   };
 
   const activityOptions: SelectOption[] = [
-    { value: 'ALL', label: t('filter_all_activities', 'All Activities') },
-    { value: 'DRIVING', label: t('act_driving', 'Driving'), color: 'text-emerald-600' },
-    { value: 'BREAK', label: t('act_break', 'Break'), color: 'text-amber-600' },
-    { value: 'REST', label: t('act_rest', 'Rest'), color: 'text-indigo-600' },
-    { value: 'WORKING', label: t('act_working', 'Work'), color: 'text-blue-600' },
-    { value: 'LOADING', label: t('act_loading', 'Loading'), color: 'text-purple-600' },
-    { value: 'UNLOADING', label: t('act_unloading', 'Unloading'), color: 'text-fuchsia-600' },
-    { value: 'AVAILABILITY', label: t('act_availability', 'Availability'), color: 'text-slate-600' },
+    { value: 'ALL', label: t('filter_all_activities', 'All Activities'), color: 'bg-slate-400' },
+    { value: 'DRIVING', label: t('act_driving', 'Driving'), color: 'bg-emerald-500' },
+    { value: 'BREAK', label: t('act_break', 'Break'), color: 'bg-amber-500' },
+    { value: 'REST', label: t('act_rest', 'Rest'), color: 'bg-indigo-500' },
+    { value: 'WORKING', label: t('act_working', 'Work'), color: 'bg-blue-500' },
+    { value: 'LOADING', label: t('act_loading', 'Loading'), color: 'bg-purple-500' },
+    { value: 'UNLOADING', label: t('act_unloading', 'Unloading'), color: 'bg-fuchsia-500' },
+    { value: 'AVAILABILITY', label: t('act_availability', 'Availability'), color: 'bg-slate-500' },
   ];
 
   return (
