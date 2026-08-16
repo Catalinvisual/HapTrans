@@ -99,14 +99,49 @@ export class PlanningController {
     return this.planningService.updateTripStatus(req.user, tripId, body);
   }
 
+  @Post('trips/:tripId/validate')
+  validateTrip(@Request() req: any, @Param('tripId') tripId: string) {
+    return this.planningService.validateTrip(req.user, tripId);
+  }
+
   @Post('trips/:tripId/confirm')
   confirmTrip(@Request() req: any, @Param('tripId') tripId: string) {
     return this.planningService.confirmTrip(req.user, tripId);
   }
 
+  @Post('trips/:tripId/reopen')
+  reopenPlanning(@Request() req: any, @Param('tripId') tripId: string) {
+    return this.planningService.reopenPlanning(req.user, tripId);
+  }
+
   @Post('trips/:tripId/send-to-driver')
   sendToDriver(@Request() req: any, @Param('tripId') tripId: string, @Body() body: any) {
     return this.planningService.sendToDriver(req.user, tripId, body);
+  }
+
+  @Post('trips/:tripId/unassign-order')
+  unassignOrder(@Request() req: any, @Param('tripId') tripId: string, @Body() body: { orderId: string }) {
+    return this.planningService.unassignOrder(req.user, tripId, body.orderId);
+  }
+
+  @Post('trips/:tripId/unplan')
+  unplanTrip(@Request() req: any, @Param('tripId') tripId: string) {
+    return this.planningService.unplanTrip(req.user, tripId);
+  }
+
+  @Post('trips/:tripId/driver-received')
+  driverReceived(@Param('tripId') tripId: string) {
+    return this.planningService.driverReceived(tripId);
+  }
+
+  @Post('trips/:tripId/driver-accepted')
+  driverAccepted(@Param('tripId') tripId: string) {
+    return this.planningService.driverAccepted(tripId);
+  }
+
+  @Get('trips/:tripId/route')
+  getRoutePlanByTrip(@Request() req: any, @Param('tripId') tripId: string) {
+    return this.planningService.getRoutePlanByTrip(tripId, req.user);
   }
 
   @Post('combine')

@@ -340,14 +340,56 @@ export default function OrdersPage() {
       <div className="text-right font-bold text-text-primary whitespace-nowrap">€{Number(o.price || 0).toLocaleString()}</div>
     ) },
     { key: 'status', label: t('status', 'Status'), render: o => <StatusBadge status={o.status} label={t(`status_${o.status}`, o.status.replace(/_/g, ' ')) as string} /> },
-    { key: 'actions', label: t('actions', 'Actions'), align: 'right', render: o => (
-      <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
-         {o.status !== 'invoiced' && o.status !== 'paid' && o.status !== 'cancelled' && <button title={t('create_invoice', 'Create Invoice')} onClick={() => handleCreateInvoice(o)} className="p-1.5 rounded-md text-text-secondary hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10"><FileText className="w-4 h-4" /></button>}
-        {(o.status === 'in_transit' || o.status === 'assigned') && o.trip?.trackingToken && <button title={t('tracking_link', 'Tracking Link')} onClick={() => copyTracking(o)} className="p-1.5 rounded-md text-text-secondary hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10"><Copy className="w-4 h-4" /></button>}
-        <button title={t('edit', 'Edit')} onClick={() => handleEdit(o.id)} className="p-1.5 rounded-md text-text-secondary hover:text-primary hover:bg-primary/10"><Pencil className="w-4 h-4" /></button>
-        <button title={t('delete', 'Delete')} onClick={() => handleDeleteClick(o.id)} className="p-1.5 rounded-md text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></button>
-      </div>
-    ) },
+    { key: 'actions', label: t('actions', 'Actions'), align: 'right', render: o => {
+      const trip = o.trip;
+      const trackingToken = trip?.trackingToken;
+      const tripStatus = trip?.status || o.status;
+      const isActiveTracking = ['assigned', 'dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'in_transit'].includes(tripStatus);
+      const isDelivered = ['delivered', 'completed', 'pod_received', 'closed', 'invoiced', 'paid'].includes(tripStatus);
+
+      return (
+        <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+          {o.status !== 'invoiced' && o.status !== 'paid' && o.status !== 'cancelled' && (
+            <button title={t('create_invoice', 'Create Invoice')} onClick={() => handleCreateInvoice(o)} className="p-1.5 rounded-md text-text-secondary hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10">
+              <FileText className="w-4 h-4" />
+            </button>
+          )}
+          {trackingToken && (
+            <button
+              title={t('copy_tracking_link', 'Copy Customer Tracking Link')}
+              onClick={() => copyTracking(o)}
+              className="p-1.5 rounded-md text-text-secondary hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+          )}
+          {isActiveTracking && trip?.id && (
+            <button
+              title={t('live_tracking_btn', 'Live Tracking')}
+              onClick={() => navigate(`/tracking?tripId=${trip.id}`)}
+              className="p-1.5 rounded-md text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10"
+            >
+              <Navigation className="w-4 h-4 animate-pulse" />
+            </button>
+          )}
+          {isDelivered && trip?.id && (
+            <button
+              title={t('view_tracking_btn', 'View Tracking')}
+              onClick={() => navigate(`/tracking?tripId=${trip.id}`)}
+              className="p-1.5 rounded-md text-text-secondary hover:text-primary hover:bg-primary/10"
+            >
+              <Navigation className="w-4 h-4" />
+            </button>
+          )}
+          <button title={t('edit', 'Edit')} onClick={() => handleEdit(o.id)} className="p-1.5 rounded-md text-text-secondary hover:text-primary hover:bg-primary/10">
+            <Pencil className="w-4 h-4" />
+          </button>
+          <button title={t('delete', 'Delete')} onClick={() => handleDeleteClick(o.id)} className="p-1.5 rounded-md text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10">
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      );
+    } },
   ];
 
   const hasActiveFilters = Object.values(filters).some(v => v !== 'all' && v !== '') || search.trim() !== '';

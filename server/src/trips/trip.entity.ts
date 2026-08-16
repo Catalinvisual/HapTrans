@@ -83,6 +83,44 @@ export class Trip {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, nullable: true })
   actualProfit: number;
 
+  // Lifecycle & Validation
+  @Column({ type: 'varchar', default: 'not_validated' })
+  validationStatus: string; // 'not_validated' | 'validating' | 'feasible' | 'warning' | 'not_feasible'
+
+  @Column({ type: 'jsonb', nullable: true })
+  validationIssues: any[]; // [{ id, type: 'blocking' | 'warning', code, message, field, details }]
+
+  @Column({ type: 'boolean', default: false })
+  validationOutdated: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  confirmedAt: Date | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  confirmedBy: User | null;
+
+  // Dispatch & Versioning
+  @Column({ type: 'int', default: 1 })
+  dispatchVersion: number;
+
+  @Column({ type: 'timestamp', nullable: true })
+  dispatchedAt: Date | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  dispatchedBy: User | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  dispatchPayload: any;
+
+  @Column({ type: 'timestamp', nullable: true })
+  driverAcknowledgedAt: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  driverAcceptedAt: Date | null;
+
+  @Column({ type: 'boolean', default: false })
+  trackingActivated: boolean;
+
   // Pessimistic Locking
   @Column({ type: 'boolean', default: false })
   locked: boolean;

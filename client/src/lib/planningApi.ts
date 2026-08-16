@@ -74,4 +74,34 @@ export const planningApi = {
     const { data } = await api.post('/planning/shipments/from-orders', { orderIds });
     return data;
   },
+
+  // ─── Authoritative TRP Lifecycle Actions ───
+  validateTrip: async (tripId: string) => {
+    const { data } = await api.post(`/planning/trips/${tripId}/validate`);
+    return data;
+  },
+  confirmTrip: async (tripId: string) => {
+    const { data } = await api.post(`/planning/trips/${tripId}/confirm`);
+    return data;
+  },
+  reopenPlanning: async (tripId: string) => {
+    const { data } = await api.post(`/planning/trips/${tripId}/reopen`);
+    return data;
+  },
+  sendToDriver: async (tripId: string, payload?: any) => {
+    const { data } = await api.post(`/planning/trips/${tripId}/send-to-driver`, payload || {});
+    return data;
+  },
+  unassignOrder: async (tripId: string, orderId: string) => {
+    const { data } = await api.post(`/planning/trips/${tripId}/unassign-order`, { orderId });
+    return data;
+  },
+  unplanTrip: async (tripId: string) => {
+    const { data } = await api.post(`/planning/trips/${tripId}/unplan`);
+    return data;
+  },
+  getRoutePlanByTrip: async (tripId: string) => {
+    const { data } = await api.get(`/planning/trips/${tripId}/route`);
+    return data;
+  },
 };

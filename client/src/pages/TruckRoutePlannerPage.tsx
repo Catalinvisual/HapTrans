@@ -2,24 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import Flatpickr from 'react-flatpickr';
-import 'flatpickr/dist/themes/light.css';
 import {
-  Truck as TruckIcon, Package, Loader2, MapPin, AlertTriangle, X, Calendar, ArrowUp, ArrowDown,
-  Lock, Unlock, RotateCcw, RefreshCw, Sparkles, Save, ChevronLeft, Scale, Ruler, Box, Layers,
+  Package, Loader2, MapPin, AlertTriangle, X, ArrowUp, ArrowDown,
+  Lock, Unlock, RotateCcw, Sparkles, Save,
   CheckCircle2, Info, Route as RouteIcon, ClipboardList, GripVertical, GripHorizontal,
-  ShieldAlert, CircleCheck, CircleSlash, ArrowRight, Navigation,
+  ShieldAlert, ArrowRight, Navigation, ArrowLeft, ShieldCheck,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { planningApi } from '../lib/planningApi';
-
-const FEASIBILITY_STYLE: Record<string, { bg: string; text: string; label: string }> = {
-  feasible: { bg: 'bg-emerald-500/15 border-emerald-500/40', text: 'text-emerald-600', label: 'pln_feasible' },
-  warning: { bg: 'bg-amber-500/15 border-amber-500/40', text: 'text-amber-600', label: 'pln_warning' },
-  conflict: { bg: 'bg-red-500/15 border-red-500/40', text: 'text-red-600', label: 'pln_conflict' },
-  no_solution: { bg: 'bg-red-500/15 border-red-500/40', text: 'text-red-600', label: 'pln_no_solution' },
-};
 
 function fmtDate(d: string | Date | null | undefined) {
   if (!d) return '—';
@@ -30,60 +21,6 @@ function fmtDate(d: string | Date | null | undefined) {
   });
 }
 
-function LoadBar({ label, value, max, icon: Icon, unit = '' }: { label: string; value: number; max: number; icon: any; unit?: string }) {
-  const numVal = Number(value) || 0;
-  const numMax = Number(max) || 1;
-  const pct = numMax > 0 ? (numVal / numMax) * 100 : 0;
-  const displayPct = Math.min(100, pct);
-
-  // 3-Color progression:
-  // <= 75%: Green (emerald)
-  // 75% - 95%: Orange (amber)
-  // > 95% or overloaded: Red
-  let barColor = 'bg-emerald-500';
-  let textColor = 'text-emerald-600 font-semibold';
-  let iconColor = 'text-emerald-500';
-  if (pct > 95) {
-    barColor = 'bg-red-500';
-    textColor = 'text-red-500 font-black';
-    iconColor = 'text-red-500';
-  } else if (pct > 75) {
-    barColor = 'bg-amber-500';
-    textColor = 'text-amber-600 font-bold';
-    iconColor = 'text-amber-500';
-  } else {
-    textColor = 'text-text-secondary';
-    iconColor = 'text-text-muted';
-  }
-
-  const formatVal = (v: number) => {
-    if (label.toLowerCase().includes('ldm')) return Number(v).toFixed(2);
-    if (label.toLowerCase().includes('volume')) return Number(v).toFixed(1);
-    if (label.toLowerCase().includes('weight')) return Math.round(v).toLocaleString();
-    return Math.round(v).toString();
-  };
-
-  return (
-    <div className="flex items-center gap-2">
-      <Icon className={`w-3.5 h-3.5 shrink-0 ${iconColor}`} />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between text-[10px] mb-0.5">
-          <span className="font-bold text-text-secondary uppercase tracking-wide">{label}</span>
-          <span className={textColor}>
-            {formatVal(numVal)} / {formatVal(numMax)}{unit ? ` ${unit}` : ''}
-          </span>
-        </div>
-        <div className="h-1.5 rounded-full bg-surface overflow-hidden border border-border/40">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-            style={{ width: `${displayPct}%` }}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function TruckRoutePlannerPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -91,7 +28,7 @@ export default function TruckRoutePlannerPage() {
   const [searchParams] = useSearchParams();
   const queryDate = searchParams.get('date');
   const queryTrip = searchParams.get('trip');
-  const [date, setDate] = useState<string>(queryDate || new Date().toISOString().split('T')[0]);
+  const [date] = useState<string>(queryDate || new Date().toISOString().split('T')[0]);
 
   const [routePlan, setRoutePlan] = useState<any>(null);
   const [selectedProfile, setSelectedProfile] = useState<string>('');
@@ -101,6 +38,8 @@ export default function TruckRoutePlannerPage() {
   const [dirty, setDirty] = useState(false);
   const [proposedPlan, setProposedPlan] = useState<any>(null);
   const [showProposal, setShowProposal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showReopenModal, setShowReopenModal] = useState(false);
   const [validationResult, setValidationResult] = useState<any>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -111,10 +50,72 @@ export default function TruckRoutePlannerPage() {
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const [mapReady, setMapReady] = useState(false);
 
+  const effectiveTripId = useMemo(() => {
+    return queryTrip || routePlan?.tripId || routePlan?.trip?.id || null;
+  }, [queryTrip, routePlan]);
+
+  const tripStatus = useMemo(() => {
+    return String(routePlan?.tripStatus || routePlan?.trip?.status || 'planning').toLowerCase();
+  }, [routePlan]);
+
+  const isConfirmed = tripStatus === 'confirmed';
+  const isDispatched = ['dispatched', 'driver_received', 'driver_accepted', 'started', 'loading', 'driving', 'in_transit', 'partially_delivered', 'completed', 'closed'].includes(tripStatus);
+  const isPlanningLocked = isConfirmed || isDispatched;
+
+  const loadPlan = async (d: string, silent = false) => {
+    if (!truckId) return;
+    if (!silent) setLoading(true);
+    try {
+      let plan: any = null;
+      if (queryTrip) {
+        try {
+          plan = await planningApi.getRoutePlanByTrip(queryTrip);
+        } catch {
+          plan = await planningApi.createRoutePlanFromTrip(truckId, queryTrip);
+        }
+      }
+      if (!plan) {
+        plan = await planningApi.getRoutePlan(truckId, d);
+      }
+      setRoutePlan(plan);
+      setDirty(false);
+      setProposedPlan(null);
+      setShowProposal(false);
+      if (plan?.validationIssues?.length || plan?.conflicts?.length) {
+        const blocking = (plan.validationIssues || plan.conflicts || []).filter((c: any) => c.blocking || c.hard || c.severity === 'error');
+        const warns = (plan.validationIssues || plan.warnings || []).filter((c: any) => !c.blocking && !c.hard && c.severity !== 'error');
+        setValidationResult({ conflicts: blocking, warnings: warns, completeness: [] });
+      } else {
+        setValidationResult(null);
+      }
+      if (plan && plan.optimizationMetadata?.profileId) {
+        setSelectedProfile(plan.optimizationMetadata.profileId);
+      }
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        setRoutePlan(null);
+      } else {
+        toast.error(err?.response?.data?.message || t('pln_load_error', 'Failed to load route plan'));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadProfiles = useCallback(async () => {
+    try {
+      const profs = await planningApi.getProfiles();
+      if (profs?.length && !selectedProfile) setSelectedProfile(profs[0].id);
+    } catch {
+    }
+  }, [selectedProfile]);
+
+  useEffect(() => { loadProfiles(); }, [loadProfiles]);
+  useEffect(() => { loadPlan(date); }, [truckId, date, queryTrip]);
+
   const sortedStops = useMemo(() => {
     const raw = [...(routePlan?.stops || [])].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
 
-    // Map pickup cargo per order
     const orderCargo = new Map<string, { pal: number; wt: number; ldm: number; vol: number }>();
     raw.forEach((s: any) => {
       if (s.orderId && s.type === 'pickup') {
@@ -176,7 +177,6 @@ export default function TruckRoutePlannerPage() {
     });
   }, [routePlan]);
 
-  // Dynamically compute live metrics (peak load, distance, duration) from the stops
   const metrics = useMemo(() => {
     let cumPal = 0;
     let cumWt = 0;
@@ -247,46 +247,6 @@ export default function TruckRoutePlannerPage() {
     };
   }, [sortedStops, routePlan]);
 
-  const loadPlan = async (d: string, silent = false) => {
-    if (!truckId) return;
-    if (!silent) setLoading(true);
-    try {
-      let plan = await planningApi.getRoutePlan(truckId, d);
-      if (!plan && queryTrip) {
-        plan = await planningApi.createRoutePlanFromTrip(truckId, queryTrip);
-      }
-      setRoutePlan(plan);
-      setDirty(false);
-      setProposedPlan(null);
-      setShowProposal(false);
-      setValidationResult(null);
-      if (plan && plan.optimizationMetadata?.profileId) {
-        setSelectedProfile(plan.optimizationMetadata.profileId);
-      }
-    } catch (err: any) {
-      if (err?.response?.status === 404) {
-        setRoutePlan(null);
-      } else {
-        toast.error(err?.response?.data?.message || t('pln_load_error', 'Failed to load route plan'));
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadProfiles = useCallback(async () => {
-    try {
-      const profs = await planningApi.getProfiles();
-      if (profs?.length && !selectedProfile) setSelectedProfile(profs[0].id);
-    } catch {
-      // profiles are optional
-    }
-  }, [selectedProfile]);
-
-  useEffect(() => { loadProfiles(); }, [loadProfiles]);
-  useEffect(() => { loadPlan(date); }, [truckId, date]);
-
-  // Map init
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return;
     const map = new maplibregl.Map({
@@ -315,7 +275,6 @@ export default function TruckRoutePlannerPage() {
     };
   }, []);
 
-  // Draw stops + route
   useEffect(() => {
     const map = mapInstance.current;
     if (!map || !mapReady) return;
@@ -357,35 +316,26 @@ export default function TruckRoutePlannerPage() {
           <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: ${isPickup ? '#2563eb' : '#059669'}; margin-bottom: 2px;">
             ${isPickup ? 'PICKUP' : 'DELIVERY'} #${s.sequence}
           </div>
-          <div style="font-size: 13px; font-weight: 700; color: #1e293b; line-height: 1.2;">
-            ${s.companyName || s.city || s.address}
+          <div style="font-size: 12px; font-weight: 700; color: #0f172a; margin-bottom: 2px;">
+            ${s.companyName || s.city || 'Stop'}
           </div>
-          <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+          <div style="font-size: 11px; color: #64748b;">
             ${s.address ? s.address + ', ' : ''}${s.city || ''}
           </div>
-          <div style="font-size: 11px; font-weight: 600; color: #334155; margin-top: 4px; border-top: 1px solid #e2e8f0; padding-top: 4px;">
-            Cargo: ${Math.round(s.pallets || 0)} pal · ${Math.round(s.weightKg || 0)} kg
-          </div>
+          ${s.pallets ? `<div style="font-size: 10px; color: #475569; margin-top: 4px;">📦 ${s.pallets} pal · ${s.weightKg || 0} kg</div>` : ''}
+          ${s.timeFrom || s.timeUntil ? `<div style="font-size: 10px; color: #d97706; margin-top: 2px;">⏰ ${s.timeFrom || ''} - ${s.timeUntil || ''}</div>` : ''}
         </div>
       `;
 
-      const popup = new maplibregl.Popup({ offset: 15, closeButton: false }).setHTML(popupHtml);
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([lng, lat])
-        .setPopup(popup)
-        .addTo(map);
-
-      el.addEventListener('click', () => {
-        setActiveStopId(s.id);
-      });
-
+      const popup = new maplibregl.Popup({ offset: 12, closeButton: false }).setHTML(popupHtml);
+      const marker = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).setPopup(popup).addTo(map);
       markersRef.current.push(marker);
     }
 
-    if (stopsWithCoords.length) {
-      try { map.fitBounds(bounds, { padding: 80, maxZoom: 13 }); } catch {}
+    if (stopsWithCoords.length > 0) {
+      map.fitBounds(bounds, { padding: 50, maxZoom: 13, duration: 600 });
     }
-  }, [mapReady, sortedStops]);
+  }, [sortedStops, mapReady]);
 
   const fitRouteBounds = () => {
     const map = mapInstance.current;
@@ -468,6 +418,42 @@ export default function TruckRoutePlannerPage() {
     }
   };
 
+  const handleConfirmPlan = async () => {
+    if (!effectiveTripId) {
+      toast.error('No associated TRP found to confirm.');
+      return;
+    }
+    setActionLoading('confirm');
+    try {
+      await planningApi.confirmTrip(effectiveTripId);
+      toast.success(t('jsx_confirmedOk', 'Trip confirmed'));
+      setShowConfirmModal(false);
+      await loadPlan(date, true);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('pln_validate_error', 'Confirmation failed'));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReopenPlanning = async () => {
+    if (!effectiveTripId) {
+      toast.error('No associated TRP found to reopen.');
+      return;
+    }
+    setActionLoading('reopen');
+    try {
+      await planningApi.reopenPlanning(effectiveTripId);
+      toast.success(t('reopen_planning_ok', 'Planning reopened. Plan is now editable.'));
+      setShowReopenModal(false);
+      await loadPlan(date, true);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to reopen planning');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleSave = async () => {
     if (!routePlan) return;
     setActionLoading('save');
@@ -489,7 +475,6 @@ export default function TruckRoutePlannerPage() {
     }
   };
 
-  // Validates that all pickups occur strictly before deliveries for the same order
   const validatePickupBeforeDelivery = (stopsList: any[]): boolean => {
     const byOrder = new Map<string, { pickupIdx: number; deliveryIdx: number }>();
     for (let i = 0; i < stopsList.length; i++) {
@@ -509,8 +494,11 @@ export default function TruckRoutePlannerPage() {
     return true;
   };
 
-  // Reorder via a compute-only call (not persisted until Save)
   const applyReorder = async (ordered: any[]) => {
+    if (isPlanningLocked) {
+      toast.error(t('pln_confirmed_locked', 'Plan is confirmed and locked. Click Reopen Planning to make edits.'));
+      return;
+    }
     if (!validatePickupBeforeDelivery(ordered)) {
       toast.error(t('pln_pickup_before_delivery', 'Delivery cannot be scheduled before pickup for the same order!'));
       return;
@@ -529,42 +517,107 @@ export default function TruckRoutePlannerPage() {
     }
   };
 
-  const handleMove = async (fromIdx: number, toIdx: number) => {
-    if (!routePlan || toIdx < 0 || toIdx >= sortedStops.length) return;
-    const next = [...sortedStops];
-    const [moved] = next.splice(fromIdx, 1);
-    next.splice(toIdx, 0, moved);
-    await applyReorder(next);
-  };
-
-  const handleDrop = (targetId: string) => {
-    if (!dragId || dragId === targetId) return;
-    setDragOverId(null);
-    setDragId(null);
-    const fromIdx = sortedStops.findIndex((s: any) => s.id === dragId);
-    const toIdx = sortedStops.findIndex((s: any) => s.id === targetId);
-    if (fromIdx < 0 || toIdx < 0) return;
+  const handleMove = (fromIdx: number, toIdx: number) => {
+    if (fromIdx < 0 || toIdx < 0 || fromIdx >= sortedStops.length || toIdx >= sortedStops.length) return;
     const next = [...sortedStops];
     const [moved] = next.splice(fromIdx, 1);
     next.splice(toIdx, 0, moved);
     applyReorder(next);
   };
 
+  const handleToggleLock = async (stop: any, forceValue?: boolean) => {
+    if (isPlanningLocked) {
+      toast.error(t('pln_confirmed_locked', 'Plan is confirmed and locked. Click Reopen Planning to make edits.'));
+      return;
+    }
+    const nextLocked = forceValue !== undefined ? forceValue : !stop.locked;
+    try {
+      if (nextLocked) {
+        await planningApi.lockStop(stop.id, routePlan?.id || '', true);
+      } else {
+        await planningApi.unlockStop(stop.id, routePlan?.id || '');
+      }
+      await loadPlan(date, true);
+      toast.success(nextLocked ? t('pln_locked_ok', 'Stop locked') : t('pln_unlocked_ok', 'Stop unlocked'));
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to update stop lock');
+    }
+  };
+
+  const handleDrop = (targetStopId: string) => {
+    if (!dragId || dragId === targetStopId) return;
+    const fromIdx = sortedStops.findIndex((s: any) => s.id === dragId);
+    const toIdx = sortedStops.findIndex((s: any) => s.id === targetStopId);
+    if (fromIdx >= 0 && toIdx >= 0) {
+      handleMove(fromIdx, toIdx);
+    }
+    setDragId(null);
+    setDragOverId(null);
+  };
+
+  const trip = routePlan?.trip || {};
+  const truck = routePlan?.truck || trip.truck || null;
+  const driver = routePlan?.driver || trip.driver || truck?.driver || null;
+  const trailer = routePlan?.trailer || trip.trailer || null;
+  const trpNumber = routePlan?.tripNumber || trip.tripNumber || (queryTrip ? `TRP` : t('pln_planner', 'Route Planner'));
+
+  const effectiveTripStatus = String(routePlan?.tripStatus || trip.status || 'planning').toLowerCase();
+  const effectiveValidationStatus = String(routePlan?.validationStatus || trip.validationStatus || 'not_validated').toLowerCase();
+
+  const isNotFeasible = effectiveValidationStatus === 'not_feasible' || (validationResult?.conflicts?.length > 0);
+
+  const statusBadgeClass = useMemo(() => {
+    switch (effectiveTripStatus) {
+      case 'confirmed': return 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600';
+      case 'dispatched': return 'bg-blue-500/10 border-blue-500/30 text-blue-600';
+      case 'driver_received':
+      case 'driver_accepted':
+      case 'started':
+      case 'in_transit': return 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600';
+      case 'completed': return 'bg-purple-500/10 border-purple-500/30 text-purple-600';
+      default: return 'bg-surface border-border text-text-secondary';
+    }
+  }, [effectiveTripStatus]);
+
+  const validationBadgeClass = useMemo(() => {
+    switch (effectiveValidationStatus) {
+      case 'feasible': return 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600';
+      case 'warning': return 'bg-amber-500/10 border-amber-500/30 text-amber-600';
+      case 'not_feasible': return 'bg-red-500/10 border-red-500/30 text-red-600';
+      default: return 'bg-surface border-border text-text-secondary';
+    }
+  }, [effectiveValidationStatus]);
+
+  const cap = useMemo(() => {
+    return {
+      maxWeightKg: Number(truck?.payloadCapacity || truck?.maxWeightKg || 24000),
+      maxPallets: Number(truck?.maxPallets || 33),
+      maxLdm: Number(truck?.loadingMeters || 13.6),
+      maxVolumeCbm: Number(truck?.volumeCbm || 86),
+    };
+  }, [truck]);
+
+  const metadata = routePlan?.optimizationMetadata || {};
+  const before = metadata?.before;
+  const after = metadata?.after;
+
   const handleValidate = async () => {
-    if (!routePlan) return;
+    if (!effectiveTripId) {
+      toast.error('No associated TRP found to validate.');
+      return;
+    }
     setActionLoading('validate');
     try {
-      const res = await planningApi.validateRoutePlan(truckId, date);
+      const res = await planningApi.validateTrip(effectiveTripId);
       setValidationResult(res);
-      setShowLoadPanel(true);
-      const totalIssues = (res.conflicts?.length || 0) + (res.warnings?.length || 0) + (res.completeness?.length || 0);
-      if (totalIssues === 0) {
-        toast.success(t('pln_validate_clean', 'Route plan is valid and feasible!'));
-      } else if (res.conflicts?.length) {
-        toast.error(`${res.conflicts.length} conflict(s) found in route plan.`);
+      if (res.validationStatus === 'feasible') {
+        toast.success(t('validation_feasible_ok', 'Route plan is feasible and validated.'));
+      } else if (res.validationStatus === 'warning') {
+        toast(t('validation_warning_msg', 'Route plan is feasible with warnings.'), { icon: '⚠️' });
       } else {
-        toast((t('pln_validate_warnings', 'Plan valid with warnings.')), { icon: '⚠️' });
+        toast.error(t('validation_not_feasible_err', 'Plan is not feasible. Resolve blocking issues before confirming.'));
       }
+      await loadPlan(date, true);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || t('pln_validate_error', 'Validation failed'));
     } finally {
@@ -572,160 +625,147 @@ export default function TruckRoutePlannerPage() {
     }
   };
 
-  const handleToggleLock = async (stop: any, lockSequence = false) => {
-    setActionLoading(stop.id);
-    try {
-      if (stop.locked) {
-        await planningApi.unlockStop(stop.id, routePlan.id);
-        toast.success(t('pln_unlocked', 'Stop unlocked'));
-      } else {
-        await planningApi.lockStop(stop.id, routePlan.id, lockSequence);
-        toast.success(t('pln_locked', 'Stop locked in sequence'));
-      }
-      await loadPlan(date, true);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || t('pln_lock_error', 'Lock action failed'));
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const metadata = routePlan?.optimizationMetadata || {};
-  const before = metadata.before;
-  const after = metadata.after;
-  const feasibility = routePlan?.feasibilityStatus || 'feasible';
-  const fsStyle = FEASIBILITY_STYLE[feasibility] || FEASIBILITY_STYLE.feasible;
-
-  // Real capacity limits directly from truck / routePlan
-  const truckObj = routePlan?.truck || routePlan?.trip?.truck;
-  const cap = {
-    maxPallets: Number(truckObj?.maxPallets) || Number(routePlan?.maxPallets) || 33,
-    maxWeightKg: Number(truckObj?.payloadCapacity) || Number(truckObj?.maxWeightKg) || Number(routePlan?.maxWeightKg) || 24000,
-    maxLdm: Number(truckObj?.maxLdm) || Number(routePlan?.maxLdm) || 13.6,
-    maxVolumeCbm: Number(truckObj?.maxVolumeCbm) || Number(routePlan?.maxVolumeCbm) || 85,
-  };
-
   return (
-    <div className="flex flex-col h-screen bg-background">
-      {/* ── Header ── */}
-      <header className="shrink-0 px-4 py-3 border-b border-border bg-card flex flex-wrap items-center gap-3">
-        <button onClick={() => navigate('/planning')} className="p-2 rounded-xl hover:bg-surface text-text-secondary hover:text-primary transition-colors" title={t('pln_back', 'Back to planning board')}>
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-            <TruckIcon className="w-5 h-5 text-primary" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-lg font-black text-text-primary leading-tight truncate">
-              {routePlan?.truck?.plateNumber || t('pln_planner', 'Truck Route & Load Planner')}
-            </h1>
-            <p className="text-xs text-text-secondary truncate">
-              {routePlan?.driver?.user?.name || routePlan?.driver?.name || routePlan?.truck?.driver?.user?.name || routePlan?.truck?.driver?.name || t('pln_no_driver', 'No driver')} {routePlan?.trip?.tripNumber ? `· ${routePlan.trip.tripNumber}` : ''}
-            </p>
+    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-full overflow-hidden bg-background text-text-primary">
+      {/* Header bar */}
+      <header className="px-5 py-3 border-b border-border bg-card/80 backdrop-blur shrink-0 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/planning')} className="p-2 rounded-xl bg-surface hover:bg-border text-text-secondary hover:text-text-primary transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="px-2.5 py-1 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-black">
+                {trpNumber}
+              </span>
+              <h1 className="text-base font-black text-text-primary flex items-center gap-2">
+                <span>{truck?.plateNumber || t('pln_planner', 'Route Planner')}</span>
+                {truck?.brand && <span className="text-xs text-text-muted font-semibold">({truck.brand} {truck.model || ''})</span>}
+              </h1>
+              {/* TRP Lifecycle Status Badge */}
+              <span className={`px-2.5 py-0.5 text-xs font-black rounded-full border uppercase ${statusBadgeClass}`}>
+                {t(`status_${effectiveTripStatus}`, effectiveTripStatus)}
+              </span>
+              {/* Feasibility Status Badge */}
+              <span className={`px-2.5 py-0.5 text-xs font-black rounded-full border uppercase flex items-center gap-1 ${validationBadgeClass}`}>
+                <ShieldCheck className="w-3 h-3" />
+                {t(`status_${effectiveValidationStatus}`, effectiveValidationStatus)}
+              </span>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-text-secondary mt-1">
+              <span>{t('export_col_driver', 'Driver')}: <strong className="text-text-primary">{driver?.user?.name || driver?.user?.email || '—'}</strong></span>
+              <span>·</span>
+              <span>{t('export_col_trailer', 'Trailer')}: <strong className="text-text-primary">{trailer?.plateNumber || '—'}</strong></span>
+              <span>·</span>
+              <span>{sortedStops.length} {t('jsx_stops', 'stops')}</span>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 ml-1">
-          {/* Modern Flatpickr Calendar with full date visibility */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface border border-border shrink-0 min-w-[135px]">
-            <Calendar className="w-4 h-4 text-primary shrink-0" />
-            <Flatpickr
-              value={date}
-              onChange={([d]) => {
-                if (d) {
-                  const y = d.getFullYear();
-                  const m = String(d.getMonth() + 1).padStart(2, '0');
-                  const day = String(d.getDate()).padStart(2, '0');
-                  setDate(`${y}-${m}-${day}`);
-                }
-              }}
-              options={{ dateFormat: 'd/m/Y', allowInput: false }}
-              className="bg-transparent text-xs font-bold text-text-primary outline-none w-28 cursor-pointer"
-            />
-          </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Action buttons */}
+          <button
+            onClick={handleSave}
+            disabled={!dirty || !!actionLoading || isPlanningLocked}
+            className="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5 font-bold disabled:opacity-40"
+            title={t('save_draft', 'Save Draft')}
+          >
+            <Save className="w-4 h-4" />
+            <span>{t('save_draft', 'Save Draft')}</span>
+          </button>
 
-          <span className={`px-2.5 py-1 rounded-lg border text-xs font-black uppercase ${fsStyle.bg} ${fsStyle.text}`}>
-            {String(t(fsStyle.label, feasibility))}
-          </span>
-          {routePlan?.isOptimized && (
-            <span className="px-2.5 py-1 rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-600 text-xs font-black uppercase flex items-center gap-1">
-              <Sparkles className="w-3 h-3" />{t('pln_optimized', 'Optimized')}
-            </span>
-          )}
-          {dirty && (
-            <span className="px-2.5 py-1 rounded-lg border border-amber-500/50 bg-amber-500/10 text-amber-600 text-xs font-black uppercase flex items-center gap-1">
-              <CircleSlash className="w-3 h-3" />{t('pln_unsaved', 'Unsaved changes')}
-            </span>
-          )}
-          {validationResult && (
+          <button
+            onClick={handleRecalculate}
+            disabled={!!actionLoading}
+            className="btn-secondary text-xs py-2 px-3 flex items-center gap-1 font-bold disabled:opacity-40"
+            title={t('pln_recalculate_loads', 'Recalculate Loads')}
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span className="hidden xl:inline">{t('pln_recalculate', 'Recalculate')}</span>
+          </button>
+
+          <button
+            onClick={handleReset}
+            disabled={!!actionLoading || isPlanningLocked}
+            className="btn-secondary text-xs py-2 px-3 flex items-center gap-1 font-bold text-text-muted hover:text-red-600 disabled:opacity-40"
+            title={t('pln_reset_plan', 'Reset Route')}
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span className="hidden xl:inline">{t('pln_reset', 'Reset')}</span>
+          </button>
+
+          <button
+            onClick={() => handleOptimize()}
+            disabled={!!actionLoading || isPlanningLocked}
+            className="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5 font-bold border-violet-500/30 text-violet-600 hover:bg-violet-500/10 disabled:opacity-40"
+            title={t('optimize_plan_btn', 'Optimize Route')}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>{t('optimize_plan_btn', 'Optimize')}</span>
+          </button>
+
+          <button
+            onClick={handleValidate}
+            disabled={!!actionLoading}
+            className="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5 font-bold disabled:opacity-40"
+            title={t('validate_plan_btn', 'Validate Plan')}
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            <span>{t('validate_plan_btn', 'Validate')}</span>
+          </button>
+
+          {isPlanningLocked ? (
             <button
-              onClick={() => setShowLoadPanel(v => !v)}
-              className="px-2.5 py-1 rounded-lg border border-red-500/40 bg-red-500/10 text-red-600 text-xs font-black uppercase flex items-center gap-1"
+              onClick={() => setShowReopenModal(true)}
+              disabled={!!actionLoading}
+              className="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5 font-bold text-amber-600 hover:bg-amber-500/10 border-amber-500/30"
+              title={t('action_reopen_planning', 'Reopen Planning')}
             >
-              <ShieldAlert className="w-3 h-3" />{(validationResult.conflicts?.length || 0) + (validationResult.warnings?.length || 0) + (validationResult.completeness?.length || 0)}
+              <Unlock className="w-4 h-4" />
+              <span>{t('action_reopen_planning', 'Reopen Planning')}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowConfirmModal(true)}
+              disabled={!!actionLoading || isNotFeasible}
+              className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-black shadow-md shadow-primary/20 disabled:opacity-40"
+              title={t('action_confirm_plan', 'Confirm Plan')}
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{t('action_confirm_plan', 'Confirm Plan')}</span>
             </button>
           )}
         </div>
-
-        <div className="flex-1" />
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => setShowLoadPanel(v => !v)}
-            className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold"
-            title={t('pln_load_panel', 'Loading sequence & load timeline')}
-          >
-            <Layers className="w-4 h-4" />{t('pln_load_plan', 'Load Plan')}
-          </button>
-          <button onClick={handleValidate} disabled={!!actionLoading || !routePlan} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold disabled:opacity-50" title={t('pln_validate_btn', 'Check plan for capacity, pickup/delivery order and data completeness')}>
-            {actionLoading === 'validate' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CircleCheck className="w-4 h-4" />}
-            {t('pln_validate_btn', 'Validate')}
-          </button>
-          <button onClick={handleRecalculate} disabled={!!actionLoading} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold disabled:opacity-50">
-            {actionLoading === 'recalculate' ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            {t('pln_recalc', 'Recalculate')}
-          </button>
-          <button onClick={handleReset} disabled={!!actionLoading} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold disabled:opacity-50">
-            <RotateCcw className="w-4 h-4" />{t('pln_reset', 'Reset')}
-          </button>
-          <button onClick={handleSave} disabled={!!actionLoading || !routePlan} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold disabled:opacity-50">
-            <Save className="w-4 h-4" />{t('pln_save', 'Save')}
-          </button>
-          <button onClick={handleOptimize} disabled={!!actionLoading || !routePlan || sortedStops.length < 2} className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-black shadow shadow-primary/20 disabled:opacity-50">
-            {actionLoading === 'optimize' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {t('pln_optimize', 'Optimize')}
-          </button>
-        </div>
       </header>
 
-      {/* ── Capacity strip ── */}
-      <div className="shrink-0 px-4 py-2.5 border-b border-border bg-surface/40 grid grid-cols-2 md:grid-cols-4 gap-3">
-        <LoadBar label={t('pallets', 'Pallets')} value={metrics.peakPallets} max={cap.maxPallets} icon={Box} />
-        <LoadBar label={t('weight_kg', 'Weight')} value={metrics.peakWeightKg} max={cap.maxWeightKg} icon={Scale} unit="kg" />
-        <LoadBar label={t('jsx_ldm', 'LDM')} value={metrics.peakLdm} max={cap.maxLdm} icon={Ruler} unit="m" />
-        <LoadBar label={t('jsx_volume', 'Volume')} value={metrics.peakVolumeCbm} max={cap.maxVolumeCbm} icon={Box} unit="m³" />
-      </div>
-
-      {/* ── Body ── */}
-      <div className="flex-1 overflow-hidden flex">
-        {/* Route sequence list */}
-        <section className="w-full lg:w-96 xl:w-[28rem] shrink-0 border-r border-border bg-card flex flex-col">
-          <div className="px-4 py-2.5 border-b border-border flex items-center justify-between shrink-0">
-            <h2 className="text-sm font-black text-text-primary flex items-center gap-2">
-              <RouteIcon className="w-4 h-4 text-primary" />{t('pln_route_seq', 'Route Sequence')}
-              <span className="text-[10px] font-bold text-text-muted">({sortedStops.length})</span>
-            </h2>
-            <span className="text-[11px] font-bold text-text-secondary">
-              {t('pln_total_dist', 'Dist')}: <span className="text-text-primary font-black">{metrics.totalDistanceKm} km</span> ·{' '}
-              {t('pln_duration', 'Dur')}: <span className="text-text-primary font-black">{Math.round(metrics.totalDurationMinutes / 60)}h</span>
-            </span>
+      {/* Main split view: Stops sequence on left, Map on right */}
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        {/* Sequence List on Left */}
+        <section className="w-96 lg:w-[420px] shrink-0 border-r border-border bg-card flex flex-col min-h-0">
+          <div className="p-3 border-b border-border/70 flex items-center justify-between text-xs bg-surface/30">
+            <span className="font-bold text-text-primary">{t('pln_stop_sequence', 'Stop Sequence')} ({sortedStops.length})</span>
+            <span className="text-[11px] text-text-muted">{t('pln_drag_to_reorder', 'Drag to reorder')}</span>
           </div>
 
           <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
-            {loading && (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 className="w-7 h-7 animate-spin text-primary opacity-70" />
+            {/* Blocking issues banner */}
+            {!loading && validationResult?.conflicts?.length > 0 && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 space-y-2 mb-3">
+                <div className="flex items-center gap-2 text-red-600 font-bold text-xs">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{t('pln_blocking_issues', 'Blocking Issues')} ({validationResult.conflicts.length})</span>
+                </div>
+                <p className="text-[11px] text-red-500/90 leading-tight">
+                  {t('pln_blocking_hint', 'These issues must be resolved before confirming the transport plan.')}
+                </p>
+                <div className="space-y-1.5 pt-1">
+                  {validationResult.conflicts.map((c: any, ci: number) => (
+                    <div key={ci} className="text-xs p-2 rounded-lg bg-card border border-red-500/20 text-red-700 font-medium flex items-start gap-1.5 shadow-xs">
+                      <span className="font-bold text-red-500 shrink-0">⛔</span>
+                      <span className="flex-1 leading-snug">{c.message}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -1112,6 +1152,80 @@ export default function TruckRoutePlannerPage() {
               <button onClick={handleApplyOptimization} disabled={!!actionLoading} className="btn-primary text-xs py-2 px-5 font-black shadow shadow-primary/20 disabled:opacity-50 flex items-center gap-1.5">
                 {actionLoading === 'apply' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                 {t('pln_apply', 'Apply optimization')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Plan Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 shrink-0">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-text-primary">{t('confirm_plan_title', 'Confirm Plan')}</h3>
+                <p className="text-xs text-text-secondary">{routePlan?.tripNumber || (queryTrip ? `TRP` : 'Transport Plan')}</p>
+              </div>
+            </div>
+            <p className="text-xs text-text-secondary leading-relaxed">
+              {t('confirm_plan_dialog', 'Confirm this transport plan? This will lock the route, stop sequence, and cargo as an operational commitment.')}
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                disabled={!!actionLoading}
+                className="btn-secondary text-xs py-2 px-4 font-bold"
+              >
+                {t('pln_cancel', 'Cancel')}
+              </button>
+              <button
+                onClick={handleConfirmPlan}
+                disabled={!!actionLoading}
+                className="btn-primary text-xs py-2 px-4 font-black flex items-center gap-1.5"
+              >
+                {actionLoading === 'confirm' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                {t('action_confirm_plan', 'Confirm Plan')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reopen Planning Modal */}
+      {showReopenModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-text-primary">{t('reopen_planning_title', 'Reopen Planning')}</h3>
+                <p className="text-xs text-text-secondary">{routePlan?.tripNumber || (queryTrip ? `TRP` : 'Transport Plan')}</p>
+              </div>
+            </div>
+            <p className="text-xs text-text-secondary leading-relaxed">
+              {t('reopen_planning_dialog', 'This change will invalidate the current confirmed plan and require re-validation. Are you sure you want to reopen planning?')}
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowReopenModal(false)}
+                disabled={!!actionLoading}
+                className="btn-secondary text-xs py-2 px-4 font-bold"
+              >
+                {t('pln_cancel', 'Cancel')}
+              </button>
+              <button
+                onClick={handleReopenPlanning}
+                disabled={!!actionLoading}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm"
+              >
+                {actionLoading === 'reopen' ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                {t('action_reopen_planning', 'Reopen Planning')}
               </button>
             </div>
           </div>

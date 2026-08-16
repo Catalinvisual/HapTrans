@@ -830,6 +830,15 @@ function TripDetailDrawer({
             <div className="flex items-center gap-3">
               <h2 className="text-xl font-black text-text-primary">{trip.tripNumber || tripSummary.tripNumber || 'Trip'}</h2>
               <span className={`px-2.5 py-0.5 text-xs font-black rounded-full border-2 uppercase ${col.border} ${col.text}`}>{t(`status_${st}`, st)}</span>
+              {trip.validationStatus && (
+                <span className={`px-2 py-0.5 text-[10px] font-black rounded-full border uppercase ${
+                  trip.validationStatus === 'feasible' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600' :
+                  trip.validationStatus === 'warning' ? 'bg-amber-500/10 border-amber-500/30 text-amber-600' :
+                  'bg-red-500/10 border-red-500/30 text-red-600'
+                }`}>
+                  {t(`status_${trip.validationStatus}`, trip.validationStatus)}
+                </span>
+              )}
               {detailLoading && <Loader2 className="w-4 h-4 animate-spin text-text-muted" />}
             </div>
             <p className="text-xs text-text-secondary mt-1 flex items-center gap-2">
@@ -1003,14 +1012,16 @@ function TripDetailDrawer({
                 return (
                   <div
                     key={o.id}
-                    onClick={() => {
-                      if (onEditOrder) onEditOrder(o.id, 2, activeHighlight);
-                      else navigate(`/orders/${o.id}`);
-                    }}
-                    className="bg-card border border-border/80 hover:border-primary/50 hover:bg-surface/50 cursor-pointer rounded-xl p-3.5 flex items-center justify-between gap-3 transition-all group shadow-xs"
-                    title={t('click_to_edit_order', 'Click to edit cargo')}
+                    className="bg-card border border-border/80 hover:border-primary/50 hover:bg-surface/50 rounded-xl p-3.5 flex items-center justify-between gap-3 transition-all group shadow-xs"
                   >
-                    <div className="min-w-0 flex-1">
+                    <div
+                      onClick={() => {
+                        if (onEditOrder) onEditOrder(o.id, 2, activeHighlight);
+                        else navigate(`/orders/${o.id}`);
+                      }}
+                      className="min-w-0 flex-1 cursor-pointer"
+                      title={t('click_to_edit_order', 'Click to edit cargo')}
+                    >
                       <div className="flex items-center gap-2">
                         <span className="font-black text-primary text-sm">{o.orderNumber || '—'}</span>
                         {o.client?.name && <span className="text-xs font-semibold text-text-primary truncate">· {o.client.name}</span>}
@@ -1022,20 +1033,35 @@ function TripDetailDrawer({
                         {(oc.volume || o.volumeCbm) && <span className="px-1.5 py-0.5 bg-surface rounded font-medium">{oc.volume || o.volumeCbm} m³</span>}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2.5 shrink-0">
-                      <span className="font-black text-text-primary text-sm">€{Number(o.price || 0).toLocaleString()}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-black text-text-primary text-sm mr-1">€{Number(o.price || 0).toLocaleString()}</span>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           if (onEditOrder) onEditOrder(o.id, 2, activeHighlight);
                           else navigate(`/orders/${o.id}`);
                         }}
-                        className="px-2.5 py-1.5 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs"
+                        className="px-2.5 py-1.5 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-xs"
                         title={t('edit_order_cargo', 'Edit Cargo Items')}
                       >
                         <Pencil className="w-3.5 h-3.5" />
-                        <span>{t('edit', 'Edit')}</span>
+                        <span className="hidden sm:inline">{t('edit', 'Edit')}</span>
                       </button>
+                      {isPlanning && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(t('unassign_order_dialog', 'Remove this order from the trip and return it to the Unassigned Orders list?'))) {
+                              onAction('unassign-order', tripId, { orderId: o.id });
+                            }
+                          }}
+                          className="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-600 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-xs"
+                          title={t('action_unassign_order', 'Unassign Order')}
+                        >
+                          <Undo2 className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">{t('action_unassign_order', 'Unassign')}</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -1099,29 +1125,57 @@ function TripDetailDrawer({
               </div>
             </div>
           )}
-          <div className="flex flex-wrap gap-2 justify-between">
-            <div className="flex flex-wrap gap-2">
-              {isPlanning || isConfirmed ? (
+          <div className="flex flex-wrap gap-2 justify-between items-center">
+            <div className="flex flex-wrap gap-2 items-center">
+              {st === 'planning' || st === 'planned' ? (
                 <button
-                  disabled={!!loadingAction || isConfirmed || blockingConflicts.length > 0}
+                  disabled={!!loadingAction || blockingConflicts.length > 0}
                   onClick={() => onAction('confirm', tripId)}
                   title={blockingConflicts.length > 0 ? 'Resolve blocking conflicts first' : undefined}
-                  className={`btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold ${
-                    isConfirmed ? 'opacity-100 cursor-default bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
-                    : blockingConflicts.length > 0 ? 'opacity-50 cursor-not-allowed border-red-500/30 text-red-500'
-                    : ''
+                  className={`btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-black shadow-md shadow-primary/20 ${
+                    blockingConflicts.length > 0 ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                 >
-                  {loadingAction === 'confirm' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className={`w-4 h-4 ${isConfirmed ? '' : blockingConflicts.length > 0 ? 'text-red-500' : 'text-emerald-500'}`} />}
-                  <span>{isConfirmed ? t('jsx_context_confirmed','Confirmed') : t('jsx_context_confirm','Confirm')}</span>
+                  {loadingAction === 'confirm' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                  <span>{t('action_confirm_plan', 'Confirm Plan')}</span>
                 </button>
+              ) : isConfirmed && !isDispatched ? (
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 text-xs font-black flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4" /> {t('status_confirmed', 'Confirmed')}
+                  </span>
+                  <button
+                    disabled={!!loadingAction}
+                    onClick={() => onAction('open-dispatch-modal', tripId, trip)}
+                    className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-black shadow-md shadow-primary/20"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>{t('action_send_to_driver', 'Send to Driver')}</span>
+                  </button>
+                </div>
+              ) : isDispatched ? (
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-600 text-xs font-black flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4" /> {t(`status_${st}`, st)}
+                  </span>
+                  <button
+                    onClick={() => navigate(`/tracking?tripId=${tripId}`)}
+                    className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold text-primary hover:bg-primary/10 border-primary/30"
+                  >
+                    <Navigation className="w-4 h-4" />
+                    <span>{t('view_tracking_btn', 'View Tracking')}</span>
+                  </button>
+                  <button
+                    disabled={!!loadingAction}
+                    onClick={() => onAction('open-dispatch-modal', tripId, trip)}
+                    className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>{t('action_send_update', 'Send Update')}</span>
+                  </button>
+                </div>
               ) : null}
-              {isPlanning || isDispatched || st === 'assigned' ? (
-                <button disabled={!!loadingAction || isDispatched || !isConfirmed} onClick={() => onAction('send', tripId)} className={`btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold ${isDispatched ? 'opacity-100 cursor-default bg-primary/10 text-primary border-primary/30' : ''} ${!isConfirmed && !isDispatched ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                  {loadingAction === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : (isDispatched ? <CheckCircle2 className="w-4 h-4" /> : <Send className="w-4 h-4 text-primary" />)}
-                  <span>{isDispatched ? t('jsx_context_sent','Sent to Driver') : t('jsx_context_send','Send to Driver')}</span>
-                </button>
-              ) : null}
+
               {isPlanning && orders.length > 1 ? (
                 <button disabled={!!loadingAction} onClick={() => onAction('split', tripId)} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold">
                   {loadingAction === 'split' ? <Loader2 className="w-4 h-4 animate-spin" /> : <SplitSquareHorizontal className="w-4 h-4 text-amber-500" />}
@@ -1129,10 +1183,19 @@ function TripDetailDrawer({
                 </button>
               ) : null}
             </div>
+
             {isPlanning && (
-              <button disabled={!!loadingAction} onClick={() => onAction('unplan-all', tripId, { orderIds: orders.map((o: any) => o.id) })} className="btn-secondary text-xs py-2 px-3 text-red-500 hover:bg-red-500/10 flex items-center gap-1.5 font-bold">
-                {loadingAction === 'unplan-all' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
-                <span>{orders.length === 1 ? t('jsx_context_unplan','Unplan') : t('jsx_context_unplan_all','Unplan All')}</span>
+              <button
+                disabled={!!loadingAction}
+                onClick={() => {
+                  if (window.confirm(t('unplan_trip_dialog', 'Unplan this trip? All orders will be removed from this TRP and returned to the Unassigned Orders list.'))) {
+                    onAction('unplan-trip', tripId);
+                  }
+                }}
+                className="btn-secondary text-xs py-2 px-3 text-red-500 hover:bg-red-500/10 flex items-center gap-1.5 font-bold border-red-500/30"
+              >
+                {loadingAction === 'unplan-trip' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />}
+                <span>{t('action_unplan_trip', 'Unplan Trip')}</span>
               </button>
             )}
           </div>
@@ -1285,6 +1348,7 @@ export default function PlanningPage() {
 
   const [poolCollapsed, setPoolCollapsed] = useState(false);
   const [showOptimizeModal, setShowOptimizeModal] = useState(false);
+  const [dispatchModalTrip, setDispatchModalTrip] = useState<any>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sortPool, setSortPool] = useState<'priority' | 'date' | 'weight' | 'client'>('priority');
   const [grouping, setGrouping] = useState<'truck' | 'driver' | 'trailer'>('truck');
@@ -1381,29 +1445,43 @@ export default function PlanningPage() {
 
   // ── Actions ──
   const handleTripAction = async (action: string, tripId: string, payload?: any) => {
+    if (action === 'open-dispatch-modal') {
+      setDispatchModalTrip(payload || { id: tripId });
+      return;
+    }
+
     setLoadingAction(action);
     try {
       if (action === 'confirm') {
-        // Uses the dedicated planning endpoint that handles planning→planned→assigned transition
-        await api.post(`/planning/trips/${tripId}/confirm`);
-        toast.success(t('jsx_confirmedOk','Trip confirmed'));
+        await planningApi.confirmTrip(tripId);
+        toast.success(t('jsx_confirmedOk', 'Trip confirmed'));
+      } else if (action === 'reopen') {
+        await planningApi.reopenPlanning(tripId);
+        toast.success(t('reopen_planning_ok', 'Planning reopened'));
       } else if (action === 'send') {
-        // Uses the dedicated planning endpoint that transitions to dispatched
-        await api.post(`/planning/trips/${tripId}/send-to-driver`, {});
-        toast.success(t('jsx_sentOk','Trip dispatched'));
+        await planningApi.sendToDriver(tripId, payload);
+        toast.success(t('jsx_sentOk', 'Trip dispatched to driver'));
+        setDispatchModalTrip(null);
+      } else if (action === 'unassign-order') {
+        const orderId = payload?.orderId;
+        if (!orderId) return;
+        await planningApi.unassignOrder(tripId, orderId);
+        toast.success(t('order_unassigned_ok', 'Order unassigned from trip'));
+        setDrawerRefreshKey(k => k + 1);
+      } else if (action === 'unplan-trip') {
+        await planningApi.unplanTrip(tripId);
+        toast.success(t('trip_unplanned_ok', 'Trip unplanned and removed'));
+        setSelectedTripId(null);
       } else if (action === 'split') {
         await api.post(`/planning/trips/${tripId}/split`, {});
-        toast.success(t('jsx_splitOk','Trip split'));
-      } else if (action === 'unplan-all') {
-        const orderIds = payload?.orderIds || [];
-        if (!orderIds.length) { toast.error('No orders to unplan'); return; }
-        await api.post('/planning/unplan', { orderIds });
-        toast.success(t('jsx_unplannedOk','Orders unplanned'));
-        setSelectedTripId(null);
+        toast.success(t('jsx_splitOk', 'Trip split'));
       }
       loadData();
-    } catch (err: any) { toast.error(err.response?.data?.message || t('jsx_actionError','Action failed')); }
-    finally { setLoadingAction(null); }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || t('jsx_actionError', 'Action failed'));
+    } finally {
+      setLoadingAction(null);
+    }
   };
 
   const handleReorderStops = async (tripId: string, stopIds: string[]) => {
@@ -1919,6 +1997,74 @@ export default function PlanningPage() {
             toast.success(t('order_saved_success', 'Comandă actualizată cu succes!'));
           }}
         />
+      )}
+      {dispatchModalTrip && (
+        <div className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setDispatchModalTrip(null)}>
+          <div className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-lg p-6 space-y-4 animate-in zoom-in-95 duration-150" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                  <Send className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-text-primary">{t('dispatch_modal_title', 'Dispatch Trip')}</h3>
+                  <p className="text-xs text-text-secondary">{dispatchModalTrip.tripNumber || 'Trip'}</p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-xs font-black">
+                {t('dispatch_version', 'Dispatch Version')} v{(dispatchModalTrip.dispatchVersion || 0) + 1}
+              </span>
+            </div>
+
+            <div className="bg-surface/50 rounded-2xl p-4 border border-border/80 space-y-2.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <span className="text-text-secondary text-[10px] uppercase font-bold">{t('export_col_driver', 'Driver')}</span>
+                  <p className="font-black text-text-primary text-sm mt-0.5">{dispatchModalTrip.driver?.name || dispatchModalTrip.driver?.user?.name || dispatchModalTrip.truck?.driver?.user?.name || '—'}</p>
+                  {dispatchModalTrip.driver?.phone && <p className="text-[10px] text-text-muted mt-0.5">{dispatchModalTrip.driver.phone}</p>}
+                </div>
+                <div>
+                  <span className="text-text-secondary text-[10px] uppercase font-bold">{t('export_col_truck', 'Truck & Trailer')}</span>
+                  <p className="font-black text-text-primary text-sm mt-0.5">{dispatchModalTrip.truck?.plateNumber || '—'}</p>
+                  {dispatchModalTrip.trailer?.plateNumber && <p className="text-[10px] text-text-muted mt-0.5">{dispatchModalTrip.trailer.plateNumber}</p>}
+                </div>
+              </div>
+
+              <div className="border-t border-border/60 pt-2.5 grid grid-cols-3 gap-2">
+                <div>
+                  <span className="text-text-secondary text-[10px] uppercase font-bold">{t('jsx_stops', 'Stops')}</span>
+                  <p className="font-bold text-text-primary mt-0.5">{dispatchModalTrip.stops?.length || 0}</p>
+                </div>
+                <div>
+                  <span className="text-text-secondary text-[10px] uppercase font-bold">{t('jsx_orders', 'Orders')}</span>
+                  <p className="font-bold text-text-primary mt-0.5">{dispatchModalTrip.orders?.length || 0}</p>
+                </div>
+                <div>
+                  <span className="text-text-secondary text-[10px] uppercase font-bold">{t('departure', 'Departure')}</span>
+                  <p className="font-bold text-text-primary mt-0.5">{dispatchModalTrip.plannedDeparture ? new Date(dispatchModalTrip.plannedDeparture).toLocaleDateString() : 'Today'}</p>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-text-secondary leading-relaxed">
+              {t('dispatch_modal_desc', 'Send trip instructions to driver mobile application.')}
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <button onClick={() => setDispatchModalTrip(null)} disabled={!!loadingAction} className="btn-secondary text-xs py-2.5 px-4 font-bold">
+                {t('cancel', 'Cancel')}
+              </button>
+              <button
+                onClick={() => handleTripAction('send', dispatchModalTrip.id, {})}
+                disabled={!!loadingAction}
+                className="btn-primary text-xs py-2.5 px-5 font-black shadow-md shadow-primary/20 flex items-center gap-1.5"
+              >
+                {loadingAction === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {dispatchModalTrip.status === 'dispatched' ? t('dispatch_update_btn', 'Send Update') : t('dispatch_send_btn', 'Send Dispatch')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

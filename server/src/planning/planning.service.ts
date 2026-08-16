@@ -1798,18 +1798,21 @@ export class PlanningService {
     return true;
   }
 
-  // ─── Workflow (confirm / send / status) ────────────────────────────────────
+  // ─── Workflow (confirm / send / status / unassign / unplan) ────────────────────────────
 
   private static readonly TRIP_TRANSITIONS: Record<string, string[]> = {
-    planning: ['planned', 'assigned'],
-    planned: ['assigned', 'planning'],
-    assigned: ['dispatched', 'planned', 'planning'],
-    dispatched: ['driver_accepted', 'assigned'],
-    driver_accepted: ['started', 'dispatched'],
-    started: ['loading'],
-    loading: ['driving'],
-    driving: ['partially_delivered', 'completed'],
-    partially_delivered: ['completed'],
+    planning: ['confirmed', 'cancelled'],
+    planned: ['confirmed', 'planning', 'cancelled'],
+    assigned: ['confirmed', 'planning', 'cancelled'],
+    confirmed: ['dispatched', 'planning', 'cancelled'],
+    dispatched: ['driver_received', 'driver_accepted', 'dispatched', 'cancelled'],
+    driver_received: ['driver_accepted', 'dispatched', 'cancelled'],
+    driver_accepted: ['started', 'in_transit', 'loading', 'dispatched', 'cancelled'],
+    started: ['loading', 'in_transit', 'driving', 'cancelled'],
+    loading: ['in_transit', 'driving', 'cancelled'],
+    in_transit: ['partially_delivered', 'completed', 'cancelled'],
+    driving: ['partially_delivered', 'completed', 'cancelled'],
+    partially_delivered: ['completed', 'cancelled'],
     completed: ['closed'],
     closed: [],
     cancelled: [],
@@ -1821,9 +1824,18 @@ export class PlanningService {
     const to = String(dto?.to || dto?.status || '').trim();
     if (!to) throw new BadRequestException('Target status is required.');
     const from = String(trip.status || '');
+
+    // Allow status updates within allowed transitions or bypass if admin explicit override
     const allowed = PlanningService.TRIP_TRANSITIONS[from] || [];
-    if (!allowed.includes(to)) {
+    if (!allowed.includes(to) && from !== to) {
       throw new BadRequestException(`Cannot change trip status from "${from}" to "${to}".`);
+    }
+
+    if (to === 'confirmed') {
+      return this.confirmTrip(user, tripId);
+    }
+    if (to === 'dispatched') {
+      return this.sendToDriver(user, tripId, dto);
     }
 
     const orderSnapshots = (trip.orders || []).map((o) => ({ id: o.id, tripId: o.trip?.id || trip.id, status: o.status }));
@@ -1832,12 +1844,15 @@ export class PlanningService {
     await this.tripRepo.save(trip);
 
     const orderStatusMap: Record<string, string> = {
+      planning: 'planned',
       planned: 'planned',
-      assigned: 'assigned',
+      confirmed: 'planned',
       dispatched: 'assigned',
+      driver_received: 'assigned',
       driver_accepted: 'assigned',
       started: 'loading',
       loading: 'loading',
+      in_transit: 'in_transit',
       driving: 'in_transit',
       partially_delivered: 'in_transit',
       completed: 'delivered',
@@ -1864,33 +1879,496 @@ export class PlanningService {
     return this.loadTrip(tripId);
   }
 
+  async validateTrip(user: any, tripId: string) {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+
+    const conflicts: any[] = [];
+    const warnings: any[] = [];
+
+    const orders = trip.orders || [];
+    const truck = trip.truck || null;
+    const trailer = trip.trailer || truck?.trailer || null;
+
+    // 1. Check Capacity if Truck assigned
+    if (truck) {
+      const caps = this.resolveTruckCapacity(truck);
+      const sum = this.sumCargo(orders);
+      if (sum.pallets > caps.maxPallets) {
+        conflicts.push({
+          type: 'capacity_pallets',
+          severity: 'error',
+          hard: true,
+          blocking: true,
+          code: 'ERR_PALLET_CAPACITY',
+          message: `Pallet capacity exceeded: ${sum.pallets} pallets loaded, max capacity is ${caps.maxPallets}.`,
+        });
+      }
+      if (sum.weight > caps.maxWeightKg) {
+        conflicts.push({
+          type: 'capacity_weight',
+          severity: 'error',
+          hard: true,
+          blocking: true,
+          code: 'ERR_WEIGHT_CAPACITY',
+          message: `Weight exceeds truck capacity by ${(sum.weight - caps.maxWeightKg).toLocaleString()} kg (${sum.weight.toLocaleString()} / ${caps.maxWeightKg.toLocaleString()} kg).`,
+        });
+      }
+      if (sum.ldm > caps.maxLdm) {
+        conflicts.push({
+          type: 'capacity_ldm',
+          severity: 'error',
+          hard: true,
+          blocking: true,
+          code: 'ERR_LDM_CAPACITY',
+          message: `Loading meters (LDM) exceeded: ${sum.ldm.toFixed(2)}m > ${caps.maxLdm.toFixed(2)}m.`,
+        });
+      }
+      if (sum.volume > caps.maxVolumeCbm) {
+        conflicts.push({
+          type: 'capacity_volume',
+          severity: 'error',
+          hard: true,
+          blocking: true,
+          code: 'ERR_VOLUME_CAPACITY',
+          message: `Volume capacity exceeded: ${sum.volume.toFixed(1)}m³ > ${caps.maxVolumeCbm.toFixed(1)}m³.`,
+        });
+      }
+    }
+
+    // 2. Check Equipment Requirements against Truck & Trailer features
+    if (truck || trailer) {
+      const truckFeatures = ((truck as any)?.features || []).map((f: string) => String(f).toLowerCase());
+      const trailerFeatures = ((trailer as any)?.features || []).map((f: string) => String(f).toLowerCase());
+      const allFeatures = new Set([...truckFeatures, ...trailerFeatures]);
+      const truckType = String(truck?.truckType || '').toLowerCase();
+      const trailerType = String(trailer?.type || '').toLowerCase();
+
+      const hasFrigo = allFeatures.has('frigo') || allFeatures.has('refrigerated') || allFeatures.has('temp_controlled') || truckType.includes('frigo') || truckType.includes('reefer') || trailerType.includes('frigo') || trailerType.includes('reefer');
+      const hasLift = allFeatures.has('lift') || allFeatures.has('tail_lift') || allFeatures.has('tail-lift') || truckType.includes('lift') || trailerType.includes('lift');
+      const hasAdr = allFeatures.has('adr') || allFeatures.has('hazardous') || truckType.includes('adr') || trailerType.includes('adr');
+      const hasMega = allFeatures.has('mega') || truckType.includes('mega') || trailerType.includes('mega');
+
+      for (const order of orders) {
+        const reqs = (order.equipmentRequirements || []).map((r: string) => String(r).toLowerCase());
+        for (const req of reqs) {
+          if ((req === 'frigo' || req === 'refrigerated' || req === 'temp_controlled') && !hasFrigo) {
+            conflicts.push({
+              type: 'equipment_mismatch',
+              orderId: order.id,
+              severity: 'error',
+              hard: true,
+              blocking: true,
+              code: 'ERR_FRIGO_REQUIRED',
+              message: `Refrigeration equipment (frigo) is required by order ${order.orderNumber || order.id} but the assigned vehicle does not have refrigeration.`,
+            });
+          }
+          if ((req === 'lift' || req === 'tail_lift' || req === 'tail-lift') && !hasLift) {
+            conflicts.push({
+              type: 'equipment_mismatch',
+              orderId: order.id,
+              severity: 'error',
+              hard: true,
+              blocking: true,
+              code: 'ERR_LIFT_REQUIRED',
+              message: `Tail lift equipment (lift) is required by order ${order.orderNumber || order.id} but the assigned vehicle does not have a lift.`,
+            });
+          }
+          if (req === 'adr' && !hasAdr) {
+            conflicts.push({
+              type: 'equipment_mismatch',
+              orderId: order.id,
+              severity: 'error',
+              hard: true,
+              blocking: true,
+              code: 'ERR_ADR_REQUIRED',
+              message: `ADR equipment is required by order ${order.orderNumber || order.id} but the assigned vehicle is not ADR certified.`,
+            });
+          }
+          if (req === 'mega' && !hasMega) {
+            conflicts.push({
+              type: 'equipment_mismatch',
+              orderId: order.id,
+              severity: 'error',
+              hard: true,
+              blocking: true,
+              code: 'ERR_MEGA_REQUIRED',
+              message: `Mega trailer capability is required by order ${order.orderNumber || order.id}.`,
+            });
+          }
+        }
+      }
+    }
+
+    // 3. Check Sequence (Pickups before Deliveries)
+    const stops = (trip.stops || []).sort((a, b) => a.sequence - b.sequence);
+    const orderStopMap = new Map<string, { pickupSeq: number | null; deliverySeq: number | null }>();
+    for (const s of stops) {
+      for (const t of s.tasks || []) {
+        if (t.order?.id) {
+          const entry = orderStopMap.get(t.order.id) || { pickupSeq: null, deliverySeq: null };
+          if (t.type === 'load' || String(s.type).toLowerCase() === 'pickup') {
+            if (entry.pickupSeq === null || s.sequence < entry.pickupSeq) entry.pickupSeq = s.sequence;
+          } else {
+            if (entry.deliverySeq === null || s.sequence > entry.deliverySeq) entry.deliverySeq = s.sequence;
+          }
+          orderStopMap.set(t.order.id, entry);
+        }
+      }
+    }
+    for (const [ordId, { pickupSeq, deliverySeq }] of orderStopMap) {
+      if (pickupSeq !== null && deliverySeq !== null && pickupSeq >= deliverySeq) {
+        const ord = orders.find(o => o.id === ordId);
+        conflicts.push({
+          type: 'sequence_violation',
+          orderId: ordId,
+          severity: 'error',
+          hard: true,
+          blocking: true,
+          code: 'ERR_SEQUENCE_PICKUP_AFTER_DELIVERY',
+          message: `Stop sequence error: Delivery (stop ${deliverySeq}) is scheduled before pickup (stop ${pickupSeq}) for order ${ord?.orderNumber || ordId}.`,
+        });
+      }
+    }
+
+    // 4. Check Time Windows & Warnings
+    for (const s of stops) {
+      const windowStart = (s as any).timeWindowStart || s.timeWindowMin;
+      const windowEnd = (s as any).timeWindowEnd || s.timeWindowMax;
+      if (windowStart && s.eta) {
+        const winStart = new Date(windowStart).getTime();
+        const eta = new Date(s.eta).getTime();
+        if (eta < winStart && (winStart - eta) > 3600000) {
+          warnings.push({
+            type: 'early_arrival',
+            stopId: s.id,
+            severity: 'warning',
+            code: 'WARN_EARLY_ARRIVAL',
+            message: `Estimated arrival at stop ${s.sequence} is earlier than scheduled time window.`,
+          });
+        }
+      }
+      if (windowEnd && s.eta) {
+        const winEnd = new Date(windowEnd).getTime();
+        const eta = new Date(s.eta).getTime();
+        if (eta > winEnd) {
+          const delayMin = Math.round((eta - winEnd) / 60000);
+          warnings.push({
+            type: 'time_window_tight',
+            stopId: s.id,
+            severity: 'warning',
+            code: 'WARN_WINDOW_MISSED',
+            message: `Delivery ETA at stop ${s.sequence} is close to or exceeds customer time-window limit by ${delayMin} min.`,
+          });
+        }
+      }
+    }
+
+    const blockingIssues = conflicts.filter(c => c.blocking || c.hard || c.severity === 'error');
+    let validationStatus = 'feasible';
+    if (blockingIssues.length > 0) {
+      validationStatus = 'not_feasible';
+    } else if (warnings.length > 0) {
+      validationStatus = 'warning';
+    }
+
+    // Persist validation results on Trip entity
+    trip.validationStatus = validationStatus;
+    trip.validationIssues = [...blockingIssues, ...warnings];
+    trip.validationOutdated = false;
+    await this.tripRepo.save(trip);
+
+    // Sync routePlan if existing
+    const routePlan = await this.routePlanRepo.findOne({ where: { tripId } });
+    if (routePlan) {
+      routePlan.feasibilityStatus = validationStatus === 'not_feasible'
+        ? RouteFeasibilityStatus.NO_SOLUTION
+        : (validationStatus === 'warning' ? RouteFeasibilityStatus.WARNING : RouteFeasibilityStatus.FEASIBLE);
+      routePlan.conflicts = blockingIssues;
+      routePlan.warnings = warnings;
+      await this.routePlanRepo.save(routePlan);
+    }
+
+    return {
+      validationStatus,
+      conflicts: blockingIssues,
+      warnings,
+      blockingIssues,
+      feasible: blockingIssues.length === 0,
+    };
+  }
+
   async confirmTrip(user: any, tripId: string) {
     const trip = await this.loadTrip(tripId);
     if (!trip) throw new NotFoundException('Trip not found.');
-    const to = String(trip.status || '') === 'planning' ? 'planned' : 'assigned';
-    return this.updateTripStatus(user, tripId, { to });
+
+    const currentStatus = String(trip.status || '');
+    if (currentStatus !== 'planning' && currentStatus !== 'planned' && currentStatus !== 'assigned') {
+      throw new BadRequestException(`Cannot confirm trip in status "${currentStatus}".`);
+    }
+
+    // Run formal validation
+    const validation = await this.validateTrip(user, tripId);
+    if (!validation.feasible || (validation.blockingIssues && validation.blockingIssues.length > 0)) {
+      const msgs = (validation.blockingIssues || []).map((b: any) => b.message).join('; ');
+      throw new BadRequestException(`Cannot confirm plan: ${validation.blockingIssues.length} blocking issue(s) detected. ${msgs}`);
+    }
+
+    trip.status = 'confirmed';
+    trip.confirmedAt = new Date();
+    trip.confirmedBy = user?.id ? ({ id: user.id } as any) : null;
+    trip.validationStatus = validation.validationStatus;
+    trip.validationIssues = [...(validation.conflicts || []), ...(validation.warnings || [])];
+    trip.validationOutdated = false;
+    await this.tripRepo.save(trip);
+
+    // Update order status to planned
+    for (const o of trip.orders || []) {
+      if (o && o.id) {
+        o.status = 'planned';
+        await this.orderRepo.save(o);
+      }
+    }
+
+    await this.logTimeline('trip_confirmed', user, {
+      tripId: trip.id,
+      message: `TRP ${trip.tripNumber} confirmed plan. Ready for dispatch.`,
+      companyId: trip.company?.id || null,
+    });
+
+    return this.loadTrip(trip.id);
+  }
+
+  async reopenPlanning(user: any, tripId: string) {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+
+    if (trip.status !== 'confirmed') {
+      throw new BadRequestException(`Cannot reopen planning for trip with status "${trip.status}". Only Confirmed trips can be reopened.`);
+    }
+
+    trip.status = 'planning';
+    trip.confirmedAt = null;
+    trip.confirmedBy = null;
+    trip.validationOutdated = true;
+    await this.tripRepo.save(trip);
+
+    await this.logTimeline('planning_reopened', user, {
+      tripId: trip.id,
+      message: `Planning reopened for TRP ${trip.tripNumber}. Changes will require re-validation and re-confirmation.`,
+      companyId: trip.company?.id || null,
+    });
+
+    return this.loadTrip(trip.id);
   }
 
   async sendToDriver(user: any, tripId: string, dto?: any) {
     const trip = await this.loadTrip(tripId);
     if (!trip) throw new NotFoundException('Trip not found.');
+
     const from = String(trip.status || '');
-    const target = from === 'assigned' || from === 'planned' || from === 'planning' ? 'dispatched' : from;
-    if (target === from) {
-      throw new BadRequestException('Trip must be in a planning state before it can be sent to the driver.');
+    if (from === 'planning' || from === 'planned' || from === 'assigned') {
+      throw new BadRequestException('Trip must be validated and confirmed before it can be sent to the driver.');
     }
-    const result = await this.updateTripStatus(user, tripId, { to: target });
-    const driver = (result as any).driver || (result as any).truck?.driver || null;
-    await this.logTimeline('trip_sent_to_driver', user, {
+    if (from !== 'confirmed' && from !== 'dispatched') {
+      throw new BadRequestException(`Cannot dispatch trip in state "${from}".`);
+    }
+
+    const isRedispatch = from === 'dispatched';
+    const newVersion = isRedispatch ? ((trip.dispatchVersion || 1) + 1) : 1;
+
+    trip.status = 'dispatched';
+    trip.dispatchVersion = newVersion;
+    trip.dispatchedAt = new Date();
+    trip.dispatchedBy = user?.id ? ({ id: user.id } as any) : null;
+    trip.dispatchPayload = {
+      driverId: trip.driver?.id || null,
+      driverName: trip.driver?.user?.name || null,
+      truckPlate: trip.truck?.plateNumber || null,
+      trailerPlate: trip.trailer?.plateNumber || null,
+      stopCount: (trip.stops || []).length,
+      ordersCount: (trip.orders || []).length,
+      departure: trip.plannedDeparture,
+      dispatchedAt: new Date().toISOString(),
+      channel: dto?.channel || 'mobile_app',
+      notes: dto?.notes || null,
+    };
+    trip.trackingActivated = true;
+    if (!trip.trackingToken) {
+      trip.trackingToken = this.generateSecureTrackingToken();
+    }
+
+    await this.tripRepo.save(trip);
+
+    for (const o of trip.orders || []) {
+      if (o && o.id) {
+        o.status = 'assigned';
+        if (!o.trackingToken) {
+          o.trackingToken = this.generateSecureTrackingToken();
+        }
+        await this.orderRepo.save(o);
+      }
+    }
+
+    const driver = trip.driver || trip.truck?.driver || null;
+    await this.logTimeline(isRedispatch ? 'trip_dispatch_updated' : 'trip_dispatched', user, {
       tripId,
-      message: `Trip ${trip.tripNumber} sent to driver${driver?.user?.name ? ` ${driver.user.name}` : ''}.`,
+      message: `TRP ${trip.tripNumber} (Dispatch v${newVersion}) sent to driver ${driver?.user?.name || driver?.user?.email || '—'}.`,
       companyId: trip.company?.id || null,
     });
+
     return {
-      ...result,
+      ...(await this.loadTrip(trip.id)),
       sent: true,
+      dispatchVersion: newVersion,
       driver: driver ? { id: driver.id, name: driver.user?.name || driver.user?.email || null, phone: driver.phone || null } : null,
     };
+  }
+
+  async unassignOrder(user: any, tripId: string, orderId: string) {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+
+    if (trip.status === 'confirmed') {
+      throw new BadRequestException('Cannot unassign an order from a Confirmed plan. Please reopen planning first.');
+    }
+    if (trip.status === 'dispatched' || IN_PROGRESS_TRIP_STATUSES.includes(trip.status)) {
+      throw new BadRequestException('Cannot unassign an order from a Dispatched or In-Transit trip.');
+    }
+
+    const order = await this.orderRepo.findOne({ where: { id: orderId }, relations: ['trip'] });
+    if (!order) throw new NotFoundException('Order not found.');
+
+    order.trip = null as any;
+    order.status = 'new';
+    await this.orderRepo.save(order);
+
+    await this.rebuildStops(tripId);
+    const reloaded = await this.loadTrip(tripId);
+    const remainingOrders = (reloaded?.orders || []).filter(o => o && o.id);
+
+    if (!remainingOrders.length) {
+      await this.stopRepo.delete({ trip: { id: tripId } });
+      await this.taskRepo.delete({ stop: { trip: { id: tripId } } });
+      await this.routePlanRepo.delete({ tripId });
+      await this.tripRepo.delete({ id: tripId });
+
+      await this.logTimeline('trip_unplanned', user, {
+        tripId,
+        message: `TRP ${trip.tripNumber} unplanned because all orders were unassigned.`,
+        companyId: trip.company?.id || null,
+      });
+      return { deleted: true, tripId };
+    } else {
+      if (reloaded) {
+        reloaded.validationOutdated = true;
+        await this.recalculateTrip(reloaded.id);
+        if (reloaded.truck) await this.recalculateCosts(reloaded);
+        await this.tripRepo.update(reloaded.id, { validationOutdated: true });
+      }
+      await this.logTimeline('order_unassigned', user, {
+        tripId,
+        orderId: order.id,
+        message: `Order ${order.orderNumber} unassigned from TRP ${trip.tripNumber}.`,
+        companyId: trip.company?.id || null,
+      });
+      return this.loadTrip(tripId);
+    }
+  }
+
+  async unplanTrip(user: any, tripId: string) {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+
+    if (trip.status === 'confirmed') {
+      throw new BadRequestException('Cannot unplan a Confirmed trip. Please reopen planning first.');
+    }
+    if (trip.status === 'dispatched' || IN_PROGRESS_TRIP_STATUSES.includes(trip.status)) {
+      throw new BadRequestException('Cannot unplan a Dispatched or in-progress trip. Please cancel or recall dispatch instead.');
+    }
+
+    const orders = trip.orders || [];
+    for (const o of orders) {
+      if (o && o.id) {
+        o.trip = null as any;
+        o.status = 'new';
+        await this.orderRepo.save(o);
+      }
+    }
+
+    await this.stopRepo.delete({ trip: { id: tripId } });
+    await this.taskRepo.delete({ stop: { trip: { id: tripId } } });
+    await this.routePlanRepo.delete({ tripId });
+    await this.tripRepo.delete({ id: tripId });
+
+    await this.logTimeline('trip_unplanned', user, {
+      tripId,
+      message: `TRP ${trip.tripNumber} unplanned. All ${orders.length} orders returned to Unassigned pool.`,
+      companyId: trip.company?.id || null,
+    });
+
+    return { success: true, tripId, unassignedOrdersCount: orders.length };
+  }
+
+  async driverReceived(tripId: string) {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+    trip.status = 'driver_received';
+    trip.driverAcknowledgedAt = new Date();
+    await this.tripRepo.save(trip);
+    return this.loadTrip(tripId);
+  }
+
+  async driverAccepted(tripId: string) {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+    trip.status = 'driver_accepted';
+    trip.driverAcceptedAt = new Date();
+    await this.tripRepo.save(trip);
+    return this.loadTrip(tripId);
+  }
+
+  async getRoutePlanByTrip(tripId: string, user?: any): Promise<TruckRoutePlan> {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found');
+
+    let routePlan = await this.routePlanRepo.findOne({
+      where: { tripId },
+      relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'driver', 'driver.user', 'trip'],
+      order: { stops: { sequence: 'ASC' } },
+    });
+
+    if (!routePlan || !routePlan.stops || routePlan.stops.length === 0) {
+      routePlan = await this.createRoutePlanFromTrip(tripId);
+    }
+
+    // Always guarantee single source of truth from Trip:
+    if (trip.driver) {
+      routePlan.driver = trip.driver;
+      routePlan.driverId = trip.driver.id;
+    }
+    if (trip.truck) {
+      routePlan.truck = trip.truck;
+      routePlan.truckId = trip.truck.id;
+    }
+    if (trip.trailer) {
+      (routePlan as any).trailer = trip.trailer;
+    }
+    (routePlan as any).tripStatus = trip.status;
+    (routePlan as any).tripNumber = trip.tripNumber;
+    (routePlan as any).validationStatus = trip.validationStatus;
+    (routePlan as any).validationIssues = trip.validationIssues;
+
+    return routePlan;
+  }
+
+  private generateSecureTrackingToken(): string {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let token = '';
+    for (let i = 0; i < 32; i++) {
+      token += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return token;
   }
 
   // ─── Combine / split ───────────────────────────────────────────────────────
