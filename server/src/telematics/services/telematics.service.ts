@@ -285,10 +285,15 @@ export class TelematicsService {
         driverId: sim.driverId,
         driverName: sim.driverName,
         currentActivity: sim.currentActivity,
+        drivingTimeToday: sim.drivingTimeToday,
         drivingTimeTodaySeconds: sim.drivingTimeToday,
+        continuousDriving: sim.continuousDriving,
         continuousDrivingSeconds: sim.continuousDriving,
+        breakRequiredIn: compliance.breakRequiredInSeconds,
         breakRequiredInSeconds: compliance.breakRequiredInSeconds,
+        weeklyDrivingTime: sim.weeklyDrivingTime,
         weeklyDrivingSeconds: sim.weeklyDrivingTime,
+        dailyRestRemaining: compliance.dailyRestRemainingSeconds,
         dailyRestRemainingSeconds: compliance.dailyRestRemainingSeconds,
         speed: sim.speed,
         odometer: sim.odometer,
@@ -297,6 +302,15 @@ export class TelematicsService {
         isBreakRequiredSoon: compliance.isBreakRequiredSoon,
         eta: sim.eta,
         etaStatus: sim.etaStatus,
+        compliance: {
+          drivingTimeToday: sim.drivingTimeToday,
+          continuousDriving: sim.continuousDriving,
+          breakRequiredIn: compliance.breakRequiredInSeconds,
+          weeklyDrivingTime: sim.weeklyDrivingTime,
+          dailyRestRemaining: compliance.dailyRestRemainingSeconds,
+          isBreakRequiredSoon: compliance.isBreakRequiredSoon,
+          warningMessage: compliance.warningMessage,
+        },
       };
     });
   }

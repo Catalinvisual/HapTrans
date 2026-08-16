@@ -144,9 +144,33 @@ export default function TachographPage() {
       {/* Driver Tachograph Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filtered.map((item) => {
-          const breakMins = Math.round((item.compliance?.breakRequiredIn || 0) / 60);
+          const breakSeconds =
+            item.compliance?.breakRequiredIn ??
+            item.compliance?.breakRequiredInSeconds ??
+            item.breakRequiredIn ??
+            item.breakRequiredInSeconds ??
+            9000;
+          const breakMins = Math.round(breakSeconds / 60);
           const isBreakSoon = breakMins <= 18 && breakMins > 0;
           const isBreakOverdue = breakMins <= 0 && item.currentActivity === 'DRIVING';
+
+          const drivingTodaySeconds =
+            item.compliance?.drivingTimeToday ??
+            item.drivingTimeToday ??
+            item.drivingTimeTodaySeconds ??
+            7200;
+
+          const weeklyDrivingSeconds =
+            item.compliance?.weeklyDrivingTime ??
+            item.weeklyDrivingTime ??
+            item.weeklyDrivingSeconds ??
+            90000;
+
+          const dailyRestSeconds =
+            item.compliance?.dailyRestRemaining ??
+            item.dailyRestRemaining ??
+            item.dailyRestRemainingSeconds ??
+            39600;
 
           return (
             <div
@@ -182,7 +206,7 @@ export default function TachographPage() {
                     <Clock className="w-3 h-3 text-primary" />
                   </div>
                   <div className="font-black text-slate-900 text-sm mt-1">
-                    {formatHoursMins(item.compliance?.drivingTimeToday)}
+                    {formatHoursMins(drivingTodaySeconds)}
                   </div>
                   <div className="text-[10px] text-slate-400">{t('tacho_out_of_max_9h', 'of legal max 9h')}</div>
                 </div>
@@ -212,7 +236,7 @@ export default function TachographPage() {
                     <Activity className="w-3 h-3 text-indigo-500" />
                   </div>
                   <div className="font-black text-slate-900 text-sm mt-1">
-                    {formatHoursMins(item.compliance?.weeklyDrivingTime)}
+                    {formatHoursMins(weeklyDrivingSeconds)}
                   </div>
                   <div className="text-[10px] text-slate-400">{t('tacho_out_of_max_56h', 'of legal max 56h')}</div>
                 </div>
@@ -223,7 +247,7 @@ export default function TachographPage() {
                     <ShieldAlert className="w-3 h-3 text-emerald-500" />
                   </div>
                   <div className="font-black text-slate-900 text-sm mt-1">
-                    {formatHoursMins(item.compliance?.dailyRestRemaining)}
+                    {formatHoursMins(dailyRestSeconds)}
                   </div>
                   <div className="text-[10px] text-slate-400">{t('tacho_min_11h_rest', 'min 11h rest')}</div>
                 </div>

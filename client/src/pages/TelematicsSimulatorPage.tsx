@@ -218,11 +218,13 @@ export default function TelematicsSimulatorPage() {
               </div>
               <div className="flex justify-between py-1.5 border-b border-slate-50">
                 <span className="text-slate-400 font-bold uppercase">Trip Progress:</span>
-                <span className="font-black text-primary">{Math.round(selectedTruck.routeProgress * 100)}% ({Math.round(selectedTruck.distanceRemaining)} km left)</span>
+                <span className="font-black text-primary">
+                  {Math.round(selectedTruck.routeProgress > 1 ? selectedTruck.routeProgress : (selectedTruck.routeProgress || 0) * 100)}% ({Math.round(selectedTruck.distanceRemainingKm ?? selectedTruck.distanceRemaining ?? (420 * (1 - (selectedTruck.routeProgress > 1 ? selectedTruck.routeProgress / 100 : (selectedTruck.routeProgress || 0)))))} km left)
+                </span>
               </div>
               <div className="flex justify-between py-1.5">
                 <span className="text-slate-400 font-bold uppercase">Active Scenario:</span>
-                <span className="font-black text-amber-600">Scenario {selectedTruck.activeScenarioId}: {selectedTruck.activeScenarioName}</span>
+                <span className="font-black text-amber-600">Scenario {selectedTruck.activeScenarioId || 1}: {selectedTruck.activeScenarioName || selectedTruck.scenario || 'Normal Driving'}</span>
               </div>
             </div>
           </div>
@@ -278,11 +280,11 @@ export default function TelematicsSimulatorPage() {
               </div>
             </div>
 
-            {/* Speed Slider */}
+            {/* Speed Slider with Dynamic Color Fill */}
             <div>
-              <div className="flex justify-between text-xs font-bold text-slate-500 uppercase mb-1">
+              <div className="flex justify-between text-xs font-bold text-slate-500 uppercase mb-1.5">
                 <span>{t('sim_truck_speed', 'Truck Speed (km/h):')}</span>
-                <span className="text-slate-900 font-black">{speed} km/h</span>
+                <span className="text-primary font-black text-sm">{speed} km/h</span>
               </div>
               <input
                 type="range"
@@ -290,7 +292,10 @@ export default function TelematicsSimulatorPage() {
                 max="100"
                 value={speed}
                 onChange={(e) => handleSetSpeed(Number(e.target.value))}
-                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary"
+                style={{
+                  background: `linear-gradient(to right, #FF5A00 0%, #FF5A00 ${speed}%, #E2E8F0 ${speed}%, #E2E8F0 100%)`,
+                }}
+                className="w-full h-2.5 rounded-lg appearance-none cursor-pointer accent-primary"
               />
             </div>
 
@@ -415,10 +420,19 @@ export default function TelematicsSimulatorPage() {
                       <div className="w-16 bg-slate-100 rounded-full h-1.5 overflow-hidden">
                         <div
                           className="bg-primary h-1.5 rounded-full"
-                          style={{ width: `${Math.round(tr.routeProgress * 100)}%` }}
+                          style={{
+                            width: `${Math.round(
+                              tr.routeProgress > 1 ? tr.routeProgress : (tr.routeProgress || 0) * 100
+                            )}%`,
+                          }}
                         />
                       </div>
-                      <span className="text-xs text-slate-500 font-mono">{Math.round(tr.routeProgress * 100)}%</span>
+                      <span className="text-xs text-slate-500 font-mono">
+                        {Math.round(
+                          tr.routeProgress > 1 ? tr.routeProgress : (tr.routeProgress || 0) * 100
+                        )}
+                        %
+                      </span>
                     </div>
                   </td>
                   <td className="py-3 px-4 font-bold text-xs text-slate-800">
