@@ -18,18 +18,23 @@ import { CostEngine } from '../engines/cost.engine';
 import { ActionLogsService } from '../action-logs/action-logs.service';
 
 const TRIP_STATUS_FLOW: Record<string, string[]> = {
-  [TripStatus.PLANNING]: [TripStatus.PLANNED, TripStatus.CANCELLED],
-  [TripStatus.PLANNED]: [TripStatus.ASSIGNED, TripStatus.DISPATCHED, TripStatus.CANCELLED, TripStatus.PLANNING],
-  [TripStatus.ASSIGNED]: [TripStatus.DISPATCHED, TripStatus.CANCELLED, TripStatus.PLANNED],
-  [TripStatus.DISPATCHED]: [TripStatus.DRIVER_ACCEPTED, TripStatus.STARTED, TripStatus.CANCELLED],
-  [TripStatus.DRIVER_ACCEPTED]: [TripStatus.LOADING, TripStatus.STARTED, TripStatus.CANCELLED],
-  [TripStatus.LOADING]: [TripStatus.STARTED, TripStatus.CANCELLED],
-  [TripStatus.STARTED]: [TripStatus.DRIVING, TripStatus.COMPLETED, TripStatus.CANCELLED],
-  [TripStatus.DRIVING]: [TripStatus.PARTIALLY_DELIVERED, TripStatus.COMPLETED],
-  [TripStatus.PARTIALLY_DELIVERED]: [TripStatus.COMPLETED, TripStatus.CANCELLED],
-  [TripStatus.COMPLETED]: [TripStatus.CLOSED],
+  [TripStatus.PLANNING]: [TripStatus.PLANNED, TripStatus.ASSIGNED, TripStatus.DISPATCHED, TripStatus.CANCELLED],
+  [TripStatus.PLANNED]: [TripStatus.PLANNING, TripStatus.ASSIGNED, TripStatus.DISPATCHED, TripStatus.CANCELLED],
+  [TripStatus.ASSIGNED]: [TripStatus.PLANNING, TripStatus.PLANNED, TripStatus.DISPATCHED, TripStatus.CANCELLED],
+  [TripStatus.DISPATCHED]: [TripStatus.PLANNING, TripStatus.PLANNED, TripStatus.ASSIGNED, TripStatus.DRIVER_ACCEPTED, TripStatus.STARTED, TripStatus.CANCELLED],
+  [TripStatus.DRIVER_ACCEPTED]: [TripStatus.DISPATCHED, TripStatus.LOADING, TripStatus.STARTED, TripStatus.DRIVING, TripStatus.CANCELLED],
+  [TripStatus.LOADING]: [TripStatus.STARTED, TripStatus.DRIVING, TripStatus.CANCELLED],
+  [TripStatus.STARTED]: [TripStatus.LOADING, TripStatus.DRIVING, TripStatus.PARTIALLY_DELIVERED, TripStatus.COMPLETED, TripStatus.CANCELLED],
+  [TripStatus.DRIVING]: [TripStatus.PARTIALLY_DELIVERED, TripStatus.COMPLETED, TripStatus.CANCELLED],
+  [TripStatus.PARTIALLY_DELIVERED]: [TripStatus.DRIVING, TripStatus.COMPLETED, TripStatus.CANCELLED],
+  [TripStatus.COMPLETED]: [TripStatus.CLOSED, TripStatus.CANCELLED],
   [TripStatus.CLOSED]: [],
-  [TripStatus.CANCELLED]: [],
+  [TripStatus.CANCELLED]: [TripStatus.PLANNING, TripStatus.PLANNED],
+  // Lifecycle aliases for TRP sync
+  confirmed: [TripStatus.PLANNING, TripStatus.PLANNED, TripStatus.DISPATCHED, TripStatus.CANCELLED],
+  in_transit: [TripStatus.DRIVING, TripStatus.COMPLETED, TripStatus.CANCELLED],
+  driver_received: [TripStatus.DRIVER_ACCEPTED, TripStatus.DISPATCHED, TripStatus.CANCELLED],
+  unplanned: [TripStatus.PLANNING, TripStatus.PLANNED, TripStatus.CANCELLED],
 };
 
 @Injectable()
@@ -276,19 +281,35 @@ export class TripsService {
 
     // 0. Enforce the status state machine
     if (updateData.status && updateData.status !== existing.status) {
-      const allowed = TRIP_STATUS_FLOW[existing.status] || [];
+      const allowed = TRIP_STATUS_FLOW[existing.status] || [
+        TripStatus.PLANNING,
+        TripStatus.PLANNED,
+        TripStatus.ASSIGNED,
+        TripStatus.DISPATCHED,
+        TripStatus.CANCELLED,
+      ];
       const isMobileStatus = ['driver_accepted', 'started', 'loading', 'driving', 'partially_delivered', 'completed'].includes(updateData.status);
-      if (!allowed.includes(updateData.status) && !isMobileStatus) {
+      const isCancellation = updateData.status === 'cancelled' && existing.status !== 'closed';
+      const isDispatch = updateData.status === 'dispatched' && ['planning', 'planned', 'assigned', 'confirmed', 'driver_received', 'dispatched'].includes(existing.status);
+
+      if (!allowed.includes(updateData.status) && !isMobileStatus && !isCancellation && !isDispatch) {
         throw new ConflictException(`Invalid transition from ${existing.status} to ${updateData.status}`);
       }
     }
 
-    // 1. Generate Tracking Token on Dispatch
-    if (dto.status === 'dispatched' && !existing.trackingToken) {
-      const refCode = existing.tripNumber || existing.orders?.[0]?.orderNumber || 'HC-TRIP';
-      const cleanRef = refCode.startsWith('HC-') ? refCode : `HC-${refCode}`;
-      const token = `${cleanRef}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-      updateData.trackingToken = token;
+    // 1. Generate Tracking Token & Dispatch Fields on Dispatch
+    if (dto.status === 'dispatched') {
+      if (!existing.trackingToken) {
+        const refCode = existing.tripNumber || existing.orders?.[0]?.orderNumber || 'HC-TRIP';
+        const cleanRef = refCode.startsWith('HC-') ? refCode : `HC-${refCode}`;
+        const token = `${cleanRef}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        updateData.trackingToken = token;
+      }
+      updateData.dispatchVersion = (existing.dispatchVersion || 0) + 1;
+      updateData.dispatchedAt = new Date();
+      if (user?.id) {
+        updateData.dispatchedBy = { id: user.id } as any;
+      }
     }
 
     await this.repo.update(id, updateData);
