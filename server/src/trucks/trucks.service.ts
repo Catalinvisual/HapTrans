@@ -93,7 +93,7 @@ export class TrucksService {
   getAvailability() {
     return this.repo.find({
       where: { status: Not(TruckStatus.INACTIVE) },
-      relations: ['trips', 'trips.client'],
+      relations: ['trips', 'trips.orders', 'trips.orders.client'],
       order: { plateNumber: 'ASC' },
     });
   }

@@ -49,7 +49,7 @@ function iso(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function TrendBadge({ value, invert = false, pct }: { value: number | null | undefined; invert?: boolean; pct: (n: number, d?: number) => string }) {
+function TrendBadge({ value, invert = false }: { value: number | null | undefined; invert?: boolean }) {
   if (value === null || value === undefined || isNaN(value)) return null;
   const good = invert ? value < 0 : value > 0;
   const neutral = Math.abs(value) < 0.05;
@@ -57,12 +57,12 @@ function TrendBadge({ value, invert = false, pct }: { value: number | null | und
   return (
     <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${good ? 'text-success' : 'text-error'}`}>
       {value > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-      {pct(Math.abs(value))}
+      {`${Math.abs(value).toFixed(1)}%`}
     </span>
   );
 }
 
-function KpiCard({ icon: Icon, label, value, sub, trend, invert, accent, pct }: any) {
+function KpiCard({ icon: Icon, label, value, sub, trend, invert, accent }: any) {
   return (
     <div className="stat-card">
       <div className="flex items-center justify-between gap-2">
@@ -71,7 +71,7 @@ function KpiCard({ icon: Icon, label, value, sub, trend, invert, accent, pct }: 
       </div>
       <div className="mt-1 flex items-end justify-between gap-2 flex-wrap">
         <span className="text-xl lg:text-2xl font-bold text-text leading-tight">{value}</span>
-        <TrendBadge value={trend} invert={invert} pct={pct} />
+        <TrendBadge value={trend} invert={invert} />
       </div>
       {sub && <div className="text-[11px] text-text-secondary mt-0.5">{sub}</div>}
     </div>
