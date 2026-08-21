@@ -44,6 +44,7 @@ import { PortalAuthModule } from './portal-auth/portal-auth.module';
 import { PortalModule } from './portal/portal.module';
 import { ActionLogsModule } from './action-logs/action-logs.module';
 import { TelematicsModule } from './telematics/telematics.module';
+import { FinancialModule } from './financial/financial.module';
 
 @Module({
   imports: [
@@ -108,6 +109,7 @@ import { TelematicsModule } from './telematics/telematics.module';
     PlanningModule,
     ActionLogsModule,
     TelematicsModule,
+    FinancialModule,
   ],
   controllers: [AppController],
   providers: [AppService],

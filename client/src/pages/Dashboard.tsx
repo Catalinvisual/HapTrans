@@ -1,58 +1,84 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { TrendingUp, TrendingDown, Truck, AlertTriangle, FileWarning, Clock } from 'lucide-react';
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { Link } from 'react-router-dom';
+import {
+  Truck, Route as RouteIcon, UserCheck, AlertTriangle, FileWarning, Clock,
+  Wrench, Coffee, PlaneTakeoff, MapPin, ArrowRight, CircleDashed, Fuel, CalendarClock,
+} from 'lucide-react';
 import api from '../lib/api';
 import { formatDate } from '../lib/dateUtils';
 import DieselWidget from '../components/DieselWidget';
+import { useAuthStore } from '../store/authStore';
 
-interface DashboardData {
-  stats: { profit: number; revenue: number; totalCost: number; costPerKm: number; active: number; activeTrucks: number; tripsCount: number };
-  monthlyProfits: Array<{ month: string; profit: number; totalRevenue: number; totalCost: number }>;
-  overdueInvoices: any[];
-  expiringDocs: any[];
-  profitByRoute?: Array<{ route: string; profit: number }>;
-  topClients?: Array<{ name: string; profit: number }>;
+interface TripLite {
+  id: string;
+  tripNumber?: string;
+  status: string;
+  plannedDeparture?: string;
+  actualDeparture?: string;
+  plannedArrival?: string;
+  actualArrival?: string;
+  truck?: { id: string; plateNumber: string } | null;
+  driver?: { id: string; user?: { name: string } } | null;
+  stops?: Array<{ id: string; city?: string; country?: string; companyName?: string; address?: string; sequence?: number; type?: string }>;
 }
 
-function StatCard({ title, value, unit, trend, color }: any) {
-  const isPositive = trend >= 0;
-  return (
-    <div className="stat-card">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">{title}</span>
-        {trend !== undefined && (
-          <span className={`flex items-center gap-1 text-xs font-semibold ${isPositive ? 'text-success' : 'text-error'}`}>
-            {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-          </span>
-        )}
-      </div>
-      <div className="mt-2">
-        <span className={`text-2xl font-bold ${color || 'text-text'}`}>{value}</span>
-        {unit && <span className="text-sm text-text-secondary ml-1">{unit}</span>}
-      </div>
-    </div>
-  );
+const ACTIVE_TRIP_STATUSES = 'planned,dispatched,assigned,driver_accepted,started,loading,driving,partially_delivered';
+
+function sameDay(a?: string | Date, b = new Date()) {
+  if (!a) return false;
+  const d = new Date(a);
+  return d.getDate() === b.getDate() && d.getMonth() === b.getMonth() && d.getFullYear() === b.getFullYear();
+}
+
+function stopLabel(stops: TripLite['stops'], kind: 'first' | 'last') {
+  const sorted = (stops || []).slice().sort((a: any, b: any) => (a.sequence || 1) - (b.sequence || 1));
+  if (!sorted.length) return null;
+  const s = kind === 'first' ? sorted[0] : sorted[sorted.length - 1];
+  return [s.city, s.country].filter(Boolean).join(', ') || s.companyName || s.address || null;
 }
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
-  const [data, setData] = useState<DashboardData | null>(null);
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
+
+  const [summary, setSummary] = useState<any>(null);
+  const [trucks, setTrucks] = useState<any[]>([]);
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [activeTrips, setActiveTrips] = useState<TripLite[]>([]);
   const [loading, setLoading] = useState(true);
+  const [today] = useState(() => new Date());
 
   useEffect(() => {
-    api.get('/dashboard').then((r) => { setData(r.data); setLoading(false); }).catch(() => setLoading(false));
+    Promise.all([
+      api.get('/dashboard').catch(() => null),
+      api.get('/trucks/availability').catch(() => []),
+      api.get('/drivers').catch(() => []),
+      api.get(`/trips?status=${ACTIVE_TRIP_STATUSES}`).catch(() => []),
+    ]).then(([d, tr, dr, tp]) => {
+      setSummary(d?.data ?? null);
+      setTrucks(Array.isArray(tr.data) ? tr.data : []);
+      setDrivers(Array.isArray(dr.data) ? dr.data : []);
+      setActiveTrips(Array.isArray(tp.data) ? tp.data : []);
+    }).finally(() => setLoading(false));
   }, []);
 
-  const getTranslatedMonth = (monthStr: string) => {
-    const m = monthStr.toLowerCase().replace('.', '');
-    const map: Record<string, string> = {
-      'ian': 'jan', 'feb': 'feb', 'mar': 'mar', 'apr': 'apr', 'mai': 'may', 'iun': 'jun',
-      'iul': 'jul', 'aug': 'aug', 'sep': 'sep', 'oct': 'oct', 'noi': 'nov', 'dec': 'dec'
-    };
-    const key = map[m] || m;
-    return t(key);
-  };
+  const departuresToday = useMemo(() => activeTrips.filter(x => sameDay(x.plannedDeparture, today)), [activeTrips, today]);
+  const arrivalsToday = useMemo(() => activeTrips.filter(x => sameDay(x.plannedArrival, today)), [activeTrips, today]);
+  const unassigned = useMemo(() => activeTrips.filter(x => !x.truck?.id || !x.driver?.id), [activeTrips]);
+
+  const trucksInTrip = trucks.filter(x => x.status === 'in_trip');
+  const trucksAvailable = trucks.filter(x => x.status === 'active');
+  const trucksMaintenance = trucks.filter(x => x.status === 'maintenance');
+
+  const driversInTrip = drivers.filter(d => d.status === 'in_trip');
+  const driversAvailable = drivers.filter(d => d.status === 'available');
+  const driversOff = drivers.filter(d => ['off', 'sick', 'vacation'].includes(d.status));
+
+  const delayed = useMemo(() => activeTrips.filter(x =>
+    x.plannedArrival && !x.actualArrival && new Date(x.plannedArrival).getTime() < Date.now()
+  ), [activeTrips]);
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -63,165 +89,212 @@ export default function Dashboard() {
     </div>
   );
 
-  const s = data?.stats;
-  const profitColor = (s?.profit ?? 0) >= 0 ? 'text-success' : 'text-error';
+  const dateStr = today.toLocaleDateString(i18n.language, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  const opStats = [
+    { icon: RouteIcon, label: t('activeTrips'), value: summary?.stats?.active ?? activeTrips.length, color: 'text-primary', bg: 'bg-primary/10' },
+    { icon: Truck, label: t('dash_trucks_in_trip'), value: trucksInTrip.length, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+    { icon: CircleDashed, label: t('dash_trucks_available'), value: trucksAvailable.length, color: 'text-success', bg: 'bg-success/10' },
+    { icon: UserCheck, label: t('dash_drivers_duty'), value: driversInTrip.length + driversAvailable.length, color: 'text-purple-500', bg: 'bg-purple-500/10' },
+    { icon: Wrench, label: t('dash_trucks_maintenance'), value: trucksMaintenance.length, color: 'text-warning', bg: 'bg-warning/10' },
+    { icon: AlertTriangle, label: t('expiringDocuments'), value: summary?.expiringDocs?.length ?? 0, color: 'text-warning', bg: 'bg-warning/10' },
+  ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-5 animate-fade-in">
 
-      {/* Diesel Prices Widget */}
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-bold text-text">{t('dash_ops_board')}</h1>
+          <p className="text-sm text-text-secondary capitalize">{dateStr}</p>
+        </div>
+      </div>
+
+      {/* Operational KPI strip */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        {opStats.map(s => (
+          <div key={s.label} className="stat-card !gap-1.5">
+            <span className={`w-8 h-8 rounded-lg flex items-center justify-center ${s.bg}`}><s.icon className={`w-4 h-4 ${s.color}`} /></span>
+            <span className="text-2xl font-bold text-text leading-none">{s.value}</span>
+            <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wide truncate">{s.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Diesel */}
       <DieselWidget avgConsumptionL100={32} />
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title={t('profit')} value={`€${(s?.profit ?? 0).toLocaleString(i18n.language)}`} color={profitColor} trend={s?.profit} />
-        <StatCard title={t('revenue')} value={`€${(s?.totalRevenue ?? 0).toLocaleString(i18n.language)}`} color="text-success" />
-        <StatCard title={t('activeTrips')} value={s?.active ?? 0} color="text-primary" />
-        <StatCard title={t('activeTrucks')} value={s?.activeTrucks ?? 0} color="text-text" />
-        <StatCard title={t('costPerKm')} value={`€${(s?.costPerKm ?? 0).toFixed(2)}`} unit="/km" />
-        <StatCard title={t('totalTrips')} value={s?.tripsCount ?? 0} color="text-text" />
-        <StatCard title={t('costs')} value={`€${(s?.totalCost ?? 0).toLocaleString(i18n.language)}`} color="text-error" />
-        <div className="stat-card flex flex-col justify-between cursor-pointer hover:bg-warning/5 transition-colors" onClick={() => document.getElementById('expiring-docs-section')?.scrollIntoView({ behavior: 'smooth' })}>
-          <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">{t('expiringDocuments')}</span>
-          <div className="flex items-center gap-2 mt-2">
-            <AlertTriangle className="w-5 h-5 text-warning" />
-            <span className="text-2xl font-bold text-warning">{data?.expiringDocs?.length ?? 0}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts */}
+      {/* Today board */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="card">
-          <h3 className="text-sm font-semibold text-text mb-4">{t('profitByMonth')}</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={data?.monthlyProfits ?? []}>
-              <defs>
-                <linearGradient id="profitGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#FF7A1A" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#FF7A1A" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} tickFormatter={getTranslatedMonth} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `€${v}`} />
-              <Tooltip formatter={(v: any) => [`€${Number(v || 0).toLocaleString(i18n.language)}`, '']} />
-              <Area type="monotone" dataKey="profit" stroke="#FF7A1A" strokeWidth={2} fill="url(#profitGrad)" name={t('profit')} />
-              <Area type="monotone" dataKey="totalRevenue" stroke="#16A34A" strokeWidth={2} fill="none" name={t('revenue')} />
-            </AreaChart>
-          </ResponsiveContainer>
+          <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
+            <PlaneTakeoff className="w-4 h-4 text-primary" />{t('dash_departures_today')}
+            <span className="badge-primary ml-auto">{departuresToday.length}</span>
+          </h3>
+          <div className="space-y-2">
+            {departuresToday.slice(0, 6).map(x => (
+              <Link to={`/trips/${x.id}`} key={x.id} className="flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-surface transition-colors group">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-text truncate">
+                    {stopLabel(x.stops, 'first')} <ArrowRight className="w-3 h-3 inline text-text-secondary" /> {stopLabel(x.stops, 'last')}
+                  </div>
+                  <div className="text-[11px] text-text-secondary truncate">
+                    {x.tripNumber} · {x.truck?.plateNumber || t('dash_no_truck')} · {x.driver?.user?.name || t('dash_no_driver')}
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-primary shrink-0">{x.plannedDeparture ? new Date(x.plannedDeparture).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+              </Link>
+            ))}
+            {departuresToday.length === 0 && <div className="text-sm text-text-secondary py-6 text-center">{t('dash_no_departures')}</div>}
+          </div>
         </div>
 
         <div className="card">
-          <h3 className="text-sm font-semibold text-text mb-4">{t('revenueVsCosts')}</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={data?.monthlyProfits ?? []} barSize={20}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} tickFormatter={getTranslatedMonth} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `€${v}`} />
-              <Tooltip formatter={(v: any) => [`€${Number(v || 0).toLocaleString(i18n.language)}`, '']} />
-              <Legend />
-              <Bar dataKey="totalRevenue" fill="#16A34A" name={t('revenue')} radius={[4, 4, 0, 0]} />
-              <Bar dataKey="totalCost" fill="#DC2626" name={t('costs')} radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-emerald-500" />{t('dash_arrivals_today')}
+            <span className="badge-success ml-auto">{arrivalsToday.length}</span>
+          </h3>
+          <div className="space-y-2">
+            {arrivalsToday.slice(0, 6).map(x => (
+              <Link to={`/trips/${x.id}`} key={x.id} className="flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-surface transition-colors">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-text truncate">
+                    {stopLabel(x.stops, 'first')} <ArrowRight className="w-3 h-3 inline text-text-secondary" /> {stopLabel(x.stops, 'last')}
+                  </div>
+                  <div className="text-[11px] text-text-secondary truncate">
+                    {x.tripNumber} · {x.truck?.plateNumber || t('dash_no_truck')} · {x.driver?.user?.name || t('dash_no_driver')}
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-success shrink-0">{x.plannedArrival ? new Date(x.plannedArrival).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+              </Link>
+            ))}
+            {arrivalsToday.length === 0 && <div className="text-sm text-text-secondary py-6 text-center">{t('dash_no_arrivals')}</div>}
+          </div>
         </div>
       </div>
 
-      {/* Profit per truck & driver */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Needs attention */}
+      {(unassigned.length > 0 || delayed.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {unassigned.length > 0 && (
+            <div className="card border-l-4 border-warning">
+              <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
+                <CircleDashed className="w-4 h-4 text-warning" />{t('dash_unassigned_trips')}
+                <span className="badge-warning ml-auto">{unassigned.length}</span>
+              </h3>
+              <div className="space-y-2">
+                {unassigned.slice(0, 5).map(x => (
+                  <Link to={`/trips/${x.id}`} key={x.id} className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-surface/70 transition-colors">
+                    <span className="font-medium text-text">{x.tripNumber}</span>
+                    <span className="flex gap-1.5">
+                      {!x.truck?.id && <span className="badge-warning text-[10px]">{t('dash_no_truck')}</span>}
+                      {!x.driver?.id && <span className="badge-error text-[10px]">{t('dash_no_driver')}</span>}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+          {delayed.length > 0 && (
+            <div className="card border-l-4 border-error">
+              <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-error" />{t('dash_delayed')}
+                <span className="badge-error ml-auto">{delayed.length}</span>
+              </h3>
+              <div className="space-y-2">
+                {delayed.slice(0, 5).map(x => (
+                  <Link to={`/trips/${x.id}`} key={x.id} className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-surface/70 transition-colors">
+                    <span className="font-medium text-text">{x.tripNumber}</span>
+                    <span className="text-[11px] text-error font-semibold flex items-center gap-1">
+                      <CalendarClock className="w-3 h-3" />
+                      {x.plannedArrival ? formatDate(x.plannedArrival) : ''}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Fleet + Drivers */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="card">
-          <h3 className="text-sm font-semibold text-text mb-4">{t('profitByTruck')}</h3>
-          <div className="space-y-4 mt-2">
-            {(data?.profitByTruck ?? []).filter(x => x.profit > 0).map((x, idx) => {
-              const max = Math.max(...(data?.profitByTruck ?? []).map(y => Number(y.profit)), 1);
+          <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
+            <Truck className="w-4 h-4 text-blue-500" />{t('dash_fleet_status')}
+          </h3>
+          <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+            {trucksInTrip.map(x => {
+              const trip = activeTrips.find(tp => tp.truck?.id === x.id);
               return (
-                <div key={idx}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-text text-sm">{x.name}</span>
-                    <span className="text-sm font-bold text-success">€{Number(x.profit).toLocaleString(i18n.language)}</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-surface-hover overflow-hidden">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(4, (Number(x.profit) / max) * 100)}%` }} />
-                  </div>
+                <div key={x.id} className="flex items-center justify-between text-sm p-2 rounded-lg bg-surface/50">
+                  <span className="font-semibold text-text">{x.plateNumber}</span>
+                  <span className="text-[11px] text-text-secondary truncate max-w-[55%] text-right">
+                    {trip ? `${stopLabel(trip.stops, 'first') || ''} → ${stopLabel(trip.stops, 'last') || ''}` : `— ${trip?.driver?.user?.name ?? ''}`}
+                  </span>
+                  <span className="badge-primary text-[10px] shrink-0">{t('status_badge_in_trip')}</span>
                 </div>
               );
             })}
-            {(data?.profitByTruck?.length ?? 0) === 0 && (
-              <div className="text-sm text-text-secondary text-center mt-8">{t('notEnoughData')}</div>
-            )}
+            {trucksAvailable.map(x => (
+              <div key={x.id} className="flex items-center justify-between text-sm p-2 rounded-lg">
+                <span className="font-semibold text-text">{x.plateNumber}</span>
+                <span className="badge-success text-[10px]">{t('status_badge_free')}</span>
+              </div>
+            ))}
+            {trucksMaintenance.map(x => (
+              <div key={x.id} className="flex items-center justify-between text-sm p-2 rounded-lg opacity-80">
+                <span className="font-semibold text-text">{x.plateNumber}</span>
+                <span className="badge-warning text-[10px]">{t('dash_maintenance')}</span>
+              </div>
+            ))}
+            {trucks.length === 0 && <div className="text-sm text-text-secondary py-6 text-center">{t('notEnoughData')}</div>}
           </div>
         </div>
+
         <div className="card">
-          <h3 className="text-sm font-semibold text-text mb-4">{t('profitByDriver')}</h3>
-          <div className="space-y-4 mt-2">
-            {(data?.profitByDriver ?? []).filter(x => x.profit > 0).map((x, idx) => {
-              const max = Math.max(...(data?.profitByDriver ?? []).map(y => Number(y.profit)), 1);
-              return (
-                <div key={idx}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-text text-sm">{x.name}</span>
-                    <span className="text-sm font-bold text-success">€{Number(x.profit).toLocaleString(i18n.language)}</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-surface-hover overflow-hidden">
-                    <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.max(4, (Number(x.profit) / max) * 100)}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-            {(data?.profitByDriver?.length ?? 0) === 0 && (
-              <div className="text-sm text-text-secondary text-center mt-8">{t('notEnoughData')}</div>
-            )}
+          <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
+            <UserCheck className="w-4 h-4 text-purple-500" />{t('dash_drivers')}
+          </h3>
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="rounded-xl bg-primary/5 border border-primary/15 p-2.5 text-center">
+              <div className="text-lg font-bold text-primary">{driversInTrip.length}</div>
+              <div className="text-[10px] font-semibold text-text-secondary uppercase">{t('status_badge_in_trip')}</div>
+            </div>
+            <div className="rounded-xl bg-success/5 border border-success/15 p-2.5 text-center">
+              <div className="text-lg font-bold text-success">{driversAvailable.length}</div>
+              <div className="text-[10px] font-semibold text-text-secondary uppercase">{t('dash_available')}</div>
+            </div>
+            <div className="rounded-xl bg-surface border border-border p-2.5 text-center">
+              <div className="text-lg font-bold text-text-secondary">{driversOff.length}</div>
+              <div className="text-[10px] font-semibold text-text-secondary uppercase flex items-center justify-center gap-1"><Coffee className="w-3 h-3" />{t('dash_off')}</div>
+            </div>
+          </div>
+          <div className="space-y-1.5 max-h-52 overflow-y-auto custom-scrollbar pr-1">
+            {[...driversInTrip, ...driversAvailable].map(d => (
+              <div key={d.id} className="flex items-center justify-between text-sm p-1.5 rounded-lg hover:bg-surface/60 transition-colors">
+                <span className="font-medium text-text truncate">{d.user?.name || d.name || '—'}</span>
+                <span className={`text-[10px] font-semibold ${d.status === 'in_trip' ? 'text-primary' : 'text-success'}`}>
+                  {d.status === 'in_trip' ? t('status_badge_in_trip') : t('dash_available')}
+                </span>
+              </div>
+            ))}
+            {drivers.length === 0 && <div className="text-sm text-text-secondary py-6 text-center">{t('notEnoughData')}</div>}
           </div>
         </div>
       </div>
 
       {/* Alerts */}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="card">
-          <h3 className="text-sm font-semibold text-text mb-4">{t('topProfitableRoutes')}</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={data?.profitByRoute ?? []} layout="vertical" margin={{ left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={true} stroke="rgba(0,0,0,0.05)" />
-              <XAxis type="number" hide />
-              <YAxis dataKey="route" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
-              <Tooltip cursor={{ fill: 'rgba(0,0,0,0.02)' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }} formatter={(value: number) => `€${value.toLocaleString(i18n.language)}`} />
-              <Bar dataKey="profit" fill="#10B981" radius={[0, 4, 4, 0]} barSize={24} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="card">
-          <h3 className="text-sm font-semibold text-text mb-4">{t('topClientsProfit')}</h3>
-          <div className="space-y-4 mt-2">
-            {(data?.topClients ?? []).filter(c => c.profit > 0).map((client, idx) => (
-              <div key={idx} className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center text-primary font-bold text-xs">
-                    {idx + 1}
-                  </div>
-                  <span className="font-semibold text-text">{client.name}</span>
-                </div>
-                <span className={`text-sm font-bold ${client.profit >= 0 ? 'text-success' : 'text-error'}`}>
-                  €{client.profit.toLocaleString(i18n.language)}
-                </span>
-              </div>
-            ))}
-            {(data?.topClients?.length ?? 0) === 0 && (
-              <div className="text-sm text-text-secondary text-center mt-8">{t('notEnoughData')}</div>
-            )}
-          </div>
-        </div>
-
-        {(data?.expiringDocs?.length ?? 0) > 0 && (
-          <div id="expiring-docs-section" className="card border-l-4 border-warning">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {(summary?.expiringDocs?.length ?? 0) > 0 && (
+          <div className="card border-l-4 border-warning">
             <div className="flex items-center gap-2 mb-3">
               <FileWarning className="w-5 h-5 text-warning" />
-              <h3 className="font-semibold text-sm text-text">{t('expiringDocuments')} ({data?.expiringDocs.length})</h3>
+              <h3 className="font-semibold text-sm text-text">{t('expiringDocuments')} ({summary.expiringDocs.length})</h3>
             </div>
             <div className="space-y-2">
-              {data?.expiringDocs.slice(0, 4).map((d: any) => (
+              {summary.expiringDocs.slice(0, 5).map((d: any) => (
                 <div key={d.id} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
                   <span className="text-text font-medium">{d.title}</span>
                   <span className="badge-warning">{formatDate(d.expiryDate)}</span>
@@ -230,14 +303,14 @@ export default function Dashboard() {
             </div>
           </div>
         )}
-        {(data?.overdueInvoices?.length ?? 0) > 0 && (
+        {isAdmin && (summary?.overdueInvoices?.length ?? 0) > 0 && (
           <div className="card border-l-4 border-error">
             <div className="flex items-center gap-2 mb-3">
               <Clock className="w-5 h-5 text-error" />
-              <h3 className="font-semibold text-sm text-text">{t('overdueInvoices')} ({data?.overdueInvoices.length})</h3>
+              <h3 className="font-semibold text-sm text-text">{t('overdueInvoices')} ({summary.overdueInvoices.length})</h3>
             </div>
             <div className="space-y-2">
-              {data?.overdueInvoices.slice(0, 4).map((inv: any) => (
+              {summary.overdueInvoices.slice(0, 5).map((inv: any) => (
                 <div key={inv.id} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
                   <span className="text-text font-medium">{inv.invoiceNumber} — {inv.client?.name}</span>
                   <span className="badge-error">€{Number(inv.amount).toLocaleString(i18n.language)}</span>
@@ -246,10 +319,10 @@ export default function Dashboard() {
             </div>
           </div>
         )}
-        {(data?.expiringDocs?.length ?? 0) === 0 && (data?.overdueInvoices?.length ?? 0) === 0 && (
+        {(summary?.expiringDocs?.length ?? 0) === 0 && (!(summary?.overdueInvoices?.length) || !isAdmin) && (
           <div className="card border-l-4 border-success lg:col-span-2">
             <div className="flex items-center gap-2">
-              <Truck className="w-5 h-5 text-success" />
+              <Fuel className="w-5 h-5 text-success" />
               <span className="text-sm font-medium text-success">{t('allClearNoAlerts')}</span>
             </div>
           </div>
