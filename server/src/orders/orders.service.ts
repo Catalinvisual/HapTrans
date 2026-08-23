@@ -615,8 +615,11 @@ export class OrdersService {
       const geo = await this.routingService.geocode(query);
       if (!geo?.label || !geo.label.trim()) return null;
 
-      // Every meaningful document token must survive in the geocoder result
-      const compatible = parts.every(p => this.isGeoResultCompatible(p, geo));
+      // The first part of the query is usually the COMPANY NAME which rarely
+      // survives into a geocoder label — validate only location tokens
+      // (city/postal/country). A different branch city still gets rejected.
+      const locParts = parts.length > 1 ? parts.slice(1) : parts;
+      const compatible = locParts.every(p => this.isGeoResultCompatible(p, geo));
       return compatible ? geo.label : null;
     } catch {
       return null;

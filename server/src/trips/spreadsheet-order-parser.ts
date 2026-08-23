@@ -5,11 +5,16 @@ import * as XLSX from 'xlsx';
  *
  * Replaces the LLM for .xlsx/.xls/.csv imports: instant, free and 100%
  * reproducible. Columns are mapped through a curated multilingual synonym
- * dictionary we control (much more reliable than prompting a model to guess
- * what "vracht auto nr" or "Tijd af magazijn" means).
- *
- * Any column WITHOUT a dedicated field is preserved verbatim into `notes`
- * ("Header: value") so absolutely all document information reaches the order.
+ * dictionary we control. Designed for real client files like Koopman's
+ * outbound planning sheets where:
+ *  - the destination block uses generic Dutch headers (Naam/Adres/Postcode/
+ *    Woonplaats/Ln I2) -> assembled into the delivery stop,
+ *  - pallets are split over several columns (Pal Euro/Pal Blok/Pal Ovrg),
+ *  - free-text columns (Faktuur info) hide the loading site ("Laden in
+ *    Vijn Echt") which we mine with targeted regexes,
+ *  - everything WITHOUT a dedicated system field lands verbatim in notes
+ *    ("Header: value") — nothing is ever lost, nothing floods notes that
+ *      has a real input.
  */
 
 function norm(s: unknown): string {
@@ -21,42 +26,70 @@ function norm(s: unknown): string {
     .trim();
 }
 
-/** Field claim priority: most specific first (e.g. klantreferentie before klant). */
-const FIELD_SYNONYMS: Array<[string, string[]]> = [
-  ['loadingReference', ['vracht auto nr', 'vracht autonr', 'vracht nummer', 'vrachtnummer', 'vracht nr', 'load nr', 'load number', 'load ref', 'loading ref', 'loading reference', 'ref laden', 'laad ref', 'cmr nr', 'cmr nummer', 'cmr', 'nr vracht']],
-  ['customerReference', ['cp order nr', 'cp ordernr', 'cp order', 'klantreferentie', 'klant referentie', 'customer order nr', 'customer ref', 'customer reference', 'uw referentie', 'purchase order', 'po nr', 'po number', 'commission nr', 'your ref', 'opdracht nr klant']],
-  ['unloadingReference', ['unloading ref', 'unloading reference', 'lossen ref', 'los ref', 'aflever nr', 'aflevernummer', 'unload ref', 'slot id', 'slot nr', 'slot']],
-  ['pickupDate', ['laaddatum', 'laad datum', 'datum laden', 'loading date', 'load date', 'pickup date', 'pick up date', 'date of loading', 'chargement date', 'date chargement', 'verlade datum', 'ladedatum', 'data incarcarii', 'data incarcare']],
-  ['pickupTime', ['tijd af magazijn', 'tijd op magazijn', 'tijd magazijn', 'magazijn tijd', 'laadtijd', 'laad tijd', 'tijd van laden', 'uur van laden', 'loading time', 'load time', 'pickup time', 'ladezeit', 'ora incarcarii']],
-  ['dropoffDate', ['lossdatum', 'loss datum', 'losdatum', 'los datum', 'datum lossen', 'delivery date', 'unload date', 'unloading date', 'aflever datum', 'afleverdatum', 'afladen datum', 'entlade datum', 'entladedatum', 'dechargement', 'date de livraison', 'data livrarii', 'data livrare', 'drop off date', 'dropoff date']],
-  ['dropoffTime', ['lostijd', 'los tijd', 'tijd van lossen', 'unload time', 'unloading time', 'delivery time', 'loszeit', 'ora livrarii']],
-  ['pickupAddress', ['laadadres', 'laad adres', 'laad locatie', 'laadlocatie', 'loading address', 'loading location', 'pickup address', 'pickup location', 'afhaal adres', 'place of loading', 'adres incarcare']],
-  ['dropoffAddress', ['losadres', 'los adres', 'los locatie', 'loslocatie', 'lossing adres', 'unloading address', 'unloading location', 'delivery address', 'delivery location', 'aflever adres', 'afleverlocatie', 'place of delivery', 'adres livrare']],
-  ['weightKg', ['gewicht kg', 'gewicht', 'weight kg', 'weight', 'brutogewicht', 'bruto gewicht', 'brutto gewicht', 'brutto', 'bruto', 'poids', 'waga']],
-  ['pallets', ['aantal paletten', 'paletten', 'palets', 'palet', 'pallets', 'pallet qty', 'qty pallets', 'epal', 'colli']],
-  ['volumeCbm', ['volume m3', 'volume cbm', 'volume m³', 'm3', 'cbm', 'volumen', 'volume']],
-  ['price', ['prijs', 'price', 'rate', 'tarief', 'fracht', 'freight cost', 'freight', 'cost']],
-  ['currency', ['valuta', 'currency', 'munt', 'devise']],
-  ['distanceKm', ['afstand km', 'afstand', 'distance km', 'distance', 'km stand']],
-  ['contactPerson', ['contact persoon', 'contactpersoon', 'contact person', 'contact name', 'att']]
-  ,
-  ['contactPhone', ['telefoon nr', 'telefoonnummer', 'telefoon', 'telefon', 'phone', 'tel nr', 'tel', 'gsm', 'mobile']],
-  ['notes', ['opmerking', 'opmerkingen', 'remarks', 'remark', 'note', 'notes', 'notitie', 'notities', 'bemerkung', 'bemerkungen', 'instructie', 'instructies', 'instructions', 'observatii']],
-  ['pickupCompanyName', ['naam laden', 'laden bij', 'laden door', 'loading company', 'loader name', 'shipper name', 'shipper', 'verlader', 'expediteur', 'nume incarcator']],
-  ['dropoffCompanyName', ['naam lossen', 'lossen bij', 'lossen aan', 'afleveren aan', 'delivery company', 'consignee name', 'consignee', 'ontvanger', 'destinatar']],
-  ['clientName', ['opdrachtgever', 'opdracht gever', 'klant', 'customer name', 'customer', 'client name', 'client', 'auftraggeber', 'zleceniodawca']],
+interface FieldDef {
+  field: string;
+  syns: string[];
+  /** multiple columns may feed one field (values summed) */
+  multi?: boolean;
+}
+
+/** Field claim priority: most specific first (klantreferentie before klant, etc.). */
+const FIELDS: FieldDef[] = [
+  // ---- references (very specific headers first) ----
+  { field: 'loadingReference', syns: ['vracht auto nr', 'vracht autonr', 'vracht nummer', 'vrachtnummer', 'vracht nr', 'load nr', 'load number', 'load ref', 'loading ref', 'loading reference', 'ref laden', 'laad ref', 'cmr nr', 'cmr nummer', 'cmr', 'nr vracht'] },
+  { field: 'customerReference', syns: ['cp order nr', 'cp ordernr', 'cp ord nummer', 'cp ordernummer', 'cp order', 'cp nummer', 'klantreferentie', 'klant referentie', 'customer order nr', 'customer ref', 'customer reference', 'uw referentie', 'purchase order', 'po nr', 'po number', 'commission nr', 'your ref'] },
+  { field: 'unloadingReference', syns: ['unloading ref', 'unloading reference', 'lossen ref', 'los ref', 'ref lossen', 'aflever nr', 'aflevernummer', 'unload ref', 'slot id', 'slot nr', 'slot'] },
+  // ---- dates & times ----
+  { field: 'pickupDate', syns: ['laaddatum', 'laad datum', 'datum laden', 'loading date', 'load date', 'pickup date', 'date of loading', 'chargement date', 'date chargement', 'verlade datum', 'ladedatum', 'data incarcarii', 'data incarcare', 'gepl af magazijn', 'gepland af magazijn', 'datum af magazijn', 'af magazijn'] },
+  { field: 'pickupTime', syns: ['tijd af magazijn', 'tijd op magazijn', 'tijd magazijn', 'magazijn tijd', 'laadtijd', 'laad tijd', 'tijd van laden', 'uur van laden', 'loading time', 'load time', 'pickup time', 'ladezeit', 'ora incarcarii'] },
+  { field: 'dropoffDate', syns: ['lossdatum', 'loss datum', 'losdatum', 'los datum', 'datum lossen', 'delivery date', 'unload date', 'unloading date', 'aflever datum', 'afleverdatum', 'entlade datum', 'entladedatum', 'dechargement', 'date de livraison', 'data livrarii', 'data livrare', 'drop off date', 'dropoff date', 'geplande leverdatum', 'leverdatum', 'lever datum', 'geplande afleverdatum'] },
+  { field: 'dropoffTime', syns: ['lostijd', 'los tijd', 'tijd van lossen', 'unload time', 'unloading time', 'delivery time', 'loszeit', 'ora livrarii', 'levertijd', 'lever tijd'] },
+  // ---- combined addresses (explicit loading/unloading blocks) ----
+  { field: 'pickupAddress', syns: ['laadadres', 'laad adres', 'laad locatie', 'laadlocatie', 'loading address', 'loading location', 'pickup address', 'pickup location', 'afhaal adres', 'place of loading', 'adres incarcare'] },
+  { field: 'dropoffAddress', syns: ['losadres', 'los adres', 'los locatie', 'loslocatie', 'lossing adres', 'unloading address', 'unloading location', 'delivery address', 'delivery location', 'aflever adres', 'afleverlocatie', 'place of delivery', 'adres livrare'] },
+  // ---- address PARTS (generic Dutch/German/French header blocks) ----
+  { field: 'pickupStreet', syns: ['laad straat', 'straat laden', 'loading street'] },
+  { field: 'pickupPostal', syns: ['laad postcode', 'postcode laden', 'loading postal code', 'loading zip'] },
+  { field: 'pickupCity', syns: ['laad plaats', 'laadplaats', 'plaats laden', 'loading city', 'loading town'] },
+  { field: 'pickupCountry', syns: ['laad land', 'land laden', 'loading country'] },
+  { field: 'dropoffStreet', syns: ['adres', 'straat', 'street', 'strasse', 'rue'] },
+  { field: 'dropoffPostal', syns: ['postcode', 'post code', 'postal code', 'zip code', 'plz'] },
+  { field: 'dropoffCity', syns: ['woonplaats', 'plaats', 'stad', 'city', 'town', 'ort'] },
+  { field: 'dropoffCountry', syns: ['ln i2', 'land', 'landcode', 'country', 'pais', 'pays'] },
+  // ---- company names ----
+  { field: 'pickupCompanyName', syns: ['naam laden', 'laden bij', 'laden door', 'loading company', 'loader name', 'shipper name', 'shipper', 'verlader', 'expediteur', 'nume incarcator'] },
+  { field: 'dropoffCompanyName', syns: ['naam lossen', 'lossen bij', 'lossen aan', 'afleveren aan', 'delivery company', 'consignee name', 'consignee', 'ontvanger', 'destinatar', 'naam'] },
+  // ---- cargo (multi-column sums) ----
+  { field: 'weightKg', syns: ['gewicht kg', 'gewicht', 'weight kg', 'weight', 'bruto gewicht', 'brutogewicht', 'brutto gewicht', 'netto gewicht', 'brutto', 'bruto', 'poids', 'waga'], multi: true },
+  { field: 'pallets', syns: ['aantal paletten', 'paletten', 'palets', 'palet', 'pallet qty', 'qty pallets', 'pallets', 'pal euro', 'pal blok', 'pal ovrg', 'epal'], multi: true },
+  { field: 'volumeCbm', syns: ['volume m3', 'volume cbm', 'volume in m3', 'm3', 'cbm', 'volumen', 'volume'], multi: true },
+  // ---- commercial ----
+  { field: 'price', syns: ['prijs', 'price', 'rate', 'tarief', 'fracht', 'freight cost', 'freight'] },
+  { field: 'currency', syns: ['valuta', 'currency', 'munt', 'devise'] },
+  { field: 'distanceKm', syns: ['afstand km', 'afstand', 'distance km', 'distance', 'km stand'] },
+  { field: 'contactPerson', syns: ['contact persoon', 'contactpersoon', 'contact person', 'contact name', 'att'] },
+  { field: 'contactPhone', syns: ['telefoon nr', 'telefoonnummer', 'telefoon nummer', 'telefoon', 'telefon', 'phone', 'tel nr', 'tel', 'gsm', 'mobile'] },
+  { field: 'notes', syns: ['opmerking', 'opmerkingen', 'remarks', 'remark', 'note', 'notes', 'notitie', 'notities', 'bemerkung', 'bemerkungen', 'instructie', 'instructies', 'instructions', 'observatii'] },
+  { field: 'clientName', syns: ['opdrachtgever', 'opdracht gever', 'klant', 'customer name', 'customer', 'client name', 'client', 'auftraggeber', 'zleceniodawca'] },
 ];
 
 const TOTAL_ROW_WORDS = ['totaal', 'totaalregels', 'subtotaal', 'total', 'subtotal', 'sum', 'somme'];
+/** headers that must NEVER be read as pallet counts */
+const PALLET_BLACKLIST = ['colli', 'colli aantal', 'aantal colli'];
+
+const ISO_COUNTRY: Record<string, string> = {
+  nl: 'Netherlands', be: 'Belgium', de: 'Germany', fr: 'France', pl: 'Poland',
+  es: 'Spain', it: 'Italy', gb: 'United Kingdom', uk: 'United Kingdom', at: 'Austria',
+  ch: 'Switzerland', lu: 'Luxembourg', dk: 'Denmark', se: 'Sweden', no: 'Norway',
+  fi: 'Finland', pt: 'Portugal', cz: 'Czechia', sk: 'Slovakia', hu: 'Hungary', ro: 'Romania', bg: 'Bulgaria',
+};
 
 const EXCEL_EPOCH_UTC = Date.UTC(1899, 11, 30);
 
 function excelSerialToMs(serial: number): number {
-  // Excel day serial -> ms (Excel leap-year bug handled by the 1899-12-30 epoch)
   return EXCEL_EPOCH_UTC + Math.round(serial * 86400 * 1000);
 }
 
-/** Parse a cell (Date | serial number | string) into {date?: 'YYYY-MM-DD', time?: 'HH:mm'}. */
 function parseDateTimeCell(cell: any): { date?: string; time?: string } {
   const out: { date?: string; time?: string } = {};
   try {
@@ -64,7 +97,8 @@ function parseDateTimeCell(cell: any): { date?: string; time?: string } {
       out.date = cell.toISOString().split('T')[0];
       const h = cell.getUTCHours?.() ?? 0;
       const m = cell.getUTCMinutes?.() ?? 0;
-      if (h || m) out.time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      const sec = cell.getUTCSeconds?.() ?? 0;
+      if (h || m || sec) out.time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
       return out;
     }
     if (typeof cell === 'number' && isFinite(cell)) {
@@ -77,28 +111,27 @@ function parseDateTimeCell(cell: any): { date?: string; time?: string } {
     }
     const s = String(cell ?? '').trim();
     if (!s) return out;
-    // Time-only strings
-    const tm = s.match(/^(\d{1,2})[:.](\d{2})$/) || s.match(/^(\d{1,2})(\d{2})$/);
+    // Time strings incl. seconds: 07:01:00
+    const tm = s.match(/^(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?$/);
     if (tm) {
       const h = parseInt(tm[1], 10);
       const m = parseInt(tm[2], 10);
       if (h >= 0 && h <= 23 && m >= 0 && m <= 59) out.time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
       return out;
     }
-    // Datetime strings "2026-08-24 06:00"
+    // Datetime "2026-08-24 06:00"
     const dt = s.match(/(\d{4}-\d{2}-\d{2})[T ](\d{1,2}:\d{2})/);
     if (dt) { out.date = dt[1]; out.time = dt[2].padStart(5, '0'); return out; }
-    // ISO
     const iso = s.match(/\d{4}-\d{2}-\d{2}/);
     if (iso) { out.date = iso[0]; const t = s.match(/\d{1,2}:\d{2}/); if (t) out.time = t[0].padStart(5, '0'); return out; }
-    // EU formats dd-mm-yyyy / dd/mm/yyyy / dd.mm.yyyy (also dd-mm-yy)
+    // EU formats
     const eu = s.match(/(\d{1,2})[-/. ](\d{1,2})[-/. ](\d{2,4})/);
     if (eu) {
       let d = parseInt(eu[1], 10);
       let mo = parseInt(eu[2], 10);
       let y = parseInt(eu[3], 10);
       if (y < 100) y += 2000;
-      if (mo > 12 && d <= 12) { const t = d; d = mo; mo = t; } // US-style fallback
+      if (mo > 12 && d <= 12) { const t = d; d = mo; mo = t; }
       if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12 && y > 1990) {
         out.date = `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
         const t = s.match(/\d{1,2}:\d{2}/);
@@ -109,8 +142,13 @@ function parseDateTimeCell(cell: any): { date?: string; time?: string } {
   return out;
 }
 
+/** Mine free-text cells for a loading site: "…om 06:00 - Laden in Vijn Echt PO …" */
+function extractLoadingSite(text: string): string | null {
+  const m = text.match(/(?:laden\s+in|loading\s+at|verlading(?:slocatie)?\s*:?)\s*[:\-]?\s+([A-Za-z0-9@&.\'\- ]{2,60}?)(?=\s+\b(?:PO\b|ID\b|REF\b|$)|[;,]|$)/i);
+  return m ? m[1].replace(/\s+/g, ' ').trim() || null : null;
+}
+
 export class SpreadsheetOrderParser {
-  /** Parse a workbook buffer into trip objects compatible with TripScannerService.scanDocument. */
   static parse(buffer: Buffer): any[] {
     let rows: any[][];
     try {
@@ -126,155 +164,174 @@ export class SpreadsheetOrderParser {
     }
     if (!rows.length) return [];
 
-    // ---- 1. Find the header row (best synonym match score within first 20 rows) ----
+    // ---- 1. Header row = best synonym score within first 20 rows ----
     let headerRowIdx = -1;
     let bestScore = 0;
     const limit = Math.min(rows.length, 20);
     for (let i = 0; i < limit; i++) {
       const score = (rows[i] || []).reduce((acc: number, cell: any) => {
         const n = norm(cell);
-        return acc + (n && FIELD_SYNONYMS.some(([, syns]) => syns.some(s => n === s || n.includes(s))) ? 1 : 0);
+        return acc + (n && FIELDS.some(f => f.syns.some(s => n === s || n.includes(s))) ? 1 : 0);
       }, 0);
       if (score > bestScore) { bestScore = score; headerRowIdx = i; }
     }
     if (headerRowIdx === -1 || bestScore < 2) return [];
 
-    // ---- 2. Map columns ----
-    const colField: Record<number, string> = {};
+    // ---- 2. Claim columns: BEST (longest) synonym wins per header ----
+    const colsByField: Record<string, number[]> = {};
+    const fieldByCol: Record<number, string> = {};
     const headersNorm: Record<number, string> = {};
-    const claimedFields = new Set<string>();
     const headerCells = rows[headerRowIdx] || [];
     headerCells.forEach((cell, idx) => {
       const n = norm(cell);
       if (!n) return;
       headersNorm[idx] = n;
-      for (const [field, syns] of FIELD_SYNONYMS) {
-        if (claimedFields.has(field)) continue;
-        if (syns.some(s => n === s || n.includes(s))) {
-          colField[idx] = field;
-          claimedFields.add(field);
-          break;
+      let bestDef: FieldDef | null = null;
+      let bestLen = 0;
+      for (const def of FIELDS) {
+        for (const s of def.syns) {
+          if ((n === s || n.includes(s)) && s.length > bestLen) {
+            bestLen = s.length;
+            bestDef = def;
+          }
         }
       }
+      if (!bestDef) return;
+      if (bestDef.multi || !colsByField[bestDef.field]?.length) {
+        (colsByField[bestDef.field] ||= []).push(idx);
+        fieldByCol[idx] = bestDef.field;
+      }
     });
-    if (!Object.keys(colField).length) return [];
+    if (!Object.keys(colsByField).length) return [];
 
-    const get = (row: any[], field: string): any => {
-      for (const [idx, f] of Object.entries(colField)) {
-        if (f === field) {
-          const v = row[Number(idx)];
-          if (v !== '' && v !== null && v !== undefined) return v;
-        }
+    const firstVal = (row: any[], field: string): any => {
+      for (const idx of colsByField[field] || []) {
+        const v = row[idx];
+        if (v !== '' && v !== null && v !== undefined) return v;
       }
       return undefined;
     };
-    const str = (v: any): string => (v === null || v === undefined ? '' : String(v).trim());
+    const str = (v: any): string => (v === null || v === undefined ? '' : String(v).replace(/\s+/g, ' ').trim());
     const num = (v: any): number | null => {
       if (v === null || v === undefined || v === '') return null;
       const s = String(v).replace(/\s/g, '').replace(',', '.');
       const n = parseFloat(s);
       return isNaN(n) ? null : n;
     };
-    // Weight cells may carry units ("8,5 t", "1.234 kg") -> normalize to kilograms
+    const sumField = (row: any[], field: string): number | null => {
+      let total: number | null = null;
+      for (const idx of colsByField[field] || []) {
+        const n = num(row[idx]);
+        if (n !== null) total = (total ?? 0) + n;
+      }
+      return total;
+    };
     const weightKg = (v: any): number | null => {
       if (v === null || v === undefined || v === '') return null;
       const raw = String(v).toLowerCase();
       const n = num(v);
       if (n === null) return null;
       if (/\d\s*(t|to|ton|tons|tonnen)\b/.test(raw) && !raw.includes('kg')) return Math.round(n * 1000);
-      // Thousands separator without decimals: "1.234" or "1.234,5"
       if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(String(v).replace(/\s/g, ''))) return Math.round(parseFloat(String(v).replace(/\s|\./g, '').replace(',', '.')));
       return n;
     };
+    const joinAddr = (...parts: Array<string | null | undefined>): string | null =>
+      parts.map(p => (p || '').trim()).filter(Boolean).join(', ') || null;
 
     // ---- 3. Data rows -> trips ----
     const trips: any[] = [];
-    const mappedIdx = new Set(Object.keys(colField).map(Number));
     for (let r = headerRowIdx + 1; r < rows.length; r++) {
       const row = rows[r];
       if (!row || !row.length || row.every(c => c === '' || c === null || c === undefined)) continue;
 
-      // Skip separator / repeated header / totals rows
       const firstCellNorm = norm(row.find((c: any) => str(c) !== '') ?? '');
       if (!firstCellNorm) continue;
       if (TOTAL_ROW_WORDS.some(w => firstCellNorm.startsWith(w))) continue;
 
-      const pDt = parseDateTimeCell(get(row, 'pickupDate'));
-      const pTm = parseDateTimeCell(get(row, 'pickupTime'));
-      const dDt = parseDateTimeCell(get(row, 'dropoffDate'));
-      const dTm = parseDateTimeCell(get(row, 'dropoffTime'));
+      const pDt = parseDateTimeCell(firstVal(row, 'pickupDate'));
+      const pTm = parseDateTimeCell(firstVal(row, 'pickupTime'));
+      const dDt = parseDateTimeCell(firstVal(row, 'dropoffDate'));
+      const dTm = parseDateTimeCell(firstVal(row, 'dropoffTime'));
 
-      // Assemble addresses (combined column wins; else street/postal/city/country style content flows to notes)
-      const pickupAddrRaw = str(get(row, 'pickupAddress'));
-      const dropoffAddrRaw = str(get(row, 'dropoffAddress'));
+      // Assemble addresses from dedicated blocks or generic part columns
+      const pickupAddress = joinAddr(
+        str(firstVal(row, 'pickupAddress')) || null,
+        (() => { const a = joinAddr(str(firstVal(row, 'pickupStreet')), [str(firstVal(row, 'pickupPostal')), str(firstVal(row, 'pickupCity'))].filter(Boolean).join(' '), str(firstVal(row, 'pickupCountry'))); return a; })(),
+      );
+      const dropoffAddress = joinAddr(
+        str(firstVal(row, 'dropoffAddress')) || null,
+        joinAddr(str(firstVal(row, 'dropoffStreet')), [str(firstVal(row, 'dropoffPostal')), str(firstVal(row, 'dropoffCity'))].filter(Boolean).join(' '), ISO_COUNTRY[str(firstVal(row, 'dropoffCountry')).toLowerCase()] || str(firstVal(row, 'dropoffCountry')) || null),
+      );
 
-      const loadingReference = str(get(row, 'loadingReference')) || null;
-      const unloadingReference = str(get(row, 'unloadingReference')) || null;
-      const customerReference = str(get(row, 'customerReference')) || null;
+      const loadingReference = str(firstVal(row, 'loadingReference')) || null;
+      const unloadingReference = str(firstVal(row, 'unloadingReference')) || null;
+      const customerReference = str(firstVal(row, 'customerReference')) || null;
 
-      // Shipment-row validation: needs an operational anchor, not just weights
-      const hasAnchor = !!(pDt.date || pTm.time || dDt.date || dTm.time || loadingReference || unloadingReference || pickupAddrRaw || dropoffAddrRaw ||
-        str(get(row, 'pickupCompanyName')) || str(get(row, 'dropoffCompanyName')));
+      const hasAnchor = !!(pDt.date || pTm.time || dDt.date || dTm.time || loadingReference || unloadingReference || pickupAddress || dropoffAddress ||
+        str(firstVal(row, 'pickupCompanyName')) || str(firstVal(row, 'dropoffCompanyName')));
       if (!hasAnchor) continue;
 
-      const weight = weightKg(get(row, 'weightKg'));
-      const pallets = num(get(row, 'pallets'));
+      // Cargo: pallets summed over Pal Euro/Pal Blok/Pal Ovrg style columns
+      let pallets = sumField(row, 'pallets');
+      const weight = weightKg(firstVal(row, 'weightKg')) ?? (colsByField['weightKg'] ? sumField(row, 'weightKg') : null);
 
-      // ---- Preserve EVERY unmapped column in notes ----
+      // ---- Notes = ONLY columns without a dedicated system field ----
       const extraBits: string[] = [];
       for (const [idxStr, hNorm] of Object.entries(headersNorm)) {
         const idx = Number(idxStr);
-        if (mappedIdx.has(idx)) continue;
+        if (fieldByCol[idx]) continue;
         const v = str(row[idx]);
         if (!v) continue;
-        // Original header casing looks better than normalized
-        const origHeader = str(headerCells[idx]) || hNorm;
-        extraBits.push(`${origHeader}: ${v}`);
+        extraBits.push(`${str(headerCells[idx]) || hNorm}: ${v}`);
       }
 
       const notesParts: string[] = [];
-      const mappedNotes = str(get(row, 'notes'));
+      const mappedNotes = str(firstVal(row, 'notes'));
       if (mappedNotes) notesParts.push(mappedNotes);
       if (extraBits.length) notesParts.push(extraBits.join('; '));
-      const notes = notesParts.join(' | ') || null;
+      let notes = notesParts.join(' | ') || null;
+      let pickupCompanyName = str(firstVal(row, 'pickupCompanyName')) || null;
+      let finalPickupAddress = pickupAddress;
+      const freeText = extraBits.join('; ');
+      if ((!finalPickupAddress && !pickupCompanyName) && freeText) {
+        const site = extractLoadingSite(freeText);
+        if (site) {
+          finalPickupAddress = site;
+          pickupCompanyName = site.split(/[ ,]/)[0] || site;
+        }
+      }
 
       const trip: any = {
-        pickupCompanyName: str(get(row, 'pickupCompanyName')) || null,
-        pickupAddress: pickupAddrRaw || null,
-        dropoffCompanyName: str(get(row, 'dropoffCompanyName')) || null,
-        dropoffAddress: dropoffAddrRaw || null,
+        pickupCompanyName,
+        pickupAddress: finalPickupAddress,
+        dropoffCompanyName: str(firstVal(row, 'dropoffCompanyName')) || null,
+        dropoffAddress: dropoffAddress,
         pickupDate: pDt.date || null,
         dropoffDate: dDt.date || null,
         pickupTime: pTm.time || pDt.time || null,
         dropoffTime: dTm.time || dDt.time || null,
-        price: num(get(row, 'price')),
-        currency: str(get(row, 'currency')).toUpperCase() || null,
+        price: num(firstVal(row, 'price')),
+        currency: str(firstVal(row, 'currency')).toUpperCase() || null,
         weightKg: weight,
-        pallets: pallets,
-        volumeCbm: num(get(row, 'volumeCbm')),
-        distanceKm: num(get(row, 'distanceKm')),
+        pallets: pallets != null && pallets > 0 ? pallets : null,
+        volumeCbm: sumField(row, 'volumeCbm'),
+        distanceKm: num(firstVal(row, 'distanceKm')),
         loadingReference,
         unloadingReference,
         customerReference,
-        contactPerson: str(get(row, 'contactPerson')) || null,
-        contactPhone: str(get(row, 'contactPhone')) || null,
+        contactPerson: str(firstVal(row, 'contactPerson')) || null,
+        contactPhone: str(firstVal(row, 'contactPhone')) || null,
         notes,
-        clientName: str(get(row, 'clientName')) || null,
+        clientName: str(firstVal(row, 'clientName')) || null,
         clientVatNumber: null,
         clientAddress: null,
         clientEmail: null,
         clientPhone: null,
       };
 
-      // Deterministic chronology safety net (same as scanner.validateTrip)
-      const p = trip.pickupDate ? new Date(`${trip.pickupDate}T${trip.pickupTime || '00:00'}:00Z`).getTime() : NaN;
-      const d = trip.dropoffDate ? new Date(`${trip.dropoffDate}T${trip.dropoffTime || '00:00'}:00Z`).getTime() : NaN;
-      if (!isNaN(p) && !isNaN(d) && d < p) {
-        const pd = trip.pickupDate; const pt = trip.pickupTime;
-        trip.pickupDate = trip.dropoffDate; trip.pickupTime = trip.dropoffTime;
-        trip.dropoffDate = pd; trip.dropoffTime = pt;
-      }
-
+      // NOTE: no chronology swapping here. Columns are explicit; if a client's
+      // file contains contradictory dates (e.g. Koopman's leverdatum before
+      // af magazijn) we show them faithfully instead of scrambling fields.
       trips.push(trip);
     }
     return trips;
