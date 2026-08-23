@@ -32,8 +32,11 @@ export class OrdersController {
 
   @Post('scan')
   @UseInterceptors(FileInterceptor('file'))
-  scanFile(@UploadedFile() file: Express.Multer.File) {
-    return this.tripScannerService.scanDocument(file.buffer, file.mimetype, file.originalname);
+  async scanFile(@UploadedFile() file: Express.Multer.File) {
+    const result = await this.tripScannerService.scanDocument(file.buffer, file.mimetype, file.originalname);
+    // Complete partial addresses BEFORE the user sees the preview
+    const trips = await this.ordersService.enrichScannedTrips(result?.trips || []);
+    return { trips };
   }
 
   @Post('import')

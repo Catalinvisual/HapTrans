@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import * as XLSX from 'xlsx';
+import { SpreadsheetOrderParser } from './spreadsheet-order-parser';
 
 const EXCEL_MIMES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
@@ -82,7 +83,7 @@ export class TripScannerService {
               customerReference: { type: SchemaType.STRING, description: "The CLIENT'S own order/booking number: cp order nr / customer PO / klantreferentie / uw referentie / commission nr. This belongs to the commercial relationship, not the warehouse operation." },
               contactPerson: { type: SchemaType.STRING, description: "Contact person name at the client/dispatch if present." },
               contactPhone: { type: SchemaType.STRING, description: "Contact phone number if present." },
-              notes: { type: SchemaType.STRING, description: "Important notes, special instructions, or cargo description for THIS trip." },
+              notes: { type: SchemaType.STRING, description: "ALL remaining document information with no dedicated field: invoice/factuur details, account numbers, extra PO numbers, IDs, pallet exchange rules, Incoterms (DDP/DAP), special instructions. Separated by '; '. Never drop information." },
               clientName: { type: SchemaType.STRING, description: "THE CLIENT = the company that ORDERED/pays for the transport: letterhead/logo, sender email domain, or labeled Customer/Klant/Auftraggeber/Opdrachtgever/Zleceniodawca. Often DIFFERENT from shipper and consignee. If undeterminable, use the shipper company name." },
               clientVatNumber: { type: SchemaType.STRING, description: "VAT/Tax number of THE CLIENT (VAT, BTW, USt, MwSt, NIP, CIF, UID). Without spaces." },
               clientAddress: { type: SchemaType.STRING, description: "Registered office address of THE CLIENT (not warehouse address), if present." },
@@ -132,6 +133,12 @@ COMPANY NAMES & ADDRESSES — DOCUMENT IS KING (CRITICAL):
 14. Only cosmetic normalization is allowed: postal code formatting ("1234 AB", "12-345"), adding the country name when obvious from context, fixing typos in street spellings while keeping the SAME location.
 15. If the document gives ONLY company + city without a street: output exactly "Company, City, Country". Do NOT invent a street. A downstream geocoding service completes the precise address reliably.
 
+TIME COLUMNS (CRITICAL FOR SPREADSHEETS/DOCS WITH SEPARATE TIME CELLS):
+15b. Loading times often live in their OWN column, separate from the date — headers like "Tijd af magazijn", "Tijd op magazijn", "Laadtijd", "Loading time". Read EVERY column header carefully and map it by MEANING: warehouse departure/loading time -> pickupTime; unloading/delivery time -> dropoffTime. Never leave pickupTime empty when such a column exists.
+
+NOTES COMPLETENESS (NEVER LOSE INFORMATION):
+20. The notes field MUST capture ALL remaining document information that has no dedicated field: invoice/factuur details, account numbers (e.g. "KOOPMAN PAKI ACCOUNT 030533"), PO numbers beyond customerReference, IDs, pallet-exchange rules ("NO PALLET EXCHANGE"), Incoterms ("Delivered Duty Paid"), special instructions, temperature requirements, ADR class, equipment requests. Concatenate them separated by "; ". NOTHING from the document may be dropped.
+
 DETERMINISM & ACCURACY:
 16. Extract exact literal values. Never fabricate. Unknown field => leave empty/null.
 17. WEIGHT vs PALLETS: weightKg in kg ("Gewicht", "brutto"); pallets is count ("palet", "EPAL"). "24 t" -> 24000 kg.
@@ -152,6 +159,15 @@ DETERMINISM & ACCURACY:
     }
 
     const spreadsheet = isSpreadsheet(originalMimeType, filename);
+
+    // ---- FAST PATH: deterministic spreadsheet parsing (instant, free, reproducible) ----
+    if (spreadsheet) {
+      const parsedTrips = SpreadsheetOrderParser.parse(buffer);
+      if (parsedTrips.length > 0) {
+        return { trips: parsedTrips };
+      }
+      // Unrecognized layout -> fall through to the LLM text path below.
+    }
 
     let documentPart: any;
     if (spreadsheet) {

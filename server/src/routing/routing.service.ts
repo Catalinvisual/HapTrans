@@ -96,7 +96,7 @@ export class RoutingService {
   }
 
   // ─── Geocoding: address → {lat, lng} ───────────────────────────────────────
-  async geocode(address: string): Promise<{ lat: number; lng: number; label: string } | null> {
+  async geocode(address: string): Promise<{ lat: number; lng: number; label: string; city?: string; postalCode?: string; countryCode?: string; countryName?: string } | null> {
     try {
       if (!this.hereKey) return null;
       const res = await axios.get('https://geocode.search.hereapi.com/v1/geocode', {
@@ -109,6 +109,10 @@ export class RoutingService {
         lat: item.position.lat,
         lng: item.position.lng,
         label: item.address?.label || address,
+        city: item.address?.city,
+        postalCode: item.address?.postalCode,
+        countryCode: item.address?.countryCode,
+        countryName: item.address?.countryName,
       };
     } catch (e) {
       this.logger.error(`Geocode failed for "${address}": ${e.message}`);

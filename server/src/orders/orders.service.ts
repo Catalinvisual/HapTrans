@@ -548,10 +548,60 @@ export class OrdersService {
   /**
    * Deterministic address completion: when a scanned stop address has no street
    * detail (only "Company, City"), geocode "Company, City" via HERE and adopt
-   * the precise formatted address — but ONLY if the geocoder result still
-   * contains a location token from the document (same city/region), so a wrong
-   * branch can never be substituted.
+   * the precise formatted address — but ONLY if the result is location-compatible
+   * with what the document states (city words / postal code / country), so a
+   * wrong branch city can never be substituted.
    */
+  private static readonly COUNTRY_ALIASES: Record<string, string[]> = {
+    netherlands: ['nederland', 'holland', 'nl'],
+    nederland: ['netherlands', 'holland', 'nl'],
+    germany: ['deutschland', 'de'],
+    deutschland: ['germany', 'de'],
+    france: ['frankrijk', 'frankreich', 'fr'],
+    frankrijk: ['france', 'fr'],
+    belgium: ['belgie', 'belgique', 'belgien', 'be'],
+    belgie: ['belgium', 'belgique', 'be'],
+    poland: ['polen', 'polska', 'pl'],
+    polen: ['poland', 'polska', 'pl'],
+    austria: ['osterreich', 'oesterreich', 'at'],
+    switzerland: ['schweiz', 'suisse', 'svizzera', 'ch'],
+    spain: ['spanje', 'espana', 'es'],
+    italy: ['italie', 'italia', 'it'],
+    unitedkingdom: ['uk', 'united kingdom', 'groot brittannie', 'england'],
+  };
+
+  private static normToken(s: unknown): string {
+    return String(s ?? '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '')
+      .trim();
+  }
+
+  private isGeoResultCompatible(token: string, geo: { label: string; city?: string; postalCode?: string; countryCode?: string; countryName?: string }): boolean {
+    const tn = OrdersService.normToken(token);
+    if (!tn) return true;
+    // 2-letter country code tokens ("NL", "FR")
+    if (/^[a-z]{2}$/.test(tn)) {
+      return tn === String(geo.countryCode || '').toLowerCase();
+    }
+    // Country-name tokens match via aliases in both directions
+    const cn = OrdersService.normToken(geo.countryName || '');
+    if (cn) {
+      const aliases = [tn, ...(OrdersService.COUNTRY_ALIASES[tn] || [])];
+      if (aliases.some(a => a === cn || (a.length > 3 && cn.includes(a)))) return true;
+      if (cn.length > 3 && tn.includes(cn)) return true;
+    }
+    // City/region/postal tokens: >= half of significant words (>=4 chars) must appear in label+city+postal.
+    const hay = `${geo.label} ${geo.city || ''} ${geo.postalCode || ''}`;
+    const hayNorm = OrdersService.normToken(hay);
+    const words = tn.split(' ').filter(w => w.length >= 4);
+    if (!words.length) return hayNorm.includes(tn);
+    const hits = words.filter(w => hayNorm.includes(w)).length;
+    return hits >= Math.ceil(words.length / 2);
+  }
+
   private async enrichStopAddress(companyName?: string | null, address?: string | null): Promise<string | null> {
     try {
       const addr = (address || '').trim();
@@ -565,14 +615,29 @@ export class OrdersService {
       const geo = await this.routingService.geocode(query);
       if (!geo?.label || !geo.label.trim()) return null;
 
-      const labelLower = geo.label.toLowerCase();
-      const docTokens = parts.map(p => p.toLowerCase());
-      // Accept only when every meaningful document token (city etc.) survives in the geocoder label
-      const compatible = docTokens.every(t => t.length <= 2 || labelLower.includes(t));
+      // Every meaningful document token must survive in the geocoder result
+      const compatible = parts.every(p => this.isGeoResultCompatible(p, geo));
       return compatible ? geo.label : null;
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Post-scan enrichment used by the PREVIEW endpoint so users see final,
+   * completed company addresses before importing.
+   */
+  async enrichScannedTrips(trips: any[]): Promise<any[]> {
+    await Promise.all((trips || []).map(async t => {
+      if (!t || typeof t !== 'object') return;
+      const [p, d] = await Promise.all([
+        this.enrichStopAddress(t.pickupCompanyName, t.pickupAddress),
+        this.enrichStopAddress(t.dropoffCompanyName, t.dropoffAddress),
+      ]);
+      if (p) t.pickupAddress = p;
+      if (d) t.dropoffAddress = d;
+    }));
+    return trips || [];
   }
 
   async createFromScan(dto: any, user?: any): Promise<Order | null> {
