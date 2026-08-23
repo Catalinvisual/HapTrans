@@ -51,9 +51,97 @@ export class TripScannerService {
     }
   }
 
+  /** Response schema shared by extraction AND verification passes. */
+  private buildResponseSchema() {
+    return {
+      type: SchemaType.OBJECT,
+      properties: {
+        trips: {
+          type: SchemaType.ARRAY,
+          description: "One entry for EACH transport order / trip found in the document. Single-order documents still get exactly one entry.",
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              pickupCompanyName: { type: SchemaType.STRING, description: "FULL official legal name of the company where cargo is loaded. If the document shows an abbreviation, code or partial name, expand it to the complete registered name." },
+              pickupAddress: { type: SchemaType.STRING, description: "Full geocodable loading address: street + number, postal code + city, country (e.g. '43-150 Bieruń, Poland' with hyphen). If the document gives ONLY company+city, complete the full street address from knowledge of that specific facility." },
+              dropoffCompanyName: { type: SchemaType.STRING, description: "FULL official legal name of the company where cargo is delivered/unloaded. Expand abbreviations/codes to the complete registered name." },
+              dropoffAddress: { type: SchemaType.STRING, description: "Full geocodable delivery address: street + number, postal code + city, country. If only company+city given, complete the full street address." },
+              pickupDate: { type: SchemaType.STRING, description: "LOADING date in YYYY-MM-DD. Source labels: Laden/Laaddatum/Chargement/Loading/Pickup/Verladung/Abholung. NEVER put the delivery/unloading date here." },
+              dropoffDate: { type: SchemaType.STRING, description: "DELIVERY/UNLOADING date in YYYY-MM-DD. Source labels: Lossen/Losdatum/Déchargement/Afladen/Entladung/Livrare/Delivery. CRITICAL: if the document contains ANY delivery date, this field MUST be filled — never leave it empty while pickupDate is set." },
+              pickupTime: { type: SchemaType.STRING, description: "LOADING time HH:mm. From the same row/label as the loading date (e.g. 'Laden om 15:30'). Split datetime values: date -> pickupDate, time -> pickupTime." },
+              dropoffTime: { type: SchemaType.STRING, description: "DELIVERY time HH:mm. From the same row/label as the delivery date. Split datetime values: date -> dropoffDate, time -> dropoffTime." },
+              price: { type: SchemaType.NUMBER, description: "The freight price/rate for THIS trip in EUR (convert other currencies to EUR if stated)." },
+              currency: { type: SchemaType.STRING, description: "Currency code of the price as stated in the document (EUR, USD, PLN...). Default EUR." },
+              weightKg: { type: SchemaType.NUMBER, description: "Total cargo weight strictly in KILOGRAMS for THIS trip. NEVER copy pallets/cartons count here. Tons convert to kg." },
+              pallets: { type: SchemaType.NUMBER, description: "Number of PALLETS for THIS trip. NEVER confuse with weight/volume/cartons. Keywords: palets, pallets, EPAL, pal, colli." },
+              palletType: { type: SchemaType.STRING, description: "Type of pallets (e.g. 'Euro', 'Block')." },
+              volumeCbm: { type: SchemaType.NUMBER, description: "Volume strictly in cubic meters. Keywords: cbm, m3." },
+              distanceKm: { type: SchemaType.NUMBER, description: "Route distance in km ONLY if explicitly stated in the document." },
+              loadingReference: { type: SchemaType.STRING, description: "THE REFERENCE USED AT THE LOADING SITE. In spreadsheets this is often a column named: vracht auto nr / vrachtnummer / load nr / loading nr / ref laden / CMR nr / order nr van de vracht. It identifies the physical shipment being picked up. NOT the customer's own order number unless clearly the same thing." },
+              unloadingReference: { type: SchemaType.STRING, description: "THE REFERENCE USED AT THE DELIVERY SITE: lossen ref / unloading ref / delivery ref / slot ID / aflevernummer. DO NOT copy loadingReference here unless stated it applies to both." },
+              customerReference: { type: SchemaType.STRING, description: "The CLIENT'S own order/booking number: cp order nr / customer PO / klantreferentie / uw referentie / commission nr. This belongs to the commercial relationship, not the warehouse operation." },
+              contactPerson: { type: SchemaType.STRING, description: "Contact person name at the client/dispatch if present." },
+              contactPhone: { type: SchemaType.STRING, description: "Contact phone number if present." },
+              notes: { type: SchemaType.STRING, description: "Important notes, special instructions, or cargo description for THIS trip." },
+              clientName: { type: SchemaType.STRING, description: "THE CLIENT = the company that ORDERED/pays for the transport: letterhead/logo, sender email domain, or labeled Customer/Klant/Auftraggeber/Opdrachtgever/Zleceniodawca. Often DIFFERENT from shipper and consignee. If undeterminable, use the shipper company name." },
+              clientVatNumber: { type: SchemaType.STRING, description: "VAT/Tax number of THE CLIENT (VAT, BTW, USt, MwSt, NIP, CIF, UID). Without spaces." },
+              clientAddress: { type: SchemaType.STRING, description: "Registered office address of THE CLIENT (not warehouse address), if present." },
+              clientEmail: { type: SchemaType.STRING, description: "Email of THE CLIENT if present." },
+              clientPhone: { type: SchemaType.STRING, description: "Phone of THE CLIENT if present." }
+            }
+          }
+        }
+      }
+    };
+  }
+
+  private buildExtractionPrompt(): string {
+    return `
+You are an expert transport logistics AI. Read the attached shipping order(s), CMR, delivery note, rate confirmation or SPREADSHEET.
+Extract ALL data perfectly into the requested JSON schema.
+
+MULTI-TRIP DETECTION (CRITICAL):
+1. One document can contain MULTIPLE transport orders/trips:
+   - In spreadsheets: EACH DATA ROW that represents a shipment/load IS ONE TRIP. Column headers define the fields. Do NOT merge rows; do NOT treat totals rows as trips.
+   - In PDFs/images: multiple pages, sections, tables or numbered orders = separate trips. Group fields per section carefully.
+2. If the document clearly contains only ONE order, return exactly ONE trip entry.
+3. Each trip must carry ITS OWN references, dates, addresses, cargo data and price. Never mix values between different trips.
+
+DATE/TIME ASSIGNMENT (MOST COMMON FATAL ERROR — ZERO TOLERANCE):
+4. Loading happens BEFORE delivery, always. Labels map strictly:
+   - LOADING side: Laden, Laaddatum, Chargement, Loading, Pickup, Verladung, Abholung, Incarcare
+   - DELIVERY side: Lossen, Losdatum, Afladen, Entladung, Déchargement, Livrare, Unloading, Delivery
+5. pickupDate/pickupTime come ONLY from the LOADING labels; dropoffDate/dropoffTime come ONLY from the DELIVERY labels.
+6. If a cell contains datetime (e.g. "2026-08-24 06:00"), split it: date part -> date field, time part -> time field.
+7. NEVER leave dropoffDate/dropoffTime empty when the document contains a delivery date/time. Every extracted trip MUST have pickup filled from loading labels and dropoff filled from delivery labels.
+8. Final self-check per trip BEFORE answering: is dropoff >= pickup? Is each date under its own label's side?
+
+REFERENCE INTELLIGENCE (CRITICAL FOR SPREADSHEETS):
+9. Choose references by MEANING, not position:
+   - loadingReference = number identifying the physical LOAD at pickup (column names like: vracht auto nr, vrachtnummer, load nr, ref laden, CMR nr)
+   - unloadingReference = number used at delivery (unloading ref, lossen ref, slot ID, aflevernr)
+   - customerReference = the client's commercial order number (cp order nr, klantreferentie, customer PO, your ref, commission nr)
+10. Read the COLUMN HEADER, not just the first value. A "cp order nr" is the customer's order -> customerReference, NOT loadingReference. A "vracht auto nr" is the freight/load number -> loadingReference.
+
+CLIENT IDENTIFICATION (CRITICAL):
+11. THE CLIENT ordered/pays for the transport — usually in letterhead/logo, sender email domain, or labeled Customer/Klant/Auftraggeber/Opdrachtgever/Zleceniodawca. Shipper and consignee are frequently NOT the client.
+
+COMPANY NAME COMPLETION:
+12. If a company name is abbreviated, coded, truncated or slightly misspelled (e.g. "STE ACTION SERVICE & DISTRIBUTION BV (FR)", "VIJN"), write the COMPLETE official registered name and its FULL address (street + number, postal code, city, country). Use your knowledge of these specific companies/facilities. Never return just a warehouse nickname + city.
+
+DETERMINISM & ACCURACY:
+13. Extract exact literal values. Never fabricate. Unknown field => leave empty/null.
+14. WEIGHT vs PALLETS: weightKg in kg ("Gewicht", "brutto"); pallets is count ("palet", "EPAL"). "24 t" -> 24000 kg.
+15. Dates YYYY-MM-DD, times HH:mm 24h. Fix postal codes ("1234 AB", "12-345", "12345").
+16. Inspect EVERY sheet in multi-sheet workbooks.
+`;
+  }
+
   /**
    * Full scan: returns EVERY trip found in the document (PDF, image, Excel, CSV).
-   * A document with one order yields a single-element array.
+   * Runs an extraction pass (Pro, fallback Flash) followed by a VERIFICATION
+   * pass where the model re-reads the document alongside its own JSON and
+   * fixes misassignments (swapped dates, lost dropoff, wrong reference column).
    */
   async scanDocument(buffer: Buffer, originalMimeType: string, filename?: string): Promise<{ trips: any[] }> {
     if (!this.genAI) {
@@ -76,126 +164,97 @@ export class TripScannerService {
       documentPart = { inlineData: { data: buffer.toString('base64'), mimeType } };
     }
 
-    const generationConfig = {
-      responseMimeType: "application/json",
-      temperature: 0,
-      responseSchema: {
-        type: SchemaType.OBJECT,
-        properties: {
-          trips: {
-            type: SchemaType.ARRAY,
-            description: "One entry for EACH transport order / trip found in the document. Single-order documents still get exactly one entry.",
-            items: {
-              type: SchemaType.OBJECT,
-              properties: {
-                pickupCompanyName: { type: SchemaType.STRING, description: "Name of the company/warehouse where the cargo is picked up/loaded." },
-                pickupAddress: { type: SchemaType.STRING, description: "Full pickup/loading address. CRITICAL: Format it cleanly for geocoding (e.g. 'Street Name Number, Postal Code City, Country'). For countries like Poland, ensure the postal code has a hyphen (e.g. '43-150 Bieruń, Poland' instead of '43 150 BIERUN'). Extract ACTUAL loading place, not transporter's office." },
-                dropoffCompanyName: { type: SchemaType.STRING, description: "Name of the company/warehouse where the cargo is delivered/unloaded." },
-                dropoffAddress: { type: SchemaType.STRING, description: "Full delivery/dropoff/unloading address. CRITICAL: Format it cleanly for geocoding (e.g. 'Street Name Number, Postal Code City, Country')." },
-                pickupDate: { type: SchemaType.STRING, description: "Loading date in YYYY-MM-DD format" },
-                dropoffDate: { type: SchemaType.STRING, description: "Delivery date in YYYY-MM-DD format" },
-                pickupTime: { type: SchemaType.STRING, description: "Loading/pickup time in HH:mm format. Only fill if explicitly the loading/pickup time." },
-                dropoffTime: { type: SchemaType.STRING, description: "Delivery/unloading time in HH:mm format. Only fill if explicitly the unloading/delivery time." },
-                price: { type: SchemaType.NUMBER, description: "The freight price/rate for THIS trip in EUR (convert other currencies to EUR if stated)." },
-                currency: { type: SchemaType.STRING, description: "Currency code of the price as stated in the document (EUR, USD, PLN...). Default EUR." },
-                weightKg: { type: SchemaType.NUMBER, description: "Total cargo weight strictly in KILOGRAMS for THIS trip. NEVER copy pallets/cartons count here. Tons convert to kg." },
-                pallets: { type: SchemaType.NUMBER, description: "Number of PALLETS for THIS trip. NEVER confuse with weight/volume/cartons. Keywords: palets, EPAL, pal, EUR-pallets." },
-                palletType: { type: SchemaType.STRING, description: "Type of pallets (e.g. 'Euro', 'Block')." },
-                volumeCbm: { type: SchemaType.NUMBER, description: "Volume strictly in cubic meters (CBM/m3). Keywords: cbm, m3." },
-                distanceKm: { type: SchemaType.NUMBER, description: "Route distance in km ONLY if explicitly stated in the document." },
-                loadingReference: { type: SchemaType.STRING, description: "Reference number specifically for pickup/loading of THIS trip, or the main order number (Auftrag, Order, Ref). Can be a short 6-digit number." },
-                unloadingReference: { type: SchemaType.STRING, description: "Reference number specifically for delivery/unloading of THIS trip. DO NOT copy loadingReference here unless it applies to both." },
-                customerReference: { type: SchemaType.STRING, description: "The customer's own reference for this shipment (customer ref, your ref, booking ref) if different from loading/unloading refs." },
-                contactPerson: { type: SchemaType.STRING, description: "Contact person name at the client/dispatch if present." },
-                contactPhone: { type: SchemaType.STRING, description: "Contact phone number if present." },
-                notes: { type: SchemaType.STRING, description: "Important notes, special instructions, or cargo description for THIS trip." },
-                clientName: { type: SchemaType.STRING, description: "THE CLIENT = the company that ORDERED/pays for the transport: usually in the letterhead, logo, sender email domain, or labeled Customer/Klant/Auftraggeber/Opdrachtgever/Zleceniodawca. This is often DIFFERENT from the shipper (pickup) and consignee (dropoff). If the ordering party cannot be determined, use the shipper company name." },
-                clientVatNumber: { type: SchemaType.STRING, description: "VAT/Tax number of THE CLIENT (VAT, BTW, USt, MwSt, NIP, CIF, UID). Format without spaces." },
-                clientAddress: { type: SchemaType.STRING, description: "Registered office address of THE CLIENT (not warehouse/loading address), if present in the document." },
-                clientEmail: { type: SchemaType.STRING, description: "Email address of THE CLIENT if present." },
-                clientPhone: { type: SchemaType.STRING, description: "Phone number of THE CLIENT if present." }
-              }
-            }
-          }
-        }
-      }
-    };
-
-    const prompt = `
-You are an expert transport logistics AI. Read the attached shipping order(s), CMR, delivery note, rate confirmation or SPREADSHEET.
-Extract ALL data perfectly into the requested JSON schema.
-
-MULTI-TRIP DETECTION (CRITICAL):
-1. One document can contain MULTIPLE transport orders/trips:
-   - In spreadsheets: EACH DATA ROW that represents a shipment/load IS ONE TRIP. Column headers define the fields. Do NOT merge rows; do NOT invent totals rows as trips.
-   - In PDFs/images: multiple pages, sections, tables or numbered orders = separate trips. Group fields per section carefully using their headings and layout.
-2. If the document clearly contains only ONE order, return exactly ONE trip entry.
-3. Each trip must carry ITS OWN references, dates, addresses, cargo data and price. Never mix values between two different trips.
-
-CLIENT IDENTIFICATION (CRITICAL):
-4. The CLIENT is the company that ordered/pays for the transport — usually shown in the letterhead/logo, the "from" email address, or labeled "Customer", "Klant", "Auftraggeber", "Opdrachtgever", "Zleceniodawca", "Mandant".
-5. The shipper (loading company) and consignee (delivery company) are frequently NOT the client.
-6. Fill clientVatNumber/clientAddress/clientEmail/clientPhone from the client's own block on the letterhead/footer when available.
-
-DETERMINISM & ACCURACY (CRITICAL):
-7. Extract exact, literal values as they appear in the document. Never guess, never fabricate. If a field is not in the document, leave it empty/null.
-8. LOADING vs DELIVERY times: a time next to "Laden/Loading/Pickup/Abholung" belongs to pickupTime; next to "Afladen/Unloading/Delivery/Lieferung/Livrare" belongs to dropoffTime. NEVER swap them.
-9. WEIGHT vs PALLETS: weightKg is kilograms ("kg", "Gewicht", "brutto"). Pallets is the pallet count ("palet", "EPAL", "pal"). If "24 t", convert to 24000 kg. If "33 Palets" and "1010 kg": weightKg=1010, pallets=33. NEVER mix them.
-10. UNLOADING REFERENCE: never copy loadingReference into unloadingReference unless the document states it applies to both. Delivery refs like "ID 1816466" or "Unloading slot" go to unloadingReference.
-11. Dates always YYYY-MM-DD (watch DD.MM.YYYY, MM/DD/YYYY formats and convert correctly). Times always HH:mm (24h). If the document shows a date WITH a time (e.g. "2026-08-29 06:00"), put the date in the date field and the time in the corresponding time field.
-12. Addresses: full and geocodable — street + number, postal code + city, country. Fix postal code formatting (Poland/NL/Germany use "12345"/"12-345"/"1234 AB").
-13. In spreadsheets with MULTIPLE sheets, inspect every sheet; a sheet may hold one trip (form-style label:value) or many trips (table rows).
-
-CHRONOLOGY CHECK (ABSOLUTE RULE):
-14. Loading CANNOT happen AFTER delivery. After extracting each trip, verify pickupDate <= dropoffDate.
-    Labels mapping: Laden/Laaddatum/Chargement/Loading/Pickup -> pickup; Lossen/Losdatum/Déchargement/Unloading/Delivery/Abladen -> dropoff.
-    If your extraction violates this (delivery earlier than loading), you have swapped them — re-read the document layout and assign each date/time to its correct side.
-
-ADDRESS COMPLETION:
-15. If the document only gives a company name plus a city/region (e.g. "Vijn, Echt, Netherlands") WITHOUT a street, use your knowledge of that specific company/facility to complete the FULL address: street + number, postal code, city, country (e.g. well-known logistics sites, warehouses, factory addresses). Prefer the exact operating location if identifiable, otherwise the company's registered address.
-16. Never return just "Company, City": always produce a complete geocodable address string when the company is identifiable. If truly unknown even at registered-address level, give company name + city + country.
-`;
-
     const request = {
-      contents: [{
-        role: 'user',
-        parts: [
-          { text: prompt },
-          documentPart
-        ]
-      }],
-      generationConfig: generationConfig as any,
+      contents: [{ role: 'user', parts: [{ text: this.buildExtractionPrompt() }, documentPart] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0,
+        responseSchema: this.buildResponseSchema(),
+      } as any,
     };
 
+    const firstPassText = await this.generateWithFallback(request);
+    let trips: any[] = this.extractTrips(this.safeParse(firstPassText));
+
+    // ---- VERIFICATION PASS (self-check against the source document) ----
     try {
-      // Attempt to use Pro for best results
-      const modelPro = this.genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+      const verifyPrompt = `
+You are auditing a colleague's data extraction against the ORIGINAL document (attached again below).
+FIRST PASS RESULT (JSON):
+${JSON.stringify({ trips })}
+
+TASK — verify EVERY field of every trip directly against the document and return the CORRECTED full JSON in the exact same schema:
+1. DATE SIDE CHECK: confirm each pickupDate/pickupTime comes from the LOADING label row (Laden/Laaddatum/Chargement...) and each dropoffDate/dropoffTime from the DELIVERY label row (Lossen/Losdatum/Déchargement...). Swap them if they were taken from the wrong side. Loading must be <= delivery.
+2. MISSING DROP OFF: if dropoffDate/dropoffTime is empty but the document shows any delivery/unloading date/time, fill it from the document.
+3. REFERENCES: check column headers. "vracht auto nr"/"load nr" style = loadingReference. "cp order nr"/"klantreferentie"/customer PO = customerReference. Unloading/slot numbers = unloadingReference. Move values to the correct fields.
+4. COMPANY NAMES/ADDRESSES: expand abbreviations/codes to full legal names and complete missing street/postal code from knowledge of those facilities.
+5. Keep everything that is already correct identical. Never invent data not supported by the document.
+Return ONLY the corrected JSON object with the "trips" array.`;
+      const verifyRequest = {
+        contents: [{
+          role: 'user',
+          parts: [
+            { text: verifyPrompt },
+            documentPart,
+          ]
+        }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: 0,
+          responseSchema: this.buildResponseSchema(),
+        } as any,
+      };
+      const verifiedText = await this.generateWithFallback(verifyRequest);
+      const verifiedTrips = this.extractTrips(this.safeParse(verifiedText));
+      if (verifiedTrips.length > 0) {
+        trips = verifiedTrips.length === trips.length
+          ? verifiedTrips.map((v, i) => this.mergeTrip(trips[i], v))
+          : verifiedTrips;
+      }
+    } catch (e: any) {
+      console.warn('[trip-scanner] Verification pass failed, keeping first pass:', e?.message);
+    }
+
+    return { trips: trips.map(t => this.validateTrip(t)) };
+  }
+
+  /** Pro first; on any failure (quota etc.) retry with Flash. */
+  private async generateWithFallback(request: any): Promise<string> {
+    try {
+      const modelPro = this.genAI!.getGenerativeModel({ model: 'gemini-2.5-pro' });
       const result = await modelPro.generateContent(request);
-      return this.normalizeResult(JSON.parse(result.response.text()));
+      return result.response.text();
     } catch (error) {
-      // If 429 Quota Exceeded on Free Tier, fallback gracefully to Flash
-      console.warn("gemini-2.5-pro failed (likely quota limit). Falling back to gemini-2.5-flash. Error: ", error.message);
-      const modelFlash = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      console.warn("gemini-2.5-pro failed (likely quota limit). Falling back to gemini-2.5-flash. Error: ", (error as any)?.message);
+      const modelFlash = this.genAI!.getGenerativeModel({ model: 'gemini-2.5-flash' });
       const fallbackResult = await modelFlash.generateContent(request);
-      return this.normalizeResult(JSON.parse(fallbackResult.response.text()));
+      return fallbackResult.response.text();
     }
   }
 
-  /**
-   * Defensive normalization: guarantees a non-empty `trips` array,
-   * then runs logical sanity checks on every trip.
-   */
-  private normalizeResult(parsed: any): { trips: any[] } {
-    let trips: any[] = [];
-    if (parsed && Array.isArray(parsed.trips)) {
-      trips = parsed.trips.filter(Boolean);
-    } else if (Array.isArray(parsed)) {
-      trips = parsed;
-    } else if (parsed && (parsed.pickupCompanyName || parsed.dropoffAddress || parsed.loadingReference)) {
-      // Legacy single-object response
-      trips = [parsed];
+  private safeParse(text: string): any {
+    try { return JSON.parse(text); } catch { return {}; }
+  }
+
+  private extractTrips(parsed: any): any[] {
+    if (!parsed) return [];
+    if (Array.isArray(parsed.trips)) return parsed.trips.filter(Boolean);
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed.pickupCompanyName || parsed.dropoffAddress || parsed.loadingReference) return [parsed];
+    return [];
+  }
+
+  /** Merge: corrected values win, but never lose a non-empty first-pass value. */
+  private mergeTrip(first: any, verified: any): any {
+    if (!first) return verified;
+    const merged: any = { ...first };
+    for (const key of Object.keys(verified)) {
+      const v = verified[key];
+      if (v !== null && v !== undefined && v !== '') {
+        merged[key] = v;
+      }
     }
-    return { trips: trips.map(t => this.validateTrip(t)) };
+    return merged;
   }
 
   private parseDate(value?: string | null): Date | null {
@@ -205,10 +264,8 @@ ADDRESS COMPLETION:
   }
 
   /**
-   * Logical sanity checks per trip:
-   * - Loading can never happen after delivery. If the extracted dates
-   *   violate this, the sides were swapped -> swap dates AND times back
-   *   (earlier = loading, later = delivery).
+   * Deterministic safety net: loading can never happen after delivery.
+   * If violated, the sides were swapped -> exchange dates AND times.
    */
   private validateTrip(trip: any): any {
     if (!trip || typeof trip !== 'object') return trip;
