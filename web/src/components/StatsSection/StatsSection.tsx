@@ -1,9 +1,11 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
+import { useFormatters } from '@/lib/format';
 
 export default function StatsSection() {
   const { t } = useLanguage();
+  const { fmtNum } = useFormatters();
   const [data, setData] = useState({ trucks: 0, trips: 0, clients: 0, countries: 0 });
 
   useEffect(() => {
@@ -31,10 +33,10 @@ export default function StatsSection() {
 
 
   const stats = [
-    { label: t('statsTrucks') || 'Camioane Moderne', value: `${data.trucks}+`, icon: '🚛' },
-    { label: t('statsClients') || 'Clienți Mulțumiți', value: `${data.clients}+`, icon: '🤝' },
-    { label: t('statsTrips') || 'Curse Efectuate', value: `${data.trips.toLocaleString('nl-NL')}+`, icon: '📦' },
-    { label: t('statsCountries') || 'Țări Acoperite', value: `${data.countries}`, icon: '🌍' },
+    { label: t('statsTrucks') || 'Camioane Moderne', value: `${fmtNum(data.trucks)}+`, icon: '🚛' },
+    { label: t('statsClients') || 'Clienți Mulțumiți', value: `${fmtNum(data.clients)}+`, icon: '🤝' },
+    { label: t('statsTrips') || 'Curse Efectuate', value: `${fmtNum(data.trips)}+`, icon: '📦' },
+    { label: t('statsCountries') || 'Țări Acoperite', value: `${fmtNum(data.countries)}`, icon: '🌍' },
   ];
 
   return (

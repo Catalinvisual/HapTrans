@@ -5,6 +5,7 @@ import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
 import '../utils/constants.dart';
+import '../utils/number_format.dart';
 import '../utils/trip_fields.dart';
 import '../utils/trip_status.dart';
 import 'trip_dashboard_screen.dart';
@@ -234,9 +235,9 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                         _buildChip(Icons.rv_hookup, trailerPlate),
                         const SizedBox(width: 6),
                       ],
-                      _buildChip(Icons.inventory_2_outlined, '${orders.length} ${l.translate('orders_count')}'),
+                      _buildChip(Icons.inventory_2_outlined, '${fmtNum(orders.length, locale)} ${l.translate('orders_count')}'),
                       const SizedBox(width: 6),
-                      _buildChip(Icons.place_outlined, '${stops.length} ${l.translate('stops_count')}'),
+                      _buildChip(Icons.place_outlined, '${fmtNum(stops.length, locale)} ${l.translate('stops_count')}'),
                     ],
                   ),
                 ],

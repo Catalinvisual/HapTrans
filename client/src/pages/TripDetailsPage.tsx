@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, MapPin, Calendar, Clock, Truck, User, Layers, Scale, Box, Euro, FileText, FileBadge, Navigation, Eye, Wand2, Download, Share2, Plus, Trash2, Edit2, Save, X, UserCheck, Package, Scale as ScaleIcon, Dock, Clock as ClockIcon, Mail, Phone, MapPin as MapPinIcon } from 'lucide-react';
 import api from '../lib/api';
+import { fmtMoney, fmtMoneySigned, fmtPercent } from '../lib/format';
 import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
 import { useAuthStore } from '../store/authStore';
@@ -741,25 +742,25 @@ export default function TripDetailsPage() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 bg-surface rounded-xl border border-border">
                   <span className="text-sm font-semibold text-text-secondary">{t('clientPrice', 'Preț Client')}</span>
-                  <span className="font-black text-lg text-success">€{basePrice.toLocaleString(i18n.language)}</span>
+                  <span className="font-black text-lg text-success">{fmtMoney(basePrice)}</span>
                 </div>
                 
                 <div className="flex items-center justify-between p-3 bg-surface rounded-xl border border-border">
                   <span className="text-sm font-semibold text-text-secondary">{t('totalCost', 'Cost Total')}</span>
-                  <span className="font-bold text-text">{totalCost > 0 ? `€${totalCost.toLocaleString(i18n.language)}` : '-'}</span>
+                  <span className="font-bold text-text">{totalCost > 0 ? fmtMoney(totalCost) : '-'}</span>
                 </div>
                 
                 <div className={`flex items-center justify-between p-3 rounded-xl border ${profit >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
                   <span className={`text-sm font-bold ${profit >= 0 ? 'text-green-800' : 'text-red-800'}`}>{t('netProfit', 'Profit Net')}</span>
                   <span className={`font-black text-xl ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {profit >= 0 ? '+' : ''}€{profit.toLocaleString(i18n.language)}
+                    {fmtMoneySigned(profit)}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between p-3 bg-surface rounded-xl border border-border">
                   <span className="text-sm font-semibold text-text-secondary">{t('profitMargin', 'Marjă Profit')}</span>
                   <span className={`font-bold ${profitMargin >= 10 ? 'text-green-600' : profitMargin >= 0 ? 'text-yellow-600' : 'text-red-500'}`}>
-                    {profitMargin.toFixed(1)}%
+                    {fmtPercent(profitMargin)}
                   </span>
                 </div>
               </div>

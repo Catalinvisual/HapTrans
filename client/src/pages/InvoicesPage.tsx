@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import ExportModal from '../components/ExportModal';
 import { generateInvoicePdfBase64 } from '../lib/invoicePdfGenerator';
 import { formatDate } from '../lib/dateUtils';
+import { fmtMoney } from '../lib/format';
 import CustomSelect from '../components/CustomSelect';
 import ConfirmModal from '../components/ConfirmModal';
 import { getCompanySettings } from "../store/settingsStore";
@@ -803,12 +804,12 @@ export default function InvoicesPage({
               <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                 <div className="col-span-2 md:col-span-1 p-4 rounded-xl bg-primary/10 border border-primary/20">
                   <div className="text-xs font-bold uppercase text-text-secondary">{t('agingTotal')}</div>
-                  <div className="text-xl font-bold text-primary mt-1">{'€' + Number(aging.totalReceivable).toFixed(2)}</div>
+                  <div className="text-xl font-bold text-primary mt-1">{fmtMoney(aging.totalReceivable)}</div>
                 </div>
                 {aging.buckets.map((b: any) => (
                   <div key={b.label} className={'p-4 rounded-xl border ' + (b.label === 'current' ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700' : b.label === '1-30' ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-700' : b.label === '31-60' ? 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-700' : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-700')}>
                     <div className="text-xs font-bold uppercase text-text-secondary">{t('agingBucket' + b.label)}</div>
-                    <div className="text-lg font-bold mt-1">{'€' + Number(b.amount).toFixed(2)}</div>
+                    <div className="text-lg font-bold mt-1">{fmtMoney(b.amount)}</div>
                     <div className="text-xs text-text-secondary">{b.count} {t('agingInvoices')}</div>
                   </div>
                 ))}
@@ -825,7 +826,7 @@ export default function InvoicesPage({
                     {aging.byClient.map((c: any) => (
                       <tr key={c.id} className="border-b border-border hover:bg-surface/60">
                         <td className="p-3">{c.name} {c.email ? '(' + c.email + ')' : ''}</td>
-                        <td className="p-3 font-semibold">{'€' + Number(c.total).toFixed(2)}</td>
+                        <td className="p-3 font-semibold">{fmtMoney(c.total)}</td>
                         <td className="p-3 text-orange-600 font-semibold">{c.maxDays > 0 ? c.maxDays + ' ' + t('agingDays') : t('agingBucketcurrent')}</td>
                         <td className="p-3">{c.invoices.length}</td>
                       </tr>
@@ -893,21 +894,12 @@ export default function InvoicesPage({
                     <td className="table-cell font-mono text-sm font-bold">{inv.invoiceNumber}</td>
                     <td className="table-cell font-bold text-text">{inv.client?.name}</td>
                     <td className="table-cell">
-                      <div className="font-bold text-success text-sm">€{totals.total.toLocaleString(i18n.language, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2
-                    })}</div>
-                      <div className="text-[10px] text-text-secondary font-medium">{t('net', 'Net')}: €{totals.subtotal.toLocaleString(i18n.language, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2
-                    })}</div>
+                      <div className="font-bold text-success text-sm">{fmtMoney(totals.total)}</div>
+                      <div className="text-[10px] text-text-secondary font-medium">{t('net', 'Net')}: {fmtMoney(totals.subtotal)}</div>
                     </td>
                     <td className="table-cell font-semibold text-text-secondary">
                       <div>{inv.vatType === 'REVERSE_CHARGE' ? '0% (Taxare inv.)' : inv.vatType === 'EXEMPT' ? '0% (Scutit)' : `${inv.vatPercent}%`}</div>
-                      {inv.vatType !== 'REVERSE_CHARGE' && inv.vatType !== 'EXEMPT' && totals.vatAmount > 0 && <div className="text-[10px] text-text-secondary">€{totals.vatAmount.toLocaleString(i18n.language, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2
-                    })}</div>}
+                      {inv.vatType !== 'REVERSE_CHARGE' && inv.vatType !== 'EXEMPT' && totals.vatAmount > 0 && <div className="text-[10px] text-text-secondary">{fmtMoney(totals.vatAmount)}</div>}
                     </td>
                     <td className="table-cell text-xs font-medium text-text-secondary">{formatDate(inv.issueDate)}</td>
                     <td className={`table-cell text-xs font-bold ${inv.status === 'overdue' ? 'text-red-600 animate-pulse' : 'text-text-secondary'}`}>{formatDate(inv.dueDate)}</td>

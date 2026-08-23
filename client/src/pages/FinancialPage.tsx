@@ -16,6 +16,7 @@ import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
 import toast from 'react-hot-toast';
 import { exportWorkbook, formatDateExcel } from '../lib/exportExcel';
+import { fmtMoney, fmtNumber, fmtPercent } from '../lib/format';
 
 interface SeriesPoint {
   month: string; label: string; year: number;
@@ -68,7 +69,7 @@ function TrendBadge({ value, invert = false }: { value: number | null | undefine
   return (
     <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${good ? 'text-success' : 'text-error'}`}>
       {value > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-      {`${Math.abs(value).toFixed(1)}%`}
+      {`${fmtPercent(Math.abs(value), 1)}`}
     </span>
   );
 }
@@ -115,13 +116,13 @@ function computeRange(type: RangeType, customFrom: string, customTo: string): { 
 
 function compactEur(v: number): string {
   const n = Number(v) || 0;
-  if (Math.abs(n) >= 1000000) return `€${(n / 1000000).toFixed(1)}M`;
-  if (Math.abs(n) >= 1000) return `€${Math.round(n / 1000)}k`;
-  return `€${Math.round(n)}`;
+  if (Math.abs(n) >= 1000000) return `€${fmtNumber(n / 1000000, 1)}M`;
+  if (Math.abs(n) >= 1000) return `€${fmtNumber(Math.round(n / 1000))}k`;
+  return `€${fmtNumber(Math.round(n))}`;
 }
 
 export default function FinancialPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [rangeType, setRangeType] = useState<RangeType>('last_12_months');
   const [customFrom, setCustomFrom] = useState(iso(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
   const [customTo, setCustomTo] = useState(iso(new Date()));
@@ -158,10 +159,9 @@ export default function FinancialPage() {
       .finally(() => setLoading(false));
   }, [range.from, range.to, clientId, rangeType, granularity, t]);
 
-  const lang = i18n.language || 'ro';
-  const money = (n: number) => `€${Math.round(Number(n) || 0).toLocaleString(lang)}`;
-  const kmFmt = (n: number) => `${Math.round(Number(n) || 0).toLocaleString(lang)} km`;
-  const pct = (n: number, digits = 1) => `${(Number(n) || 0).toFixed(digits)}%`;
+  const money = (n: number) => fmtMoney(Math.round(Number(n) || 0));
+  const kmFmt = (n: number) => `${fmtNumber(Math.round(Number(n) || 0))} km`;
+  const pct = (n: number, digits = 1) => fmtPercent(Number(n) || 0, digits);
 
   const periodOptions: SelectOption[] = [
     { value: 'this_month', label: t('fin_this_month') },
@@ -524,7 +524,7 @@ export default function FinancialPage() {
               sub={ps ? `${ps.paidCount} ✓ · ${ps.partialCount} ~ · ${ps.unpaidCount} ✕` : undefined} />
             <KpiCard icon={RouteIcon} label={t('fin_avg_trip_value')} value={money(k.avgTripValue)} trend={tr.avgTripValue}
               accent="bg-cyan-500/10 text-cyan-500"
-              sub={`${t('costPerKm')}: €${(k.costPerKm ?? 0).toFixed(2)}`} />
+              sub={`${t('costPerKm')}: ${fmtMoney(k.costPerKm ?? 0)}`} />
           </div>
 
           {/* Evolution + margin gauge */}

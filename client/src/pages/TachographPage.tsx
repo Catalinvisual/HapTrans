@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
+import { fmtNumber } from '../lib/format';
 import CustomSelect, { type SelectOption } from '../components/CustomSelect';
 
 export default function TachographPage() {
@@ -256,7 +257,7 @@ export default function TachographPage() {
               {/* Progress & ETA Footer */}
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
                 <div>
-                  Odometer: <span className="font-black text-slate-700">{Math.round(item.odometer || 0).toLocaleString()} km</span>
+                  Odometer: <span className="font-black text-slate-700">{fmtNumber(Math.round(item.odometer || 0))} km</span>
                 </div>
                 {item.eta && (
                   <div>

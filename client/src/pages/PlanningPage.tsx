@@ -24,6 +24,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import { generateOrderPdf } from '../lib/pdfGenerator';
 import { planningApi } from '../lib/planningApi';
 import OrderWizard from '../components/orders/OrderWizard';
+import { fmtMoney, fmtNumber } from '../lib/format';
 
 function useResizableSidebar(initialWidth: number = 300, minWidth: number = 220, maxWidth: number = 650) {
   const [width, setWidth] = useState(() => {
@@ -144,7 +145,7 @@ function sumCargo(orders: any[]) {
     ldm += orderLdm;
     if (orderHasLdm) hasLdm = true;
   }
-  return { weight, ldm, hasLdm, pallets, volume, ldmFormatted: hasLdm ? ldm.toFixed(1) : '—' };
+  return { weight, ldm, hasLdm, pallets, volume, ldmFormatted: hasLdm ? fmtNumber(ldm, 1) : '—' };
 }
 
 function tripOriginDestination(trip: any) {
@@ -328,7 +329,7 @@ function CapBar({ label, value, max, unit = '' }: { label: string; value: number
     <div className="min-w-0">
       <div className="flex items-center justify-between text-[9px] font-bold text-text-secondary mb-0.5">
         <span>{label}</span>
-        <span className={textColor}>{value > 0 ? `${value.toLocaleString()}` : '—'}{unit && value > 0 ? unit : ''}</span>
+        <span className={textColor}>{value > 0 ? fmtNumber(value, value % 1 !== 0 ? 1 : 0) : '—'}{unit && value > 0 ? unit : ''}</span>
       </div>
       <div className="w-full h-1.5 rounded-full bg-border/50 overflow-hidden border border-border/30">
         <div className={`h-full rounded-full transition-all duration-300 ${color}`} style={{ width: `${displayPct}%` }} />
@@ -390,11 +391,11 @@ function PoolOrderCard({
 
       <div className="flex items-center justify-between text-[10px] pt-1.5 border-t border-border/40">
         <span className="text-text-secondary">
-          {cargo.weight > 0 ? `${cargo.weight.toLocaleString()} kg` : '—'}
+          {cargo.weight > 0 ? `${fmtNumber(cargo.weight)} kg` : '—'}
           {cargo.pallets > 0 ? ` · ${cargo.pallets} plt` : ''}
           {order.client?.name ? <span className="text-text-muted"> · {order.client.name}</span> : ''}
         </span>
-        <span className="font-black text-text-primary">€{Number(order.price || 0).toLocaleString()}</span>
+        <span className="font-black text-text-primary">{fmtMoney(Number(order.price || 0), 'EUR')}</span>
       </div>
 
       {pickup?.dateFrom && (
@@ -498,8 +499,8 @@ function TripBlock({
           {/* Row 4: Cargo + revenue */}
           {!isVeryNarrow && (cargo.weight > 0 || revenue > 0) && (
             <div className="flex items-center gap-1">
-              {cargo.weight > 0 && <span className="text-[8px] text-text-muted">{cargo.weight.toLocaleString()}kg</span>}
-              {revenue > 0 && <span className="text-[8px] font-black" style={{ color: hex }}>€{revenue.toLocaleString()}</span>}
+              {cargo.weight > 0 && <span className="text-[8px] text-text-muted">{fmtNumber(cargo.weight)}kg</span>}
+              {revenue > 0 && <span className="text-[8px] font-black" style={{ color: hex }}>{fmtMoney(revenue, 'EUR')}</span>}
               {ordersCount > 0 && <span className="text-[8px] text-text-muted">·{ordersCount}ord</span>}
             </div>
           )}
@@ -1074,13 +1075,13 @@ function TripDetailDrawer({
                       </div>
                       <div className="flex flex-wrap gap-2 text-[11px] text-text-secondary mt-1.5">
                         <span className="px-1.5 py-0.5 bg-surface rounded font-medium">{oc.pallets || o.pallets || 0} pal</span>
-                        <span className="px-1.5 py-0.5 bg-surface rounded font-medium">{(oc.weight || o.weightKg || 0).toLocaleString()} kg</span>
+                        <span className="px-1.5 py-0.5 bg-surface rounded font-medium">{fmtNumber(oc.weight || o.weightKg || 0)} kg</span>
                         {(oc.ldm || o.loadingMeters) && <span className="px-1.5 py-0.5 bg-surface rounded font-medium">{oc.ldm || o.loadingMeters} LDM</span>}
                         {(oc.volume || o.volumeCbm) && <span className="px-1.5 py-0.5 bg-surface rounded font-medium">{oc.volume || o.volumeCbm} m³</span>}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="font-black text-text-primary text-sm mr-1">€{Number(o.price || 0).toLocaleString()}</span>
+                      <span className="font-black text-text-primary text-sm mr-1">{fmtMoney(Number(o.price || 0), 'EUR')}</span>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1119,9 +1120,9 @@ function TripDetailDrawer({
           {activeTab === 'financial' && (
             <div className="grid grid-cols-3 gap-3">
               {[
-                [t('revenue','Revenue'), `€${revenue.toLocaleString(undefined, {minimumFractionDigits:2})}`, 'text-primary'],
-                [t('cost','Est. Cost'), `€${Number(trip.estimatedCost || 0).toLocaleString(undefined, {minimumFractionDigits:2})}`, 'text-text-secondary'],
-                [t('margin','Margin'), `€${(revenue - Number(trip.estimatedCost || 0)).toLocaleString(undefined, {minimumFractionDigits:2})}`, revenue >= Number(trip.estimatedCost || 0) ? 'text-emerald-500' : 'text-red-500'],
+                [t('revenue','Revenue'), fmtMoney(revenue, 'EUR'), 'text-primary'],
+                [t('cost','Est. Cost'), fmtMoney(Number(trip.estimatedCost || 0), 'EUR'), 'text-text-secondary'],
+                [t('margin','Margin'), fmtMoney(revenue - Number(trip.estimatedCost || 0), 'EUR'), revenue >= Number(trip.estimatedCost || 0) ? 'text-emerald-500' : 'text-red-500'],
               ].map(([label, val, cls]) => (
                 <div key={label as string} className="bg-surface/60 rounded-xl p-3 border border-border">
                   <p className="text-xs text-text-secondary">{label}</p>
@@ -1305,10 +1306,10 @@ function OrderDetailDrawer({ order, onClose, onPlan }: { order: any; onClose: ()
           </div>
           <div className="grid grid-cols-2 gap-2.5 text-xs">
             {[
-              [t('pool_col_weight','Weight'), `${cargo.weight.toLocaleString()} kg`],
+              [t('pool_col_weight','Weight'), `${fmtNumber(cargo.weight)} kg`],
               [t('pool_col_pallets','Pallets'), `${cargo.pallets} plt`],
-              [t('pool_col_volume','Volume'), `${cargo.volume.toFixed(1)} m³`],
-              [t('revenue','Price'), `€${Number(order.price || 0).toLocaleString()}`],
+              [t('pool_col_volume','Volume'), `${fmtNumber(cargo.volume, 1)} m³`],
+              [t('revenue','Price'), fmtMoney(Number(order.price || 0), 'EUR')],
             ].map(([l,v]) => (
               <div key={l as string} className="bg-card rounded-xl p-3 border border-border/60">
                 <p className="text-text-secondary text-[10px]">{l}</p>
@@ -1355,7 +1356,7 @@ function OptimizationModal({ onClose, onApply, isLoading }: { onClose: () => voi
               {proposals.map((p: any, i: number) => (
                 <div key={p.id || i} className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between gap-3">
                   <div><span className="font-black text-text-primary text-sm">{p.plateNumber || 'Truck'}</span>{p.driver ? <span className="text-xs text-text-secondary ml-2">· {p.driver}</span> : ''}<p className="text-xs text-text-secondary mt-1">{p.origin || ''}{p.origin && p.destination ? ' → ' : ''}{p.destination || ''}</p></div>
-                  <div className="flex items-center gap-3"><span className="px-2.5 py-1 text-xs font-black rounded-lg bg-surface border border-border">{p.orderIds?.length || 0} orders</span><span className="font-black text-primary">€{Number(p.estimatedRevenue || 0).toLocaleString()}</span></div>
+                  <div className="flex items-center gap-3"><span className="px-2.5 py-1 text-xs font-black rounded-lg bg-surface border border-border">{p.orderIds?.length || 0} orders</span><span className="font-black text-primary">{fmtMoney(Number(p.estimatedRevenue || 0), 'EUR')}</span></div>
                 </div>
               ))}
             </div>

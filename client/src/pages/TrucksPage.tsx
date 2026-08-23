@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Pencil, Trash2, Search, Download, Truck as TruckIcon, Info, Users, Wrench, Fuel, Battery, Gauge, Boxes, Coins, CalendarDays, CheckCircle2, Settings2, AlertTriangle } from 'lucide-react';
 import api from '../lib/api';
+import { fmtNumber, fmtMoney, fmtKm } from '../lib/format';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
@@ -272,7 +273,7 @@ export default function TrucksPage() {
     { key: 'in_trip', label: t('kpi_trucks_in_trip', 'In trip'), value: inTripCount, color: '#6366f1', icon: CalendarDays, active: filters.status === 'in_trip', onClick: () => setFilters({ status: 'in_trip', type: 'all' }) },
     { key: 'available', label: t('kpi_trucks_available', 'Available'), value: availCount, color: '#22c55e', icon: CheckCircle2, active: filters.status === 'active', onClick: () => setFilters({ status: 'active', type: 'all' }) },
     { key: 'maintenance', label: t('kpi_trucks_maintenance', 'Service due'), value: maintCount, color: maintCount > 0 ? '#ef4444' : '#22c55e', icon: Wrench, onClick: () => setFilters(f => ({ ...f, status: 'maintenance' })) },
-    { key: 'avg_cost', label: t('kpi_trucks_avg_cost', 'Avg cost/km'), value: avgCost ? `€${avgCost.toFixed(2)}` : '—', color: '#f97316', icon: Coins },
+    { key: 'avg_cost', label: t('kpi_trucks_avg_cost', 'Avg cost/km'), value: avgCost ? fmtMoney(avgCost) : '—', color: '#f97316', icon: Coins },
   ];
 
   const setBulkStatus = async (status: string) => {
@@ -370,7 +371,7 @@ export default function TrucksPage() {
     },
     {
       key: 'payload', label: t('payload', 'Payload'), align: 'right',
-      render: tr => <span className="text-xs font-semibold">{Number(tr.payloadCapacity || tr.maxWeightKg || 0).toLocaleString()} kg</span>,
+      render: tr => <span className="text-xs font-semibold">{fmtNumber(Number(tr.payloadCapacity || tr.maxWeightKg || 0))} kg</span>,
       hideBelow: 'lg',
     },
     {
@@ -390,7 +391,7 @@ export default function TrucksPage() {
     },
     {
       key: 'cost', label: t('cost_km', 'Cost/km'), align: 'right',
-      render: tr => <span className="text-xs font-bold text-primary">{Number(tr.costPerKm || 0) ? `€${Number(tr.costPerKm).toFixed(2)}` : '—'}</span>,
+      render: tr => <span className="text-xs font-bold text-primary">{Number(tr.costPerKm || 0) ? fmtMoney(Number(tr.costPerKm)) : '—'}</span>,
     },
     {
       key: 'service', label: t('next_service', 'Next service'), width: '130px',
@@ -429,8 +430,8 @@ export default function TrucksPage() {
         return (
           <div className="min-w-[110px]">
             <div className="flex justify-between text-[10px] font-semibold mb-1">
-              <span className="text-text-secondary">{total.toLocaleString()} km</span>
-              {left <= 0 ? <span className="text-red-500 font-bold">{t('service_overdue', 'Overdue')}</span> : left <= 3000 ? <span className="text-amber-600">{t('service_in', 'in')} {left.toLocaleString()} km</span> : null}
+              <span className="text-text-secondary">{fmtKm(total)}</span>
+              {left <= 0 ? <span className="text-red-500 font-bold">{t('service_overdue', 'Overdue')}</span> : left <= 3000 ? <span className="text-amber-600">{t('service_in', 'in')} {fmtKm(left)}</span> : null}
             </div>
             <div className="w-full bg-surface h-1.5 rounded-full overflow-hidden">
               <div className={`h-full rounded-full ${left <= 0 ? 'bg-red-500' : left <= 3000 ? 'bg-amber-500' : 'bg-green-500/60'}`} style={{ width: `${pct}%` }} />
@@ -473,11 +474,11 @@ export default function TrucksPage() {
 
   const footerCells = [
     <td key="vehicle" colSpan={4} className="px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-text-secondary">{filtered.length} {t('results', 'results')}</td>,
-    <td key="payload" className="px-3.5 py-2 text-right text-xs font-bold text-text-primary">{filtered.length ? Math.round(filtered.reduce((s, tr) => s + Number(tr.payloadCapacity || tr.maxWeightKg || 0), 0) / filtered.length).toLocaleString() : '—'} kg</td>,
+    <td key="payload" className="px-3.5 py-2 text-right text-xs font-bold text-text-primary">{filtered.length ? fmtNumber(Math.round(filtered.reduce((s, tr) => s + Number(tr.payloadCapacity || tr.maxWeightKg || 0), 0) / filtered.length)) : '—'} kg</td>,
     <td key="pallets" className="px-3.5 py-2 text-right text-xs font-bold text-text-primary">{filtered.reduce((s, tr) => s + Number(tr.maxPallets || 0), 0) || '—'}</td>,
-    <td key="ldm" className="px-3.5 py-2 text-right text-xs font-bold text-text-primary">{filtered.reduce((s, tr) => s + Number(tr.maxLdm || 0), 0) ? `${filtered.reduce((s, tr) => s + Number(tr.maxLdm || 0), 0).toFixed(1)} m` : '—'}</td>,
+    <td key="ldm" className="px-3.5 py-2 text-right text-xs font-bold text-text-primary">{filtered.reduce((s, tr) => s + Number(tr.maxLdm || 0), 0) ? `${fmtNumber(filtered.reduce((s, tr) => s + Number(tr.maxLdm || 0), 0), 1)} m` : '—'}</td>,
     <td key="fuel" className="px-3.5 py-2 text-right text-xs font-bold text-text-primary">—</td>,
-    <td key="cost" className="px-3.5 py-2 text-right text-xs font-bold text-primary">{avgCost ? `€${avgCost.toFixed(2)}` : '—'}</td>,
+    <td key="cost" className="px-3.5 py-2 text-right text-xs font-bold text-primary">{avgCost ? fmtMoney(avgCost) : '—'}</td>,
     <td key="service" className="px-3.5 py-2" />,
     <td key="docs" className="px-3.5 py-2 text-center text-xs font-bold text-text-primary">{filtered.reduce((s, tr) => s + (tr.documents?.length || 0), 0)}</td>,
     <td key="actions" className="px-3.5 py-2" />,
@@ -546,12 +547,12 @@ export default function TrucksPage() {
       key: 'specs', label: t('tab_specs', 'Specifications'),
       content: (
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Boxes className="w-3 h-3" />{t('payload', 'Payload')}</div><div className="text-lg font-black mt-0.5">{(Number(drawerTruck.payloadCapacity || drawerTruck.maxWeightKg || 0)).toLocaleString()} <span className="text-xs text-text-secondary">kg</span></div></div>
+          <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Boxes className="w-3 h-3" />{t('payload', 'Payload')}</div><div className="text-lg font-black mt-0.5">{fmtNumber(Number(drawerTruck.payloadCapacity || drawerTruck.maxWeightKg || 0))} <span className="text-xs text-text-secondary">kg</span></div></div>
           <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Boxes className="w-3 h-3" />{t('maxPallets', 'Pallets')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.maxPallets || '—'}</div></div>
           <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Gauge className="w-3 h-3" />{t('maxLdm', 'LDM')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.maxLdm ? `${drawerTruck.maxLdm} m` : '—'}</div></div>
           <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Boxes className="w-3 h-3" />{t('maxVolumeCbm', 'Volume')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.maxVolumeCbm ? `${drawerTruck.maxVolumeCbm} m³` : '—'}</div></div>
           <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Fuel className="w-3 h-3" />{t('fuel_consumption', 'Fuel')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.fuelConsumption ? `${drawerTruck.fuelConsumption} L/100km` : '—'}</div></div>
-          <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Coins className="w-3 h-3" />{t('cost_km', 'Cost/km')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.costPerKm ? `€${Number(drawerTruck.costPerKm).toFixed(2)}` : '—'}</div></div>
+          <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Coins className="w-3 h-3" />{t('cost_km', 'Cost/km')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.costPerKm ? fmtMoney(Number(drawerTruck.costPerKm)) : '—'}</div></div>
         </div>
       ),
     },
@@ -566,7 +567,7 @@ export default function TrucksPage() {
           ) : null}
           <div className="bg-surface/50 rounded-xl p-4 border border-border">
             <div className="text-[10px] font-bold uppercase text-text-secondary mb-1 flex items-center gap-1"><Gauge className="w-3 h-3" />{t('mileage', 'Mileage')}</div>
-            <div className="text-2xl font-black text-text-primary">{(Number(drawerTruck.totalMileage || 0)).toLocaleString()} <span className="text-xs text-text-secondary">km</span></div>
+            <div className="text-2xl font-black text-text-primary">{fmtNumber(Number(drawerTruck.totalMileage || 0))} <span className="text-xs text-text-secondary">km</span></div>
             {(() => {
               const apkDoc = (drawerTruck.documents || []).find((d: any) => d.type === 'apk');
               if (apkDoc?.expiryDate) {
@@ -597,7 +598,7 @@ export default function TrucksPage() {
               const pct = next > 0 ? Math.min(100, Math.max(0, Math.round((total / next) * 100))) : 0;
               return (
                 <>
-                  <div className="mt-3 text-[10px] font-bold uppercase text-text-secondary mb-1">{t('next_service', 'Next service')}: {next.toLocaleString()} km</div>
+                  <div className="mt-3 text-[10px] font-bold uppercase text-text-secondary mb-1">{t('next_service', 'Next service')}: {fmtKm(next)}</div>
                   <div className="w-full bg-surface h-2 rounded-full overflow-hidden">
                     <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
                   </div>
@@ -607,7 +608,7 @@ export default function TrucksPage() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Fuel className="w-3 h-3" />{t('fuel_consumption', 'Fuel')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.fuelConsumption ? `${drawerTruck.fuelConsumption} L` : '—'}</div></div>
-            <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Coins className="w-3 h-3" />{t('cost_km', 'Cost/km')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.costPerKm ? `€${Number(drawerTruck.costPerKm).toFixed(2)}` : '—'}</div></div>
+            <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Coins className="w-3 h-3" />{t('cost_km', 'Cost/km')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.costPerKm ? fmtMoney(Number(drawerTruck.costPerKm)) : '—'}</div></div>
           </div>
         </div>
       ),

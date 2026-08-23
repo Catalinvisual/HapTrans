@@ -4,6 +4,7 @@ import 'flatpickr/dist/themes/light.css';
 import { useTranslation } from 'react-i18next';
 import { Plus, Search, Pencil, Trash2, Paperclip, FileText, X } from 'lucide-react';
 import api from '../lib/api';
+import { fmtMoney } from '../lib/format';
 import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
 import CustomSelect from '../components/CustomSelect';
@@ -277,7 +278,7 @@ export default function MaintenancePage() {
                 <td className="table-cell">{r.description}</td>
                 <td className="table-cell text-xs">{formatDate(r.scheduledDate)}</td>
                 <td className="table-cell text-xs">
-                  {r.cost != null ? `€${Number(r.cost).toLocaleString(i18n.language)}` : (r.partsCost != null || r.laborCost != null ? `€${((Number(r.partsCost)||0)+(Number(r.laborCost)||0)).toLocaleString(i18n.language)}` : '—')}
+                  {r.cost != null ? fmtMoney(r.cost) : (r.partsCost != null || r.laborCost != null ? fmtMoney((Number(r.partsCost)||0)+(Number(r.laborCost)||0)) : '—')}
                   {(r.partsCost != null || r.laborCost != null) && <span className="text-[10px] text-text-secondary block">P {Number(r.partsCost)||0} + M {Number(r.laborCost)||0}</span>}
                 </td>
                 <td className="table-cell text-xs">{r.serviceProvider || '—'}</td>

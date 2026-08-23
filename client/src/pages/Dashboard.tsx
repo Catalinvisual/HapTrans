@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import api from '../lib/api';
 import { formatDate } from '../lib/dateUtils';
+import { fmtMoney } from '../lib/format';
 import DieselWidget from '../components/DieselWidget';
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
@@ -469,7 +470,7 @@ export default function Dashboard() {
               {summary.overdueInvoices.slice(0, 5).map((inv: any) => (
                 <div key={inv.id} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
                   <span className="text-text font-medium">{inv.invoiceNumber} — {inv.client?.name}</span>
-                  <span className="badge-error">€{Number(inv.amount).toLocaleString(i18n.language)}</span>
+                  <span className="badge-error">{fmtMoney(inv.amount)}</span>
                 </div>
               ))}
             </div>

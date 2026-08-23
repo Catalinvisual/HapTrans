@@ -569,6 +569,7 @@ export class OrdersService {
         timeFrom: dto.pickupTime || '',
         dateTo: toDate(dto.pickupDate),
         timeTo: dto.pickupTime || '',
+        reference: dto.loadingReference || null,
       },
       {
         type: 'dropoff',
@@ -578,17 +579,21 @@ export class OrdersService {
         timeFrom: dto.dropoffTime || '',
         dateTo: toDate(dto.dropoffDate),
         timeTo: dto.dropoffTime || '',
+        reference: dto.unloadingReference || null,
       }
     ];
 
+    // CargoItem stores counts as quantity+unit (no dedicated pallets column)
+    const palletCount = safeNum(dto.pallets);
+    const baseCargo = {
+      description: dto.notes || 'Cargo',
+      weightKg: safeNum(dto.weightKg) ?? 0,
+      volumeCbm: safeNum(dto.volumeCbm) ?? 0,
+    };
     const cargoItems = [
-      {
-        description: dto.notes || 'Cargo',
-        weightKg: safeNum(dto.weightKg) ?? 0,
-        pallets: safeNum(dto.pallets) ?? 0,
-        palletType: dto.palletType || 'Euro',
-        volumeCbm: safeNum(dto.volumeCbm) ?? 0
-      }
+      palletCount
+        ? { ...baseCargo, unit: 'pallet', quantity: palletCount }
+        : baseCargo,
     ];
 
     const orderDto = {

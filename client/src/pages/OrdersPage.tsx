@@ -23,6 +23,7 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateOrderPdf } from '../lib/pdfGenerator';
+import { fmtMoney, fmtNumber } from '../lib/format';
 
 const ORDER_STATUSES = ['draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoiced', 'paid', 'cancelled'];
 
@@ -331,7 +332,7 @@ export default function OrdersPage() {
       return (
         <div className="text-right">
           <div className="text-[12px] font-bold text-text-primary">{n} {t('items', 'items')}</div>
-          <div className="text-[11px] text-text-secondary whitespace-nowrap">{w.toLocaleString()} kg{ldm > 0 ? ` · ${ldm.toFixed(1)} LDM` : ''}</div>
+          <div className="text-[11px] text-text-secondary whitespace-nowrap">{fmtNumber(w)} kg{ldm > 0 ? ` · ${fmtNumber(ldm, 1)} LDM` : ''}</div>
         </div>
       );
     } },
@@ -341,7 +342,7 @@ export default function OrdersPage() {
       return <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-full border ${cls}`}>{t(`priority_${p}`, p) as string}</span>;
     } },
     { key: 'price', label: t('price', 'Price'), sortable: true, align: 'right', render: o => (
-      <div className="text-right font-bold text-text-primary whitespace-nowrap">€{Number(o.price || 0).toLocaleString()}</div>
+      <div className="text-right font-bold text-text-primary whitespace-nowrap">{fmtMoney(o.price || 0, o.currency || 'EUR')}</div>
     ) },
     { key: 'status', label: t('status', 'Status'), render: o => <StatusBadge status={o.status} label={t(`status_${o.status}`, o.status.replace(/_/g, ' ')) as string} /> },
     { key: 'actions', label: t('actions', 'Actions'), align: 'right', render: o => {
@@ -406,7 +407,7 @@ export default function OrdersPage() {
         { key: 'active', label: t('kpi_active', 'In transit'), value: (statusCounts.assigned || 0) + (statusCounts.loading || 0) + (statusCounts.in_transit || 0), icon: Activity, color: 'text-blue-600', onClick: () => setStatusFilterFromKpi('in_transit'), active: filters.status === 'in_transit' },
         { key: 'delivered', label: t('kpi_delivered', 'Delivered'), value: (statusCounts.delivered || 0) + (statusCounts.pod_received || 0), icon: Flag, color: 'text-green-600', onClick: () => setStatusFilterFromKpi('delivered'), active: filters.status === 'delivered' },
         { key: 'invoiced', label: t('kpi_invoiced', 'Invoiced'), value: (statusCounts.ready_for_invoice || 0) + (statusCounts.invoiced || 0) + (statusCounts.paid || 0), icon: BadgeEuro, color: 'text-emerald-600', onClick: () => setStatusFilterFromKpi('invoiced'), active: filters.status === 'invoiced' },
-        { key: 'revenue', label: t('kpi_revenue', 'Revenue'), value: `€${totalRevenue.toLocaleString()}`, icon: Coins, color: 'text-primary' },
+        { key: 'revenue', label: t('kpi_revenue', 'Revenue'), value: fmtMoney(totalRevenue), icon: Coins, color: 'text-primary' },
       ]} />
 
       <div className="card p-0 overflow-hidden border-border">
@@ -450,9 +451,9 @@ export default function OrdersPage() {
           footer={
             <>
               <td colSpan={3} className="px-3.5 py-2.5 text-[12px] font-bold text-text-secondary uppercase tracking-wider">{t('totals', 'Totals')} · {filtered.length} {t('orders', 'orders')}</td>
-              <td className="px-3.5 py-2.5 text-right text-[12px] font-bold text-text-secondary">{totalWeight.toLocaleString()} kg</td>
+              <td className="px-3.5 py-2.5 text-right text-[12px] font-bold text-text-secondary">{fmtNumber(totalWeight)} kg</td>
               <td colSpan={4} />
-              <td className="px-3.5 py-2.5 text-right text-[13px] font-black text-primary">€{totalRevenue.toLocaleString()}</td>
+              <td className="px-3.5 py-2.5 text-right text-[13px] font-black text-primary">{fmtMoney(totalRevenue)}</td>
               <td colSpan={2} />
             </>
           }
@@ -553,6 +554,7 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
   const weight = order.cargoItems?.reduce((s: number, c: any) => s + Number(c.weightKg || 0), 0) || 0;
   const ldm = order.cargoItems?.reduce((s: number, c: any) => s + Number(c.ldm || 0), 0) || 0;
   const volume = order.cargoItems?.reduce((s: number, c: any) => s + Number(c.volumeCbm || 0), 0) || 0;
+  const pallets = order.cargoItems?.reduce((s: number, c: any) => s + (c.unit === 'pallet' ? (Number(c.quantity) || 0) : 0), 0) || 0;
 
   const Row = ({ label, value, icon }: any) => (
     <div className="flex items-baseline gap-1.5 py-2 border-b border-border/50 last:border-0 flex-wrap">
@@ -572,27 +574,37 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
           <div className="grid grid-cols-2 gap-3">
             <div>
               <div className="text-[10px] font-bold uppercase text-text-secondary">{t('price', 'Price')}</div>
-              <div className="text-lg font-black text-primary">€{Number(order.price || 0).toLocaleString()}</div>
+              <div className="text-lg font-black text-primary">{fmtMoney(order.price || 0, order.currency || 'EUR')}</div>
             </div>
             <div>
               <div className="text-[10px] font-bold uppercase text-text-secondary">{t('est_cost', 'Est. cost')}</div>
-              <div className="text-lg font-black text-text-primary">€{Number(order.estimatedCost || 0).toLocaleString()}</div>
+              <div className="text-lg font-black text-text-primary">{fmtMoney(order.estimatedCost || 0, order.currency || 'EUR')}</div>
             </div>
             <div className="col-span-2">
               <div className="text-[10px] font-bold uppercase text-text-secondary">{t('est_profit', 'Est. profit')}</div>
-              <div className={`text-lg font-black ${Number(order.estimatedProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>€{Number(order.estimatedProfit || 0).toLocaleString()}</div>
+              <div className={`text-lg font-black ${Number(order.estimatedProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtMoney(order.estimatedProfit || 0, order.currency || 'EUR')}</div>
             </div>
           </div>
         </div>
         <div>
           <Row icon={<MapPin className="w-3 h-3 text-blue-500" />} label={t('pickup', 'Pickup')} value={pickup ? [pickup.companyName, pickup.address, pickup.city, pickup.country].filter(Boolean).join(', ') : '—'} />
           <Row icon={<MapPin className="w-3 h-3 text-green-500" />} label={t('dropoff', 'Dropoff')} value={dropoff ? [dropoff.companyName, dropoff.address, dropoff.city, dropoff.country].filter(Boolean).join(', ') : '—'} />
+          {(() => {
+            const loadRef = order.loadingReference || pickup?.reference;
+            const unloadRef = order.unloadingReference || dropoff?.reference;
+            return (
+              <>
+                <Row icon={<FileText className="w-3 h-3 text-amber-500" />} label={t('loading_reference', 'Loading ref')} value={loadRef || '—'} />
+                <Row icon={<FileText className="w-3 h-3 text-violet-500" />} label={t('unloading_reference', 'Unloading ref')} value={unloadRef || '—'} />
+              </>
+            );
+          })()}
           <Row icon={<User className="w-3 h-3" />} label={t('contact', 'Contact')} value={`${order.contactPerson || '—'}${order.contactPhone ? ` · ${order.contactPhone}` : ''}`} />
-          <Row icon={<Boxes className="w-3 h-3" />} label={t('cargo_summary', 'Cargo')} value={`${order.cargoItems?.length || 0} ${t('items', 'items')} · ${weight.toLocaleString()} kg · ${ldm.toFixed(2)} LDM · ${volume.toFixed(1)} m³`} />
+          <Row icon={<Boxes className="w-3 h-3" />} label={t('cargo_summary', 'Cargo')} value={`${order.cargoItems?.length || 0} ${t('items', 'items')} · ${pallets > 0 ? `${fmtNumber(pallets)} pal · ` : ''}${fmtNumber(weight)} kg · ${fmtNumber(ldm, 2)} LDM · ${fmtNumber(volume, 1)} m³`} />
           <Row icon={<Activity className="w-3 h-3" />} label={t('equipment', 'Equipment')} value={(order.equipmentRequirements || []).map((r: string) => r.toUpperCase()).join(', ') || '—'} />
           <Row icon={<Box className="w-3 h-3" />} label={t('transport_type', 'Transport type')} value={(order.transportType || 'ftl').toUpperCase()} />
           <Row icon={<Flag className="w-3 h-3" />} label={t('priority', 'Priority')} value={t(`priority_${order.priority || 'normal'}`, order.priority || 'normal')} />
-          <Row icon={<FileText className="w-3 h-3" />} label={t('distance', 'Distance')} value={order.distanceKm ? `${Number(order.distanceKm).toLocaleString()} km` : '—'} />
+          <Row icon={<FileText className="w-3 h-3" />} label={t('distance', 'Distance')} value={order.distanceKm ? `${fmtNumber(order.distanceKm)} km` : '—'} />
         </div>
         {order.notes && <div className="bg-surface/40 rounded-xl p-3 border border-border text-[13px] text-text-primary whitespace-pre-wrap">{order.notes}</div>}
         <div className="mt-4">
@@ -606,12 +618,12 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
           <div key={c.id || i} className="bg-surface/40 rounded-xl p-3.5 border border-border">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[13px] font-bold text-text-primary truncate">{c.description || 'Cargo'}</span>
-              <span className="text-[11px] font-bold text-text-secondary whitespace-nowrap">x{c.quantity || 1} {c.unit}</span>
+              <span className="text-[11px] font-bold text-text-secondary whitespace-nowrap">×{fmtNumber(c.quantity || 1)} {c.unit}</span>
             </div>
             <div className="flex items-center gap-3 mt-2 text-[11px] text-text-secondary flex-wrap">
-              <span className="flex items-center gap-1"><Weight className="w-3 h-3" />{Number(c.weightKg || 0).toLocaleString()} kg</span>
-              {c.ldm ? <span>{Number(c.ldm).toFixed(2)} LDM</span> : null}
-              {c.volumeCbm ? <span>{Number(c.volumeCbm).toFixed(1)} m³</span> : null}
+              <span className="flex items-center gap-1"><Weight className="w-3 h-3" />{fmtNumber(c.weightKg || 0)} kg</span>
+              {c.ldm ? <span>{fmtNumber(c.ldm, 2)} LDM</span> : null}
+              {c.volumeCbm ? <span>{fmtNumber(c.volumeCbm, 1)} m³</span> : null}
               {c.adrClass ? <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-bold">ADR {c.adrClass}</span> : null}
               {c.requiresTemperatureControl ? <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-bold">🌡 {c.temperatureMin ?? c.temperatureMax}°C</span> : null}
               {c.fragile ? <span className="text-amber-600 font-semibold">Fragile</span> : null}

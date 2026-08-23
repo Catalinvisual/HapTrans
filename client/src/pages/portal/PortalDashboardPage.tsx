@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Package, Truck, FileCheck2, Euro, Activity, Clock } from 'lucide-react';
 import portalApi from '../../lib/portalApi';
 import { formatDate } from '../../lib/dateUtils';
+import { fmtMoney } from '../../lib/format';
 export default function PortalDashboardPage() {
   const { t } = useTranslation();
   const [stats, setStats] = useState<any>(null);
@@ -44,7 +45,7 @@ export default function PortalDashboardPage() {
           </div>
           <div>
             <p className="text-sm text-text-secondary font-medium">{t("jsx_outstandingBal")}</p>
-            <p className="text-2xl font-bold">€{stats.outstandingBalance.toLocaleString()}</p>
+            <p className="text-2xl font-bold">{fmtMoney(stats.outstandingBalance)}</p>
           </div>
         </div>
 

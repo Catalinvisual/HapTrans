@@ -8,6 +8,7 @@ import api from '../lib/api';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
+import { fmtMoney } from '../lib/format';
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
 import ActivityTimeline from '../components/ActivityTimeline';
@@ -338,12 +339,12 @@ export default function DriversPage() {
     },
     {
       key: 'dailyRate', label: t('dailyAllowance', 'Daily'), align: 'right',
-      render: d => <span className="text-xs font-semibold text-text-secondary">{(d.user?.dailyRate || d.dailyRate) ? `€${Number(d.user?.dailyRate ?? d.dailyRate).toFixed(2)}` : '—'}</span>,
+      render: d => <span className="text-xs font-semibold text-text-secondary">{(d.user?.dailyRate || d.dailyRate) ? fmtMoney(d.user?.dailyRate ?? d.dailyRate) : '—'}</span>,
       hideBelow: 'lg',
     },
     {
       key: 'grossSalary', label: t('grossSalary', 'Gross'), align: 'right',
-      render: d => <span className="text-xs font-bold text-text-primary">{(d.user?.grossSalary || d.grossSalary) ? `€${Number(d.user?.grossSalary ?? d.grossSalary).toFixed(2)}` : '—'}</span>,
+      render: d => <span className="text-xs font-bold text-text-primary">{(d.user?.grossSalary || d.grossSalary) ? fmtMoney(d.user?.grossSalary ?? d.grossSalary) : '—'}</span>,
       hideBelow: 'lg',
     },
     {
@@ -381,8 +382,8 @@ export default function DriversPage() {
 
   const footerCells = [
     <td key="name" colSpan={4} className="px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-text-secondary">{filtered.length} {t('results', 'results')}</td>,
-    <td key="daily" className="px-3.5 py-2 text-right text-xs font-bold text-text-primary">{filtered.some(d => (d.user?.dailyRate || d.dailyRate)) ? `€${filtered.reduce((s, d) => s + Number((d.user?.dailyRate ?? d.dailyRate) || 0), 0).toFixed(0)}/zi` : '—'}</td>,
-    <td key="gross" className="px-3.5 py-2 text-right text-xs font-bold text-text-primary">{filtered.some(d => (d.user?.grossSalary || d.grossSalary)) ? `€${filtered.reduce((s, d) => s + Number((d.user?.grossSalary ?? d.grossSalary) || 0), 0).toLocaleString()}/lună` : '—'}</td>,
+    <td key="daily" className="px-3.5 py-2 text-right text-xs font-bold text-text-primary">{filtered.some(d => (d.user?.dailyRate || d.dailyRate)) ? `${fmtMoney(filtered.reduce((s, d) => s + Number((d.user?.dailyRate ?? d.dailyRate) || 0), 0), 'EUR', 0)}/zi` : '—'}</td>,
+    <td key="gross" className="px-3.5 py-2 text-right text-xs font-bold text-text-primary">{filtered.some(d => (d.user?.grossSalary || d.grossSalary)) ? `${fmtMoney(filtered.reduce((s, d) => s + Number((d.user?.grossSalary ?? d.grossSalary) || 0), 0), 'EUR', 0)}/lună` : '—'}</td>,
     <td key="exp1" className="px-3.5 py-2 text-center text-xs font-bold">{filtered.filter(d => isExpired(d.licenseExpiry)).length ? <span className="text-red-500">{filtered.filter(d => isExpired(d.licenseExpiry)).length} {t('expired', 'expired')}</span> : '—'}</td>,
     <td key="exp2" className="px-3.5 py-2 text-center text-xs font-bold">{filtered.filter(d => isExpired(d.medicalExpiry)).length ? <span className="text-red-500">{filtered.filter(d => isExpired(d.medicalExpiry)).length} {t('expired', 'expired')}</span> : '—'}</td>,
     <td key="exp3" className="px-3.5 py-2 text-center text-xs font-bold">{filtered.filter(d => isExpired(d.tachoCardExpiry)).length ? <span className="text-red-500">{filtered.filter(d => isExpired(d.tachoCardExpiry)).length} {t('expired', 'expired')}</span> : '—'}</td>,
@@ -494,8 +495,8 @@ const tabs: TabDef[] = drawerDriver ? [
       key: 'salary', label: t('tab_salary', 'Salary'),
       content: (
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Coins className="w-3 h-3" />{t('grossSalary', 'Gross salary')}</div><div className="text-2xl font-black mt-0.5">{drawerDriver.user?.grossSalary || drawerDriver.grossSalary ? `€${Number(drawerDriver.user?.grossSalary ?? drawerDriver.grossSalary).toLocaleString()}` : '—'}</div></div>
-          <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Coins className="w-3 h-3" />{t('dailyAllowance', 'Daily allowance')}</div><div className="text-2xl font-black mt-0.5">{drawerDriver.user?.dailyRate || drawerDriver.dailyRate ? `€${Number(drawerDriver.user?.dailyRate ?? drawerDriver.dailyRate).toFixed(2)}` : '—'}</div></div>
+          <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Coins className="w-3 h-3" />{t('grossSalary', 'Gross salary')}</div><div className="text-2xl font-black mt-0.5">{drawerDriver.user?.grossSalary || drawerDriver.grossSalary ? fmtMoney(drawerDriver.user?.grossSalary ?? drawerDriver.grossSalary) : '—'}</div></div>
+          <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Coins className="w-3 h-3" />{t('dailyAllowance', 'Daily allowance')}</div><div className="text-2xl font-black mt-0.5">{drawerDriver.user?.dailyRate || drawerDriver.dailyRate ? fmtMoney(drawerDriver.user?.dailyRate ?? drawerDriver.dailyRate) : '—'}</div></div>
         </div>
       ),
     },

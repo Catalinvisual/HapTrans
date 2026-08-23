@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
+import { fmtMoney } from '../lib/format';
 import { Loader2, ArrowLeft, Package, MapPin, Clock, FileText, CheckCircle, Truck, Activity } from 'lucide-react';
 import toast from 'react-hot-toast';
 export default function OrderDetailsPage() {
@@ -239,15 +240,15 @@ export default function OrderDetailsPage() {
         {activeTab === 'financials' && <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="card p-5 border-l-4 border-l-blue-500">
               <h4 className="text-sm text-text-secondary font-bold uppercase tracking-wider">{t("jsx_revenuePrice")}</h4>
-              <p className="text-3xl font-black mt-2">€{order.price || '0.00'}</p>
+              <p className="text-3xl font-black mt-2">{fmtMoney(order.price || 0)}</p>
             </div>
             <div className="card p-5 border-l-4 border-l-red-500">
               <h4 className="text-sm text-text-secondary font-bold uppercase tracking-wider">{t("jsx_estimatedCost")}</h4>
-              <p className="text-3xl font-black mt-2">€{order.estimatedCost || '0.00'}</p>
+              <p className="text-3xl font-black mt-2">{fmtMoney(order.estimatedCost || 0)}</p>
             </div>
             <div className="card p-5 border-l-4 border-l-green-500">
               <h4 className="text-sm text-text-secondary font-bold uppercase tracking-wider">{t("jsx_estimatedProfi")}</h4>
-              <p className="text-3xl font-black mt-2 text-green-600">€{order.estimatedProfit || '0.00'}</p>
+              <p className="text-3xl font-black mt-2 text-green-600">{fmtMoney(order.estimatedProfit || 0)}</p>
             </div>
           </div>}
         {activeTab === 'timeline' && (() => {

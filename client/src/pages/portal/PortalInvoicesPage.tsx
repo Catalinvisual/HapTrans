@@ -6,6 +6,7 @@ import { notify } from '../../components/AppToaster';
 import { useSearchParams } from 'react-router-dom';
 import portalApi from '../../lib/portalApi';
 import { formatDate } from '../../lib/dateUtils';
+import { fmtMoney } from '../../lib/format';
 import Pagination from '../../components/Pagination';
 import RapidTransportModal from '../../components/RapidTransportModal';
 export default function PortalInvoicesPage() {
@@ -118,8 +119,8 @@ export default function PortalInvoicesPage() {
                       <td className="p-3 text-text-secondary">{formatDate(inv.issueDate || inv.createdAt)}</td>
                       <td className={`p-3 font-semibold ${inv.status === 'overdue' ? 'text-red-600' : 'text-text-secondary'}`}>{formatDate(inv.dueDate)}</td>
                       <td className="p-3">{inv.trip?.orders?.[0]?.referenceNumber || (inv.trip?.id ? `TRIP-${inv.trip.id.slice(0, 8).toUpperCase()}` : '—')}</td>
-                      <td className="p-3 font-bold text-text">€{total.toLocaleString()}</td>
-                      <td className="p-3 font-bold text-primary">€{balance.toLocaleString()}</td>
+                      <td className="p-3 font-bold text-text">{fmtMoney(total)}</td>
+                      <td className="p-3 font-bold text-primary">{fmtMoney(balance)}</td>
                       <td className="p-3">
                         <span className={`px-2 py-1 rounded text-xs font-bold capitalize ${getStatusColor(inv.status)}`}>
                           {inv.status}
@@ -161,7 +162,7 @@ export default function PortalInvoicesPage() {
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-sm text-text-secondary">{t("jsx_amountDue")}</span>
                   <span className="text-2xl font-black text-primary">
-                    €{(Number(showPaymentModal.total) - (showPaymentModal.payments?.reduce((a: number, p: any) => a + Number(p.amount), 0) || 0)).toLocaleString()}
+                    {fmtMoney(Number(showPaymentModal.total) - (showPaymentModal.payments?.reduce((a: number, p: any) => a + Number(p.amount), 0) || 0))}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -232,7 +233,7 @@ export default function PortalInvoicesPage() {
                 </div>
                 <div>
                   <label className="text-xs font-bold text-text-secondary uppercase">{t("jsx_totalAmount")}</label>
-                  <p className="font-bold text-primary">€{Number(showDetailsModal.total).toLocaleString()}</p>
+                  <p className="font-bold text-primary">{fmtMoney(showDetailsModal.total)}</p>
                 </div>
                 <div>
                   <label className="text-xs font-bold text-text-secondary uppercase">{t("jsx_status")}</label>
@@ -258,7 +259,7 @@ export default function PortalInvoicesPage() {
                             <td className="p-2">{formatDate(p.date || p.createdAt)}</td>
                             <td className="p-2 capitalize">{p.method}</td>
                             <td className="p-2">{p.reference || '—'}</td>
-                            <td className="p-2 text-right font-bold text-primary">€{Number(p.amount).toLocaleString()}</td>
+                            <td className="p-2 text-right font-bold text-primary">{fmtMoney(p.amount)}</td>
                             <td className="p-2 text-right">
                               <span className="px-2 py-1 rounded text-[10px] font-bold capitalize bg-green-100 text-green-700">
                                 {p.status}

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Truck, Search, Loader2, FileText, Trash2, Download, ExternalLink, Activity, Calendar, Coins, Route as RouteIcon, User, Send, Boxes, Gauge, Clock, Wallet, Receipt, Banknote } from 'lucide-react';
 import api from '../lib/api';
+import { fmtNumber, fmtMoney, fmtKm, fmtPercent } from '../lib/format';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import ConfirmModal from '../components/ConfirmModal';
 import Pagination from '../components/Pagination';
@@ -176,8 +177,8 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
     { key: 'active', label: t('kpi_active', 'Active'), value: activeCount, color: '#6366f1', icon: Activity, active: filters.status === 'active', onClick: () => setFilters(f => ({ ...f, status: 'active' })) },
     { key: 'planning', label: t('kpi_planning', 'Planning'), value: planningCount, color: '#f59e0b', icon: Calendar, active: filters.status === 'planning', onClick: () => setFilters(f => ({ ...f, status: 'planning' })) },
     { key: 'completed', label: t('kpi_completed', 'Completed'), value: completedCount, color: '#22c55e', icon: CheckIcon, active: ['completed', 'closed'].includes(filters.status) && filters.status !== 'all', onClick: () => setFilters(f => ({ ...f, status: 'completed' })) },
-    { key: 'revenue', label: t('kpi_revenue', 'Revenue'), value: `€${totals.revenue.toLocaleString()}`, color: '#f97316', icon: Banknote },
-    { key: 'profit', label: t('kpi_profit', 'Profit'), value: `€${totals.profit.toLocaleString()}`, color: totals.profit >= 0 ? '#22c55e' : '#ef4444', icon: Wallet },
+    { key: 'revenue', label: t('kpi_revenue', 'Revenue'), value: fmtMoney(totals.revenue), color: '#f97316', icon: Banknote },
+    { key: 'profit', label: t('kpi_profit', 'Profit'), value: fmtMoney(totals.profit), color: totals.profit >= 0 ? '#22c55e' : '#ef4444', icon: Wallet },
   ];
 
   const hasActiveFilters = filters.status !== 'all' || filters.truck !== 'all' || filters.driver !== 'all' || filters.dateFrom || filters.dateTo || !!search.trim();
@@ -288,18 +289,18 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
     } },
     { key: 'weight', label: t('cargo', 'Cargo'), sortable: true, className: 'min-w-[100px]', render: tr => (
       <div className="text-xs">
-        <div className="font-semibold flex items-center gap-1"><Boxes className="w-3 h-3 text-text-muted" />{tPallets(tr).toLocaleString()} {t('pallets', 'pal')}</div>
-        <div className="text-text-secondary">{Math.round(tWeight(tr)).toLocaleString()} kg</div>
+        <div className="font-semibold flex items-center gap-1"><Boxes className="w-3 h-3 text-text-muted" />{fmtNumber(tPallets(tr))} {t('pallets', 'pal')}</div>
+        <div className="text-text-secondary">{fmtNumber(Math.round(tWeight(tr)))} kg</div>
       </div>
     ) },
     { key: 'distance', label: t('km', 'Km'), sortable: true, align: 'right', className: 'min-w-[80px]', render: tr => (
-      <span className="font-semibold">{tr.distanceKm ? `${Number(tr.distanceKm).toLocaleString()} km` : '—'}</span>
+      <span className="font-semibold">{tr.distanceKm ? fmtKm(tr.distanceKm) : '—'}</span>
     ) },
-    { key: 'revenue', label: t('revenue', 'Revenue'), sortable: true, align: 'right', className: 'min-w-[90px]', render: tr => <span className="font-semibold">€{tRevenue(tr).toLocaleString()}</span> },
-    { key: 'cost', label: t('cost', 'Cost'), sortable: true, align: 'right', className: 'min-w-[90px]', render: tr => <span className="text-text-secondary">€{(tCost(tr) + tExtraCost(tr)).toLocaleString()}</span> },
+    { key: 'revenue', label: t('revenue', 'Revenue'), sortable: true, align: 'right', className: 'min-w-[90px]', render: tr => <span className="font-semibold">{fmtMoney(tRevenue(tr))}</span> },
+    { key: 'cost', label: t('cost', 'Cost'), sortable: true, align: 'right', className: 'min-w-[90px]', render: tr => <span className="text-text-secondary">{fmtMoney(tCost(tr) + tExtraCost(tr))}</span> },
     { key: 'profit', label: t('profit', 'Profit'), sortable: true, align: 'right', className: 'min-w-[90px]', render: tr => {
       const p = tProfit(tr);
-      return <span className={`font-bold ${p >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{isNaN(p) ? '—' : `€${p.toLocaleString()}`}</span>;
+      return <span className={`font-bold ${p >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{isNaN(p) ? '—' : fmtMoney(p)}</span>;
     } },
     { key: 'status', label: t('status', 'Status'), sortable: true, className: 'min-w-[110px]', render: tr => <StatusBadge type="trip" status={tr.status} label={t(`status_${tr.status}`, tr.status.replace(/_/g, ' ')) as string} /> },
     { key: 'actions', label: '', align: 'right', className: 'min-w-[90px]', render: tr => (
@@ -321,11 +322,11 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
 
   const footerCells = [
     <td key="total" colSpan={4} className="px-3.5 py-2.5 text-[11px] font-bold uppercase text-text-secondary">{t('total', 'Total')} · {filtered.length} {t('trips', 'trips')}</td>,
-    <td key="cargo" className="px-3.5 py-2.5 text-right text-xs font-bold">{totals.pallets.toLocaleString()} {t('pallets', 'pal')} / {Math.round(totals.distance).toLocaleString()} km</td>,
-    <td key="distance" className="px-3.5 py-2.5 text-right text-xs font-bold">{Math.round(totals.distance).toLocaleString()} km</td>,
-    <td key="revenue" className="px-3.5 py-2.5 text-right text-xs font-bold">€{totals.revenue.toLocaleString()}</td>,
-    <td key="cost" className="px-3.5 py-2.5 text-right text-xs font-bold text-text-secondary">€{totals.cost.toLocaleString()}</td>,
-    <td key="profit" className={`px-3.5 py-2.5 text-right text-xs font-black ${totals.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>€{totals.profit.toLocaleString()}</td>,
+    <td key="cargo" className="px-3.5 py-2.5 text-right text-xs font-bold">{fmtNumber(totals.pallets)} {t('pallets', 'pal')} / {fmtNumber(Math.round(totals.distance))} km</td>,
+    <td key="distance" className="px-3.5 py-2.5 text-right text-xs font-bold">{fmtNumber(Math.round(totals.distance))} km</td>,
+    <td key="revenue" className="px-3.5 py-2.5 text-right text-xs font-bold">{fmtMoney(totals.revenue)}</td>,
+    <td key="cost" className="px-3.5 py-2.5 text-right text-xs font-bold text-text-secondary">{fmtMoney(totals.cost)}</td>,
+    <td key="profit" className={`px-3.5 py-2.5 text-right text-xs font-black ${totals.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{fmtMoney(totals.profit)}</td>,
     <td key="status" className="px-3.5 py-2.5"></td>,
     <td key="actions" className="px-3.5 py-2.5"></td>
   ];
@@ -545,15 +546,15 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-surface/40 rounded-xl p-3 border border-border">
             <div className="text-[10px] font-bold uppercase text-text-secondary">{t('revenue', 'Revenue')}</div>
-            <div className="text-lg font-black text-primary">€{revenue.toLocaleString()}</div>
+            <div className="text-lg font-black text-primary">{fmtMoney(revenue)}</div>
           </div>
           <div className="bg-surface/40 rounded-xl p-3 border border-border">
             <div className="text-[10px] font-bold uppercase text-text-secondary">{t('cost', 'Cost')}</div>
-            <div className="text-lg font-black text-text-primary">€{(cost + extraCost).toLocaleString()}</div>
+            <div className="text-lg font-black text-text-primary">{fmtMoney(cost + extraCost)}</div>
           </div>
           <div className="bg-surface/40 rounded-xl p-3 border border-border">
             <div className="text-[10px] font-bold uppercase text-text-secondary">{t('profit', 'Profit')}</div>
-            <div className={`text-lg font-black ${profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>€{isNaN(profit) ? 0 : profit.toLocaleString()}</div>
+            <div className={`text-lg font-black ${profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{isNaN(profit) ? fmtMoney(0) : fmtMoney(profit)}</div>
           </div>
         </div>
         <div>
@@ -566,8 +567,8 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
           <Row icon={<Clock className="w-3 h-3" />} label={t('planned_arrival', 'Planned arrival')} value={trip.plannedArrival ? new Date(trip.plannedArrival).toLocaleString() : '—'} />
           <Row icon={<Activity className="w-3 h-3" />} label={t('actual_departure', 'Actual departure')} value={trip.actualDeparture ? new Date(trip.actualDeparture).toLocaleString() : '—'} />
           <Row icon={<Activity className="w-3 h-3" />} label={t('actual_arrival', 'Actual arrival')} value={trip.actualArrival ? new Date(trip.actualArrival).toLocaleString() : '—'} />
-          <Row icon={<Gauge className="w-3 h-3" />} label={t('distance', 'Distance')} value={distance ? `${distance.toLocaleString()} km` : '—'} />
-          <Row icon={<Coins className="w-3 h-3" />} label={t('tolls', 'Tolls')} value={Number(trip.tollCost || 0) ? `€${Number(trip.tollCost).toLocaleString()}` : '—'} />
+          <Row icon={<Gauge className="w-3 h-3" />} label={t('distance', 'Distance')} value={distance ? fmtKm(distance) : '—'} />
+          <Row icon={<Coins className="w-3 h-3" />} label={t('tolls', 'Tolls')} value={Number(trip.tollCost || 0) ? fmtMoney(trip.tollCost) : '—'} />
           <Row icon={<Calendar className="w-3 h-3" />} label={t('created_at', 'Created')} value={trip.createdAt ? new Date(trip.createdAt).toLocaleString() : '—'} />
         </div>
       </div>
@@ -626,7 +627,7 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
                     <div className="text-[10px] text-text-secondary">{o.client?.name || ''}</div>
                   </td>
                   <td className="px-3 py-2.5 text-[11px] text-text-secondary">{pu?.city || '?'} → {dr?.city || '?'}</td>
-                  <td className="px-3 py-2.5 text-right text-[12px] font-bold">€{Number(o.price || 0).toLocaleString()}</td>
+                  <td className="px-3 py-2.5 text-right text-[12px] font-bold">{fmtMoney(o.price)}</td>
                 </tr>
               );
             })}
@@ -635,7 +636,7 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
           <tfoot>
             <tr className="bg-surface/50 border-t border-border">
               <td className="px-3 py-2.5 text-[11px] font-bold uppercase text-text-secondary" colSpan={2}>{t('total_revenue', 'Total revenue')}</td>
-              <td className="px-3 py-2.5 text-right text-[12px] font-black text-primary">€{revenue.toLocaleString()}</td>
+              <td className="px-3 py-2.5 text-right text-[12px] font-black text-primary">{fmtMoney(revenue)}</td>
             </tr>
           </tfoot>
         </table>
@@ -645,33 +646,33 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
       <div className="space-y-4">
         <div className="bg-surface/40 rounded-xl p-4 border border-border">
           <div className="text-[10px] font-bold uppercase text-text-secondary mb-1 flex items-center gap-1"><Wallet className="w-3 h-3" />{t('cost_breakdown', 'Cost breakdown')}</div>
-          <Row label={t('est_cost', 'Est. cost (engine)')} value={cost ? `€${cost.toLocaleString()}` : '—'} />
-          <Row label={t('tolls', 'Tolls')} value={Number(trip.tollCost || 0) ? `€${Number(trip.tollCost).toLocaleString()}` : '—'} />
+          <Row label={t('est_cost', 'Est. cost (engine)')} value={cost ? fmtMoney(cost) : '—'} />
+          <Row label={t('tolls', 'Tolls')} value={Number(trip.tollCost || 0) ? fmtMoney(trip.tollCost) : '—'} />
           {(trip.costs || []).map((c: any) => (
-            <Row key={c.id} label={`${c.type || 'cost'}${c.description ? ` — ${c.description}` : ''}`} value={`€${Number(c.amount || 0).toLocaleString()}`} />
+            <Row key={c.id} label={`${c.type || 'cost'}${c.description ? ` — ${c.description}` : ''}`} value={fmtMoney(c.amount)} />
           ))}
-          <Row label={t('extra_costs_total', 'Manual costs total')} value={extraCost ? `€${extraCost.toLocaleString()}` : '—'} />
+          <Row label={t('extra_costs_total', 'Manual costs total')} value={extraCost ? fmtMoney(extraCost) : '—'} />
           <div className="mt-2 pt-2 border-t border-border/60 flex items-center justify-between">
             <span className="text-xs font-bold uppercase text-text-secondary">{t('total_cost', 'Total cost')}</span>
-            <span className="text-sm font-black">€{(cost + extraCost).toLocaleString()}</span>
+            <span className="text-sm font-black">{fmtMoney(cost + extraCost)}</span>
           </div>
         </div>
         <div className="bg-surface/40 rounded-xl p-4 border border-border">
           <div className="text-[10px] font-bold uppercase text-text-secondary mb-1 flex items-center gap-1"><Receipt className="w-3 h-3" />{t('revenue_breakdown', 'Revenue breakdown')}</div>
           {(trip.orders || []).map((o: any) => (
-            <Row key={o.id} label={o.orderNumber || o.referenceNumber || 'Order'} value={`€${Number(o.price || 0).toLocaleString()}`} />
+            <Row key={o.id} label={o.orderNumber || o.referenceNumber || 'Order'} value={fmtMoney(o.price)} />
           ))}
           <div className="mt-2 pt-2 border-t border-border/60 flex items-center justify-between">
             <span className="text-xs font-bold uppercase text-text-secondary">{t('total_revenue', 'Total revenue')}</span>
-            <span className="text-sm font-black text-primary">€{revenue.toLocaleString()}</span>
+            <span className="text-sm font-black text-primary">{fmtMoney(revenue)}</span>
           </div>
         </div>
         <div className={`rounded-xl p-4 border flex items-center justify-between ${profit >= 0 ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
           <div>
             <div className="text-[10px] font-bold uppercase text-text-secondary">{t('profit', 'Profit')}</div>
-            <div className={`text-xl font-black ${profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{isNaN(profit) ? '€0' : `€${profit.toLocaleString()}`}</div>
+            <div className={`text-xl font-black ${profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{isNaN(profit) ? fmtMoney(0) : fmtMoney(profit)}</div>
           </div>
-          <span className="text-[11px] text-text-secondary">{t('margin', 'Margin')}: {revenue > 0 ? `${((profit / revenue) * 100).toFixed(1)}%` : '—'}</span>
+          <span className="text-[11px] text-text-secondary">{t('margin', 'Margin')}: {revenue > 0 ? fmtPercent((profit / revenue) * 100) : '—'}</span>
         </div>
         {trip.invoices?.length > 0 && (
           <div className="bg-surface/40 rounded-xl p-4 border border-border">
@@ -679,7 +680,7 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
             {(trip.invoices || []).map((inv: any) => (
               <div key={inv.id} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0 text-[12px]">
                 <span className="font-semibold">{inv.invoiceNumber || 'Invoice'}</span>
-                <span className="flex items-center gap-2"><StatusBadge type="order" status={inv.status || 'draft'} label={t(`status_${inv.status || 'draft'}`, inv.status || 'draft') as string} /><span className="font-bold">€{Number(inv.total || 0).toLocaleString()}</span></span>
+                <span className="flex items-center gap-2"><StatusBadge type="order" status={inv.status || 'draft'} label={t(`status_${inv.status || 'draft'}`, inv.status || 'draft') as string} /><span className="font-bold">{fmtMoney(inv.total)}</span></span>
               </div>
             ))}
           </div>

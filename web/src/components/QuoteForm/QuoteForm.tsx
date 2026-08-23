@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useLanguage } from '../../context/LanguageContext';
+import { useFormatters } from '../../lib/format';
 import { ChevronDown, UploadCloud, CheckCircle } from 'lucide-react';
 import AddressAutocomplete from '../AddressAutocomplete/AddressAutocomplete';
 import DatePicker from '../DatePicker/DatePicker';
@@ -27,6 +28,7 @@ const QuoteForm = () => {
   const router = useRouter();
   const pathname = usePathname();
   const { t, lang } = useLanguage();
+  const { fmtMoney } = useFormatters();
   const [formData, setFormData] = useState({
     companyName: '',
     contactPerson: '',
@@ -184,14 +186,14 @@ const QuoteForm = () => {
       if (data.minEstimate && data.maxEstimate) {
         setFormData(prev => ({
           ...prev,
-          estimatedPrice: `€${data.minEstimate.toLocaleString()} – €${data.maxEstimate.toLocaleString()}`,
+          estimatedPrice: `${fmtMoney(data.minEstimate)} – ${fmtMoney(data.maxEstimate)}`,
           hasCalculation: true
         }));
         setSurchargesApplied(data.surchargesApplied || null);
       }
     })
     .catch(err => console.error(err));
-  }, [loadingDate, unloadingDate, adrSurcharge, nightSurcharge, weekendSurcharge, holidaySurcharge, distanceKm, cargoWeightKg, numberOfPallets, hasCalculation]);
+  }, [loadingDate, unloadingDate, adrSurcharge, nightSurcharge, weekendSurcharge, holidaySurcharge, distanceKm, cargoWeightKg, numberOfPallets, hasCalculation, fmtMoney]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -310,10 +312,10 @@ const QuoteForm = () => {
                 {getLabel("Defalcare costuri suplimentare aplicate:", "Applied surcharge breakdown:", "Overzicht toegepaste toeslagen:", "Aufschlüsselung der angewendeten Zuschläge:", "Répartition des suppléments appliqués :", "Desglose de recargos aplicados:")}
               </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                {surchargesApplied.adr > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #fde68a' }}>⚠️ {getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR")}: +€{surchargesApplied.adr}</span>}
-                {surchargesApplied.night > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1d4ed8', background: '#dbeafe', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #bfdbfe' }}>🌙 {getLabel("Noapte", "Night", "Nacht", "Nacht", "Nuit", "Noche")}: +€{surchargesApplied.night}</span>}
-                {surchargesApplied.weekend > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#047857', background: '#d1fae5', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #a7f3d0' }}>📅 {getLabel("Weekend", "Weekend", "Weekend", "Wochenende", "Week-end", "Fin de semana")}: +€{surchargesApplied.weekend}</span>}
-                {surchargesApplied.holiday > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#6b21a8', background: '#f3e8ff', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #e9d5ff' }}>🏖️ {getLabel("Sărbători", "Holiday", "Feestdag", "Feiertag", "Férié", "Festivo")}: +€{surchargesApplied.holiday}</span>}
+                {surchargesApplied.adr > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #fde68a' }}>⚠️ {getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR")}: +{fmtMoney(surchargesApplied.adr)}</span>}
+                {surchargesApplied.night > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1d4ed8', background: '#dbeafe', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #bfdbfe' }}>🌙 {getLabel("Noapte", "Night", "Nacht", "Nacht", "Nuit", "Noche")}: +{fmtMoney(surchargesApplied.night)}</span>}
+                {surchargesApplied.weekend > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#047857', background: '#d1fae5', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #a7f3d0' }}>📅 {getLabel("Weekend", "Weekend", "Weekend", "Wochenende", "Week-end", "Fin de semana")}: +{fmtMoney(surchargesApplied.weekend)}</span>}
+                {surchargesApplied.holiday > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#6b21a8', background: '#f3e8ff', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #e9d5ff' }}>🏖️ {getLabel("Sărbători", "Holiday", "Feestdag", "Feiertag", "Férié", "Festivo")}: +{fmtMoney(surchargesApplied.holiday)}</span>}
               </div>
             </div>
           )}

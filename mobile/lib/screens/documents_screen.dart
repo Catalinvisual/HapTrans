@@ -10,6 +10,7 @@ import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
 import '../utils/constants.dart';
 import '../utils/date_formatter.dart';
+import '../utils/number_format.dart';
 import '../utils/trip_fields.dart';
 
 class DocumentsScreen extends StatefulWidget {
@@ -259,7 +260,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                 // Selected count preview
                 if (_selectedFiles.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  Text('Fișiere selectate: ${_selectedFiles.length}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: kSuccess)),
+                  Text('Fișiere selectate: ${fmtNum(_selectedFiles.length, l.locale.languageCode)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: kSuccess)),
                 ],
 
                 const SizedBox(height: 16),

@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable';
 import type { CompanySettings } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
 import { format } from 'date-fns';
+import { fmtNumber } from './format';
 
 // ─── Formatting Helpers ────────────────────────────────────────────────────────
 
@@ -296,7 +297,7 @@ export async function generateTruckPdf(truck: any, company: CompanySettings | nu
       ['Fuel Type', truck?.fuelType || '—'],
       ['Emissions Class', truck?.emissionsClass || '—'],
       ['Current Driver', truck?.driver?.name || '—'],
-      ['Odometer', truck?.currentOdometer ? `${truck.currentOdometer.toLocaleString()} km` : '—'],
+      ['Odometer', truck?.currentOdometer ? `${fmtNumber(truck.currentOdometer)} km` : '—'],
     ],
     margin: { left: 40, right: 40 },
   });

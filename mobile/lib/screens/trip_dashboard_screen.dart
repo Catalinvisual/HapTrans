@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/trip_provider.dart';
 import '../utils/constants.dart';
+import '../utils/number_format.dart';
 import '../utils/trip_fields.dart';
 import '../widgets/navigation_dialog.dart';
 import 'pod_screen.dart';
@@ -358,7 +359,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
 
           // ─── ALL STOPS TIMELINE ───
           Text(
-            'ITINERAR COMPLET (${stops.length} OPRIRI)',
+            'ITINERAR COMPLET (${fmtNum(stops.length, widget.locale)} OPRIRI)',
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kTextSecondary, letterSpacing: 0.5),
           ),
           const SizedBox(height: 10),
@@ -606,7 +607,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('COMENZI ASOCIATE (${orders.length})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: kTextSecondary)),
+                Text('COMENZI ASOCIATE (${fmtNum(orders.length, widget.locale)})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: kTextSecondary)),
                 const SizedBox(height: 12),
                 for (final ord in orders) ...[
                   Container(

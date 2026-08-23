@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Header from '@/components/Header/Header';
 import { useLanguage } from '@/context/LanguageContext';
+import { useFormatters } from '@/lib/format';
 
 interface TrackData {
   referenceNumber: string;
@@ -30,6 +31,7 @@ interface TrackData {
 
 export default function TrackPage({ params }: { params: any }) {
   const { t } = useLanguage();
+  const { fmtNum } = useFormatters();
   const [data, setData] = useState<TrackData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -242,11 +244,11 @@ export default function TrackPage({ params }: { params: any }) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem', padding: '1rem', background: 'var(--surface-alt)', borderRadius: '0.5rem' }}>
               <div>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{t('cargoDetailsLabel') || 'Detalii Marfă'}</p>
-                <p style={{ fontWeight: 600 }}>{data.pallets ? `${data.pallets} Paleți` : '-'} • {data.weightKg ? `${data.weightKg} kg` : '-'}</p>
+                <p style={{ fontWeight: 600 }}>{data.pallets ? `${fmtNum(data.pallets)} Paleți` : '-'} • {data.weightKg ? `${fmtNum(data.weightKg)} kg` : '-'}</p>
               </div>
               <div>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{t('distanceLabel') || 'Distanță Cursă'}</p>
-                <p style={{ fontWeight: 600 }}>{data.distanceKm ? `${data.distanceKm} km` : '-'}</p>
+                <p style={{ fontWeight: 600 }}>{data.distanceKm ? `${fmtNum(data.distanceKm)} km` : '-'}</p>
               </div>
             </div>
 

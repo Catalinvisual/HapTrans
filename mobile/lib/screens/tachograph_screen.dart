@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/constants.dart';
+import '../utils/number_format.dart';
 import '../providers/auth_provider.dart';
 
 enum TachoActivity { driving, breakRest, work, availability, loading, unloading }
@@ -215,6 +216,7 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final lang = l.locale.languageCode;
     final breakMins = _breakRequiredIn ~/ 60;
     final isBreakSoon = breakMins <= 18 && breakMins > 0;
     final isBreakOverdue = breakMins <= 0 && _currentActivity == TachoActivity.driving;
@@ -358,7 +360,7 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
                             const Icon(Icons.speed_rounded, color: Color(0xFF38BDF8), size: 16),
                             const SizedBox(width: 6),
                             Text(
-                              '${_speed.round()} km/h',
+                              '${fmtNum(_speed.round(), lang)} km/h',
                               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13),
                             ),
                           ],
@@ -494,7 +496,7 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
                 Expanded(
                   child: _buildCircularGaugeCard(
                     title: 'Pauză în',
-                    valueText: breakMins > 0 ? '${breakMins}m' : 'Pauză!',
+                    valueText: breakMins > 0 ? '${fmtNum(breakMins, lang)}m' : 'Pauză!',
                     subText: 'Limită: 4h 30m',
                     progress: math.max(0.0, math.min(1.0, _continuousDriving / 16200)),
                     color: isBreakOverdue

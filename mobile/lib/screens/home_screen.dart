@@ -4,6 +4,7 @@ import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
 import '../utils/constants.dart';
+import '../utils/number_format.dart';
 import '../utils/trip_fields.dart';
 import '../utils/trip_status.dart';
 import '../widgets/navigation_dialog.dart';
@@ -194,14 +195,14 @@ class HomeScreen extends StatelessWidget {
                     child: _buildInfoItem(
                       icon: Icons.inventory_2_outlined,
                       label: l.translate('orders_count'),
-                      value: '$ordersCount',
+                      value: fmtNum(ordersCount, locale),
                     ),
                   ),
                   Expanded(
                     child: _buildInfoItem(
                       icon: Icons.place_outlined,
                       label: l.translate('stops_count'),
-                      value: '$stopsCount',
+                      value: fmtNum(stopsCount, locale),
                     ),
                   ),
                 ],
