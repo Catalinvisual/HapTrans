@@ -142,9 +142,18 @@ DETERMINISM & ACCURACY (CRITICAL):
 8. LOADING vs DELIVERY times: a time next to "Laden/Loading/Pickup/Abholung" belongs to pickupTime; next to "Afladen/Unloading/Delivery/Lieferung/Livrare" belongs to dropoffTime. NEVER swap them.
 9. WEIGHT vs PALLETS: weightKg is kilograms ("kg", "Gewicht", "brutto"). Pallets is the pallet count ("palet", "EPAL", "pal"). If "24 t", convert to 24000 kg. If "33 Palets" and "1010 kg": weightKg=1010, pallets=33. NEVER mix them.
 10. UNLOADING REFERENCE: never copy loadingReference into unloadingReference unless the document states it applies to both. Delivery refs like "ID 1816466" or "Unloading slot" go to unloadingReference.
-11. Dates always YYYY-MM-DD (watch DD.MM.YYYY, MM/DD/YYYY formats and convert correctly). Times always HH:mm (24h).
+11. Dates always YYYY-MM-DD (watch DD.MM.YYYY, MM/DD/YYYY formats and convert correctly). Times always HH:mm (24h). If the document shows a date WITH a time (e.g. "2026-08-29 06:00"), put the date in the date field and the time in the corresponding time field.
 12. Addresses: full and geocodable — street + number, postal code + city, country. Fix postal code formatting (Poland/NL/Germany use "12345"/"12-345"/"1234 AB").
 13. In spreadsheets with MULTIPLE sheets, inspect every sheet; a sheet may hold one trip (form-style label:value) or many trips (table rows).
+
+CHRONOLOGY CHECK (ABSOLUTE RULE):
+14. Loading CANNOT happen AFTER delivery. After extracting each trip, verify pickupDate <= dropoffDate.
+    Labels mapping: Laden/Laaddatum/Chargement/Loading/Pickup -> pickup; Lossen/Losdatum/Déchargement/Unloading/Delivery/Abladen -> dropoff.
+    If your extraction violates this (delivery earlier than loading), you have swapped them — re-read the document layout and assign each date/time to its correct side.
+
+ADDRESS COMPLETION:
+15. If the document only gives a company name plus a city/region (e.g. "Vijn, Echt, Netherlands") WITHOUT a street, use your knowledge of that specific company/facility to complete the FULL address: street + number, postal code, city, country (e.g. well-known logistics sites, warehouses, factory addresses). Prefer the exact operating location if identifiable, otherwise the company's registered address.
+16. Never return just "Company, City": always produce a complete geocodable address string when the company is identifiable. If truly unknown even at registered-address level, give company name + city + country.
 `;
 
     const request = {
@@ -172,7 +181,10 @@ DETERMINISM & ACCURACY (CRITICAL):
     }
   }
 
-  /** Defensive normalization: guarantees a non-empty `trips` array. */
+  /**
+   * Defensive normalization: guarantees a non-empty `trips` array,
+   * then runs logical sanity checks on every trip.
+   */
   private normalizeResult(parsed: any): { trips: any[] } {
     let trips: any[] = [];
     if (parsed && Array.isArray(parsed.trips)) {
@@ -183,7 +195,37 @@ DETERMINISM & ACCURACY (CRITICAL):
       // Legacy single-object response
       trips = [parsed];
     }
-    return { trips };
+    return { trips: trips.map(t => this.validateTrip(t)) };
+  }
+
+  private parseDate(value?: string | null): Date | null {
+    if (!value) return null;
+    const d = new Date(String(value).trim());
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  /**
+   * Logical sanity checks per trip:
+   * - Loading can never happen after delivery. If the extracted dates
+   *   violate this, the sides were swapped -> swap dates AND times back
+   *   (earlier = loading, later = delivery).
+   */
+  private validateTrip(trip: any): any {
+    if (!trip || typeof trip !== 'object') return trip;
+    const p = this.parseDate(trip.pickupDate);
+    const d = this.parseDate(trip.dropoffDate);
+    if (p && d && d.getTime() < p.getTime()) {
+      console.warn(
+        `[trip-scanner] Chronology violation detected (pickup ${trip.pickupDate} > dropoff ${trip.dropoffDate}) — swapping pickup/dropoff dates & times.`
+      );
+      const pickupDate = trip.pickupDate;
+      const pickupTime = trip.pickupTime;
+      trip.pickupDate = trip.dropoffDate;
+      trip.pickupTime = trip.dropoffTime;
+      trip.dropoffDate = pickupDate;
+      trip.dropoffTime = pickupTime;
+    }
+    return trip;
   }
 
   /**

@@ -408,7 +408,7 @@ export default function TrailersPage() {
                   onChange={(_, dateStr) => setForm({ ...form, apkExpiry: dateStr })}
                   className="input pl-9 bg-card cursor-pointer hover:border-primary/50 transition-colors h-[38px] w-full"
                   options={fpOptions}
-                  placeholder="DD/MM/YYYY"
+                  placeholder={t('date_format_hint', 'DD/MM/YYYY')}
                 />
               </div>
             </div>

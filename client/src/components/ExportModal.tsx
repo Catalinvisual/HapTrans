@@ -120,7 +120,7 @@ function dateKey(d: Date): string {
 }
 
 export default function ExportModal({ isOpen, onClose, data, filename, title, sheetName, headers, getDateField }: ExportModalProps) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const lang = i18n.language || 'ro';
   const tExport = EXPORT_TRANSLATIONS[lang] || EXPORT_TRANSLATIONS['ro'];
 
@@ -277,7 +277,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, title, sh
               <div>
                 <label className="label text-xs font-bold text-text-secondary">{tExport.startDate}</label>
                 <Flatpickr
-                  placeholder="DD/MM/YYYY"
+                  placeholder={t('date_format_hint', 'DD/MM/YYYY')}
                   value={startDate}
                   onChange={(dates) => {
                     setStartDate(dates.length > 0 ? dateKey(dates[0]) : '');
@@ -289,7 +289,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, title, sh
               <div>
                 <label className="label text-xs font-bold text-text-secondary">{tExport.endDate}</label>
                 <Flatpickr
-                  placeholder="DD/MM/YYYY"
+                  placeholder={t('date_format_hint', 'DD/MM/YYYY')}
                   value={endDate}
                   onChange={(dates) => {
                     setEndDate(dates.length > 0 ? dateKey(dates[0]) : '');

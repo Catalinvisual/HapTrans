@@ -215,7 +215,7 @@ export default function MaintenancePage() {
                 onFocus={(e) => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }}
                 className={`input bg-card ${isPastDate(form.scheduledDate) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} 
                 options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false, minDate: 'today' }} 
-                placeholder="DD/MM/YYYY" 
+                placeholder={t('date_format_hint', 'DD/MM/YYYY')} 
               />
               {isPastDate(form.scheduledDate) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
