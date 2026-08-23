@@ -612,27 +612,64 @@ export class OrdersService {
     return hits >= Math.ceil(words.length / 2);
   }
 
-  private async enrichStopAddress(companyName?: string | null, address?: string | null): Promise<string | null> {
+  /** Legal-suffix words ignored when matching company titles. */
+  private static readonly LEGAL_SUFFIXES = new Set([
+    'bv', 'bvvba', 'gmbh', 'ltd', 'limited', 'inc', 'llc', 'srl', 'sarl',
+    'sa', 'sas', 'nv', 'kft', 'sro', 'sp', 'zoo', 'ab', 'oy', 'aps', 'as',
+    'the', 'and', 'und', 'en', 'service', 'services', 'distribution', 'transport',
+  ]);
+
+  /**
+   * Does a HERE place title plausibly refer to the same company as the
+   * document name? At least one significant word must overlap.
+   */
+  private companyTitleMatches(title: string, companyName: string): boolean {
+    const titleWords = OrdersService.normWords(title).split(' ');
+    const docWords = OrdersService.normWords(companyName)
+      .split(' ')
+      .filter(w => w.length >= 3 && !OrdersService.LEGAL_SUFFIXES.has(w));
+    if (!docWords.length) return false;
+    return docWords.some(dw => titleWords.some(tw => tw === dw || (tw.length > 3 && tw.includes(dw))));
+  }
+
+  /**
+   * Full stop enrichment: completes the COMPANY NAME to its official registered
+   * title AND the address to the real depot, via HERE Discover (business POI
+   * search) with geocode fallback. Location compatibility is always enforced,
+   * so a wrong branch city or an unrelated company can never be adopted.
+   */
+  private async enrichStop(companyName?: string | null, address?: string | null): Promise<{ companyName?: string; address: string } | null> {
     try {
       const addr = (address || '').trim();
       if (!addr) return null;
       const parts = addr.split(',').map(p => p.trim()).filter(Boolean);
       const hasStreetDetail = /\d/.test(addr) && parts.length >= 3;
-      if (hasStreetDetail) return null;
+      const nameWords = OrdersService.normWords(companyName || '').split(' ').filter(w => w.length >= 3);
+      // Enrich when the address is partial OR the company name looks truncated
+      if (hasStreetDetail && nameWords.length > 2) return null;
 
       const locParts = parts.length > 1 ? parts.slice(1) : parts;
-      // Attempt 1: company + address (best for POI/company lookup)
+
+      // 1) Company POI lookup — official title + real depot address
+      if (companyName?.trim()) {
+        const places = await this.routingService.discoverPlaces(`${companyName.trim()}, ${addr}`);
+        for (const p of places) {
+          if (!this.companyTitleMatches(p.title, companyName)) continue;
+          const geo = { label: p.label, city: p.city, postalCode: p.postalCode, countryCode: p.countryCode, countryName: p.countryName };
+          if (!locParts.every(tok => this.isGeoResultCompatible(tok, geo))) continue;
+          return { companyName: p.title, address: p.label };
+        }
+      }
+
+      // 2) Address-only completion fallbacks
       const queries: string[] = [];
       if (companyName?.trim()) queries.push(`${companyName.trim()}, ${addr}`);
       queries.push(addr);
-
       for (const query of queries) {
         const geo = await this.routingService.geocode(query);
         if (!geo?.label || !geo.label.trim()) continue;
-        // Company names rarely survive into a geocoder label — validate only
-        // location tokens (city/postal/country). A different branch city is rejected.
         if (!locParts.every(p => this.isGeoResultCompatible(p, geo))) continue;
-        return geo.label;
+        return { address: geo.label };
       }
       return null;
     } catch {
@@ -648,11 +685,17 @@ export class OrdersService {
     await Promise.all((trips || []).map(async t => {
       if (!t || typeof t !== 'object') return;
       const [p, d] = await Promise.all([
-        this.enrichStopAddress(t.pickupCompanyName, t.pickupAddress),
-        this.enrichStopAddress(t.dropoffCompanyName, t.dropoffAddress),
+        this.enrichStop(t.pickupCompanyName, t.pickupAddress),
+        this.enrichStop(t.dropoffCompanyName, t.dropoffAddress),
       ]);
-      if (p) t.pickupAddress = p;
-      if (d) t.dropoffAddress = d;
+      if (p) {
+        if (p.companyName) t.pickupCompanyName = p.companyName;
+        t.pickupAddress = p.address;
+      }
+      if (d) {
+        if (d.companyName) t.dropoffCompanyName = d.companyName;
+        t.dropoffAddress = d.address;
+      }
     }));
     return trips || [];
   }
@@ -672,16 +715,16 @@ export class OrdersService {
 
     const clientId = await this.resolveClient(dto, user);
 
-    const [pickupAddressFinal, dropoffAddressFinal] = await Promise.all([
-      this.enrichStopAddress(dto.pickupCompanyName, dto.pickupAddress),
-      this.enrichStopAddress(dto.dropoffCompanyName, dto.dropoffAddress),
+    const [pickupEnriched, dropoffEnriched] = await Promise.all([
+      this.enrichStop(dto.pickupCompanyName, dto.pickupAddress),
+      this.enrichStop(dto.dropoffCompanyName, dto.dropoffAddress),
     ]);
 
     const stops = [
       {
         type: 'pickup',
-        companyName: dto.pickupCompanyName || 'Loading location',
-        address: pickupAddressFinal || dto.pickupAddress || '',
+        companyName: pickupEnriched?.companyName || dto.pickupCompanyName || 'Loading location',
+        address: pickupEnriched?.address || dto.pickupAddress || '',
         dateFrom: toDate(dto.pickupDate),
         timeFrom: dto.pickupTime || '',
         dateTo: toDate(dto.pickupDate),
@@ -690,8 +733,8 @@ export class OrdersService {
       },
       {
         type: 'dropoff',
-        companyName: dto.dropoffCompanyName || 'Delivery location',
-        address: dropoffAddressFinal || dto.dropoffAddress || '',
+        companyName: dropoffEnriched?.companyName || dto.dropoffCompanyName || 'Delivery location',
+        address: dropoffEnriched?.address || dto.dropoffAddress || '',
         dateFrom: toDate(dto.dropoffDate),
         timeFrom: dto.dropoffTime || '',
         dateTo: toDate(dto.dropoffDate),

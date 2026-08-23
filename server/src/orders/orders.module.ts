@@ -13,11 +13,17 @@ import { TripsModule } from '../trips/trips.module';
 import { MulterModule } from '@nestjs/platform-express';
 import * as multer from 'multer';
 
+// Excel import engine
+import { ImportAudit } from './excel-import/import-audit.entity';
+import { ExcelImportService } from './excel-import/excel-import.service';
+import { AiMapperService } from './excel-import/ai-mapper.service';
+import { DuplicateDetector } from './excel-import/duplicate-detector';
+
 const storage = multer.memoryStorage();
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, OrderStop, CargoItem]),
+    TypeOrmModule.forFeature([Order, OrderStop, CargoItem, ImportAudit]),
     MulterModule.register({ storage }),
     EnginesModule,
     RoutingModule,
@@ -26,7 +32,12 @@ const storage = multer.memoryStorage();
     TripsModule,
   ],
   controllers: [OrdersController],
-  providers: [OrdersService],
+  providers: [
+    OrdersService,
+    ExcelImportService,
+    AiMapperService,
+    DuplicateDetector,
+  ],
   exports: [TypeOrmModule, OrdersService],
 })
 export class OrdersModule {}

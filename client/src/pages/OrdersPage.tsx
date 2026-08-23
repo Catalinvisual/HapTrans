@@ -19,6 +19,7 @@ import ActivityTimeline from '../components/ActivityTimeline';
 import ExportModal from '../components/ExportModal';
 import { formatDateExcel } from '../lib/exportExcel';
 import AiImportModal from '../components/AiImportModal';
+import ExcelImportModal from '../components/ExcelImportModal';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useSettingsStore } from '../store/settingsStore';
@@ -63,6 +64,7 @@ export default function OrdersPage() {
   const [activeTab, setActiveTab] = useState('overview');
 
   const [showAiImport, setShowAiImport] = useState(false);
+  const [showExcelImport, setShowExcelImport] = useState(false);
   const [aiImporting, setAiImporting] = useState(false);
   const [aiFile, setAiFile] = useState<File | null>(null);
   const [aiPreview, setAiPreview] = useState<any>(null);
@@ -428,7 +430,8 @@ export default function OrdersPage() {
           </div>
           <div className="flex items-center gap-2 shrink-0 xl:ml-auto">
             <span className="text-xs text-text-secondary font-medium whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
-            <button onClick={() => setShowAiImport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold"><Sparkles className="w-4 h-4 text-primary" />{t('ai_import', 'Import AI')}</button>
+            <button onClick={() => setShowAiImport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold" title="PDF / Image"><Sparkles className="w-4 h-4 text-primary" />{t('ai_import', 'Import AI')}</button>
+            <button onClick={() => setShowExcelImport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold"><FileSpreadsheet className="w-4 h-4 text-emerald-500" />{t('excel_import', 'Import Excel')}</button>
             <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold"><Download className="w-4 h-4" />{t('export_csv', 'Export')}</button>
             <button onClick={handleCreate} className="btn-primary py-2 px-3 flex items-center gap-2 text-sm font-semibold shadow-md shadow-primary/20"><Plus className="w-4 h-4" />{t('addOrder', 'Create Order')}</button>
           </div>
@@ -503,6 +506,17 @@ export default function OrdersPage() {
         onFileChange={onAiFileChange}
         onScan={scanAiFile}
         onImport={importAiOrder}
+      />
+
+      <ExcelImportModal
+        open={showExcelImport}
+        onClose={() => setShowExcelImport(false)}
+        onImported={(count) => {
+          if (count > 0) {
+            toast.success(t('excel_imported_success', '{{count}} orders imported successfully', { count }));
+            fetchOrders();
+          }
+        }}
       />
     </div>
   );

@@ -120,6 +120,39 @@ export class RoutingService {
     }
   }
 
+  // ─── Company / POI discovery (HERE Discover) ─────────────────────────────
+  /**
+   * Map-search for COMPANIES/venues (not plain addresses). Returns official
+   * business titles plus their full formatted depot addresses.
+   */
+  async discoverPlaces(query: string, limit = 5): Promise<Array<{
+    title: string; label: string; lat: number; lng: number;
+    city?: string; postalCode?: string; countryCode?: string; countryName?: string;
+  }>> {
+    try {
+      if (!this.hereKey) return [];
+      const res = await axios.get('https://discover.search.hereapi.com/v1/discover', {
+        params: { q: query, limit, apiKey: this.hereKey },
+        timeout: 8000,
+      });
+      return (res.data.items || [])
+        .map((item: any) => ({
+          title: item.title || '',
+          label: item.address?.label || '',
+          lat: item.position?.lat,
+          lng: item.position?.lng,
+          city: item.address?.city,
+          postalCode: item.address?.postalCode,
+          countryCode: item.address?.countryCode,
+          countryName: item.address?.countryName,
+        }))
+        .filter((p: any) => p.title && p.label);
+    } catch (e: any) {
+      this.logger.error(`Discover failed for "${query}": ${e.message}`);
+      return [];
+    }
+  }
+
   // ─── Routing: calculate truck route with HERE / ORS ────────────────────────
   async calculateRoute(
     originLat: number, originLng: number,

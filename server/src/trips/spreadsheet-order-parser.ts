@@ -275,15 +275,35 @@ export class SpreadsheetOrderParser {
       let pallets = sumField(row, 'pallets');
       const weight = weightKg(firstVal(row, 'weightKg')) ?? (colsByField['weightKg'] ? sumField(row, 'weightKg') : null);
 
-      // ---- Notes = ONLY columns without a dedicated system field ----
-      const extraBits: string[] = [];
+      // ---- Collect leftover (unmapped) columns ----
+      const rawBits: string[] = [];
       for (const [idxStr, hNorm] of Object.entries(headersNorm)) {
         const idx = Number(idxStr);
         if (fieldByCol[idx]) continue;
         const v = str(row[idx]);
         if (!v) continue;
-        extraBits.push(`${str(headerCells[idx]) || hNorm}: ${v}`);
+        rawBits.push(`${str(headerCells[idx]) || hNorm}: ${v}`);
       }
+
+      // ---- Notes = ONLY genuinely useful leftover columns ----
+      // Drop: zero-value counters, internal single-letter flags, and numeric
+      // duplicates of already-mapped aggregates.
+      const zeroLike = (v: string) => /^0([.,]0+)?$/.test(v) || v === '-' || v === '';
+      const extraBits = rawBits.filter(entry => {
+        const ci = entry.indexOf(':');
+        if (ci < 0) return true;
+        const headN = norm(entry.slice(0, ci));
+        const val = entry.slice(ci + 1).trim();
+        if (zeroLike(val)) return false;
+        if (/^[a-z]{1,2}$/i.test(val)) return false; // e.g. "V s: G" internal flags
+        const n = num(val);
+        if (
+          n !== null && pallets != null &&
+          (headN.includes('plt') || headN.includes('rmt')) &&
+          Math.round(n) === Math.round(pallets)
+        ) return false; // "Plt rmt: 33" duplicates the mapped pallet count
+        return true;
+      });
 
       const notesParts: string[] = [];
       const mappedNotes = str(firstVal(row, 'notes'));
