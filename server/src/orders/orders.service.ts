@@ -503,6 +503,48 @@ export class OrdersService {
     return created.id;
   }
 
+  /**
+   * Mirrors the manual "Calculate Costs" button from OrderWizard:
+   * routes the geocoded pickup->dropoff leg, then estimates
+   * fuel + tolls and stores estimatedCost/estimatedProfit/distanceKm.
+   * Best-effort: on failure the order is returned untouched.
+   */
+  private async estimateCostsForOrder(order: Order): Promise<Order | null> {
+    try {
+      const full = await this.repo.findOne({
+        where: { id: order.id },
+        relations: ['stops', 'cargoItems'],
+      });
+      if (!full?.stops?.length) return order;
+
+      const pickup = full.stops.find(s => s.type === 'pickup') || full.stops[0];
+      const dropoff = full.stops.find(s => s.type === 'dropoff') || full.stops[full.stops.length - 1];
+      if (!(pickup as any).latitude || !(pickup as any).longitude || !(dropoff as any).latitude || !(dropoff as any).longitude) {
+        return order;
+      }
+
+      const weightKg = (full.cargoItems || []).reduce((sum, c) => sum + (Number(c.weightKg) || 0), 0);
+      const route = await this.routingService.calculateRoute(
+        Number((pickup as any).latitude), Number((pickup as any).longitude),
+        Number((dropoff as any).latitude), Number((dropoff as any).longitude),
+        { weightKg: weightKg || undefined },
+      );
+      if (!route || !route.distanceKm) return order;
+
+      // Same defaults as the wizard UI: 32 L/100km @ 1.65 EUR/L
+      const fuelCost = (route.distanceKm / 100) * 32 * 1.65;
+      const totalCost = Math.round((fuelCost + (Number((route as any).tollCost) || 0)) * 100) / 100;
+      const price = Number(full.price) || 0;
+      const profit = Math.round((price - totalCost) * 100) / 100;
+      const distanceKm = Math.round(route.distanceKm * 100) / 100;
+
+      await this.repo.update(order.id, { estimatedCost: totalCost, estimatedProfit: profit, distanceKm } as any);
+      return { ...full, estimatedCost: totalCost, estimatedProfit: profit, distanceKm } as unknown as Order;
+    } catch {
+      return order;
+    }
+  }
+
   async createFromScan(dto: any, user?: any): Promise<Order | null> {
     const toDate = (date?: string) => {
       if (!date) return '';
@@ -567,7 +609,11 @@ export class OrdersService {
       transportType: 'ftl',
     };
 
-    return this.create(orderDto, user);
+    const created = await this.create(orderDto, user);
+    if (!created) return null;
+
+    // Auto-run the same cost estimation the manual wizard button triggers
+    return await this.estimateCostsForOrder(created);
   }
 
   remove(id: string) {

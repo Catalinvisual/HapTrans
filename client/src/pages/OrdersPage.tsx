@@ -502,8 +502,6 @@ export default function OrdersPage() {
         onFileChange={onAiFileChange}
         onScan={scanAiFile}
         onImport={importAiOrder}
-        hint={t('ai_import_hint_order', 'Încarcă o confirmare de tarif, CMR sau ordin de transport (PDF/imagine). AI-ul extrage datele și creează comanda.')}
-        confirmLabel={t('ai_import_confirm_order', 'Creează Comanda')}
       />
     </div>
   );
