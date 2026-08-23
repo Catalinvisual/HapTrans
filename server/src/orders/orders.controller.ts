@@ -33,14 +33,31 @@ export class OrdersController {
   @Post('scan')
   @UseInterceptors(FileInterceptor('file'))
   scanFile(@UploadedFile() file: Express.Multer.File) {
-    return this.tripScannerService.scanTripDocument(file.buffer, file.mimetype);
+    return this.tripScannerService.scanDocument(file.buffer, file.mimetype, file.originalname);
   }
 
   @Post('import')
   @UseInterceptors(FileInterceptor('file'))
   async importRateConfirmation(@UploadedFile() file: Express.Multer.File, @Request() req: any) {
-    const extracted = await this.tripScannerService.scanTripDocument(file.buffer, file.mimetype);
-    return this.ordersService.createFromScan(extracted, req.user);
+    const { trips } = await this.tripScannerService.scanDocument(file.buffer, file.mimetype, file.originalname);
+
+    // Client may deselect trips in the preview modal; `indices` is a JSON array of kept positions.
+    let selected = trips;
+    try {
+      const raw = req.body?.indices;
+      if (raw) {
+        const indices: number[] = JSON.parse(raw);
+        if (Array.isArray(indices) && indices.length > 0) {
+          selected = trips.filter((_, i) => indices.includes(i));
+        }
+      }
+    } catch { /* malformed indices -> import all */ }
+
+    const created = [];
+    for (const trip of selected) {
+      created.push(await this.ordersService.createFromScan(trip, req.user));
+    }
+    return { created };
   }
 
   @Patch(':id')

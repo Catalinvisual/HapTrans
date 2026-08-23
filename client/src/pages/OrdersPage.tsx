@@ -85,24 +85,28 @@ export default function OrdersPage() {
     } finally { setAiBusy(false); }
   };
 
-  const importAiOrder = async () => {
+  const importAiOrder = async (indices?: number[]) => {
     if (!aiFile) return;
     setAiImporting(true);
     try {
       const fd = new FormData();
       fd.append('file', aiFile);
+      if (indices && indices.length > 0) fd.append('indices', JSON.stringify(indices));
       const r = await api.post('/orders/import', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      toast.success(t('ai_imported', 'Comandă creată din document!'));
+      const count = r.data?.created?.length || 0;
+      toast.success(count === 1
+        ? t('ai_imported', 'Comanda creata din document!')
+        : t('ai_imported_multi', '{{count}} comenzi create din document!', { count }));
       setShowAiImport(false);
       setAiFile(null);
       setAiPreview(null);
       fetchOrders();
-      if (r.data?.id) {
-        setDrawerOrderId(r.data.id);
+      if (r.data?.created?.[0]?.id) {
+        setDrawerOrderId(r.data.created[0].id);
         setActiveTab('overview');
       }
     } catch (e: any) {
-      toast.error(e?.response?.data?.message || t('ai_import_failed', 'Import eșuat'));
+      toast.error(e?.response?.data?.message || t('ai_import_failed', 'Import e?uat'));
     } finally { setAiImporting(false); }
   };
 

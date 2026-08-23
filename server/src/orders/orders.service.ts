@@ -441,6 +441,68 @@ export class OrdersService {
     }
   }
 
+  /**
+   * Normalizes company names for robust matching:
+   * strips diacritics, punctuation, legal forms and generic words.
+   * "HapTrans Logistics S.R.L." and "haptrans" both become "haptrans".
+   */
+  private normalizeCompanyName(name?: string | null): string {
+    if (!name) return '';
+    let n = String(name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    n = n.replace(/[^a-z0-9 ]+/g, ' ');
+    n = n.replace(/\b(srl|srla|srl|sc|bv|bvvba|vof|gmbh|co|kg|kgaa|ltd|limited|inc|llc|sp|zoo|ooo|spol|sro|as|a|s|sa|sas|nv|oy|ab|aps|kft|zrt|spa|sl|slu|ou|ood|eod|pte|pty|plc|ag|se|ug|ohg|gk|ug|einmann|firma|company|group|international|logistics|logistic|transport|transporte|transporti|spedition|speditions|forwarding|expres|express)\b/g, ' ');
+    return n.replace(/\s+/g, ' ').trim();
+  }
+
+  /** Last comma-separated token of an address is usually the country. */
+  private extractCountry(address?: string | null): string | null {
+    if (!address) return null;
+    const parts = String(address).split(',').map(s => s.trim()).filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : null;
+  }
+
+  /**
+   * Resolves the client for a scanned order:
+   * 1. explicit dto.clientId
+   * 2. match by VAT number / normalized name (mutual inclusion)
+   * 3. AUTO-CREATE a new client with every detail the AI extracted
+   * Returns null only when the document gave us nothing to work with.
+   */
+  private async resolveClient(dto: any, user: any): Promise<string | null> {
+    if (dto.clientId) return dto.clientId;
+
+    const rawName = String(dto.clientName || dto.pickupCompanyName || '').trim();
+    const vat = String(dto.clientVatNumber || '').trim().replace(/\s+/g, '');
+    const email = String(dto.clientEmail || '').trim().toLowerCase();
+    if (!rawName && !vat) return null;
+
+    const clients = await this.clientsService.findAll();
+    const target = this.normalizeCompanyName(rawName);
+
+    const match = clients.find(c => {
+      const cVat = String((c as any).cui || '').replace(/\s+/g, '');
+      if (vat && cVat && cVat.toLowerCase() === vat.toLowerCase()) return true;
+      const cEmail = String((c as any).contactEmail || '').trim().toLowerCase();
+      if (email && cEmail && cEmail === email) return true;
+      const cn = this.normalizeCompanyName(c.name);
+      if (!cn || !target) return false;
+      return cn === target || cn.includes(target) || target.includes(cn);
+    });
+    if (match) return match.id;
+
+    const created = await this.clientsService.create({
+      name: rawName,
+      cui: vat || null,
+      address: dto.clientAddress || null,
+      contactName: dto.contactPerson || null,
+      contactEmail: email || null,
+      phone: dto.clientPhone || dto.contactPhone || null,
+      country: this.extractCountry(dto.clientAddress),
+      companyId: user?.company?.id ?? null,
+    } as any, user);
+    return created.id;
+  }
+
   async createFromScan(dto: any, user?: any): Promise<Order | null> {
     const toDate = (date?: string) => {
       if (!date) return '';
@@ -448,17 +510,13 @@ export class OrdersService {
       if (isNaN(d.getTime())) return '';
       return d.toISOString().split('T')[0];
     };
+    const safeNum = (v: any): number | null => {
+      if (v === null || v === undefined || v === '') return null;
+      const n = parseFloat(String(v));
+      return isNaN(n) ? null : n;
+    };
 
-    let clientId = dto.clientId || null;
-    if (!clientId) {
-      const clients = await this.clientsService.findAll();
-      if (clients && clients.length > 0) {
-        const match = clients.find(c => 
-          dto.pickupCompanyName && c.name.toLowerCase().includes(dto.pickupCompanyName.toLowerCase())
-        );
-        clientId = match ? match.id : clients[0].id;
-      }
-    }
+    const clientId = await this.resolveClient(dto, user);
 
     const stops = [
       {
@@ -484,20 +542,24 @@ export class OrdersService {
     const cargoItems = [
       {
         description: dto.notes || 'Cargo',
-        weightKg: dto.weightKg || 0,
-        pallets: dto.pallets || 0,
+        weightKg: safeNum(dto.weightKg) ?? 0,
+        pallets: safeNum(dto.pallets) ?? 0,
         palletType: dto.palletType || 'Euro',
-        volumeCbm: dto.volumeCbm || 0
+        volumeCbm: safeNum(dto.volumeCbm) ?? 0
       }
     ];
 
     const orderDto = {
       companyId: user?.company?.id || null,
       clientId,
-      price: dto.price || 0,
+      price: safeNum(dto.price) ?? 0,
+      currency: dto.currency || 'EUR',
+      distanceKm: safeNum(dto.distanceKm),
       loadingReference: dto.loadingReference || null,
       unloadingReference: dto.unloadingReference || null,
-      customerReference: dto.loadingReference || null,
+      customerReference: dto.customerReference || dto.loadingReference || null,
+      contactPerson: dto.contactPerson || null,
+      contactPhone: dto.contactPhone || null,
       notes: dto.notes || null,
       stops,
       cargoItems,
