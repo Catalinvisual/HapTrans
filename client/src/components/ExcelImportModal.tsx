@@ -202,7 +202,7 @@ interface Props {
 }
 
 export default function ExcelImportModal({ open, onClose, onImported }: Props) {
-  const { t } = useTranslation();
+  useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<Step>('upload');
