@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshCw, Download, Filter, Search, FileText, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, Download, Filter, Search } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
-import { formatDate } from '../lib/dateUtils';
+
 import CustomSelect from '../components/CustomSelect';
 import { generatePayrollPdfBase64 } from '../lib/payrollPdfGenerator';
 import Pagination from '../components/Pagination';
 import { useSaveConfirm } from '../components/SaveConfirmProvider';
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-export default function PayrollPage() {  const confirmSave = useSaveConfirm();
+export default function PayrollPage() {
 
   const {
     t,
@@ -156,8 +156,8 @@ export default function PayrollPage() {  const confirmSave = useSaveConfirm();
                   <td className="table-cell font-bold text-primary text-right">€{Number(p.totalAllowance).toFixed(2)}</td>
                   <td className="table-cell min-w-[120px] text-right">
                     <div className="flex flex-col gap-1.5 items-end">
-                      <input type="number" className="input py-1 px-2 text-xs border-success/30 focus:border-success focus:ring-success/20 bg-success/5" placeholder={t('bonuses')} className="input py-1 px-2 text-xs border-success/30 focus:border-success focus:ring-success/20 bg-success/5 w-24 text-right" defaultValue={p.bonuses || ''} onBlur={e => handleUpdate(p.id, 'bonuses', Number(e.target.value) || 0)} />
-                      <input type="number" className="input py-1 px-2 text-xs border-error/30 focus:border-error focus:ring-error/20 bg-error/5" placeholder={t('deductions')} className="input py-1 px-2 text-xs border-error/30 focus:border-error focus:ring-error/20 bg-error/5 w-24 text-right" defaultValue={p.deductions || ''} onBlur={e => handleUpdate(p.id, 'deductions', Number(e.target.value) || 0)} />
+<input type="number" className="input py-1 px-2 text-xs border-success/30 focus:border-success focus:ring-success/20 bg-success/5 w-24 text-right" placeholder={t('bonuses')} defaultValue={p.bonuses || ''} onBlur={e => handleUpdate(p.id, 'bonuses', Number(e.target.value) || 0)} />
+                       <input type="number" className="input py-1 px-2 text-xs border-error/30 focus:border-error focus:ring-error/20 bg-error/5 w-24 text-right" placeholder={t('deductions')} defaultValue={p.deductions || ''} onBlur={e => handleUpdate(p.id, 'deductions', Number(e.target.value) || 0)} />
                     </div>
                   </td>
                   <td className="table-cell text-right">

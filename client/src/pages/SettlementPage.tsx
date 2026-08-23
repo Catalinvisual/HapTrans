@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshCw, Search, Filter, Trash2, Wallet, Plus } from 'lucide-react';
+import { Search, Filter, Trash2, Plus } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import CustomSelect from '../components/CustomSelect';
@@ -101,12 +101,24 @@ export default function SettlementPage() {
 
   return <div className="space-y-5 animate-fade-in">
     <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
-      <div className="p-4 border-b border-border flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
-        <div className="flex items-center gap-3 w-full xl:w-auto">
-          <div className="relative flex-1 xl:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-            <input className="input pl-9 py-2 text-sm w-full" placeholder={t('searchEmployee')} value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="p-4 border-b border-border flex flex-wrap items-center gap-4">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
+          <input className="input pl-9 py-2 text-sm w-full" placeholder={t('searchEmployee')} value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        
+        <div className="flex items-center gap-2 bg-surface/50 border border-border rounded-xl p-1.5 shrink-0">
+          <div className="flex items-center gap-1.5 px-2">
+            <Filter className="w-4 h-4 text-text-secondary" />
+            <span className="text-sm font-semibold text-text-secondary">{t("jsx_luna")}</span>
           </div>
+          <CustomSelect className="w-28 text-sm font-semibold shadow-sm" value={String(selectedMonth)} onChange={val => setSelectedMonth(Number(val))} options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))} />
+          <CustomSelect className="w-24 text-sm font-semibold shadow-sm" value={String(selectedYear)} onChange={val => setSelectedYear(Number(val))} options={[2024, 2025, 2026, 2027].map(y => ({ value: String(y), label: String(y) }))} />
+        </div>
+
+        <div className="flex-1 min-w-[20px]" />
+
+        <div className="flex items-center gap-2 shrink-0">
           <span className="text-xs font-bold text-text-secondary uppercase bg-surface px-3 py-2 rounded-lg shrink-0 border border-border/50">
             {filtered.length} {t('records')}
           </span>
@@ -114,21 +126,10 @@ export default function SettlementPage() {
             {t('sett_totalNet')}: €{Number(totalNet).toFixed(2)}
           </span>
         </div>
-
-        <div className="flex items-center gap-2 w-full xl:w-auto overflow-x-auto pb-1 xl:pb-0 scrollbar-hide">
-          <div className="flex items-center gap-2 bg-surface/50 border border-border rounded-xl p-1.5 shrink-0">
-            <div className="flex items-center gap-1.5 px-2">
-              <Filter className="w-4 h-4 text-text-secondary" />
-              <span className="text-sm font-semibold text-text-secondary">{t("jsx_luna")}</span>
-            </div>
-            <CustomSelect className="w-28 text-sm font-semibold shadow-sm" value={String(selectedMonth)} onChange={val => setSelectedMonth(Number(val))} options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))} />
-            <CustomSelect className="w-24 text-sm font-semibold shadow-sm" value={String(selectedYear)} onChange={val => setSelectedYear(Number(val))} options={[2024, 2025, 2026, 2027].map(y => ({ value: String(y), label: String(y) }))} />
-          </div>
-        </div>
       </div>
 
-      <div className="p-4 border-b border-border bg-surface/40 flex flex-col lg:flex-row items-end lg:items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+      <div className="p-4 border-b border-border bg-surface/40 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-sm">
           <span className="text-xs font-bold text-text-secondary uppercase tracking-wider shrink-0">{t('sett_driver')}</span>
           <CustomSelect className="w-full" value={genDriverId} onChange={setGenDriverId} placeholder={t('sett_selectDriver')} options={drivers.map((d: any) => ({ value: d.id, label: d.user?.name || d.id }))} />
         </div>
@@ -140,6 +141,9 @@ export default function SettlementPage() {
           <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">{isPerKm ? '€/km' : '%'}</span>
           <input type="number" step="0.01" className="input w-24 py-2 text-sm" value={genPayRate} onChange={e => setGenPayRate(e.target.value)} placeholder={isPerKm ? '0.25' : '10'} />
         </div>
+        
+        <div className="flex-1 min-w-[20px]" />
+
         <button onClick={handleGenerate} className="btn-primary py-2 px-4 text-sm font-bold flex items-center gap-2 shrink-0 shadow-md shadow-primary/20">
           <Plus className="w-4 h-4" /> {t('sett_generate')}
         </button>
