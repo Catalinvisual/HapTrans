@@ -545,6 +545,36 @@ export class OrdersService {
     }
   }
 
+  /**
+   * Deterministic address completion: when a scanned stop address has no street
+   * detail (only "Company, City"), geocode "Company, City" via HERE and adopt
+   * the precise formatted address — but ONLY if the geocoder result still
+   * contains a location token from the document (same city/region), so a wrong
+   * branch can never be substituted.
+   */
+  private async enrichStopAddress(companyName?: string | null, address?: string | null): Promise<string | null> {
+    try {
+      const addr = (address || '').trim();
+      if (!addr) return null;
+      const parts = addr.split(',').map(p => p.trim()).filter(Boolean);
+      const hasStreetDetail = /\d/.test(addr) && parts.length >= 3;
+      if (hasStreetDetail) return null;
+
+      const query = [companyName?.trim(), addr].filter(Boolean).join(', ');
+      if (!query) return null;
+      const geo = await this.routingService.geocode(query);
+      if (!geo?.label || !geo.label.trim()) return null;
+
+      const labelLower = geo.label.toLowerCase();
+      const docTokens = parts.map(p => p.toLowerCase());
+      // Accept only when every meaningful document token (city etc.) survives in the geocoder label
+      const compatible = docTokens.every(t => t.length <= 2 || labelLower.includes(t));
+      return compatible ? geo.label : null;
+    } catch {
+      return null;
+    }
+  }
+
   async createFromScan(dto: any, user?: any): Promise<Order | null> {
     const toDate = (date?: string) => {
       if (!date) return '';
@@ -560,11 +590,16 @@ export class OrdersService {
 
     const clientId = await this.resolveClient(dto, user);
 
+    const [pickupAddressFinal, dropoffAddressFinal] = await Promise.all([
+      this.enrichStopAddress(dto.pickupCompanyName, dto.pickupAddress),
+      this.enrichStopAddress(dto.dropoffCompanyName, dto.dropoffAddress),
+    ]);
+
     const stops = [
       {
         type: 'pickup',
         companyName: dto.pickupCompanyName || 'Loading location',
-        address: dto.pickupAddress || '',
+        address: pickupAddressFinal || dto.pickupAddress || '',
         dateFrom: toDate(dto.pickupDate),
         timeFrom: dto.pickupTime || '',
         dateTo: toDate(dto.pickupDate),
@@ -574,7 +609,7 @@ export class OrdersService {
       {
         type: 'dropoff',
         companyName: dto.dropoffCompanyName || 'Delivery location',
-        address: dto.dropoffAddress || '',
+        address: dropoffAddressFinal || dto.dropoffAddress || '',
         dateFrom: toDate(dto.dropoffDate),
         timeFrom: dto.dropoffTime || '',
         dateTo: toDate(dto.dropoffDate),

@@ -62,10 +62,10 @@ export class TripScannerService {
           items: {
             type: SchemaType.OBJECT,
             properties: {
-              pickupCompanyName: { type: SchemaType.STRING, description: "FULL official legal name of the company where cargo is loaded. If the document shows an abbreviation, code or partial name, expand it to the complete registered name." },
-              pickupAddress: { type: SchemaType.STRING, description: "Full geocodable loading address: street + number, postal code + city, country (e.g. '43-150 Bieruń, Poland' with hyphen). If the document gives ONLY company+city, complete the full street address from knowledge of that specific facility." },
-              dropoffCompanyName: { type: SchemaType.STRING, description: "FULL official legal name of the company where cargo is delivered/unloaded. Expand abbreviations/codes to the complete registered name." },
-              dropoffAddress: { type: SchemaType.STRING, description: "Full geocodable delivery address: street + number, postal code + city, country. If only company+city given, complete the full street address." },
+              pickupCompanyName: { type: SchemaType.STRING, description: "Company name where cargo is loaded, EXACTLY as written in the document (verbatim). Do not expand or substitute from your own knowledge — many companies have multiple sites." },
+              pickupAddress: { type: SchemaType.STRING, description: "Loading address EXACTLY as in the document, postal codes normalized (e.g. '43-150 Bieruń, Poland'). If only company+city is given, output just that ('Company, City, Country') — never invent a street or a different city." },
+              dropoffCompanyName: { type: SchemaType.STRING, description: "Company name where cargo is delivered, EXACTLY as written in the document (verbatim). No expansion/substitution from knowledge." },
+              dropoffAddress: { type: SchemaType.STRING, description: "Delivery address EXACTLY as in the document. If only company+city given, output just that — never invent a street or a different city." },
               pickupDate: { type: SchemaType.STRING, description: "LOADING date in YYYY-MM-DD. Source labels: Laden/Laaddatum/Chargement/Loading/Pickup/Verladung/Abholung. NEVER put the delivery/unloading date here." },
               dropoffDate: { type: SchemaType.STRING, description: "DELIVERY/UNLOADING date in YYYY-MM-DD. Source labels: Lossen/Losdatum/Déchargement/Afladen/Entladung/Livrare/Delivery. CRITICAL: if the document contains ANY delivery date, this field MUST be filled — never leave it empty while pickupDate is set." },
               pickupTime: { type: SchemaType.STRING, description: "LOADING time HH:mm. From the same row/label as the loading date (e.g. 'Laden om 15:30'). Split datetime values: date -> pickupDate, time -> pickupTime." },
@@ -126,14 +126,17 @@ REFERENCE INTELLIGENCE (CRITICAL FOR SPREADSHEETS):
 CLIENT IDENTIFICATION (CRITICAL):
 11. THE CLIENT ordered/pays for the transport — usually in letterhead/logo, sender email domain, or labeled Customer/Klant/Auftraggeber/Opdrachtgever/Zleceniodawca. Shipper and consignee are frequently NOT the client.
 
-COMPANY NAME COMPLETION:
-12. If a company name is abbreviated, coded, truncated or slightly misspelled (e.g. "STE ACTION SERVICE & DISTRIBUTION BV (FR)", "VIJN"), write the COMPLETE official registered name and its FULL address (street + number, postal code, city, country). Use your knowledge of these specific companies/facilities. Never return just a warehouse nickname + city.
+COMPANY NAMES & ADDRESSES — DOCUMENT IS KING (CRITICAL):
+12. Extract company names and addresses EXACTLY as written in the document. Copy them verbatim.
+13. NEVER replace, expand, "correct" or complete a company name or location using your own world knowledge. Many companies operate multiple sites in different cities (e.g. Vijn has sites in Echt AND Roermond): guessing produces WRONG loading addresses and real financial damage. If the document says "Vijn, Echt", you MUST output Echt — never another branch city.
+14. Only cosmetic normalization is allowed: postal code formatting ("1234 AB", "12-345"), adding the country name when obvious from context, fixing typos in street spellings while keeping the SAME location.
+15. If the document gives ONLY company + city without a street: output exactly "Company, City, Country". Do NOT invent a street. A downstream geocoding service completes the precise address reliably.
 
 DETERMINISM & ACCURACY:
-13. Extract exact literal values. Never fabricate. Unknown field => leave empty/null.
-14. WEIGHT vs PALLETS: weightKg in kg ("Gewicht", "brutto"); pallets is count ("palet", "EPAL"). "24 t" -> 24000 kg.
-15. Dates YYYY-MM-DD, times HH:mm 24h. Fix postal codes ("1234 AB", "12-345", "12345").
-16. Inspect EVERY sheet in multi-sheet workbooks.
+16. Extract exact literal values. Never fabricate. Unknown field => leave empty/null.
+17. WEIGHT vs PALLETS: weightKg in kg ("Gewicht", "brutto"); pallets is count ("palet", "EPAL"). "24 t" -> 24000 kg.
+18. Dates YYYY-MM-DD, times HH:mm 24h.
+19. Inspect EVERY sheet in multi-sheet workbooks.
 `;
   }
 
@@ -187,7 +190,7 @@ TASK — verify EVERY field of every trip directly against the document and retu
 1. DATE SIDE CHECK: confirm each pickupDate/pickupTime comes from the LOADING label row (Laden/Laaddatum/Chargement...) and each dropoffDate/dropoffTime from the DELIVERY label row (Lossen/Losdatum/Déchargement...). Swap them if they were taken from the wrong side. Loading must be <= delivery.
 2. MISSING DROP OFF: if dropoffDate/dropoffTime is empty but the document shows any delivery/unloading date/time, fill it from the document.
 3. REFERENCES: check column headers. "vracht auto nr"/"load nr" style = loadingReference. "cp order nr"/"klantreferentie"/customer PO = customerReference. Unloading/slot numbers = unloadingReference. Move values to the correct fields.
-4. COMPANY NAMES/ADDRESSES: expand abbreviations/codes to full legal names and complete missing street/postal code from knowledge of those facilities.
+4. COMPANY NAMES/ADDRESSES vs DOCUMENT: every name/address must match the document verbatim. If the first pass invented a street, expanded an abbreviation or moved the location to a DIFFERENT city/branch than the document states, revert it to exactly what the document says ('Company, City, Country'). Only postal-code formatting may be normalized.
 5. Keep everything that is already correct identical. Never invent data not supported by the document.
 Return ONLY the corrected JSON object with the "trips" array.`;
       const verifyRequest = {
