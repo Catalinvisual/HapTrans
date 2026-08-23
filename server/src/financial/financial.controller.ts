@@ -13,10 +13,11 @@ export class FinancialController {
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('clientId') clientId?: string,
+    @Query('granularity') granularity?: 'month' | 'week',
   ) {
     if (req.user.role !== 'admin') {
       throw new ForbiddenException('Acces restricționat administratorului.');
     }
-    return this.service.getSummary(from, to, clientId || undefined);
+    return this.service.getSummary(from, to, clientId || undefined, granularity === 'week' ? 'week' : 'month');
   }
 }

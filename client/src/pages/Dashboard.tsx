@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import {
   Truck, Route as RouteIcon, UserCheck, AlertTriangle, FileWarning, Clock,
   Wrench, Coffee, PlaneTakeoff, MapPin, ArrowRight, CircleDashed, Fuel, CalendarClock,
-  Search, RefreshCw, SlidersHorizontal,
+  Search, SlidersHorizontal,
 } from 'lucide-react';
 import api from '../lib/api';
 import { formatDate } from '../lib/dateUtils';
@@ -87,20 +87,19 @@ export default function Dashboard() {
   const [driverFilter, setDriverFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [windowType, setWindowType] = useState<WindowType>('today');
-  const [autoRefresh, setAutoRefresh] = useState(false);
 
   const load = (silent = false) => {
     if (silent) setRefreshing(true);
     Promise.all([
       api.get('/dashboard').catch(() => null),
-      api.get('/trucks/availability').catch(() => []),
-      api.get('/drivers').catch(() => []),
-      api.get(`/trips?status=${ACTIVE_TRIP_STATUSES}`).catch(() => []),
-    ]).then(([d, tr, dr, tp]) => {
+      api.get('/trucks/availability').catch(() => null),
+      api.get('/drivers').catch(() => null),
+      api.get(`/trips?status=${ACTIVE_TRIP_STATUSES}`).catch(() => null),
+    ]).then(([d, tr, dr, tp]: any[]) => {
       setSummary(d?.data ?? null);
-      setTrucks(Array.isArray(tr.data) ? tr.data : []);
-      setDrivers(Array.isArray(dr.data) ? dr.data : []);
-      setActiveTrips(Array.isArray(tp.data) ? tp.data : []);
+      setTrucks(Array.isArray(tr?.data) ? tr.data : []);
+      setDrivers(Array.isArray(dr?.data) ? dr.data : []);
+      setActiveTrips(Array.isArray(tp?.data) ? tp.data : []);
     }).finally(() => {
       setLoading(false);
       setRefreshing(false);
@@ -110,10 +109,9 @@ export default function Dashboard() {
   useEffect(() => { load(); }, []);
 
   useEffect(() => {
-    if (!autoRefresh) return;
     const id = setInterval(() => load(true), 30000);
     return () => clearInterval(id);
-  }, [autoRefresh]);
+  }, []);
 
   const q = search.trim().toLowerCase();
 
@@ -217,17 +215,11 @@ export default function Dashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-bold text-text">{t('dash_ops_board')}</h1>
-          <p className="text-sm text-text-secondary capitalize">{dateStr}</p>
+          <p className="text-sm text-text-secondary capitalize">
+            {dateStr}
+            <span className={`inline-block w-1.5 h-1.5 rounded-full ml-2 align-middle ${refreshing ? 'bg-primary animate-pulse' : 'bg-success'}`} title={t('dash_autorefresh')} />
+          </p>
         </div>
-        <button
-          onClick={() => setAutoRefresh(v => !v)}
-          className={`btn-secondary !py-2 !px-3 text-xs font-semibold flex items-center gap-2 ${autoRefresh ? '!border-primary !text-primary' : ''}`}
-          title={t('dash_autorefresh')}
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-          {t('dash_autorefresh')}
-          <span className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-success animate-pulse' : 'bg-border'}`} />
-        </button>
       </div>
 
       {/* Operational KPI strip */}

@@ -28,6 +28,20 @@ function monthKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function isoWeek(d: Date): { year: number; week: number } {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return { year: date.getUTCFullYear(), week };
+}
+
+function weekKey(d: Date): string {
+  const { year, week } = isoWeek(d);
+  return `${year}-W${String(week).padStart(2, '0')}`;
+}
+
 @Injectable()
 export class FinancialService {
   constructor(
@@ -138,31 +152,51 @@ export class FinancialService {
     };
   }
 
-  async getSummary(from?: string, to?: string, clientId?: string) {
+  async getSummary(from?: string, to?: string, clientId?: string, granularity: 'month' | 'week' = 'month') {
     const { period, previous } = this.parseRange(from, to);
     const data = await this.loadAll(clientId);
 
     const cur = this.computePeriod(period, data, clientId);
     const prev = this.computePeriod(previous, data, clientId);
 
-    // Monthly breakdown across the selected period
-    const monthlyMap: Record<string, any> = {};
-    const cursor = new Date(period.from.getFullYear(), period.from.getMonth(), 1);
-    while (cursor <= period.to) {
-      const key = monthKey(cursor);
-      monthlyMap[key] = {
-        month: key,
-        label: cursor.toLocaleString('ro-RO', { month: 'short' }),
-        year: cursor.getFullYear(),
-        revenue: 0, cost: 0, profit: 0, km: 0, trips: 0, invoiced: 0, collected: 0,
-      };
-      cursor.setMonth(cursor.getMonth() + 1);
-    }
+    // Series breakdown (month or week) for current AND previous period
+    const bucketKey = (d: Date) => (granularity === 'week' ? weekKey(d) : monthKey(d));
+    const buildMap = (range: PeriodRange): Record<string, any> => {
+      const map: Record<string, any> = {};
+      if (granularity === 'week') {
+        const cursor = new Date(range.from);
+        cursor.setDate(cursor.getDate() - ((cursor.getDay() + 6) % 7));
+        while (cursor <= range.to) {
+          const key = weekKey(cursor);
+          if (!map[key]) {
+            map[key] = {
+              month: key, label: `W${String(isoWeek(cursor).week).padStart(2, '0')}`, year: cursor.getFullYear(),
+              revenue: 0, cost: 0, profit: 0, km: 0, trips: 0, invoiced: 0, collected: 0,
+            };
+          }
+          cursor.setDate(cursor.getDate() + 7);
+        }
+      } else {
+        const cursor = new Date(range.from.getFullYear(), range.from.getMonth(), 1);
+        while (cursor <= range.to) {
+          const key = monthKey(cursor);
+          map[key] = {
+            month: key, label: cursor.toLocaleString('ro-RO', { month: 'short' }), year: cursor.getFullYear(),
+            revenue: 0, cost: 0, profit: 0, km: 0, trips: 0, invoiced: 0, collected: 0,
+          };
+          cursor.setMonth(cursor.getMonth() + 1);
+        }
+      }
+      return map;
+    };
 
-    const tripsInPeriod = data.trips.filter(t => this.inRange(t.createdAt, period));
-    const scopedTrips = clientId
-      ? tripsInPeriod.filter(t => (t.orders || []).some(o => o.client?.id === clientId))
-      : tripsInPeriod;
+    const curMap = buildMap(period);
+    const prevMap = buildMap(previous);
+
+    const scopedTripsInRange = (range: PeriodRange) => {
+      const trips = data.trips.filter(t => this.inRange(t.createdAt, range));
+      return clientId ? trips.filter(t => (t.orders || []).some(o => o.client?.id === clientId)) : trips;
+    };
 
     // Aggregations per client / truck / driver / route
     const clients: Record<string, any> = {};
@@ -177,13 +211,15 @@ export class FinancialService {
       return `${loc(stops[0])} → ${loc(stops[stops.length - 1])}`;
     };
 
+    const scopedTrips = scopedTripsInRange(period);
+
     for (const t of scopedTrips) {
-      const key = monthKey(new Date(t.createdAt));
-      if (monthlyMap[key]) {
-        monthlyMap[key].revenue += this.tripRevenue(t);
-        monthlyMap[key].cost += this.tripCosts(t);
-        monthlyMap[key].km += num(t.distanceKm);
-        monthlyMap[key].trips += 1;
+      const key = bucketKey(new Date(t.createdAt));
+      if (curMap[key]) {
+        curMap[key].revenue += this.tripRevenue(t);
+        curMap[key].cost += this.tripCosts(t);
+        curMap[key].km += num(t.distanceKm);
+        curMap[key].trips += 1;
       }
 
       const rev = this.tripRevenue(t);
@@ -222,27 +258,99 @@ export class FinancialService {
       routes[rl].revenue += rev; routes[rl].profit += prf; routes[rl].trips += 1;
     }
 
-    // Expenses into monthly
-    for (const e of data.expenses) {
-      if (!this.inRange(e.date, period)) continue;
-      if (clientId) continue; // general expenses cannot be attributed to a single client
-      const key = monthKey(new Date(e.date));
-      if (monthlyMap[key]) monthlyMap[key].cost += num(e.amount);
-    }
-    // Invoiced & collected per month
-    for (const i of data.invoices) {
-      if (i.status === InvoiceStatus.CANCELLED) continue;
-      const ik = monthKey(new Date(i.issueDate || i.createdAt));
-      if (monthlyMap[ik] && this.inRange(i.issueDate || i.createdAt, period)) {
-        monthlyMap[ik].invoiced += num(i.total) || num(i.amount);
-      }
-      for (const p of i.payments || []) {
-        const pk = monthKey(new Date(p.date));
-        if (monthlyMap[pk] && this.inRange(p.date, period)) monthlyMap[pk].collected += num(p.amount);
+    for (const t of scopedTripsInRange(previous)) {
+      const key = bucketKey(new Date(t.createdAt));
+      if (prevMap[key]) {
+        prevMap[key].revenue += this.tripRevenue(t);
+        prevMap[key].cost += this.tripCosts(t);
+        prevMap[key].km += num(t.distanceKm);
+        prevMap[key].trips += 1;
       }
     }
 
-    const monthly = Object.values(monthlyMap).map((m: any) => ({ ...m, profit: m.revenue - m.cost }));
+    // Expenses into both series
+    for (const e of data.expenses) {
+      if (clientId) continue; // general expenses cannot be attributed to a single client
+      const amt = num(e.amount);
+      if (this.inRange(e.date, period)) {
+        const key = bucketKey(new Date(e.date));
+        if (curMap[key]) curMap[key].cost += amt;
+      }
+      if (this.inRange(e.date, previous)) {
+        const key = bucketKey(new Date(e.date));
+        if (prevMap[key]) prevMap[key].cost += amt;
+      }
+    }
+    // Invoiced & collected per bucket
+    for (const i of data.invoices) {
+      if (i.status === InvoiceStatus.CANCELLED) continue;
+      const idate = i.issueDate || i.createdAt;
+      if (this.inRange(idate, period)) {
+        const key = bucketKey(new Date(idate));
+        if (curMap[key]) curMap[key].invoiced += num(i.total) || num(i.amount);
+      }
+      if (this.inRange(idate, previous)) {
+        const key = bucketKey(new Date(idate));
+        if (prevMap[key]) prevMap[key].invoiced += num(i.total) || num(i.amount);
+      }
+      for (const p of i.payments || []) {
+        if (this.inRange(p.date, period)) {
+          const key = bucketKey(new Date(p.date));
+          if (curMap[key]) curMap[key].collected += num(p.amount);
+        }
+        if (this.inRange(p.date, previous)) {
+          const key = bucketKey(new Date(p.date));
+          if (prevMap[key]) prevMap[key].collected += num(p.amount);
+        }
+      }
+    }
+
+    const series = Object.values(curMap).map((m: any) => ({ ...m, profit: m.revenue - m.cost }));
+    const previousSeries = Object.values(prevMap).map((m: any) => ({ ...m, profit: m.revenue - m.cost }));
+
+    // Top profitable individual trips
+    const topTrips = scopedTrips.map(t => {
+      const rev = this.tripRevenue(t);
+      const cst = this.tripCosts(t);
+      return {
+        id: t.id, tripNumber: t.tripNumber, route: routeLabel(t),
+        truck: t.truck?.plateNumber || null,
+        driver: (t.driver as any)?.user?.name || null,
+        status: t.status, date: t.createdAt,
+        revenue: rev, cost: cst, profit: rev - cst, km: num(t.distanceKm),
+      };
+    }).sort((a, b) => b.profit - a.profit).slice(0, 6);
+
+    // Payment performance on invoices issued in the period
+    let issuedCount = 0, totalIssued = 0, paidCount = 0, partialCount = 0, unpaidCount = 0;
+    let sumDays = 0, daysCount = 0, paidIssuedAmount = 0;
+    for (const i of data.invoices) {
+      if (i.status === InvoiceStatus.CANCELLED) continue;
+      if (!this.inRange(i.issueDate || i.createdAt, period)) continue;
+      const amount = num(i.total) || num(i.amount);
+      const paid = (i.payments || []).reduce((s, p) => s + num(p.amount), 0);
+      issuedCount++; totalIssued += amount;
+      if (paid <= 0) unpaidCount++;
+      else if (paid < amount - 0.01) partialCount++;
+      else { paidCount++; paidIssuedAmount += amount; }
+      const payDates = (i.payments || []).map(p => new Date(p.date).getTime()).filter(x => !isNaN(x)).sort((a, b) => a - b);
+      if (payDates.length && i.issueDate) {
+        const d = Math.max(0, Math.round((payDates[0] - new Date(i.issueDate).getTime()) / 86400000));
+        sumDays += d; daysCount++;
+      }
+    }
+    const paymentStats = {
+      issuedCount, totalIssued, paidCount, partialCount, unpaidCount,
+      avgPaymentDays: daysCount > 0 ? sumDays / daysCount : null,
+      collectionRate: totalIssued > 0 ? (paidIssuedAmount / totalIssued) * 100 : null,
+    };
+
+    // Most recent general expenses in the period
+    const recentExpenses = clientId ? [] : data.expenses
+      .filter(e => this.inRange(e.date, period))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 8)
+      .map(e => ({ id: e.id, date: e.date, category: e.category, amount: num(e.amount), description: e.description || null }));
 
     // Aging (receivables snapshot — always "now", not period-bound)
     const agingInvoices = await this.invoicesRepo.createQueryBuilder('inv')
@@ -328,7 +436,11 @@ export class FinancialService {
         revenue: prev.revenue, totalCost: prev.totalCost, profit: prev.profit, margin: prev.margin,
         tripsCount: prev.tripsCount, invoiced: prev.invoiced, collected: prev.collected,
       },
-      monthly,
+      series,
+      previousSeries,
+      topTrips,
+      paymentStats,
+      recentExpenses,
       expenseBreakdown,
       topClients,
       byTruck,

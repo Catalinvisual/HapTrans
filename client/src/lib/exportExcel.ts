@@ -127,17 +127,23 @@ async function buildLogoImage(bannerH: number): Promise<{ b64: string; width: nu
   }
 }
 
-export async function exportExcel(opts: ExcelExportOptions): Promise<void> {
-  const mod = (await import('exceljs')) as any;
-  const ExcelJS = mod.default ?? mod;
-  const { filename, headers, rows } = opts;
-  const sheetName = (opts.sheetName || 'Data').replace(/[\\/?*[\]:]/g, ' ').slice(0, 31);
-  const title = opts.title || filename.replace(/[_-]/g, ' ');
-  const subtitle = opts.subtitle || `Generated on ${new Date().toLocaleDateString()} · ${rows.length} records`;
+export interface WorkbookSheet {
+  name: string;
+  title?: string;
+  subtitle?: string;
+  headers: ExcelHeader[];
+  rows: Record<string, any>[];
+}
 
-  const wb = new ExcelJS.Workbook();
-  wb.creator = 'HapTrans';
-  wb.created = new Date();
+async function addStyledSheet(
+  wb: any,
+  opts: { sheetName: string; title: string; subtitle: string; headers: ExcelHeader[]; rows: Record<string, any>[] },
+): Promise<void> {
+  const { headers, rows } = opts;
+  const sheetName = opts.sheetName.replace(/[\\/?*[\]:]/g, ' ').slice(0, 31);
+  const title = opts.title || opts.sheetName;
+  const subtitle = opts.subtitle || '';
+
   const ws = wb.addWorksheet(sheetName, { views: [{ state: 'frozen', ySplit: 4 }] });
   ws.showGridLines = false;
   ws.pageSetup = {
@@ -174,8 +180,6 @@ export async function exportExcel(opts: ExcelExportOptions): Promise<void> {
     ws.getCell(2, c).fill = solid(BANNER_GRAY);
   }
 
-  // Transparent SaaS logo (same as the sidebar header) pinned to the top-left
-  // of the gray banner, with clear spacing before the page title
   let titleIndent = 0;
   let subIndent = 0;
   let titleCol = 1;
@@ -199,11 +203,9 @@ export async function exportExcel(opts: ExcelExportOptions): Promise<void> {
     const targetPx = logoRight + gapPx;
     const col1Right = (ws.getColumn(1).width || 10) * 7;
     if (logoRight <= col1Right) {
-      // Logo fits inside the first column — keep the title there, pushed clear of it
       titleIndent = Math.ceil(targetPx / 12);
       subIndent = Math.ceil(targetPx / 7);
     } else {
-      // Logo spans columns — start the title at the first column boundary after it
       let acc = 0;
       let found = false;
       for (let c = 1; c <= colCount; c++) {
@@ -211,7 +213,6 @@ export async function exportExcel(opts: ExcelExportOptions): Promise<void> {
         if (acc >= targetPx) { titleCol = c + 1; found = true; break; }
       }
       if (!found) {
-        // Logo + gap wider than the whole sheet — fall back to an indent
         titleIndent = Math.ceil(targetPx / 12);
         subIndent = Math.ceil(targetPx / 7);
       } else if (titleCol > colCount) {
@@ -316,17 +317,53 @@ export async function exportExcel(opts: ExcelExportOptions): Promise<void> {
     }
   }
   await ws.protect('', { objects: false });
+}
 
-  const buf = await wb.xlsx.writeBuffer();
-  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+function downloadWorkbook(wb: any, filename: string): Promise<void> {
+  return wb.xlsx.writeBuffer().then((buf: any) => {
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+}
+
+export async function exportWorkbook(opts: { filename: string; sheets: WorkbookSheet[] }): Promise<void> {
+  const mod = (await import('exceljs')) as any;
+  const ExcelJS = mod.default ?? mod;
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'HapTrans';
+  wb.created = new Date();
+  for (const s of opts.sheets) {
+    await addStyledSheet(wb, {
+      sheetName: s.name,
+      title: s.title || s.name,
+      subtitle: s.subtitle || '',
+      headers: s.headers,
+      rows: s.rows,
+    });
+  }
+  await downloadWorkbook(wb, opts.filename);
+}
+
+export async function exportExcel(opts: ExcelExportOptions): Promise<void> {
+  const mod = (await import('exceljs')) as any;
+  const ExcelJS = mod.default ?? mod;
+  const { filename, headers, rows } = opts;
+  const sheetName = (opts.sheetName || 'Data').replace(/[\\/?*[\]:]/g, ' ').slice(0, 31);
+  const title = opts.title || filename.replace(/[_-]/g, ' ');
+  const subtitle = opts.subtitle || `Generated on ${new Date().toLocaleDateString()} · ${rows.length} records`;
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'HapTrans';
+  wb.created = new Date();
+  await addStyledSheet(wb, { sheetName, title, subtitle, headers, rows });
+  await downloadWorkbook(wb, filename);
 }
 
 export function formatDateExcel(dateStr?: string | null): string {
