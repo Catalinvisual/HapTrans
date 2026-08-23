@@ -160,19 +160,26 @@ DETERMINISM & ACCURACY:
 
     const spreadsheet = isSpreadsheet(originalMimeType, filename);
 
-    // ---- FAST PATH: deterministic spreadsheet parsing (instant, free, reproducible) ----
-    if (spreadsheet) {
-      const parsedTrips = SpreadsheetOrderParser.parse(buffer);
-      if (parsedTrips.length > 0) {
-        return { trips: parsedTrips };
-      }
-      // Unrecognized layout -> fall through to the LLM text path below.
-    }
-
+    // ---- HYBRID PATH for spreadsheets ----
+    // 1. Deterministic parser builds a consistent skeleton (instant).
+    // 2. An AI audit pass then fixes field assignments SEMANTICALLY against
+    //    the raw sheet text, so ANY client-specific layout works — not just
+    //    headers our dictionary knows.
     let documentPart: any;
     if (spreadsheet) {
-      const text = this.spreadsheetToText(buffer);
-      documentPart = { text: `\n===== SPREADSHEET CONTENT START =====\n${text}\n===== SPREADSHEET CONTENT END =====` };
+      const sheetText = this.spreadsheetToText(buffer);
+      const parsedTrips = SpreadsheetOrderParser.parse(buffer);
+      if (parsedTrips.length > 0) {
+        let trips = parsedTrips;
+        try {
+          trips = await this.refineTripsWithAI(sheetText, parsedTrips);
+        } catch (e: any) {
+          console.warn('[trip-scanner] AI refinement skipped:', e?.message);
+        }
+        return { trips: trips.map(t => this.validateTrip(t)) };
+      }
+      // Unrecognized layout -> full LLM extraction on the text below.
+      documentPart = { text: `\n===== SPREADSHEET CONTENT START =====\n${sheetText}\n===== SPREADSHEET CONTENT END =====` };
     } else {
       let mimeType = originalMimeType || 'image/jpeg';
       if (mimeType === 'image/jpg') mimeType = 'image/jpeg';
@@ -235,6 +242,54 @@ Return ONLY the corrected JSON object with the "trips" array.`;
     }
 
     return { trips: trips.map(t => this.validateTrip(t)) };
+  }
+
+  /**
+   * SEMANTIC AUDIT PASS for spreadsheet imports.
+   * The deterministic parser guarantees speed and reproducibility, but it can
+   * only map columns whose headers resemble known synonyms. This pass gives
+   * Gemini the RAW sheet text plus the parser's JSON and lets it fix field
+   * assignments by UNDERSTANDING the content — so any client's layout works,
+   * not just the ones our dictionary covers.
+   */
+  private async refineTripsWithAI(sheetText: string, trips: any[]): Promise<any[]> {
+    if (!this.genAI || !trips.length) return trips;
+    const prompt = `
+You are auditing a deterministic parser's output against the RAW spreadsheet text below.
+
+===== RAW SPREADSHEET TEXT =====
+${sheetText}
+===== END RAW TEXT =====
+
+PARSER OUTPUT (JSON):
+${JSON.stringify({ trips })}
+
+The parser maps columns via a fixed synonym dictionary, so client-specific header names may have been MISSED (values dumped into notes) or MISASSIGNED. Using the raw text — where the VALUES tell the truth more than the header names — return the corrected JSON:
+
+1. FIELD ASSIGNMENT: verify every field of every trip against the raw row. Move any value currently stuck in notes into its proper dedicated field when one exists (company names, address parts incl. street/postal/city/country, loading/unloading/customer references, dates, times, weight, pallets, volume, price, contacts). A column may be meaningful even if its header is unknown — judge by its VALUES.
+2. DATES & TIMES: loading must precede delivery. When planning columns contradict an explicit statement in a text cell (e.g. "29-08 om 06:00 - Laden in Vijn Echt"), the EXPLICIT statement wins for that side. Split combined datetime values into date + time fields.
+3. COMPANY NAMES & ADDRESSES: expand abbreviated/coded company names to their official registered names and complete missing street/postal/city from knowledge of those specific companies/facilities. NEVER invent a different branch or city than the document indicates — when unsure keep the document value verbatim.
+4. NOTES HYGIENE: remove from notes everything you moved into a real field; drop meaningless admin values (zero counters like "Waarvan col.divers: 0", duplicate counts like "Plt rmt" when pallets are already set); KEEP operationally important info (payment/rembours terms, account numbers, PO/ID numbers, Incoterms like DDP, special instructions, delivery-site info).
+Return ONLY the corrected {"trips":[...]} JSON, same schema, one entry per trip.`;
+    try {
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0,
+          responseSchema: this.buildResponseSchema(),
+        } as any,
+      });
+      const parsed = this.safeParse(result.response.text());
+      const refined = this.extractTrips(parsed);
+      if (!refined.length) return trips;
+      // Conservative merge: refined values win, but nothing non-empty is lost.
+      return refined.length === trips.length ? refined.map((v, i) => this.mergeTrip(trips[i], v)) : refined;
+    } catch (e) {
+      console.warn('[trip-scanner] refineTripsWithAI failed, keeping parser output:', (e as any)?.message);
+      return trips;
+    }
   }
 
   /** Pro first; on any failure (quota etc.) retry with Flash. */

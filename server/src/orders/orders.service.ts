@@ -570,35 +570,45 @@ export class OrdersService {
     unitedkingdom: ['uk', 'united kingdom', 'groot brittannie', 'england'],
   };
 
-  private static normToken(s: unknown): string {
+  /** Word-preserving normal form: lowercase, no diacritics, single spaces. */
+  private static normWords(s: unknown): string {
     return String(s ?? '')
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
       .trim();
   }
 
+  /** Compact normal form (no spaces) for substring checks. */
+  private static normToken(s: unknown): string {
+    return OrdersService.normWords(s).replace(/ /g, '');
+  }
+
   private isGeoResultCompatible(token: string, geo: { label: string; city?: string; postalCode?: string; countryCode?: string; countryName?: string }): boolean {
-    const tn = OrdersService.normToken(token);
+    const tn = OrdersService.normWords(token);
     if (!tn) return true;
+    const compact = tn.replace(/ /g, '');
     // 2-letter country code tokens ("NL", "FR")
-    if (/^[a-z]{2}$/.test(tn)) {
-      return tn === String(geo.countryCode || '').toLowerCase();
+    if (/^[a-z]{2}$/.test(compact)) {
+      return compact === String(geo.countryCode || '').toLowerCase();
     }
     // Country-name tokens match via aliases in both directions
-    const cn = OrdersService.normToken(geo.countryName || '');
+    const cn = OrdersService.normWords(geo.countryName || '').replace(/ /g, '');
     if (cn) {
-      const aliases = [tn, ...(OrdersService.COUNTRY_ALIASES[tn] || [])];
+      const aliases = [compact, ...(OrdersService.COUNTRY_ALIASES[compact] || [])];
       if (aliases.some(a => a === cn || (a.length > 3 && cn.includes(a)))) return true;
-      if (cn.length > 3 && tn.includes(cn)) return true;
+      if (cn.length > 3 && compact.includes(cn)) return true;
     }
-    // City/region/postal tokens: >= half of significant words (>=4 chars) must appear in label+city+postal.
-    const hay = `${geo.label} ${geo.city || ''} ${geo.postalCode || ''}`;
-    const hayNorm = OrdersService.normToken(hay);
+    // City/region/postal tokens: >= half of significant words (>=4 chars)
+    // must appear in the geocoder's label + city + postal code.
+    const hayNorm = OrdersService.normWords(`${geo.label} ${geo.city || ''} ${geo.postalCode || ''}`);
+    const hayCompact = hayNorm.replace(/ /g, '');
+    if (!hayNorm) return false;
+    if (hayCompact.includes(compact)) return true;
     const words = tn.split(' ').filter(w => w.length >= 4);
-    if (!words.length) return hayNorm.includes(tn);
-    const hits = words.filter(w => hayNorm.includes(w)).length;
+    if (!words.length) return false;
+    const hits = words.filter(w => hayCompact.includes(w)).length;
     return hits >= Math.ceil(words.length / 2);
   }
 
@@ -610,17 +620,21 @@ export class OrdersService {
       const hasStreetDetail = /\d/.test(addr) && parts.length >= 3;
       if (hasStreetDetail) return null;
 
-      const query = [companyName?.trim(), addr].filter(Boolean).join(', ');
-      if (!query) return null;
-      const geo = await this.routingService.geocode(query);
-      if (!geo?.label || !geo.label.trim()) return null;
-
-      // The first part of the query is usually the COMPANY NAME which rarely
-      // survives into a geocoder label — validate only location tokens
-      // (city/postal/country). A different branch city still gets rejected.
       const locParts = parts.length > 1 ? parts.slice(1) : parts;
-      const compatible = locParts.every(p => this.isGeoResultCompatible(p, geo));
-      return compatible ? geo.label : null;
+      // Attempt 1: company + address (best for POI/company lookup)
+      const queries: string[] = [];
+      if (companyName?.trim()) queries.push(`${companyName.trim()}, ${addr}`);
+      queries.push(addr);
+
+      for (const query of queries) {
+        const geo = await this.routingService.geocode(query);
+        if (!geo?.label || !geo.label.trim()) continue;
+        // Company names rarely survive into a geocoder label — validate only
+        // location tokens (city/postal/country). A different branch city is rejected.
+        if (!locParts.every(p => this.isGeoResultCompatible(p, geo))) continue;
+        return geo.label;
+      }
+      return null;
     } catch {
       return null;
     }
