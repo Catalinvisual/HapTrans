@@ -313,12 +313,12 @@ export default function UsersPage() {
         </div>}
 
       <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
-        <div className="p-4 border-b border-border flex items-center justify-between gap-3">
-          <div className="relative flex-1 max-w-xs">
+        <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
+          <div className="relative flex-1 max-w-xs shrink-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
             <input className="input pl-9 py-2 text-sm" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
               {filtered.length} {t('results')}
             </span>

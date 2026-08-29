@@ -325,14 +325,14 @@ export default function TrailersPage() {
             <CustomSelect className="w-40" value={filters.status} onChange={(v) => setFilters((f) => ({ ...f, status: v }))} options={[{ value: "all", label: t("allStatuses", "Toate statusurile") }, ...TRAILER_STATUSES]} />
             <CustomSelect className="w-44" value={filters.type} onChange={(v) => setFilters((f) => ({ ...f, type: v }))} options={[{ value: "all", label: t("allTypes", "Toate tipurile") }, ...TRAILER_TYPES.map((o) => ({ value: o.value, label: t(o.label) || o.default }))]} />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-3 py-1.5 rounded-lg border border-border">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-3 py-1.5 rounded-lg border border-border whitespace-nowrap">
               {filtered.length} {t("results", "results")}
             </span>
-            <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold">
+            <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold whitespace-nowrap">
               <Download className="w-4 h-4" /> <span className="hidden sm:inline">{t("export", "Export")}</span>
             </button>
-            <button onClick={() => { setForm(initialForm); setShowForm(true); setEditId(null); }} className="btn-primary py-2 px-3 flex items-center gap-2 text-sm font-semibold shadow-md shadow-primary/20">
+            <button onClick={() => { setForm(initialForm); setShowForm(true); setEditId(null); }} className="btn-primary py-2 px-3 flex items-center gap-2 text-sm font-semibold whitespace-nowrap shadow-md shadow-primary/20">
               <Plus className="w-4 h-4" /> {t("addTrailer", "Adaugă Remorcă")}
             </button>
           </div>

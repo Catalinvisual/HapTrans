@@ -413,28 +413,28 @@ export default function OrdersPage() {
       ]} />
 
       <div className="card p-0 overflow-hidden border-border">
-        <div className="p-3 border-b border-border bg-surface/30 flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[200px] max-w-[16rem]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('searchPlaceholder', 'Search by reference, client...')} className="input pl-9 bg-white w-full text-sm" />
-          </div>
-          <CustomSelect className="w-36" value={filters.status} onChange={v => setFilter('status', v)} options={[{ value: 'all', label: t('all_statuses', 'All statuses') }, ...ORDER_STATUSES.map(s => ({ value: s, label: t(`status_${s}`, s.replace(/_/g, ' ')) }))]} />
-          <CustomSelect className="w-40" value={filters.client} onChange={v => setFilter('client', v)} options={clientOptions} />
-          <CustomSelect className="w-36" value={filters.country} onChange={v => setFilter('country', v)} options={countryOptions} />
-          <CustomSelect className="w-32" value={filters.type} onChange={v => setFilter('type', v)} options={[{ value: 'all', label: t('all_types', 'All types') }, { value: 'ftl', label: 'FTL' }, { value: 'groupage', label: t('transport_groupage', 'Groupage (LTL)') }, { value: 'express', label: t('express', 'Express') }]} />
-          <CustomSelect className="w-32" value={filters.priority} onChange={v => setFilter('priority', v)} options={[{ value: 'all', label: t('all_priorities', 'All priorities') }, { value: 'normal', label: t('priority_normal', 'Normal') }, { value: 'high', label: t('priority_high', 'High') }, { value: 'critical', label: t('priority_critical', 'Critical') }]} />
-          <input type="date" value={filters.dateFrom} onChange={e => setFilter('dateFrom', e.target.value)} className="input bg-white text-sm w-36" title={t('from_date', 'From date')} />
-          <input type="date" value={filters.dateTo} onChange={e => setFilter('dateTo', e.target.value)} className="input bg-white text-sm w-36" title={t('to_date', 'To date')} />
-          {hasActiveFilters && <button onClick={() => { setSearch(''); setFilters({ status: 'all', client: 'all', country: 'all', type: 'all', priority: 'all', dateFrom: '', dateTo: '' }); }} className="p-2 rounded-lg text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors shrink-0" title={t('clear_filters', 'Clear filters')}><FilterX className="w-4 h-4" /></button>}
-          
-          <div className="flex-1 min-w-[20px]" />
+        <div className="p-3 border-b border-border bg-surface/30">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[220px] max-w-[16rem] shrink-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('searchPlaceholder', 'Search by reference, client...')} className="input pl-9 bg-white w-full text-sm" />
+            </div>
+            <CustomSelect className="w-36 shrink-0" value={filters.status} onChange={v => setFilter('status', v)} options={[{ value: 'all', label: t('all_statuses', 'All statuses') }, ...ORDER_STATUSES.map(s => ({ value: s, label: t(`status_${s}`, s.replace(/_/g, ' ')) }))]} />
+            <CustomSelect className="w-40 shrink-0" value={filters.client} onChange={v => setFilter('client', v)} options={clientOptions} />
+            <CustomSelect className="w-36 shrink-0" value={filters.country} onChange={v => setFilter('country', v)} options={countryOptions} />
+            <CustomSelect className="w-32 shrink-0" value={filters.type} onChange={v => setFilter('type', v)} options={[{ value: 'all', label: t('all_types', 'All types') }, { value: 'ftl', label: 'FTL' }, { value: 'groupage', label: t('transport_groupage', 'Groupage (LTL)') }, { value: 'express', label: t('express', 'Express') }]} />
+            <CustomSelect className="w-32 shrink-0" value={filters.priority} onChange={v => setFilter('priority', v)} options={[{ value: 'all', label: t('all_priorities', 'All priorities') }, { value: 'normal', label: t('priority_normal', 'Normal') }, { value: 'high', label: t('priority_high', 'High') }, { value: 'critical', label: t('priority_critical', 'Critical') }]} />
+            <input type="date" value={filters.dateFrom} onChange={e => setFilter('dateFrom', e.target.value)} className="input bg-white text-sm w-36 shrink-0" title={t('from_date', 'From date')} />
+            <input type="date" value={filters.dateTo} onChange={e => setFilter('dateTo', e.target.value)} className="input bg-white text-sm w-36 shrink-0" title={t('to_date', 'To date')} />
+            {hasActiveFilters && <button onClick={() => { setSearch(''); setFilters({ status: 'all', client: 'all', country: 'all', type: 'all', priority: 'all', dateFrom: '', dateTo: '' }); }} className="p-2 rounded-lg text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors shrink-0" title={t('clear_filters', 'Clear filters')}><FilterX className="w-4 h-4" /></button>}
 
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs text-text-secondary font-medium whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
-            <button onClick={() => setShowAiImport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold" title="PDF / Image"><Sparkles className="w-4 h-4 text-primary" />{t('ai_import', 'Import AI')}</button>
-            <button onClick={() => setShowExcelImport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold"><FileSpreadsheet className="w-4 h-4 text-emerald-500" />{t('excel_import', 'Import Excel')}</button>
-            <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold"><Download className="w-4 h-4" />{t('export_csv', 'Export')}</button>
-            <button onClick={handleCreate} className="btn-primary py-2 px-3 flex items-center gap-2 text-sm font-semibold shadow-md shadow-primary/20"><Plus className="w-4 h-4" />{t('addOrder', 'Create Order')}</button>
+            <div className="flex items-center gap-2 ml-auto shrink-0">
+              <span className="text-xs text-text-secondary font-medium whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
+              <button onClick={() => setShowAiImport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold whitespace-nowrap" title="PDF / Image"><Sparkles className="w-4 h-4 text-primary" />{t('ai_import', 'Import AI')}</button>
+              <button onClick={() => setShowExcelImport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold whitespace-nowrap"><FileSpreadsheet className="w-4 h-4 text-emerald-500" />{t('excel_import', 'Import Excel')}</button>
+              <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold whitespace-nowrap"><Download className="w-4 h-4" />{t('export_csv', 'Export')}</button>
+              <button onClick={handleCreate} className="btn-primary py-2 px-3 flex items-center gap-2 text-sm font-semibold shadow-md shadow-primary/20 whitespace-nowrap"><Plus className="w-4 h-4" />{t('addOrder', 'Create Order')}</button>
+            </div>
           </div>
         </div>
 

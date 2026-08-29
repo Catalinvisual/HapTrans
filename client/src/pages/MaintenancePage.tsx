@@ -253,14 +253,14 @@ export default function MaintenancePage() {
         </div>
       )}
       <div className="card p-0 overflow-hidden">
-        <div className="p-4 border-b border-border flex items-center justify-between gap-3">
-          <div className="relative flex-1 max-w-xs"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
+        <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
+          <div className="relative flex-1 max-w-xs shrink-0"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
             <input className="input pl-9 py-2 text-sm" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} /></div>
-          <CustomSelect className="w-44 text-xs" value={truckFilter} onChange={setTruckFilter} options={[
+          <CustomSelect className="w-44 text-xs shrink-0" value={truckFilter} onChange={setTruckFilter} options={[
             { value: 'all', label: t('allTrucks', 'Toate camioanele') },
             ...trucks.map((t: any) => ({ value: t.id, label: t.plateNumber })),
           ]} />
-          <button onClick={() => { setShowForm(!showForm); if (showForm) { setEditId(null); resetForm(); } }} className="btn-primary text-sm py-2 px-4 font-semibold"><Plus className="w-4 h-4 mr-1" /> {t('addMaintenance')}</button>
+          <button onClick={() => { setShowForm(!showForm); if (showForm) { setEditId(null); resetForm(); } }} className="btn-primary text-sm py-2 px-4 font-semibold shrink-0 whitespace-nowrap"><Plus className="w-4 h-4 mr-1" /> {t('addMaintenance')}</button>
         </div>
         <div className="overflow-x-auto"><table className="w-full">
           <thead><tr className="bg-surface border-b border-border">

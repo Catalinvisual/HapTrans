@@ -336,34 +336,34 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
       <KpiStrip items={kpis} />
 
       <div className="card p-0 overflow-hidden border border-border">
-        <div className="p-3 border-b border-border bg-surface/30 flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[200px] max-w-[16rem]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-            <input
-              type="text"
-              placeholder={t('search_trips', 'Search trip, truck, driver, city...')}
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="input pl-9 py-2 text-sm w-full bg-white"
-            />
-          </div>
-          <div className="w-40"><CustomSelect options={statusOptions} value={filters.status} onChange={v => setFilters(f => ({ ...f, status: v }))} /></div>
-          <div className="w-44"><CustomSelect options={truckOptions} value={filters.truck} onChange={v => setFilters(f => ({ ...f, truck: v }))} /></div>
-          <div className="w-44"><CustomSelect options={driverOptions} value={filters.driver} onChange={v => setFilters(f => ({ ...f, driver: v }))} /></div>
-          <input type="date" value={filters.dateFrom} onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))} className="input py-2 text-sm w-36 bg-white" title={t('from', 'From')} />
-          <input type="date" value={filters.dateTo} onChange={e => setFilters(f => ({ ...f, dateTo: e.target.value }))} className="input py-2 text-sm w-36 bg-white" title={t('to', 'To')} />
-          {hasActiveFilters && (
-            <button onClick={() => { setFilters({ status: 'all', truck: 'all', driver: 'all', dateFrom: '', dateTo: '' }); setSearch(''); }} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors shrink-0">
-              <FilterXIcon className="w-3.5 h-3.5" />{t('clear_filters', 'Clear')}
-            </button>
-          )}
+        <div className="p-3 border-b border-border bg-surface/30">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[220px] max-w-[16rem] shrink-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
+              <input
+                type="text"
+                placeholder={t('search_trips', 'Search trip, truck, driver, city...')}
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="input pl-9 py-2 text-sm w-full bg-white"
+              />
+            </div>
+            <div className="w-40 shrink-0"><CustomSelect options={statusOptions} value={filters.status} onChange={v => setFilters(f => ({ ...f, status: v }))} /></div>
+            <div className="w-44 shrink-0"><CustomSelect options={truckOptions} value={filters.truck} onChange={v => setFilters(f => ({ ...f, truck: v }))} /></div>
+            <div className="w-44 shrink-0"><CustomSelect options={driverOptions} value={filters.driver} onChange={v => setFilters(f => ({ ...f, driver: v }))} /></div>
+            <input type="date" value={filters.dateFrom} onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))} className="input py-2 text-sm w-36 shrink-0 bg-white" title={t('from', 'From')} />
+            <input type="date" value={filters.dateTo} onChange={e => setFilters(f => ({ ...f, dateTo: e.target.value }))} className="input py-2 text-sm w-36 shrink-0 bg-white" title={t('to', 'To')} />
+            {hasActiveFilters && (
+              <button onClick={() => { setFilters({ status: 'all', truck: 'all', driver: 'all', dateFrom: '', dateTo: '' }); setSearch(''); }} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors shrink-0">
+                <FilterXIcon className="w-3.5 h-3.5" />{t('clear_filters', 'Clear')}
+              </button>
+            )}
 
-          <div className="flex-1 min-w-[20px]" />
-          
-          <div className="flex items-center gap-2 flex-wrap shrink-0">
-            <span className="text-xs text-text-secondary font-medium whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
-            <button onClick={() => openExport(sorted)} className="btn-secondary py-2 px-3 text-sm font-semibold inline-flex items-center gap-2"><Download className="w-4 h-4" />{t('export_csv', 'Export CSV')}</button>
-            <button onClick={() => navigate('/planning')} className="btn-primary py-2 px-3 text-sm font-semibold inline-flex items-center gap-2"><Calendar className="w-4 h-4" />{t('go_to_planning', 'Dispatch board')}</button>
+            <div className="flex items-center gap-2 shrink-0 ml-auto">
+              <span className="text-xs text-text-secondary font-medium whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
+              <button onClick={() => openExport(sorted)} className="btn-secondary py-2 px-3 text-sm font-semibold inline-flex items-center gap-2 whitespace-nowrap"><Download className="w-4 h-4" />{t('export_csv', 'Export CSV')}</button>
+              <button onClick={() => navigate('/planning')} className="btn-primary py-2 px-3 text-sm font-semibold inline-flex items-center gap-2 whitespace-nowrap"><Calendar className="w-4 h-4" />{t('go_to_planning', 'Dispatch board')}</button>
+            </div>
           </div>
         </div>
 

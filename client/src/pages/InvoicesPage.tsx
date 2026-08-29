@@ -843,19 +843,19 @@ export default function InvoicesPage({
 
       <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
         <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3 flex-1 max-w-md">
+          <div className="flex items-center gap-3 flex-1 max-w-md shrink-0">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
               <input className="input pl-9 py-2 text-sm" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold border-primary/20 hover:border-primary/50 text-primary transition-all">
+            <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold whitespace-nowrap border-primary/20 hover:border-primary/50 text-primary transition-all">
               <Download className="w-4 h-4" /> {t('export')}
             </button>
-            <button onClick={loadAging} className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold border-primary/20 hover:border-primary/50 text-primary transition-all">
+            <button onClick={loadAging} className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold whitespace-nowrap border-primary/20 hover:border-primary/50 text-primary transition-all">
               <BarChart3 className="w-4 h-4" /> {t('agingTitle')}
             </button>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
               {filtered.length} {t('results')}
             </span>

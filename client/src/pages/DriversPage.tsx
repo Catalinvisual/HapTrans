@@ -607,14 +607,14 @@ const tabs: TabDef[] = drawerDriver ? [
             </div>
             <CustomSelect className="w-40" value={filters.status} onChange={v => setFilters({ status: v })} options={statusOptions} />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg whitespace-nowrap">
               {filtered.length} {t('results', 'results')}
             </span>
-            <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold">
+            <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold whitespace-nowrap">
               <Download className="w-4 h-4" /> {t('export', 'Export')}
             </button>
-            <button onClick={() => { setEditId(null); setForm({ name: '', email: '', password: '', phone: '', licenseNumber: '', dailyRate: '', grossSalary: '', licenseExpiry: '', medicalExpiry: '', tachoCardExpiry: '', status: 'available', truckId: '' }); setShowForm(true); }} className="btn-primary flex items-center gap-2 py-2 px-3 text-sm font-semibold">
+            <button onClick={() => { setEditId(null); setForm({ name: '', email: '', password: '', phone: '', licenseNumber: '', dailyRate: '', grossSalary: '', licenseExpiry: '', medicalExpiry: '', tachoCardExpiry: '', status: 'available', truckId: '' }); setShowForm(true); }} className="btn-primary flex items-center gap-2 py-2 px-3 text-sm font-semibold whitespace-nowrap">
               <Plus className="w-4 h-4" /> {t('addDriver', 'Add Driver')}
             </button>
           </div>
