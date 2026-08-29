@@ -1,23 +1,33 @@
 'use client';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Globe, { type GlobeMethods } from 'react-globe.gl';
+import * as THREE from 'three';
 import { feature } from 'topojson-client';
 import type { FeatureCollection } from 'geojson';
 
 const GEO_URL = '/world-110m.json';
+const GEO_URL_FALLBACK = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 
 type TopoShape = {
   objects: { countries: unknown };
 };
 
+const toFeatureCollection = (topo: TopoShape): FeatureCollection =>
+  feature(topo as unknown as Parameters<typeof feature>[0], topo.objects.countries as Parameters<typeof feature>[1]) as unknown as FeatureCollection;
+
 let worldCache: FeatureCollection | null = null;
 const loadWorld = async (): Promise<FeatureCollection> => {
-  if (!worldCache) {
-    const res = await fetch(GEO_URL);
-    if (!res.ok) throw new Error(`world-atlas HTTP ${res.status}`);
-    const topo = (await res.json()) as TopoShape;
-    worldCache = feature(topo as unknown as Parameters<typeof feature>[0], topo.objects.countries as Parameters<typeof feature>[1]) as unknown as FeatureCollection;
+  if (worldCache) return worldCache;
+  const res = await fetch(GEO_URL);
+  const raw = res.ok ? await res.json() : null;
+  if (raw) {
+    worldCache = toFeatureCollection(raw as TopoShape);
+    return worldCache;
   }
+  const fallback = await fetch(GEO_URL_FALLBACK);
+  if (!fallback.ok) throw new Error('world-atlas unavailable');
+  const ftopo = (await fallback.json()) as TopoShape;
+  worldCache = toFeatureCollection(ftopo);
   return worldCache;
 };
 
@@ -77,6 +87,16 @@ export default function GlobeCanvas({
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const [geo, setGeo] = useState<FeatureCollection | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const globeMaterial = useMemo(
+    () =>
+      new THREE.MeshPhongMaterial({
+        color: '#0e2a47',
+        specular: new THREE.Color('#1e3a5f'),
+        shininess: 12,
+      }),
+    []
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -154,27 +174,26 @@ export default function GlobeCanvas({
         ref={globeRef}
         rendererConfig={{ alpha: true, antialias: true }}
         backgroundColor="rgba(0,0,0,0)"
-        globeImageUrl="/earth-blue-marble.jpg"
-        bumpImageUrl="/earth-topology.png"
+        globeMaterial={globeMaterial}
         showAtmosphere
-        atmosphereColor="#3b82f6"
+        atmosphereColor="#38bdf8"
         atmosphereAltitude={0.22}
         showGraticules={false}
         polygonsData={geo.features}
         polygonCapColor={(d) =>
           view.highlights.has((d as Poly).properties?.name ?? '')
-            ? 'rgba(255,90,0,0.92)'
-            : 'rgba(0,0,0,0)'
+            ? '#FF5A00'
+            : '#1c4163'
         }
         polygonSideColor={(d) =>
           view.highlights.has((d as Poly).properties?.name ?? '')
-            ? 'rgba(255,90,0,0.75)'
-            : 'rgba(0,0,0,0)'
+            ? 'rgba(255,90,0,0.85)'
+            : '#2a5a80'
         }
         polygonStrokeColor={(d) =>
           view.highlights.has((d as Poly).properties?.name ?? '')
-            ? 'rgba(255,255,255,0.55)'
-            : 'rgba(0,0,0,0)'
+            ? 'rgba(255,255,255,0.6)'
+            : 'rgba(148,197,233,0.22)'
         }
         polygonAltitude={() => 0.012}
         polygonsTransitionDuration={1000}
