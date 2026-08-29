@@ -87,10 +87,25 @@ export default function GlobeCanvas({
   className?: string;
 }) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const [dims, setDims] = useState<{ width: number; height: number } | null>(null);
   const [geo, setGeo] = useState<FeatureCollection | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const { t } = useLanguage();
+
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setDims({ width: rect.width, height: rect.height });
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const globeMaterial = useMemo(
     () =>
@@ -179,9 +194,9 @@ export default function GlobeCanvas({
     );
   }
 
-  if (!geo) {
+  if (!geo || !dims) {
     return (
-      <div className={className}>
+      <div className={className} ref={wrapperRef}>
         <div className={styles.globeFallback}>
           <div className={styles.spinner} />
           <p>{t('mapLoading')}</p>
@@ -191,9 +206,11 @@ export default function GlobeCanvas({
   }
 
   return (
-    <div className={className} role="img" aria-label="Map of European destination countries">
+    <div className={className} ref={wrapperRef} role="img" aria-label="Map of European destination countries">
 <Globe
         ref={globeRef}
+        width={dims.width}
+        height={dims.height}
         rendererConfig={{ alpha: true, antialias: true }}
         backgroundColor="rgba(0,0,0,0)"
         globeMaterial={globeMaterial}
