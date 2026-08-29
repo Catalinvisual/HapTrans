@@ -1,9 +1,25 @@
 'use client';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Globe, { type GlobeMethods } from 'react-globe.gl';
+import { feature } from 'topojson-client';
 import type { FeatureCollection } from 'geojson';
 
-const GEO_JSON_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.geo.json';
+const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
+
+type TopoShape = {
+  objects: { countries: unknown };
+};
+
+let worldCache: FeatureCollection | null = null;
+const loadWorld = async (): Promise<FeatureCollection> => {
+  if (!worldCache) {
+    const res = await fetch(GEO_URL);
+    if (!res.ok) throw new Error(`world-atlas HTTP ${res.status}`);
+    const topo = (await res.json()) as TopoShape;
+    worldCache = feature(topo as unknown as Parameters<typeof feature>[0], topo.objects.countries as Parameters<typeof feature>[1]) as unknown as FeatureCollection;
+  }
+  return worldCache;
+};
 
 const START_COORDS: Record<string, [number, number]> = {
   NL: [5.2913, 52.1326],
@@ -33,15 +49,6 @@ const START_COORDS: Record<string, [number, number]> = {
   SI: [14.9955, 46.1512],
 };
 
-let worldCache: FeatureCollection | null = null;
-const loadWorld = async (): Promise<FeatureCollection> => {
-  if (!worldCache) {
-    const res = await fetch(GEO_JSON_URL);
-    worldCache = (await res.json()) as FeatureCollection;
-  }
-  return worldCache;
-};
-
 const toEnglishName = (code: string): string => {
   try {
     return new Intl.DisplayNames(['en'], { type: 'region' }).of(code) || code;
@@ -69,12 +76,20 @@ export default function GlobeCanvas({
 }) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const [geo, setGeo] = useState<FeatureCollection | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    loadWorld().then((w) => {
-      if (!cancelled) setGeo(w);
-    });
+    loadWorld()
+      .then((w) => {
+        if (!cancelled) setGeo(w);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          console.error(err);
+          setError('Harta nu a putut fi încărcată.');
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -120,6 +135,14 @@ export default function GlobeCanvas({
     const highlights = new Set(countries.map(toEnglishName));
     return { arc, points, rings, labels, highlights };
   }, [countries]);
+
+  if (error) {
+    return (
+      <div className={className} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', maxWidth: '320px' }}>{error}</p>
+      </div>
+    );
+  }
 
   if (!geo) {
     return <div className={className} role="img" aria-label="Loading globe" />;
