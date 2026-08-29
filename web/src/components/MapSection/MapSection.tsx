@@ -17,7 +17,7 @@ const GlobeCanvas = dynamic(() => import('./GlobeCanvas'), {
 
 const MapSection = () => {
   const { t, lang } = useLanguage();
-  const [countries, setCountries] = useState<string[]>(['RO', 'DE', 'FR', 'IT', 'BE', 'NL']);
+  const [countries, setCountries] = useState<string[]>([]);
 
   useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';

@@ -42,6 +42,7 @@
 
   .globeStage {
     order: 1;
+    min-height: 400px;
   }
 }
 
@@ -168,6 +169,54 @@
 @media (max-width: 992px) {
   .globeCanvas {
     width: min(100%, 400px);
+  }
+}
+
+@media (max-width: 480px) {
+  .section {
+    padding: 4.5rem 0;
+  }
+
+  .container {
+    padding: 0 1.1rem;
+    gap: 2rem;
+  }
+
+  .label {
+    margin-bottom: 1rem;
+  }
+
+  .title {
+    font-size: 2.1rem;
+    margin-bottom: 1rem;
+  }
+
+  .desc {
+    font-size: 0.97rem;
+    margin-bottom: 1.75rem;
+    max-width: 100%;
+  }
+
+  .countriesGrid {
+    gap: 0.5rem;
+  }
+
+  .countryItem {
+    padding: 0.5rem 0.7rem;
+    font-size: 0.82rem;
+    gap: 0.45rem;
+  }
+
+  .globeStage {
+    min-height: 340px;
+  }
+
+  .globeCanvas {
+    width: min(100%, 320px);
+  }
+
+  .globeGlow {
+    width: min(88%, 300px);
   }
 }
 

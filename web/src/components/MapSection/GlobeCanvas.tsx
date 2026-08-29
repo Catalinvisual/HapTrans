@@ -119,17 +119,16 @@ export default function GlobeCanvas({
     if (!geo) return;
     const controls = globeRef.current?.controls();
     if (!controls) return;
-    const reduceMotion =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    controls.autoRotate = !reduceMotion;
-    controls.autoRotateSpeed = 0.6;
+    controls.autoRotate = false;
+    controls.enableRotate = true;
+    controls.enableZoom = true;
+    controls.enablePan = false;
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;
     controls.minPolarAngle = Math.PI / 3.2;
     controls.maxPolarAngle = Math.PI / 1.75;
-    globeRef.current?.pointOfView({ lat: 38, lng: 10, altitude: 2.3 }, 0);
+    globeRef.current?.pointOfView({ lat: 46, lng: 11, altitude: 1.7 }, 0);
   }, [geo]);
 
   const view = useMemo(() => {
@@ -152,7 +151,7 @@ export default function GlobeCanvas({
       lng: START_COORDS[c][0],
       text: toEnglishName(c),
     }));
-    const highlights = new Set(countries.map(toEnglishName));
+    const highlights = new Set(allCodes.map(toEnglishName));
     return { arc, points, rings, labels, highlights };
   }, [countries]);
 
