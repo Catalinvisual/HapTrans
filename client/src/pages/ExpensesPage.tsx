@@ -2,12 +2,14 @@ import { useSaveConfirm } from "../components/SaveConfirmProvider";
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
-import { Plus, Trash2, Edit2, Upload, FileText, Loader2, Image as ImageIcon, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, Edit2, Upload, FileText, Loader2, Image as ImageIcon, CheckCircle2, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import CustomSelect from '../components/CustomSelect';
 import Pagination from '../components/Pagination';
 import { useShortcuts } from '../hooks/useShortcuts';
 import { useTableShortcuts } from '../hooks/useTableShortcuts';
+import Flatpickr from 'react-flatpickr';
+import 'flatpickr/dist/themes/light.css';
 const CATEGORIES = [{
   value: 'fuel',
   labelKey: 'cat_fuel'
@@ -137,6 +139,7 @@ export default function ExpensesPage() {
   };
   const handleSubmit = async (e?: any) => {
     if (e && e.preventDefault) e.preventDefault();
+    if (!form.date) { toast.error(t('expenseDateRequired', 'Selectează data')); return; }
     if (!await confirmSave()) return;
     try {
       const data = {
@@ -287,10 +290,13 @@ export default function ExpensesPage() {
 
             <div>
               <label className="label font-semibold text-xs">{t('expenseDate')}</label>
-              <input type="date" className="input" value={form.date} onChange={e => setForm({
-            ...form,
-            date: e.target.value
-          })} required />
+              <div className="relative">
+                <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+                <Flatpickr value={form.date} onChange={(_, dateStr) => setForm({
+              ...form,
+              date: dateStr
+            })} className="input pl-9 bg-card cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false }} placeholder={t('date_format_hint', 'DD/MM/YYYY')} required />
+              </div>
             </div>
 
             <div className="lg:col-span-3">

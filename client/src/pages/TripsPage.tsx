@@ -18,6 +18,8 @@ import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
 import ExportModal from '../components/ExportModal';
 import ActivityTimeline from '../components/ActivityTimeline';
+import Flatpickr from 'react-flatpickr';
+import 'flatpickr/dist/themes/light.css';
 import toast from 'react-hot-toast';
 
 const TRIP_STATUSES = ['planning', 'planned', 'assigned', 'dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered', 'completed', 'closed', 'cancelled'];
@@ -351,8 +353,14 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
             <div className="w-40 shrink-0"><CustomSelect options={statusOptions} value={filters.status} onChange={v => setFilters(f => ({ ...f, status: v }))} /></div>
             <div className="w-44 shrink-0"><CustomSelect options={truckOptions} value={filters.truck} onChange={v => setFilters(f => ({ ...f, truck: v }))} /></div>
             <div className="w-44 shrink-0"><CustomSelect options={driverOptions} value={filters.driver} onChange={v => setFilters(f => ({ ...f, driver: v }))} /></div>
-            <input type="date" value={filters.dateFrom} onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))} className="input py-2 text-sm w-36 shrink-0 bg-white" title={t('from', 'From')} />
-            <input type="date" value={filters.dateTo} onChange={e => setFilters(f => ({ ...f, dateTo: e.target.value }))} className="input py-2 text-sm w-36 shrink-0 bg-white" title={t('to', 'To')} />
+            <div className="relative shrink-0">
+              <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
+              <Flatpickr value={filters.dateFrom} onChange={(_, dateStr) => setFilters(f => ({ ...f, dateFrom: dateStr }))} className="input pl-9 py-2 text-sm w-36 bg-card cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false }} placeholder={t('from', 'From')} title={t('from', 'From')} />
+            </div>
+            <div className="relative shrink-0">
+              <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
+              <Flatpickr value={filters.dateTo} onChange={(_, dateStr) => setFilters(f => ({ ...f, dateTo: dateStr }))} className="input pl-9 py-2 text-sm w-36 bg-card cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false }} placeholder={t('to', 'To')} title={t('to', 'To')} />
+            </div>
             {hasActiveFilters && (
               <button onClick={() => { setFilters({ status: 'all', truck: 'all', driver: 'all', dateFrom: '', dateTo: '' }); setSearch(''); }} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors shrink-0">
                 <FilterXIcon className="w-3.5 h-3.5" />{t('clear_filters', 'Clear')}

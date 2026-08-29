@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
-import { X, Save, Loader2, Plus, Trash2 } from 'lucide-react';
+import { X, Save, Loader2, Plus, Trash2, Calendar } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
+import Flatpickr from 'react-flatpickr';
+import 'flatpickr/dist/themes/light.css';
 interface OrderFormModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -310,7 +312,10 @@ export default function OrderFormModal({
                     <div className="grid grid-cols-3 gap-4 mt-2">
                       <div>
                         <label className="block text-xs text-text-secondary mb-1">{t("jsx_date", "Date")}</label>
-                        <input type="date" value={stop.dateFrom || ''} onChange={e => handleStopChange(index, 'dateFrom', e.target.value)} className="input w-full text-sm py-1.5" />
+                        <div className="relative">
+                          <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+                          <Flatpickr value={stop.dateFrom || ''} onChange={(_, dateStr) => handleStopChange(index, 'dateFrom', dateStr)} className="input w-full text-sm py-1.5 pl-9 cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false }} placeholder={t('date_format_hint', 'DD/MM/YYYY')} />
+                        </div>
                       </div>
                       <div>
                         <label className="block text-xs text-text-secondary mb-1">{t("jsx_timeFrom", "Time From")}</label>

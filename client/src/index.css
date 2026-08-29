@@ -127,10 +127,12 @@
 
 
   /* Custom scrollbar for panels & modals */
-  .custom-scrollbar::-webkit-scrollbar { width: 10px; }
+  .custom-scrollbar { scrollbar-width: thin; scrollbar-color: #f97316 var(--color-card); }
+  .custom-scrollbar::-webkit-scrollbar { width: 7px; height: 7px; }
   .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #f97316; border-radius: 9999px; border: 2px solid var(--color-card); }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #ea580c; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: #f97316; border-radius: 9999px; border: 1.5px solid var(--color-card); background-clip: padding-box; }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #ea580c; background-clip: padding-box; }
+  .custom-scrollbar::-webkit-scrollbar-thumb:active { background: #c2410c; }
 }
 
 @keyframes fadeIn {

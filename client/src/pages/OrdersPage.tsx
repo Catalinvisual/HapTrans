@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Loader2, MapPin, FileText, Trash2, Box, Download, Pencil, ExternalLink, Activity, Copy, FilterX, Coins, Weight, Boxes, BadgeEuro, ArrowRight, Flag, Phone, User, Sparkles, Navigation, FileSpreadsheet } from 'lucide-react';
+import { Plus, Search, Loader2, MapPin, FileText, Trash2, Box, Download, Pencil, ExternalLink, Activity, Copy, FilterX, Coins, Weight, Boxes, BadgeEuro, ArrowRight, Flag, Phone, User, Sparkles, Navigation, FileSpreadsheet, Calendar } from 'lucide-react';
 import api from '../lib/api';
 import OrderWizard from '../components/orders/OrderWizard';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
@@ -25,6 +25,8 @@ import { useNavigate } from 'react-router-dom';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateOrderPdf } from '../lib/pdfGenerator';
 import { fmtMoney, fmtNumber } from '../lib/format';
+import Flatpickr from 'react-flatpickr';
+import 'flatpickr/dist/themes/light.css';
 
 const ORDER_STATUSES = ['draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoiced', 'paid', 'cancelled'];
 
@@ -424,8 +426,14 @@ export default function OrdersPage() {
             <CustomSelect className="w-36 shrink-0" value={filters.country} onChange={v => setFilter('country', v)} options={countryOptions} />
             <CustomSelect className="w-32 shrink-0" value={filters.type} onChange={v => setFilter('type', v)} options={[{ value: 'all', label: t('all_types', 'All types') }, { value: 'ftl', label: 'FTL' }, { value: 'groupage', label: t('transport_groupage', 'Groupage (LTL)') }, { value: 'express', label: t('express', 'Express') }]} />
             <CustomSelect className="w-32 shrink-0" value={filters.priority} onChange={v => setFilter('priority', v)} options={[{ value: 'all', label: t('all_priorities', 'All priorities') }, { value: 'normal', label: t('priority_normal', 'Normal') }, { value: 'high', label: t('priority_high', 'High') }, { value: 'critical', label: t('priority_critical', 'Critical') }]} />
-            <input type="date" value={filters.dateFrom} onChange={e => setFilter('dateFrom', e.target.value)} className="input bg-white text-sm w-36 shrink-0" title={t('from_date', 'From date')} />
-            <input type="date" value={filters.dateTo} onChange={e => setFilter('dateTo', e.target.value)} className="input bg-white text-sm w-36 shrink-0" title={t('to_date', 'To date')} />
+            <div className="relative shrink-0">
+              <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
+              <Flatpickr value={filters.dateFrom} onChange={(_, dateStr) => setFilter('dateFrom', dateStr)} className="input pl-9 bg-card text-sm w-36 cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false }} placeholder={t('from_date', 'From date')} />
+            </div>
+            <div className="relative shrink-0">
+              <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
+              <Flatpickr value={filters.dateTo} onChange={(_, dateStr) => setFilter('dateTo', dateStr)} className="input pl-9 bg-card text-sm w-36 cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false }} placeholder={t('to_date', 'To date')} />
+            </div>
             {hasActiveFilters && <button onClick={() => { setSearch(''); setFilters({ status: 'all', client: 'all', country: 'all', type: 'all', priority: 'all', dateFrom: '', dateTo: '' }); }} className="p-2 rounded-lg text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors shrink-0" title={t('clear_filters', 'Clear filters')}><FilterX className="w-4 h-4" /></button>}
 
             <div className="flex items-center gap-2 ml-auto shrink-0">

@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Package, X } from 'lucide-react';
+import { Package, X, Calendar } from 'lucide-react';
 import portalApi from '../lib/portalApi';
 import { notify } from './AppToaster';
+import Flatpickr from 'react-flatpickr';
+import 'flatpickr/dist/themes/light.css';
 
 interface RapidTransportModalProps {
   open: boolean;
@@ -92,7 +94,10 @@ export default function RapidTransportModal({ open, onClose }: RapidTransportMod
               <label className="block text-xs font-bold text-text-secondary uppercase mb-1">
                 {t('jsx_preferredDate')}
               </label>
-              <input type="date" name="date" value={form.date} onChange={handleChange} className="input w-full" />
+              <div className="relative">
+                <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+                <Flatpickr value={form.date} onChange={(_, dateStr) => setForm(prev => ({ ...prev, date: dateStr }))} className="input pl-9 bg-card w-full cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false }} placeholder={t('date_format_hint', 'DD/MM/YYYY')} />
+              </div>
             </div>
 
             <div className="md:col-span-2">

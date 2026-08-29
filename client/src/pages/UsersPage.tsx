@@ -274,7 +274,7 @@ export default function UsersPage() {
                         </span>)}
                   </div>
                   {showPageSelect && <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
-                      <div className="max-h-64 overflow-y-auto p-2">
+                      <div className="max-h-64 overflow-y-auto p-2 custom-scrollbar">
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                         {navItems.map(item => {
                   const isSelected = form.allowedPages.includes(item.key);

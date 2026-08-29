@@ -6,6 +6,8 @@ import api from '../lib/api';
 import { fmtMoney, fmtMoneySigned, fmtPercent } from '../lib/format';
 import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
+import Flatpickr from 'react-flatpickr';
+import 'flatpickr/dist/themes/light.css';
 import { useAuthStore } from '../store/authStore';
 const STATUS_COLORS: Record<string, string> = {
   pending: 'badge-gray',
@@ -512,14 +514,20 @@ export default function TripDetailsPage() {
                                  <option value="other">{t("other", "Altele")}</option>
                                </select>
                              </div>
-                             <div>
-                               <label className="label">{t("timeWindowMin", "Fereastră Min")}</label>
-                               <input type="datetime-local" className="input" value={stopForm.timeWindowMin} onChange={e => setStopForm({...stopForm, timeWindowMin: e.target.value})} />
-                             </div>
-                             <div>
-                               <label className="label">{t("timeWindowMax", "Fereastră Max")}</label>
-                               <input type="datetime-local" className="input" value={stopForm.timeWindowMax} onChange={e => setStopForm({...stopForm, timeWindowMax: e.target.value})} />
-                             </div>
+<div>
+                                <label className="label">{t("timeWindowMin", "Fereastră Min")}</label>
+                                <div className="relative">
+                                  <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+                                  <Flatpickr value={stopForm.timeWindowMin ? stopForm.timeWindowMin.replace('T', ' ').slice(0, 16) : ''} onChange={(_, dateStr) => setStopForm({...stopForm, timeWindowMin: dateStr ? dateStr.replace(' ', 'T') : ''})} className="input pl-9 bg-card cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y H:i', dateFormat: 'Y-m-d H:i', enableTime: true, time_24hr: true, allowInput: false }} placeholder={t("dateTimeHint", "DD/MM/YYYY HH:mm")} />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="label">{t("timeWindowMax", "Fereastră Max")}</label>
+                                <div className="relative">
+                                  <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+                                  <Flatpickr value={stopForm.timeWindowMax ? stopForm.timeWindowMax.replace('T', ' ').slice(0, 16) : ''} onChange={(_, dateStr) => setStopForm({...stopForm, timeWindowMax: dateStr ? dateStr.replace(' ', 'T') : ''})} className="input pl-9 bg-card cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y H:i', dateFormat: 'Y-m-d H:i', enableTime: true, time_24hr: true, allowInput: false }} placeholder={t("dateTimeHint", "DD/MM/YYYY HH:mm")} />
+                                </div>
+                              </div>
                              <div>
                                <label className="label">{t("contactPerson", "Persoană Contact")}</label>
                                <input type="text" className="input" value={stopForm.contactPerson} onChange={e => setStopForm({...stopForm, contactPerson: e.target.value})} placeholder={t("contactPersonPlaceholder", "Nume persoană contact")} />

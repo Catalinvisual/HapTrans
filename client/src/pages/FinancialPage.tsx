@@ -82,10 +82,10 @@ function KpiCard({ icon: Icon, label, value, sub, subExtra, trend, invert, accen
         <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${accent}`}><Icon className="w-4 h-4" /></span>
       </div>
       <div className="mt-1 flex items-end justify-between gap-2 flex-wrap">
-        <span className="text-xl lg:text-2xl font-bold text-text leading-tight">{value}</span>
+        <span className="text-xl lg:text-2xl font-bold text-text leading-tight min-w-0 break-words">{value}</span>
         <TrendBadge value={trend} invert={invert} />
       </div>
-      {(sub || subExtra) && <div className="text-[11px] text-text-secondary mt-0.5">{sub}{subExtra}</div>}
+      {(sub || subExtra) && <div className="text-[11px] text-text-secondary mt-0.5 min-w-0 break-words">{sub}{subExtra}</div>}
     </div>
   );
 }

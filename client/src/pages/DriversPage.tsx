@@ -540,7 +540,10 @@ const tabs: TabDef[] = drawerDriver ? [
           <div className="bg-surface/50 rounded-xl p-3 border border-border space-y-2">
             <div className="text-xs font-bold uppercase tracking-wider text-text-secondary">{t('hos_add_entry', 'Adaugă / editează zi')}</div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <input type="date" className="input" value={hosForm.date} onChange={e => setHosForm({ ...hosForm, date: e.target.value })} />
+              <div className="relative">
+                <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+                <Flatpickr value={hosForm.date} onChange={(_, dateStr) => setHosForm({ ...hosForm, date: dateStr })} className="input pl-9 bg-card cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false }} placeholder={t('date_format_hint', 'DD/MM/YYYY')} />
+              </div>
               <input type="number" step="0.5" min="0" className="input" placeholder={t('hos_driving', 'Conducere (h)')} value={hosForm.drivingHours} onChange={e => setHosForm({ ...hosForm, drivingHours: e.target.value })} />
               <input type="number" step="0.5" min="0" className="input" placeholder={t('hos_work', 'Muncă (h)')} value={hosForm.workHours} onChange={e => setHosForm({ ...hosForm, workHours: e.target.value })} />
               <input type="number" step="5" min="0" className="input" placeholder={t('hos_break', 'Pauză (min)')} value={hosForm.breakMinutes} onChange={e => setHosForm({ ...hosForm, breakMinutes: e.target.value })} />
