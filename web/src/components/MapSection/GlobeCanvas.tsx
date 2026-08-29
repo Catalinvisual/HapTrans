@@ -69,6 +69,13 @@ const toEnglishName = (code: string): string => {
   }
 };
 
+const cameraFor = (width: number): { lat: number; lng: number; altitude: number } => {
+  if (width >= 560) return { lat: 48, lng: 13, altitude: 0.55 };
+  if (width >= 420) return { lat: 47, lng: 12, altitude: 0.7 };
+  if (width >= 330) return { lat: 46, lng: 11, altitude: 0.85 };
+  return { lat: 45, lng: 10, altitude: 1.15 };
+};
+
 type Poly = { properties?: { name?: string } };
 type PointD = { lat: number; lng: number; isHub?: boolean };
 type LabelD = { text: string };
@@ -138,7 +145,7 @@ export default function GlobeCanvas({
   }, [attempt]);
 
   useEffect(() => {
-    if (!geo) return;
+    if (!geo || !dims) return;
     const controls = globeRef.current?.controls();
     if (!controls) return;
 
@@ -148,10 +155,12 @@ export default function GlobeCanvas({
     controls.enablePan = false;
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;
-    controls.minPolarAngle = Math.PI / 3.2;
+    controls.minPolarAngle = Math.PI / 5.2;
     controls.maxPolarAngle = Math.PI / 1.75;
-    globeRef.current?.pointOfView({ lat: 46, lng: 11, altitude: 1.7 }, 0);
-  }, [geo]);
+
+    const { lat, lng, altitude } = cameraFor(dims.width);
+    globeRef.current?.pointOfView({ lat, lng, altitude }, 0);
+  }, [geo, dims]);
 
   const view = useMemo(() => {
     const targets = countries.filter((c) => c !== 'NL' && START_COORDS[c]);
