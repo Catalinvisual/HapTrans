@@ -4,6 +4,8 @@ import Globe, { type GlobeMethods } from 'react-globe.gl';
 import * as THREE from 'three';
 import { feature } from 'topojson-client';
 import type { FeatureCollection } from 'geojson';
+import styles from './MapSection.module.css';
+import { useLanguage } from '@/context/LanguageContext';
 
 const GEO_URL = '/world-110m.json';
 const GEO_URL_FALLBACK = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
@@ -87,6 +89,8 @@ export default function GlobeCanvas({
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const [geo, setGeo] = useState<FeatureCollection | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const { t } = useLanguage();
 
   const globeMaterial = useMemo(
     () =>
@@ -102,18 +106,21 @@ export default function GlobeCanvas({
     let cancelled = false;
     loadWorld()
       .then((w) => {
-        if (!cancelled) setGeo(w);
+        if (cancelled) return;
+        setError(null);
+        setGeo(w);
       })
       .catch((err: unknown) => {
         if (!cancelled) {
           console.error(err);
+          setGeo(null);
           setError('Harta nu a putut fi încărcată.');
         }
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [attempt]);
 
   useEffect(() => {
     if (!geo) return;
@@ -157,14 +164,30 @@ export default function GlobeCanvas({
 
   if (error) {
     return (
-      <div className={className} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', maxWidth: '320px' }}>{error}</p>
+      <div className={className}>
+        <div className={styles.globeFallback}>
+          <p>{t('mapError')}</p>
+          <button
+            type="button"
+            className={styles.retry}
+            onClick={() => setAttempt((a) => a + 1)}
+          >
+            {t('mapRetry')}
+          </button>
+        </div>
       </div>
     );
   }
 
   if (!geo) {
-    return <div className={className} role="img" aria-label="Loading globe" />;
+    return (
+      <div className={className}>
+        <div className={styles.globeFallback}>
+          <div className={styles.spinner} />
+          <p>{t('mapLoading')}</p>
+        </div>
+      </div>
+    );
   }
 
   return (

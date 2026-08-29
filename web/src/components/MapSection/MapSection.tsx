@@ -10,7 +10,6 @@ const GlobeCanvas = dynamic(() => import('./GlobeCanvas'), {
   loading: () => (
     <div className={styles.globeFallback}>
       <div className={styles.spinner} />
-      <p>Se încarcă harta...</p>
     </div>
   ),
 });

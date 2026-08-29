@@ -235,6 +235,25 @@
   letter-spacing: 0.08em;
 }
 
+.retry {
+  padding: 0.6rem 1.25rem;
+  border-radius: 2rem;
+  border: 1px solid rgba(56,189,248,0.4);
+  background: rgba(56,189,248,0.12);
+  color: #7dd3fc;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.retry:hover {
+  background: rgba(56,189,248,0.22);
+  border-color: #38bdf8;
+}
+
 .spinner {
   width: 44px;
   height: 44px;
