@@ -4,7 +4,7 @@ import Globe, { type GlobeMethods } from 'react-globe.gl';
 import { feature } from 'topojson-client';
 import type { FeatureCollection } from 'geojson';
 
-const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
+const GEO_URL = '/world-110m.json';
 
 type TopoShape = {
   objects: { countries: unknown };
@@ -109,7 +109,7 @@ export default function GlobeCanvas({
     controls.dampingFactor = 0.1;
     controls.minPolarAngle = Math.PI / 3.2;
     controls.maxPolarAngle = Math.PI / 1.75;
-    globeRef.current?.pointOfView({ lat: 30, lng: 10, altitude: 2.5 }, 0);
+    globeRef.current?.pointOfView({ lat: 38, lng: 10, altitude: 2.3 }, 0);
   }, [geo]);
 
   const view = useMemo(() => {
@@ -150,27 +150,37 @@ export default function GlobeCanvas({
 
   return (
     <div className={className} role="img" aria-label="Map of European destination countries">
-      <Globe
+<Globe
         ref={globeRef}
         rendererConfig={{ alpha: true, antialias: true }}
         backgroundColor="rgba(0,0,0,0)"
+        globeImageUrl="/earth-blue-marble.jpg"
+        bumpImageUrl="/earth-topology.png"
         showAtmosphere
-        atmosphereColor="#FF5A00"
-        atmosphereAltitude={0.18}
+        atmosphereColor="#3b82f6"
+        atmosphereAltitude={0.22}
         showGraticules={false}
         polygonsData={geo.features}
         polygonCapColor={(d) =>
           view.highlights.has((d as Poly).properties?.name ?? '')
-            ? '#ff7a2f'
-            : '#1d3f63'
+            ? 'rgba(255,90,0,0.92)'
+            : 'rgba(0,0,0,0)'
         }
-        polygonSideColor={() => 'rgba(255,90,0,0.12)'}
-        polygonStrokeColor={() => 'rgba(148,197,233,0.35)'}
-        polygonAltitude={() => 0.008}
+        polygonSideColor={(d) =>
+          view.highlights.has((d as Poly).properties?.name ?? '')
+            ? 'rgba(255,90,0,0.75)'
+            : 'rgba(0,0,0,0)'
+        }
+        polygonStrokeColor={(d) =>
+          view.highlights.has((d as Poly).properties?.name ?? '')
+            ? 'rgba(255,255,255,0.55)'
+            : 'rgba(0,0,0,0)'
+        }
+        polygonAltitude={() => 0.012}
         polygonsTransitionDuration={1000}
         arcsData={view.arc}
-        arcColor={() => ['rgba(255,90,0,0.001)', '#FF5A00']}
-        arcStroke={() => 0.55}
+        arcColor={() => ['rgba(56,189,248,0.001)', '#38bdf8']}
+        arcStroke={() => 0.7}
         arcDashLength={() => 0.5}
         arcDashGap={() => 0.6}
         arcDashAnimateTime={() => 1800}
@@ -179,14 +189,14 @@ export default function GlobeCanvas({
         pointsData={view.points}
         pointLat={(d) => (d as PointD).lat}
         pointLng={(d) => (d as PointD).lng}
-        pointColor={(d) => ((d as PointD).isHub ? '#7dd3fc' : '#FF5A00')}
+        pointColor={(d) => ((d as PointD).isHub ? '#f8fafc' : '#FF5A00')}
         pointAltitude={() => 0.02}
-        pointRadius={() => 0.18}
+        pointRadius={() => 0.24}
         ringsData={view.rings}
-        ringLat={(d) => (d as PointD).lat}
-        ringLng={(d) => (d as PointD).lng}
-        ringColor={(d: object) => ((d as PointD).isHub ? '#7dd3fc' : '#FF5A00')}
-        ringMaxRadius={() => 3}
+        ringLat={(d: object) => (d as PointD).lat}
+        ringLng={(d: object) => (d as PointD).lng}
+        ringColor={(d: object) => ((d as PointD).isHub ? '#f8fafc' : '#FF5A00')}
+        ringMaxRadius={() => 3.4}
         ringPropagationSpeed={() => 1.4}
         ringRepeatPeriod={() => 1200}
         labelsData={view.labels}
@@ -194,9 +204,9 @@ export default function GlobeCanvas({
         labelLng={(d) => (d as PointD).lng}
         labelText={(d) => (d as LabelD).text}
         labelAltitude={() => 0.012}
-        labelSize={() => 0.85}
-        labelDotRadius={() => 0.35}
-        labelColor={() => 'rgba(255,255,255,0.85)'}
+        labelSize={() => 0.95}
+        labelDotRadius={() => 0.4}
+        labelColor={() => 'rgba(255,255,255,0.92)'}
       />
     </div>
   );
