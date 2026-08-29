@@ -69,15 +69,8 @@ const toEnglishName = (code: string): string => {
   }
 };
 
-const cameraFor = (width: number): { lat: number; lng: number; altitude: number } => {
-  if (width >= 560) return { lat: 48, lng: 13, altitude: 0.55 };
-  if (width >= 420) return { lat: 47, lng: 12, altitude: 0.7 };
-  if (width >= 330) return { lat: 46, lng: 11, altitude: 0.85 };
-  return { lat: 45, lng: 10, altitude: 1.15 };
-};
-
 type Poly = { properties?: { name?: string } };
-type PointD = { lat: number; lng: number; isHub?: boolean };
+type PointD = { lat: number; lng: number; itemType: 'hub' | 'destination' };
 type LabelD = { text: string };
 type ArcD = {
   startLat: number;
@@ -155,11 +148,10 @@ export default function GlobeCanvas({
     controls.enablePan = false;
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;
-    controls.minPolarAngle = Math.PI / 5.2;
-    controls.maxPolarAngle = Math.PI / 1.75;
+    controls.minPolarAngle = Math.PI / 4.5;
+    controls.maxPolarAngle = Math.PI / 1.6;
 
-    const { lat, lng, altitude } = cameraFor(dims.width);
-    globeRef.current?.pointOfView({ lat, lng, altitude }, 0);
+    globeRef.current?.pointOfView({ lat: 42, lng: 10, altitude: 2.0 }, 0);
   }, [geo, dims]);
 
   const view = useMemo(() => {
@@ -174,16 +166,15 @@ export default function GlobeCanvas({
     const points: PointD[] = allCodes.map((c) => ({
       lat: START_COORDS[c][1],
       lng: START_COORDS[c][0],
-      isHub: c === 'NL',
+      itemType: c === 'NL' ? 'hub' : 'destination',
     }));
-    const rings: PointD[] = points;
     const labels: LabelD[] = allCodes.map((c) => ({
       lat: START_COORDS[c][1],
       lng: START_COORDS[c][0],
       text: toEnglishName(c),
     }));
     const highlights = new Set(allCodes.map(toEnglishName));
-    return { arc, points, rings, labels, highlights };
+    return { arc, points, labels, highlights };
   }, [countries]);
 
   if (error) {
@@ -243,7 +234,7 @@ export default function GlobeCanvas({
             ? 'rgba(255,255,255,0.6)'
             : 'rgba(148,197,233,0.22)'
         }
-        polygonAltitude={() => 0.012}
+        polygonAltitude={() => 0.02}
         polygonsTransitionDuration={1000}
         arcsData={view.arc}
         arcColor={() => ['rgba(56,189,248,0.001)', '#38bdf8']}
@@ -256,23 +247,16 @@ export default function GlobeCanvas({
         pointsData={view.points}
         pointLat={(d) => (d as PointD).lat}
         pointLng={(d) => (d as PointD).lng}
-        pointColor={(d) => ((d as PointD).isHub ? '#f8fafc' : '#FF5A00')}
-        pointAltitude={() => 0.02}
-        pointRadius={() => 0.24}
-        ringsData={view.rings}
-        ringLat={(d: object) => (d as PointD).lat}
-        ringLng={(d: object) => (d as PointD).lng}
-        ringColor={(d: object) => ((d as PointD).isHub ? '#f8fafc' : '#FF5A00')}
-        ringMaxRadius={() => 3.4}
-        ringPropagationSpeed={() => 1.4}
-        ringRepeatPeriod={() => 1200}
+        pointColor={(d) => ((d as PointD).itemType === 'hub' ? '#f8fafc' : '#FF5A00')}
+        pointAltitude={() => 0.025}
+        pointRadius={() => 0.32}
         labelsData={view.labels}
         labelLat={(d) => (d as PointD).lat}
         labelLng={(d) => (d as PointD).lng}
         labelText={(d) => (d as LabelD).text}
         labelAltitude={() => 0.012}
-        labelSize={() => 0.95}
-        labelDotRadius={() => 0.4}
+        labelSize={() => 1.0}
+        labelDotRadius={() => 0.45}
         labelColor={() => 'rgba(255,255,255,0.92)'}
       />
     </div>
