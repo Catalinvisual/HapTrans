@@ -72,9 +72,10 @@ export default function RapidTransportModal({ open, onClose }: RapidTransportMod
       onClick={onClose}
     >
       <div
-        className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-fade-in"
+        className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-fade-in"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="overflow-y-auto max-h-[90vh]">
         <div className="p-6 border-b border-border flex justify-between items-center">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Package className="w-5 h-5 text-primary" />
@@ -173,6 +174,7 @@ export default function RapidTransportModal({ open, onClose }: RapidTransportMod
             </button>
           </div>
         </form>
+        </div>
       </div>
     </div>
   );

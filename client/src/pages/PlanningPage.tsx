@@ -1279,7 +1279,8 @@ function OrderDetailDrawer({ order, onClose, onPlan }: { order: any; onClose: ()
 
   return typeof document !== 'undefined' ? createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ backdropFilter: 'blur(6px)', backgroundColor: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
-      <div className="relative w-full max-w-lg bg-card shadow-2xl rounded-3xl flex flex-col overflow-y-auto border border-border animate-in zoom-in-95 duration-150" style={{ maxHeight: '85vh' }} onClick={e => e.stopPropagation()}>
+      <div className="relative w-full max-w-lg bg-card shadow-2xl rounded-3xl flex flex-col overflow-hidden border border-border animate-in zoom-in-95 duration-150" style={{ maxHeight: '85vh' }} onClick={e => e.stopPropagation()}>
+        <div className="flex-1 overflow-y-auto">
         <div className="flex items-start justify-between p-5 border-b border-border bg-surface/40 shrink-0">
           <div>
             <h2 className="text-xl font-black text-text-primary">{order.orderNumber || '—'}</h2>
@@ -1322,6 +1323,7 @@ function OrderDetailDrawer({ order, onClose, onPlan }: { order: any; onClose: ()
           <button onClick={() => onPlan?.(order)} className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-bold">
             <TruckIcon className="w-4 h-4" /><span>{t('jsx_planNow','Plan Now')}</span>
           </button>
+        </div>
         </div>
       </div>
     </div>, document.body

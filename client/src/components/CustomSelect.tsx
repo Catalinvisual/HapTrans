@@ -244,14 +244,17 @@ export default function CustomSelect({
         typeof document !== 'undefined' &&
         createPortal(
           <div
-            ref={dropdownRef}
-            className="absolute z-[9999] mt-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 overflow-y-auto overscroll-contain custom-scrollbar max-h-72 animate-fade-in-up"
+            className="absolute z-[9999] mt-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 overflow-hidden animate-fade-in-up"
             style={{
               left: coords.left,
               top: coords.top,
               width: coords.width,
             }}
           >
+            <div
+              ref={dropdownRef}
+              className="overflow-y-auto overscroll-contain custom-scrollbar max-h-72"
+            >
             {options.length === 0 ? (
               <div className="px-4 py-3 text-sm text-slate-400">{t('jsx_noOptions', 'No options')}</div>
             ) : (
@@ -306,6 +309,7 @@ export default function CustomSelect({
                 );
               })
             )}
+            </div>
           </div>,
           document.body
         )}

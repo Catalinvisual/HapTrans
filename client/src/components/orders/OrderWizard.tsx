@@ -89,11 +89,12 @@ function ModalSelect({
         </span>
         <ChevronDown className={`w-4 h-4 text-text-secondary flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && typeof document !== 'undefined' && createPortal(<div ref={dropRef} className="fixed z-[25000] bg-card border border-border rounded-xl shadow-2xl overflow-y-auto max-h-[250px] custom-scrollbar py-1" style={{
+      {open && typeof document !== 'undefined' && createPortal(<div ref={dropRef} className="fixed z-[25000] bg-card border border-border rounded-xl shadow-2xl overflow-hidden" style={{
       top: dropPos.top,
       left: dropPos.left,
       width: dropPos.width
     }}>
+      <div className="overflow-y-auto max-h-[250px] custom-scrollbar py-1">
           {options.map(opt => <div key={opt.value} onMouseDown={e => {
         e.preventDefault();
         onChange(opt.value);
@@ -102,6 +103,7 @@ function ModalSelect({
                 ${opt.value === value ? 'bg-primary/10 border-primary text-primary font-semibold' : 'border-transparent hover:bg-primary/5 hover:border-primary/30 text-text'}`}>
               {opt.label}
             </div>)}
+      </div>
         </div>, document.body)}
     </>;
 }

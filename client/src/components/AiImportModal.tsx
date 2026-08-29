@@ -88,7 +88,8 @@ export default function AiImportModal({ open, onClose, file, preview, busy, impo
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => !busy && !importing && onClose()}>
-      <div className="card w-full max-w-xl p-5 max-h-[90vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
+      <div className="card w-full max-w-xl p-5 max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="overflow-y-auto max-h-[90vh] custom-scrollbar">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /> {t('ai_import', 'Import AI')}</h3>
           <button onClick={onClose} className="text-text-secondary hover:text-text p-1 text-xl leading-none">×</button>
@@ -242,6 +243,7 @@ export default function AiImportModal({ open, onClose, file, preview, busy, impo
           </div>
         )}
       </div>
+        </div>
     </div>
   );
 }

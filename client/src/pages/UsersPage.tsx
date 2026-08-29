@@ -273,7 +273,8 @@ export default function UsersPage() {
                           {t(p)}
                         </span>)}
                   </div>
-                  {showPageSelect && <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-xl shadow-lg max-h-64 overflow-y-auto p-2">
+                  {showPageSelect && <div className="absolute z-10 w-full mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+                      <div className="max-h-64 overflow-y-auto p-2">
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                         {navItems.map(item => {
                   const isSelected = form.allowedPages.includes(item.key);
@@ -297,6 +298,7 @@ export default function UsersPage() {
                       </div>
                       <div className="mt-3 flex justify-end border-t border-border pt-2">
                         <button type="button" onClick={() => setShowPageSelect(false)} className="btn-secondary text-xs px-3 py-1">{t('close', 'Închide')}</button>
+                      </div>
                       </div>
                     </div>}
                 </div>
