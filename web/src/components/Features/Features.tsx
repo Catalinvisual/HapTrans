@@ -2,6 +2,7 @@
 import React from 'react';
 import styles from './Features.module.css';
 import { useLanguage } from '@/context/LanguageContext';
+import Reveal from '@/components/Reveal/Reveal';
 
 const Features = () => {
   const { t } = useLanguage();
@@ -52,19 +53,23 @@ const Features = () => {
   return (
     <section className={styles.section} id="despre">
       <div className={styles.container}>
-        <div className={styles.header}>
-          
-          <h2 className={styles.title}>{t('featuresTitle') || 'Servicii de Top'}</h2>
-          <p className={styles.subtitle}>{t('featuresSubtitle') || 'Ne diferențiem prin calitatea serviciilor și atenția la detalii.'}</p>
-        </div>
+        <Reveal variant="fade">
+          <div className={styles.header}>
+            
+            <h2 className={styles.title}>{t('featuresTitle') || 'Servicii de Top'}</h2>
+            <p className={styles.subtitle}>{t('featuresSubtitle') || 'Ne diferențiem prin calitatea serviciilor și atenția la detalii.'}</p>
+          </div>
+        </Reveal>
         
         <div className={styles.grid}>
           {cards.map((card, idx) => (
-            <div key={idx} className={styles.card}>
-              <div className={styles.icon}>{card.icon}</div>
-              <h3 className={styles.cardTitle}>{t(`feat${idx}Title`) || card.title}</h3>
-              <p className={styles.cardDesc}>{t(`feat${idx}Desc`) || card.desc}</p>
-            </div>
+            <Reveal key={idx} delay={idx * 90} stretch>
+              <div className={styles.card}>
+                <div className={styles.icon}>{card.icon}</div>
+                <h3 className={styles.cardTitle}>{t(`feat${idx}Title`) || card.title}</h3>
+                <p className={styles.cardDesc}>{t(`feat${idx}Desc`) || card.desc}</p>
+              </div>
+            </Reveal>
           ))}
         </div>
       </div>

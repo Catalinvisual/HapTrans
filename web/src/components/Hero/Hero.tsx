@@ -131,6 +131,7 @@ const Hero = () => {
         src="/hero-nou.jpg" 
         alt="Hero Background" 
         fill 
+        className={styles.bgImage}
         style={{ objectFit: 'cover', objectPosition: 'center center', zIndex: 0 }} 
         quality={100} 
         unoptimized={true} /* bypasses compression entirely so it matches original quality exactly */
@@ -140,26 +141,26 @@ const Hero = () => {
         
         {/* Left Content */}
         <div className={styles.content}>
-          <div className={styles.badge}>
+          <div className={`${styles.badge} ${styles.animBadge}`}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
             </svg>
             {t('badge')}
           </div>
-          <h1 className={styles.title}>
+          <h1 className={`${styles.title} ${styles.animTitle}`}>
             {t('heroTitle')}
           </h1>
-          <p className={styles.subtitle}>
+          <p className={`${styles.subtitle} ${styles.animSubtitle}`}>
             {t('heroSubtitle')}
           </p>
-          <div className={styles.ctaGroup}>
+          <div className={`${styles.ctaGroup} ${styles.animCta}`}>
             <a href="/cere-oferta" className="btn btn-primary">
               {t('ctaPrimary')}
             </a>
           </div>
         </div>
 
-        <div className={styles.calculatorWrapper}>
+        <div className={`${styles.calculatorWrapper} ${styles.animCalc}`}>
           <div className={styles.calculator}>
             <div className={styles.calcHeader}>
               <h3 className={styles.calcTitle}>{t('calcTitle')}</h3>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { Providers } from './Providers';
+import BackToTop from '@/components/BackToTop/BackToTop';
 
 export const metadata: Metadata = {
   title: "HapCargo - Transport internațional, la standarde profesionale.",
@@ -24,6 +25,7 @@ export default function RootLayout({
         <Providers>
           {children}
         </Providers>
+        <BackToTop />
         <Script src="https://www.googletagmanager.com/gtag/js?id=G-MOCKTRACKING" strategy="afterInteractive" />
         <Script id="google-analytics" strategy="afterInteractive">
           {`

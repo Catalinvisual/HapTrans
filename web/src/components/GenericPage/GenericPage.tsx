@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Header from '@/components/Header/Header';
 import Footer from '@/components/Footer/Footer';
+import Reveal from '@/components/Reveal/Reveal';
 import styles from './GenericPage.module.css';
 
 import { useLanguage } from '@/context/LanguageContext';
@@ -194,11 +195,13 @@ export default function GenericPage({ slug, titleKey }: { slug: string, titleKey
 
       {/* Hero Banner */}
       <div className={styles.heroBanner} style={{ background: meta.gradient }}>
-        <div className={styles.heroBannerContent}>
-          <div className={styles.heroBannerIcon}>{meta.icon}</div>
-          <h1 className={styles.heroTitle}>{t(titleKey)}</h1>
-          <div className={styles.heroLine} />
-        </div>
+        <Reveal variant="fade">
+          <div className={styles.heroBannerContent}>
+            <div className={styles.heroBannerIcon}>{meta.icon}</div>
+            <h1 className={styles.heroTitle}>{t(titleKey)}</h1>
+            <div className={styles.heroLine} />
+          </div>
+        </Reveal>
         <div className={styles.heroBannerBg} />
       </div>
 
@@ -212,30 +215,36 @@ export default function GenericPage({ slug, titleKey }: { slug: string, titleKey
         ) : hasCards ? (
           <div className={styles.modernLayout}>
             {introHtml && (
-              <div
-                className={styles.introText}
-                dangerouslySetInnerHTML={{ __html: introHtml }}
-              />
+              <Reveal variant="fade">
+                <div
+                  className={styles.introText}
+                  dangerouslySetInnerHTML={{ __html: introHtml }}
+                />
+              </Reveal>
             )}
             <div className={styles.grid}>
               {cards.map((card, idx) => (
-                <div key={idx} className={styles.cardItem}>
-                  <div className={styles.cardHeader}>
-                    <h3 className={styles.cardItemTitle}>{card.title}</h3>
+                <Reveal key={idx} delay={idx * 100} stretch>
+                  <div className={styles.cardItem}>
+                    <div className={styles.cardHeader}>
+                      <h3 className={styles.cardItemTitle}>{card.title}</h3>
+                    </div>
+                    <div
+                      className={styles.cardItemContent}
+                      dangerouslySetInnerHTML={{ __html: card.contentHtml }}
+                    />
                   </div>
-                  <div
-                    className={styles.cardItemContent}
-                    dangerouslySetInnerHTML={{ __html: card.contentHtml }}
-                  />
-                </div>
+                </Reveal>
               ))}
             </div>
           </div>
         ) : (
-          <div
-            className={styles.bodyText}
-            dangerouslySetInnerHTML={{ __html: content }}
-          />
+          <Reveal variant="fade">
+            <div
+              className={styles.bodyText}
+              dangerouslySetInnerHTML={{ __html: content }}
+            />
+          </Reveal>
         )}
       </div>
 

@@ -9,6 +9,7 @@ const Header = () => {
   const { lang, setLang, t } = useLanguage();
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const pathname = usePathname();
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
@@ -20,6 +21,17 @@ const Header = () => {
         if (data?.logo) setLogoUrl(data.logo);
       })
       .catch(e => console.error(e));
+  }, []);
+
+  useEffect(() => {
+    const onScroll = () => {
+      const scrollTop = window.scrollY;
+      const height = document.documentElement.scrollHeight - window.innerHeight;
+      setScrollProgress(height > 0 ? Math.min(scrollTop / height, 1) * 100 : 0);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   useEffect(() => {
@@ -51,6 +63,7 @@ const Header = () => {
 
   return (
     <header className={styles.header}>
+      <div className={styles.scrollProgress} style={{ width: `${scrollProgress}%` }} />
       <div className={styles.container}>
         <Link href="/" className={styles.logo} onClick={handleLogoClick}>
           {logoUrl ? (
@@ -86,15 +99,14 @@ const Header = () => {
 
           {mobileMenuOpen && (
             <div className={styles.mobileNavFooter}>
-              <Link href="/track" className="btn btn-primary" style={{ width: '100%', padding: '0.9rem', fontSize: '1rem', backgroundColor: '#1e293b', borderRadius: '0.5rem 2.5rem 0.5rem 2.5rem', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: '#fff', textDecoration: 'none' }} onClick={() => setMobileMenuOpen(false)}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+              <Link href="/track" className={styles.mobileCta} style={{ backgroundColor: '#1e293b' }} onClick={() => setMobileMenuOpen(false)}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
                 {t('clientLogin') || 'TRACK ORDER'}
               </Link>
-              <a href="https://joyful-exploration-production.up.railway.app/portal/login" target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ width: '100%', padding: '0.9rem', fontSize: '1rem', backgroundColor: '#FF5A00', borderRadius: '0.5rem 2.5rem 0.5rem 2.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: '#fff', textDecoration: 'none' }} onClick={() => setMobileMenuOpen(false)}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+              <a href="https://joyful-exploration-production.up.railway.app/portal/login" target="_blank" rel="noopener noreferrer" className={styles.mobileCta} style={{ backgroundColor: '#FF5A00' }} onClick={() => setMobileMenuOpen(false)}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
                 {t('clientPortal') || 'Portal Clienți'}
               </a>
-
             </div>
           )}
         </nav>

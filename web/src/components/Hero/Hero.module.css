@@ -8,6 +8,37 @@
   /* Imaginea este acum gestionată de next/image pentru claritate maximă */
 }
 
+.bgImage {
+  animation: kenburns 18s ease-in-out infinite alternate;
+  transform-origin: center;
+  will-change: transform;
+}
+
+@keyframes kenburns {
+  from { transform: scale(1); }
+  to { transform: scale(1.08); }
+}
+
+.animBadge,
+.animTitle,
+.animSubtitle,
+.animCta,
+.animCalc {
+  opacity: 0;
+  animation: heroRise 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animBadge { animation-delay: 0.1s; }
+.animTitle { animation-delay: 0.25s; }
+.animSubtitle { animation-delay: 0.4s; }
+.animCta { animation-delay: 0.55s; }
+.animCalc { animation-delay: 0.75s; }
+
+@keyframes heroRise {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .heroOverlay {
   position: absolute;
   inset: 0;

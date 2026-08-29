@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import { useLanguage } from '@/context/LanguageContext';
+import Reveal from '@/components/Reveal/Reveal';
 
 export default function TestimonialsSection() {
   const { t } = useLanguage();
@@ -20,15 +21,18 @@ export default function TestimonialsSection() {
     }}>
       <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '700px', height: '400px', background: 'radial-gradient(ellipse, rgba(255,90,0,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
       <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
-        <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
-          <div style={{ display: 'inline-block', background: 'rgba(255,90,0,0.15)', color: '#FF5A00', fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0.4rem 1rem', borderRadius: '2rem', border: '1px solid rgba(255,90,0,0.3)', marginBottom: '1.25rem' }}>★ {t('testimonialsLabel') || 'Testimoniale'}</div>
-          <h2 style={{ fontSize: '2.75rem', fontWeight: '900', color: '#ffffff', marginBottom: '1rem', letterSpacing: '-0.03em' }}>{t('testimonialsTitle') || 'Ce Spun Clienții Noștri'}</h2>
-          <p style={{ fontSize: '1.05rem', color: 'rgba(255,255,255,0.55)', maxWidth: '500px', margin: '0 auto', lineHeight: 1.6 }}>{t('testimonialsDesc') || 'Mândria noastră este satisfacția partenerilor de afaceri.'}</p>
-        </div>
+        <Reveal variant="fade">
+          <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
+            <div style={{ display: 'inline-block', background: 'rgba(255,90,0,0.15)', color: '#FF5A00', fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0.4rem 1rem', borderRadius: '2rem', border: '1px solid rgba(255,90,0,0.3)', marginBottom: '1.25rem' }}>★ {t('testimonialsLabel') || 'Testimoniale'}</div>
+            <h2 style={{ fontSize: '2.75rem', fontWeight: '900', color: '#ffffff', marginBottom: '1rem', letterSpacing: '-0.03em' }}>{t('testimonialsTitle') || 'Ce Spun Clienții Noștri'}</h2>
+            <p style={{ fontSize: '1.05rem', color: 'rgba(255,255,255,0.55)', maxWidth: '500px', margin: '0 auto', lineHeight: 1.6 }}>{t('testimonialsDesc') || 'Mândria noastră este satisfacția partenerilor de afaceri.'}</p>
+          </div>
+        </Reveal>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
           {reviews.map((r, i) => (
-            <div key={i} style={{
+            <Reveal key={i} delay={i * 120} stretch>
+            <div style={{
               background: 'rgba(255,255,255,0.05)',
               border: '1px solid rgba(255,255,255,0.08)',
               borderRadius: '1.25rem',
@@ -37,7 +41,8 @@ export default function TestimonialsSection() {
               transition: 'all 0.3s ease',
               display: 'flex',
               flexDirection: 'column',
-              gap: '1.25rem'
+              gap: '1.25rem',
+              height: '100%'
             }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,90,0,0.4)'; (e.currentTarget as HTMLElement).style.background = 'rgba(255,90,0,0.07)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-6px)'; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
@@ -52,6 +57,7 @@ export default function TestimonialsSection() {
                 </div>
               </div>
             </div>
+            </Reveal>
           ))}
         </div>
       </div>

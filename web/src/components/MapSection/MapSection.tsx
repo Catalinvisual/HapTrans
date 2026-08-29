@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import styles from './MapSection.module.css';
 import { useLanguage } from '@/context/LanguageContext';
 import { ComposableMap, Geographies, Geography, Marker, Line } from 'react-simple-maps';
+import Reveal from '@/components/Reveal/Reveal';
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
 
@@ -66,29 +67,32 @@ const MapSection = () => {
     <section className={styles.section} id="harta">
       <div className={styles.container}>
         
-        <div className={styles.content}>
-          <div className={styles.label}>🌍 {t('mapCoverage') || 'Acoperire Europeană'}</div>
-          <h2 className={styles.title}>{t('mapTitle')}</h2>
-          <p className={styles.desc}>
-            {t('mapDesc')}
-          </p>
-          
-          <div className={styles.countriesGrid}>
-            {countries.map(code => (
-              <div key={code} className={styles.countryItem}>
-                <img 
-                  src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`} 
-                  width="24" 
-                  style={{ borderRadius: '3px', objectFit: 'cover', height: '16px' }} 
-                  alt={code} 
-                />
-                {getCountryName(code)}
-              </div>
-            ))}
-          </div>
-        </div>
+        <Reveal variant="left">
+          <div className={styles.content}>
+            <div className={styles.label}>🌍 {t('mapCoverage') || 'Acoperire Europeană'}</div>
+            <h2 className={styles.title}>{t('mapTitle')}</h2>
+            <p className={styles.desc}>
+              {t('mapDesc')}
+            </p>
 
-        <div className={styles.mapContainer}>
+            <div className={styles.countriesGrid}>
+              {countries.map(code => (
+                <div key={code} className={styles.countryItem}>
+                  <img 
+                    src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`} 
+                    width="24" 
+                    style={{ borderRadius: '3px', objectFit: 'cover', height: '16px' }} 
+                    alt={code} 
+                  />
+                  {getCountryName(code)}
+                </div>
+              ))}
+            </div>
+          </div>
+        </Reveal>
+
+        <Reveal variant="right">
+          <div className={styles.mapContainer}>
           <div className={styles.mapGlow} />
           {mounted && (
             <div className={styles.mapWrapper}>
@@ -155,7 +159,8 @@ const MapSection = () => {
               </ComposableMap>
             </div>
           )}
-        </div>
+          </div>
+        </Reveal>
 
       </div>
     </section>

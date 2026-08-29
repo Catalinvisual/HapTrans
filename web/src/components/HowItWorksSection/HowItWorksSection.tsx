@@ -2,6 +2,7 @@
 import React from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import styles from './HowItWorksSection.module.css';
+import Reveal from '@/components/Reveal/Reveal';
 
 export default function HowItWorksSection() {
   const { t } = useLanguage();
@@ -18,18 +19,22 @@ export default function HowItWorksSection() {
     <section className={styles.section}>
       <div className={styles.bgGlow}></div>
       <div className={styles.container}>
-        <h2 className={styles.title}>
-          {t('howItWorksTitle') || 'Zo werkt het'}
-        </h2>
+        <Reveal variant="zoom">
+          <h2 className={styles.title}>
+            {t('howItWorksTitle') || 'Zo werkt het'}
+          </h2>
+        </Reveal>
         <div className={styles.grid}>
           {steps.map((step, i) => (
-            <div key={i} className={styles.card}>
-              <div className={styles.cardNumber}>{step.num}</div>
-              <div className={styles.iconWrapper}>
-                {step.icon}
+            <Reveal key={i} delay={i * 100} variant={i % 2 === 0 ? 'left' : 'right'} stretch>
+              <div className={styles.card}>
+                <div className={styles.cardNumber}>{step.num}</div>
+                <div className={styles.iconWrapper}>
+                  {step.icon}
+                </div>
+                <h3 className={styles.cardTitle}>{step.title}</h3>
               </div>
-              <h3 className={styles.cardTitle}>{step.title}</h3>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>

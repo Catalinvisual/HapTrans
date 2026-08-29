@@ -2,6 +2,7 @@
 import React from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import styles from './ServicesSection.module.css';
+import Reveal from '@/components/Reveal/Reveal';
 
 export default function ServicesSection() {
   const { t } = useLanguage();
@@ -19,17 +20,21 @@ export default function ServicesSection() {
     <section className={styles.section} id="diensten">
       <div className={styles.bgGlow}></div>
       <div className={styles.container}>
-        <h2 className={styles.title}>
-          {t('realServicesTitle') || 'Onze diensten'}
-        </h2>
+        <Reveal variant="zoom">
+          <h2 className={styles.title}>
+            {t('realServicesTitle') || 'Onze diensten'}
+          </h2>
+        </Reveal>
         <div className={styles.grid}>
           {services.map((svc, i) => (
-            <div key={i} className={styles.card}>
-              <div className={styles.iconWrapper}>
-                {svc.icon}
+            <Reveal key={i} delay={i * 80} stretch>
+              <div className={styles.card}>
+                <div className={styles.iconWrapper}>
+                  {svc.icon}
+                </div>
+                <h3 className={styles.cardTitle}>{svc.title}</h3>
               </div>
-              <h3 className={styles.cardTitle}>{svc.title}</h3>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>
