@@ -11,47 +11,49 @@ count-up & API fetch, globe, testimonials, reveal-on-scroll) is unchanged.**
 | `_variables.scss` | Design tokens — colors, radii, shadows, typography, spacing, breakpoints, focus ring, separator fill colors |
 | `_components.scss` | Component recipes — `.btn-*`, `.card`, `.input`, separators, focus/reduced-motion |
 | `svgs/wave.svg` | Wave separator, `preserveAspectRatio="none"`, `aria-hidden` |
-| `svgs/diagonal.svg` | Diagonal separator (edit the `fill` by placement: `#0B1B2A` dark wedge or `#FFFFFF` light wedge) |
+| `svgs/diagonal.svg` | Diagonal separator (edit the `fill` by placement: `#F7F7F8` wedge at how-it-works→map, `#FFFFFF` wedge at map→testimonials) |
 | `svgs/blob.svg` | Blob accent (brand 6 % opacity) |
-| `demo.html` | Self-contained visual preview of the full design (hero + wave, trust, stats, services, how-it-works, dark map panel, testimonials) |
+| `demo.html` | Self-contained visual preview of the full design (split hero + trust row + wave, services, how-it-works, light map card, testimonials) |
 
 ## Where each piece is implemented in the app
 
 | Design element | App location |
 | --- | --- |
 | Design tokens (`:root`) | `web/src/app/globals.css` |
-| Buttons, `.card`, `.input`, focus rules, `.sep-*` | `web/src/app/globals.css` |
-| Hero rework + calculator + wave | `web/src/components/Hero/Hero.tsx` + `Hero.module.css` |
+| Buttons, `.card`, `.card-calculator`, `.brand-image-filter`, focus rules, `.sep-*` | `web/src/app/globals.css` |
+| Hero rework + trust row + calculator + wave | `web/src/components/Hero/Hero.tsx` + `Hero.module.css` |
+| Hero micro-trust strings | `web/src/context/LanguageContext.tsx` (`heroTrust1..3`) |
 | Trust section (light chips) | `web/src/components/TrustSection/TrustSection.tsx` |
 | Stats section (light cards) | `web/src/components/StatsSection/StatsSection.tsx` |
 | Features / Services / How it works | `web/src/components/Features`, `ServicesSection`, `HowItWorksSection` (module CSS) |
-| Diagonal dark→light transitions | `HowItWorksSection.module.css` (`.diagonal`) + `MapSection.module.css` (`.diagonalBottom`) |
-| Testimonials (light + swipeable carousel) | `web/src/components/TestimonialsSection/TestimonialsSection.tsx` |
+| Diagonal transitions (light) | `HowItWorksSection.module.css` (`.diagonal`) + `MapSection.module.css` (`.diagonalBottom`) |
+| Map on white card, brand-highlighted countries | `MapSection` (module CSS) + `GlobeCanvas.tsx` (light globe colors, `#FF6A2B` highlights) |
+| Testimonials (light + logo chips + swipeable carousel) | `web/src/components/TestimonialsSection/TestimonialsSection.tsx` |
 
-## Acceptance checklist
+## Acceptance checklist (copy-paste)
 
-- [ ] Brand color `#FF6A2B` / `#E0551A`; background `#F7F7F8`; text `#2E3A45`; muted `#6B7280`; link `#0F6FFF`; success `#16A34A`; danger `#DC2626`
-- [ ] Rates: 16px cards / 12px buttons; shadows per spec (`--shadow-card`, `--shadow-cta`)
-- [ ] Typography Inter/Poppins, H1 44–48 px/600, H2 32 px/600, H3 22 px/600, body 16/1.5
-- [ ] Spacing 64 / 40 / 24 px
-- [ ] `.btn-primary` gradient + hover lift + active press + focus ring
-- [ ] `.card` hover micro-interaction (lift `-6px` + shadow + brand border)
-- [ ] Focus states & keyboard a11y (`:focus-visible`, aria on carousel/lang/menu)
-- [ ] Hero: desktop left text / right image + sticky calculator, CTA visible without scroll
-- [ ] Hero mobile: image above text, calculator full-width stacked, 320/375/414 px verified
-- [ ] Wave separator hero→trust; diagonal how-it-works→map; diagonal dark→light map→testimonials
-- [ ] Blob accent on testimonials
-- [ ] Trust chips, stats cards, services/features/how-it-works cards all light
-- [ ] Testimonials: logo chip + quote + name + role + star rating; mobile swipeable carousel (scroll-snap)
-- [ ] Scroll-reveal preserved on all sections (`Reveal` component, IntersectionObserver)
-- [ ] `prefers-reduced-motion` respected
-- [ ] `npm run lint` and `npm run build` green
+- [ ] `_variables.scss` added
+- [ ] `_components.scss` added
+- [ ] Hero integrated with overlay and trust row (3 micro-trust items under CTA)
+- [ ] Wave SVG under hero implemented
+- [ ] Calculator sticky desktop / full-width mobile (sticky right column `top:120px`)
+- [ ] All cards unified (radius + shadow + hover `-6px`)
+- [ ] Two additional SVG separators implemented (diagonal how-it-works→map, diagonal map→testimonials)
+- [ ] Brand image filter applied site-wide (`.brand-image-filter` = sepia 6% / saturate 110% / contrast 102%)
+- [ ] Map on white card with highlighted countries (`fill: var(--brand)`)
+- [ ] Testimonials updated with logos/photos and mobile swipe carousel (scroll-snap)
+- [ ] Scroll reveal and microinteractions implemented
+- [ ] Accessibility checks passed (AA contrast, focus states, keyboard)
+- [ ] Demo HTML and README delivered
 
 ## Notes
 
 - SCSS partials are **design references**. The app is Next.js + CSS Modules and has no
   `sass` dependency installed; the living implementation lives in `globals.css` and the
   per-component `.module.css` files listed above.
-- The dark globe map panel is intentionally kept dark as the one dark emphasis section.
+- `.btn-primary` uses `linear-gradient(180deg, var(--brand), var(--brand-dark))`
+  (hover `#FF7A45 → #D64B10`), padding `14px 20px`, focus ring `rgba(255,106,43,0.12)`.
+- The light map section places the globe on a white `.card`-style panel with countries
+  highlighted in brand; hover tooltips/`countryItem` chips are styled in `--brand`.
 - `demo.html` is intentionally standalone (single file, no build step) so the design can
   be reviewed without running the app.

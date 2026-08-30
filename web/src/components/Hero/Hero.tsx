@@ -150,25 +150,7 @@ const Hero = () => {
 
   return (
     <section className={styles.hero}>
-<div className={styles.container}>
-
-        {/* Hero image (media) */}
-        <div className={styles.heroImageWrap}>
-          <Image
-            src="/hero-nou.jpg"
-            alt="Camion HapCargo pe autostradă"
-            fill
-            className={styles.heroImage}
-            style={{ objectFit: 'cover', objectPosition: 'center center' }}
-            quality={100}
-            unoptimized={true}
-            priority
-          />
-          <div className={styles.heroOverlay} aria-hidden="true" />
-          <div className={styles.heroImageCaption}>
-            <span>{getLabel("Flotă modernă", "Modern fleet", "Modern wagenpark", "Moderne Flotte", "Flotte moderne", "Flota moderna")}</span>
-          </div>
-        </div>
+      <div className={styles.container}>
 
         {/* Left Content */}
         <div className={styles.content}>
@@ -192,10 +174,43 @@ const Hero = () => {
               {t('ctaSecondary')}
             </a>
           </div>
+
+          <div className={`${styles.trustRow} ${styles.animSubtitle}`}>
+            <div className={styles.trustItem}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              {t('heroTrust1')}
+            </div>
+            <div className={styles.trustItem}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 21s-7-4.35-9.5-8a5.25 5.25 0 0 1 9.5-3.5A5.25 5.25 0 0 1 21.5 13C19 16.65 12 21 12 21z"></path></svg>
+              {t('heroTrust2')}
+            </div>
+            <div className={styles.trustItem}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>
+              {t('heroTrust3')}
+            </div>
+          </div>
         </div>
 
-        {/* Calculator */}
-        <div className={`${styles.calculatorCard} ${styles.animCalc}`}>
+        {/* Right media column: image card + calculator */}
+        <div className={styles.mediaColumn}>
+          <div className={styles.mediaCard}>
+            <Image
+              src="/hero-nou.jpg"
+              alt="Camion HapCargo pe autostradă"
+              fill
+              className={`${styles.heroImage} brand-image-filter`}
+              style={{ objectFit: 'cover', objectPosition: 'center center' }}
+              quality={100}
+              unoptimized={true}
+              priority
+            />
+            <div className={styles.heroOverlay} aria-hidden="true" />
+            <div className={styles.heroImageCaption}>
+              <span>{getLabel("Flotă modernă", "Modern fleet", "Modern wagenpark", "Moderne Flotte", "Flotte moderne", "Flota moderna")}</span>
+            </div>
+          </div>
+
+          <div className={`card-calculator ${styles.calculatorCard} ${styles.animCalc}`}>
           <div className={styles.calcHeader}>
             <h3 className={styles.calcTitle}>{t('calcTitle')}</h3>
             <p className={styles.calcDesc}>{t('calcDesc')}</p>
@@ -342,12 +357,13 @@ const Hero = () => {
               </div>
             )}
           </div>
+        </div>
       </div>
 
-      {/* Wave separator into next section */}
+      {/* Wave separator hero → next section */}
       <div className={`sep-wave ${styles.wave}`} aria-hidden="true">
         <svg viewBox="0 0 1440 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M0,32 C360,120 1080,0 1440,64 L1440,120 L0,120 Z" fill="#F7F7F8"/>
+          <path d="M0,32 C360,120 1080,0 1440,64 L1440,120 L0,120 Z" fill="#FFFFFF"/>
         </svg>
       </div>
     </section>

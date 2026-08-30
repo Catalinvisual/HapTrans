@@ -193,9 +193,9 @@ export default function GlobeCanvas({
   const globeMaterial = useMemo(
     () =>
       new THREE.MeshPhongMaterial({
-        color: '#0e2a47',
-        specular: new THREE.Color('#1e3a5f'),
-        shininess: 12,
+        color: '#eef3f9',
+        specular: new THREE.Color('#ffffff'),
+        shininess: 20,
       }),
     []
   );
@@ -324,29 +324,29 @@ export default function GlobeCanvas({
         backgroundColor="rgba(0,0,0,0)"
         globeMaterial={globeMaterial}
         showAtmosphere
-        atmosphereColor="#38bdf8"
-        atmosphereAltitude={0.22}
+        atmosphereColor="#FFB088"
+        atmosphereAltitude={0.18}
         showGraticules={false}
         polygonsData={geo.features}
         polygonCapColor={(d) =>
           view.highlights.has((d as Poly).properties?.name ?? '')
-            ? '#FF5A00'
-            : '#1c4163'
+            ? '#FF6A2B'
+            : '#dde7f0'
         }
         polygonSideColor={(d) =>
           view.highlights.has((d as Poly).properties?.name ?? '')
-            ? 'rgba(255,90,0,0.85)'
-            : '#2a5a80'
+            ? 'rgba(255,106,43,0.9)'
+            : '#c6d6e4'
         }
         polygonStrokeColor={(d) =>
           view.highlights.has((d as Poly).properties?.name ?? '')
-            ? 'rgba(255,255,255,0.6)'
-            : 'rgba(148,197,233,0.22)'
+            ? 'rgba(255,106,43,0.55)'
+            : 'rgba(46,58,69,0.18)'
         }
         polygonAltitude={() => 0.02}
         polygonsTransitionDuration={1000}
         arcsData={view.arc}
-        arcColor={() => ['rgba(94,234,212,0)', '#5eead4']}
+        arcColor={() => ['rgba(255,106,43,0)', '#FF6A2B']}
         arcStroke={() => 0.7}
         arcDashLength={() => 0.5}
         arcDashGap={() => 0.6}
@@ -356,7 +356,7 @@ export default function GlobeCanvas({
         pointsData={view.points}
         pointLat={(d) => (d as PointD).lat}
         pointLng={(d) => (d as PointD).lng}
-        pointColor={(d) => ((d as PointD).itemType === 'hub' ? '#f8fafc' : '#FF5A00')}
+        pointColor={(d) => ((d as PointD).itemType === 'hub' ? '#E0551A' : '#FF6A2B')}
         pointAltitude={() => 0.03}
         pointRadius={() => 0.4}
         htmlElementsData={view.htmlLabels}

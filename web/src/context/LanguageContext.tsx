@@ -279,6 +279,9 @@ viewDetails: { RO: 'Vezi Detalii', EN: 'View Details', NL: 'Bekijk Details', DE:
   trust3: { RO: '?oferi profesioni?ti', EN: 'Professional drivers', NL: 'Professionele chauffeurs', DE: 'Professionelle Fahrer', FR: 'Chauffeurs professionnels', ES: 'Conductores profesionales' },
   trust4: { RO: 'Urmarire live', EN: 'Live tracking', NL: 'Live tracking', DE: 'Live-Tracking', FR: 'Suivi en direct', ES: 'Seguimiento en vivo' },
   trust5: { RO: 'Comunicare clara', EN: 'Clear communication', NL: 'Duidelijke communicatie', DE: 'Klare Kommunikation', FR: 'Communication claire', ES: 'Comunicaci�n clara' },
+  heroTrust1: { RO: 'Punctualitate 99%', EN: 'On-time 99%', NL: 'Op tijd 99%', DE: 'P�nktlich 99%', FR: '� l\'heure 99%', ES: 'Puntualidad 99%' },
+  heroTrust2: { RO: 'Transport asigurat', EN: 'Insured transport', NL: 'Verzekerde transporten', DE: 'Versicherte Transporte', FR: 'Transport assur�', ES: 'Transporte asegurado' },
+  heroTrust3: { RO: 'Urmarire live', EN: 'Live tracking', NL: 'Live tracking', DE: 'Live-Tracking', FR: 'Suivi en direct', ES: 'Seguimiento en vivo' },
 
   // Menu
   navQuote: { RO: 'Cere oferta', EN: 'Request quote', NL: 'Offerte aanvragen', DE: 'Angebot anfordern', FR: 'Demander un devis', ES: 'Solicitar cotizaci�n' }

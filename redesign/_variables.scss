@@ -61,6 +61,6 @@ $focus-ring-color: rgba(255, 106, 43, 0.12);
 $focus-ring-width: 4px;
 
 // Section separator SVG fills (desktop)
-$wave-fill:    #F7F7F8; // hero → trust (fills wave)
-$diagonal-top-fill: #0B1B2A; // how-it-works → map (dark wedge)
-$diagonal-bottom-fill: #FFFFFF; // map → testimonials (light wedge)
+$wave-fill:    #FFFFFF; // hero → next section (fills wave)
+$diagonal-top-fill: #F7F7F8; // how-it-works (#fff cards) → map section (#F7F7F8) — light wedge
+$diagonal-bottom-fill: #FFFFFF; // map section (#F7F7F8) → testimonials (#fff) — light wedge

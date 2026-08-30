@@ -187,6 +187,7 @@ button {
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 30px rgba(15,15,15,0.12);
+  background: linear-gradient(180deg, #FF7A45, #D64B10);
 }
 
 .btn-primary:active {
@@ -257,7 +258,6 @@ button {
   background: var(--card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  border: 1px solid rgba(46, 58, 69, 0.05);
   transition: transform .18s ease, box-shadow .18s ease;
 }
 
@@ -272,6 +272,28 @@ button {
   padding: 20px;
   box-shadow: var(--shadow-card);
   border: 1px solid rgba(46, 58, 69, 0.04);
+}
+
+.card-calculator input,
+.card-calculator select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(46, 58, 69, 0.06);
+  background: #fff;
+  color: var(--text);
+}
+
+.card-calculator input:focus,
+.card-calculator select:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(255, 106, 43, 0.12);
+  border-color: var(--brand-dark);
+}
+
+/* ── Brand image treatment ────────────────────────────────── */
+.brand-image-filter {
+  filter: sepia(6%) saturate(110%) contrast(102%);
 }
 
 /* ── Inputs ──────────────────────────────────────────────────── */
@@ -336,7 +358,7 @@ button:focus-visible,
 }
 
 .sep-wave {
-  height: clamp(48px, 8vw, 120px);
+  height: clamp(48px, 8vw, 80px);
 }
 
 .sep-diagonal {

@@ -42,7 +42,7 @@ export default function HowItWorksSection() {
       {/* Diagonal cut into the dark map panel below */}
       <div className={styles.diagonal} aria-hidden="true">
         <svg viewBox="0 0 1440 80" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <polygon points="0,0 1440,80 1440,0 0,0" fill="#0B1B2A"/>
+          <polygon points="0,0 1440,80 1440,0 0,0" fill="#F7F7F8"/>
         </svg>
       </div>
     </section>
