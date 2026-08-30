@@ -17,6 +17,7 @@ const GlobeCanvas = dynamic(() => import('./GlobeCanvas'), {
 const MapSection = () => {
   const { t, lang } = useLanguage();
   const [countries, setCountries] = useState<string[]>([]);
+  const [hovered, setHovered] = useState<string | null>(null);
 
   useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
@@ -40,6 +41,10 @@ const MapSection = () => {
     }
   };
 
+  const coreHubs = ['NL', 'DE', 'FR', 'PL', 'CZ', 'RO', 'BG'];
+  const ordered = [...coreHubs.filter(c => countries.includes(c)), ...countries.filter(c => !coreHubs.includes(c))];
+  const displayCountries = ordered.length ? ordered : coreHubs;
+
   return (
     <section className={styles.section} id="harta">
       <div className={styles.container}>
@@ -53,16 +58,22 @@ const MapSection = () => {
             </p>
 
             <div className={styles.countriesGrid}>
-              {countries.map(code => (
-                <div key={code} className={styles.countryItem}>
-                  <img 
-                    src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`} 
-                    width="20" 
-                    style={{ borderRadius: '3px', objectFit: 'cover', height: '14px' }} 
-                    alt={code} 
+              {displayCountries.map(code => (
+                <button
+                  key={code}
+                  type="button"
+                  className={`${styles.pill} ${hovered === code ? styles.pillActive : ''}`}
+                  onMouseEnter={() => setHovered(code)}
+                  onMouseLeave={() => setHovered(null)}
+                >
+                  <img
+                    src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`}
+                    width="20"
+                    style={{ borderRadius: '3px', objectFit: 'cover', height: '14px' }}
+                    alt={code}
                   />
                   {getCountryName(code)}
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -72,17 +83,10 @@ const MapSection = () => {
           <div className={styles.globeStage}>
             <div className={styles.starfield} />
             <div className={styles.globeGlow} />
-            <GlobeCanvas countries={countries} className={styles.globeCanvas} />
+            <GlobeCanvas countries={countries} hovered={hovered} className={styles.globeCanvas} />
           </div>
         </Reveal>
 
-      </div>
-
-      {/* Diagonal cut into the light testimonials panel below */}
-      <div className={styles.diagonalBottom} aria-hidden="true">
-        <svg viewBox="0 0 1440 80" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <polygon points="0,0 1440,80 1440,0 0,0" fill="#FFFFFF"/>
-        </svg>
       </div>
     </section>
   );

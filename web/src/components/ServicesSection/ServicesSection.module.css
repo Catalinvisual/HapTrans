@@ -1,17 +1,17 @@
 .section {
-  padding: var(--space-xl) 1.5rem;
-  background: var(--bg);
+  padding: calc(var(--space-xl) + 2rem) 1.5rem var(--space-xl);
+  background: linear-gradient(180deg, var(--bg) 0%, #ffffff 100%);
   position: relative;
   overflow: hidden;
 }
 
 .bgGlow {
   position: absolute;
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(255,106,43,0.07) 0%, transparent 70%);
-  top: -200px;
-  left: -200px;
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(255,106,43,0.08) 0%, transparent 70%);
+  top: -220px;
+  right: -220px;
   pointer-events: none;
 }
 
@@ -27,49 +27,94 @@
   font-weight: 700;
   text-align: center;
   margin-bottom: 3.5rem;
-  color: var(--text);
+  color: #0F172A;
   letter-spacing: -0.02em;
+}
+
+.title::after {
+  content: '';
+  display: block;
+  width: 64px;
+  height: 4px;
+  margin: 1rem auto 0;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #FF6B00, #FF3D00);
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1.5rem;
+  perspective: 1200px;
 }
 
 .card {
-  background: var(--card);
-  border: 1px solid rgba(46, 58, 69, 0.06);
-  border-radius: var(--radius-card);
-  padding: 2.25rem 1.75rem;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 22px;
+  padding: 2.25rem 1.75rem 1.5rem;
   box-shadow: var(--shadow-card);
-  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  transition: transform .18s ease, box-shadow .25s ease, border-color .25s ease;
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-}
-
-.card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  background: linear-gradient(90deg, var(--brand), var(--brand-dark));
-  opacity: 0;
-  transition: opacity 0.25s ease;
+  will-change: transform;
+  transform-style: preserve-3d;
 }
 
 .card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 18px 40px rgba(46, 58, 69, 0.08);
-  border-color: rgba(255, 106, 43, 0.22);
+  box-shadow: 0 26px 60px rgba(255, 87, 34, 0.18);
+  border-color: rgba(255, 107, 0, 0.3);
+}
+
+/* top gradient accent expanding 0 -> 100% */
+.accentLine {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0%;
+  height: 4px;
+  background: linear-gradient(90deg, #FF6B00, #FF3D00);
+  border-radius: 4px 4px 0 0;
+  transition: width 0.35s ease;
+  z-index: 3;
+}
+
+.card:hover .accentLine {
+  width: 100%;
+}
+
+/* radial ambient sheen overlay */
+.card::before {
+  content: '';
+  position: absolute;
+  top: -60%;
+  right: -30%;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle, rgba(255,107,0,0.14) 0%, transparent 70%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .card:hover::before {
+  opacity: 1;
+}
+
+/* hover overlay wash */
+.card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 55%, rgba(255,107,0,0.06) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.card:hover::after {
   opacity: 1;
 }
 
@@ -82,20 +127,62 @@
   align-items: center;
   justify-content: center;
   color: var(--brand);
-  transition: transform 0.25s ease, background 0.25s ease, color 0.25s ease;
+  transition: transform 0.3s ease, background 0.3s ease, color 0.3s ease;
+  position: relative;
+  z-index: 2;
+  transform: translateZ(30px);
 }
 
 .card:hover .iconWrapper {
-  transform: scale(1.08) rotate(-5deg);
-  background: var(--brand);
+  transform: translateZ(30px) scale(1.08) rotate(-6deg);
+  background: linear-gradient(135deg, #FF6B00, #FF3D00);
   color: #fff;
+  box-shadow: 0 8px 22px rgba(255, 87, 34, 0.35);
 }
 
 .cardTitle {
   font-size: 1.2rem;
   font-weight: 700;
-  color: var(--text);
-  margin: 0;
+  color: #0F172A;
+  margin: 1.25rem 0 0.5rem;
   position: relative;
   z-index: 2;
+  transform: translateZ(24px);
+}
+
+.cardDesc {
+  font-size: 0.96rem;
+  line-height: 1.6;
+  color: #64748b;
+  margin: 0 0 1.25rem;
+  position: relative;
+  z-index: 2;
+}
+
+.cardCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--brand);
+  position: relative;
+  z-index: 2;
+  width: fit-content;
+  margin-top: auto;
+  transform: translateZ(20px);
+}
+
+.cardCta svg {
+  transition: transform 0.3s ease;
+}
+
+.card:hover .cardCta svg {
+  transform: translateX(6px);
+}
+
+@media (max-width: 640px) {
+  .title {
+    font-size: 1.9rem;
+  }
 }

@@ -10,6 +10,7 @@ const Header = () => {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
@@ -28,6 +29,7 @@ const Header = () => {
       const scrollTop = window.scrollY;
       const height = document.documentElement.scrollHeight - window.innerHeight;
       setScrollProgress(height > 0 ? Math.min(scrollTop / height, 1) * 100 : 0);
+      setScrolled(scrollTop > 24);
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
@@ -62,7 +64,8 @@ const Header = () => {
   const currentLang = LANGS.find(l => l.code === lang) || LANGS[0];
 
   return (
-    <header className={styles.header}>
+    <header className={`${styles.header} ${scrolled ? styles.scrolled : ''}`}>
+      <div className={styles.headerBar}>
       <div className={styles.scrollProgress} style={{ width: `${scrollProgress}%` }} aria-hidden="true" />
       <div className={styles.container}>
         <Link href="/" className={styles.logo} onClick={handleLogoClick}>
@@ -143,6 +146,14 @@ const Header = () => {
             {t('clientPortal') || 'Portal Clienți'}
           </a>
 
+          <div className={styles.contactBadge} title="Available 24/7">
+            <span className={styles.contactDot} aria-hidden="true" />
+            <span className={styles.contactBadgeText}>
+              <span className={styles.contactBadgeLabel}>24/7 Dispatch</span>
+              <span className={styles.contactBadgeNum}>+31 20 795 7000</span>
+            </span>
+          </div>
+
           <button className={styles.mobileMenuBtn} onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-expanded={mobileMenuOpen} aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -151,6 +162,7 @@ const Header = () => {
             </svg>
           </button>
         </div>
+      </div>
       </div>
     </header>
   );

@@ -164,9 +164,11 @@ type ArcD = {
 
 export default function GlobeCanvas({
   countries,
+  hovered = null,
   className = '',
 }: {
   countries: string[];
+  hovered?: string | null;
   className?: string;
 }) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
@@ -193,9 +195,9 @@ export default function GlobeCanvas({
   const globeMaterial = useMemo(
     () =>
       new THREE.MeshPhongMaterial({
-        color: '#eef3f9',
-        specular: new THREE.Color('#ffffff'),
-        shininess: 20,
+        color: '#101827',
+        specular: new THREE.Color('#ff8a4d'),
+        shininess: 16,
       }),
     []
   );
@@ -238,8 +240,10 @@ export default function GlobeCanvas({
   }, [geo, dims]);
 
   const view = useMemo(() => {
-    const targets = countries.filter((c) => c !== 'NL' && START_COORDS[c]);
-    const allCodes = ['NL', ...targets];
+    const valid = countries.filter((c) => c !== 'NL' && START_COORDS[c]);
+    const targetSet = hovered ? [hovered] : valid;
+
+    const allCodes = ['NL', ...targetSet];
 
     const highlights = new Set<string>();
     if (geo) {
@@ -251,7 +255,7 @@ export default function GlobeCanvas({
       }
     }
 
-    const arc: ArcD[] = targets.map((c) => ({
+    const arc: ArcD[] = targetSet.map((c) => ({
       startLat: START_COORDS['NL'][1],
       startLng: START_COORDS['NL'][0],
       endLat: START_COORDS[c][1],
@@ -269,7 +273,7 @@ export default function GlobeCanvas({
       isHub: c === 'NL',
     }));
     return { arc, points, htmlLabels, highlights };
-  }, [countries, geo]);
+  }, [countries, hovered, geo]);
 
   if (error) {
     return (
@@ -324,41 +328,41 @@ export default function GlobeCanvas({
         backgroundColor="rgba(0,0,0,0)"
         globeMaterial={globeMaterial}
         showAtmosphere
-        atmosphereColor="#FFB088"
+        atmosphereColor="#FF8A4D"
         atmosphereAltitude={0.18}
         showGraticules={false}
         polygonsData={geo.features}
         polygonCapColor={(d) =>
           view.highlights.has((d as Poly).properties?.name ?? '')
             ? '#FF6A2B'
-            : '#dde7f0'
+            : '#1e2a3a'
         }
         polygonSideColor={(d) =>
           view.highlights.has((d as Poly).properties?.name ?? '')
-            ? 'rgba(255,106,43,0.9)'
-            : '#c6d6e4'
+            ? 'rgba(255,106,43,0.95)'
+            : '#141d2b'
         }
         polygonStrokeColor={(d) =>
           view.highlights.has((d as Poly).properties?.name ?? '')
-            ? 'rgba(255,106,43,0.55)'
-            : 'rgba(46,58,69,0.18)'
+            ? 'rgba(255,150,90,0.6)'
+            : 'rgba(255,170,120,0.12)'
         }
         polygonAltitude={() => 0.02}
         polygonsTransitionDuration={1000}
         arcsData={view.arc}
-        arcColor={() => ['rgba(255,106,43,0)', '#FF6A2B']}
-        arcStroke={() => 0.7}
-        arcDashLength={() => 0.5}
+        arcColor={() => ['rgba(255,106,43,0)', '#FF8A4D']}
+        arcStroke={() => 1.5}
+        arcDashLength={() => 0.4}
         arcDashGap={() => 0.6}
-        arcDashAnimateTime={() => 1800}
-        arcAltitudeAutoScale={() => 0.55}
-        arcsTransitionDuration={1500}
+        arcDashAnimateTime={() => 1400}
+        arcAltitudeAutoScale={() => 0.6}
+        arcsTransitionDuration={800}
         pointsData={view.points}
         pointLat={(d) => (d as PointD).lat}
         pointLng={(d) => (d as PointD).lng}
-        pointColor={(d) => ((d as PointD).itemType === 'hub' ? '#E0551A' : '#FF6A2B')}
+        pointColor={(d) => ((d as PointD).itemType === 'hub' ? '#FF5A1F' : '#FF8A4D')}
         pointAltitude={() => 0.03}
-        pointRadius={() => 0.4}
+        pointRadius={(d) => ((d as PointD).itemType === 'hub' ? 0.6 : 0.45)}
         htmlElementsData={view.htmlLabels}
         htmlLat={(d) => (d as HtmlLabelD).lat}
         htmlLng={(d) => (d as HtmlLabelD).lng}
