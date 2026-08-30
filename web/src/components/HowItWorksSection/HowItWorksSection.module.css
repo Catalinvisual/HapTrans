@@ -43,80 +43,76 @@
   background: linear-gradient(90deg, #FF6B00, #FF3D00);
 }
 
-/* ── Continuous 5-node pipeline ─────────────────────────── */
+/* ── Single-row 5-step glass pipeline ───────────────────── */
 .pipeline {
   position: relative;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 1rem;
+  gap: 1.25rem;
+  align-items: stretch;
 }
 
-/* connecting dashed progress line behind the nodes */
+/* continuous orange gradient progress track across the top of the row */
 .track {
   position: absolute;
-  top: 44px;
-  left: 8%;
-  right: 8%;
-  height: 2px;
-  border-top: 2px dashed rgba(255, 107, 0, 0.3);
-  z-index: 1;
+  top: 40px;
+  left: 4%;
+  right: 4%;
+  height: 4px;
+  border-radius: 9999px;
+  overflow: hidden;
+  z-index: 0;
   pointer-events: none;
 }
 
-.trackGlow {
-  position: absolute;
-  inset: 0;
-  border-top: 2px dashed rgba(255, 107, 0, 0.5);
-  filter: drop-shadow(0 0 6px rgba(255, 107, 0, 0.6));
+.trackFill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #FF6B00 0%, #FF3D00 100%);
+  border-radius: 9999px;
+  opacity: 0.85;
 }
 
-.node {
+/* glassmorphic step card */
+.card {
   position: relative;
-  z-index: 2;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 24px rgba(13, 27, 42, 0.06);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 0 0.5rem;
+  align-items: flex-start;
+  height: 100%;
+  transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
 }
 
-.nodeBadge {
+.card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 24px 50px rgba(255, 87, 34, 0.14);
+  border-color: rgba(255, 107, 0, 0.25);
+}
+
+.cardTop {
   position: relative;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.1rem;
 }
 
-.iconWrapper {
-  width: 84px;
-  height: 84px;
-  background: #fff;
-  border: 1px solid rgba(255, 107, 0, 0.25);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--brand);
-  box-shadow: 0 14px 30px rgba(255, 87, 34, 0.14);
-  transition: transform 0.28s ease, background 0.28s ease, color 0.28s ease, box-shadow 0.28s ease;
-}
-
-.node:hover .iconWrapper {
-  transform: translateY(-6px) scale(1.05);
-  background: linear-gradient(135deg, #FF6B00, #FF3D00);
-  color: #fff;
-  box-shadow: 0 18px 44px rgba(255, 87, 34, 0.35);
-}
-
-/* step number chip anchored to the node */
+/* orange-gradient number badge */
 .nodeNum {
   position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 30px;
-  height: 30px;
+  top: -8px;
+  right: -10px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   background: linear-gradient(135deg, #FF6B00, #FF3D00);
   color: #fff;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -126,23 +122,49 @@
   z-index: 3;
 }
 
-.nodeTitle {
-  font-size: 1.02rem;
+.iconWrapper {
+  width: 76px;
+  height: 76px;
+  background: #fff;
+  border: 1px solid rgba(255, 107, 0, 0.22);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand);
+  box-shadow: 0 12px 26px rgba(255, 87, 34, 0.12);
+  transition: transform 0.28s ease, background 0.28s ease, color 0.28s ease, box-shadow 0.28s ease;
+}
+
+.card:hover .iconWrapper {
+  transform: translateY(-4px) scale(1.05);
+  background: linear-gradient(135deg, #FF6B00, #FF3D00);
+  color: #fff;
+  box-shadow: 0 18px 40px rgba(255, 87, 34, 0.32);
+}
+
+.cardTitle {
+  font-size: 1.05rem;
   font-weight: 700;
   color: #0F172A;
+  margin: 0 0 0.4rem;
+  line-height: 1.35;
+}
+
+.cardSub {
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.55;
   margin: 0;
-  line-height: 1.4;
-  max-width: 16ch;
 }
 
 /* ── Responsive ─────────────────────────────────────────── */
 @media (max-width: 1024px) {
   .pipeline {
     grid-template-columns: repeat(3, 1fr);
-    row-gap: 2.75rem;
+    row-gap: 1.5rem;
   }
 
-  /* hide the straight line, nodes wrap */
   .track {
     display: none;
   }
@@ -151,7 +173,7 @@
 @media (max-width: 640px) {
   .pipeline {
     grid-template-columns: 1fr;
-    row-gap: 2rem;
+    row-gap: 1.25rem;
   }
 
   .title {

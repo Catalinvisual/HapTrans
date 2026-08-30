@@ -62,11 +62,10 @@
   line-height: 1.7;
 }
 
-/* ── Bento grid (asymmetric) ─────────────────────────────── */
+/* ── Bento grid (balanced 4-card) ──────────────────────────── */
 .bentoGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: minmax(180px, auto);
   gap: 1.5rem;
 }
 
@@ -96,8 +95,8 @@
 
 /* grid placement (applied to the grid item wrappers) */
 .itemTelematics { grid-column: span 2; grid-row: span 2; }
-.itemStandard { grid-column: span 2; grid-row: span 1; }
-.itemMetric { grid-column: span 1; grid-row: span 1; }
+.itemStandard { grid-column: span 1; grid-row: span 1; }
+.itemMetric { grid-column: span 1; grid-row: span 2; }
 
 .badgeIcon {
   width: 48px;
@@ -434,6 +433,155 @@
   border-radius: 8px;
 }
 
+/* ── V2 bento card variants ─────────────────────────────── */
+/* dark accent chip (Card 2) */
+.chipDark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fdba74;
+  background: rgba(255,107,0,0.12);
+  border: 1px solid rgba(255,107,0,0.3);
+  padding: 0.35rem 0.7rem;
+  border-radius: 2rem;
+  width: fit-content;
+  margin-bottom: 0.9rem;
+  margin-top: -0.4rem;
+}
+
+/* Card 3 — glassmorphic */
+.cardGlass {
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,0.9);
+  box-shadow: 0 18px 40px rgba(13,27,42,0.08), inset 0 1px 0 rgba(255,255,255,0.95);
+}
+
+/* Card 4 — certified (subtle orange highlight border) */
+.cardCertified {
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(135deg, rgba(255,107,0,0.5), rgba(255,61,0,0.25)) border-box;
+  border: 1px solid transparent;
+}
+
+/* Card 1 — truck fleet visual */
+.fleetRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1.1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed rgba(15,23,42,0.1);
+}
+
+.fleetTrucks {
+  display: flex;
+  align-items: center;
+}
+
+.truckIcon {
+  width: 52px;
+  height: 38px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #FF6B00 0%, #FF3D00 100%);
+  display: inline-block;
+  position: relative;
+  box-shadow: 0 6px 14px -4px rgba(255,87,34,0.5);
+}
+
+.truckIcon::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 12px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 3px;
+}
+
+.truckIcon::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  bottom: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #FF3D00;
+}
+
+.truckIcon + .truckIcon {
+  margin-left: 0.75rem;
+}
+
+.truckIcon:nth-child(2) {
+  transform: translateY(-4px) scale(1.05);
+}
+
+.truckIcon:nth-child(3) {
+  opacity: 0.85;
+  transform: translateY(2px);
+}
+
+.fleetMeta {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+/* Card 3 — support row */
+.supportRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: auto;
+  padding-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.supportLang {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--brand);
+  background: rgba(255,107,0,0.08);
+  border: 1px solid rgba(255,107,0,0.18);
+  padding: 0.35rem 0.7rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+/* Card 4 — badge cluster */
+.sealCluster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+.adrCertBadge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  padding: 0.32rem 0.7rem;
+  border-radius: 8px;
+  box-shadow: 0 6px 14px -5px rgba(239,68,68,0.5);
+}
+
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 1024px) {
   .bentoGrid {
@@ -446,12 +594,12 @@
   }
 
   .itemStandard {
-    grid-column: span 2;
+    grid-column: span 1;
     grid-row: span 1;
   }
 
   .itemMetric {
-    grid-column: span 1;
+    grid-column: span 2;
     grid-row: span 1;
   }
 }

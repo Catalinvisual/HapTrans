@@ -135,7 +135,7 @@ const Header = () => {
             )}
           </div>
           
-          <Link href="/cere-oferta" className={`btn btn-primary ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: '#fff', color: 'var(--brand)', border: '2px solid var(--brand)', borderRadius: '1.5rem 0.3rem 1.5rem 0.3rem' }}>
+          <Link href="/cere-oferta" className={`btn btn-primary ${styles.desktopLoginBtn} ${styles.quoteBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', borderRadius: '1.5rem 0.3rem 1.5rem 0.3rem' }}>
             {t('navQuote') || 'Cere ofertă'}
           </Link>
           <Link href="/track" className={`btn ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem', fontSize: '0.9rem', backgroundColor: '#1e293b', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', textDecoration: 'none', width: '42px', height: '42px' }} title={t('clientLogin') || 'TRACK ORDER'}>
@@ -145,14 +145,6 @@ const Header = () => {
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
             {t('clientPortal') || 'Portal Clienți'}
           </a>
-
-          <div className={styles.contactBadge} title="Available 24/7">
-            <span className={styles.contactDot} aria-hidden="true" />
-            <span className={styles.contactBadgeText}>
-              <span className={styles.contactBadgeLabel}>24/7 Dispatch</span>
-              <span className={styles.contactBadgeNum}>+31 20 795 7000</span>
-            </span>
-          </div>
 
           <button className={styles.mobileMenuBtn} onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-expanded={mobileMenuOpen} aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

@@ -35,7 +35,7 @@
   margin: 0 auto;
   padding: 0 1.5rem 3.5rem;
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  grid-template-columns: minmax(0, 55fr) minmax(0, 45fr);
   gap: 56px;
   align-items: center;
   position: relative;
@@ -182,42 +182,12 @@
   50% { opacity: 0.25; }
 }
 
-/* ── Truck visual (separated from calculator) ──────────────── */
-.truckVisual {
-  position: relative;
-  width: 240px;
-  height: 150px;
-  border-radius: 18px;
-  overflow: hidden;
-  box-shadow: 0 22px 50px rgba(13, 27, 42, 0.2);
-  margin: 0 0 1.5rem;
-  transform: rotate(-2deg) translateY(2px);
-  border: 1px solid rgba(255,255,255,0.9);
-}
-
-.truckCaption {
-  position: absolute;
-  left: 0.7rem;
-  bottom: 0.7rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  background: rgba(10,14,23,0.72);
-  backdrop-filter: blur(8px);
-  color: #fff;
-  padding: 0.35rem 0.7rem;
-  border-radius: 9999px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  border: 1px solid rgba(255,255,255,0.15);
-}
-
-/* ── Right: glassmorphism widget ───────────────────────────── */
-.widgetColumn {
+/* ── Right: prominent fleet visual showcase (45%) ──────────── */
+.fleetColumn {
   position: relative;
 }
 
-.widgetGlow {
+.fleetGlow {
   position: absolute;
   inset: -24px -40px;
   background: radial-gradient(60% 60% at 70% 10%, rgba(255,107,0,0.16) 0%, rgba(255,255,255,0) 70%);
@@ -225,30 +195,186 @@
   filter: blur(10px);
 }
 
-.widget {
+.fleetCard {
   position: relative;
   z-index: 2;
   border-radius: 26px;
-  background: rgba(255, 255, 255, 0.62);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
-  border: 1px solid rgba(255, 255, 255, 0.75);
-  box-shadow: 0 30px 70px rgba(13, 27, 42, 0.16), inset 0 1px 0 rgba(255,255,255,0.9);
-  padding: 1.6rem;
+  background: #fff;
+  border: 1px solid rgba(255,255,255,0.9);
+  box-shadow: 0 30px 70px rgba(13, 27, 42, 0.2);
   overflow: hidden;
 }
 
-.widget::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #FF6B00, #FF3D00);
-  opacity: 0.9;
+.fleetMedia {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
 }
 
+.fleetLiveBadge {
+  position: absolute;
+  left: 1rem;
+  top: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(10,14,23,0.72);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  padding: 0.5rem 0.9rem;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+.fleetFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.4rem;
+  border-top: 1px solid rgba(15,23,42,0.08);
+  background: rgba(255,255,255,0.85);
+}
+
+.fleetFooterLabel {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0F172A;
+  letter-spacing: -0.01em;
+}
+
+.fleetFooterSub {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-top: 0.15rem;
+}
+
+.fleetFooterChip {
+  text-align: right;
+  background: rgba(255, 107, 0, 0.08);
+  border: 1px solid rgba(255, 107, 0, 0.2);
+  border-radius: 14px;
+  padding: 0.4rem 0.9rem;
+  white-space: nowrap;
+}
+
+.fleetChipValue {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--brand-dark);
+  line-height: 1;
+}
+
+.fleetChipValue span {
+  background: linear-gradient(135deg, #FF6B00, #FF3D00);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.fleetChipLabel {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #b45309;
+  margin-top: 0.15rem;
+}
+
+/* ── Calculator Modal Overlay ──────────────────────────────── */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(10, 14, 23, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  animation: modalFade 0.2s ease;
+}
+
+@keyframes modalFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modalPanel {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  max-height: 92vh;
+  overflow-y: auto;
+  border-radius: 26px;
+  background: #fff;
+  border: 1px solid rgba(255,255,255,0.9);
+  box-shadow: 0 40px 90px rgba(10, 14, 23, 0.45);
+  padding: 1.6rem;
+  animation: modalRise 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalRise {
+  from { opacity: 0; transform: translateY(24px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.modalClose {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(15,23,42,0.12);
+  background: rgba(15,23,42,0.04);
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modalClose:hover {
+  background: rgba(255, 107, 0, 0.1);
+  color: var(--brand);
+  border-color: rgba(255, 107, 0, 0.3);
+}
+
+/* Inputs inside the calculator modal */
+.modalInput {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+  background: #fff;
+  color: var(--text);
+  font-size: 0.95rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.modalInput:focus {
+  outline: none;
+  border-color: #FF5722;
+  box-shadow: 0 0 0 4px rgba(255, 87, 34, 0.15);
+}
+
+/* ── Right: glassmorphism widget ───────────────────────────── */
 .calcHeader {
   margin-bottom: 1.25rem;
 }

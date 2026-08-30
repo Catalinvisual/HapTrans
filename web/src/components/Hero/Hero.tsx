@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import styles from './Hero.module.css';
 import { useLanguage } from '@/context/LanguageContext';
@@ -30,6 +30,7 @@ const Hero = () => {
   const [estimatedPriceRange, setEstimatedPriceRange] = useState('');
   const [calculatedDistance, setCalculatedDistance] = useState(850);
   const [surchargesApplied, setSurchargesApplied] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const getLabel = (roText: string, enText: string, nlText: string, deText: string, frText: string, esText: string) => {
     if (lang === 'RO') return roText;
@@ -150,12 +151,36 @@ const Hero = () => {
   const weightFill = Math.round((weightKg / 25000) * 100);
   const palletFill = Math.round((pallets / 34) * 100);
 
+  // Lock body scroll while the modal is open
+  useEffect(() => {
+    if (isModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [isModalOpen]);
+
+  // Close modal on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsModalOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const openModal = () => {
+    setStep(1);
+    setIsModalOpen(true);
+  };
+
   return (
     <>
     <section className={styles.hero}>
       <div className={styles.container}>
 
-        {/* Left Content */}
+        {/* Left Content (55%) */}
         <div className={styles.content}>
           <div className={`${styles.badge} ${styles.animBadge}`}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -176,28 +201,12 @@ const Hero = () => {
             {t('heroSubtitle')}
           </p>
 
-          <div className={`${styles.truckVisual} ${styles.animCalc}`}>
-            <Image
-              src="/hero-nou.jpg"
-              alt="HapCargo truck on the highway"
-              fill
-              style={{ objectFit: 'cover', objectPosition: 'center center' }}
-              quality={90}
-              unoptimized={true}
-              priority
-            />
-            <div className={styles.truckCaption}>
-              <span className={styles.networkLive} aria-hidden="true" />
-              {getLabel("Flotă Euro-6 modernă", "Modern Euro-6 fleet", "Modern Euro-6 wagenpark", "Moderne Euro-6 Flotte", "Flotte Euro-6 moderne", "Flota Euro-6 moderna")}
-            </div>
-          </div>
-
           <div className={`${styles.ctaGroup} ${styles.animCta}`}>
-            <a href="/cere-oferta" className="btn btn-primary">
-              {t('ctaPrimary')}
-            </a>
+            <button type="button" onClick={openModal} className="btn btn-primary">
+              {getLabel("Calculează Oferta Instant", "Calculate Instant Quote", "Bereken Directe Offerte", "Sofortiges Angebot berechnen", "Calculer un Devis Instantané", "Calcular Cotización Instantánea")} ⚡
+            </button>
             <a href="/diensten" className="btn btn-ghost-light">
-              {t('ctaSecondary')}
+              {getLabel("Explorează Flota", "Explore Fleet", "Verken de Vloot", "Flotte entdecken", "Explorer la Flotte", "Explorar la Flota")}
             </a>
           </div>
 
@@ -213,211 +222,254 @@ const Hero = () => {
           </div>
         </div>
 
-        {/* Right: Glassmorphism Interactive Quote Widget */}
-        <div className={`${styles.widgetColumn} ${styles.animCalc}`}>
-          <div className={styles.widgetGlow} aria-hidden="true" />
-          <div className={styles.widget}>
-            <div className={styles.calcHeader}>
-              <h3 className={styles.calcTitle}>{t('calcTitle')}</h3>
-              <p className={styles.calcDesc}>{t('calcDesc')}</p>
-            </div>
-
-            <div className={styles.tabs} role="tablist" aria-label="Transport mode">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === 'express'}
-                className={`${styles.tab} ${mode === 'express' ? styles.tabActive : ''}`}
-                onClick={() => handleMode('express')}
-              >
-                <span>⚡</span> {getLabel("Express Freight", "Express Freight", "Express vracht", "Express Fracht", "Fret express", "Carga exprés")}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === 'ftl'}
-                className={`${styles.tab} ${mode === 'ftl' ? styles.tabActive : ''}`}
-                onClick={() => handleMode('ftl')}
-              >
-                <span>🚛</span> {getLabel("Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Carga completa (FTL)")}
-              </button>
-            </div>
-
-            <form className={styles.calcForm} onSubmit={handleCalculate} noValidate>
-              {step === 1 && (
-                <div className={styles.step1Grid}>
-                  <div className={styles.field}>
-                    <label>{t('calcFrom')}</label>
-                    <AddressAutocomplete
-                      value={formData.from}
-                      onChange={(val) => setFormData({ ...formData, from: val })}
-                      placeholder={t('calcFromPlaceholder') || 'ex: București, RO'}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.field}>
-                    <label>{t('calcTo')}</label>
-                    <AddressAutocomplete
-                      value={formData.to}
-                      onChange={(val) => setFormData({ ...formData, to: val })}
-                      placeholder={t('calcToPlaceholder') || 'ex: Munchen, DE'}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.field}>
-                    <label>{t('calcType')}</label>
-                    <input type="text" name="type" className="input" placeholder={t('calcTypePlaceholder') || 'ex: Paleți generali'} value={formData.type} onChange={handleChange} />
-                  </div>
-
-                  <div className={styles.rangeWrap}>
-                    <div className={styles.rangeHeader}>
-                      <label style={{ margin: 0 }}>{getLabel("Greutate", "Weight", "Gewicht", "Gewicht", "Poids", "Peso")}</label>
-                      <span className={styles.rangeValue}>{weightLabel}</span>
-                    </div>
-                    <input
-                      type="range"
-                      className={styles.range}
-                      min="0"
-                      max="25000"
-                      step="500"
-                      value={weightKg}
-                      style={{ ['--fill' as string]: `${weightFill}%` }}
-                      onChange={(e) => setWeightKg(Number(e.target.value))}
-                      aria-label="Weight"
-                    />
-                  </div>
-
-                  <div className={styles.rangeWrap}>
-                    <div className={styles.rangeHeader}>
-                      <label style={{ margin: 0 }}>{getLabel("Paleți", "Pallets", "Pallets", "Paletten", "Palettes", "Palets")}</label>
-                      <span className={styles.rangeValue}>{pallets} {getLabel("paleți", "pallets", "pallets", "Paletten", "palettes", "palets")}</span>
-                    </div>
-                    <input
-                      type="range"
-                      className={styles.range}
-                      min="0"
-                      max="34"
-                      step="1"
-                      value={pallets}
-                      style={{ ['--fill' as string]: `${palletFill}%` }}
-                      onChange={(e) => setPallets(Number(e.target.value))}
-                      aria-label="Pallets"
-                    />
-                  </div>
-
-                  <button type="submit" className={`btn btn-primary ${styles.calcBtn}`} disabled={isSubmitting}>
-                    {isSubmitting ? t('calcLoading') : t('calcSubmit')}
-                  </button>
-
-                  <div className={styles.estimatePreview}>
-                    <span className={styles.estimateLabel}>{getLabel("Estimare instant", "Instant estimate", "Directe schatting", "Sofortige Schätzung", "Estimation instantanée", "Estimación instantánea")}</span>
-                    <span className={styles.estimateValue}>{estimatedPriceRange || '€ 1.380 – € 1.550'}</span>
-                  </div>
-
-                  <div className={styles.surchargeBlock}>
-                    <span className={styles.surchargeTitle}>
-                      {getLabel("Opțiuni Suplimentare", "Additional Options", "Aanvullende opties", "Zusätzliche Optionen", "Options supplémentaires", "Opciones adicionales")}
-                    </span>
-                    <div className={styles.surcharges}>
-                      {surchargeItems.map(s => (
-                        <label
-                          key={s.key}
-                          className={`${styles.surchargeChip} ${formData[s.key] ? styles.surchargeChipActive : ''}`}
-                        >
-                          <input
-                            type="checkbox"
-                            name={s.key}
-                            checked={formData[s.key]}
-                            onChange={handleChange}
-                            style={{ display: 'none' }}
-                          />
-                          <span className={styles.surchargeEmoji}>{s.emoji}</span>
-                          {s.label}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </form>
-
-            {step === 2 && (
-              <div className={styles.successBox}>
-                <div className={styles.successIcon}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                </div>
-                <h3 className={styles.successTitle}>
-                  {getLabel("Oferta estimativă este gata!", "Estimated quote is ready!", "Geschatte offerte is klaar!", "Geschätztes Angebot ist bereit!", "Le devis estimatif est prêt!", "¡El presupuesto estimado está listo!")}
-                </h3>
-
-                <div className={styles.priceBox}>
-                  <span className={styles.priceLabel}>
-                    {getLabel("Preț estimat", "Estimated price", "Geschatte prijs", "Geschätzter Preis", "Prix estimé", "Precio estimado")}
-                  </span>
-                  <span className={styles.priceValue}>
-                    {estimatedPriceRange}
-                  </span>
-                </div>
-
-                {surchargesApplied && (surchargesApplied.adr > 0 || surchargesApplied.night > 0 || surchargesApplied.weekend > 0 || surchargesApplied.holiday > 0) && (
-                  <div className={styles.surchargeBreakdown}>
-                    <span className={styles.surchargeBreakdownTitle}>
-                      {getLabel("Defalcare costuri suplimentare aplicate:", "Applied surcharge breakdown:", "Overzicht toegepaste toeslagen:", "Aufschlüsselung der angewendeten Zuschläge:", "Répartition des suppléments appliqués :", "Desglose de recargos aplicados:")}
-                    </span>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-                      {surchargesApplied.adr > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownAmber}`}>⚠️ {getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR")}: +{fmtMoney(surchargesApplied.adr)}</span>}
-                      {surchargesApplied.night > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownBlue}`}>🌙 {getLabel("Noapte", "Night", "Nacht", "Nacht", "Nuit", "Noche")}: +{fmtMoney(surchargesApplied.night)}</span>}
-                      {surchargesApplied.weekend > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownGreen}`}>📅 {getLabel("Weekend", "Weekend", "Weekend", "Wochenende", "Week-end", "Fin de semana")}: +{fmtMoney(surchargesApplied.weekend)}</span>}
-                      {surchargesApplied.holiday > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownPurple}`}>🏛️ {getLabel("Sărbători Legale", "Public Holiday", "Feestdagen", "Feiertag", "Jours Fériés", "Festivos Oficiales")}: +{fmtMoney(surchargesApplied.holiday)}</span>}
-                    </div>
-                  </div>
-                )}
-
-                <p className={styles.successDesc}>
-                  {getLabel("Continuă spre formularul complet de cerere de ofertă. Datele tale și prețul estimat vor fi transferate automat!", "Continue to the full quote request form. Your data and estimated price will be transferred automatically!", "Ga naar het volledige offerteformulier. Uw gegevens en geschatte prijs worden automatisch overgedragen!", "Weiter zum vollständigen Angebotsformular. Ihre Daten und der geschätzte Preis werden automatisch übernommen!", "Passez au formulaire complet de demande de devis. Vos données et le prix estimé seront transférés automatiquement !", "Continúe con el formulario de solicitud de cotización completo. ¡Sus datos y precio estimado se transferirán automáticamente!")}
-                </p>
-
-                <div className={styles.btnGroup}>
-                  <button type="button" onClick={() => setStep(1)} className="btn btn-outline" style={{ minWidth: '140px' }}>
-                    {t('calcBack')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      window.location.href = `/cere-oferta?from=${encodeURIComponent(formData.from)}&to=${encodeURIComponent(formData.to)}&weight=${encodeURIComponent(String(weightKg))}&type=${encodeURIComponent(formData.type)}&pallets=${encodeURIComponent(String(pallets))}&est=${encodeURIComponent(estimatedPriceRange)}&dist=${encodeURIComponent(calculatedDistance)}&adr=${formData.adrSurcharge}&night=${formData.nightSurcharge}&weekend=${formData.weekendSurcharge}&holiday=${formData.holidaySurcharge}&ts=${Date.now()}`;
-                    }}
-                    className={`btn btn-primary ${styles.calcBtn}`}
-                    style={{ minWidth: '220px' }}
-                  >
-                    {getLabel("Continuă spre cererea de ofertă ➔", "Continue to Quote Request ➔", "Ga naar offerteaanvraag ➔", "Weiter zur Angebotsanfrage ➔", "Continuer vers la demande de devis ➔", "Continuar a la solicitud de cotización ➔")}
-                  </button>
-                </div>
+        {/* Right: Prominent Fleet Visual (45%) */}
+        <div className={`${styles.fleetColumn} ${styles.animCalc}`}>
+          <div className={styles.fleetGlow} aria-hidden="true" />
+          <div className={styles.fleetCard}>
+            <div className={styles.fleetMedia}>
+              <Image
+                src="/hero-nou.jpg"
+                alt="HapCargo Volvo truck on the highway"
+                fill
+                style={{ objectFit: 'cover', objectPosition: 'center center' }}
+                quality={90}
+                unoptimized={true}
+                priority
+              />
+              <div className={styles.fleetLiveBadge}>
+                <span className={styles.networkLive} aria-hidden="true" />
+                {getLabel("⚡ Flotă Euro-6 Activă", "⚡ Euro-6 Active Fleet", "⚡ Actieve Euro-6 Vloot", "⚡ Aktive Euro-6 Flotte", "⚡ Flotte Euro-6 active", "⚡ Flota Euro-6 activa")}
               </div>
-            )}
-
-            {step === 3 && (
-              <div className={styles.successBox}>
-                <div className={styles.successIcon}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                  </svg>
-                </div>
-                <h3 className={styles.successTitle}>{t('calcStep3Title')}</h3>
-                <p className={styles.successDesc}>{t('calcStep3Desc')}</p>
-                <button onClick={() => setStep(1)} className={`btn btn-primary ${styles.calcBtn}`} style={{ margin: '0 auto', minWidth: '160px' }}>
-                  {t('calcHome')}
-                </button>
+            </div>
+            <div className={styles.fleetFooter}>
+              <div className={styles.fleetFooterMain}>
+                <span className={styles.fleetFooterLabel}>{getLabel("VOLVO FH 460", "VOLVO FH 460", "VOLVO FH 460", "VOLVO FH 460", "VOLVO FH 460", "VOLVO FH 460")}</span>
+                <span className={styles.fleetFooterSub}>{getLabel("Megatracker · Gabarit · Semiremorcă", "Megatrailer · High Cube · Trailer", "Megatrailer · High Cube · Oplegger", "Megatrailer · High Cube · Auflieger", "Mégatrailer · High Cube · Semi-remorque", "Megatrailer · High Cube · Semirremolque")}</span>
               </div>
-            )}
+              <div className={styles.fleetFooterChip}>
+                <span className={styles.fleetChipValue}>100<span>+</span></span>
+                <span className={styles.fleetChipLabel}>{getLabel("Camioane în flotă", "Trucks in fleet", "Vrachtwagens in vloot", "Lkw in der Flotte", "Camions en flotte", "Camiones en flota")}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </section>
+
+    {/* Calculator Modal Overlay */}
+    {isModalOpen && (
+      <div className={styles.modalOverlay} onClick={() => setIsModalOpen(false)} role="dialog" aria-modal="true" aria-label={t('calcTitle')}>
+        <div className={styles.modalPanel} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modalHeader}>
+            <div className={styles.calcHeader}>
+              <h3 className={styles.calcTitle}>{t('calcTitle')}</h3>
+              <p className={styles.calcDesc}>{t('calcDesc')}</p>
+            </div>
+            <button type="button" className={styles.modalClose} onClick={() => setIsModalOpen(false)} aria-label="Close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div className={styles.tabs} role="tablist" aria-label="Transport mode">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'express'}
+              className={`${styles.tab} ${mode === 'express' ? styles.tabActive : ''}`}
+              onClick={() => handleMode('express')}
+            >
+              <span>⚡</span> {getLabel("Express Freight", "Express Freight", "Express vracht", "Express Fracht", "Fret express", "Carga exprés")}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'ftl'}
+              className={`${styles.tab} ${mode === 'ftl' ? styles.tabActive : ''}`}
+              onClick={() => handleMode('ftl')}
+            >
+              <span>🚛</span> {getLabel("Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Carga completa (FTL)")}
+            </button>
+          </div>
+
+          <form className={styles.calcForm} onSubmit={handleCalculate} noValidate>
+            {step === 1 && (
+              <div className={styles.step1Grid}>
+                <div className={styles.field}>
+                  <label>{t('calcFrom')}</label>
+                  <AddressAutocomplete
+                    value={formData.from}
+                    onChange={(val) => setFormData({ ...formData, from: val })}
+                    placeholder={t('calcFromPlaceholder') || 'ex: București, RO'}
+                    className={styles.modalInput}
+                    required
+                  />
+                </div>
+
+                <div className={styles.field}>
+                  <label>{t('calcTo')}</label>
+                  <AddressAutocomplete
+                    value={formData.to}
+                    onChange={(val) => setFormData({ ...formData, to: val })}
+                    placeholder={t('calcToPlaceholder') || 'ex: Munchen, DE'}
+                    className={styles.modalInput}
+                    required
+                  />
+                </div>
+
+                <div className={styles.field}>
+                  <label>{t('calcType')}</label>
+                  <input type="text" name="type" className="input" placeholder={t('calcTypePlaceholder') || 'ex: Paleți generali'} value={formData.type} onChange={handleChange} />
+                </div>
+
+                <div className={styles.rangeWrap}>
+                  <div className={styles.rangeHeader}>
+                    <label style={{ margin: 0 }}>{getLabel("Greutate", "Weight", "Gewicht", "Gewicht", "Poids", "Peso")}</label>
+                    <span className={styles.rangeValue}>{weightLabel}</span>
+                  </div>
+                  <input
+                    type="range"
+                    className={styles.range}
+                    min="0"
+                    max="25000"
+                    step="500"
+                    value={weightKg}
+                    style={{ ['--fill' as string]: `${weightFill}%` }}
+                    onChange={(e) => setWeightKg(Number(e.target.value))}
+                    aria-label="Weight"
+                  />
+                </div>
+
+                <div className={styles.rangeWrap}>
+                  <div className={styles.rangeHeader}>
+                    <label style={{ margin: 0 }}>{getLabel("Paleți", "Pallets", "Pallets", "Paletten", "Palettes", "Palets")}</label>
+                    <span className={styles.rangeValue}>{pallets} {getLabel("paleți", "pallets", "pallets", "Paletten", "palettes", "palets")}</span>
+                  </div>
+                  <input
+                    type="range"
+                    className={styles.range}
+                    min="0"
+                    max="34"
+                    step="1"
+                    value={pallets}
+                    style={{ ['--fill' as string]: `${palletFill}%` }}
+                    onChange={(e) => setPallets(Number(e.target.value))}
+                    aria-label="Pallets"
+                  />
+                </div>
+
+                <button type="submit" className={`btn btn-primary ${styles.calcBtn}`} disabled={isSubmitting}>
+                  {isSubmitting ? t('calcLoading') : t('calcSubmit')}
+                </button>
+
+                <div className={styles.estimatePreview}>
+                  <span className={styles.estimateLabel}>{getLabel("Estimare instant", "Instant estimate", "Directe schatting", "Sofortige Schätzung", "Estimation instantanée", "Estimación instantánea")}</span>
+                  <span className={styles.estimateValue}>{estimatedPriceRange || '€ 1.380 – € 1.550'}</span>
+                </div>
+
+                <div className={styles.surchargeBlock}>
+                  <span className={styles.surchargeTitle}>
+                    {getLabel("Opțiuni Suplimentare", "Additional Options", "Aanvullende opties", "Zusätzliche Optionen", "Options supplémentaires", "Opciones adicionales")}
+                  </span>
+                  <div className={styles.surcharges}>
+                    {surchargeItems.map(s => (
+                      <label
+                        key={s.key}
+                        className={`${styles.surchargeChip} ${formData[s.key] ? styles.surchargeChipActive : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          name={s.key}
+                          checked={formData[s.key]}
+                          onChange={handleChange}
+                          style={{ display: 'none' }}
+                        />
+                        <span className={styles.surchargeEmoji}>{s.emoji}</span>
+                        {s.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </form>
+
+          {step === 2 && (
+            <div className={styles.successBox}>
+              <div className={styles.successIcon}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </div>
+              <h3 className={styles.successTitle}>
+                {getLabel("Oferta estimativă este gata!", "Estimated quote is ready!", "Geschatte offerte is klaar!", "Geschätztes Angebot ist bereit!", "Le devis estimatif est prêt!", "¡El presupuesto estimado está listo!")}
+              </h3>
+
+              <div className={styles.priceBox}>
+                <span className={styles.priceLabel}>
+                  {getLabel("Preț estimat", "Estimated price", "Geschatte prijs", "Geschätzter Preis", "Prix estimé", "Precio estimado")}
+                </span>
+                <span className={styles.priceValue}>
+                  {estimatedPriceRange}
+                </span>
+              </div>
+
+              {surchargesApplied && (surchargesApplied.adr > 0 || surchargesApplied.night > 0 || surchargesApplied.weekend > 0 || surchargesApplied.holiday > 0) && (
+                <div className={styles.surchargeBreakdown}>
+                  <span className={styles.surchargeBreakdownTitle}>
+                    {getLabel("Defalcare costuri suplimentare aplicate:", "Applied surcharge breakdown:", "Overzicht toegepaste toeslagen:", "Aufschlüsselung der angewendeten Zuschläge:", "Répartition des suppléments appliqués :", "Desglose de recargos aplicados:")}
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    {surchargesApplied.adr > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownAmber}`}>⚠️ {getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR")}: +{fmtMoney(surchargesApplied.adr)}</span>}
+                    {surchargesApplied.night > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownBlue}`}>🌙 {getLabel("Noapte", "Night", "Nacht", "Nacht", "Nuit", "Noche")}: +{fmtMoney(surchargesApplied.night)}</span>}
+                    {surchargesApplied.weekend > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownGreen}`}>📅 {getLabel("Weekend", "Weekend", "Weekend", "Wochenende", "Week-end", "Fin de semana")}: +{fmtMoney(surchargesApplied.weekend)}</span>}
+                    {surchargesApplied.holiday > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownPurple}`}>🏛️ {getLabel("Sărbători Legale", "Public Holiday", "Feestdagen", "Feiertag", "Jours Fériés", "Festivos Oficiales")}: +{fmtMoney(surchargesApplied.holiday)}</span>}
+                  </div>
+                </div>
+              )}
+
+              <p className={styles.successDesc}>
+                {getLabel("Continuă spre formularul complet de cerere de ofertă. Datele tale și prețul estimat vor fi transferate automat!", "Continue to the full quote request form. Your data and estimated price will be transferred automatically!", "Ga naar het volledige offerteformulier. Uw gegevens en geschatte prijs worden automatisch overgedragen!", "Weiter zum vollständigen Angebotsformular. Ihre Daten und der geschätzte Preis werden automatisch übernommen!", "Passez au formulaire complet de demande de devis. Vos données et le prix estimé seront transférés automatiquement !", "Continúe con el formulario de solicitud de cotización completo. ¡Sus datos y precio estimado se transferirán automáticamente!")}
+              </p>
+
+              <div className={styles.btnGroup}>
+                <button type="button" onClick={() => setStep(1)} className="btn btn-outline" style={{ minWidth: '140px' }}>
+                  {t('calcBack')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = `/cere-oferta?from=${encodeURIComponent(formData.from)}&to=${encodeURIComponent(formData.to)}&weight=${encodeURIComponent(String(weightKg))}&type=${encodeURIComponent(formData.type)}&pallets=${encodeURIComponent(String(pallets))}&est=${encodeURIComponent(estimatedPriceRange)}&dist=${encodeURIComponent(calculatedDistance)}&adr=${formData.adrSurcharge}&night=${formData.nightSurcharge}&weekend=${formData.weekendSurcharge}&holiday=${formData.holidaySurcharge}&ts=${Date.now()}`;
+                  }}
+                  className={`btn btn-primary ${styles.calcBtn}`}
+                  style={{ minWidth: '220px' }}
+                >
+                  {getLabel("Continuă spre cererea de ofertă ➔", "Continue to Quote Request ➔", "Ga naar offerteaanvraag ➔", "Weiter zur Angebotsanfrage ➔", "Continuer vers la demande de devis ➔", "Continuar a la solicitud de cotización ➔")}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className={styles.successBox}>
+              <div className={styles.successIcon}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+              </div>
+              <h3 className={styles.successTitle}>{t('calcStep3Title')}</h3>
+              <p className={styles.successDesc}>{t('calcStep3Desc')}</p>
+              <button onClick={() => setStep(1)} className={`btn btn-primary ${styles.calcBtn}`} style={{ margin: '0 auto', minWidth: '160px' }}>
+                {t('calcHome')}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
 
     {/* Floating Dark Glass Stats Banner overlapping hero bottom */}
     <div className={styles.statsBanner}>

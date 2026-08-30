@@ -135,68 +135,6 @@
   box-shadow: 0 0 10px 1px rgba(255, 107, 0, 0.6);
 }
 
-/* Pulsing operational dot + quick contact badge */
-.contactBadge {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.45rem 1rem 0.45rem 0.7rem;
-  border-radius: 9999px;
-  background: rgba(255, 107, 0, 0.08);
-  border: 1px solid rgba(255, 107, 0, 0.22);
-  color: var(--text);
-  white-space: nowrap;
-  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
-}
-
-.contactBadge:hover {
-  border-color: rgba(255, 107, 0, 0.5);
-  transform: translateY(-1px);
-}
-
-.contactDot {
-  position: relative;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #22c55e;
-  flex-shrink: 0;
-}
-
-.contactDot::after {
-  content: '';
-  position: absolute;
-  inset: -5px;
-  border-radius: 50%;
-  background: rgba(34, 197, 94, 0.35);
-  animation: pingDot 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
-@keyframes pingDot {
-  0% { transform: scale(0.6); opacity: 1; }
-  80%, 100% { transform: scale(1.6); opacity: 0; }
-}
-
-.contactBadgeText {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.15;
-}
-
-.contactBadgeLabel {
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.contactBadgeNum {
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: var(--brand-dark);
-}
-
 /* ── ACTIONS ── */
 .actions {
   display: flex;
@@ -289,6 +227,21 @@
   display: inline-flex;
 }
 
+/* Request Quote button: pure white text on orange */
+.quoteBtn {
+  background-color: #FF5722 !important;
+  border: 2px solid #FF5722 !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.quoteBtn:hover {
+  background-color: #e64a19 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(255, 87, 34, 0.35);
+}
+
 /* ── MOBILE ── */
 @media (max-width: 992px) {
   .headerBar {
@@ -296,10 +249,6 @@
     width: calc(100% - 1.25rem);
     height: 62px;
     padding: 0 0.75rem 0 1rem;
-  }
-
-  .contactBadge {
-    display: none;
   }
 
   .mobileMenuBtn {
