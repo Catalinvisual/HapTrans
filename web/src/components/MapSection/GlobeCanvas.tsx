@@ -17,19 +17,56 @@ type TopoShape = {
 const toFeatureCollection = (topo: TopoShape): FeatureCollection =>
   feature(topo as unknown as Parameters<typeof feature>[0], topo.objects.countries as Parameters<typeof feature>[1]) as unknown as FeatureCollection;
 
+const isOverseasInAmericas = (coords: number[][][]): boolean => {
+  let minLon = Infinity;
+  let maxLon = -Infinity;
+  let maxLat = -Infinity;
+  for (const ring of coords) {
+    for (const pt of ring) {
+      const l = pt[0];
+      const la = pt[1];
+      if (l < minLon) minLon = l;
+      if (l > maxLon) maxLon = l;
+      if (la > maxLat) maxLat = la;
+    }
+  }
+  return maxLat < 20 && maxLon < -20;
+};
+
+const splitFeatures = (fc: FeatureCollection): FeatureCollection => {
+  const out: FeatureCollection['features'] = [];
+  for (const f of fc.features) {
+    const props = f.properties ? { ...f.properties } : {};
+    if (f.geometry.type === 'MultiPolygon') {
+      for (let i = 0; i < f.geometry.coordinates.length; i++) {
+        const group = f.geometry.coordinates[i];
+        if (isOverseasInAmericas(group)) continue;
+        out.push({
+          type: 'Feature',
+          properties: props,
+          geometry: { type: 'Polygon', coordinates: group },
+        });
+      }
+    } else {
+      out.push(f);
+    }
+  }
+  return { ...fc, features: out };
+};
+
 let worldCache: FeatureCollection | null = null;
 const loadWorld = async (): Promise<FeatureCollection> => {
   if (worldCache) return worldCache;
   const res = await fetch(GEO_URL);
   const raw = res.ok ? await res.json() : null;
   if (raw) {
-    worldCache = toFeatureCollection(raw as TopoShape);
+    worldCache = splitFeatures(toFeatureCollection(raw as TopoShape));
     return worldCache;
   }
   const fallback = await fetch(GEO_URL_FALLBACK);
   if (!fallback.ok) throw new Error('world-atlas unavailable');
   const ftopo = (await fallback.json()) as TopoShape;
-  worldCache = toFeatureCollection(ftopo);
+  worldCache = splitFeatures(toFeatureCollection(ftopo));
   return worldCache;
 };
 
@@ -262,16 +299,7 @@ export default function GlobeCanvas({
   const getLabelElement = (d: HtmlLabelD): HTMLElement => {
     const el = document.createElement('div');
     el.textContent = d.text;
-    el.style.cssText =
-      'position:relative;transform:translate(-50%,-130%);' +
-      'font-family:Arial,Helvetica,sans-serif;' +
-      'font-size:10px;font-weight:700;letter-spacing:0.5px;white-space:nowrap;' +
-      'color:#fff;text-shadow:0 0 3px rgba(0,0,0,0.9),0 0 6px rgba(0,0,0,0.7);' +
-      'line-height:1;pointer-events:none;';
-    if (d.isHub) {
-      el.style.color = '#fff';
-      el.style.textShadow = '0 0 3px rgba(0,0,0,0.9),0 0 6px rgba(0,0,0,0.7)';
-    }
+    el.className = d.isHub ? `${styles.globeLabel} ${styles.globeLabelHub}` : styles.globeLabel;
     return el;
   };
 
@@ -318,7 +346,7 @@ export default function GlobeCanvas({
         polygonAltitude={() => 0.02}
         polygonsTransitionDuration={1000}
         arcsData={view.arc}
-        arcColor={() => ['rgba(56,189,248,0.001)', '#38bdf8']}
+        arcColor={() => ['rgba(94,234,212,0)', '#5eead4']}
         arcStroke={() => 0.7}
         arcDashLength={() => 0.5}
         arcDashGap={() => 0.6}

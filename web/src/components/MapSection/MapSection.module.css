@@ -170,6 +170,36 @@
   user-select: none;
 }
 
+.globeLabel {
+  transform: translate(-50%, -130%);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  white-space: nowrap;
+  color: #fff;
+  text-shadow:
+    0 0 3px rgba(0, 0, 0, 0.95),
+    0 0 6px rgba(0, 0, 0, 0.75);
+  pointer-events: none;
+}
+
+.globeLabelHub {
+  font-size: 11px;
+}
+
+@media (max-width: 768px) {
+  .globeLabel {
+    font-size: 8px;
+    letter-spacing: 0.3px;
+  }
+
+  .globeLabelHub {
+    font-size: 9px;
+  }
+}
+
 @media (max-width: 992px) {
   .globeCanvas {
     width: min(100%, 480px);
