@@ -263,14 +263,14 @@ export default function GlobeCanvas({
     const el = document.createElement('div');
     el.textContent = d.text;
     el.style.cssText =
-      'position:relative;transform:translate(-50%,-120%);' +
-      'padding:3px 9px;border-radius:8px;font-family:Arial,Helvetica,sans-serif;' +
-      'font-size:14px;font-weight:700;letter-spacing:0.5px;white-space:nowrap;' +
-      'color:#fff;background:rgba(255,90,0,0.9);border:1.5px solid rgba(255,255,255,0.9);' +
-      'box-shadow:0 2px 8px rgba(0,0,0,0.4);pointer-events:none;';
+      'position:relative;transform:translate(-50%,-130%);' +
+      'font-family:Arial,Helvetica,sans-serif;' +
+      'font-size:10px;font-weight:700;letter-spacing:0.5px;white-space:nowrap;' +
+      'color:#fff;text-shadow:0 0 3px rgba(0,0,0,0.9),0 0 6px rgba(0,0,0,0.7);' +
+      'line-height:1;pointer-events:none;';
     if (d.isHub) {
-      el.style.background = 'rgba(15,42,71,0.9)';
-      el.style.borderColor = 'rgba(255,255,255,0.9)';
+      el.style.color = '#fff';
+      el.style.textShadow = '0 0 3px rgba(0,0,0,0.9),0 0 6px rgba(0,0,0,0.7)';
     }
     return el;
   };
