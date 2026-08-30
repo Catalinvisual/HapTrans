@@ -1,8 +1,26 @@
 .section {
-  padding: 6rem 0;
+  padding: 6rem 0 calc(6rem + 96px);
   background: radial-gradient(1200px 800px at 15% 20%, #12293f 0%, #0B1B2A 55%, #081220 100%);
   position: relative;
   overflow: hidden;
+}
+
+/* Diagonal cut: dark -> light transition at the bottom */
+.diagonalBottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 96px;
+  line-height: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.diagonalBottom svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .section::before {
@@ -208,7 +226,11 @@
 
 @media (max-width: 480px) {
   .section {
-    padding: 4.5rem 0;
+    padding: 4.5rem 0 calc(4.5rem + 64px);
+  }
+
+  .diagonalBottom {
+    height: 64px;
   }
 
   .container {

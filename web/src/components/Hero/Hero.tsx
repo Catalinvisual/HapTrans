@@ -125,20 +125,51 @@ const Hero = () => {
     }
   };
 
+  const surchargeItems = [
+    {
+      key: 'adrSurcharge' as const,
+      emoji: '⚠️',
+      label: getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR"),
+    },
+    {
+      key: 'nightSurcharge' as const,
+      emoji: '🌙',
+      label: getLabel("Noapte / Express", "Night / Express", "Nacht / Express", "Nacht / Express", "Nuit / Express", "Noche / Exprés"),
+    },
+    {
+      key: 'weekendSurcharge' as const,
+      emoji: '📅',
+      label: getLabel("Weekend", "Weekend", "Weekend", "Wochenende", "Week-end", "Fin de Semana"),
+    },
+    {
+      key: 'holidaySurcharge' as const,
+      emoji: '🏛️',
+      label: getLabel("Sărbători Legale", "Public Holiday", "Feestdagen", "Feiertage", "Jours Fériés", "Festivos Oficiales"),
+    },
+  ];
+
   return (
     <section className={styles.hero}>
-      <Image 
-        src="/hero-nou.jpg" 
-        alt="Hero Background" 
-        fill 
-        className={styles.bgImage}
-        style={{ objectFit: 'cover', objectPosition: 'center center', zIndex: 0 }} 
-        quality={100} 
-        unoptimized={true} /* bypasses compression entirely so it matches original quality exactly */
-        priority
-      />
-      <div className={styles.container}>
-        
+<div className={styles.container}>
+
+        {/* Hero image (media) */}
+        <div className={styles.heroImageWrap}>
+          <Image
+            src="/hero-nou.jpg"
+            alt="Camion HapCargo pe autostradă"
+            fill
+            className={styles.heroImage}
+            style={{ objectFit: 'cover', objectPosition: 'center center' }}
+            quality={100}
+            unoptimized={true}
+            priority
+          />
+          <div className={styles.heroOverlay} aria-hidden="true" />
+          <div className={styles.heroImageCaption}>
+            <span>{getLabel("Flotă modernă", "Modern fleet", "Modern wagenpark", "Moderne Flotte", "Flotte moderne", "Flota moderna")}</span>
+          </div>
+        </div>
+
         {/* Left Content */}
         <div className={styles.content}>
           <div className={`${styles.badge} ${styles.animBadge}`}>
@@ -157,33 +188,36 @@ const Hero = () => {
             <a href="/cere-oferta" className="btn btn-primary">
               {t('ctaPrimary')}
             </a>
+            <a href="/diensten" className="btn btn-ghost-light">
+              {t('ctaSecondary')}
+            </a>
           </div>
         </div>
 
-        <div className={`${styles.calculatorWrapper} ${styles.animCalc}`}>
-          <div className={styles.calculator}>
-            <div className={styles.calcHeader}>
-              <h3 className={styles.calcTitle}>{t('calcTitle')}</h3>
-              <p className={styles.calcDesc}>{t('calcDesc')}</p>
-            </div>
-            
-            <form className={styles.calcForm} onSubmit={handleCalculate}>
+        {/* Calculator */}
+        <div className={`${styles.calculatorCard} ${styles.animCalc}`}>
+          <div className={styles.calcHeader}>
+            <h3 className={styles.calcTitle}>{t('calcTitle')}</h3>
+            <p className={styles.calcDesc}>{t('calcDesc')}</p>
+          </div>
+
+            <form className={styles.calcForm} onSubmit={handleCalculate} noValidate>
               {step === 1 && (
                 <div className={styles.step1Grid}>
                   <div className={styles.formGroup}>
                     <label>{t('calcFrom')}</label>
-                    <AddressAutocomplete 
-                      value={formData.from} 
+                    <AddressAutocomplete
+                      value={formData.from}
                       onChange={(val) => setFormData({ ...formData, from: val })}
                       placeholder={t('calcFromPlaceholder') || 'ex: București, RO'}
                       required
                     />
                   </div>
-                  
+
                   <div className={styles.formGroup}>
                     <label>{t('calcTo')}</label>
-                    <AddressAutocomplete 
-                      value={formData.to} 
+                    <AddressAutocomplete
+                      value={formData.to}
                       onChange={(val) => setFormData({ ...formData, to: val })}
                       placeholder={t('calcToPlaceholder') || 'ex: Munchen, DE'}
                       required
@@ -209,27 +243,27 @@ const Hero = () => {
                     {isSubmitting ? t('calcLoading') : t('calcSubmit')}
                   </button>
 
-                  <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'rgba(255, 255, 255, 0.7)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <div className={styles.surchargeBlock}>
+                    <span className={styles.surchargeTitle}>
                       {getLabel("Opțiuni Suplimentare", "Additional Options", "Aanvullende opties", "Zusätzliche Optionen", "Options supplémentaires", "Opciones adicionales")}
                     </span>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: '0.5rem 0.75rem', borderRadius: '1rem 0 1rem 0', border: formData.adrSurcharge ? '2px solid var(--primary)' : '1px solid rgba(255, 255, 255, 0.15)', background: formData.adrSurcharge ? 'rgba(255, 90, 0, 0.15)' : 'rgba(0, 0, 0, 0.3)', color: formData.adrSurcharge ? 'var(--primary)' : 'rgba(255, 255, 255, 0.8)', transition: 'all 0.2s ease' }}>
-                        <input type="checkbox" name="adrSurcharge" checked={formData.adrSurcharge} onChange={handleChange} style={{ display: 'none' }} />
-                        <span>⚠️</span> {getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR")}
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: '0.5rem 0.75rem', borderRadius: '1rem 0 1rem 0', border: formData.nightSurcharge ? '2px solid var(--primary)' : '1px solid rgba(255, 255, 255, 0.15)', background: formData.nightSurcharge ? 'rgba(255, 90, 0, 0.15)' : 'rgba(0, 0, 0, 0.3)', color: formData.nightSurcharge ? 'var(--primary)' : 'rgba(255, 255, 255, 0.8)', transition: 'all 0.2s ease' }}>
-                        <input type="checkbox" name="nightSurcharge" checked={formData.nightSurcharge} onChange={handleChange} style={{ display: 'none' }} />
-                        <span>🌙</span> {getLabel("Noapte / Express", "Night / Express", "Nacht / Express", "Nacht / Express", "Nuit / Express", "Noche / Exprés")}
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: '0.5rem 0.75rem', borderRadius: '1rem 0 1rem 0', border: formData.weekendSurcharge ? '2px solid var(--primary)' : '1px solid rgba(255, 255, 255, 0.15)', background: formData.weekendSurcharge ? 'rgba(255, 90, 0, 0.15)' : 'rgba(0, 0, 0, 0.3)', color: formData.weekendSurcharge ? 'var(--primary)' : 'rgba(255, 255, 255, 0.8)', transition: 'all 0.2s ease' }}>
-                        <input type="checkbox" name="weekendSurcharge" checked={formData.weekendSurcharge} onChange={handleChange} style={{ display: 'none' }} />
-                        <span>📅</span> {getLabel("Weekend", "Weekend", "Weekend", "Wochenende", "Week-end", "Fin de Semana")}
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: '0.5rem 0.75rem', borderRadius: '1rem 0 1rem 0', border: formData.holidaySurcharge ? '2px solid var(--primary)' : '1px solid rgba(255, 255, 255, 0.15)', background: formData.holidaySurcharge ? 'rgba(255, 90, 0, 0.15)' : 'rgba(0, 0, 0, 0.3)', color: formData.holidaySurcharge ? 'var(--primary)' : 'rgba(255, 255, 255, 0.8)', transition: 'all 0.2s ease' }}>
-                        <input type="checkbox" name="holidaySurcharge" checked={formData.holidaySurcharge} onChange={handleChange} style={{ display: 'none' }} />
-                        <span>🏛️</span> {getLabel("Sărbători Legale", "Public Holiday", "Feestdagen", "Feiertage", "Jours Fériés", "Festivos Oficiales")}
-                      </label>
+                    <div className={styles.surcharges}>
+                      {surchargeItems.map(s => (
+                        <label
+                          key={s.key}
+                          className={`${styles.surchargeChip} ${formData[s.key] ? styles.surchargeChipActive : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            name={s.key}
+                            checked={formData[s.key]}
+                            onChange={handleChange}
+                            style={{ display: 'none' }}
+                          />
+                          <span className={styles.surchargeEmoji}>{s.emoji}</span>
+                          {s.label}
+                        </label>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -246,26 +280,26 @@ const Hero = () => {
                 <h3 className={styles.successTitle}>
                   {getLabel("Oferta estimativă este gata!", "Estimated quote is ready!", "Geschatte offerte is klaar!", "Geschätztes Angebot ist bereit!", "Le devis estimatif est prêt!", "¡El presupuesto estimado está listo!")}
                 </h3>
-                
-                <div style={{ margin: '1rem auto 1.5rem auto', padding: '0.75rem 1.5rem', background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: '0.75rem', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', maxWidth: '100%', width: 'fit-content', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'rgba(255, 255, 255, 0.8)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '0.2rem', textAlign: 'center' }}>
+
+                <div className={styles.priceBox}>
+                  <span className={styles.priceLabel}>
                     {getLabel("Recommended price / System suggested price", "Recommended price / System suggested price", "Aanbevolen prijs / Systeem voorgestelde prijs", "Empfohlener Preis / System-Vorschlagspreis", "Prix recommandé / Prix suggéré par le système", "Precio recomendado / Precio sugerido por el sistema")}
                   </span>
-                  <span style={{ fontSize: '1.6rem', fontWeight: 850, color: 'var(--primary)', lineHeight: 1.2, textAlign: 'center' }}>
+                  <span className={styles.priceValue}>
                     {estimatedPriceRange}
                   </span>
                 </div>
 
                 {surchargesApplied && (surchargesApplied.adr > 0 || surchargesApplied.night > 0 || surchargesApplied.weekend > 0 || surchargesApplied.holiday > 0) && (
-                  <div style={{ margin: '0 auto 1.5rem auto', padding: '1rem', background: 'rgba(0, 0, 0, 0.2)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '0.75rem', width: '100%', textAlign: 'left' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'rgba(255, 255, 255, 0.7)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.5rem' }}>
+                  <div className={styles.surchargeBreakdown}>
+                    <span className={styles.surchargeBreakdownTitle}>
                       {getLabel("Defalcare costuri suplimentare aplicate:", "Applied surcharge breakdown:", "Overzicht toegepaste toeslagen:", "Aufschlüsselung der angewendeten Zuschläge:", "Répartition des suppléments appliqués :", "Desglose de recargos aplicados:")}
                     </span>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-                      {surchargesApplied.adr > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #fde68a' }}>⚠️ {getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR")}: +{fmtMoney(surchargesApplied.adr)}</span>}
-                      {surchargesApplied.night > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1d4ed8', background: '#dbeafe', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #bfdbfe' }}>🌙 {getLabel("Noapte", "Night", "Nacht", "Nacht", "Nuit", "Noche")}: +{fmtMoney(surchargesApplied.night)}</span>}
-                      {surchargesApplied.weekend > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#047857', background: '#d1fae5', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #a7f3d0' }}>📅 {getLabel("Weekend", "Weekend", "Weekend", "Wochenende", "Week-end", "Fin de semana")}: +{fmtMoney(surchargesApplied.weekend)}</span>}
-                      {surchargesApplied.holiday > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#6b21a8', background: '#f3e8ff', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #e9d5ff' }}>🏛️ {getLabel("Sărbători Legale", "Public Holiday", "Feestdagen", "Feiertag", "Jours Fériés", "Festivos Oficiales")}: +{fmtMoney(surchargesApplied.holiday)}</span>}
+                      {surchargesApplied.adr > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownAmber}`}>⚠️ {getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR")}: +{fmtMoney(surchargesApplied.adr)}</span>}
+                      {surchargesApplied.night > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownBlue}`}>🌙 {getLabel("Noapte", "Night", "Nacht", "Nacht", "Nuit", "Noche")}: +{fmtMoney(surchargesApplied.night)}</span>}
+                      {surchargesApplied.weekend > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownGreen}`}>📅 {getLabel("Weekend", "Weekend", "Weekend", "Wochenende", "Week-end", "Fin de semana")}: +{fmtMoney(surchargesApplied.weekend)}</span>}
+                      {surchargesApplied.holiday > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownPurple}`}>🏛️ {getLabel("Sărbători Legale", "Public Holiday", "Feestdagen", "Feiertag", "Jours Fériés", "Festivos Oficiales")}: +{fmtMoney(surchargesApplied.holiday)}</span>}
                     </div>
                   </div>
                 )}
@@ -275,15 +309,15 @@ const Hero = () => {
                 </p>
 
                 <div className={styles.btnGroup}>
-                  <button type="button" onClick={() => setStep(1)} className={`btn btn-outline ${styles.calcBtn}`} style={{ borderColor: 'rgba(255, 255, 255, 0.3)', color: '#ffffff', background: 'rgba(255, 255, 255, 0.05)', minWidth: '140px' }}>
+                  <button type="button" onClick={() => setStep(1)} className={`btn btn-outline ${styles.calcBtn}`} style={{ minWidth: '140px' }}>
                     {t('calcBack')}
                   </button>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => {
                       window.location.href = `/cere-oferta?from=${encodeURIComponent(formData.from)}&to=${encodeURIComponent(formData.to)}&weight=${encodeURIComponent(formData.weight)}&type=${encodeURIComponent(formData.type)}&pallets=${encodeURIComponent(formData.pallets)}&est=${encodeURIComponent(estimatedPriceRange)}&dist=${encodeURIComponent(calculatedDistance)}&adr=${formData.adrSurcharge}&night=${formData.nightSurcharge}&weekend=${formData.weekendSurcharge}&holiday=${formData.holidaySurcharge}&ts=${Date.now()}`;
-                    }} 
-                    className={`btn btn-primary ${styles.calcBtn}`} 
+                    }}
+                    className={`btn btn-primary ${styles.calcBtn}`}
                     style={{ minWidth: '220px' }}
                   >
                     {getLabel("Continuă spre cererea de ofertă ➔", "Continue to Quote Request ➔", "Ga naar offerteaanvraag ➔", "Weiter zur Angebotsanfrage ➔", "Continuer vers la demande de devis ➔", "Continuar a la solicitud de cotización ➔")}
@@ -308,7 +342,13 @@ const Hero = () => {
               </div>
             )}
           </div>
-        </div>
+      </div>
+
+      {/* Wave separator into next section */}
+      <div className={`sep-wave ${styles.wave}`} aria-hidden="true">
+        <svg viewBox="0 0 1440 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0,32 C360,120 1080,0 1440,64 L1440,120 L0,120 Z" fill="#F7F7F8"/>
+        </svg>
       </div>
     </section>
   );

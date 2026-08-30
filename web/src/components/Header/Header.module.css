@@ -18,7 +18,7 @@
   top: 0;
   left: 0;
   height: 3px;
-  background: linear-gradient(90deg, #ff5a00, #ff7e33);
+  background: linear-gradient(90deg, var(--brand), #ff9a66);
   transition: width 0.08s linear;
   z-index: 1001;
 }
@@ -55,12 +55,12 @@
 }
 
 .logoHap {
-  color: #FF5A00;
+  color: var(--brand);
   font-weight: 900;
 }
 
 .logoCargo {
-  color: #0D1B2A;
+  color: var(--text);
   font-weight: 900;
 }
 
@@ -100,7 +100,7 @@
 }
 
 .navLink:hover {
-  color: #FF5A00;
+  color: var(--brand);
 }
 
 .navLink:hover::after {
@@ -108,7 +108,7 @@
 }
 
 .navLinkActive {
-  color: #FF5A00;
+  color: var(--brand);
   font-weight: 700;
 }
 
@@ -142,9 +142,9 @@
 }
 
 .langSwitch:hover {
-  border-color: rgba(255, 90, 0, 0.5);
+  border-color: rgba(255, 106, 43, 0.5);
   background-color: #fffaf5;
-  color: var(--primary);
+  color: var(--brand);
 }
 
 .langWrapper {
