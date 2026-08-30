@@ -42,7 +42,7 @@
 
   .globeStage {
     order: 1;
-    min-height: 400px;
+    min-height: 480px;
   }
 }
 
@@ -117,7 +117,7 @@
 .globeStage {
   position: relative;
   width: 100%;
-  min-height: 540px;
+  min-height: 640px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -125,7 +125,7 @@
 
 @media (max-width: 992px) {
   .globeStage {
-    min-height: 420px;
+    min-height: 500px;
   }
 }
 
@@ -145,7 +145,7 @@
 
 .globeGlow {
   position: absolute;
-  width: min(88%, 460px);
+  width: min(92%, 600px);
   aspect-ratio: 1 / 1;
   border-radius: 50%;
   background: radial-gradient(ellipse at 50% 50%, rgba(59,130,246,0.22) 0%, rgba(30,90,160,0.12) 45%, transparent 72%);
@@ -162,14 +162,14 @@
 .globeCanvas {
   position: relative;
   z-index: 2;
-  width: min(100%, 500px);
+  width: min(100%, 640px);
   aspect-ratio: 1 / 1;
   overflow: hidden;
 }
 
 @media (max-width: 992px) {
   .globeCanvas {
-    width: min(100%, 400px);
+    width: min(100%, 480px);
   }
 }
 
@@ -209,15 +209,62 @@
   }
 
   .globeStage {
-    min-height: 340px;
+    min-height: 440px;
   }
 
   .globeCanvas {
-    width: min(100%, 320px);
+    width: min(100%, 400px);
   }
 
   .globeGlow {
-    width: min(88%, 300px);
+    width: min(92%, 380px);
+  }
+}
+
+.zoomControls {
+  position: absolute;
+  right: 8px;
+  bottom: 16px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.zoomBtn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(15, 42, 71, 0.7);
+  color: #fff;
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+  transition: all 0.2s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.zoomBtn:hover {
+  background: rgba(255,90,0,0.75);
+  border-color: rgba(255,90,0,0.5);
+  transform: scale(1.05);
+}
+
+.zoomBtn:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+  .zoomControls {
+    display: none;
   }
 }
 
