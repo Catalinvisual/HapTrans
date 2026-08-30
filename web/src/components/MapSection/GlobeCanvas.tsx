@@ -117,7 +117,7 @@ const geoNameMatchesCountry = (geoName: string, code: string): boolean => {
 
 type Poly = { properties?: { name?: string } };
 type PointD = { lat: number; lng: number; itemType: 'hub' | 'destination' };
-type LabelD = { text: string };
+type HtmlLabelD = { lat: number; lng: number; text: string; isHub: boolean };
 type ArcD = {
   startLat: number;
   startLng: number;
@@ -225,12 +225,13 @@ export default function GlobeCanvas({
       lng: START_COORDS[c][0],
       itemType: c === 'NL' ? 'hub' : 'destination',
     }));
-    const labels: LabelD[] = allCodes.map((c) => ({
+    const htmlLabels = allCodes.map((c) => ({
       lat: START_COORDS[c][1],
       lng: START_COORDS[c][0],
-      text: c === 'NL' ? 'NL' : c,
+      text: c,
+      isHub: c === 'NL',
     }));
-    return { arc, points, labels, highlights };
+    return { arc, points, htmlLabels, highlights };
   }, [countries, geo]);
 
   if (error) {
@@ -256,6 +257,22 @@ export default function GlobeCanvas({
     const altitude = current.altitude ?? 1.55;
     const next = Math.min(3, Math.max(0.5, altitude * factor));
     globeRef.current?.pointOfView({ ...current, altitude: next }, 0);
+  };
+
+  const getLabelElement = (d: HtmlLabelD): HTMLElement => {
+    const el = document.createElement('div');
+    el.textContent = d.text;
+    el.style.cssText =
+      'position:relative;transform:translate(-50%,-120%);' +
+      'padding:3px 9px;border-radius:8px;font-family:Arial,Helvetica,sans-serif;' +
+      'font-size:14px;font-weight:700;letter-spacing:0.5px;white-space:nowrap;' +
+      'color:#fff;background:rgba(255,90,0,0.9);border:1.5px solid rgba(255,255,255,0.9);' +
+      'box-shadow:0 2px 8px rgba(0,0,0,0.4);pointer-events:none;';
+    if (d.isHub) {
+      el.style.background = 'rgba(15,42,71,0.9)';
+      el.style.borderColor = 'rgba(255,255,255,0.9)';
+    }
+    return el;
   };
 
   if (!geo || !dims) {
@@ -314,15 +331,11 @@ export default function GlobeCanvas({
         pointColor={(d) => ((d as PointD).itemType === 'hub' ? '#f8fafc' : '#FF5A00')}
         pointAltitude={() => 0.03}
         pointRadius={() => 0.4}
-        labelsData={view.labels}
-        labelLat={(d) => (d as PointD).lat}
-        labelLng={(d) => (d as PointD).lng}
-        labelText={(d) => (d as LabelD).text}
-        labelAltitude={() => 0.012}
-        labelSize={() => 1.5}
-        labelDotRadius={() => 0.55}
-        labelDotOrientation={() => 'top'}
-        labelColor={() => 'rgba(255,255,255,0.95)'}
+        htmlElementsData={view.htmlLabels}
+        htmlLat={(d) => (d as HtmlLabelD).lat}
+        htmlLng={(d) => (d as HtmlLabelD).lng}
+        htmlAltitude={() => 0.02}
+        htmlElement={(d) => getLabelElement(d as HtmlLabelD)}
       />
       <div className={styles.zoomControls}>
         <button

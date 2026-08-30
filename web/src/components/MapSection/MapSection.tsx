@@ -20,7 +20,7 @@ const MapSection = () => {
 
   useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
-    fetch(`${apiUrl}/website-cms`)
+    fetch(`${apiUrl}/website-cms?t=${Date.now()}`, { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         if (data.countries) {
