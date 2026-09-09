@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Install / Lint / Typecheck / Build / Test
+    runs-on: ubuntu-latest
+    env:
+      TURBO_TELEMETRY_DISABLED: '1'
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hapcargo_test?schema=public
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run -w @hapcargo/database db:generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Dependency audit
+        run: npm audit --omit=dev --audit-level=high || true
+        continue-on-error: true

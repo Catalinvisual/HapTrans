@@ -1,0 +1,10 @@
+{
+  "extends": "@hapcargo/config/tsconfig/base",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["src"]
+}

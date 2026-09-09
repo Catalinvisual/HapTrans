@@ -1,0 +1,15 @@
+{
+  "name": "@hapcargo/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tsconfig/*": "./tsconfig/*.json",
+    "./eslint": "./eslint-preset.mjs",
+    "./tailwind": "./tailwind-preset.mjs"
+  },
+  "files": ["tsconfig", "*.mjs"],
+  "dependencies": {
+    "typescript-eslint": "^8.18.0"
+  }
+}

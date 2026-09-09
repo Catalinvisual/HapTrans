@@ -1,0 +1,328 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * HAP CARGO — Design System (TASK 04)
+ * The visual direction is modern, premium, European and operational.
+ * HSL custom-property variables drive the Tailwind theme.
+ * All tokens use CSS custom properties for runtime theming.
+ */
+
+@layer base {
+  :root {
+    /* Core colors */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Primary brand */
+    --primary: 213 58% 26%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 213 58% 22%;
+    --primary-muted: 213 58% 92%;
+
+    /* Secondary */
+    --secondary: 213 25% 95%;
+    --secondary-foreground: 213 47% 15%;
+    --secondary-hover: 213 25% 90%;
+
+    /* Muted */
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    /* Accent */
+    --accent: 213 80% 96%;
+    --accent-foreground: 213 58% 26%;
+
+    /* Semantic status colors */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-muted: 0 72% 94%;
+
+    --success: 152 60% 38%;
+    --success-foreground: 0 0% 100%;
+    --success-muted: 152 60% 94%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
+    --warning-muted: 38 92% 94%;
+
+    --info: 210 80% 50%;
+    --info-foreground: 0 0% 100%;
+    --info-muted: 210 80% 94%;
+
+    /* Borders & inputs */
+    --border: 214 32% 90%;
+    --input: 214 32% 86%;
+    --ring: 213 58% 26%;
+    --ring-offset: 0 0% 100%;
+
+    /* Radius */
+    --radius-sm: 0.25rem;
+    --radius: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    --radius-full: 9999px;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+    /* Typography */
+    --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, monospace;
+
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
+    --text-base: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.25rem;
+    --text-2xl: 1.5rem;
+    --text-3xl: 1.875rem;
+    --text-4xl: 2.25rem;
+
+    --leading-tight: 1.25;
+    --leading-snug: 1.375;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.625;
+
+    --font-normal: 400;
+    --font-medium: 500;
+    --font-semibold: 600;
+    --font-bold: 700;
+
+    /* Spacing scale */
+    --space-0: 0;
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-10: 2.5rem;
+    --space-12: 3rem;
+    --space-16: 4rem;
+    --space-20: 5rem;
+    --space-24: 6rem;
+
+    /* Layout dimensions */
+    --sidebar-width: 256px;
+    --sidebar-collapsed-width: 64px;
+    --topbar-height: 56px;
+    --content-max-width: 1400px;
+    --content-padding: 1.5rem;
+
+    /* Transitions */
+    --transition-fast: 150ms ease;
+    --transition-normal: 200ms ease;
+    --transition-slow: 300ms ease;
+
+    /* Z-index scale */
+    --z-dropdown: 100;
+    --z-sticky: 200;
+    --z-modal: 300;
+    --z-popover: 400;
+    --z-tooltip: 500;
+    --z-toast: 600;
+  }
+
+  .dark {
+    --background: 222 47% 8%;
+    --foreground: 210 20% 96%;
+
+    --card: 222 47% 10%;
+    --card-foreground: 210 20% 96%;
+
+    --popover: 222 47% 10%;
+    --popover-foreground: 210 20% 96%;
+
+    --primary: 213 58% 60%;
+    --primary-foreground: 222 47% 8%;
+    --primary-hover: 213 58% 65%;
+    --primary-muted: 213 58% 18%;
+
+    --secondary: 217 32% 16%;
+    --secondary-foreground: 210 20% 96%;
+    --secondary-hover: 217 32% 20%;
+
+    --muted: 217 32% 16%;
+    --muted-foreground: 215 20% 60%;
+
+    --accent: 217 32% 20%;
+    --accent-foreground: 210 20% 96%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-muted: 0 62% 15%;
+
+    --success: 152 55% 45%;
+    --success-foreground: 222 47% 8%;
+    --success-muted: 152 55% 15%;
+
+    --warning: 38 92% 55%;
+    --warning-foreground: 222 47% 8%;
+    --warning-muted: 38 92% 15%;
+
+    --info: 210 80% 60%;
+    --info-foreground: 222 47% 8%;
+    --info-muted: 210 80% 15%;
+
+    --border: 217 32% 20%;
+    --input: 217 32% 24%;
+    --ring: 213 58% 60%;
+    --ring-offset: 222 47% 8%;
+  }
+}
+
+/* Operational status colors - light theme */
+@layer base {
+  :root {
+    --status-planned: 210 80% 50%;
+    --status-planned-muted: 210 80% 94%;
+    --status-assigned: 250 65% 55%;
+    --status-assigned-muted: 250 65% 94%;
+    --status-confirmed: 180 60% 45%;
+    --status-confirmed-muted: 180 60% 94%;
+    --status-dispatched: 280 55% 55%;
+    --status-dispatched-muted: 280 55% 94%;
+    --status-active: 152 60% 38%;
+    --status-active-muted: 152 60% 94%;
+    --status-on-time: 142 65% 42%;
+    --status-on-time-muted: 142 65% 94%;
+    --status-at-risk: 38 92% 50%;
+    --status-at-risk-muted: 38 92% 94%;
+    --status-delayed: 0 72% 51%;
+    --status-delayed-muted: 0 72% 94%;
+    --status-completed: 213 58% 26%;
+    --status-completed-muted: 213 58% 92%;
+    --status-cancelled: 215 16% 47%;
+    --status-cancelled-muted: 215 16% 92%;
+    --status-offline: 215 16% 47%;
+    --status-offline-muted: 215 16% 92%;
+    --status-available: 152 60% 38%;
+    --status-available-muted: 152 60% 94%;
+    --status-exception: 0 72% 51%;
+    --status-exception-muted: 0 72% 94%;
+    --status-pending: 38 92% 50%;
+    --status-pending-muted: 38 92% 94%;
+    --status-approved: 152 60% 38%;
+    --status-approved-muted: 152 60% 94%;
+    --status-rejected: 0 72% 51%;
+    --status-rejected-muted: 0 72% 94%;
+  }
+
+  .dark {
+    --status-planned: 210 80% 60%;
+    --status-planned-muted: 210 80% 15%;
+    --status-assigned: 250 65% 65%;
+    --status-assigned-muted: 250 65% 15%;
+    --status-confirmed: 180 60% 55%;
+    --status-confirmed-muted: 180 60% 15%;
+    --status-dispatched: 280 55% 65%;
+    --status-dispatched-muted: 280 55% 15%;
+    --status-active: 152 55% 45%;
+    --status-active-muted: 152 55% 15%;
+    --status-on-time: 142 65% 52%;
+    --status-on-time-muted: 142 65% 15%;
+    --status-at-risk: 38 92% 55%;
+    --status-at-risk-muted: 38 92% 15%;
+    --status-delayed: 0 62% 45%;
+    --status-delayed-muted: 0 62% 15%;
+    --status-completed: 213 58% 60%;
+    --status-completed-muted: 213 58% 15%;
+    --status-cancelled: 215 20% 60%;
+    --status-cancelled-muted: 215 20% 15%;
+    --status-offline: 215 20% 60%;
+    --status-offline-muted: 215 20% 15%;
+    --status-available: 152 55% 45%;
+    --status-available-muted: 152 55% 15%;
+    --status-exception: 0 62% 45%;
+    --status-exception-muted: 0 62% 15%;
+    --status-pending: 38 92% 55%;
+    --status-pending-muted: 38 92% 15%;
+    --status-approved: 152 55% 45%;
+    --status-approved-muted: 152 55% 15%;
+    --status-rejected: 0 62% 45%;
+    --status-rejected-muted: 0 62% 15%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Focus visible for keyboard navigation */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+}
+
+/* Utility classes for design tokens */
+@layer utilities {
+  .font-sans { font-family: var(--font-sans); }
+  .font-mono { font-family: var(--font-mono); }
+
+  .text-xs { font-size: var(--text-xs); }
+  .text-sm { font-size: var(--text-sm); }
+  .text-base { font-size: var(--text-base); }
+  .text-lg { font-size: var(--text-lg); }
+  .text-xl { font-size: var(--text-xl); }
+  .text-2xl { font-size: var(--text-2xl); }
+  .text-3xl { font-size: var(--text-3xl); }
+  .text-4xl { font-size: var(--text-4xl); }
+
+  .leading-tight { line-height: var(--leading-tight); }
+  .leading-snug { line-height: var(--leading-snug); }
+  .leading-normal { line-height: var(--leading-normal); }
+  .leading-relaxed { line-height: var(--leading-relaxed); }
+
+  .font-normal { font-weight: var(--font-normal); }
+  .font-medium { font-weight: var(--font-medium); }
+  .font-semibold { font-weight: var(--font-semibold); }
+  .font-bold { font-weight: var(--font-bold); }
+
+  .shadow-sm { box-shadow: var(--shadow-sm); }
+  .shadow { box-shadow: var(--shadow); }
+  .shadow-md { box-shadow: var(--shadow-md); }
+  .shadow-lg { box-shadow: var(--shadow-lg); }
+  .shadow-xl { box-shadow: var(--shadow-xl); }
+
+  .transition-fast { transition: all var(--transition-fast); }
+  .transition-normal { transition: all var(--transition-normal); }
+  .transition-slow { transition: all var(--transition-slow); }
+}

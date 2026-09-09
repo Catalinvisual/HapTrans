@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "HAP Cargo Driver",
+    "slug": "hapcargo-driver",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "platforms": ["ios", "android"],
+    "ios": {
+      "bundleIdentifier": "com.hapcargo.driver",
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.hapcargo.driver"
+    }
+  }
+}

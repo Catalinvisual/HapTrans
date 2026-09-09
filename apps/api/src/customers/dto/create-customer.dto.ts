@@ -1,0 +1,37 @@
+import { z } from 'zod';
+
+export const createCustomerSchema = z.object({
+  code: z.string().min(1).max(50),
+  legalName: z.string().min(1).max(255),
+  tradingName: z.string().max(255).optional(),
+  shortName: z.string().max(100).optional(),
+  registrationNumber: z.string().max(100).optional(),
+  vatNumber: z.string().max(50).optional(),
+  taxNumber: z.string().max(50).optional(),
+  legalForm: z.string().max(50).optional(),
+  country: z.string().length(2).default('RO'),
+  defaultLanguage: z.string().length(2).default('en'),
+  defaultCurrency: z.string().length(3).default('EUR'),
+  timezone: z.string().max(100).optional(),
+  mainEmail: z.string().email().optional(),
+  billingEmail: z.string().email().optional(),
+  phone: z.string().max(50).optional(),
+  mobile: z.string().max(50).optional(),
+  website: z.string().url().optional(),
+  paymentTerms: z.string().max(100).optional(),
+  creditLimit: z.number().optional(),
+  categoryId: z.string().uuid().optional(),
+  salesOwnerId: z.string().uuid().optional(),
+  accountManagerId: z.string().uuid().optional(),
+  commercialStatus: z.string().max(50).optional(),
+  defaultServiceTypeId: z.string().uuid().optional(),
+  preferredTransportModeId: z.string().uuid().optional(),
+  operationalInstructions: z.string().optional(),
+  specialHandlingRequirements: z.string().optional(),
+  isAdrRelevant: z.boolean().default(false),
+  isTemperatureControlled: z.boolean().default(false),
+  status: z.enum(['PROSPECT', 'ACTIVE', 'ON_HOLD', 'INACTIVE']).default('PROSPECT'),
+  isActive: z.boolean().default(true),
+});
+
+export type CreateCustomerDto = z.infer<typeof createCustomerSchema>;

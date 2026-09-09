@@ -1,0 +1,37 @@
+import { z } from 'zod';
+
+export const updateCustomerSchema = z.object({
+  code: z.string().min(1).max(50).optional(),
+  legalName: z.string().min(1).max(255).optional(),
+  tradingName: z.string().max(255).optional().nullable(),
+  shortName: z.string().max(100).optional().nullable(),
+  registrationNumber: z.string().max(100).optional().nullable(),
+  vatNumber: z.string().max(50).optional().nullable(),
+  taxNumber: z.string().max(50).optional().nullable(),
+  legalForm: z.string().max(50).optional().nullable(),
+  country: z.string().length(2).optional().nullable(),
+  defaultLanguage: z.string().length(2).optional().nullable(),
+  defaultCurrency: z.string().length(3).optional().nullable(),
+  timezone: z.string().max(100).optional().nullable(),
+  mainEmail: z.string().email().optional().nullable(),
+  billingEmail: z.string().email().optional().nullable(),
+  phone: z.string().max(50).optional().nullable(),
+  mobile: z.string().max(50).optional().nullable(),
+  website: z.string().url().optional().nullable(),
+  paymentTerms: z.string().max(100).optional().nullable(),
+  creditLimit: z.number().optional().nullable(),
+  categoryId: z.string().uuid().optional().nullable(),
+  salesOwnerId: z.string().uuid().optional().nullable(),
+  accountManagerId: z.string().uuid().optional().nullable(),
+  commercialStatus: z.string().max(50).optional().nullable(),
+  defaultServiceTypeId: z.string().uuid().optional().nullable(),
+  preferredTransportModeId: z.string().uuid().optional().nullable(),
+  operationalInstructions: z.string().optional().nullable(),
+  specialHandlingRequirements: z.string().optional().nullable(),
+  isAdrRelevant: z.boolean().optional(),
+  isTemperatureControlled: z.boolean().optional(),
+  status: z.enum(['PROSPECT', 'ACTIVE', 'ON_HOLD', 'INACTIVE', 'ARCHIVED']).optional(),
+  isActive: z.boolean().optional(),
+});
+
+export type UpdateCustomerDto = z.infer<typeof updateCustomerSchema>;

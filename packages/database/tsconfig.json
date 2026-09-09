@@ -1,0 +1,10 @@
+{
+  "extends": "@hapcargo/config/tsconfig/base",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["src", "prisma"]
+}

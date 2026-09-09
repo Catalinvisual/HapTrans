@@ -1,0 +1,35 @@
+# Node
+node_modules/
+**/node_modules/
+
+# Build output
+dist/
+build/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Environment — NEVER commit real secrets
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Database / local artifacts
+*.sqlite
+pgdata/
+redisdata/
+
+# Turborepo cache
+.turbo/

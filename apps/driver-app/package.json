@@ -1,0 +1,33 @@
+{
+  "name": "@hapcargo/driver-app",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@hapcargo/api-client": "*",
+    "@hapcargo/shared": "*",
+    "expo": "~54.0.0",
+    "expo-secure-store": "^14.0.0",
+    "expo-status-bar": "~2.2.0",
+    "i18next": "^24.2.0",
+    "react": "19.1.0",
+    "react-i18next": "^15.4.1",
+    "react-native": "0.81.1",
+    "react-native-safe-area-context": "^5.4.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@types/react": "~19.1.0",
+    "eslint": "^9.17.0",
+    "typescript": "^5.6.3"
+  }
+}
