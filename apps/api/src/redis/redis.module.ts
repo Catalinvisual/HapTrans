@@ -44,10 +44,15 @@ export class RedisConnection implements OnModuleDestroy {
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const url = config.get<string>('REDIS_URL') ?? 'redis://localhost:6379';
-        return new Redis(url, {
-          lazyConnect: false,
+        const client = new Redis(url, {
+          lazyConnect: true,
           maxRetriesPerRequest: null,
         });
+        client.on('error', () => {
+          // Never crash the app when Redis is unreachable or unavailable;
+          // availability is surfaced (degraded/down) via GET /ready.
+        });
+        return client;
       },
     },
     RedisConnection,

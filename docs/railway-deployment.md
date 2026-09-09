@@ -43,3 +43,24 @@ it has no `DATABASE_URL` / no PostgreSQL attached. Two ways to fix:
 - Pushing to `main` triggers an automatic redeploy (any path watched by `railway.json`) —
   or use Railway → Deploy on branch push.
 - Apply schema migrations automatically at boot via `prisma migrate deploy` (idempotent).
+
+## Web (Next.js) service
+
+The web app is a Next.js **standalone** build. Add a second service with:
+
+- **GitHub repo**, branch `main`, **Root Directory: `/apps/web`** (`railway.json` is read automatically).
+- Variables: `API_BASE` = the API service's public domain (and `NEXT_PUBLIC_API_URL` = the same value).
+  Railway's injected `PORT` is used automatically.
+
+The API service needs `WEB_PUBLIC_URL` set to the web service's public domain (CORS).
+
+## Full checklist for a working live environment
+
+1. Service **api** — Root Directory `/`, branch `main`.
+2. Attach Railway **PostgreSQL** to the api service (injects `DATABASE_URL`).
+3. api variables: `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `WEB_PUBLIC_URL` (= web domain), optional `REDIS_URL`.
+4. Service **web** — Root Directory `/apps/web`, branch `main`.
+5. web variables: `API_BASE` (= api domain), `NEXT_PUBLIC_API_URL` (= api domain).
+6. Health: api `/health`, web `/login`. Both auto-deploy on `main` pushes.
+
+> The API is crash-safe without Redis/S3 (availability shown in `/ready`); only the database is required.
