@@ -2,7 +2,16 @@
 
 Production-grade European Transport Management System.
 
-This repository has completed **TASK 03 (project foundation, database foundation & core infrastructure)**.
+This repository hosts two codebases:
+
+- **HAP CARGO TMS v2** (new monorepo — NestJS API + Next.js web + Prisma/Railway) — this is the active product, deployed to Railway.
+- **Legacy HapCargo SaaS** (`client/`, `server/`, `mobile/` folders) — previous marketing/React + TypeORM + Flutter app.
+
+---
+
+## HAP CARGO TMS v2 (monorepo)
+
+Production-grade European Transport Management System, backed by **PostgreSQL 16 on Railway** with live analytics, fleet, OTIF, and financial reporting.
 
 ## Status / Tasks
 
@@ -11,7 +20,8 @@ This repository has completed **TASK 03 (project foundation, database foundation
 | TASK 01 — Codebase audit | ✅ Complete (empty greenfield confirmed) |
 | TASK 02 — Architecture & rules | ✅ Complete (this repository's docs) |
 | TASK 03 — Foundation, DB, core infrastructure | ✅ Complete |
-| TASK 04+ — Design System, App Shell, Navigation | ⏳ Not started |
+| TASK 04+ — Design System, App Shell, Navigation | ✅ Complete |
+| Analytics & Finance (dashboard + financial, live data) | ✅ Complete |
 
 ## Key documents
 
@@ -28,7 +38,6 @@ This repository has completed **TASK 03 (project foundation, database foundation
 4. **Auditability** — critical actions are append-only with actor/timestamp/context.
 5. **Deterministic finance** — integer minor-unit `Money`, no floats.
 6. **No premature complexity** — no microservices/K8s/brokers without a real need.
-7. **No business modules in TASK 03** — only technical foundation.
 
 ## Monorepo structure
 
@@ -110,7 +119,7 @@ cp packages/database/.env.example packages/database/.env
 ```
 
 Key variables:
-- `DATABASE_URL` — PostgreSQL connection (dev: `postgresql://postgres:postgres@localhost:5432/hapcargo`)
+- `DATABASE_URL` — PostgreSQL connection (dev: `postgresql://postgres:postgres@localhost:5432/hapcargo`; prod: Railway)
 - `REDIS_URL` — Redis connection (dev: `redis://localhost:6379`)
 - `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` — MinIO/S3
 - `NEXT_PUBLIC_API_URL` — API base URL (dev: `http://localhost:4000`)
@@ -143,10 +152,11 @@ npm run db:deploy
 npm run db:seed
 ```
 
-Database baseline (TASK 03):
+Database baseline:
 - `PlatformUser` — system users with roles
 - `Company` — tenant/company isolation
 - `AuditLog` — append-only audit trail
+- Plus operations schema: Customers, Vehicles, Drivers, Orders, Trips, Invoices, Payments
 
 ## Development startup
 
@@ -194,28 +204,19 @@ All must pass (exit code 0).
 | `GET /health` | Liveness — process alive |
 | `GET /ready` | Readiness — DB, Redis, S3 reachable |
 | `GET /docs` | Swagger UI (OpenAPI 3.1) |
-| `GET /api/v1/foundation/health` | Foundation health echo |
-| `GET /api/v1/foundation/money-demo` | Money arithmetic demo |
-| `GET /api/v1/foundation/locales` | Supported locales (RO, EN, NL, PL, FR, ES) |
-| `GET /api/v1/foundation/echo?msg=hello` | Echo with request ID |
+| `POST /api/v1/auth/login` | Login → access/refresh tokens |
+| `GET /api/v1/analytics/dashboard` | Analytics dashboard (real data) |
+| `GET /api/v1/analytics/financial` | Financial analytics (real data) |
 
 ### Web routes (after `npm run dev -w @hapcargo/web`)
 
 | Route | Description |
 |-------|-------------|
 | `/` | Redirects to `/dashboard` |
-| `/login` | Login placeholder |
-| `/dashboard` | Foundation dashboard (calls API `/foundation/health` + `/foundation/money-demo`) |
-| `/settings` | Settings placeholder |
-
-### Portal routes
-
-- Customer Portal: `http://localhost:3001/` — i18n demo with locale switcher
-- Carrier Portal: `http://localhost:3002/` — i18n demo with locale switcher
-
-### Mobile
-
-- Driver App: `npm run dev -w @hapcargo/driver-app` → Expo Go / simulator
+| `/login` | Login |
+| `/dashboard` | Live analytics dashboard (real data) |
+| `/analytics/financial` | Financial analytics (real data) |
+| `/settings` | Settings |
 
 ## Commands summary
 
@@ -234,74 +235,70 @@ All must pass (exit code 0).
 | `npm run build` | Turborepo build all |
 | `npm run dev -w <pkg>` | Start dev server for package |
 
-## TASK 03 Implementation Summary
-
-### ✅ Completed
-
-- **Monorepo**: npm workspaces + Turborepo with 5 apps, 6 packages
-- **TypeScript**: Strict mode, compatible configs, exactOptionalPropertyTypes
-- **Shared config**: TS, ESLint (Flat Config), Prettier, Tailwind presets
-- **Environment**: `.env.example` placeholders, validation at startup
-- **Database**: Prisma 6, PostgreSQL 16, baseline schema (PlatformUser, Company, AuditLog), migrations, seed
-- **Money**: Integer minor units (BigInt), deterministic half-up rounding, currency-paired
-- **Date/Time**: Luxon-based utilities, UTC storage, timezone conversion, DateOnly
-- **Identifiers**: UUID v4 (crypto.randomUUID), public-facing
-- **API**: NestJS 11, global validation (Zod), exception filter, request IDs, structured logging (Pino), health/ready, `/api/v1` prefix, Swagger
-- **Redis**: ioredis 5, connection module
-- **BullMQ**: Queue abstraction, example queue
-- **S3/MinIO**: Storage service abstraction, signed URLs
-- **Web**: Next.js 15 App Router, route groups, layouts, error/loading/not-found boundaries, API client integration
-- **UI Package**: 18 Radix+Tailwind primitives, design tokens (HSL CSS vars), application shell (sidebar, top bar, breadcrumbs)
-- **Portals**: Customer & Carrier portals with i18n (6 languages), locale switcher
-- **Driver App**: Expo 54, TypeScript, shared package access, API client, i18n, SecureStore stub
-- **Localization**: 6 languages (RO, EN, NL, PL, FR, ES) with fallbacks, locale-aware formatting
-- **CI**: GitHub Actions — install, db:generate, lint, typecheck, build, test:unit, npm audit
-- **Docker**: Compose for PostgreSQL, Redis, MinIO; API Dockerfile
-- **Security**: Helmet, CORS, request size limits, no secrets committed
-
-### 📋 Verification results
-
-| Check | Status |
-|-------|--------|
-| `npm install` | ✅ 1390 packages |
-| `npm run lint` | ✅ 12/12 tasks pass |
-| `npm run typecheck` | ✅ 12/12 tasks pass |
-| `npm run build` | ✅ 8/8 tasks pass |
-| `npm run test:unit` | ✅ 7/7 tasks pass (17 tests) |
-| `npm run db:generate` | ✅ Prisma Client 6.19.3 |
-| Docker infra | ⚠️ Requires Docker Desktop running |
-
-### ⚠️ Known issues
-
-1. **Docker Desktop must be started manually** on Windows before `npm run infra:up`
-2. **npm audit**: 25 findings (11 moderate, 13 high, 1 critical) — mostly dev/build-time tooling (Next 15 bundled postcss, vitest→esbuild, Prisma CLI `deepmerge-ts`, Expo metro). No production runtime vulnerabilities in application code. Next 16 will resolve postcss.
-3. **Expo mobile build** not verified without native Android/iOS toolchain; TypeScript typecheck passes.
-4. **UI package** `dist` contains `.js` + `.d.ts` (ESM); CSS tokens served from `src/styles.css` via package exports.
-5. **Portals** use `'use client'` for pages using `react-i18next` (RSC `createContext` limitation).
-
-### 📁 Files created / key directories
-
-```
-apps/api/src/                    # NestJS foundation
-apps/web/src/                    # Next.js web foundation
-apps/customer-portal/src/        # Customer portal foundation
-apps/carrier-portal/src/         # Carrier portal foundation
-apps/driver-app/                 # Expo driver app foundation
-packages/shared/src/             # Money, datetime, id, i18n, types
-packages/api-client/src/         # Typed fetch client
-packages/ui/src/                 # 18 Radix+Tailwind primitives
-packages/config/                 # Shared TS/ESLint/Tailwind configs
-packages/database/prisma/        # Schema, migrations, seed
-infra/docker/docker-compose.yml  # PostgreSQL, Redis, MinIO
-infra/docker/Dockerfile.api      # Multi-stage API image
-.github/workflows/ci.yml         # CI pipeline
-docs/architecture.md             # Architecture
-docs/adr/ADR-001..ADR-022.md     # Architectural decisions
-docs/database-conventions.md     # DB conventions
-```
-
 ---
 
-**TASK 03 is complete.** The monorepo is installable, buildable, type-safe, lintable, testable, runnable locally, container-ready, database-ready, API-ready, web-ready, mobile-ready, portal-ready, localization-ready, and secure by default. No business modules have been implemented.
+# Legacy HapCargo SaaS (client/ server/ mobile/)
 
-Next: **TASK 04 — DESIGN SYSTEM, APPLICATION SHELL & GLOBAL NAVIGATION**.
+## 🚀 Pornire rapidă
+
+### 1. SERVER (Backend NestJS)
+```powershell
+cd "Saas HapCargo\server"
+npm run start:dev
+```
+- Rulează pe: http://localhost:3001/api
+- Admin: admin@hapcargo.ro / Admin2024!
+
+### 2. CLIENT (Frontend React)
+```powershell
+cd "Saas HapCargo\client"
+npm run dev
+```
+- Rulează pe: http://localhost:5173
+
+### 3. MOBILE (Flutter APK) — necesită Flutter SDK
+```powershell
+# Instalare Flutter: https://docs.flutter.dev/get-started/install/windows
+cd "Saas HapCargo\mobile"
+flutter pub get
+flutter build apk --release
+# APK se găsește în: build/app/outputs/flutter-apk/app-release.apk
+```
+
+## 📱 Config mobil
+- Pentru emulator Android: URL-ul serverului este `http://10.0.2.2:3001/api`
+- Pentru device real: înlocuiți cu IP-ul PC-ului în rețea locală (ex: `http://192.168.1.x:3001/api`)
+- Fișierul de configurat: `mobile/lib/utils/constants.dart`
+
+## 🗄️ Baza de date
+- PostgreSQL pe localhost:5432
+- Database: hapcargo
+- User: postgres / Laptophp20242019.
+- Tabelele se creează automat la pornirea serverului (TypeORM synchronize: true)
+
+## 🌍 Limbi suportate
+- 🇷🇴 Română
+- 🇬🇧 Engleză
+- 🇳🇱 Olandeză
+
+## 📁 Structura proiect
+```
+Saas HapCargo/
+├── server/    → NestJS + TypeORM + PostgreSQL (port 3001)
+├── client/    → React + Vite + Tailwind CSS (port 5173)
+└── mobile/    → Flutter (APK pentru șoferi)
+```
+
+## ✅ Funcționalități complete
+- Dashboard cu grafice profit/luni
+- Management curse, camioane, șoferi, clienți
+- Hartă live (MapLibre + OpenStreetMap)
+- Chat dispecer ↔ șofer (WebSocket)
+- Upload documente (CMR, Aviz, etc.)
+- Facturi cu numerotare automată
+- Mentenanță camioane
+- Alerte expirare documente
+- Raport financiar
+- Localizare GPS live șoferi
+- Autentificare JWT
+- Switch limbă (RO/EN/NL)

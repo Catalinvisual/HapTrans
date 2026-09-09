@@ -1,0 +1,626 @@
+.section {
+  padding: calc(var(--space-xl) + 2rem) 1.5rem var(--space-xl);
+  background: var(--bg);
+  position: relative;
+  overflow: hidden;
+}
+
+.section::before {
+  content: '';
+  position: absolute;
+  top: -120px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 820px;
+  height: 420px;
+  background: radial-gradient(ellipse, rgba(255,106,43,0.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 3.5rem;
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255,107,0,0.1);
+  color: var(--brand);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.4rem 1rem;
+  border-radius: 2rem;
+  border: 1px solid rgba(255,107,0,0.25);
+  margin-bottom: 1.25rem;
+}
+
+.title {
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #0F172A;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  font-size: 1.05rem;
+  color: #475569;
+  max-width: 560px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+/* ── Bento grid (balanced 4-card) ──────────────────────────── */
+.bentoGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+}
+
+.bentoItem {
+  display: flex;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 22px;
+  padding: 1.75rem;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 22px 50px rgba(255, 87, 34, 0.14);
+  border-color: rgba(255, 107, 0, 0.25);
+}
+
+/* grid placement (applied to the grid item wrappers) */
+.itemTelematics { grid-column: span 2; grid-row: span 2; }
+.itemStandard { grid-column: span 1; grid-row: span 1; }
+.itemMetric { grid-column: span 1; grid-row: span 2; }
+
+.badgeIcon {
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 107, 0, 0.1);
+  color: var(--brand);
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(255, 107, 0, 0.16);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #b45309;
+  background: rgba(255, 107, 0, 0.08);
+  padding: 0.35rem 0.7rem;
+  border-radius: 2rem;
+  width: fit-content;
+  margin-bottom: 0.9rem;
+  margin-top: -0.4rem;
+}
+
+.cardTitleLarge {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #0F172A;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  max-width: 34ch;
+  margin: 0 0 1.5rem;
+}
+
+.cardTitle {
+  font-size: 1.12rem;
+  font-weight: 700;
+  margin-bottom: 0.6rem;
+  color: #0F172A;
+}
+
+.cardDesc {
+  color: #64748b;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin-bottom: auto;
+}
+
+/* map mock */
+.mapMock {
+  position: relative;
+  margin-top: auto;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(15,23,42,0.06);
+  height: 150px;
+  background: linear-gradient(135deg, #0F172A 0%, #1e293b 100%);
+}
+
+.mapGrid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+
+.mapRoute {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.routeDash {
+  stroke-dasharray: 7 7;
+  animation: dashMove 1.2s linear infinite;
+}
+
+@keyframes dashMove {
+  to { stroke-dashoffset: -14; }
+}
+
+.truckDot {
+  box-shadow: 0 0 0 0 rgba(255,107,0,0.5);
+  animation: truckPulse 1.8s ease-out infinite;
+}
+
+@keyframes truckPulse {
+  0% { box-shadow: 0 0 0 0 rgba(255,107,0,0.6); }
+  70% { box-shadow: 0 0 0 14px rgba(255,107,0,0); }
+  100% { box-shadow: 0 0 0 0 rgba(255,107,0,0); }
+}
+
+.mapPin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.2);
+  backdrop-filter: blur(4px);
+}
+
+.mapEta {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,107,0,0.4);
+  padding: 0.4rem 0.7rem;
+  border-radius: 9999px;
+  backdrop-filter: blur(6px);
+}
+
+.mapEtaLabel {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #fdba74;
+}
+
+.mapEtaValue {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.mapEtaDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+/* dark card */
+.cardDark {
+  background: linear-gradient(150deg, #0a0e17 0%, #0f172a 55%, #1e293b 100%);
+  border-color: rgba(255,107,0,0.2);
+  color: #fff;
+}
+
+.cardDark:hover {
+  border-color: rgba(255,107,0,0.5);
+  box-shadow: 0 22px 50px rgba(255,87,34,0.22);
+}
+
+.cardDark::before {
+  content: '';
+  position: absolute;
+  top: -60%;
+  right: -20%;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(255,107,0,0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.glowingIcon {
+  width: 52px;
+  height: 52px;
+  background: rgba(255, 107, 0, 0.18);
+  border: 1px solid rgba(255,107,0,0.4);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FF9A66;
+  margin-bottom: 1rem;
+  box-shadow: 0 0 22px rgba(255,107,0,0.35);
+}
+
+.cardTitleDark {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 0.5rem;
+  position: relative;
+}
+
+.cardDescDark {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  margin: 0 0 1.1rem;
+  position: relative;
+}
+
+.avatarStack {
+  display: flex;
+  align-items: center;
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.7rem;
+  color: #fff;
+  border: 2px solid #0a0e17;
+  margin-left: -8px;
+}
+
+.avatar:first-child {
+  margin-left: 0;
+}
+
+.avatarMore {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  border: 2px solid #0a0e17;
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  margin-left: -8px;
+}
+
+.darkChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #86efac;
+  background: rgba(34,197,94,0.12);
+  border: 1px solid rgba(34,197,94,0.3);
+  padding: 0.35rem 0.7rem;
+  border-radius: 9999px;
+  width: fit-content;
+  position: relative;
+}
+
+.liveMini {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: blink 1.4s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* flag row */
+.flagRow {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.flag {
+  width: 26px;
+  height: 18px;
+  border-radius: 4px;
+  object-fit: cover;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  border: 1px solid rgba(15,23,42,0.08);
+}
+
+.flagMore {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--brand);
+  background: rgba(255,107,0,0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+}
+
+/* metric card */
+.metricTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+
+.metricTop .badgeIcon {
+  margin-bottom: 0;
+}
+
+.adrBadge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  padding: 0.3rem 0.6rem;
+  border-radius: 8px;
+}
+
+.sealRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 1rem;
+}
+
+.seal {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #0f172a;
+  background: rgba(255,107,0,0.08);
+  border: 1px solid rgba(255,107,0,0.18);
+  padding: 0.3rem 0.6rem;
+  border-radius: 8px;
+}
+
+/* ── V2 bento card variants ─────────────────────────────── */
+/* dark accent chip (Card 2) */
+.chipDark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fdba74;
+  background: rgba(255,107,0,0.12);
+  border: 1px solid rgba(255,107,0,0.3);
+  padding: 0.35rem 0.7rem;
+  border-radius: 2rem;
+  width: fit-content;
+  margin-bottom: 0.9rem;
+  margin-top: -0.4rem;
+}
+
+/* Card 3 — glassmorphic */
+.cardGlass {
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,0.9);
+  box-shadow: 0 18px 40px rgba(13,27,42,0.08), inset 0 1px 0 rgba(255,255,255,0.95);
+}
+
+/* Card 4 — certified (subtle orange highlight border) */
+.cardCertified {
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(135deg, rgba(255,107,0,0.5), rgba(255,61,0,0.25)) border-box;
+  border: 1px solid transparent;
+}
+
+/* Card 1 — truck fleet visual */
+.fleetRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1.1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed rgba(15,23,42,0.1);
+}
+
+.fleetTrucks {
+  display: flex;
+  align-items: center;
+}
+
+.truckIcon {
+  width: 52px;
+  height: 38px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #FF6B00 0%, #FF3D00 100%);
+  display: inline-block;
+  position: relative;
+  box-shadow: 0 6px 14px -4px rgba(255,87,34,0.5);
+}
+
+.truckIcon::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 12px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 3px;
+}
+
+.truckIcon::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  bottom: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #FF3D00;
+}
+
+.truckIcon + .truckIcon {
+  margin-left: 0.75rem;
+}
+
+.truckIcon:nth-child(2) {
+  transform: translateY(-4px) scale(1.05);
+}
+
+.truckIcon:nth-child(3) {
+  opacity: 0.85;
+  transform: translateY(2px);
+}
+
+.fleetMeta {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+/* Card 3 — support row */
+.supportRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: auto;
+  padding-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.supportLang {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--brand);
+  background: rgba(255,107,0,0.08);
+  border: 1px solid rgba(255,107,0,0.18);
+  padding: 0.35rem 0.7rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+/* Card 4 — badge cluster */
+.sealCluster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+.adrCertBadge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  padding: 0.32rem 0.7rem;
+  border-radius: 8px;
+  box-shadow: 0 6px 14px -5px rgba(239,68,68,0.5);
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .bentoGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .itemTelematics {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+
+  .itemStandard {
+    grid-column: span 1;
+    grid-row: span 1;
+  }
+
+  .itemMetric {
+    grid-column: span 2;
+    grid-row: span 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .bentoGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .itemTelematics,
+  .itemStandard,
+  .itemMetric {
+    grid-column: span 1;
+    grid-row: span 1;
+  }
+
+  .cardTitleLarge {
+    font-size: 1.3rem;
+  }
+
+  .title {
+    font-size: 1.9rem;
+  }
+}
