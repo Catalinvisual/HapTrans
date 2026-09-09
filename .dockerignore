@@ -1,0 +1,28 @@
+# Dependencies / build caches
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/*.tsbuildinfo
+.turbo
+
+# Git / CI
+.git
+.github
+
+# Logs and local artifacts
+*.log
+*.sqlite
+pgdata
+redisdata
+cms_output.txt
+
+# Legacy codebases — not part of the Docker images
+client
+server
+mobile
+
+# Env files (secrets are injected by Railway)
+.env
+.env.*
+!.env.example
