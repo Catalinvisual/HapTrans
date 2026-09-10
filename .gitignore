@@ -8,9 +8,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # Node
-node_modules
-dist
-dist-ssr
+**/node_modules
+**/dist
+**/dist-ssr
 *.local
 
 # Editor directories and files
@@ -25,22 +25,20 @@ dist-ssr
 *.sw?
 
 # Environments
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env*
+**/.env
+**/.env.local
+**/.env.development.local
+**/.env.test.local
+**/.env.production.local
 
 # Mobile Build
-mobile/build/
-mobile/.dart_tool/
-mobile/.flutter-plugins
-mobile/.flutter-plugins-dependencies
+**/mobile/build/
+**/mobile/.dart_tool/
+**/mobile/.flutter-plugins
+**/mobile/.flutter-plugins-dependencies
 
 # Specific folders
-uploads/
-client/dist/
-client/node_modules/
-server/dist/
-server/node_modules/
+**/uploads/
+
+# Build artifacts
+*.apk

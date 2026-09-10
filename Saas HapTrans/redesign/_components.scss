@@ -1,0 +1,242 @@
+// ============================================================
+// HapCargo Premium Redesign — Components
+// Reference implementation lives in:
+//   web/src/app/globals.css  (global utilities)
+//   web/src/components/*/…    (per-section CSS Modules)
+// ============================================================
+@use 'variables' as *;
+
+/* ── Buttons ──────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 20px;
+  padding: 0.9rem 2rem;
+  border-radius: $radius-btn;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease;
+}
+
+.btn-primary {
+  @extend .btn;
+  background: linear-gradient(180deg, $brand, $brand-dark);
+  color: #fff;
+  box-shadow: $shadow-cta;
+  padding: 14px 20px;
+
+  &:hover {
+    transform: translateY(-2px);
+    background: linear-gradient(180deg, #FF7A45, #D64B10);
+    box-shadow: 0 10px 30px rgba(15, 15, 15, 0.12);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: none;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: $shadow-focus;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+.btn-secondary {
+  @extend .btn;
+  background: $secondary;
+  color: #fff;
+}
+
+// Ghost CTA on light imagery (dark outline)
+.btn-ghost-light {
+  @extend .btn;
+  background: transparent;
+  color: $dark-panel;
+  border: 2px solid rgba(46, 58, 69, 0.22);
+  border-radius: $radius-btn;
+
+  &:hover {
+    border-color: $brand;
+    color: $brand;
+    background: rgba(255, 106, 43, 0.05);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: $shadow-focus;
+  }
+}
+
+// Ghost CTA on dark panels (white outline)
+.btn-ghost {
+  @extend .btn;
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: #fff;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.35);
+  }
+}
+
+// Outline button (carousel nav, secondary actions)
+.btn-outline {
+  @extend .btn;
+  background: transparent;
+  color: $text;
+  border: 2px solid rgba(46, 58, 69, 0.18);
+  border-radius: $radius-btn;
+
+  &:hover {
+    border-color: $brand;
+    color: $brand;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: $shadow-focus;
+  }
+}
+
+/* ── Cards ────────────────────────────────────────────────── */
+.card {
+  background: $card;
+  border-radius: $radius-card;
+  box-shadow: $shadow-card;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+
+  &:hover {
+    transform: translateY(-6px);
+    box-shadow: $shadow-card-hover;
+  }
+}
+
+.card-calculator {
+  background: $card;
+  border-radius: $radius-card;
+  padding: 20px;
+  box-shadow: $shadow-card;
+  border: 1px solid rgba(46, 58, 69, 0.04);
+
+  input,
+  select {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(46, 58, 69, 0.06);
+    background: #fff;
+    color: $text;
+
+    &:focus,
+    &:focus-visible {
+      outline: none;
+      box-shadow: $shadow-focus;
+      border-color: $brand-dark;
+    }
+  }
+}
+
+/* ── Brand image treatment ───────────────────────────────── */
+.brand-image-filter {
+  filter: sepia(6%) saturate(110%) contrast(102%);
+}
+
+/* ── Hero micro-trust row under the primary CTA ───────────── */
+.hero-trust {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.hero-trust-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: $text;
+  white-space: nowrap;
+
+  svg {
+    color: $success;
+    flex-shrink: 0;
+  }
+}
+
+/* ── Inputs ───────────────────────────────────────────────── */
+.input {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.95rem;
+  color: $text;
+  background: $card;
+  border: 1px solid rgba(46, 58, 69, 0.15);
+  border-radius: 10px;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+
+  &:focus,
+  &:focus-visible {
+    outline: none;
+    border-color: $brand;
+    box-shadow: $shadow-focus;
+  }
+}
+
+/* ── Section separators ───────────────────────────────────── */
+.sep,
+.sep svg {
+  display: block;
+  width: 100%;
+  line-height: 0;
+  pointer-events: none;
+}
+
+// Wave: hero → trust section
+// NOTE: preserveAspectRatio="none" and aria-hidden="true" are set on the SVG
+// element itself in markup (see svgs/wave.svg and demo.html).
+
+// Diagonal: how-it-works → map (dark wedge) and map → testimonials (light wedge)
+.sep-diagonal polygon {
+  shape-rendering: crispEdges;
+}
+
+// Blob: subtle brand accent overlapping section seams
+.sep-blob {
+  position: absolute;
+  pointer-events: none;
+}
+
+/* ── Focus visible (global a11y) ──────────────────────────── */
+:focus-visible {
+  outline: 2px solid rgba(255, 106, 43, 0.7);
+  outline-offset: 2px;
+}
+
+/* ── Reduced motion ───────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .card,
+  .input {
+    transition: none;
+  }
+}

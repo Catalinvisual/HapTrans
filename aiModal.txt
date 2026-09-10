@@ -1,0 +1,11 @@
+      <AiImportModal
+        open={showAiImport}
+        onClose={() => { setShowAiImport(false); setAiFile(null); setAiPreview(null); }}
+        file={aiFile}
+        preview={aiPreview}
+        busy={aiBusy}
+        importing={aiImporting}
+        onFileChange={onAiFileChange}
+        onScan={scanAiFile}
+        onImport={importAiTrip}
+      />
