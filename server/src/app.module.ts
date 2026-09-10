@@ -64,7 +64,7 @@ import { FinancialModule } from './financial/financial.module';
         database: config.get('DB_DATABASE') || config.get('DB_NAME'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         migrations: [__dirname + '/migrations/*{.ts,.js}'],
-        migrationsRun: true,
+        migrationsRun: false,
         synchronize: false,
         logging: false,
       }),

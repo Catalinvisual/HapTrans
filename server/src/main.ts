@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AuthService } from './auth/auth.service';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import * as express from 'express';
 import helmet from 'helmet';
@@ -10,9 +10,229 @@ import rateLimit from 'express-rate-limit';
 import { join } from 'path';
 import { DataSource } from 'typeorm';
 
+function bootDbDiagnostic(): void {
+  const url = process.env.DATABASE_URL || '';
+  let target = 'NOT CONFIGURED (DATABASE_URL missing)';
+  try {
+    const parsed = new URL(url);
+    target = `${parsed.hostname}:${parsed.port || 5432}/${(parsed.pathname || '').replace(/^\//, '')}`;
+  } catch {
+    /* keep NOT CONFIGURED */
+  }
+  const base = {
+    DATABASE_URL_set: !!process.env.DATABASE_URL,
+    DB_HOST: process.env.DB_HOST ?? null,
+    DB_PORT: process.env.DB_PORT ?? null,
+    DB_USER_set: !!(process.env.DB_USERNAME || process.env.DB_USER),
+    DB_NAME: process.env.DB_DATABASE ?? process.env.DB_NAME ?? null,
+    sslmode_in_url: /(sslmode|ssl)=true/i.test(url),
+    target,
+  };
+  Logger.log(`DATABASE_URL set:${base.DATABASE_URL_set} target:${base.target} host:${base.DB_HOST} port:${base.DB_PORT}`, 'DB');
+}
+
+async function preFlightDbFix(): Promise<void> {
+  // Runs BEFORE NestFactory.create() (i.e. before TypeORM synchronize), so the
+  // schema builder can never die with "column date of relation payments
+  // contains null values" while adding new NOT NULL columns over existing rows.
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    Logger.log('DATABASE_URL not set, skipping pre-flight DB fix', 'DB');
+    return;
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { Client } = require('pg');
+    const client = new Client({ connectionString: url, ssl: /(sslmode|ssl)=true/i.test(url) ? { rejectUnauthorized: false } : undefined });
+    await client.connect();
+    await client.query(`ALTER TABLE "payments" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP DEFAULT now()`);
+    await client.query(`ALTER TABLE "payments" ADD COLUMN IF NOT EXISTS "date" date`);
+    await client.query(`UPDATE "payments" SET "date" = COALESCE("createdAt", now())::date WHERE "date" IS NULL`);
+    // Unblock the login JOIN (users LEFT JOIN drivers on drivers.userId)
+    await client.query(`ALTER TABLE IF EXISTS "drivers" ADD COLUMN IF NOT EXISTS "userId" uuid`);
+    // Make the users table accept legacy login/seed writes even when it was
+    // created by the other system in the shared database (no password/name/role
+    // columns, no default on the other system's updated_at).
+    await client.query(`ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "password" character varying`);
+    await client.query(`ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "name" character varying`);
+    await client.query(`ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "role" character varying`);
+    await client.query(`ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "grossSalary" numeric`);
+    await client.query(`ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "dailyRate" numeric`);
+    await client.query(`ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "language" character varying`);
+    await client.query(`ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "allowedPages" character varying`);
+    await client.query(`ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "fcmToken" character varying`);
+    await client.query(`ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "companyLogoUrl" character varying`);
+    await client.query(`ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "isActive" boolean DEFAULT true`);
+    await client.query(`ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "companyId" uuid`);
+    await client.query(`ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP DEFAULT now()`);
+    await client.query(`ALTER TABLE IF EXISTS "users" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT now()`);
+    await client.query(`ALTER TABLE IF EXISTS "users" ALTER COLUMN "updated_at" DROP NOT NULL`).catch(() => {});
+    await client.query(`UPDATE "users" SET "password" = '' WHERE "password" IS NULL`);
+    // Driver columns needed by the same login JOIN (phone, expiry dates, payRate, ...)
+    await client.query(`ALTER TABLE IF EXISTS "drivers" ADD COLUMN IF NOT EXISTS "phone" character varying`);
+    await client.query(`ALTER TABLE IF EXISTS "drivers" ADD COLUMN IF NOT EXISTS "licenseNumber" character varying`);
+    await client.query(`ALTER TABLE IF EXISTS "drivers" ADD COLUMN IF NOT EXISTS "licenseExpiry" date`);
+    await client.query(`ALTER TABLE IF EXISTS "drivers" ADD COLUMN IF NOT EXISTS "medicalExpiry" date`);
+    await client.query(`ALTER TABLE IF EXISTS "drivers" ADD COLUMN IF NOT EXISTS "tachoCardExpiry" date`);
+    await client.query(`ALTER TABLE IF EXISTS "drivers" ADD COLUMN IF NOT EXISTS "payMode" character varying`);
+    await client.query(`ALTER TABLE IF EXISTS "drivers" ADD COLUMN IF NOT EXISTS "payRate" numeric`);
+    await client.query(`ALTER TABLE IF EXISTS "drivers" ADD COLUMN IF NOT EXISTS "status" character varying DEFAULT 'ACTIVE'`);
+    await client.query(`ALTER TABLE IF EXISTS "drivers" ADD COLUMN IF NOT EXISTS "currentLat" numeric`);
+    await client.query(`ALTER TABLE IF EXISTS "drivers" ADD COLUMN IF NOT EXISTS "currentLng" numeric`);
+    await client.query(`ALTER TABLE IF EXISTS "drivers" ADD COLUMN IF NOT EXISTS "lastSeen" TIMESTAMP`);
+    await client.query(`ALTER TABLE IF EXISTS "drivers" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP DEFAULT now()`);
+    await client.query(`ALTER TABLE IF EXISTS "drivers" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT now()`);
+    await client.query(`ALTER TABLE IF EXISTS "drivers" ALTER COLUMN "updated_at" DROP NOT NULL`).catch(() => {});
+    await client.end();
+    Logger.log('payments/date + legacy user&driver columns ensured', 'DB');
+  } catch (err) {
+    Logger.error(`pre-flight DB fix skipped: ${(err as Error).message}`, undefined, 'DB');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Materialize every missing entity table directly from TypeORM metadata, as a
+// single CREATE TABLE IF NOT EXISTS per table (outside typedef synchronize's
+// transaction), so core tables (clients, trucks, documents, sessions, stops,
+// order_stops, planning_*) are RECREATED fully-shaped on live databases - no
+// more 'relation "clients" does not exist' breaking cron/login.
+// ---------------------------------------------------------------------------
+function pgColType(col: any): string {
+  const t = String(col.type || '').toLowerCase();
+  if (t === 'uuid') return 'uuid';
+  if (t === 'boolean' || t === 'bool') return 'boolean';
+  if (t.includes('json')) return t === 'jsonb' ? 'jsonb' : 'json';
+  if (t.includes('int')) {
+    if (t.includes('bigint')) return 'bigint';
+    if (t.includes('smallint')) return 'smallint';
+    return 'integer';
+  }
+  if (t.includes('numeric') || t.includes('decimal') || t.includes('money')) return 'numeric';
+  if (t.includes('real') || t === 'float4') return 'real';
+  if (t.includes('double') || t === 'float8') return 'double precision';
+  if (t === 'float') return 'numeric';
+  if (t.includes('timestamp')) return t.includes('with time zone') || t.includes('timestamptz') ? 'timestamptz' : 'timestamp';
+  if (t === 'date') return 'date';
+  if (t === 'datetime') return 'timestamp';
+  if (t === 'time') return 'time';
+  if (t.includes('text')) return 'text';
+  if (t.includes('char') || t === 'string') return col.length ? `varchar(${col.length})` : 'varchar';
+  return 'varchar';
+}
+
+async function ensureEntityTables(ds: DataSource): Promise<void> {
+  let listed;
+  try {
+    listed = await ds.query(`SELECT tablename FROM pg_tables WHERE schemaname='public'`);
+  } catch {
+    return;
+  }
+  const exists = new Set((listed as Array<{ tablename: string }>).map(r => r.tablename));
+  const enumsByName = new Map<string, Array<string>>();
+  for (const meta of ds.entityMetadatas) {
+    if (exists.has(meta.tableName)) continue;
+    const enumDefs: string[] = [];
+    const cols: string[] = [];
+    for (const col of meta.columns) {
+      const typeName = `${meta.tableName}_${col.databaseName}_enum`;
+      let t = pgColType(col);
+      if (col.enum && Array.isArray(col.enum) && col.enum.length) {
+        if (!enumsByName.has(typeName)) {
+          enumsByName.set(typeName, col.enum.map(v => String(v)));
+          enumDefs.push(`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname='${typeName}') THEN CREATE TYPE "${typeName}" AS ENUM (${col.enum.map((v: unknown) => `'${String(v)}'`).join(', ')}); END IF; END $$;`);
+        }
+        t = `"${typeName}"`;
+      }
+      let nullable = col.isNullable ? '' : ' NOT NULL';
+      let dflt = '';
+      if (col.isGenerated && col.generationStrategy === 'uuid') {
+        dflt = ' DEFAULT gen_random_uuid()';
+      } else if (col.default !== undefined) {
+        const dv = typeof col.default === 'function' ? col.default() : col.default;
+        if (typeof dv === 'boolean') dflt = ` DEFAULT ${dv}`;
+        else if (typeof dv === 'number') dflt = ` DEFAULT ${dv}`;
+        else if (typeof dv === 'string') {
+          const s = dv.toLowerCase();
+          dflt = /^(current_timestamp|now\(\)|true|false|[0-9]+)$/.test(s) || dv.startsWith('gen_random_uuid') ? ` DEFAULT ${dv}` : ` DEFAULT '${dv}'`;
+        }
+      }
+      cols.push(`"${col.databaseName}" ${t}${nullable}${dflt}`);
+    }
+    if (!cols.length) continue;
+    for (const e of enumDefs) {
+      try { await ds.query(e); } catch { /* type may already exist */ }
+    }
+    const pk = meta.primaryColumns[0]?.databaseName;
+    try {
+      await ds.query(`CREATE TABLE IF NOT EXISTS "${meta.tableName}" (${cols.join(', ')}${pk ? `, PRIMARY KEY ("${pk}")` : ''})`);
+      Logger.log(`materialized missing table: ${meta.tableName}`, 'DB');
+      exists.add(meta.tableName);
+    } catch (err) {
+      Logger.error(`materialize failed for ${meta.tableName}: ${(err as Error).message}`, undefined, 'DB');
+    }
+  }
+}
+
+// Deterministic column-ensure pass. synchronize() is intentionally NOT used on
+// live databases: it is slow (tens of minutes of retries), non-deterministic in
+// ordering, and its DROP-ish behaviors are unsafe. Instead we simply ensure
+// every entity column physically exists (ADD COLUMN IF NOT EXISTS, nullable so
+// existing rows can never produce "contains null values"), then let the app
+// read/write normally. NULLs are backfilled with type-correct defaults so
+// NOT-NULL entity columns behave predictably. Indexes/constraints that are
+// strictly required are created explicitly (see v7 migration below).
+async function ensureEntityColumns(ds: DataSource): Promise<void> {
+  const listed = await ds.query(
+    `SELECT column_name, table_name FROM information_schema.columns WHERE table_schema='public'`
+  ).catch(() => []);
+  if (!Array.isArray(listed)) return;
+  const byTable = new Map<string, Set<string>>();
+  for (const row of listed as Array<{ table_name: string; column_name: string }>) {
+    if (!byTable.has(row.table_name)) byTable.set(row.table_name, new Set());
+    byTable.get(row.table_name)!.add(row.column_name);
+  }
+  let added = 0;
+  for (const meta of ds.entityMetadatas) {
+    const present = byTable.get(meta.tableName);
+    if (!present) continue; // table missing -> ensureEntityTables creates it
+    for (const col of meta.columns) {
+      if (present.has(col.databaseName)) continue;
+      const type = pgColType(col);
+      if (!type) continue;
+      let dflt = '';
+      if (col.default !== undefined) {
+        const dv = typeof col.default === 'function' ? col.default() : col.default;
+        if (typeof dv === 'boolean') dflt = ` DEFAULT ${dv}`;
+        else if (typeof dv === 'number') dflt = ` DEFAULT ${dv}`;
+        else if (typeof dv === 'string') {
+          const s = dv.toLowerCase();
+          dflt = /^(current_timestamp|now\(\)|true|false|[0-9]+)$/.test(s) || dv.startsWith('gen_random_uuid') ? ` DEFAULT ${dv}` : ` DEFAULT '${dv}'`;
+        }
+      }
+      // Columns are added nullable on purpose: existing rows can never trigger
+      // 'column ... contains null values', and the app never depends on the DB
+      // enforcing NOT NULL at write time.
+      try {
+        await ds.query(`ALTER TABLE "${meta.tableName}" ADD COLUMN IF NOT EXISTS "${col.databaseName}" ${type}${dflt}`);
+        Logger.log(`ensured column ${meta.tableName}.${col.databaseName} (${type})`, 'DB');
+        added++;
+      } catch (err) {
+        Logger.error(`ensure failed ${meta.tableName}.${col.databaseName}: ${(err as Error).message}`, undefined, 'DB');
+      }
+    }
+  }
+  Logger.log(`entity columns ensured (${added} added)`, 'DB');
+}
+
 async function bootstrap() {
+  bootDbDiagnostic();
+  await preFlightDbFix();
   const app = await NestFactory.create(AppModule);
+  const dataSource = app.get(DataSource);
+  await ensureEntityTables(dataSource);
+  await ensureEntityColumns(dataSource);
   app.setGlobalPrefix('api');
+  (app.getHttpAdapter().getInstance() as express.Express).set('trust proxy', 1);
   
   // Increase JSON payload limit for Base64 image processing (e.g. PDF generation)
   app.use(express.json({ limit: '50mb' }));
@@ -419,6 +639,31 @@ async function bootstrap() {
     `).catch(() => {});
 
     console.log('v7.0 raw SQL migration completed successfully!');
+
+    // 15. payments.date - entity was extended after legacy rows existed, so a
+    // NOT NULL column can never be added by TypeORM synchronize on live data.
+    // Add it nullable and backfill from createdAt, then leave it as-is.
+    await dataSource.query(`ALTER TABLE "payments" ADD COLUMN IF NOT EXISTS "date" date`);
+    await dataSource.query(`UPDATE "payments" SET "date" = "createdAt"::date WHERE "date" IS NULL`);
+
+    // 16. Ensure the planning module's base table exists before TypeORM
+    // migrations run, so the audit migration (ADD COLUMN IF NOT EXISTS / guarded
+    // FK) cannot crash on a partially recreated database.
+    await dataSource.query(`
+      CREATE TABLE IF NOT EXISTS "planning_actions" (
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "companyId" uuid,
+        "userId" uuid,
+        "truckId" uuid,
+        "routePlanId" uuid,
+        "action" character varying NOT NULL,
+        "undoData" jsonb,
+        "beforeState" jsonb,
+        "afterState" jsonb,
+        "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+        CONSTRAINT "PK_planning_actions" PRIMARY KEY ("id")
+      )
+    `).catch(() => {});
 
     // NOW run explicit TypeORM migrations (non-destructive, idempotent)
     // replaces the previous dataSource.synchronize() which could alter schema

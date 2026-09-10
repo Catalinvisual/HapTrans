@@ -9,8 +9,8 @@ export class Payment {
   @ManyToOne(() => Invoice, (invoice) => invoice.payments, { onDelete: 'CASCADE' })
   invoice: Invoice;
 
-  @Column({ type: 'date' })
-  date: Date;
+  @Column({ type: 'date', nullable: true })
+  date: Date | null;
 
   @Column()
   method: string;

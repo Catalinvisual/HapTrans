@@ -145,7 +145,8 @@ export class AppController {
     try {
       const res = await this.em.query('SELECT \"value\" FROM website_cms WHERE \"key\" = \'company_settings\'');
       if (res.length > 0 && res[0].value) {
-        return JSON.parse(res[0].value);
+        const raw = res[0].value;
+        return typeof raw === 'string' ? JSON.parse(raw) : raw;
       }
       return {};
     } catch (e) {
@@ -176,7 +177,8 @@ export class AppController {
     try {
       const res = await this.em.query('SELECT \"value\" FROM website_cms WHERE \"key\" = \'tariff_settings\'');
       if (res.length > 0 && res[0].value) {
-        return JSON.parse(res[0].value);
+        const raw = res[0].value;
+        return typeof raw === 'string' ? JSON.parse(raw) : raw;
       }
       // Return default tariff settings
       return {

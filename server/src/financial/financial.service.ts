@@ -295,11 +295,11 @@ export class FinancialService {
       }
       for (const p of i.payments || []) {
         if (this.inRange(p.date, period)) {
-          const key = bucketKey(new Date(p.date));
+          const key = bucketKey(new Date(p.date || 0));
           if (curMap[key]) curMap[key].collected += num(p.amount);
         }
         if (this.inRange(p.date, previous)) {
-          const key = bucketKey(new Date(p.date));
+          const key = bucketKey(new Date(p.date || 0));
           if (prevMap[key]) prevMap[key].collected += num(p.amount);
         }
       }
@@ -333,7 +333,7 @@ export class FinancialService {
       if (paid <= 0) unpaidCount++;
       else if (paid < amount - 0.01) partialCount++;
       else { paidCount++; paidIssuedAmount += amount; }
-      const payDates = (i.payments || []).map(p => new Date(p.date).getTime()).filter(x => !isNaN(x)).sort((a, b) => a - b);
+      const payDates = (i.payments || []).map(p => new Date(p.date || 0).getTime()).filter(x => !isNaN(x)).sort((a, b) => a - b);
       if (payDates.length && i.issueDate) {
         const d = Math.max(0, Math.round((payDates[0] - new Date(i.issueDate).getTime()) / 86400000));
         sumDays += d; daysCount++;
@@ -348,7 +348,7 @@ export class FinancialService {
     // Most recent general expenses in the period
     const recentExpenses = clientId ? [] : data.expenses
       .filter(e => this.inRange(e.date, period))
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
       .slice(0, 8)
       .map(e => ({ id: e.id, date: e.date, category: e.category, amount: num(e.amount), description: e.description || null }));
 

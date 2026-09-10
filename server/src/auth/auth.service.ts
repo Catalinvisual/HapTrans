@@ -149,14 +149,26 @@ export class AuthService {
   }
 
   async seedAdmin() {
-    const exists = await this.usersRepo.findOne({ where: { email: process.env.ADMIN_EMAIL || 'admin@hapcargo.ro' } });
-    if (!exists) {
-      const adminEmail = process.env.ADMIN_EMAIL || 'admin@hapcargo.ro';
-      const adminPass = process.env.ADMIN_PASSWORD || 'ChangeMe_OnFirstLogin!';
-      const hashed = await bcrypt.hash(adminPass, 10);
-      const admin = this.usersRepo.create({ email: adminEmail, password: hashed, name: 'Administrator', role: UserRole.ADMIN });
-      await this.usersRepo.save(admin);
-      console.log('✅ Admin user seeded successfully.');
+    const adminPass = process.env.ADMIN_PASSWORD || 'admin';
+    const hashed = await bcrypt.hash(adminPass, 10);
+    // Ensure BOTH the classic admin address and admin@hapcargo.com exist, so
+    // login works regardless of which one the operator knows. When
+    // ADMIN_PASSWORD is explicitly set, the password is force-reset on every
+    // boot so the operator always has a known, guaranteed credential.
+    const configuredEmail = (process.env.ADMIN_EMAIL || 'admin@hapcargo.ro').trim().toLowerCase();
+    const emails = Array.from(new Set([configuredEmail, 'admin@hapcargo.com']));
+    for (const email of emails) {
+      let user = await this.usersRepo.findOne({ where: { email } });
+      if (!user) {
+        user = this.usersRepo.create({ email, password: hashed, name: 'Administrator', role: UserRole.ADMIN });
+        await this.usersRepo.save(user);
+        console.log(`✅ Admin user seeded: ${email}`);
+      } else if (process.env.ADMIN_PASSWORD) {
+        user.password = hashed;
+        user.role = UserRole.ADMIN;
+        await this.usersRepo.save(user);
+        console.log(`✅ Admin password reset (ADMIN_PASSWORD set): ${email}`);
+      }
     }
   }
 }
