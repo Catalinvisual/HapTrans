@@ -1,489 +1,321 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import Flatpickr from 'react-flatpickr';
+import 'flatpickr/dist/themes/light.css';
 import {
-  Truck, Route as RouteIcon, UserCheck, AlertTriangle, FileWarning, Clock,
-  Wrench, Coffee, PlaneTakeoff, MapPin, ArrowRight, CircleDashed, Fuel, CalendarClock,
-  Search, SlidersHorizontal,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
+  RadialBarChart, RadialBar, PolarAngleAxis
+} from 'recharts';
+import {
+  Truck, Route as RouteIcon, AlertTriangle, Clock, MapPin, Activity, TrendingUp, TrendingDown, Target, LoaderCircle
 } from 'lucide-react';
 import api from '../lib/api';
-import { formatDate } from '../lib/dateUtils';
-import { fmtMoney } from '../lib/format';
-import DieselWidget from '../components/DieselWidget';
-import CustomSelect from '../components/CustomSelect';
-import type { SelectOption } from '../components/CustomSelect';
 import { useAuthStore } from '../store/authStore';
 
-interface TripLite {
-  id: string;
-  tripNumber?: string;
-  status: string;
-  plannedDeparture?: string;
-  actualDeparture?: string;
-  plannedArrival?: string;
-  actualArrival?: string;
-  truck?: { id: string; plateNumber: string } | null;
-  driver?: { id: string; user?: { name: string } } | null;
-  stops?: Array<{ id: string; city?: string; country?: string; companyName?: string; address?: string; sequence?: number; type?: string }>;
+function iso(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const ACTIVE_TRIP_STATUSES = [
-  'planning', 'planned', 'assigned', 'dispatched', 'confirmed',
-  'driver_received', 'driver_accepted', 'started', 'loading',
-  'driving', 'in_transit', 'partially_delivered', 'unplanned',
-].join(',');
+type Granularity = 'day' | 'week' | 'month';
 
-type WindowType = 'today' | 'tomorrow' | 'next7';
-
-function sameDay(a?: string | Date, b = new Date()) {
-  if (!a) return false;
-  const d = new Date(a);
-  return d.getDate() === b.getDate() && d.getMonth() === b.getMonth() && d.getFullYear() === b.getFullYear();
+function TrendBadge({ value, invert = false }: { value: number | null | undefined; invert?: boolean }) {
+  if (value === null || value === undefined || isNaN(value)) return null;
+  const good = invert ? value < 0 : value > 0;
+  const neutral = Math.abs(value) < 0.05;
+  if (neutral) return <span className="text-[11px] font-semibold text-text-secondary px-1">±0%</span>;
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded ${good ? 'bg-success/10 text-success' : 'bg-error/10 text-error'}`}>
+      {value > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+      {Math.abs(value).toFixed(1)}%
+    </span>
+  );
 }
 
-function startOfDay(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
-function inWindow(a?: string | Date, w: WindowType = 'today'): boolean {
-  if (!a) return false;
-  const d = new Date(a);
-  const now = new Date();
-  if (w === 'today') return sameDay(d, now);
-  if (w === 'tomorrow') {
-    const tmr = new Date(now);
-    tmr.setDate(tmr.getDate() + 1);
-    return sameDay(d, tmr);
-  }
-  const end = new Date(startOfDay(now));
-  end.setDate(end.getDate() + 8);
-  return d >= startOfDay(now) && d < end;
-}
-
-function timeVal(x: string | undefined) {
-  return x ? new Date(x).getTime() : Infinity;
-}
-
-function stopLabel(stops: TripLite['stops'], kind: 'first' | 'last') {
-  const sorted = (stops || []).slice().sort((a: any, b: any) => (a.sequence || 1) - (b.sequence || 1));
-  if (!sorted.length) return null;
-  const s = kind === 'first' ? sorted[0] : sorted[sorted.length - 1];
-  return [s.city, s.country].filter(Boolean).join(', ') || s.companyName || s.address || null;
+function KpiCard({ icon: Icon, label, value, trend, invert, accent }: any) {
+  return (
+    <div className="card !p-4 hover:shadow-card-hover transition-all duration-300 relative overflow-hidden group">
+      <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full ${accent} opacity-10 group-hover:scale-150 transition-transform duration-500`} />
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">{label}</span>
+        <span className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${accent} bg-opacity-15 backdrop-blur-sm`}>
+          <Icon className="w-4 h-4" />
+        </span>
+      </div>
+      <div className="flex items-end justify-between gap-2">
+        <span className="text-2xl font-black text-text leading-tight">{value}</span>
+        <TrendBadge value={trend} invert={invert} />
+      </div>
+    </div>
+  );
 }
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
-  const { user } = useAuthStore();
-  const isAdmin = user?.role === 'admin';
-
-  const [summary, setSummary] = useState<any>(null);
-  const [trucks, setTrucks] = useState<any[]>([]);
-  const [drivers, setDrivers] = useState<any[]>([]);
-  const [activeTrips, setActiveTrips] = useState<TripLite[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [today] = useState(() => new Date());
+  const [analytics, setAnalytics] = useState<any>(null);
 
-  const [truckFilter, setTruckFilter] = useState('all');
-  const [driverFilter, setDriverFilter] = useState('all');
-  const [search, setSearch] = useState('');
-  const [windowType, setWindowType] = useState<WindowType>('today');
+  const [rangeType, setRangeType] = useState('this_month');
+  const [granularity, setGranularity] = useState<Granularity>('day');
+  const [customFrom, setCustomFrom] = useState(iso(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
+  const [customTo, setCustomTo] = useState(iso(new Date()));
+
+  const computeRange = () => {
+    const now = new Date();
+    switch (rangeType) {
+      case 'this_month': return { from: iso(new Date(now.getFullYear(), now.getMonth(), 1)), to: iso(now) };
+      case 'last_month': return { from: iso(new Date(now.getFullYear(), now.getMonth() - 1, 1)), to: iso(new Date(now.getFullYear(), now.getMonth(), 0)) };
+      case 'last_30_days': return { from: iso(new Date(now.getTime() - 29 * 86400000)), to: iso(now) };
+      case 'this_year': return { from: iso(new Date(now.getFullYear(), 0, 1)), to: iso(now) };
+      default: return { from: customFrom, to: customTo };
+    }
+  };
 
   const load = (silent = false) => {
     if (silent) setRefreshing(true);
-    Promise.all([
-      api.get('/dashboard').catch(() => null),
-      api.get('/trucks/availability').catch(() => null),
-      api.get('/drivers').catch(() => null),
-      api.get(`/trips?status=${ACTIVE_TRIP_STATUSES}`).catch(() => null),
-    ]).then(([d, tr, dr, tp]: any[]) => {
-      setSummary(d?.data ?? null);
-      setTrucks(Array.isArray(tr?.data) ? tr.data : []);
-      setDrivers(Array.isArray(dr?.data) ? dr.data : []);
-      setActiveTrips(Array.isArray(tp?.data) ? tp.data : []);
-    }).finally(() => {
-      setLoading(false);
-      setRefreshing(false);
-    });
+    else setLoading(true);
+
+    const r = computeRange();
+    const params = new URLSearchParams({ from: r.from, to: r.to, granularity });
+
+    api.get(`/dashboard/analytics?${params.toString()}`)
+      .then(res => setAnalytics(res.data))
+      .catch(() => null)
+      .finally(() => {
+        setLoading(false);
+        setRefreshing(false);
+      });
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [rangeType, customFrom, customTo, granularity]);
 
   useEffect(() => {
-    const id = setInterval(() => load(true), 30000);
+    const id = setInterval(() => load(true), 60000);
     return () => clearInterval(id);
-  }, []);
+  }, [rangeType, customFrom, customTo, granularity]);
 
-  const q = search.trim().toLowerCase();
-
-  const filteredTrips = useMemo(() => activeTrips.filter(x => {
-    if (truckFilter !== 'all' && x.truck?.id !== truckFilter) return false;
-    if (driverFilter !== 'all' && x.driver?.id !== driverFilter) return false;
-    if (q) {
-      const hay = [x.tripNumber, x.truck?.plateNumber, x.driver?.user?.name, stopLabel(x.stops, 'first'), stopLabel(x.stops, 'last')]
-        .join(' ').toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    return true;
-  }), [activeTrips, truckFilter, driverFilter, q]);
-
-  const departuresBoard = useMemo(
-    () => filteredTrips.filter(x => inWindow(x.plannedDeparture, windowType)).sort((a, b) => timeVal(a.plannedDeparture) - timeVal(b.plannedDeparture)),
-    [filteredTrips, windowType],
-  );
-  const arrivalsBoard = useMemo(
-    () => filteredTrips.filter(x => inWindow(x.plannedArrival, windowType)).sort((a, b) => timeVal(a.plannedArrival) - timeVal(b.plannedArrival)),
-    [filteredTrips, windowType],
-  );
-  const unassigned = useMemo(() => filteredTrips.filter(x => !x.truck?.id || !x.driver?.id), [filteredTrips]);
-  const delayed = useMemo(() => filteredTrips.filter(x =>
-    x.plannedArrival && !x.actualArrival && new Date(x.plannedArrival).getTime() < Date.now()
-  ), [filteredTrips]);
-
-  const trucksInTrip = trucks.filter(x => x.status === 'in_trip');
-  const trucksAvailable = trucks.filter(x => x.status === 'active');
-  const trucksMaintenance = trucks.filter(x => x.status === 'maintenance');
-
-  const visibleTrucks = useMemo(() => trucks.filter(x => {
-    if (truckFilter !== 'all' && x.id !== truckFilter) return false;
-    if (driverFilter !== 'all') {
-      const trip = activeTrips.find(tp => tp.truck?.id === x.id);
-      if (trip?.driver?.id !== driverFilter) return false;
-    }
-    if (q && !`${x.plateNumber}`.toLowerCase().includes(q)) return false;
-    return true;
-  }), [trucks, truckFilter, driverFilter, q, activeTrips]);
-
-  const driversInTrip = drivers.filter(d => d.status === 'in_trip');
-  const driversAvailable = drivers.filter(d => d.status === 'available');
-  const driversOff = drivers.filter(d => ['off', 'sick', 'vacation'].includes(d.status));
-
-  const visibleDrivers = useMemo(() => [...driversInTrip, ...driversAvailable, ...driversOff].filter(d => {
-    if (driverFilter !== 'all' && d.id !== driverFilter) return false;
-    if (q && !`${d.user?.name || d.name || ''}`.toLowerCase().includes(q)) return false;
-    return true;
-  }), [driversInTrip, driversAvailable, driversOff, driverFilter, q]);
-
-  const filtersActive = truckFilter !== 'all' || driverFilter !== 'all' || q !== '';
-
-  const truckOptions: SelectOption[] = [
-    { value: 'all', label: t('dash_all_trucks') },
-    ...trucks.map(x => ({ value: x.id, label: x.plateNumber })),
-  ];
-  const driverOptions: SelectOption[] = [
-    { value: 'all', label: t('dash_all_drivers') },
-    ...drivers.map(d => ({ value: d.id, label: d.user?.name || d.name || '—' })),
-  ];
-
-  const windows: Array<{ key: WindowType; label: string }> = [
-    { key: 'today', label: t('dash_today') },
-    { key: 'tomorrow', label: t('dash_tomorrow') },
-    { key: 'next7', label: t('dash_next7') },
-  ];
-
-  const hoursLate = (x: TripLite) =>
-    Math.max(1, Math.round((Date.now() - new Date(x.plannedArrival!).getTime()) / 3600000));
-
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        <span className="text-sm text-text-secondary">{t('loading')}</span>
+  if (loading && !analytics) return (
+    <div className="flex items-center justify-center h-screen -mt-20">
+      <div className="flex flex-col items-center gap-4">
+        <LoaderCircle className="w-10 h-10 text-primary animate-spin" />
+        <span className="text-sm font-medium text-text-secondary animate-pulse">{t('loading')}</span>
       </div>
     </div>
   );
 
-  const dateStr = today.toLocaleDateString(i18n.language, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const kpis = analytics?.kpis || {};
+  const trends = analytics?.trends || {};
+  const series = analytics?.series || [];
 
-  const opStats = [
-    { icon: RouteIcon, label: t('activeTrips'), value: activeTrips.length, color: 'text-primary', bg: 'bg-primary/10' },
-    { icon: Truck, label: t('dash_trucks_in_trip'), value: trucksInTrip.length, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-    { icon: CircleDashed, label: t('dash_trucks_available'), value: trucksAvailable.length, color: 'text-success', bg: 'bg-success/10' },
-    { icon: UserCheck, label: t('dash_drivers_duty'), value: driversInTrip.length + driversAvailable.length, color: 'text-purple-500', bg: 'bg-purple-500/10' },
-    { icon: Wrench, label: t('dash_trucks_maintenance'), value: trucksMaintenance.length, color: 'text-warning', bg: 'bg-warning/10' },
-    { icon: AlertTriangle, label: t('expiringDocuments'), value: summary?.expiringDocs?.length ?? 0, color: 'text-warning', bg: 'bg-warning/10' },
-  ];
-
-  const boardTitle = {
-    dep: windowType === 'today' ? t('dash_departures_today') : t('dash_departures'),
-    arr: windowType === 'today' ? t('dash_arrivals_today') : t('dash_arrivals'),
-  };
+  const otifTrips = kpis.otifTrips?.rate || 0;
+  const otifOrders = kpis.otifOrders?.rate || 0;
 
   return (
-    <div className="space-y-5 animate-fade-in">
-
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+    <div className="space-y-6 pb-12 animate-fade-in">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-text">{t('dash_ops_board')}</h1>
-          <p className="text-sm text-text-secondary capitalize">
-            {dateStr}
-            <span className={`inline-block w-1.5 h-1.5 rounded-full ml-2 align-middle ${refreshing ? 'bg-primary animate-pulse' : 'bg-success'}`} title={t('dash_autorefresh')} />
+          <h1 className="text-2xl font-black text-text bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600">
+            {t('dash_ops_board')}
+          </h1>
+          <p className="text-sm font-medium text-text-secondary mt-1">
+            {new Date().toLocaleDateString(i18n.language, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            <span className={`inline-block w-2 h-2 rounded-full ml-3 shadow-sm ${refreshing ? 'bg-primary animate-pulse' : 'bg-success'}`} />
           </p>
         </div>
-      </div>
 
-      {/* Operational KPI strip */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        {opStats.map(s => (
-          <div key={s.label} className="stat-card !gap-1.5">
-            <span className={`w-8 h-8 rounded-lg flex items-center justify-center ${s.bg}`}><s.icon className={`w-4 h-4 ${s.color}`} /></span>
-            <span className="text-2xl font-bold text-text leading-none">{s.value}</span>
-            <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wide truncate">{s.label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div className="card !p-4">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary uppercase tracking-wide shrink-0">
-            <SlidersHorizontal className="w-3.5 h-3.5 text-primary" />{t('dash_filters')}
-          </span>
-          <div className="w-full lg:w-40"><CustomSelect value={truckFilter} onChange={setTruckFilter} options={truckOptions} /></div>
-          <div className="w-full lg:w-48"><CustomSelect value={driverFilter} onChange={setDriverFilter} options={driverOptions} /></div>
-          <div className="relative flex-1 min-w-[180px]">
-            <Search className="w-4 h-4 text-text-secondary absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder={t('dash_search_ph')}
-              className="input !pl-9 w-full"
-            />
-          </div>
-          <div className="flex rounded-xl bg-surface-hover p-1 shrink-0">
-            {windows.map(w => (
-              <button
-                key={w.key}
-                onClick={() => setWindowType(w.key)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${windowType === w.key ? 'bg-surface text-primary shadow-sm' : 'text-text-secondary hover:text-text'}`}
-              >
-                {w.label}
+        <div className="flex flex-wrap items-center gap-3 bg-surface/50 backdrop-blur p-2 rounded-2xl border border-border/50 shadow-sm">
+          <select value={rangeType} onChange={e => setRangeType(e.target.value)} className="input !py-1.5 !text-sm !rounded-xl bg-white/80">
+            <option value="this_month">{t('fin_this_month')}</option>
+            <option value="last_month">{t('fin_last_month')}</option>
+            <option value="last_30_days">{t('fin_last30d')}</option>
+            <option value="this_year">{t('fin_this_year')}</option>
+            <option value="custom">{t('fin_custom_range')}</option>
+          </select>
+          {rangeType === 'custom' && (
+            <div className="flex items-center gap-2">
+              <Flatpickr value={customFrom} onChange={d => setCustomFrom(iso(d[0]))} className="input !py-1.5 !w-28 !text-sm !rounded-xl bg-white/80" />
+              <span className="text-text-secondary text-sm">-</span>
+              <Flatpickr value={customTo} onChange={d => setCustomTo(iso(d[0]))} className="input !py-1.5 !w-28 !text-sm !rounded-xl bg-white/80" />
+            </div>
+          )}
+          <div className="h-6 w-px bg-border mx-1" />
+          <div className="flex bg-surface-hover rounded-xl p-0.5 border border-border/50">
+            {['day', 'week', 'month'].map(g => (
+              <button key={g} onClick={() => setGranularity(g as Granularity)} className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${granularity === g ? 'bg-white text-primary shadow-sm' : 'text-text-secondary hover:text-text'}`}>
+                {g === 'day' ? 'Day' : g === 'week' ? 'Week' : 'Month'}
               </button>
             ))}
           </div>
-          {filtersActive && (
-            <button
-              onClick={() => { setTruckFilter('all'); setDriverFilter('all'); setSearch(''); }}
-              className="text-xs font-semibold text-primary hover:underline shrink-0"
-            >
-              ✕ {t('dash_filters')}
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Diesel */}
-      <DieselWidget avgConsumptionL100={32} />
-
-      {/* Window board */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="card">
-          <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
-            <PlaneTakeoff className="w-4 h-4 text-primary" />{boardTitle.dep}
-            <span className="badge-primary ml-auto">{departuresBoard.length}</span>
-          </h3>
-          <div className="space-y-2">
-            {departuresBoard.slice(0, 8).map(x => (
-              <Link to={`/trips/${x.id}`} key={x.id} className="flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-surface transition-colors group">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-text truncate">
-                    {stopLabel(x.stops, 'first')} <ArrowRight className="w-3 h-3 inline text-text-secondary" /> {stopLabel(x.stops, 'last')}
-                  </div>
-                  <div className="text-[11px] text-text-secondary truncate">
-                    {x.tripNumber} · {x.truck?.plateNumber || t('dash_no_truck')} · {x.driver?.user?.name || t('dash_no_driver')}
-                  </div>
-                </div>
-                <span className="text-xs font-bold text-primary shrink-0">{x.plannedDeparture ? new Date(x.plannedDeparture).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
-              </Link>
-            ))}
-            {departuresBoard.length === 0 && <div className="text-sm text-text-secondary py-6 text-center">{filtersActive ? t('dash_no_match') : t('dash_no_departures')}</div>}
-          </div>
-        </div>
-
-        <div className="card">
-          <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-emerald-500" />{boardTitle.arr}
-            <span className="badge-success ml-auto">{arrivalsBoard.length}</span>
-          </h3>
-          <div className="space-y-2">
-            {arrivalsBoard.slice(0, 8).map(x => (
-              <Link to={`/trips/${x.id}`} key={x.id} className="flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-surface transition-colors">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-text truncate">
-                    {stopLabel(x.stops, 'first')} <ArrowRight className="w-3 h-3 inline text-text-secondary" /> {stopLabel(x.stops, 'last')}
-                  </div>
-                  <div className="text-[11px] text-text-secondary truncate">
-                    {x.tripNumber} · {x.truck?.plateNumber || t('dash_no_truck')} · {x.driver?.user?.name || t('dash_no_driver')}
-                  </div>
-                </div>
-                <span className="text-xs font-bold text-success shrink-0">{x.plannedArrival ? new Date(x.plannedArrival).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
-              </Link>
-            ))}
-            {arrivalsBoard.length === 0 && <div className="text-sm text-text-secondary py-6 text-center">{filtersActive ? t('dash_no_match') : t('dash_no_arrivals')}</div>}
-          </div>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <KpiCard icon={RouteIcon} label={t('activeTrips')} value={kpis.tripsTotal || 0} trend={trends.tripsTotal} accent="bg-primary text-primary" />
+        <KpiCard icon={Target} label={t('orders_delivered')} value={kpis.ordersDelivered || 0} trend={trends.ordersDelivered} accent="bg-success text-success" />
+        <KpiCard icon={Clock} label={t('dash_delayed')} value={kpis.ordersDelayed || 0} trend={trends.ordersDelayed} invert accent="bg-error text-error" />
+        <KpiCard icon={MapPin} label={t('fin_total_km')} value={(kpis.km || 0).toLocaleString()} trend={trends.km} accent="bg-blue-500 text-blue-500" />
       </div>
 
-      {/* Needs attention */}
-      {(unassigned.length > 0 || delayed.length > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {unassigned.length > 0 && (
-            <div className="card border-l-4 border-warning">
-              <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
-                <CircleDashed className="w-4 h-4 text-warning" />{t('dash_unassigned_trips')}
-                <span className="badge-warning ml-auto">{unassigned.length}</span>
-              </h3>
-              <div className="space-y-2">
-                {unassigned.slice(0, 5).map(x => (
-                  <Link to={`/trips/${x.id}`} key={x.id} className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-surface/70 transition-colors">
-                    <span className="font-medium text-text">{x.tripNumber}</span>
-                    <span className="flex gap-1.5">
-                      {!x.truck?.id && <span className="badge-warning text-[10px]">{t('dash_no_truck')}</span>}
-                      {!x.driver?.id && <span className="badge-error text-[10px]">{t('dash_no_driver')}</span>}
-                    </span>
-                  </Link>
-                ))}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 card !p-5 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-blue-400 to-purple-500" />
+          <h3 className="text-sm font-bold text-text mb-6">{t('fin_activity_overview')}</h3>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={series} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorTrips" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6B7280' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6B7280' }} />
+                <RechartsTooltip
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }}
+                  labelStyle={{ fontWeight: 'bold', color: '#111827', marginBottom: '8px' }}
+                />
+                <Area type="monotone" name="Trips" dataKey="trips" stroke="#3B82F6" strokeWidth={3} fillOpacity={1} fill="url(#colorTrips)" />
+                <Area type="monotone" name="Orders" dataKey="orders" stroke="#10B981" strokeWidth={3} fillOpacity={1} fill="url(#colorOrders)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="card !p-5 relative overflow-hidden flex flex-col">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-success to-emerald-400" />
+          <h3 className="text-sm font-bold text-text mb-6">OTIF Performance</h3>
+          <div className="flex-1 flex flex-col justify-around">
+            <div className="flex items-center justify-between group">
+              <div>
+                <p className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">Trips OTIF</p>
+                <div className="text-3xl font-black text-text">{otifTrips.toFixed(1)}%</div>
+                <div className="text-xs text-text-secondary mt-1">{kpis.otifTrips?.good || 0} / {kpis.otifTrips?.arrived || 0} on time</div>
+              </div>
+              <div className="w-24 h-24">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadialBarChart cx="50%" cy="50%" innerRadius="70%" outerRadius="100%" barSize={8} data={[{ name: 'OTIF', value: otifTrips, fill: otifTrips >= 90 ? '#10B981' : otifTrips >= 75 ? '#F59E0B' : '#EF4444' }]} startAngle={90} endAngle={-270}>
+                    <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+                    <RadialBar background={{ fill: '#F3F4F6' }} dataKey="value" cornerRadius={10} />
+                  </RadialBarChart>
+                </ResponsiveContainer>
               </div>
             </div>
-          )}
-          {delayed.length > 0 && (
-            <div className="card border-l-4 border-error">
-              <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-error" />{t('dash_delayed')}
-                <span className="badge-error ml-auto">{delayed.length}</span>
-              </h3>
-              <div className="space-y-2">
-                {delayed.slice(0, 5).map(x => (
-                  <Link to={`/trips/${x.id}`} key={x.id} className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-surface/70 transition-colors">
-                    <span className="font-medium text-text">{x.tripNumber}</span>
-                    <span className="text-[11px] text-error font-semibold flex items-center gap-1">
-                      <CalendarClock className="w-3 h-3" />
-                      {x.plannedArrival ? formatDate(x.plannedArrival) : ''}
-                      <span className="badge-error text-[10px]">+{hoursLate(x)}h</span>
-                    </span>
-                  </Link>
-                ))}
+
+            <div className="w-full h-px bg-border my-2" />
+
+            <div className="flex items-center justify-between group">
+              <div>
+                <p className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-1">Orders OTIF</p>
+                <div className="text-3xl font-black text-text">{otifOrders.toFixed(1)}%</div>
+                <div className="text-xs text-text-secondary mt-1">{kpis.otifOrders?.good || 0} / {kpis.otifOrders?.arrived || 0} on time</div>
+              </div>
+              <div className="w-24 h-24">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadialBarChart cx="50%" cy="50%" innerRadius="70%" outerRadius="100%" barSize={8} data={[{ name: 'OTIF', value: otifOrders, fill: otifOrders >= 90 ? '#3B82F6' : otifOrders >= 75 ? '#F59E0B' : '#EF4444' }]} startAngle={90} endAngle={-270}>
+                    <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+                    <RadialBar background={{ fill: '#F3F4F6' }} dataKey="value" cornerRadius={10} />
+                  </RadialBarChart>
+                </ResponsiveContainer>
               </div>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Fleet + Drivers */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="card">
-          <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
-            <Truck className="w-4 h-4 text-blue-500" />{t('dash_fleet_status')}
-            <span className="ml-auto text-[11px] font-semibold text-text-secondary">
-              {trucksInTrip.length}/{trucks.length} {t('status_badge_in_trip').toLowerCase()}
-            </span>
-          </h3>
-          <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar pr-1">
-            {visibleTrucks.map(x => {
-              const trip = activeTrips.find(tp => tp.truck?.id === x.id);
-              const selected = truckFilter === x.id;
-              return (
-                <div
-                  key={x.id}
-                  onClick={() => setTruckFilter(selected ? 'all' : x.id)}
-                  className={`flex items-center justify-between text-sm p-2 rounded-lg cursor-pointer transition-colors ${selected ? 'ring-1 ring-primary bg-primary/5' : x.status === 'in_trip' ? 'bg-surface/50 hover:bg-surface' : 'hover:bg-surface/60'}`}
-                >
-                  <span className="font-semibold text-text">{x.plateNumber}</span>
-                  <span className="text-[11px] text-text-secondary truncate max-w-[55%] text-right">
-                    {trip ? `${stopLabel(trip.stops, 'first') || ''} → ${stopLabel(trip.stops, 'last') || ''}${trip.driver?.user?.name ? ` · ${trip.driver.user.name}` : ''}` : ''}
-                  </span>
-                  <span className={`text-[10px] shrink-0 ${x.status === 'in_trip' ? 'badge-primary' : x.status === 'maintenance' ? 'badge-warning' : 'badge-success'}`}>
-                    {x.status === 'in_trip' ? t('status_badge_in_trip') : x.status === 'maintenance' ? t('dash_maintenance') : t('status_badge_free')}
-                  </span>
-                </div>
-              );
-            })}
-            {visibleTrucks.length === 0 && <div className="text-sm text-text-secondary py-6 text-center">{filtersActive ? t('dash_no_match') : t('notEnoughData')}</div>}
-          </div>
-        </div>
-
-        <div className="card">
-          <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
-            <UserCheck className="w-4 h-4 text-purple-500" />{t('dash_drivers')}
-          </h3>
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            <div className="rounded-xl bg-primary/5 border border-primary/15 p-2.5 text-center">
-              <div className="text-lg font-bold text-primary">{driversInTrip.length}</div>
-              <div className="text-[10px] font-semibold text-text-secondary uppercase">{t('status_badge_in_trip')}</div>
-            </div>
-            <div className="rounded-xl bg-success/5 border border-success/15 p-2.5 text-center">
-              <div className="text-lg font-bold text-success">{driversAvailable.length}</div>
-              <div className="text-[10px] font-semibold text-text-secondary uppercase">{t('dash_available')}</div>
-            </div>
-            <div className="rounded-xl bg-surface border border-border p-2.5 text-center">
-              <div className="text-lg font-bold text-text-secondary">{driversOff.length}</div>
-              <div className="text-[10px] font-semibold text-text-secondary uppercase flex items-center justify-center gap-1"><Coffee className="w-3 h-3" />{t('dash_off')}</div>
-            </div>
-          </div>
-          <div className="space-y-1.5 max-h-52 overflow-y-auto custom-scrollbar pr-1">
-            {visibleDrivers.map(d => {
-              const selected = driverFilter === d.id;
-              return (
-                <div
-                  key={d.id}
-                  onClick={() => setDriverFilter(selected ? 'all' : d.id)}
-                  className={`flex items-center justify-between text-sm p-1.5 rounded-lg cursor-pointer transition-colors ${selected ? 'ring-1 ring-primary bg-primary/5' : 'hover:bg-surface/60'}`}
-                >
-                  <span className="font-medium text-text truncate">{d.user?.name || d.name || '—'}</span>
-                  <span className={`text-[10px] font-semibold ${d.status === 'in_trip' ? 'text-primary' : d.status === 'available' ? 'text-success' : 'text-text-secondary'}`}>
-                    {d.status === 'in_trip' ? t('status_badge_in_trip') : d.status === 'available' ? t('dash_available') : t('dash_off')}
-                  </span>
-                </div>
-              );
-            })}
-            {visibleDrivers.length === 0 && <div className="text-sm text-text-secondary py-6 text-center">{filtersActive ? t('dash_no_match') : t('notEnoughData')}</div>}
           </div>
         </div>
       </div>
 
-      {/* Alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {(summary?.expiringDocs?.length ?? 0) > 0 && (
-          <div className="card border-l-4 border-warning">
-            <div className="flex items-center gap-2 mb-3">
-              <FileWarning className="w-5 h-5 text-warning" />
-              <h3 className="font-semibold text-sm text-text">{t('expiringDocuments')} ({summary.expiringDocs.length})</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="card !p-5">
+          <h3 className="text-sm font-bold text-text mb-4 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-primary" /> Operations Pipeline
+          </h3>
+          <div className="space-y-4">
+            <div className="flex justify-between items-end border-b border-border pb-3">
+              <div>
+                <p className="text-xs font-bold text-warning uppercase">To Plan</p>
+                <p className="text-2xl font-black">{analytics?.pipeline?.toPlan || 0}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-bold text-primary uppercase">In Progress</p>
+                <p className="text-2xl font-black">{analytics?.pipeline?.inProgress || 0}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-bold text-success uppercase">Delivered</p>
+                <p className="text-2xl font-black">{analytics?.pipeline?.delivered || 0}</p>
+              </div>
             </div>
-            <div className="space-y-2">
-              {summary.expiringDocs.slice(0, 5).map((d: any) => (
-                <div key={d.id} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
-                  <span className="text-text font-medium">{d.title}</span>
-                  <span className="badge-warning">{formatDate(d.expiryDate)}</span>
+            
+            {analytics?.byCountry?.combined?.length > 0 && (
+              <div className="pt-2">
+                <p className="text-xs font-bold text-text-secondary uppercase mb-3">Top Countries (Activity)</p>
+                <div className="space-y-3">
+                  {analytics.byCountry.combined.slice(0, 4).map((c: any) => (
+                    <div key={c.country} className="flex items-center gap-3">
+                      <span className="w-8 text-xs font-bold text-text">{c.country}</span>
+                      <div className="flex-1 h-2 bg-surface-hover rounded-full overflow-hidden">
+                        <div className="h-full bg-primary/70 rounded-full" style={{ width: `${(c.count / analytics.byCountry.combined[0].count) * 100}%` }} />
+                      </div>
+                      <span className="text-xs font-medium text-text-secondary w-8 text-right">{c.count}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
-        )}
-        {isAdmin && (summary?.overdueInvoices?.length ?? 0) > 0 && (
-          <div className="card border-l-4 border-error">
-            <div className="flex items-center gap-2 mb-3">
-              <Fuel className="w-5 h-5 text-error" />
-              <h3 className="font-semibold text-sm text-text">{t('overdueInvoices')} ({summary.overdueInvoices.length})</h3>
-            </div>
-            <div className="space-y-2">
-              {summary.overdueInvoices.slice(0, 5).map((inv: any) => (
-                <div key={inv.id} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
-                  <span className="text-text font-medium">{inv.invoiceNumber} — {inv.client?.name}</span>
-                  <span className="badge-error">{fmtMoney(inv.amount)}</span>
+        </div>
+
+        <div className="card !p-0 overflow-hidden border border-error/20 shadow-[0_4px_20px_-5px_rgba(239,68,68,0.1)]">
+          <div className="bg-error/5 p-4 border-b border-error/10 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-error flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" /> Action Required: Delayed
+            </h3>
+            <span className="badge-error px-2 py-0.5 text-xs">{analytics?.delayedOrders?.length || 0} active delays</span>
+          </div>
+          <div className="p-0 max-h-[280px] overflow-y-auto custom-scrollbar">
+            {analytics?.delayedOrders?.length > 0 ? (
+              <table className="w-full text-left text-sm">
+                <thead className="bg-surface/50 text-[10px] uppercase font-bold text-text-secondary sticky top-0 backdrop-blur-md">
+                  <tr>
+                    <th className="px-4 py-2">Order</th>
+                    <th className="px-4 py-2">Route</th>
+                    <th className="px-4 py-2 text-right">Delay</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {analytics.delayedOrders.map((o: any, idx: number) => (
+                    <tr key={idx} className="hover:bg-error/5 transition-colors group cursor-pointer">
+                      <td className="px-4 py-3">
+                        <p className="font-bold text-text">{o.orderNumber}</p>
+                        <p className="text-[10px] text-text-secondary">{o.client}</p>
+                      </td>
+                      <td className="px-4 py-3 text-xs font-medium text-text-secondary">
+                        {o.route || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="inline-block bg-error text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-sm">
+                          +{Math.round(o.lateMinutes / 60)}h
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="p-8 text-center text-success flex flex-col items-center">
+                <div className="w-12 h-12 bg-success/10 rounded-full flex items-center justify-center mb-3">
+                  <Target className="w-6 h-6 text-success" />
                 </div>
-              ))}
-            </div>
+                <p className="font-bold text-sm">All operations are on schedule.</p>
+                <p className="text-xs text-text-secondary">No delayed orders in this period.</p>
+              </div>
+            )}
           </div>
-        )}
-        {(summary?.expiringDocs?.length ?? 0) === 0 && (!(summary?.overdueInvoices?.length) || !isAdmin) && (
-          <div className="card border-l-4 border-success lg:col-span-2">
-            <div className="flex items-center gap-2">
-              <Fuel className="w-5 h-5 text-success" />
-              <span className="text-sm font-medium text-success">{t('allClearNoAlerts')}</span>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
 import { TripsModule } from '../trips/trips.module';
@@ -8,7 +9,7 @@ import { InvoicesModule } from '../invoices/invoices.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TripsModule, TrucksModule, DriversModule, InvoicesModule, NotificationsModule],
+  imports: [TypeOrmModule, TripsModule, TrucksModule, DriversModule, InvoicesModule, NotificationsModule],
   controllers: [DashboardController],
   providers: [DashboardService],
 })
