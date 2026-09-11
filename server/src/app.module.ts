@@ -45,6 +45,8 @@ import { PortalModule } from './portal/portal.module';
 import { ActionLogsModule } from './action-logs/action-logs.module';
 import { TelematicsModule } from './telematics/telematics.module';
 import { FinancialModule } from './financial/financial.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -110,6 +112,8 @@ import { FinancialModule } from './financial/financial.module';
     ActionLogsModule,
     TelematicsModule,
     FinancialModule,
+    AnalyticsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

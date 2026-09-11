@@ -55,6 +55,7 @@ const LiveMapPage      = lazy(() => import('./pages/LiveMapPage'));
 const DocumentsPage    = lazy(() => import('./pages/DocumentsPage'));
 const InvoicesPage     = lazy(() => import('./pages/InvoicesPage'));
 const FinancialPage    = lazy(() => import('./pages/FinancialPage'));
+const ReportsPage      = lazy(() => import('./pages/ReportsPage'));
 const PayrollPage      = lazy(() => import('./pages/PayrollPage'));
 const SettlementPage   = lazy(() => import('./pages/SettlementPage'));
 const IftaReportPage   = lazy(() => import('./pages/IftaReportPage'));
@@ -175,6 +176,7 @@ export default function App() {
             <Route path="documents" element={<Suspense fallback={<PageLoader />}><DocumentsPage /></Suspense>} />
             <Route path="invoices" element={<Suspense fallback={<PageLoader />}><InvoicesPage /></Suspense>} />
             <Route path="financial" element={<Suspense fallback={<PageLoader />}><FinancialPage /></Suspense>} />
+            <Route path="reports" element={<Suspense fallback={<PageLoader />}><ReportsPage /></Suspense>} />
             <Route path="payroll" element={<Suspense fallback={<PageLoader />}><PayrollPage /></Suspense>} />
             <Route path="settlements" element={<Suspense fallback={<PageLoader />}><SettlementPage /></Suspense>} />
             <Route path="ifta" element={<Suspense fallback={<PageLoader />}><IftaReportPage /></Suspense>} />

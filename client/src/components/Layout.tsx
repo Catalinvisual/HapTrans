@@ -38,6 +38,7 @@ const PAGE_TITLES: Record<string, Record<string, string>> = {
   '/documents': { ro: 'Documente', en: 'Documents', nl: 'Documenten' },
   '/invoices': { ro: 'Facturi', en: 'Invoices', nl: 'Facturen' },
   '/financial': { ro: 'Financiar', en: 'Financial', nl: 'Financieel' },
+  '/reports': { ro: 'Rapoarte', en: 'Reports', nl: 'Rapporten', de: 'Berichte', fr: 'Rapports' },
   '/payroll': { ro: 'Salarii (NL)', en: 'Payroll (NL)', nl: 'Salarissen' },
   '/settlements': { ro: 'Decontări', en: 'Settlements', nl: 'Verrekeningen', de: 'Abrechnungen', fr: 'Règlements' },
   '/ifta': { ro: 'Raport IFTA', en: 'IFTA Report', nl: 'IFTA-Rapport', de: 'IFTA-Bericht', fr: 'Rapport IFTA' },
