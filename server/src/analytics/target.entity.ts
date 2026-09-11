@@ -20,11 +20,11 @@ export class AnalyticsTarget {
   key: string;
 
   /** Human label (i18n key resolved on the client). */
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   label: string | null;
 
   /** KPI group: 'service' | 'operations' | 'fleet' | 'financial'. */
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   section: string | null;
 
   @Column({ type: 'numeric', precision: 14, scale: 2, default: 0 })

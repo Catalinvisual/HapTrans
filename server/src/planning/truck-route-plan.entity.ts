@@ -34,13 +34,13 @@ export class TruckRoutePlan {
   @ManyToOne(() => Driver, { nullable: true, onDelete: 'SET NULL' })
   driver: Driver;
 
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   driverId: string | null;
 
   @ManyToOne(() => Trip, { nullable: true, onDelete: 'SET NULL' })
   trip: Trip;
 
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   tripId: string | null;
 
   @Column({ type: 'date' })

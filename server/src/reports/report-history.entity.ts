@@ -32,7 +32,7 @@ export class ReportHistory {
   status: string;
 
   /** Relative path of the generated file (under uploads/reports/). */
-  @Column({ nullable: true })
+  @Column({ type: 'text', nullable: true })
   filePath: string | null;
 
   @Column({ type: 'text', nullable: true })
@@ -41,7 +41,7 @@ export class ReportHistory {
   @Column({ default: 'en' })
   locale: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   fileName: string | null;
 
   @CreateDateColumn()
