@@ -895,10 +895,10 @@ export class AnalyticsService {
     const pkW = new WhereBuilder('o', r.from, r.to, f, companyId);
     pkW.applyOrderFilters(f);
     const pickupStops = await this.dataSource.query(
-      `SELECT s."orderId", s.dateFrom, s.timeFrom, o.status, o.is_late, o.late_minutes
+      `SELECT s."orderId", s."dateFrom", s."timeFrom", o.status, o.is_late, o.late_minutes
        FROM order_stops s
        JOIN orders o ON o.id = s."orderId"
-       WHERE s.type = 'pickup' AND s.dateFrom IS NOT NULL AND s.dateFrom BETWEEN $1 AND $2 ${
+       WHERE s.type = 'pickup' AND s."dateFrom" IS NOT NULL AND s."dateFrom" BETWEEN $1 AND $2 ${
         f.clientId ? 'AND o."clientId" = $3' : ''
        }`,
       f.clientId ? [r.from, r.to, f.clientId] : [r.from, r.to],
