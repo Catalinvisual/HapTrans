@@ -64,6 +64,12 @@ import { ReportsModule } from './reports/reports.module';
         username: config.get('DB_USERNAME') || config.get('DB_USER'),
         password: config.get('DB_PASSWORD') || config.get('DB_PASS'),
         database: config.get('DB_DATABASE') || config.get('DB_NAME'),
+        ssl: config.get('DATABASE_URL')
+          ? { rejectUnauthorized: false }
+          : undefined,
+        extra: config.get('DATABASE_URL')
+          ? { ssl: { rejectUnauthorized: false } }
+          : undefined,
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         migrations: [__dirname + '/migrations/*{.ts,.js}'],
         migrationsRun: false,
