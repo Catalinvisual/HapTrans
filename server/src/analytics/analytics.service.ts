@@ -171,7 +171,7 @@ const ORDERS_SELECT = `
     o."clientId", o."tripId", COALESCE(o.price::float, 0) AS price,
     o.origin_country, o.destination_country, o.origin_city, o.destination_city,
     c.name AS client_name,
-    EXISTS (SELECT 1 FROM documents d WHERE d."orderId" = o.id AND lower(d."documentType") = 'pod') AS has_pod
+    EXISTS (SELECT 1 FROM documents d WHERE d."orderId" = o.id AND lower(d."documentType"::text) = 'pod') AS has_pod
   FROM orders o
   LEFT JOIN clients c ON c.id = o."clientId"
 `;
@@ -192,7 +192,7 @@ const TRIPS_SELECT = `
     (SELECT count(*)::int FROM orders o WHERE o."tripId" = t.id) AS order_count,
     (SELECT COALESCE(sum(o.price::float), 0) FROM orders o WHERE o."tripId" = t.id) AS order_revenue,
     (SELECT COALESCE(sum(tc.amount::float), 0) FROM trip_costs tc WHERE tc."tripId" = t.id) AS manual_cost,
-    (SELECT count(*)::int FROM orders o WHERE o."tripId" = t.id AND lower(o.status) IN ('delivered','pod_received','ready_for_invoice','invoiced','paid','closed')) AS delivered_in_trip,
+    (SELECT count(*)::int FROM orders o WHERE o."tripId" = t.id AND lower(o.status::text) IN ('delivered','pod_received','ready_for_invoice','invoiced','paid','closed')) AS delivered_in_trip,
     (SELECT count(*)::int FROM orders o WHERE o."tripId" = t.id AND (o.is_late = true OR (o.is_late IS NOT NULL AND o.is_late::text = 'true') OR COALESCE(o.late_minutes,0) > 0)) AS late_in_trip,
     (t.status = 'partially_delivered') AS partial_trip,
     first_stop.city AS bp_city, first_stop.country AS bp_country,

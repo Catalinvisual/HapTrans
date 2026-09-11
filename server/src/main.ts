@@ -240,20 +240,6 @@ async function bootstrap() {
   app.use(cookieParser());
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  // TEMP: expose 500 error detail for diagnostics (remove after fix)
-  app.useGlobalFilters({
-    catch(exception: any, host: any) {
-      const ctx = host.switchToHttp();
-      const res = ctx.getResponse();
-      const status = exception.getStatus ? exception.getStatus() : 500;
-      console.error('[ANALYTICS_DIAG]', exception.message, exception.stack);
-      res.status(status).json({
-        statusCode: status,
-        message: exception.message || 'Internal server error',
-        error: exception?.response?.error || 'Diagnostic',
-      });
-    },
-  });
   app.enableCors({
     origin: [
       'http://localhost:5173',
