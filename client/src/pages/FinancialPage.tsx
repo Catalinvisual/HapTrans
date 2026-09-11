@@ -80,15 +80,6 @@ export default function FinancialPage() {
 
   useEffect(() => { load(); }, [rangeType, customFrom, customTo, granularity]);
 
-  if (loading && !data) return (
-    <div className="flex items-center justify-center h-screen -mt-20">
-      <div className="flex flex-col items-center gap-4">
-        <LoaderCircle className="w-10 h-10 text-primary animate-spin" />
-        <span className="text-sm font-medium text-text-secondary animate-pulse">{t('loading')}</span>
-      </div>
-    </div>
-  );
-
   const k = data?.kpis || {};
   const tr = data?.trends || {};
   const series = data?.series || [];
@@ -145,6 +136,7 @@ export default function FinancialPage() {
     { key: 'daysOverdue', label: t('an_days_overdue'), align: 'right', type: 'number' },
   ];
 
+  // useMemo must be declared before any conditional returns (Rules of Hooks)
   const cashflowSummary = useMemo(() => [
     { label: t('an_cash_opening'), value: cash.openingBalance ?? 0 },
     { label: t('an_cash_received'), value: cash.actualIncoming ?? 0 },
@@ -152,9 +144,18 @@ export default function FinancialPage() {
     { label: t('an_cash_expected_in'), value: cash.expectedIncoming ?? 0 },
     { label: t('an_cash_expected_out'), value: cash.expectedOutgoing ?? 0 },
     { label: t('an_cash_closing'), value: cash.projectedBalance ?? 0 },
-  ], [cash]);
+  ], [cash, t]);
 
   const maxBucket = Math.max(...(recv.buckets || []).map((b: any) => b.amount || 0), 1);
+
+  if (loading && !data) return (
+    <div className="flex items-center justify-center h-screen -mt-20">
+      <div className="flex flex-col items-center gap-4">
+        <LoaderCircle className="w-10 h-10 text-primary animate-spin" />
+        <span className="text-sm font-medium text-text-secondary animate-pulse">{t('loading')}</span>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6 pb-12 animate-fade-in">

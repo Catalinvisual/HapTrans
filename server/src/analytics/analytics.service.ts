@@ -993,14 +993,11 @@ export class AnalyticsService {
   }
 
   private async loadSettlements(companyId?: string | null) {
-    const params: any[] = [];
-    let where = `1=1`;
-    if (companyId) { params.push(companyId); where += ` AND (s."companyId" IS NULL OR s."companyId" = $${params.length})`; }
     return this.dataSource.query(
-      `SELECT s.id, s.driver_id, s.driver_name, s.status, s.month, s.year, s.net_pay::float AS net_pay, s.gross_pay::float AS gross_pay,
-        COALESCE(s.advances::float,0) AS advances
-       FROM settlements s WHERE ${where}`,
-      params,
+      `SELECT s.id, s."driverId" AS driver_id, s."driverName" AS driver_name, s.status, s.month, s.year,
+        COALESCE(s."netPay"::float, 0) AS net_pay, COALESCE(s."grossPay"::float, 0) AS gross_pay,
+        COALESCE(s.advances::float, 0) AS advances
+       FROM settlements s`,
     );
   }
 
