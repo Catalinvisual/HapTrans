@@ -583,7 +583,7 @@ const ro: Record<string, string> = {
   jsx_maint: 'Mentenanță',
   no_orders: 'Nicio comandă',
   status_planning: 'Planificare',
-  status_assigned: 'Asignat',
+  status_assigned: 'Atribuit',
   status_dispatched: 'Dispecerizat',
   status_driver_accepted: 'Acceptat',
   status_started: 'Început',
