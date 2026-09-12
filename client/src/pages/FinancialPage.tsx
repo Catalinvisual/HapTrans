@@ -185,7 +185,7 @@ export default function FinancialPage() {
         </div>
       </div>
 
-      <ReportsPanel open={reportsOpen} onClose={() => setReportsOpen(false)} section="financial" />
+      <ReportsPanel open={reportsOpen} onClose={() => setReportsOpen(false)} />
 
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
         <KpiCard icon={Wallet} label={t('an_revenue')} value={fmtMoney(k.revenue || 0)} trend={tr.revenue} accent="bg-emerald-500 text-emerald-500" />

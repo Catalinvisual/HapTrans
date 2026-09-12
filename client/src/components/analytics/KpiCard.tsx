@@ -23,15 +23,17 @@ export default function KpiCard({
       className={`card !p-4 hover:shadow-card-hover transition-all duration-300 relative overflow-hidden ${onClick ? 'cursor-pointer' : ''}`}
     >
       <div className={`absolute -right-8 -top-8 w-28 h-28 rounded-full ${accent} opacity-5 group-hover:opacity-10 group-hover:scale-125 transition-all duration-500 pointer-events-none`} />
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">{label}</span>
-        <span className={`w-8 h-8 rounded-xl flex items-center justify-center ${accent} bg-opacity-15`}>
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <span className="text-xs font-bold text-text-secondary uppercase tracking-wider truncate" title={typeof label === 'string' ? label : undefined}>{label}</span>
+        <span className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center ${accent} bg-opacity-15`}>
           {Icon && <Icon className="w-4 h-4" />}
         </span>
       </div>
       <div className="flex items-end justify-between gap-2">
-        <span className="text-2xl font-black text-text leading-tight">{value}</span>
-        <TrendBadge value={trend} invert={invert} suffix={trendSuffix} />
+        <span className="text-2xl font-black text-text leading-tight truncate" title={typeof value === 'string' || typeof value === 'number' ? String(value) : undefined}>{value}</span>
+        <div className="shrink-0">
+          <TrendBadge value={trend} invert={invert} suffix={trendSuffix} />
+        </div>
       </div>
       {(sub || target != null) && (
         <div className="flex items-center justify-between mt-2">

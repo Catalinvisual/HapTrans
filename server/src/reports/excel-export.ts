@@ -43,29 +43,34 @@ function fmtValue(v: any, type: string): string | number | null {
 
 export async function buildReportWorkbook(p: ReportPayload, browser?: Browser): Promise<Workbook> {
   const wb = new Workbook();
-  const ws = wb.addWorksheet('Report', { views: [{ state: 'frozen', ySplit: 2 }] });
 
-  ws.mergeCells('A1:D1');
-  ws.getCell('A1').value = p.reportName;
-  ws.getCell('A1').font = TITLE_FONT;
-  ws.getRow(1).height = 24;
+  // ---- KPI summary & Header ----
+  const kpiSheet = wb.addWorksheet('Summary', { views: [{ state: 'frozen', ySplit: 4 }] });
 
-  ws.mergeCells('A2:D2');
-  ws.getCell('A2').value =
+  kpiSheet.mergeCells('A1:D1');
+  kpiSheet.getCell('A1').value = p.reportName;
+  kpiSheet.getCell('A1').font = TITLE_FONT;
+  kpiSheet.getRow(1).height = 24;
+
+  kpiSheet.mergeCells('A2:D2');
+  kpiSheet.getCell('A2').value =
     `Period: ${fmtDate(p.period.from)} – ${fmtDate(p.period.to)}   |   Generated: ${fmtDate(p.generatedAt)}`;
-  ws.getCell('A2').font = META_FONT;
-  ws.getRow(2).height = 16;
+  kpiSheet.getCell('A2').font = META_FONT;
+  kpiSheet.getRow(2).height = 16;
+  
+  kpiSheet.getRow(3).height = 12;
 
-  // ---- KPI summary ----
-  const kpiSheet = wb.addWorksheet('KPI Summary', { views: [{ state: 'frozen', ySplit: 1 }] });
   kpiSheet.columns = [
-    { header: 'KPI', key: 'label', width: 30 },
-    { header: 'Value', key: 'value', width: 16 },
-    { header: 'Unit', key: 'unit', width: 12 },
-    { header: 'Trend', key: 'trend', width: 14 },
+    { key: 'label', width: 30 },
+    { key: 'value', width: 16 },
+    { key: 'unit', width: 12 },
+    { key: 'trend', width: 14 },
   ];
-  styleHeaderRow(kpiSheet.getRow(1));
-  kpiSheet.getRow(1).font = HEADER_FONT;
+  
+  const headerRow = kpiSheet.getRow(4);
+  headerRow.values = ['KPI', 'Value', 'Unit', 'Trend'];
+  styleHeaderRow(headerRow);
+
   for (const kpi of p.kpis) {
     const row = kpiSheet.addRow({
       label: kpi.label,
