@@ -7,7 +7,7 @@ import {
 import {
   Truck, Route as RouteIcon, AlertTriangle, Clock, Target, LoaderCircle,
   Package, Wallet, CheckCircle2, Gauge, Zap, Flame, CircleDollarSign,
-  Activity, ArrowUpRight, TrendingUp
+  Activity, ArrowUpRight, TrendingUp, FileSpreadsheet
 } from 'lucide-react';
 import api from '../lib/api';
 import { fmtMoney, fmtNumber, fmtPercent, fmtKm } from '../lib/format';
@@ -16,12 +16,14 @@ import type { Granularity } from '../components/analytics/AnalyticsToolbar';
 import KpiCard from '../components/analytics/KpiCard';
 import ProgressRing from '../components/analytics/ProgressRing';
 import EmptyState from '../components/analytics/EmptyState';
+import ReportsPanel from '../components/analytics/ReportsPanel';
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [analytics, setAnalytics] = useState<any>(null);
+  const [reportsOpen, setReportsOpen] = useState(false);
 
   const now = new Date();
   const [rangeType, setRangeType] = useState('this_month');
@@ -111,14 +113,21 @@ export default function Dashboard() {
             <span className={`inline-block w-2 h-2 rounded-full shadow-sm ${refreshing ? 'bg-primary animate-pulse' : 'bg-success'}`} />
           </p>
         </div>
-        <AnalyticsToolbar
-          rangeType={rangeType} onRangeType={setRangeType}
-          customFrom={customFrom} customTo={customTo}
-          onCustomFrom={setCustomFrom} onCustomTo={setCustomTo}
-          granularity={granularity} onGranularity={setGranularity}
-          onRefresh={() => load(true)} refreshing={refreshing}
-        />
+        <div className="flex flex-wrap items-end justify-end gap-2">
+          <button onClick={() => setReportsOpen(true)} className="btn-primary !px-3 !py-2 text-xs shrink-0">
+            <FileSpreadsheet className="w-4 h-4 mr-1.5" /> {t('rp_export_label')}
+          </button>
+          <AnalyticsToolbar
+            rangeType={rangeType} onRangeType={setRangeType}
+            customFrom={customFrom} customTo={customTo}
+            onCustomFrom={setCustomFrom} onCustomTo={setCustomTo}
+            granularity={granularity} onGranularity={setGranularity}
+            onRefresh={() => load(true)} refreshing={refreshing}
+          />
+        </div>
       </div>
+
+      <ReportsPanel open={reportsOpen} onClose={() => setReportsOpen(false)} />
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         <KpiCard icon={Package} label={t('an_orders_total')} value={fmtNumber(ops.ordersTotal || 0)} trend={trends.ordersTotal} accent="bg-primary text-primary" />

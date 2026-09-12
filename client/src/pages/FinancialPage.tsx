@@ -5,7 +5,7 @@ import {
   PieChart, Pie, Cell
 } from 'recharts';
 import {
-  Wallet, PiggyBank, LoaderCircle, AlertTriangle, ArrowUpRight, FileText, Landmark, Banknote, CalendarClock, Receipt
+  Wallet, PiggyBank, LoaderCircle, AlertTriangle, ArrowUpRight, FileText, Landmark, Banknote, CalendarClock, Receipt, FileSpreadsheet
 } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
@@ -16,6 +16,7 @@ import KpiCard from '../components/analytics/KpiCard';
 import ReportTable from '../components/analytics/ReportTable';
 import type { ReportColumn } from '../components/analytics/ReportTable';
 import EmptyState from '../components/analytics/EmptyState';
+import ReportsPanel from '../components/analytics/ReportsPanel';
 import { useAuthStore } from '../store/authStore';
 
 const BUCKET_LABELS: Record<string, string> = {
@@ -49,6 +50,7 @@ export default function FinancialPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState<any>(null);
+  const [reportsOpen, setReportsOpen] = useState(false);
 
   const now = new Date();
   const [rangeType, setRangeType] = useState('last_12_months');
@@ -169,14 +171,21 @@ export default function FinancialPage() {
             <span className={`inline-block w-2 h-2 rounded-full shadow-sm ${refreshing ? 'bg-primary animate-pulse' : 'bg-success'}`} />
           </p>
         </div>
-        <AnalyticsToolbar
-          rangeType={rangeType} onRangeType={setRangeType}
-          customFrom={customFrom} customTo={customTo}
-          onCustomFrom={setCustomFrom} onCustomTo={setCustomTo}
-          granularity={granularity} onGranularity={setGranularity}
-          onRefresh={() => load(true)} refreshing={refreshing}
-        />
+        <div className="flex flex-wrap items-end justify-end gap-2">
+          <button onClick={() => setReportsOpen(true)} className="btn-primary !px-3 !py-2 text-xs shrink-0">
+            <FileSpreadsheet className="w-4 h-4 mr-1.5" /> {t('rp_export_label')}
+          </button>
+          <AnalyticsToolbar
+            rangeType={rangeType} onRangeType={setRangeType}
+            customFrom={customFrom} customTo={customTo}
+            onCustomFrom={setCustomFrom} onCustomTo={setCustomTo}
+            granularity={granularity} onGranularity={setGranularity}
+            onRefresh={() => load(true)} refreshing={refreshing}
+          />
+        </div>
       </div>
+
+      <ReportsPanel open={reportsOpen} onClose={() => setReportsOpen(false)} section="financial" />
 
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
         <KpiCard icon={Wallet} label={t('an_revenue')} value={fmtMoney(k.revenue || 0)} trend={tr.revenue} accent="bg-emerald-500 text-emerald-500" />
