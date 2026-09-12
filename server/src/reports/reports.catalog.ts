@@ -371,43 +371,69 @@ export const REPORT_CATALOG: ReportDef[] = [
       const columns: ReportColumn[] = [
         txt('name', 'Customer'), num('orders', 'Orders'), num('delivered', 'Delivered'),
         pct('deliveredPct', 'Delivery %'), num('onTime', 'On-time'), pct('otif', 'OTIF'),
-        num('late', 'Late'), num('avgLateMinutes', 'Avg late (min)'),
+        num('late', 'Late'), pct('latePct', 'Late %'), num('avgLateMinutes', 'Avg late (min)'),
         num('cancelled', 'Cancelled'), num('notDelivered', 'Not delivered'), eu('revenue', 'Revenue'),
       ];
-      const tables: ReportTable[] = [{ name: 'Customers', columns, rows: r.customers }];
-      const top = r.customers.slice(0, 12);
+      // Add latePct to each customer row
+      const customerRows = r.customers.map((c: any) => ({
+        ...c,
+        latePct: c.delivered > 0 ? parseFloat(((c.late / c.delivered) * 100).toFixed(1)) : null,
+      }));
+      const monthlyColumns: ReportColumn[] = [
+        txt('label', 'Period'), num('orders', 'Orders'), num('delivered', 'Delivered'),
+        num('onTime', 'On-time'), num('late', 'Late'), pct('latePct', 'Late %'),
+      ];
+      const monthlyRows = r.series.map((s: any) => ({
+        ...s,
+        latePct: s.delivered > 0 ? parseFloat(((s.late / s.delivered) * 100).toFixed(1)) : null,
+      }));
+      const tables: ReportTable[] = [
+        { name: 'Customers', columns, rows: customerRows },
+        { name: 'Monthly breakdown', columns: monthlyColumns, rows: monthlyRows },
+      ];
+      const top = customerRows.slice(0, 12);
       const charts: ReportChart[] = [
         {
           key: 'ordersTrend',
-          title: 'Orders trend',
+          title: 'Orders vs Delivered vs On-time (trend)',
           kind: 'line',
           labels: r.series.map((s: any) => s.label),
           series: [
             { name: 'Orders', values: r.series.map((s: any) => s.orders), color: '#6366f1' },
             { name: 'Delivered', values: r.series.map((s: any) => s.delivered), color: '#10b981' },
             { name: 'On-time', values: r.series.map((s: any) => s.onTime), color: '#f59e0b' },
+            { name: 'Late', values: r.series.map((s: any) => s.late), color: '#ef4444' },
           ],
         },
         {
           key: 'clientOtif',
-          title: 'On-time delivery by customer',
+          title: 'On-time delivery rate by customer (%)',
           kind: 'bar',
           labels: top.map((c: any) => c.name),
           series: [
-            { name: 'On-time %', values: top.map((c: any) => (c.otif == null ? 0 : c.otif)), color: '#1d4e89' },
+            { name: 'On-time %', values: top.map((c: any) => (c.otif == null ? 0 : c.otif)), color: '#10b981' },
+            { name: 'Late %', values: top.map((c: any) => (c.latePct == null ? 0 : c.latePct)), color: '#ef4444' },
           ],
         },
       ];
+      const latePct = r.kpis.delivered > 0
+        ? parseFloat(((r.kpis.late / r.kpis.delivered) * 100).toFixed(1))
+        : null;
+      const onTimePct = r.kpis.delivered > 0
+        ? parseFloat(((r.kpis.onTime / r.kpis.delivered) * 100).toFixed(1))
+        : null;
       const kpis: ReportKpi[] = [
         kpi('customerCount', 'Customers', r.kpis.customers, 'count'),
-        kpi('orders', 'Orders', r.kpis.orders, 'count'),
+        kpi('orders', 'Total orders', r.kpis.orders, 'count'),
         kpi('delivered', 'Delivered', r.kpis.delivered, 'count'),
-        kpi('onTime', 'On-time', r.kpis.onTime, 'count'),
+        kpi('onTime', 'On-time deliveries', r.kpis.onTime, 'count'),
+        kpi('onTimePct', 'On-time rate', onTimePct, '%'),
         kpi('otif', 'OTIF', r.kpis.otif, '%'),
         kpi('late', 'Late deliveries', r.kpis.late, 'count'),
+        kpi('latePct', 'Late rate', latePct, '%'),
         kpi('avgLateMinutes', 'Avg delay (min)', r.kpis.avgLateMinutes, 'min'),
         kpi('cancelled', 'Cancelled', r.kpis.cancelled, 'count'),
-        kpi('notDelivered', 'Not delivered', r.kpis.notDelivered, 'count'),
+        kpi('notDelivered', 'Not delivered / pending', r.kpis.notDelivered, 'count'),
       ];
       const p = await payload(service, f, user, this, r.period, kpis, tables);
       p.charts = charts;

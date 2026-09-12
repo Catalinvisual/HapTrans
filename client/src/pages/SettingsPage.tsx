@@ -155,23 +155,23 @@ export default function SettingsPage() {
         }
         await api.patch(`/users/${user.id}`, updatePayload);
       }
-      let finalCompany = {
-        ...company
-      };
+      // IMPORTANT: use formData (what user typed), not the stale store 'company'
+      let finalCompany = { ...formData };
       delete (finalCompany as any).error;
-      if (company.logo && company.logo.startsWith('data:image')) {
+      if (formData.logo && formData.logo.startsWith('data:image')) {
         try {
           const res = await api.post('/settings/logo', {
-            logo: company.logo
+            logo: formData.logo
           });
           if (res.data?.url) {
             finalCompany.logo = res.data.url;
-            updateCompany(finalCompany);
           }
         } catch (e) {
           console.error('Failed to sync logo to backend', e);
         }
       }
+      // Sync store first, then persist to backend
+      updateCompany(finalCompany);
       saveCompanySettings(finalCompany);
       try {
         await api.post('/settings/company', finalCompany);
@@ -189,6 +189,7 @@ export default function SettingsPage() {
       toast.error(Array.isArray(errorMsg) ? errorMsg[0] : errorMsg || t('error'));
     }
   };
+
   const companyFields: Array<{
     key: keyof CompanySettings;
     labelKey: string;
