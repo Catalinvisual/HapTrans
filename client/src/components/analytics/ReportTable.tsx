@@ -59,7 +59,7 @@ export default function ReportTable({ columns, rows, maxHeight, totalRow }: Repo
                   className="px-3.5 py-2.5 text-[13px] text-text"
                   style={{ textAlign: c.align === 'right' ? 'right' : c.align === 'center' ? 'center' : 'left' }}
                 >
-                  {cellValue((r as any)[c.key], c.type)}
+                  {cellValue(r ? (r as any)[c.key] : undefined, c.type)}
                 </td>
               ))}
             </tr>

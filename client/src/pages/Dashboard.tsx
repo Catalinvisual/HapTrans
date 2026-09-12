@@ -72,6 +72,30 @@ export default function Dashboard() {
   const customers = analytics?.topCustomersRevenue || [];
   const routes = analytics?.routes || [];
   const meta = analytics?.meta || {};
+  const periodLabel =
+    typeof meta.period === 'string'
+      ? (meta.period as string)
+      : (() => {
+          const p = (meta.period || {}) as { from?: string; to?: string };
+          const fmt = (d?: string) =>
+            d
+              ? new Date(d).toLocaleDateString(i18n.language, {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })
+              : null;
+          const from = fmt(p.from);
+          const to = fmt(p.to);
+          if (from && to) return `${from} – ${to}`;
+          if (from) return from;
+          return new Date().toLocaleDateString(i18n.language, {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          });
+        })();
 
   const maxDist = Math.max(...distO.map((d: any) => d.count || 0), 1);
 
@@ -83,7 +107,7 @@ export default function Dashboard() {
             {t('dash_ops_board')}
           </h1>
           <p className="text-sm font-medium text-text-secondary mt-1 flex items-center gap-2">
-            {meta.period || new Date().toLocaleDateString(i18n.language, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            {periodLabel}
             <span className={`inline-block w-2 h-2 rounded-full shadow-sm ${refreshing ? 'bg-primary animate-pulse' : 'bg-success'}`} />
           </p>
         </div>

@@ -939,14 +939,28 @@ export class AnalyticsService {
        WHERE ${where}`,
       params,
     );
-    for (const row of rows) {
-      const payRows = await this.dataSource.query(
-        `SELECT id, date, COALESCE(amount::float,0) AS amount, method, status, reference FROM payments WHERE "invoiceId" = $1`,
-        [row.id],
-      );
-      row.payments = payRows;
-    }
+    await this.attachPayments(rows);
     return rows;
+  }
+
+  private async attachPayments(invoices: any[]) {
+    const ids = invoices.filter((i) => i && i.id).map((i) => i.id);
+    if (!ids.length) {
+      for (const row of invoices) row.payments = [];
+      return;
+    }
+    const payRows = await this.dataSource.query(
+      `SELECT id, date, COALESCE(amount::float,0) AS amount, method, status, reference, "invoiceId"
+       FROM payments WHERE "invoiceId" = ANY($1)`,
+      [ids],
+    );
+    const byInvoice: Record<string, any[]> = {};
+    for (const p of payRows) {
+      const key = p.invoiceId;
+      if (!byInvoice[key]) byInvoice[key] = [];
+      byInvoice[key].push(p);
+    }
+    for (const row of invoices) row.payments = byInvoice[row.id] || [];
   }
 
   private async loadExpenses(r: PeriodRange, f: AnalyticsFilters, companyId?: string | null) {
@@ -975,12 +989,7 @@ export class AnalyticsService {
        WHERE ${where} AND i.status <> 'cancelled'`,
       params,
     );
-    for (const row of rows) {
-      row.payments = await this.dataSource.query(
-        `SELECT id, date, COALESCE(amount::float,0) AS amount, method, status, reference FROM payments WHERE "invoiceId" = $1`,
-        [row.id],
-      );
-    }
+    await this.attachPayments(rows);
     return { invoices: rows };
   }
 
