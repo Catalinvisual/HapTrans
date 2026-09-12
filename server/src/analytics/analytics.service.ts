@@ -925,10 +925,12 @@ export class AnalyticsService {
   }
 
   private async loadPeriodInvoices(r: PeriodRange, f: AnalyticsFilters, companyId?: string | null) {
+    // NOTE: the invoices table has no company column (legacy schema), so
+    // invoices are treated as company-global here.
+    void companyId;
     const params: any[] = [r.from, r.to];
     let where = `i.issue_date IS NOT NULL AND i.issue_date BETWEEN $1 AND $2`;
     if (f.clientId) { params.push(f.clientId); where += ` AND i."clientId" = $${params.length}`; }
-    if (companyId) { params.push(companyId); where += ` AND i."companyId" = $${params.length}`; }
     const rows = await this.dataSource.query(
       `SELECT i.id, i."invoiceNumber", i.status, i.issue_date, i.due_date, i."clientId",
         COALESCE(i.total, i.amount, 0)::float AS total, c.name AS client_name,
@@ -959,10 +961,12 @@ export class AnalyticsService {
   }
 
   private async loadInvoices(f: AnalyticsFilters, companyId?: string | null) {
+    // NOTE: the invoices table has no company column (legacy schema), so
+    // invoices are treated as company-global here.
+    void companyId;
     const params: any[] = [];
     let where = `1=1`;
     if (f.clientId) { params.push(f.clientId); where += ` AND i."clientId" = $${params.length}`; }
-    if (companyId) { params.push(companyId); where += ` AND i."companyId" = $${params.length}`; }
     const rows = await this.dataSource.query(
       `SELECT i.id, i."invoiceNumber", i.status, i.issue_date, i.due_date, i."clientId",
         COALESCE(i.total, i.amount, 0)::float AS total, c.name AS client_name,

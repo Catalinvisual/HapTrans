@@ -422,7 +422,12 @@ export class DashboardService {
       km += dist;
       revenue += rev;
       margin += mg;
-      if (curMap[key]) curMap[key].trips += 1;
+      if (curMap[key]) {
+        curMap[key].trips += 1;
+        curMap[key].km += dist;
+        curMap[key].revenue += rev;
+        curMap[key].margin += mg;
+      }
       if (isCompleted) { tripsCompleted++; if (curMap[key]) curMap[key].tripsCompleted += 1; }
       else if (isCancelled) tripsCancelled++;
       else if (TRIP_ACTIVE.has(status)) tripsActive++;
