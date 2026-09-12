@@ -211,7 +211,7 @@ export default function Dashboard() {
             <div className="space-y-3">
               {distO.slice(0, 6).map((d: any) => (
                 <div key={d.status || d.name} className="flex items-center gap-3">
-                  <span className="w-28 text-xs font-bold text-text capitalize truncate">{d.status || d.name}</span>
+                  <span className="w-28 text-xs font-bold text-text capitalize truncate">{t(`status_${d.status || d.name}`, String(d.status || d.name).replace(/_/g, ' '))}</span>
                   <div className="flex-1 h-2 bg-surface-hover rounded-full overflow-hidden">
                     <div className="h-full rounded-full" style={{ width: `${((d.count || 0) / maxDist) * 100}%`, background: 'linear-gradient(90deg,#6366F1,#3B82F6)' }} />
                   </div>
@@ -230,7 +230,7 @@ export default function Dashboard() {
             <div className="space-y-3">
               {distT.slice(0, 6).map((d: any, i: number) => (
                 <div key={d.status || d.name} className="flex items-center gap-3">
-                  <span className="w-28 text-xs font-bold text-text capitalize truncate">{d.status || d.name}</span>
+                  <span className="w-28 text-xs font-bold text-text capitalize truncate">{t(`status_${d.status || d.name}`, String(d.status || d.name).replace(/_/g, ' '))}</span>
                   <div className="flex-1 h-2 bg-surface-hover rounded-full overflow-hidden">
                     <div className="h-full rounded-full" style={{ width: `${((d.count || 0) / maxDist) * 100}%`, background: ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6'][i % 5] }} />
                   </div>
