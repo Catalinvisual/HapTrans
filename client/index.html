@@ -8,6 +8,49 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>HapCargo</title>
+    <script>
+      // Self-healing guard: if a JS bundle fails to load (usually because a stale
+      // service worker is serving an old index.html whose chunks no longer exist),
+      // unregister the SW, purge caches, and reload once. Guarded per-session to
+      // avoid reload loops.
+      (function () {
+        var HEAL = 'hapcargo:selfheal';
+        function looksBroken(message, filename) {
+          if (!message || !message.toString) return false;
+          var m = String(message);
+          return /Unexpected token|Loading chunk|Failed to load module|Failed to fetch dynamically|Expected a JavaScript module script|Script error/i.test(m) ||
+            (filename && /\.js(\?|$)/.test(filename));
+        }
+        function heal() {
+          try {
+            if (sessionStorage.getItem(HEAL)) return;
+            sessionStorage.setItem(HEAL, '1');
+            var tasks = [];
+            if ('serviceWorker' in navigator) {
+              tasks.push(navigator.serviceWorker.getRegistrations().then(function (regs) {
+                return Promise.all(regs.map(function (r) { return r.unregister(); }));
+              }));
+            }
+            if ('caches' in window) {
+              tasks.push(caches.keys().then(function (keys) {
+                return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+              }));
+            }
+            Promise.all(tasks).then(function () { location.reload(); }).catch(function () { location.reload(); });
+          } catch (e) {
+            location.reload();
+          }
+        }
+        window.addEventListener('error', function (e) {
+          if (e && e.isTrusted !== false && looksBroken(e.message || '', e.filename)) heal();
+        }, true);
+        window.addEventListener('unhandledrejection', function (e) {
+          var reason = e && e.reason;
+          var msg = reason && reason.message ? reason.message : String(reason || '');
+          if (looksBroken(msg, '')) heal();
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
