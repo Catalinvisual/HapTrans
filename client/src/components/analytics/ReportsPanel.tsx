@@ -249,7 +249,7 @@ export default function ReportsPanel({ open, onClose, section }: ReportsPanelPro
                 <div className="card !p-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <h3 className="text-lg font-black text-text truncate">{payload.reportName || reportName(catalog.find(c => c.key === activeKey) || { name: activeKey })}</h3>
+                      <h3 className="text-lg font-black text-text truncate">{reportName(catalog.find(c => c.key === activeKey) || { name: payload.reportName || activeKey })}</h3>
                       <p className="text-xs text-text-secondary mt-0.5">{fmtDate(payload.period?.from)} → {fmtDate(payload.period?.to)}</p>
                     </div>
                     <div className="flex gap-2 shrink-0">
