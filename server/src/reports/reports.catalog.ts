@@ -64,6 +64,7 @@ export interface ReportPayload {
   kpis: ReportKpi[];
   tables: ReportTable[];
   charts?: ReportChart[];
+  companyLogo?: string;
 }
 
 export interface ReportDef {
@@ -181,7 +182,18 @@ export const REPORT_CATALOG: ReportDef[] = [
           rows: r.routes,
         },
       ];
-      return payload(service, f, user, this, r.meta.period, kpis, tables);
+      const charts: ReportChart[] = [
+        {
+          key: 'orderStatus',
+          title: 'Order Status Distribution',
+          kind: 'bar',
+          labels: r.orderStatusDistribution.map((s: any) => String(s.status).toUpperCase()),
+          series: [{ name: 'Orders', values: r.orderStatusDistribution.map((s: any) => s.count), color: '#1d4e89' }],
+        }
+      ];
+      const p = await payload(service, f, user, this, r.meta.period, kpis, tables);
+      p.charts = charts;
+      return p;
     },
   },
 
@@ -234,7 +246,22 @@ export const REPORT_CATALOG: ReportDef[] = [
           rows: r.payables.items,
         },
       ];
-      return payload(service, f, user, this, r.meta.period, kpis, tables);
+      const charts: ReportChart[] = [
+        {
+          key: 'finTrend',
+          title: 'Financial Trend',
+          kind: 'line',
+          labels: r.series.map((s: any) => s.label),
+          series: [
+            { name: 'Revenue', values: r.series.map((s: any) => s.revenue), color: '#10b981' },
+            { name: 'Cost', values: r.series.map((s: any) => s.cost), color: '#ef4444' },
+            { name: 'Profit', values: r.series.map((s: any) => s.profit), color: '#3b82f6' },
+          ],
+        }
+      ];
+      const p = await payload(service, f, user, this, r.meta.period, kpis, tables);
+      p.charts = charts;
+      return p;
     },
   },
 

@@ -116,12 +116,12 @@ export function renderReportHtml(p: ReportPayload): string {
 </head>
 <body>
   <div class="page">
+    ${p.companyLogo ? `<img src="${esc(p.companyLogo)}" alt="Logo" style="height:48px; margin-bottom:14px; object-fit:contain;" />` : ''}
     <h1>${esc(p.reportName)}</h1>
     <div class="meta">Period: ${fmtDate(p.period.from)} &ndash; ${fmtDate(p.period.to)} &nbsp;|&nbsp; Generated: ${fmtDate(p.generatedAt)}</div>
     ${kpiBlocks(p.kpis)}
     ${charts}
     ${tables}
-    <div class="footer">HapCargo TMS &middot; KPI methodology and full definitions available in the dashboard &mdash; GET /api/analytics/kpi-definitions</div>
   </div>
 </body>
 </html>`;

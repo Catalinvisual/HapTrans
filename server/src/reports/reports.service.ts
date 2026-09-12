@@ -1,8 +1,6 @@
-import {
-  Injectable, NotFoundException, ForbiddenException, BadRequestException, StreamableFile, Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, StreamableFile, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { createReadStream } from 'fs';
@@ -44,6 +42,7 @@ export class ReportsService {
     @InjectRepository(SavedReport) private readonly savedRepo: Repository<SavedReport>,
     @InjectRepository(ReportHistory) private readonly historyRepo: Repository<ReportHistory>,
     @InjectRepository(ScheduledReport) private readonly scheduleRepo: Repository<ScheduledReport>,
+    private readonly dataSource: DataSource,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -68,7 +67,12 @@ export class ReportsService {
   async preview(opts: GenerateOptions, user?: any): Promise<ReportPayload> {
     const def = this.resolveDef(opts.reportKey, user?.role, opts.system);
     const filters = (opts.filters || {}) as AnalyticsFilters;
-    return def.build(this.analytics, filters, user);
+    const payload = await def.build(this.analytics, filters, user);
+    try {
+      const co = await this.dataSource.query(`SELECT logo FROM companies LIMIT 1`);
+      if (co && co[0] && co[0].logo) payload.companyLogo = co[0].logo;
+    } catch (e) {}
+    return payload;
   }
 
   async generate(opts: GenerateOptions, user?: any) {
@@ -77,6 +81,11 @@ export class ReportsService {
     const parts = opts.filters || {};
     try {
       const payload = await def.build(this.analytics, parts as AnalyticsFilters, user);
+      try {
+        const co = await this.dataSource.query(`SELECT logo FROM companies LIMIT 1`);
+        if (co && co[0] && co[0].logo) payload.companyLogo = co[0].logo;
+      } catch (e) {}
+
       await fs.mkdir(REPORTS_DIR, { recursive: true });
 
       const id = crypto.randomUUID();

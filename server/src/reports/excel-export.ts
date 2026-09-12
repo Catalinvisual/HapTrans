@@ -44,13 +44,37 @@ function fmtValue(v: any, type: string): string | number | null {
 export async function buildReportWorkbook(p: ReportPayload, browser?: Browser): Promise<Workbook> {
   const wb = new Workbook();
 
-  // ---- KPI summary & Header ----
   const kpiSheet = wb.addWorksheet('Summary', { views: [{ state: 'frozen', ySplit: 4 }] });
+
+  if (p.companyLogo) {
+    try {
+      let buffer: Buffer | undefined;
+      let ext = 'png';
+      if (p.companyLogo.startsWith('data:image/')) {
+        const parts = p.companyLogo.split(';base64,');
+        if (parts.length === 2) {
+          buffer = Buffer.from(parts[1], 'base64');
+          if (parts[0].includes('jpeg') || parts[0].includes('jpg')) ext = 'jpeg';
+        }
+      } else {
+        const res = await fetch(p.companyLogo.startsWith('http') ? p.companyLogo : `http://localhost:${process.env.PORT || 4000}${p.companyLogo}`);
+        if (res.ok) {
+          const arr = await res.arrayBuffer();
+          buffer = Buffer.from(arr);
+          if (p.companyLogo.toLowerCase().includes('jpg') || p.companyLogo.toLowerCase().includes('jpeg')) ext = 'jpeg';
+        }
+      }
+      if (buffer) {
+        const imageId = wb.addImage({ buffer: buffer as any, extension: ext as any });
+        kpiSheet.addImage(imageId, { tl: { col: 4, row: 0 }, ext: { width: 140 * 9525, height: 40 * 9525 } });
+      }
+    } catch (e) { console.error('Failed to embed logo in Excel:', e); }
+  }
 
   kpiSheet.mergeCells('A1:D1');
   kpiSheet.getCell('A1').value = p.reportName;
   kpiSheet.getCell('A1').font = TITLE_FONT;
-  kpiSheet.getRow(1).height = 24;
+  kpiSheet.getRow(1).height = 36;
 
   kpiSheet.mergeCells('A2:D2');
   kpiSheet.getCell('A2').value =
