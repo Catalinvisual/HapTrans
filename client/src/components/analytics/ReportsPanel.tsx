@@ -9,6 +9,7 @@ import AnalyticsToolbar, { computeRange } from './AnalyticsToolbar';
 import type { Granularity } from './AnalyticsToolbar';
 import KpiSummary from './KpiSummary';
 import ReportTable from './ReportTable';
+import ReportChartCard from './ReportChartCard';
 import type { ReportColumn } from './ReportTable';
 import EmptyState from './EmptyState';
 
@@ -24,6 +25,7 @@ const REPORT_NAMES: Record<string, Record<string, string>> = {
     executive_overview: 'Situație generală (Executiv)',
     financial_position: 'Poziție financiară (P&L)',
     customer_profitability: 'Profit pe clienți',
+    customer_service_performance: 'Performanță servicii clienți',
     route_profitability: 'Profit pe rute',
     fleet_performance: 'Performanța camioanelor',
     driver_performance: 'Performanța șoferilor',
@@ -38,6 +40,7 @@ const REPORT_NAMES: Record<string, Record<string, string>> = {
     executive_overview: 'Operationeel overzicht',
     financial_position: 'Financiële positie (P&L)',
     customer_profitability: 'Winst per klant',
+    customer_service_performance: 'Klantserviceprestaties',
     route_profitability: 'Winst per route',
     fleet_performance: 'Vlootprestaties',
     driver_performance: 'Prestaties chauffeurs',
@@ -144,7 +147,7 @@ export default function ReportsPanel({ open, onClose, section }: ReportsPanelPro
       const r = await api.post('/reports/export', { reportKey: activeKey, filters: buildFilters(), format, name: reportName(active || { name: activeKey }) });
       const res = r.data as any;
       if (res?.downloadUrl) {
-        const blobRes = await api.get(res.downloadUrl, { responseType: 'blob' });
+        const blobRes = await api.get(res.downloadUrl.replace(/^\/api/, ''), { responseType: 'blob' });
         const url = window.URL.createObjectURL(blobRes.data);
         const a = document.createElement('a');
         a.href = url;
@@ -268,6 +271,10 @@ export default function ReportsPanel({ open, onClose, section }: ReportsPanelPro
                 {payload.kpis?.length > 0 && (
                   <div className="card !p-5"><KpiSummary kpis={payload.kpis.map((k: any) => ({ ...k, trend: k.trend ?? null }))} /></div>
                 )}
+
+                {(payload.charts || []).map((c: any) => (
+                  <ReportChartCard key={c.key} chart={c} />
+                ))}
 
                 {(payload.tables || []).map((tb: any) => (
                   <div key={tb.name} className="card !p-5">

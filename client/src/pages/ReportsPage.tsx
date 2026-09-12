@@ -102,7 +102,7 @@ export default function ReportsPage() {
       const r = await api.post('/reports/export', { reportKey, filters, format, name });
       const res = r.data as any;
       if (res?.downloadUrl) {
-        const blobRes = await api.get(res.downloadUrl, { responseType: 'blob' });
+        const blobRes = await api.get(res.downloadUrl.replace(/^\/api/, ''), { responseType: 'blob' });
         const url = window.URL.createObjectURL(blobRes.data);
         const a = document.createElement('a');
         a.href = url;
@@ -164,7 +164,7 @@ export default function ReportsPage() {
       const r = await api.post(`/reports/scheduled/${s.id}/run`);
       const res = r.data as any;
       if (res?.downloadUrl) {
-        const blobRes = await api.get(res.downloadUrl, { responseType: 'blob' });
+        const blobRes = await api.get(res.downloadUrl.replace(/^\/api/, ''), { responseType: 'blob' });
         const url = window.URL.createObjectURL(blobRes.data);
         const a = document.createElement('a');
         a.href = url;

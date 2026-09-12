@@ -632,6 +632,118 @@ export class AnalyticsService {
     };
   }
 
+  /**
+   * Per-customer service performance over the period: delivered / on-time /
+   * late / cancelled / not-delivered and OTIF, plus a time-series trend
+   * (day/week/month buckets) used to render charts in reports.
+   */
+  async getCustomerService(f: AnalyticsFilters, user?: any) {
+    const { period } = parseRange(f.from, f.to, 3);
+    const granularity: Granularity =
+      f.granularity === 'day' || f.granularity === 'week' || f.granularity === 'month' ? f.granularity : 'month';
+    const data = await this.loadPeriod(period, f, user?.companyId || null);
+    const orders: any[] = data.orders || [];
+
+    const buckets = buildBuckets(period.from, period.to, granularity, {
+      onTime: 0, onTimeEligible: 0, late: 0, cancelled: 0, notDelivered: 0, lateMinutes: 0,
+    });
+    const byCustomer = new Map<string, {
+      id: string; name: string; orders: number; delivered: number; onTime: number;
+      eligible: number; late: number; cancelled: number; notDelivered: number;
+      lateMinutes: number; revenue: number;
+    }>();
+
+    let sumDelivered = 0, sumEligible = 0, sumGood = 0, sumLate = 0, sumCancelled = 0, sumLateMinutes = 0;
+
+    for (const o of orders) {
+      const st = String(o.status || '').toLowerCase();
+      const delivered = ORDER_DELIVERED.has(st);
+      const windowOk = !!o.actual_delivery_at && !!o.requested_delivery_at;
+      const eligible = delivered && windowOk;
+      const good = eligible && isOnTime(o.actual_delivery_at, o.requested_delivery_at);
+      const late = delivered && eligible && !good;
+      const lateMin = late ? Math.max(0, num(o.late_minutes)) : 0;
+
+      const dateVal = o.actual_delivery_at || o.requested_delivery_at || o.created_at;
+      const buck: any = dateVal ? buckets[bucketKeyForDate(dateVal, granularity)] : null;
+      if (buck) {
+        buck.orders += 1;
+        if (delivered) { buck.ordersDelivered += 1; buck.onTimeEligible += 1; if (good) buck.onTime += 1; if (late) buck.late += 1; }
+        else if (st === 'cancelled') buck.cancelled += 1;
+        else buck.notDelivered += 1;
+        if (late) { buck.lateMinutes += lateMin; }
+      }
+
+      const cid = o.clientId || 'none';
+      let row = byCustomer.get(cid);
+      if (!row) {
+        row = { id: cid, name: o.client_name || 'Unknown', orders: 0, delivered: 0, onTime: 0, eligible: 0, late: 0, cancelled: 0, notDelivered: 0, lateMinutes: 0, revenue: 0 };
+        byCustomer.set(cid, row);
+      }
+      row.orders += 1;
+      row.revenue += Math.max(0, num(o.price));
+      if (delivered) {
+        row.delivered += 1;
+        sumDelivered += 1;
+        if (eligible) {
+          row.eligible += 1;
+          sumEligible += 1;
+          if (good) { row.onTime += 1; sumGood += 1; }
+          else { row.late += 1; sumLate += 1; sumLateMinutes += lateMin; row.lateMinutes += lateMin; }
+        }
+      } else if (st === 'cancelled') {
+        row.cancelled += 1;
+        sumCancelled += 1;
+      } else {
+        row.notDelivered += 1;
+      }
+    }
+
+    const customers = [...byCustomer.values()]
+      .map((r) => ({
+        id: r.id,
+        name: r.name,
+        orders: r.orders,
+        delivered: r.delivered,
+        deliveredPct: r.orders > 0 ? round2((r.delivered / r.orders) * 100) : null,
+        onTime: r.onTime,
+        otif: r.eligible > 0 ? round2((r.onTime / r.eligible) * 100) : null,
+        late: r.late,
+        avgLateMinutes: r.late > 0 ? round2(r.lateMinutes / r.late) : null,
+        cancelled: r.cancelled,
+        notDelivered: r.notDelivered,
+        revenue: round2(r.revenue),
+      }))
+      .sort((a, b) => b.orders - a.orders);
+
+    const series = Object.keys(buckets)
+      .sort()
+      .map((k) => ({
+        label: buckets[k].label,
+        orders: buckets[k].orders,
+        delivered: buckets[k].ordersDelivered,
+        onTime: buckets[k].onTime,
+        late: buckets[k].late,
+      }));
+
+    return {
+      period,
+      kpis: {
+        customers: customers.length,
+        orders: orders.length,
+        delivered: sumDelivered,
+        onTime: sumGood,
+        otif: sumEligible > 0 ? round2((sumGood / sumEligible) * 100) : null,
+        late: sumLate,
+        cancelled: sumCancelled,
+        notDelivered: orders.length - sumDelivered - sumCancelled,
+        avgLateMinutes: sumLate > 0 ? round2(sumLateMinutes / sumLate) : null,
+      },
+      customers,
+      series,
+    };
+  }
+
   async getCustomerDetail(id: string, f: AnalyticsFilters, user?: any) {
     const { period } = parseRange(f.from, f.to, 3);
     const f2: AnalyticsFilters = { ...f, clientId: id };

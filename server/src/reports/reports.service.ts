@@ -86,7 +86,10 @@ export class ReportsService {
       const absPath = join(REPORTS_DIR, fileName);
 
       if (format === 'xlsx') {
-        const wb = await buildReportWorkbook(payload);
+        const browser: any = typeof (this.pdf as any).getBrowser === 'function'
+          ? await (this.pdf as any).getBrowser()
+          : undefined;
+        const wb = await buildReportWorkbook(payload, browser);
         await wb.xlsx.writeFile(absPath);
       } else {
         const html = renderReportHtml(payload);

@@ -7,7 +7,9 @@
 // ---------------------------------------------------------------------------
 
 import { Workbook } from 'exceljs';
-import { ReportPayload, ReportTable, ReportColumn } from './reports.catalog';
+import type { Browser } from 'puppeteer-core';
+import { ReportPayload, ReportTable, ReportColumn, ReportChart } from './reports.catalog';
+import { renderChartPng } from './chart-renderer';
 
 const HEADER_FILL = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF1D4E89' } };
 const HEADER_FONT = { bold: true as const, color: { argb: 'FFFFFFFF' }, size: 11 };
@@ -39,7 +41,7 @@ function fmtValue(v: any, type: string): string | number | null {
   return String(v);
 }
 
-export async function buildReportWorkbook(p: ReportPayload): Promise<Workbook> {
+export async function buildReportWorkbook(p: ReportPayload, browser?: Browser): Promise<Workbook> {
   const wb = new Workbook();
   const ws = wb.addWorksheet('Report', { views: [{ state: 'frozen', ySplit: 2 }] });
 
@@ -86,7 +88,37 @@ export async function buildReportWorkbook(p: ReportPayload): Promise<Workbook> {
     addTableSheet(wb, table);
   }
 
+  // ---- Charts sheet (PNG, requires a headless-Chrome browser) ----
+  if (browser && p.charts && p.charts.length) {
+    await addChartsSheet(wb, p.charts, browser);
+  }
+
   return wb;
+}
+
+async function addChartsSheet(wb: Workbook, charts: ReportChart[], browser: Browser) {
+  const ws = wb.addWorksheet('Charts');
+  ws.getColumn(1).width = 80;
+  ws.getCell('A1').value = 'Charts';
+  ws.getCell('A1').font = TITLE_FONT;
+  ws.getRow(1).height = 24;
+  let row = 2;
+  for (const c of charts) {
+    try {
+      const png = await renderChartPng(browser, c);
+      const title = ws.getCell(`A${row}`);
+      title.value = c.title;
+      title.font = { bold: true, size: 12, color: { argb: 'FF1D4E89' } };
+      ws.getRow(row).height = 18;
+      const imageId = wb.addImage({ buffer: png as unknown as any, extension: 'png' });
+      ws.addImage(imageId, { tl: { col: 1, row: row - 1 }, ext: { width: 600 * 9525, height: 188 * 9525 } });
+      row += 13;
+    } catch (e) {
+      // A chart image failure must never fail the whole workbook.
+      console.error(`chart render failed (${c.key}):`, (e as Error)?.message || e);
+      row += 2;
+    }
+  }
 }
 
 function addTableSheet(wb: Workbook, table: ReportTable) {

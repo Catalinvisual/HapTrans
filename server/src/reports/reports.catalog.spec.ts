@@ -92,6 +92,12 @@ function makeAnalytics(): any {
     getKpiDefinitions: jest.fn().mockResolvedValue([
       { id: 'otif', name: 'OTIF', section: 'service', unit: '%', definition: 'On-time, in-full deliveries', source: 'orders + trips', formula: 'good / eligible × 100' },
     ]),
+    getCustomerService: jest.fn().mockResolvedValue({
+      period: period(),
+      kpis: { customers: 1, orders: 10, delivered: 8, onTime: 7, otif: 87.5, late: 1, cancelled: 1, notDelivered: 1, avgLateMinutes: 45 },
+      customers: [{ id: 'c1', name: 'Customer A', orders: 10, delivered: 8, deliveredPct: 80, onTime: 7, otif: 87.5, late: 1, avgLateMinutes: 45, cancelled: 1, notDelivered: 1, revenue: 10000 }],
+      series: [{ label: '2025-06', orders: 10, delivered: 8, onTime: 7, late: 1 }],
+    }),
   };
 }
 

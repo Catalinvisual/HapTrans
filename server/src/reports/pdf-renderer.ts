@@ -4,7 +4,8 @@
 // external assets) so the PDF is identical on any machine.
 // ---------------------------------------------------------------------------
 
-import { ReportPayload, ReportTable, ReportKpi } from './reports.catalog';
+import { ReportPayload, ReportTable, ReportKpi, ReportChart } from './reports.catalog';
+import { buildChartSvg } from './report-charts';
 
 function esc(v: any): string {
   if (v == null || v === '—') return '&mdash;';
@@ -64,8 +65,19 @@ function tableBlock(table: ReportTable): string {
     </div>`;
 }
 
+function chartBlock(chart: ReportChart): string {
+  const svg = buildChartSvg(chart);
+  if (!svg) return '';
+  return `
+    <div class="chart-block">
+      <h3>${esc(chart.title)}</h3>
+      <div class="chart-box">${svg}</div>
+    </div>`;
+}
+
 export function renderReportHtml(p: ReportPayload): string {
   const tables = (p.tables || []).map(tableBlock).join('');
+  const charts = (p.charts || []).map(chartBlock).join('');
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -89,6 +101,9 @@ export function renderReportHtml(p: ReportPayload): string {
   .kpi-trend.up { color: #059669; }
   .kpi-trend.down { color: #dc2626; }
   .table-wrap { margin-bottom: 12px; }
+  .chart-block { margin: 14px 0 6px; page-break-inside: avoid; }
+  .chart-box { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; background: #fff; }
+  .chart-box svg { width: 100%; height: auto; display: block; }
   table { width: 100%; border-collapse: collapse; font-size: 11px; }
   th { background: #1d4e89; color: #fff; text-align: left; padding: 6px 8px; font-weight: 600; }
   td { padding: 5px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
@@ -104,6 +119,7 @@ export function renderReportHtml(p: ReportPayload): string {
     <h1>${esc(p.reportName)}</h1>
     <div class="meta">Period: ${fmtDate(p.period.from)} &ndash; ${fmtDate(p.period.to)} &nbsp;|&nbsp; Generated: ${fmtDate(p.generatedAt)}</div>
     ${kpiBlocks(p.kpis)}
+    ${charts}
     ${tables}
     <div class="footer">HapCargo TMS &middot; KPI methodology and full definitions available in the dashboard &mdash; GET /api/analytics/kpi-definitions</div>
   </div>

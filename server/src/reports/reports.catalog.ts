@@ -39,6 +39,22 @@ export interface ReportKpi {
   trend?: number | null;
 }
 
+export type ReportChartKind = 'line' | 'bar';
+
+export interface ReportChartSeries {
+  name: string;
+  values: number[];
+  color?: string;
+}
+
+export interface ReportChart {
+  key: string;
+  title: string;
+  kind: ReportChartKind;
+  labels: string[];
+  series: ReportChartSeries[];
+}
+
 export interface ReportPayload {
   reportKey: string;
   reportName: string;
@@ -47,6 +63,7 @@ export interface ReportPayload {
   period: { from: Date; to: Date; comparison?: { from: Date; to: Date } | null };
   kpis: ReportKpi[];
   tables: ReportTable[];
+  charts?: ReportChart[];
 }
 
 export interface ReportDef {
@@ -313,6 +330,61 @@ export const REPORT_CATALOG: ReportDef[] = [
         kpi('bestByProfit', 'Best driver by profit', r.drivers[0] ? r.drivers[0].name : '—', 'EUR'),
       ];
       return payload(service, f, user, this, r.period, kpis, tables);
+    },
+  },
+
+  {
+    key: 'customer_service_performance',
+    name: 'Customer Service Performance',
+    description: 'Per-customer delivery performance over the period: orders, on-time, late, cancelled and OTIF, with trend charts.',
+    section: 'service',
+    roles: [UserRole.ADMIN, UserRole.DISPATCHER],
+    async build(service, f, user) {
+      const r = await service.getCustomerService(f, user);
+      const columns: ReportColumn[] = [
+        txt('name', 'Customer'), num('orders', 'Orders'), num('delivered', 'Delivered'),
+        pct('deliveredPct', 'Delivery %'), num('onTime', 'On-time'), pct('otif', 'OTIF'),
+        num('late', 'Late'), num('avgLateMinutes', 'Avg late (min)'),
+        num('cancelled', 'Cancelled'), num('notDelivered', 'Not delivered'), eu('revenue', 'Revenue'),
+      ];
+      const tables: ReportTable[] = [{ name: 'Customers', columns, rows: r.customers }];
+      const top = r.customers.slice(0, 12);
+      const charts: ReportChart[] = [
+        {
+          key: 'ordersTrend',
+          title: 'Orders trend',
+          kind: 'line',
+          labels: r.series.map((s: any) => s.label),
+          series: [
+            { name: 'Orders', values: r.series.map((s: any) => s.orders), color: '#6366f1' },
+            { name: 'Delivered', values: r.series.map((s: any) => s.delivered), color: '#10b981' },
+            { name: 'On-time', values: r.series.map((s: any) => s.onTime), color: '#f59e0b' },
+          ],
+        },
+        {
+          key: 'clientOtif',
+          title: 'On-time delivery by customer',
+          kind: 'bar',
+          labels: top.map((c: any) => c.name),
+          series: [
+            { name: 'On-time %', values: top.map((c: any) => (c.otif == null ? 0 : c.otif)), color: '#1d4e89' },
+          ],
+        },
+      ];
+      const kpis: ReportKpi[] = [
+        kpi('customerCount', 'Customers', r.kpis.customers, 'count'),
+        kpi('orders', 'Orders', r.kpis.orders, 'count'),
+        kpi('delivered', 'Delivered', r.kpis.delivered, 'count'),
+        kpi('onTime', 'On-time', r.kpis.onTime, 'count'),
+        kpi('otif', 'OTIF', r.kpis.otif, '%'),
+        kpi('late', 'Late deliveries', r.kpis.late, 'count'),
+        kpi('avgLateMinutes', 'Avg delay (min)', r.kpis.avgLateMinutes, 'min'),
+        kpi('cancelled', 'Cancelled', r.kpis.cancelled, 'count'),
+        kpi('notDelivered', 'Not delivered', r.kpis.notDelivered, 'count'),
+      ];
+      const p = await payload(service, f, user, this, r.period, kpis, tables);
+      p.charts = charts;
+      return p;
     },
   },
 
