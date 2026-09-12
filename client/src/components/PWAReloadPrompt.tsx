@@ -8,8 +8,8 @@ export default function PWAReloadPrompt() {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegistered(r) {
-      console.log('SW Registered: ', r);
+    onRegistered() {
+      // no-op (saves noisy console output); the update banner handles UX
     },
     onRegisterError(error) {
       console.error('SW registration error', error);

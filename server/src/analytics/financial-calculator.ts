@@ -36,25 +36,29 @@ export interface FinancialTripLike {
   id?: string;
   orders?: Array<{ price?: number | string | null }> | null;
   costs?: Array<{ amount?: number | string | null }> | null;
+  distance?: number | string | null;
   distanceKm?: number | string | null;
   distance_km?: number | string | null;
   truck?: { costPerKm?: number | string | null } | null;
+  truck_cost_per_km?: number | string | null;
   revenue_amount?: number | string | null;
+  rev_fallback?: number | string | null;
   estimatedProfit?: number | string | null;
   cost_amount?: number | string | null;
   estimatedCost?: number | string | null;
+  order_revenue?: number | string | null;
 }
 
 export const DEFAULT_COST_PER_KM = 1.15;
 
 export function tripDistance(t: FinancialTripLike): number {
-  return num(t.distanceKm) || num(t.distance_km);
+  return num(t.distance) || num(t.distanceKm) || num(t.distance_km);
 }
 
 export function tripRevenue(t: FinancialTripLike): number {
   const orderRev = (t.orders || []).reduce((s, o) => s + num(o.price), 0);
   if (orderRev > 0) return round2(orderRev);
-  return round2(num(t.revenue_amount) || num(t.estimatedProfit) || 0);
+  return round2(num(t.revenue_amount) || num(t.rev_fallback) || num(t.estimatedProfit) || num(t.order_revenue) || 0);
 }
 
 export function tripManualCost(t: FinancialTripLike): number {
@@ -63,7 +67,7 @@ export function tripManualCost(t: FinancialTripLike): number {
 
 export function tripAllocatedCost(t: FinancialTripLike): number {
   const km = tripDistance(t);
-  const rate = num(t.truck && (t.truck as any).costPerKm) || DEFAULT_COST_PER_KM;
+  const rate = num(t.truck && (t.truck as any).costPerKm) || num(t.truck_cost_per_km) || DEFAULT_COST_PER_KM;
   return round2(km * rate);
 }
 

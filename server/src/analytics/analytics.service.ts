@@ -179,9 +179,9 @@ const ORDERS_SELECT = `
 const TRIPS_SELECT = `
   SELECT
     t.id, t.created_at, t.status, t."truckId", t."driverId", t."trailerId",
-    COALESCE(t.distance_km, t."distanceKm")::float AS distance,
-    COALESCE(t.revenue_amount, t."estimatedProfit", 0)::float AS rev_fallback,
-    COALESCE(t.cost_amount, t."estimatedCost", 0)::float AS cost_fallback,
+    COALESCE(NULLIF(TRIM(t.distance_km), '')::float, t."distanceKm"::float) AS distance,
+    COALESCE(NULLIF(TRIM(t.revenue_amount), '')::float, t."estimatedProfit"::float, 0) AS rev_fallback,
+    COALESCE(NULLIF(TRIM(t.cost_amount), '')::float, t."estimatedCost"::float, 0) AS cost_fallback,
     tr."costPerKm"::float AS truck_cost_per_km,
     tr."plateNumber" AS truck_plate,
     tr.status AS truck_status,
@@ -948,13 +948,13 @@ export class AnalyticsService {
   }
 
   private async loadExpenses(r: PeriodRange, f: AnalyticsFilters, companyId?: string | null) {
-    const params: any[] = [r.from, r.to];
-    let where = `e.date BETWEEN $1 AND $2`;
-    if (companyId) { params.push(companyId); where += ` AND e."companyId" = $${params.length}`; }
+    // NOTE: the expenses table has no company column (legacy schema), so
+    // expenses are treated as company-global here.
+    void companyId;
     return this.dataSource.query(
       `SELECT e.id, e.date, e.category, COALESCE(e.amount::float,0) AS amount, e.description, e.currency
-       FROM expenses e WHERE ${where} ORDER BY e.date DESC`,
-      params,
+       FROM expenses e WHERE e.date BETWEEN $1 AND $2 ORDER BY e.date DESC`,
+      [r.from, r.to],
     );
   }
 

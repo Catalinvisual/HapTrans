@@ -116,10 +116,10 @@ const ORDERS_SQL = `
 const TRIPS_SQL = `
   SELECT t.id, t.created_at, t.status, t."truckId", t."driverId",
     t."plannedArrival", t."actualArrival",
-    COALESCE(t.distance_km, t."distanceKm")::float AS dist,
-    COALESCE(t.revenue_amount, t."estimatedProfit", 0)::float AS revenue,
-    COALESCE(t.cost_amount, t."estimatedCost", 0)::float AS cost,
-    COALESCE(t.margin_amount, t."actualProfit", 0)::float AS margin,
+    COALESCE(NULLIF(TRIM(t.distance_km), '')::float, t."distanceKm"::float) AS dist,
+    COALESCE(NULLIF(TRIM(t.revenue_amount), '')::float, t."estimatedProfit"::float, 0) AS revenue,
+    COALESCE(NULLIF(TRIM(t.cost_amount), '')::float, t."estimatedCost"::float, 0) AS cost,
+    COALESCE(NULLIF(TRIM(t.margin_amount), '')::float, t."actualProfit"::float, 0) AS margin,
     t.trip_number
   FROM trips t
   WHERE t.created_at BETWEEN $1 AND $2
