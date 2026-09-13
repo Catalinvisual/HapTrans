@@ -9,7 +9,7 @@ import AnalyticsToolbar, { computeRange } from './AnalyticsToolbar';
 import type { Granularity } from './AnalyticsToolbar';
 import KpiSummary from './KpiSummary';
 import ReportTable from './ReportTable';
-import ReportChartCard from './ReportChartCard';
+import ReportChartCard, { chartToPngDataUrl } from './ReportChartCard';
 import type { ReportColumn } from './ReportTable';
 import EmptyState from './EmptyState';
 import { getCompanySettings } from '../../store/settingsStore';
@@ -111,7 +111,24 @@ export default function ReportsPanel({ open, onClose, section }: ReportsPanelPro
       const logo = storedLogo && typeof storedLogo === 'string' && storedLogo.startsWith('data:image/')
         ? storedLogo
         : (storedLogo && typeof storedLogo === 'string' && /^(https?:)?\/\//.test(storedLogo) ? storedLogo : undefined);
-      const r = await api.post('/reports/export', { reportKey: activeKey, filters: buildFilters(), format, name: active?.name || payload?.reportName || activeKey, logo, locale: i18n.language });
+      const body: any = { reportKey: activeKey, filters: buildFilters(), format, name: active?.name || payload?.reportName || activeKey, logo, locale: i18n.language };
+      if (format === 'xlsx') {
+        // Render chart images in the browser so Excel always gets its Charts
+        // sheet even if the server cannot rasterise SVGs.
+        try {
+          const prev = await api.post('/reports/preview', { reportKey: activeKey, filters: buildFilters(), locale: i18n.language });
+          const charts: any[] = prev.data?.charts || [];
+          if (charts.length) {
+            const chartPngs: { key: string; dataUrl: string }[] = [];
+            for (const c of charts) {
+              const dataUrl = await chartToPngDataUrl(c);
+              if (dataUrl) chartPngs.push({ key: c.key, dataUrl });
+            }
+            if (chartPngs.length) body.chartPngs = chartPngs;
+          }
+        } catch { /* fall back to server-side chart rendering */ }
+      }
+      const r = await api.post('/reports/export', body);
       const res = r.data as any;
       if (res?.downloadUrl) {
         const blobRes = await api.get(res.downloadUrl.replace(/^\/api/, ''), { responseType: 'blob' });

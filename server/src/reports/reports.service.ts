@@ -26,6 +26,9 @@ export interface GenerateOptions {
   name?: string;
   /** Exact company logo (data-URI) supplied by the client with the request. */
   logo?: string;
+  /** Chart PNGs rasterised on the client (browser canvas), sent so Excel always
+   *  gets real chart images even if the server cannot rasterise SVGs. */
+  chartPngs?: { key: string; dataUrl: string }[];
   /** Internal (cron/scheduler) generation: skips the role re-check,
    *  since access was already verified when the schedule was created. */
   system?: boolean;
@@ -90,6 +93,11 @@ export class ReportsService {
       const logo = this.requestedLogo(opts) ?? await this.resolveLogoDataUri();
       if (logo) payload.companyLogo = logo;
       this.persistReportLogo(logo).catch((e) => this.logger.warn(`Logo persist failed: ${e.message}`));
+      if (Array.isArray(opts.chartPngs) && opts.chartPngs.length) {
+        payload.chartPngs = opts.chartPngs.filter(
+          (c) => c && typeof c.key === 'string' && typeof c.dataUrl === 'string' && c.dataUrl.startsWith('data:image/png;base64,'),
+        );
+      }
       localizePayload(payload, opts.locale);
 
       await fs.mkdir(REPORTS_DIR, { recursive: true });

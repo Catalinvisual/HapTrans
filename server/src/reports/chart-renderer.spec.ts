@@ -1,5 +1,6 @@
 import { renderChartPng } from './chart-renderer';
 import { buildChartSvg } from './report-charts';
+import { buildReportWorkbook } from './excel-export';
 
 describe('chart-renderer (sharp-based PNG rendering, no browser required)', () => {
   it('renders a line chart SVG to a valid non-empty PNG buffer', async () => {
@@ -22,6 +23,28 @@ describe('chart-renderer (sharp-based PNG rendering, no browser required)', () =
     expect(png.length).toBeGreaterThan(1000);
     // PNG magic header
     expect(png.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+  });
+
+  it('embeds client-supplied chart PNGs into the Excel Charts sheet', async () => {
+    const PNG1X1 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC';
+    const payload: any = {
+      reportKey: 'executive_overview',
+      reportName: 'Executive Overview',
+      description: 'test',
+      generatedAt: new Date(),
+      period: { from: new Date('2026-01-01'), to: new Date('2026-02-01') },
+      kpis: [{ key: 'orders', label: 'Orders', value: 10, unit: 'count' }],
+      tables: [],
+      charts: [
+        { key: 'ordersTrend', title: 'Trend', kind: 'line', labels: ['a'], series: [{ name: 'Orders', values: [1] }] },
+      ],
+      chartPngs: [{ key: 'ordersTrend', dataUrl: PNG1X1 }],
+    };
+
+    const wb = await buildReportWorkbook(payload, undefined, 'en');
+    const chartsSheet = wb.worksheets.find((s: any) => s.name === 'Charts');
+    expect(chartsSheet).toBeDefined();
+    expect(chartsSheet!.getImages().length).toBe(1);
   });
 
   it('paints the trend lines with the vivid orange/green/yellow/red palette', () => {

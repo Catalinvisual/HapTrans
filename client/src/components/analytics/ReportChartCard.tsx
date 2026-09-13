@@ -184,12 +184,46 @@ function donutSvg(c: ChartSpec): string {
   return g;
 }
 
+export function chartToSvg(chart: ChartSpec): string {
+  if (chart.kind === 'donut') return donutSvg(chart);
+  if (chart.kind === 'bar') return barSvg(chart);
+  return lineSvg(chart);
+}
+
+// Rasterises a chart's SVG to a PNG data-URI using the browser's canvas, so the
+// client can ship real chart images to the export endpoint (Excel always gets
+// its Charts sheet regardless of server-side rasterisation support).
+export async function chartToPngDataUrl(chart: ChartSpec): Promise<string | null> {
+  try {
+    const svg = chartToSvg(chart);
+    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    const loaded = new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('svg image load failed'));
+      img.src = url;
+    });
+    await loaded;
+    URL.revokeObjectURL(url);
+    const W = 1200;
+    const H = 375;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(img, 0, 0, W, H);
+    return canvas.toDataURL('image/png');
+  } catch {
+    return null;
+  }
+}
+
 export default function ReportChartCard({ chart }: { chart: ChartSpec }) {
-  const svg = useMemo(() => {
-    if (chart.kind === 'donut') return donutSvg(chart);
-    if (chart.kind === 'bar') return barSvg(chart);
-    return lineSvg(chart);
-  }, [chart]);
+  const svg = useMemo(() => chartToSvg(chart), [chart]);
   return (
     <div className="card !p-5">
       <h3 className="text-sm font-bold text-text mb-3 flex items-center gap-2">

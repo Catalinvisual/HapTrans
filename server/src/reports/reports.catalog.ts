@@ -55,6 +55,14 @@ export interface ReportChart {
   series: ReportChartSeries[];
 }
 
+// A chart rasterised on the client (browser canvas) and shipped to the server
+// with the export request, so Excel always gets real chart images even when the
+// server has no rasteriser available.
+export interface ReportChartPng {
+  key: string;
+  dataUrl: string;
+}
+
 export interface ReportPayload {
   reportKey: string;
   reportName: string;
@@ -64,6 +72,7 @@ export interface ReportPayload {
   kpis: ReportKpi[];
   tables: ReportTable[];
   charts?: ReportChart[];
+  chartPngs?: ReportChartPng[];
   companyLogo?: string;
 }
 

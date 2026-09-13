@@ -8,7 +8,7 @@
 
 import { Workbook } from 'exceljs';
 import type { Browser } from 'puppeteer-core';
-import { ReportPayload, ReportTable, ReportColumn, ReportChart } from './reports.catalog';
+import { ReportPayload, ReportTable, ReportColumn, ReportChart, ReportChartPng } from './reports.catalog';
 import { localizeText } from './reports-i18n';
 import { renderChartPng } from './chart-renderer';
 
@@ -139,15 +139,16 @@ export async function buildReportWorkbook(p: ReportPayload, _browser?: Browser, 
     addTableSheet(wb, table, locale);
   }
 
-  // ---- Charts sheet (PNG rendered with sharp, no browser required) ----
+  // ---- Charts sheet (PNG images; client-provided PNGs are preferred, else
+      // rendered server-side with sharp — no browser required) ----
   if (p.charts && p.charts.length) {
-    await addChartsSheet(wb, p.charts, locale);
+    await addChartsSheet(wb, p.charts, locale, p.chartPngs);
   }
 
   return wb;
 }
 
-async function addChartsSheet(wb: Workbook, charts: ReportChart[], locale?: string) {
+async function addChartsSheet(wb: Workbook, charts: ReportChart[], locale?: string, chartPngs?: ReportChartPng[]) {
   const ws = wb.addWorksheet('Charts');
   const chartsTitle = localizeText('Charts', locale);
   ws.getColumn(1).width = 80;
@@ -157,7 +158,14 @@ async function addChartsSheet(wb: Workbook, charts: ReportChart[], locale?: stri
   let row = 2;
   for (const c of charts) {
     try {
-      const png = await renderChartPng(undefined, c);
+      let png: Buffer | undefined;
+      const supplied = (chartPngs || []).find((x) => x.key === c.key);
+      if (supplied?.dataUrl?.startsWith('data:image/png;base64,')) {
+        png = Buffer.from(supplied.dataUrl.split(';base64,')[1], 'base64');
+      }
+      if (!png || png.length === 0) {
+        png = await renderChartPng(undefined, c);
+      }
       const title = ws.getCell(`A${row}`);
       title.value = c.title;
       title.font = { bold: true, size: 12, color: { argb: ORANGE } };

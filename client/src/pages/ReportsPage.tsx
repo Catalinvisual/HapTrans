@@ -11,7 +11,7 @@ import AnalyticsToolbar, { computeRange } from '../components/analytics/Analytic
 import type { Granularity } from '../components/analytics/AnalyticsToolbar';
 import KpiSummary from '../components/analytics/KpiSummary';
 import ReportTable from '../components/analytics/ReportTable';
-import ReportChartCard from '../components/analytics/ReportChartCard';
+import ReportChartCard, { chartToPngDataUrl } from '../components/analytics/ReportChartCard';
 import type { ReportColumn } from '../components/analytics/ReportTable';
 import EmptyState from '../components/analytics/EmptyState';
 import { getCompanySettings } from '../store/settingsStore';
@@ -144,7 +144,24 @@ export default function ReportsPage() {
       const logo = storedLogo && typeof storedLogo === 'string' && storedLogo.startsWith('data:image/')
         ? storedLogo
         : (storedLogo && typeof storedLogo === 'string' && /^(https?:)?\/\//.test(storedLogo) ? storedLogo : undefined);
-      const r = await api.post('/reports/export', { reportKey, filters, format, name, logo, locale: i18n.language });
+      const body: any = { reportKey, filters, format, name, logo, locale: i18n.language };
+      if (format === 'xlsx') {
+        // Render the chart images in the browser so Excel always gets its
+        // Charts sheet even if the server cannot rasterise SVGs.
+        try {
+          const prev = await api.post('/reports/preview', { reportKey, filters, locale: i18n.language });
+          const charts: any[] = prev.data?.charts || [];
+          if (charts.length) {
+            const chartPngs: { key: string; dataUrl: string }[] = [];
+            for (const c of charts) {
+              const dataUrl = await chartToPngDataUrl(c);
+              if (dataUrl) chartPngs.push({ key: c.key, dataUrl });
+            }
+            if (chartPngs.length) body.chartPngs = chartPngs;
+          }
+        } catch { /* fall back to server-side chart rendering */ }
+      }
+      const r = await api.post('/reports/export', body);
       const res = r.data as any;
       if (res?.downloadUrl) {
         const blobRes = await api.get(res.downloadUrl.replace(/^\/api/, ''), { responseType: 'blob' });
