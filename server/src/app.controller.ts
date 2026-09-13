@@ -26,6 +26,20 @@ export class AppController {
   @UseGuards(JwtAuthGuard)
   async saveLogo(@Body() body: { logo: string }) {
     if (body.logo) {
+      // 0. Persist the exact uploaded logo (data-URI) in website_cms so report
+      // exports always embed the exact company logo regardless of Cloudinary /
+      // filesystem availability.
+      try {
+        const existing = await this.em.query('SELECT * FROM website_cms WHERE "key" = \'report_logo\'');
+        if (existing.length > 0) {
+          await this.em.query('UPDATE website_cms SET "value" = $1 WHERE "key" = \'report_logo\'', [body.logo]);
+        } else {
+          await this.em.query('INSERT INTO website_cms ("key", "value") VALUES (\'report_logo\', $1)', [body.logo]);
+        }
+      } catch (reportLogoErr) {
+        console.error('Failed to save report_logo to website_cms', reportLogoErr);
+      }
+
       // 1. Salvare automata in web/public/email-logo.png (pentru medii locale sau VPS unde server si web impartasesc sistemul de fisiere)
       try {
         const matches = body.logo.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);

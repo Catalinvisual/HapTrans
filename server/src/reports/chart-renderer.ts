@@ -16,7 +16,7 @@ const H = Math.round((W * 300) / 960);
 export async function renderChartPng(browser: Browser, chart: ReportChart): Promise<Buffer> {
   const page = await browser.newPage();
   try {
-    await page.setViewport({ width: W, height: H, deviceScaleFactor: 2 });
+    await page.setViewport({ width: W, height: H });
     const svg = buildChartSvg(chart).replace(
       '<svg xmlns="http://www.w3.org/2000/svg" ',
       `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" `,

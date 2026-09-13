@@ -12,15 +12,18 @@ import { ReportPayload, ReportTable, ReportColumn, ReportChart } from './reports
 import { localizeText } from './reports-i18n';
 import { renderChartPng } from './chart-renderer';
 
-const HEADER_FILL = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF1D4E89' } };
+const HEADER_FILL = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFEA580C' } };
 const HEADER_FONT = { bold: true as const, color: { argb: 'FFFFFFFF' }, size: 11 };
-const TITLE_FONT = { bold: true as const, size: 16, color: { argb: 'FF111827' } };
+const TITLE_FONT = { bold: true as const, size: 16, color: { argb: 'FF1F2937' } };
 const META_FONT = { size: 10, color: { argb: 'FF6B7280' } };
+const ACCENT_FILL = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFFFF7ED' } };
+const TOTAL_FILL = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFFFEDD5' } };
+const ORANGE = 'FFEA580C';
 const BORDER: any = {
-  top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
-  left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
-  bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
-  right: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+  top: { style: 'thin', color: { argb: 'FFFBD7B5' } },
+  left: { style: 'thin', color: { argb: 'FFFBD7B5' } },
+  bottom: { style: 'thin', color: { argb: 'FFFBD7B5' } },
+  right: { style: 'thin', color: { argb: 'FFFBD7B5' } },
 };
 
 const NUM_FORMATS: Record<string, string> = {
@@ -51,12 +54,15 @@ export async function buildReportWorkbook(p: ReportPayload, browser?: Browser, l
   if (p.companyLogo) {
     try {
       let buffer: Buffer | undefined;
-      let ext = 'png';
+      let ext: 'png' | 'jpeg' | 'gif' | undefined;
       if (p.companyLogo.startsWith('data:image/')) {
         const parts = p.companyLogo.split(';base64,');
         if (parts.length === 2) {
           buffer = Buffer.from(parts[1], 'base64');
-          if (parts[0].includes('jpeg') || parts[0].includes('jpg')) ext = 'jpeg';
+          const mime = parts[0].replace('data:', '');
+          if (mime.includes('jpeg') || mime.includes('jpg')) ext = 'jpeg';
+          else if (mime.includes('gif')) ext = 'gif';
+          else if (mime.includes('png')) ext = 'png';
         }
       } else {
         const res = await fetch(p.companyLogo.startsWith('http') ? p.companyLogo : `http://localhost:${process.env.PORT || 4000}${p.companyLogo}`);
@@ -64,12 +70,13 @@ export async function buildReportWorkbook(p: ReportPayload, browser?: Browser, l
           const arr = await res.arrayBuffer();
           buffer = Buffer.from(arr);
           if (p.companyLogo.toLowerCase().includes('jpg') || p.companyLogo.toLowerCase().includes('jpeg')) ext = 'jpeg';
+          else if (p.companyLogo.toLowerCase().includes('png')) ext = 'png';
         }
       }
-      if (buffer) {
-        const imageId = wb.addImage({ buffer: buffer as any, extension: ext as any });
+      if (buffer && ext) {
+        const imageId = wb.addImage({ buffer: buffer as any, extension: ext });
         kpiSheet.addImage(imageId, { tl: { col: 0, row: 0 }, ext: { width: 128 * 9525, height: 36 * 9525 } });
-        kpiSheet.getRow(1).height = 40;
+        kpiSheet.getRow(1).height = 42;
       } else {
         kpiSheet.getRow(1).height = 12;
       }
@@ -104,7 +111,8 @@ export async function buildReportWorkbook(p: ReportPayload, browser?: Browser, l
   headerRow.values = [T('KPI'), T('Value'), T('Unit'), T('Trend')];
   styleHeaderRow(headerRow);
 
-  for (const kpi of p.kpis) {
+  for (let i = 0; i < p.kpis.length; i++) {
+    const kpi = p.kpis[i];
     const row = kpiSheet.addRow({
       label: kpi.label,
       value: kpi.value,
@@ -114,7 +122,10 @@ export async function buildReportWorkbook(p: ReportPayload, browser?: Browser, l
     row.eachCell((cell) => {
       cell.border = BORDER;
       cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      if (i % 2 === 1) cell.fill = ACCENT_FILL;
     });
+    row.getCell('label').font = { bold: true, size: 10, color: { argb: 'FF374151' } };
+    row.getCell('value').font = { bold: true, size: 11, color: { argb: ORANGE } };
     const isCurr = /EUR|€/.test(String(kpi.unit));
     if (isCurr) {
       row.getCell('value').numFmt = NUM_FORMATS.currency;
@@ -149,7 +160,7 @@ async function addChartsSheet(wb: Workbook, charts: ReportChart[], browser: Brow
       const png = await renderChartPng(browser, c);
       const title = ws.getCell(`A${row}`);
       title.value = c.title;
-      title.font = { bold: true, size: 12, color: { argb: 'FF1D4E89' } };
+      title.font = { bold: true, size: 12, color: { argb: ORANGE } };
       ws.getRow(row).height = 18;
       const imageId = wb.addImage({ buffer: png as unknown as any, extension: 'png' });
       ws.addImage(imageId, { tl: { col: 1, row: row - 1 }, ext: { width: 600 * 9525, height: 188 * 9525 } });
@@ -182,7 +193,8 @@ function addTableSheet(wb: Workbook, table: ReportTable, locale?: string) {
     cell.alignment = { vertical: 'middle', horizontal: 'center' };
   });
 
-  for (const r of table.rows || []) {
+  for (let i = 0; i < (table.rows || []).length; i++) {
+    const r = table.rows![i];
     const rowVals: Record<string, any> = {};
     for (const c of table.columns) {
       rowVals[c.key] = fmtValue(r[c.key], c.type || 'text');
@@ -191,6 +203,7 @@ function addTableSheet(wb: Workbook, table: ReportTable, locale?: string) {
     row.eachCell((cell, col) => {
       cell.border = BORDER;
       cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      if (i % 2 === 1) cell.fill = ACCENT_FILL;
     });
     ws.columns.forEach((col, i) => {
       const type = table.columns[i]?.type || 'text';
@@ -209,12 +222,15 @@ function addTableSheet(wb: Workbook, table: ReportTable, locale?: string) {
       const totalRow = ws.addRow({});
       ws.getCell(`A${totalRowNum}`).value = localizeText('Total', locale);
       ws.getCell(`A${totalRowNum}`).font = { bold: true };
+      ws.getCell(`A${totalRowNum}`).fill = TOTAL_FILL;
+      ws.getCell(`A${totalRowNum}`).border = BORDER;
       for (const c of table.columns) {
         if (c.type !== 'currency' && c.type !== 'number') continue;
         const sum = Number((table.rows as any[]).reduce((s: number, r: any) => s + (Number(r[c.key]) || 0), 0).toFixed(2));
         const cell = ws.getCell(`${columnLabel(c, ws) }${totalRowNum}`);
         cell.value = sum;
         cell.font = { bold: true };
+        cell.fill = TOTAL_FILL;
         cell.numFmt = c.type === 'currency' ? NUM_FORMATS.currency : NUM_FORMATS.number;
         cell.border = BORDER;
       }

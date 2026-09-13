@@ -14,7 +14,7 @@
 
 import { ReportChart } from './reports.catalog';
 
-const PALETTE = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#0ea5e9', '#8b5cf6'];
+const PALETTE = ['#f97316', '#10b981', '#f59e0b', '#ef4444', '#fb923c', '#f97316'];
 const FONT = "'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
 const AXIS = '#8a94a6';
 const GRID = '#eef1f6';

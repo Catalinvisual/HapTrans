@@ -330,6 +330,13 @@ export class ReportsService {
   private async resolveLogoSources(): Promise<string[]> {
     const candidates: string[] = [];
     try {
+      // Highest-priority source: the exact logo bytes the admin uploaded in
+      // TMS Settings (stored as a base64 data-URI by POST /settings/logo).
+      const reportLogo = await this.dataSource.query(
+        `SELECT value FROM website_cms WHERE key = 'report_logo' AND value != '' LIMIT 1`,
+      );
+      if (reportLogo && reportLogo[0]?.value) candidates.push(String(reportLogo[0].value));
+
       const cms = await this.dataSource.query(`SELECT value FROM website_cms WHERE key = 'company_settings'`);
       if (cms && cms[0]?.value) {
         try {
@@ -395,6 +402,9 @@ export class ReportsService {
         for (const file of candidates) {
           try {
             buffer = await fs.readFile(file);
+            // Skip the tiny seeded default (email-logo.png placeholder) so a
+            // real company logo is never replaced by the generic envelope.
+            if (file.toLowerCase().endsWith('email-logo.png') && buffer.length < 1500) continue;
             mime = file.toLowerCase().endsWith('.jpg') || file.toLowerCase().endsWith('.jpeg') ? 'image/jpeg'
               : file.toLowerCase().endsWith('.svg') ? 'image/svg+xml'
               : file.toLowerCase().endsWith('.webp') ? 'image/webp'
