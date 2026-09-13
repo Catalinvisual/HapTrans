@@ -6,40 +6,45 @@
 // every platform and does not depend on Chrome/puppeteer. Used to embed chart
 // images into the Excel export. A puppeteer browser is accepted for backward
 // compatibility but is no longer required.
+//
+// `sharp` is imported lazily so that a missing native dependency degrades to
+// "no chart images" instead of crashing the whole reports module at boot.
 // ---------------------------------------------------------------------------
 
-import sharp from 'sharp';
+import { createRequire } from 'module';
 import { buildChartSvg } from './report-charts';
 import { ReportChart } from './reports.catalog';
 
 const W = 1200;
 const H = Math.round((W * 300) / 960);
 
-function chartSvg(chart: ReportChart): Buffer {
-  let svg = buildChartSvg(chart);
-  // Force an explicit canvas so sharp bakes the graph at a predictable size.
-  if (!svg.includes('width="')) {
+const sharpRequire = createRequire(__filename);
+let sharpMod: any;
+
+function getSharp(): any {
+  if (sharpMod) return sharpMod;
+  const mod: any = sharpRequire('sharp');
+  sharpMod = mod?.default ?? mod;
+  return sharpMod;
+}
+
+function withSize(svg: string, force = false): Buffer {
+  if (!force && !svg.includes('width="')) {
     svg = svg.replace('<svg', `<svg width="${W}"`);
   }
   if (!svg.includes('height="')) {
-    svg = svg.replace(/<svg width="[0-9]+"/, `<svg width="${W}" height="${H}"`);
+    svg = svg.replace(/<svg([^>]*?)width="[0-9]+"/, `<svg$1width="${W}" height="${H}"`);
   }
   return Buffer.from(svg);
 }
 
 export async function renderChartPng(_browser: unknown, chart: ReportChart): Promise<Buffer> {
-  try {
-    return await sharp(chartSvg(chart), { density: 144 }).png().toBuffer();
-  } catch (e) {
-    // Fallback: render at 1x with an explicit size, in case the SVG lacked
-    // intrinsic dimensions that confused the first pass.
-    const svg = buildChartSvg(chart);
-    const forced = svg.replace(
-      '<svg',
-      `<svg width="${W}" height="${H}"`,
-    );
-    return await sharp(Buffer.from(forced), { density: 144 }).png().toBuffer();
-  }
+  const sharp = getSharp();
+  const svg = buildChartSvg(chart);
+  const first = withSize(svg);
+  const png = await sharp(first, { density: 144 }).png().toBuffer();
+  if (png && png.length > 0) return png;
+  return await sharp(withSize(svg, true), { density: 144 }).png().toBuffer();
 }
 
 export async function renderChartsToPngs(_browser: unknown, charts: ReportChart[]): Promise<Buffer[]> {

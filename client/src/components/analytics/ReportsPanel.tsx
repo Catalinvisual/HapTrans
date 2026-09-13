@@ -12,6 +12,7 @@ import ReportTable from './ReportTable';
 import ReportChartCard from './ReportChartCard';
 import type { ReportColumn } from './ReportTable';
 import EmptyState from './EmptyState';
+import { getCompanySettings } from '../../store/settingsStore';
 
 const SECTION_LABELS: Record<string, string> = {
   operations: 'rp_section_operations',
@@ -106,7 +107,11 @@ export default function ReportsPanel({ open, onClose, section }: ReportsPanelPro
     setExporting(tag);
     try {
       const active = catalog.find(c => c.key === activeKey);
-      const r = await api.post('/reports/export', { reportKey: activeKey, filters: buildFilters(), format, name: active?.name || payload?.reportName || activeKey, locale: i18n.language });
+      const storedLogo = getCompanySettings().logo;
+      const logo = storedLogo && typeof storedLogo === 'string' && storedLogo.startsWith('data:image/')
+        ? storedLogo
+        : (storedLogo && typeof storedLogo === 'string' && /^(https?:)?\/\//.test(storedLogo) ? storedLogo : undefined);
+      const r = await api.post('/reports/export', { reportKey: activeKey, filters: buildFilters(), format, name: active?.name || payload?.reportName || activeKey, logo, locale: i18n.language });
       const res = r.data as any;
       if (res?.downloadUrl) {
         const blobRes = await api.get(res.downloadUrl.replace(/^\/api/, ''), { responseType: 'blob' });

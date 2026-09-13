@@ -188,14 +188,14 @@ export const REPORT_CATALOG: ReportDef[] = [
           title: 'Order Status Distribution',
           kind: 'donut',
           labels: r.orderStatusDistribution.map((s: any) => String(s.status).toUpperCase()),
-          series: [{ name: 'Orders', values: r.orderStatusDistribution.map((s: any) => s.count), color: '#f97316' }],
+          series: [{ name: 'Orders', values: r.orderStatusDistribution.map((s: any) => s.count), color: '#ff6d00' }],
         },
         {
           key: 'tripStatus',
           title: 'Trip Status Distribution',
           kind: 'donut',
           labels: r.tripStatusDistribution.map((s: any) => String(s.status).toUpperCase()),
-          series: [{ name: 'Trips', values: r.tripStatusDistribution.map((s: any) => s.count), color: '#10b981' }],
+          series: [{ name: 'Trips', values: r.tripStatusDistribution.map((s: any) => s.count), color: '#00c853' }],
         },
         {
           key: 'finTrend',
@@ -203,9 +203,9 @@ export const REPORT_CATALOG: ReportDef[] = [
           kind: 'line',
           labels: (r.series || []).map((s: any) => s.label),
           series: [
-            { name: 'Revenue', values: (r.series || []).map((s: any) => s.revenue), color: '#10b981' },
-            { name: 'Cost', values: (r.series || []).map((s: any) => s.cost), color: '#ef4444' },
-            { name: 'Profit', values: (r.series || []).map((s: any) => s.profit), color: '#f97316' },
+            { name: 'Revenue', values: (r.series || []).map((s: any) => s.revenue), color: '#00c853' },
+            { name: 'Cost', values: (r.series || []).map((s: any) => s.cost), color: '#ff1744' },
+            { name: 'Profit', values: (r.series || []).map((s: any) => s.profit), color: '#ff6d00' },
           ],
         },
         {
@@ -213,14 +213,14 @@ export const REPORT_CATALOG: ReportDef[] = [
           title: 'Top customers by revenue',
           kind: 'bar',
           labels: r.topCustomersRevenue.map((c: any) => c.name),
-          series: [{ name: 'Revenue', values: r.topCustomersRevenue.map((c: any) => c.revenue), color: '#f97316' }],
+          series: [{ name: 'Revenue', values: r.topCustomersRevenue.map((c: any) => c.revenue), color: '#ff6d00' }],
         },
         {
           key: 'routesProfit',
           title: 'Routes by profit',
           kind: 'bar',
           labels: r.routes.slice(0, 8).map((x: any) => x.route),
-          series: [{ name: 'Profit', values: r.routes.slice(0, 8).map((x: any) => x.profit), color: '#fb923c' }],
+          series: [{ name: 'Profit', values: r.routes.slice(0, 8).map((x: any) => x.profit), color: '#ff9100' }],
         },
       ];
       const p = await payload(service, f, user, this, r.meta.period, kpis, tables);
@@ -285,9 +285,9 @@ export const REPORT_CATALOG: ReportDef[] = [
           kind: 'line',
           labels: (r.series || []).map((s: any) => s.label),
           series: [
-            { name: 'Revenue', values: (r.series || []).map((s: any) => s.revenue), color: '#10b981' },
-            { name: 'Cost', values: (r.series || []).map((s: any) => s.cost), color: '#ef4444' },
-            { name: 'Profit', values: (r.series || []).map((s: any) => s.profit), color: '#f97316' },
+            { name: 'Revenue', values: (r.series || []).map((s: any) => s.revenue), color: '#00c853' },
+            { name: 'Cost', values: (r.series || []).map((s: any) => s.cost), color: '#ff1744' },
+            { name: 'Profit', values: (r.series || []).map((s: any) => s.profit), color: '#ff6d00' },
           ],
         },
         {
@@ -295,14 +295,14 @@ export const REPORT_CATALOG: ReportDef[] = [
           title: 'Cost breakdown',
           kind: 'donut',
           labels: r.costBreakdown.map((x: any) => String(x.category).toUpperCase()),
-          series: [{ name: 'Amount', values: r.costBreakdown.map((x: any) => x.amount), color: '#f97316' }],
+          series: [{ name: 'Amount', values: r.costBreakdown.map((x: any) => x.amount), color: '#ff6d00' }],
         },
         {
           key: 'agingAmounts',
           title: 'Receivables aging',
           kind: 'bar',
           labels: r.receivables.buckets.map((b: any) => String(b.label).toUpperCase()),
-          series: [{ name: 'Amount', values: r.receivables.buckets.map((b: any) => b.amount), color: '#ef4444' }],
+          series: [{ name: 'Amount', values: r.receivables.buckets.map((b: any) => b.amount), color: '#ff1744' }],
         },
         {
           key: 'cashTrend',
@@ -310,8 +310,8 @@ export const REPORT_CATALOG: ReportDef[] = [
           kind: 'line',
           labels: (r.series || []).map((s: any) => s.label),
           series: [
-            { name: 'Invoiced', values: (r.series || []).map((s: any) => s.invoiced), color: '#fb923c' },
-            { name: 'Collected', values: (r.series || []).map((s: any) => s.collected), color: '#10b981' },
+            { name: 'Invoiced', values: (r.series || []).map((s: any) => s.invoiced), color: '#ff9100' },
+            { name: 'Collected', values: (r.series || []).map((s: any) => s.collected), color: '#00c853' },
           ],
         },
       ];
@@ -349,7 +349,7 @@ export const REPORT_CATALOG: ReportDef[] = [
           title: 'Revenue by customer',
           kind: 'bar',
           labels: r.customers.slice(0, 10).map((c: any) => c.name),
-          series: [{ name: 'Revenue', values: r.customers.slice(0, 10).map((c: any) => c.revenue), color: '#f97316' }],
+          series: [{ name: 'Revenue', values: r.customers.slice(0, 10).map((c: any) => c.revenue), color: '#ff6d00' }],
         },
         {
           key: 'marginOtif',
@@ -357,8 +357,8 @@ export const REPORT_CATALOG: ReportDef[] = [
           kind: 'bar',
           labels: r.customers.slice(0, 8).map((c: any) => c.name),
           series: [
-            { name: 'Margin', values: r.customers.slice(0, 8).map((c: any) => (c.margin == null ? 0 : c.margin)), color: '#10b981' },
-            { name: 'OTIF', values: r.customers.slice(0, 8).map((c: any) => (c.otif == null ? 0 : c.otif)), color: '#f97316' },
+            { name: 'Margin', values: r.customers.slice(0, 8).map((c: any) => (c.margin == null ? 0 : c.margin)), color: '#00c853' },
+            { name: 'OTIF', values: r.customers.slice(0, 8).map((c: any) => (c.otif == null ? 0 : c.otif)), color: '#ff6d00' },
           ],
         },
       ];
@@ -393,7 +393,7 @@ export const REPORT_CATALOG: ReportDef[] = [
           title: 'Routes by profit',
           kind: 'bar',
           labels: r.routes.slice(0, 8).map((x: any) => x.route),
-          series: [{ name: 'Profit', values: r.routes.slice(0, 8).map((x: any) => x.profit), color: '#fb923c' }],
+          series: [{ name: 'Profit', values: r.routes.slice(0, 8).map((x: any) => x.profit), color: '#ff9100' }],
         },
         {
           key: 'routeMargin',
@@ -401,8 +401,8 @@ export const REPORT_CATALOG: ReportDef[] = [
           kind: 'bar',
           labels: r.routes.slice(0, 8).map((x: any) => x.route),
           series: [
-            { name: 'Margin', values: r.routes.slice(0, 8).map((x: any) => x.margin), color: '#10b981' },
-            { name: 'OTIF', values: r.routes.slice(0, 8).map((x: any) => (x.otif == null ? 0 : x.otif)), color: '#f97316' },
+            { name: 'Margin', values: r.routes.slice(0, 8).map((x: any) => x.margin), color: '#00c853' },
+            { name: 'OTIF', values: r.routes.slice(0, 8).map((x: any) => (x.otif == null ? 0 : x.otif)), color: '#ff6d00' },
           ],
         },
       ];
@@ -439,7 +439,7 @@ export const REPORT_CATALOG: ReportDef[] = [
           title: 'Fleet status',
           kind: 'donut',
           labels: ['Available', 'In trip', 'In maintenance'],
-          series: [{ name: 'Trucks', values: [u.available || 0, u.inTrip || 0, u.inMaintenance || 0], color: '#10b981' }],
+          series: [{ name: 'Trucks', values: [u.available || 0, u.inTrip || 0, u.inMaintenance || 0], color: '#00c853' }],
         },
         {
           key: 'revenueCost',
@@ -447,8 +447,8 @@ export const REPORT_CATALOG: ReportDef[] = [
           kind: 'bar',
           labels: r.trucks.slice(0, 8).map((t: any) => t.name),
           series: [
-            { name: 'Revenue', values: r.trucks.slice(0, 8).map((t: any) => t.revenue), color: '#10b981' },
-            { name: 'Cost', values: r.trucks.slice(0, 8).map((t: any) => t.cost), color: '#ef4444' },
+            { name: 'Revenue', values: r.trucks.slice(0, 8).map((t: any) => t.revenue), color: '#00c853' },
+            { name: 'Cost', values: r.trucks.slice(0, 8).map((t: any) => t.cost), color: '#ff1744' },
           ],
         },
         {
@@ -457,8 +457,8 @@ export const REPORT_CATALOG: ReportDef[] = [
           kind: 'bar',
           labels: r.trucks.slice(0, 8).map((t: any) => t.name),
           series: [
-            { name: 'Loaded km', values: r.trucks.slice(0, 8).map((t: any) => t.loadedKm), color: '#fb923c' },
-            { name: 'Empty km', values: r.trucks.slice(0, 8).map((t: any) => t.emptyKm), color: '#f59e0b' },
+            { name: 'Loaded km', values: r.trucks.slice(0, 8).map((t: any) => t.loadedKm), color: '#ff9100' },
+            { name: 'Empty km', values: r.trucks.slice(0, 8).map((t: any) => t.emptyKm), color: '#ffd000' },
           ],
         },
       ];
@@ -492,14 +492,14 @@ export const REPORT_CATALOG: ReportDef[] = [
           title: 'Profit by driver',
           kind: 'bar',
           labels: r.drivers.slice(0, 8).map((d: any) => d.name),
-          series: [{ name: 'Profit', values: r.drivers.slice(0, 8).map((d: any) => d.profit), color: '#fb923c' }],
+          series: [{ name: 'Profit', values: r.drivers.slice(0, 8).map((d: any) => d.profit), color: '#ff9100' }],
         },
         {
           key: 'driverOtif',
           title: 'OTIF by driver',
           kind: 'bar',
           labels: r.drivers.slice(0, 8).map((d: any) => d.name),
-          series: [{ name: 'OTIF', values: r.drivers.slice(0, 8).map((d: any) => (d.otif == null ? 0 : d.otif)), color: '#10b981' }],
+          series: [{ name: 'OTIF', values: r.drivers.slice(0, 8).map((d: any) => (d.otif == null ? 0 : d.otif)), color: '#00c853' }],
         },
       ];
       const p = await payload(service, f, user, this, r.period, kpis, tables);
@@ -547,10 +547,10 @@ export const REPORT_CATALOG: ReportDef[] = [
           kind: 'line',
           labels: r.series.map((s: any) => s.label),
           series: [
-            { name: 'Orders', values: r.series.map((s: any) => s.orders), color: '#f97316' },
-            { name: 'Delivered', values: r.series.map((s: any) => s.delivered), color: '#10b981' },
-            { name: 'On-time', values: r.series.map((s: any) => s.onTime), color: '#f59e0b' },
-            { name: 'Late', values: r.series.map((s: any) => s.late), color: '#ef4444' },
+            { name: 'Orders', values: r.series.map((s: any) => s.orders), color: '#ff6d00' },
+            { name: 'Delivered', values: r.series.map((s: any) => s.delivered), color: '#00c853' },
+            { name: 'On-time', values: r.series.map((s: any) => s.onTime), color: '#ffd000' },
+            { name: 'Late', values: r.series.map((s: any) => s.late), color: '#ff1744' },
           ],
         },
         {
@@ -559,8 +559,8 @@ export const REPORT_CATALOG: ReportDef[] = [
           kind: 'bar',
           labels: top.map((c: any) => c.name),
           series: [
-            { name: 'On-time %', values: top.map((c: any) => (c.otif == null ? 0 : c.otif)), color: '#10b981' },
-            { name: 'Late %', values: top.map((c: any) => (c.latePct == null ? 0 : c.latePct)), color: '#ef4444' },
+            { name: 'On-time %', values: top.map((c: any) => (c.otif == null ? 0 : c.otif)), color: '#00c853' },
+            { name: 'Late %', values: top.map((c: any) => (c.latePct == null ? 0 : c.latePct)), color: '#ff1744' },
           ],
         },
       ];
@@ -613,14 +613,14 @@ export const REPORT_CATALOG: ReportDef[] = [
           title: 'Carrier & subcontractor costs',
           kind: 'bar',
           labels: r.carriers.slice(0, 8).map((c: any) => c.name),
-          series: [{ name: 'Carrier cost', values: r.carriers.slice(0, 8).map((c: any) => c.carrierCost), color: '#ef4444' }],
+          series: [{ name: 'Carrier cost', values: r.carriers.slice(0, 8).map((c: any) => c.carrierCost), color: '#ff1744' }],
         },
         {
           key: 'marginImpact',
           title: 'Margin impact by carrier',
           kind: 'bar',
           labels: r.carriers.slice(0, 8).map((c: any) => c.name),
-          series: [{ name: 'Margin impact', values: r.carriers.slice(0, 8).map((c: any) => c.marginImpact), color: '#f59e0b' }],
+          series: [{ name: 'Margin impact', values: r.carriers.slice(0, 8).map((c: any) => c.marginImpact), color: '#ffd000' }],
         },
       ];
       const p = await payload(service, f, user, this, r.period, kpis, tables);
@@ -666,7 +666,7 @@ export const REPORT_CATALOG: ReportDef[] = [
           title: 'Outstanding by age bucket',
           kind: 'donut',
           labels: r.receivables.buckets.map((b: any) => String(b.label).toUpperCase()),
-          series: [{ name: 'Amount', values: r.receivables.buckets.map((b: any) => b.amount), color: '#ef4444' }],
+          series: [{ name: 'Amount', values: r.receivables.buckets.map((b: any) => b.amount), color: '#ff1744' }],
         },
         {
           key: 'arTrend',
@@ -674,9 +674,9 @@ export const REPORT_CATALOG: ReportDef[] = [
           kind: 'line',
           labels: (r.receivables.trend || []).map((m: any) => m.label),
           series: [
-            { name: 'Invoiced', values: (r.receivables.trend || []).map((m: any) => m.invoiced), color: '#fb923c' },
-            { name: 'Collected', values: (r.receivables.trend || []).map((m: any) => m.collected), color: '#10b981' },
-            { name: 'Outstanding', values: (r.receivables.trend || []).map((m: any) => m.outstanding), color: '#f59e0b' },
+            { name: 'Invoiced', values: (r.receivables.trend || []).map((m: any) => m.invoiced), color: '#ff9100' },
+            { name: 'Collected', values: (r.receivables.trend || []).map((m: any) => m.collected), color: '#00c853' },
+            { name: 'Outstanding', values: (r.receivables.trend || []).map((m: any) => m.outstanding), color: '#ffd000' },
           ],
         },
       ];
@@ -714,14 +714,14 @@ export const REPORT_CATALOG: ReportDef[] = [
           title: 'Top payable items',
           kind: 'bar',
           labels: r.payables.items.slice(0, 8).map((i: any) => i.description),
-          series: [{ name: 'Amount', values: r.payables.items.slice(0, 8).map((i: any) => i.amount), color: '#ef4444' }],
+          series: [{ name: 'Amount', values: r.payables.items.slice(0, 8).map((i: any) => i.amount), color: '#ff1744' }],
         },
         {
           key: 'payableMix',
           title: 'Payables mix',
           kind: 'donut',
           labels: ['CARRIER COSTS', 'SETTLEMENTS'],
-          series: [{ name: 'Amount', values: [carrier, other], color: '#f97316' }],
+          series: [{ name: 'Amount', values: [carrier, other], color: '#ff6d00' }],
         },
       ];
       const p = await payload(service, f, user, this, r.meta.period, kpis, [tabs]);
@@ -769,14 +769,14 @@ export const REPORT_CATALOG: ReportDef[] = [
           title: 'Exceptions by severity',
           kind: 'donut',
           labels: sev.map((s: any) => String(s.key).toUpperCase()),
-          series: [{ name: 'Exceptions', values: sev.map((s: any) => s.count), color: '#ef4444' }],
+          series: [{ name: 'Exceptions', values: sev.map((s: any) => s.count), color: '#ff1744' }],
         },
         {
           key: 'typeTop',
           title: 'Top exception types',
           kind: 'bar',
           labels: types.map((t: any) => t.key),
-          series: [{ name: 'Exceptions', values: types.map((t: any) => t.count), color: '#f59e0b' }],
+          series: [{ name: 'Exceptions', values: types.map((t: any) => t.count), color: '#ffd000' }],
         },
       ];
       const p = await payload(service, f, user, this, r.period, kpis, [tabs]);
@@ -827,8 +827,8 @@ export const REPORT_CATALOG: ReportDef[] = [
           kind: 'line',
           labels: (cf.projection || []).map((p: any) => p.period),
           series: [
-            { name: 'Expected in', values: (cf.projection || []).map((p: any) => p.expectedIncoming), color: '#10b981' },
-            { name: 'Expected out', values: (cf.projection || []).map((p: any) => p.expectedOutgoing), color: '#ef4444' },
+            { name: 'Expected in', values: (cf.projection || []).map((p: any) => p.expectedIncoming), color: '#00c853' },
+            { name: 'Expected out', values: (cf.projection || []).map((p: any) => p.expectedOutgoing), color: '#ff1744' },
           ],
         },
         {
@@ -836,7 +836,7 @@ export const REPORT_CATALOG: ReportDef[] = [
           title: 'Cash flow summary',
           kind: 'bar',
           labels: ['ACTUAL IN', 'ACTUAL OUT', 'EXPECTED IN', 'EXPECTED OUT', 'PROJECTED CLOSING'],
-          series: [{ name: 'Amount', values: [cf.actualIncoming, cf.actualOutgoing, cf.expectedIncoming, cf.expectedOutgoing, cf.projectedBalance], color: '#fb923c' }],
+          series: [{ name: 'Amount', values: [cf.actualIncoming, cf.actualOutgoing, cf.expectedIncoming, cf.expectedOutgoing, cf.projectedBalance], color: '#ff9100' }],
         },
       ];
       const p = await payload(service, f, user, this, r.meta.period, kpis, [flows, tabs]);

@@ -14,7 +14,7 @@ export interface ChartSpec {
   series: ChartSeries[];
 }
 
-const PALETTE = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#0ea5e9', '#8b5cf6'];
+const PALETTE = ['#ff6d00', '#00c853', '#ffd000', '#ff1744', '#ff9100', '#ff6d00'];
 const FONT = "'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
 
 function esc(s: any): string {
