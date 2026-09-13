@@ -89,6 +89,7 @@ export class ReportsService {
       const payload = await def.build(this.analytics, parts as AnalyticsFilters, user);
       const logo = this.requestedLogo(opts) ?? await this.resolveLogoDataUri();
       if (logo) payload.companyLogo = logo;
+      this.persistReportLogo(logo).catch((e) => this.logger.warn(`Logo persist failed: ${e.message}`));
       localizePayload(payload, opts.locale);
 
       await fs.mkdir(REPORTS_DIR, { recursive: true });
@@ -99,15 +100,7 @@ export class ReportsService {
       const absPath = join(REPORTS_DIR, fileName);
 
       if (format === 'xlsx') {
-        let browser: any = undefined;
-        try {
-          browser = typeof (this.pdf as any).getBrowser === 'function'
-            ? await (this.pdf as any).getBrowser()
-            : undefined;
-        } catch (e) {
-          this.logger.warn(`Puppeteer unavailable, building Excel without charts: ${(e as Error).message}`);
-        }
-        const wb = await buildReportWorkbook(payload, browser, opts.locale);
+        const wb = await buildReportWorkbook(payload, undefined, opts.locale);
         await wb.xlsx.writeFile(absPath);
       } else {
         const html = renderReportHtml(payload, opts.locale);
@@ -338,7 +331,19 @@ export class ReportsService {
     if (!l || typeof l !== 'string') return null;
     if (l.startsWith('data:image/') && l.length < 2_000_000) return l;
     if (/^https?:\/\//.test(l) && l.length < 2000) return l;
+    if (l.startsWith('/') && l.length < 500) return l;
     return null;
+  }
+
+  // Persists a client-supplied logo (e.g. data-URI) into the report_logo CMS
+  // row so scheduled / cron exports pick it up even without a browser session.
+  private async persistReportLogo(logo: string | null | undefined): Promise<void> {
+    if (!logo || !logo.startsWith('data:image/')) return;
+    await this.dataSource.query(
+      `INSERT INTO website_cms (key, value, updated_at) VALUES ('report_logo', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+      [logo],
+    );
   }
 
   private sanitizeName(name: string, limit = 90): string {

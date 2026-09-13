@@ -141,7 +141,9 @@ export default function ReportsPage() {
     setExporting(reportKey + '-' + format);
     try {
       const storedLogo = getCompanySettings().logo;
-      const logo = storedLogo && typeof storedLogo === 'string' && storedLogo.startsWith('data:image/') ? storedLogo : undefined;
+      const logo = storedLogo && typeof storedLogo === 'string' && storedLogo.startsWith('data:image/')
+        ? storedLogo
+        : (storedLogo && typeof storedLogo === 'string' && /^(https?:)?\/\//.test(storedLogo) ? storedLogo : undefined);
       const r = await api.post('/reports/export', { reportKey, filters, format, name, logo, locale: i18n.language });
       const res = r.data as any;
       if (res?.downloadUrl) {

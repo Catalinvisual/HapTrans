@@ -45,7 +45,7 @@ function fmtValue(v: any, type: string): string | number | null {
   return String(v);
 }
 
-export async function buildReportWorkbook(p: ReportPayload, browser?: Browser, locale?: string): Promise<Workbook> {
+export async function buildReportWorkbook(p: ReportPayload, _browser?: Browser, locale?: string): Promise<Workbook> {
   const wb = new Workbook();
   const T = (s: string) => localizeText(s, locale);
 
@@ -139,15 +139,15 @@ export async function buildReportWorkbook(p: ReportPayload, browser?: Browser, l
     addTableSheet(wb, table, locale);
   }
 
-  // ---- Charts sheet (PNG, requires a headless-Chrome browser) ----
-  if (browser && p.charts && p.charts.length) {
-    await addChartsSheet(wb, p.charts, browser, locale);
+  // ---- Charts sheet (PNG rendered with sharp, no browser required) ----
+  if (p.charts && p.charts.length) {
+    await addChartsSheet(wb, p.charts, locale);
   }
 
   return wb;
 }
 
-async function addChartsSheet(wb: Workbook, charts: ReportChart[], browser: Browser, locale?: string) {
+async function addChartsSheet(wb: Workbook, charts: ReportChart[], locale?: string) {
   const ws = wb.addWorksheet('Charts');
   const chartsTitle = localizeText('Charts', locale);
   ws.getColumn(1).width = 80;
@@ -157,7 +157,7 @@ async function addChartsSheet(wb: Workbook, charts: ReportChart[], browser: Brow
   let row = 2;
   for (const c of charts) {
     try {
-      const png = await renderChartPng(browser, c);
+      const png = await renderChartPng(undefined, c);
       const title = ws.getCell(`A${row}`);
       title.value = c.title;
       title.font = { bold: true, size: 12, color: { argb: ORANGE } };
