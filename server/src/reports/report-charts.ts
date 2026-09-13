@@ -4,6 +4,12 @@
 // Builds modern, self-contained inline SVG charts for report payloads. The SVG
 // is embedded directly in PDFs, rendered to a hi-res PNG for Excel, and reused
 // verbatim by the client on-screen preview so every surface looks identical.
+//
+// Supported kinds:
+//   - line  : time-series trend with multiple series
+//   - bar   : horizontal bars, auto-scaled (percent when all values are 0..100,
+//             absolute currency/count otherwise); supports 1-2 series
+//   - donut : single-series share / distribution
 // ---------------------------------------------------------------------------
 
 import { ReportChart } from './reports.catalog';
@@ -85,36 +91,99 @@ function lineChartSvg(c: ReportChart): string {
 }
 
 function barChartSvg(c: ReportChart): string {
-  const W = 960, H = 300;
-  const L = 240, R = 64, T = 26, B = 22;
+  const W = 960, H = 320;
+  const L = 250, R = 84, T = 46, B = 26;
   const pw = W - L - R;
-  const values = c.series[0]?.values || [];
-  const bars = Math.min(values.length, 12);
-  if (bars === 0) return '';
+  const series = c.series || [];
+  const labels = c.labels || [];
+  const bars = Math.min(labels.length, 10);
+  if (bars === 0 || series.length === 0) return '';
+
+  const all = series.flatMap((s) => s.values).filter((v) => v != null);
+  const isPct = all.length > 0 && all.every((v) => v >= 0 && v <= 100);
+  const max = isPct ? 100 : niceMax(Math.max(1, ...all));
+
   const rowH = (H - T - B) / bars;
-  const barH = Math.max(6, rowH - 8);
+  const nSer = series.length;
+  const groupH = Math.max(8, rowH - 12);
+  const gap = nSer > 1 ? 5 : 0;
+  const barH = nSer > 1 ? Math.max(5, (groupH - gap * (nSer - 1)) / nSer) : groupH;
+  const fmt = (v: number) => (isPct ? `${Math.round(v)}%` : formatNum(v));
 
   let g = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="${FONT}">`;
   g += `<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>`;
 
-  for (const t of [0, 25, 50, 75, 100]) {
-    const xx = L + (t / 100) * pw;
-    g += `<line x1="${xx}" y1="${T}" x2="${xx}" y2="${H - B}" stroke="${GRID}" stroke-width="1"/>`;
-    g += `<text x="${xx}" y="${H - B + 14}" fill="${AXIS}" font-size="10" text-anchor="middle">${t}%</text>`;
+  const ticks = isPct ? [0, 25, 50, 75, 100] : [0, 0.25, 0.5, 0.75, 1].map((t) => max * t);
+  for (const t of ticks) {
+    const xx = L + (t / max) * pw;
+    g += `<line x1="${xx}" y1="${T - 28}" x2="${xx}" y2="${H - B}" stroke="${GRID}" stroke-width="1"/>`;
+    g += `<text x="${xx}" y="${H - B + 16}" fill="${AXIS}" font-size="10" text-anchor="middle">${isPct ? `${Math.round(t)}%` : formatNum(t)}</text>`;
   }
-  const tx = L + 0.85 * pw;
-  g += `<line x1="${tx}" y1="${T}" x2="${tx}" y2="${H - B}" stroke="#94a3b8" stroke-width="1" stroke-dasharray="5,4"/>`;
-  g += `<text x="${tx}" y="${T + 10}" fill="#94a3b8" font-size="10" text-anchor="middle">Target 85%</text>`;
 
-  c.labels.slice(0, bars).forEach((label, i) => {
-    const v = Math.max(0, values[i] || 0);
-    const color = v >= 90 ? '#10b981' : v >= 70 ? '#f59e0b' : '#ef4444';
+  if (nSer > 1) {
+    let lx = L;
+    series.forEach((s, si) => {
+      const color = s.color || PALETTE[si % PALETTE.length];
+      g += `<rect x="${lx}" y="${T - 30}" width="10" height="10" rx="3" fill="${color}"/>`;
+      g += `<text x="${lx + 16}" y="${T - 21}" fill="${TEXT}" font-size="12" font-weight="600">${esc(s.name)}</text>`;
+      lx += 26 + s.name.length * 7.1;
+    });
+  }
+
+  for (let i = 0; i < bars; i++) {
     const yy = T + i * rowH;
-    const bw = (Math.min(v, 100) / 100) * pw;
-    const lname = label.length > 26 ? `${label.slice(0, 25)}…` : label;
-    g += `<text x="${L - 10}" y="${yy + barH / 2 + 4}" fill="${TEXT}" font-size="12" text-anchor="end">${esc(lname)}</text>`;
-    g += `<rect x="${L}" y="${yy + (rowH - barH) / 2}" width="${bw.toFixed(1)}" height="${barH}" rx="${Math.min(6, barH / 2)}" fill="${color}"/>`;
-    g += `<text x="${L + bw + 8}" y="${yy + barH / 2 + 4}" fill="${color}" font-size="11" font-weight="700">${Math.round(v)}%</text>`;
+    const lname = labels[i].length > 30 ? `${labels[i].slice(0, 29)}…` : labels[i];
+    g += `<text x="${L - 10}" y="${yy + groupH / 2 + 4}" fill="${TEXT}" font-size="12.5" font-weight="600" text-anchor="end">${esc(lname)}</text>`;
+    series.forEach((s, si) => {
+      const color = s.color || PALETTE[si % PALETTE.length];
+      const val = Math.max(0, s.values[i] || 0);
+      const bw = (val / max) * pw;
+      const by = yy + (rowH - groupH) / 2 + si * (barH + gap);
+      g += `<rect x="${L}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${barH.toFixed(1)}" rx="${Math.min(6, barH / 2).toFixed(1)}" fill="${color}" opacity="${nSer > 1 ? 0.92 : 1}"/>`;
+      g += `<text x="${(L + bw + 7).toFixed(1)}" y="${(by + barH / 2 + 4).toFixed(1)}" fill="${color}" font-size="11.5" font-weight="700">${fmt(val)}</text>`;
+    });
+  }
+
+  g += '</svg>';
+  return g;
+}
+
+function donutChartSvg(c: ReportChart): string {
+  const W = 960, H = 320;
+  const values = (c.series[0]?.values || []).map((v) => Math.max(0, v));
+  const labels = c.labels || [];
+  const data = labels.map((l, i) => ({ label: l, value: values[i] || 0, color: undefined as string | undefined }))
+    .filter((d) => d.value > 0)
+    .slice(0, 10);
+  const total = data.reduce((s, d) => s + d.value, 0);
+  if (total <= 0 || data.length === 0) return '';
+
+  const cx = 205, cy = H / 2, r = 92, th = 40;
+  const C = 2 * Math.PI * r;
+
+  let g = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="${FONT}">`;
+  g += `<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>`;
+
+  let offset = 0;
+  data.forEach((d, i) => {
+    const color = d.color || PALETTE[i % PALETTE.length];
+    const len = C * (d.value / total);
+    g += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="${th}" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"/>`;
+    offset += len;
+  });
+
+  g += `<text x="${cx}" y="${cy - 4}" fill="${TEXT}" font-size="26" font-weight="700" text-anchor="middle">${formatNum(total)}</text>`;
+  g += `<text x="${cx}" y="${cy + 18}" fill="${AXIS}" font-size="12" text-anchor="middle">Total</text>`;
+
+  let ly = 42;
+  data.forEach((d, i) => {
+    const color = d.color || PALETTE[i % PALETTE.length];
+    const lname = d.label.length > 30 ? `${d.label.slice(0, 29)}…` : d.label;
+    g += `<rect x="372" y="${ly}" width="12" height="12" rx="3" fill="${color}"/>`;
+    g += `<text x="392" y="${ly + 11}" fill="${TEXT}" font-size="12.5" font-weight="600">${esc(lname)}</text>`;
+    g += `<text x="700" y="${ly + 11}" fill="${TEXT}" font-size="12.5" font-weight="700" text-anchor="end">${formatNum(d.value)}</text>`;
+    g += `<text x="712" y="${ly + 11}" fill="${AXIS}" font-size="12" text-anchor="start">${((d.value / total) * 100).toFixed(1)}%</text>`;
+    ly += 27;
   });
 
   g += '</svg>';
@@ -122,5 +191,7 @@ function barChartSvg(c: ReportChart): string {
 }
 
 export function buildChartSvg(c: ReportChart): string {
-  return c.kind === 'bar' ? barChartSvg(c) : lineChartSvg(c);
+  if (c.kind === 'bar') return barChartSvg(c);
+  if (c.kind === 'donut') return donutChartSvg(c);
+  return lineChartSvg(c);
 }

@@ -154,6 +154,24 @@ describe('reports.catalog', () => {
     const wb = await buildReportWorkbook(payload);
     expect(wb.worksheets.length).toBeGreaterThanOrEqual(2);
     const names = wb.worksheets.map((s) => s.name);
-    expect(names).toContain('KPI Summary');
+    expect(names).toContain('Summary');
+  });
+
+  it.each(REPORT_CATALOG.filter((d) => d.key !== 'kpi_methodology'))('$key ships usable charts in its payload', async (def: ReportDef) => {
+    const payload = await def.build(analytics, {} as any, { id: 'u1', companyId: 'c1', role: UserRole.ADMIN });
+    expect(Array.isArray(payload.charts)).toBe(true);
+    expect(payload.charts!.length).toBeGreaterThan(0);
+    for (const c of payload.charts!) {
+      expect(c.key).toBeTruthy();
+      expect(c.title).toBeTruthy();
+      expect(['line', 'bar', 'donut']).toContain(c.kind);
+      expect(c.labels).toBeDefined();
+      expect(Array.isArray(c.labels)).toBe(true);
+      for (const s of c.series) {
+        expect(s.name).toBeTruthy();
+        expect(Array.isArray(s.values)).toBe(true);
+        expect(s.values.length).toBe(c.labels.length);
+      }
+    }
   });
 });

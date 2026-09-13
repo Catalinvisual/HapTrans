@@ -18,6 +18,7 @@ jest.mock('../invoices/pdf.service', () => ({
 
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { ForbiddenException, BadRequestException } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { SavedReport } from './saved-report.entity';
@@ -87,6 +88,7 @@ describe('ReportsService', () => {
         { provide: getRepositoryToken(SavedReport), useValue: { create: jest.fn((r: any) => r), save: jest.fn((r: any) => Promise.resolve(r)), find: jest.fn().mockResolvedValue([]), delete: jest.fn() } },
         { provide: getRepositoryToken(ReportHistory), useValue: historyRepo },
         { provide: getRepositoryToken(ScheduledReport), useValue: scheduleRepo },
+        { provide: DataSource, useValue: { query: jest.fn().mockResolvedValue([]) } },
       ],
     }).compile();
 

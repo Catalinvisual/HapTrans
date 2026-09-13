@@ -39,7 +39,7 @@ export interface ReportKpi {
   trend?: number | null;
 }
 
-export type ReportChartKind = 'line' | 'bar';
+export type ReportChartKind = 'line' | 'bar' | 'donut';
 
 export interface ReportChartSeries {
   name: string;
@@ -186,10 +186,42 @@ export const REPORT_CATALOG: ReportDef[] = [
         {
           key: 'orderStatus',
           title: 'Order Status Distribution',
-          kind: 'bar',
+          kind: 'donut',
           labels: r.orderStatusDistribution.map((s: any) => String(s.status).toUpperCase()),
-          series: [{ name: 'Orders', values: r.orderStatusDistribution.map((s: any) => s.count), color: '#1d4e89' }],
-        }
+          series: [{ name: 'Orders', values: r.orderStatusDistribution.map((s: any) => s.count), color: '#6366f1' }],
+        },
+        {
+          key: 'tripStatus',
+          title: 'Trip Status Distribution',
+          kind: 'donut',
+          labels: r.tripStatusDistribution.map((s: any) => String(s.status).toUpperCase()),
+          series: [{ name: 'Trips', values: r.tripStatusDistribution.map((s: any) => s.count), color: '#10b981' }],
+        },
+        {
+          key: 'finTrend',
+          title: 'Financial Trend',
+          kind: 'line',
+          labels: (r.series || []).map((s: any) => s.label),
+          series: [
+            { name: 'Revenue', values: (r.series || []).map((s: any) => s.revenue), color: '#10b981' },
+            { name: 'Cost', values: (r.series || []).map((s: any) => s.cost), color: '#ef4444' },
+            { name: 'Profit', values: (r.series || []).map((s: any) => s.profit), color: '#3b82f6' },
+          ],
+        },
+        {
+          key: 'topCustomers',
+          title: 'Top customers by revenue',
+          kind: 'bar',
+          labels: r.topCustomersRevenue.map((c: any) => c.name),
+          series: [{ name: 'Revenue', values: r.topCustomersRevenue.map((c: any) => c.revenue), color: '#1d4e89' }],
+        },
+        {
+          key: 'routesProfit',
+          title: 'Routes by profit',
+          kind: 'bar',
+          labels: r.routes.slice(0, 8).map((x: any) => x.route),
+          series: [{ name: 'Profit', values: r.routes.slice(0, 8).map((x: any) => x.profit), color: '#0ea5e9' }],
+        },
       ];
       const p = await payload(service, f, user, this, r.meta.period, kpis, tables);
       p.charts = charts;
@@ -251,13 +283,37 @@ export const REPORT_CATALOG: ReportDef[] = [
           key: 'finTrend',
           title: 'Financial Trend',
           kind: 'line',
-          labels: r.series.map((s: any) => s.label),
+          labels: (r.series || []).map((s: any) => s.label),
           series: [
-            { name: 'Revenue', values: r.series.map((s: any) => s.revenue), color: '#10b981' },
-            { name: 'Cost', values: r.series.map((s: any) => s.cost), color: '#ef4444' },
-            { name: 'Profit', values: r.series.map((s: any) => s.profit), color: '#3b82f6' },
+            { name: 'Revenue', values: (r.series || []).map((s: any) => s.revenue), color: '#10b981' },
+            { name: 'Cost', values: (r.series || []).map((s: any) => s.cost), color: '#ef4444' },
+            { name: 'Profit', values: (r.series || []).map((s: any) => s.profit), color: '#3b82f6' },
           ],
-        }
+        },
+        {
+          key: 'costBreakdown',
+          title: 'Cost breakdown',
+          kind: 'donut',
+          labels: r.costBreakdown.map((x: any) => String(x.category).toUpperCase()),
+          series: [{ name: 'Amount', values: r.costBreakdown.map((x: any) => x.amount), color: '#8b5cf6' }],
+        },
+        {
+          key: 'agingAmounts',
+          title: 'Receivables aging',
+          kind: 'bar',
+          labels: r.receivables.buckets.map((b: any) => String(b.label).toUpperCase()),
+          series: [{ name: 'Amount', values: r.receivables.buckets.map((b: any) => b.amount), color: '#ef4444' }],
+        },
+        {
+          key: 'cashTrend',
+          title: 'Invoiced vs collected',
+          kind: 'line',
+          labels: (r.series || []).map((s: any) => s.label),
+          series: [
+            { name: 'Invoiced', values: (r.series || []).map((s: any) => s.invoiced), color: '#0ea5e9' },
+            { name: 'Collected', values: (r.series || []).map((s: any) => s.collected), color: '#10b981' },
+          ],
+        },
       ];
       const p = await payload(service, f, user, this, r.meta.period, kpis, tables);
       p.charts = charts;
@@ -287,7 +343,28 @@ export const REPORT_CATALOG: ReportDef[] = [
         kpi('grossProfit', 'Profit', total.profit, 'EUR'),
         kpi('grossMargin', 'Margin', total.revenue > 0 ? (total.profit / total.revenue) * 100 : 0, '%'),
       ];
-      return payload(service, f, user, this, r.period, kpis, tables);
+      const charts: ReportChart[] = [
+        {
+          key: 'revenueByCustomer',
+          title: 'Revenue by customer',
+          kind: 'bar',
+          labels: r.customers.slice(0, 10).map((c: any) => c.name),
+          series: [{ name: 'Revenue', values: r.customers.slice(0, 10).map((c: any) => c.revenue), color: '#6366f1' }],
+        },
+        {
+          key: 'marginOtif',
+          title: 'Margin & OTIF by customer',
+          kind: 'bar',
+          labels: r.customers.slice(0, 8).map((c: any) => c.name),
+          series: [
+            { name: 'Margin', values: r.customers.slice(0, 8).map((c: any) => (c.margin == null ? 0 : c.margin)), color: '#10b981' },
+            { name: 'OTIF', values: r.customers.slice(0, 8).map((c: any) => (c.otif == null ? 0 : c.otif)), color: '#6366f1' },
+          ],
+        },
+      ];
+      const p = await payload(service, f, user, this, r.period, kpis, tables);
+      p.charts = charts;
+      return p;
     },
   },
 
@@ -310,7 +387,28 @@ export const REPORT_CATALOG: ReportDef[] = [
         kpi('trips', 'Trips', r.routes.reduce((s: number, x: any) => s + x.trips, 0), 'count'),
         kpi('profitTop', 'Most profitable lane', r.routes[0] ? `${r.routes[0].route}` : '—', 'EUR'),
       ];
-      return payload(service, f, user, this, r.period, kpis, tables);
+      const charts: ReportChart[] = [
+        {
+          key: 'routesProfit',
+          title: 'Routes by profit',
+          kind: 'bar',
+          labels: r.routes.slice(0, 8).map((x: any) => x.route),
+          series: [{ name: 'Profit', values: r.routes.slice(0, 8).map((x: any) => x.profit), color: '#0ea5e9' }],
+        },
+        {
+          key: 'routeMargin',
+          title: 'Route margin & OTIF %',
+          kind: 'bar',
+          labels: r.routes.slice(0, 8).map((x: any) => x.route),
+          series: [
+            { name: 'Margin', values: r.routes.slice(0, 8).map((x: any) => x.margin), color: '#10b981' },
+            { name: 'OTIF', values: r.routes.slice(0, 8).map((x: any) => (x.otif == null ? 0 : x.otif)), color: '#6366f1' },
+          ],
+        },
+      ];
+      const p = await payload(service, f, user, this, r.period, kpis, tables);
+      p.charts = charts;
+      return p;
     },
   },
 
@@ -334,7 +432,39 @@ export const REPORT_CATALOG: ReportDef[] = [
         kpi('emptyKm', 'Empty km', r.utilization.emptyKm, 'km'),
         kpi('deadheadPct', 'Deadhead ratio', r.utilization.deadheadPct, '%'),
       ];
-      return payload(service, f, user, this, r.period, kpis, tables);
+      const u = r.utilization;
+      const charts: ReportChart[] = [
+        {
+          key: 'fleetStatus',
+          title: 'Fleet status',
+          kind: 'donut',
+          labels: ['Available', 'In trip', 'In maintenance'],
+          series: [{ name: 'Trucks', values: [u.available || 0, u.inTrip || 0, u.inMaintenance || 0], color: '#10b981' }],
+        },
+        {
+          key: 'revenueCost',
+          title: 'Revenue vs cost by truck',
+          kind: 'bar',
+          labels: r.trucks.slice(0, 8).map((t: any) => t.name),
+          series: [
+            { name: 'Revenue', values: r.trucks.slice(0, 8).map((t: any) => t.revenue), color: '#10b981' },
+            { name: 'Cost', values: r.trucks.slice(0, 8).map((t: any) => t.cost), color: '#ef4444' },
+          ],
+        },
+        {
+          key: 'loadedEmpty',
+          title: 'Loaded vs empty km by truck',
+          kind: 'bar',
+          labels: r.trucks.slice(0, 8).map((t: any) => t.name),
+          series: [
+            { name: 'Loaded km', values: r.trucks.slice(0, 8).map((t: any) => t.loadedKm), color: '#0ea5e9' },
+            { name: 'Empty km', values: r.trucks.slice(0, 8).map((t: any) => t.emptyKm), color: '#f59e0b' },
+          ],
+        },
+      ];
+      const p = await payload(service, f, user, this, r.period, kpis, tables);
+      p.charts = charts;
+      return p;
     },
   },
 
@@ -356,7 +486,25 @@ export const REPORT_CATALOG: ReportDef[] = [
         kpi('driverCount', 'Drivers', r.drivers.length, 'count'),
         kpi('bestByProfit', 'Best driver by profit', r.drivers[0] ? r.drivers[0].name : '—', 'EUR'),
       ];
-      return payload(service, f, user, this, r.period, kpis, tables);
+      const charts: ReportChart[] = [
+        {
+          key: 'driverProfit',
+          title: 'Profit by driver',
+          kind: 'bar',
+          labels: r.drivers.slice(0, 8).map((d: any) => d.name),
+          series: [{ name: 'Profit', values: r.drivers.slice(0, 8).map((d: any) => d.profit), color: '#0ea5e9' }],
+        },
+        {
+          key: 'driverOtif',
+          title: 'OTIF by driver',
+          kind: 'bar',
+          labels: r.drivers.slice(0, 8).map((d: any) => d.name),
+          series: [{ name: 'OTIF', values: r.drivers.slice(0, 8).map((d: any) => (d.otif == null ? 0 : d.otif)), color: '#10b981' }],
+        },
+      ];
+      const p = await payload(service, f, user, this, r.period, kpis, tables);
+      p.charts = charts;
+      return p;
     },
   },
 
@@ -459,7 +607,25 @@ export const REPORT_CATALOG: ReportDef[] = [
         kpi('carrierCount', 'Carriers', r.carriers.length, 'count'),
         kpi('carrierCost', 'Total carrier cost', r.carriers.reduce((s: number, x: any) => s + x.carrierCost, 0), 'EUR'),
       ];
-      return payload(service, f, user, this, r.period, kpis, tables);
+      const charts: ReportChart[] = [
+        {
+          key: 'carrierCosts',
+          title: 'Carrier & subcontractor costs',
+          kind: 'bar',
+          labels: r.carriers.slice(0, 8).map((c: any) => c.name),
+          series: [{ name: 'Carrier cost', values: r.carriers.slice(0, 8).map((c: any) => c.carrierCost), color: '#ef4444' }],
+        },
+        {
+          key: 'marginImpact',
+          title: 'Margin impact by carrier',
+          kind: 'bar',
+          labels: r.carriers.slice(0, 8).map((c: any) => c.name),
+          series: [{ name: 'Margin impact', values: r.carriers.slice(0, 8).map((c: any) => c.marginImpact), color: '#f59e0b' }],
+        },
+      ];
+      const p = await payload(service, f, user, this, r.period, kpis, tables);
+      p.charts = charts;
+      return p;
     },
   },
 
@@ -494,7 +660,29 @@ export const REPORT_CATALOG: ReportDef[] = [
         kpi('avgPaymentDays', 'Average payment days', r.kpis.avgPaymentDays, 'days'),
         kpi('collectionRate', 'Collection rate', r.kpis.collectionRate, '%'),
       ];
-      return payload(service, f, user, this, r.meta.period, kpis, [buckets, open]);
+      const charts: ReportChart[] = [
+        {
+          key: 'agingDonut',
+          title: 'Outstanding by age bucket',
+          kind: 'donut',
+          labels: r.receivables.buckets.map((b: any) => String(b.label).toUpperCase()),
+          series: [{ name: 'Amount', values: r.receivables.buckets.map((b: any) => b.amount), color: '#ef4444' }],
+        },
+        {
+          key: 'arTrend',
+          title: 'Invoiced vs collected trend',
+          kind: 'line',
+          labels: (r.receivables.trend || []).map((m: any) => m.label),
+          series: [
+            { name: 'Invoiced', values: (r.receivables.trend || []).map((m: any) => m.invoiced), color: '#0ea5e9' },
+            { name: 'Collected', values: (r.receivables.trend || []).map((m: any) => m.collected), color: '#10b981' },
+            { name: 'Outstanding', values: (r.receivables.trend || []).map((m: any) => m.outstanding), color: '#f59e0b' },
+          ],
+        },
+      ];
+      const p = await payload(service, f, user, this, r.meta.period, kpis, [buckets, open]);
+      p.charts = charts;
+      return p;
     },
   },
 
@@ -518,7 +706,27 @@ export const REPORT_CATALOG: ReportDef[] = [
         kpi('pendingCarrierCosts', 'Carrier costs', r.payables.carrierCosts, 'EUR'),
         kpi('payableItems', 'Payable records', r.payables.items.length, 'count'),
       ];
-      return payload(service, f, user, this, r.meta.period, kpis, [tabs]);
+      const carrier = r.payables.carrierCosts || 0;
+      const other = Math.max(0, (r.payables.total || 0) - carrier);
+      const charts: ReportChart[] = [
+        {
+          key: 'topPayables',
+          title: 'Top payable items',
+          kind: 'bar',
+          labels: r.payables.items.slice(0, 8).map((i: any) => i.description),
+          series: [{ name: 'Amount', values: r.payables.items.slice(0, 8).map((i: any) => i.amount), color: '#ef4444' }],
+        },
+        {
+          key: 'payableMix',
+          title: 'Payables mix',
+          kind: 'donut',
+          labels: ['CARRIER COSTS', 'SETTLEMENTS'],
+          series: [{ name: 'Amount', values: [carrier, other], color: '#6366f1' }],
+        },
+      ];
+      const p = await payload(service, f, user, this, r.meta.period, kpis, [tabs]);
+      p.charts = charts;
+      return p;
     },
   },
 
@@ -543,7 +751,37 @@ export const REPORT_CATALOG: ReportDef[] = [
         kpi('exceptionCount', 'Exceptions', r.exceptions.length, 'count'),
         kpi('highSeverity', 'High severity', r.exceptions.filter((e: any) => e.severity === 'high' || e.severity === 'critical').length, 'count'),
       ];
-      return payload(service, f, user, this, r.period, kpis, [tabs]);
+      const bySev: Record<string, number> = {};
+      for (const e of r.exceptions || []) {
+        const k = String(e.severity || 'unknown').toLowerCase();
+        bySev[k] = (bySev[k] || 0) + 1;
+      }
+      const sev = Object.entries(bySev).sort((a: any, b: any) => b[1] - a[1]).map(([k, v]) => ({ key: k, count: v }));
+      const byType: Record<string, number> = {};
+      for (const e of r.exceptions || []) {
+        const k = String(e.type || 'Unknown');
+        byType[k] = (byType[k] || 0) + 1;
+      }
+      const types = Object.entries(byType).sort((a: any, b: any) => b[1] - a[1]).slice(0, 8).map(([k, v]) => ({ key: k, count: v }));
+      const charts: ReportChart[] = [
+        {
+          key: 'severityMix',
+          title: 'Exceptions by severity',
+          kind: 'donut',
+          labels: sev.map((s: any) => String(s.key).toUpperCase()),
+          series: [{ name: 'Exceptions', values: sev.map((s: any) => s.count), color: '#ef4444' }],
+        },
+        {
+          key: 'typeTop',
+          title: 'Top exception types',
+          kind: 'bar',
+          labels: types.map((t: any) => t.key),
+          series: [{ name: 'Exceptions', values: types.map((t: any) => t.count), color: '#f59e0b' }],
+        },
+      ];
+      const p = await payload(service, f, user, this, r.period, kpis, [tabs]);
+      p.charts = charts;
+      return p;
     },
   },
 
@@ -582,7 +820,28 @@ export const REPORT_CATALOG: ReportDef[] = [
         kpi('actualOutgoing', 'Actual outgoing', cf.actualOutgoing, 'EUR'),
         kpi('projectedBalance', 'Projected closing', cf.projectedBalance, 'EUR'),
       ];
-      return payload(service, f, user, this, r.meta.period, kpis, [flows, tabs]);
+      const charts: ReportChart[] = [
+        {
+          key: 'cfProjection',
+          title: 'Cash flow projection',
+          kind: 'line',
+          labels: (cf.projection || []).map((p: any) => p.period),
+          series: [
+            { name: 'Expected in', values: (cf.projection || []).map((p: any) => p.expectedIncoming), color: '#10b981' },
+            { name: 'Expected out', values: (cf.projection || []).map((p: any) => p.expectedOutgoing), color: '#ef4444' },
+          ],
+        },
+        {
+          key: 'cfSummary',
+          title: 'Cash flow summary',
+          kind: 'bar',
+          labels: ['ACTUAL IN', 'ACTUAL OUT', 'EXPECTED IN', 'EXPECTED OUT', 'PROJECTED CLOSING'],
+          series: [{ name: 'Amount', values: [cf.actualIncoming, cf.actualOutgoing, cf.expectedIncoming, cf.expectedOutgoing, cf.projectedBalance], color: '#0ea5e9' }],
+        },
+      ];
+      const p = await payload(service, f, user, this, r.meta.period, kpis, [flows, tabs]);
+      p.charts = charts;
+      return p;
     },
   },
 
