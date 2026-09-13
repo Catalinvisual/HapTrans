@@ -6,6 +6,7 @@
 
 import { ReportPayload, ReportTable, ReportKpi, ReportChart } from './reports.catalog';
 import { buildChartSvg } from './report-charts';
+import { localizeText } from './reports-i18n';
 
 function esc(v: any): string {
   if (v == null || v === '—') return '&mdash;';
@@ -38,7 +39,7 @@ function numFmt(n: any, decimals: number): string {
   return val.toLocaleString('en-GB', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-function kpiBlocks(kpis: ReportKpi[]): string {
+function kpiBlocks(kpis: ReportKpi[], locale?: string): string {
   if (!kpis.length) return '';
   const cells = kpis.map((k) => `
     <div class="kpi">
@@ -46,7 +47,7 @@ function kpiBlocks(kpis: ReportKpi[]): string {
       <div class="kpi-value">${k.value == null ? '&mdash;' : esc(k.value)}<span class="kpi-unit">${esc(k.unit)}</span></div>
       ${k.trend != null ? `<div class="kpi-trend ${k.trend >= 0 ? 'up' : 'down'}">${k.trend > 0 ? '+' : ''}${numFmt(k.trend, 1)}${k.unit === '%' ? ' pp' : ''}</div>` : ''}
     </div>`).join('');
-  return `<h2>Key figures</h2><div class="kpi-grid">${cells}</div>`;
+  return `<h2>${esc(localizeText('Key figures', locale))}</h2><div class="kpi-grid">${cells}</div>`;
 }
 
 function tableBlock(table: ReportTable): string {
@@ -75,7 +76,7 @@ function chartBlock(chart: ReportChart): string {
     </div>`;
 }
 
-export function renderReportHtml(p: ReportPayload): string {
+export function renderReportHtml(p: ReportPayload, locale?: string): string {
   const tables = (p.tables || []).map(tableBlock).join('');
   const charts = (p.charts || []).map(chartBlock).join('');
   return `<!DOCTYPE html>
@@ -118,8 +119,8 @@ export function renderReportHtml(p: ReportPayload): string {
   <div class="page">
     ${p.companyLogo ? `<img src="${esc(p.companyLogo)}" alt="Logo" style="height:48px; margin-bottom:14px; object-fit:contain;" />` : ''}
     <h1>${esc(p.reportName)}</h1>
-    <div class="meta">Period: ${fmtDate(p.period.from)} &ndash; ${fmtDate(p.period.to)} &nbsp;|&nbsp; Generated: ${fmtDate(p.generatedAt)}</div>
-    ${kpiBlocks(p.kpis)}
+    <div class="meta">${esc(localizeText('Period', locale))}: ${fmtDate(p.period.from)} &ndash; ${fmtDate(p.period.to)} &nbsp;|&nbsp; ${esc(localizeText('Generated', locale))}: ${fmtDate(p.generatedAt)}</div>
+    ${kpiBlocks(p.kpis, locale)}
     ${charts}
     ${tables}
   </div>

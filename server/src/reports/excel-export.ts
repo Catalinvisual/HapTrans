@@ -9,6 +9,7 @@
 import { Workbook } from 'exceljs';
 import type { Browser } from 'puppeteer-core';
 import { ReportPayload, ReportTable, ReportColumn, ReportChart } from './reports.catalog';
+import { localizeText } from './reports-i18n';
 import { renderChartPng } from './chart-renderer';
 
 const HEADER_FILL = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF1D4E89' } };
@@ -41,8 +42,9 @@ function fmtValue(v: any, type: string): string | number | null {
   return String(v);
 }
 
-export async function buildReportWorkbook(p: ReportPayload, browser?: Browser): Promise<Workbook> {
+export async function buildReportWorkbook(p: ReportPayload, browser?: Browser, locale?: string): Promise<Workbook> {
   const wb = new Workbook();
+  const T = (s: string) => localizeText(s, locale);
 
   const kpiSheet = wb.addWorksheet('Summary', { views: [{ state: 'frozen', ySplit: 4 }] });
 
@@ -78,7 +80,7 @@ export async function buildReportWorkbook(p: ReportPayload, browser?: Browser): 
 
   kpiSheet.mergeCells('A2:D2');
   kpiSheet.getCell('A2').value =
-    `Period: ${fmtDate(p.period.from)} – ${fmtDate(p.period.to)}   |   Generated: ${fmtDate(p.generatedAt)}`;
+    `${T('Period')}: ${fmtDate(p.period.from)} – ${fmtDate(p.period.to)}   |   ${T('Generated')}: ${fmtDate(p.generatedAt)}`;
   kpiSheet.getCell('A2').font = META_FONT;
   kpiSheet.getRow(2).height = 16;
   
@@ -92,7 +94,7 @@ export async function buildReportWorkbook(p: ReportPayload, browser?: Browser): 
   ];
   
   const headerRow = kpiSheet.getRow(4);
-  headerRow.values = ['KPI', 'Value', 'Unit', 'Trend'];
+  headerRow.values = [T('KPI'), T('Value'), T('Unit'), T('Trend')];
   styleHeaderRow(headerRow);
 
   for (const kpi of p.kpis) {
@@ -103,32 +105,32 @@ export async function buildReportWorkbook(p: ReportPayload, browser?: Browser): 
       trend: kpi.trend == null ? '' : `${kpi.trend > 0 ? '+' : ''}${kpi.trend}${kpi.unit === '%' ? 'pp' : ''}`,
     });
     row.eachCell((cell) => { cell.border = BORDER; });
-    if (kpi.unit === 'EUR' || kpi.unit === 'EUR/km') {
+    const isCurr = /EUR|€/.test(String(kpi.unit));
+    if (isCurr) {
       row.getCell('value').numFmt = NUM_FORMATS.currency;
     } else if (kpi.unit === '%') {
       row.getCell('value').numFmt = NUM_FORMATS.percent;
-    } else if (kpi.unit === 'EUR/month') {
-      row.getCell('value').numFmt = NUM_FORMATS.currency;
     }
   }
 
   // ---- One sheet per table ----
   for (const table of p.tables) {
-    addTableSheet(wb, table);
+    addTableSheet(wb, table, locale);
   }
 
   // ---- Charts sheet (PNG, requires a headless-Chrome browser) ----
   if (browser && p.charts && p.charts.length) {
-    await addChartsSheet(wb, p.charts, browser);
+    await addChartsSheet(wb, p.charts, browser, locale);
   }
 
   return wb;
 }
 
-async function addChartsSheet(wb: Workbook, charts: ReportChart[], browser: Browser) {
+async function addChartsSheet(wb: Workbook, charts: ReportChart[], browser: Browser, locale?: string) {
   const ws = wb.addWorksheet('Charts');
+  const chartsTitle = localizeText('Charts', locale);
   ws.getColumn(1).width = 80;
-  ws.getCell('A1').value = 'Charts';
+  ws.getCell('A1').value = chartsTitle;
   ws.getCell('A1').font = TITLE_FONT;
   ws.getRow(1).height = 24;
   let row = 2;
@@ -150,7 +152,7 @@ async function addChartsSheet(wb: Workbook, charts: ReportChart[], browser: Brow
   }
 }
 
-function addTableSheet(wb: Workbook, table: ReportTable) {
+function addTableSheet(wb: Workbook, table: ReportTable, locale?: string) {
   const name = sanitizeSheetName(table.name);
   const ws = wb.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1 }] });
 
@@ -188,7 +190,7 @@ function addTableSheet(wb: Workbook, table: ReportTable) {
     if (last) {
       const totalRowNum = last.number + 1;
       const totalRow = ws.addRow({});
-      ws.getCell(`A${totalRowNum}`).value = 'Total';
+      ws.getCell(`A${totalRowNum}`).value = localizeText('Total', locale);
       ws.getCell(`A${totalRowNum}`).font = { bold: true };
       for (const c of table.columns) {
         if (c.type !== 'currency' && c.type !== 'number') continue;

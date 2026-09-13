@@ -11,6 +11,7 @@ import AnalyticsToolbar, { computeRange } from '../components/analytics/Analytic
 import type { Granularity } from '../components/analytics/AnalyticsToolbar';
 import KpiSummary from '../components/analytics/KpiSummary';
 import ReportTable from '../components/analytics/ReportTable';
+import ReportChartCard from '../components/analytics/ReportChartCard';
 import type { ReportColumn } from '../components/analytics/ReportTable';
 import EmptyState from '../components/analytics/EmptyState';
 
@@ -39,7 +40,7 @@ function fmtDate(d: any): string {
 type Tab = 'reports' | 'history' | 'saved' | 'scheduled';
 
 export default function ReportsPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [tab, setTab] = useState<Tab>('reports');
   const [catalog, setCatalog] = useState<any[]>([]);
   const [catLoading, setCatLoading] = useState(true);
@@ -69,7 +70,7 @@ export default function ReportsPage() {
   };
 
   const loadCatalog = () => {
-    api.get('/reports/catalog').then(r => setCatalog(r.data || [])).finally(() => setCatLoading(false));
+    api.get('/reports/catalog', { params: { locale: i18n.language } }).then(r => setCatalog(r.data || [])).finally(() => setCatLoading(false));
   };
 
   const loadHistory = () => {
@@ -90,7 +91,7 @@ export default function ReportsPage() {
     setActiveKey(reportKey);
     setPayload(null);
     setPreviewing(true);
-    api.post('/reports/preview', { reportKey, filters: currentFilters() })
+    api.post('/reports/preview', { reportKey, filters: currentFilters(), locale: i18n.language })
       .then(r => setPayload(r.data))
       .catch(() => toast.error(t('an_preview_error')))
       .finally(() => setPreviewing(false));
@@ -99,7 +100,7 @@ export default function ReportsPage() {
   const doExport = async (reportKey: string, filters: any, format: 'xlsx' | 'pdf', name?: string) => {
     setExporting(reportKey + '-' + format);
     try {
-      const r = await api.post('/reports/export', { reportKey, filters, format, name });
+      const r = await api.post('/reports/export', { reportKey, filters, format, name, locale: i18n.language });
       const res = r.data as any;
       if (res?.downloadUrl) {
         const blobRes = await api.get(res.downloadUrl.replace(/^\/api/, ''), { responseType: 'blob' });
@@ -304,6 +305,10 @@ export default function ReportsPage() {
                     </h3>
                     <ReportTable columns={mapColumns(tb.columns)} rows={(tb.rows || []).slice(0, 60)} />
                   </div>
+                ))}
+
+                {(payload.charts || []).map((ch: any) => (
+                  <ReportChartCard key={ch.key} chart={ch} />
                 ))}
               </div>
             ) : (

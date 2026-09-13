@@ -23,8 +23,8 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
       description: 'Description of Services',
       vat: 'VAT',
       qty: 'Qty',
-      unitPrice: 'Unit Price (EUR)',
-      amount: 'Amount (EUR)',
+      unitPrice: 'Unit Price (€)',
+      amount: 'Amount (€)',
       serviceName: 'Road freight transport services',
       route: 'Route:',
       dates: 'Loading/Unloading:',
@@ -76,8 +76,8 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
       description: 'Omschrijving van diensten',
       vat: 'BTW',
       qty: 'Aantal',
-      unitPrice: 'Eenheidsprijs (EUR)',
-      amount: 'Bedrag (EUR)',
+      unitPrice: 'Eenheidsprijs (€)',
+      amount: 'Bedrag (€)',
       serviceName: 'Wegtransportdiensten',
       route: 'Route:',
       dates: 'Laden/Lossen:',
@@ -688,19 +688,19 @@ export function generateInvoiceHtml(invoice: any, co: any, lang: 'en' | 'nl'): s
       <div class="summary-body">
         <div class="summary-row">
           <span>${t.subtotal}</span>
-          <span>EUR ${subtotal.toFixed(2)}</span>
+          <span>€ ${subtotal.toFixed(2)}</span>
         </div>
 
         <div class="summary-row">
           <span>${vatLabel}</span>
-          <span>EUR ${vatAmt.toFixed(2)}</span>
+          <span>€ ${vatAmt.toFixed(2)}</span>
         </div>
 
         <div class="summary-line"></div>
 
         <div class="total-row">
           <span>${t.total}</span>
-          <span class="total-amount">EUR ${finalTotal.toFixed(2)}</span>
+          <span class="total-amount">€ ${finalTotal.toFixed(2)}</span>
         </div>
 
         <div class="vat-info">

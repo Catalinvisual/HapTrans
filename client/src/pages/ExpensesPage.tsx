@@ -263,7 +263,7 @@ export default function ExpensesPage() {
               currency: val
             })} options={[{
               value: 'EUR',
-              label: 'EUR'
+              label: '€'
             }, {
               value: 'USD',
               label: 'USD'

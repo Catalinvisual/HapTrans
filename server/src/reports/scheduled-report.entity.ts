@@ -32,6 +32,10 @@ export class ScheduledReport {
   @Column({ default: 'xlsx' })
   format: string;
 
+  /** Report language ('ro' | 'en' | 'nl' | 'de'). */
+  @Column({ default: 'en' })
+  locale: string;
+
   /** 'daily' | 'weekly' | 'monthly' */
   @Column({ default: 'weekly' })
   frequency: string;

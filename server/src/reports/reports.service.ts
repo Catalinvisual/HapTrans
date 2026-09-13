@@ -11,6 +11,7 @@ import { ActionLogsService } from '../action-logs/action-logs.service';
 import {
   REPORT_CATALOG, getReportDef, reportAllowedForUser, ReportDef, ReportPayload,
 } from './reports.catalog';
+import { localizeText, localizePayload } from './reports-i18n';
 import { buildReportWorkbook } from './excel-export';
 import { renderReportHtml } from './pdf-renderer';
 import { SavedReport } from './saved-report.entity';
@@ -48,10 +49,15 @@ export class ReportsService {
   // -------------------------------------------------------------------------
   // Catalogue
   // -------------------------------------------------------------------------
-  getCatalog(role?: string) {
+  getCatalog(role?: string, locale?: string) {
     return REPORT_CATALOG
       .filter((d) => reportAllowedForUser(d, role))
-      .map((d) => ({ key: d.key, name: d.name, description: d.description, section: d.section }));
+      .map((d) => ({
+        key: d.key,
+        name: localizeText(d.name, locale),
+        description: localizeText(d.description, locale),
+        section: d.section,
+      }));
   }
 
   resolveDef(reportKey: string, role?: string, system = false): ReportDef {
@@ -68,11 +74,9 @@ export class ReportsService {
     const def = this.resolveDef(opts.reportKey, user?.role, opts.system);
     const filters = (opts.filters || {}) as AnalyticsFilters;
     const payload = await def.build(this.analytics, filters, user);
-    try {
-      const co = await this.dataSource.query(`SELECT logo FROM companies LIMIT 1`);
-      if (co && co[0] && co[0].logo) payload.companyLogo = co[0].logo;
-    } catch (e) {}
-    return payload;
+    const logo = await this.resolveLogoDataUri();
+    if (logo) payload.companyLogo = logo;
+    return localizePayload(payload, opts.locale);
   }
 
   async generate(opts: GenerateOptions, user?: any) {
@@ -81,10 +85,9 @@ export class ReportsService {
     const parts = opts.filters || {};
     try {
       const payload = await def.build(this.analytics, parts as AnalyticsFilters, user);
-      try {
-        const co = await this.dataSource.query(`SELECT logo FROM companies LIMIT 1`);
-        if (co && co[0] && co[0].logo) payload.companyLogo = co[0].logo;
-      } catch (e) {}
+      const logo = await this.resolveLogoDataUri();
+      if (logo) payload.companyLogo = logo;
+      localizePayload(payload, opts.locale);
 
       await fs.mkdir(REPORTS_DIR, { recursive: true });
 
@@ -98,10 +101,10 @@ export class ReportsService {
         const browser: any = typeof (this.pdf as any).getBrowser === 'function'
           ? await (this.pdf as any).getBrowser()
           : undefined;
-        const wb = await buildReportWorkbook(payload, browser);
+        const wb = await buildReportWorkbook(payload, browser, opts.locale);
         await wb.xlsx.writeFile(absPath);
       } else {
-        const html = renderReportHtml(payload);
+        const html = renderReportHtml(payload, opts.locale);
         const buf = await this.pdf.generatePdfFromHtml(html);
         await fs.writeFile(absPath, buf);
       }
@@ -242,6 +245,7 @@ export class ReportsService {
       frequency: ['daily', 'weekly', 'monthly'].includes(body.frequency) ? body.frequency : 'weekly',
       recipients: Array.isArray(body.recipients) ? body.recipients : [],
       active: body.active !== false,
+      locale: body.locale || 'en',
       nextRunAt,
       lastRunAt: null,
     }));
@@ -254,6 +258,7 @@ export class ReportsService {
     if (body.filters !== undefined) rec.filters = body.filters;
     if (body.format !== undefined) rec.format = body.format === 'pdf' ? 'pdf' : 'xlsx';
     if (body.frequency !== undefined) rec.frequency = ['daily', 'weekly', 'monthly'].includes(body.frequency) ? body.frequency : rec.frequency;
+    if (body.locale !== undefined) rec.locale = body.locale;
     if (body.recipients !== undefined) rec.recipients = Array.isArray(body.recipients) ? body.recipients : [];
     if (body.active !== undefined) rec.active = body.active !== false;
     return this.scheduleRepo.save(rec);
@@ -273,6 +278,7 @@ export class ReportsService {
         filters: rec.filters || {},
         format: rec.format === 'pdf' ? 'pdf' : 'xlsx',
         name: rec.name,
+        locale: rec.locale || 'en',
         system: true,
       },
       { id: rec.userId || user?.id, companyId: rec.companyId ?? user?.companyId, role: user?.role },
@@ -301,6 +307,7 @@ export class ReportsService {
           filters: rec.filters || {},
           format: rec.format === 'pdf' ? 'pdf' : 'xlsx',
           name: rec.name,
+          locale: rec.locale || 'en',
           system: true,
         }, schedulerUser);
         rec.lastRunAt = new Date();
@@ -315,6 +322,70 @@ export class ReportsService {
       ran++;
     }
     return ran;
+  }
+
+  // -------------------------------------------------------------------------
+  // Logo resolution (mirrors ResendService.getLogoUrl + excel/pdf embedding)
+  // -------------------------------------------------------------------------
+  private async resolveLogoUrl(): Promise<string | null> {
+    const candidates: string[] = [];
+    try {
+      const cms = await this.dataSource.query(`SELECT value FROM website_cms WHERE key = 'company_settings'`);
+      if (cms && cms[0]?.value) {
+        try {
+          const parsed = JSON.parse(cms[0].value);
+          if (parsed?.logo) candidates.push(String(parsed.logo));
+          if (parsed?.companyLogoUrl) candidates.push(String(parsed.companyLogoUrl));
+        } catch { /* ignore malformed JSON */ }
+      }
+      const cmsLogo = await this.dataSource.query(`SELECT value FROM website_cms WHERE key IN ('logo', 'company_logo', 'site_logo') AND value != '' LIMIT 1`);
+      if (cmsLogo && cmsLogo[0]?.value) candidates.push(String(cmsLogo[0].value));
+      const adminLogo = await this.dataSource.query(`SELECT "companyLogoUrl" FROM users WHERE role = 'admin' AND "companyLogoUrl" IS NOT NULL AND "companyLogoUrl" != '' LIMIT 1`);
+      if (adminLogo && adminLogo[0]?.companyLogoUrl) candidates.push(String(adminLogo[0].companyLogoUrl));
+      const anyLogo = await this.dataSource.query(`SELECT "companyLogoUrl" FROM users WHERE "companyLogoUrl" IS NOT NULL AND "companyLogoUrl" != '' LIMIT 1`);
+      if (anyLogo && anyLogo[0]?.companyLogoUrl) candidates.push(String(anyLogo[0].companyLogoUrl));
+    } catch { /* DB unavailable -> fall through */ }
+
+    const filtered = candidates.filter((u) => typeof u === 'string' && u.trim().length > 0 && !u.includes('email-logo.png'));
+    if (filtered.length === 0) {
+      const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
+      return `${baseUrl}/email-logo.png`;
+    }
+    return filtered.find((u) => u.startsWith('http')) || filtered[0];
+  }
+
+  private async resolveLogoDataUri(): Promise<string | null> {
+    try {
+      const url = await this.resolveLogoUrl();
+      if (!url) return null;
+
+      if (url.startsWith('data:image/')) return url;
+
+      let buffer: Buffer;
+      let mime = 'image/png';
+      if (url.startsWith('http')) {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const arr = await res.arrayBuffer();
+        buffer = Buffer.from(arr);
+        const type = res.headers.get('content-type');
+        if (type && type.toLowerCase().startsWith('image/')) mime = type.toLowerCase();
+      } else if (url.startsWith('/')) {
+        // Local path served from web/public (relative to the repo root).
+        const rel = url.replace(/^\//, '');
+        for (const root of [process.cwd(), join(process.cwd(), '..'), join(__dirname, '..', '..', '..')]) {
+          try {
+            buffer = await fs.readFile(join(root, rel));
+            mime = url.toLowerCase().endsWith('.jpg') || url.toLowerCase().endsWith('.jpeg') ? 'image/jpeg' : url.toLowerCase().endsWith('.svg') ? 'image/svg+xml' : 'image/png';
+            return `data:${mime};base64,${buffer.toString('base64')}`;
+          } catch { /* try next root */ }
+        }
+        return null;
+      } else {
+        return null;
+      }
+      return `data:${mime};base64,${buffer.toString('base64')}`;
+    } catch { return null; }
   }
 
   private nextRun(frequency: string): Date {

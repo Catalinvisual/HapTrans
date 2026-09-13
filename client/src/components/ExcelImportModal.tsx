@@ -8,6 +8,10 @@ import {
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 
+function curSym(code?: string): string {
+  return code === 'EUR' || !code ? '€' : code;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface FieldMapping {
@@ -640,7 +644,7 @@ export default function ExcelImportModal({ open, onClose, onImported }: Props) {
                               ['External ref', d.externalReference || ''],
                               ['Weight', d.weight ? `${d.weight} kg` : ''],
                               ['Pallets', d.pallets ? String(d.pallets) : ''],
-                              ['Price', d.price ? `${d.price} ${d.currency || 'EUR'}` : ''],
+                              ['Price', d.price ? `${d.price} ${curSym(d.currency)}` : ''],
                               ['Client', d.clientName || ''],
                             ].filter(([, v]) => v).map(([label, value]) => (
                               <div key={label as string}>

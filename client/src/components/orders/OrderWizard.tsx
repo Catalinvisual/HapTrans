@@ -590,7 +590,7 @@ export default function OrderWizard({
   }];
   const currencyOptions: SelectOpt[] = [{
     value: 'EUR',
-    label: '€ EUR'
+    label: '€'
   }, {
     value: 'USD',
     label: '$ USD'
@@ -600,7 +600,7 @@ export default function OrderWizard({
   }];
   const unitOptions: SelectOpt[] = [{
     value: 'pallet',
-    label: t('unit_pallets', 'Pallets (EUR)')
+    label: t('unit_pallets', 'Pallets')
   }, {
     value: 'kg',
     label: t('unit_kg', 'Kilograms')

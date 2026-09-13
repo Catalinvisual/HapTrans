@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Delete, Body, Param, Req, UseGuards,
+  Controller, Get, Post, Put, Delete, Body, Param, Req, UseGuards, Query,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/roles.guard';
@@ -16,8 +16,8 @@ export class ReportsController {
   constructor(private readonly service: ReportsService) {}
 
   @Get('catalog')
-  getCatalog(@Req() req: any) {
-    return this.service.getCatalog(req.user?.role);
+  getCatalog(@Req() req: any, @Query('locale') locale?: string) {
+    return this.service.getCatalog(req.user?.role, locale);
   }
 
   @Post('preview')

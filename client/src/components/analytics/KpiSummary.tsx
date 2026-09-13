@@ -11,17 +11,17 @@ export interface ReportKpiView {
 function kpiValue(k: ReportKpiView): string {
   if (k.value === null || k.value === undefined) return '—';
   switch (k.unit) {
-    case 'EUR': return fmtMoney(k.value);
-    case 'EUR/km':
-    case 'EUR/order':
-    case 'EUR/trip': return `${fmtMoney(k.value)}/${k.unit.slice(4).toLowerCase()}`;
     case 'km': return `${fmtNumber(k.value, 0)} km`;
     case '%': return fmtPercent(k.value, 1);
     case 'days': return `${fmtNumber(k.value)} d`;
     case 'min': return `${fmtNumber(k.value)} min`;
-    case 'EUR/month': return `${fmtMoney(k.value)}/mo`;
-    default: return k.value instanceof Date ? k.value.toLocaleDateString() : String(k.value);
+    default: break;
   }
+  if (/^(EUR|€)/.test(k.unit)) {
+    const per = k.unit.replace(/^(EUR|€)\/?/i, '');
+    return per ? `${fmtMoney(k.value)}/${per}` : fmtMoney(k.value);
+  }
+  return k.value instanceof Date ? k.value.toLocaleDateString() : String(k.value);
 }
 
 export default function KpiSummary({ kpis }: { kpis: ReportKpiView[] }) {

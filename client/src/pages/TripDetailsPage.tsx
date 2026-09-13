@@ -25,6 +25,15 @@ const STATUS_COLORS: Record<string, string> = {
 const getOrderPallets = (o: any) => o.cargoItems?.reduce((sum: number, c: any) => sum + (c.unit === 'pallet' ? Number(c.quantity || 1) : 0), 0) || Number(o.pallets || 0);
 const getOrderWeight = (o: any) => o.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || Number(o.weightKg || 0);
 
+const normAddr = (s: any) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const addrMatch = (a: any, b: any): boolean => {
+  const x = normAddr(a), y = normAddr(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  if (x.length >= 12 && (x.includes(y) || y.includes(x))) return true;
+  return false;
+};
+
 export default function TripDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -303,11 +312,36 @@ export default function TripDetailsPage() {
   
   const segments = sortedStops.map((stop, index) => {
     let loadW = 0, loadP = 0, unloadW = 0, unloadP = 0;
-    if (stop.tasks) {
+    if (stop.tasks && stop.tasks.length > 0) {
       stop.tasks.forEach((t: any) => {
         if (t.type === 'load') { loadW += Number(t.weightKg || 0); loadP += Number(t.pallets || 0); }
         if (t.type === 'unload') { unloadW += Number(t.weightKg || 0); unloadP += Number(t.pallets || 0); }
       });
+    }
+    const taskHasCargo = loadW + loadP + unloadW + unloadP > 0;
+    if (!taskHasCargo) {
+      // Fallback for legacy / AI-imported trips whose stop tasks were never
+      // populated: derive the load/unload from the assigned orders' cargo,
+      // matched to the trip stop by address (orders carry their own stops).
+      const stopAddr = stop.address || stop.city || stop.companyName || '';
+      for (const o of trip.orders || []) {
+        for (const s of o.stops || []) {
+          const type = String(s.type || '').toLowerCase();
+          const matches = addrMatch(s.address || s.city || s.companyName || '', stopAddr);
+          if (!matches) continue;
+          if (type === 'pickup' || type === 'load') { loadW += getOrderWeight(o); loadP += getOrderPallets(o); }
+          if (type === 'dropoff' || type === 'delivery' || type === 'unload') { unloadW += getOrderWeight(o); unloadP += getOrderPallets(o); }
+        }
+      }
+      const matched = loadW + loadP + unloadW + unloadP > 0;
+      if (!matched) {
+        // No address match — heuristic: first stop takes the whole load in,
+        // last stop delivers it (e.g. single-leg trips without order stops).
+        const totalW = (trip.orders || []).reduce((s, o) => s + getOrderWeight(o), 0);
+        const totalP = (trip.orders || []).reduce((s, o) => s + getOrderPallets(o), 0);
+        if (index === 0) { loadW = totalW; loadP = totalP; }
+        if (index === sortedStops.length - 1) { unloadW = totalW; unloadP = totalP; }
+      }
     }
     runningWeight = runningWeight + loadW - unloadW;
     runningPallets = runningPallets + loadP - unloadP;

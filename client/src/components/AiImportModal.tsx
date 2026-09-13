@@ -31,6 +31,10 @@ interface TripPreview {
   clientPhone?: string;
 }
 
+function curSym(code?: string): string {
+  return code === 'EUR' || !code ? '€' : code;
+}
+
 function normalizeTrips(preview: any): TripPreview[] {
   if (!preview) return [];
   if (Array.isArray(preview.trips)) return preview.trips.filter(Boolean);
@@ -67,7 +71,7 @@ export default function AiImportModal({ open, onClose, file, preview, busy, impo
   const tripFields = (trip: TripPreview): [string, string][] => [
     [t('ai_f_pickup_date', 'Loading date'), [val(trip.pickupDate), trip.pickupTime].filter(Boolean).join(' ')],
     [t('ai_f_dropoff_date', 'Delivery date'), [val(trip.dropoffDate), trip.dropoffTime].filter(Boolean).join(' ')],
-    [t('ai_f_price', 'Price'), val(trip.price) ? `${trip.price} ${trip.currency || 'EUR'}` : null],
+    [t('ai_f_price', 'Price'), val(trip.price) ? `${trip.price} ${curSym(trip.currency)}` : null],
     [t('ai_f_weight', 'Weight'), val(trip.weightKg) ? `${trip.weightKg} kg` : null],
     [t('ai_f_pallets', 'Pallets'), val(trip.pallets) ? `${trip.pallets}${trip.palletType ? ` (${trip.palletType})` : ''}` : null],
     [t('ai_f_volume', 'Volume'), val(trip.volumeCbm) ? `${trip.volumeCbm} m³` : null],
@@ -175,7 +179,7 @@ export default function AiImportModal({ open, onClose, file, preview, busy, impo
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-text-secondary">
                           {val(trip.pickupDate) && <span>{trip.pickupDate}</span>}
                           {val(trip.dropoffDate) && <span>→ {trip.dropoffDate}</span>}
-                          {val(trip.price) && <span className="font-bold text-success">{trip.price} {trip.currency || 'EUR'}</span>}
+                          {val(trip.price) && <span className="font-bold text-success">{trip.price} {curSym(trip.currency)}</span>}
                           {(val(trip.loadingReference) || val(trip.unloadingReference)) && (
                             <span className="truncate">Ref: {[val(trip.loadingReference), val(trip.unloadingReference)].filter(Boolean).join(' / ')}</span>
                           )}

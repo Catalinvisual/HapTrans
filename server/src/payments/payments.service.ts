@@ -30,7 +30,7 @@ export class PaymentsService {
     const remaining = Number(invoice.total) - totalPaid;
     const amount = Number(dto.amount);
     if (amount <= 0) throw new BadRequestException("Suma trebuie să fie pozitivă");
-    if (amount > remaining + 0.01) throw new BadRequestException("Suma depășește restul de plată (" + remaining.toFixed(2) + " EUR)");
+    if (amount > remaining + 0.01) throw new BadRequestException("Suma depășește restul de plată (" + remaining.toFixed(2) + " €)");
 
     const payment = await this.manager.create(Payment, {
       invoice: { id: invoice.id },

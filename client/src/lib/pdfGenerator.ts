@@ -159,7 +159,7 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
       ['Status', formatStatus(order?.status)],
       ['Client', normalizeText(order?.client?.name || '—')],
       ['Reference', normalizeText(order?.orderNumber || order?.referenceNumber || order?.customerReference || '—')],
-      ['Price', `EUR ${order?.price || 0}`],
+      ['Price', `€ ${order?.price || 0}`],
       ['Transport Type', (order?.transportType || 'ftl').toUpperCase()],
     ],
     margin: { left: 40 },

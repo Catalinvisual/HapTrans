@@ -341,7 +341,7 @@ export default function InvoicesPage({
         }
       }
     } else {
-      navigator.clipboard.writeText(`Invoice ${invoice.invoiceNumber} - Client: ${invoice.client?.name} - Amount: EUR ${invoice.amount}`);
+      navigator.clipboard.writeText(`Invoice ${invoice.invoiceNumber} - Client: ${invoice.client?.name} - Amount: € ${invoice.amount}`);
       toast.success(t('copiedToClipboard'));
     }
   };
