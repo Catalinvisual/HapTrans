@@ -14,6 +14,7 @@ import ReportTable from '../components/analytics/ReportTable';
 import ReportChartCard from '../components/analytics/ReportChartCard';
 import type { ReportColumn } from '../components/analytics/ReportTable';
 import EmptyState from '../components/analytics/EmptyState';
+import { getCompanySettings } from '../store/settingsStore';
 
 const SECTION_LABELS: Record<string, string> = {
   operations: 'rp_section_operations',
@@ -139,7 +140,9 @@ export default function ReportsPage() {
   const doExport = async (reportKey: string, filters: any, format: 'xlsx' | 'pdf', name?: string) => {
     setExporting(reportKey + '-' + format);
     try {
-      const r = await api.post('/reports/export', { reportKey, filters, format, name, locale: i18n.language });
+      const storedLogo = getCompanySettings().logo;
+      const logo = storedLogo && typeof storedLogo === 'string' && storedLogo.startsWith('data:image/') ? storedLogo : undefined;
+      const r = await api.post('/reports/export', { reportKey, filters, format, name, logo, locale: i18n.language });
       const res = r.data as any;
       if (res?.downloadUrl) {
         const blobRes = await api.get(res.downloadUrl.replace(/^\/api/, ''), { responseType: 'blob' });

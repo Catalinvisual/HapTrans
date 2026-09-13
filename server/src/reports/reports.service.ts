@@ -24,6 +24,8 @@ export interface GenerateOptions {
   format?: 'xlsx' | 'pdf';
   locale?: string;
   name?: string;
+  /** Exact company logo (data-URI) supplied by the client with the request. */
+  logo?: string;
   /** Internal (cron/scheduler) generation: skips the role re-check,
    *  since access was already verified when the schedule was created. */
   system?: boolean;
@@ -74,7 +76,7 @@ export class ReportsService {
     const def = this.resolveDef(opts.reportKey, user?.role, opts.system);
     const filters = (opts.filters || {}) as AnalyticsFilters;
     const payload = await def.build(this.analytics, filters, user);
-    const logo = await this.resolveLogoDataUri();
+    const logo = this.requestedLogo(opts) ?? await this.resolveLogoDataUri();
     if (logo) payload.companyLogo = logo;
     return localizePayload(payload, opts.locale);
   }
@@ -85,22 +87,26 @@ export class ReportsService {
     const parts = opts.filters || {};
     try {
       const payload = await def.build(this.analytics, parts as AnalyticsFilters, user);
-      const logo = await this.resolveLogoDataUri();
+      const logo = this.requestedLogo(opts) ?? await this.resolveLogoDataUri();
       if (logo) payload.companyLogo = logo;
       localizePayload(payload, opts.locale);
 
       await fs.mkdir(REPORTS_DIR, { recursive: true });
 
       const id = crypto.randomUUID();
-      const stamp = payload.generatedAt.toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const fileName = `${def.key}_${stamp}.${format}`;
+      const fileName = await this.buildExportFileName(def, opts, payload, format);
       const relPath = `reports/${fileName}`;
       const absPath = join(REPORTS_DIR, fileName);
 
       if (format === 'xlsx') {
-        const browser: any = typeof (this.pdf as any).getBrowser === 'function'
-          ? await (this.pdf as any).getBrowser()
-          : undefined;
+        let browser: any = undefined;
+        try {
+          browser = typeof (this.pdf as any).getBrowser === 'function'
+            ? await (this.pdf as any).getBrowser()
+            : undefined;
+        } catch (e) {
+          this.logger.warn(`Puppeteer unavailable, building Excel without charts: ${(e as Error).message}`);
+        }
         const wb = await buildReportWorkbook(payload, browser, opts.locale);
         await wb.xlsx.writeFile(absPath);
       } else {
@@ -322,6 +328,75 @@ export class ReportsService {
       ran++;
     }
     return ran;
+  }
+
+  // -------------------------------------------------------------------------
+  // Filename + logo helpers for exports
+  // -------------------------------------------------------------------------
+  private requestedLogo(opts: GenerateOptions): string | null {
+    const l = opts.logo;
+    if (!l || typeof l !== 'string') return null;
+    if (l.startsWith('data:image/') && l.length < 2_000_000) return l;
+    if (/^https?:\/\//.test(l) && l.length < 2000) return l;
+    return null;
+  }
+
+  private sanitizeName(name: string, limit = 90): string {
+    const clean = String(name || '')
+      .replace(/[_]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/\s+-+\s*/g, ' - ')
+      .trim();
+    return (clean || 'Report').slice(0, limit);
+  }
+
+  private async buildExportFileName(
+    def: ReportDef,
+    opts: GenerateOptions,
+    payload: ReportPayload,
+    format: 'xlsx' | 'pdf',
+  ): Promise<string> {
+    const parts = opts.filters || {};
+    let base = '';
+
+    // Prefer the filtered entity name (client > truck > driver) so a per-client
+    // report is named after the client itself.
+    try {
+      if (parts.clientId) {
+        const rows: any[] = await this.dataSource.query('SELECT name FROM clients WHERE id = $1 LIMIT 1', [parts.clientId]);
+        if (rows[0]?.name) base = String(rows[0].name);
+      }
+    } catch { /* keep default */ }
+    if (!base) {
+      try {
+        if (parts.truckId) {
+          const rows: any[] = await this.dataSource.query('SELECT plate_number, name FROM trucks WHERE id = $1 LIMIT 1', [parts.truckId]);
+          if (rows[0]) base = String(rows[0].name || rows[0].plate_number || '');
+        }
+      } catch { /* keep default */ }
+    }
+    if (!base) {
+      try {
+        if (parts.driverId) {
+          const rows: any[] = await this.dataSource.query('SELECT name FROM drivers WHERE id = $1 LIMIT 1', [parts.driverId]);
+          if (rows[0]?.name) base = String(rows[0].name);
+        }
+      } catch { /* keep default */ }
+    }
+    if (!base) base = opts.name?.trim() || localizeText(def.name, opts.locale);
+
+    const pretty = this.sanitizeName(base);
+    const stamp = this.formatStamp(payload.generatedAt);
+    return `${pretty} - ${stamp}.${format}`;
+  }
+
+  private formatStamp(d: string | Date | null | undefined): string {
+    const dt = d instanceof Date ? d : d ? new Date(d) : new Date();
+    if (isNaN(dt.getTime())) dt.setTime(Date.now());
+    const p2 = (n: number) => String(n).padStart(2, '0');
+    return `${dt.getFullYear()}-${p2(dt.getMonth() + 1)}-${p2(dt.getDate())} ${p2(dt.getHours())}-${p2(dt.getMinutes())}`;
   }
 
   // -------------------------------------------------------------------------

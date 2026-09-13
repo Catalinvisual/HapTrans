@@ -57,6 +57,7 @@ describe('ReportsService', () => {
   let historyRepo: any;
   let scheduleRepo: any;
   let logAction: any;
+  let dataSource: any;
 
   beforeEach(async () => {
     analytics = {
@@ -79,6 +80,14 @@ describe('ReportsService', () => {
       delete: jest.fn().mockResolvedValue({ affected: 1 }),
     };
 
+    dataSource = {
+      query: jest.fn(async (sql: any, params: any) => {
+        const s = String(sql);
+        if (s.includes('FROM clients')) return params?.[0] === 'c-client' ? [{ name: 'Customer A B.V.' }] : [];
+        return [];
+      }),
+    };
+
     const module = await Test.createTestingModule({
       providers: [
         ReportsService,
@@ -88,7 +97,7 @@ describe('ReportsService', () => {
         { provide: getRepositoryToken(SavedReport), useValue: { create: jest.fn((r: any) => r), save: jest.fn((r: any) => Promise.resolve(r)), find: jest.fn().mockResolvedValue([]), delete: jest.fn() } },
         { provide: getRepositoryToken(ReportHistory), useValue: historyRepo },
         { provide: getRepositoryToken(ScheduledReport), useValue: scheduleRepo },
-        { provide: DataSource, useValue: { query: jest.fn().mockResolvedValue([]) } },
+        { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
 
@@ -122,6 +131,15 @@ describe('ReportsService', () => {
       expect(payload.tables.length).toBeGreaterThan(0);
     });
 
+    it('accepts the client-supplied logo in opts and embeds it in the payload', async () => {
+      const LOGO = 'data:image/png;base64,AAAA';
+      const payload = await service.preview(
+        { reportKey: 'executive_overview', logo: LOGO },
+        { id: 'u1', companyId: 'c1', role: UserRole.ADMIN },
+      );
+      expect(payload.companyLogo).toBe(LOGO);
+    });
+
     it('denies a dispatcher previewing the financial position', async () => {
       await expect(
         service.preview({ reportKey: 'financial_position' }, { id: 'u1', companyId: 'c1', role: UserRole.DISPATCHER }),
@@ -137,6 +155,22 @@ describe('ReportsService', () => {
       expect(historyRepo.save.mock.calls.at(-1)[0]).toMatchObject({ status: 'generated', reportKey: 'executive_overview' });
       expect(historyRepo.save.mock.calls.at(-1)[0].filePath).toMatch(/^reports\//);
       expect(logAction).toHaveBeenCalledWith('report', 'hist-1', 'REPORT_GENERATED', expect.anything(), expect.anything(), 'c1');
+    });
+
+    it('names exports with spaces and a clean date-stamp (no underscores, no ISO noise)', async () => {
+      await service.generate({ reportKey: 'executive_overview' }, { id: 'u1', companyId: 'c1', role: UserRole.ADMIN });
+      const fileName = historyRepo.save.mock.calls.at(-1)[0].fileName as string;
+      expect(fileName).toMatch(/^Executive Overview - \d{4}-\d{2}-\d{2} \d{2}-\d{2}\.xlsx$/);
+      expect(fileName).not.toMatch(/[_:]/);
+    });
+
+    it('uses the filtered client name as the export file name', async () => {
+      await service.generate(
+        { reportKey: 'executive_overview', filters: { clientId: 'c-client' } },
+        { id: 'u1', companyId: 'c1', role: UserRole.ADMIN },
+      );
+      const fileName = historyRepo.save.mock.calls.at(-1)[0].fileName as string;
+      expect(fileName).toMatch(/^Customer A B\.V\. - \d{4}-\d{2}-\d{2} \d{2}-\d{2}\.xlsx$/);
     });
 
     it('records a failed history row when building the payload throws', async () => {
