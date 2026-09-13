@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException,
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { promises as fs } from 'fs';
-import { join } from 'path';
+import { isAbsolute, join } from 'path';
 import { createReadStream } from 'fs';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { AnalyticsFilters } from '../analytics/filters.dto';
@@ -327,7 +327,7 @@ export class ReportsService {
   // -------------------------------------------------------------------------
   // Logo resolution (mirrors ResendService.getLogoUrl + excel/pdf embedding)
   // -------------------------------------------------------------------------
-  private async resolveLogoUrl(): Promise<string | null> {
+  private async resolveLogoSources(): Promise<string[]> {
     const candidates: string[] = [];
     try {
       const cms = await this.dataSource.query(`SELECT value FROM website_cms WHERE key = 'company_settings'`);
@@ -346,46 +346,65 @@ export class ReportsService {
       if (anyLogo && anyLogo[0]?.companyLogoUrl) candidates.push(String(anyLogo[0].companyLogoUrl));
     } catch { /* DB unavailable -> fall through */ }
 
-    const filtered = candidates.filter((u) => typeof u === 'string' && u.trim().length > 0 && !u.includes('email-logo.png'));
-    if (filtered.length === 0) {
-      const baseUrl = process.env.PUBLIC_WEBSITE_URL || 'https://exemplary-balance-production-c473.up.railway.app';
-      return `${baseUrl}/email-logo.png`;
+    const unique = [...new Set(candidates)];
+    const filtered = unique.filter((u) => typeof u === 'string' && u.trim().length > 0 && !u.includes('email-logo.png'));
+
+    // The Settings page additionally mirrors the uploaded logo to
+    // web/public/email-logo.png, so prefer that file directly when present.
+    const localCandidates = [
+      join(process.cwd(), '..', 'web', 'public', 'email-logo.png'),
+      join(__dirname, '..', '..', '..', 'web', 'public', 'email-logo.png'),
+      join(process.cwd(), 'web', 'public', 'email-logo.png'),
+    ];
+    for (const p of localCandidates) {
+      try {
+        const st = await fs.stat(p);
+        if (st.isFile()) filtered.push(p);
+      } catch { /* path does not exist */ }
     }
-    return filtered.find((u) => u.startsWith('http')) || filtered[0];
+
+    if (filtered.length === 0) return [];
+    return filtered;
   }
 
   private async resolveLogoDataUri(): Promise<string | null> {
-    try {
-      const url = await this.resolveLogoUrl();
-      if (!url) return null;
+    const sources = await this.resolveLogoSources();
+    for (const url of sources) {
+      try {
+        if (url.startsWith('data:image/')) return url;
 
-      if (url.startsWith('data:image/')) return url;
+        let buffer: Buffer;
+        let mime = 'image/png';
+        if (/^https?:\/\//.test(url)) {
+          const res = await fetch(url);
+          if (!res.ok) continue;
+          const arr = await res.arrayBuffer();
+          buffer = Buffer.from(arr);
+          const type = res.headers.get('content-type');
+          if (type && type.toLowerCase().startsWith('image/')) mime = type.toLowerCase();
+          return `data:${mime};base64,${buffer.toString('base64')}`;
+        }
 
-      let buffer: Buffer;
-      let mime = 'image/png';
-      if (url.startsWith('http')) {
-        const res = await fetch(url);
-        if (!res.ok) return null;
-        const arr = await res.arrayBuffer();
-        buffer = Buffer.from(arr);
-        const type = res.headers.get('content-type');
-        if (type && type.toLowerCase().startsWith('image/')) mime = type.toLowerCase();
-      } else if (url.startsWith('/')) {
-        // Local path served from web/public (relative to the repo root).
-        const rel = url.replace(/^\//, '');
-        for (const root of [process.cwd(), join(process.cwd(), '..'), join(__dirname, '..', '..', '..')]) {
+        // Local path. Absolute filesystem paths (e.g. the email-logo.png mirror
+        // detected in resolveLogoSources) are read directly; '/...' web paths
+        // are resolved relative to the repo roots.
+        const candidates = isAbsolute(url)
+          ? [url]
+          : [process.cwd(), join(process.cwd(), '..'), join(__dirname, '..', '..', '..')]
+              .map((root) => join(root, url.replace(/^[\\/]+/, '')));
+        for (const file of candidates) {
           try {
-            buffer = await fs.readFile(join(root, rel));
-            mime = url.toLowerCase().endsWith('.jpg') || url.toLowerCase().endsWith('.jpeg') ? 'image/jpeg' : url.toLowerCase().endsWith('.svg') ? 'image/svg+xml' : 'image/png';
+            buffer = await fs.readFile(file);
+            mime = file.toLowerCase().endsWith('.jpg') || file.toLowerCase().endsWith('.jpeg') ? 'image/jpeg'
+              : file.toLowerCase().endsWith('.svg') ? 'image/svg+xml'
+              : file.toLowerCase().endsWith('.webp') ? 'image/webp'
+              : 'image/png';
             return `data:${mime};base64,${buffer.toString('base64')}`;
           } catch { /* try next root */ }
         }
-        return null;
-      } else {
-        return null;
-      }
-      return `data:${mime};base64,${buffer.toString('base64')}`;
-    } catch { return null; }
+      } catch { /* try next source */ }
+    }
+    return null;
   }
 
   private nextRun(frequency: string): Date {

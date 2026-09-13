@@ -46,7 +46,7 @@ export async function buildReportWorkbook(p: ReportPayload, browser?: Browser, l
   const wb = new Workbook();
   const T = (s: string) => localizeText(s, locale);
 
-  const kpiSheet = wb.addWorksheet('Summary', { views: [{ state: 'frozen', ySplit: 4 }] });
+  const kpiSheet = wb.addWorksheet('Summary', { views: [{ state: 'frozen', ySplit: 5 }] });
 
   if (p.companyLogo) {
     try {
@@ -68,23 +68,30 @@ export async function buildReportWorkbook(p: ReportPayload, browser?: Browser, l
       }
       if (buffer) {
         const imageId = wb.addImage({ buffer: buffer as any, extension: ext as any });
-        kpiSheet.addImage(imageId, { tl: { col: 4, row: 0 }, ext: { width: 140 * 9525, height: 40 * 9525 } });
+        kpiSheet.addImage(imageId, { tl: { col: 0, row: 0 }, ext: { width: 128 * 9525, height: 36 * 9525 } });
+        kpiSheet.getRow(1).height = 40;
+      } else {
+        kpiSheet.getRow(1).height = 12;
       }
     } catch (e) { console.error('Failed to embed logo in Excel:', e); }
   }
 
-  kpiSheet.mergeCells('A1:D1');
-  kpiSheet.getCell('A1').value = p.reportName;
-  kpiSheet.getCell('A1').font = TITLE_FONT;
-  kpiSheet.getRow(1).height = 36;
-
   kpiSheet.mergeCells('A2:D2');
-  kpiSheet.getCell('A2').value =
+  const titleCell = kpiSheet.getCell('A2');
+  titleCell.value = p.reportName;
+  titleCell.font = TITLE_FONT;
+  titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+  kpiSheet.getRow(2).height = 40;
+
+  kpiSheet.mergeCells('A3:D3');
+  const metaCell = kpiSheet.getCell('A3');
+  metaCell.value =
     `${T('Period')}: ${fmtDate(p.period.from)} – ${fmtDate(p.period.to)}   |   ${T('Generated')}: ${fmtDate(p.generatedAt)}`;
-  kpiSheet.getCell('A2').font = META_FONT;
-  kpiSheet.getRow(2).height = 16;
-  
-  kpiSheet.getRow(3).height = 12;
+  metaCell.font = META_FONT;
+  metaCell.alignment = { vertical: 'middle', horizontal: 'center' };
+  kpiSheet.getRow(3).height = 18;
+
+  kpiSheet.getRow(4).height = 12;
 
   kpiSheet.columns = [
     { key: 'label', width: 30 },
@@ -93,7 +100,7 @@ export async function buildReportWorkbook(p: ReportPayload, browser?: Browser, l
     { key: 'trend', width: 14 },
   ];
   
-  const headerRow = kpiSheet.getRow(4);
+  const headerRow = kpiSheet.getRow(5);
   headerRow.values = [T('KPI'), T('Value'), T('Unit'), T('Trend')];
   styleHeaderRow(headerRow);
 
@@ -104,7 +111,10 @@ export async function buildReportWorkbook(p: ReportPayload, browser?: Browser, l
       unit: kpi.unit,
       trend: kpi.trend == null ? '' : `${kpi.trend > 0 ? '+' : ''}${kpi.trend}${kpi.unit === '%' ? 'pp' : ''}`,
     });
-    row.eachCell((cell) => { cell.border = BORDER; });
+    row.eachCell((cell) => {
+      cell.border = BORDER;
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    });
     const isCurr = /EUR|€/.test(String(kpi.unit));
     if (isCurr) {
       row.getCell('value').numFmt = NUM_FORMATS.currency;
@@ -166,7 +176,11 @@ function addTableSheet(wb: Workbook, table: ReportTable, locale?: string) {
   const header = ws.getRow(1);
   header.fill = HEADER_FILL;
   header.font = HEADER_FONT;
-  header.height = 20;
+  header.height = 22;
+  header.eachCell((cell, col) => {
+    cell.border = BORDER;
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+  });
 
   for (const r of table.rows || []) {
     const rowVals: Record<string, any> = {};
@@ -174,7 +188,10 @@ function addTableSheet(wb: Workbook, table: ReportTable, locale?: string) {
       rowVals[c.key] = fmtValue(r[c.key], c.type || 'text');
     }
     const row = ws.addRow(rowVals);
-    row.eachCell((cell) => { cell.border = BORDER; });
+    row.eachCell((cell, col) => {
+      cell.border = BORDER;
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    });
     ws.columns.forEach((col, i) => {
       const type = table.columns[i]?.type || 'text';
       const cell = row.getCell(col.key || i + 1);
@@ -213,8 +230,11 @@ function columnLabel(c: ReportColumn, ws: any): string {
 function styleHeaderRow(row: any) {
   row.fill = HEADER_FILL;
   row.font = HEADER_FONT;
-  row.height = 20;
-  row.eachCell((cell: any) => { cell.border = BORDER; });
+  row.height = 22;
+  row.eachCell((cell: any) => {
+    cell.border = BORDER;
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+  });
 }
 
 function colLabel(i: number): string {

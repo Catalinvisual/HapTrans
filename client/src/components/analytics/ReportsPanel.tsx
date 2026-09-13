@@ -20,44 +20,11 @@ const SECTION_LABELS: Record<string, string> = {
   methodology: 'rp_section_methodology',
 };
 
-const REPORT_NAMES: Record<string, Record<string, string>> = {
-  ro: {
-    executive_overview: 'Situație generală (Executiv)',
-    financial_position: 'Poziție financiară (P&L)',
-    customer_profitability: 'Profit pe clienți',
-    customer_service_performance: 'Performanță servicii clienți',
-    route_profitability: 'Profit pe rute',
-    fleet_performance: 'Performanța camioanelor',
-    driver_performance: 'Performanța șoferilor',
-    carrier_costs: 'Costuri transportatori',
-    receivables_aging: 'Creanțe după vechime',
-    payables: 'Datorii către furnizori',
-    exceptions: 'Registru excepții',
-    cashflow: 'Proiecție flux de numerar',
-    kpi_methodology: 'Metodologie KPI',
-  },
-  nl: {
-    executive_overview: 'Operationeel overzicht',
-    financial_position: 'Financiële positie (P&L)',
-    customer_profitability: 'Winst per klant',
-    customer_service_performance: 'Klantserviceprestaties',
-    route_profitability: 'Winst per route',
-    fleet_performance: 'Vlootprestaties',
-    driver_performance: 'Prestaties chauffeurs',
-    carrier_costs: 'Carrierkosten',
-    receivables_aging: 'Openstaande facturen per ouderdom',
-    payables: 'Crediteuren',
-    exceptions: 'Register uitzonderingen',
-    cashflow: 'Kasstroomprognose',
-    kpi_methodology: 'KPI-methodologie',
-  },
-};
-
 function mapColumns(cols: any[]): ReportColumn[] {
   return (cols || []).map(c => ({
     key: c.key,
     label: c.header || c.label,
-    align: c.type === 'currency' || c.type === 'number' || c.type === 'percent' ? 'right' : 'left',
+    align: 'center',
     type: (['currency', 'percent', 'number', 'date'].includes(c.type) ? c.type : 'text') as any,
   }));
 }
@@ -110,19 +77,14 @@ export default function ReportsPanel({ open, onClose, section }: ReportsPanelPro
     setLoading(true);
     setPayload(null);
     setActiveKey(null);
-    api.get('/reports/catalog').then(r => setCatalog(r.data || [])).catch(() => toast.error(t('an_preview_error'))).finally(() => setLoading(false));
+    api.get('/reports/catalog', { params: { locale: i18n.language } }).then(r => setCatalog(r.data || [])).catch(() => toast.error(t('an_preview_error'))).finally(() => setLoading(false));
     api.get('/analytics/customers').then(r => setClients((r.data?.customers || []).map((c: any) => ({ id: c.id, name: c.name })))).catch(() => {});
     api.get('/analytics/fleet').then(r => setTrucks((r.data?.trucks || []).map((c: any) => ({ id: c.id, name: c.name })))).catch(() => {});
     api.get('/analytics/drivers').then(r => setDrivers((r.data?.drivers || []).map((c: any) => ({ id: c.id, name: c.name })))).catch(() => {});
-  }, [open, t]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, i18n.language]);
 
   if (!open) return null;
-
-  const lang = i18n.language?.startsWith('ro') ? 'ro' : i18n.language?.startsWith('nl') ? 'nl' : 'en';
-  const reportName = (c: any) => {
-    const localized = REPORT_NAMES[lang]?.[c.key];
-    return localized || c.name;
-  };
 
   const grouped = Object.keys(SECTION_LABELS)
     .map(s => ({ section: s, items: catalog.filter((c: any) => (c.section || 'operations') === s && (!section || c.section === section)) }))
@@ -132,7 +94,7 @@ export default function ReportsPanel({ open, onClose, section }: ReportsPanelPro
     setActiveKey(key);
     setPayload(null);
     setPreviewing(true);
-    api.post('/reports/preview', { reportKey: key, filters: buildFilters() })
+    api.post('/reports/preview', { reportKey: key, filters: buildFilters(), locale: i18n.language })
       .then(r => setPayload(r.data))
       .catch(() => toast.error(t('an_preview_error')))
       .finally(() => setPreviewing(false));
@@ -144,7 +106,7 @@ export default function ReportsPanel({ open, onClose, section }: ReportsPanelPro
     setExporting(tag);
     try {
       const active = catalog.find(c => c.key === activeKey);
-      const r = await api.post('/reports/export', { reportKey: activeKey, filters: buildFilters(), format, name: reportName(active || { name: activeKey }) });
+      const r = await api.post('/reports/export', { reportKey: activeKey, filters: buildFilters(), format, name: active?.name || payload?.reportName || activeKey, locale: i18n.language });
       const res = r.data as any;
       if (res?.downloadUrl) {
         const blobRes = await api.get(res.downloadUrl.replace(/^\/api/, ''), { responseType: 'blob' });
@@ -229,7 +191,7 @@ export default function ReportsPanel({ open, onClose, section }: ReportsPanelPro
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-bold text-text group-hover:text-primary transition-colors flex items-center gap-2">
-                            <FileSpreadsheet className="w-4 h-4 text-primary shrink-0" /> {reportName(c)}
+                            <FileSpreadsheet className="w-4 h-4 text-primary shrink-0" /> {c.name}
                           </span>
                           {activeKey === c.key && <LayoutDashboard className="w-4 h-4 text-primary shrink-0" />}
                         </div>
@@ -252,7 +214,7 @@ export default function ReportsPanel({ open, onClose, section }: ReportsPanelPro
                 <div className="card !p-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <h3 className="text-lg font-black text-text truncate">{reportName(catalog.find(c => c.key === activeKey) || { name: payload.reportName || activeKey })}</h3>
+                      <h3 className="text-lg font-black text-text truncate">{catalog.find(c => c.key === activeKey)?.name || payload.reportName || activeKey}</h3>
                       <p className="text-xs text-text-secondary mt-0.5">{fmtDate(payload.period?.from)} → {fmtDate(payload.period?.to)}</p>
                     </div>
                     <div className="flex gap-2 shrink-0">

@@ -8,20 +8,21 @@
 // the known English strings to the active TMS language so that previews,
 // Excel and PDF exports all appear localized.
 //
-// Languages: ro, en, nl, de (the four TMS UI languages). English is the
+// Languages: ro, en, nl, fr, de (the five TMS UI languages). English is the
 // canonical source and falls through untouched.
 // ---------------------------------------------------------------------------
 
 import { ReportPayload } from './reports.catalog';
 
-export type ReportLocale = 'ro' | 'en' | 'nl' | 'de';
+export type ReportLocale = 'ro' | 'en' | 'nl' | 'fr' | 'de';
 
-const LOCALE_CODES: ReportLocale[] = ['ro', 'en', 'nl', 'de'];
+const LOCALE_CODES: ReportLocale[] = ['ro', 'en', 'nl', 'fr', 'de'];
 
 export function normalizeLocale(locale?: string | null): ReportLocale {
   const l = (locale || '').toLowerCase();
   if (l.startsWith('ro')) return 'ro';
   if (l.startsWith('nl')) return 'nl';
+  if (l.startsWith('fr')) return 'fr';
   if (l.startsWith('de')) return 'de';
   return 'en';
 }
@@ -33,7 +34,7 @@ export function isReportLocale(locale?: string | null): boolean {
 // Entries are kept in a row array (rather than a plain object literal) so the
 // same source string can appear multiple times without tripping TypeScript's
 // duplicate-property check; later rows win.
-const ROWS: Array<[string, Partial<Record<ReportLocale, string>>]> = [
+export const ROWS: Array<[string, Partial<Record<ReportLocale, string>>]> = [
   // ---- Report names ---------------------------------------------------------
   ['Executive Overview', { ro: 'Rezumat executiv', nl: 'Directieoverzicht', de: 'Managementübersicht' }],
   ['Financial Position (P&L)', { ro: 'Poziție financiară (P&L)', nl: 'Financiële positie (P&L)', de: 'Finanzielle Lage (GuV)' }],
@@ -280,15 +281,208 @@ const ROWS: Array<[string, Partial<Record<ReportLocale, string>>]> = [
   ['Trend', { ro: 'Tendință', nl: 'Trend', de: 'Trend' }],
 ];
 
+// ---- French (fr) translations, merged into DICT below ---------------------
+export const FR_ROWS: Array<[string, string]> = [
+  // ---- Report names ---------------------------------------------------------
+  ['Executive Overview', "Vue d'ensemble exécutive"],
+  ['Financial Position (P&L)', 'Situation financière (P&L)'],
+  ['Customer Profitability', 'Rentabilité par client'],
+  ['Route Profitability', 'Rentabilité par route'],
+  ['Fleet Performance', 'Performance de la flotte'],
+  ['Driver Performance', 'Performance des chauffeurs'],
+  ['Customer Service Performance', 'Performance du service client'],
+  ['Carrier & Subcontractor Costs', 'Coûts transporteurs et sous-traitants'],
+  ['Receivables Aging', 'Ancienneté des créances'],
+  ['Accounts Payable', 'Comptes fournisseurs'],
+  ['Exceptions Register', "Registre des exceptions"],
+  ['Cash Flow Projection', 'Projection de trésorerie'],
+  ['KPI Methodology', 'Méthodologie KPI'],
+  // ---- Report descriptions --------------------------------------------------
+  ['Operations, service and fleet performance snapshot over the period.', 'Aperçu des opérations, du service et des performances de la flotte sur la période.'],
+  ['Revenue, costs, profit and receivables/payables position.', 'Revenus, coûts, bénéfice et position des créances/dettes.'],
+  ['Revenue, cost, profit and OTIF per customer.', 'Revenus, coûts, bénéfice et OTIF par client.'],
+  ['Profitability of each origin → destination lane.', 'Rentabilité de chaque liaison origine → destination.'],
+  ['Vehicle-level km, revenue, cost, profit and utilization.', "Kilomètres, revenus, coûts, bénéfice et utilisation par véhicule."],
+  ['Driver-level trips, km, revenue, cost, profit and on-time delivery.', "Courses, km, revenus, coûts, bénéfice et livraisons à l'heure par chauffeur."],
+  ['Per-customer delivery performance over the period: orders, on-time, late, cancelled and OTIF, with trend charts.', "Performance de livraison par client sur la période : commandes, à l'heure, en retard, annulées et OTIF, avec graphiques de tendance."],
+  ['External carrier cost exposure and margin impact per carrier.', "Exposition aux coûts des transporteurs externes et impact sur la marge par transporteur."],
+  ['Outstanding invoices bucketed by age and detailed open list.', "Factures impayées classées par ancienneté et liste détaillée des factures ouvertes."],
+  ['Unpaid carrier and subcontractor costs plus outstanding settlements.', "Coûts impayés des transporteurs et sous-traitants plus règlements en attente."],
+  ['Operational exceptions detected in the period (severity sorted).', 'Exceptions opérationnelles détectées sur la période (triées par gravité).'],
+  ['Actual and expected cash in/out and rolling 3-month projection.', "Entrées/sorties de trésorerie réelles et attendues et projection glissante sur 3 mois."],
+  ['The definition and source of every dashboard KPI (support/reference document).', "La définition et la source de chaque KPI du tableau de bord (document de référence)."],
+  ['Definition and source of every dashboard KPI.', 'Définition et source de chaque KPI du tableau de bord.'],
+  // ---- KPI labels -----------------------------------------------------------
+  ['Orders', 'Commandes'],
+  ['Open orders', 'Commandes ouvertes'],
+  ['Active trips', 'Courses actives'],
+  ['Completed trips', 'Courses terminées'],
+  ['Deliveries', 'Livraisons'],
+  ['Late deliveries', 'Livraisons en retard'],
+  ['Open exceptions', 'Exceptions ouvertes'],
+  ['Revenue', 'Revenus'],
+  ['Gross profit', 'Bénéfice brut'],
+  ['Gross margin', 'Marge brute'],
+  ['Fleet utilization', 'Utilisation de la flotte'],
+  ['Deadhead ratio', 'Taux de kilomètres à vide'],
+  ['Transport cost', 'Coût de transport'],
+  ['Operating expenses', "Charges d'exploitation"],
+  ['Total cost', 'Coût total'],
+  ['Revenue / km', 'Revenu / km'],
+  ['Cost / km', 'Coût / km'],
+  ['Profit / km', 'Bénéfice / km'],
+  ['Accounts receivable', 'Créances clients'],
+  ['Overdue receivables', 'Créances en retard'],
+  ['Accounts payable', 'Dettes fournisseurs'],
+  ['Unbilled revenue', 'Revenus non facturés'],
+  ['Average payment days', 'Délai moyen de paiement'],
+  ['Collection rate', "Taux d'encaissement"],
+  ['Customers', 'Clients'],
+  ['Attributed cost', 'Coût imputé'],
+  ['Profit', 'Bénéfice'],
+  ['Margin', 'Marge'],
+  ['Routes', 'Routes'],
+  ['Most profitable lane', 'Liaison la plus rentable'],
+  ['Loaded km', 'Km chargés'],
+  ['Empty km', 'Km à vide'],
+  ['Drivers', 'Chauffeurs'],
+  ['Best driver by profit', 'Meilleur chauffeur par bénéfice'],
+  ['Total orders', 'Total commandes'],
+  ['On-time deliveries', "Livraisons à l'heure"],
+  ['On-time rate', 'Taux de ponctualité'],
+  ['Late rate', 'Taux de retard'],
+  ['Avg delay (min)', 'Retard moyen (min)'],
+  ['Cancelled', 'Annulées'],
+  ['Not delivered / pending', 'Non livrées / en attente'],
+  ['Carriers', 'Transporteurs'],
+  ['Total carrier cost', 'Coût total transporteurs'],
+  ['Total outstanding', 'Total en attente'],
+  ['Overdue', 'En retard'],
+  ['Overdue invoices', 'Factures en retard'],
+  ['Total payable', 'Total à payer'],
+  ['Carrier costs', 'Coûts transporteurs'],
+  ['Payable records', 'Enregistrements à payer'],
+  ['Exceptions', 'Exceptions'],
+  ['High severity', 'Gravité élevée'],
+  ['Opening balance', "Solde d'ouverture"],
+  ['Actual incoming', 'Entrées réelles'],
+  ['Actual outgoing', 'Sorties réelles'],
+  ['Projected closing', 'Solde projeté'],
+  // ---- Table names ----------------------------------------------------------
+  ['Order status', 'Statut des commandes'],
+  ['Trip status', 'Statut des courses'],
+  ['Top customers by revenue', 'Top clients par revenus'],
+  ['Routes by profitability', 'Routes par rentabilité'],
+  ['Cost breakdown', 'Détail des coûts'],
+  ['Receivables aging', 'Ancienneté des créances'],
+  ['Payables', 'Comptes fournisseurs'],
+  ['Monthly breakdown', 'Détail mensuel'],
+  ['Fleet', 'Flotte'],
+  ['Aging buckets', "Tranches d'ancienneté"],
+  ['Open invoices', 'Factures ouvertes'],
+  ['Projection', 'Projection'],
+  ['Cash flows', 'Flux de trésorerie'],
+  ['Definitions', 'Définitions'],
+  // ---- Column headers -------------------------------------------------------
+  ['Status', 'Statut'],
+  ['Trips', 'Courses'],
+  ['Customer', 'Client'],
+  ['Route', 'Route'],
+  ['Cost', 'Coût'],
+  ['Category', 'Catégorie'],
+  ['Amount', 'Montant'],
+  ['Share', 'Part'],
+  ['Bucket', 'Tranche'],
+  ['Invoices', 'Factures'],
+  ['Outstanding', 'En attente'],
+  ['Payable', 'À payer'],
+  ['Date', 'Date'],
+  ['Truck', 'Camion'],
+  ["On-time", "À l'heure"],
+  ['Delivery %', 'Livraison %'],
+  ['Late', 'En retard'],
+  ['Late %', 'En retard %'],
+  ['Avg late (min)', 'Retard moy. (min)'],
+  ['Not delivered', 'Non livrées'],
+  ['Period', 'Période'],
+  ['Driver', 'Chauffeur'],
+  ['Carrier', 'Transporteur'],
+  ['Carrier cost', 'Coût transporteur'],
+  ['Margin impact', 'Impact marge'],
+  ['Invoice', 'Facture'],
+  ['Client', 'Client'],
+  ['Issued', 'Émise'],
+  ['Due', 'Échéance'],
+  ['Paid', 'Payée'],
+  ['Days overdue', 'Jours de retard'],
+  ['Severity', 'Gravité'],
+  ['Time', 'Heure'],
+  ['Type', 'Type'],
+  ['Order', 'Commande'],
+  ['Message', 'Message'],
+  ['Month', 'Mois'],
+  ['Expected in', 'Entrées prévues'],
+  ['Expected out', 'Sorties prévues'],
+  ['Balance', 'Solde'],
+  ['Item', 'Élément'],
+  ['Key', 'Clé'],
+  ['Name', 'Nom'],
+  ['Section', 'Section'],
+  ['Unit', 'Unité'],
+  ['Definition', 'Définition'],
+  ['Source', 'Source'],
+  ['Formula', 'Formule'],
+  // ---- Chart titles ---------------------------------------------------------
+  ['Order Status Distribution', 'Répartition des statuts de commandes'],
+  ['Financial Trend', 'Tendance financière'],
+  ['Orders vs Delivered vs On-time (trend)', "Commandes vs Livrées vs À l'heure (tendance)"],
+  ['On-time delivery rate by customer (%)', "Taux de livraison à l'heure par client (%)"],
+  ['Trip Status Distribution', 'Répartition des statuts de courses'],
+  ['Routes by profit', 'Routes par bénéfice'],
+  ['Invoiced vs collected', 'Facturé vs encaissé'],
+  ['Revenue by customer', 'Revenus par client'],
+  ['Margin & OTIF by customer', 'Marge et OTIF par client'],
+  ['Route margin & OTIF %', 'Marge et OTIF % par route'],
+  ['Fleet status', 'Statut de la flotte'],
+  ['Revenue vs cost by truck', 'Revenus vs coûts par camion'],
+  ['Loaded vs empty km by truck', 'Km chargés vs à vide par camion'],
+  ['Profit by driver', 'Bénéfice par chauffeur'],
+  ['OTIF by driver', 'OTIF par chauffeur'],
+  ['Margin impact by carrier', 'Impact marge par transporteur'],
+  ['Outstanding by age bucket', "En attente par tranche d'ancienneté"],
+  ['Invoiced vs collected trend', 'Tendance facturé vs encaissé'],
+  ['Top payable items', 'Top des éléments à payer'],
+  ['Payables mix', 'Composition des dettes fournisseurs'],
+  ['Exceptions by severity', 'Exceptions par gravité'],
+  ['Top exception types', "Top des types d'exceptions"],
+  ['Cash flow summary', 'Résumé des flux de trésorerie'],
+  // ---- Chart series ---------------------------------------------------------
+  ['Delivered', 'Livrées'],
+  ['On-time %', "À l'heure %"],
+  ['Invoiced', 'Facturé'],
+  ['Collected', 'Encaissé'],
+  ['OTIF', 'OTIF'],
+  ['Trucks', 'Camions'],
+  // ---- Document chrome (PDF / Excel) ----------------------------------------
+  ['Key figures', 'Indicateurs clés'],
+  ['Generated', 'Généré'],
+  ['Charts', 'Graphiques'],
+  ['Total', 'Total'],
+  ['KPI', 'KPI'],
+  ['Value', 'Valeur'],
+  ['Trend', 'Tendance'],
+];
+
 const DICT: Record<string, Partial<Record<ReportLocale, string>>> = {};
 for (const [key, val] of ROWS) DICT[key] = val;
+for (const [key, val] of FR_ROWS) DICT[key] = { ...(DICT[key] || {}), fr: val };
 
-const UNIT_ROWS: Array<[string, Record<ReportLocale, string>]> = [
-  ['EUR', { ro: '€', nl: '€', de: '€', en: '€' }],
-  ['EUR/km', { ro: '€/km', nl: '€/km', de: '€/km', en: '€/km' }],
-  ['EUR/month', { ro: '€/lună', nl: '€/maand', de: '€/Monat', en: '€/month' }],
-  ['EUR/order', { ro: '€/comandă', nl: '€/order', de: '€/Auftrag', en: '€/order' }],
-  ['EUR/trip', { ro: '€/cursă', nl: '€/rit', de: '€/Fahrt', en: '€/trip' }],
+export const UNIT_ROWS: Array<[string, Record<ReportLocale, string>]> = [
+  ['EUR', { ro: '€', nl: '€', fr: '€', de: '€', en: '€' }],
+  ['EUR/km', { ro: '€/km', nl: '€/km', fr: '€/km', de: '€/km', en: '€/km' }],
+  ['EUR/month', { ro: '€/lună', nl: '€/maand', fr: '€/mois', de: '€/Monat', en: '€/month' }],
+  ['EUR/order', { ro: '€/comandă', nl: '€/order', fr: '€/commande', de: '€/Auftrag', en: '€/order' }],
+  ['EUR/trip', { ro: '€/cursă', nl: '€/rit', fr: '€/course', de: '€/Fahrt', en: '€/trip' }],
 ];
 
 const UNIT_DICT: Record<string, Record<ReportLocale, string>> = {};

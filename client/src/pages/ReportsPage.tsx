@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, FileSpreadsheet, FileText, History, Bookmark, CalendarClock, Download, Play, Trash2,
@@ -26,7 +26,7 @@ function mapColumns(cols: any[]): ReportColumn[] {
   return (cols || []).map(c => ({
     key: c.key,
     label: c.header || c.label,
-    align: c.type === 'currency' || c.type === 'number' || c.type === 'percent' ? 'right' : 'left',
+    align: 'center',
     type: (['currency', 'percent', 'number', 'date'].includes(c.type) ? c.type : 'text') as any,
   }));
 }
@@ -59,14 +59,30 @@ export default function ReportsPage() {
   const [customFrom, setCustomFrom] = useState(now.toISOString().slice(0, 10));
   const [customTo, setCustomTo] = useState(now.toISOString().slice(0, 10));
 
+  const [clients, setClients] = useState<any[]>([]);
+  const [trucks, setTrucks] = useState<any[]>([]);
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [clientId, setClientId] = useState('all');
+  const [truckId, setTruckId] = useState('all');
+  const [driverId, setDriverId] = useState('all');
+  const [modal, setModal] = useState<null | { kind: 'save' | 'schedule'; name: string }>(null);
+
   const currentFilters = () => {
     const r = computeRange(rangeType, customFrom, customTo);
-    return { from: r.from, to: r.to, granularity };
+    const f: any = { from: r.from, to: r.to, granularity };
+    if (clientId && clientId !== 'all') f.clientId = clientId;
+    if (truckId && truckId !== 'all') f.truckId = truckId;
+    if (driverId && driverId !== 'all') f.driverId = driverId;
+    return f;
   };
 
   const filtersFor = (filters: any) => {
     const r = computeRange(rangeType, customFrom, customTo);
-    return { from: r.from, to: r.to, granularity, ...(filters || {}) };
+    const f: any = { from: r.from, to: r.to, granularity, ...(filters || {}) };
+    if (clientId && clientId !== 'all' && !f.clientId) f.clientId = clientId;
+    if (truckId && truckId !== 'all' && !f.truckId) f.truckId = truckId;
+    if (driverId && driverId !== 'all' && !f.driverId) f.driverId = driverId;
+    return f;
   };
 
   const loadCatalog = () => {
@@ -85,7 +101,30 @@ export default function ReportsPage() {
     api.get('/reports/scheduled').then(r => setScheduled(r.data || [])).catch(() => {});
   };
 
-  useEffect(() => { loadCatalog(); loadHistory(); loadSaved(); loadScheduled(); }, []);
+  useEffect(() => {
+    loadCatalog();
+    loadHistory();
+    loadSaved();
+    loadScheduled();
+    api.get('/analytics/customers').then(r => setClients((r.data?.customers || []).map((c: any) => ({ id: c.id, name: c.name })))).catch(() => {});
+    api.get('/analytics/fleet').then(r => setTrucks((r.data?.trucks || []).map((c: any) => ({ id: c.id, name: c.name })))).catch(() => {});
+    api.get('/analytics/drivers').then(r => setDrivers((r.data?.drivers || []).map((c: any) => ({ id: c.id, name: c.name })))).catch(() => {});
+  }, [i18n.language]);
+
+  useEffect(() => {
+    if (activeKey) runPreview(activeKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i18n.language]);
+
+  const prevActiveRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (activeKey && prevActiveRef.current === activeKey) {
+      const t = setTimeout(() => runPreview(activeKey), 250);
+      return () => clearTimeout(t);
+    }
+    prevActiveRef.current = activeKey;
+  }, [clientId, truckId, driverId, activeKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const runPreview = (reportKey: string) => {
     setActiveKey(reportKey);
@@ -123,11 +162,17 @@ export default function ReportsPage() {
 
   const saveCurrent = async () => {
     if (!activeKey) return;
-    const nm = window.prompt(t('rp_save_name') as string) || '';
-    if (!nm.trim()) return;
+    setModal({ kind: 'save', name: '' });
+  };
+
+  const confirmSave = async () => {
+    if (!activeKey || !modal) return;
+    const nm = modal.name.trim();
+    if (!nm) return;
     try {
-      await api.post('/reports/saved', { name: nm, reportKey: activeKey, filters: currentFilters(), format: 'xlsx' });
+      await api.post('/reports/saved', { name: nm, reportKey: activeKey, filters: currentFilters(), format: 'xlsx', locale: i18n.language });
       toast.success(t('an_saved_ok'));
+      setModal(null);
       loadSaved();
     } catch { toast.error(t('an_save_error')); }
   };
@@ -139,11 +184,17 @@ export default function ReportsPage() {
 
   const createSchedule = async () => {
     if (!activeKey) return;
-    const nm = window.prompt(t('rp_schedule_name') as string) || '';
-    if (!nm.trim()) return;
+    setModal({ kind: 'schedule', name: '' });
+  };
+
+  const confirmSchedule = async () => {
+    if (!activeKey || !modal) return;
+    const nm = modal.name.trim();
+    if (!nm) return;
     try {
-      await api.post('/reports/scheduled', { name: nm, reportKey: activeKey, filters: currentFilters(), format: 'xlsx', frequency: 'weekly' });
+      await api.post('/reports/scheduled', { name: nm, reportKey: activeKey, filters: currentFilters(), format: 'xlsx', frequency: 'weekly', locale: i18n.language });
       toast.success(t('an_schedule_created'));
+      setModal(null);
       loadScheduled();
     } catch (e: any) { toast.error(e?.response?.data?.message || t('an_save_error')); }
   };
@@ -207,6 +258,22 @@ export default function ReportsPage() {
           onCustomFrom={setCustomFrom} onCustomTo={setCustomTo}
           granularity={granularity} onGranularity={setGranularity}
         />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 card !p-3">
+        <span className="text-xs font-black uppercase tracking-wider text-text-secondary">{t('rp_filter_title')}</span>
+        <select value={clientId} onChange={e => setClientId(e.target.value)} title={t('rp_filter_client')} className="input !py-2 text-sm bg-surface/60">
+          <option value="all">{t('rp_filter_client')}</option>
+          {clients.slice(0, 300).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select value={truckId} onChange={e => setTruckId(e.target.value)} title={t('rp_filter_truck')} className="input !py-2 text-sm bg-surface/60">
+          <option value="all">{t('rp_filter_truck')}</option>
+          {trucks.slice(0, 200).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select value={driverId} onChange={e => setDriverId(e.target.value)} title={t('rp_filter_driver')} className="input !py-2 text-sm bg-surface/60">
+          <option value="all">{t('rp_filter_driver')}</option>
+          {drivers.slice(0, 200).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
       </div>
 
       <div className="flex gap-2 bg-surface/60 p-1 rounded-2xl border border-border/60 w-fit">
@@ -447,6 +514,38 @@ export default function ReportsPage() {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {modal && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setModal(null)} />
+          <div className="relative w-full max-w-md card !p-6 animate-fade-in shadow-2xl">
+            <h3 className="text-lg font-black text-text mb-1">
+              {modal.kind === 'save' ? t('rp_save_dialog') : t('rp_schedule_dialog')}
+            </h3>
+            <p className="text-xs text-text-secondary mb-4">
+              {modal.kind === 'save' ? t('rp_save_dialog_sub') : t('rp_schedule_dialog_sub')}
+            </p>
+            <input
+              autoFocus
+              value={modal.name}
+              onChange={e => setModal({ ...modal, name: e.target.value })}
+              onKeyDown={e => { if (e.key === 'Enter') modal.kind === 'save' ? confirmSave() : confirmSchedule(); }}
+              placeholder={modal.kind === 'save' ? t('rp_save_name') : t('rp_schedule_name')}
+              className="input w-full mb-5"
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setModal(null)} className="btn-secondary !px-4 !py-2 text-xs">{t('cancel')}</button>
+              <button
+                onClick={() => modal.kind === 'save' ? confirmSave() : confirmSchedule()}
+                disabled={!modal.name.trim()}
+                className="btn-primary !px-4 !py-2 text-xs"
+              >
+                {modal.kind === 'save' ? t('save') : t('confirm')}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

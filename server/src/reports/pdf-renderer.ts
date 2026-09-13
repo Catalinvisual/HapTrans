@@ -106,11 +106,10 @@ export function renderReportHtml(p: ReportPayload, locale?: string): string {
   .chart-box { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; background: #fff; }
   .chart-box svg { width: 100%; height: auto; display: block; }
   table { width: 100%; border-collapse: collapse; font-size: 11px; }
-  th { background: #1d4e89; color: #fff; text-align: left; padding: 6px 8px; font-weight: 600; }
-  td { padding: 5px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  th { background: #1d4e89; color: #fff; text-align: center; padding: 6px 8px; font-weight: 600; }
+  td { padding: 5px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; text-align: center; }
   tr:nth-child(even) td { background: #f9fafb; }
-  td.t-currency, td.t-number { text-align: right; font-variant-numeric: tabular-nums; }
-  td.t-percent { text-align: right; font-variant-numeric: tabular-nums; }
+  td.t-currency, td.t-number, td.t-percent { font-variant-numeric: tabular-nums; }
   td.t-date { white-space: nowrap; }
   .footer { margin-top: 24px; font-size: 10px; color: #9ca3af; }
 </style>
