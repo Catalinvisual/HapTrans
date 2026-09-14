@@ -10,7 +10,7 @@ import { Workbook } from 'exceljs';
 import type { Browser } from 'puppeteer-core';
 import { ReportPayload, ReportTable, ReportColumn, ReportChart, ReportChartPng } from './reports.catalog';
 import { localizeText } from './reports-i18n';
-import { renderChartPng } from './chart-renderer';
+import { renderChartPng, imageSize } from './chart-renderer';
 
 const HEADER_FILL = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFEA580C' } };
 const HEADER_FONT = { bold: true as const, color: { argb: 'FFFFFFFF' }, size: 11 };
@@ -74,9 +74,23 @@ export async function buildReportWorkbook(p: ReportPayload, _browser?: Browser, 
         }
       }
       if (buffer && ext) {
+        // NOTE: exceljs expects `ext` in PIXELS (it converts to EMU internally),
+        // so the previous `* 9525` made the logo ~1.2M px wide and invisible.
+        const dims = await imageSize(buffer);
+        let logoW = 128;
+        let logoH = 36;
+        if (dims) {
+          const ratio = dims.width / dims.height;
+          logoH = 40;
+          logoW = Math.round(logoH * ratio);
+          if (logoW > 240) {
+            logoW = 240;
+            logoH = Math.round(logoW / ratio);
+          }
+        }
         const imageId = wb.addImage({ buffer: buffer as any, extension: ext });
-        kpiSheet.addImage(imageId, { tl: { col: 0, row: 0 }, ext: { width: 128 * 9525, height: 36 * 9525 } });
-        kpiSheet.getRow(1).height = 42;
+        kpiSheet.addImage(imageId, { tl: { col: 0, row: 0 }, ext: { width: logoW, height: logoH } });
+        kpiSheet.getRow(1).height = Math.max(42, logoH + 8);
       } else {
         kpiSheet.getRow(1).height = 12;
       }
@@ -142,7 +156,11 @@ export async function buildReportWorkbook(p: ReportPayload, _browser?: Browser, 
   // ---- Charts sheet (PNG images; client-provided PNGs are preferred, else
       // rendered server-side with sharp — no browser required) ----
   if (p.charts && p.charts.length) {
-    await addChartsSheet(wb, p.charts, locale, p.chartPngs);
+    try {
+      await addChartsSheet(wb, p.charts, locale, p.chartPngs);
+    } catch (e) {
+      console.error('Failed to build charts sheet in Excel:', e);
+    }
   }
 
   return wb;
@@ -170,8 +188,10 @@ async function addChartsSheet(wb: Workbook, charts: ReportChart[], locale?: stri
       title.value = c.title;
       title.font = { bold: true, size: 12, color: { argb: ORANGE } };
       ws.getRow(row).height = 18;
+      // exceljs `ext` is in pixels (converted to EMU internally). The previous
+      // `* 9525` scaled every chart to ~5.7M px wide, making it invisible.
       const imageId = wb.addImage({ buffer: png as unknown as any, extension: 'png' });
-      ws.addImage(imageId, { tl: { col: 1, row: row - 1 }, ext: { width: 600 * 9525, height: 188 * 9525 } });
+      ws.addImage(imageId, { tl: { col: 1, row: row - 1 }, ext: { width: 600, height: 188 } });
       row += 13;
     } catch (e) {
       // A chart image failure must never fail the whole workbook.

@@ -1,13 +1,14 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, StreamableFile, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { promises as fs } from 'fs';
+import { promises as fs, existsSync } from 'fs';
 import { isAbsolute, join } from 'path';
 import { createReadStream } from 'fs';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { AnalyticsFilters } from '../analytics/filters.dto';
 import { PdfService } from '../invoices/pdf.service';
 import { ActionLogsService } from '../action-logs/action-logs.service';
+import { UserRole } from '../users/user.entity';
 import {
   REPORT_CATALOG, getReportDef, reportAllowedForUser, ReportDef, ReportPayload,
 } from './reports.catalog';
@@ -183,12 +184,48 @@ export class ReportsService {
   getHistoryStream(rec: ReportHistory): StreamableFile {
     if (!rec.filePath) throw new NotFoundException('Report file not generated');
     const abs = join(UPLOADS_ROOT, rec.filePath);
+    if (!existsSync(abs)) throw new NotFoundException(`Report file missing on this instance: ${rec.filePath}`);
     const ext = rec.format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    const fallbackName = `report.${rec.format}`;
+    const safeName = String(rec.fileName || fallbackName).replace(/"/g, "'");
     const stream = createReadStream(abs);
+    stream.on('error', (err: any) => {
+      this.logger.error(`Download ${rec.id} failed: ${err?.message} (${abs})`);
+    });
     return new StreamableFile(stream, {
       type: ext,
-      disposition: `attachment; filename="${rec.fileName || `report.${rec.format}`}"`,
+      disposition: `attachment; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(safeName)}`,
     });
+  }
+
+  // On container platforms (Railway/Render) local storage is ephemeral and can
+  // be split across multiple instances, so a stored report file can be missing
+  // when the download request lands on another instance. Regenerate on the fly.
+  async ensureHistoryStream(rec: ReportHistory): Promise<StreamableFile> {
+    const abs = rec.filePath ? join(UPLOADS_ROOT, rec.filePath) : '';
+    if (rec.filePath && existsSync(abs)) return this.getHistoryStream(rec);
+    if (rec.reportKey) {
+      try {
+        this.logger.warn(`Report file missing for history ${rec.id}, regenerating…`);
+        const res = await this.generate(
+          {
+            reportKey: rec.reportKey,
+            filters: rec.filters || {},
+            format: rec.format === 'pdf' ? 'pdf' : 'xlsx',
+            locale: rec.locale || 'en',
+            system: true,
+          },
+          { id: rec.userId ?? undefined, companyId: rec.companyId ?? undefined, role: UserRole.ADMIN },
+        );
+        const fresh = await this.getHistory(res.historyId, { companyId: rec.companyId });
+        if (fresh?.filePath && existsSync(join(UPLOADS_ROOT, fresh.filePath))) {
+          return this.getHistoryStream(fresh);
+        }
+      } catch (e) {
+        this.logger.error(`Regenerate failed for history ${rec.id}: ${(e as Error).message}`);
+      }
+    }
+    throw new NotFoundException('Report file not available');
   }
 
   // -------------------------------------------------------------------------

@@ -47,6 +47,17 @@ export async function renderChartPng(_browser: unknown, chart: ReportChart): Pro
   return await sharp(withSize(svg, true), { density: 144 }).png().toBuffer();
 }
 
+export async function imageSize(buffer: Buffer): Promise<{ width: number; height: number } | null> {
+  try {
+    const sharp = getSharp();
+    const meta = await sharp(buffer).metadata();
+    if (meta?.width && meta?.height) return { width: meta.width, height: meta.height };
+  } catch {
+    // sharp unavailable / unreadable buffer: callers fall back to a default box.
+  }
+  return null;
+}
+
 export async function renderChartsToPngs(_browser: unknown, charts: ReportChart[]): Promise<Buffer[]> {
   const out: Buffer[] = [];
   for (const c of charts) {

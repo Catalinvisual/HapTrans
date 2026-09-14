@@ -14,7 +14,7 @@ export interface ChartSpec {
   series: ChartSeries[];
 }
 
-const PALETTE = ['#ff6d00', '#00c853', '#ffd000', '#ff1744', '#ff9100', '#ff6d00'];
+const PALETTE = ['#ff9800', '#00e676', '#ffdd00', '#ff5252', '#ffb74d', '#ff9800'];
 const FONT = "'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
 
 function esc(s: any): string {
@@ -195,7 +195,12 @@ export function chartToSvg(chart: ChartSpec): string {
 // its Charts sheet regardless of server-side rasterisation support).
 export async function chartToPngDataUrl(chart: ChartSpec): Promise<string | null> {
   try {
-    const svg = chartToSvg(chart);
+    // Some browsers won't rasterise an SVG that only has a viewBox, so force an
+    // explicit pixel size on the root element before loading it as an image.
+    const svg = chartToSvg(chart).replace(/<svg\b([^>]*)>/, (_m, attrs) => {
+      const clean = String(attrs).replace(/\s(width|height)="[^"]*"/g, '');
+      return `<svg${clean} width="1200" height="375">`;
+    });
     const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const img = new Image();

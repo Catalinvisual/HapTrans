@@ -44,7 +44,7 @@ export class ReportsController {
   @Get('history/:id/download')
   async download(@Param('id') id: string, @Req() req: any) {
     const rec = await this.service.getHistory(id, req.user);
-    return this.service.getHistoryStream(rec);
+    return this.service.ensureHistoryStream(rec);
   }
 
   // ---- Saved report configurations ----------------------------------------
