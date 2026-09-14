@@ -14,7 +14,7 @@ export interface ChartSpec {
   series: ChartSeries[];
 }
 
-const PALETTE = ['#ff9800', '#00e676', '#ffdd00', '#ff5252', '#ffb74d', '#ff9800'];
+const PALETTE = ['#ff9100', '#00e676', '#ffd400', '#ff5252', '#ffb74d', '#ff9100'];
 const FONT = "'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
 
 function esc(s: any): string {
@@ -66,8 +66,12 @@ function lineSvg(c: ChartSpec): string {
   c.series.forEach((s, si) => {
     const color = s.color || PALETTE[si % PALETTE.length];
     const pts = s.values.map((v, i) => p(v, i)).join(' ');
-    g += `<polygon points="${`${L},${T + ph}`} ${pts} ${`${x(n - 1).toFixed(1)},${T + ph}`}" fill="${color}" opacity="0.08"/>`;
-    g += `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+    // Only shade the area for single-series charts: stacked translucent fills in
+    // multi-series charts blend into a muddy colour and dull the lines.
+    if (c.series.length === 1) {
+      g += `<polygon points="${`${L},${T + ph}`} ${pts} ${`${x(n - 1).toFixed(1)},${T + ph}`}" fill="${color}" opacity="0.12"/>`;
+    }
+    g += `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
     const from = Math.max(0, n - 12);
     for (let i = from; i < n; i++) {
       g += `<circle cx="${x(i).toFixed(1)}" cy="${y(s.values[i]).toFixed(1)}" r="2.8" fill="#ffffff" stroke="${color}" stroke-width="2"/>`;

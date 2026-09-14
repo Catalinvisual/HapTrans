@@ -14,9 +14,9 @@ describe('chart-renderer (sharp-based PNG rendering, no browser required)', () =
       kind: 'line',
       labels: ['2026-08-15', '2026-08-18', '2026-08-21', '2026-08-24', '2026-08-27', '2026-08-30', '2026-09-02', '2026-09-05', '2026-09-08', '2026-09-11'],
       series: [
-        { name: 'Orders', values: [5, 4, 6, 3, 7, 8, 5, 6, 7, 4], color: '#ff9800' },
+        { name: 'Orders', values: [5, 4, 6, 3, 7, 8, 5, 6, 7, 4], color: '#ff9100' },
         { name: 'Delivered', values: [3, 2, 4, 2, 5, 6, 4, 5, 6, 3], color: '#00e676' },
-        { name: 'On-time', values: [2, 2, 3, 2, 4, 5, 3, 4, 5, 3], color: '#ffdd00' },
+        { name: 'On-time', values: [2, 2, 3, 2, 4, 5, 3, 4, 5, 3], color: '#ffd400' },
         { name: 'Late', values: [1, 0, 1, 0, 1, 1, 1, 1, 1, 0], color: '#ff5252' },
       ],
     };
@@ -88,16 +88,33 @@ describe('chart-renderer (sharp-based PNG rendering, no browser required)', () =
       kind: 'line',
       labels: ['a', 'b', 'c'],
       series: [
-        { name: 'Orders', values: [1, 2, 3], color: '#ff9800' },
+        { name: 'Orders', values: [1, 2, 3], color: '#ff9100' },
         { name: 'Delivered', values: [2, 3, 4], color: '#00e676' },
-        { name: 'On-time', values: [3, 4, 5], color: '#ffdd00' },
+        { name: 'On-time', values: [3, 4, 5], color: '#ffd400' },
         { name: 'Late', values: [0, 1, 0], color: '#ff5252' },
       ],
     } as any;
     const svg = buildChartSvg(chart);
-    for (const c of ['#ff9800', '#00e676', '#ffdd00', '#ff5252']) {
+    for (const c of ['#ff9100', '#00e676', '#ffd400', '#ff5252']) {
       expect(svg).toContain(c);
     }
+    // Multi-series trend lines must stay crisp: no stacked translucent area
+    // fills (they blended into a muddy/dark colour in the generated PDF).
+    expect(svg).not.toContain('<polygon');
+    expect(svg).toContain('stroke-width="3"');
+  });
+
+  it('keeps a light area fill for single-series line charts', () => {
+    const chart: any = {
+      key: 'revenueTrend',
+      title: 'Revenue',
+      kind: 'line',
+      labels: ['a', 'b', 'c'],
+      series: [{ name: 'Revenue', values: [1, 2, 3], color: '#ff9100' }],
+    } as any;
+    const svg = buildChartSvg(chart);
+    expect(svg).toContain('<polygon');
+    expect(svg).toContain('opacity="0.12"');
   });
 
   it('renders a bar chart and a donut chart without a browser', async () => {
