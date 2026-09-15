@@ -4,6 +4,7 @@ import { Navigation, Truck, Map as MapIcon, Search } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import api from '../lib/api';
+import { matchesSearch } from '../lib/search';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 const DRIVER_TRANSLATIONS: Record<string, string> = {
@@ -324,16 +325,13 @@ export default function LiveMapPage() {
   };
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return;
-    let foundTruck = trucks.find(t => (t.plateNumber || '').toLowerCase().includes(query));
+    const q = searchQuery.trim();
+    if (!q) return;
+    let foundTruck = trucks.find(t => matchesSearch(q, t.plateNumber));
     if (!foundTruck) {
       const foundTrip = tripsList.find(t => {
         if (t.status !== 'in_progress' && t.status !== 'confirmed') return false;
-        const ref = t.referenceNumber?.toLowerCase() || '';
-        const pickupCity = t.pickup?.city?.toLowerCase() || '';
-        const dropoffCity = t.dropoff?.city?.toLowerCase() || '';
-        return ref.includes(query) || pickupCity.includes(query) || dropoffCity.includes(query);
+        return matchesSearch(q, t.referenceNumber, t.pickup?.city, t.dropoff?.city);
       });
       if (foundTrip && foundTrip.truck) {
         foundTruck = trucks.find(tr => tr.id === foundTrip.truck.id) || foundTrip.truck;

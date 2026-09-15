@@ -19,6 +19,7 @@ import type { SelectOption } from "../components/CustomSelect";
 import ExportModal from "../components/ExportModal";
 import { useSettingsStore } from '../store/settingsStore';
 import { generateTrailerPdf } from '../lib/pdfGenerator';
+import { matchesSearch } from '../lib/search';
 import { FileText, Calendar, Clock } from 'lucide-react';
 import ActivityTimeline from '../components/ActivityTimeline';
 import Flatpickr from 'react-flatpickr';
@@ -141,8 +142,7 @@ export default function TrailersPage() {
   const filtered = useMemo(() => {
     let list = [...trailers];
     if (search) {
-      const q = search.toLowerCase();
-      list = list.filter((x) => (x.plateNumber || "").toLowerCase().includes(q) || (x.brand || "").toLowerCase().includes(q));
+      list = list.filter((x) => matchesSearch(search, x.plateNumber, x.brand));
     }
     if (filters.status !== "all") list = list.filter((x) => x.status === filters.status);
     if (filters.type !== "all") list = list.filter((x) => x.type === filters.type);

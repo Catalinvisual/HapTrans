@@ -21,6 +21,7 @@ import type { SelectOption } from '../components/CustomSelect';
 import ExportModal from '../components/ExportModal';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateTruckPdf } from '../lib/pdfGenerator';
+import { matchesSearch } from '../lib/search';
 import { FileText, Calendar, Clock } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Flatpickr from 'react-flatpickr';
@@ -246,15 +247,10 @@ export default function TrucksPage() {
   ], [trailers, trucks, editId, t]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
     return trucks.filter(tr => {
       if (filters.status !== 'all' && tr.status !== filters.status) return false;
       if (filters.type !== 'all' && (tr.truckType || 'tautliner') !== filters.type) return false;
-      if (q) {
-        const hay = [tr.plateNumber, tr.brand, tr.model, tr.truckType, tr.euronorm, driverName(tr.driver)].filter(Boolean).join(' ').toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
+      return matchesSearch(search, tr.plateNumber, tr.brand, tr.model, tr.truckType, tr.euronorm, driverName(tr.driver));
     });
   }, [trucks, search, filters]);
 

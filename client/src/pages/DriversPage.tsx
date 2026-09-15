@@ -8,6 +8,7 @@ import api from '../lib/api';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
+import { matchesSearch } from '../lib/search';
 import { fmtMoney } from '../lib/format';
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
@@ -219,8 +220,7 @@ export default function DriversPage() {
     if (filters.status === 'off') {
       if (!['off', 'sick', 'vacation'].includes(d.status)) return false;
     } else if (filters.status !== 'all' && d.status !== filters.status) return false;
-    const query = search.toLowerCase();
-    return (d.user?.name || '').toLowerCase().includes(query) || (d.user?.email || '').toLowerCase().includes(query) || (d.licenseNumber || '').toLowerCase().includes(query) || (d.phone || '').toLowerCase().includes(query) || (d.status || '').toLowerCase().includes(query);
+    return matchesSearch(search, d.user?.name, d.user?.email, d.licenseNumber, d.phone, d.status);
   }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()), [drivers, search, filters]);
 
   const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);

@@ -394,20 +394,24 @@ export class PlanningService {
       if (statuses.length) orderQb.andWhere('order.status IN (:...stat)', { stat: statuses });
     }
     if (search) {
-      const like = `%${search}%`;
-      orderQb.andWhere(
-        new Brackets((b) => {
-          b.where('order."orderNumber" ILIKE :q', { q: like })
-            .orWhere('order."customerReference" ILIKE :q', { q: like })
-            .orWhere('order."internalReference" ILIKE :q', { q: like })
-            .orWhere('order."loadingReference" ILIKE :q', { q: like })
-            .orWhere('client.name ILIKE :q', { q: like })
-            .orWhere('stops.address ILIKE :q', { q: like })
-            .orWhere('stops.city ILIKE :q', { q: like })
-            .orWhere('stops.postalCode ILIKE :q', { q: like })
-            .orWhere('stops.country ILIKE :q', { q: like });
-        }),
-      );
+      const tokens = search.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+      tokens.forEach((token: string, idx: number) => {
+        const like = `%${token}%`;
+        const pk = `q${idx}`;
+        orderQb.andWhere(
+          new Brackets((b) => {
+            b.where(`order."orderNumber" ILIKE :${pk}`, { [pk]: like })
+              .orWhere(`order."customerReference" ILIKE :${pk}`, { [pk]: like })
+              .orWhere(`order."internalReference" ILIKE :${pk}`, { [pk]: like })
+              .orWhere(`order."loadingReference" ILIKE :${pk}`, { [pk]: like })
+              .orWhere(`client.name ILIKE :${pk}`, { [pk]: like })
+              .orWhere(`stops.address ILIKE :${pk}`, { [pk]: like })
+              .orWhere(`stops.city ILIKE :${pk}`, { [pk]: like })
+              .orWhere(`stops.postalCode ILIKE :${pk}`, { [pk]: like })
+              .orWhere(`stops.country ILIKE :${pk}`, { [pk]: like });
+          }),
+        );
+      });
     }
 
     const orders = await orderQb.orderBy('order.createdAt', 'ASC').offset(offset).limit(limit).getMany();
@@ -532,20 +536,24 @@ export class PlanningService {
       if (statuses.length) orderQb.andWhere('order.status IN (:...stat)', { stat: statuses });
     }
     if (search) {
-      const like = `%${search}%`;
-      orderQb.andWhere(
-        new Brackets((b) => {
-          b.where('order."orderNumber" ILIKE :q', { q: like })
-            .orWhere('order."customerReference" ILIKE :q', { q: like })
-            .orWhere('order."internalReference" ILIKE :q', { q: like })
-            .orWhere('order."loadingReference" ILIKE :q', { q: like })
-            .orWhere('client.name ILIKE :q', { q: like })
-            .orWhere('stops.address ILIKE :q', { q: like })
-            .orWhere('stops.city ILIKE :q', { q: like })
-            .orWhere('stops.postalCode ILIKE :q', { q: like })
-            .orWhere('stops.country ILIKE :q', { q: like });
-        }),
-      );
+      const tokens = search.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+      tokens.forEach((token: string, idx: number) => {
+        const like = `%${token}%`;
+        const pk = `q${idx}`;
+        orderQb.andWhere(
+          new Brackets((b) => {
+            b.where(`order."orderNumber" ILIKE :${pk}`, { [pk]: like })
+              .orWhere(`order."customerReference" ILIKE :${pk}`, { [pk]: like })
+              .orWhere(`order."internalReference" ILIKE :${pk}`, { [pk]: like })
+              .orWhere(`order."loadingReference" ILIKE :${pk}`, { [pk]: like })
+              .orWhere(`client.name ILIKE :${pk}`, { [pk]: like })
+              .orWhere(`stops.address ILIKE :${pk}`, { [pk]: like })
+              .orWhere(`stops.city ILIKE :${pk}`, { [pk]: like })
+              .orWhere(`stops.postalCode ILIKE :${pk}`, { [pk]: like })
+              .orWhere(`stops.country ILIKE :${pk}`, { [pk]: like });
+          }),
+        );
+      });
     }
     const totalUnplanned = await orderQb.getCount();
     const orders = await orderQb.orderBy('order.createdAt', 'ASC').offset(offset).limit(limit).getMany();

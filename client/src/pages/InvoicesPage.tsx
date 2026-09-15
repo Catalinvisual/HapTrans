@@ -10,6 +10,7 @@ import ExportModal from '../components/ExportModal';
 import { generateInvoicePdfBase64 } from '../lib/invoicePdfGenerator';
 import { formatDate } from '../lib/dateUtils';
 import { fmtMoney } from '../lib/format';
+import { matchesSearch } from '../lib/search';
 import CustomSelect from '../components/CustomSelect';
 import ConfirmModal from '../components/ConfirmModal';
 import { getCompanySettings } from "../store/settingsStore";
@@ -546,10 +547,7 @@ export default function InvoicesPage({
     }
   };
   const displayInvoices = embeddedClientId ? invoices.filter((inv: any) => inv.client?.id === embeddedClientId) : invoices;
-  const filtered = displayInvoices.filter(i => {
-    const query = search.toLowerCase();
-    return (i.invoiceNumber || '').toLowerCase().includes(query) || (i.client?.name || '').toLowerCase().includes(query) || (i.status || '').toLowerCase().includes(query) || (i.notes || '').toLowerCase().includes(query) || String(i.amount || '').includes(query);
-  }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  const filtered = displayInvoices.filter(i => matchesSearch(search, i.invoiceNumber, i.client?.name, i.status, i.notes, i.amount)).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   useShortcuts({
     'shift+n': () => {

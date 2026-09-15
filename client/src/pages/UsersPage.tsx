@@ -6,6 +6,7 @@ import api from '../lib/api';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import CustomSelect from '../components/CustomSelect';
+import { matchesSearch } from '../lib/search';
 import { navItems } from '../components/Sidebar';
 import Pagination from '../components/Pagination';
 import { useShortcuts } from '../hooks/useShortcuts';
@@ -149,10 +150,7 @@ export default function UsersPage() {
     dispatcher: 'badge-primary',
     driver: 'badge-success'
   };
-  const filtered = users.filter(u => {
-    const query = search.toLowerCase();
-    return (u.name || '').toLowerCase().includes(query) || (u.email || '').toLowerCase().includes(query) || (u.role || '').toLowerCase().includes(query) || (u.language || '').toLowerCase().includes(query);
-  });
+  const filtered = users.filter(u => matchesSearch(search, u.name, u.email, u.role, u.language));
   const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   useShortcuts({
     'shift+n': () => {

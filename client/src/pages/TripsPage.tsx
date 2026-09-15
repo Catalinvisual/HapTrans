@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Truck, Search, Loader2, FileText, Trash2, Download, ExternalLink, Activity, Calendar, Coins, Route as RouteIcon, User, Send, Boxes, Gauge, Clock, Wallet, Receipt, Banknote } from 'lucide-react';
 import api from '../lib/api';
 import { fmtNumber, fmtMoney, fmtKm, fmtPercent } from '../lib/format';
+import { matchesSearch } from '../lib/search';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import ConfirmModal from '../components/ConfirmModal';
 import Pagination from '../components/Pagination';
@@ -126,12 +127,8 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
   const base = useMemo(() => embeddedClientId ? trips.filter(tr => tr.orders?.some((o: any) => o.client?.id === embeddedClientId) || tr.client?.id === embeddedClientId) : trips, [trips, embeddedClientId]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
     return base.filter(tr => {
-      if (q) {
-        const hay = [tr.tripNumber, tr.truck?.plateNumber, tDriverName(tr), tPickup(tr)?.city, tDropoff(tr)?.city, tr.orders?.map((o: any) => o.orderNumber || o.referenceNumber).join(' ')].filter(Boolean).join(' ').toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
+      if (!matchesSearch(search, tr.tripNumber, tr.truck?.plateNumber, tDriverName(tr), tPickup(tr)?.city, tDropoff(tr)?.city, tr.orders?.map((o: any) => o.orderNumber || o.referenceNumber).join(' '))) return false;
       if (filters.status !== 'all') {
         if (filters.status === 'active' && !TRIP_ACTIVE.includes(tr.status)) return false;
         if (filters.status === 'planning' && !TRIP_PLANNING.includes(tr.status)) return false;

@@ -4,6 +4,7 @@ import { Search, Package, MapPin, Calendar, ArrowRight } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import portalApi from '../../lib/portalApi';
 import { formatDate } from '../../lib/dateUtils';
+import { matchesSearch } from '../../lib/search';
 import FilterDropdown from '../../components/FilterDropdown';
 import Pagination from '../../components/Pagination';
 import RapidTransportModal from '../../components/RapidTransportModal';
@@ -27,8 +28,7 @@ export default function PortalOrdersPage() {
     });
   }, []);
   const filteredOrders = orders.filter(o => {
-    const s = search.toLowerCase();
-    const matchSearch = o.referenceNumber?.toLowerCase().includes(s) || o.pickupCity?.toLowerCase().includes(s) || o.deliveryCity?.toLowerCase().includes(s);
+    const matchSearch = matchesSearch(search, o.referenceNumber, o.pickupCity, o.deliveryCity);
     if (!matchSearch) return false;
     if (filter === 'active') return ['pending', 'assigned', 'in-transit'].includes(o.status);
     if (filter === 'completed') return o.status === 'delivered';

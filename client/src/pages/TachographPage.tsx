@@ -14,6 +14,7 @@ import {
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { fmtNumber } from '../lib/format';
+import { matchesSearch } from '../lib/search';
 import CustomSelect, { type SelectOption } from '../components/CustomSelect';
 
 export default function TachographPage() {
@@ -49,9 +50,7 @@ export default function TachographPage() {
   };
 
   const filtered = tachographList.filter((item) => {
-    const matchSearch =
-      item.plateNumber?.toLowerCase().includes(search.toLowerCase()) ||
-      item.driverName?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = matchesSearch(search, item.plateNumber, item.driverName);
     const matchAct = activityFilter === 'ALL' || item.currentActivity === activityFilter;
     return matchSearch && matchAct;
   });

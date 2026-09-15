@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 
 import CustomSelect from '../components/CustomSelect';
 import { generatePayrollPdfBase64 } from '../lib/payrollPdfGenerator';
+import { matchesSearch } from '../lib/search';
 import Pagination from '../components/Pagination';
 import { useSaveConfirm } from '../components/SaveConfirmProvider';
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -85,10 +86,7 @@ export default function PayrollPage() {
       });
     }
   };
-  const filtered = payrolls.filter(p => {
-    const q = search.toLowerCase();
-    return (p.user?.name || '').toLowerCase().includes(q);
-  });
+  const filtered = payrolls.filter(p => matchesSearch(search, p.user?.name));
   return <div className="space-y-5 animate-fade-in">
       <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
         <div className="p-4 border-b border-border flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">

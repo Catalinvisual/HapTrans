@@ -7,6 +7,7 @@ import api from '../lib/api';
 import { fmtMoney } from '../lib/format';
 import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
+import { matchesSearch } from '../lib/search';
 import CustomSelect from '../components/CustomSelect';
 import Pagination from '../components/Pagination';
 import ConfirmModal from '../components/ConfirmModal';
@@ -155,7 +156,7 @@ export default function MaintenancePage() {
 
   const filtered = records.filter(r => {
     const matchTruck = truckFilter === 'all' || (r.truck?.id === truckFilter);
-    const matchSearch = (r.truck?.plateNumber || '').toLowerCase().includes(search.toLowerCase()) || (r.description || '').toLowerCase().includes(search.toLowerCase());
+    const matchSearch = matchesSearch(search, r.truck?.plateNumber, r.description);
     return matchTruck && matchSearch;
   });
 

@@ -25,6 +25,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateOrderPdf } from '../lib/pdfGenerator';
 import { fmtMoney, fmtNumber } from '../lib/format';
+import { matchesSearch } from '../lib/search';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 
@@ -142,12 +143,8 @@ export default function OrdersPage() {
   }, [orders, t]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
     return orders.filter(o => {
-      if (q) {
-        const hay = [o.orderNumber, o.referenceNumber, o.customerReference, o.client?.name, o.contactPerson, o.notes].filter(Boolean).join(' ').toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
+      if (!matchesSearch(search, o.orderNumber, o.referenceNumber, o.customerReference, o.client?.name, o.contactPerson, o.notes)) return false;
       if (filters.status !== 'all' && o.status !== filters.status) return false;
       if (filters.client !== 'all' && o.client?.id !== filters.client) return false;
       if (filters.type !== 'all' && (o.transportType || 'ftl') !== filters.type) return false;

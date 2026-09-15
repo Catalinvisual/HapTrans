@@ -5,6 +5,7 @@ import api from '../lib/api';
 import toast from 'react-hot-toast';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
+import { matchesSearch } from '../lib/search';
 
 export default function IftaReportPage() {
   const { t } = useTranslation();
@@ -31,10 +32,7 @@ export default function IftaReportPage() {
 
   useEffect(() => { load(); }, [from, to]);
 
-  const filteredCountries = (report?.byCountry || []).filter((c: any) => {
-    const q = search.toLowerCase();
-    return !q || (c.country || '').toLowerCase().includes(q) || String(c.km).includes(q);
-  });
+  const filteredCountries = (report?.byCountry || []).filter((c: any) => matchesSearch(search, c.country, c.km));
 
   return <div className="space-y-5 animate-fade-in">
     <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">

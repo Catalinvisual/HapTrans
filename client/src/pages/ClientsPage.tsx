@@ -8,6 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import ExportModal from '../components/ExportModal';
 import { formatDate } from '../lib/dateUtils';
+import { matchesSearch } from '../lib/search';
 import ClientDetails from '../components/ClientDetails';
 import { useFormStore } from '../store/formStore';
 import Pagination from '../components/Pagination';
@@ -97,10 +98,7 @@ export default function ClientsPage() {
       setDeleteId(null);
     }
   };
-  const filtered = clients.filter(c => {
-    const query = search.toLowerCase();
-    return (c.name || '').toLowerCase().includes(query) || (c.cui || '').toLowerCase().includes(query) || (c.address || '').toLowerCase().includes(query) || (c.contactName || '').toLowerCase().includes(query) || (c.contactEmail || '').toLowerCase().includes(query) || (c.phone || '').toLowerCase().includes(query);
-  }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  const filtered = clients.filter(c => matchesSearch(search, c.name, c.cui, c.address, c.contactName, c.contactEmail, c.phone)).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);

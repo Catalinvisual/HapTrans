@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Search, X, FileText, Users, Truck, Map, LayoutDashboard, Settings } from 'lucide-react';
 import api from '../lib/api';
 import { useShortcuts } from '../hooks/useShortcuts';
+import { matchesSearch } from '../lib/search';
 
 interface GlobalSearchModalProps {
   isOpen: boolean;
@@ -60,9 +61,8 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
     const timer = setTimeout(async () => {
       setIsLoading(true);
       try {
-        const q = query.toLowerCase();
         // Local page search
-        const pageResults = staticPages.filter(p => p.title.toLowerCase().includes(q));
+        const pageResults = staticPages.filter(p => matchesSearch(query, p.title));
 
         // API Searches (parallel)
         const [clientsRes, tripsRes, trucksRes] = await Promise.all([

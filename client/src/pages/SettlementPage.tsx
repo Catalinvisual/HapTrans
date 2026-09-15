@@ -4,6 +4,7 @@ import { Search, Filter, Trash2, Plus } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import CustomSelect from '../components/CustomSelect';
+import { matchesSearch } from '../lib/search';
 import Pagination from '../components/Pagination';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -91,10 +92,7 @@ export default function SettlementPage() {
     }
   };
 
-  const filtered = settlements.filter((s: any) => {
-    const q = search.toLowerCase();
-    return (s.driverName || '').toLowerCase().includes(q);
-  });
+  const filtered = settlements.filter((s: any) => matchesSearch(search, s.driverName));
 
   const isPerKm = genPayMode === 'per_km';
   const totalNet = settlements.reduce((sum: number, s: any) => sum + Number(s.netPay || 0), 0);

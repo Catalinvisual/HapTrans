@@ -22,6 +22,7 @@ import {
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import CustomSelect, { type SelectOption } from '../components/CustomSelect';
+import { matchesSearch } from '../lib/search';
 
 export default function TelematicsPage() {
   const { t } = useTranslation();
@@ -130,10 +131,7 @@ export default function TelematicsPage() {
   };
 
   const filteredConnections = connections.filter((c) => {
-    const matchSearch =
-      c.truckPlate?.toLowerCase().includes(search.toLowerCase()) ||
-      c.driverName?.toLowerCase().includes(search.toLowerCase()) ||
-      c.providerDeviceId?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = matchesSearch(search, c.truckPlate, c.driverName, c.providerDeviceId);
     const matchStatus = statusFilter === 'ALL' || c.connectionStatus === statusFilter;
     const matchProvider = providerFilter === 'ALL' || c.provider === providerFilter;
     return matchSearch && matchStatus && matchProvider;
