@@ -11,7 +11,7 @@ export function searchTokens(query: string | null | undefined): string[] {
 }
 
 export function buildHaystack(...fields: any[]): string {
-  return compact(fields.filter(v => v != null && String(v) !== '').join(' '));
+  return compact(normalize(fields.filter(v => v != null && String(v) !== '').join(' ')));
 }
 
 export function matchesSearch(query: string | null | undefined, ...fields: any[]): boolean {
