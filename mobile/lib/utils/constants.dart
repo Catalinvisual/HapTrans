@@ -14,8 +14,8 @@ const kTextSecondary = Color(0xFF6B7280);
 const kBorder = Color(0xFFE5E7EB);
 
 // ─── API ───
-const kApiUrl = 'https://haptrans-production.up.railway.app/api';
-const kWsUrl = 'https://haptrans-production.up.railway.app';
+const kApiUrl = 'https://joyful-exploration-production.up.railway.app/api';
+const kWsUrl = 'https://joyful-exploration-production.up.railway.app';
 
 class AppTheme {
   static ThemeData get theme => ThemeData(

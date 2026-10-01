@@ -5,6 +5,9 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:signature/signature.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:ui' as ui;
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
@@ -23,6 +26,11 @@ class DocumentsScreen extends StatefulWidget {
 class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _commentCtrl = TextEditingController();
+  final _signatureController = SignatureController(
+    penStrokeWidth: 3,
+    penColor: Colors.black,
+    exportBackgroundColor: Colors.white,
+  );
   String _selectedTypeKey = 'cmr';
   String? _selectedTripId;
   final List<File> _selectedFiles = [];
@@ -41,6 +49,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
   void dispose() {
     _tabController.dispose();
     _commentCtrl.dispose();
+    _signatureController.dispose();
     super.dispose();
   }
 
@@ -142,6 +151,57 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _captureSignature(void Function(void Function()) setSheetState) async {
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Semnătură / Signature', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        contentPadding: const EdgeInsets.all(16),
+        content: Container(
+          width: 300,
+          height: 200,
+          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+          child: Signature(
+            controller: _signatureController,
+            backgroundColor: Colors.grey[100]!,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => _signatureController.clear(),
+            child: const Text('Șterge / Clear', style: TextStyle(color: Colors.red)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (_signatureController.isNotEmpty) {
+                final image = await _signatureController.toImage();
+                if (image != null) {
+                  final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+                  if (byteData != null) {
+                    final buffer = byteData.buffer;
+                    final tempDir = await getTemporaryDirectory();
+                    final file = File('${tempDir.path}/SIG_${DateTime.now().millisecondsSinceEpoch}.png');
+                    await file.writeAsBytes(buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
+                    
+                    setSheetState(() {
+                      _selectedFiles.add(file);
+                    });
+                    setState(() {});
+                  }
+                }
+                _signatureController.clear();
+                Navigator.pop(ctx);
+              } else {
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Salvează / Save'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showUploadSheet() {
@@ -254,6 +314,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                   },
                   icon: const Icon(Icons.attach_file, color: kPrimary),
                   label: const Text('Alege Fișier PDF / Imagine', style: TextStyle(color: kPrimary)),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 44)),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () => _captureSignature(setSheetState),
+                  icon: const Icon(Icons.draw, color: kPrimary),
+                  label: const Text('Semnează Electronic / Draw Signature', style: TextStyle(color: kPrimary)),
                   style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 44)),
                 ),
 
