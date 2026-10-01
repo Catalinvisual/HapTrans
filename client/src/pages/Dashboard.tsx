@@ -147,29 +147,34 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="card !p-5 relative overflow-hidden flex flex-col backdrop-blur-md bg-surface/80 border border-border/50 shadow-xl lg:col-span-1">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
+        <div className="lg:col-span-2 card !p-5 relative overflow-hidden flex flex-col backdrop-blur-md bg-surface/80 border border-border/50 shadow-xl">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-success to-emerald-400" />
           <h3 className="text-sm font-bold text-text mb-4 flex items-center gap-2">
             <Target className="w-4 h-4 text-success" /> {t('an_service_quality')}
           </h3>
-          <div className="flex-1 grid grid-cols-2 gap-4 place-items-center">
+          <div className="flex-1 grid grid-cols-4 gap-2 place-items-center">
             <ProgressRing value={svc.otif?.rate ?? 0} label="OTIF" caption={`${svc.otif?.good || 0}/${svc.otif?.total || 0}`} />
             <ProgressRing value={svc.otd?.rate ?? 0} label="OTD" caption={`${svc.otd?.good || 0}/${svc.otd?.total || 0}`} />
-            <ProgressRing value={svc.otp?.rate ?? 0} label="OTP" caption={`${svc.otp?.good || 0}/${svc.otp?.total || 0}`} size={80} />
-            <ProgressRing value={svc.podCompletionPct ?? 0} label="POD" caption={fmtPercent(svc.podCompletionPct ?? 0)} size={80} />
+            <ProgressRing value={svc.otp?.rate ?? 0} label="OTP" caption={`${svc.otp?.good || 0}/${svc.otp?.total || 0}`} />
+            <ProgressRing value={svc.podCompletionPct ?? 0} label="POD" caption={fmtPercent(svc.podCompletionPct ?? 0)} />
           </div>
           <div className="mt-4 pt-3 border-t border-border/50 grid grid-cols-2 gap-2 text-xs">
             <div className="flex justify-between"><span className="text-text-secondary">{t('an_late_deliveries')}</span><b>{fmtNumber(svc.lateDeliveries || 0)}</b></div>
             <div className="flex justify-between"><span className="text-text-secondary">{t('an_avg_delay')}</span><b>{fmtNumber(svc.avgDelayMinutes || 0)} min</b></div>
           </div>
         </div>
+
+        <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <KpiCard icon={Gauge} label={t('an_fleet_util')} value={fmtPercent(fleet.utilizationPct ?? 0)} trend={trends.utilizationPct} accent="bg-indigo-500 text-indigo-500" />
+          <KpiCard icon={AlertTriangle} label={t('an_deadhead')} value={fmtPercent(fleet.deadheadPct ?? 0)} trend={trends.deadheadPct} invert accent="bg-error text-error" />
+        </div>
       </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-2 card !p-5 relative overflow-hidden backdrop-blur-md bg-surface/80 border border-border/50 shadow-xl">
            <h3 className="text-sm font-bold text-text mb-4 flex items-center gap-2">
-            <Globe className="w-4 h-4 text-primary" /> {t('an_rides_per_country', 'Rides Per Country (Today)')}
+            <Globe className="w-4 h-4 text-primary" /> {t('an_rides_per_country', 'Rides Per Country')}
           </h3>
           <div className="h-[250px]">
             {countries.length ? (
@@ -189,8 +194,8 @@ export default function Dashboard() {
             ) : <EmptyState icon={Map} title={t('an_no_data')} message={t('an_no_data_msg')} />}
           </div>
         </div>
-        
-        <div className="card !p-5 relative overflow-hidden flex flex-col backdrop-blur-md bg-surface/80 border border-border/50 shadow-xl">
+
+        <div className="lg:col-span-1 card !p-5 relative overflow-hidden flex flex-col backdrop-blur-md bg-surface/80 border border-border/50 shadow-xl">
           <h3 className="text-sm font-bold text-text mb-4 flex items-center gap-2">
             <Package className="w-4 h-4 text-primary" /> {t('an_order_status_dist')}
           </h3>
@@ -208,16 +213,8 @@ export default function Dashboard() {
             </div>
           ) : <EmptyState icon={Package} title={t('an_no_data')} message={t('an_no_data_msg')} />}
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <KpiCard icon={Gauge} label={t('an_fleet_util')} value={fmtPercent(fleet.utilizationPct ?? 0)} trend={trends.utilizationPct} accent="bg-indigo-500 text-indigo-500" />
-        <KpiCard icon={AlertTriangle} label={t('an_deadhead')} value={fmtPercent(fleet.deadheadPct ?? 0)} trend={trends.deadheadPct} invert accent="bg-error text-error" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        <div className="card !p-5">
+        <div className="lg:col-span-1 card !p-5 relative overflow-hidden flex flex-col backdrop-blur-md bg-surface/80 border border-border/50 shadow-xl">
           <h3 className="text-sm font-bold text-text mb-4 flex items-center gap-2">
             <Truck className="w-4 h-4 text-primary" /> {t('an_trip_status_dist')}
           </h3>
@@ -234,69 +231,6 @@ export default function Dashboard() {
               ))}
             </div>
           ) : <EmptyState icon={Truck} title={t('an_no_data')} message={t('an_no_data_msg')} />}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card !p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-text flex items-center gap-2">
-              <CircleDollarSign className="w-4 h-4 text-primary" /> {t('an_top_customers')}
-            </h3>
-            <Link to="/customers" className="text-xs font-bold text-primary hover:underline">{t('an_view_all')}</Link>
-          </div>
-          <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="text-[10px] uppercase font-bold text-text-secondary border-b border-border">
-                  <th className="pb-2">{t('an_customer')}</th>
-                  <th className="pb-2 text-right">{t('an_revenue')}</th>
-                  <th className="pb-2 text-right">{t('an_margin')}</th>
-                  <th className="pb-2 text-right">OTIF</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {customers.slice(0, 6).map((c: any) => (
-                  <tr key={c.id || c.name} className="hover:bg-surface/50 transition-colors">
-                    <td className="py-2.5 text-sm font-semibold text-text">{c.name}</td>
-                    <td className="py-2.5 text-sm text-right font-medium">{fmtMoney(c.revenue || 0)}</td>
-                    <td className="py-2.5 text-sm text-right font-bold" style={{ color: (c.margin || 0) >= 0 ? '#10B981' : '#EF4444' }}>{fmtPercent(c.margin ?? 0)}</td>
-                    <td className="py-2.5 text-sm text-right" style={{ color: (c.otif || 0) >= 75 ? '#10B981' : c.otif >= 50 ? '#F59E0B' : '#EF4444' }}>{fmtPercent(c.otif ?? 0)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="card !p-5">
-          <h3 className="text-sm font-bold text-text mb-4 flex items-center gap-2">
-            <RouteIcon className="w-4 h-4 text-primary" /> {t('an_route_profitability')}
-          </h3>
-          <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="text-[10px] uppercase font-bold text-text-secondary border-b border-border">
-                  <th className="pb-2">{t('an_route')}</th>
-                  <th className="pb-2 text-right">{t('an_trips')}</th>
-                  <th className="pb-2 text-right">{t('an_km')}</th>
-                  <th className="pb-2 text-right">{t('an_profit')}</th>
-                  <th className="pb-2 text-right">{t('an_margin')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {routes.slice(0, 6).map((c: any) => (
-                  <tr key={c.route} className="hover:bg-surface/50 transition-colors">
-                    <td className="py-2.5 text-sm font-semibold text-text">{c.route}</td>
-                    <td className="py-2.5 text-sm text-right">{fmtNumber(c.trips || 0)}</td>
-                    <td className="py-2.5 text-sm text-right">{fmtKm(c.km || 0)}</td>
-                    <td className="py-2.5 text-sm text-right font-bold" style={{ color: (c.profit || 0) >= 0 ? '#10B981' : '#EF4444' }}>{fmtMoney(c.profit || 0)}</td>
-                    <td className="py-2.5 text-sm text-right">{fmtPercent(c.margin ?? 0)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         </div>
       </div>
     </div>
