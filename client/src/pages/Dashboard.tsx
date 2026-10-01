@@ -183,8 +183,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        </div>
-
         <div className="card !p-5 relative overflow-hidden flex flex-col backdrop-blur-md bg-surface/80 border border-border/50 shadow-xl lg:col-span-1">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-success to-emerald-400" />
           <h3 className="text-sm font-bold text-text mb-4 flex items-center gap-2">
