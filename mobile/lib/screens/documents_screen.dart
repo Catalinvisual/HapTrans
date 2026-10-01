@@ -43,6 +43,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _fetchDocuments();
+    
+    // Fetch trips if empty so the trip selector doesn't disappear
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.read<TripProvider>().trips.isEmpty) {
+        context.read<TripProvider>().fetchTrips();
+      }
+    });
   }
 
   @override
@@ -107,7 +114,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
     }
   }
 
-  Future<void> _uploadDocument() async {
+  Future<void> _uploadDocument(void Function(void Function()) setSheetState) async {
     final l = AppLocalizations.of(context);
     if (_selectedFiles.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -116,6 +123,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
       return;
     }
 
+    setSheetState(() => _loading = true);
     setState(() => _loading = true);
     try {
       final auth = context.read<AuthProvider>();
@@ -148,8 +156,16 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
       }
     } catch (e) {
       debugPrint('Upload error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Eroare: $e'), backgroundColor: kError),
+        );
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setSheetState(() => _loading = false);
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -260,13 +276,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
 
                 // Trip Selector (if available)
                 if (trips.isNotEmpty) ...[
-                  const Text('Asociază cu Cursă / Trip', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  const Text('Trip', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
                     value: _selectedTripId,
-                    hint: const Text('Alege cursa (opțional)'),
+                    hint: const Text('...'),
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('Fără cursă (Document general)')),
+                      const DropdownMenuItem(value: null, child: Text('General')),
                       ...trips.map((t) => DropdownMenuItem(
                             value: t['id']?.toString(),
                             child: Text('${t['tripNumber'] ?? t['id']} (${tripPickup(t)} ➔ ${tripDropoff(t)})', overflow: TextOverflow.ellipsis),
@@ -291,31 +307,21 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                           setSheetState(() {});
                         },
                         icon: const Icon(Icons.camera_alt, color: kPrimary),
-                        label: const Text('Cameră', style: TextStyle(color: kPrimary)),
+                        label: Text(l.translate('upload_camera'), style: const TextStyle(color: kPrimary)),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () async {
-                          await _pickImage(ImageSource.gallery);
+                          await _pickFile();
                           setSheetState(() {});
                         },
-                        icon: const Icon(Icons.photo_library, color: kPrimary),
-                        label: const Text('Galerie', style: TextStyle(color: kPrimary)),
+                        icon: const Icon(Icons.folder, color: kPrimary),
+                        label: Text(l.translate('upload_gallery_files'), style: const TextStyle(color: kPrimary), overflow: TextOverflow.ellipsis),
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    await _pickFile();
-                    setSheetState(() {});
-                  },
-                  icon: const Icon(Icons.attach_file, color: kPrimary),
-                  label: const Text('Alege Fișier PDF / Imagine', style: TextStyle(color: kPrimary)),
-                  style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 44)),
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
@@ -334,9 +340,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                 const SizedBox(height: 16),
                 TextField(
                   controller: _commentCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'Note sau observații...',
-                    contentPadding: EdgeInsets.all(12),
+                  decoration: InputDecoration(
+                    hintText: l.translate('upload_notes_hint'),
+                    contentPadding: const EdgeInsets.all(12),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -345,7 +351,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton(
-                    onPressed: _loading ? null : _uploadDocument,
+                    onPressed: _loading ? null : () => _uploadDocument(setSheetState),
                     child: _loading
                         ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                         : Text(l.translate('upload_doc')),

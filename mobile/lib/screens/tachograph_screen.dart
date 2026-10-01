@@ -470,7 +470,7 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
 
             // ─── 3. Modern Circular Gauges Grid (CE 561/2006) ───
             Text(
-              'CONFORMITATE CE 561/2006',
+              l.translate('tacho_compliance'),
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w900,
@@ -486,7 +486,7 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
                   child: _buildCircularGaugeCard(
                     title: l.translate('driving_today'),
                     valueText: _formatHoursMins(_drivingToday),
-                    subText: 'din max 9h',
+                    subText: l.translate('tacho_max_9h'),
                     progress: math.min(1.0, _drivingToday / (9 * 3600)),
                     color: const Color(0xFF3B82F6),
                     icon: Icons.timer_rounded,
@@ -495,9 +495,9 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildCircularGaugeCard(
-                    title: 'Pauză în',
-                    valueText: breakMins > 0 ? '${fmtNum(breakMins, lang)}m' : 'Pauză!',
-                    subText: 'Limită: 4h 30m',
+                    title: l.translate('tacho_break_in'),
+                    valueText: breakMins > 0 ? '${fmtNum(breakMins, lang)}m' : l.translate('tacho_break_now'),
+                    subText: l.translate('tacho_limit_4h30'),
                     progress: math.max(0.0, math.min(1.0, _continuousDriving / 16200)),
                     color: isBreakOverdue
                         ? const Color(0xFFEF4444)
@@ -517,7 +517,7 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
                   child: _buildCircularGaugeCard(
                     title: l.translate('weekly_driving'),
                     valueText: _formatHoursMins(_weeklyDriving),
-                    subText: 'din max 56h',
+                    subText: l.translate('tacho_max_56h'),
                     progress: math.min(1.0, _weeklyDriving / (56 * 3600)),
                     color: const Color(0xFF8B5CF6),
                     icon: Icons.date_range_rounded,
@@ -526,9 +526,9 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildCircularGaugeCard(
-                    title: 'Odihnă Zilnică',
+                    title: l.translate('daily_rest'),
                     valueText: _formatHoursMins(_dailyRest),
-                    subText: 'minim 11h',
+                    subText: l.translate('tacho_min_11h'),
                     progress: 1.0,
                     color: const Color(0xFF0EA5E9),
                     icon: Icons.shield_rounded,
@@ -549,22 +549,22 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.gavel_rounded, color: Color(0xFF64748B), size: 18),
-                      SizedBox(width: 8),
+                      const Icon(Icons.gavel_rounded, color: Color(0xFF64748B), size: 18),
+                      const SizedBox(width: 8),
                       Text(
-                        'Regulament CE 561/2006 (Ghid Oficial)',
-                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF0F172A)),
+                        l.translate('tacho_reg_title'),
+                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF0F172A)),
                       ),
                     ],
                   ),
                   const SizedBox(height: 10),
-                  _buildRegulationRow('• Conducere continuă maximă:', '4h 30m'),
-                  _buildRegulationRow('• Pauză obligatorie:', '45m (sau 15m + 30m)'),
-                  _buildRegulationRow('• Conducere zilnică maximă:', '9h (extensibil la 10h de 2x/săpt)'),
-                  _buildRegulationRow('• Odihnă zilnică normală:', '11h (redusă: 9h)'),
-                  _buildRegulationRow('• Conducere săptămânală maximă:', '56h (90h / 2 săptămâni)'),
+                  _buildRegulationRow(l.translate('tacho_reg_1'), l.translate('tacho_reg_val_1')),
+                  _buildRegulationRow(l.translate('tacho_reg_2'), l.translate('tacho_reg_val_2')),
+                  _buildRegulationRow(l.translate('tacho_reg_3'), l.translate('tacho_reg_val_3')),
+                  _buildRegulationRow(l.translate('tacho_reg_4'), l.translate('tacho_reg_val_4')),
+                  _buildRegulationRow(l.translate('tacho_reg_5'), l.translate('tacho_reg_val_5')),
                 ],
               ),
             ),
@@ -661,20 +661,20 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
           ),
           const SizedBox(height: 12),
           SizedBox(
-            width: 76,
-            height: 76,
+            width: 90,
+            height: 90,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 CircularProgressIndicator(
                   value: progress,
-                  strokeWidth: 6.5,
+                  strokeWidth: 7,
                   strokeCap: StrokeCap.round,
                   backgroundColor: const Color(0xFFF1F5F9),
                   valueColor: AlwaysStoppedAnimation<Color>(color),
                 ),
                 Container(
-                  width: 56, // constraint so it doesn't overlap the 6.5px stroke on the 76px container
+                  width: 70, // constraint so it doesn't overlap the 7px stroke on the 90px container
                   alignment: Alignment.center,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
