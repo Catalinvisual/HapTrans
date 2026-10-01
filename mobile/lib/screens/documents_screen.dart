@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:signature/signature.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:ui' as ui;
+import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
@@ -47,7 +48,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
     // Fetch trips if empty so the trip selector doesn't disappear
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (context.read<TripProvider>().trips.isEmpty) {
-        context.read<TripProvider>().fetchTrips();
+        final token = context.read<AuthProvider>().token;
+        if (token != null) {
+          context.read<TripProvider>().loadTrips(token);
+        }
       }
     });
   }
@@ -135,7 +139,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
       for (final file in _selectedFiles) {
         final ext = file.path.split('.').last;
         final formData = FormData.fromMap({
-          'type': _selectedTypeKey.toUpperCase(),
+          'type': _selectedTypeKey.toLowerCase(),
           if (_selectedTripId != null) 'tripId': _selectedTripId,
           'notes': _commentCtrl.text.trim(),
           'file': await MultipartFile.fromFile(file.path, filename: 'DOC_${DateTime.now().millisecondsSinceEpoch}.$ext'),
@@ -145,7 +149,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Document încărcat cu succes / Upload successful!'), backgroundColor: kSuccess),
+          SnackBar(content: Text(l.translate('upload_success')), backgroundColor: kSuccess),
         );
         setState(() {
           _commentCtrl.clear();
@@ -369,7 +373,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
 
-    final tripDocs = _documentsList.where((d) => d['tripId'] != null || ['cmr', 'pod', 'waybill', 'aviz'].contains(d['type']?.toString().toLowerCase())).toList();
+    final tripDocs = _documentsList.where((d) => d['trip'] != null || d['tripId'] != null || ['cmr', 'pod', 'waybill', 'aviz'].contains(d['type']?.toString().toLowerCase())).toList();
     final driverDocs = _documentsList.where((d) => !tripDocs.contains(d)).toList();
 
     return Scaffold(
@@ -468,6 +472,18 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
             side: const BorderSide(color: kBorder),
           ),
           child: ListTile(
+            onTap: () async {
+              if (fileUrl.isNotEmpty) {
+                final uri = Uri.parse(fileUrl);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                } else {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(l.translate('cant_open_url'))));
+                  }
+                }
+              }
+            },
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             leading: Container(
               padding: const EdgeInsets.all(10),
