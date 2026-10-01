@@ -147,42 +147,7 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-3 card !p-5 relative overflow-hidden backdrop-blur-md bg-surface/80 border border-border/50 shadow-xl">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-blue-400 to-purple-500" />
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-sm font-bold text-text flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary" /> {t('an_revenue_profit_trend')}
-            </h3>
-            <div className="flex gap-4 text-xs text-text-secondary">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary inline-block" /> {t('an_revenue')}</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-success inline-block" /> {t('an_profit')}</span>
-            </div>
-          </div>
-          <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={series} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6B7280' }} dy={8} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6B7280' }} tickFormatter={(v: any) => fmtNumber(v)} />
-                <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', fontSize: 13 }} labelStyle={{ fontWeight: 'bold', color: '#111827', marginBottom: '8px' }} />
-                <Area type="monotone" name={t('an_revenue')} dataKey="revenue" stroke="#6366F1" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-                <Area type="monotone" name={t('an_profit')} dataKey="profit" stroke="#10B981" strokeWidth={3} fillOpacity={1} fill="url(#colorProfit)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="card !p-5 relative overflow-hidden flex flex-col backdrop-blur-md bg-surface/80 border border-border/50 shadow-xl lg:col-span-1">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-success to-emerald-400" />
           <h3 className="text-sm font-bold text-text mb-4 flex items-center gap-2">
@@ -245,13 +210,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-        <KpiCard icon={Wallet} label={t('an_revenue')} value={fmtMoney(fin.revenue || 0)} trend={trends.revenue} accent="bg-primary text-primary" />
-        <KpiCard icon={CircleDollarSign} label={t('an_transport_cost')} value={fmtMoney(fin.transportCost || 0)} trend={trends.transportCost} invert accent="bg-error text-error" />
-        <KpiCard icon={Zap} label={t('an_gross_profit')} value={fmtMoney(fin.grossProfit || 0)} trend={trends.grossProfit} accent="bg-success text-success" />
-        <KpiCard icon={TrendingUp} label={t('an_gross_margin')} value={fmtPercent(fin.grossMargin || 0)} trend={trends.grossMargin} trendSuffix="pp" accent="bg-blue-500 text-blue-500" />
-        <KpiCard icon={RouteIcon} label={t('an_rev_per_km')} value={`${fmtMoney(fin.revenuePerKm || 0)}/km`} accent="bg-cyan-500 text-cyan-500" />
-        <KpiCard icon={Flame} label={t('an_cost_per_km')} value={`${fmtMoney(fin.costPerKm || 0)}/km`} accent="bg-warning text-warning" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <KpiCard icon={Gauge} label={t('an_fleet_util')} value={fmtPercent(fleet.utilizationPct ?? 0)} trend={trends.utilizationPct} accent="bg-indigo-500 text-indigo-500" />
         <KpiCard icon={AlertTriangle} label={t('an_deadhead')} value={fmtPercent(fleet.deadheadPct ?? 0)} trend={trends.deadheadPct} invert accent="bg-error text-error" />
       </div>
