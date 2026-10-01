@@ -239,6 +239,7 @@ export default function Dashboard() {
             ) : <EmptyState icon={Map} title={t('an_no_data')} message={t('an_no_data_msg')} />}
           </div>
         </div>
+      </div>
     </div>
   );
 }
