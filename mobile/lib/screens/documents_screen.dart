@@ -154,10 +154,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
   }
 
   Future<void> _captureSignature(void Function(void Function()) setSheetState) async {
+    final l = AppLocalizations.of(context);
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Semnătură / Signature', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        title: Text(l.translate('signature_title'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         contentPadding: const EdgeInsets.all(16),
         content: Container(
           width: 300,
@@ -171,7 +172,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
         actions: [
           TextButton(
             onPressed: () => _signatureController.clear(),
-            child: const Text('Șterge / Clear', style: TextStyle(color: Colors.red)),
+            child: Text(l.translate('signature_clear'), style: const TextStyle(color: Colors.red)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -197,7 +198,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                 Navigator.pop(ctx);
               }
             },
-            child: const Text('Salvează / Save'),
+            child: Text(l.translate('signature_save')),
           ),
         ],
       ),
@@ -320,7 +321,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                 OutlinedButton.icon(
                   onPressed: () => _captureSignature(setSheetState),
                   icon: const Icon(Icons.draw, color: kPrimary),
-                  label: const Text('Semnează Electronic / Draw Signature', style: TextStyle(color: kPrimary)),
+                  label: Text(l.translate('signature_draw'), style: const TextStyle(color: kPrimary)),
                   style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 44)),
                 ),
 

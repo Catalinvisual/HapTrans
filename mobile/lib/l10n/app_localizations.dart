@@ -95,6 +95,10 @@ class AppLocalizations {
       'cargo_info': 'Informații Marfă',
       'pallets': 'paleți',
       'weight': 'kg',
+      'signature_title': 'Semnătură Electronică',
+      'signature_clear': 'Șterge',
+      'signature_save': 'Salvează',
+      'signature_draw': 'Semnează Electronic',
     },
     'en': {
       'app_name': 'HapCargo Driver',
@@ -181,6 +185,10 @@ class AppLocalizations {
       'cargo_info': 'Cargo Info',
       'pallets': 'pallets',
       'weight': 'kg',
+      'signature_title': 'Electronic Signature',
+      'signature_clear': 'Clear',
+      'signature_save': 'Save',
+      'signature_draw': 'Draw Signature',
     },
     'nl': {
       'app_name': 'HapCargo Chauffeur',
@@ -267,6 +275,10 @@ class AppLocalizations {
       'cargo_info': 'Lading Info',
       'pallets': 'pallets',
       'weight': 'kg',
+      'signature_title': 'Elektronische Handtekening',
+      'signature_clear': 'Wissen',
+      'signature_save': 'Opslaan',
+      'signature_draw': 'Handtekening Tekenen',
     },
     'de': {
       'app_name': 'HapCargo Fahrer',
@@ -353,6 +365,10 @@ class AppLocalizations {
       'cargo_info': 'Frachtinfo',
       'pallets': 'Paletten',
       'weight': 'kg',
+      'signature_title': 'Elektronische Unterschrift',
+      'signature_clear': 'Löschen',
+      'signature_save': 'Speichern',
+      'signature_draw': 'Unterschreiben',
     },
     'fr': {
       'app_name': 'HapCargo Chauffeur',
@@ -439,6 +455,10 @@ class AppLocalizations {
       'cargo_info': 'Info Marchandise',
       'pallets': 'palettes',
       'weight': 'kg',
+      'signature_title': 'Signature Électronique',
+      'signature_clear': 'Effacer',
+      'signature_save': 'Enregistrer',
+      'signature_draw': 'Signer',
     },
   };
 
