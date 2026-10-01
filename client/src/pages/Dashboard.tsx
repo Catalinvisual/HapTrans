@@ -7,7 +7,7 @@ import {
 import {
   Truck, Route as RouteIcon, AlertTriangle, Clock, Target, LoaderCircle,
   Package, Wallet, CheckCircle2, Gauge, Zap, Flame, CircleDollarSign,
-  Activity, ArrowUpRight, TrendingUp, FileSpreadsheet
+  Activity, ArrowUpRight, TrendingUp, FileSpreadsheet, Globe, Map
 } from 'lucide-react';
 import api from '../lib/api';
 import { fmtMoney, fmtNumber, fmtPercent, fmtKm } from '../lib/format';
@@ -73,6 +73,7 @@ export default function Dashboard() {
   const distT = analytics?.tripStatusDistribution || [];
   const customers = analytics?.topCustomersRevenue || [];
   const routes = analytics?.routes || [];
+  const countries = analytics?.byCountry?.combined || [];
   const meta = analytics?.meta || {};
   const periodLabel =
     typeof meta.period === 'string'
@@ -135,7 +136,7 @@ export default function Dashboard() {
         <KpiCard icon={Truck} label={t('an_active_trips')} value={fmtNumber(ops.activeTrips || 0)} trend={trends.activeTrips} accent="bg-cyan-500 text-cyan-500" />
         <KpiCard icon={CheckCircle2} label={t('an_completed_trips')} value={fmtNumber(ops.completedTrips || 0)} trend={trends.completedTrips} accent="bg-success text-success" />
         <KpiCard icon={AlertTriangle} label={t('an_exceptions')} value={fmtNumber(ops.exceptionsCount || 0)} trend={trends.exceptionsCount} invert accent="bg-error text-error" />
-        <Link to="/trips" className="card !p-4 flex items-center justify-between hover:border-primary/50 group">
+        <Link to="/trips" className="card !p-4 flex items-center justify-between hover:border-primary/50 group bg-gradient-to-br from-surface to-surface-hover backdrop-blur-md">
           <div>
             <span className="text-xs font-bold text-text-secondary uppercase tracking-wider block mb-2">{t('an_view_trips')}</span>
             <span className="text-sm font-black text-primary flex items-center gap-1 group-hover:gap-2 transition-all">
@@ -146,8 +147,8 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 card !p-5 relative overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-3 card !p-5 relative overflow-hidden backdrop-blur-md bg-surface/80 border border-border/50 shadow-xl">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-blue-400 to-purple-500" />
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-sm font-bold text-text flex items-center gap-2">
@@ -182,7 +183,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="card !p-5 relative overflow-hidden flex flex-col">
+        </div>
+
+        <div className="card !p-5 relative overflow-hidden flex flex-col backdrop-blur-md bg-surface/80 border border-border/50 shadow-xl lg:col-span-1">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-success to-emerald-400" />
           <h3 className="text-sm font-bold text-text mb-4 flex items-center gap-2">
             <Target className="w-4 h-4 text-success" /> {t('an_service_quality')}
@@ -193,26 +196,38 @@ export default function Dashboard() {
             <ProgressRing value={svc.otp?.rate ?? 0} label="OTP" caption={`${svc.otp?.good || 0}/${svc.otp?.total || 0}`} size={80} />
             <ProgressRing value={svc.podCompletionPct ?? 0} label="POD" caption={fmtPercent(svc.podCompletionPct ?? 0)} size={80} />
           </div>
-          <div className="mt-4 pt-3 border-t border-border grid grid-cols-2 gap-2 text-xs">
+          <div className="mt-4 pt-3 border-t border-border/50 grid grid-cols-2 gap-2 text-xs">
             <div className="flex justify-between"><span className="text-text-secondary">{t('an_late_deliveries')}</span><b>{fmtNumber(svc.lateDeliveries || 0)}</b></div>
             <div className="flex justify-between"><span className="text-text-secondary">{t('an_avg_delay')}</span><b>{fmtNumber(svc.avgDelayMinutes || 0)} min</b></div>
           </div>
         </div>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-        <KpiCard icon={Wallet} label={t('an_revenue')} value={fmtMoney(fin.revenue || 0)} trend={trends.revenue} accent="bg-primary text-primary" />
-        <KpiCard icon={CircleDollarSign} label={t('an_transport_cost')} value={fmtMoney(fin.transportCost || 0)} trend={trends.transportCost} invert accent="bg-error text-error" />
-        <KpiCard icon={Zap} label={t('an_gross_profit')} value={fmtMoney(fin.grossProfit || 0)} trend={trends.grossProfit} accent="bg-success text-success" />
-        <KpiCard icon={TrendingUp} label={t('an_gross_margin')} value={fmtPercent(fin.grossMargin || 0)} trend={trends.grossMargin} trendSuffix="pp" accent="bg-blue-500 text-blue-500" />
-        <KpiCard icon={RouteIcon} label={t('an_rev_per_km')} value={`${fmtMoney(fin.revenuePerKm || 0)}/km`} accent="bg-cyan-500 text-cyan-500" />
-        <KpiCard icon={Flame} label={t('an_cost_per_km')} value={`${fmtMoney(fin.costPerKm || 0)}/km`} accent="bg-warning text-warning" />
-        <KpiCard icon={Gauge} label={t('an_fleet_util')} value={fmtPercent(fleet.utilizationPct ?? 0)} trend={trends.utilizationPct} accent="bg-indigo-500 text-indigo-500" />
-        <KpiCard icon={AlertTriangle} label={t('an_deadhead')} value={fmtPercent(fleet.deadheadPct ?? 0)} trend={trends.deadheadPct} invert accent="bg-error text-error" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card !p-5">
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 card !p-5 relative overflow-hidden backdrop-blur-md bg-surface/80 border border-border/50 shadow-xl">
+           <h3 className="text-sm font-bold text-text mb-4 flex items-center gap-2">
+            <Globe className="w-4 h-4 text-primary" /> {t('an_rides_per_country', 'Rides Per Country (Today)')}
+          </h3>
+          <div className="h-[250px]">
+            {countries.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={countries} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" strokeOpacity={0.2} />
+                  <XAxis dataKey="country" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6B7280' }} dy={8} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6B7280' }} />
+                  <RechartsTooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', fontSize: 13 }} />
+                  <Bar dataKey="count" name={t('an_rides', 'Rides')} radius={[4, 4, 0, 0]}>
+                    {countries.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={['#6366F1', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6'][index % 5]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <EmptyState icon={Map} title={t('an_no_data')} message={t('an_no_data_msg')} />}
+          </div>
+        </div>
+        
+        <div className="card !p-5 relative overflow-hidden flex flex-col backdrop-blur-md bg-surface/80 border border-border/50 shadow-xl">
           <h3 className="text-sm font-bold text-text mb-4 flex items-center gap-2">
             <Package className="w-4 h-4 text-primary" /> {t('an_order_status_dist')}
           </h3>
@@ -230,6 +245,20 @@ export default function Dashboard() {
             </div>
           ) : <EmptyState icon={Package} title={t('an_no_data')} message={t('an_no_data_msg')} />}
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+        <KpiCard icon={Wallet} label={t('an_revenue')} value={fmtMoney(fin.revenue || 0)} trend={trends.revenue} accent="bg-primary text-primary" />
+        <KpiCard icon={CircleDollarSign} label={t('an_transport_cost')} value={fmtMoney(fin.transportCost || 0)} trend={trends.transportCost} invert accent="bg-error text-error" />
+        <KpiCard icon={Zap} label={t('an_gross_profit')} value={fmtMoney(fin.grossProfit || 0)} trend={trends.grossProfit} accent="bg-success text-success" />
+        <KpiCard icon={TrendingUp} label={t('an_gross_margin')} value={fmtPercent(fin.grossMargin || 0)} trend={trends.grossMargin} trendSuffix="pp" accent="bg-blue-500 text-blue-500" />
+        <KpiCard icon={RouteIcon} label={t('an_rev_per_km')} value={`${fmtMoney(fin.revenuePerKm || 0)}/km`} accent="bg-cyan-500 text-cyan-500" />
+        <KpiCard icon={Flame} label={t('an_cost_per_km')} value={`${fmtMoney(fin.costPerKm || 0)}/km`} accent="bg-warning text-warning" />
+        <KpiCard icon={Gauge} label={t('an_fleet_util')} value={fmtPercent(fleet.utilizationPct ?? 0)} trend={trends.utilizationPct} accent="bg-indigo-500 text-indigo-500" />
+        <KpiCard icon={AlertTriangle} label={t('an_deadhead')} value={fmtPercent(fleet.deadheadPct ?? 0)} trend={trends.deadheadPct} invert accent="bg-error text-error" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         <div className="card !p-5">
           <h3 className="text-sm font-bold text-text mb-4 flex items-center gap-2">

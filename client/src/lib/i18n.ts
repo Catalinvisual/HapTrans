@@ -5,6 +5,8 @@ import { planningResources } from './planningI18n';
 
 const resources = {
   ro: { translation: {
+        an_rides_per_country: "Curse pe țară (Astăzi)",
+        an_rides: "Curse",
       "fin_title": "Analiză Financiară",
       all_statuses: "Toate statusurile",
       all_clients: "Toți clienții",
@@ -3502,6 +3504,8 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
     }
   },
   en: { translation: {
+        an_rides_per_country: "Rides Per Country (Today)",
+        an_rides: "Rides",
       "fin_title": "Financial Analytics",
       all_statuses: "All statuses",
       all_clients: "All clients",
@@ -5280,6 +5284,8 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
     },
   },
   nl: { translation: {
+        an_rides_per_country: "Ritten per land (Vandaag)",
+        an_rides: "Ritten",
       "fin_title": "Financiële Analyse",
       all_statuses: "Alle statussen",
       all_clients: "Alle klanten",
@@ -7035,6 +7041,8 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
     },
   },
   de: { translation: {
+        an_rides_per_country: "Fahrten pro Land (Heute)",
+        an_rides: "Fahrten",
       "fin_title": "Finanzanalyse",
       all_statuses: "Alle Status",
       all_clients: "Alle Kunden",
