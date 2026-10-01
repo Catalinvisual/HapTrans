@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import { RotateCw, CalendarRange, LoaderCircle } from 'lucide-react';
+import CustomSelect from '../CustomSelect';
 
 export type Granularity = 'day' | 'week' | 'month';
 
@@ -44,8 +45,8 @@ interface AnalyticsToolbarProps {
   customTo: string;
   onCustomFrom: (v: string) => void;
   onCustomTo: (v: string) => void;
-  granularity: Granularity;
-  onGranularity: (v: Granularity) => void;
+  granularity?: Granularity;
+  onGranularity?: (v: Granularity) => void;
   onRefresh?: () => void;
   refreshing?: boolean;
 }
@@ -57,15 +58,12 @@ export default function AnalyticsToolbar({
   const { t } = useTranslation();
   return (
     <div className="flex flex-wrap items-center gap-3 bg-surface/60 backdrop-blur p-2 rounded-2xl border border-border/60 shadow-sm">
-      <select
+      <CustomSelect
         value={rangeType}
-        onChange={e => onRangeType(e.target.value)}
-        className="input !py-1.5 !text-sm !rounded-xl !w-auto !bg-surface"
-      >
-        {RANGE_PRESETS.map(p => (
-          <option key={p.value} value={p.value}>{t(p.key)}</option>
-        ))}
-      </select>
+        onChange={onRangeType}
+        className="w-48 text-sm font-semibold shadow-sm"
+        options={RANGE_PRESETS.map(p => ({ value: p.value, label: t(p.key) }))}
+      />
       {rangeType === 'custom' && (
         <div className="flex items-center gap-2">
           <Flatpickr value={customFrom} onChange={d => onCustomFrom(toISO(d[0]))} className="input !py-1.5 !text-sm !rounded-xl !w-28 !bg-surface" />
@@ -73,18 +71,22 @@ export default function AnalyticsToolbar({
           <Flatpickr value={customTo} onChange={d => onCustomTo(toISO(d[0]))} className="input !py-1.5 !text-sm !rounded-xl !w-28 !bg-surface" />
         </div>
       )}
-      <div className="h-5 w-px bg-border mx-1 hidden sm:block" />
-      <div className="flex bg-surface rounded-xl p-0.5 border border-border/60">
-        {(['day', 'week', 'month'] as Granularity[]).map(g => (
-          <button
-            key={g}
-            onClick={() => onGranularity(g)}
-            className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${granularity === g ? 'bg-white text-primary shadow-sm border border-primary/20' : 'text-text-secondary hover:text-text'}`}
-          >
-            {g === 'day' ? t('an_daily') : g === 'week' ? t('fin_weekly_lbl') : t('fin_monthly_lbl')}
-          </button>
-        ))}
-      </div>
+      {onGranularity && (
+        <>
+          <div className="h-5 w-px bg-border mx-1 hidden sm:block" />
+          <div className="flex bg-surface rounded-xl p-0.5 border border-border/60">
+            {(['day', 'week', 'month'] as Granularity[]).map(g => (
+              <button
+                key={g}
+                onClick={() => onGranularity(g)}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${granularity === g ? 'bg-white text-primary shadow-sm border border-primary/20' : 'text-text-secondary hover:text-text'}`}
+              >
+                {g === 'day' ? t('an_daily') : g === 'week' ? t('fin_weekly_lbl') : t('fin_monthly_lbl')}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       <div className="flex-1" />
       {onRefresh && (
         <button

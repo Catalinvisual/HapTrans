@@ -34,7 +34,7 @@ export default function ProgressRing({ value, size = 96, label, caption, target 
           <RadialBar background={{ fill: '#F3F4F6' }} dataKey="value" cornerRadius={10} />
         </RadialBarChart>
         <div className="absolute inset-0 flex items-center justify-center flex-col">
-          <span className="text-xl font-black text-text">{v.toFixed(1)}%</span>
+          <span className={`${size < 100 ? 'text-sm' : 'text-base'} font-black text-text`}>{Number.isInteger(v) ? v : v.toFixed(1)}%</span>
           {target != null && <span className="text-[10px] font-semibold text-text-secondary">tgt {Math.round(target)}%</span>}
         </div>
       </div>

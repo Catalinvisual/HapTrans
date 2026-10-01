@@ -27,7 +27,6 @@ export default function Dashboard() {
 
   const now = new Date();
   const [rangeType, setRangeType] = useState('this_month');
-  const [granularity, setGranularity] = useState<Granularity>('day');
   const [customFrom, setCustomFrom] = useState(now.toISOString().slice(0, 10));
   const [customTo, setCustomTo] = useState(now.toISOString().slice(0, 10));
 
@@ -35,7 +34,7 @@ export default function Dashboard() {
     if (silent) setRefreshing(true);
     else setLoading(true);
     const r = computeRange(rangeType, customFrom, customTo);
-    const params = new URLSearchParams({ from: r.from, to: r.to, granularity });
+    const params = new URLSearchParams({ from: r.from, to: r.to });
     api.get(`/analytics/executive?${params.toString()}`)
       .then(res => setAnalytics(res.data))
       .catch(() => null)
@@ -45,13 +44,13 @@ export default function Dashboard() {
       });
   };
 
-  useEffect(() => { load(); }, [rangeType, customFrom, customTo, granularity]);
+  useEffect(() => { load(); }, [rangeType, customFrom, customTo]);
 
   useEffect(() => {
     const id = setInterval(() => load(true), 60000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rangeType, customFrom, customTo, granularity]);
+  }, [rangeType, customFrom, customTo]);
 
   if (loading && !analytics) return (
     <div className="flex items-center justify-center h-screen -mt-20">
@@ -114,7 +113,7 @@ export default function Dashboard() {
             <span className={`inline-block w-2 h-2 rounded-full shadow-sm ${refreshing ? 'bg-primary animate-pulse' : 'bg-success'}`} />
           </p>
         </div>
-        <div className="flex flex-wrap items-end justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <button onClick={() => setReportsOpen(true)} className="btn-primary !px-3 !py-2 text-xs shrink-0">
             <FileSpreadsheet className="w-4 h-4 mr-1.5" /> {t('rp_export_label')}
           </button>
@@ -122,7 +121,6 @@ export default function Dashboard() {
             rangeType={rangeType} onRangeType={setRangeType}
             customFrom={customFrom} customTo={customTo}
             onCustomFrom={setCustomFrom} onCustomTo={setCustomTo}
-            granularity={granularity} onGranularity={setGranularity}
             onRefresh={() => load(true)} refreshing={refreshing}
           />
         </div>
