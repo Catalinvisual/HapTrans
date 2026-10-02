@@ -8,6 +8,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import { join } from 'path';
+import * as fs from 'fs';
 import { DataSource } from 'typeorm';
 
 function bootDbDiagnostic(): void {
@@ -290,11 +291,17 @@ async function bootstrap() {
   // Serve APK directly with connection close to prevent download hanging
   expressApp.get('/uploads/HapTrans.apk', (req: express.Request, res: express.Response) => {
     const apkPath = join(__dirname, '..', 'uploads', 'HapTrans.apk');
-    res.download(apkPath, 'HapTrans.apk', {
-      headers: {
-        'Connection': 'close'
-      }
-    });
+    if (fs.existsSync(apkPath)) {
+      const stat = fs.statSync(apkPath);
+      res.setHeader('Content-Length', stat.size);
+      res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+      res.setHeader('Content-Disposition', 'attachment; filename="HapTrans.apk"');
+      res.setHeader('Connection', 'close');
+      const stream = fs.createReadStream(apkPath);
+      stream.pipe(res);
+    } else {
+      res.status(404).send('APK not found');
+    }
   });
 
   // Serve uploaded files statically at /uploads prefix with basic protection
