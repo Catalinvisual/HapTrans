@@ -112,7 +112,7 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 24),
           Center(
             child: Text(
-              'Versiunea aplicației: $kAppVersionCode',
+              '${{'ro': 'Versiunea aplicației: ', 'en': 'App Version: ', 'nl': 'App Versie: ', 'de': 'App Version: ', 'fr': 'Version de l\'application: '}[locale] ?? 'App Version: '}$kAppVersionCode',
               style: const TextStyle(color: Colors.grey, fontSize: 12),
             ),
           ),

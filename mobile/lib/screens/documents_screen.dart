@@ -81,8 +81,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
               .where((d) => d['uploadedBy']?['id'] == auth.user?['id'] || d['tripId'] != null)
               .toList();
           _documentsList.sort((a, b) {
-            final dateA = DateTime.tryParse(a['createdAt']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-            final dateB = DateTime.tryParse(b['createdAt']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final dateA = DateTime.tryParse(a['uploadedAt']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final dateB = DateTime.tryParse(b['uploadedAt']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
             return dateB.compareTo(dateA);
           });
         });
@@ -424,16 +424,24 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
 
   Future<void> _downloadFile(String url, String fileName) async {
     try {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Descărcare în curs...')));
-      final dir = await getApplicationDocumentsDirectory();
-      final savePath = '${dir.path}/$fileName';
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Descărcare în curs...')));
+      String savePath;
+      if (Platform.isAndroid) {
+        savePath = '/storage/emulated/0/Download/HapCargo_$fileName';
+      } else {
+        final dir = await getApplicationDocumentsDirectory();
+        savePath = '${dir.path}/HapCargo_$fileName';
+      }
+      
       await Dio().download(url, savePath);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Descărcare finalizată. Se deschide...')));
-      await OpenFilex.open(savePath);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Salvat cu succes în Descărcări (Downloads)'), backgroundColor: kSuccess));
+      }
     } catch (e) {
       debugPrint('Download error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Eroare la descărcare')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Eroare la descărcare')));
       }
     }
   }
@@ -509,7 +517,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
         final doc = docs[i];
         final type = (doc['type'] ?? 'DOC').toString().toUpperCase();
         final name = doc['fileName'] ?? doc['name'] ?? 'Document #${doc['id']?.toString().substring(0, 4)}';
-        final dateStr = doc['createdAt'] != null ? formatAppDateTime(doc['createdAt']) : '';
+        final dateStr = doc['uploadedAt'] != null ? formatAppDateTime(doc['uploadedAt']) : '';
         final fileUrl = doc['fileUrl'] ?? '';
 
         return Card(
