@@ -424,7 +424,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
     return Scaffold(
       backgroundColor: kSurface,
       appBar: AppBar(
-        title: Text('${l.translate('docs_title')} v3'),
+        title: Text(l.translate('docs_title')),
         elevation: 0,
       ),
       floatingActionButton: FloatingActionButton.extended(

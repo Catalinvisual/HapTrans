@@ -286,6 +286,16 @@ async function bootstrap() {
 
   app.useWebSocketAdapter(new IoAdapter(app));
   
+  // Serve APK directly with connection close to prevent download hanging
+  app.get('/uploads/HapTrans.apk', (req: express.Request, res: express.Response) => {
+    const apkPath = join(__dirname, '..', 'uploads', 'HapTrans.apk');
+    res.download(apkPath, 'HapTrans.apk', {
+      headers: {
+        'Connection': 'close'
+      }
+    });
+  });
+
   // Serve uploaded files statically at /uploads prefix with basic protection
   app.use('/uploads', (req: express.Request, res: express.Response, next: express.NextFunction) => {
     // Allow public access to the company logo for emails and the APK for auto-updates
