@@ -230,15 +230,23 @@ export default function DocumentsPage({
                     </td>
                     <td className="table-cell">
                       <span className="badge-primary">
-                        {doc.type === 'CMR' ? 'CMR' : doc.type === 'Aviz' ? t('aviz') !== 'aviz' ? t('aviz').charAt(0).toUpperCase() + t('aviz').slice(1) : 'Aviz' : doc.type === 'Factură' ? t('invoices') : doc.type === 'Foto încărcare' ? t('loadingPhoto') : doc.type === 'Foto marfă' ? t('cargoPhoto') : doc.type === 'Altele' ? t('other') : doc.type}
+                        {['cmr', 'CMR'].includes(doc.type) ? 'CMR' : 
+                         ['aviz', 'Aviz'].includes(doc.type) ? t('aviz') !== 'aviz' ? t('aviz').charAt(0).toUpperCase() + t('aviz').slice(1) : 'Aviz' : 
+                         ['pod', 'POD'].includes(doc.type) ? 'POD' :
+                         ['fuel', 'Fuel'].includes(doc.type) ? t('fuel') || 'Combustibil' :
+                         ['licence', 'Licence'].includes(doc.type) ? t('licence') || 'Licență' :
+                         doc.type === 'Factură' ? t('invoices') : 
+                         doc.type === 'Foto încărcare' ? t('loadingPhoto') : 
+                         doc.type === 'Foto marfă' ? t('cargoPhoto') : 
+                         ['other', 'Altele'].includes(doc.type) ? t('other') : doc.type}
                       </span>
                     </td>
                     <td className="table-cell text-xs italic text-text-secondary max-w-[150px] truncate" title={doc.notes || ''}>
                       {doc.notes || '—'}
                     </td>
-                    <td className="table-cell text-xs">{doc.trip?.referenceNumber || '-'}</td>
+                    <td className="table-cell text-xs">{doc.trip?.tripNumber || doc.trip?.referenceNumber || '-'}</td>
                     <td className="table-cell text-xs">{doc.uploadedBy?.name || '—'}</td>
-                    <td className="table-cell text-xs">{formatDate(doc.createdAt)}</td>
+                    <td className="table-cell text-xs">{new Date(doc.createdAt).toLocaleString(i18n.language || 'ro-RO', {dateStyle: 'short', timeStyle: 'short'})}</td>
                     <td className="table-cell">
                       <div className="flex items-center gap-1">
                         <button onClick={() => handleDownload(doc)} className="p-1.5 text-text-secondary hover:text-success rounded-lg hover:bg-green-50 transition-all" title="Download">

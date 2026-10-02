@@ -42,7 +42,6 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _fetchDocuments();
     
     // Fetch trips if empty so the trip selector doesn't disappear
@@ -58,7 +57,6 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
 
   @override
   void dispose() {
-    _tabController.dispose();
     _commentCtrl.dispose();
     _signatureController.dispose();
     super.dispose();
@@ -149,7 +147,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.translate('upload_success')), backgroundColor: kSuccess),
+          SnackBar(content: Text(l.translate('upload_success') != 'upload_success' ? l.translate('upload_success') : 'Document încărcat cu succes!'), backgroundColor: kSuccess),
         );
         setState(() {
           _commentCtrl.clear();
@@ -199,17 +197,74 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
               if (_signatureController.isNotEmpty) {
                 final image = await _signatureController.toImage();
                 if (image != null) {
-                  final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-                  if (byteData != null) {
-                    final buffer = byteData.buffer;
-                    final tempDir = await getTemporaryDirectory();
-                    final file = File('${tempDir.path}/SIG_${DateTime.now().millisecondsSinceEpoch}.png');
-                    await file.writeAsBytes(buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
-                    
-                    setSheetState(() {
-                      _selectedFiles.add(file);
-                    });
-                    setState(() {});
+                  bool merged = false;
+                  if (_selectedFiles.isNotEmpty) {
+                    try {
+                      final docFile = _selectedFiles.last;
+                      final docData = await docFile.readAsBytes();
+                      final docImg = await decodeImageFromList(docData);
+
+                      double scale = 1.0;
+                      if (image.width > docImg.width) {
+                        scale = docImg.width / image.width;
+                      } else {
+                        // Make signature visible size
+                        scale = docImg.width / (image.width * 1.5);
+                      }
+                      
+                      final sigHeight = (image.height * scale).toInt();
+                      final totalHeight = docImg.height + sigHeight + 40; // 40px padding
+
+                      final recorder = ui.PictureRecorder();
+                      final canvas = Canvas(recorder);
+                      
+                      // Fill white background
+                      canvas.drawRect(Rect.fromLTWH(0, 0, docImg.width.toDouble(), totalHeight.toDouble()), Paint()..color = Colors.white);
+                      
+                      // Draw original document at top
+                      canvas.drawImage(docImg, Offset.zero, Paint());
+
+                      final sigX = (docImg.width - (image.width * scale)) / 2;
+                      final sigY = docImg.height.toDouble() + 20; // 20px margin below doc
+
+                      canvas.save();
+                      canvas.translate(sigX, sigY);
+                      canvas.scale(scale, scale);
+                      canvas.drawImage(image, Offset.zero, Paint());
+                      canvas.restore();
+
+                      final picture = recorder.endRecording();
+                      final mergedImg = await picture.toImage(docImg.width, totalHeight);
+                      final byteData = await mergedImg.toByteData(format: ui.ImageByteFormat.png);
+                      if (byteData != null) {
+                        final tempDir = await getTemporaryDirectory();
+                        final mergedFile = File('${tempDir.path}/DOC_SIG_${DateTime.now().millisecondsSinceEpoch}.png');
+                        await mergedFile.writeAsBytes(byteData.buffer.asUint8List());
+                        
+                        setSheetState(() {
+                          _selectedFiles[_selectedFiles.length - 1] = mergedFile;
+                        });
+                        setState(() {});
+                        merged = true;
+                      }
+                    } catch (e) {
+                      debugPrint('Merge error: $e');
+                    }
+                  }
+
+                  if (!merged) {
+                    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+                    if (byteData != null) {
+                      final buffer = byteData.buffer;
+                      final tempDir = await getTemporaryDirectory();
+                      final file = File('${tempDir.path}/SIG_${DateTime.now().millisecondsSinceEpoch}.png');
+                      await file.writeAsBytes(buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
+                      
+                      setSheetState(() {
+                        _selectedFiles.add(file);
+                      });
+                      setState(() {});
+                    }
                   }
                 }
                 _signatureController.clear();
@@ -280,13 +335,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
 
                 // Trip Selector (if available)
                 if (trips.isNotEmpty) ...[
-                  const Text('Trip', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  const Text('Trip (Optional)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
                     value: _selectedTripId,
-                    hint: const Text('...'),
+                    hint: const Text('General Document (No Trip)'),
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('General')),
+                      const DropdownMenuItem(value: null, child: Text('General Document (No Trip)')),
                       ...trips.map((t) => DropdownMenuItem(
                             value: t['id']?.toString(),
                             child: Text('${t['tripNumber'] ?? t['id']} (${tripPickup(t)} ➔ ${tripDropoff(t)})', overflow: TextOverflow.ellipsis),
@@ -373,26 +428,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
 
-    final tripDocs = _documentsList.where((d) => d['trip'] != null || d['tripId'] != null || ['cmr', 'pod', 'waybill', 'aviz'].contains(d['type']?.toString().toLowerCase())).toList();
-    final driverDocs = _documentsList.where((d) => !tripDocs.contains(d)).toList();
-
     return Scaffold(
       backgroundColor: kSurface,
       appBar: AppBar(
         title: Text(l.translate('docs_title')),
         elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: kPrimary,
-          unselectedLabelColor: kTextSecondary,
-          indicatorColor: kPrimary,
-          indicatorWeight: 3,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-          tabs: [
-            Tab(text: l.translate('trip_docs')),
-            Tab(text: l.translate('driver_docs')),
-          ],
-        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showUploadSheet,
@@ -403,13 +443,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
       body: RefreshIndicator(
         onRefresh: _fetchDocuments,
         color: kPrimary,
-        child: TabBarView(
-          controller: _tabController,
-          children: [
-            _buildDocList(tripDocs, l),
-            _buildDocList(driverDocs, l),
-          ],
-        ),
+        child: _buildDocList(_documentsList, l),
       ),
     );
   }
@@ -475,11 +509,65 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
             onTap: () async {
               if (fileUrl.isNotEmpty) {
                 final uri = Uri.parse(fileUrl);
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                final ext = fileUrl.split('.').last.split('?').first.toLowerCase();
+                final isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(ext) || fileUrl.contains('image/upload');
+                
+                if (isImage) {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => Dialog(
+                      backgroundColor: Colors.transparent,
+                      insetPadding: const EdgeInsets.all(10),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          InteractiveViewer(
+                            minScale: 0.5,
+                            maxScale: 4.0,
+                            child: Image.network(fileUrl, fit: BoxFit.contain, loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return const Center(child: CircularProgressIndicator(color: Colors.white));
+                            }),
+                          ),
+                          Positioned(
+                            top: 10, right: 10,
+                            child: IconButton(
+                              icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                              onPressed: () => Navigator.pop(ctx),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 20,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white),
+                                  onPressed: () => Share.share(fileUrl),
+                                  icon: const Icon(Icons.share),
+                                  label: const Text('Share'),
+                                ),
+                                const SizedBox(width: 10),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kPrimary),
+                                  onPressed: () => launchUrl(uri, mode: LaunchMode.externalApplication),
+                                  icon: const Icon(Icons.download),
+                                  label: const Text('Descarcă'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
                 } else {
-                  if (ctx.mounted) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(l.translate('cant_open_url'))));
+                  try {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } catch (e) {
+                    if (ctx.mounted) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Cannot open URL')));
+                    }
                   }
                 }
               }

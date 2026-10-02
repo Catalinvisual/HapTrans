@@ -44,6 +44,29 @@ export class DocumentsService {
     });
     const saved: any = await this.repo.save(doc);
     const savedId = Array.isArray(saved) ? saved[0].id : saved.id;
+    
+    // Sync to driver_documents if no trip/order and it's uploaded by driver
+    if (!hasTrip && !hasOrder && dto.uploadedById) {
+      try {
+        const fileUrlToSave = this.generateSignedUrl(saved, 365*24*60*60) || saved.fileUrl || saved.publicId;
+        const expiryDate = new Date();
+        expiryDate.setFullYear(expiryDate.getFullYear() + 5);
+        await this.repo.manager.query(`
+          INSERT INTO driver_documents (type, "documentNumber", "expiryDate", "fileUrl", "driverId")
+          SELECT $1, $2, $3, $4, d.id
+          FROM drivers d WHERE d."userId" = $5
+        `, [
+          dto.type || 'App Upload',
+          'DOC-' + new Date().getTime().toString().substring(8),
+          expiryDate,
+          fileUrlToSave,
+          dto.uploadedById
+        ]);
+      } catch (e) {
+        console.error('Failed to sync to driver_documents:', e);
+      }
+    }
+
     return this.repo.findOne({ where: { id: savedId }, relations: ['trip', 'order', 'uploadedBy'] }) as unknown as Promise<Document>;
   }
 

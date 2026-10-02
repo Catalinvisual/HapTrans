@@ -288,8 +288,8 @@ async function bootstrap() {
   
   // Serve uploaded files statically at /uploads prefix with basic protection
   app.use('/uploads', (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    // Allow public access to the company logo for emails
-    if (req.path === '/company-logo.png') {
+    // Allow public access to the company logo for emails and the APK for auto-updates
+    if (req.path === '/company-logo.png' || req.path === '/HapTrans.apk') {
       return next();
     }
     if (!req.headers.authorization && !req.query.token) {

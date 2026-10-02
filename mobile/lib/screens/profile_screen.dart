@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
 import '../widgets/language_dropdown.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -74,6 +75,25 @@ class ProfileScreen extends StatelessWidget {
 
           const SizedBox(height: 12),
 
+          ElevatedButton.icon(
+            onPressed: () {
+              launchUrl(Uri.parse('https://hapcargo-server.up.railway.app/uploads/HapTrans.apk'), mode: LaunchMode.externalApplication);
+            },
+            icon: const Icon(Icons.system_update),
+            label: Text({
+              'ro': 'Actualizare Aplicație',
+              'en': 'Update App',
+              'nl': 'App updaten',
+              'de': 'App aktualisieren',
+              'fr': 'Mettre à jour'
+            }[locale] ?? 'Update App'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blueAccent,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(height: 12),
           ElevatedButton.icon(
             onPressed: () {
               auth.logout();
