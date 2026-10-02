@@ -422,9 +422,31 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
     );
   }
 
-  Future<void> _downloadFile(String url, String fileName) async {
+  Future<void> _downloadFile(String url, String fileName, AppLocalizations l) async {
+    final locale = l.locale.languageCode;
+    final msgInProgress = {
+      'ro': 'Descărcare în curs...',
+      'en': 'Downloading...',
+      'nl': 'Downloaden...',
+      'de': 'Wird heruntergeladen...',
+      'fr': 'Téléchargement en cours...',
+    }[locale] ?? 'Downloading...';
+    final msgSuccess = {
+      'ro': 'Salvat în Descărcări (Downloads)',
+      'en': 'Saved to Downloads',
+      'nl': 'Opgeslagen in Downloads',
+      'de': 'In Downloads gespeichert',
+      'fr': 'Enregistré dans Téléchargements',
+    }[locale] ?? 'Saved to Downloads';
+    final msgError = {
+      'ro': 'Eroare la descărcare',
+      'en': 'Download error',
+      'nl': 'Downloadfout',
+      'de': 'Downloadfehler',
+      'fr': 'Erreur de téléchargement',
+    }[locale] ?? 'Download error';
     try {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Descărcare în curs...')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msgInProgress)));
       String savePath;
       if (Platform.isAndroid) {
         savePath = '/storage/emulated/0/Download/HapCargo_$fileName';
@@ -432,16 +454,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
         final dir = await getApplicationDocumentsDirectory();
         savePath = '${dir.path}/HapCargo_$fileName';
       }
-      
       await Dio().download(url, savePath);
-      
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Salvat cu succes în Descărcări (Downloads)'), backgroundColor: kSuccess));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msgSuccess), backgroundColor: kSuccess));
       }
     } catch (e) {
       debugPrint('Download error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Eroare la descărcare')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msgError)));
       }
     }
   }
@@ -515,10 +535,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
       itemCount: docs.length,
       itemBuilder: (ctx, i) {
         final doc = docs[i];
-        final type = (doc['type'] ?? 'DOC').toString().toUpperCase();
+        final rawType = (doc['type'] ?? doc['documentType'] ?? '').toString();
+        final typeLabel = rawType.isNotEmpty ? rawType.toUpperCase() : 'DOC';
         final name = doc['fileName'] ?? doc['name'] ?? 'Document #${doc['id']?.toString().substring(0, 4)}';
         final dateStr = doc['uploadedAt'] != null ? formatAppDateTime(doc['uploadedAt']) : '';
         final fileUrl = doc['fileUrl'] ?? '';
+        final l = AppLocalizations.of(context);
 
         return Card(
           elevation: 0,
@@ -578,7 +600,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                                   style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kPrimary),
                                   onPressed: () {
                                     Navigator.pop(ctx);
-                                    _downloadFile(fileUrl, fileUrl.split('/').last.split('?').first);
+                                    _downloadFile(fileUrl, fileUrl.split('/').last.split('?').first, l);
                                   },
                                   icon: const Icon(Icons.download),
                                   label: const Text('Descarcă'),
@@ -591,7 +613,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                     ),
                   );
                 } else {
-                  _downloadFile(fileUrl, fileUrl.split('/').last.split('?').first);
+                  _downloadFile(fileUrl, fileUrl.split('/').last.split('?').first, l);
                 }
               }
             },
@@ -622,7 +644,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                         color: const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text(type, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: kTextSecondary)),
+                      child: Text(typeLabel, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: kTextSecondary)),
                     ),
                     const SizedBox(width: 8),
                     Text(dateStr, style: const TextStyle(fontSize: 11, color: kTextSecondary)),

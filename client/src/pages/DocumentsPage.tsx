@@ -246,7 +246,7 @@ export default function DocumentsPage({
                     </td>
                     <td className="table-cell text-xs">{doc.trip?.tripNumber || doc.trip?.referenceNumber || '-'}</td>
                     <td className="table-cell text-xs">{doc.uploadedBy?.name || '—'}</td>
-                    <td className="table-cell text-xs">{new Date(doc.createdAt).toLocaleString(i18n.language || 'ro-RO', {dateStyle: 'short', timeStyle: 'short'})}</td>
+                    <td className="table-cell text-xs">{doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleString(i18n.language || 'ro-RO', {dateStyle: 'short', timeStyle: 'short'}) : '—'}</td>
                     <td className="table-cell">
                       <div className="flex items-center gap-1">
                         <button onClick={() => handleDownload(doc)} className="p-1.5 text-text-secondary hover:text-success rounded-lg hover:bg-green-50 transition-all" title="Download">

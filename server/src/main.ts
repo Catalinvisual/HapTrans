@@ -289,13 +289,13 @@ async function bootstrap() {
   
   const expressApp = app.getHttpAdapter().getInstance();
   // Serve APK directly with connection close to prevent download hanging
-  expressApp.get('/uploads/HapTrans-v7.apk', (req: express.Request, res: express.Response) => {
-    const apkPath = join(__dirname, '..', 'uploads', 'HapTrans-v7.apk');
+  expressApp.get('/uploads/HapTrans-v8.apk', (req: express.Request, res: express.Response) => {
+    const apkPath = join(__dirname, '..', 'uploads', 'HapTrans-v8.apk');
     if (fs.existsSync(apkPath)) {
       const stat = fs.statSync(apkPath);
       res.setHeader('Content-Length', stat.size);
       res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-      res.setHeader('Content-Disposition', 'attachment; filename="HapTrans-v7.apk"');
+      res.setHeader('Content-Disposition', 'attachment; filename="HapTrans-v8.apk"');
       res.setHeader('Connection', 'close');
       const stream = fs.createReadStream(apkPath);
       stream.pipe(res);
