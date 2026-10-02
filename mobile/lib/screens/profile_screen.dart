@@ -4,6 +4,9 @@ import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
 import '../widgets/language_dropdown.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -76,19 +79,18 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 12),
 
           ElevatedButton.icon(
-            onPressed: () {
-              launchUrl(Uri.parse('https://hapcargo-server.up.railway.app/uploads/HapTrans.apk'), mode: LaunchMode.externalApplication);
-            },
+            onPressed: () => _checkForUpdateManual(context, locale),
             icon: const Icon(Icons.system_update),
             label: Text({
-              'ro': 'Actualizare Aplicație',
-              'en': 'Update App',
-              'nl': 'App updaten',
-              'de': 'App aktualisieren',
-              'fr': 'Mettre à jour'
-            }[locale] ?? 'Update App'),
+              'ro': 'Verifică Actualizări',
+              'en': 'Check for Updates',
+              'nl': 'Controleer op updates',
+              'de': 'Nach Updates suchen',
+              'fr': 'Vérifier les mises à jour'
+            }[locale] ?? 'Check for Updates'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blueAccent,
+              foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
@@ -110,6 +112,98 @@ class ProfileScreen extends StatelessWidget {
         ]),
       ),
     );
+  }
+
+  Future<void> _checkForUpdateManual(BuildContext context, String locale) async {
+    try {
+      final res = await Dio().get('$kApiUrl/auth/app-version');
+      final data = res.data;
+      final serverVersion = data['versionCode'] ?? 0;
+      
+      if (serverVersion > kAppVersionCode) {
+        final url = data['url'];
+        if (url != null) {
+          _downloadAndInstallUpdate(context, url, locale);
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text({
+              'ro': 'Folosiți deja ultima versiune.',
+              'en': 'You are already using the latest version.',
+              'nl': 'U gebruikt al de nieuwste versie.',
+              'de': 'Sie verwenden bereits die neueste Version.',
+              'fr': 'Vous utilisez déjà la dernière version.'
+            }[locale] ?? 'You are already using the latest version.'),
+            backgroundColor: kSuccess,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Eroare la verificarea actualizării: $e'), backgroundColor: kError),
+      );
+    }
+  }
+
+  Future<void> _downloadAndInstallUpdate(BuildContext context, String url, String locale) async {
+    final ValueNotifier<double> progressNotifier = ValueNotifier(0.0);
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => ValueListenableBuilder<double>(
+        valueListenable: progressNotifier,
+        builder: (context, progress, child) {
+          return AlertDialog(
+            title: Text({
+              'ro': 'Se descarcă...',
+              'en': 'Downloading...',
+              'nl': 'Downloaden...',
+              'de': 'Wird heruntergeladen...',
+              'fr': 'Téléchargement...'
+            }[locale] ?? 'Downloading...'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LinearProgressIndicator(value: progress),
+                const SizedBox(height: 16),
+                Text('${(progress * 100).toStringAsFixed(0)}%'),
+              ],
+            ),
+          );
+        }
+      ),
+    );
+
+    try {
+      final dir = await getExternalStorageDirectory();
+      if (dir == null) return;
+      final filePath = '${dir.path}/HapTrans_update.apk';
+      
+      final dio = Dio();
+      await dio.download(
+        url,
+        filePath,
+        onReceiveProgress: (received, total) {
+          if (total != -1) {
+            progressNotifier.value = received / total;
+          }
+        },
+      );
+      
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context); // Close downloading dialog
+      }
+      await OpenFilex.open(filePath);
+    } catch (e) {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Eroare descărcare: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   void _showChangePasswordDialog(BuildContext context, AuthProvider auth, String locale) {

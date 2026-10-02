@@ -5,6 +5,9 @@ import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
+import 'dart:io';
 import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
 import '../providers/chat_provider.dart';
@@ -152,7 +155,10 @@ class _MainScreenState extends State<MainScreen> {
                 ),
               ElevatedButton(
                 onPressed: () {
-                  if (url != null) launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                  if (url != null) {
+                    Navigator.pop(ctx);
+                    _downloadAndInstallUpdate(url, locale);
+                  }
                 },
                 child: Text({
                   'ro': 'Descarcă Acum',
@@ -168,6 +174,68 @@ class _MainScreenState extends State<MainScreen> {
       }
     } catch (e) {
       debugPrint('Failed to check for updates: $e');
+    }
+  }
+
+  Future<void> _downloadAndInstallUpdate(String url, String locale) async {
+    final ValueNotifier<double> progressNotifier = ValueNotifier(0.0);
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => ValueListenableBuilder<double>(
+        valueListenable: progressNotifier,
+        builder: (context, progress, child) {
+          return AlertDialog(
+            title: Text({
+              'ro': 'Se descarcă...',
+              'en': 'Downloading...',
+              'nl': 'Downloaden...',
+              'de': 'Wird heruntergeladen...',
+              'fr': 'Téléchargement...'
+            }[locale] ?? 'Downloading...'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LinearProgressIndicator(value: progress),
+                const SizedBox(height: 16),
+                Text('${(progress * 100).toStringAsFixed(0)}%'),
+              ],
+            ),
+          );
+        }
+      ),
+    );
+
+    try {
+      final dir = await getExternalStorageDirectory();
+      if (dir == null) return;
+      final filePath = '${dir.path}/HapTrans_update.apk';
+      
+      final dio = Dio();
+      await dio.download(
+        url,
+        filePath,
+        onReceiveProgress: (received, total) {
+          if (total != -1) {
+            progressNotifier.value = received / total;
+          }
+        },
+      );
+      
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context); // Close downloading dialog
+      }
+      await OpenFilex.open(filePath);
+    } catch (e) {
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Eroare descărcare: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
