@@ -124,4 +124,17 @@ export class AuthController {
     await this.authService.saveFcmToken(req.user.id, body.fcmToken);
     return { success: true };
   }
+
+  @Get('app-version')
+  getAppVersion() {
+    return {
+      versionCode: 2,
+      url: 'https://hapcargo-server.up.railway.app/uploads/HapTrans.apk',
+      mandatory: false,
+      message: {
+        ro: 'O nouă versiune a aplicației este disponibilă! Vă rugăm să actualizați.',
+        en: 'A new version of the app is available! Please update.',
+      }
+    };
+  }
 }

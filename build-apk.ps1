@@ -97,11 +97,8 @@ $mobileDir = Join-Path $scriptDir "mobile"
 
 if (-not (Test-Path $mobileDir)) {
     Write-Host "ERROR: mobile/ directory not found at: $mobileDir" -ForegroundColor Red
-    Read-Host "Press Enter to exit"
     exit 1
-}
-
-Set-Location $mobileDir
+} else {
 Write-Host "Working directory: $mobileDir" -ForegroundColor Gray
 Write-Host ""
 

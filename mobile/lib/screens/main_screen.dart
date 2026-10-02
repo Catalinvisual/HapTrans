@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:dio/dio.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
@@ -28,6 +30,7 @@ class _MainScreenState extends State<MainScreen> {
   Timer? _pollingTimer;
   StreamSubscription<Position>? _gpsSubscription;
   bool _isAutoTracking = false;
+  bool _checkedForUpdate = false;
 
   @override
   void initState() {
@@ -38,6 +41,7 @@ class _MainScreenState extends State<MainScreen> {
       final chatProv = context.read<ChatProvider>();
 
       _checkAndRequestPermissions();
+      _checkForUpdate(auth.locale.languageCode);
 
       tripProv.addListener(() {
         if (mounted) {
@@ -107,6 +111,45 @@ class _MainScreenState extends State<MainScreen> {
       }
     } catch (e) {
       debugPrint('Error checking permissions on startup: $e');
+    }
+  }
+
+  Future<void> _checkForUpdate(String locale) async {
+    if (_checkedForUpdate) return;
+    _checkedForUpdate = true;
+    try {
+      final res = await Dio().get('$kApiUrl/auth/app-version');
+      final data = res.data;
+      final serverVersion = data['versionCode'] ?? 0;
+      if (serverVersion > kAppVersionCode) {
+        if (!mounted) return;
+        final msg = data['message']?[locale] ?? data['message']?['en'] ?? 'O nouă versiune este disponibilă! Vă rugăm să actualizați.';
+        final url = data['url'];
+        
+        showDialog(
+          context: context,
+          barrierDismissible: !(data['mandatory'] ?? false),
+          builder: (ctx) => AlertDialog(
+            title: Text({'ro': 'Actualizare Disponibilă', 'en': 'Update Available'}[locale] ?? 'Update Available'),
+            content: Text(msg),
+            actions: [
+              if (!(data['mandatory'] ?? false))
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text({'ro': 'Mai târziu', 'en': 'Later'}[locale] ?? 'Later'),
+                ),
+              ElevatedButton(
+                onPressed: () {
+                  if (url != null) launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                },
+                child: Text({'ro': 'Descarcă Acum', 'en': 'Download Now'}[locale] ?? 'Download Now'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed to check for updates: $e');
     }
   }
 
