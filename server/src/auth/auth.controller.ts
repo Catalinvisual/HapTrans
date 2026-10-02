@@ -129,7 +129,7 @@ export class AuthController {
   getAppVersion() {
     return {
       versionCode: 4,
-      url: 'https://hapcargo-server.up.railway.app/uploads/HapTrans.apk',
+      url: 'https://haptrans-production.up.railway.app/uploads/HapTrans.apk',
       mandatory: false,
       message: {
         ro: 'O nouă versiune a aplicației este disponibilă! Vă rugăm să actualizați.',
