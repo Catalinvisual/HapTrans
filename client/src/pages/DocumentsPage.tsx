@@ -230,15 +230,18 @@ export default function DocumentsPage({
                     </td>
                     <td className="table-cell">
                       <span className="badge-primary">
-                        {['cmr', 'CMR'].includes(doc.type) ? 'CMR' : 
-                         ['aviz', 'Aviz'].includes(doc.type) ? t('aviz') !== 'aviz' ? t('aviz').charAt(0).toUpperCase() + t('aviz').slice(1) : 'Aviz' : 
-                         ['pod', 'POD'].includes(doc.type) ? 'POD' :
-                         ['fuel', 'Fuel'].includes(doc.type) ? t('fuel') || 'Combustibil' :
-                         ['licence', 'Licence'].includes(doc.type) ? t('licence') || 'Licență' :
-                         doc.type === 'Factură' ? t('invoices') : 
-                         doc.type === 'Foto încărcare' ? t('loadingPhoto') : 
-                         doc.type === 'Foto marfă' ? t('cargoPhoto') : 
-                         ['other', 'Altele'].includes(doc.type) ? t('other') : doc.type}
+                        {(() => {
+                          const t_val = (doc.type || doc.documentType || '').toString().toLowerCase();
+                          if (['cmr'].includes(t_val)) return 'CMR';
+                          if (['aviz'].includes(t_val)) return 'Aviz';
+                          if (['pod'].includes(t_val)) return 'POD';
+                          if (['fuel'].includes(t_val)) return 'Fuel';
+                          if (['licence', 'license'].includes(t_val)) return 'Licență';
+                          if (['invoice', 'factura', 'factură'].includes(t_val)) return 'Factură';
+                          if (['photo', 'foto încărcare', 'foto marfă', 'packing_list'].includes(t_val)) return doc.type || doc.documentType;
+                          if (['other', 'altele'].includes(t_val)) return 'Altele';
+                          return (doc.type || doc.documentType || '—').toString().toUpperCase();
+                        })()}
                       </span>
                     </td>
                     <td className="table-cell text-xs italic text-text-secondary max-w-[150px] truncate" title={doc.notes || ''}>
