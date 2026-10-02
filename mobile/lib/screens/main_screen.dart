@@ -130,19 +130,37 @@ class _MainScreenState extends State<MainScreen> {
           context: context,
           barrierDismissible: !(data['mandatory'] ?? false),
           builder: (ctx) => AlertDialog(
-            title: Text({'ro': 'Actualizare Disponibilă', 'en': 'Update Available'}[locale] ?? 'Update Available'),
+            title: Text({
+              'ro': 'Actualizare Disponibilă',
+              'en': 'Update Available',
+              'nl': 'Update beschikbaar',
+              'de': 'Update verfügbar',
+              'fr': 'Mise à jour disponible'
+            }[locale] ?? 'Update Available'),
             content: Text(msg),
             actions: [
               if (!(data['mandatory'] ?? false))
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: Text({'ro': 'Mai târziu', 'en': 'Later'}[locale] ?? 'Later'),
+                  child: Text({
+                    'ro': 'Mai târziu',
+                    'en': 'Later',
+                    'nl': 'Later',
+                    'de': 'Später',
+                    'fr': 'Plus tard'
+                  }[locale] ?? 'Later'),
                 ),
               ElevatedButton(
                 onPressed: () {
                   if (url != null) launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
                 },
-                child: Text({'ro': 'Descarcă Acum', 'en': 'Download Now'}[locale] ?? 'Download Now'),
+                child: Text({
+                  'ro': 'Descarcă Acum',
+                  'en': 'Download Now',
+                  'nl': 'Nu downloaden',
+                  'de': 'Jetzt herunterladen',
+                  'fr': 'Télécharger'
+                }[locale] ?? 'Download Now'),
               ),
             ],
           ),
