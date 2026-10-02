@@ -670,7 +670,7 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
                   height: double.infinity,
                   child: CircularProgressIndicator(
                     value: progress,
-                    strokeWidth: 10,
+                    strokeWidth: 7,
                     strokeCap: StrokeCap.round,
                     backgroundColor: const Color(0xFFF1F5F9),
                     valueColor: AlwaysStoppedAnimation<Color>(color),
@@ -678,7 +678,7 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
                 ),
                 Container(
                   alignment: Alignment.center,
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -687,7 +687,7 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
                         child: Text(
                           valueText,
                           style: TextStyle(
-                            fontSize: 22,
+                            fontSize: 17,
                             fontWeight: FontWeight.w900,
                             color: isAlert ? color : const Color(0xFF0F172A),
                           ),

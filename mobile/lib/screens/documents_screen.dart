@@ -382,13 +382,6 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: () => _captureSignature(setSheetState),
-                  icon: const Icon(Icons.draw, color: kPrimary),
-                  label: Text(l.translate('signature_draw'), style: const TextStyle(color: kPrimary)),
-                  style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 44)),
-                ),
 
                 // Selected count preview
                 if (_selectedFiles.isNotEmpty) ...[

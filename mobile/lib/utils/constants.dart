@@ -14,7 +14,7 @@ const kTextSecondary = Color(0xFF6B7280);
 const kBorder = Color(0xFFE5E7EB);
 
 // ─── App Version ───
-const int kAppVersionCode = 3;
+const int kAppVersionCode = 4;
 
 // ─── API ───
 const kApiUrl = 'https://haptrans-production.up.railway.app/api';
