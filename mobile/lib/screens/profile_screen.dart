@@ -109,6 +109,14 @@ class ProfileScreen extends StatelessWidget {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
+          const SizedBox(height: 24),
+          Center(
+            child: Text(
+              'Versiunea aplicației: $kAppVersionCode',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ),
+          const SizedBox(height: 24),
         ]),
       ),
     );

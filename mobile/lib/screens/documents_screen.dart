@@ -9,6 +9,7 @@ import 'package:signature/signature.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:ui' as ui;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:open_filex/open_filex.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
@@ -79,7 +80,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
           _documentsList = allDocs
               .where((d) => d['uploadedBy']?['id'] == auth.user?['id'] || d['tripId'] != null)
               .toList();
-          _documentsList.sort((a, b) => (b['createdAt'] ?? '').toString().compareTo((a['createdAt'] ?? '').toString()));
+          _documentsList.sort((a, b) {
+            final dateA = DateTime.tryParse(a['createdAt']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final dateB = DateTime.tryParse(b['createdAt']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+            return dateB.compareTo(dateA);
+          });
         });
       }
     } catch (e) {
@@ -417,6 +422,22 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
     );
   }
 
+  Future<void> _downloadFile(String url, String fileName) async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Descărcare în curs...')));
+      final dir = await getApplicationDocumentsDirectory();
+      final savePath = '${dir.path}/$fileName';
+      await Dio().download(url, savePath);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Descărcare finalizată. Se deschide...')));
+      await OpenFilex.open(savePath);
+    } catch (e) {
+      debugPrint('Download error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Eroare la descărcare')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
@@ -509,28 +530,32 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                   showDialog(
                     context: context,
                     builder: (ctx) => Dialog(
-                      backgroundColor: Colors.transparent,
-                      insetPadding: const EdgeInsets.all(10),
+                      backgroundColor: Colors.black,
+                      insetPadding: EdgeInsets.zero,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          InteractiveViewer(
-                            minScale: 0.5,
-                            maxScale: 4.0,
-                            child: Image.network(fileUrl, fit: BoxFit.contain, loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return const Center(child: CircularProgressIndicator(color: Colors.white));
-                            }),
+                          SizedBox(
+                            width: MediaQuery.of(ctx).size.width,
+                            height: MediaQuery.of(ctx).size.height,
+                            child: InteractiveViewer(
+                              minScale: 1.0,
+                              maxScale: 4.0,
+                              child: Image.network(fileUrl, fit: BoxFit.contain, loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return const Center(child: CircularProgressIndicator(color: Colors.white));
+                              }),
+                            ),
                           ),
                           Positioned(
-                            top: 10, right: 10,
+                            top: 40, right: 10,
                             child: IconButton(
                               icon: const Icon(Icons.close, color: Colors.white, size: 30),
                               onPressed: () => Navigator.pop(ctx),
                             ),
                           ),
                           Positioned(
-                            bottom: 20,
+                            bottom: 30,
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -540,10 +565,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                                   icon: const Icon(Icons.share),
                                   label: const Text('Share'),
                                 ),
-                                const SizedBox(width: 10),
+                                const SizedBox(width: 15),
                                 ElevatedButton.icon(
                                   style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kPrimary),
-                                  onPressed: () => launchUrl(uri, mode: LaunchMode.externalApplication),
+                                  onPressed: () {
+                                    Navigator.pop(ctx);
+                                    _downloadFile(fileUrl, fileUrl.split('/').last.split('?').first);
+                                  },
                                   icon: const Icon(Icons.download),
                                   label: const Text('Descarcă'),
                                 ),
@@ -555,13 +583,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                     ),
                   );
                 } else {
-                  try {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  } catch (e) {
-                    if (ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Cannot open URL')));
-                    }
-                  }
+                  _downloadFile(fileUrl, fileUrl.split('/').last.split('?').first);
                 }
               }
             },
