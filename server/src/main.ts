@@ -286,8 +286,9 @@ async function bootstrap() {
 
   app.useWebSocketAdapter(new IoAdapter(app));
   
+  const expressApp = app.getHttpAdapter().getInstance();
   // Serve APK directly with connection close to prevent download hanging
-  app.get('/uploads/HapTrans.apk', (req: express.Request, res: express.Response) => {
+  expressApp.get('/uploads/HapTrans.apk', (req: express.Request, res: express.Response) => {
     const apkPath = join(__dirname, '..', 'uploads', 'HapTrans.apk');
     res.download(apkPath, 'HapTrans.apk', {
       headers: {
