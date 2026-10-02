@@ -35,9 +35,16 @@ export class DocumentsService {
   async create(dto: any): Promise<Document> {
     const hasTrip = dto.tripId && dto.tripId !== 'null' && dto.tripId !== '';
     const hasOrder = dto.orderId && dto.orderId !== 'null' && dto.orderId !== '';
+
+    // Normalize type to a valid enum value
+    const rawType = (dto.type || dto.documentType || 'other').toString().toLowerCase().trim();
+    const validTypes = ['cmr', 'invoice', 'pod', 'packing_list', 'photo', 'aviz', 'fuel', 'licence', 'other'];
+    const normalizedType = validTypes.includes(rawType) ? rawType : 'other';
+
     const doc = this.repo.create({
       ...dto,
-      documentType: dto.type || dto.documentType || 'other',
+      type: rawType, // store raw string for display
+      documentType: normalizedType as any,
       trip: hasTrip ? ({ id: dto.tripId } as any) : null,
       order: hasOrder ? ({ id: dto.orderId } as any) : null,
       uploadedBy: { id: dto.uploadedById } as any,
@@ -56,7 +63,7 @@ export class DocumentsService {
           SELECT $1, $2, $3, $4, d.id
           FROM drivers d WHERE d."userId" = $5
         `, [
-          dto.type || 'App Upload',
+          rawType,
           'DOC-' + new Date().getTime().toString().substring(8),
           expiryDate,
           fileUrlToSave,

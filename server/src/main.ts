@@ -485,6 +485,9 @@ async function bootstrap() {
     await dataSource.query(`ALTER TABLE "documents" ADD COLUMN IF NOT EXISTS "verifiedById" uuid`);
     await dataSource.query(`ALTER TABLE "documents" ADD COLUMN IF NOT EXISTS "uploadedAt" TIMESTAMP DEFAULT now()`);
     await dataSource.query(`ALTER TABLE "documents" ADD COLUMN IF NOT EXISTS "stopTaskId" uuid`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "documents" ADD COLUMN IF NOT EXISTS "type" character varying`).catch(() => {});
+    // Backfill type from documentType for existing documents
+    await dataSource.query(`UPDATE "documents" SET "type" = "documentType" WHERE "type" IS NULL`).catch(() => {});
 
     // 12. Create stops table if it doesn't exist
     await dataSource.query(`

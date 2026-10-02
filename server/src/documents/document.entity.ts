@@ -11,6 +11,9 @@ export enum DocumentType {
   POD = 'pod',
   PACKING_LIST = 'packing_list',
   PHOTO = 'photo',
+  AVIZ = 'aviz',
+  FUEL = 'fuel',
+  LICENCE = 'licence',
   OTHER = 'other',
 }
 
@@ -33,6 +36,9 @@ export class Document {
 
   @Column({ type: 'enum', enum: DocumentType, default: DocumentType.OTHER })
   documentType: DocumentType;
+
+  @Column({ nullable: true })
+  type: string; // Free-text type from mobile/web (e.g. 'cmr', 'aviz', 'fuel')
 
   @Column({ nullable: true })
   fileName: string;
