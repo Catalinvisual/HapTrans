@@ -1,145 +1,121 @@
-/* Presentation seam: scoped to this page wrapper, never to header or modal.
-   The original Hero component and its event handlers are preserved. */
+/* Compact editorial hero. No pin spacer and no transforms on modal ancestors. */
 .root { position: relative; }
 .root [data-cinematic='hero'] {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  min-height: 760px;
-  height: 100svh;
-  padding: clamp(122px, 15svh, 166px) 0 0;
-  background: radial-gradient(ellipse at 90% 38%, #425253 0, transparent 43%), linear-gradient(120deg, #091824, #16313f);
+  height: auto;
+  min-height: 620px;
+  padding: clamp(116px, 10vw, 154px) 0 116px;
   color: #fffaf4;
+  background: radial-gradient(ellipse at 78% 58%, #354b57, transparent 59%), linear-gradient(115deg, #071723, #142e40);
 }
 .root [data-cinematic='hero']::before {
-  z-index: 1;
+  content: '';
+  position: absolute;
   inset: 0;
-  background: linear-gradient(110deg, rgba(6,18,28,.55), transparent 64%);
+  z-index: 2;
+  background: linear-gradient(90deg, #081a27 0%, rgba(8,26,39,.88) 26%, transparent 65%);
   pointer-events: none;
 }
-.root [data-cinematic='hero']::after { content: none; }
+.root [data-cinematic='hero']::after {
+  content: '';
+  position: absolute;
+  inset: auto -5% -29px;
+  height: 54px;
+  border-top: 2px solid #FF6A2B;
+  border-radius: 50% 55% 0 0;
+  background: #f7f6f2;
+  z-index: 5;
+  pointer-events: none;
+}
 .root [data-cinematic='container'] {
   display: block;
   position: relative;
   z-index: 3;
   max-width: 1600px;
   margin: 0 auto;
-  padding: 0 clamp(24px, 5vw, 90px);
+  padding: 0 clamp(24px, 5vw, 80px);
   pointer-events: none;
 }
-.root [data-cinematic='content'] { max-width: 630px; pointer-events: auto; }
+.root [data-cinematic='content'] { width: 41%; max-width: 570px; pointer-events: auto; }
 .root [data-cinematic='title'] {
-  max-width: 630px;
-  margin-bottom: 18px;
-  font-size: clamp(2.55rem, 4.15vw, 4.4rem);
+  max-width: 570px;
+  font-size: clamp(2.35rem, 3.8vw, 4.2rem);
   line-height: 1.04;
   letter-spacing: -.055em;
-  color: #fffaf4;
+  color: #fcfcf8;
+  margin: 0 0 20px;
+  text-wrap: balance;
 }
-.root [data-cinematic='subtitle'] {
-  max-width: 490px;
-  margin-bottom: 20px;
-  color: #c8d5da;
-  font-size: clamp(.9rem, 1.1vw, 1.05rem);
-  line-height: 1.7;
-}
-.root [data-cinematic='badge'] { margin-bottom: 20px; background: rgba(13,32,43,.7); }
-.root [data-cinematic='ctaGroup'] { gap: 10px; margin-bottom: 14px; }
+.root [data-cinematic='subtitle'] { max-width: 410px; color: #c4d3dc; font-size: .95rem; line-height: 1.75; margin-bottom: 22px; }
+.root [data-cinematic='badge'] { margin-bottom: 18px; font-size: .62rem; padding: .5rem .75rem; color: #ffc598; border-color: #866144; background: #1c303b; }
+.root [data-cinematic='ctaGroup'] { margin-bottom: 17px; gap: 10px; }
 .root [data-cinematic='ctaGroup'] > button,
-.root [data-cinematic='ctaGroup'] > a { min-height: 48px; border-radius: 12px; padding: .85rem 1.15rem; }
-.root [data-cinematic='ctaGroup'] > button { background: #FF6A2B; color: #142531; }
-.root [data-cinematic='dynamicBadges'] { gap: 8px 18px; }
-/* Hide only the old decorative photo card, not the calculator. */
+.root [data-cinematic='ctaGroup'] > a { min-height: 48px; padding: .85rem 1rem; border-radius: 12px; font-size: .78rem; }
+.root [data-cinematic='ctaGroup'] > button { background: #FF6A2B; color: #112536; box-shadow: 0 10px 32px -15px #ff6a2b; }
+.root [data-cinematic='ctaGroup'] > a { background: #152b3a; border-color: #617786; }
+.root [data-cinematic='dynamicBadges'] { gap: 6px 14px; }
 .root [data-cinematic='fleetColumn'] { display: none; }
-.scene { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-.art { display: block; position: absolute; width: 100%; height: auto; bottom: 63px; left: 0; overflow: visible; }
-.chapterBar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  min-height: 112px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 20px clamp(24px, 5vw, 90px) 25px;
-  color: #172630;
-  background: #f7f6f2;
-  pointer-events: auto;
+.scene { --warmth: .14; position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.halo { position: absolute; right: -12%; top: 0; width: 75%; height: 100%; background: radial-gradient(ellipse, #ffc58d, transparent 68%); opacity: var(--warmth); }
+.art { display: block; position: absolute; width: 78%; max-width: 1260px; height: auto; right: -5%; bottom: 90px; overflow: visible; }
+.sceneCaption { position: absolute; right: 5%; top: 122px; text-align: right; max-width: 40%; }
+.sceneCaption > span { color: #ffc495; letter-spacing: .2em; font-size: .65rem; font-weight: 700; }
+.sceneCaption p { color: #e3edf1; font-size: clamp(.95rem, 1.6vw, 1.45rem); font-weight: 500; line-height: 1.3; letter-spacing: -.025em; margin-top: 9px; }
+.console { position: absolute; bottom: 36px; right: 5%; left: 46%; display: flex; align-items: center; gap: 16px; pointer-events: auto; z-index: 4; }
+.chapters { display: flex; flex: 1; justify-content: space-between; gap: 12px; }
+.chapters button { display: flex; align-items: center; gap: 9px; color: #b9cbd6; font-size: .73rem; font-weight: 600; border: 0; background: transparent; min-height: 46px; cursor: pointer; padding: 6px 0; }
+.chapters button span { font-size: .61rem; color: #93a9b7; }
+.chapters button[aria-pressed='true'], .chapters button[aria-pressed='true'] span { color: #ffc493; }
+.chapters button:hover { color: #fff; }
+.play { flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%; border: 1px solid #77909f; background: #152e40; color: #f5f8f9; cursor: pointer; font-size: 20px; line-height: 1; }
+.play:hover { background: #2d4657; }
+.chapters button:focus-visible, .play:focus-visible { outline: 2px solid #ffb380; outline-offset: 4px; }
+.progress { position: absolute; bottom: -4px; left: 0; right: 58px; height: 2px; background: #526b7b; overflow: hidden; }
+.progress span { display: block; width: 100%; height: 100%; transform: scaleX(0); transform-origin: left; background: #FF6A2B; }
+@media (min-width: 1600px) {
+  .root [data-cinematic='hero'] { min-height: 700px; }
+  .art { right: 0; }
 }
-.caption { max-width: 480px; }
-.caption > span { color: #86513a; text-transform: uppercase; letter-spacing: .15em; font-size: .62rem; font-weight: 700; }
-.caption p { margin: 6px 0 0; font-size: clamp(.9rem, 1.4vw, 1.2rem); font-weight: 600; line-height: 1.35; letter-spacing: -.025em; }
-.chapters { display: flex; align-items: center; gap: clamp(10px, 2.2vw, 35px); }
-.chapters button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  padding: 8px 2px;
-  background: transparent;
-  color: #59676e;
-  font-size: .78rem;
-  font-weight: 600;
-  cursor: pointer;
+@media (min-width: 901px) and (max-width: 1100px) {
+  .root [data-cinematic='content'] { width: 45%; }
+  .root [data-cinematic='title'] { font-size: 2.5rem; }
+  .art { width: 82%; right: -14%; bottom: 120px; }
+  .console { left: 48%; right: 3%; }
+  .chapters { gap: 8px; }
+  .chapters button { gap: 5px; font-size: .67rem; }
+  .sceneCaption { right: 3%; top: 110px; }
 }
-.chapters button span { font-size: .6rem; letter-spacing: .06em; opacity: .7; }
-.chapters button[aria-pressed='true'] { border-color: #FF6A2B; color: #172630; }
-.chapters button:hover { color: #a94318; }
-.chapters button:focus-visible { outline: 2px solid #a94318; outline-offset: 5px; }
-.rail { position: absolute; height: 2px; left: 0; right: 0; bottom: 0; background: #e4dfd8; overflow: hidden; }
-.rail span { display: block; width: 100%; height: 100%; background: #FF6A2B; transform: scaleX(0); transform-origin: left; }
-/* Static scenes remain usable when scripts are blocked or motion is disabled. */
-.scene[data-running='false'][data-phase='1'] [data-part='origin'],
-.scene[data-running='false'][data-phase='1'] [data-part='cargo-in'],
-.scene[data-running='false'][data-phase='2'] [data-part='origin'],
-.scene[data-running='false'][data-phase='2'] [data-part='cargo-in'] { opacity: 0; }
-.scene[data-running='false'][data-phase='1'] [data-part='rear-door'] { opacity: 1; }
-.scene[data-running='false'][data-phase='2'] [data-part='destination'],
-.scene[data-running='false'][data-phase='2'] [data-part='cargo-out'] { opacity: 1; }
-.scene[data-running='false'][data-phase='0'] .rail span { transform: scaleX(.06); }
-.scene[data-running='false'][data-phase='1'] .rail span { transform: scaleX(.5); }
-.scene[data-running='false'][data-phase='2'] .rail span { transform: scaleX(1); }
-@media (min-width: 1500px) {
-  .art { width: 1600px; max-width: 100%; left: 50%; transform: translateX(-50%); }
-}
-@media (min-width: 900px) and (max-height: 850px) {
-  .root [data-cinematic='hero'] { padding-top: 120px; }
-  .root [data-cinematic='title'] { max-width: 650px; font-size: clamp(2.4rem, 3.5vw, 3.25rem); }
+@media (max-width: 900px) {
+  .root [data-cinematic='hero'] { padding: 108px 0 32px; min-height: 0; }
+  .root [data-cinematic='hero']::before { background: linear-gradient(180deg, rgba(8,26,39,.8), transparent 70%); }
+  .root [data-cinematic='content'] { width: 100%; max-width: 630px; }
+  .root [data-cinematic='title'] { max-width: 630px; font-size: clamp(2.15rem, 5.5vw, 3.1rem); margin-bottom: 14px; }
+  .root [data-cinematic='subtitle'] { max-width: 560px; margin-bottom: 17px; }
   .root [data-cinematic='badge'] { margin-bottom: 12px; }
-  .root [data-cinematic='subtitle'] { margin-bottom: 14px; }
-  .art { width: min(100%, 1350px); left: auto; right: 0; }
-}
-@media (max-width: 899px), (max-height: 759px) {
-  .root [data-cinematic='hero'] { height: auto; min-height: 0; padding: 126px 0 0; }
-  .root [data-cinematic='content'] { max-width: 680px; }
-  .root [data-cinematic='title'] { max-width: 680px; font-size: clamp(2.3rem, 6vw, 3.6rem); }
-  .root [data-cinematic='subtitle'] { max-width: 540px; }
-  .scene { position: relative; inset: auto; margin-top: 0; }
-  .art { position: relative; width: 100%; left: auto; right: auto; bottom: auto; transform: none; margin-top: -30px; }
-  .chapterBar { position: relative; flex-wrap: wrap; padding-top: 10px; gap: 12px 28px; min-height: 130px; margin-top: -1px; }
-  .chapters { flex: 1; justify-content: flex-end; }
-  .caption { flex: 1 1 250px; }
+  .scene { position: relative; inset: auto; padding-top: 22px; }
+  .art { position: relative; width: 100%; max-width: none; right: auto; bottom: auto; margin: -45px 0 -35px; }
+  .sceneCaption { position: relative; top: auto; right: auto; margin: 0 5%; max-width: 90%; text-align: left; }
+  .sceneCaption p { font-size: 1rem; margin-top: 5px; }
+  .console { position: relative; inset: auto; margin: 0 5% 14px; gap: 20px; }
+  .chapters { justify-content: flex-start; gap: 30px; }
+  .play { margin-left: auto; }
 }
 @media (max-width: 560px) {
-  .root [data-cinematic='hero'] { padding-top: 112px; }
+  .root [data-cinematic='hero'] { padding-top: 100px; }
   .root [data-cinematic='container'] { padding-inline: 22px; }
-  .root [data-cinematic='title'] { font-size: clamp(2.3rem, 9vw, 3rem); }
-  .root [data-cinematic='badge'] { font-size: .62rem; padding: .55rem .75rem; }
-  .root [data-cinematic='dynamicBadges'] { gap: 6px 15px; }
-  .art { width: 125%; max-width: none; margin-left: -12.5%; margin-top: 4px; }
-  .chapterBar { padding: 16px 22px 22px; display: block; }
-  .caption p { min-height: 24px; }
-  .chapters { justify-content: space-between; margin-top: 12px; gap: 8px; }
-  .chapters button { font-size: .73rem; gap: 6px; }
+  .root [data-cinematic='title'] { font-size: clamp(2.1rem, 8.2vw, 2.65rem); }
+  .root [data-cinematic='subtitle'] { font-size: .875rem; line-height: 1.6; }
+  .root [data-cinematic='dynamicBadges'] { display: none; }
+  .art { width: 112%; margin-left: -8%; margin-top: -15px; margin-bottom: -8px; }
+  .sceneCaption { margin-inline: 22px; }
+  .sceneCaption p { font-size: .95rem; }
+  .console { margin-inline: 22px; gap: 12px; }
+  .chapters { gap: 10px; justify-content: space-between; }
+  .chapters button { font-size: .66rem; gap: 5px; }
+  .play { width: 36px; height: 36px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .root [data-cinematic='hero'] { height: auto; min-height: 0; padding-bottom: 0; }
-  .scene { position: relative; inset: auto; }
-  .art { position: relative; bottom: auto; right: auto; left: auto; transform: none; }
-  .chapterBar { position: relative; }
   .scene *, .root [data-cinematic='ctaGroup'] > * { animation: none !important; transition: none !important; }
 }
