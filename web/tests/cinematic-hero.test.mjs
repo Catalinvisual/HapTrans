@@ -13,13 +13,13 @@ test('page preserves the presentation seam and all existing sections', async () 
   assert.match(page, /<CinematicHeroLayer>\s*<Hero\s*\/>\s*<\/CinematicHeroLayer>/);
   for (const name of ['Header', 'TrustSection', 'Features', 'ServicesSection', 'HowItWorksSection', 'MapSection', 'TestimonialsSection', 'Footer']) assert.ok(page.includes(`<${name} />`));
 });
-test('real video replaces SVG and external animation scripts, not backend logic', async () => {
+test('hero uses the uploaded video and a local fallback image', async () => {
   const code = await read('src/components/Hero/CinematicHeroLayer.tsx');
-  assert.match(code, /<video/);
+  assert.ok(code.includes("const source = '/herovideo.mp4'"));
+  assert.ok(code.includes("const poster = '/hero-nou.jpg'"));
+  assert.doesNotMatch(code, /pexels|<svg|ScrollTrigger|gsap|calculate-quote|company-settings/i);
   assert.match(code, /muted loop playsInline/);
-  assert.match(code, /poster=/);
   assert.match(code, /onError=/);
-  assert.doesNotMatch(code, /<svg|ScrollTrigger|gsap|calculate-quote|company-settings/);
   for (const language of ['RO', 'EN', 'NL', 'DE', 'FR', 'ES']) assert.match(code, new RegExp(`\\b${language}:`));
 });
 test('playback is optional and cleans up visibility and motion listeners', async () => {
@@ -27,9 +27,11 @@ test('playback is optional and cleans up visibility and motion listeners', async
   for (const expected of ['prefers-reduced-motion: reduce', 'IntersectionObserver', 'observer.disconnect()', "removeEventListener('change'", "removeEventListener('visibilitychange'", '.play().catch(']) assert.ok(code.includes(expected), expected);
   assert.doesNotMatch(code, /document\.body\.style/);
 });
-test('hero stays inside viewport and has matching CSS-module selectors', async () => {
+test('hero has no internal scrolling or scroll interception', async () => {
   const code = await read('src/components/Hero/CinematicHeroLayer.tsx');
   const css = await read('src/components/Hero/CinematicHeroLayer.module.css');
+  assert.doesNotMatch(css, /overflow(?:-[xy])?\s*:\s*(?:auto|scroll)|overscroll-behavior/);
+  assert.doesNotMatch(code, /addEventListener\(['"](?:scroll|wheel|touchmove)/);
   assert.match(css, /max-height: 100svh/);
   assert.match(css, /min-height: 0/);
   assert.match(css, /--hero-offset/);
