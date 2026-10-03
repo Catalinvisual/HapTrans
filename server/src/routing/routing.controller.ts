@@ -84,6 +84,12 @@ export class RoutingController {
     return this.routingService.autocompleteAddress(query);
   }
 
+  @Get('discover-places')
+  async discoverPlaces(@Query('q') query: string) {
+    if (!query) return [];
+    return this.routingService.discoverPlaces(query);
+  }
+
   @Get('diesel-prices')
   async getDieselPrices() {
     return this.routingService.getDieselPrices();

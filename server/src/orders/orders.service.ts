@@ -153,7 +153,7 @@ export class OrdersService {
         client: dto.clientId ? { id: dto.clientId } as any : null,
         orderNumber,
         trackingToken,
-        internalReference: orderNumber,
+        internalReference: dto.internalReference || orderNumber,
         customerReference: dto.customerReference || null,
           loadingReference: dto.loadingReference || null,
           unloadingReference: dto.unloadingReference || null,
