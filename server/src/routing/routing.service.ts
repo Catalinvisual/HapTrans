@@ -131,11 +131,12 @@ export class RoutingService {
   }>> {
     try {
       if (!this.hereKey) return [];
-      const res = await axios.get('https://discover.search.hereapi.com/v1/discover', {
-        params: { q: query, limit, 'in': 'bbox:-10.0,35.0,40.0,71.0', apiKey: this.hereKey },
+      const res = await axios.get('https://autosuggest.search.hereapi.com/v1/autosuggest', {
+        params: { q: query, limit: 15, show: 'details', 'in': 'bbox:-15.0,30.0,45.0,75.0', apiKey: this.hereKey },
         timeout: 8000,
       });
       return (res.data.items || [])
+        .filter((item: any) => item.resultType === 'place' || item.resultType === 'address')
         .map((item: any) => ({
           title: item.title || '',
           label: item.address?.label || '',
@@ -146,7 +147,7 @@ export class RoutingService {
           countryCode: item.address?.countryCode,
           countryName: item.address?.countryName,
         }))
-        .filter((p: any) => p.title && p.label);
+        .filter((p: any) => p.title && p.label && p.lat && p.lng);
     } catch (e: any) {
       this.logger.error(`Discover failed for "${query}": ${e.message}`);
       return [];
