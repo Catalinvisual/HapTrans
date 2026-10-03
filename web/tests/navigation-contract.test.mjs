@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
@@ -41,3 +42,23 @@ test('every header CSS-module reference has a corresponding selector', () => {
     assert.match(headerCss, new RegExp(`\\.${name}(?![A-Za-z0-9_-])`), `Missing selector: ${name}`);
   }
 });
+
+// Baseline Git blob hashes keep data-loading, translations and calculator
+// implementation byte-for-byte unchanged during the CSS-only redesign.
+// Intentional future behavior changes must replace these guards with behavior tests.
+const protectedComponents = {
+  'Header/Header.tsx': '7fa5179ad4668956e1063033968da18e591f1cdb',
+  'Hero/Hero.tsx': '90d9fcf77dc2bb5f60035cadeff38370c8708f8b',
+  'Footer/Footer.tsx': '198daccef8a0e7dfaac012c0654826138c6b3514',
+  'GenericPage/GenericPage.tsx': '64b01e4bde8f649a0274406e5e398c6ef5195c1a',
+  'ServicesSection/ServicesSection.tsx': '41c840b02dabb29662b117fd2132db0dfc52a69f',
+};
+
+for (const [path, expected] of Object.entries(protectedComponents)) {
+  test(`CSS-only redesign preserves ${path}`, async () => {
+    const file = await readFile(new URL(`../src/components/${path}`, import.meta.url));
+    // Git computes blob IDs over the object header followed by the original bytes.
+    const actual = createHash('sha1').update(`blob ${file.length}\0`).update(file).digest('hex');
+    assert.equal(actual, expected, `${path} changed: review backend/translation behavior before updating the baseline`);
+  });
+}
