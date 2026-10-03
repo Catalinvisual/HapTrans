@@ -328,7 +328,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                   children: ['cmr', 'aviz', 'fuel', 'pod', 'licence', 'other'].map((type) {
                     final isSel = _selectedTypeKey == type;
                     return ChoiceChip(
-                      label: Text(type.toUpperCase(), style: TextStyle(color: isSel ? Colors.white : kText, fontSize: 12, fontWeight: FontWeight.bold)),
+                      label: Text(l.translate(type).toUpperCase(), style: TextStyle(color: isSel ? Colors.white : kText, fontSize: 12, fontWeight: FontWeight.bold)),
                       selected: isSel,
                       selectedColor: kPrimary,
                       backgroundColor: Colors.white,

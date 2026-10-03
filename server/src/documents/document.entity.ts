@@ -38,9 +38,6 @@ export class Document {
   documentType: DocumentType;
 
   @Column({ nullable: true })
-  type: string; // Free-text type from mobile/web (e.g. 'cmr', 'aviz', 'fuel')
-
-  @Column({ nullable: true })
   fileName: string;
 
   @Column({ nullable: true })
