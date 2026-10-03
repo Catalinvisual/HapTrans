@@ -6,7 +6,6 @@ import Reveal from '@/components/Reveal/Reveal';
 
 const Features = () => {
   const { t } = useLanguage();
-
   return (
     <section className={styles.section} id="despre">
       <div className={styles.container}>
@@ -17,10 +16,7 @@ const Features = () => {
             <p className={styles.subtitle}>{t('featuresSubtitle') || 'Real-time visibility, dedicated dispatch and certified compliance across Europe.'}</p>
           </div>
         </Reveal>
-
         <div className={styles.bentoGrid}>
-
-          {/* Card 1 — Ecological & Modern Fleet */}
           <Reveal variant="fade" className={`${styles.bentoItem} ${styles.itemStandard}`} delay={0} stretch>
             <div className={styles.card}>
               <span className={styles.chip}>⚡ {t('feat1Chip') || 'Euro-6 Compliant'}</span>
@@ -36,8 +32,6 @@ const Features = () => {
               </div>
             </div>
           </Reveal>
-
-          {/* Card 2 — Real-Time Telematics (Dark Accent) */}
           <Reveal variant="fade" className={`${styles.bentoItem} ${styles.itemStandard}`} delay={90} stretch>
             <div className={`${styles.card} ${styles.cardDark}`}>
               <span className={styles.chipDark}><span className={styles.liveMini} /> {t('feat2Chip') || 'LIVE GPS TRACKING'}</span>
@@ -46,14 +40,11 @@ const Features = () => {
               <div className={styles.mapMock} aria-hidden="true">
                 <div className={styles.mapGrid} />
                 <svg className={styles.mapRoute} viewBox="0 0 320 120" preserveAspectRatio="none" fill="none">
-                  <path d="M20 95 C 70 85, 90 55, 140 50 S 230 25, 300 35"
-                    stroke="#FF6B00" strokeWidth="3" strokeLinecap="round" strokeDasharray="6 6"
-                    className={styles.routeDash} />
+                  <path d="M20 95 C 70 85, 90 55, 140 50 S 230 25, 300 35" stroke="#FF6B00" strokeWidth="3" strokeLinecap="round" strokeDasharray="6 6" className={styles.routeDash} />
                   <circle cx="20" cy="95" r="5" fill="#0A0E17" stroke="#FF6B00" strokeWidth="2.5" />
                   <circle cx="300" cy="35" r="5" fill="#0A0E17" stroke="#FF6B00" strokeWidth="2.5" />
                   <circle cx="140" cy="50" r="6" fill="#FF6B00" className={styles.truckDot}>
-                    <animateMotion dur="3.5s" repeatCount="indefinite"
-                      path="M20 95 C 70 85, 90 55, 140 50 S 230 25, 300 35" />
+                    <animateMotion dur="3.5s" repeatCount="indefinite" path="M20 95 C 70 85, 90 55, 140 50 S 230 25, 300 35" />
                   </circle>
                 </svg>
                 <div className={styles.mapEta}>
@@ -65,26 +56,6 @@ const Features = () => {
               <span className={styles.darkChip}><span className={styles.liveMini} />{t('feat2Status') || 'Active trackers online'}</span>
             </div>
           </Reveal>
-
-          {/* Card 3 — Dedicated Multilingual Support */}
-          <Reveal variant="fade" className={`${styles.bentoItem} ${styles.itemStandard}`} delay={0} stretch>
-            <div className={`${styles.card} ${styles.cardGlass}`}>
-              <span className={styles.chip}>🤝 {t('feat3Chip') || '24/7 Dispatch'}</span>
-              <h3 className={styles.cardTitle}>{t('feat3Title') || 'Dedicated Multilingual Support'}</h3>
-              <p className={styles.cardDesc}>{t('feat3Desc') || 'Direct contact with your personal logistics dispatcher, available around the clock to assist with route updates and custom requests.'}</p>
-              <div className={styles.supportRow}>
-                <div className={styles.avatarStack}>
-                  <span className={styles.avatar} style={{ background: 'linear-gradient(135deg,#FF6B00,#FF9A66)' }}>AD</span>
-                  <span className={styles.avatar} style={{ background: 'linear-gradient(135deg,#3B82F6,#93C5FD)' }}>MC</span>
-                  <span className={styles.avatar} style={{ background: 'linear-gradient(135deg,#10B981,#6EE7B7)' }}>KD</span>
-                  <span className={styles.avatarMore}>+12</span>
-                </div>
-                <span className={styles.supportLang}>{t('feat3Langs') || 'RO · EN · NL · DE · FR · ES'}</span>
-              </div>
-            </div>
-          </Reveal>
-
-          {/* Card 4 — Certified Quality & Safety Standards */}
           <Reveal variant="fade" className={`${styles.bentoItem} ${styles.itemStandard}`} delay={90} stretch>
             <div className={`${styles.card} ${styles.cardCertified}`}>
               <h3 className={styles.cardTitle}>{t('feat4Title') || 'Certified Quality & Safety Standards'}</h3>
@@ -96,11 +67,9 @@ const Features = () => {
               </div>
             </div>
           </Reveal>
-
         </div>
       </div>
     </section>
   );
 };
-
 export default Features;
