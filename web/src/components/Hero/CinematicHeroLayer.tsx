@@ -5,9 +5,7 @@ import { useLanguage, type Language } from '@/context/LanguageContext';
 import original from './Hero.module.css';
 import styles from './CinematicHeroLayer.module.css';
 const source = '/herovideo.mp4';
-const poster = '/hero-nou.jpg';
-// The uploaded asset currently exists on main, not on the preview branch.
-// Prefer same-origin playback; fall back to the exact uploaded Git revision.
+// Same uploaded video as fallback when the preview branch lacks the local asset.
 const uploadedSource = 'https://raw.githubusercontent.com/Catalinvisual/HapTrans/aa668d53747ee57914eddbdf31efea5d2d9d08da/web/public/herovideo.mp4';
 const labels: Record<Language, readonly [string, string]> = {
   RO: ['Redă fundalul video', 'Oprește fundalul video'],
@@ -48,7 +46,8 @@ function VideoBackground() {
       }).then(() => { if (!allowed()) media.pause(); });
     }
     function recoverSource() {
-      if (disposed || usingUploadedSource) return;
+      if (disposed) return;
+      if (usingUploadedSource) { setFailed(true); setPlaying(false); return; }
       usingUploadedSource = true;
       setFailed(false);
       setReady(false);
@@ -62,12 +61,14 @@ function VideoBackground() {
       else { userPaused.current = false; manualPlay = true; }
       sync();
     };
+    media.addEventListener('error', recoverSource);
+    // Begin fetching before the visibility observer reports its first entry.
+    if (!motion.matches && !media.hasAttribute('src')) media.src = source;
     const observer = new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting;
       sync();
     }, { threshold: .05 });
     observer.observe(media);
-    media.addEventListener('error', recoverSource);
     motion.addEventListener('change', motionChanged);
     document.addEventListener('visibilitychange', sync);
     return () => {
@@ -82,9 +83,9 @@ function VideoBackground() {
     };
   }, []);
   return <>
-    <div className={styles.background} style={{ backgroundImage: 'url(' + poster + ')' }} aria-hidden="true">
-      <video ref={video} className={styles.video} style={{ opacity: ready && !failed ? 1 : 0 }} muted loop playsInline preload="none" poster={poster} tabIndex={-1}
-        onPlaying={() => { setFailed(false); setReady(true); setPlaying(true); }} onPause={() => setPlaying(false)} onError={() => { setFailed(true); setPlaying(false); }} />
+    <div className={styles.background} aria-hidden="true">
+      <video ref={video} className={styles.video} style={{ opacity: ready && !failed ? 1 : 0 }} muted loop playsInline preload="auto" tabIndex={-1}
+        onPlaying={() => { setFailed(false); setReady(true); setPlaying(true); }} onPause={() => setPlaying(false)} onError={() => setPlaying(false)} />
       <div className={styles.shade} />
     </div>
     {!failed && <button className={styles.control} type="button" onClick={() => toggleRef.current?.()} aria-label={labels[lang][playing ? 1 : 0]}>{playing ? 'Ⅱ' : '▷'}</button>}
