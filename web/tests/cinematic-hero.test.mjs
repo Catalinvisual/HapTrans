@@ -13,12 +13,12 @@ test('page preserves the presentation seam and all existing sections', async () 
   assert.match(page, /<CinematicHeroLayer>\s*<Hero\s*\/>\s*<\/CinematicHeroLayer>/);
   for (const name of ['Header', 'TrustSection', 'Features', 'ServicesSection', 'HowItWorksSection', 'MapSection', 'TestimonialsSection', 'Footer']) assert.ok(page.includes(`<${name} />`));
 });
-test('hero uses the uploaded video and a local fallback image', async () => {
+test('hero uses the uploaded video without the old poster or background image', async () => {
   const code = await read('src/components/Hero/CinematicHeroLayer.tsx');
   assert.ok(code.includes("const source = '/herovideo.mp4'"));
-  assert.ok(code.includes("const poster = '/hero-nou.jpg'"));
-  assert.doesNotMatch(code, /pexels|<svg|ScrollTrigger|gsap|calculate-quote|company-settings/i);
+  assert.doesNotMatch(code, /hero-nou\.jpg|poster\s*=|backgroundImage|pexels|<svg|ScrollTrigger|gsap|calculate-quote|company-settings/i);
   assert.match(code, /muted loop playsInline/);
+  assert.match(code, /preload="auto"/);
   assert.match(code, /onError=/);
   for (const language of ['RO', 'EN', 'NL', 'DE', 'FR', 'ES']) assert.match(code, new RegExp(`\\b${language}:`));
 });
@@ -37,4 +37,12 @@ test('hero has no internal scrolling or scroll interception', async () => {
   assert.match(css, /--hero-offset/);
   assert.ok(css.includes('#FF6A2B'));
   for (const match of code.matchAll(/styles\.([A-Za-z][A-Za-z0-9_]*)/g)) assert.match(css, new RegExp(`\\.${match[1]}(?![A-Za-z0-9_-])`));
+});
+test('inner page headings are compact rather than oversized dark hero cards', async () => {
+  const generic = await read('src/components/GenericPage/GenericPage.module.css');
+  const routes = await read('src/app/routes/RoutesPage.module.css');
+  assert.match(generic, /\.heroBanner\s*\{[^}]*background:\s*transparent\s*!important/);
+  assert.match(generic, /\.heroTitle\s*\{[^}]*font-size:\s*clamp\(1\.75rem,3vw,2\.5rem\)/);
+  assert.match(routes, /\.title\s*\{[^}]*font-size:\s*clamp\(1\.75rem,3vw,2\.5rem\)/);
+  assert.doesNotMatch(routes, /radial-gradient|box-shadow/);
 });
