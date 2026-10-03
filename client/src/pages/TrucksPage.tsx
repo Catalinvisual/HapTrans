@@ -843,11 +843,11 @@ export default function TrucksPage() {
                   navigate(`/planning?openTrip=${encodeURIComponent(returnToTrip)}`);
                 }
               }}
-              className="btn-secondary px-6 py-2.5 font-bold"
+              className="btn-secondary !px-4 !py-1.5 text-sm font-bold"
             >
               {t('cancel', 'Cancel')}
             </button>
-            <button type="button" onClick={handleSubmit} className="btn-primary px-8 py-2.5 font-bold shadow-md shadow-primary/20">{t('save', 'Save')}</button>
+            <button type="button" onClick={handleSubmit} className="btn-primary !px-4 !py-1.5 text-sm font-bold shadow-md shadow-primary/20">{t('save', 'Save')}</button>
           </div>
         }
       >

@@ -727,14 +727,14 @@ export default function TelematicsPage() {
                     }
                     setWizardStep(wizardStep + 1);
                   }}
-                  className="px-5 py-2.5 text-sm font-bold bg-primary text-white hover:bg-primary/90 rounded-xl shadow-sm flex items-center gap-1.5"
+                  className="!px-4 !py-1.5 text-sm text-sm font-bold bg-primary text-white hover:bg-primary/90 rounded-xl shadow-sm flex items-center gap-1.5"
                 >
                   {t('wiz_btn_next', 'Next')} <ArrowRight className="w-4 h-4" />
                 </button>
               ) : (
                 <button
                   onClick={handleSaveConnection}
-                  className="px-6 py-2.5 text-sm font-black bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl shadow-sm"
+                  className="!px-4 !py-1.5 text-sm text-sm font-black bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl shadow-sm"
                 >
                   {t('wiz_btn_save', 'Save & Activate')}
                 </button>

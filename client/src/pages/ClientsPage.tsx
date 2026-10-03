@@ -196,11 +196,11 @@ export default function ClientsPage() {
             </div>
 
             <div className="flex gap-3 col-span-1 md:col-span-2 lg:col-span-3 pt-3 border-t border-border mt-2">
-              <button type="submit" className="btn-primary px-6 py-2.5 font-bold shadow-md shadow-primary/20">{t('save')}</button>
+              <button type="submit" className="btn-primary !px-4 !py-1.5 text-sm font-bold shadow-md shadow-primary/20">{t('save')}</button>
               <button type="button" onClick={() => {
             setShowForm(false);
             setEditId(null);
-          }} className="btn-secondary px-6 py-2.5 font-bold">{t('cancel')}</button>
+          }} className="btn-secondary !px-4 !py-1.5 text-sm font-bold">{t('cancel')}</button>
             </div>
           </form>
         </div>}

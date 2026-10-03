@@ -190,7 +190,7 @@ export default function DocumentsPage({
             </div>
           </div>
             <div className="flex gap-3 col-span-1 md:col-span-2 lg:col-span-4 pt-3 border-t border-border mt-2">
-              <button type="submit" disabled={!file || uploading} className="btn-primary px-6 py-2.5 font-bold shadow-md shadow-primary/20">
+              <button type="submit" disabled={!file || uploading} className="btn-primary !px-4 !py-1.5 text-sm font-bold shadow-md shadow-primary/20">
                 <Upload className="w-4 h-4" /> {t('save') || 'Salveaza'}
               </button>
               <button type="button" onClick={() => {
@@ -198,7 +198,7 @@ export default function DocumentsPage({
             setFile(null);
             setTripId('');
             setNotes('');
-          }} className="btn-secondary px-6 py-2.5 font-bold">
+          }} className="btn-secondary !px-4 !py-1.5 text-sm font-bold">
                 {t('cancel') || 'Anuleaza'}
               </button>
             </div>

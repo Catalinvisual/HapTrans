@@ -700,7 +700,7 @@ export default function ExcelImportModal({ open, onClose, onImported }: Props) {
               )}
 
               <div className="flex gap-3 justify-center">
-                <button onClick={handleClose} className="btn-primary px-8 py-2.5 font-bold">Done</button>
+                <button onClick={handleClose} className="btn-primary !px-4 !py-1.5 text-sm font-bold">Done</button>
                 <button onClick={reset} className="btn-secondary px-4 py-2.5">Import another</button>
               </div>
             </div>
