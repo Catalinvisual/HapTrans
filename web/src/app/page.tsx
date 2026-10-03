@@ -1,5 +1,6 @@
 import Header from '@/components/Header/Header';
 import Hero from '@/components/Hero/Hero';
+import CinematicHeroLayer from '@/components/Hero/CinematicHeroLayer';
 import Features from '@/components/Features/Features';
 import ServicesSection from '@/components/ServicesSection/ServicesSection';
 import HowItWorksSection from '@/components/HowItWorksSection/HowItWorksSection';
@@ -12,7 +13,9 @@ export default function Home() {
   return (
     <main>
       <Header />
-      <Hero />
+      <CinematicHeroLayer>
+        <Hero />
+      </CinematicHeroLayer>
       <TrustSection />
       <Features />
       <ServicesSection />
