@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Package, X, Calendar } from 'lucide-react';
@@ -68,7 +69,7 @@ export default function RapidTransportModal({ open, onClose }: RapidTransportMod
 
   if (!open) return null;
 
-  return (
+  const modalContent = (
     <div
       className="fixed inset-0 z-[10000] bg-black/50 flex items-center justify-center p-4"
       onClick={onClose}
@@ -183,4 +184,9 @@ export default function RapidTransportModal({ open, onClose }: RapidTransportMod
       </div>
     </div>
   );
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+  return null;
+
 }

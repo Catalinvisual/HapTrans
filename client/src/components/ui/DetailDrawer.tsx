@@ -1,4 +1,5 @@
 import { ReactNode, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 export interface TabDef {
@@ -33,8 +34,8 @@ export default function DetailDrawer({
 
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 md:p-5">
+  const drawerContent = (
+    <div className="fixed inset-0 z-[25000] flex items-center justify-center p-3 md:p-5">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] animate-fade-in" onClick={onClose} />
       <div className="relative w-full h-full bg-card shadow-2xl flex flex-col rounded-2xl overflow-hidden animate-fade-in-up">
         <div className="flex items-start justify-between gap-3 px-4 py-2 border-b border-border bg-surface/30">
@@ -75,4 +76,9 @@ export default function DetailDrawer({
       </div>
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(drawerContent, document.body);
+  }
+  return null;
 }

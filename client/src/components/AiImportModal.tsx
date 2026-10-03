@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useRef, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Sparkles, UploadCloud, LoaderCircle, FileText, FileSpreadsheet, Building2, Route, ChevronDown, CheckCircle2, Check, Coins } from 'lucide-react';
@@ -90,7 +91,7 @@ export default function AiImportModal({ open, onClose, file, preview, busy, impo
     [t('ai_c_phone', 'Phone'), val(trip.clientPhone)],
   ].filter(([, v]) => v) as [string, string][];
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => !busy && !importing && onClose()}>
       <div className="card w-full max-w-xl p-5 max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="overflow-y-auto max-h-[90vh] custom-scrollbar">
@@ -250,6 +251,11 @@ export default function AiImportModal({ open, onClose, file, preview, busy, impo
         </div>
     </div>
   );
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+  return null;
+
 }
 
 function clientHasData(trip: TripPreview): boolean {
