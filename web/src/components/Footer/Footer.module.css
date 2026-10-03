@@ -1,9 +1,8 @@
-/* Keep the transition in the component. Doubled local specificity prevents
-   legacy main > footer rules from restoring a rectangular background. */
+/* Content-driven compact footer; no fixed height or content clipping. */
 .footer.footer {
-  --footer-curve-height: clamp(80px,10vw,150px);
+  --footer-curve-height: clamp(48px,6vw,80px);
   position: relative; isolation: isolate; overflow: hidden;
-  padding-top: calc(var(--footer-curve-height) + clamp(36px,5vw,72px));
+  padding-top: calc(var(--footer-curve-height) + clamp(24px,3vw,36px));
   background: transparent; color: #f7f6f2; font-family: inherit;
 }
 .footer.footer::before {
@@ -18,7 +17,7 @@
   background: radial-gradient(ellipse at 100% 0%, #ff6a2b18, transparent 48%), radial-gradient(ellipse at 0% 100%, #395f6d26, transparent 60%), #0d1d27;
   pointer-events: none;
 }
-.container { position: relative; display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1.3fr; gap: clamp(1.25rem,2.5vw,2.5rem); width: 100%; max-width: 1360px; margin: 0 auto clamp(3rem,6vw,5rem); padding: 0 clamp(1.25rem,3vw,2.5rem); }
+.container { position: relative; display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1.3fr; gap: clamp(1rem,2vw,2rem); width: 100%; max-width: 1360px; margin: 0 auto clamp(1.5rem,3vw,2.5rem); padding: 0 clamp(1.25rem,3vw,2.5rem); }
 .container > * { min-width: 0; }
 .logo { display: inline-flex; align-items: center; gap: .6rem; flex-shrink: 0; width: fit-content; max-width: 100%; min-height: 58px; padding: .5rem .75rem; margin-bottom: .5rem; border-radius: 16px; background: #fff; text-decoration: none; }
 .logo img { max-width: 100%; object-fit: contain; }
@@ -26,18 +25,18 @@
 .logoTextGroup { display: flex; align-items: baseline; font-style: italic; font-size: 1.55rem; letter-spacing: -.02em; }
 .logoHap { color: var(--brand); font-weight: 900; }
 .logoCargo { color: #172630; font-weight: 900; }
-.desc { max-width: 320px; color: #b8c6cd; font-size: .9rem; line-height: 1.85; }
-.socialIcons { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1.5rem; }
+.desc { max-width: 320px; color: #b8c6cd; font-size: .9rem; line-height: 1.7; }
+.socialIcons { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1rem; }
 .socialIcons a { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 16px 6px 16px 6px; background: #ffffff11; color: #e3eaed; transition: color 180ms ease, background-color 180ms ease, transform 180ms ease; }
 .socialIcons a:hover { background: var(--brand); color: #172630; transform: translateY(-2px); }
-.title { margin: 0 0 1.5rem; color: #fffaf4; font-size: .875rem; font-weight: 650; line-height: 1.4; letter-spacing: .015em; }
+.title { margin: 0 0 .9rem; color: #fffaf4; font-size: .875rem; font-weight: 650; line-height: 1.4; letter-spacing: .015em; }
 .links { list-style: none; padding: 0; margin: 0; }
-.links li { margin-bottom: .6rem; }
+.links li { margin-bottom: .3rem; }
 .links a { display: inline-block; padding: .25rem 0; color: #b8c6cd; text-decoration: none; font-size: .9rem; line-height: 1.65; overflow-wrap: anywhere; transition: color 180ms ease; }
 .links a:hover { color: #ff9e73; }
-.bottom { padding: 1.5rem; background: #00000024; color: #a9bac4; font-size: .8125rem; line-height: 1.7; text-align: center; }
+.bottom { padding: 1rem 1.5rem; background: #00000024; color: #a9bac4; font-size: .8125rem; line-height: 1.7; text-align: center; }
 .footer a:focus-visible, .footer button:focus-visible { outline: 2px solid #ff9e73; outline-offset: 4px; }
-@media(max-width: 1100px) { .container { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 2.5rem 2rem; } .container > :first-child { grid-column: 1 / -1; } .desc { max-width: 560px; } }
-@media(max-width: 640px) { .container { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 2rem 1.25rem; } .container > :first-child, .container > :last-child { grid-column: 1 / -1; } }
+@media(max-width: 1100px) { .container { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 1.5rem; } .container > :first-child { grid-column: 1 / -1; } .desc { max-width: 560px; } }
+@media(max-width: 640px) { .container { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1.5rem 1.25rem; } .container > :first-child, .container > :last-child { grid-column: 1 / -1; } }
 @media(max-width: 380px) { .container { grid-template-columns: minmax(0,1fr); } }
 @media(prefers-reduced-motion: reduce) { .socialIcons a, .links a { transition: none; } .socialIcons a:hover { transform: none; } }
