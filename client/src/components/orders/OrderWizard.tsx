@@ -636,7 +636,7 @@ export default function OrderWizard({
       animation: 'wizardIn 0.25s cubic-bezier(0.34,1.56,0.64,1)'
     }} onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="px-6 py-5 border-b border-border bg-surface/50 flex justify-between items-center shrink-0">
+        <div className="px-5 py-3 border-b border-border bg-surface/50 flex justify-between items-center shrink-0">
           <div>
             <h2 className="text-xl font-bold text-text-primary">
               {orderId ? t('editOrder', 'Edit Order') : t('createOrder', 'Create New Order')}
@@ -650,12 +650,12 @@ export default function OrderWizard({
         </div>
 
         {/* Step indicators with pixel-perfect bar */}
-        <div className="px-8 py-5 border-b border-border bg-white dark:bg-card shrink-0" ref={headerRef} style={{
+        <div className="px-6 py-3 border-b border-border bg-white dark:bg-card shrink-0" ref={headerRef} style={{
         position: 'relative'
       }}>
           {/* Gray full connector */}
           <div className="absolute bg-border" style={{
-          top: 20 + 20,
+          top: 12 + 20,
           left: barLeft,
           width: barTotalWidth,
           height: 2,
@@ -663,7 +663,7 @@ export default function OrderWizard({
         }} />
           {/* Orange progress */}
           <div className="absolute bg-primary transition-all duration-400" style={{
-          top: 20 + 20,
+          top: 12 + 20,
           left: barLeft,
           width: barOrangeWidth,
           height: 2,
@@ -696,7 +696,7 @@ export default function OrderWizard({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto px-5 py-4 md:px-6 md:py-4 custom-scrollbar">
 
           {/* STEP 1: General Info */}
           {currentStep === 0 && <div className="space-y-5" style={{
@@ -1312,7 +1312,7 @@ export default function OrderWizard({
         </div>
 
         {/* Footer */}
-        <div className="p-5 border-t border-border bg-surface/50 flex justify-between items-center shrink-0 flex-wrap gap-3">
+        <div className="px-5 py-3 border-t border-border bg-surface/50 flex justify-between items-center shrink-0 flex-wrap gap-3">
           <button type="button" onClick={onClose} className="btn-secondary">{t("jsx_cancel")}</button>
           <div className="flex gap-3 items-center flex-wrap">
             {/* Unprofitable warning banner in footer */}
