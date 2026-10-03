@@ -636,26 +636,26 @@ export default function OrderWizard({
       animation: 'wizardIn 0.25s cubic-bezier(0.34,1.56,0.64,1)'
     }} onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="px-5 py-3 border-b border-border bg-surface/50 flex justify-between items-center shrink-0">
+        <div className="px-4 py-2 border-b border-border bg-surface/50 flex justify-between items-center shrink-0">
           <div>
-            <h2 className="text-xl font-bold text-text-primary">
+            <h2 className="text-lg font-bold text-text-primary">
               {orderId ? t('editOrder', 'Edit Order') : t('createOrder', 'Create New Order')}
             </h2>
-            <p className="text-sm text-text-secondary mt-0.5">{t("jsx_step")}{currentStep + 1} of {STEPS.length} — {t(STEPS[currentStep].titleKey, STEPS[currentStep].fallbackTitle)}
+            <p className="text-xs text-text-secondary mt-0.5">{t("jsx_step")}{currentStep + 1} of {STEPS.length} — {t(STEPS[currentStep].titleKey, STEPS[currentStep].fallbackTitle)}
             </p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-surface rounded-xl transition-colors text-text-secondary">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="p-1.5 hover:bg-surface rounded-xl transition-colors text-text-secondary">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Step indicators with pixel-perfect bar */}
-        <div className="px-6 py-3 border-b border-border bg-white dark:bg-card shrink-0" ref={headerRef} style={{
+        <div className="px-4 py-2 border-b border-border bg-white dark:bg-card shrink-0" ref={headerRef} style={{
         position: 'relative'
       }}>
           {/* Gray full connector */}
           <div className="absolute bg-border" style={{
-          top: 12 + 20,
+          top: 8 + 14,
           left: barLeft,
           width: barTotalWidth,
           height: 2,
@@ -663,7 +663,7 @@ export default function OrderWizard({
         }} />
           {/* Orange progress */}
           <div className="absolute bg-primary transition-all duration-400" style={{
-          top: 12 + 20,
+          top: 8 + 14,
           left: barLeft,
           width: barOrangeWidth,
           height: 2,
@@ -681,13 +681,13 @@ export default function OrderWizard({
               position: 'relative',
               zIndex: 2
             }}>
-                  <div className="bg-white dark:bg-card rounded-full ring-[6px] ring-white dark:ring-card">
-                    <button type="button" onClick={() => (orderId || idx <= currentStep) && setCurrentStep(idx)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 focus:outline-none
+                  <div className="bg-white dark:bg-card rounded-full ring-4 ring-white dark:ring-card">
+                    <button type="button" onClick={() => (orderId || idx <= currentStep) && setCurrentStep(idx)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 focus:outline-none
                         ${isActive ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-110' : (orderId || isPast) ? 'bg-primary/20 text-primary cursor-pointer hover:bg-primary/30' : 'bg-surface border-2 border-border text-text-muted cursor-default'}`}>
-                      <StepIcon className="w-5 h-5" />
+                      <StepIcon className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <span className={`text-xs mt-2 font-semibold text-center leading-tight ${isActive ? 'text-primary' : 'text-text-secondary'}`}>
+                  <span className={`text-[10px] mt-1.5 font-semibold text-center leading-tight ${isActive ? 'text-primary' : 'text-text-secondary'}`}>
                     {t(step.titleKey, step.fallbackTitle)}
                   </span>
                 </div>;
@@ -1312,22 +1312,22 @@ export default function OrderWizard({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-border bg-surface/50 flex justify-between items-center shrink-0 flex-wrap gap-3">
-          <button type="button" onClick={onClose} className="btn-secondary">{t("jsx_cancel")}</button>
+        <div className="px-4 py-2 border-t border-border bg-surface/50 flex justify-between items-center shrink-0 flex-wrap gap-3">
+          <button type="button" onClick={onClose} className="btn-secondary !px-3 !py-1.5 !text-xs">{t("jsx_cancel")}</button>
           <div className="flex gap-3 items-center flex-wrap">
             {/* Unprofitable warning banner in footer */}
             {currentStep === STEPS.length - 1 && costEstimate && costEstimate.profit < 0 && (
-              <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
-                <input type="checkbox" checked={confirmedUnprofitable} onChange={e => setConfirmedUnprofitable(e.target.checked)} className="checkbox" />
-                <AlertTriangle className="w-3.5 h-3.5" />
+              <label className="flex items-center gap-1.5 cursor-pointer text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-300 rounded-md px-2 py-1.5">
+                <input type="checkbox" checked={confirmedUnprofitable} onChange={e => setConfirmedUnprofitable(e.target.checked)} className="checkbox !w-3.5 !h-3.5" />
+                <AlertTriangle className="w-3 h-3" />
                 {t('cost_confirm_checkbox', 'Confirm unprofitable order')}
               </label>
             )}
-            {currentStep > 0 && <button type="button" onClick={handlePrev} className="btn-secondary flex items-center gap-2">
-                <ArrowLeft className="w-4 h-4" />{t("jsx_back")}</button>}
-            {currentStep < STEPS.length - 1 ? <button type="button" onClick={handleNext} className="btn-primary flex items-center gap-2 shadow-sm hover:shadow-md">{t("jsx_nextStep")}<ArrowRight className="w-4 h-4" />
-              </button> : <button type="button" onClick={handleSubmit} disabled={loading || (costEstimate && costEstimate.profit < 0 && !confirmedUnprofitable)} className={`flex items-center gap-2 px-5 py-2.5 text-white rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-150 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed ${costEstimate && costEstimate.profit < 0 && !confirmedUnprofitable ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-600 hover:bg-green-700'}`}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{t("jsx_confirmSave")}</button>}
+            {currentStep > 0 && <button type="button" onClick={handlePrev} className="btn-secondary flex items-center gap-1.5 !px-3 !py-1.5 !text-xs">
+                <ArrowLeft className="w-3.5 h-3.5" />{t("jsx_back")}</button>}
+            {currentStep < STEPS.length - 1 ? <button type="button" onClick={handleNext} className="btn-primary flex items-center gap-1.5 shadow-sm hover:shadow-md !px-3 !py-1.5 !text-xs">{t("jsx_nextStep")}<ArrowRight className="w-3.5 h-3.5" />
+              </button> : <button type="button" onClick={handleSubmit} disabled={loading || (costEstimate && costEstimate.profit < 0 && !confirmedUnprofitable)} className={`flex items-center gap-1.5 px-4 py-2 text-white rounded-lg font-semibold text-xs shadow-md hover:shadow-lg transition-all duration-150 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed ${costEstimate && costEstimate.profit < 0 && !confirmedUnprofitable ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-600 hover:bg-green-700'}`}>
+                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}{t("jsx_confirmSave")}</button>}
           </div>
         </div>
       </div>
