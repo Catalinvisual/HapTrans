@@ -220,6 +220,116 @@ button { font-family: inherit; }
 }
 @keyframes fpFadeInDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 
+/* Editorial advantages composition, scoped to the existing #despre anchor.
+   Structure: section > container > [Reveal(header), bentoGrid].
+   Grid children are Reveal wrappers, each containing one card.
+   These selectors deliberately avoid generated CSS-module class names.
+   Data, copy, calculator and all other sections remain untouched. */
+#despre {
+  padding: clamp(4rem, 8vw, 8rem) clamp(1.1rem, 4vw, 3rem);
+  background: radial-gradient(ellipse at 95% 35%, #efded0 0, transparent 48%), var(--bg);
+}
+#despre > div { padding: 0; }
+#despre > div > div:first-child > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.65fr);
+  gap: 1.25rem 3rem;
+  text-align: left;
+  align-items: end;
+  margin-bottom: clamp(2.5rem, 5vw, 4.5rem);
+}
+#despre > div > div:first-child > div > div {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin: 0;
+  background: #f4e4d7;
+  border: 0;
+  color: #94360f;
+}
+#despre h2 {
+  margin: 0;
+  max-width: 850px;
+  font-size: clamp(2.5rem, 5.2vw, 5rem);
+  line-height: 1.04;
+  letter-spacing: -0.055em;
+  font-weight: 700;
+}
+#despre > div > div:first-child p {
+  max-width: 380px;
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  line-height: 1.85;
+}
+#despre > div > div:last-child {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+#despre > div > div:last-child > div {
+  min-width: 0;
+  grid-column: span 5;
+  grid-row: auto;
+}
+#despre > div > div:last-child > div:nth-child(2),
+#despre > div > div:last-child > div:nth-child(3) { grid-column: span 7; }
+#despre > div > div:last-child > div > div {
+  min-width: 0;
+  padding: clamp(1.75rem, 3.5vw, 3rem);
+  border: 0;
+  border-radius: 34px;
+  box-shadow: 0 24px 60px -40px rgba(16, 35, 46, 0.24);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+#despre > div > div:last-child > div:nth-child(2) > div {
+  background: radial-gradient(ellipse at 100% 0%, #3c4140, transparent 65%), #10232e;
+  border-top-right-radius: 80px;
+}
+#despre > div > div:last-child > div:nth-child(3) > div { background: #e0e9e5; }
+#despre > div > div:last-child > div:nth-child(4) > div { background: #f5e5d8; }
+#despre h3 {
+  font-size: clamp(1.5rem, 2.5vw, 2.25rem);
+  font-weight: 650;
+  line-height: 1.16;
+  letter-spacing: -0.035em;
+  margin-bottom: 1rem;
+}
+#despre > div > div:last-child > div > div > p {
+  font-size: 1rem;
+  line-height: 1.8;
+  margin-bottom: 1.75rem;
+  color: #52616a;
+}
+#despre > div > div:last-child > div:nth-child(2) > div > p { color: #ccd9df; }
+#despre > div > div:last-child > div:first-child > div > div:last-child {
+  flex-wrap: wrap;
+  row-gap: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 0;
+}
+/* Enlarge only the existing decorative map, never the real tracking page. */
+#despre > div > div:last-child > div:nth-child(2) > div > div[aria-hidden='true'] {
+  min-height: 190px;
+  margin: 0 0 1.5rem;
+  border: 0;
+  border-radius: 24px;
+  background: #162e3c;
+}
+@media (max-width: 800px) {
+  #despre > div > div:first-child > div { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+  #despre > div > div:first-child p { max-width: 600px; }
+  #despre > div > div:last-child { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+  #despre > div > div:last-child > div,
+  #despre > div > div:last-child > div:nth-child(2),
+  #despre > div > div:last-child > div:nth-child(3) { grid-column: auto; }
+  #despre > div > div:last-child > div:nth-child(2) > div { border-top-right-radius: 34px; }
+}
+@media (max-width: 600px) {
+  #despre > div > div:last-child { grid-template-columns: minmax(0, 1fr); }
+  #despre > div > div:last-child > div > div { padding: 1.75rem; border-radius: 26px; }
+  #despre > div > div:last-child > div:nth-child(2) > div { border-top-right-radius: 26px; }
+  #despre h2 { font-size: clamp(2.3rem, 10vw, 3.5rem); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .sep-wave svg, .sep-diagonal svg, .sep-blob svg { animation: none; }
@@ -228,4 +338,6 @@ button { font-family: inherit; }
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  /* CSS cannot pause SVG animateMotion; hide its decorative moving dot. */
+  #despre svg circle:has(> animateMotion) { display: none; }
 }
