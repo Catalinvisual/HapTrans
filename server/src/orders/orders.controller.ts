@@ -24,6 +24,11 @@ export class OrdersController {
     return this.ordersService.findAll(status);
   }
 
+  @Get('next-reference')
+  getNextReference() {
+    return this.ordersService.getNextInternalReference();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.ordersService.findOne(id);

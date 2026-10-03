@@ -354,6 +354,10 @@ export default function OrderWizard({
           toast.error("Failed to load order details.");
         });
       } else {
+        api.get('/orders/next-reference').then(res => {
+          setForm(prev => ({ ...prev, internalReference: res.data?.nextReference || '' }));
+        }).catch(err => console.warn('Failed to fetch next reference', err));
+
         setForm({
           clientId: '',
           customerReference: '',

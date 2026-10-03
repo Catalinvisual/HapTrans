@@ -131,8 +131,8 @@ export default function CompanyAutocomplete({
             <div
               key={s.id || idx}
               onMouseDown={e => { e.preventDefault(); handleSelect(s); }}
-              className={\`px-4 py-3 cursor-pointer text-sm transition-colors flex items-start gap-3 border-b border-border/60 last:border-b-0
-                \${idx === activeIndex ? 'bg-primary/10 text-primary' : 'hover:bg-primary/5 text-text'}\`}
+              className={`px-4 py-3 cursor-pointer text-sm transition-colors flex items-start gap-3 border-b border-border/60 last:border-b-0
+                ${idx === activeIndex ? 'bg-primary/10 text-primary' : 'hover:bg-primary/5 text-text'}`}
             >
               <Building2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
               <div>
@@ -141,12 +141,12 @@ export default function CompanyAutocomplete({
               </div>
             </div>
           ))}
-          <style>{\`
+          <style>{`
             @keyframes fadeUp {
               from { opacity: 0; transform: translateY(-4px); }
               to   { opacity: 1; transform: translateY(0); }
             }
-          \`}</style>
+          `}</style>
         </div>
       )}
     </div>

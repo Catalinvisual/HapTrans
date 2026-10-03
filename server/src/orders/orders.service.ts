@@ -73,6 +73,20 @@ export class OrdersService {
     });
   }
 
+  async getNextInternalReference(): Promise<{ nextReference: string }> {
+    const year = new Date().getFullYear();
+    const startOfYear = new Date(year, 0, 1);
+    const endOfYear = new Date(year + 1, 0, 1);
+
+    const count = await this.repo.createQueryBuilder('order')
+      .where('order.createdAt >= :start', { start: startOfYear })
+      .andWhere('order.createdAt < :end', { end: endOfYear })
+      .getCount();
+
+    const seq = String(count + 1).padStart(5, '0');
+    return { nextReference: `ORD-${year}-${seq}` };
+  }
+
   findByTrackingToken(trackingToken: string) {
     return this.repo.findOne({
       where: { trackingToken },
