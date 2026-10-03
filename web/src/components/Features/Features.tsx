@@ -11,9 +11,7 @@ const Features = () => {
       <div className={styles.container}>
         <Reveal variant="fade">
           <div className={styles.header}>
-            <div className={styles.label}>{t('whyHapCargo') || 'Why HapCargo?'}</div>
-            <h2 className={styles.title}>{t('featuresTitle') || 'Built for the modern supply chain'}</h2>
-            <p className={styles.subtitle}>{t('featuresSubtitle') || 'Real-time visibility, dedicated dispatch and certified compliance across Europe.'}</p>
+            <h2 className={styles.title} style={{ gridColumn: '1 / -1' }}>{t('featuresTitle') || 'Why choose HapCargo?'}</h2>
           </div>
         </Reveal>
         <div className={styles.bentoGrid}>
