@@ -43,7 +43,10 @@ test('progress rounds its advancing edge only at completion', async () => {
 test('footer remains content-driven after compacting', async () => {
   const css = await read('web/src/components/Footer/Footer.module.css');
   assert.ok(css.includes('clamp(48px,6vw,80px)'));
-  assert.doesNotMatch(css, /\.footer\.footer\s*\{[^}]*\b(?:height|max-height):/);
+  const block = css.match(/\.footer\.footer\s*\{([^}]*)\}/)?.[1];
+  assert.ok(block);
+  // A custom property named --footer-curve-height is not a fixed footer height.
+  assert.doesNotMatch(block, /(?:^|;)\s*(?:height|max-height)\s*:/);
 });
 test('new page styles are wired and have reduced-motion support', async () => {
   for (const [page, sheet] of [
@@ -58,4 +61,5 @@ test('new page styles are wired and have reduced-motion support', async () => {
     for (const [, name] of code.matchAll(/styles\.([A-Za-z][A-Za-z0-9_]*)/g)) assert.match(css, new RegExp('\\.' + name + '(?![A-Za-z0-9_-])'));
   }
 });
+// Run from repository root: node --test web/tests/*.test.mjs
 // Source characterization only. Browser, lint, typecheck and builds are required.
