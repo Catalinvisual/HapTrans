@@ -4,12 +4,11 @@ import { createPortal } from 'react-dom';
 import { useLanguage, type Language } from '@/context/LanguageContext';
 import original from './Hero.module.css';
 import styles from './CinematicHeroLayer.module.css';
-// Illustrative stock footage, not the company's fleet. EJ Merl / Pexels,
-// red semi-truck, 1080p, 10s. No company logo is added.
-// Source: https://www.pexels.com/video/a-semi-truck-is-driving-down-the-road-17899033/
-// License: https://www.pexels.com/license/ (commercial use; no implied endorsement).
-const source = 'https://videos.pexels.com/video-files/17899033/17899033-hd_1920_1080_24fps.mp4';
-const poster = 'https://images.pexels.com/videos/17899033/pexels-photo-17899033.jpeg';
+const source = '/herovideo.mp4';
+const poster = '/hero-nou.jpg';
+// The uploaded asset currently exists on main, not on the preview branch.
+// Prefer same-origin playback; fall back to the exact uploaded Git revision.
+const uploadedSource = 'https://raw.githubusercontent.com/Catalinvisual/HapTrans/aa668d53747ee57914eddbdf31efea5d2d9d08da/web/public/herovideo.mp4';
 const labels: Record<Language, readonly [string, string]> = {
   RO: ['Redă fundalul video', 'Oprește fundalul video'],
   EN: ['Play background video', 'Pause background video'],
@@ -35,6 +34,7 @@ function VideoBackground() {
     let disposed = false;
     let manualPlay = false;
     let request = 0;
+    let usingUploadedSource = false;
     function allowed() {
       return !disposed && visible && !document.hidden && !userPaused.current && (!motion.matches || manualPlay);
     }
@@ -47,6 +47,15 @@ function VideoBackground() {
         if (!disposed && request === current) setPlaying(false);
       }).then(() => { if (!allowed()) media.pause(); });
     }
+    function recoverSource() {
+      if (disposed || usingUploadedSource) return;
+      usingUploadedSource = true;
+      setFailed(false);
+      setReady(false);
+      media.src = uploadedSource;
+      media.load();
+      sync();
+    }
     function motionChanged() { manualPlay = false; sync(); }
     toggleRef.current = () => {
       if (!media.paused) { userPaused.current = true; manualPlay = false; }
@@ -58,12 +67,14 @@ function VideoBackground() {
       sync();
     }, { threshold: .05 });
     observer.observe(media);
+    media.addEventListener('error', recoverSource);
     motion.addEventListener('change', motionChanged);
     document.addEventListener('visibilitychange', sync);
     return () => {
       disposed = true;
       request++;
       observer.disconnect();
+      media.removeEventListener('error', recoverSource);
       motion.removeEventListener('change', motionChanged);
       document.removeEventListener('visibilitychange', sync);
       toggleRef.current = null;
@@ -73,7 +84,7 @@ function VideoBackground() {
   return <>
     <div className={styles.background} style={{ backgroundImage: 'url(' + poster + ')' }} aria-hidden="true">
       <video ref={video} className={styles.video} style={{ opacity: ready && !failed ? 1 : 0 }} muted loop playsInline preload="none" poster={poster} tabIndex={-1}
-        onPlaying={() => { setReady(true); setPlaying(true); }} onPause={() => setPlaying(false)} onError={() => { setFailed(true); setPlaying(false); }} />
+        onPlaying={() => { setFailed(false); setReady(true); setPlaying(true); }} onPause={() => setPlaying(false)} onError={() => { setFailed(true); setPlaying(false); }} />
       <div className={styles.shade} />
     </div>
     {!failed && <button className={styles.control} type="button" onClick={() => toggleRef.current?.()} aria-label={labels[lang][playing ? 1 : 0]}>{playing ? 'Ⅱ' : '▷'}</button>}
