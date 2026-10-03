@@ -4,6 +4,7 @@ import { Lock, Mail, Truck, LogIn } from 'lucide-react';
 import portalApi from '../../lib/portalApi';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import styles from './PortalLoginPage.module.css';
 
 export default function PortalLoginPage() {
   const { t } = useTranslation();
@@ -29,58 +30,41 @@ export default function PortalLoginPage() {
       setLoading(false);
     }
   };
-  return <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-[url('/bg-pattern.svg')] bg-repeat">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center">
-          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/30">
-            <Truck className="w-8 h-8 text-white" />
+  return <main className={styles.page}>
+    <div className={styles.shell}>
+      <section className={styles.intro} aria-labelledby="portal-title">
+        <div className={styles.icon} aria-hidden="true"><Truck size={32} /></div>
+        <h1 className={styles.title} id="portal-title">{t("jsx_clientPortal")}</h1>
+        <p className={styles.subtitle}>{t("jsx_manageYourTra")}</p>
+      </section>
+      <div className={styles.formPanel}>
+        <form className={styles.form} onSubmit={handleSubmit} aria-busy={loading}>
+          <div>
+            <label className={styles.label} htmlFor="portal-email">{t("jsx_emailAddress")}</label>
+            <div className={styles.field}>
+              <Mail size={20} className={styles.fieldIcon} aria-hidden="true" />
+              <input id="portal-email" type="email" required autoComplete="username" className={styles.input} placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} />
+            </div>
           </div>
-        </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-text">{t("jsx_clientPortal")}</h2>
-        <p className="mt-2 text-center text-sm text-text-secondary">{t("jsx_manageYourTra")}</p>
+          <div>
+            <label className={styles.label} htmlFor="portal-password">{t("jsx_password")}</label>
+            <div className={styles.field}>
+              <Lock size={20} className={styles.fieldIcon} aria-hidden="true" />
+              <input id="portal-password" type="password" required autoComplete="current-password" className={styles.input} placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
+            </div>
+          </div>
+          <div className={styles.options}>
+            <div className={styles.remember}>
+              <input id="remember-me" name="remember-me" type="checkbox" />
+              <label htmlFor="remember-me">{t("jsx_rememberMe")}</label>
+            </div>
+            <a href="#" className={styles.recovery}>{t("jsx_forgotYourPas")}</a>
+          </div>
+          <button type="submit" disabled={loading} className={styles.submit}>
+            {loading ? 'Signing in...' : <><LogIn size={20} aria-hidden="true" />{t("jsx_signIn")}</>}
+          </button>
+        </form>
       </div>
-
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md animate-fade-in">
-        <div className="bg-surface py-8 px-4 shadow sm:rounded-2xl sm:px-10 border border-border">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <label className="label text-sm font-medium">{t("jsx_emailAddress")}</label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-text-secondary" />
-                </div>
-                <input type="email" required className="input pl-10" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} />
-              </div>
-            </div>
-
-            <div>
-              <label className="label text-sm font-medium">{t("jsx_password")}</label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-text-secondary" />
-                </div>
-                <input type="password" required className="input pl-10" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 text-primary focus:ring-primary border-border rounded" />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-text-secondary">{t("jsx_rememberMe")}</label>
-              </div>
-
-              <div className="text-sm">
-                <a href="#" className="font-medium text-primary hover:text-primary-light">{t("jsx_forgotYourPas")}</a>
-              </div>
-            </div>
-
-            <div>
-              <button type="submit" disabled={loading} className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-light focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors disabled:opacity-50">
-                {loading ? 'Signing in...' : <><LogIn className="w-5 h-5 mr-2" />{t("jsx_signIn")}</>}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>;
+    </div>
+  </main>;
 }
