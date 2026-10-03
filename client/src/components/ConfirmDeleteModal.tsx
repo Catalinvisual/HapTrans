@@ -27,23 +27,23 @@ export default function ConfirmDeleteModal({
         className="bg-card w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={e => e.stopPropagation()}
       >
-        <div className="p-6">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-600 dark:text-red-400">
-              <AlertTriangle className="w-6 h-6" />
+        <div className="px-5 py-4">
+          <div className="flex justify-between items-start mb-3">
+            <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-600 dark:text-red-400">
+              <AlertTriangle className="w-5 h-5" />
             </div>
             <button 
               onClick={onClose}
-              className="text-text-muted hover:text-text-primary transition-colors p-1 rounded-lg hover:bg-surface"
+              className="text-text-muted hover:text-text-primary transition-colors p-1.5 rounded-lg hover:bg-surface"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
           
-          <h2 className="text-xl font-bold text-text-primary mb-2">
+          <h2 className="text-lg font-bold text-text-primary mb-1.5">
             {title || t('global_delete_title', 'Confirm Deletion')}
           </h2>
-          <p className="text-text-secondary">
+          <p className="text-sm text-text-secondary">
             {message || t('global_delete_message', 'Are you sure you want to delete this item? This action cannot be undone.')}
           </p>
         </div>

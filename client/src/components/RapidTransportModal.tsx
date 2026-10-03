@@ -78,17 +78,17 @@ export default function RapidTransportModal({ open, onClose }: RapidTransportMod
         onClick={(e) => e.stopPropagation()}
       >
         <div className="overflow-y-auto max-h-[90vh]">
-        <div className="p-6 border-b border-border flex justify-between items-center">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <Package className="w-5 h-5 text-primary" />
+        <div className="px-4 py-2 border-b border-border flex justify-between items-center bg-surface/50">
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            <Package className="w-4 h-4 text-primary" />
             {t('jsx_newTransportR')}
           </h2>
-          <button type="button" onClick={onClose} className="text-text-secondary hover:text-text">
-            <X className="w-5 h-5" />
+          <button type="button" onClick={onClose} className="p-1.5 text-text-secondary hover:text-text rounded-lg hover:bg-surface transition-colors">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-4 md:p-5 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="block text-xs font-bold text-text-secondary uppercase mb-1">
@@ -166,13 +166,13 @@ export default function RapidTransportModal({ open, onClose }: RapidTransportMod
           </div>
 
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary flex-1 py-2.5 font-bold">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1 !py-1.5 font-bold text-sm">
               {t('jsx_close')}
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="btn-primary flex-1 py-2.5 font-bold flex items-center justify-center gap-2"
+              className="btn-primary flex-1 !py-1.5 font-bold text-sm flex items-center justify-center gap-2"
             >
               {submitting && <span className="animate-spin">⭮</span>}
               {t('jsx_sendRequest')}
