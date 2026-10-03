@@ -132,7 +132,7 @@ export class RoutingService {
     try {
       if (!this.hereKey) return [];
       const res = await axios.get('https://discover.search.hereapi.com/v1/discover', {
-        params: { q: query, limit, apiKey: this.hereKey },
+        params: { q: query, limit, 'in': 'bbox:-10.0,35.0,40.0,71.0', apiKey: this.hereKey },
         timeout: 8000,
       });
       return (res.data.items || [])
