@@ -21,15 +21,40 @@ const MapSection = () => {
 
   useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
-    fetch(`${apiUrl}/website-cms?t=${Date.now()}`, { cache: 'no-store' })
-      .then(res => res.json())
-      .then(data => {
-        if (data.countries) {
-          const codes = data.countries.split(',').map((c: string) => c.trim().toUpperCase());
+    let disposed = false;
+    let pending = false;
+    let active: AbortController | undefined;
+    const refresh = async () => {
+      if (disposed || pending || document.hidden) return;
+      pending = true;
+      active = new AbortController();
+      try {
+        const res = await fetch(`${apiUrl.replace(/\/+$/, '')}/website-cms?t=${Date.now()}`, {
+          cache: 'no-store', signal: active.signal,
+        });
+        if (!res.ok) throw new Error('Countries unavailable');
+        const data: { countries?: unknown } = await res.json();
+        if (!disposed) {
+          const codes = typeof data.countries === 'string'
+            ? [...new Set(data.countries.split(',').map(code => code.trim().toUpperCase()).filter(Boolean))]
+            : [];
           setCountries(codes);
         }
-      })
-      .catch(console.error);
+      } catch {
+        // Keep the last verified CMS list; never show example countries as real.
+      } finally {
+        pending = false;
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 60000);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      disposed = true;
+      active?.abort();
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refresh);
+    };
   }, []);
 
   const getCountryName = (code: string) => {
@@ -42,21 +67,16 @@ const MapSection = () => {
   };
 
   const coreHubs = ['NL', 'DE', 'FR', 'PL', 'CZ', 'RO', 'BG'];
-  const ordered = [...coreHubs.filter(c => countries.includes(c)), ...countries.filter(c => !coreHubs.includes(c))];
-  const displayCountries = ordered.length ? ordered : coreHubs;
+  const displayCountries = [...coreHubs.filter(c => countries.includes(c)), ...countries.filter(c => !coreHubs.includes(c))];
 
   return (
     <section className={styles.section} id="harta">
       <div className={styles.container}>
-        
         <Reveal variant="left">
           <div className={styles.content}>
             <div className={styles.label}>🌍 {t('mapCoverage') || 'Acoperire Europeană'}</div>
             <h2 className={styles.title}>{t('mapTitle')}</h2>
-            <p className={styles.desc}>
-              {t('mapDesc')}
-            </p>
-
+            <p className={styles.desc}>{t('mapDesc')}</p>
             <div className={styles.countriesGrid}>
               {displayCountries.map(code => (
                 <button
@@ -78,7 +98,6 @@ const MapSection = () => {
             </div>
           </div>
         </Reveal>
-
         <Reveal variant="right">
           <div className={styles.globeStage}>
             <div className={styles.starfield} />
@@ -86,7 +105,6 @@ const MapSection = () => {
             <GlobeCanvas countries={countries} hovered={hovered} className={styles.globeCanvas} />
           </div>
         </Reveal>
-
       </div>
     </section>
   );

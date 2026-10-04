@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
+import "./premium.css";
 import { Providers } from './Providers';
 import BackToTop from '@/components/BackToTop/BackToTop';
 

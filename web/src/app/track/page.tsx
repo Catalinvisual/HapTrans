@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import Header from '@/components/Header/Header';
 import Footer from '@/components/Footer/Footer';
 import { useLanguage } from '@/context/LanguageContext';
+import { MapPin, ArrowRight } from 'lucide-react';
+import styles from './TrackPage.module.css';
 
 export default function TrackPage() {
   const [token, setToken] = useState('');
@@ -26,41 +28,21 @@ export default function TrackPage() {
   };
 
   return (
-    <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <main className={styles.main}>
       <Header />
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '100px 20px', backgroundColor: '#f8fafc' }}>
-        <div style={{ background: 'white', padding: '3rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', maxWidth: '500px', width: '100%' }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', textAlign: 'center', color: '#0f172a' }}>
-            {t('trackTitle') || 'Portal Clienți - Urmărire Comandă'}
-          </h1>
-          <p style={{ color: '#64748b', marginBottom: '2rem', textAlign: 'center' }}>
-            {t('trackDesc') || 'Introduceți codul de urmărire (Tracking Token) primit pe email sau WhatsApp pentru a vedea statusul comenzii dumneavoastră.'}
-          </p>
-          <form onSubmit={handleTrack} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <input
-              type="text"
-              required
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="ex: hc_a1b2c3"
-              style={{
-                width: '100%',
-                padding: '0.75rem 1rem',
-                borderRadius: '0.5rem',
-                border: '1px solid #cbd5e1',
-                outline: 'none',
-                fontSize: '1rem'
-              }}
-            />
-            <button
-              type="submit"
-              className="btn btn-primary"
-              style={{ padding: '0.875rem', width: '100%', fontSize: '1rem', backgroundColor: '#FF5A00' }}
-            >
-              {t('trackButton') || 'Urmărește Comanda'}
-            </button>
+      <div className={styles.content}>
+        <section className={styles.panel} aria-labelledby="tracking-title">
+          <div className={styles.intro}>
+            <div className={styles.icon} aria-hidden="true"><MapPin size={30} /></div>
+            <h1 className={styles.title} id="tracking-title">{t('trackTitle') || 'Portal Clienți - Urmărire Comandă'}</h1>
+            <p className={styles.description} id="tracking-help">{t('trackDesc') || 'Introduceți codul de urmărire (Tracking Token) primit pe email sau WhatsApp pentru a vedea statusul comenzii dumneavoastră.'}</p>
+          </div>
+          <form onSubmit={handleTrack} className={styles.form}>
+            <label className={styles.label} htmlFor="tracking-token">{t('trackButton') || 'Urmărește Comanda'}</label>
+            <input id="tracking-token" type="text" required value={token} onChange={(e) => setToken(e.target.value)} placeholder="ex: hc_a1b2c3" aria-describedby="tracking-help" autoCapitalize="none" spellCheck={false} className={styles.input} />
+            <button type="submit" className={styles.submit}><span>{t('trackButton') || 'Urmărește Comanda'}</span><ArrowRight size={20} aria-hidden="true" /></button>
           </form>
-        </div>
+        </section>
       </div>
       <Footer />
     </main>

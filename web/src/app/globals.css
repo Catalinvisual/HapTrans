@@ -1,51 +1,40 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800&display=swap');
 
 :root {
-  /* ── HapCargo Premium Design System ───────────────────────── */
-
-  /* Colors */
+  /* Original HapCargo orange; existing variable names remain compatible. */
   --brand: #FF6A2B;
   --brand-dark: #E0551A;
-  --bg: #F7F7F8;
+  --bg: #F7F6F2;
   --card: #FFFFFF;
-  --text: #2E3A45;
-  --muted: #6B7280;
+  --text: #172630;
+  --muted: #657079;
   --link: #0F6FFF;
   --success: #16A34A;
   --danger: #DC2626;
-
-  /* Radii & shadows */
-  --radius-card: 16px;
-  --radius-btn: 12px;
-  --shadow-card: 0 8px 30px rgba(46,58,69,0.06);
-  --shadow-cta: 0 6px 18px rgba(15,15,15,0.08);
-
-  /* Typography scale */
-  --fs-h1: clamp(42px, 4.6vw, 48px);
-  --fs-h2: clamp(28px, 3.2vw, 32px);
-  --fs-h3: 22px;
+  --radius-card: 28px;
+  --radius-btn: 14px;
+  --shadow-card: 0 24px 64px -32px rgba(23, 38, 48, 0.22), 0 2px 8px rgba(23, 38, 48, 0.025);
+  --shadow-cta: 0 10px 24px -12px rgba(255, 106, 43, 0.55);
+  --fs-h1: clamp(2.625rem, 5.5vw, 4.75rem);
+  --fs-h2: clamp(2rem, 3.8vw, 3.5rem);
+  --fs-h3: clamp(1.25rem, 1.8vw, 1.5rem);
   --fs-body: 16px;
-  --lh-body: 1.5;
+  --lh-body: 1.7;
+  --space-xl: 104px;
+  --space-md: 64px;
+  --space-sm: 48px;
 
-  /* Spacing tokens */
-  --space-xl: 64px;
-  --space-md: 40px;
-  --space-sm: 24px;
-
-  /* ── Legacy aliases (backwards compatibility) ─────────────── */
   --primary: var(--brand);
   --primary-hover: var(--brand-dark);
-  --secondary: #0D1B2A;
-  --secondary-light: #1c2e42;
+  --secondary: #10232E;
+  --secondary-light: #203A49;
   --accent: #1976D2;
   --surface: #FFFFFF;
   --surface-alt: var(--bg);
-
   --text-primary: var(--text);
   --text-secondary: #475569;
   --text-muted: var(--muted);
   --text-inverse: #ffffff;
-
   --border: #e2e8f0;
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -53,219 +42,114 @@
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
-html,
-body {
+* { box-sizing: border-box; padding: 0; margin: 0; }
+html { scroll-behavior: smooth; scroll-padding-top: 120px; }
+html, body {
   max-width: 100vw;
   overflow-x: hidden;
-  font-family: 'Inter', 'Poppins', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: 'Inter', 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   color: var(--text);
   background-color: var(--bg);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
+::selection { background: #ffd6c2; color: #172630; }
+h1, h2, h3, h4, h5, h6 { font-family: 'Inter', 'Poppins', system-ui, sans-serif; color: var(--text); }
+h1 { font-size: var(--fs-h1); font-weight: 700; line-height: 1.06; letter-spacing: -0.055em; text-wrap: balance; }
+h2 { font-size: var(--fs-h2); font-weight: 650; line-height: 1.12; letter-spacing: -0.045em; text-wrap: balance; }
+h3 { font-size: var(--fs-h3); font-weight: 600; line-height: 1.3; letter-spacing: -0.025em; }
+p { font-size: var(--fs-body); line-height: var(--lh-body); }
+a { color: inherit; text-decoration: none; transition: color 0.2s ease; }
+button { font-family: inherit; }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: 'Inter', 'Poppins', system-ui, sans-serif;
-  color: var(--text);
-}
+.section { padding: var(--space-xl) 1.5rem; }
+.container { width: 100%; max-width: 1280px; margin: 0 auto; padding: 0 1.5rem; }
+@media (max-width: 768px) { .section { padding: var(--space-md) 1.25rem; } }
+@media (max-width: 480px) { .section { padding: var(--space-sm) 1.1rem; } }
 
-h1 {
-  font-size: var(--fs-h1);
-  font-weight: 600;
-  line-height: 1.12;
-}
-
-h2 {
-  font-size: var(--fs-h2);
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-h3 {
-  font-size: var(--fs-h3);
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-p {
-  font-size: var(--fs-body);
-  line-height: var(--lh-body);
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-button {
-  font-family: inherit;
-}
-
-/* Section vertical spacing tokens */
-.section {
-  padding: var(--space-xl) 1.5rem;
-}
-
-@media (max-width: 768px) {
-  .section {
-    padding: var(--space-md) 1.25rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .section {
-    padding: var(--space-sm) 1.1rem;
-  }
-}
-
-/* Glassmorphism utility */
 .glass {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.4);
 }
-
 .glass-dark {
-  background: rgba(13, 27, 42, 0.8);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(13, 27, 42, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Common Layout Utilities */
-.container {
-  width: 100%;
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 0 1.5rem;
-}
-
-/* ── Buttons ─────────────────────────────────────────────────── */
+/* Intentional, short transitions: no perpetual motion or JS dependency. */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
+  gap: 0.65rem;
+  min-height: 48px;
+  padding: 0.85rem 1.5rem;
+  font-weight: 650;
   border-radius: var(--radius-btn);
-  transition: all 0.2s ease;
   cursor: pointer;
   border: none;
-  font-size: 1rem;
+  font-size: 0.9375rem;
   white-space: nowrap;
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, color 180ms ease;
 }
-
 .btn-primary {
-  display: inline-block;
-  background: linear-gradient(180deg, var(--brand), var(--brand-dark));
-  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  background: var(--brand);
+  color: #172630;
   border-radius: var(--radius-btn);
-  padding: 14px 20px;
-  font-weight: 600;
+  padding: 14px 22px;
+  font-weight: 700;
   box-shadow: var(--shadow-cta);
-  transition: transform .12s ease, box-shadow .12s ease, opacity .12s;
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
   border: none;
 }
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(15,15,15,0.12);
-  background: linear-gradient(180deg, #FF7A45, #D64B10);
-}
-
-.btn-primary:active {
-  transform: translateY(0);
-  opacity: .95;
-}
-
-.btn-secondary {
-  background-color: var(--secondary);
-  color: var(--text-inverse);
-}
-
-.btn-secondary:hover {
-  background-color: var(--secondary-light);
-}
-
-.btn-outline {
-  background-color: transparent;
-  border: 2px solid var(--border);
-  color: var(--text);
-}
-
-.btn-outline:hover {
-  border-color: var(--brand);
-  color: var(--brand);
-}
-
-/* Ghost CTA for light hero */
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 28px -14px rgba(255, 106, 43, 0.7); background: #FF814D; }
+.btn-primary:active { transform: translateY(0); }
+.btn-secondary { background-color: var(--secondary); color: var(--text-inverse); }
+.btn-secondary:hover { background-color: var(--secondary-light); }
+.btn-outline { background-color: transparent; border: 2px solid var(--border); color: var(--text); }
+.btn-outline:hover { border-color: var(--brand); color: #a83b10; }
 .btn-ghost {
   background-color: transparent;
-  border: 2px solid rgba(255, 255, 255, 0.65);
-  color: #ffffff;
-  border-radius: var(--radius-btn);
-  padding: 14px 20px;
-  font-weight: 600;
-  transition: transform .12s ease, border-color .12s ease, background-color .12s ease, color .12s ease;
-}
-
-.btn-ghost:hover {
-  transform: translateY(-2px);
-  border-color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.65);
   color: #fff;
-  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-btn);
+  padding: 14px 22px;
+  font-weight: 600;
+  transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease;
 }
-
-.btn-ghost:active {
-  transform: translateY(0);
-}
-
+.btn-ghost:hover { transform: translateY(-2px); border-color: #fff; color: #fff; background-color: rgba(255, 255, 255, 0.1); }
+.btn-ghost:active { transform: translateY(0); }
 .btn-ghost-light {
   background-color: transparent;
-  border: 2px solid rgba(46, 58, 69, 0.25);
+  border: 1px solid rgba(46, 58, 69, 0.25);
   color: var(--text);
   border-radius: var(--radius-btn);
-  padding: 14px 20px;
+  padding: 14px 22px;
   font-weight: 600;
-  transition: transform .12s ease, border-color .12s ease, color .12s ease;
+  transition: transform 180ms ease, border-color 180ms ease, color 180ms ease;
 }
+.btn-ghost-light:hover { transform: translateY(-2px); border-color: var(--brand); color: #a83b10; }
+.btn:disabled, .btn-primary:disabled { cursor: not-allowed; opacity: 0.6; transform: none; }
 
-.btn-ghost-light:hover {
-  transform: translateY(-2px);
-  border-color: var(--brand);
-  color: var(--brand);
-}
-
-/* ── Cards ───────────────────────────────────────────────────── */
 .card {
   background: var(--card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  transition: transform .18s ease, box-shadow .18s ease;
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .card:hover { transform: translateY(-4px); box-shadow: 0 28px 64px -28px rgba(23, 38, 48, 0.24); }
 }
 
-.card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 18px 40px rgba(46, 58, 69, 0.08);
-}
-
+/* Preserve calculator fields and third-party date/phone widget geometry. */
 .card-calculator {
   background: var(--card);
   border-radius: var(--radius-card);
@@ -273,9 +157,7 @@ button {
   box-shadow: var(--shadow-card);
   border: 1px solid rgba(46, 58, 69, 0.04);
 }
-
-.card-calculator input,
-.card-calculator select {
+.card-calculator input, .card-calculator select {
   width: 100%;
   padding: 12px 14px;
   border-radius: 10px;
@@ -283,20 +165,12 @@ button {
   background: #fff;
   color: var(--text);
 }
-
-.card-calculator input:focus,
-.card-calculator select:focus {
+.card-calculator input:focus, .card-calculator select:focus {
   outline: none;
   box-shadow: 0 0 0 4px rgba(255, 106, 43, 0.12);
   border-color: var(--brand-dark);
 }
-
-/* ── Brand image treatment ────────────────────────────────── */
-.brand-image-filter {
-  filter: sepia(6%) saturate(110%) contrast(102%);
-}
-
-/* ── Inputs ──────────────────────────────────────────────────── */
+.brand-image-filter { filter: sepia(6%) saturate(110%) contrast(102%); }
 .input {
   width: 100%;
   padding: 12px 14px;
@@ -307,148 +181,163 @@ button {
   font-size: 0.95rem;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-
-.input::placeholder {
-  color: var(--muted);
-}
-
-.input:focus {
-  outline: none;
-  border-color: rgba(255, 106, 43, 0.55);
+.input::placeholder { color: var(--muted); }
+.input:focus { border-color: rgba(255, 106, 43, 0.55); box-shadow: 0 0 0 4px rgba(255, 106, 43, 0.12); }
+:focus-visible { outline: 2px solid #a83b10; outline-offset: 4px; }
+.btn-primary:focus-visible, .input:focus-visible, a:focus-visible, button:focus-visible, [role='button']:focus-visible {
+  outline: 2px solid #a83b10;
+  outline-offset: 4px;
   box-shadow: 0 0 0 4px rgba(255, 106, 43, 0.12);
 }
 
-/* ── Focus states (accessibility) ────────────────────────────── */
-.btn-primary:focus,
-.input:focus {
-  outline: none;
-  box-shadow: 0 0 0 4px rgba(255, 106, 43, 0.12);
-}
+.sep-wave, .sep-diagonal, .sep-blob { display: block; width: 100%; pointer-events: none; line-height: 0; margin: 0; padding: 0; }
+.sep-wave svg, .sep-diagonal svg, .sep-blob svg { display: block; width: 100%; height: 100%; }
+.sep-wave { height: clamp(48px, 8vw, 80px); }
+.sep-diagonal { height: clamp(36px, 6vw, 80px); }
+.sep-blob { position: absolute; height: auto; }
 
-:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 4px rgba(255, 106, 43, 0.12);
-}
-
-a:focus-visible,
-button:focus-visible,
-[role="button"]:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 4px rgba(255, 106, 43, 0.12);
-}
-
-/* ── SVG section separators ──────────────────────────────────── */
-.sep-wave,
-.sep-diagonal,
-.sep-blob {
-  display: block;
-  width: 100%;
-  pointer-events: none;
-  line-height: 0;
-  margin: 0;
-  padding: 0;
-}
-
-.sep-wave svg,
-.sep-diagonal svg,
-.sep-blob svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.sep-wave {
-  height: clamp(48px, 8vw, 80px);
-}
-
-.sep-diagonal {
-  height: clamp(36px, 6vw, 80px);
-}
-
-.sep-blob {
-  position: absolute;
-  height: auto;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sep-wave svg,
-  .sep-diagonal svg,
-  .sep-blob svg {
-    animation: none;
-  }
-}
-
-/* Phone Input Overrides */
-.react-international-phone-country-selector-button__button-content {
-  margin: 0 !important;
-  padding: 0 !important;
-}
-.react-international-phone-country-selector-button {
-  padding: 0 0.5rem !important;
-}
-
-/* Ensure mouse cursor is perfectly visible as a pointer hand on all calendar and time inputs */
-.flatpickr-input,
-.flatpickr-input ~ input,
-.flatpickr-wrapper,
-.flatpickr-wrapper *,
-.flatpickr-calendar,
-.flatpickr-calendar *,
-input[readonly] {
-  cursor: pointer !important;
-}
-
-/* Custom premium styling for ALL dates in Flatpickr */
-.flatpickr-day {
-  color: #1e293b !important; /* Slate 800 - much darker/blacker */
-  font-weight: 600 !important;
-}
-
-/* Custom premium styling for disabled past dates in Flatpickr */
-.flatpickr-day.flatpickr-disabled,
-.flatpickr-day.flatpickr-disabled:hover {
-  color: #334155 !important; /* Slate 700 - darker */
-  background: transparent !important; /* No background to keep it clean and avoid layout shift */
-  border: none !important; /* NO BORDER to preserve exact 14.28% flex width! */
-  text-decoration: line-through !important; /* Clearly shows the day is unavailable/blocked */
-  opacity: 0.8 !important; /* Less transparent */
+.react-international-phone-country-selector-button__button-content { margin: 0 !important; padding: 0 !important; }
+.react-international-phone-country-selector-button { padding: 0 0.5rem !important; }
+.flatpickr-input, .flatpickr-input ~ input, .flatpickr-wrapper, .flatpickr-wrapper *, .flatpickr-calendar, .flatpickr-calendar *, input[readonly] { cursor: pointer !important; }
+.flatpickr-day { color: #1e293b !important; font-weight: 600 !important; }
+.flatpickr-day.flatpickr-disabled, .flatpickr-day.flatpickr-disabled:hover {
+  color: #334155 !important;
+  background: transparent !important;
+  border: none !important;
+  text-decoration: line-through !important;
+  opacity: 0.8 !important;
   cursor: not-allowed !important;
 }
-
-/* Enhance the overall Flatpickr calendar popover popup to look extremely premium without cutting off days */
 .flatpickr-calendar {
   border: 1px solid #e2e8f0 !important;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
   border-radius: 1rem !important;
-  padding: 0 !important; /* NO PADDING so inner days grid fits perfectly without cutting off! */
+  padding: 0 !important;
   width: auto !important;
   box-sizing: border-box !important;
   font-family: inherit !important;
   animation: fpFadeInDown 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
+@keyframes fpFadeInDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 
-@keyframes fpFadeInDown {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* Editorial advantages composition, scoped to the existing #despre anchor.
+   Structure: section > container > [Reveal(header), bentoGrid].
+   Grid children are Reveal wrappers, each containing one card.
+   These selectors deliberately avoid generated CSS-module class names.
+   Data, copy, calculator and all other sections remain untouched. */
+#despre {
+  padding: clamp(4rem, 8vw, 8rem) clamp(1.1rem, 4vw, 3rem);
+  background: radial-gradient(ellipse at 95% 35%, #efded0 0, transparent 48%), var(--bg);
+}
+#despre > div { padding: 0; }
+#despre > div > div:first-child > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.65fr);
+  gap: 1.25rem 3rem;
+  text-align: left;
+  align-items: end;
+  margin-bottom: clamp(2.5rem, 5vw, 4.5rem);
+}
+#despre > div > div:first-child > div > div {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin: 0;
+  background: #f4e4d7;
+  border: 0;
+  color: #94360f;
+}
+#despre h2 {
+  margin: 0;
+  max-width: 850px;
+  font-size: clamp(2.5rem, 5.2vw, 5rem);
+  line-height: 1.04;
+  letter-spacing: -0.055em;
+  font-weight: 700;
+}
+#despre > div > div:first-child p {
+  max-width: 380px;
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  line-height: 1.85;
+}
+#despre > div > div:last-child {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+#despre > div > div:last-child > div {
+  min-width: 0;
+  grid-column: span 5;
+  grid-row: auto;
+}
+#despre > div > div:last-child > div:nth-child(2),
+#despre > div > div:last-child > div:nth-child(3) { grid-column: span 7; }
+#despre > div > div:last-child > div > div {
+  min-width: 0;
+  padding: clamp(1.75rem, 3.5vw, 3rem);
+  border: 0;
+  border-radius: 34px;
+  box-shadow: 0 24px 60px -40px rgba(16, 35, 46, 0.24);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+#despre > div > div:last-child > div:nth-child(2) > div {
+  background: radial-gradient(ellipse at 100% 0%, #3c4140, transparent 65%), #10232e;
+  border-top-right-radius: 80px;
+}
+#despre > div > div:last-child > div:nth-child(3) > div { background: #e0e9e5; }
+#despre > div > div:last-child > div:nth-child(4) > div { background: #f5e5d8; }
+#despre h3 {
+  font-size: clamp(1.5rem, 2.5vw, 2.25rem);
+  font-weight: 650;
+  line-height: 1.16;
+  letter-spacing: -0.035em;
+  margin-bottom: 1rem;
+}
+#despre > div > div:last-child > div > div > p {
+  font-size: 1rem;
+  line-height: 1.8;
+  margin-bottom: 1.75rem;
+  color: #52616a;
+}
+#despre > div > div:last-child > div:nth-child(2) > div > p { color: #ccd9df; }
+#despre > div > div:last-child > div:first-child > div > div:last-child {
+  flex-wrap: wrap;
+  row-gap: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 0;
+}
+/* Enlarge only the existing decorative map, never the real tracking page. */
+#despre > div > div:last-child > div:nth-child(2) > div > div[aria-hidden='true'] {
+  min-height: 190px;
+  margin: 0 0 1.5rem;
+  border: 0;
+  border-radius: 24px;
+  background: #162e3c;
+}
+@media (max-width: 800px) {
+  #despre > div > div:first-child > div { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+  #despre > div > div:first-child p { max-width: 600px; }
+  #despre > div > div:last-child { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+  #despre > div > div:last-child > div,
+  #despre > div > div:last-child > div:nth-child(2),
+  #despre > div > div:last-child > div:nth-child(3) { grid-column: auto; }
+  #despre > div > div:last-child > div:nth-child(2) > div { border-top-right-radius: 34px; }
+}
+@media (max-width: 600px) {
+  #despre > div > div:last-child { grid-template-columns: minmax(0, 1fr); }
+  #despre > div > div:last-child > div > div { padding: 1.75rem; border-radius: 26px; }
+  #despre > div > div:last-child > div:nth-child(2) > div { border-top-right-radius: 26px; }
+  #despre h2 { font-size: clamp(2.3rem, 10vw, 3.5rem); }
 }
 
-/* Respect users who prefer reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-
-  *,
-  *::before,
-  *::after {
+  html { scroll-behavior: auto; }
+  .sep-wave svg, .sep-diagonal svg, .sep-blob svg { animation: none; }
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  /* CSS cannot pause SVG animateMotion; hide its decorative moving dot. */
+  #despre svg circle:has(> animateMotion) { display: none; }
 }
