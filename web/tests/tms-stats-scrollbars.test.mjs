@@ -41,9 +41,11 @@ test('homepage replaces the old banner without changing the calculator', async (
   assert.match(home, /<TmsStats\s*\/>/);
   assert.match(home, /heroStyles\.statsBanner/);
   assert.match(stats, /\/public\/stats/);
-  assert.match(stats, /euro6Trucks/);
+  assert.match(stats, /\/website-cms/);
+  assert.match(stats, /Promise\.allSettled/);
   assert.match(stats, /Number\.isSafeInteger/);
   assert.match(stats, /updatedAt/);
+  assert.match(stats, /const trips = corrected && validCount/);
   assert.doesNotMatch(stats, /100\+|5\.000\+|15\+|99,4/);
   assert.match(original, /\/public\/calculate-quote/);
 });
