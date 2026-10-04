@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
-import heroStyles from './Hero.module.css';
 import styles from './TmsStats.module.css';
 
 type Counts = { trucks: number; euro6Trucks: number; trips: number; countries: number | null };
@@ -75,7 +74,7 @@ export default function TmsStats() {
   const fmt = new Intl.NumberFormat(language.toLowerCase());
   const number = (value: number | null | undefined) => value == null ? '—' : fmt.format(value);
   return (
-    <section className={`${heroStyles.statsBanner} ${styles.banner}`} aria-label={language === 'RO' ? 'Statistici TMS' : 'TMS statistics'}>
+    <section className={styles.banner} aria-label={language === 'RO' ? 'Statistici TMS' : 'TMS statistics'}>
       <div className={styles.grid}>
         <div className={styles.item}><strong className={styles.value}>{number(stats?.trucks)}</strong><span className={styles.label}>{labels[0]}</span>
           {stats && stats.euro6Trucks > 0 && <span className={styles.detail}>{number(stats.euro6Trucks)} {labels[1]}</span>}</div>
