@@ -33,3 +33,16 @@ test('global orange scrollbars preserve accessibility and dialog corners', async
   assert.ok(css.includes('border-block: 16px solid #fff'));
   assert.doesNotMatch(css, /scrollbar-width:\s*none/);
 });
+
+test('homepage uses live statistics and removes the promotional banner without changing the wizard', async () => {
+  const home = await read('../src/app/page.tsx');
+  const stats = await read('../src/components/Hero/TmsStats.tsx');
+  const original = await read('../src/components/Hero/Hero.tsx');
+  assert.match(home, /<TmsStats\s*\/>/);
+  assert.match(stats, /\/public\/stats/);
+  assert.match(stats, /heroStyles\.statsBanner/);
+  assert.match(stats, /euro6Trucks/);
+  assert.match(stats, /Number\.isSafeInteger/);
+  assert.doesNotMatch(stats, /100\+|5\.000\+|15\+|99,4/);
+  assert.match(original, /\/public\/calculate-quote/);
+});
