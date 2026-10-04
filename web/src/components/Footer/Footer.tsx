@@ -68,7 +68,14 @@ const Footer = () => {
       <div className={styles.container}>
         <div className={styles.column}>
           <Link href="/" className={styles.logo}>
-            <img src="/footer-logo.png" alt="Logo" style={{ height: '42px', width: 'auto', objectFit: 'contain' }} />
+            {company.logo ? (
+              <img src={company.logo} alt="Logo" style={{ height: '42px', width: 'auto', objectFit: 'contain' }} />
+            ) : (
+              <div className={styles.logoTextGroup}>
+                <span className={styles.logoHap}>Hap</span>
+                <span className={styles.logoCargo}>Cargo</span>
+              </div>
+            )}
           </Link>
           <p className={styles.desc}>
             {t('footerDesc') || 'Livrăm marfa dumneavoastră la timp, în siguranță și cu transparență totală pe întreg teritoriul Europei.'}

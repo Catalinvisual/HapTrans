@@ -28,7 +28,7 @@ function VideoBackground() {
     if (!element) return;
     const media: HTMLVideoElement = element;
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    let visible = false;
+    let visible = true;
     let disposed = false;
     let manualPlay = false;
     let request = 0;
@@ -62,19 +62,15 @@ function VideoBackground() {
       sync();
     };
     media.addEventListener('error', recoverSource);
-    // Begin fetching before the visibility observer reports its first entry.
-    if (!motion.matches && !media.hasAttribute('src')) media.src = source;
-    const observer = new IntersectionObserver(([entry]) => {
-      visible = entry.isIntersecting;
-      sync();
-    }, { threshold: .05 });
-    observer.observe(media);
     motion.addEventListener('change', motionChanged);
     document.addEventListener('visibilitychange', sync);
+    
+    // Start playback immediately
+    sync();
+
     return () => {
       disposed = true;
       request++;
-      observer.disconnect();
       media.removeEventListener('error', recoverSource);
       motion.removeEventListener('change', motionChanged);
       document.removeEventListener('visibilitychange', sync);

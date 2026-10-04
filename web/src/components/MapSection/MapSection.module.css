@@ -309,7 +309,7 @@
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
-  backdrop-filter: blur(6px);
+  
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
   transition: all 0.2s ease;
   user-select: none;
