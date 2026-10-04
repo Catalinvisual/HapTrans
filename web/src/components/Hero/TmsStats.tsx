@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import styles from './TmsStats.module.css';
 
-type Counts = { trucks: number; euro6Trucks: number; trips: number; countries: number | null };
+type Counts = { trucks: number | null; euro6Trucks: number | null; trips: number | null; countries: number | null };
+const defaultCountries = ['NL', 'DE', 'FR', 'PL', 'CZ', 'RO', 'BG']; // MapSection's displayed fallback
 
 const copy = {
   RO: ['Camioane înregistrate', 'Camioane Euro 6', 'Curse finalizate', 'Țări deservite'],
@@ -19,22 +20,33 @@ function validCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
-function parseStats(value: unknown): Counts | null {
-  if (!value || typeof value !== 'object') return null;
+function parseCounts(value: unknown): Pick<Counts, 'trucks' | 'trips' | 'euro6Trucks'> {
+  if (!value || typeof value !== 'object') throw new Error('Invalid TMS response');
   const data = value as Record<string, unknown>;
-  // Reject the older endpoint: its trips count included unfinished trips and
-  // its countries count used an invented fallback. Never present those as real.
-  if (typeof data.updatedAt !== 'string' || !Number.isFinite(Date.parse(data.updatedAt))) return null;
-  if (!validCount(data.trucks) || !validCount(data.euro6Trucks) ||
-      !validCount(data.trips) || (data.countries !== null && !validCount(data.countries)) ||
-      data.euro6Trucks > data.trucks) return null;
-  return { trucks: data.trucks, euro6Trucks: data.euro6Trucks,
-    trips: data.trips, countries: data.countries as number | null };
+  if ('error' in data) throw new Error('TMS statistics unavailable');
+  const trucks = validCount(data.trucks) ? data.trucks : null;
+  // The deployed legacy endpoint counts ALL trips. Its value must not be
+  // presented as completed deliveries until the corrected backend is live.
+  const corrected = typeof data.updatedAt === 'string' && Number.isFinite(Date.parse(data.updatedAt));
+  const trips = corrected && validCount(data.trips) ? data.trips : null;
+  const euro6Trucks = corrected && validCount(data.euro6Trucks) &&
+    trucks !== null && data.euro6Trucks <= trucks ? data.euro6Trucks : null;
+  return { trucks, trips, euro6Trucks };
+}
+
+function parseCountries(value: unknown): number {
+  if (!value || typeof value !== 'object') throw new Error('Invalid CMS response');
+  const countries = (value as Record<string, unknown>).countries;
+  // Exactly the entries displayed by MapSection, including its seven-country
+  // fallback when the CMS has no countries entry yet.
+  if (typeof countries !== 'string' || !countries.trim()) return defaultCountries.length;
+  const codes = countries.split(',').map(code => code.trim().toUpperCase());
+  return codes.length;
 }
 
 export default function TmsStats() {
   const { lang } = useLanguage();
-  const [stats, setStats] = useState<Counts | null>(null);
+  const [stats, setStats] = useState<Counts>({ trucks: null, euro6Trucks: null, trips: null, countries: null });
 
   useEffect(() => {
     let disposed = false;
@@ -47,12 +59,20 @@ export default function TmsStats() {
       active = new AbortController();
       const timeout = window.setTimeout(() => active?.abort(), 10000);
       try {
-        const response = await fetch(`${api}/public/stats`, { signal: active.signal, cache: 'no-store' });
-        if (!response.ok) throw new Error('Statistics unavailable');
-        const data = parseStats(await response.json());
-        if (!disposed) setStats(data);
-      } catch {
-        if (!disposed) setStats(null);
+        // Independent requests: a backend still running the old stats format
+        // cannot prevent the CMS countries count or truck count from updating.
+        const [tms, cms] = await Promise.allSettled([
+          fetch(`${api}/public/stats`, { signal: active.signal, cache: 'no-store' })
+            .then(async response => { if (!response.ok) throw new Error('TMS unavailable'); return parseCounts(await response.json()); }),
+          fetch(`${api}/website-cms?t=${Date.now()}`, { signal: active.signal, cache: 'no-store' })
+            .then(async response => { if (!response.ok) throw new Error('CMS unavailable'); return parseCountries(await response.json()); }),
+        ]);
+        if (!disposed) setStats({
+          trucks: tms.status === 'fulfilled' ? tms.value.trucks : null,
+          euro6Trucks: tms.status === 'fulfilled' ? tms.value.euro6Trucks : null,
+          trips: tms.status === 'fulfilled' ? tms.value.trips : null,
+          countries: cms.status === 'fulfilled' ? cms.value : null,
+        });
       } finally {
         window.clearTimeout(timeout);
         pending = false;
@@ -76,10 +96,10 @@ export default function TmsStats() {
   return (
     <section className={styles.banner} aria-label={language === 'RO' ? 'Statistici TMS' : 'TMS statistics'}>
       <div className={styles.grid}>
-        <div className={styles.item}><strong className={styles.value}>{number(stats?.trucks)}</strong><span className={styles.label}>{labels[0]}</span>
-          {stats && stats.euro6Trucks > 0 && <span className={styles.detail}>{number(stats.euro6Trucks)} {labels[1]}</span>}</div>
-        <div className={styles.item}><strong className={styles.value}>{number(stats?.trips)}</strong><span className={styles.label}>{labels[2]}</span></div>
-        <div className={styles.item}><strong className={styles.value}>{number(stats?.countries)}</strong><span className={styles.label}>{labels[3]}</span></div>
+        <div className={styles.item}><strong className={styles.value}>{number(stats.trucks)}</strong><span className={styles.label}>{labels[0]}</span>
+          {stats.euro6Trucks !== null && stats.euro6Trucks > 0 && <span className={styles.detail}>{number(stats.euro6Trucks)} {labels[1]}</span>}</div>
+        <div className={styles.item}><strong className={styles.value}>{number(stats.trips)}</strong><span className={styles.label}>{labels[2]}</span></div>
+        <div className={styles.item}><strong className={styles.value}>{number(stats.countries)}</strong><span className={styles.label}>{labels[3]}</span></div>
       </div>
     </section>
   );
