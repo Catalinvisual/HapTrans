@@ -5,7 +5,6 @@ import { useLanguage } from '@/context/LanguageContext';
 import styles from './TmsStats.module.css';
 
 type Counts = { trucks: number | null; euro6Trucks: number | null; trips: number | null; countries: number | null };
-const defaultCountries = ['NL', 'DE', 'FR', 'PL', 'CZ', 'RO', 'BG']; // MapSection's displayed fallback
 
 const copy = {
   RO: ['Camioane înregistrate', 'Camioane Euro 6', 'Curse finalizate', 'Țări deservite'],
@@ -25,8 +24,7 @@ function parseCounts(value: unknown): Pick<Counts, 'trucks' | 'trips' | 'euro6Tr
   const data = value as Record<string, unknown>;
   if ('error' in data) throw new Error('TMS statistics unavailable');
   const trucks = validCount(data.trucks) ? data.trucks : null;
-  // The deployed legacy endpoint counts ALL trips. Its value must not be
-  // presented as completed deliveries until the corrected backend is live.
+  // Older deployed endpoints count all trips; never label these as completed.
   const corrected = typeof data.updatedAt === 'string' && Number.isFinite(Date.parse(data.updatedAt));
   const trips = corrected && validCount(data.trips) ? data.trips : null;
   const euro6Trucks = corrected && validCount(data.euro6Trucks) &&
@@ -37,11 +35,8 @@ function parseCounts(value: unknown): Pick<Counts, 'trucks' | 'trips' | 'euro6Tr
 function parseCountries(value: unknown): number {
   if (!value || typeof value !== 'object') throw new Error('Invalid CMS response');
   const countries = (value as Record<string, unknown>).countries;
-  // Exactly the entries displayed by MapSection, including its seven-country
-  // fallback when the CMS has no countries entry yet.
-  if (typeof countries !== 'string' || !countries.trim()) return defaultCountries.length;
-  const codes = countries.split(',').map(code => code.trim().toUpperCase());
-  return codes.length;
+  if (typeof countries !== 'string' || !countries.trim()) return 0;
+  return new Set(countries.split(',').map(code => code.trim().toUpperCase()).filter(Boolean)).size;
 }
 
 export default function TmsStats() {
@@ -59,20 +54,18 @@ export default function TmsStats() {
       active = new AbortController();
       const timeout = window.setTimeout(() => active?.abort(), 10000);
       try {
-        // Independent requests: a backend still running the old stats format
-        // cannot prevent the CMS countries count or truck count from updating.
         const [tms, cms] = await Promise.allSettled([
           fetch(`${api}/public/stats`, { signal: active.signal, cache: 'no-store' })
             .then(async response => { if (!response.ok) throw new Error('TMS unavailable'); return parseCounts(await response.json()); }),
           fetch(`${api}/website-cms?t=${Date.now()}`, { signal: active.signal, cache: 'no-store' })
             .then(async response => { if (!response.ok) throw new Error('CMS unavailable'); return parseCountries(await response.json()); }),
         ]);
-        if (!disposed) setStats({
-          trucks: tms.status === 'fulfilled' ? tms.value.trucks : null,
-          euro6Trucks: tms.status === 'fulfilled' ? tms.value.euro6Trucks : null,
-          trips: tms.status === 'fulfilled' ? tms.value.trips : null,
-          countries: cms.status === 'fulfilled' ? cms.value : null,
-        });
+        if (!disposed) setStats(previous => ({
+          trucks: tms.status === 'fulfilled' ? tms.value.trucks : previous.trucks,
+          euro6Trucks: tms.status === 'fulfilled' ? tms.value.euro6Trucks : previous.euro6Trucks,
+          trips: tms.status === 'fulfilled' ? tms.value.trips : previous.trips,
+          countries: cms.status === 'fulfilled' ? cms.value : previous.countries,
+        }));
       } finally {
         window.clearTimeout(timeout);
         pending = false;
