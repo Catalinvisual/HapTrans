@@ -34,15 +34,16 @@ test('global orange scrollbars preserve accessibility and dialog corners', async
   assert.doesNotMatch(css, /scrollbar-width:\s*none/);
 });
 
-test('homepage uses live statistics and removes the promotional banner without changing the wizard', async () => {
+test('homepage replaces the old banner without changing the calculator', async () => {
   const home = await read('../src/app/page.tsx');
   const stats = await read('../src/components/Hero/TmsStats.tsx');
   const original = await read('../src/components/Hero/Hero.tsx');
   assert.match(home, /<TmsStats\s*\/>/);
+  assert.match(home, /heroStyles\.statsBanner/);
   assert.match(stats, /\/public\/stats/);
-  assert.match(stats, /heroStyles\.statsBanner/);
   assert.match(stats, /euro6Trucks/);
   assert.match(stats, /Number\.isSafeInteger/);
+  assert.match(stats, /updatedAt/);
   assert.doesNotMatch(stats, /100\+|5\.000\+|15\+|99,4/);
   assert.match(original, /\/public\/calculate-quote/);
 });
