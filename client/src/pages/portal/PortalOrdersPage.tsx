@@ -70,7 +70,7 @@ export default function PortalOrdersPage() {
           <div className="flex items-center gap-3 flex-1 max-w-md">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-              <input className="input pl-9" placeholder="Search reference, city..." value={search} onChange={e => handleSearchChange(e.target.value)} />
+              <input className="input pl-9" placeholder={t("jsx_searchReference")} value={search} onChange={e => handleSearchChange(e.target.value)} />
             </div>
             <FilterDropdown 
               options={['all', 'active', 'completed', 'cancelled']} 

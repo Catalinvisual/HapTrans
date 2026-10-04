@@ -39,11 +39,11 @@ export default function PortalSupportPage() {
         <form className="space-y-4">
           <div>
             <label className="label">{t("jsx_subject")}</label>
-            <input className="input" placeholder="E.g., Issue with Order #1024" />
+            <input className="input" placeholder={t("jsx_egIssue")} />
           </div>
           <div>
             <label className="label">{t("jsx_message")}</label>
-            <textarea className="input min-h-[150px]" placeholder="How can we help you?"></textarea>
+            <textarea className="input min-h-[150px]" placeholder={t("jsx_howCanWeHelp")}></textarea>
           </div>
           <button type="button" className="btn-primary py-2 px-6">{t("jsx_sendMessage")}</button>
         </form>
