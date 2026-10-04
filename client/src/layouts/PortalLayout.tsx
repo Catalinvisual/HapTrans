@@ -7,7 +7,7 @@ import { Link as RouterLink, Outlet as RouterOutlet, useLocation as useRouteLoca
 import LanguageDropdown from '../components/LanguageDropdown';
 
 export default function PortalLayout() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const location = useRouteLocation();
   const navigate = useRouteNavigate();
   const [user, setUser] = useState<any>(null);
