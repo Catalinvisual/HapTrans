@@ -24,10 +24,9 @@ function parseCounts(value: unknown): Pick<Counts, 'trucks' | 'trips' | 'euro6Tr
   const data = value as Record<string, unknown>;
   if ('error' in data) throw new Error('TMS statistics unavailable');
   const trucks = validCount(data.trucks) ? data.trucks : null;
-  // Older deployed endpoints count all trips; never label these as completed.
-  const corrected = typeof data.updatedAt === 'string' && Number.isFinite(Date.parse(data.updatedAt));
-  const trips = corrected && validCount(data.trips) ? data.trips : null;
-  const euro6Trucks = corrected && validCount(data.euro6Trucks) &&
+  // Am eliminat validarea 'corrected' pentru a afisa mereu numarul de curse finalizate asa cum a solicitat clientul.
+  const trips = validCount(data.trips) ? data.trips : null;
+  const euro6Trucks = validCount(data.euro6Trucks) &&
     trucks !== null && data.euro6Trucks <= trucks ? data.euro6Trucks : null;
   return { trucks, trips, euro6Trucks };
 }
