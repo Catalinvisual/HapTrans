@@ -63,3 +63,53 @@ main [role='dialog'] form button[type='submit'] { border-radius: 20px 8px 20px 8
   main form input, main form select, main form textarea { transition: none; }
   body .btn:hover, body .btn-primary:hover, body .btn-ghost:hover, body .btn-ghost-light:hover { transform: none; }
 }
+
+/* Native scrollbars throughout web; never hide the scrolling affordance. */
+html, body, body * {
+  scrollbar-width: thin;
+  scrollbar-color: #ff6a2b #f2f4f1;
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #f2f4f1; border-radius: 999px; }
+::-webkit-scrollbar-thumb {
+  min-height: 40px;
+  border: 2px solid #f2f4f1;
+  border-radius: 999px;
+  background: #ff6a2b;
+}
+::-webkit-scrollbar-thumb:hover { background: #c64a17; }
+::-webkit-scrollbar-corner { background: transparent; }
+/* Modern Chromium prioritizes standard scrollbar properties; opt into its
+   pseudo-elements for rounded thumbs, retaining standard colors in Firefox. */
+@supports selector(::-webkit-scrollbar) {
+  html, body, body * { scrollbar-width: auto; scrollbar-color: auto; }
+}
+/* The existing dialog role belongs to the overlay. Its direct child is the
+   white scroll panel. Solid end borders inset the native scrollbar from the
+   curved corners without moving form nodes or changing event handlers. */
+body [role='dialog'][aria-modal='true'] > div:first-child {
+  border-block: 16px solid #fff;
+  background-clip: padding-box;
+  scrollbar-color: #ff6a2b #fff;
+}
+body [role='dialog'][aria-modal='true'] > div:first-child::-webkit-scrollbar-track {
+  background: #fff;
+  margin-block: 12px;
+}
+body [role='dialog'][aria-modal='true'] > div:first-child::-webkit-scrollbar-thumb {
+  border-color: #fff;
+}
+@supports selector(::-webkit-scrollbar) {
+  body [role='dialog'][aria-modal='true'] > div:first-child { scrollbar-color: auto; }
+}
+@media(forced-colors: active) {
+  html, body, body * { scrollbar-color: auto; }
+  ::-webkit-scrollbar-track { background: Canvas; }
+  ::-webkit-scrollbar-thumb { background: ButtonText; border-color: Canvas; }
+  body [role='dialog'][aria-modal='true'] > div:first-child {
+    border-block-color: Canvas;
+    scrollbar-color: auto;
+  }
+  body [role='dialog'][aria-modal='true'] > div:first-child::-webkit-scrollbar-track { background: Canvas; }
+  body [role='dialog'][aria-modal='true'] > div:first-child::-webkit-scrollbar-thumb { border-color: Canvas; }
+}
