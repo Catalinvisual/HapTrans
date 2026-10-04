@@ -418,8 +418,7 @@ const resources = {
       jsx_1DayAgo: "1 day ago",
       jsx_documents: "Documents",
       jsx_centralizedDoc: "Centralized Document Storage",
-      jsx_viewAllYourC: "View all your CMRs, Proof of Deliveries, and Transport Contracts in one place.
-          This feature will be available shortly.",
+      jsx_viewAllYourC: "View all your CMRs, Proof of Deliveries, and Transport Contracts in one place.\n          This feature will be available shortly.",
       jsx_invoicesBill: "Invoices & Billing",
       jsx_loadingInvoice: "Loading invoices...",
       jsx_noInvoicesFou: "No invoices found.",
@@ -941,9 +940,7 @@ const resources = {
       jobs_title_req: "Titlul este obligatoriu!",
 
       search_placeholder: 'Caută pagini, clienți, curse...',
-      pwa_install_unavailable: 'Aplicația de desktop a fost deja activată în browser.
-
-Dacă ai șters scurtătura din greșeală, apasă pe meniul browser-ului (cele 3 puncte sus dreapta) -> Salvează și distribuie (Save and share) -> Instalează pagina ca aplicație (Install page as app) sau Creează scurtătură (Create shortcut). Alternativ, poți accesa chrome://apps în bara de adrese pentru a o reinstala.',
+      pwa_install_unavailable: 'Aplicația de desktop a fost deja activată în browser.\n\nDacă ai șters scurtătura din greșeală, apasă pe meniul browser-ului (cele 3 puncte sus dreapta) -> Salvează și distribuie (Save and share) -> Instalează pagina ca aplicație (Install page as app) sau Creează scurtătură (Create shortcut). Alternativ, poți accesa chrome://apps în bara de adrese pentru a o reinstala.',
 shortcuts_title: 'Scurtături Tastatură', shortcuts_subtitle: 'Navighează rapid folosind tastatura', shortcuts_info: 'Scurtăturile nu vor funcționa dacă tastați în câmpuri text, cu excepția Ctrl+S, Esc și Shift+H.', shortcuts_global_title: 'Globale', sc_search: 'Caută/deschide orice: pagină, client, cursă, factură', sc_new: 'Creează element nou în pagina curentă', sc_save: 'Salvează formularul curent', sc_nav_sidebar: 'Navigare sus/jos prin meniul lateral', sc_nav_tabs: 'Navigare între taburile paginii curente', sc_esc: 'Închide modal/dropdown/panel', sc_f1: 'Deschide meniul cu scurtături', sc_f12: 'Logout (cu confirmare)', shortcuts_tables_title: 'În tabele / liste', sc_tbl_updown: 'Selectează rândul anterior/următor', sc_tbl_enter: 'Deschide rândul selectat', sc_tbl_space: 'Selectează checkbox-ul rândului', sc_tbl_delete: 'Șterge/arhivează (cu confirmare)', sc_tbl_copy: 'Copiază informațiile rândului selectat', shortcuts_forms_title: 'În formulare', sc_form_tab: 'Câmpul următor', sc_form_shifttab: 'Câmpul anterior', sc_form_enter: 'Confirmă (unde are sens)', sc_form_save: 'Salvează', sc_form_esc: 'Închide/anulează',
 
       net: "Net",
@@ -1065,8 +1062,7 @@ shortcuts_title: 'Scurtături Tastatură', shortcuts_subtitle: 'Navighează rapi
       
                         err_trip_overlap: "Suprapunere detectată! Există deja o cursă programată (Referință: {{id}}) în acest interval de timp pentru șoferul sau camionul selectat.",
                         missingRequiredFields: "Te rugăm să selectezi Clientul, Camionul și Șoferul pentru a salva cursa!",
-conflict_warning_message: "⚠️ Atenție: Suprapunere detectată!
-{{resource}} este deja alocat pe o altă cursă activă în acea perioadă ({{from}} -> {{to}}).",
+conflict_warning_message: "⚠️ Atenție: Suprapunere detectată!\n{{resource}} este deja alocat pe o altă cursă activă în acea perioadă ({{from}} -> {{to}}).",
 smartDispatchSuccessDetail: "S-a auto-selectat {{plate}} (aprox. {{dist}} km distanță pe gol)",
 smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
       noAvailableTrucks: "Nu există camioane disponibile cu locație GPS cunoscută.",
@@ -2254,8 +2250,7 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
       jsx_1DayAgo: "il y a 1 jour",
       jsx_documents: "Documents",
       jsx_centralizedDoc: "Stockage centralisé des documents",
-      jsx_viewAllYourC: "Affichez tous vos CMR, preuves de livraison et contrats de transport en un seul endroit.\
- Cette fonctionnalité sera disponible prochainement.",
+      jsx_viewAllYourC: "Affichez tous vos CMR, preuves de livraison et contrats de transport en un seul endroit.\\n Cette fonctionnalité sera disponible prochainement.",
       jsx_invoicesBill: "Factures et facturation",
       jsx_loadingInvoice: "Chargement des factures...",
       jsx_noInvoicesFou: "Aucune facture trouvée.",
@@ -2804,9 +2799,7 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
       confirm_delete_job: "Êtes-vous sûr de vouloir supprimer cette tâche ?",
       jobs_title_req: "Le titre est obligatoire !",
       search_placeholder: "Pages de recherche, clients, courses...",
-      pwa_install_unavailable: "L'application de bureau a déjà été activée dans le navigateur.\
-\
-Si vous avez supprimé le raccourci par erreur, cliquez sur le menu du navigateur (les 3 points en haut à droite) -> Enregistrer et partager -> Installer la page en tant qu'application ou Créer un raccourci. Vous pouvez également accéder à chrome://apps dans la barre d'adresse pour le réinstaller.",
+      pwa_install_unavailable: "L'application de bureau a déjà été activée dans le navigateur.\\n\\nSi vous avez supprimé le raccourci par erreur, cliquez sur le menu du navigateur (les 3 points en haut à droite) -> Enregistrer et partager -> Installer la page en tant qu'application ou Créer un raccourci. Vous pouvez également accéder à chrome://apps dans la barre d'adresse pour le réinstaller.",
       shortcuts_title: "Raccourcis clavier",
       net: "Net",
       basePriceLabel: "Base",
@@ -2928,8 +2921,7 @@ Si vous avez supprimé le raccourci par erreur, cliquez sur le menu du navigateu
       todayBtn: "Aujourd'hui",
       err_trip_overlap: "Chevauchement détecté ! Il y a déjà une course programmée (Référence : {{id}}) dans ce créneau horaire pour le conducteur ou le camion sélectionné.",
       missingRequiredFields: "Veuillez sélectionner le client, le camion et le chauffeur pour sauvegarder la course !",
-      conflict_warning_message: "⚠️ Attention : Chevauchement détecté !\
-{{resource}} est déjà alloué à une autre course active à ce moment-là ({{from}} -> {{to}}).",
+      conflict_warning_message: "⚠️ Attention : Chevauchement détecté !\\n{{resource}} est déjà alloué à une autre course active à ce moment-là ({{from}} -> {{to}}).",
       smartDispatchSuccessDetail: "{{plate}} auto-sélectionné (environ {{dist}} km de distance à vide)",
       smartDispatchAddressError: "Entrez d'abord l'adresse de prise en charge !",
       noAvailableTrucks: "Il n'y a aucun camion disponible avec une localisation GPS connue.",
@@ -3817,8 +3809,7 @@ Si vous avez supprimé le raccourci par erreur, cliquez sur le menu du navigateu
       jsx_1DayAgo: "1 day ago",
       jsx_documents: "Documents",
       jsx_centralizedDoc: "Centralized Document Storage",
-      jsx_viewAllYourC: "View all your CMRs, Proof of Deliveries, and Transport Contracts in one place.\
-          This feature will be available shortly.",
+      jsx_viewAllYourC: "View all your CMRs, Proof of Deliveries, and Transport Contracts in one place.\\n          This feature will be available shortly.",
       jsx_invoicesBill: "Invoices & Billing",
       jsx_loadingInvoice: "Loading invoices...",
       jsx_noInvoicesFou: "No invoices found.",
@@ -4318,9 +4309,7 @@ Si vous avez supprimé le raccourci par erreur, cliquez sur le menu du navigateu
       confirm_delete_job: "Sigur dorești să ștergi acest job?",
       jobs_title_req: "Titlul este obligatoriu!",
       search_placeholder: "Caută pagini, clienți, curse...",
-      pwa_install_unavailable: "Aplicația de desktop a fost deja activată în browser.\
-\
-Dacă ai șters scurtătura din greșeală, apasă pe meniul browser-ului (cele 3 puncte sus dreapta) -> Salvează și distribuie (Save and share) -> Instalează pagina ca aplicație (Install page as app) sau Creează scurtătură (Create shortcut). Alternativ, poți accesa chrome://apps în bara de adrese pentru a o reinstala.",
+      pwa_install_unavailable: "Aplicația de desktop a fost deja activată în browser.\\n\\nDacă ai șters scurtătura din greșeală, apasă pe meniul browser-ului (cele 3 puncte sus dreapta) -> Salvează și distribuie (Save and share) -> Instalează pagina ca aplicație (Install page as app) sau Creează scurtătură (Create shortcut). Alternativ, poți accesa chrome://apps în bara de adrese pentru a o reinstala.",
       shortcuts_title: "Scurtături Tastatură', shortcuts_subtitle: 'Navighează rapid folosind tastatura', shortcuts_info: 'Scurtăturile nu vor funcționa dacă tastați în câmpuri text, cu excepția Ctrl+S, Esc și Shift+H.', shortcuts_global_title: 'Globale', sc_search: 'Caută/deschide orice: pagină, client, cursă, factură', sc_new: 'Creează element nou în pagina curentă', sc_save: 'Salvează formularul curent', sc_nav_sidebar: 'Navigare sus/jos prin meniul lateral', sc_nav_tabs: 'Navigare între taburile paginii curente', sc_esc: 'Închide modal/dropdown/panel', sc_f1: 'Deschide meniul cu scurtături', sc_f12: 'Logout (cu confirmare)', shortcuts_tables_title: 'În tabele / liste', sc_tbl_updown: 'Selectează rândul anterior/următor', sc_tbl_enter: 'Deschide rândul selectat', sc_tbl_space: 'Selectează checkbox-ul rândului', sc_tbl_delete: 'Șterge/arhivează (cu confirmare)', sc_tbl_copy: 'Copiază informațiile rândului selectat', shortcuts_forms_title: 'În formulare', sc_form_tab: 'Câmpul următor', sc_form_shifttab: 'Câmpul anterior', sc_form_enter: 'Confirmă (unde are sens)', sc_form_save: 'Salvează', sc_form_esc: 'Închide/anulează",
       net: "Net",
       basePriceLabel: "Bază",
@@ -4616,8 +4605,7 @@ Dacă ai șters scurtătura din greșeală, apasă pe meniul browser-ului (cele 
       todayBtn: "Aujourd\\",
       err_trip_overlap: "Chevauchement detected! Il y a déjà un trajet planié (Ref : {{id}}) dans cette plage horaire pour le chauffeur ou le camion sélectionnée.",
       missingRequiredFields: "Please select the client, the truck and the driver to register the journey!",
-      conflict_warning_message: "⚠️ Attention : Chevauchement détecté !\
-Le {{resource}} is already affected by another active route during this period ({{from}} -> {{to}}).",
+      conflict_warning_message: "⚠️ Attention : Chevauchement détecté !\\nLe {{resource}} is already affected by another active route during this period ({{from}} -> {{to}}).",
       smartDispatchSuccessDetail: "Auto-sélectionné {{plate}} (environ {{dist}} km de distance à vide)",
       smartDispatchAddressError: "Please d",
       noAvailableTrucks: "No truck available with a known GPS location.",
@@ -5018,9 +5006,7 @@ Le {{resource}} is already affected by another active route during this period (
       confirm_delete_job: "Are you sure you want to delete this job?",
       jobs_title_req: "Title is mandatory!",
       search_placeholder: "Search pages, customers, races...",
-      pwa_install_unavailable: "The desktop application has already been activated in the browser.\
-\
-If you deleted the shortcut by mistake, click on the browser menu (the 3 dots at the top right) -> Save and share -> Install page as app or Create shortcut. Alternatively, you can go to chrome://apps in the address bar to reinstall it.",
+      pwa_install_unavailable: "The desktop application has already been activated in the browser.\\n\\nIf you deleted the shortcut by mistake, click on the browser menu (the 3 dots at the top right) -> Save and share -> Install page as app or Create shortcut. Alternatively, you can go to chrome://apps in the address bar to reinstall it.",
       shortcuts_title: "Keyboard Shortcuts', shortcuts_subtitle: 'Navigate quickly using the keyboard', shortcuts_info: 'Shortcuts will not work if you type in text fields except Ctrl+S, Esc and Shift+H.', shortcuts_global_title: 'Global', sc_search: 'Search/Open anything: page, customer, race, invoice', sc_new: 'Create new item on current page', sc_save: 'Save current form', sc_nav_sidebar: 'Navigation up/down side menu', sc_nav_tabs: 'Navigation between current page tabs', sc_esc: 'Close modal/dropdown/panel', sc_f1: 'Open shortcut menu', sc_f12: 'Logout (with confirmation)', shortcuts_tables_title: 'In tables/lists', sc_tbl_updown: 'Select previous/next row', sc_tbl_enter: 'Open selected row', sc_tbl_space: 'Select row checkbox', sc_tbl_delete: 'Delete/archive (with confirmation)', sc_tbl_copy: 'Copy selected row information', shortcuts_forms_title: 'In forms', sc_form_tab: 'Next field', sc_form_shifttab: 'Previous Field', sc_form_enter: 'Confirm (where it makes sense)', sc_form_save: 'Save', sc_form_esc: 'Close/Cancel",
       net: "Net",
       basePriceLabel: "Base",
@@ -5273,8 +5259,7 @@ If you deleted the shortcut by mistake, click on the browser menu (the 3 dots at
       jsx_1DayAgo: "1 day ago",
       jsx_documents: "Documents",
       jsx_centralizedDoc: "Centralized Document Storage",
-      jsx_viewAllYourC: "View all your CMRs, Proof of Deliveries, and Transport Contracts in one place.
-          This feature will be available shortly.",
+      jsx_viewAllYourC: "View all your CMRs, Proof of Deliveries, and Transport Contracts in one place.\n          This feature will be available shortly.",
       jsx_invoicesBill: "Invoices & Billing",
       jsx_loadingInvoice: "Loading invoices...",
       jsx_noInvoicesFou: "No invoices found.",
@@ -6622,8 +6607,7 @@ If you deleted the shortcut by mistake, click on the browser menu (the 3 dots at
       jsx_1DayAgo: "1 dag geleden",
       jsx_documents: "Documenten",
       jsx_centralizedDoc: "Gecentraliseerde documentopslag",
-      jsx_viewAllYourC: "Bekijk al uw CMR's, leveringsbewijzen en transportcontracten op één plek.
-          Deze functie zal binnenkort beschikbaar zijn.",
+      jsx_viewAllYourC: "Bekijk al uw CMR's, leveringsbewijzen en transportcontracten op één plek.\n          Deze functie zal binnenkort beschikbaar zijn.",
       jsx_invoicesBill: "Facturen en facturering",
       jsx_loadingInvoice: "Facturen laden...",
       jsx_noInvoicesFou: "Geen facturen gevonden.",
@@ -7202,9 +7186,7 @@ If you deleted the shortcut by mistake, click on the browser menu (the 3 dots at
       jobs_title_req: "Titel is verplicht!",
 
       search_placeholder: "Zoek pagina's, klanten, ritten...",
-      pwa_install_unavailable: 'De desktop-app is al geactiveerd in de browser.
-
-Als u de snelkoppeling per ongeluk hebt verwijderd, klikt u op het browsermenu (3 stippen rechtsboven) -> Opslaan en delen -> Pagina installeren als app of Snelkoppeling maken. Als alternatief kunt u naar chrome://apps gaan in uw adresbalk om deze opnieuw te installeren.',
+      pwa_install_unavailable: 'De desktop-app is al geactiveerd in de browser.\n\nAls u de snelkoppeling per ongeluk hebt verwijderd, klikt u op het browsermenu (3 stippen rechtsboven) -> Opslaan en delen -> Pagina installeren als app of Snelkoppeling maken. Als alternatief kunt u naar chrome://apps gaan in uw adresbalk om deze opnieuw te installeren.',
 shortcuts_title: 'Sneltoetsen', shortcuts_subtitle: 'Navigeer snel met het toetsenbord', shortcuts_info: 'Sneltoetsen werken niet bij het typen in tekstvelden, behalve Ctrl+S, Esc en Shift+H.', shortcuts_global_title: 'Globaal', sc_search: 'Zoek/open alles: pagina, klant, rit, factuur', sc_new: 'Nieuw item maken op huidige pagina', sc_save: 'Huidig formulier opslaan', sc_nav_sidebar: 'Navigeer omhoog/omlaag zijbalk', sc_nav_tabs: 'Navigeer tussen tabbladen op huidige pagina', sc_esc: 'Sluit modaal/dropdown/paneel', sc_f1: 'Open sneltoetsen menu', sc_f12: 'Uitloggen (met bevestiging)', shortcuts_tables_title: 'In tabellen / lijsten', sc_tbl_updown: 'Selecteer vorige/volgende rij', sc_tbl_enter: 'Open geselecteerde rij', sc_tbl_space: 'Selecteer rij checkbox', sc_tbl_delete: 'Verwijder/archiveer (met bevestiging)', sc_tbl_copy: 'Kopieer geselecteerde rij info', shortcuts_forms_title: 'In formulieren', sc_form_tab: 'Volgend veld', sc_form_shifttab: 'Vorig veld', sc_form_enter: 'Bevestig (indien van toepassing)', sc_form_save: 'Opslaan', sc_form_esc: 'Sluiten/annuleren',
 
       net: "Netto",
@@ -7304,8 +7286,7 @@ shortcuts_title: 'Sneltoetsen', shortcuts_subtitle: 'Navigeer snel met het toets
       
                         err_trip_overlap: "Overlap gedetecteerd! Er is al een rit gepland (Ref: {{id}}) in dit tijdsbestek voor de geselecteerde chauffeur of vrachtwagen.",
                         missingRequiredFields: "Selecteer de klant, vrachtwagen en chauffeur om de rit op te slaan!",
-conflict_warning_message: "⚠️ Let op: Overlap gedetecteerd!
-{{resource}} is al toegewezen aan een andere actieve rit in deze periode ({{from}} -> {{to}}).",
+conflict_warning_message: "⚠️ Let op: Overlap gedetecteerd!\n{{resource}} is al toegewezen aan een andere actieve rit in deze periode ({{from}} -> {{to}}).",
 smartDispatchSuccessDetail: "Automatisch {{plate}} geselecteerd (ongeveer {{dist}} km lege afstand)",
 smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
       noAvailableTrucks: "Geen vrachtwagens beschikbaar met bekende GPS-locatie.",
@@ -8431,8 +8412,7 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
       jsx_1DayAgo: "vor 1 Tag",
       jsx_documents: "Dokumente",
       jsx_centralizedDoc: "Zentralisierte Dokumentenspeicherung",
-      jsx_viewAllYourC: "Sehen Sie sich alle Ihre CMRs, Liefernachweise und Transportverträge an einem Ort an.
-          Diese Funktion wird in Kürze verfügbar sein.",
+      jsx_viewAllYourC: "Sehen Sie sich alle Ihre CMRs, Liefernachweise und Transportverträge an einem Ort an.\n          Diese Funktion wird in Kürze verfügbar sein.",
       jsx_invoicesBill: "Rechnungen und Abrechnung",
       jsx_loadingInvoice: "Rechnungen werden geladen...",
       jsx_noInvoicesFou: "Keine Rechnungen gefunden.",
@@ -8935,9 +8915,7 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
       confirm_delete_job: "Möchten Sie diesen Job wirklich löschen?",
       jobs_title_req: "Titel ist erforderlich!",
 
-      pwa_install_unavailable: 'Die Desktop-App wurde bereits im Browser aktiviert.
-
-Wenn Sie die Verknüpfung versehentlich gelöscht haben, klicken Sie auf das Browsermenü (3 Punkte oben rechts) -> Speichern und teilen -> Seite als App installieren oder Verknüpfung erstellen. Alternativ können Sie in Ihrer Adressleiste zu chrome://apps gehen, um sie neu zu installieren.',
+      pwa_install_unavailable: 'Die Desktop-App wurde bereits im Browser aktiviert.\n\nWenn Sie die Verknüpfung versehentlich gelöscht haben, klicken Sie auf das Browsermenü (3 Punkte oben rechts) -> Speichern und teilen -> Seite als App installieren oder Verknüpfung erstellen. Alternativ können Sie in Ihrer Adressleiste zu chrome://apps gehen, um sie neu zu installieren.',
 shortcuts_title: 'Tastaturkürzel', shortcuts_subtitle: 'Schnelles Navigieren mit der Tastatur', shortcuts_info: 'Tastaturkürzel funktionieren nicht bei Eingabe in Textfelder, außer Ctrl+S, Esc und Shift+H.', shortcuts_global_title: 'Global', sc_search: 'Alles suchen/öffnen: Seite, Kunde, Fahrt, Rechnung', sc_new: 'Neues Element auf aktueller Seite erstellen', sc_save: 'Aktuelles Formular speichern', sc_nav_sidebar: 'Seitenleiste hoch/runter navigieren', sc_nav_tabs: 'Zwischen Tabs auf aktueller Seite navigieren', sc_esc: 'Modal/Dropdown/Panel schließen', sc_f1: 'Tastaturkürzel-Menü öffnen', sc_f12: 'Abmelden (mit Bestätigung)', shortcuts_tables_title: 'In Tabellen / Listen', sc_tbl_updown: 'Vorherige/nächste Zeile auswählen', sc_tbl_enter: 'Ausgewählte Zeile öffnen', sc_tbl_space: 'Zeilen-Checkbox auswählen', sc_tbl_delete: 'Löschen/Archivieren (mit Bestätigung)', sc_tbl_copy: 'Info der ausgewählten Zeile kopieren', shortcuts_forms_title: 'In Formularen', sc_form_tab: 'Nächstes Feld', sc_form_shifttab: 'Vorheriges Feld', sc_form_enter: 'Bestätigen (wo zutreffend)', sc_form_save: 'Speichern', sc_form_esc: 'Schließen/Abbrechen',
 
       net: "Netto",
@@ -9104,8 +9082,7 @@ shortcuts_title: 'Tastaturkürzel', shortcuts_subtitle: 'Schnelles Navigieren mi
       
                         err_trip_overlap: "Überschneidung erkannt! Es gibt bereits eine geplante Fahrt (Ref: {{id}}) in diesem Zeitraum für den ausgewählten Fahrer oder LKW.",
                         missingRequiredFields: "Bitte wählen Sie Kunde, LKW und Fahrer aus, um die Fahrt zu speichern!",
-conflict_warning_message: "⚠️ Achtung: Überschneidung erkannt!
-{{resource}} ist in diesem Zeitraum bereits einer anderen aktiven Fahrt zugewiesen ({{from}} -> {{to}}).",
+conflict_warning_message: "⚠️ Achtung: Überschneidung erkannt!\n{{resource}} ist in diesem Zeitraum bereits einer anderen aktiven Fahrt zugewiesen ({{from}} -> {{to}}).",
 smartDispatchSuccessDetail: "Automatisch {{plate}} ausgewählt (ca. {{dist}} km Leerfahrt)",
 smartDispatchAddressError: "Bitte geben Sie zuerst die Abholadresse (Pickup) ein!",
       noAvailableTrucks: "Keine LKWs mit bekannter GPS-Position verfügbar.",
