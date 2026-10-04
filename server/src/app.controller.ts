@@ -197,7 +197,7 @@ export class AppController {
   async getCompanySettings() {
     try {
       const res = await this.em.query('SELECT \"value\" FROM website_cms WHERE \"key\" = \'company_settings\'');
-      if (res.length > 0) {
+      if (res.length > 0 && res[0].value) {
         const raw = res[0].value;
         return typeof raw === 'string' ? JSON.parse(raw) : raw;
       }
@@ -229,7 +229,7 @@ export class AppController {
   async getTariffSettings() {
     try {
       const res = await this.em.query('SELECT \"value\" FROM website_cms WHERE \"key\" = \'tariff_settings\'');
-      if (res.length > 0) {
+      if (res.length > 0 && res[0].value) {
         const raw = res[0].value;
         return typeof raw === 'string' ? JSON.parse(raw) : raw;
       }
