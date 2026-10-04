@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 
 // Using standard react-router-dom for navigation
 import { Link as RouterLink, Outlet as RouterOutlet, useLocation as useRouteLocation, useNavigate as useRouteNavigate } from 'react-router-dom';
+import LanguageDropdown from '../components/LanguageDropdown';
 
 export default function PortalLayout() {
   const { t, i18n } = useTranslation();
@@ -50,12 +51,12 @@ export default function PortalLayout() {
   };
 
   const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/portal/dashboard' },
-    { icon: Package, label: 'Orders', path: '/portal/orders' },
-    { icon: Truck, label: 'Trips & Tracking', path: '/portal/trips' },
-    { icon: FileCheck2, label: 'Invoices', path: '/portal/invoices' },
-    { icon: FileText, label: 'Documents', path: '/portal/documents' },
-    { icon: HelpCircle, label: 'Support', path: '/portal/support' },
+    { icon: LayoutDashboard, label: t('jsx_dashboard') || 'Dashboard', path: '/portal/dashboard' },
+    { icon: Package, label: t('jsx_orders') || 'Orders', path: '/portal/orders' },
+    { icon: Truck, label: t('jsx_tripsTracking') || 'Trips & Tracking', path: '/portal/trips' },
+    { icon: FileCheck2, label: t('jsx_invoices') || 'Invoices', path: '/portal/invoices' },
+    { icon: FileText, label: t('jsx_documents') || 'Documents', path: '/portal/documents' },
+    { icon: HelpCircle, label: t('jsx_support') || 'Support', path: '/portal/support' },
   ];
 
   if (!user) return null;
@@ -77,23 +78,13 @@ export default function PortalLayout() {
                   <Truck className="w-5 h-5 text-white" />
                 </div>
               )}
-              <span className="font-bold text-xl hidden sm:block text-text ml-2 tracking-tight">Portal</span>
+              <span className="font-bold text-xl hidden sm:block text-text ml-2 tracking-tight">{t('jsx_portal') || 'Portal'}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <span className="text-sm font-semibold hidden md:block">Welcome, {user.name}</span>
-            <select
-              className="bg-transparent text-sm font-semibold border-none focus:ring-0 cursor-pointer text-text-secondary hover:text-primary"
-              value={i18n.language}
-              onChange={(e) => i18n.changeLanguage(e.target.value)}
-            >
-              <option value="en">EN</option>
-              <option value="ro">RO</option>
-              <option value="nl">NL</option>
-              <option value="de">DE</option>
-              <option value="fr">FR</option>
-            </select>
+            <span className="text-sm font-semibold hidden md:block">{t('jsx_welcome') || 'Welcome'}, {user.name}</span>
+            <LanguageDropdown />
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               className="p-2 text-text-secondary hover:text-primary transition-colors rounded-full hover:bg-surface-hover"
