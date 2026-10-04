@@ -106,25 +106,64 @@ export class AppController {
   @Get('public/stats')
   async getPublicStats() {
     try {
-      const trucks = await this.em.query('SELECT COUNT(*) as count FROM trucks');
-      const trips = await this.em.query('SELECT COUNT(*) as count FROM trips');
-      const clients = await this.em.query('SELECT COUNT(*) as count FROM clients');
-      const cms = await this.em.query("SELECT value FROM website_cms WHERE key = 'countries'");
-      let countriesCount = 24;
-      if (cms.length > 0 && cms[0].value) {
-        const c = cms[0].value;
-        countriesCount = c.split(',').filter((x: string) => x.trim().length > 0).length;
+      // A public request must never choose its tenant. Configure the website's
+      // company on the server; auto-detect only an unambiguous single scope.
+      let companyId: string | null = process.env.PUBLIC_WEBSITE_COMPANY_ID?.trim() || null;
+      if (!companyId) {
+        const scopes: Array<{ companyId: string | null }> = await this.em.query(`
+          SELECT "companyId" FROM trucks
+          UNION SELECT "companyId" FROM trips
+          UNION SELECT "companyId" FROM clients
+          LIMIT 2
+        `);
+        if (scopes.length > 1) {
+          return { error: 'Public statistics company is not configured.' };
+        }
+        companyId = scopes[0]?.companyId ?? null;
       }
 
-      
-      return {
-        trucks: parseInt(trucks[0].count, 10),
-        trips: parseInt(trips[0].count, 10),
-        clients: parseInt(clients[0].count, 10),
-        countries: countriesCount,
-      };
-    } catch (e) {
-      return { error: e.toString() };
+      // Repeatable read keeps all displayed counts from the same DB snapshot.
+      return await this.em.transaction('REPEATABLE READ', async manager => {
+        const trucks = await manager.query(`
+          SELECT COUNT(*) AS count,
+            COUNT(*) FILTER (
+              WHERE regexp_replace(lower(coalesce(euronorm, '')), '[^a-z0-9]', '', 'g')
+                IN ('euro6', 'eurovi', '6', 'vi', 'euro6a', 'euro6b', 'euro6c', 'euro6d', 'euro6e',
+                    'eurovia', 'eurovib', 'eurovic', 'eurovid', 'eurovie')
+            ) AS "euro6Count"
+          FROM trucks WHERE "companyId" IS NOT DISTINCT FROM $1::uuid
+        `, [companyId]);
+        const completedStatuses = ['completed'];
+        const trips = await manager.query(`
+          SELECT COUNT(*) AS count FROM trips
+          WHERE "companyId" IS NOT DISTINCT FROM $1::uuid AND status = ANY($2::text[])
+        `, [companyId, completedStatuses]);
+        const clients = await manager.query(`
+          SELECT COUNT(*) AS count FROM clients
+          WHERE "companyId" IS NOT DISTINCT FROM $1::uuid
+        `, [companyId]);
+        const cms = await manager.query("SELECT value FROM website_cms WHERE key = 'countries'");
+        const configuredCountries: unknown = cms[0]?.value;
+        const countries = typeof configuredCountries === 'string'
+          ? new Set(configuredCountries.split(',').map(value => value.trim().toUpperCase()).filter(Boolean)).size
+          : null;
+        const toCount = (value: unknown): number => {
+          const count = Number(value);
+          if (!Number.isSafeInteger(count) || count < 0) throw new Error('Invalid statistics count');
+          return count;
+        };
+        return {
+          trucks: toCount(trucks[0].count),
+          euro6Trucks: toCount(trucks[0].euro6Count),
+          trips: toCount(trips[0].count),
+          clients: toCount(clients[0].count),
+          countries,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+    } catch {
+      // Never expose database internals or substitute promotional numbers.
+      return { error: 'Public statistics are temporarily unavailable.' };
     }
   }
 
@@ -158,7 +197,7 @@ export class AppController {
   async getCompanySettings() {
     try {
       const res = await this.em.query('SELECT \"value\" FROM website_cms WHERE \"key\" = \'company_settings\'');
-      if (res.length > 0 && res[0].value) {
+      if (res.length > 0) {
         const raw = res[0].value;
         return typeof raw === 'string' ? JSON.parse(raw) : raw;
       }
@@ -190,7 +229,7 @@ export class AppController {
   async getTariffSettings() {
     try {
       const res = await this.em.query('SELECT \"value\" FROM website_cms WHERE \"key\" = \'tariff_settings\'');
-      if (res.length > 0 && res[0].value) {
+      if (res.length > 0) {
         const raw = res[0].value;
         return typeof raw === 'string' ? JSON.parse(raw) : raw;
       }
