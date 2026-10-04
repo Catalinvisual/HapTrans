@@ -19,12 +19,12 @@
 }
 .container { position: relative; display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1.3fr; gap: clamp(1rem,2vw,2rem); width: 100%; max-width: 1360px; margin: 0 auto clamp(1.5rem,3vw,2.5rem); padding: 0 clamp(1.25rem,3vw,2.5rem); }
 .container > * { min-width: 0; }
-.logo { display: inline-flex; align-items: center; gap: .6rem; flex-shrink: 0; width: fit-content; max-width: 100%; min-height: 58px; padding: .5rem .75rem; margin-bottom: .5rem; border-radius: 16px; background: #fff; text-decoration: none; }
+.logo { display: inline-flex; align-items: center; gap: .6rem; flex-shrink: 0; width: fit-content; max-width: 100%; min-height: 58px; margin-bottom: .5rem; text-decoration: none; }
 .logo img { max-width: 100%; object-fit: contain; }
 .logoIcon { flex-shrink: 0; }
 .logoTextGroup { display: flex; align-items: baseline; font-style: italic; font-size: 1.55rem; letter-spacing: -.02em; }
 .logoHap { color: var(--brand); font-weight: 900; }
-.logoCargo { color: #172630; font-weight: 900; }
+.logoCargo { color: #ffffff; font-weight: 900; }
 .desc { max-width: 320px; color: #b8c6cd; font-size: .9rem; line-height: 1.7; }
 .socialIcons { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1rem; }
 .socialIcons a { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 16px 6px 16px 6px; background: #ffffff11; color: #e3eaed; transition: color 180ms ease, background-color 180ms ease, transform 180ms ease; }

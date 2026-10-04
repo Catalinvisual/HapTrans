@@ -70,13 +70,11 @@ button { font-family: inherit; }
 .glass {
   background: rgba(255, 255, 255, 0.88);
   
-  -webkit-
   border: 1px solid rgba(255, 255, 255, 0.4);
 }
 .glass-dark {
   background: rgba(13, 27, 42, 0.88);
   
-  -webkit-
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -278,7 +276,6 @@ button { font-family: inherit; }
   border-radius: 34px;
   box-shadow: 0 24px 60px -40px rgba(16, 35, 46, 0.24);
   
-  -webkit-
 }
 #despre > div > div:last-child > div:nth-child(2) > div {
   background: radial-gradient(ellipse at 100% 0%, #3c4140, transparent 65%), #10232e;
