@@ -1,14 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Globe, MousePointerClick, FileText, Map, Phone, Briefcase, Truck, Mail, Users } from 'lucide-react';
-import WebsiteLeadsPage from './WebsiteLeadsPage';
-import WebsiteQuotesPage from './WebsiteQuotesPage';
+import { Globe, FileText, Map, Phone, Briefcase, Truck, Mail, Users } from 'lucide-react';
 import ContactInbox from './ContactInbox';
 import WebsiteJobsTab from '../components/WebsiteJobsTab';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import CustomSelect from '../components/CustomSelect';
-import { useSaveConfirm } from '../components/SaveConfirmProvider';
 const WebsiteHubPage = () => {
   const {
     t,
@@ -41,23 +38,7 @@ const WebsiteHubPage = () => {
       setSaving(false);
     }
   };
-  const getQuotesTitle = () => {
-    const lang = i18n.language?.substring(0, 2).toLowerCase();
-    switch (lang) {
-      case 'en':
-        return 'Requests (Leads)';
-      case 'nl':
-        return 'Aanvragen (Leads)';
-      case 'de':
-        return 'Anfragen (Leads)';
-      case 'fr':
-        return 'Demandes (Leads)';
-      case 'es':
-        return 'Solicitudes (Leads)';
-      default:
-        return 'Cereri Ofertă';
-    }
-  };
+
   const tabs = [{
     id: 'inbox',
     label: t('website_hub_tabs_inbox', 'Inbox Contact'),
