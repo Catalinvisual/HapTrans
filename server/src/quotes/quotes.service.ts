@@ -147,6 +147,8 @@ export class QuotesService {
       ],
     });
 
+    await this.updateStatus(id, 'accepted');
+
     return order;
   }
 }

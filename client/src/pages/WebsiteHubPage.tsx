@@ -14,7 +14,7 @@ const WebsiteHubPage = () => {
     t,
     i18n
   } = useTranslation();
-  const [activeTab, setActiveTab] = useState('quotes');
+  const [activeTab, setActiveTab] = useState('inbox');
   const [editLang, setEditLang] = useState('RO');
   const [cmsData, setCmsData] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -59,10 +59,6 @@ const WebsiteHubPage = () => {
     }
   };
   const tabs = [{
-    id: 'quotes',
-    label: t('website_hub_tabs_quotes', getQuotesTitle()),
-    icon: FileText
-  }, {
     id: 'inbox',
     label: t('website_hub_tabs_inbox', 'Inbox Contact'),
     icon: Mail
@@ -116,10 +112,6 @@ const WebsiteHubPage = () => {
 
         {/* Tab Content */}
         <div className="p-4 md:p-6 bg-card min-h-[500px]">
-          {activeTab === 'quotes' && <div className="-m-4 md:-m-6">
-              <WebsiteQuotesPage />
-            </div>}
-
           {activeTab === 'inbox' && <ContactInbox />}
 
           {activeTab === 'jobs' && <WebsiteJobsTab cmsData={cmsData} editLang={editLang} setEditLang={setEditLang} handleSave={handleSave} saving={saving} />}

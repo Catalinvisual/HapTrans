@@ -67,6 +67,7 @@ const ChatPage         = lazy(() => import('./pages/ChatPage'));
 const PlanningPage     = lazy(() => import('./pages/PlanningPage'));
 const TruckRoutePlannerPage = lazy(() => import('./pages/TruckRoutePlannerPage'));
 const WebsiteHubPage   = lazy(() => import('./pages/WebsiteHubPage'));
+const WebsiteQuotesPage = lazy(() => import('./pages/WebsiteQuotesPage'));
 const SharedDocumentPage = lazy(() => import('./pages/SharedDocumentPage'));
 const TrackingPage     = lazy(() => import('./pages/TrackingPage'));
 const TelematicsPage   = lazy(() => import('./pages/TelematicsPage'));
@@ -166,6 +167,7 @@ export default function App() {
             <Route path="trips/:id" element={<Suspense fallback={<PageLoader />}><TripDetailsPage /></Suspense>} />
             <Route path="orders" element={<Suspense fallback={<PageLoader />}><OrdersPage /></Suspense>} />
             <Route path="orders/:id" element={<Suspense fallback={<PageLoader />}><OrderDetailsPage /></Suspense>} />
+            <Route path="website-quotes" element={<Suspense fallback={<PageLoader />}><WebsiteQuotesPage /></Suspense>} />
             <Route path="trucks" element={<Suspense fallback={<PageLoader />}><TrucksPage /></Suspense>} />
             <Route path="trailers" element={<Suspense fallback={<PageLoader />}><TrailersPage /></Suspense>} />
             <Route path="drivers" element={<Suspense fallback={<PageLoader />}><DriversPage /></Suspense>} />

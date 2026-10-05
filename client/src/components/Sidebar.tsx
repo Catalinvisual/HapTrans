@@ -11,6 +11,7 @@ export const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, key: 'dashboard' },
   { to: '/trips', icon: Route, key: 'trips' },
   { to: '/orders', icon: Box, key: 'orders' },
+  { to: '/website-quotes', icon: Globe, key: 'websiteQuotes' },
   { to: '/map', icon: Map, key: 'liveMap' },
   { to: '/trucks', icon: Truck, key: 'trucks' },
   { to: '/trailers', icon: Container, key: 'trailers' },

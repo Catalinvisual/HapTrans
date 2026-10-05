@@ -102,7 +102,7 @@ const translations: Record<string, Record<string, string>> = {
     reply_message: 'Mesaj / Ofertă',
     reply_success: 'Răspuns trimis cu succes!',
     create_transport: 'Creează cursă din ofertă',
-    convert_to_order: 'Transformă în Comandă',
+    convert_to_order: 'Creează Comandă',
     quote_converted: 'Comanda a fost creată cu succes!',
     quote_convert_error: 'Eroare la convertirea ofertei în comandă.'
   },
@@ -144,7 +144,7 @@ const translations: Record<string, Record<string, string>> = {
     reply_message: 'Message / Offer',
     reply_success: 'Reply sent successfully!',
     create_transport: 'Create transport from quote',
-    convert_to_order: 'Convert to Order',
+    convert_to_order: 'Create Order',
     quote_converted: 'Order created successfully!',
     quote_convert_error: 'Failed to convert quote to order.'
   },
@@ -186,7 +186,7 @@ const translations: Record<string, Record<string, string>> = {
     reply_message: 'Bericht / Offerte',
     reply_success: 'Antwoord succesvol verzonden!',
     create_transport: 'Maak transport van offerte',
-    convert_to_order: 'Omzetten naar order',
+    convert_to_order: 'Order aanmaken',
     quote_converted: 'Order succesvol aangemaakt!',
     quote_convert_error: 'Kon offerte niet omzetten naar order.'
   },
@@ -228,7 +228,7 @@ const translations: Record<string, Record<string, string>> = {
     reply_message: 'Nachricht / Angebot',
     reply_success: 'Antwort erfolgreich gesendet!',
     create_transport: 'Transport aus Angebot erstellen',
-    convert_to_order: 'In Auftrag umwandeln',
+    convert_to_order: 'Auftrag erstellen',
     quote_converted: 'Auftrag erfolgreich erstellt!',
     quote_convert_error: 'Konnte Angebot nicht in Auftrag umwandeln.'
   },
@@ -270,7 +270,7 @@ const translations: Record<string, Record<string, string>> = {
     reply_message: 'Message / Offre',
     reply_success: 'Réponse envoyée avec succès !',
     create_transport: 'Créer un transport à partir du devis',
-    convert_to_order: 'Convertir en commande',
+    convert_to_order: 'Créer une commande',
     quote_converted: 'Commande créée avec succès !',
     quote_convert_error: 'Échec de la conversion du devis en commande.'
   },
@@ -312,7 +312,7 @@ const translations: Record<string, Record<string, string>> = {
     reply_message: 'Mensaje / Oferta',
     reply_success: '¡Respuesta enviada con éxito!',
     create_transport: 'Crear transporte a partir de cotización',
-    convert_to_order: 'Convertir en pedido',
+    convert_to_order: 'Crear pedido',
     quote_converted: '¡Pedido creado con éxito!',
     quote_convert_error: 'Error al convertir la cotización en pedido.'
   }
@@ -397,11 +397,12 @@ const WebsiteQuotesPage = () => {
   };
   const handleConvertQuote = async (quote: QuoteRequest) => {
     try {
-      const res = await api.post(`/quotes/${quote.id}/convert`);
+      const res = await api.post(`/quotes/${quote.id}/convert-to-order`);
       const data = res.data;
       toast.success(tLocal('quote_converted') || 'Comanda a fost creată cu succes!');
       fetchQuotes();
-      if (data?.orderId) navigate(`/orders/${data.orderId}`);
+      if (data?.id) navigate(`/orders/${data.id}`);
+      else if (data?.orderId) navigate(`/orders/${data.orderId}`);
     } catch (error) {
       console.error('Failed to convert quote', error);
       toast.error(tLocal('quote_convert_error') || 'Eroare la convertirea ofertei în comandă.');
@@ -621,18 +622,10 @@ const WebsiteQuotesPage = () => {
                         
                         <CustomSelect value={quote.status} onChange={val => updateStatus(quote.id, val)} options={statusOptions.filter(o => o.value !== 'all')} />
 
-                        {quote.status === 'accepted' && <button onClick={e => {
-                  e.stopPropagation();
-                  handleCreateTripFromQuote(quote);
-                }} className="mt-4 w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
-                            <Truck className="w-4 h-4" />
-                            {tLocal('create_transport')}
-                          </button>}
-
                         {(quote.status === 'quoted' || quote.status === 'accepted') && <button onClick={e => {
                   e.stopPropagation();
                   handleConvertQuote(quote);
-                }} className="w-full px-4 py-2 bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
+                }} className="mt-4 w-full px-4 py-2 bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
                             <Truck className="w-4 h-4" />
                             {tLocal('convert_to_order')}
                           </button>}
