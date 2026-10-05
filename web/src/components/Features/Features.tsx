@@ -41,9 +41,7 @@ const Features = () => {
                   <path d="M20 95 C 70 85, 90 55, 140 50 S 230 25, 300 35" stroke="#FF6B00" strokeWidth="3" strokeLinecap="round" strokeDasharray="6 6" className={styles.routeDash} />
                   <circle cx="20" cy="95" r="5" fill="#0A0E17" stroke="#FF6B00" strokeWidth="2.5" />
                   <circle cx="300" cy="35" r="5" fill="#0A0E17" stroke="#FF6B00" strokeWidth="2.5" />
-                  <circle cx="140" cy="50" r="6" fill="#FF6B00" className={styles.truckDot}>
-                    <animateMotion dur="3.5s" repeatCount="indefinite" path="M20 95 C 70 85, 90 55, 140 50 S 230 25, 300 35" />
-                  </circle>
+                  <circle cx="140" cy="50" r="6" fill="#FF6B00" className={styles.truckDot} />
                 </svg>
                 <div className={styles.mapEta}>
                   <span className={styles.mapEtaLabel}>ETA</span>
