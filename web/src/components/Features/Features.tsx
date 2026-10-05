@@ -35,21 +35,21 @@ const Features = () => {
               <span className={styles.chipDark}><span className={styles.liveMini} /> {t('feat2Chip') || 'LIVE GPS TRACKING'}</span>
               <h3 className={styles.cardTitleDark}>{t('feat2Title') || 'Real-Time Telematics'}</h3>
               <p className={styles.cardDescDark}>{t('feat2Desc') || "24/7 full visibility over your freight's location, route status, and estimated arrival time anywhere in Europe."}</p>
-              <div className={styles.mapMock} aria-hidden="true">
-                <div className={styles.mapGrid} />
-                <svg className={styles.mapRoute} viewBox="0 0 320 120" preserveAspectRatio="none" fill="none">
-                  <path d="M20 95 C 70 85, 90 55, 140 50 S 230 25, 300 35" stroke="#FF6B00" strokeWidth="3" strokeLinecap="round" strokeDasharray="6 6" className={styles.routeDash} />
-                  <circle cx="20" cy="95" r="5" fill="#0A0E17" stroke="#FF6B00" strokeWidth="2.5" />
-                  <circle cx="300" cy="35" r="5" fill="#0A0E17" stroke="#FF6B00" strokeWidth="2.5" />
-                  <circle cx="140" cy="50" r="6" fill="#FF6B00" className={styles.truckDot} />
-                </svg>
-                <div className={styles.mapEta}>
-                  <span className={styles.mapEtaLabel}>ETA</span>
-                  <span className={styles.mapEtaValue}>2h 10m</span>
-                  <span className={styles.mapEtaDot} />
+              <div className={styles.teleDash} aria-hidden="true">
+                <div className={styles.telRow}>
+                  <span className={styles.telLabel}>{t('telStatus') || 'Vehicle Status'}</span>
+                  <span className={styles.telValue}><span className={styles.liveMini} /> {t('telActive') || 'On Route'}</span>
+                </div>
+                <div className={styles.telRow}>
+                  <span className={styles.telLabel}>{t('telLocation') || 'Current Location'}</span>
+                  <span className={styles.telValueWhite}>A3 Autobahn, DE</span>
+                </div>
+                <div className={styles.telRow}>
+                  <span className={styles.telLabel}>{t('telSpeed') || 'Speed / Temp'}</span>
+                  <span className={styles.telValueWhite}>82 km/h <span style={{color:'#64748b'}}>|</span> -18°C</span>
                 </div>
               </div>
-              <span className={styles.darkChip}><span className={styles.liveMini} />{t('feat2Status') || 'Active trackers online'}</span>
+              <span className={styles.darkChip} style={{ marginTop: 'auto' }}><span className={styles.liveMini} />{t('feat2Status') || 'Active trackers online'}</span>
             </div>
           </Reveal>
           <Reveal variant="fade" className={`${styles.bentoItem} ${styles.itemStandard}`} delay={90} stretch>
