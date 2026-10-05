@@ -7,10 +7,7 @@ import api from '../lib/api';
 import toast from 'react-hot-toast';
 import CustomSelect from '../components/CustomSelect';
 const WebsiteHubPage = () => {
-  const {
-    t,
-    i18n
-  } = useTranslation();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('inbox');
   const [editLang, setEditLang] = useState('RO');
   const [cmsData, setCmsData] = useState<Record<string, string>>({});

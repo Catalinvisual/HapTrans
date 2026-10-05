@@ -365,36 +365,7 @@ const WebsiteQuotesPage = () => {
       console.error('Failed to update quote status', error);
     }
   };
-  const handleCreateTripFromQuote = (quote: QuoteRequest) => {
-    let finalNotes = quote.notes || '';
-    if (quote.truckType) {
-      finalNotes += (finalNotes ? '\n' : '') + `Requested Truck: ${quote.truckType}`;
-    }
-    const prefilledData = {
-      pickupCompanyName: quote.companyName,
-      pickupAddress: quote.loadingLocation,
-      dropoffAddress: quote.unloadingLocation,
-      pickupDate: quote.loadingDate,
-      pickupTime: quote.loadingTime,
-      dropoffDate: quote.unloadingDate,
-      dropoffTime: quote.unloadingTime,
-      pallets: quote.numberOfPallets,
-      weightKg: quote.cargoWeightKg,
-      volumeCbm: quote.cargoVolumeM3,
-      notes: finalNotes,
-      price: quote.replies && quote.replies.length > 0 ? quote.replies[quote.replies.length - 1].price : '',
-      clientName: quote.companyName,
-      // if we want to try matching or saving it
-      contactPerson: quote.contactPerson,
-      phone: quote.phone,
-      email: quote.email
-    };
-    navigate('/trips', {
-      state: {
-        createFromQuote: prefilledData
-      }
-    });
-  };
+
   const handleConvertQuote = async (quote: QuoteRequest) => {
     try {
       const res = await api.post(`/quotes/${quote.id}/convert-to-order`);
@@ -471,7 +442,7 @@ const WebsiteQuotesPage = () => {
             if (fp) fp.open();else inp.focus();
           }
         }}>
-            <Flatpickr type="hidden" value={dateFilter} onChange={(dates, dateStr) => setDateFilter(dateStr)} onClick={e => {
+            <Flatpickr type="hidden" value={dateFilter} onChange={(_dates, dateStr) => setDateFilter(dateStr)} onClick={e => {
             e.stopPropagation();
             const fp = (e.target as any)._flatpickr;
             if (fp) fp.open();
