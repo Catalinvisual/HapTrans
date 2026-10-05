@@ -9,10 +9,10 @@ const Header = () => {
   const { lang, setLang, t } = useLanguage();
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [scrollProgress, setScrollProgress] = useState(0);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const progressRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
@@ -25,15 +25,25 @@ const Header = () => {
   }, []);
 
   useEffect(() => {
+    let ticking = false;
     const onScroll = () => {
       const scrollTop = window.scrollY;
       const height = document.documentElement.scrollHeight - window.innerHeight;
-      setScrollProgress(height > 0 ? Math.min(scrollTop / height, 1) * 100 : 0);
+      if (progressRef.current) {
+        progressRef.current.style.width = `${height > 0 ? Math.min(scrollTop / height, 1) * 100 : 0}%`;
+      }
       setScrolled(scrollTop > 24);
+      ticking = false;
     };
-    window.addEventListener('scroll', onScroll, { passive: true });
+    const onScrollThrottled = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(onScroll);
+        ticking = true;
+      }
+    };
+    window.addEventListener('scroll', onScrollThrottled, { passive: true });
     onScroll();
-    return () => window.removeEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScrollThrottled);
   }, []);
 
   useEffect(() => {
@@ -66,7 +76,7 @@ const Header = () => {
   return (
     <header className={`${styles.header} ${scrolled ? styles.scrolled : ''}`}>
       <div className={styles.headerBar}>
-      <div className={styles.scrollProgress} style={{ width: `${scrollProgress}%` }} aria-hidden="true" />
+      <div ref={progressRef} className={styles.scrollProgress} aria-hidden="true" />
       <div className={styles.container}>
         <Link href="/" className={styles.logo} onClick={handleLogoClick}>
           {logoUrl ? (
