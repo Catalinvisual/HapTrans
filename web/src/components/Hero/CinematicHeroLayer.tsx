@@ -80,7 +80,7 @@ function VideoBackground() {
   }, []);
   return <>
     <div className={styles.background} aria-hidden="true">
-      <video ref={video} className={styles.video} style={{ opacity: ready && !failed ? 1 : 0 }} muted loop playsInline preload="auto" tabIndex={-1}
+      <video ref={video} src={source} className={styles.video} style={{ opacity: ready && !failed ? 1 : 0 }} muted loop playsInline preload="auto" tabIndex={-1}
         onPlaying={() => { setFailed(false); setReady(true); setPlaying(true); }} onPause={() => setPlaying(false)} onError={() => setPlaying(false)} />
       <div className={styles.shade} />
     </div>

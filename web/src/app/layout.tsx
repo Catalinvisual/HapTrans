@@ -21,6 +21,7 @@ export default function RootLayout({
   return (
     <html lang="ro">
       <head>
+        <link rel="preload" as="video" href="/herovideo.mp4" type="video/mp4" />
       </head>
       <body>
         <Providers>

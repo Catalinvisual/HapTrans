@@ -73,7 +73,7 @@ export default defineConfig({
     })
   ],
   build: {
-    rolldownOptions: {
+    rollupOptions: {
       output: {
         // Split heavy vendor libs into separate cached chunks
         manualChunks: (id: string) => {
