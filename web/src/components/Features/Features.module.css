@@ -181,11 +181,6 @@
 
 .routeDash {
   stroke-dasharray: 7 7;
-  animation: dashMove 1.2s linear infinite;
-}
-
-@keyframes dashMove {
-  to { stroke-dashoffset: -14; }
 }
 
 
@@ -351,6 +346,7 @@
   border-radius: 50%;
   background: #22c55e;
   animation: blink 1.4s ease-in-out infinite;
+  will-change: opacity;
 }
 
 @keyframes blink {
