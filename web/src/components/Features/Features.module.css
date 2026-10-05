@@ -188,9 +188,7 @@
   to { stroke-dashoffset: -14; }
 }
 
-.truckDot {
-  /* box-shadow animation removed for performance on SVG elements */
-}
+
 
 .mapPin {
   position: absolute;
