@@ -20,20 +20,19 @@ const Reveal = ({
   as: Tag = 'div',
 }: RevealProps) => {
   const ref = useRef<HTMLElement | null>(null);
-  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
     if (typeof IntersectionObserver === 'undefined') {
-      requestAnimationFrame(() => setVisible(true));
+      requestAnimationFrame(() => node.classList.add(styles.isVisible));
       return;
     }
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            setVisible(true);
+            node.classList.add(styles.isVisible);
             observer.disconnect();
           }
         });
@@ -49,7 +48,7 @@ const Reveal = ({
   return (
     <TagAny
       ref={ref as React.Ref<HTMLElement>}
-      className={`${styles.reveal} ${styles[variant]} ${visible ? styles.isVisible : ''} ${stretch ? styles.stretch : ''} ${className}`}
+      className={`${styles.reveal} ${styles[variant]} ${stretch ? styles.stretch : ''} ${className}`}
       style={delay ? { transitionDelay: `${delay}ms` } : undefined}
     >
       {children}
