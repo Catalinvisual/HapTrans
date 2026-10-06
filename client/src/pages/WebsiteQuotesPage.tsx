@@ -593,13 +593,19 @@ const WebsiteQuotesPage = () => {
                         
                         <CustomSelect value={quote.status} onChange={val => updateStatus(quote.id, val)} options={statusOptions.filter(o => o.value !== 'all')} />
 
-                        {(quote.status === 'quoted' || quote.status === 'accepted') && <button onClick={e => {
-                  e.stopPropagation();
-                  handleConvertQuote(quote);
-                }} className="mt-4 w-full px-4 py-2 bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
+                        {(quote.status === 'quoted' || quote.status === 'accepted') && (
+                          <button 
+                            onClick={e => {
+                              e.stopPropagation();
+                              if (quote.status !== 'accepted') handleConvertQuote(quote);
+                            }} 
+                            disabled={quote.status === 'accepted'}
+                            className={`mt-4 w-full px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${quote.status === 'accepted' ? 'bg-green-500 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'}`}
+                          >
                             <Truck className="w-4 h-4" />
-                            {tLocal('convert_to_order')}
-                          </button>}
+                            {quote.status === 'accepted' ? tLocal('quote_converted') || 'Order Created' : tLocal('convert_to_order')}
+                          </button>
+                        )}
 
                         <div className="mt-auto pt-4 border-t border-border text-center">
                           <p className="text-xs text-text-light">{tLocal('received_at')}</p>

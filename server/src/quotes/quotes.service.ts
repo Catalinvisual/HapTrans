@@ -99,9 +99,11 @@ export class QuotesService {
     if (!quote) throw new NotFoundException('Quote not found');
 
     // Find or create client
-    let client = await this.clientsService.repo.findOne({ where: { name: quote.companyName } });
-    if (!client && quote.email) {
-       client = await this.clientsService.findByEmail(quote.email);
+    let client: any = null;
+    if (quote.companyName) {
+      client = await this.clientsService.repo.findOne({ where: { name: quote.companyName } });
+    } else if (quote.email) {
+      client = await this.clientsService.findByEmail(quote.email);
     }
     
     if (!client) {
