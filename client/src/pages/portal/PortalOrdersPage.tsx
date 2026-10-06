@@ -13,7 +13,8 @@ export default function PortalOrdersPage() {
     t
   } = useTranslation();
   const navigate = useNavigate();
-   const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [quotes, setQuotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showRequest, setShowRequest] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -21,25 +22,64 @@ export default function PortalOrdersPage() {
   const limit = parseInt(searchParams.get('limit') || '10');
   const search = searchParams.get('search') || '';
   const filter = searchParams.get('filter') || 'all';
+
   useEffect(() => {
-    portalApi.get('/portal/orders').then(r => {
-      setOrders(r.data);
+    Promise.all([
+      portalApi.get('/portal/orders'),
+      portalApi.get('/portal/quotes').catch(() => ({ data: [] }))
+    ]).then(([resOrders, resQuotes]) => {
+      const formattedOrders = (resOrders.data || []).map((o: any) => {
+        const pickup = o.stops?.find((s: any) => s.type === 'pickup');
+        const dropoff = o.stops?.find((s: any) => s.type === 'dropoff');
+        return {
+          id: o.id,
+          type: 'order',
+          referenceNumber: o.orderNumber || o.customerReference || 'N/A',
+          pickupCity: pickup?.address || 'N/A',
+          deliveryCity: dropoff?.address || 'N/A',
+          pickupDate: pickup?.dateFrom || pickup?.scheduledDate || o.createdAt,
+          deliveryDate: dropoff?.dateFrom || dropoff?.scheduledDate,
+          weight: o.cargoItems?.[0]?.weightKg || '-',
+          status: o.status,
+          raw: o
+        };
+      });
+
+      const formattedQuotes = (resQuotes.data || []).map((q: any) => ({
+        id: q.id,
+        type: 'quote',
+        referenceNumber: `QUOTE-${q.id.slice(0, 8)}`,
+        pickupCity: q.loadingLocation || 'N/A',
+        deliveryCity: q.unloadingLocation || 'N/A',
+        pickupDate: q.loadingDate || q.createdAt,
+        deliveryDate: q.unloadingDate,
+        weight: q.cargoWeightKg || '-',
+        status: q.status || 'new',
+        raw: q
+      }));
+
+      const allItems = [...formattedOrders, ...formattedQuotes].sort((a, b) => 
+        new Date(b.pickupDate || 0).getTime() - new Date(a.pickupDate || 0).getTime()
+      );
+      setOrders(allItems);
       setLoading(false);
     });
   }, []);
+
   const filteredOrders = orders.filter(o => {
     const matchSearch = matchesSearch(search, o.referenceNumber, o.pickupCity, o.deliveryCity);
     if (!matchSearch) return false;
-    if (filter === 'active') return ['pending', 'assigned', 'in-transit'].includes(o.status);
-    if (filter === 'completed') return o.status === 'delivered';
-    if (filter === 'cancelled') return o.status === 'cancelled';
+    if (filter === 'active') return ['new', 'reviewing', 'pending', 'assigned', 'loading', 'in_transit'].includes(o.status);
+    if (filter === 'completed') return ['delivered', 'accepted'].includes(o.status);
+    if (filter === 'cancelled') return ['cancelled', 'rejected'].includes(o.status);
     return true;
   });
+
   const paginatedOrders = filteredOrders.slice((page - 1) * limit, page * limit);
   const updateParams = (updates: Record<string, string>) => {
     const newParams = new URLSearchParams(searchParams);
     Object.entries(updates).forEach(([k, v]) => {
-      if (v) newParams.set(k, v);else newParams.delete(k);
+      if (v) newParams.set(k, v); else newParams.delete(k);
     });
     setSearchParams(newParams);
   };
@@ -81,7 +121,7 @@ export default function PortalOrdersPage() {
         </div>
 
         {loading ? <div className="py-12 text-center text-text-secondary">{t("jsx_loadingOrders")}</div> : filteredOrders.length === 0 ? <div className="py-12 text-center text-text-secondary">{t("jsx_noOrdersFound")}</div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {paginatedOrders.map(o => <div key={o.id} onClick={() => navigate(`/portal/orders/${o.id}`)} className="bg-surface border border-border p-4 rounded-xl hover:border-primary/50 cursor-pointer transition-colors group">
+            {paginatedOrders.map(o => <div key={o.id} onClick={() => o.type === 'order' ? navigate(`/portal/orders/${o.id}`) : null} className={`bg-surface border border-border p-4 rounded-xl transition-colors group ${o.type === 'order' ? 'hover:border-primary/50 cursor-pointer' : ''}`}>
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <p className="text-xs text-text-secondary font-medium mb-1">{t("jsx_rEF")}{o.referenceNumber}</p>
@@ -128,6 +168,6 @@ export default function PortalOrdersPage() {
             <Pagination currentPage={page} totalItems={filteredOrders.length} itemsPerPage={limit} onPageChange={handlePageChange} onItemsPerPageChange={handleLimitChange} />
           </div>}
       </div>
-    <RapidTransportModal open={showRequest} onClose={() => setShowRequest(false)} />
+    <RapidTransportModal open={showRequest} onClose={() => setShowRequest(false)} onSuccess={() => window.location.reload()} />
     </div>;
 }
