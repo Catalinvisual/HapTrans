@@ -51,6 +51,7 @@ const PAGE_TITLES: Record<string, Record<string, string>> = {
   '/telematics/simulator': { ro: 'Simulator Telematică', en: 'Telematics Simulator', nl: 'Telematicasimulator', de: 'Telematik-Simulator', fr: 'Simulateur Télématique' },
   '/chat': { ro: 'Chat Dispecerat', en: 'Dispatch Chat', nl: 'Dispatch Chat' },
   '/website-cms': { ro: 'Conținut Website', en: 'Website Content', nl: 'Website Content' },
+  '/website-quotes': { ro: 'Cereri Ofertă', en: 'Quotes', nl: 'Offertes', de: 'Angebote' },
 };
 
 // Shared AudioContext to safely handle sound notifications only after user interaction

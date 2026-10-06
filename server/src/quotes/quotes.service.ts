@@ -131,7 +131,7 @@ export class QuotesService {
           type: 'dropoff',
           sequence: 2,
           address: quote.unloadingLocation || '',
-          companyName: quote.companyName || null,
+          companyName: null,
           dateFrom: quote.unloadingDate || null,
           timeFrom: quote.unloadingTime || null,
         },

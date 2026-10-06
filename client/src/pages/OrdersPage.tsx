@@ -283,7 +283,7 @@ export default function OrdersPage() {
     { key: 'ref', label: t('order_ref', 'Order'), sortable: true, render: o => (
       <div className="min-w-0">
         <div className="font-bold text-primary text-[13px] truncate">{o.orderNumber || o.referenceNumber || '—'}</div>
-        <div className="text-[11px] text-text-secondary truncate">{o.customerReference ? `Ref: ${o.customerReference}` : o.createdAt ? new Date(o.createdAt).toLocaleDateString() : ''}</div>
+        <div className="text-[11px] text-text-secondary truncate">{o.createdAt ? new Date(o.createdAt).toLocaleString('en-GB') : ''}</div>
       </div>
     ) },
     { key: 'client', label: t('client', 'Client'), sortable: true, render: o => (

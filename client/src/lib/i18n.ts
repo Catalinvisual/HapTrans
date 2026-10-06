@@ -5,6 +5,7 @@ import { planningResources } from './planningI18n';
 
 const resources = {
   ro: { translation: {
+      "websiteQuotes": "Cereri Ofertă",
       "jsx_portal": "Portal",
       "jsx_welcome": "Salut",
       "jsx_tripsTracking": "Curse & Urmărire",
