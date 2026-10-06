@@ -5,6 +5,7 @@ import { planningResources } from './planningI18n';
 
 const resources = {
   ro: { translation: {
+      "jsx_sendRequest": "Trimite Cererea",
       "loadingDate": "Data Incarcare",
       "loadingTime": "Ora Incarcare",
       "unloadingDate": "Data Descarcare",
@@ -1927,6 +1928,7 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
     },
   },
   frBase: { translation: {
+      "jsx_sendRequest": "Envoyer la demande",
       toast_clientTersCu: "Client șters cu succes!",
       toast_eroareLaTerg: "Eroare la ștergere",
       jsx_seNcarcMesa: "Se încarcă mesajele...",
@@ -3628,6 +3630,7 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
     }
   },
   en: { translation: {
+      "jsx_sendRequest": "Send Request",
       "loadingDate": "Loading Date",
       "loadingTime": "Loading Time",
       "unloadingDate": "Unloading Date",
@@ -6166,6 +6169,7 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
     },
   },
   nl: { translation: {
+      "jsx_sendRequest": "Aanvraag verzenden",
       "loadingDate": "Laaddatum",
       "loadingTime": "Laadtijd",
       "unloadingDate": "Losdatum",
@@ -7924,6 +7928,7 @@ smartDispatchAddressError: "Voer eerst het ophaaladres (Pickup) in!",
     },
   },
   de: { translation: {
+      "jsx_sendRequest": "Anfrage senden",
       "loadingDate": "Ladedatum",
       "loadingTime": "Ladezeit",
       "unloadingDate": "Entladedatum",

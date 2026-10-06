@@ -7,7 +7,7 @@ import { formatDate } from '../../lib/dateUtils';
 import { matchesSearch } from '../../lib/search';
 import FilterDropdown from '../../components/FilterDropdown';
 import Pagination from '../../components/Pagination';
-import RapidTransportModal from '../../components/RapidTransportModal';
+import OrderFormModal from '../../components/OrderFormModal';
 export default function PortalOrdersPage() {
   const {
     t
@@ -168,6 +168,6 @@ export default function PortalOrdersPage() {
             <Pagination currentPage={page} totalItems={filteredOrders.length} itemsPerPage={limit} onPageChange={handlePageChange} onItemsPerPageChange={handleLimitChange} />
           </div>}
       </div>
-    <RapidTransportModal open={showRequest} onClose={() => setShowRequest(false)} onSuccess={() => window.location.reload()} />
+    <OrderFormModal isPortal={true} isOpen={showRequest} onClose={() => setShowRequest(false)} onSaved={() => window.location.reload()} />
     </div>;
 }

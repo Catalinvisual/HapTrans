@@ -11,12 +11,14 @@ interface OrderFormModalProps {
   onClose: () => void;
   onSaved: () => void;
   order?: any;
+  isPortal?: boolean;
 }
 export default function OrderFormModal({
   isOpen,
   onClose,
   onSaved,
-  order
+  order,
+  isPortal
 }: OrderFormModalProps) {
   const {
     t
@@ -40,7 +42,9 @@ export default function OrderFormModal({
   const [cargoItems, setCargoItems] = useState<any[]>([]);
   useEffect(() => {
     if (isOpen) {
-      api.get('/clients').then(res => setClients(res.data)).catch(console.error);
+      if (!isPortal) {
+        api.get('/clients').then(res => setClients(res.data)).catch(console.error);
+      }
       if (order) {
         setForm({
           clientId: order.client?.id || '',
@@ -141,11 +145,15 @@ export default function OrderFormModal({
           weightKg: c.weightKg ? parseFloat(c.weightKg) : null
         }))
       };
-      if (order?.id) {
-        await api.patch(`/orders/${order.id}`, payload);
+      
+      const targetApi = isPortal ? (await import('../lib/portalApi')).default : api;
+      const endpoint = isPortal ? '/portal/orders' : '/orders';
+      
+      if (order?.id && !isPortal) {
+        await targetApi.patch(`${endpoint}/${order.id}`, payload);
         toast.success(t('saved') || 'Salvată');
       } else {
-        await api.post('/orders', payload);
+        await targetApi.post(endpoint, payload);
         toast.success(t('saved') || 'Salvată');
       }
       onSaved();
@@ -161,7 +169,7 @@ export default function OrderFormModal({
       <div className="bg-card w-full max-w-4xl rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
         <div className="p-6 border-b border-border flex justify-between items-center bg-surface/50">
           <h2 className="text-xl font-semibold">
-            {order ? t('edit') || 'Editare' : t('addOrder', 'Add Order')}
+            {isPortal ? t('jsx_newTransportR', 'New Transport Request') : (order ? t('edit', 'Edit') : t('addOrder', 'Add Order'))}
           </h2>
           <button onClick={onClose} className="p-2 hover:bg-surface rounded-xl transition-colors">
             <X className="w-5 h-5 text-text-secondary" />
@@ -183,6 +191,7 @@ export default function OrderFormModal({
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto flex flex-col">
           <div className="p-6 flex-1">
             {activeTab === 'general' && <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                {!isPortal && (
                 <div>
                   <label className="block text-sm font-medium mb-1">{t('client', 'Client')} *</label>
                   <select value={form.clientId} onChange={e => setForm({
@@ -193,6 +202,7 @@ export default function OrderFormModal({
                     {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -253,6 +263,7 @@ export default function OrderFormModal({
                   </div>
                 </div>
 
+                {!isPortal && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">{t('price', 'Agreed Price')}</label>
@@ -273,6 +284,7 @@ export default function OrderFormModal({
                     </select>
                   </div>
                 </div>
+                )}
               </div>}
 
             {activeTab === 'stops' && <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
@@ -375,7 +387,7 @@ export default function OrderFormModal({
             </button>
             <button type="submit" disabled={loading} className="btn-primary flex items-center gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {t('save', 'Save Order')}
+              {isPortal ? t('jsx_sendRequest', 'Send Request') : t('save', 'Save Order')}
             </button>
           </div>
         </form>

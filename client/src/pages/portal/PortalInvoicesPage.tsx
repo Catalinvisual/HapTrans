@@ -8,7 +8,7 @@ import portalApi from '../../lib/portalApi';
 import { formatDate } from '../../lib/dateUtils';
 import { fmtMoney } from '../../lib/format';
 import Pagination from '../../components/Pagination';
-import RapidTransportModal from '../../components/RapidTransportModal';
+import OrderFormModal from '../../components/OrderFormModal';
 export default function PortalInvoicesPage() {
   const { t, i18n } = useTranslation();
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -282,6 +282,6 @@ export default function PortalInvoicesPage() {
             </div>
           </div>
         </div>, document.body)}
-    <RapidTransportModal open={showRequest} onClose={() => setShowRequest(false)} />
+    <OrderFormModal isPortal={true} isOpen={showRequest} onClose={() => setShowRequest(false)} onSaved={() => window.location.reload()} />
     </div>;
 }

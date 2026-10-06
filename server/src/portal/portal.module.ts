@@ -10,9 +10,13 @@ import { Trip } from '../trips/trip.entity';
 import { QuoteRequest } from '../quotes/quote.entity';
 import { Client } from '../clients/client.entity';
 import { PortalQuotesController } from './portal-quotes.controller';
+import { OrdersModule } from '../orders/orders.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Order, Invoice, Trip, QuoteRequest, Client])],
+  imports: [
+    TypeOrmModule.forFeature([Order, Invoice, Trip, QuoteRequest, Client]),
+    OrdersModule
+  ],
   controllers: [PortalOrdersController, PortalDashboardController, PortalTripsController, PortalInvoicesController, PortalQuotesController],
 })
 export class PortalModule {}
