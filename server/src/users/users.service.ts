@@ -8,7 +8,7 @@ import * as bcrypt from 'bcrypt';
 export class UsersService {
   constructor(@InjectRepository(User) private repo: Repository<User>) {}
 
-  findAll() { return this.repo.find(); }
+  findAll() { return this.repo.find({ order: { createdAt: 'DESC' } }); }
   findOne(id: string) { return this.repo.findOne({ where: { id } }); }
   
   async findAdmin() {

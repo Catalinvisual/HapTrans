@@ -13,7 +13,7 @@ export class DocumentsService {
     @InjectRepository(DocumentShare) private shareRepo: Repository<DocumentShare>,
   ) {}
 
-  findAll() { return this.repo.find({ relations: ['trip', 'uploadedBy'] }); }
+  findAll() { return this.repo.find({ relations: ['trip', 'uploadedBy'], order: { createdAt: 'DESC' } }); }
   
   getDebugDocs() {
     return this.repo.find({

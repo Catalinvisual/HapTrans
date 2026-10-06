@@ -14,7 +14,7 @@ export class ClientsService {
     @InjectRepository(ClientLocation) public locsRepo: Repository<ClientLocation>,
     private actionLogs: ActionLogsService,
   ) {}
-  findAll() { return this.repo.find({ relations: ['rates', 'locations'] }); }
+  findAll() { return this.repo.find({ relations: ['rates', 'locations'], order: { createdAt: 'DESC' } }); }
   findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['rates', 'locations'] }); }
   findByEmail(email: string) { return this.repo.findOne({ where: { contactEmail: email } }); }
   async create(dto: Partial<Client>, user: any) { 

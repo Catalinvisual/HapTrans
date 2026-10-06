@@ -11,7 +11,7 @@ export class TrailersService {
     private actionLogs: ActionLogsService,
   ) {}
 
-  findAll() { return this.repo.find({ order: { plateNumber: 'ASC' } }); }
+  findAll() { return this.repo.find({ order: { createdAt: 'DESC' } }); }
   findOne(id: string) { return this.repo.findOne({ where: { id } }); }
   async create(dto: any, user: any) { 
     const saved = await this.repo.save(this.repo.create(dto)); 

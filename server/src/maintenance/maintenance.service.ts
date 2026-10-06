@@ -10,7 +10,7 @@ export class MaintenanceService {
     @InjectRepository(Maintenance) private repo: Repository<Maintenance>,
     @InjectRepository(MaintenanceAttachment) private attRepo: Repository<MaintenanceAttachment>,
   ) {}
-  findAll() { return this.repo.find({ relations: ['truck', 'attachments'] }); }
+  findAll() { return this.repo.find({ relations: ['truck', 'attachments'], order: { createdAt: 'DESC' } }); }
   findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['truck', 'attachments'] }); }
   findByTruck(truckId: string) { return this.repo.find({ where: { truck: { id: truckId } }, relations: ['truck', 'attachments'], order: { scheduledDate: 'DESC' } }); }
   create(dto: any) {

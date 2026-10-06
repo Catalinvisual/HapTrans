@@ -15,7 +15,7 @@ export class TrucksService {
     private actionLogs: ActionLogsService,
   ) {}
 
-  findAll() { return this.repo.find({ relations: ['documents', 'driver', 'driver.user', 'trailer'] }); }
+  findAll() { return this.repo.find({ relations: ['documents', 'driver', 'driver.user', 'trailer'], order: { createdAt: 'DESC' } }); }
   findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['documents', 'trips', 'driver', 'driver.user', 'trailer'] }); }
   async create(dto: any, user: any) { 
     const data = { ...dto };

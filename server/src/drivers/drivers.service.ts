@@ -21,7 +21,7 @@ export class DriversService {
     private actionLogs: ActionLogsService,
   ) {}
 
-  findAll() { return this.repo.find({ relations: ['user', 'documents', 'trucks'] }); }
+  findAll() { return this.repo.find({ relations: ['user', 'documents', 'trucks'], order: { createdAt: 'DESC' } }); }
   findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['user', 'documents', 'trips', 'trucks'] }); }
   findByUserId(userId: string) { return this.repo.findOne({ where: { user: { id: userId } }, relations: ['user', 'trucks'] }); }
 

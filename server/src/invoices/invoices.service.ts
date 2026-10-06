@@ -174,7 +174,7 @@ export class InvoicesService implements OnModuleInit {
     // Migration logic stub
   }
 
-  findAll() { return this.repo.find({ relations: ['client', 'trip', 'items'] }); }
+  findAll() { return this.repo.find({ relations: ['client', 'trip', 'items'], order: { createdAt: 'DESC' } }); }
   findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['client', 'trip', 'items'] }); }
 
   async create(dto: any) {
