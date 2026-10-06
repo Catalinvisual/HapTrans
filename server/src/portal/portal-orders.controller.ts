@@ -44,11 +44,11 @@ export class PortalOrdersController {
       throw new NotFoundException('Order not found');
     }
     const clientId = req.user.client?.id || req.user.clientId;
-    const order = await this.repo.findOne({
-      where: { id, client: { id: clientId } },
-      relations: ['trip', 'trip.driver', 'trip.truck', 'trip.trailer', 'stops', 'cargoItems'],
-    });
-    if (!order) throw new NotFoundException('Order not found');
+    const order = await this.ordersService.findOne(id);
+    if (!order || !order.client || order.client.id !== clientId) {
+      console.warn(`[portal] order ${id} not found for client ${clientId}; order.client=${order?.client?.id}`);
+      throw new NotFoundException('Order not found');
+    }
     return order;
   }
 }

@@ -1,22 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Download, CreditCard, Building2, Eye, Package } from 'lucide-react';
+import { Download, CreditCard, Building2, Eye, Search, FileText, Coins, AlertTriangle, CheckCircle2, Clock, Plus } from 'lucide-react';
 import { notify } from '../../components/AppToaster';
-import { useSearchParams } from 'react-router-dom';
 import portalApi from '../../lib/portalApi';
 import { formatDate } from '../../lib/dateUtils';
 import { fmtMoney } from '../../lib/format';
+import { matchesSearch } from '../../lib/search';
 import Pagination from '../../components/Pagination';
+import DataTable from '../../components/ui/DataTable';
+import type { Column } from '../../components/ui/DataTable';
+import KpiStrip from '../../components/ui/KpiStrip';
+import StatusBadge from '../../components/ui/StatusBadge';
 import OrderWizard from '../../components/orders/OrderWizard';
 export default function PortalInvoicesPage() {
   const { t, i18n } = useTranslation();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showRequest, setShowRequest] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const page = parseInt(searchParams.get('page') || '1');
-  const limit = parseInt(searchParams.get('limit') || '10');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(15);
   const [companySettings, setCompanySettings] = useState<any>(null);
   const [showPaymentModal, setShowPaymentModal] = useState<any>(null);
   const [showDetailsModal, setShowDetailsModal] = useState<any>(null);
@@ -29,19 +34,16 @@ export default function PortalInvoicesPage() {
     // Fetch company settings for bank details
     fetch(`${import.meta.env.VITE_API_URL}/public/company-settings`).then(res => res.json()).then(data => setCompanySettings(data)).catch(console.error);
   }, []);
-  const paginatedInvoices = invoices.slice((page - 1) * limit, page * limit);
-  const handlePageChange = (newPage: number) => {
-    setSearchParams({
-      page: newPage.toString(),
-      limit: limit.toString()
-    });
-  };
-  const handleLimitChange = (newLimit: number) => {
-    setSearchParams({
-      page: '1',
-      limit: newLimit.toString()
-    });
-  };
+  useEffect(() => { setCurrentPage(1); }, [search, statusFilter]);
+  const balanceOf = (inv: any) => (Number(inv.total) || 0) - (inv.payments?.reduce((acc: number, p: any) => acc + Number(p.amount), 0) || 0);
+  const filteredInvoices = useMemo(() => invoices
+    .filter(inv => matchesSearch(search, inv.invoiceNumber, inv.status))
+    .filter(inv => statusFilter === 'all' || inv.status === statusFilter ||
+      (statusFilter === 'open' && ['sent', 'viewed', 'overdue'].includes(inv.status)))
+    .sort((a, b) => new Date(b.issueDate || b.createdAt || 0).getTime() - new Date(a.issueDate || a.createdAt || 0).getTime()),
+    [invoices, search, statusFilter]);
+  const paginatedInvoices = filteredInvoices.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalOutstanding = invoices.filter(i => ['sent', 'viewed', 'overdue'].includes(i.status)).reduce((s, i) => s + balanceOf(i), 0);
   const handleCopy = (text: string, type: string) => {
     navigator.clipboard.writeText(text);
     setCopySuccess(type);
@@ -84,63 +86,68 @@ export default function PortalInvoicesPage() {
         return 'bg-gray-100 text-gray-700';
     }
   };
-  return <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold">{t("jsx_invoicesBill")}</h1>
-        <button onClick={() => setShowRequest(true)} className="btn-primary py-2 px-4 flex items-center gap-2">
-          <Package className="w-4 h-4" />{t("jsx_newTransportR")}</button>
+  const columns: Column<any>[] = [
+    { key: 'invoice', label: t('jsx_invoice', 'Invoice'), render: inv => (
+      <div className="min-w-0">
+        <div className="font-bold text-primary text-[13px] truncate">{inv.invoiceNumber || '—'}</div>
+        <div className="text-[11px] text-text-secondary truncate">{formatDate(inv.issueDate || inv.createdAt)}</div>
       </div>
+    ) },
+    { key: 'due', label: t('jsx_dueDate', 'Due date'), render: inv => (
+      <span className={`text-[12px] font-semibold whitespace-nowrap ${inv.status === 'overdue' ? 'text-red-600' : 'text-text-primary'}`}>{formatDate(inv.dueDate)}</span>
+    ) },
+    { key: 'order', label: t('jsx_orderRef', 'Order'), render: inv => (
+      <span className="text-[12px] font-medium text-text-secondary">{inv.trip?.orders?.[0]?.orderNumber || inv.trip?.orders?.[0]?.referenceNumber || (inv.trip?.id ? `TRIP-${inv.trip.id.slice(0, 8).toUpperCase()}` : '—')}</span>
+    ) },
+    { key: 'total', label: t('jsx_total', 'Total'), align: 'right', render: inv => <div className="text-right font-bold text-text-primary whitespace-nowrap">{fmtMoney(Number(inv.total) || 0)}</div> },
+    { key: 'balance', label: t('jsx_balance', 'Balance'), align: 'right', render: inv => <div className="text-right font-black text-primary whitespace-nowrap">{fmtMoney(balanceOf(inv))}</div> },
+    { key: 'status', label: t('jsx_status', 'Status'), render: inv => {
+      const map: Record<string, string> = { paid: 'paid', overdue: 'cancelled', sent: 'new', viewed: 'new', draft: 'draft' };
+      return <StatusBadge status={map[inv.status] || 'draft'} label={<span className="capitalize">{inv.status}</span>} />;
+    } },
+    { key: 'actions', label: t('jsx_actions', 'Actions'), align: 'right', render: inv => {
+      const canPay = ['sent', 'viewed', 'overdue'].includes(inv.status) && balanceOf(inv) > 0;
+      return (
+        <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+          {canPay && <button title={t('jsx_payNow', 'Pay now')} onClick={() => setShowPaymentModal(inv)} className="p-1.5 rounded-md text-text-secondary hover:text-green-600 hover:bg-green-50"><CreditCard className="w-4 h-4" /></button>}
+          <button title={t('jsx_details', 'Details')} onClick={() => setShowDetailsModal(inv)} className="p-1.5 rounded-md text-text-secondary hover:text-primary hover:bg-primary/10"><Eye className="w-4 h-4" /></button>
+          <button title={t('jsx_pDF', 'PDF')} onClick={() => handleDownloadPdf(inv)} className="p-1.5 rounded-md text-text-secondary hover:text-primary hover:bg-primary/10"><Download className="w-4 h-4" /></button>
+        </div>
+      );
+    } },
+  ];
+  return <div className="max-w-[1600px] mx-auto space-y-4 animate-fade-in">
+      <KpiStrip items={[
+        { key: 'total', label: t('kpi_total', 'Total'), value: invoices.length, icon: FileText, color: 'text-text-primary', onClick: () => setStatusFilter('all'), active: statusFilter === 'all' },
+        { key: 'open', label: t('kpi_open', 'Open'), value: invoices.filter(i => ['sent', 'viewed', 'overdue'].includes(i.status)).length, icon: Clock, color: 'text-blue-600', onClick: () => setStatusFilter('open'), active: statusFilter === 'open' },
+        { key: 'overdue', label: t('kpi_overdue', 'Overdue'), value: invoices.filter(i => i.status === 'overdue').length, icon: AlertTriangle, color: 'text-red-600', onClick: () => setStatusFilter('overdue'), active: statusFilter === 'overdue' },
+        { key: 'paid', label: t('kpi_paid', 'Paid'), value: invoices.filter(i => i.status === 'paid').length, icon: CheckCircle2, color: 'text-green-600', onClick: () => setStatusFilter('paid'), active: statusFilter === 'paid' },
+        { key: 'outstanding', label: t('kpi_outstanding', 'Outstanding'), value: fmtMoney(totalOutstanding), icon: Coins, color: 'text-primary' },
+      ]} />
 
-      <div className="card bg-card border border-border rounded-2xl shadow-sm p-4">
-        {loading ? <div className="py-12 text-center text-text-secondary">{t("jsx_loadingInvoice")}</div> : invoices.length === 0 ? <div className="py-12 text-center text-text-secondary">{t("jsx_noInvoicesFou")}</div> : <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-surface border-b border-border">
-                  <th className="table-header">{t("jsx_invoice")}</th>
-                  <th className="table-header">{t("jsx_issueDate")}</th>
-                  <th className="table-header">{t("jsx_dueDate")}</th>
-                  <th className="table-header">{t("jsx_orderRef")}</th>
-                  <th className="table-header">{t("jsx_total")}</th>
-                  <th className="table-header">{t("jsx_balance")}</th>
-                  <th className="table-header">{t("jsx_status")}</th>
-                  <th className="table-header">{t("jsx_actions")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedInvoices.map(inv => {
-              const total = Number(inv.total) || 0;
-              const paid = inv.payments?.reduce((acc: number, p: any) => acc + Number(p.amount), 0) || 0;
-              const balance = total - paid;
-              const canPay = ['sent', 'viewed', 'overdue'].includes(inv.status);
-              return <tr key={inv.id} className="border-b border-border hover:bg-surface/50">
-                      <td className="p-3 font-semibold text-text">{inv.invoiceNumber || '—'}</td>
-                      <td className="p-3 text-text-secondary">{formatDate(inv.issueDate || inv.createdAt)}</td>
-                      <td className={`p-3 font-semibold ${inv.status === 'overdue' ? 'text-red-600' : 'text-text-secondary'}`}>{formatDate(inv.dueDate)}</td>
-                      <td className="p-3">{inv.trip?.orders?.[0]?.referenceNumber || (inv.trip?.id ? `TRIP-${inv.trip.id.slice(0, 8).toUpperCase()}` : '—')}</td>
-                      <td className="p-3 font-bold text-text">{fmtMoney(total)}</td>
-                      <td className="p-3 font-bold text-primary">{fmtMoney(balance)}</td>
-                      <td className="p-3">
-                        <span className={`px-2 py-1 rounded text-xs font-bold capitalize ${getStatusColor(inv.status)}`}>
-                          {inv.status}
-                        </span>
-                      </td>
-                      <td className="p-3 flex justify-end gap-2">
-                        {canPay && balance > 0 && <button onClick={() => setShowPaymentModal(inv)} className="btn-primary py-1.5 px-3 flex items-center gap-2 text-xs font-bold">
-                            <CreditCard className="w-3 h-3" />{t("jsx_payNow")}</button>}
-                        <button onClick={() => setShowDetailsModal(inv)} className="btn-secondary py-1.5 px-3 flex items-center gap-2 text-xs font-bold">
-                          <Eye className="w-3 h-3" />{t("jsx_details")}</button>
-                        <button onClick={() => handleDownloadPdf(inv)} className="btn-secondary py-1.5 px-3 flex items-center gap-2 text-xs font-bold">
-                          <Download className="w-3 h-3" />{t("jsx_pDF")}</button>
-                      </td>
-                    </tr>;
-            })}
-              </tbody>
-            </table>
-          </div>}
-        
-        {invoices.length > 0 && <div className="p-4 border-t border-border flex justify-center">
-            <Pagination currentPage={page} totalItems={invoices.length} itemsPerPage={limit} onPageChange={handlePageChange} onItemsPerPageChange={handleLimitChange} />
-          </div>}
+      <div className="card p-0 overflow-hidden border-border">
+        <div className="p-3 border-b border-border bg-surface/30">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[220px] max-w-[16rem] shrink-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('searchPlaceholder', 'Search invoices...')} className="input pl-9 bg-white w-full text-sm" />
+            </div>
+            <div className="flex items-center gap-2 ml-auto shrink-0">
+              <span className="text-xs text-text-secondary font-medium whitespace-nowrap">{filteredInvoices.length} {t('results', 'results')}</span>
+              <button onClick={() => setShowRequest(true)} className="btn-primary py-2 px-3 flex items-center gap-2 text-sm font-semibold shadow-md shadow-primary/20 whitespace-nowrap"><Plus className="w-4 h-4" />{t('addOrder', 'Create Order')}</button>
+            </div>
+          </div>
+        </div>
+        <DataTable
+          columns={columns}
+          data={paginatedInvoices}
+          rowKey={inv => inv.id}
+          loading={loading}
+          minWidth="800px"
+          onRowClick={inv => setShowDetailsModal(inv)}
+          emptyState={<div className="p-16 text-center text-text-secondary">{t('jsx_noInvoicesFou', 'No invoices found')}</div>}
+        />
+        <Pagination currentPage={currentPage} totalItems={filteredInvoices.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </div>
 
       {/* Payment Modal */}

@@ -1,173 +1,191 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Package, MapPin, Calendar, ArrowRight } from 'lucide-react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Plus, Search, MapPin, ArrowRight, Box, Boxes, Activity, Flag, BadgeEuro, FilterX } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import portalApi from '../../lib/portalApi';
-import { formatDate } from '../../lib/dateUtils';
+import { fmtMoney, fmtNumber } from '../../lib/format';
 import { matchesSearch } from '../../lib/search';
-import FilterDropdown from '../../components/FilterDropdown';
+import CustomSelect from '../../components/CustomSelect';
 import Pagination from '../../components/Pagination';
+import DataTable from '../../components/ui/DataTable';
+import type { Column } from '../../components/ui/DataTable';
+import KpiStrip from '../../components/ui/KpiStrip';
+import StatusBadge from '../../components/ui/StatusBadge';
 import OrderWizard from '../../components/orders/OrderWizard';
+
+const ORDER_STATUSES = ['draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoiced', 'paid', 'cancelled'];
+
+function sortValue(o: any, key: string): any {
+  switch (key) {
+    case 'ref': return (o.orderNumber || '').toLowerCase();
+    case 'price': return Number(o.price || 0);
+    case 'weight': return o.cargoItems?.reduce((s: number, c: any) => s + Number(c.weightKg || 0), 0) || 0;
+    case 'date': {
+      const s = o.stops?.find((x: any) => x.type === 'pickup');
+      return s?.dateFrom ? new Date(`${s.dateFrom}T${s.timeFrom || '00:00'}`).getTime() : 0;
+    }
+    case 'createdAt': return new Date(o.createdAt).getTime();
+    default: return o[key] ?? '';
+  }
+}
+
 export default function PortalOrdersPage() {
-  const {
-    t
-  } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [orders, setOrders] = useState<any[]>([]);
-  const [quotes, setQuotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showRequest, setShowRequest] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const page = parseInt(searchParams.get('page') || '1');
-  const limit = parseInt(searchParams.get('limit') || '10');
-  const search = searchParams.get('search') || '';
-  const filter = searchParams.get('filter') || 'all';
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('all');
+  const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'createdAt', dir: 'desc' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(15);
 
-  useEffect(() => {
-    Promise.all([
-      portalApi.get('/portal/orders'),
-      portalApi.get('/portal/quotes').catch(() => ({ data: [] }))
-    ]).then(([resOrders, resQuotes]) => {
-      const formattedOrders = (resOrders.data || []).map((o: any) => {
-        const pickup = o.stops?.find((s: any) => s.type === 'pickup');
-        const dropoff = o.stops?.find((s: any) => s.type === 'dropoff');
-        return {
-          id: o.id,
-          type: 'order',
-          referenceNumber: o.orderNumber || o.customerReference || 'N/A',
-          pickupCity: pickup?.address || 'N/A',
-          deliveryCity: dropoff?.address || 'N/A',
-          pickupDate: pickup?.dateFrom || pickup?.scheduledDate || o.createdAt,
-          deliveryDate: dropoff?.dateFrom || dropoff?.scheduledDate,
-          weight: o.cargoItems?.[0]?.weightKg || '-',
-          status: o.status,
-          raw: o
-        };
-      });
-
-      const formattedQuotes = (resQuotes.data || []).map((q: any) => ({
-        id: q.id,
-        type: 'quote',
-        referenceNumber: `QUOTE-${q.id.slice(0, 8)}`,
-        pickupCity: q.loadingLocation || 'N/A',
-        deliveryCity: q.unloadingLocation || 'N/A',
-        pickupDate: q.loadingDate || q.createdAt,
-        deliveryDate: q.unloadingDate,
-        weight: q.cargoWeightKg || '-',
-        status: q.status || 'new',
-        raw: q
-      }));
-
-      const allItems = [...formattedOrders, ...formattedQuotes].sort((a, b) => 
-        new Date(b.pickupDate || 0).getTime() - new Date(a.pickupDate || 0).getTime()
-      );
-      setOrders(allItems);
+  const fetchOrders = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await portalApi.get('/portal/orders');
+      setOrders(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error(err);
+    } finally {
       setLoading(false);
-    });
+    }
   }, []);
 
-  const filteredOrders = orders.filter(o => {
-    const matchSearch = matchesSearch(search, o.referenceNumber, o.pickupCity, o.deliveryCity);
-    if (!matchSearch) return false;
-    if (filter === 'active') return ['new', 'reviewing', 'pending', 'assigned', 'loading', 'in_transit'].includes(o.status);
-    if (filter === 'completed') return ['delivered', 'accepted'].includes(o.status);
-    if (filter === 'cancelled') return ['cancelled', 'rejected'].includes(o.status);
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+  useEffect(() => { setCurrentPage(1); }, [search, status]);
+
+  const filtered = useMemo(() => orders.filter(o => {
+    if (!matchesSearch(search, o.orderNumber, o.internalReference, o.customerReference, o.stops?.map((s: any) => `${s.city || ''} ${s.address || ''}`).join(' '))) return false;
+    if (status === 'plannedGroup') return ['new', 'planned'].includes(o.status);
+    if (status === 'activeGroup') return ['assigned', 'loading', 'in_transit'].includes(o.status);
+    if (status === 'deliveredGroup') return ['delivered', 'pod_received'].includes(o.status);
+    if (status === 'invoicedGroup') return ['ready_for_invoice', 'invoiced', 'paid'].includes(o.status);
+    if (status !== 'all') return o.status === status;
     return true;
-  });
+  }), [orders, search, status]);
 
-  const paginatedOrders = filteredOrders.slice((page - 1) * limit, page * limit);
-  const updateParams = (updates: Record<string, string>) => {
-    const newParams = new URLSearchParams(searchParams);
-    Object.entries(updates).forEach(([k, v]) => {
-      if (v) newParams.set(k, v); else newParams.delete(k);
+  const sorted = useMemo(() => {
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      const va = sortValue(a, sort.key);
+      const vb = sortValue(b, sort.key);
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+      return String(va).localeCompare(String(vb)) * dir;
     });
-    setSearchParams(newParams);
-  };
-  const handlePageChange = (newPage: number) => updateParams({
-    page: newPage.toString()
-  });
-  const handleLimitChange = (newLimit: number) => updateParams({
-    page: '1',
-    limit: newLimit.toString()
-  });
-  const handleSearchChange = (val: string) => updateParams({
-    page: '1',
-    search: val
-  });
-  const handleFilterChange = (val: string) => updateParams({
-    page: '1',
-    filter: val
-  });
-  return <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold">{t("jsx_myOrders")}</h1>
-        <button onClick={() => setShowRequest(true)} className="btn-primary py-2 px-4 flex items-center gap-2">
-          <Package className="w-4 h-4" />{t("jsx_newTransportR")}</button>
-      </div>
+  }, [filtered, sort]);
 
-      <div className="card bg-card border border-border rounded-2xl shadow-sm p-4">
-        <div className="flex flex-col md:flex-row gap-4 mb-4">
-          <div className="flex items-center gap-3 flex-1 max-w-md">
-            <div className="relative w-full">
+  const paginated = sorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    orders.forEach(o => { c[o.status] = (c[o.status] || 0) + 1; });
+    return c;
+  }, [orders]);
+
+  const loc = (s: any) => {
+    if (!s) return 'TBD';
+    const parts = [s.city, s.country].filter(Boolean);
+    return parts.length ? parts.join(', ') : (s.address?.split(',')[0] || 'TBD');
+  };
+
+  const columns: Column<any>[] = [
+    { key: 'ref', label: t('order_ref', 'Order'), sortable: true, render: o => (
+      <div className="min-w-0">
+        <div className="font-bold text-primary text-[13px] truncate">{o.orderNumber || '—'}</div>
+        <div className="text-[11px] text-text-secondary truncate">{o.createdAt ? new Date(o.createdAt).toLocaleString('en-GB') : ''}</div>
+      </div>
+    ) },
+    { key: 'route', label: t('route', 'Route'), render: o => {
+      const stops = [...(o.stops || [])].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
+      const pickup = stops.find((s: any) => s.type === 'pickup');
+      const dropoff = [...stops].reverse().find((s: any) => s.type === 'dropoff');
+      return (
+        <div className="flex items-center gap-1.5 text-[12px] font-medium text-text-secondary min-w-[180px]">
+          <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+          <span className="truncate max-w-[120px]" title={loc(pickup)}>{loc(pickup)}</span>
+          <ArrowRight className="w-3 h-3 shrink-0 opacity-50" />
+          <MapPin className="w-3.5 h-3.5 text-green-500 shrink-0" />
+          <span className="truncate max-w-[120px]" title={loc(dropoff)}>{loc(dropoff)}</span>
+        </div>
+      );
+    } },
+    { key: 'date', label: t('pickup_date', 'Pickup'), sortable: true, render: o => {
+      const s = o.stops?.find((x: any) => x.type === 'pickup');
+      if (!s?.dateFrom) return <span className="text-text-muted">—</span>;
+      return (
+        <div className="text-[12px] font-semibold text-text-primary whitespace-nowrap">
+          {new Date(s.dateFrom).toLocaleDateString()}
+          {s.timeFrom && <span className="text-text-secondary font-medium"> {s.timeFrom}</span>}
+        </div>
+      );
+    } },
+    { key: 'type', label: t('type', 'Type'), render: o => {
+      const tp = o.transportType || 'ftl';
+      const cls = tp === 'groupage' || tp === 'ltl' ? 'bg-orange-100 text-orange-700 border-orange-200' : tp === 'express' ? 'bg-red-100 text-red-700 border-red-200' : 'bg-blue-100 text-blue-700 border-blue-200';
+      return <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${cls}`}>{tp.toUpperCase()}</span>;
+    } },
+    { key: 'weight', label: t('cargo', 'Cargo'), sortable: true, align: 'right', hideBelow: 'md', render: o => {
+      const w = o.cargoItems?.reduce((s: number, c: any) => s + Number(c.weightKg || 0), 0) || 0;
+      const ldm = o.cargoItems?.reduce((s: number, c: any) => s + Number(c.ldm || 0), 0) || 0;
+      return (
+        <div className="text-right">
+          <div className="text-[12px] font-bold text-text-primary">{o.cargoItems?.length || 0} {t('items', 'items')}</div>
+          <div className="text-[11px] text-text-secondary whitespace-nowrap">{fmtNumber(w)} kg{ldm > 0 ? ` · ${fmtNumber(ldm, 1)} LDM` : ''}</div>
+        </div>
+      );
+    } },
+    { key: 'price', label: t('price', 'Price'), sortable: true, align: 'right', render: o => (
+      <div className="text-right font-bold text-text-primary whitespace-nowrap">{o.price ? fmtMoney(o.price, o.currency || 'EUR') : '—'}</div>
+    ) },
+    { key: 'status', label: t('status', 'Status'), render: o => <StatusBadge status={o.status} label={t(`status_${o.status}`, String(o.status || '').replace(/_/g, ' ')) as string} /> },
+  ];
+
+  const hasActiveFilters = status !== 'all' || search.trim() !== '';
+
+  return (
+    <div className="max-w-[1600px] mx-auto space-y-4 animate-fade-in">
+      <KpiStrip items={[
+        { key: 'total', label: t('kpi_total', 'Total'), value: orders.length, icon: Box, color: 'text-text-primary', onClick: () => setStatus('all'), active: status === 'all' },
+        { key: 'planned', label: t('kpi_planned', 'Planned'), value: (counts.new || 0) + (counts.planned || 0), icon: Boxes, color: 'text-amber-600', onClick: () => setStatus('plannedGroup'), active: status === 'plannedGroup' },
+        { key: 'active', label: t('kpi_active', 'In transit'), value: (counts.assigned || 0) + (counts.loading || 0) + (counts.in_transit || 0), icon: Activity, color: 'text-blue-600', onClick: () => setStatus('activeGroup'), active: status === 'activeGroup' },
+        { key: 'delivered', label: t('kpi_delivered', 'Delivered'), value: (counts.delivered || 0) + (counts.pod_received || 0), icon: Flag, color: 'text-green-600', onClick: () => setStatus('deliveredGroup'), active: status === 'deliveredGroup' },
+        { key: 'invoiced', label: t('kpi_invoiced', 'Invoiced'), value: (counts.ready_for_invoice || 0) + (counts.invoiced || 0) + (counts.paid || 0), icon: BadgeEuro, color: 'text-emerald-600', onClick: () => setStatus('invoicedGroup'), active: status === 'invoicedGroup' },
+      ]} />
+
+      <div className="card p-0 overflow-hidden border-border">
+        <div className="p-3 border-b border-border bg-surface/30">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[220px] max-w-[16rem] shrink-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-              <input className="input pl-9" placeholder={t("jsx_searchReference")} value={search} onChange={e => handleSearchChange(e.target.value)} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('searchPlaceholder', 'Search by reference, city...')} className="input pl-9 bg-white w-full text-sm" />
             </div>
-            <FilterDropdown 
-              options={['all', 'active', 'completed', 'cancelled']} 
-              value={filter} 
-              onChange={handleFilterChange} 
-            />
+            <CustomSelect className="w-40 shrink-0" value={ORDER_STATUSES.includes(status) ? status : 'all'} onChange={v => setStatus(v)} options={[{ value: 'all', label: t('all_statuses', 'All statuses') }, ...ORDER_STATUSES.map(s => ({ value: s, label: t(`status_${s}`, s.replace(/_/g, ' ')) }))]} />
+            {hasActiveFilters && <button onClick={() => { setSearch(''); setStatus('all'); }} className="p-2 rounded-lg text-text-secondary hover:text-red-600 hover:bg-red-50 transition-colors shrink-0" title={t('clear_filters', 'Clear filters')}><FilterX className="w-4 h-4" /></button>}
+            <div className="flex items-center gap-2 ml-auto shrink-0">
+              <span className="text-xs text-text-secondary font-medium whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
+              <button onClick={() => setShowRequest(true)} className="btn-primary py-2 px-3 flex items-center gap-2 text-sm font-semibold shadow-md shadow-primary/20 whitespace-nowrap"><Plus className="w-4 h-4" />{t('addOrder', 'Create Order')}</button>
+            </div>
           </div>
         </div>
 
-        {loading ? <div className="py-12 text-center text-text-secondary">{t("jsx_loadingOrders")}</div> : filteredOrders.length === 0 ? <div className="py-12 text-center text-text-secondary">{t("jsx_noOrdersFound")}</div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {paginatedOrders.map(o => <div key={o.id} onClick={() => o.type === 'order' ? navigate(`/portal/orders/${o.id}`) : null} className={`bg-surface border border-border p-4 rounded-xl transition-colors group ${o.type === 'order' ? 'hover:border-primary/50 cursor-pointer' : ''}`}>
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <p className="text-xs text-text-secondary font-medium mb-1">{t("jsx_rEF")}{o.referenceNumber}</p>
-                    <span className={`px-2 py-1 rounded text-xs font-bold capitalize
-                      ${o.status === 'delivered' ? 'bg-green-100 text-green-700' : o.status === 'in-transit' ? 'bg-blue-100 text-blue-700' : o.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
-                      {o.status ? o.status.replace('-', ' ') : 'Unknown'}
-                    </span>
-                  </div>
-                  <ArrowRight className="w-5 h-5 text-text-secondary group-hover:text-primary transition-colors" />
-                </div>
-                
-                <div className="space-y-3 relative">
-                  <div className="absolute left-2.5 top-3 bottom-3 w-0.5 bg-border"></div>
-                  
-                  <div className="flex gap-3 relative">
-                    <div className="w-5 h-5 rounded-full bg-surface border-2 border-primary flex items-center justify-center shrink-0 mt-0.5 bg-white z-10">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary"></div>
-                    </div>
-                    <div>
-                      <p className="text-xs text-text-secondary"><Calendar className="w-3 h-3 inline mr-1" />{formatDate(o.pickupDate)}</p>
-                      <p className="font-bold text-sm">{o.pickupCity}</p>
-                    </div>
-                  </div>
+        <DataTable
+          columns={columns}
+          data={paginated}
+          rowKey={o => o.id}
+          sortKey={sort.key}
+          sortDir={sort.dir}
+          onSortChange={(key, dir) => setSort({ key, dir })}
+          loading={loading}
+          minWidth="900px"
+          onRowClick={o => navigate(`/portal/orders/${o.id}`)}
+          emptyState={<div className="p-16 text-center flex flex-col items-center"><div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mb-4 text-text-muted"><Box className="w-8 h-8" /></div><h3 className="text-lg font-medium text-text-primary">{t('jsx_noOrdersFound')}</h3><button onClick={() => setShowRequest(true)} className="btn-secondary mt-6 flex items-center gap-2"><Plus className="w-4 h-4" />{t('addOrder', 'Create Order')}</button></div>}
+        />
 
-                  <div className="flex gap-3 relative">
-                    <div className="w-5 h-5 rounded-full bg-surface border-2 border-primary flex items-center justify-center shrink-0 mt-0.5 bg-white z-10">
-                      <MapPin className="w-3 h-3 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-text-secondary"><Calendar className="w-3 h-3 inline mr-1" />{formatDate(o.deliveryDate)}</p>
-                      <p className="font-bold text-sm">{o.deliveryCity}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="mt-4 pt-3 border-t border-border flex justify-between text-xs text-text-secondary font-medium">
-                  <span>{t("jsx_weight")}{o.weight} kg</span>
-                  {o.trip?.truck && <span>{t("jsx_truck")}{o.trip.truck.plateNumber}</span>}
-                </div>
-              </div>)}
-          </div>}
-
-        {filteredOrders.length > 0 && <div className="p-4 border-t border-border mt-4 flex justify-center">
-            <Pagination currentPage={page} totalItems={filteredOrders.length} itemsPerPage={limit} onPageChange={handlePageChange} onItemsPerPageChange={handleLimitChange} />
-          </div>}
+        <Pagination currentPage={currentPage} totalItems={sorted.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </div>
-    <OrderWizard isPortal={true} isOpen={showRequest} onClose={() => setShowRequest(false)} onSaved={() => window.location.reload()} />
-    </div>;
+
+      <OrderWizard isPortal={true} isOpen={showRequest} onClose={() => setShowRequest(false)} onSaved={fetchOrders} />
+    </div>
+  );
 }
