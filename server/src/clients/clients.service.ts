@@ -9,9 +9,9 @@ import { ActionLogsService } from '../action-logs/action-logs.service';
 @Injectable()
 export class ClientsService {
   constructor(
-    @InjectRepository(Client) private repo: Repository<Client>,
-    @InjectRepository(ClientRate) private ratesRepo: Repository<ClientRate>,
-    @InjectRepository(ClientLocation) private locsRepo: Repository<ClientLocation>,
+    @InjectRepository(Client) public repo: Repository<Client>,
+    @InjectRepository(ClientRate) public ratesRepo: Repository<ClientRate>,
+    @InjectRepository(ClientLocation) public locsRepo: Repository<ClientLocation>,
     private actionLogs: ActionLogsService,
   ) {}
   findAll() { return this.repo.find({ relations: ['rates', 'locations'] }); }
