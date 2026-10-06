@@ -201,7 +201,7 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
           {isTimeOpen && typeof document !== 'undefined' && createPortal(
             <div 
               id="custom-timepicker-popup"
-              className="fixed z-[9999] bg-card border border-border rounded-xl shadow-xl p-2 flex gap-1 h-48 w-[140px]"
+              className="fixed z-[20002] bg-card border border-border rounded-xl shadow-xl p-2 flex gap-1 h-48 w-[140px]"
               style={{ top: popupPos.top, left: popupPos.left, animation: 'fadeUp 0.15s ease-out' }}
             >
               <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
@@ -245,7 +245,7 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
       {isOpen && typeof document !== 'undefined' && createPortal(
         <div
           id="custom-datepicker-popup"
-          className="fixed z-[9999] bg-card border border-border rounded-xl shadow-2xl p-4 w-[280px]"
+          className="fixed z-[20002] bg-card border border-border rounded-xl shadow-2xl p-4 w-[280px]"
           style={{ top: popupPos.top, left: popupPos.left, animation: 'fadeUp 0.15s ease-out' }}
         >
           {/* Header */}

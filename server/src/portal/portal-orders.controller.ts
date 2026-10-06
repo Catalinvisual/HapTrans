@@ -19,7 +19,8 @@ export class PortalOrdersController {
     const clientId = req.user.client?.id || req.user.clientId;
     // Overwrite any clientId submitted with the authenticated user's clientId
     body.clientId = clientId;
-    return this.ordersService.create(body, req.user);
+    // We don't pass req.user because OrdersService expects a TMS User, which would fail FK constraints in action_logs
+    return this.ordersService.create(body, undefined);
   }
 
   @Get()
