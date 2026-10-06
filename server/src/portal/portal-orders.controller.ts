@@ -23,22 +23,30 @@ export class PortalOrdersController {
     return this.ordersService.create(body, undefined);
   }
 
+  @Get('next-reference')
+  getNextReference() {
+    return this.ordersService.getNextInternalReference();
+  }
+
   @Get()
   async findAll(@Request() req: any) {
     const clientId = req.user.client?.id || req.user.clientId;
     return this.repo.find({
       where: { client: { id: clientId } },
       order: { createdAt: 'DESC' },
-      relations: ['trip', 'trip.driver', 'trip.truck'],
+      relations: ['trip', 'trip.driver', 'trip.truck', 'stops', 'cargoItems'],
     });
   }
 
   @Get(':id')
   async findOne(@Param('id') id: string, @Request() req: any) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      throw new NotFoundException('Order not found');
+    }
     const clientId = req.user.client?.id || req.user.clientId;
     const order = await this.repo.findOne({
       where: { id, client: { id: clientId } },
-      relations: ['trip', 'trip.driver', 'trip.truck', 'trip.trailer', 'stops'],
+      relations: ['trip', 'trip.driver', 'trip.truck', 'trip.trailer', 'stops', 'cargoItems'],
     });
     if (!order) throw new NotFoundException('Order not found');
     return order;

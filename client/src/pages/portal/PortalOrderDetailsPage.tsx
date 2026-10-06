@@ -28,12 +28,38 @@ export default function PortalOrderDetailsPage() {
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    portalApi.get(`/portal/orders/${id}`).then(r => {
-      setOrder(r.data);
+    if (!id || id === 'null' || id === 'undefined') {
       setLoading(false);
-    });
+      return;
+    }
+    portalApi.get(`/portal/orders/${id}`).then(r => {
+      const o = r.data || {};
+      const stops = [...(o.stops || [])].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
+      const pickup = stops.find((s: any) => s.type === 'pickup') || stops[0] || {};
+      const dropoff = [...stops].reverse().find((s: any) => s.type === 'dropoff') || stops[stops.length - 1] || {};
+      const cargo = o.cargoItems || [];
+      const sum = (k: string) => cargo.reduce((x: number, c: any) => x + Number(c[k] || 0), 0);
+      setOrder({
+        ...o,
+        referenceNumber: o.orderNumber || o.internalReference || o.customerReference,
+        pickupCity: pickup.city || pickup.address,
+        pickupAddress: pickup.address,
+        pickupDate: pickup.dateFrom,
+        deliveryCity: dropoff.city || dropoff.address,
+        deliveryAddress: dropoff.address,
+        deliveryDate: dropoff.dateFrom,
+        cargoDescription: cargo[0]?.description,
+        weight: sum('weightKg'),
+        ldm: sum('ldm'),
+        pallets: cargo.filter((c: any) => c.unit === 'pallet').reduce((x: number, c: any) => x + Number(c.quantity || 0), 0),
+        requiresTemperatureControl: cargo.some((c: any) => c.requiresTemperatureControl),
+        temperature: cargo.find((c: any) => c.requiresTemperatureControl)?.temperatureMin,
+        isADR: cargo.some((c: any) => c.adrClass),
+        adrClass: cargo.find((c: any) => c.adrClass)?.adrClass,
+      });
+    }).catch(() => setOrder(null)).finally(() => setLoading(false));
   }, [id]);
-  useEffect(() => { portalApi.get(`/documents/order/${id}`).then(r => setDocuments(r.data || [])).catch(() => setDocuments([])); }, [id]);
+  useEffect(() => { if (!id || id === 'null') return; portalApi.get(`/documents/order/${id}`).then(r => setDocuments(r.data || [])).catch(() => setDocuments([])); }, [id]);
   if (loading) return <div className="p-8 text-center animate-pulse">{t("jsx_loadingOrderD")}</div>;
   if (!order) return <div className="p-8 text-center">{t("jsx_orderNotFound")}</div>;
   const hasTracking = order.trip?.locations && order.trip.locations.length > 0;
