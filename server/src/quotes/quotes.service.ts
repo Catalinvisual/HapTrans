@@ -99,7 +99,11 @@ export class QuotesService {
     if (!quote) throw new NotFoundException('Quote not found');
 
     // Find or create client
-    let client = await this.clientsService.findByEmail(quote.email);
+    let client = await this.clientsService.repo.findOne({ where: { name: quote.companyName } });
+    if (!client && quote.email) {
+       client = await this.clientsService.findByEmail(quote.email);
+    }
+    
     if (!client) {
       const clientDto = {
         name: quote.companyName || 'Client from Quote',
@@ -110,6 +114,19 @@ export class QuotesService {
       };
       client = await this.clientsService.create(clientDto as any, null);
     }
+
+    // Helper to parse DD/MM/YYYY to YYYY-MM-DD
+    const parseDate = (d: string) => {
+      if (!d) return null;
+      if (d.includes('/')) {
+        const parts = d.split('/');
+        if (parts.length === 3) {
+          // Assuming DD/MM/YYYY
+          return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+      }
+      return d;
+    };
 
     const order = await this.ordersService.create({
       clientId: client.id,
@@ -124,7 +141,7 @@ export class QuotesService {
           sequence: 1,
           address: quote.loadingLocation || '',
           companyName: quote.companyName || null,
-          dateFrom: quote.loadingDate || null,
+          dateFrom: parseDate(quote.loadingDate) || null,
           timeFrom: quote.loadingTime || null,
         },
         {
@@ -132,7 +149,7 @@ export class QuotesService {
           sequence: 2,
           address: quote.unloadingLocation || '',
           companyName: null,
-          dateFrom: quote.unloadingDate || null,
+          dateFrom: parseDate(quote.unloadingDate) || null,
           timeFrom: quote.unloadingTime || null,
         },
       ],

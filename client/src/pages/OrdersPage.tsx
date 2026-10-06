@@ -145,7 +145,13 @@ export default function OrdersPage() {
   const filtered = useMemo(() => {
     return orders.filter(o => {
       if (!matchesSearch(search, o.orderNumber, o.referenceNumber, o.customerReference, o.client?.name, o.contactPerson, o.notes)) return false;
-      if (filters.status !== 'all' && o.status !== filters.status) return false;
+      if (filters.status !== 'all') {
+        if (filters.status === 'plannedGroup' && !['new', 'planned'].includes(o.status)) return false;
+        else if (filters.status === 'activeGroup' && !['assigned', 'loading', 'in_transit'].includes(o.status)) return false;
+        else if (filters.status === 'deliveredGroup' && !['delivered', 'pod_received'].includes(o.status)) return false;
+        else if (filters.status === 'invoicedGroup' && !['ready_for_invoice', 'invoiced', 'paid'].includes(o.status)) return false;
+        else if (!['plannedGroup', 'activeGroup', 'deliveredGroup', 'invoicedGroup'].includes(filters.status) && o.status !== filters.status) return false;
+      }
       if (filters.client !== 'all' && o.client?.id !== filters.client) return false;
       if (filters.type !== 'all' && (o.transportType || 'ftl') !== filters.type) return false;
       if (filters.priority !== 'all' && (o.priority || 'normal') !== filters.priority) return false;
@@ -404,10 +410,10 @@ export default function OrdersPage() {
     <div className="max-w-[1600px] mx-auto space-y-4 animate-fade-in">
       <KpiStrip items={[
         { key: 'total', label: t('kpi_total', 'Total'), value: orders.length, icon: Box, color: 'text-text-primary', onClick: () => setStatusFilterFromKpi('all'), active: filters.status === 'all' },
-        { key: 'planned', label: t('kpi_planned', 'Planned'), value: (statusCounts.new || 0) + (statusCounts.planned || 0), icon: Boxes, color: 'text-amber-600', onClick: () => setStatusFilterFromKpi('planned'), active: filters.status === 'planned' },
-        { key: 'active', label: t('kpi_active', 'In transit'), value: (statusCounts.assigned || 0) + (statusCounts.loading || 0) + (statusCounts.in_transit || 0), icon: Activity, color: 'text-blue-600', onClick: () => setStatusFilterFromKpi('in_transit'), active: filters.status === 'in_transit' },
-        { key: 'delivered', label: t('kpi_delivered', 'Delivered'), value: (statusCounts.delivered || 0) + (statusCounts.pod_received || 0), icon: Flag, color: 'text-green-600', onClick: () => setStatusFilterFromKpi('delivered'), active: filters.status === 'delivered' },
-        { key: 'invoiced', label: t('kpi_invoiced', 'Invoiced'), value: (statusCounts.ready_for_invoice || 0) + (statusCounts.invoiced || 0) + (statusCounts.paid || 0), icon: BadgeEuro, color: 'text-emerald-600', onClick: () => setStatusFilterFromKpi('invoiced'), active: filters.status === 'invoiced' },
+        { key: 'planned', label: t('kpi_planned', 'Planned'), value: (statusCounts.new || 0) + (statusCounts.planned || 0), icon: Boxes, color: 'text-amber-600', onClick: () => setStatusFilterFromKpi('plannedGroup'), active: filters.status === 'plannedGroup' },
+        { key: 'active', label: t('kpi_active', 'In transit'), value: (statusCounts.assigned || 0) + (statusCounts.loading || 0) + (statusCounts.in_transit || 0), icon: Activity, color: 'text-blue-600', onClick: () => setStatusFilterFromKpi('activeGroup'), active: filters.status === 'activeGroup' },
+        { key: 'delivered', label: t('kpi_delivered', 'Delivered'), value: (statusCounts.delivered || 0) + (statusCounts.pod_received || 0), icon: Flag, color: 'text-green-600', onClick: () => setStatusFilterFromKpi('deliveredGroup'), active: filters.status === 'deliveredGroup' },
+        { key: 'invoiced', label: t('kpi_invoiced', 'Invoiced'), value: (statusCounts.ready_for_invoice || 0) + (statusCounts.invoiced || 0) + (statusCounts.paid || 0), icon: BadgeEuro, color: 'text-emerald-600', onClick: () => setStatusFilterFromKpi('invoicedGroup'), active: filters.status === 'invoicedGroup' },
         { key: 'revenue', label: t('kpi_revenue', 'Revenue'), value: fmtMoney(totalRevenue), icon: Coins, color: 'text-primary' },
       ]} />
 

@@ -103,7 +103,7 @@ export class OrdersService {
       const count = await this.repo.count();
       const seq = String(count + 1).padStart(6, '0');
       const year = new Date().getFullYear();
-      const orderNumber = dto.orderNumber || `HC-${year}-${seq}`;
+      const orderNumber = dto.orderNumber || `ORD-${year}-${seq}`;
 
       // Determine initial status based on completeness
       let status = OrderStatus.DRAFT;

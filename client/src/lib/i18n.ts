@@ -3620,6 +3620,7 @@ smartDispatchAddressError: "Introdu mai întâi adresa de preluare (Pickup)!",
     }
   },
   en: { translation: {
+      "websiteQuotes": "Quote Requests",
       "jsx_portal": "Portal",
       "jsx_welcome": "Welcome",
       "jsx_tripsTracking": "Racing & Tracking",
