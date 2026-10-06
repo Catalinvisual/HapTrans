@@ -263,9 +263,10 @@ export default function OrderWizard({
       }
 
       if (orderId) {
-        const targetApi = isPortal ? (await import('../../lib/portalApi')).default : api;
-        const endpoint = isPortal ? `/portal/orders/${orderId}` : `/orders/${orderId}`;
-        targetApi.get(endpoint).then(res => {
+        (async () => {
+          const targetApi = isPortal ? (await import('../../lib/portalApi')).default : api;
+          const endpoint = isPortal ? `/portal/orders/${orderId}` : `/orders/${orderId}`;
+          targetApi.get(endpoint).then(res => {
           const order = res.data;
           setForm({
             clientId: order?.client?.id || order?.clientId || '',
@@ -358,9 +359,10 @@ export default function OrderWizard({
             notes: s.notes || ''
           })));
         }).catch(err => {
-          console.error("Error fetching order data:", err);
-          toast.error("Failed to load order details.");
-        });
+            console.error("Error fetching order data:", err);
+            toast.error("Failed to load order details.");
+          });
+        })();
       } else {
         api.get('/orders/next-reference').then(res => {
           setForm(prev => ({ ...prev, internalReference: res.data?.nextReference || '' }));

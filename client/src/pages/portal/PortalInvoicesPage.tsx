@@ -21,8 +21,6 @@ export default function PortalInvoicesPage() {
   const [showPaymentModal, setShowPaymentModal] = useState<any>(null);
   const [showDetailsModal, setShowDetailsModal] = useState<any>(null);
   const [copySuccess, setCopySuccess] = useState("");
-  const [paymentForm, setPaymentForm] = useState({ amount: "", date: new Date().toISOString().slice(0, 10), method: "bank_transfer", reference: "" });
-  const [submitting, setSubmitting] = useState(false);
   useEffect(() => {
     portalApi.get('/portal/invoices').then(r => {
       setInvoices(r.data);
