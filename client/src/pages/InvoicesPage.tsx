@@ -18,7 +18,7 @@ import { useFormStore } from '../store/formStore';
 import Pagination from '../components/Pagination';
 import { useShortcuts } from '../hooks/useShortcuts';
 import { useTableShortcuts } from '../hooks/useTableShortcuts';
-import { useSaveConfirm } from '../components/SaveConfirmProvider';
+import { useSaveConfirm, useConfirm } from '../components/SaveConfirmProvider';
 const STATUS_COLORS: Record<string, string> = {
   draft: 'badge-gray',
   approved: 'bg-indigo-100 text-indigo-700',
@@ -38,6 +38,7 @@ export default function InvoicesPage({
     i18n
   } = useTranslation();
   const confirmSave = useSaveConfirm();
+  const confirm = useConfirm();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [trips, setTrips] = useState<any[]>([]);
@@ -71,7 +72,14 @@ export default function InvoicesPage({
     }
   };
   const sendReminders = async () => {
-    if (!window.confirm(t('reminderConfirm'))) return;
+    const ok = await confirm({
+      type: 'warning',
+      title: t('sendReminders', 'Trimitere notificări'),
+      message: t('reminderConfirm', 'Ești sigur că vrei să trimiți notificări pentru facturile scadente?'),
+      confirmText: t('send', 'Trimite'),
+      cancelText: t('cancel', 'Anulează')
+    });
+    if (!ok) return;
     setReminderBusy(true);
     try {
       const res = await api.post('/invoices/send-reminders', {});

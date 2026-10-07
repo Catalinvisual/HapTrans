@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Building2, Save, Plus, Trash2, Edit } from 'lucide-react';
-import { useSaveConfirm } from './SaveConfirmProvider';
+import { useSaveConfirm, useConfirm } from './SaveConfirmProvider';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import AddressAutocomplete from './AddressAutocomplete';
@@ -19,6 +19,7 @@ export default function ClientDetails({
   onBack: () => void;
 }) {
   const confirmSave = useSaveConfirm();
+  const confirm = useConfirm();
   const {
     t
   } = useTranslation();
@@ -80,7 +81,14 @@ export default function ClientDetails({
     }
   };
   const handleDeleteRate = async (id: string) => {
-    if (!confirm('Sigur ștergi acest tarif?')) return;
+    const ok = await confirm({
+      type: 'danger',
+      title: t('delete', 'Șterge'),
+      message: 'Sigur ștergi acest tarif?',
+      confirmText: t('delete', 'Șterge'),
+      cancelText: t('cancel', 'Anulează')
+    });
+    if (!ok) return;
     try {
       await api.delete(`/clients/rates/${id}`);
       toast.success(t("toast_tarifTers"));
@@ -119,7 +127,14 @@ export default function ClientDetails({
     }
   };
   const handleDeleteLocation = async (id: string) => {
-    if (!confirm(t("toast_confirmDeleteLoc"))) return;
+    const ok = await confirm({
+      type: 'danger',
+      title: t('delete', 'Șterge'),
+      message: t("toast_confirmDeleteLoc", "Sigur ștergi această locație?"),
+      confirmText: t('delete', 'Șterge'),
+      cancelText: t('cancel', 'Anulează')
+    });
+    if (!ok) return;
     try {
       await api.delete(`/clients/locations/${id}`);
       toast.success(t("toast_locDeleted"));

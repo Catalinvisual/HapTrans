@@ -11,6 +11,7 @@ import {
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { planningApi } from '../lib/planningApi';
+import { useConfirm } from '../components/SaveConfirmProvider';
 
 function fmtDate(d: string | Date | null | undefined) {
   if (!d) return '—';
@@ -24,6 +25,7 @@ function fmtDate(d: string | Date | null | undefined) {
 export default function TruckRoutePlannerPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const { truckId = '' } = useParams<{ truckId: string }>();
   const [searchParams] = useSearchParams();
   const queryDate = searchParams.get('date');
@@ -402,7 +404,14 @@ export default function TruckRoutePlannerPage() {
   };
 
   const handleReset = async () => {
-    if (!confirm(t('pln_reset_confirm', 'Reset this route plan to its original trip sequence? This cannot be undone.'))) return;
+    const ok = await confirm({
+      type: 'warning',
+      title: t('reset', 'Reset'),
+      message: t('pln_reset_confirm', 'Reset this route plan to its original trip sequence? This cannot be undone.'),
+      confirmText: t('reset', 'Reset'),
+      cancelText: t('cancel', 'Anulează')
+    });
+    if (!ok) return;
     setActionLoading('reset');
     try {
       const plan = await planningApi.resetRoutePlan(truckId, date);

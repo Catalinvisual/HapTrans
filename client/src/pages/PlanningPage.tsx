@@ -24,6 +24,8 @@ import { useSettingsStore } from '../store/settingsStore';
 import { generateOrderPdf } from '../lib/pdfGenerator';
 import { planningApi } from '../lib/planningApi';
 import OrderWizard from '../components/orders/OrderWizard';
+import ConfirmModal from '../components/ConfirmModal';
+import { useConfirm } from '../components/SaveConfirmProvider';
 import { fmtMoney, fmtNumber } from '../lib/format';
 
 function useResizableSidebar(initialWidth: number = 300, minWidth: number = 220, maxWidth: number = 650) {
@@ -665,6 +667,7 @@ function TripDetailDrawer({
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [auditEvents, setAuditEvents] = useState<any[] | null>(null);
   const [activeTab, setActiveTab] = useState<'stops' | 'orders' | 'financial' | 'audit'>('stops');
   // Full trip detail fetched from server when drawer opens (ensures stops/orders are populated)
@@ -1096,9 +1099,16 @@ function TripDetailDrawer({
                       </button>
                       {isPlanning && (
                         <button
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
-                            if (window.confirm(t('unassign_order_dialog', 'Remove this order from the trip and return it to the Unassigned Orders list?'))) {
+                            const ok = await confirm({
+                              type: 'warning',
+                              title: t('unassign_order', 'Order Verwijderen'),
+                              message: t('unassign_order_dialog', 'Remove this order from the trip and return it to the Unassigned Orders list?'),
+                              confirmText: t('action_unassign_order', 'Unassign'),
+                              cancelText: t('cancel', 'Annuleren'),
+                            });
+                            if (ok) {
                               onAction('unassign-order', tripId, { orderId: o.id });
                             }
                           }}
@@ -1250,8 +1260,15 @@ function TripDetailDrawer({
             {isPlanning && (
               <button
                 disabled={!!loadingAction}
-                onClick={() => {
-                  if (window.confirm(t('unplan_trip_dialog', 'Unplan this trip? All orders will be removed from this TRP and returned to the Unassigned Orders list.'))) {
+                onClick={async () => {
+                  const ok = await confirm({
+                    type: 'danger',
+                    title: t('unplan_trip_title', 'Rit Ontplannen'),
+                    message: t('unplan_trip_dialog', 'Deze rit ontplannen? Alle orders worden van dit TRP verwijderd en teruggeplaatst in de niet-toegewezen lijst.'),
+                    confirmText: t('action_unplan_trip', 'Rit Ontplannen'),
+                    cancelText: t('cancel', 'Annuleren'),
+                  });
+                  if (ok) {
                     onAction('unplan-trip', tripId);
                   }
                 }}
@@ -1403,13 +1420,17 @@ export default function PlanningPage() {
   const [wizardConfig, setWizardConfig] = useState<{ orderId: string; initialStep: number; highlight: string | null } | null>(null);
   const [drawerRefreshKey, setDrawerRefreshKey] = useState(0);
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
     const openTripParam = searchParams.get('openTrip') || searchParams.get('tripId');
     if (openTripParam) {
       setSelectedTripId(openTripParam);
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('openTrip');
+      nextParams.delete('tripId');
+      setSearchParams(nextParams, { replace: true });
     }
-  }, [searchParams]);
+  }, [searchParams, setSearchParams]);
 
   const [poolCollapsed, setPoolCollapsed] = useState(false);
   const [showOptimizeModal, setShowOptimizeModal] = useState(false);
@@ -1603,7 +1624,10 @@ export default function PlanningPage() {
     return o;
   }, [orders, sortPool]);
 
-  const selectedTrip = useMemo(() => trips.find(tr => tr.id === selectedTripId) || null, [trips, selectedTripId]);
+  const selectedTrip = useMemo(() => {
+    if (!selectedTripId) return null;
+    return trips.find(tr => tr.id === selectedTripId || (tr.tripNumber && tr.tripNumber === selectedTripId)) || null;
+  }, [trips, selectedTripId]);
   const selectedOrder = useMemo(() => orders.find(o => o.id === selectedOrderId) || null, [orders, selectedOrderId]);
   const draggingOrder = useMemo(() => draggingOrderId ? orders.find(o => o.id === draggingOrderId) || null : null, [orders, draggingOrderId]);
 
@@ -2013,8 +2037,15 @@ export default function PlanningPage() {
           resources={resources}
           drivers={boardData?.drivers || []}
           trailers={boardData?.trailers || []}
-          conflicts={boardData?.conflicts || []}
-          onClose={() => setSelectedTripId(null)}
+          onClose={() => {
+            setSelectedTripId(null);
+            if (searchParams.get('openTrip') || searchParams.get('tripId')) {
+              const nextParams = new URLSearchParams(searchParams);
+              nextParams.delete('openTrip');
+              nextParams.delete('tripId');
+              setSearchParams(nextParams, { replace: true });
+            }
+          }}
           onAction={handleTripAction}
           onReorderStops={handleReorderStops}
           onEditOrder={(orderId, step, highlight) => {

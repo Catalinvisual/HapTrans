@@ -617,7 +617,10 @@ export default function Layout() {
         deferredPrompt = null;
       });
     } else {
-      alert(t('pwa_install_unavailable', 'Aplicația de desktop a fost deja activată în browser.\n\nDacă ai șters-o din greșeală, o poți reinstala dând click pe iconița de instalare din dreapta barei de adrese a browser-ului tău (sus) sau mergând la Meniul Browserului -> Instalare HAPCARGO / Create Shortcut.'));
+      toast(t('pwa_install_unavailable', 'Aplicația de desktop a fost deja activată în browser.\n\nDacă ai șters-o din greșeală, o poți reinstala dând click pe iconița de instalare din dreapta barei de adrese a browser-ului tău (sus) sau mergând la Meniul Browserului -> Instalare HAPCARGO / Create Shortcut.'), {
+        icon: 'ℹ️',
+        duration: 6000
+      });
     }
   };
 

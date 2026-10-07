@@ -9,6 +9,7 @@ import { formatDate } from '../lib/dateUtils';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import { useAuthStore } from '../store/authStore';
+import { useConfirm } from '../components/SaveConfirmProvider';
 const STATUS_COLORS: Record<string, string> = {
   pending: 'badge-gray',
   confirmed: 'badge-primary',
@@ -38,6 +39,7 @@ export default function TripDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
+  const confirm = useConfirm();
   const [trip, setTrip] = useState<any>(null);
   const [timeline, setTimeline] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -154,7 +156,14 @@ export default function TripDetailsPage() {
   };
 
   const handleDeleteCost = async (costId: string) => {
-    if (!window.confirm(t("confirmDeleteCost", "Ștergi acest cost?"))) return;
+    const ok = await confirm({
+      type: 'danger',
+      title: t('delete', 'Șterge'),
+      message: t("confirmDeleteCost", "Ștergi acest cost?"),
+      confirmText: t('delete', 'Șterge'),
+      cancelText: t('cancel', 'Anulează')
+    });
+    if (!ok) return;
     try {
       await api.delete(`/trips/costs/${costId}`);
       toast.success(t("costDeleted", "Cost șters"));
@@ -166,7 +175,14 @@ export default function TripDetailsPage() {
   };
 
   const handleDeleteStop = async (stopId: string) => {
-    if (!window.confirm(t("confirmDeleteStop", "Ștergi această oprire?"))) return;
+    const ok = await confirm({
+      type: 'danger',
+      title: t('delete', 'Șterge'),
+      message: t("confirmDeleteStop", "Ștergi această oprire?"),
+      confirmText: t('delete', 'Șterge'),
+      cancelText: t('cancel', 'Anulează')
+    });
+    if (!ok) return;
     try {
       await api.delete(`/trips/stops/${stopId}`);
       toast.success(t("stopDeleted", "Oprire ștearsă"));
@@ -267,7 +283,14 @@ export default function TripDetailsPage() {
   };
 
   const handleDeleteTask = async (taskId: string) => {
-    if (!window.confirm(t("confirmDeleteTask", "Ștergi această sarcină?"))) return;
+    const ok = await confirm({
+      type: 'danger',
+      title: t('delete', 'Șterge'),
+      message: t("confirmDeleteTask", "Ștergi această sarcină?"),
+      confirmText: t('delete', 'Șterge'),
+      cancelText: t('cancel', 'Anulează')
+    });
+    if (!ok) return;
     try {
       // No delete endpoint yet - just update status to problem or mark deleted
       await api.patch(`/trips/tasks/${taskId}`, { status: "problem", issueNote: "Deleted by user" });

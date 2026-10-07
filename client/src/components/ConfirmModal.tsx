@@ -71,27 +71,30 @@ export default function ConfirmModal({
   };
 
   const modalContent = (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 animate-fade-in">
-      <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-xl flex flex-col items-center text-center">
-        <div className={`w-12 h-12 rounded-full ${getIconBg()} flex items-center justify-center mb-4`}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10000] p-4 animate-in fade-in duration-150" onClick={handleClose}>
+      <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-2xl border border-border flex flex-col items-center text-center relative animate-in zoom-in-95 duration-150" onClick={e => e.stopPropagation()}>
+        <button onClick={handleClose} className="absolute top-4 right-4 p-1.5 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface transition-colors">
+          <X className="w-4 h-4" />
+        </button>
+        <div className={`w-14 h-14 rounded-2xl ${getIconBg()} flex items-center justify-center mb-4 shadow-sm`}>
           {getIcon()}
         </div>
-        <h3 className="text-lg font-bold text-text mb-2">{title || (type === 'danger' ? t('delete') : t('confirm'))}</h3>
-        <p className="text-text-secondary text-sm mb-6">
+        <h3 className="text-lg font-black text-text-primary mb-2">{title || (type === 'danger' ? t('delete', 'Delete') : t('confirm', 'Confirm'))}</h3>
+        <p className="text-text-secondary text-sm mb-6 leading-relaxed">
           {message || (type === 'danger' ? t('confirmDelete', 'Ești sigur că vrei să ștergi acest element? Această acțiune este ireversibilă.') : t('confirm', 'Ești sigur că vrei să continui?'))}
         </p>
         <div className="flex gap-3 w-full">
-          <button onClick={handleClose} className="btn-secondary flex-1 py-2.5 font-semibold capitalize">
-            {cancelText || t('cancel')}
+          <button onClick={handleClose} className="btn-secondary flex-1 py-2.5 font-bold">
+            {cancelText || t('cancel', 'Cancel')}
           </button>
           <button 
             onClick={() => {
               onConfirm();
               handleClose();
             }} 
-            className={`flex-1 py-2.5 font-semibold rounded-xl transition-all shadow-md capitalize ${getConfirmBtnClass()}`}
+            className={`flex-1 py-2.5 font-bold rounded-xl transition-all shadow-md ${getConfirmBtnClass()}`}
           >
-            {confirmText || (type === 'danger' ? t('delete') : t('confirm'))}
+            {confirmText || (type === 'danger' ? t('delete', 'Delete') : t('confirm', 'Confirm'))}
           </button>
         </div>
       </div>

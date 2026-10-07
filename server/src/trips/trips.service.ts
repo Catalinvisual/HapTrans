@@ -16,6 +16,7 @@ import { PlanningEngine } from '../engines/planning.engine';
 import { PricingEngine } from '../engines/pricing.engine';
 import { CostEngine } from '../engines/cost.engine';
 import { ActionLogsService } from '../action-logs/action-logs.service';
+import { randomUUID } from 'crypto';
 
 const TRIP_STATUS_FLOW: Record<string, string[]> = {
   [TripStatus.PLANNING]: [TripStatus.PLANNED, TripStatus.ASSIGNED, TripStatus.DISPATCHED, TripStatus.CANCELLED],
@@ -171,6 +172,7 @@ export class TripsService {
     const trackingToken = `${tripNumber}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
     const tripPayload: any = {
+      id: dto.id || randomUUID(),
       ...dto,
       tripNumber,
       trackingToken,
@@ -179,6 +181,8 @@ export class TripsService {
       driver: dto.driverId ? { id: dto.driverId } : null,
       dispatcher: user?.id ? { id: user.id } : null,
       status: TripStatus.PLANNED,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
     const trip = this.repo.create(tripPayload);
     const saved = await this.repo.save(trip) as any as Promise<Trip>;

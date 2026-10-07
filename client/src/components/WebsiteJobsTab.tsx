@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Edit2, Save, X } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useConfirm } from './SaveConfirmProvider';
 import CustomSelect from './CustomSelect';
 interface JobData {
   id: string;
@@ -44,6 +46,7 @@ const WebsiteJobsTab: React.FC<WebsiteJobsTabProps> = ({
   const {
     t
   } = useTranslation();
+  const confirm = useConfirm();
   const [jobs, setJobs] = useState<JobData[]>([]);
   const [editingJob, setEditingJob] = useState<JobData | null>(null);
   useEffect(() => {
@@ -91,8 +94,15 @@ const WebsiteJobsTab: React.FC<WebsiteJobsTabProps> = ({
       ...job
     });
   };
-  const handleDelete = (id: string) => {
-    if (window.confirm(t('confirm_delete_job', 'Sigur dorești să ștergi acest job?'))) {
+  const handleDelete = async (id: string) => {
+    const ok = await confirm({
+      title: t('delete_job', 'Job verwijderen'),
+      message: t('confirm_delete_job', 'Sigur dorești să ștergi acest job?'),
+      confirmText: t('delete', 'Verwijderen'),
+      cancelText: t('cancel', 'Annuleren'),
+      variant: 'danger'
+    });
+    if (ok) {
       const newJobs = jobs.filter(j => j.id !== id);
       handleSaveToCms(newJobs);
     }
@@ -100,7 +110,7 @@ const WebsiteJobsTab: React.FC<WebsiteJobsTabProps> = ({
   const handleSaveForm = () => {
     if (!editingJob) return;
     if (!editingJob.title.trim()) {
-      alert(t('jobs_title_req', 'Titlul este obligatoriu!'));
+      toast.error(t('jobs_title_req', 'Titlul este obligatoriu!'));
       return;
     }
     let newJobs = [...jobs];

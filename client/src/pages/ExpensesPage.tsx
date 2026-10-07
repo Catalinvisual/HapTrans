@@ -1,4 +1,4 @@
-import { useSaveConfirm } from "../components/SaveConfirmProvider";
+import { useSaveConfirm, useConfirm } from "../components/SaveConfirmProvider";
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
@@ -31,6 +31,7 @@ const CATEGORIES = [{
 }];
 export default function ExpensesPage() {
   const confirmSave = useSaveConfirm();
+  const confirm = useConfirm();
   const {
     t
   } = useTranslation();
@@ -159,7 +160,14 @@ export default function ExpensesPage() {
     }
   };
   const handleDelete = async (id: string) => {
-    if (!window.confirm(t('confirmDelete') || 'Sigur ștergi?')) return;
+    const ok = await confirm({
+      type: 'danger',
+      title: t('delete', 'Șterge'),
+      message: t('confirmDelete', 'Ești sigur că vrei să ștergi această cheltuială?'),
+      confirmText: t('delete', 'Șterge'),
+      cancelText: t('cancel', 'Anulează')
+    });
+    if (!ok) return;
     try {
       await api.delete(`/expenses/${id}`);
       toast.success(t('expenseDeleted'));
