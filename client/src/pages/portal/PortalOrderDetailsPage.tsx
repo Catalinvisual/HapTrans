@@ -26,7 +26,7 @@ export default function PortalOrderDetailsPage() {
   if (loading) return <div className="p-8 text-center animate-pulse">{t('jsx_loadingOrderD')}</div>;
   if (!order) return (
     <div className="p-8 text-center space-y-4">
-      <div>{t('jsx_orderNotFound')}</div>
+      <div>{t('jsx_orderNotFound', 'Order Not Found')}</div>
       <button className="btn-secondary" onClick={() => navigate('/portal/orders')}>{t('jsx_myOrders', 'My orders')}</button>
     </div>
   );

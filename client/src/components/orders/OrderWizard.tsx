@@ -367,7 +367,8 @@ export default function OrderWizard({
         (async () => {
           try {
             const refApi = isPortal ? (await import('../../lib/portalApi')).default : api;
-            const res = await refApi.get(isPortal ? '/portal/orders/next-reference' : '/orders/next-reference');
+            const endpoint = isPortal ? '/portal/orders/next-reference' : '/orders/next-reference';
+            const res = await refApi.get(`${endpoint}?t=${Date.now()}`);
             setForm(prev => ({ ...prev, internalReference: res.data?.nextReference || '' }));
           } catch (err) {
             console.warn('Failed to fetch next reference', err);
