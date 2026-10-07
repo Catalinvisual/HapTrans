@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import PortalOrderDrawer from '../../components/orders/PortalOrderDrawer';
 import { Plus, Search, MapPin, ArrowRight, Box, Boxes, Activity, Flag, BadgeEuro, FilterX } from 'lucide-react';
@@ -31,7 +32,7 @@ function sortValue(o: any, key: string): any {
 
 export default function PortalOrdersPage() {
   const { t } = useTranslation();
-  const [drawerOrderId, setDrawerOrderId] = useState<string | null>(null);
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showRequest, setShowRequest] = useState(false);
@@ -178,7 +179,7 @@ export default function PortalOrdersPage() {
           onSortChange={(key, dir) => setSort({ key, dir })}
           loading={loading}
           minWidth="900px"
-          onRowClick={o => setDrawerOrderId(o.id)}
+          onRowClick={o => navigate(`/portal/orders/${o.id}`)}
           emptyState={<div className="p-16 text-center flex flex-col items-center"><div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mb-4 text-text-muted"><Box className="w-8 h-8" /></div><h3 className="text-lg font-medium text-text-primary">{t('jsx_noOrdersFound')}</h3><button onClick={() => setShowRequest(true)} className="btn-secondary mt-6 flex items-center gap-2"><Plus className="w-4 h-4" />{t('addOrder', 'Create Order')}</button></div>}
         />
 
@@ -186,9 +187,6 @@ export default function PortalOrdersPage() {
       </div>
 
       <OrderWizard isPortal={true} isOpen={showRequest} onClose={() => setShowRequest(false)} onSaved={fetchOrders} />
-      {drawerOrderId && orders.find(o => o.id === drawerOrderId) && (
-        <PortalOrderDrawer order={orders.find(o => o.id === drawerOrderId)} onClose={() => setDrawerOrderId(null)} />
-      )}
     </div>
   );
 }

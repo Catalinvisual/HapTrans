@@ -83,7 +83,7 @@ export class OrdersService {
       .andWhere('order.createdAt < :end', { end: endOfYear })
       .getCount();
 
-    const seq = String(count + 1).padStart(5, '0');
+    const seq = String(count + 1).padStart(6, '0');
     return { nextReference: `ORD-${year}-${seq}` };
   }
 
