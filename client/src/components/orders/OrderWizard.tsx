@@ -369,7 +369,8 @@ export default function OrderWizard({
             const refApi = isPortal ? (await import('../../lib/portalApi')).default : api;
             const endpoint = isPortal ? '/portal/orders/next-reference' : '/orders/next-reference';
             const res = await refApi.get(`${endpoint}?t=${Date.now()}`);
-            setForm(prev => ({ ...prev, internalReference: res.data?.nextReference || '' }));
+            const nextRef = res.data?.nextReference || '';
+            setForm(prev => ({ ...prev, internalReference: nextRef, orderNumber: nextRef }));
           } catch (err) {
             console.warn('Failed to fetch next reference', err);
           }
@@ -517,6 +518,14 @@ export default function OrderWizard({
     setConfirmedUnprofitable(false);
   };
   const handleSubmit = async () => {
+    if (!isPortal && !form.clientId) {
+      toast.error(t('select_client_required', 'Please select a client before saving the order.'));
+      return;
+    }
+    if (!pickup.address?.trim() || !dropoff.address?.trim()) {
+      toast.error(t('addresses_required', 'Pickup and delivery addresses are required.'));
+      return;
+    }
     if (!pickup.latitude || !pickup.longitude || !dropoff.latitude || !dropoff.longitude) {
       toast.error(t('both_addresses_need_gps', 'Both addresses must have valid GPS coordinates (geocoded) to save the order.'));
       return;
@@ -529,8 +538,9 @@ export default function OrderWizard({
       } = form;
       const payload = {
         ...cleanForm,
+        orderNumber: form.orderNumber || form.internalReference || undefined,
         internalReference: form.internalReference || null,
-        clientId: form.clientId || null,
+        clientId: isPortal ? undefined : (form.clientId || null),
         price: form.price ? parseFloat(form.price) : null,
         customerReference: pickup.reference || null,
         contactPerson: pickup.contactPerson || null,
@@ -579,7 +589,8 @@ export default function OrderWizard({
       onSaved();
       onClose();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || t('error', 'Error'));
+      const msg = err.response?.data?.message || err.message || t('error', 'Error');
+      toast.error(Array.isArray(msg) ? msg.join(', ') : msg);
     } finally {
       setLoading(false);
     }

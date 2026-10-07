@@ -9,6 +9,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { RoutingService } from '../routing/routing.service';
 import { ClientsService } from '../clients/clients.service';
 import { nanoid } from 'nanoid';
+import { randomUUID } from 'crypto';
 import { ActionLogsService } from '../action-logs/action-logs.service';
 
 @Injectable()
@@ -83,7 +84,25 @@ export class OrdersService {
       .andWhere('order.createdAt < :end', { end: endOfYear })
       .getCount();
 
-    const seq = String(count + 1).padStart(6, '0');
+    // Check existing orderNumber and internalReference to always exceed existing sequences
+    const existingOrders = await this.repo.createQueryBuilder('order')
+      .select(['order.orderNumber', 'order.internalReference'])
+      .where('order.orderNumber LIKE :pattern OR order.internalReference LIKE :pattern', { pattern: `ORD-${year}-%` })
+      .getMany();
+
+    let maxSeq = count;
+    for (const o of existingOrders) {
+      for (const ref of [o.orderNumber, o.internalReference]) {
+        if (ref && ref.startsWith(`ORD-${year}-`)) {
+          const numPart = parseInt(ref.replace(`ORD-${year}-`, ''), 10);
+          if (!isNaN(numPart) && numPart > maxSeq) {
+            maxSeq = numPart;
+          }
+        }
+      }
+    }
+
+    const seq = String(maxSeq + 1).padStart(6, '0');
     return { nextReference: `ORD-${year}-${seq}` };
   }
 
@@ -99,11 +118,9 @@ export class OrdersService {
       // 1. Validate
       this.validationEngine.validateOrder(dto);
 
-      // Generate sequential order number: HC-YYYY-XXXXXX
-      const count = await this.repo.count();
-      const seq = String(count + 1).padStart(6, '0');
-      const year = new Date().getFullYear();
-      const orderNumber = dto.orderNumber || `ORD-${year}-${seq}`;
+      // Determine order number
+      const nextRef = await this.getNextInternalReference();
+      const orderNumber = dto.orderNumber || dto.internalReference || nextRef.nextReference;
 
       // Determine initial status based on completeness
       let status = OrderStatus.DRAFT;
@@ -162,11 +179,16 @@ export class OrdersService {
         } catch { /* rate suggestion is best-effort */ }
       }
 
+      const orderId = randomUUID();
+      const now = new Date();
       const order = this.repo.create({
+        id: orderId,
         company: dto.companyId ? { id: dto.companyId } as any : null,
         client: dto.clientId ? { id: dto.clientId } as any : null,
         orderNumber,
         trackingToken,
+        createdAt: now,
+        updatedAt: now,
         internalReference: dto.internalReference || orderNumber,
         customerReference: dto.customerReference || null,
           loadingReference: dto.loadingReference || null,
@@ -273,8 +295,12 @@ export class OrdersService {
       // 5c. Emit Domain Event
       this.eventEmitter.emit('order.created', updatedOrder);
 
-      if (user) {
-        await this.actionLogsService.logAction('Order', savedOrder.id, 'CREATED', user, null, dto.companyId);
+      if (user && savedOrder?.id) {
+        try {
+          await this.actionLogsService.logAction('Order', savedOrder.id, 'CREATED', user, null, dto.companyId);
+        } catch (logErr: any) {
+          console.warn('Action log failed for order creation:', logErr?.message);
+        }
       }
 
       return updatedOrder;

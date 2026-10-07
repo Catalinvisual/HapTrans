@@ -17,11 +17,12 @@ export function useShortcuts(shortcuts: ShortcutMap, isActive: boolean = true) {
     if (!isActive) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e || typeof e.key !== 'string') return;
       const target = e.target as HTMLElement;
-      const isInput = target.tagName === 'INPUT' || 
-                      target.tagName === 'TEXTAREA' || 
-                      target.tagName === 'SELECT' || 
-                      target.isContentEditable;
+      const isInput = target?.tagName === 'INPUT' || 
+                      target?.tagName === 'TEXTAREA' || 
+                      target?.tagName === 'SELECT' || 
+                      target?.isContentEditable;
 
       let key = e.key.toLowerCase();
       

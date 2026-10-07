@@ -19,6 +19,8 @@ export class PortalOrdersController {
     const clientId = req.user.client?.id || req.user.clientId;
     // Overwrite any clientId submitted with the authenticated user's clientId
     body.clientId = clientId;
+    // Orders created by clients in the portal appear in TMS as draft
+    body.status = 'draft';
     // We don't pass req.user because OrdersService expects a TMS User, which would fail FK constraints in action_logs
     return this.ordersService.create(body, undefined);
   }
