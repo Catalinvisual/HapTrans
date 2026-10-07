@@ -1,11 +1,9 @@
-import { useSaveConfirm } from '../components/SaveConfirmProvider';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Upload, FileText, Trash2, Download, Share2 } from 'lucide-react';
 import api from '../lib/api';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
-import { formatDate } from '../lib/dateUtils';
 import CustomSelect from '../components/CustomSelect';
 import Pagination from '../components/Pagination';
 export default function DocumentsPage({
@@ -163,6 +161,9 @@ export default function DocumentsPage({
             value: 'Factură',
             label: `${t('invoices') || 'Factură'} (Invoice)`
           }, {
+            value: 'Combustibil',
+            label: `${t('fuel') || 'Combustibil'} (Fuel Receipt)`
+          }, {
             value: 'Licență',
             label: `${t('license') || 'Licență'} (License)`
           }, {
@@ -238,13 +239,13 @@ export default function DocumentsPage({
                         {(() => {
                           const t_val = (doc.type || doc.documentType || '').toString().toLowerCase();
                           if (['cmr'].includes(t_val)) return 'CMR';
-                          if (['aviz'].includes(t_val)) return 'Aviz';
+                          if (['aviz', 'delivery_note', 'delivery note', 'waybill'].includes(t_val)) return t('aviz') !== 'aviz' ? t('aviz') : 'Aviz';
                           if (['pod'].includes(t_val)) return 'POD';
-                          if (['fuel'].includes(t_val)) return 'Fuel';
-                          if (['licence', 'license'].includes(t_val)) return 'Licență';
-                          if (['invoice', 'factura', 'factură'].includes(t_val)) return 'Factură';
-                          if (['photo', 'foto încărcare', 'foto marfă', 'packing_list'].includes(t_val)) return doc.type || doc.documentType;
-                          if (['other', 'altele'].includes(t_val)) return 'Altele';
+                          if (['fuel', 'combustibil', 'fuel_receipt'].includes(t_val)) return t('fuel') !== 'fuel' ? t('fuel') : 'Combustibil';
+                          if (['licence', 'license'].includes(t_val)) return t('license') !== 'license' ? t('license') : 'Licență';
+                          if (['invoice', 'factura', 'factură'].includes(t_val)) return t('invoices') !== 'invoices' ? t('invoices') : 'Factură';
+                          if (['photo', 'foto încărcare', 'foto marfă', 'packing_list', 'cargo_photo', 'loading_photo'].includes(t_val)) return doc.type || doc.documentType;
+                          if (['other', 'altele', 'document'].includes(t_val)) return t('other') !== 'other' ? t('other') : 'Altele';
                           return (doc.type || doc.documentType || '—').toString().toUpperCase();
                         })()}
                       </span>
