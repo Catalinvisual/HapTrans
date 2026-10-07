@@ -38,6 +38,9 @@ export class Document {
   documentType: DocumentType;
 
   @Column({ nullable: true })
+  type: string;
+
+  @Column({ nullable: true })
   fileName: string;
 
   @Column({ nullable: true })

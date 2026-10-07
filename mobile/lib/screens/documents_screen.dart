@@ -139,11 +139,21 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
         headers: {'Authorization': 'Bearer ${auth.token}'},
       ));
 
+      final trips = context.read<TripProvider>().trips;
+      Map<String, dynamic>? currentTrip;
+      if (_selectedTripId != null) {
+        try {
+          currentTrip = trips.firstWhere((t) => t['id']?.toString() == _selectedTripId);
+        } catch (_) {}
+      }
+      final tripRef = currentTrip?['tripNumber'] ?? currentTrip?['referenceNumber'];
+
       for (final file in _selectedFiles) {
         final ext = file.path.split('.').last;
         final formData = FormData.fromMap({
           'type': _selectedTypeKey.toLowerCase(),
           if (_selectedTripId != null) 'tripId': _selectedTripId,
+          if (tripRef != null) 'reference': tripRef.toString(),
           'notes': _commentCtrl.text.trim(),
           'file': await MultipartFile.fromFile(file.path, filename: 'DOC_${DateTime.now().millisecondsSinceEpoch}.$ext'),
         });

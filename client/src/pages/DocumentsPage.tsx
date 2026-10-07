@@ -55,15 +55,11 @@ export default function DocumentsPage({
     if (!file) return;
     const fd = new FormData();
     const selectedTrip = trips.find((t: any) => t.id === tripId);
-    const refPrefix = selectedTrip?.referenceNumber ? `${selectedTrip.referenceNumber}_` : '';
-    const extension = file.name.split('.').pop() || 'pdf';
-    const cleanType = docType.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const finalName = selectedTrip?.referenceNumber ? `${selectedTrip.referenceNumber}_${cleanType}.${extension}` : `${cleanType}.${extension}`;
-    const newFile = new File([file], finalName, {
-      type: file.type
-    });
-    fd.append('file', newFile);
-    fd.append('tripId', tripId);
+    const ref = selectedTrip?.tripNumber || selectedTrip?.referenceNumber || '';
+    
+    fd.append('file', file);
+    if (tripId) fd.append('tripId', tripId);
+    if (ref) fd.append('reference', ref);
     fd.append('type', docType);
     if (notes) fd.append('notes', notes);
     setUploading(true);
@@ -144,10 +140,13 @@ export default function DocumentsPage({
           <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-end">
           <div>
             <label className="label">{t('reference') || 'Referinta'}</label>
-            <CustomSelect value={tripId} onChange={val => setTripId(val)} placeholder={t('noTrip')} options={trips.map((tr: any) => ({
-            value: tr.id,
-            label: tr.referenceNumber ? `${tr.referenceNumber} | ${tr.pickupAddress?.slice(0, 20)}...` : `${tr.pickupAddress?.slice(0, 20)}...`
-          }))} />
+            <CustomSelect value={tripId} onChange={val => setTripId(val)} placeholder={t('noTrip')} options={trips.map((tr: any) => {
+              const ref = tr.tripNumber || tr.referenceNumber;
+              return {
+                value: tr.id,
+                label: ref ? `${ref} | ${tr.pickupAddress?.slice(0, 20) || ''}...` : `${tr.pickupAddress?.slice(0, 20) || ''}...`
+              };
+            })} />
           </div>
           <div>
             <label className="label">{t('documentType')}</label>
@@ -156,19 +155,25 @@ export default function DocumentsPage({
             label: 'CMR'
           }, {
             value: 'Aviz',
-            label: t('aviz') !== 'aviz' ? t('aviz').charAt(0).toUpperCase() + t('aviz').slice(1) : 'Aviz'
+            label: t('aviz') !== 'aviz' ? `${t('aviz').charAt(0).toUpperCase() + t('aviz').slice(1)} (Delivery Note)` : 'Aviz (Delivery Note)'
+          }, {
+            value: 'POD',
+            label: 'POD'
           }, {
             value: 'Factură',
-            label: t('invoices')
+            label: `${t('invoices') || 'Factură'} (Invoice)`
+          }, {
+            value: 'Licență',
+            label: `${t('license') || 'Licență'} (License)`
           }, {
             value: 'Foto încărcare',
-            label: t('loadingPhoto')
+            label: t('loadingPhoto') || 'Foto încărcare'
           }, {
             value: 'Foto marfă',
-            label: t('cargoPhoto')
+            label: t('cargoPhoto') || 'Foto marfă'
           }, {
             value: 'Altele',
-            label: t('other')
+            label: `${t('other') || 'Altele'} (Document)`
           }]} />
           </div>
           <div>
