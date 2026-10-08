@@ -51,7 +51,7 @@ export class DropHookEvent {
   @Column()
   locationName: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   address: string | null;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
@@ -66,7 +66,7 @@ export class DropHookEvent {
   @Column({ nullable: true, type: 'text' })
   notes: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   performedBy: string | null;
 
   @CreateDateColumn()

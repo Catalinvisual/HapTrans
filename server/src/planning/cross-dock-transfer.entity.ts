@@ -43,7 +43,7 @@ export class CrossDockTransfer {
   @Column()
   facilityName: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   facilityAddress: string | null;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
@@ -52,7 +52,7 @@ export class CrossDockTransfer {
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
   longitude: number | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   cargoDescription: string | null;
 
   @Column({ nullable: true, type: 'int' })
@@ -79,7 +79,7 @@ export class CrossDockTransfer {
   @Column({ type: 'timestamp', nullable: true })
   transferredAt: Date | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   responsibleUser: string | null;
 
   @Column({ nullable: true, type: 'text' })

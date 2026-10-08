@@ -34,10 +34,10 @@ export class Trailer {
   @Column({ type: 'enum', enum: TrailerType, default: TrailerType.STANDARD })
   type: TrailerType;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   brand: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'int', nullable: true })
   year: number;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
@@ -62,7 +62,7 @@ export class Trailer {
   @Column({ type: 'boolean', default: false })
   isDropped: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   dropLocation: string | null;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
