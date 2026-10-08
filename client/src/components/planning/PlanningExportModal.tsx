@@ -70,18 +70,33 @@ export default function PlanningExportModal({
           return sum + l;
         }, 0);
 
+        // ADR summary from orders
+        const adrClasses = Array.from(new Set(orders.flatMap((o: any) => {
+          const items = o.cargoItems || [];
+          return items.filter((ci: any) => ci.isAdr).map((ci: any) => ci.adrClass ? `Class ${ci.adrClass}` : 'ADR');
+        }))).join(', ') || (orders.some((o: any) => o.requiresAdr || o.isAdr) ? 'ADR General' : 'None');
+
         const maxWeight = truck?.maxWeightKg || 24000;
         const loadPct = maxWeight > 0 ? Math.round((totalWeight / maxWeight) * 100) : 0;
         const tripConflicts = conflictMap.get(tr.id) || [];
         const conflictState = tripConflicts.length > 0 ? tripConflicts.join('; ') : 'OK (No conflicts)';
 
+        const fleetTypeStr = tr.fleetType === 'subcontractor' ? 'Subcontractor' : tr.fleetType === 'charter' ? 'Charter' : 'Own Fleet';
+        const subconStr = tr.carrierName ? `${tr.carrierName} (Ref: ${tr.carrierReference || '—'}, ${tr.carrierRate || 0} ${tr.carrierCurrency || 'EUR'})` : '—';
+        const tollStr = tr.tollAmount ? `${tr.tollAmount} ${tr.tollCurrency || 'EUR'} (${tr.tollCountries?.join(', ') || 'EU'})` : (tr.tollStatus || 'Not calculated');
+        const trafficStr = tr.trafficDelayMinutes ? `+${tr.trafficDelayMinutes} min (${tr.trafficStatus || 'delayed'})` : (tr.trafficStatus || 'Normal');
+        const dropHookStr = trailer?.isDropped ? `Dropped @ ${trailer.dropLocation || 'Facility'}` : 'Attached/Hooked';
+
         return {
           tripNumber: tr.tripNumber || tr.id,
+          fleetType: fleetTypeStr,
+          subcontractor: subconStr,
           orderReferences: orderRefs || '—',
           customer: customers || '—',
-          truck: truck?.plateNumber || '—',
-          trailer: trailer?.plateNumber || '—',
-          driver: driver?.name || driver?.user?.name || '—',
+          truck: truck?.plateNumber || tr.carrierTruckPlate || '—',
+          trailer: trailer?.plateNumber || tr.carrierTrailerPlate || '—',
+          driver: driver?.name || driver?.user?.name || tr.carrierDriverName || '—',
+          trailerDropState: dropHookStr,
           departure: tr.plannedDeparture ? new Date(tr.plannedDeparture).toISOString().replace('T', ' ').slice(0, 16) : '—',
           arrival: tr.plannedArrival ? new Date(tr.plannedArrival).toISOString().replace('T', ' ').slice(0, 16) : '—',
           route,
@@ -90,16 +105,22 @@ export default function PlanningExportModal({
           loadWeight: `${fmtNumber(totalWeight)} kg (${loadPct}%)`,
           pallets: totalPallets,
           ldm: totalLdm,
+          adrRequirements: adrClasses,
+          tollEstimate: tollStr,
+          trafficDelay: trafficStr,
           conflictState,
         };
       });
 
       const headers = [
         { key: 'tripNumber', label: 'Trip Number' },
+        { key: 'fleetType', label: 'Fleet Type' },
+        { key: 'subcontractor', label: 'Subcontractor / Charter' },
         { key: 'orderReferences', label: 'Order References' },
         { key: 'customer', label: 'Customer' },
         { key: 'truck', label: 'Truck Plate' },
         { key: 'trailer', label: 'Trailer Plate' },
+        { key: 'trailerDropState', label: 'Drop / Hook State' },
         { key: 'driver', label: 'Driver' },
         { key: 'departure', label: 'Departure' },
         { key: 'arrival', label: 'Arrival' },
@@ -109,6 +130,9 @@ export default function PlanningExportModal({
         { key: 'loadWeight', label: 'Load / Capacity' },
         { key: 'pallets', label: 'Pallets' },
         { key: 'ldm', label: 'LDM' },
+        { key: 'adrRequirements', label: 'ADR Requirements' },
+        { key: 'tollEstimate', label: 'Toll Estimate' },
+        { key: 'trafficDelay', label: 'Live Traffic / Delay' },
         { key: 'conflictState', label: 'Compliance & Conflicts' },
       ];
 

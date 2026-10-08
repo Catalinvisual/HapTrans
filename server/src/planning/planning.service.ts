@@ -17,6 +17,8 @@ import { PlanningProfile, PlanningProfileType, LoadingRule, LoadingAccess } from
 import { TruckRoutePlan, RouteFeasibilityStatus } from './truck-route-plan.entity';
 import { RoutePlanStop, RouteStopType, RouteStopStatus } from './route-plan-stop.entity';
 import { Shipment, ShipmentStatus } from './shipment.entity';
+import { DropHookEvent, DropHookType } from './drop-hook.entity';
+import { CrossDockTransfer, CrossDockStatus } from './cross-dock-transfer.entity';
 import { PlanningEngine } from '../engines/planning.engine';
 import { OptimizationEngine } from '../engines/optimization.engine';
 import { PricingEngine } from '../engines/pricing.engine';
@@ -87,6 +89,210 @@ export interface RouteValidationResult {
   completeness: any[];
 }
 
+export function validateAdrMatrix(
+  trip: any,
+  truck: any,
+  trailer: any,
+  driver: any,
+  tripEnd: Date,
+): PlanningConflict[] {
+  const conflicts: PlanningConflict[] = [];
+
+  // Extract all cargo items and equipment requirements
+  const cargoItems: any[] = [];
+  let isAdrTrip = false;
+
+  for (const o of trip.orders || []) {
+    if ((o.equipmentRequirements || []).some((e: string) => String(e).toLowerCase().includes('adr')) || o.adrSurcharge) {
+      isAdrTrip = true;
+    }
+    for (const c of o.cargoItems || []) {
+      if (c.adrClass) {
+        cargoItems.push({ ...c, orderNumber: o.orderNumber, orderId: o.id });
+        isAdrTrip = true;
+      }
+    }
+  }
+
+  if ((trip.equipmentRequirements || []).some((e: string) => String(e).toLowerCase().includes('adr')) || trip.adrSurcharge) {
+    isAdrTrip = true;
+  }
+
+  if (!isAdrTrip && cargoItems.length === 0) {
+    return conflicts;
+  }
+
+  // 1. Driver Qualification Check
+  if (driver) {
+    const docs = driver.documents || [];
+    const dName = driver.name || driver.user?.name || 'Driver';
+    const tripEndStr = tripEnd ? tripEnd.toISOString().slice(0, 10) : 'completion';
+
+    const adrDoc = docs.find((doc: any) => String(doc.type || '').toLowerCase().includes('adr'));
+    if (!adrDoc) {
+      conflicts.push({
+        id: `DRIVER_ADR_INVALID_${trip.id}_${driver.id}`,
+        level: 'blocking',
+        code: 'DRIVER_ADR_INVALID',
+        tripId: trip.id,
+        resourceId: driver.id,
+        params: {
+          driverId: driver.id,
+          driverName: dName,
+          document: 'adr_certificate',
+          tripEnd: tripEndStr,
+          resolution: 'Assign an ADR-certified driver for hazardous cargo trip.',
+        },
+        message: `Driver ${dName} lacks required ADR certificate for hazardous goods trip ${trip.tripNumber || trip.id}.`,
+      });
+    } else if (adrDoc.expiryDate && new Date(adrDoc.expiryDate) < tripEnd) {
+      const expStr = new Date(adrDoc.expiryDate).toISOString().slice(0, 10);
+      conflicts.push({
+        id: `DRIVER_ADR_EXPIRED_${trip.id}_${driver.id}`,
+        level: 'blocking',
+        code: 'DRIVER_ADR_EXPIRED',
+        tripId: trip.id,
+        resourceId: driver.id,
+        params: {
+          driverId: driver.id,
+          driverName: dName,
+          document: 'adr_certificate',
+          expiryDate: expStr,
+          tripEnd: tripEndStr,
+          resolution: 'Assign a driver with valid ADR certificate or renew before trip end.',
+        },
+        message: `Driver ${dName} ADR certificate expires on ${expStr}, before planned trip completion (${tripEndStr}). Legally required for ADR transport.`,
+      });
+    } else {
+      // Check class-specific driver endorsements for Class 1 (Explosives) & Class 7 (Radioactive)
+      const docTypeLower = String(adrDoc.type || '').toLowerCase();
+      const docNotesLower = String(adrDoc.notes || '').toLowerCase();
+      for (const item of cargoItems) {
+        const cls = String(item.adrClass).trim();
+        if (cls.startsWith('1') && !docTypeLower.includes('class 1') && !docTypeLower.includes('explosiv') && !docNotesLower.includes('class 1')) {
+          conflicts.push({
+            id: `DRIVER_ADR_INVALID_CL1_${trip.id}_${driver.id}`,
+            level: 'blocking',
+            code: 'DRIVER_ADR_INVALID',
+            tripId: trip.id,
+            resourceId: driver.id,
+            message: `Driver ${dName} lacks specialized ADR Class 1 (Explosives) endorsement required for UN ${item.unNumber || 'cargo'}.`,
+          });
+          break;
+        }
+        if (cls.startsWith('7') && !docTypeLower.includes('class 7') && !docTypeLower.includes('radioactiv') && !docNotesLower.includes('class 7')) {
+          conflicts.push({
+            id: `DRIVER_ADR_INVALID_CL7_${trip.id}_${driver.id}`,
+            level: 'blocking',
+            code: 'DRIVER_ADR_INVALID',
+            tripId: trip.id,
+            resourceId: driver.id,
+            message: `Driver ${dName} lacks specialized ADR Class 7 (Radioactive) endorsement required for UN ${item.unNumber || 'cargo'}.`,
+          });
+          break;
+        }
+      }
+    }
+  }
+
+  // 2. Vehicle ADR Capability Check
+  if (truck) {
+    const truckFeatures = ((truck.features || []) as string[]).map(f => f.toLowerCase());
+    const hasAdrTruck = truckFeatures.some(f => f.includes('adr') || f.includes('hazardous') || f.includes('ex') || f.includes('fl') || f.includes('at'));
+    
+    for (const item of cargoItems) {
+      const cls = String(item.adrClass).trim();
+      // Class 1 Explosives requires EX/II or EX/III certification
+      if (cls.startsWith('1')) {
+        const hasExCert = truckFeatures.some(f => f.includes('ex/ii') || f.includes('ex/iii') || f.includes('ex2') || f.includes('ex3') || f.includes('adr'));
+        if (!hasExCert) {
+          conflicts.push({
+            id: `ADR_VEHICLE_INCOMPATIBLE_CL1_${trip.id}_${truck.id}`,
+            level: 'blocking',
+            code: 'ADR_VEHICLE_INCOMPATIBLE',
+            tripId: trip.id,
+            resourceId: truck.id,
+            message: `Vehicle ${truck.plateNumber} is not certified EX/II or EX/III as legally required for ADR Class 1 explosives transport.`,
+          });
+          break;
+        }
+      } else if (!hasAdrTruck) {
+        conflicts.push({
+          id: `ADR_VEHICLE_INCOMPATIBLE_${trip.id}_${truck.id}`,
+          level: 'blocking',
+          code: 'ADR_VEHICLE_INCOMPATIBLE',
+          tripId: trip.id,
+          resourceId: truck.id,
+          message: `Vehicle ${truck.plateNumber} lacks required ADR certification for Class ${cls} hazardous cargo.`,
+        });
+        break;
+      }
+    }
+  }
+
+  // 3. Trailer Equipment Check
+  if (trailer) {
+    const trlFeatures = ((trailer.features || []) as string[]).map(f => f.toLowerCase());
+    const hasAdrTrailer = trlFeatures.some(f => f.includes('adr') || f.includes('hazardous') || f.includes('safety_kit') || f.includes('extinguisher'));
+    if (!hasAdrTrailer && cargoItems.length > 0 && !trailer.type?.includes('tanker')) {
+      conflicts.push({
+        id: `ADR_TRAILER_INCOMPATIBLE_${trip.id}_${trailer.id}`,
+        level: 'warning',
+        code: 'ADR_TRAILER_INCOMPATIBLE',
+        tripId: trip.id,
+        resourceId: trailer.id,
+        message: `Trailer ${trailer.plateNumber} requires verification of mandatory ADR equipment (fire extinguishers, orange plates, wheel chocks).`,
+      });
+    }
+  }
+
+  // 4. Route & Tunnel Restriction Check
+  for (const item of cargoItems) {
+    const tunnel = String(item.tunnelRestrictionCode || '').toUpperCase().trim();
+    if (tunnel === 'E') {
+      conflicts.push({
+        id: `ADR_ROUTE_RESTRICTION_${trip.id}_${item.id}`,
+        level: 'warning',
+        code: 'ADR_ROUTE_RESTRICTION',
+        tripId: trip.id,
+        orderId: item.orderId,
+        message: `ADR cargo UN ${item.unNumber || ''} (Class ${item.adrClass}) has Tunnel Code E: passage through Category E tunnels is strictly prohibited. Route avoidance required.`,
+      });
+    }
+  }
+
+  // 5. Incompatible ADR Cargo Combination / Mixed Loading Matrix
+  const classesPresent = new Set(cargoItems.map(c => String(c.adrClass).trim().charAt(0)));
+  if (classesPresent.has('1') && (classesPresent.has('5') || classesPresent.has('7') || classesPresent.has('2') || classesPresent.has('3'))) {
+    conflicts.push({
+      id: `ADR_CARGO_INCOMPATIBILITY_${trip.id}`,
+      level: 'blocking',
+      code: 'ADR_CARGO_INCOMPATIBILITY',
+      tripId: trip.id,
+      message: `ADR Mixed Loading Violation: Class 1 Explosives cannot be co-transported in the same vehicle with Class 5 (Oxidizers), Class 7 (Radioactive), or flammable substances.`,
+    });
+  }
+
+  // Food co-loading check with Toxic (6.1) or Corrosive (8)
+  const hasToxicOrCorrosive = classesPresent.has('6') || classesPresent.has('8');
+  const hasFood = (trip.orders || []).some((o: any) => {
+    const desc = String(o.description || '').toLowerCase();
+    const reqs = (o.equipmentRequirements || []).join(' ').toLowerCase();
+    return desc.includes('food') || desc.includes('aliment') || desc.includes('beverage') || reqs.includes('food');
+  });
+  if (hasToxicOrCorrosive && hasFood) {
+    conflicts.push({
+      id: `ADR_CARGO_INCOMPATIBILITY_FOOD_${trip.id}`,
+      level: 'blocking',
+      code: 'ADR_CARGO_INCOMPATIBILITY',
+      tripId: trip.id,
+      message: `ADR Mixed Loading Violation: Class 6.1 (Toxic) or Class 8 (Corrosive) substances must not be loaded in the same compartment as food products without approved partition.`,
+    });
+  }
+
+  return conflicts;
+}
+
 @Injectable()
 export class PlanningService {
   private readonly logger = new Logger(PlanningService.name);
@@ -108,6 +314,8 @@ export class PlanningService {
     @InjectRepository(TruckRoutePlan) private readonly routePlanRepo: Repository<TruckRoutePlan>,
     @InjectRepository(RoutePlanStop) private readonly routePlanStopRepo: Repository<RoutePlanStop>,
     @InjectRepository(Shipment) private readonly shipmentRepo: Repository<Shipment>,
+    @InjectRepository(DropHookEvent) private readonly dropHookRepo: Repository<DropHookEvent>,
+    @InjectRepository(CrossDockTransfer) private readonly crossDockRepo: Repository<CrossDockTransfer>,
     private readonly planningEngine: PlanningEngine,
     private readonly optimizationEngine: OptimizationEngine,
     private readonly pricingEngine: PricingEngine,
@@ -859,55 +1067,64 @@ export class PlanningService {
             });
           }
         }
+      }
 
-        // 4. ADR Certificate Expiry (where ADR cargo requires it)
-        const isAdrCargo =
-          (t.orders || []).some(
-            (o: any) =>
-              (o.equipmentRequirements || []).some((e: string) => String(e).toLowerCase().includes('adr')) ||
-              (o.cargoItems || []).some((c: any) => !!c.adrClass) ||
-              o.adrSurcharge,
-          ) ||
-          (t.equipmentRequirements || []).some((e: string) => String(e).toLowerCase().includes('adr')) ||
-          t.adrSurcharge;
+      // 4. Full ADR Class 1-9 Matrix & Equipment Validation (§4, §11)
+      const adrConflicts = validateAdrMatrix(t, truck, t.trailer || truck?.trailer || trailersById[t.trailerId], assignedDriver, tripEnd);
+      for (const ac of adrConflicts) {
+        add(ac);
+      }
 
-        if (isAdrCargo) {
-          const docs = assignedDriver.documents || [];
-          const adrDoc = docs.find((doc: any) => String(doc.type || '').toLowerCase().includes('adr'));
-          if (!adrDoc) {
-            add({
-              level: 'blocking',
-              code: 'DRIVER_ADR_EXPIRED',
-              tripId: t.id,
-              resourceId: assignedDriver.id,
-              params: {
-                driverId: assignedDriver.id,
-                driverName: dName,
-                document: 'adr_certificate',
-                tripEnd: tripEndStr,
-                resolution: 'Assign an ADR-certified driver for hazardous cargo trip.',
-              },
-              message: `Driver ${dName} lacks required ADR certificate for hazardous goods trip ${t.tripNumber || t.id}.`,
-            });
-          } else if (adrDoc.expiryDate && new Date(adrDoc.expiryDate) < tripEnd) {
-            const expStr = new Date(adrDoc.expiryDate).toISOString().slice(0, 10);
-            add({
-              level: 'blocking',
-              code: 'DRIVER_ADR_EXPIRED',
-              tripId: t.id,
-              resourceId: assignedDriver.id,
-              params: {
-                driverId: assignedDriver.id,
-                driverName: dName,
-                document: 'adr_certificate',
-                expiryDate: expStr,
-                tripEnd: tripEndStr,
-                resolution: 'Assign a driver with valid ADR certificate or renew before trip end.',
-              },
-              message: `Driver ${dName} ADR certificate expires on ${expStr}, before planned trip completion (${tripEndStr}). Legally required for ADR transport.`,
-            });
-          }
+      // 5. Drop & Hook Validation (§2, §11)
+      const tripTrailer = t.trailer || truck?.trailer || trailersById[t.trailerId];
+      if (tripTrailer?.isDropped && ['started', 'loading', 'driving', 'partially_delivered'].includes(status)) {
+        add({
+          level: 'blocking',
+          code: 'DROP_HOOK_CONFLICT',
+          tripId: t.id,
+          resourceId: tripTrailer.id,
+          message: `Trailer ${tripTrailer.plateNumber} is currently dropped at ${tripTrailer.dropLocation || 'facility'}. Must be hooked before trip dispatch.`,
+        });
+      }
+
+      // 6. Subcontractor / Charter Validation (§8, §11)
+      if (t.fleetType === 'subcontractor' || t.fleetType === 'charter') {
+        if (t.carrierDocumentsValid === false) {
+          add({
+            level: 'blocking',
+            code: 'SUBCONTRACTOR_UNAVAILABLE',
+            tripId: t.id,
+            message: `Carrier ${t.carrierName || 'Subcontractor'} has invalid or missing compliance documents.`,
+          });
         }
+        if (t.carrierInsuranceExpiry && tripEnd && new Date(t.carrierInsuranceExpiry) < tripEnd) {
+          add({
+            level: 'blocking',
+            code: 'SUBCONTRACTOR_UNAVAILABLE',
+            tripId: t.id,
+            message: `Carrier ${t.carrierName || 'Subcontractor'} CMR liability insurance expires before trip completion.`,
+          });
+        }
+      }
+
+      // 7. Live Traffic Delay Detection (§6, §11)
+      if (t.trafficDelayMinutes && t.trafficDelayMinutes > 25) {
+        add({
+          level: 'warning',
+          code: 'TRAFFIC_DELAY',
+          tripId: t.id,
+          message: `Live traffic congestion delay detected (+${t.trafficDelayMinutes} min). Recalculated ETA risks exceeding schedule.`,
+        });
+      }
+
+      // 8. Toll Calculation Availability (§7, §11)
+      if (t.tollStatus === 'unavailable') {
+        add({
+          level: 'info',
+          code: 'TOLL_DATA_UNAVAILABLE',
+          tripId: t.id,
+          message: `Toll calculation unavailable — provider not configured.`,
+        });
       }
 
       for (const o of t.orders || []) {
@@ -2424,39 +2641,76 @@ export class PlanningService {
         });
       }
 
-      const isAdr =
-        (trip.orders || []).some(
-          (o: any) =>
-            (o.equipmentRequirements || []).some((e: string) => String(e).toLowerCase().includes('adr')) ||
-            (o.cargoItems || []).some((c: any) => !!c.adrClass) ||
-            o.adrSurcharge,
-        ) ||
-        ((trip as any).equipmentRequirements || []).some((e: string) => String(e).toLowerCase().includes('adr')) ||
-        (trip as any).adrSurcharge;
-
-      if (isAdr) {
-        const docs = tripDriver.documents || [];
-        const adrDoc = docs.find((doc: any) => String(doc.type || '').toLowerCase().includes('adr'));
-        if (!adrDoc) {
+      // ADR Matrix & Compliance Validation (§4, §11)
+      const adrIssues = validateAdrMatrix(trip, truck, trailer, tripDriver, tripEnd);
+      for (const issue of adrIssues) {
+        if (issue.level === 'blocking') {
           conflicts.push({
-            type: 'compliance',
+            type: 'adr_compliance',
             severity: 'error',
             hard: true,
             blocking: true,
-            code: 'DRIVER_ADR_EXPIRED',
-            message: `Driver ${dName} lacks required ADR certificate for hazardous goods trip ${trip.tripNumber || trip.id}.`,
+            code: issue.code,
+            message: issue.message,
           });
-        } else if (adrDoc.expiryDate && new Date(adrDoc.expiryDate) < tripEnd) {
-          const expStr = new Date(adrDoc.expiryDate).toISOString().slice(0, 10);
-          conflicts.push({
-            type: 'compliance',
-            severity: 'error',
-            hard: true,
-            blocking: true,
-            code: 'DRIVER_ADR_EXPIRED',
-            message: `Driver ${dName} ADR certificate expires on ${expStr}, before planned trip completion (${tripEndStr}). Legally required for ADR transport.`,
+        } else {
+          warnings.push({
+            type: 'adr_warning',
+            severity: 'warning',
+            hard: false,
+            blocking: false,
+            code: issue.code,
+            message: issue.message,
           });
         }
+      }
+
+      // Drop & Hook validation
+      if (trailer?.isDropped && ['started', 'loading', 'driving', 'partially_delivered'].includes(String(trip.status || ''))) {
+        conflicts.push({
+          type: 'drop_hook',
+          severity: 'error',
+          hard: true,
+          blocking: true,
+          code: 'DROP_HOOK_CONFLICT',
+          message: `Trailer ${trailer.plateNumber} is currently dropped at ${trailer.dropLocation || 'facility'}. Must be hooked before trip dispatch.`,
+        });
+      }
+
+      // Subcontractor validation
+      if (trip.fleetType === 'subcontractor' || trip.fleetType === 'charter') {
+        if (trip.carrierDocumentsValid === false) {
+          conflicts.push({
+            type: 'subcontractor_compliance',
+            severity: 'error',
+            hard: true,
+            blocking: true,
+            code: 'SUBCONTRACTOR_UNAVAILABLE',
+            message: `Carrier ${trip.carrierName || 'Subcontractor'} has invalid or missing compliance documents.`,
+          });
+        }
+        if (trip.carrierInsuranceExpiry && new Date(trip.carrierInsuranceExpiry) < tripEnd) {
+          conflicts.push({
+            type: 'subcontractor_compliance',
+            severity: 'error',
+            hard: true,
+            blocking: true,
+            code: 'SUBCONTRACTOR_UNAVAILABLE',
+            message: `Carrier ${trip.carrierName || 'Subcontractor'} CMR insurance expires before trip completion.`,
+          });
+        }
+      }
+
+      // Live Traffic Delay
+      if (trip.trafficDelayMinutes && trip.trafficDelayMinutes > 25) {
+        warnings.push({
+          type: 'traffic_delay',
+          severity: 'warning',
+          hard: false,
+          blocking: false,
+          code: 'TRAFFIC_DELAY',
+          message: `Live traffic congestion delay detected (+${trip.trafficDelayMinutes} min). Recalculated ETA risks exceeding schedule.`,
+        });
       }
     }
 
@@ -4195,6 +4449,17 @@ export class PlanningService {
     return this.planningActionRepo.save(entry);
   }
 
+  async logAction(user: any, data: any): Promise<PlanningAction> {
+    return this.recordAction(
+      data.action || 'planning_action',
+      data.undoData || data,
+      user?.companyId || null,
+      user?.id || null,
+      data.beforeState,
+      data.afterState,
+    );
+  }
+
   async getAuditActions(truckId?: string, planningDate?: string): Promise<PlanningAction[]> {
     const qb = this.planningActionRepo.createQueryBuilder('a')
       .orderBy('a."createdAt"', 'DESC')
@@ -4478,6 +4743,643 @@ export class PlanningService {
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ─── DROP & HOOK OPERATIONS (§2) ──────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async dropTrailer(user: any, dto: {
+    trailerId: string;
+    tripId?: string;
+    locationName: string;
+    address?: string;
+    latitude?: number;
+    longitude?: number;
+    eventTime?: string;
+    notes?: string;
+  }) {
+    const trailer = await this.trailerRepo.findOne({ where: { id: dto.trailerId } });
+    if (!trailer) throw new NotFoundException('Trailer not found');
+
+    if (trailer.isDropped) {
+      throw new BadRequestException(`Trailer ${trailer.plateNumber} is already marked as dropped at ${trailer.dropLocation || 'location'}.`);
+    }
+
+    let trip: Trip | null = null;
+    if (dto.tripId) {
+      trip = await this.tripRepo.findOne({ where: { id: dto.tripId }, relations: ['truck', 'driver'] });
+    }
+
+    const eventTime = dto.eventTime ? new Date(dto.eventTime) : new Date();
+
+    // 1. Update trailer status & location
+    trailer.isDropped = true;
+    trailer.dropLocation = dto.locationName;
+    trailer.dropLat = dto.latitude || null;
+    trailer.dropLng = dto.longitude || null;
+    trailer.droppedAt = eventTime;
+    trailer.currentTripId = dto.tripId || null;
+    const oldTruckId = trailer.currentTruckId;
+    trailer.currentTruckId = null;
+    await this.trailerRepo.save(trailer);
+
+    // 2. Release tractor from trailer if linked
+    if (trip?.truck) {
+      trip.truck.trailer = null as any;
+      await this.truckRepo.save(trip.truck);
+    }
+
+    // 3. Record DropHookEvent
+    const dropEvent = this.dropHookRepo.create({
+      companyId: user?.companyId || null,
+      type: DropHookType.DROP,
+      trailerId: trailer.id,
+      truckId: trip?.truck?.id || oldTruckId || null,
+      driverId: trip?.driver?.id || null,
+      tripId: trip?.id || null,
+      locationName: dto.locationName,
+      address: dto.address || null,
+      latitude: dto.latitude || null,
+      longitude: dto.longitude || null,
+      eventTime,
+      notes: dto.notes || null,
+      performedBy: user?.name || user?.email || 'Dispatcher',
+    });
+    const savedEvent = await this.dropHookRepo.save(dropEvent);
+
+    // 4. Log Audit & Timeline
+    await this.logAction(user, {
+      truckId: trip?.truck?.id || null,
+      routePlanId: null,
+      action: 'drop_trailer',
+      undoData: { trailerId: trailer.id, previousDropped: false },
+      beforeState: { isDropped: false, currentTruckId: oldTruckId },
+      afterState: { isDropped: true, dropLocation: dto.locationName, eventId: savedEvent.id },
+    });
+
+    if (trip) {
+      await this.timelineService.createEvent({
+        companyId: user?.companyId,
+        tripId: trip.id,
+        userId: user?.id,
+        type: 'user',
+        action: 'Trailer Dropped',
+        details: JSON.stringify({
+          trailerPlate: trailer.plateNumber,
+          location: dto.locationName,
+          eventTime,
+        }),
+      });
+    }
+
+    return {
+      success: true,
+      trailer,
+      event: savedEvent,
+      message: `Trailer ${trailer.plateNumber} dropped at ${dto.locationName}. Tractor & driver released.`,
+    };
+  }
+
+  async hookTrailer(user: any, dto: {
+    trailerId: string;
+    truckId: string;
+    driverId?: string;
+    tripId?: string;
+    locationName: string;
+    address?: string;
+    latitude?: number;
+    longitude?: number;
+    eventTime?: string;
+    notes?: string;
+  }) {
+    const trailer = await this.trailerRepo.findOne({ where: { id: dto.trailerId } });
+    if (!trailer) throw new NotFoundException('Trailer not found');
+
+    const truck = await this.truckRepo.findOne({ where: { id: dto.truckId }, relations: ['trailer'] });
+    if (!truck) throw new NotFoundException('Truck not found');
+
+    if (truck.status === 'maintenance' || truck.status === 'inactive') {
+      throw new BadRequestException(`Truck ${truck.plateNumber} is not available for hook operations (status: ${truck.status}).`);
+    }
+
+    const eventTime = dto.eventTime ? new Date(dto.eventTime) : new Date();
+
+    // Validate location consistency if trailer had a recorded drop location
+    if (trailer.isDropped && trailer.dropLocation && dto.locationName) {
+      const dropLoc = trailer.dropLocation.toLowerCase().trim();
+      const hookLoc = dto.locationName.toLowerCase().trim();
+      if (dropLoc !== hookLoc && !dropLoc.includes(hookLoc) && !hookLoc.includes(dropLoc)) {
+        this.logger.warn(`Hook location (${dto.locationName}) differs from drop location (${trailer.dropLocation}). Dispatcher authorized transition.`);
+      }
+    }
+
+    let trip: Trip | null = null;
+    if (dto.tripId) {
+      trip = await this.tripRepo.findOne({ where: { id: dto.tripId } });
+    }
+
+    // 1. Update trailer state
+    trailer.isDropped = false;
+    trailer.dropLocation = null as any;
+    trailer.currentTruckId = truck.id;
+    trailer.currentTripId = trip?.id || null;
+    await this.trailerRepo.save(trailer);
+
+    // 2. Link trailer to truck
+    truck.trailer = trailer;
+    await this.truckRepo.save(truck);
+
+    // If trip exists, link trailer to trip
+    if (trip) {
+      trip.trailer = trailer;
+      trip.truck = truck;
+      if (dto.driverId) {
+        const driver = await this.driverRepo.findOne({ where: { id: dto.driverId } });
+        if (driver) trip.driver = driver;
+      }
+      await this.tripRepo.save(trip);
+    }
+
+    // 3. Record DropHookEvent
+    const hookEvent = this.dropHookRepo.create({
+      companyId: user?.companyId || null,
+      type: DropHookType.HOOK,
+      trailerId: trailer.id,
+      truckId: truck.id,
+      driverId: dto.driverId || trip?.driver?.id || null,
+      tripId: trip?.id || null,
+      locationName: dto.locationName,
+      address: dto.address || null,
+      latitude: dto.latitude || null,
+      longitude: dto.longitude || null,
+      eventTime,
+      notes: dto.notes || null,
+      performedBy: user?.name || user?.email || 'Dispatcher',
+    });
+    const savedEvent = await this.dropHookRepo.save(hookEvent);
+
+    // 4. Audit & Timeline
+    await this.logAction(user, {
+      truckId: truck.id,
+      routePlanId: null,
+      action: 'hook_trailer',
+      undoData: { trailerId: trailer.id, previousDropped: true },
+      beforeState: { isDropped: true, dropLocation: trailer.dropLocation },
+      afterState: { isDropped: false, currentTruckId: truck.id, eventId: savedEvent.id },
+    });
+
+    if (trip) {
+      await this.timelineService.createEvent({
+        companyId: user?.companyId,
+        tripId: trip.id,
+        userId: user?.id,
+        type: 'user',
+        action: 'Trailer Hooked',
+        details: JSON.stringify({
+          trailerPlate: trailer.plateNumber,
+          truckPlate: truck.plateNumber,
+          location: dto.locationName,
+          eventTime,
+        }),
+      });
+    }
+
+    return {
+      success: true,
+      trailer,
+      truck,
+      event: savedEvent,
+      message: `Trailer ${trailer.plateNumber} hooked to ${truck.plateNumber} at ${dto.locationName}.`,
+    };
+  }
+
+  async getDropHookEvents(user: any, query: any) {
+    const qb = this.dropHookRepo.createQueryBuilder('e')
+      .leftJoinAndSelect('e.trailer', 'trailer')
+      .leftJoinAndSelect('e.truck', 'truck')
+      .leftJoinAndSelect('e.driver', 'driver')
+      .leftJoinAndSelect('e.trip', 'trip')
+      .orderBy('e.eventTime', 'DESC');
+
+    if (user?.companyId) {
+      qb.andWhere('(e.companyId = :cid OR e.companyId IS NULL)', { cid: user.companyId });
+    }
+    if (query?.trailerId) {
+      qb.andWhere('e.trailerId = :tid', { tid: query.trailerId });
+    }
+    if (query?.tripId) {
+      qb.andWhere('e.tripId = :trid', { trid: query.tripId });
+    }
+
+    return qb.take(100).getMany();
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ─── CROSS-DOCKING / TRANSSHIPMENT OPERATIONS (§3) ────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async createCrossDockTransfer(user: any, dto: {
+    orderId: string;
+    facilityName: string;
+    facilityAddress?: string;
+    latitude?: number;
+    longitude?: number;
+    inboundTripId?: string;
+    outboundTripId?: string;
+    cargoDescription?: string;
+    pallets?: number;
+    weightKg?: number;
+    volumeCbm?: number;
+    ldm?: number;
+    inboundEta?: string;
+    outboundEta?: string;
+    notes?: string;
+  }) {
+    const order = await this.orderRepo.findOne({ where: { id: dto.orderId } });
+    if (!order) throw new NotFoundException('Order not found');
+
+    const transfer = this.crossDockRepo.create({
+      companyId: user?.companyId || null,
+      orderId: order.id,
+      inboundTripId: dto.inboundTripId || null,
+      outboundTripId: dto.outboundTripId || null,
+      facilityName: dto.facilityName,
+      facilityAddress: dto.facilityAddress || null,
+      latitude: dto.latitude || null,
+      longitude: dto.longitude || null,
+      cargoDescription: dto.cargoDescription || order.cargoDescription || null,
+      pallets: dto.pallets != null ? Number(dto.pallets) : Number(order.pallets || 0),
+      weightKg: dto.weightKg != null ? Number(dto.weightKg) : Number(order.weightKg || 0),
+      volumeCbm: dto.volumeCbm != null ? Number(dto.volumeCbm) : Number(order.volumeCbm || 0),
+      ldm: dto.ldm != null ? Number(dto.ldm) : Number(order.loadingMeters || 0),
+      status: CrossDockStatus.PLANNED,
+      inboundEta: dto.inboundEta ? new Date(dto.inboundEta) : null,
+      outboundEta: dto.outboundEta ? new Date(dto.outboundEta) : null,
+      responsibleUser: user?.name || user?.email || 'Dispatcher',
+      notes: dto.notes || null,
+    });
+
+    const saved = await this.crossDockRepo.save(transfer);
+
+    // Audit and timeline logging
+    await this.logAction(user, {
+      truckId: null,
+      routePlanId: null,
+      action: 'create_cross_dock',
+      undoData: { transferId: saved.id },
+      beforeState: null,
+      afterState: { transferId: saved.id, orderId: order.id, facility: dto.facilityName },
+    });
+
+    await this.timelineService.createEvent({
+      companyId: user?.companyId,
+      orderId: order.id,
+      userId: user?.id,
+      type: 'user',
+      action: 'Cross-Dock Scheduled',
+      details: JSON.stringify({
+        facility: dto.facilityName,
+        pallets: saved.pallets,
+        weightKg: saved.weightKg,
+      }),
+    });
+
+    return saved;
+  }
+
+  async updateCrossDockStatus(user: any, transferId: string, status: CrossDockStatus) {
+    const transfer = await this.crossDockRepo.findOne({ where: { id: transferId }, relations: ['order'] });
+    if (!transfer) throw new NotFoundException('Cross-dock transfer not found');
+
+    const oldStatus = transfer.status;
+    transfer.status = status;
+    if (status === CrossDockStatus.TRANSFERRED) {
+      transfer.transferredAt = new Date();
+    }
+    await this.crossDockRepo.save(transfer);
+
+    await this.logAction(user, {
+      truckId: null,
+      routePlanId: null,
+      action: 'update_cross_dock_status',
+      undoData: { transferId, previousStatus: oldStatus },
+      beforeState: { status: oldStatus },
+      afterState: { status },
+    });
+
+    return transfer;
+  }
+
+  async getCrossDockTransfers(user: any, query: any) {
+    const qb = this.crossDockRepo.createQueryBuilder('x')
+      .leftJoinAndSelect('x.order', 'order')
+      .leftJoinAndSelect('x.inboundTrip', 'inboundTrip')
+      .leftJoinAndSelect('x.outboundTrip', 'outboundTrip')
+      .orderBy('x.createdAt', 'DESC');
+
+    if (user?.companyId) {
+      qb.andWhere('(x.companyId = :cid OR x.companyId IS NULL)', { cid: user.companyId });
+    }
+    if (query?.orderId) {
+      qb.andWhere('x.orderId = :oid', { oid: query.orderId });
+    }
+    if (query?.tripId) {
+      qb.andWhere('(x.inboundTripId = :tid OR x.outboundTripId = :tid)', { tid: query.tripId });
+    }
+
+    return qb.take(100).getMany();
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ─── SUBCONTRACTOR / CHARTER PLANNING (§8) ────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async assignSubcontractor(user: any, tripId: string, dto: {
+    fleetType: 'subcontractor' | 'charter';
+    carrierName: string;
+    carrierContact?: string;
+    carrierPhone?: string;
+    carrierEmail?: string;
+    carrierRate?: number;
+    carrierCurrency?: string;
+    carrierReference?: string;
+    carrierTruckPlate?: string;
+    carrierTrailerPlate?: string;
+    carrierDriverName?: string;
+    carrierDriverPhone?: string;
+    carrierNotes?: string;
+    carrierDocumentsValid?: boolean;
+    carrierInsuranceExpiry?: string;
+  }) {
+    const trip = await this.tripRepo.findOne({ where: { id: tripId }, relations: ['truck', 'driver', 'trailer'] });
+    if (!trip) throw new NotFoundException('Trip not found');
+
+    const previousFleetType = trip.fleetType;
+    trip.fleetType = dto.fleetType || 'subcontractor';
+    trip.carrierName = dto.carrierName;
+    trip.carrierContact = dto.carrierContact || null as any;
+    trip.carrierPhone = dto.carrierPhone || null as any;
+    trip.carrierEmail = dto.carrierEmail || null as any;
+    trip.carrierRate = dto.carrierRate != null ? Number(dto.carrierRate) : null as any;
+    trip.carrierCurrency = dto.carrierCurrency || 'EUR';
+    trip.carrierReference = dto.carrierReference || null as any;
+    trip.carrierTruckPlate = dto.carrierTruckPlate || null as any;
+    trip.carrierTrailerPlate = dto.carrierTrailerPlate || null as any;
+    trip.carrierDriverName = dto.carrierDriverName || null as any;
+    trip.carrierDriverPhone = dto.carrierDriverPhone || null as any;
+    trip.carrierNotes = dto.carrierNotes || null as any;
+    trip.carrierDocumentsValid = dto.carrierDocumentsValid !== false;
+    trip.carrierInsuranceExpiry = dto.carrierInsuranceExpiry ? new Date(dto.carrierInsuranceExpiry) : null as any;
+    trip.carrierStatus = 'assigned';
+
+    await this.tripRepo.save(trip);
+
+    // Audit and Timeline
+    await this.logAction(user, {
+      truckId: trip.truck?.id || null,
+      routePlanId: null,
+      action: 'assign_subcontractor',
+      undoData: { tripId, previousFleetType },
+      beforeState: { fleetType: previousFleetType },
+      afterState: { fleetType: dto.fleetType, carrierName: dto.carrierName, rate: dto.carrierRate },
+    });
+
+    await this.timelineService.createEvent({
+      companyId: user?.companyId,
+      tripId: trip.id,
+      userId: user?.id,
+      type: 'user',
+      action: `Assigned to ${dto.fleetType === 'charter' ? 'Charter Carrier' : 'Subcontractor'}`,
+      details: JSON.stringify({
+        carrier: dto.carrierName,
+        rate: dto.carrierRate,
+        reference: dto.carrierReference,
+      }),
+    });
+
+    return trip;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ─── LIVE TRAFFIC ARCHITECTURE (§6) ───────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async checkLiveTraffic(user: any, tripId: string) {
+    const trip = await this.tripRepo.findOne({
+      where: { id: tripId },
+      relations: ['stops'],
+    });
+    if (!trip) throw new NotFoundException('Trip not found');
+
+    const stops = (trip.stops || []).sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+    const validStops = stops.filter((s) => s.latitude && s.longitude);
+
+    if (validStops.length < 2) {
+      return {
+        available: false,
+        message: 'Trip requires at least 2 stops with geographic coordinates for live traffic calculation',
+        trafficDelayMinutes: 0,
+        congestionLevel: 'free_flow',
+        incidents: [],
+      };
+    }
+
+    const origin = { lat: Number(validStops[0].latitude), lng: Number(validStops[0].longitude) };
+    const destination = { lat: Number(validStops[validStops.length - 1].latitude), lng: Number(validStops[validStops.length - 1].longitude) };
+    const waypoints = validStops.slice(1, -1).map((s) => ({ lat: Number(s.latitude), lng: Number(s.longitude) }));
+
+    const trafficResult = await this.routingService.getLiveTraffic(origin, destination, waypoints);
+
+    if (trafficResult.available) {
+      trip.trafficDelayMinutes = trafficResult.currentDelayMinutes;
+      trip.trafficStatus = trafficResult.congestionLevel === 'standstill' || trafficResult.congestionLevel === 'heavy' ? 'congested' : 'normal';
+      await this.tripRepo.save(trip);
+    } else {
+      trip.trafficStatus = 'unavailable';
+      await this.tripRepo.save(trip);
+    }
+
+    return trafficResult;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ─── EUROPEAN TOLL CALCULATION (§7) ───────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async calculateTripTolls(user: any, tripId: string) {
+    const trip = await this.tripRepo.findOne({
+      where: { id: tripId },
+      relations: ['stops', 'truck', 'trailer'],
+    });
+    if (!trip) throw new NotFoundException('Trip not found');
+
+    const stops = (trip.stops || []).sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+    const validStops = stops.filter((s) => s.latitude && s.longitude);
+
+    if (validStops.length < 2) {
+      return {
+        available: false,
+        message: 'Trip requires at least 2 stops with geographic coordinates for toll calculation',
+        totalCost: 0,
+        currency: 'EUR',
+        countries: [],
+        sections: [],
+      };
+    }
+
+    const origin = { lat: Number(validStops[0].latitude), lng: Number(validStops[0].longitude) };
+    const destination = { lat: Number(validStops[validStops.length - 1].latitude), lng: Number(validStops[validStops.length - 1].longitude) };
+    const waypoints = validStops.slice(1, -1).map((s) => ({ lat: Number(s.latitude), lng: Number(s.longitude) }));
+
+    const tollResult = await this.routingService.calculateTolls(origin, destination, waypoints, {
+      grossWeightKg: Number(trip.truck?.maxWeightKg) || 40000,
+      axleCount: 5,
+      heightCm: 400,
+      emissionClass: trip.truck?.euronorm || 'Euro 6',
+      hasTrailer: !!trip.trailer,
+    });
+
+    if (tollResult.available) {
+      trip.tollCost = tollResult.totalCost;
+      trip.tollStatus = 'calculated';
+      trip.tollCountries = tollResult.countries;
+      await this.tripRepo.save(trip);
+    } else {
+      trip.tollStatus = 'unavailable';
+      await this.tripRepo.save(trip);
+    }
+
+    return tollResult;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ─── FLEET-WIDE VRP OPTIMIZATION (§5) ─────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async optimizeFleetProposal(user: any, body: any) {
+    const companyId = user?.companyId || null;
+
+    // Load candidate orders
+    let orders: Order[] = [];
+    if (body.orderIds && body.orderIds.length > 0) {
+      orders = await this.orderRepo.find({
+        where: { id: In(body.orderIds) },
+        relations: ['stops', 'cargoItems', 'client'],
+      });
+    } else {
+      orders = await this.orderRepo.find({
+        where: {
+          status: In(UNPLANNED_ORDER_STATUSES),
+          ...(companyId ? { company: { id: companyId } } : {}),
+        },
+        relations: ['stops', 'cargoItems', 'client'],
+        take: 50,
+      });
+    }
+
+    // Load available trucks, drivers, trailers
+    const trucks = await this.truckRepo.find({
+      where: {
+        status: 'active' as any,
+        ...(companyId ? { company: { id: companyId } } : {}),
+      },
+      relations: ['driver', 'trailer'],
+    });
+
+    const drivers = await this.driverRepo.find({
+      where: {
+        active: true,
+        ...(companyId ? { company: { id: companyId } } : {}),
+      },
+      relations: ['documents'],
+    });
+
+    const currentTrips = await this.tripRepo.find({
+      where: {
+        status: In(ACTIVE_TRIP_STATUSES),
+        ...(companyId ? { company: { id: companyId } } : {}),
+      },
+      relations: ['truck', 'driver', 'trailer', 'orders', 'stops'],
+    });
+
+    return this.optimizationService.optimizeFleet({
+      orders,
+      trucks,
+      drivers,
+      currentTrips,
+      options: {
+        objective: body.objective || 'min_distance',
+        lockedOrderIds: body.lockedOrderIds || [],
+        lockedTripIds: body.lockedTripIds || [],
+      },
+    });
+  }
+
+  async applyFleetOptimization(user: any, body: { proposal: any }) {
+    if (!body?.proposal?.trips || !Array.isArray(body.proposal.trips)) {
+      throw new BadRequestException('Invalid optimization proposal');
+    }
+
+    const appliedTrips: any[] = [];
+    for (const tripProp of body.proposal.trips) {
+      if (!tripProp.orderIds || tripProp.orderIds.length === 0) continue;
+
+      let trip: Trip;
+      if (tripProp.tripId) {
+        trip = await this.tripRepo.findOne({ where: { id: tripProp.tripId }, relations: ['orders'] }) || new Trip();
+      } else {
+        trip = this.tripRepo.create();
+        trip.company = user?.companyId ? ({ id: user.companyId } as any) : null as any;
+        trip.tripNumber = `TR-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900000) + 100000)}`;
+        trip.status = 'planning';
+        trip.plannedDeparture = new Date();
+        trip.plannedArrival = new Date(Date.now() + (tripProp.routeDurationHours || 4) * 3600 * 1000);
+      }
+
+      const truck = await this.truckRepo.findOne({ where: { id: tripProp.truckId } });
+      if (truck) trip.truck = truck;
+      if (tripProp.driverId) {
+        const driver = await this.driverRepo.findOne({ where: { id: tripProp.driverId } });
+        if (driver) trip.driver = driver;
+      }
+      if (tripProp.trailerId) {
+        const trailer = await this.trailerRepo.findOne({ where: { id: tripProp.trailerId } });
+        if (trailer) trip.trailer = trailer;
+      }
+
+      trip.distanceKm = tripProp.routeDistanceKm || 0;
+      trip.estimatedCost = tripProp.estimatedCost || 0;
+      const savedTrip = await this.tripRepo.save(trip);
+
+      // Assign orders
+      for (const orderId of tripProp.orderIds) {
+        const order = await this.orderRepo.findOne({ where: { id: orderId } });
+        if (order) {
+          order.trip = savedTrip;
+          order.status = OrderStatus.PLANNED;
+          await this.orderRepo.save(order);
+        }
+      }
+
+      appliedTrips.push(savedTrip);
+    }
+
+    // Audit proposal application
+    await this.logAction(user, {
+      truckId: null,
+      routePlanId: null,
+      action: 'apply_fleet_optimization',
+      undoData: null,
+      beforeState: body.proposal.before,
+      afterState: { appliedTripsCount: appliedTrips.length, impact: body.proposal.impact },
+    });
+
+    return {
+      success: true,
+      tripsCreatedOrUpdated: appliedTrips.length,
+      impact: body.proposal.impact,
+    };
   }
 
 }

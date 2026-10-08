@@ -154,6 +154,77 @@ export class PlanningController {
     return this.planningService.splitTrip(req.user, tripId, body);
   }
 
+  // ─── Drop & Hook Operations (§2) ───
+  @Post('trailers/drop')
+  dropTrailer(@Request() req: any, @Body() body: any) {
+    return this.planningService.dropTrailer(req.user, body);
+  }
+
+  @Post('trailers/hook')
+  hookTrailer(@Request() req: any, @Body() body: any) {
+    return this.planningService.hookTrailer(req.user, body);
+  }
+
+  @Get('trailers/drop-hook-events')
+  getDropHookEvents(@Request() req: any, @Query() query: any) {
+    return this.planningService.getDropHookEvents(req.user, query);
+  }
+
+  // ─── Cross-Docking / Transshipment Operations (§3) ───
+  @Post('cross-dock')
+  createCrossDockTransfer(@Request() req: any, @Body() body: any) {
+    return this.planningService.createCrossDockTransfer(req.user, body);
+  }
+
+  @Patch('cross-dock/:id/status')
+  updateCrossDockStatus(@Request() req: any, @Param('id') id: string, @Body() body: any) {
+    return this.planningService.updateCrossDockStatus(req.user, id, body.status);
+  }
+
+  @Get('cross-dock')
+  getCrossDockTransfers(@Request() req: any, @Query() query: any) {
+    return this.planningService.getCrossDockTransfers(req.user, query);
+  }
+
+  // ─── Subcontractor / Charter Planning (§8) ───
+  @Post('trips/:tripId/subcontractor')
+  assignSubcontractor(@Request() req: any, @Param('tripId') tripId: string, @Body() body: any) {
+    return this.planningService.assignSubcontractor(req.user, tripId, body);
+  }
+
+  // ─── Live Traffic Architecture (§6) ───
+  @Get('trips/:tripId/traffic')
+  getTripTraffic(@Request() req: any, @Param('tripId') tripId: string) {
+    return this.planningService.checkLiveTraffic(req.user, tripId);
+  }
+
+  @Post('trips/:tripId/traffic')
+  checkTripTraffic(@Request() req: any, @Param('tripId') tripId: string) {
+    return this.planningService.checkLiveTraffic(req.user, tripId);
+  }
+
+  // ─── European Toll Calculation (§7) ───
+  @Get('trips/:tripId/tolls')
+  getTripTolls(@Request() req: any, @Param('tripId') tripId: string) {
+    return this.planningService.calculateTripTolls(req.user, tripId);
+  }
+
+  @Post('trips/:tripId/tolls')
+  calculateTripTolls(@Request() req: any, @Param('tripId') tripId: string) {
+    return this.planningService.calculateTripTolls(req.user, tripId);
+  }
+
+  // ─── Fleet-Wide VRP Optimization (§5) ───
+  @Post('optimize-fleet')
+  optimizeFleet(@Request() req: any, @Body() body: any) {
+    return this.planningService.optimizeFleetProposal(req.user, body);
+  }
+
+  @Post('optimize-fleet/apply')
+  applyFleetOptimization(@Request() req: any, @Body() body: any) {
+    return this.planningService.applyFleetOptimization(req.user, body);
+  }
+
   @Get('map')
   getMap(@Request() req: any, @Query() query: any) {
     return this.planningService.getMapData(req.user, query);

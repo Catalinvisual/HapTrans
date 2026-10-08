@@ -59,10 +59,31 @@ export class CargoItem {
   fragile: boolean;
 
   @Column({ nullable: true })
-  adrClass: string; // e.g. "3", "8" - null if not ADR
+  adrClass: string; // e.g. "1", "2.1", "3", "4.1", "5.1", "6.1", "7", "8", "9"
 
   @Column({ nullable: true })
-  unNumber: string;
+  unNumber: string; // e.g. "UN 1203"
+
+  @Column({ nullable: true })
+  properShippingName: string; // e.g. "GASOLINE"
+
+  @Column({ nullable: true })
+  packingGroup: string; // "I", "II", "III"
+
+  @Column({ nullable: true })
+  tunnelRestrictionCode: string; // "B", "C", "D", "E", "B/D", "C/E"
+
+  @Column({ type: 'int', nullable: true })
+  transportCategory: number; // 0, 1, 2, 3, 4
+
+  @Column({ default: false })
+  limitedQuantity: boolean; // LQ (exemptions apply under threshold)
+
+  @Column({ default: false })
+  exceptedQuantity: boolean; // EQ
+
+  @Column({ default: false })
+  environmentalHazard: boolean;
 
   @Column({ default: false })
   requiresTemperatureControl: boolean;

@@ -121,6 +121,100 @@ export const planningApi = {
     return data;
   },
 
+  // ─── Drop & Hook Operations ───
+  dropTrailer: async (payload: { trailerId: string; tripId?: string; dropLocation: string; dropLat?: number; dropLng?: number; droppedAt?: string; notes?: string }) => {
+    const { data } = await api.post('/planning/trailers/drop', payload);
+    return data;
+  },
+  hookTrailer: async (payload: { trailerId: string; truckId?: string; driverId?: string; tripId?: string; hookLocation: string; hookLat?: number; hookLng?: number; hookedAt?: string; notes?: string }) => {
+    const { data } = await api.post('/planning/trailers/hook', payload);
+    return data;
+  },
+  getDropHookEvents: async (params?: { trailerId?: string; tripId?: string }) => {
+    const { data } = await api.get('/planning/trailers/drop-hook-events', { params });
+    return data;
+  },
+
+  // ─── Cross-Docking Operations ───
+  createCrossDockTransfer: async (payload: {
+    orderId: string;
+    inboundTripId?: string;
+    outboundTripId?: string;
+    facilityName: string;
+    facilityAddress?: string;
+    facilityLat?: number;
+    facilityLng?: number;
+    pallets?: number;
+    weight?: number;
+    ldm?: number;
+    notes?: string;
+  }) => {
+    const { data } = await api.post('/planning/cross-dock', payload);
+    return data;
+  },
+  updateCrossDockStatus: async (id: string, status: string) => {
+    const { data } = await api.patch(`/planning/cross-dock/${id}/status`, { status });
+    return data;
+  },
+  getCrossDockTransfers: async (params?: { orderId?: string; tripId?: string; status?: string }) => {
+    const { data } = await api.get('/planning/cross-dock', { params });
+    return data;
+  },
+
+  // ─── Subcontractor / Charter Planning ───
+  assignSubcontractor: async (tripId: string, payload: {
+    fleetType: 'own_fleet' | 'subcontractor' | 'charter';
+    carrierId?: string;
+    carrierName?: string;
+    carrierRate?: number;
+    carrierCurrency?: string;
+    carrierReference?: string;
+    carrierTruckPlate?: string;
+    carrierTrailerPlate?: string;
+    carrierDriverName?: string;
+    carrierDriverPhone?: string;
+    notes?: string;
+  }) => {
+    const { data } = await api.post(`/planning/trips/${tripId}/subcontractor`, payload);
+    return data;
+  },
+
+  // ─── Live Traffic Architecture ───
+  getTripTraffic: async (tripId: string) => {
+    const { data } = await api.get(`/planning/trips/${tripId}/traffic`);
+    return data;
+  },
+  checkTripTraffic: async (tripId: string) => {
+    const { data } = await api.post(`/planning/trips/${tripId}/traffic`);
+    return data;
+  },
+
+  // ─── European Tolls ───
+  getTripTolls: async (tripId: string) => {
+    const { data } = await api.get(`/planning/trips/${tripId}/tolls`);
+    return data;
+  },
+  calculateTripTolls: async (tripId: string) => {
+    const { data } = await api.post(`/planning/trips/${tripId}/tolls`);
+    return data;
+  },
+
+  // ─── Fleet-Wide VRP Optimization ───
+  optimizeFleet: async (payload: {
+    orderIds?: string[];
+    truckIds?: string[];
+    dateRange?: { start: string; end: string };
+    objective?: string;
+    lockedOrderIds?: string[];
+  }) => {
+    const { data } = await api.post('/planning/optimize-fleet', payload);
+    return data;
+  },
+  applyFleetOptimization: async (payload: { proposalId: string; selectedTripIds?: string[] }) => {
+    const { data } = await api.post('/planning/optimize-fleet/apply', payload);
+    return data;
+  },
+
   // ─── Saved Views ───
   getViews: async () => {
     const { data } = await api.get('/planning/views');

@@ -16,6 +16,8 @@ import { PlanningProfile } from './planning-profile.entity';
 import { TruckRoutePlan } from './truck-route-plan.entity';
 import { RoutePlanStop } from './route-plan-stop.entity';
 import { Shipment } from './shipment.entity';
+import { DropHookEvent } from './drop-hook.entity';
+import { CrossDockTransfer } from './cross-dock-transfer.entity';
 import { PlanningController } from './planning.controller';
 import { PlanningService } from './planning.service';
 import { OptimizationService } from './optimization.service';
@@ -42,6 +44,8 @@ import { TimelineModule } from '../timeline/timeline.module';
       TruckRoutePlan,
       RoutePlanStop,
       Shipment,
+      DropHookEvent,
+      CrossDockTransfer,
     ]),
     EnginesModule,
     TimelineModule,

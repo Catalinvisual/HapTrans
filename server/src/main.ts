@@ -686,6 +686,96 @@ async function bootstrap() {
       )
     `).catch(() => {});
 
+    // 17. Drop & Hook events
+    await dataSource.query(`
+      CREATE TABLE IF NOT EXISTS "drop_hook_events" (
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "companyId" uuid,
+        "type" character varying(10) NOT NULL,
+        "trailerId" uuid NOT NULL,
+        "truckId" uuid,
+        "driverId" uuid,
+        "tripId" uuid,
+        "locationName" character varying NOT NULL,
+        "address" character varying,
+        "latitude" numeric(10,6),
+        "longitude" numeric(10,6),
+        "eventTime" TIMESTAMP NOT NULL,
+        "notes" text,
+        "performedBy" character varying,
+        "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+        CONSTRAINT "PK_drop_hook_events" PRIMARY KEY ("id")
+      )
+    `).catch(() => {});
+
+    // 18. Cross-dock transfers
+    await dataSource.query(`
+      CREATE TABLE IF NOT EXISTS "cross_dock_transfers" (
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "companyId" uuid,
+        "orderId" uuid NOT NULL,
+        "inboundTripId" uuid,
+        "outboundTripId" uuid,
+        "facilityName" character varying NOT NULL,
+        "facilityAddress" character varying,
+        "latitude" numeric(10,6),
+        "longitude" numeric(10,6),
+        "cargoDescription" character varying,
+        "pallets" integer,
+        "weightKg" numeric(10,2),
+        "volumeCbm" numeric(10,2),
+        "ldm" numeric(10,2),
+        "status" character varying NOT NULL DEFAULT 'planned',
+        "inboundEta" TIMESTAMP,
+        "outboundEta" TIMESTAMP,
+        "transferredAt" TIMESTAMP,
+        "responsibleUser" character varying,
+        "notes" text,
+        "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+        "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+        CONSTRAINT "PK_cross_dock_transfers" PRIMARY KEY ("id")
+      )
+    `).catch(() => {});
+
+    // 19. Schema updates for trailers, cargo_items, and trips
+    await dataSource.query(`ALTER TABLE "trailers" ADD COLUMN IF NOT EXISTS "isDropped" boolean DEFAULT false`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trailers" ADD COLUMN IF NOT EXISTS "dropLocation" character varying`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trailers" ADD COLUMN IF NOT EXISTS "dropLat" numeric(10,6)`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trailers" ADD COLUMN IF NOT EXISTS "dropLng" numeric(10,6)`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trailers" ADD COLUMN IF NOT EXISTS "droppedAt" TIMESTAMP`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trailers" ADD COLUMN IF NOT EXISTS "currentTripId" uuid`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trailers" ADD COLUMN IF NOT EXISTS "currentTruckId" uuid`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trailers" ADD COLUMN IF NOT EXISTS "features" text`).catch(() => {});
+
+    await dataSource.query(`ALTER TABLE "cargo_items" ADD COLUMN IF NOT EXISTS "properShippingName" character varying`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "cargo_items" ADD COLUMN IF NOT EXISTS "packingGroup" character varying`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "cargo_items" ADD COLUMN IF NOT EXISTS "tunnelRestrictionCode" character varying`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "cargo_items" ADD COLUMN IF NOT EXISTS "transportCategory" integer`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "cargo_items" ADD COLUMN IF NOT EXISTS "limitedQuantity" boolean DEFAULT false`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "cargo_items" ADD COLUMN IF NOT EXISTS "exceptedQuantity" boolean DEFAULT false`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "cargo_items" ADD COLUMN IF NOT EXISTS "environmentalHazard" boolean DEFAULT false`).catch(() => {});
+
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "fleetType" character varying DEFAULT 'own_fleet'`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "carrierName" character varying`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "carrierContact" character varying`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "carrierPhone" character varying`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "carrierEmail" character varying`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "carrierRate" numeric(10,2)`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "carrierCurrency" character varying DEFAULT 'EUR'`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "carrierReference" character varying`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "carrierStatus" character varying`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "carrierTruckPlate" character varying`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "carrierTrailerPlate" character varying`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "carrierDriverName" character varying`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "carrierDriverPhone" character varying`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "carrierNotes" text`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "carrierDocumentsValid" boolean DEFAULT true`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "carrierInsuranceExpiry" date`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "tollStatus" character varying DEFAULT 'not_calculated'`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "tollCountries" text`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "trafficDelayMinutes" integer DEFAULT 0`).catch(() => {});
+    await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "trafficStatus" character varying DEFAULT 'normal'`).catch(() => {});
+
     // NOW run explicit TypeORM migrations (non-destructive, idempotent)
     // replaces the previous dataSource.synchronize() which could alter schema
     // in production based on entity drift.

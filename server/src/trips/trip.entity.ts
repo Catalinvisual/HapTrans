@@ -43,6 +43,56 @@ export class Trip {
   @Column({ type: 'varchar', default: 'planned' })
   status: string;
 
+  // Fleet Type: Own Fleet vs Subcontractor vs Charter
+  @Column({ type: 'varchar', default: 'own_fleet' })
+  fleetType: string; // 'own_fleet' | 'subcontractor' | 'charter'
+
+  // Subcontractor & Charter Details
+  @Column({ nullable: true })
+  carrierName: string;
+
+  @Column({ nullable: true })
+  carrierContact: string;
+
+  @Column({ nullable: true })
+  carrierPhone: string;
+
+  @Column({ nullable: true })
+  carrierEmail: string;
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  carrierRate: number;
+
+  @Column({ nullable: true, default: 'EUR' })
+  carrierCurrency: string;
+
+  @Column({ nullable: true })
+  carrierReference: string;
+
+  @Column({ nullable: true })
+  carrierStatus: string; // 'assigned', 'confirmed', 'in_transit', 'completed', 'cancelled'
+
+  @Column({ nullable: true })
+  carrierTruckPlate: string;
+
+  @Column({ nullable: true })
+  carrierTrailerPlate: string;
+
+  @Column({ nullable: true })
+  carrierDriverName: string;
+
+  @Column({ nullable: true })
+  carrierDriverPhone: string;
+
+  @Column({ nullable: true, type: 'text' })
+  carrierNotes: string;
+
+  @Column({ type: 'boolean', default: true, nullable: true })
+  carrierDocumentsValid: boolean;
+
+  @Column({ type: 'date', nullable: true })
+  carrierInsuranceExpiry: Date;
+
   // Assignments
   @ManyToOne(() => Truck, (truck) => truck.trips, { eager: true, onDelete: 'SET NULL' })
   truck: Truck;
@@ -69,9 +119,22 @@ export class Trip {
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
   distanceKm: number;
 
-  // Tolls accumulated from real routing (HERE API) during trip-metric recalculation
+  // Tolls accumulated from real routing / toll providers
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2, default: 0 })
   tollCost: number;
+
+  @Column({ type: 'varchar', default: 'not_calculated' })
+  tollStatus: string; // 'not_calculated' | 'calculated' | 'unavailable'
+
+  @Column('simple-array', { nullable: true })
+  tollCountries: string[];
+
+  // Live Traffic status & delay
+  @Column({ type: 'int', default: 0 })
+  trafficDelayMinutes: number;
+
+  @Column({ type: 'varchar', default: 'normal' })
+  trafficStatus: string; // 'normal' | 'congested' | 'heavy_delay' | 'unavailable'
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2, default: 0 })
   estimatedCost: number;

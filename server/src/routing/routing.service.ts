@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { decode as flexDecode } from '@here/flexpolyline';
 import { LatLng, MatrixResult, RouteSummaryResult, RoutingOptions } from './routing-provider.interface';
+import { TrafficStatusResult, TrafficIncident } from './traffic-provider.interface';
+import { TollCalculationResult, TollSection, TollCalculationVehicle } from './toll-provider.interface';
 
 interface CachedMatrixItem {
   distanceKm: number;
@@ -491,5 +493,198 @@ export class RoutingService {
       { country: 'HU', flag: '🇭🇺', price: 1.72, currency: 'EUR', unit: 'L', source: 'static' },
       { country: 'AT', flag: '🇦🇹', price: 1.90, currency: 'EUR', unit: 'L', source: 'static' },
     ];
+  }
+
+  // ─── Live Traffic Architecture (§6) ───────────────────────────────────────
+  async getLiveTraffic(
+    origin: LatLng,
+    destination: LatLng,
+    waypoints?: LatLng[],
+  ): Promise<TrafficStatusResult> {
+    // Zero-mock check: if provider is not configured, report unavailable clearly
+    if (!this.hereKey && !this.googleKey) {
+      return {
+        available: false,
+        provider: 'none',
+        message: 'Live traffic unavailable — provider not configured',
+        currentDelayMinutes: 0,
+        congestionLevel: 'free_flow',
+        estimatedDurationWithTrafficMin: 0,
+        normalDurationMin: 0,
+        incidents: [],
+        calculatedAt: new Date(),
+      };
+    }
+
+    try {
+      if (this.hereKey) {
+        // Query HERE Routing v8 with live traffic parameters
+        const params: any = {
+          transportMode: 'truck',
+          origin: `${origin.lat},${origin.lng}`,
+          destination: `${destination.lat},${destination.lng}`,
+          departureTime: 'any',
+          return: 'summary,incidents',
+          apiKey: this.hereKey,
+        };
+
+        if (waypoints && waypoints.length > 0) {
+          waypoints.forEach((wp, idx) => {
+            params[`via[${idx}]`] = `${wp.lat},${wp.lng}`;
+          });
+        }
+
+        const res = await axios.get('https://router.hereapi.com/v8/routes', {
+          params,
+          timeout: 10000,
+        });
+
+        const route = res.data?.routes?.[0];
+        if (route) {
+          const section = route.sections?.[0];
+          const summary = section?.summary;
+          const baseDurationMin = Math.round((summary?.baseDuration || summary?.duration || 0) / 60);
+          const trafficDurationMin = Math.round((summary?.duration || 0) / 60);
+          const delayMin = Math.max(0, trafficDurationMin - baseDurationMin);
+
+          const incidents: TrafficIncident[] = (section?.incidents || []).map((inc: any, i: number) => ({
+            id: inc.id || `inc-${i}`,
+            type: (inc.type || 'congestion').toLowerCase(),
+            severity: inc.severity || (delayMin > 30 ? 'major' : delayMin > 10 ? 'moderate' : 'low'),
+            description: inc.description?.value || 'Traffic delay along corridor',
+            delayMinutes: Math.round((inc.summary?.length || 0) / 1000),
+          }));
+
+          const congestionLevel: TrafficStatusResult['congestionLevel'] =
+            delayMin > 45 ? 'standstill' : delayMin > 25 ? 'heavy' : delayMin > 10 ? 'moderate' : delayMin > 3 ? 'light' : 'free_flow';
+
+          return {
+            available: true,
+            provider: 'here',
+            currentDelayMinutes: delayMin,
+            congestionLevel,
+            estimatedDurationWithTrafficMin: trafficDurationMin,
+            normalDurationMin: baseDurationMin,
+            incidents,
+            calculatedAt: new Date(),
+          };
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(`Live traffic query failed: ${err.message}`);
+    }
+
+    return {
+      available: false,
+      provider: 'here',
+      message: 'Live traffic query returned no real-time telemetry',
+      currentDelayMinutes: 0,
+      congestionLevel: 'free_flow',
+      estimatedDurationWithTrafficMin: 0,
+      normalDurationMin: 0,
+      incidents: [],
+      calculatedAt: new Date(),
+    };
+  }
+
+  // ─── European Toll Calculation Architecture (§7) ──────────────────────────
+  async calculateTolls(
+    origin: LatLng,
+    destination: LatLng,
+    waypoints?: LatLng[],
+    vehicle?: TollCalculationVehicle,
+  ): Promise<TollCalculationResult> {
+    // Zero-mock check: if no provider configured, explicitly report unavailable
+    if (!this.hereKey) {
+      return {
+        available: false,
+        provider: 'none',
+        message: 'Toll calculation unavailable — provider not configured',
+        totalCost: 0,
+        currency: 'EUR',
+        countries: [],
+        sections: [],
+        calculatedAt: new Date(),
+      };
+    }
+
+    try {
+      const grossWeight = vehicle?.grossWeightKg || 40000;
+      const axles = vehicle?.axleCount || 5;
+
+      const params: any = {
+        transportMode: 'truck',
+        origin: `${origin.lat},${origin.lng}`,
+        destination: `${destination.lat},${destination.lng}`,
+        return: 'summary,tolls',
+        apiKey: this.hereKey,
+        'vehicle[grossWeight]': grossWeight,
+        'vehicle[axleCount]': axles,
+        'vehicle[height]': vehicle?.heightCm || 400,
+        'vehicle[tollVehicleType]': 3, // Commercial truck
+        'vehicle[emissionType]': 6, // Euro 6
+        currency: 'EUR',
+      };
+
+      if (waypoints && waypoints.length > 0) {
+        waypoints.forEach((wp, idx) => {
+          params[`via[${idx}]`] = `${wp.lat},${wp.lng}`;
+        });
+      }
+
+      const res = await axios.get('https://router.hereapi.com/v8/routes', {
+        params,
+        timeout: 12000,
+      });
+
+      const route = res.data?.routes?.[0];
+      if (route) {
+        let totalCost = 0;
+        const countriesSet = new Set<string>();
+        const sections: TollSection[] = [];
+
+        (route.sections || []).forEach((sec: any) => {
+          if (sec.tolls) {
+            for (const toll of sec.tolls) {
+              const tollCost = toll.fares?.[0]?.price || 0;
+              totalCost += tollCost;
+              if (toll.countryCode) countriesSet.add(toll.countryCode);
+              sections.push({
+                countryCode: toll.countryCode || 'EU',
+                tollRoadName: toll.tollSystem?.name || toll.name || 'Toll Section',
+                cost: tollCost,
+                currency: toll.fares?.[0]?.currency || 'EUR',
+                distanceKm: Math.round((toll.length || 0) / 1000),
+              });
+            }
+          }
+        });
+
+        const countries = Array.from(countriesSet);
+
+        return {
+          available: true,
+          provider: 'here',
+          totalCost: Math.round(totalCost * 100) / 100,
+          currency: 'EUR',
+          countries,
+          sections,
+          calculatedAt: new Date(),
+        };
+      }
+    } catch (err: any) {
+      this.logger.warn(`Toll calculation request failed: ${err.message}`);
+    }
+
+    return {
+      available: false,
+      provider: 'here',
+      message: 'Toll calculation unavailable for this route',
+      totalCost: 0,
+      currency: 'EUR',
+      countries: [],
+      sections: [],
+      calculatedAt: new Date(),
+    };
   }
 }

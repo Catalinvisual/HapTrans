@@ -10,6 +10,7 @@ import {
   ChevronsLeft, ChevronsRight, Plus, ArrowUp, ArrowDown, Layers, Navigation,
   Printer, Maximize2, Minimize2, RotateCcw, Filter, List, FileText, Pencil,
   Bookmark, BookmarkPlus, Save, Trash2, GitMerge, Wand2, Download, Clock3, Timer,
+  ZoomIn, ZoomOut, Unplug, Link as LinkIcon, ArrowRightLeft, Building2, DollarSign,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -31,6 +32,10 @@ import SplitTripModal from '../components/planning/SplitTripModal';
 import CombineTripsModal from '../components/planning/CombineTripsModal';
 import PlanningExportModal from '../components/planning/PlanningExportModal';
 import SavedViewsModal from '../components/planning/SavedViewsModal';
+import DropHookModal from '../components/planning/DropHookModal';
+import CrossDockModal from '../components/planning/CrossDockModal';
+import SubcontractorModal from '../components/planning/SubcontractorModal';
+import FleetOptimizationModal from '../components/planning/FleetOptimizationModal';
 
 function useResizableSidebar(initialWidth: number = 300, minWidth: number = 220, maxWidth: number = 650) {
   const [width, setWidth] = useState(() => {
@@ -219,6 +224,11 @@ function PlanningMap({
   const [showRoutes, setShowRoutes] = useState(true);
   const [showVehicles, setShowVehicles] = useState(true);
   const [showStops, setShowStops] = useState(true);
+  const [showTraffic, setShowTraffic] = useState(true);
+  const [showTolls, setShowTolls] = useState(false);
+  const [showDropHook, setShowDropHook] = useState(true);
+  const [showCrossDock, setShowCrossDock] = useState(true);
+  const [showConflicts, setShowConflicts] = useState(true);
 
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return;
@@ -240,6 +250,8 @@ function PlanningMap({
     let has = false;
     (mapData?.stops || []).forEach((s: any) => { if (s.lat && s.lng) { bounds.extend([s.lng, s.lat]); has = true; } });
     (mapData?.vehicles || []).forEach((v: any) => { if (v.lat && v.lng) { bounds.extend([v.lng, v.lat]); has = true; } });
+    (mapData?.droppedTrailers || []).forEach((d: any) => { if (d.lat && d.lng) { bounds.extend([d.lng, d.lat]); has = true; } });
+    (mapData?.crossDockFacilities || []).forEach((c: any) => { if (c.lat && c.lng) { bounds.extend([c.lng, c.lat]); has = true; } });
     if (has) { try { map.fitBounds(bounds, { padding: 60, maxZoom: 13 }); } catch {} }
   }, [mapData]);
 
@@ -251,11 +263,15 @@ function PlanningMap({
     try { if (map.getLayer('routes')) map.removeLayer('routes'); if (map.getSource('routes')) map.removeSource('routes'); } catch {}
 
     if (showRoutes && mapData?.routes?.length) {
-      const features = mapData.routes.filter((r: any) => r.points?.length >= 2).map((r: any) => ({
-        type: 'Feature',
-        properties: { tripId: r.tripId, color: TRIP_HEX[r.status] || '#3b82f6', selected: r.tripId === selectedTripId },
-        geometry: { type: 'LineString', coordinates: r.points.map((p: number[]) => [p[1], p[0]]) },
-      }));
+      const features = mapData.routes.filter((r: any) => r.points?.length >= 2).map((r: any) => {
+        const isDelayed = showTraffic && (r.trafficDelayMinutes > 0 || r.isDelayed);
+        const color = isDelayed ? '#ef4444' : (TRIP_HEX[r.status] || '#3b82f6');
+        return {
+          type: 'Feature',
+          properties: { tripId: r.tripId, color, selected: r.tripId === selectedTripId },
+          geometry: { type: 'LineString', coordinates: r.points.map((p: number[]) => [p[1], p[0]]) },
+        };
+      });
       if (features.length) {
         map.addSource('routes', { type: 'geojson', data: { type: 'FeatureCollection', features } });
         map.addLayer({ id: 'routes', type: 'line', source: 'routes',
@@ -270,8 +286,11 @@ function PlanningMap({
       for (const s of mapData.stops) {
         if (!s.lat || !s.lng) continue;
         const el = document.createElement('div');
-        el.className = `w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-white text-[9px] font-black shadow cursor-pointer ${s.type === 'pickup' ? 'bg-blue-600' : 'bg-emerald-600'}`;
-        el.textContent = String(s.sequence || '·');
+        const hasConflict = showConflicts && s.hasConflict;
+        el.className = `w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-white text-[9px] font-black shadow cursor-pointer ${
+          hasConflict ? 'bg-red-600 ring-2 ring-red-400 animate-bounce' : s.type === 'pickup' ? 'bg-blue-600' : 'bg-emerald-600'
+        }`;
+        el.textContent = hasConflict ? '!' : String(s.sequence || '·');
         const marker = new maplibregl.Marker({ element: el }).setLngLat([s.lng, s.lat]).addTo(map);
         if (s.tripId) el.addEventListener('click', () => onSelectTrip(s.tripId));
         markersRef.current.push(marker);
@@ -290,6 +309,32 @@ function PlanningMap({
       }
     }
 
+    // Drop & Hook Dropped Trailer Layer
+    if (showDropHook && mapData?.droppedTrailers?.length) {
+      for (const d of mapData.droppedTrailers) {
+        if (!d.lat || !d.lng) continue;
+        const el = document.createElement('div');
+        el.className = 'flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-600 text-white text-[9px] font-black border border-white shadow-md cursor-pointer hover:scale-105 transition-transform';
+        el.innerHTML = `<span>⏚</span><span>${d.plateNumber || 'Trailer'}</span>`;
+        el.title = `Dropped Trailer: ${d.plateNumber} @ ${d.location || 'Yard'}`;
+        const marker = new maplibregl.Marker({ element: el }).setLngLat([d.lng, d.lat]).addTo(map);
+        markersRef.current.push(marker);
+      }
+    }
+
+    // Cross-Dock Facilities Layer
+    if (showCrossDock && mapData?.crossDockFacilities?.length) {
+      for (const c of mapData.crossDockFacilities) {
+        if (!c.lat || !c.lng) continue;
+        const el = document.createElement('div');
+        el.className = 'flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-700 text-white text-[9px] font-black border border-white shadow-md cursor-pointer hover:scale-105 transition-transform';
+        el.innerHTML = `<span>⇄</span><span>${c.name || 'Hub'}</span>`;
+        el.title = `Cross-Dock Hub: ${c.name}`;
+        const marker = new maplibregl.Marker({ element: el }).setLngLat([c.lng, c.lat]).addTo(map);
+        markersRef.current.push(marker);
+      }
+    }
+
     if (selectedTripId) {
       const r = mapData?.routes?.find((x: any) => x.tripId === selectedTripId);
       if (r?.points?.length) {
@@ -298,14 +343,22 @@ function PlanningMap({
         try { map.fitBounds(b, { padding: 80, maxZoom: 12 }); } catch {}
       }
     } else fitAll();
-  }, [mapReady, mapData, showRoutes, showVehicles, showStops, selectedTripId, onSelectTrip, fitAll]);
+  }, [mapReady, mapData, showRoutes, showVehicles, showStops, showTraffic, showTolls, showDropHook, showCrossDock, showConflicts, selectedTripId, onSelectTrip, fitAll]);
 
   return (
     <div className="relative h-full w-full">
       <div ref={mapRef} className="h-full w-full" />
-      <div className="absolute top-4 left-4 z-10 bg-card/90 backdrop-blur p-2 rounded-xl border border-border shadow-lg text-xs space-y-1.5">
+      <div className="absolute top-4 left-4 z-10 bg-card/90 backdrop-blur p-2 rounded-xl border border-border shadow-lg text-xs space-y-1.5 max-h-[85vh] overflow-y-auto">
         <div className="text-[10px] font-bold text-text-secondary uppercase px-1 flex items-center gap-1.5 border-b border-border pb-1"><Layers className="w-3 h-3 text-primary" /> {t('layer_routes','Layers')}</div>
-        {([['showRoutes',showRoutes,setShowRoutes,t('layer_routes','Routes')],['showStops',showStops,setShowStops,t('layer_stops','Stops')],['showVehicles',showVehicles,setShowVehicles,t('layer_vehicles','Vehicles')]] as [string,boolean,(v:boolean)=>void,string][]).map(([k,v,sv,label]) => (
+        {([
+          ['showRoutes',showRoutes,setShowRoutes,t('layer_routes','Routes')],
+          ['showStops',showStops,setShowStops,t('layer_stops','Stops')],
+          ['showVehicles',showVehicles,setShowVehicles,t('layer_vehicles','Vehicles')],
+          ['showTraffic',showTraffic,setShowTraffic,t('layer_traffic','Traffic & Delay')],
+          ['showDropHook',showDropHook,setShowDropHook,t('layer_drop_hook','Drop & Hook')],
+          ['showCrossDock',showCrossDock,setShowCrossDock,t('layer_cross_dock','Cross-Dock Hubs')],
+          ['showConflicts',showConflicts,setShowConflicts,t('layer_conflicts','Conflicts')],
+        ] as [string,boolean,(v:boolean)=>void,string][]).map(([k,v,sv,label]) => (
           <label key={k} className="flex items-center gap-2 px-1 cursor-pointer select-none text-text-secondary hover:text-text-primary">
             <input type="checkbox" checked={v} onChange={e => sv(e.target.checked)} className="rounded w-3.5 h-3.5 text-primary" />
             <span>{label}</span>
@@ -460,14 +513,29 @@ function TripBlock({
         <div className="h-[3px] w-full shrink-0" style={{ background: hex }} />
 
         <div className="px-2 py-1 flex flex-col justify-between flex-1 min-h-0 overflow-hidden gap-px">
-          {/* Row 1: Trip number + status */}
-          <div className="flex items-center gap-1 min-w-0">
+          {/* Row 1: Trip number + status + fleet badge */}
+          <div className="flex items-center gap-1 min-w-0 flex-wrap">
             <span className={`font-black truncate ${col.text} ${isVeryNarrow ? 'text-[8px]' : 'text-[10px]'}`} style={{ maxWidth: isNarrow ? '100%' : '65%' }}>
               {trip.tripNumber || '—'}
             </span>
             {!isVeryNarrow && (
               <span className={`shrink-0 px-1 py-0 text-[7px] font-black rounded-sm uppercase ${col.text} opacity-80`}>
                 {t(`status_${st}`, st)}
+              </span>
+            )}
+            {trip.fleetType === 'subcontractor' && (
+              <span className="shrink-0 px-1 py-0 text-[7px] font-black rounded-sm uppercase bg-violet-500/20 text-violet-700 dark:text-violet-300 border border-violet-500/30" title={`Subcontractor: ${trip.carrierName || 'External'}`}>
+                SUB
+              </span>
+            )}
+            {trip.fleetType === 'charter' && (
+              <span className="shrink-0 px-1 py-0 text-[7px] font-black rounded-sm uppercase bg-pink-500/20 text-pink-700 dark:text-pink-300 border border-pink-500/30" title="Spot Charter Carrier">
+                CHARTER
+              </span>
+            )}
+            {trip.trafficDelayMinutes > 0 && (
+              <span className="shrink-0 px-1 py-0 text-[7px] font-black rounded-sm uppercase bg-red-500/20 text-red-600 border border-red-500/30" title={`Traffic delay: +${trip.trafficDelayMinutes} min`}>
+                +{trip.trafficDelayMinutes}m
               </span>
             )}
           </div>
@@ -632,6 +700,14 @@ function ResourceRow({
           </div>
         )}
 
+        {/* Dropped status in Trailer mode */}
+        {(grouping === 'trailer' || resource.isTrailer) && resource.isDropped && (
+          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 mt-0.5">
+            <Unplug className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+            <span className="text-[8px] font-black uppercase truncate">{t('trailer_dropped', 'Dropped')} @ {resource.dropLocation || 'Yard'}</span>
+          </div>
+        )}
+
         {/* Cargo capacity preview */}
         {cargo.weight > 0 && (
           <div className="grid grid-cols-2 gap-1 pt-1.5 border-t border-border/40">
@@ -732,6 +808,7 @@ function ResourceRow({
 function TripDetailDrawer({
   tripSummary, resources = [], drivers = [], trailers = [], conflicts = [], hosSummary = {},
   onClose, onAction, onReorderStops, onEditOrder, onSplitTrip, onCombineTrip, onAutoOrderStops,
+  onDropHook, onCrossDock, onSubcontractor,
   loadingAction, refreshKey,
 }: {
   tripSummary: any; resources?: any[]; drivers?: any[]; trailers?: any[]; conflicts?: any[]; hosSummary?: Record<string, any>;
@@ -741,6 +818,9 @@ function TripDetailDrawer({
   onSplitTrip?: (trip: any) => void;
   onCombineTrip?: (trip: any) => void;
   onAutoOrderStops?: (tripId: string) => void;
+  onDropHook?: (payload: { mode: 'drop' | 'hook'; trailerId?: string; tripId?: string }) => void;
+  onCrossDock?: (payload: { tripId?: string }) => void;
+  onSubcontractor?: (trip: any) => void;
   loadingAction?: string | null;
   refreshKey?: number;
 }) {
@@ -749,20 +829,26 @@ function TripDetailDrawer({
   const confirm = useConfirm();
   const [auditEvents, setAuditEvents] = useState<any[] | null>(null);
   const [activeTab, setActiveTab] = useState<'stops' | 'orders' | 'financial' | 'audit'>('stops');
-  // Full trip detail fetched from server when drawer opens (ensures stops/orders are populated)
   const [tripDetail, setTripDetail] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Live traffic & European toll state
+  const [checkingTraffic, setCheckingTraffic] = useState(false);
+  const [trafficInfo, setTrafficInfo] = useState<any | null>(null);
+  const [calculatingTolls, setCalculatingTolls] = useState(false);
+  const [tollInfo, setTollInfo] = useState<any | null>(null);
+
   useEffect(() => {
     setAuditEvents(null);
     setTripDetail(null);
+    setTrafficInfo(null);
+    setTollInfo(null);
     if (tripSummary?.id) {
-      // Fetch full trip detail to ensure stops, orders, etc. are populated
       setDetailLoading(true);
       api.get(`/trips/${tripSummary.id}`)
         .then(r => setTripDetail(r.data))
-        .catch(() => setTripDetail(tripSummary)) // fallback to summary
+        .catch(() => setTripDetail(tripSummary))
         .finally(() => setDetailLoading(false));
       api.get(`/planning/audit?tripId=${tripSummary.id}`)
         .then(r => setAuditEvents(r.data?.events || []))
@@ -771,7 +857,6 @@ function TripDetailDrawer({
   }, [tripSummary?.id, refreshKey]);
 
   if (!tripSummary) return null;
-  // Use fetched detail if available, otherwise use the summary from the board
   const trip = tripDetail || tripSummary;
   const truck = trip.truck || tripSummary.truck || resources.find((r: any) => r.id === (trip.truckId || tripSummary.truckId)) || null;
   const driver = trip.driver || truck?.driver || drivers.find((d: any) => d.id === (trip.driverId || tripSummary.driverId)) || null;
@@ -780,7 +865,7 @@ function TripDetailDrawer({
   const orders = (trip.orders?.length ? trip.orders : (tripSummary.orders?.length ? tripSummary.orders : [])).map((o: any) => o?.order || o).filter((o: any) => o?.id);
   const revenue = orders.reduce((s: number, o: any) => s + (Number(o.price) || 0), 0);
   const tripConflicts = (conflicts || []).filter((c: any) => c.tripId === (trip.id || tripSummary.id));
-  const blockingConflicts = tripConflicts.filter((c: any) => c.level === 'blocking');
+  const blockingConflicts = tripConflicts.filter((c: any) => c.level === 'blocking' || c.severity === 'BLOCKING');
   const st = String((trip.status || tripSummary.status || 'planning')).toLowerCase();
   
   const isPlanning = ['planning', 'planned', 'assigned'].includes(st);
@@ -790,6 +875,40 @@ function TripDetailDrawer({
   const col = TRIP_COLORS[st] || TRIP_COLORS.planning;
   const tripId = trip.id || tripSummary.id;
   const { origin, dest } = tripOriginDestination(trip);
+
+  const handleCheckTraffic = async () => {
+    setCheckingTraffic(true);
+    try {
+      const res = await planningApi.checkTripTraffic(tripId);
+      setTrafficInfo(res);
+      if (res.available) {
+        toast.success(res.delayMinutes > 0 ? `Traffic delay: +${res.delayMinutes}m` : 'Normal traffic on route');
+      } else {
+        toast.info(res.message || t('traffic_unavailable', 'Live traffic unavailable — provider not configured'));
+      }
+    } catch {
+      toast.error('Failed to query traffic');
+    } finally {
+      setCheckingTraffic(false);
+    }
+  };
+
+  const handleCalculateTolls = async () => {
+    setCalculatingTolls(true);
+    try {
+      const res = await planningApi.calculateTripTolls(tripId);
+      setTollInfo(res);
+      if (res.available) {
+        toast.success(`Tolls estimated: ${res.totalAmount} ${res.currency || 'EUR'}`);
+      } else {
+        toast.info(res.message || t('toll_unavailable', 'Toll calculation unavailable — provider not configured'));
+      }
+    } catch {
+      toast.error('Failed to calculate tolls');
+    } finally {
+      setCalculatingTolls(false);
+    }
+  };
 
   const formatAuditDetails = (details: string) => {
     if (!details) return null;
@@ -812,13 +931,56 @@ function TripDetailDrawer({
     const msg = String(c?.message || '').toLowerCase();
     const type = String(c?.type || '').toLowerCase();
 
-    // 1. Truck maintenance / vehicle status -> Opens Trucks page, highlights Status field and returns to TRP on save
+    // ADR conflicts -> opens cargo items or vehicle profile
+    if (type.includes('adr') || msg.includes('adr')) {
+      if (type.includes('driver') || msg.includes('driver')) {
+        navigate('/drivers' + (driver?.name ? `?search=${encodeURIComponent(driver.name)}` : ''));
+        return;
+      }
+      if (type.includes('vehicle') || msg.includes('vehicle')) {
+        navigate('/trucks?editId=' + encodeURIComponent(truck?.id || '') + '&search=' + encodeURIComponent(truck?.plateNumber || ''));
+        return;
+      }
+      const targetId = c.orderId || orders[0]?.id;
+      if (targetId && onEditOrder) {
+        onEditOrder(targetId, 2, 'cargo');
+        return;
+      }
+      setActiveTab('orders');
+      return;
+    }
+
+    // Drop/Hook conflict
+    if (type.includes('drop') || type.includes('hook') || msg.includes('drop') || msg.includes('hook')) {
+      if (onDropHook) {
+        onDropHook({ mode: trailer?.isDropped ? 'hook' : 'drop', trailerId: trailer?.id, tripId });
+        return;
+      }
+    }
+
+    // Subcontractor conflict
+    if (type.includes('subcontractor') || msg.includes('subcontractor') || msg.includes('carrier')) {
+      if (onSubcontractor) {
+        onSubcontractor(trip);
+        return;
+      }
+    }
+
+    // Cross-dock conflict
+    if (type.includes('cross_dock') || msg.includes('cross-dock')) {
+      if (onCrossDock) {
+        onCrossDock({ tripId });
+        return;
+      }
+    }
+
+    // Truck maintenance / vehicle status
     if (type.includes('vehicle') || msg.includes('maintenance') || msg.includes('truck') || msg.includes('itp') || (truck?.plateNumber && msg.includes(truck.plateNumber.toLowerCase()))) {
       navigate('/trucks?editId=' + encodeURIComponent(truck?.id || '') + '&search=' + encodeURIComponent(truck?.plateNumber || '') + '&highlight=status&returnToTrip=' + encodeURIComponent(tripId));
       return;
     }
 
-    // 2. Capacity overload (Weight, LDM, Volume, Pallets) -> Opens the overloaded order edit modal directly on Step 3 (Cargo) with the exact problem field highlighted
+    // Capacity overload
     if (type.includes('capacity') || msg.includes('weight') || msg.includes('exceed') || msg.includes('ldm') || msg.includes('volume') || msg.includes('pallet')) {
       let conflictField: 'weight' | 'ldm' | 'volume' | 'pallets' | 'cargo' = 'cargo';
       if (msg.includes('weight')) conflictField = 'weight';
@@ -826,7 +988,6 @@ function TripDetailDrawer({
       else if (msg.includes('volume')) conflictField = 'volume';
       else if (msg.includes('pallet')) conflictField = 'pallets';
 
-      // If multiple orders, find the order that contributes most to the conflicting metric
       let targetOrder = orders[0];
       if (orders.length > 1) {
         if (conflictField === 'ldm') {
@@ -849,13 +1010,13 @@ function TripDetailDrawer({
       return;
     }
 
-    // 3. Driver issues / HOS
+    // Driver issues / HOS
     if (type.includes('driver') || msg.includes('driver') || msg.includes('hos') || msg.includes('rest')) {
       navigate('/drivers' + (driver?.name ? `?search=${encodeURIComponent(driver.name)}` : ''));
       return;
     }
 
-    // 4. Time window / Stop sequence / Route / GPS issues -> Opens Step 2 (Pickup & Delivery, index 1)
+    // Time window / Stop sequence / Route / GPS
     if (type.includes('time') || type.includes('route') || type.includes('stop') || type.includes('window') || type.includes('sequence') || msg.includes('time') || msg.includes('window') || msg.includes('late') || msg.includes('delay') || msg.includes('route') || msg.includes('gps') || msg.includes('stop')) {
       const targetId = c.orderId || (stops.find((s: any) => s.orderId)?.orderId) || orders[0]?.id;
       if (targetId && onEditOrder) {
@@ -866,29 +1027,6 @@ function TripDetailDrawer({
       return;
     }
 
-    // 5. Equipment / Feature mismatch issues -> Opens Step 1 (Requirements / Equipment, index 0)
-    if (type.includes('equipment') || msg.includes('equipment') || msg.includes('tautliner') || msg.includes('mega') || msg.includes('frigo') || msg.includes('lift')) {
-      const targetId = c.orderId || orders[0]?.id;
-      if (targetId && onEditOrder) {
-        onEditOrder(targetId, 0, 'equipment');
-        return;
-      }
-      if (truck?.id) {
-        navigate(`/trucks?search=${encodeURIComponent(truck.plateNumber || '')}`);
-        return;
-      }
-    }
-
-    // 6. Client / Price / General issues -> Opens Step 1 (General Info, index 0)
-    if (type.includes('client') || type.includes('price') || msg.includes('client') || msg.includes('price') || msg.includes('rate') || msg.includes('reference')) {
-      const targetId = c.orderId || orders[0]?.id;
-      if (targetId && onEditOrder) {
-        onEditOrder(targetId, 0, 'client');
-        return;
-      }
-    }
-
-    // 7. Generic Order specific issue -> opens on Step 3 (Cargo)
     if (c.orderId) {
       if (onEditOrder) onEditOrder(c.orderId, 2, 'cargo');
       else navigate(`/orders/${c.orderId}`);
@@ -901,9 +1039,11 @@ function TripDetailDrawer({
   const getConflictActionLabel = (c: any) => {
     const msg = String(c?.message || '').toLowerCase();
     const type = String(c?.type || '').toLowerCase();
-    if (type.includes('equipment') || msg.includes('equipment')) {
-      return t('pln_edit_order_equipment', 'Edit Equipment Req');
-    }
+    if (type.includes('adr') || msg.includes('adr')) return 'Inspect ADR';
+    if (type.includes('drop') || type.includes('hook')) return 'Manage Drop/Hook';
+    if (type.includes('subcontractor')) return 'Manage Carrier';
+    if (type.includes('cross_dock')) return 'Manage Cross-Dock';
+    if (type.includes('equipment') || msg.includes('equipment')) return t('pln_edit_order_equipment', 'Edit Equipment Req');
     if (type.includes('vehicle') || msg.includes('maintenance') || msg.includes('truck') || msg.includes('itp') || (truck?.plateNumber && msg.includes(truck.plateNumber.toLowerCase()))) {
       return t('pln_fix_truck', 'Manage Truck') + (truck?.plateNumber ? ` (${truck.plateNumber})` : '');
     }
@@ -912,12 +1052,8 @@ function TripDetailDrawer({
         ? `${t('pln_edit_order', 'Edit Order')} (${orders[0].orderNumber || ''})`
         : `${t('pln_review_orders', 'Review Orders')} (${orders.length})`;
     }
-    if (type.includes('driver') || msg.includes('driver') || msg.includes('hos')) {
-      return t('pln_fix_driver', 'Manage Driver');
-    }
-    if (c.orderId) {
-      return t('pln_edit_order', 'Edit Order');
-    }
+    if (type.includes('driver') || msg.includes('driver') || msg.includes('hos')) return t('pln_fix_driver', 'Manage Driver');
+    if (c.orderId) return t('pln_edit_order', 'Edit Order');
     return t('pln_view_stops', 'View Stops');
   };
 
@@ -938,13 +1074,17 @@ function TripDetailDrawer({
         className={`relative w-full ${isExpanded ? 'max-w-6xl' : 'max-w-3xl lg:max-w-4xl'} max-h-[92vh] bg-card shadow-2xl flex flex-col rounded-3xl border border-border overflow-hidden animate-in zoom-in-95 duration-200 transition-all`}
         onClick={e => e.stopPropagation()}
       >
-
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-border bg-surface/50 flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h2 className="text-xl font-black text-text-primary">{trip.tripNumber || tripSummary.tripNumber || 'Trip'}</h2>
               <span className={`px-2.5 py-0.5 text-xs font-black rounded-full border-2 uppercase ${col.border} ${col.text}`}>{t(`status_${st}`, st)}</span>
+              {trip.fleetType && trip.fleetType !== 'own_fleet' && (
+                <span className="px-2 py-0.5 text-[10px] font-black rounded-full border uppercase bg-violet-500/10 border-violet-500/30 text-violet-600">
+                  {trip.fleetType === 'subcontractor' ? `Sub: ${trip.carrierName || 'Carrier'}` : 'Charter'}
+                </span>
+              )}
               {trip.validationStatus && (
                 <span className={`px-2 py-0.5 text-[10px] font-black rounded-full border uppercase ${
                   trip.validationStatus === 'feasible' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600' :
@@ -964,6 +1104,24 @@ function TripDetailDrawer({
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            {/* Subcontractor / Charter allocation action */}
+            <button
+              onClick={() => onSubcontractor?.(trip)}
+              className="btn-secondary text-xs py-1.5 px-2.5 flex items-center gap-1 font-bold"
+              title={t('subcontractor_planning', 'Subcontractor / Charter Planning')}
+            >
+              <Building2 className="w-3.5 h-3.5 text-primary" />
+              <span className="hidden sm:inline">{t('fleet_subcontractor', 'Carrier')}</span>
+            </button>
+            {/* Cross-dock action */}
+            <button
+              onClick={() => onCrossDock?.({ tripId })}
+              className="btn-secondary text-xs py-1.5 px-2.5 flex items-center gap-1 font-bold"
+              title={t('cross_dock_title', 'Cross-Docking & Transshipment')}
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5 text-primary" />
+              <span className="hidden sm:inline">{t('transshipment', 'Cross-Dock')}</span>
+            </button>
             {truck?.id && (
               <button
                 onClick={() => navigate(`/planning/planner/${truck.id}?date=${trip.plannedDeparture ? String(trip.plannedDeparture).split('T')[0] : ''}&trip=${tripId}`)}
@@ -993,7 +1151,7 @@ function TripDetailDrawer({
         <div className="px-5 py-3 border-b border-border bg-surface/20 grid grid-cols-3 gap-3 text-xs shrink-0">
           <div className="bg-card rounded-xl p-2.5 border border-border/60">
             <p className="text-text-secondary text-[10px]">{t('export_col_truck', 'Truck')}</p>
-            <p className="font-black text-text-primary text-sm truncate mt-0.5">{truck?.plateNumber || '—'}</p>
+            <p className="font-black text-text-primary text-sm truncate mt-0.5">{truck?.plateNumber || trip.carrierTruckPlate || '—'}</p>
             {`${truck?.brand || ''} ${truck?.model || ''}`.trim() ? (
               <p className="text-[9px] text-text-muted mt-0.5 truncate">{`${truck?.brand || ''} ${truck?.model || ''}`.trim()}</p>
             ) : null}
@@ -1010,23 +1168,94 @@ function TripDetailDrawer({
                 </span>
               )}
             </div>
-            <p className="font-black text-text-primary text-sm truncate mt-0.5">{driver?.name || driver?.user?.name || '—'}</p>
+            <p className="font-black text-text-primary text-sm truncate mt-0.5">{driver?.name || driver?.user?.name || trip.carrierDriverName || '—'}</p>
             {driver?.id && hosSummary[driver.id] ? (
               <p className="text-[9px] text-text-muted mt-0.5 truncate flex items-center gap-1" title={`${hosSummary[driver.id].weeklyDriving}h used / 56h limit`}>
                 <Clock3 className="w-2.5 h-2.5 shrink-0" />
                 <span>{hosSummary[driver.id].weeklyDriving}h used / 56h limit</span>
               </p>
             ) : (
-              driver?.phone ? <p className="text-[9px] text-text-muted mt-0.5 truncate">{driver.phone}</p> : null
+              (driver?.phone || trip.carrierDriverPhone) ? <p className="text-[9px] text-text-muted mt-0.5 truncate">{driver?.phone || trip.carrierDriverPhone}</p> : null
             )}
           </div>
 
-          <div className="bg-card rounded-xl p-2.5 border border-border/60">
-            <p className="text-text-secondary text-[10px]">{t('export_col_trailer', 'Trailer')}</p>
-            <p className="font-black text-text-primary text-sm truncate mt-0.5">{trailer?.plateNumber || '—'}</p>
-            {trailer?.type ? <p className="text-[9px] text-text-muted mt-0.5 truncate">{trailer.type}</p> : null}
+          <div className="bg-card rounded-xl p-2.5 border border-border/60 flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-text-secondary text-[10px]">{t('export_col_trailer', 'Trailer')}</p>
+              <p className="font-black text-text-primary text-sm truncate mt-0.5">{trailer?.plateNumber || trip.carrierTrailerPlate || '—'}</p>
+              {trailer?.isDropped ? (
+                <span className="text-[9px] font-bold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded truncate inline-block mt-0.5">
+                  DROPPED @ {trailer.dropLocation || 'Yard'}
+                </span>
+              ) : trailer?.type ? (
+                <p className="text-[9px] text-text-muted mt-0.5 truncate">{trailer.type}</p>
+              ) : null}
+            </div>
+            {trailer?.id && (
+              <button
+                onClick={() => onDropHook?.({ mode: trailer.isDropped ? 'hook' : 'drop', trailerId: trailer.id, tripId })}
+                className="btn-secondary text-[10px] py-1 px-2 font-bold flex items-center gap-1 shrink-0 ml-2"
+                title={trailer.isDropped ? t('hook_trailer_title', 'Hook Trailer') : t('drop_trailer_title', 'Drop Trailer')}
+              >
+                {trailer.isDropped ? <LinkIcon className="w-3 h-3 text-emerald-600" /> : <Unplug className="w-3 h-3 text-amber-600" />}
+                <span>{trailer.isDropped ? t('mode_hook', 'Hook') : t('mode_drop', 'Drop')}</span>
+              </button>
+            )}
           </div>
         </div>
+
+        {/* Live Traffic & European Tolls Strip (§6 & §7) */}
+        <div className="px-5 py-2.5 border-b border-border bg-surface/30 grid grid-cols-2 gap-3 text-xs shrink-0">
+          <div className="flex items-center justify-between p-2 rounded-xl bg-card border border-border/70">
+            <div className="flex items-center gap-2 min-w-0">
+              <Clock3 className="w-4 h-4 text-primary shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[9px] text-text-muted font-bold uppercase">{t('live_traffic', 'Live Traffic')}</p>
+                <p className="text-xs font-bold text-text-primary truncate">
+                  {trafficInfo?.available
+                    ? (trafficInfo.delayMinutes > 0 ? `+${trafficInfo.delayMinutes}m delay (${trafficInfo.status})` : 'Normal Traffic')
+                    : (trip.trafficDelayMinutes ? `+${trip.trafficDelayMinutes}m delay` : t('traffic_unavailable', 'Live traffic unavailable — provider not configured'))
+                  }
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleCheckTraffic}
+              disabled={checkingTraffic}
+              className="btn-secondary text-[10px] py-1 px-2 font-bold flex items-center gap-1 shrink-0 ml-2"
+            >
+              {checkingTraffic ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+              <span>{t('check_live_traffic', 'Check')}</span>
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between p-2 rounded-xl bg-card border border-border/70">
+            <div className="flex items-center gap-2 min-w-0">
+              <DollarSign className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[9px] text-text-muted font-bold uppercase">{t('toll_calculation', 'European Tolls')}</p>
+                <p className="text-xs font-bold text-emerald-600 truncate">
+                  {tollInfo?.available
+                    ? `${tollInfo.totalAmount} ${tollInfo.currency || 'EUR'} (${(tollInfo.countries || []).join(', ')})`
+                    : (trip.tollAmount ? `${trip.tollAmount} ${trip.tollCurrency || 'EUR'}` : t('toll_unavailable', 'Toll calculation unavailable — provider not configured'))
+                  }
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleCalculateTolls}
+              disabled={calculatingTolls}
+              className="btn-secondary text-[10px] py-1 px-2 font-bold flex items-center gap-1 shrink-0 ml-2"
+            >
+              {calculatingTolls ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+              <span>{t('calculate_tolls', 'Calculate')}</span>
+            </button>
+          </div>
+        </div>
+
+
+
+
 
         {/* Tabs */}
         <div className="flex border-b border-border bg-surface/20 px-5 gap-5 text-xs shrink-0">
@@ -1541,51 +1770,6 @@ function OrderDetailDrawer({ order, onClose, onPlan }: { order: any; onClose: ()
   ) : null;
 }
 
-// ─── Optimization Modal ──────────────────────────────────────────────────────
-function OptimizationModal({ onClose, onApply, isLoading }: { onClose: () => void; onApply: (p: any[]) => void; isLoading: boolean }) {
-  const { t } = useTranslation();
-  const [proposals, setProposals] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    api.post('/planning/optimize', {}).then(r => { setProposals(r.data?.proposedTrips || []); }).catch(err => toast.error(err.response?.data?.message || 'Optimization failed')).finally(() => setLoading(false));
-  }, []);
-
-  return typeof document !== 'undefined' ? createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ backdropFilter: 'blur(6px)', backgroundColor: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
-      <div className="w-full max-w-2xl bg-card shadow-2xl rounded-3xl flex flex-col border border-border animate-in zoom-in-95 duration-200 max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="px-6 py-4 border-b border-border bg-surface/50 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center"><Sparkles className="w-5 h-5 text-primary" /></div>
-            <div><h2 className="text-lg font-black text-text-primary">{t('jsx_optimizer','Route Optimization')}</h2><p className="text-xs text-text-secondary">AI-powered route & dispatch optimization</p></div>
-          </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-surface rounded-xl text-text-secondary"><X className="w-5 h-5" /></button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-6">
-          {loading ? <div className="flex flex-col items-center py-12 gap-3"><Loader2 className="w-8 h-8 animate-spin text-primary" /><p className="text-sm font-bold text-text-secondary">{t('jsx_loadingSuggest','Calculating…')}</p></div>
-          : proposals.length === 0 ? <div className="text-center py-12"><CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2" /><p className="font-bold text-text-primary">{t('jsx_noOptimization','Plan already optimal')}</p></div>
-          : <div className="space-y-3">
-              {proposals.map((p: any, i: number) => (
-                <div key={p.id || i} className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between gap-3">
-                  <div><span className="font-black text-text-primary text-sm">{p.plateNumber || 'Truck'}</span>{p.driver ? <span className="text-xs text-text-secondary ml-2">· {p.driver}</span> : ''}<p className="text-xs text-text-secondary mt-1">{p.origin || ''}{p.origin && p.destination ? ' → ' : ''}{p.destination || ''}</p></div>
-                  <div className="flex items-center gap-3"><span className="px-2.5 py-1 text-xs font-black rounded-lg bg-surface border border-border">{p.orderIds?.length || 0} orders</span><span className="font-black text-primary">{fmtMoney(Number(p.estimatedRevenue || 0), 'EUR')}</span></div>
-                </div>
-              ))}
-            </div>
-          }
-        </div>
-        <div className="px-6 py-4 border-t border-border bg-surface/50 flex justify-between shrink-0">
-          <button onClick={onClose} className="btn-secondary text-xs py-2.5 px-4 font-bold">{t('jsx_cancel','Cancel')}</button>
-          <button disabled={isLoading || proposals.length === 0} onClick={() => onApply(proposals)} className="btn-primary text-xs py-2.5 px-5 flex items-center gap-2 font-bold">
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}<span>{t('opt_apply_btn','Apply Optimization')}</span>
-          </button>
-        </div>
-      </div>
-    </div>, document.body
-  ) : null;
-}
-
 // ─── MAIN PAGE ───────────────────────────────────────────────────────────────
 export default function PlanningPage() {
   const { t } = useTranslation();
@@ -1725,6 +1909,30 @@ export default function PlanningPage() {
 
   const poolRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
+
+  // Enterprise Operations States
+  const [dropHookConfig, setDropHookConfig] = useState<{ isOpen: boolean; mode: 'drop' | 'hook'; trailerId?: string; tripId?: string }>({ isOpen: false, mode: 'drop' });
+  const [crossDockConfig, setCrossDockConfig] = useState<{ isOpen: boolean; orderId?: string; tripId?: string }>({ isOpen: false });
+  const [subcontractorTargetTrip, setSubcontractorTargetTrip] = useState<any | null>(null);
+  const [zoomLevel, setZoomLevel] = useState<number>(1.0);
+
+  // Continuous Timeline Zoom with Ctrl/Cmd + Mouse Wheel
+  useEffect(() => {
+    const el = timelineRef.current;
+    if (!el) return;
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        setZoomLevel(prev => {
+          const delta = e.deltaY < 0 ? 0.1 : -0.1;
+          const next = Math.max(0.5, Math.min(2.5, +(prev + delta).toFixed(2)));
+          return next;
+        });
+      }
+    };
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -2440,6 +2648,40 @@ export default function PlanningPage() {
                     </span>
                   )}
                 </div>
+
+                {/* Continuous Timeline Zoom Controls */}
+                <div className="flex items-center gap-1 bg-surface/80 border border-border/80 rounded-xl px-1.5 py-0.5">
+                  <button
+                    onClick={() => setZoomLevel(z => Math.max(0.5, +(z - 0.15).toFixed(2)))}
+                    className="p-1 rounded-lg hover:bg-card text-text-secondary hover:text-text-primary transition-colors"
+                    title={t('zoom_out', 'Zoom Out (or Ctrl + Scroll)')}
+                  >
+                    <ZoomOut className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setZoomLevel(1.0)}
+                    className="px-1.5 py-0.5 text-[10px] font-mono font-bold text-text-primary hover:text-primary transition-colors rounded"
+                    title={t('zoom_reset', 'Reset Zoom (100%)')}
+                  >
+                    {Math.round(zoomLevel * 100)}%
+                  </button>
+                  <button
+                    onClick={() => setZoomLevel(z => Math.min(2.5, +(z + 0.15).toFixed(2)))}
+                    className="p-1 rounded-lg hover:bg-card text-text-secondary hover:text-text-primary transition-colors"
+                    title={t('zoom_in', 'Zoom In (or Ctrl + Scroll)')}
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="w-px h-3 bg-border mx-0.5" />
+                  <button
+                    onClick={() => setZoomLevel(1.0)}
+                    className="px-1.5 py-0.5 text-[10px] font-bold text-text-secondary hover:text-text-primary hover:bg-card rounded transition-colors"
+                    title={t('zoom_fit', 'Fit to plan')}
+                  >
+                    {t('fit', 'Fit')}
+                  </button>
+                </div>
+
                 {/* Status bar */}
                 <div className="flex items-center gap-3 text-[11px] text-text-secondary">
                   <span><span className="font-bold text-text-primary">{displayResources.length}</span> {t('jsx_resources','resources')}</span>
@@ -2462,7 +2704,7 @@ export default function PlanningPage() {
                     <button onClick={loadData} className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-bold shadow-md"><RefreshCw className="w-3.5 h-3.5" /><span>{t('jsx_recalc','Retry')}</span></button>
                   </div>
                 ) : (
-                  <div className="min-w-max w-full">
+                  <div className="min-w-max w-full" style={{ minWidth: `${Math.round(100 * zoomLevel)}%` }}>
                     {/* Time scale header */}
                     <div className="flex border-b border-border bg-surface/60 sticky top-0 z-20 shadow-sm">
                       <div className="w-56 shrink-0 border-r border-border/60 bg-surface/80 flex items-center px-3 py-2 sticky left-0 z-30">
@@ -2471,7 +2713,11 @@ export default function PlanningPage() {
                       </div>
                       <div className="flex flex-1">
                         {Array.from({ length: hoursVisible }, (_, h) => (
-                          <div key={h} className="flex-1 text-center text-[10px] font-bold text-text-secondary py-2 border-r border-border/30 last:border-0 min-w-[3.25rem]">
+                          <div
+                            key={h}
+                            className="flex-1 text-center text-[10px] font-bold text-text-secondary py-2 border-r border-border/30 last:border-0"
+                            style={{ minWidth: `${Math.max(48, Math.round(52 * zoomLevel))}px` }}
+                          >
                             {viewMode === 'all'
                               ? addDays(fromDateObj, h).toLocaleDateString([], { day: 'numeric', month: 'short' })
                               : viewMode === 'week'
@@ -2569,6 +2815,9 @@ export default function PlanningPage() {
             setShowCombineModal(true);
           }}
           onAutoOrderStops={handleAutoOrderStops}
+          onDropHook={(cfg) => setDropHookConfig({ isOpen: true, mode: cfg.mode, trailerId: cfg.trailerId, tripId: cfg.tripId })}
+          onCrossDock={(cfg) => setCrossDockConfig({ isOpen: true, tripId: cfg.tripId })}
+          onSubcontractor={(tr) => setSubcontractorTargetTrip(tr)}
           onEditOrder={(orderId, step, highlight) => {
             const h = highlight || 'cargo';
             const s = (step !== undefined && step !== null)
@@ -2589,9 +2838,61 @@ export default function PlanningPage() {
         />
       )}
 
+      {/* Fleet-Wide VRP Optimization Modal */}
       {showOptimizeModal && (
-        <OptimizationModal onClose={() => setShowOptimizeModal(false)} onApply={handleApplyOptimization} isLoading={!!loadingAction} />
+        <FleetOptimizationModal
+          isOpen={showOptimizeModal}
+          onClose={() => setShowOptimizeModal(false)}
+          onApplySuccess={() => {
+            setShowOptimizeModal(false);
+            loadData();
+          }}
+          orders={orders}
+          resources={resources}
+          selectedDate={selectedDate}
+        />
       )}
+
+      {/* Enterprise Drop & Hook Modal */}
+      <DropHookModal
+        isOpen={dropHookConfig.isOpen}
+        onClose={() => setDropHookConfig(p => ({ ...p, isOpen: false }))}
+        onSuccess={() => {
+          setDropHookConfig(p => ({ ...p, isOpen: false }));
+          loadData();
+        }}
+        mode={dropHookConfig.mode}
+        initialTrailerId={dropHookConfig.trailerId}
+        initialTripId={dropHookConfig.tripId}
+        trailers={boardData?.trailers || []}
+        trucks={resources}
+        drivers={boardData?.drivers || []}
+      />
+
+      {/* Enterprise Cross-Docking Modal */}
+      <CrossDockModal
+        isOpen={crossDockConfig.isOpen}
+        onClose={() => setCrossDockConfig({ isOpen: false })}
+        onSuccess={() => {
+          setCrossDockConfig({ isOpen: false });
+          loadData();
+        }}
+        initialOrderId={crossDockConfig.orderId}
+        initialTripId={crossDockConfig.tripId}
+        orders={orders}
+        trips={trips}
+      />
+
+      {/* Enterprise Subcontractor / Charter Modal */}
+      <SubcontractorModal
+        isOpen={!!subcontractorTargetTrip}
+        onClose={() => setSubcontractorTargetTrip(null)}
+        onSuccess={() => {
+          setSubcontractorTargetTrip(null);
+          loadData();
+        }}
+        trip={subcontractorTargetTrip}
+      />
 
       {/* Enterprise Split Trip Modal */}
       {splitTripTarget && (

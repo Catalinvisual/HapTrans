@@ -58,6 +58,31 @@ export class Trailer {
   @Column({ type: 'date', nullable: true })
   apkExpiry: Date;
 
+  // Drop & Hook tracking
+  @Column({ type: 'boolean', default: false })
+  isDropped: boolean;
+
+  @Column({ nullable: true })
+  dropLocation: string;
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
+  dropLat: number;
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
+  dropLng: number;
+
+  @Column({ type: 'timestamp', nullable: true })
+  droppedAt: Date;
+
+  @Column({ type: 'uuid', nullable: true })
+  currentTripId: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  currentTruckId: string;
+
+  @Column('simple-array', { nullable: true })
+  features: string[]; // e.g. ['ADR', 'Tail-lift', 'Curtainside']
+
   @CreateDateColumn()
   createdAt: Date;
 
