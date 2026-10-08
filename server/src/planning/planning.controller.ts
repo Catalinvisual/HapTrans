@@ -235,10 +235,11 @@ export class PlanningController {
 
   @Post('trucks/:truckId/route/from-trip/:tripId')
   async createRoutePlanFromTrip(
+    @Req() req: any,
     @Param('truckId') truckId: string,
     @Param('tripId') tripId: string,
   ): Promise<TruckRoutePlan> {
-    return this.planningService.createRoutePlanFromTrip(tripId);
+    return this.planningService.createRoutePlanFromTrip(tripId, this.userCompanyId(req), truckId);
   }
 
   @Post('trucks/:truckId/optimize')

@@ -2766,13 +2766,23 @@ export class PlanningService {
   // ─── Audit ─────────────────────────────────────────────────────────────────
 
   async getAudit(user: any, q: any) {
-    const companyId = user?.companyId || null;
-    const limit = Math.min(Number(q.limit) || 50, 200);
-    const where: any = {};
-    if (q.tripId) where.trip = { id: q.tripId };
-    if (q.orderId) where.order = { id: q.orderId };
-    const events = await this.getTimelineForCompany(companyId, where, limit);
-    return { events: events || [] };
+    try {
+      if (q.tripId) {
+        const events = await this.timelineService.getTimelineForTrip(String(q.tripId));
+        return { events: events || [] };
+      }
+      if (q.orderId) {
+        const events = await this.timelineService.getTimelineForOrder(String(q.orderId));
+        return { events: events || [] };
+      }
+      const companyId = user?.companyId || null;
+      const limit = Math.min(Number(q.limit) || 50, 200);
+      const events = await this.getTimelineForCompany(companyId, {}, limit);
+      return { events: events || [] };
+    } catch (err: any) {
+      this.logger.error(`Failed to load audit events: ${err?.message || err}`);
+      return { events: [] };
+    }
   }
 
   private async getTimelineForCompany(companyId: string | null, where: any, limit: number): Promise<any[]> {
@@ -2785,17 +2795,22 @@ export class PlanningService {
       .leftJoinAndSelect('event.trip', 'trip')
       .orderBy('event.createdAt', 'DESC')
       .take(limit);
+
+    if (where?.trip?.id) {
+      qb.andWhere('trip.id = :tid', { tid: where.trip.id });
+    }
+    if (where?.order?.id) {
+      qb.andWhere('order.id = :oid', { oid: where.order.id });
+    }
     if (companyId) {
       qb.andWhere(
         new Brackets((b) => {
-          b.where('event.trip.companyId = :cid', { cid: companyId })
-            .orWhere('event.order.companyId = :cid', { cid: companyId })
-            .orWhere('event.tripId IS NULL AND event.orderId IS NULL');
+          b.where('trip.companyId = :cid', { cid: companyId })
+            .orWhere('order.companyId = :cid', { cid: companyId })
+            .orWhere('(trip.id IS NULL AND order.id IS NULL)');
         }),
       );
     }
-    if (where.trip) qb.andWhere('event.tripId = :tid', { tid: where.trip.id });
-    if (where.order) qb.andWhere('event.orderId = :oid', { oid: where.order.id });
     return qb.getMany();
   }
 
@@ -3072,7 +3087,7 @@ export class PlanningService {
     return routePlan;
   }
 
-  async createRoutePlanFromTrip(tripId: string, customPlanningDate?: string): Promise<TruckRoutePlan> {
+  async createRoutePlanFromTrip(tripId: string, customPlanningDate?: string, targetTruckId?: string): Promise<TruckRoutePlan> {
     const trip = await this.tripRepo.findOne({
       where: { id: tripId },
       relations: ['truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'driver', 'driver.user', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.cargoItems', 'orders.stops'],
@@ -3080,18 +3095,27 @@ export class PlanningService {
 
     if (!trip) throw new NotFoundException('Trip not found');
 
+    let truck: Truck | null = trip.truck || null;
+    if (!truck && targetTruckId) {
+      truck = await this.truckRepo.findOne({ where: { id: targetTruckId }, relations: ['driver', 'driver.user', 'trailer'] });
+    }
+    const truckId = truck?.id || (trip as any).truckId || targetTruckId;
+    if (!truckId) {
+      throw new BadRequestException('Cannot create route plan for a trip without an assigned truck.');
+    }
+
     const planningDate = customPlanningDate || (trip.plannedDeparture ? new Date(trip.plannedDeparture).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
 
     // Deactivate existing current plan for this truck/date
     await this.routePlanRepo.update(
-      { truckId: trip.truck.id, planningDate, isCurrent: true },
+      { truckId, planningDate, isCurrent: true },
       { isCurrent: false }
     );
 
     const routePlan = new TruckRoutePlan();
-    routePlan.truck = { id: trip.truck.id } as any;
-    routePlan.truckId = trip.truck.id;
-    routePlan.driver = trip.driver ? { id: trip.driver.id } as any : (trip.truck?.driver ? { id: trip.truck.driver.id } as any : null);
+    routePlan.truck = { id: truckId } as any;
+    routePlan.truckId = truckId;
+    routePlan.driver = trip.driver ? { id: trip.driver.id } as any : (truck?.driver ? { id: truck.driver.id } as any : null);
     routePlan.driverId = routePlan.driver?.id ?? null;
     routePlan.trip = { id: trip.id } as any;
     routePlan.tripId = trip.id;
@@ -3100,7 +3124,7 @@ export class PlanningService {
     routePlan.isCurrent = true;
     routePlan.isOptimized = false;
     routePlan.feasibilityStatus = RouteFeasibilityStatus.FEASIBLE;
-    const caps = this.resolveTruckCapacity(trip.truck);
+    const caps = this.resolveTruckCapacity(truck);
     routePlan.maxPallets = caps.maxPallets;
     routePlan.maxWeightKg = caps.maxWeightKg;
     routePlan.maxLdm = caps.maxLdm;
@@ -4029,9 +4053,12 @@ export class PlanningService {
 
   // Resolves physical capacity of a truck, using the truck's own values and
   // falling back to trailer values where the truck itself is unknown.
-  private resolveTruckCapacity(truck: Truck): {
+  private resolveTruckCapacity(truck?: Truck | null): {
     maxPallets: number; maxWeightKg: number; maxLdm: number; maxVolumeCbm: number;
   } {
+    if (!truck) {
+      return { maxPallets: 33, maxWeightKg: 24000, maxLdm: 13.6, maxVolumeCbm: 90 };
+    }
     const maxPallets = truck.maxPallets != null ? Number(truck.maxPallets) : (Number(truck.trailer?.payloadCapacityPallets) || 33);
     const rawWeight = (truck.payloadCapacity != null ? Number(truck.payloadCapacity) : null) || (truck.maxWeightKg != null ? Number(truck.maxWeightKg) : null) || Number(truck.trailer?.payloadCapacityWeight) || 24000;
     const maxWeightKg = rawWeight > 30000 && truck.payloadCapacity ? Number(truck.payloadCapacity) : (rawWeight > 30000 ? 24000 : rawWeight);

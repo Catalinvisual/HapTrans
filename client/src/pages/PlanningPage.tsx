@@ -24,7 +24,6 @@ import { useSettingsStore } from '../store/settingsStore';
 import { generateOrderPdf } from '../lib/pdfGenerator';
 import { planningApi } from '../lib/planningApi';
 import OrderWizard from '../components/orders/OrderWizard';
-import ConfirmModal from '../components/ConfirmModal';
 import { useConfirm } from '../components/SaveConfirmProvider';
 import { fmtMoney, fmtNumber } from '../lib/format';
 
@@ -1535,8 +1534,19 @@ export default function PlanningPage() {
     setIsLoading(true);
     setFetchError(null);
     try {
+      const isSpecificStatus = statusFilter && !['planned', 'driving', 'delayed', 'unassigned'].includes(statusFilter);
       const [boardRes, mapRes] = await Promise.allSettled([
-        api.get('/planning/board', { params: { from, to, search: search || undefined, status: statusFilter || undefined, vehicleId: truckFilter || undefined, driverId: driverFilter || undefined } }),
+        api.get('/planning/board', {
+          params: {
+            from,
+            to,
+            search: search || undefined,
+            status: isSpecificStatus ? statusFilter : undefined,
+            vehicleId: truckFilter || undefined,
+            driverId: driverFilter || undefined,
+            priority: priorityFilter || undefined,
+          },
+        }),
         api.get('/planning/map-data', { params: { from, to } }).catch(() => api.get('/planning/map', { params: { from, to } })),
       ]);
 
@@ -1551,7 +1561,7 @@ export default function PlanningPage() {
       const msg = err.response?.data?.message || err.message || 'Failed to load planning data';
       setFetchError(msg); toast.error(msg);
     } finally { setIsLoading(false); }
-  }, [from, to, search, statusFilter, truckFilter, driverFilter]);
+  }, [from, to, search, statusFilter, truckFilter, driverFilter, priorityFilter]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -1606,6 +1616,10 @@ export default function PlanningPage() {
   };
 
   const handleDropOrder = async (resourceId: string) => {
+    if (resourceId === '__unassigned_trips__') {
+      toast.error(t('drop_unassigned_err', 'Trageți comanda pe un camion valid din listă.'));
+      return;
+    }
     const orderIds = draggingOrderId ? [draggingOrderId] : Array.from(selectedPoolOrderIds);
     if (!orderIds.length) return;
     setLoadingAction('assign');
@@ -1643,8 +1657,46 @@ export default function PlanningPage() {
   const trips: any[] = boardData?.trips || [];
   const orders: any[] = boardData?.orders || [];
 
+  const unassignedTrips = useMemo(() => {
+    return trips.filter((tr: any) => !tr.truckId && !tr.truck?.id);
+  }, [trips]);
+
+  const unassignedResource = useMemo(() => {
+    if (unassignedTrips.length === 0) return null;
+    return {
+      id: '__unassigned_trips__',
+      plateNumber: t('unassigned_trips_plate', 'Fără camion'),
+      brand: t('unassigned_trips_label', 'Curse Nealocate'),
+      model: `${unassignedTrips.length} ${t('jsx_trips', 'curse')}`,
+      status: 'unassigned',
+      isVirtualUnassigned: true,
+      maxWeightKg: 24000,
+      maxLdm: 13.6,
+      maxVolumeCbm: 90,
+      maxPallets: 33,
+      driver: null,
+      trailer: null,
+      maintenance: [],
+      hasMaintenance: false,
+      available: false,
+    };
+  }, [unassignedTrips, t]);
+
+  const searchFilter = search.trim().toLowerCase();
+
   const sortedOrders = useMemo(() => {
-    const o = [...orders];
+    let o = [...orders];
+    if (searchFilter) {
+      o = o.filter((item: any) =>
+        (item.orderNumber || '').toLowerCase().includes(searchFilter) ||
+        (item.customerReference || '').toLowerCase().includes(searchFilter) ||
+        (item.client?.name || '').toLowerCase().includes(searchFilter) ||
+        (item.stops || []).some((s: any) => (s.city || '').toLowerCase().includes(searchFilter) || (s.address || '').toLowerCase().includes(searchFilter))
+      );
+    }
+    if (priorityFilter) {
+      o = o.filter((item: any) => item.priority === priorityFilter);
+    }
     if (sortPool === 'priority') {
       const p: Record<string,number> = { critical: 0, high: 1, normal: 2, low: 3 };
       return o.sort((a, b) => (p[a.priority] ?? 2) - (p[b.priority] ?? 2));
@@ -1656,7 +1708,7 @@ export default function PlanningPage() {
     if (sortPool === 'weight') return o.sort((a, b) => sumCargo([b]).weight - sumCargo([a]).weight);
     if (sortPool === 'client') return o.sort((a, b) => (a.client?.name || '').localeCompare(b.client?.name || ''));
     return o;
-  }, [orders, sortPool]);
+  }, [orders, sortPool, searchFilter, priorityFilter]);
 
   const selectedTrip = useMemo(() => {
     if (!selectedTripId) return null;
@@ -1665,18 +1717,51 @@ export default function PlanningPage() {
   const selectedOrder = useMemo(() => orders.find(o => o.id === selectedOrderId) || null, [orders, selectedOrderId]);
   const draggingOrder = useMemo(() => draggingOrderId ? orders.find(o => o.id === draggingOrderId) || null : null, [orders, draggingOrderId]);
 
-  // Trips with blocking conflicts (for attention filter)
-  const conflictTripIds = useMemo(() => {
-    const ids = new Set<string>();
-    (boardData?.conflicts || []).filter((c: any) => c.level === 'blocking').forEach((c: any) => { if (c.tripId) ids.add(c.tripId); });
-    return ids;
-  }, [boardData?.conflicts]);
+  // Trips & resources with blocking conflicts (for attention filter)
+  const { blockingConflicts, attentionResourceIds } = useMemo(() => {
+    const blocking = (boardData?.conflicts || []).filter((c: any) => c.level === 'blocking');
+    const conflictTripSet = new Set(blocking.map((c: any) => c.tripId).filter(Boolean));
+    const conflictResSet = new Set(blocking.map((c: any) => c.resourceId).filter(Boolean));
+    const resIds = new Set<string>();
 
-  const activeFilterCount = [search, statusFilter, truckFilter, driverFilter, priorityFilter].filter(Boolean).length;
+    for (const r of resources) {
+      if (conflictResSet.has(r.id) || r.hasMaintenance || r.status === 'maintenance') {
+        resIds.add(r.id);
+        continue;
+      }
+      const resTrips = trips.filter(tr => grouping === 'driver' ? tr.driver?.id === r.id : (tr.truck?.id === r.id || tr.truckId === r.id));
+      if (resTrips.some(tr => conflictTripSet.has(tr.id))) {
+        resIds.add(r.id);
+      }
+    }
+
+    if (unassignedTrips.some(tr => conflictTripSet.has(tr.id) || !tr.truckId)) {
+      resIds.add('__unassigned_trips__');
+    }
+
+    return { blockingConflicts: blocking, attentionResourceIds: resIds };
+  }, [boardData?.conflicts, resources, trips, grouping, unassignedTrips]);
+
+  const activeFilterCount = [search, statusFilter, truckFilter, driverFilter, priorityFilter, attentionActive].filter(Boolean).length;
+
+  const plannedTripsCount = useMemo(() => {
+    return trips.filter((tr: any) => ['planning', 'planned', 'assigned', 'dispatched'].includes(tr.status)).length;
+  }, [trips]);
+
+  const drivingTripsCount = useMemo(() => {
+    return trips.filter((tr: any) => ['driving', 'started', 'loading', 'driver_accepted', 'partially_delivered'].includes(tr.status)).length;
+  }, [trips]);
+
+  const delayedTripsCount = useMemo(() => {
+    return trips.filter((tr: any) => tr.isDelayed || (tr.plannedArrival && new Date(tr.plannedArrival) < new Date() && !['completed', 'closed', 'cancelled'].includes(tr.status))).length || (boardData?.delayedTrips || 0);
+  }, [trips, boardData?.delayedTrips]);
 
   // ── Filtered resources for display ──
   const displayResources = useMemo(() => {
-    let list = resources;
+    let list = [...resources];
+    if (unassignedResource) {
+      list.unshift(unassignedResource);
+    }
     if (grouping === 'driver') {
       list = (boardData?.drivers || resources.map((r: any) => r.driver).filter(Boolean))
         .filter((d: any, i: number, arr: any[]) => d && arr.findIndex((x: any) => x.id === d.id) === i);
@@ -1689,16 +1774,62 @@ export default function PlanningPage() {
       if (driverFilter) list = list.filter((d: any) => d.id === driverFilter);
     }
 
-    // Attention filter: show only resources with blocking conflicts
-    if (attentionActive && conflictTripIds.size > 0) {
+    const getResTrips = (r: any) => {
+      if (r.id === '__unassigned_trips__') return unassignedTrips;
+      return trips.filter(tr => grouping === 'driver' ? tr.driver?.id === r.id : (tr.truck?.id === r.id || tr.truckId === r.id));
+    };
+
+    // Attention filter: show only resources with blocking conflicts or maintenance
+    if (attentionActive) {
+      list = list.filter((r: any) => attentionResourceIds.has(r.id));
+    }
+
+    // Status filter
+    if (statusFilter && statusFilter !== 'unassigned') {
       list = list.filter((r: any) => {
-        const resTrips = trips.filter(tr => grouping === 'driver' ? tr.driver?.id === r.id : (tr.truck?.id === r.id || tr.truckId === r.id));
-        return resTrips.some(tr => conflictTripIds.has(tr.id));
+        const resTrips = getResTrips(r);
+        if (statusFilter === 'planned') {
+          return resTrips.some((tr: any) => ['planning', 'planned', 'assigned', 'dispatched'].includes(tr.status));
+        }
+        if (statusFilter === 'driving') {
+          return resTrips.some((tr: any) => ['driving', 'started', 'loading', 'driver_accepted', 'partially_delivered'].includes(tr.status));
+        }
+        if (statusFilter === 'delayed') {
+          return resTrips.some((tr: any) => tr.isDelayed || (tr.plannedArrival && new Date(tr.plannedArrival) < new Date() && !['completed', 'closed', 'cancelled'].includes(tr.status)));
+        }
+        return resTrips.some((tr: any) => tr.status === statusFilter) || r.status === statusFilter;
+      });
+    }
+
+    // Priority filter
+    if (priorityFilter) {
+      list = list.filter((r: any) => {
+        const resTrips = getResTrips(r);
+        return resTrips.some((tr: any) => tr.orders?.some((o: any) => o.priority === priorityFilter));
+      });
+    }
+
+    // Search filter
+    if (searchFilter) {
+      list = list.filter((r: any) => {
+        if (r.plateNumber?.toLowerCase().includes(searchFilter)) return true;
+        if (r.brand?.toLowerCase().includes(searchFilter) || r.model?.toLowerCase().includes(searchFilter)) return true;
+        if (r.driver?.name?.toLowerCase().includes(searchFilter)) return true;
+        if (r.trailer?.plateNumber?.toLowerCase().includes(searchFilter)) return true;
+        const resTrips = getResTrips(r);
+        return resTrips.some((tr: any) => {
+          if (tr.tripNumber?.toLowerCase().includes(searchFilter)) return true;
+          if (tr.driver?.name?.toLowerCase().includes(searchFilter)) return true;
+          if (tr.trailer?.plateNumber?.toLowerCase().includes(searchFilter)) return true;
+          if (tr.stops?.some((s: any) => (s.city || '').toLowerCase().includes(searchFilter) || (s.address || '').toLowerCase().includes(searchFilter) || (s.country || '').toLowerCase().includes(searchFilter))) return true;
+          if (tr.orders?.some((o: any) => (o.orderNumber || '').toLowerCase().includes(searchFilter) || (o.customerReference || '').toLowerCase().includes(searchFilter) || (o.client?.name || '').toLowerCase().includes(searchFilter))) return true;
+          return false;
+        });
       });
     }
 
     return list;
-  }, [resources, truckFilter, driverFilter, grouping, boardData, attentionActive, conflictTripIds, trips]);
+  }, [resources, unassignedResource, unassignedTrips, truckFilter, driverFilter, grouping, boardData, attentionActive, attentionResourceIds, statusFilter, priorityFilter, searchFilter, trips]);
 
   return (
     <div className={`flex flex-col gap-0 bg-background text-text-primary print:bg-white ${isFullscreen ? 'fixed inset-0 z-[9000] p-0' : 'h-[calc(100vh-4rem)]'}`}>
@@ -1802,7 +1933,7 @@ export default function PlanningPage() {
         </div>
 
         {activeFilterCount > 0 && (
-          <button onClick={() => { setSearch(''); setStatusFilter(''); setTruckFilter(''); setDriverFilter(''); setPriorityFilter(''); }} className="flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-600 bg-red-500/10 border border-red-500/20 px-2.5 py-1.5 rounded-xl transition-colors">
+          <button onClick={() => { setSearch(''); setStatusFilter(''); setTruckFilter(''); setDriverFilter(''); setPriorityFilter(''); setAttentionActive(false); }} className="flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-600 bg-red-500/10 border border-red-500/20 px-2.5 py-1.5 rounded-xl transition-colors">
             <X className="w-3 h-3" />{t('jsx_clearFilters','Clear')} ({activeFilterCount})
           </button>
         )}
@@ -1817,19 +1948,25 @@ export default function PlanningPage() {
       {/* ── KPI STRIP ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-5 gap-0 border-b border-border shrink-0 print:hidden">
         {([
-          { filter: '', label: t('kpi_planned','Planned'), value: counts.planned || trips.filter((tr: any) => ['planned','assigned','dispatched'].includes(tr.status)).length || 0, color: 'blue', isAttention: false },
+          { filter: 'planned', label: t('kpi_planned','Planned'), value: plannedTripsCount, color: 'blue', isAttention: false },
           { filter: 'unassigned', label: t('kpi_unassigned','Unassigned'), value: boardData?.totalUnplanned || orders.length || 0, color: 'amber', isAttention: false },
-          { filter: 'attention', label: t('jsx_attention','Attention'), value: (boardData?.conflicts || []).filter((c: any) => c.level === 'blocking').length || counts.attention || 0, color: 'red', isAttention: true },
-          { filter: 'driving', label: t('status_driving','Driving'), value: counts.inProgress || trips.filter((tr: any) => ['driving','started','loading'].includes(tr.status)).length || 0, color: 'emerald', isAttention: false },
-          { filter: 'delayed', label: t('status_delayed','Delayed'), value: boardData?.delayedTrips || 0, color: 'purple', isAttention: false },
+          { filter: 'attention', label: t('jsx_attention','Attention'), value: attentionResourceIds.size, color: 'red', isAttention: true },
+          { filter: 'driving', label: t('status_driving','Driving'), value: drivingTripsCount, color: 'emerald', isAttention: false },
+          { filter: 'delayed', label: t('status_delayed','Delayed'), value: delayedTripsCount, color: 'purple', isAttention: false },
         ] as { filter: string; label: string; value: number; color: string; isAttention: boolean }[]).map(({ filter, label, value, color, isAttention }) => {
           const isActive = isAttention ? attentionActive : statusFilter === filter;
           return (
             <button
               key={label}
               onClick={() => {
-                if (isAttention) { setAttentionActive(a => !a); }
-                else { setStatusFilter(statusFilter === filter ? '' : filter); }
+                if (isAttention) {
+                  setAttentionActive(a => !a);
+                } else if (filter === 'unassigned') {
+                  setPoolCollapsed(false);
+                  setStatusFilter(statusFilter === 'unassigned' ? '' : 'unassigned');
+                } else {
+                  setStatusFilter(statusFilter === filter ? '' : filter);
+                }
               }}
               className={`py-2.5 px-4 flex items-center justify-between gap-2 text-xs font-bold border-r border-border last:border-0 transition-all hover:bg-surface/60 ${isActive ? `bg-${color}-500/10` : ''}`}
             >
@@ -2027,7 +2164,9 @@ export default function PlanningPage() {
                       </div>
                     ) : (
                       displayResources.map(res => {
-                        const resTrips = trips.filter(tr => grouping === 'driver' ? tr.driver?.id === res.id : (tr.truck?.id === res.id || tr.truckId === res.id));
+                        const resTrips = res.id === '__unassigned_trips__'
+                          ? unassignedTrips
+                          : trips.filter(tr => grouping === 'driver' ? tr.driver?.id === res.id : (tr.truck?.id === res.id || tr.truckId === res.id));
                         return (
                           <ResourceRow
                             key={res.id}
@@ -2042,6 +2181,10 @@ export default function PlanningPage() {
                             draggingId={draggingOrderId}
                             draggingOrder={draggingOrder}
                             onOpenPlanner={(r) => {
+                              if (r.id === '__unassigned_trips__') {
+                                if (resTrips[0]?.id) setSelectedTripId(resTrips[0].id);
+                                return;
+                              }
                               const tripParam = resTrips[0]?.id ? `&trip=${resTrips[0].id}` : '';
                               navigate(`/planning/planner/${r.id}?date=${selectedDate}${tripParam}`);
                             }}
