@@ -474,6 +474,17 @@ export class PlanningService {
       };
     }
 
+    const tripStatusFilter = q.tripStatus || q.status;
+    let allowedTripStatuses: string[] = ACTIVE_TRIP_STATUSES;
+    if (tripStatusFilter === 'all') {
+      allowedTripStatuses = [...ACTIVE_TRIP_STATUSES, 'completed', 'closed'];
+    } else if (tripStatusFilter === 'completed') {
+      allowedTripStatuses = ['completed'];
+    } else if (tripStatusFilter && tripStatusFilter !== 'unassigned') {
+      const parts = String(tripStatusFilter).split(',').map((s) => s.trim()).filter(Boolean);
+      if (parts.length) allowedTripStatuses = parts;
+    }
+
     const tripsQb = this.tripRepo
       .createQueryBuilder('trip')
       .leftJoinAndSelect('trip.truck', 'truck')
@@ -489,7 +500,7 @@ export class PlanningService {
       .leftJoinAndSelect('orders.stops', 'orderStops')
       .leftJoinAndSelect('trip.costs', 'costs')
       .leftJoinAndSelect('trip.dispatcher', 'dispatcher')
-      .where('trip.status IN (:...statuses)', { statuses: [...ACTIVE_TRIP_STATUSES, 'completed'] })
+      .where('trip.status IN (:...statuses)', { statuses: allowedTripStatuses })
       .andWhere(
         new Brackets((b) => {
           b.where('trip.plannedDeparture BETWEEN :from AND :to', { from, to })
@@ -678,32 +689,31 @@ export class PlanningService {
 
     for (const trip of trips) {
       const t = trip as any;
+      const status = String(t.status || '');
+      if (['completed', 'closed', 'cancelled'].includes(status)) {
+        continue;
+      }
       // Use the resource dict first; fall back to the embedded truck relation so
       // that trips with a valid (but e.g. inactive) truck don't get false NO_VEHICLE.
       const truckFromRelation = t.truck || null;
       const truck = resourcesById[t.truckId] || resourcesById[truckFromRelation?.id] || truckFromRelation || null;
       const tripCargo = this.sumCargo(t.orders || []);
-      const status = String(t.status || '');
 
       if (!truck && !truckFromRelation) {
-        if (status !== 'completed') {
-          add({ level: 'blocking', code: 'NO_VEHICLE', tripId: t.id, message: `Trip ${t.tripNumber || t.id} has no vehicle assigned.` });
-        }
+        add({ level: 'blocking', code: 'NO_VEHICLE', tripId: t.id, message: `Trip ${t.tripNumber || t.id} has no vehicle assigned.` });
       } else {
         const avail = truck.available;
-        if (status !== 'completed') {
-          if (truck.hasMaintenance) {
-            add({
-              level: 'blocking', code: 'VEHICLE_IN_MAINTENANCE', tripId: t.id, resourceId: truck.id,
-              message: `${truck.plateNumber} is in maintenance.`,
-            });
-          } else if (!avail && (truck.busy || truck.plannedToday)) {
-            const why = truck.busy ? 'in progress' : 'already planned today';
-            add({
-              level: 'warning', code: 'VEHICLE_ALREADY_USED', tripId: t.id, resourceId: truck.id,
-              message: `${truck.plateNumber} is already ${why}.`,
-            });
-          }
+        if (truck.hasMaintenance) {
+          add({
+            level: 'blocking', code: 'VEHICLE_IN_MAINTENANCE', tripId: t.id, resourceId: truck.id,
+            message: `${truck.plateNumber} is in maintenance.`,
+          });
+        } else if (!avail && (truck.busy || truck.plannedToday)) {
+          const why = truck.busy ? 'in progress' : 'already planned today';
+          add({
+            level: 'warning', code: 'VEHICLE_ALREADY_USED', tripId: t.id, resourceId: truck.id,
+            message: `${truck.plateNumber} is already ${why}.`,
+          });
         }
 
         const w = truck.maxWeightKg || 24000;
@@ -712,7 +722,7 @@ export class PlanningService {
         const p = truck.maxPallets || 33;
         if (tripCargo.weight > w) add({ level: 'blocking', code: 'WEIGHT_OVERLOAD', tripId: t.id, resourceId: truck.id, params: { load: tripCargo.weight, max: w }, message: `Weight ${tripCargo.weight}kg exceeds ${w}kg.` });
         if (tripCargo.ldm > l) add({ level: 'blocking', code: 'LDM_OVERLOAD', tripId: t.id, resourceId: truck.id, params: { load: tripCargo.ldm, max: l }, message: `LDM ${tripCargo.ldm} exceeds ${l}.` });
-        if (tripCargo.volume > v) add({ level: 'blocking', code: 'VOLUME_OVERLOAD', tripId: t.id, resourceId: truck.id, params: { load: tripCargo.volume, max: v }, message: `Volume ${tripCargo.volume}m³ exceeds ${v}m³.` });
+        if (tripCargo.volume > v) add({ level: 'warning', code: 'VOLUME_OVERLOAD', tripId: t.id, resourceId: truck.id, params: { load: tripCargo.volume, max: v }, message: `Volume ${tripCargo.volume}m³ exceeds ${v}m³.` });
         if (tripCargo.pallets > p) add({ level: 'blocking', code: 'PALLET_OVERLOAD', tripId: t.id, resourceId: truck.id, params: { load: tripCargo.pallets, max: p }, message: `Pallets ${tripCargo.pallets} exceed ${p}.` });
 
         if (t.truckType && truck.truckType && t.truckType !== truck.truckType) {
@@ -1966,13 +1976,13 @@ export class PlanningService {
         });
       }
       if (sum.volume > caps.maxVolumeCbm) {
-        conflicts.push({
+        warnings.push({
           type: 'capacity_volume',
-          severity: 'error',
-          hard: true,
-          blocking: true,
-          code: 'ERR_VOLUME_CAPACITY',
-          message: `Volume capacity exceeded: ${sum.volume.toFixed(1)}m³ > ${caps.maxVolumeCbm.toFixed(1)}m³.`,
+          severity: 'warning',
+          hard: false,
+          blocking: false,
+          code: 'WARN_VOLUME_CAPACITY',
+          message: `Volume capacity warning: ${sum.volume.toFixed(1)}m³ > ${caps.maxVolumeCbm.toFixed(1)}m³.`,
         });
       }
     }
@@ -2143,7 +2153,7 @@ export class PlanningService {
     };
   }
 
-  async confirmTrip(user: any, tripId: string) {
+  async confirmTrip(user: any, tripId: string, opts?: { force?: boolean }) {
     const trip = await this.loadTrip(tripId);
     if (!trip) throw new NotFoundException('Trip not found.');
 
@@ -2154,7 +2164,7 @@ export class PlanningService {
 
     // Run formal validation
     const validation = await this.validateTrip(user, tripId);
-    if (!validation.feasible || (validation.blockingIssues && validation.blockingIssues.length > 0)) {
+    if (!opts?.force && (!validation.feasible || (validation.blockingIssues && validation.blockingIssues.length > 0))) {
       const msgs = (validation.blockingIssues || []).map((b: any) => b.message).join('; ');
       throw new BadRequestException(`Cannot confirm plan: ${validation.blockingIssues.length} blocking issue(s) detected. ${msgs}`);
     }
@@ -2188,8 +2198,11 @@ export class PlanningService {
     const trip = await this.loadTrip(tripId);
     if (!trip) throw new NotFoundException('Trip not found.');
 
-    if (trip.status !== 'confirmed') {
-      throw new BadRequestException(`Cannot reopen planning for trip with status "${trip.status}". Only Confirmed trips can be reopened.`);
+    if (trip.status !== 'confirmed' && trip.status !== 'dispatched' && trip.status !== 'planned') {
+      if (trip.status === 'completed' || trip.status === 'closed') {
+        throw new BadRequestException(`Cannot reopen planning for trip with status "${trip.status}". Completed trips cannot be reopened.`);
+      }
+      throw new BadRequestException(`Cannot reopen planning for trip with status "${trip.status}". Only Confirmed or Dispatched trips can be reopened.`);
     }
 
     trip.status = 'planning';
@@ -4023,7 +4036,7 @@ export class PlanningService {
     const rawWeight = (truck.payloadCapacity != null ? Number(truck.payloadCapacity) : null) || (truck.maxWeightKg != null ? Number(truck.maxWeightKg) : null) || Number(truck.trailer?.payloadCapacityWeight) || 24000;
     const maxWeightKg = rawWeight > 30000 && truck.payloadCapacity ? Number(truck.payloadCapacity) : (rawWeight > 30000 ? 24000 : rawWeight);
     const maxLdm = truck.maxLdm != null ? Number(truck.maxLdm) : (Number(truck.trailer?.maxLdm) || 13.6);
-    const maxVolumeCbm = truck.maxVolumeCbm != null ? Number(truck.maxVolumeCbm) : (Number(truck.trailer?.maxVolumeCbm) || 85);
+    const maxVolumeCbm = truck.maxVolumeCbm != null ? Number(truck.maxVolumeCbm) : (Number(truck.trailer?.maxVolumeCbm) || 90);
 
     return { maxPallets, maxWeightKg, maxLdm, maxVolumeCbm };
   }

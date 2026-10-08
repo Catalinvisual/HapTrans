@@ -21,6 +21,7 @@ export function AppToaster() {
     <Toaster
       position="top-right"
       gutter={10}
+      containerStyle={{ zIndex: 999999 }}
       toastOptions={{ duration: 4000 }}
     >
       {(t) => {

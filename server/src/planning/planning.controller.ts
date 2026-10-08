@@ -105,8 +105,8 @@ export class PlanningController {
   }
 
   @Post('trips/:tripId/confirm')
-  confirmTrip(@Request() req: any, @Param('tripId') tripId: string) {
-    return this.planningService.confirmTrip(req.user, tripId);
+  confirmTrip(@Request() req: any, @Param('tripId') tripId: string, @Body() body?: any) {
+    return this.planningService.confirmTrip(req.user, tripId, body);
   }
 
   @Post('trips/:tripId/reopen')

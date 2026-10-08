@@ -522,7 +522,7 @@ function ResourceRow({
 }) {
   const { t } = useTranslation();
   const [isDragOver, setIsDragOver] = useState(false);
-  const cargo = sumCargo(trips.flatMap((tr: any) => tr.orders || []));
+  const cargo = sumCargo(trips.filter((tr: any) => !['completed', 'closed', 'cancelled'].includes(tr.status)).flatMap((tr: any) => tr.orders || []));
   const mw = resource.maxWeightKg || 24000;
   const mp = resource.maxPallets || 33;
   const st = String(resource.status || 'available').toLowerCase();
@@ -705,8 +705,9 @@ function TripDetailDrawer({
   const st = String((trip.status || tripSummary.status || 'planning')).toLowerCase();
   
   const isPlanning = ['planning', 'planned', 'assigned'].includes(st);
-  const isConfirmed = ['assigned', 'dispatched', 'driver_accepted', 'started', 'driving', 'partially_delivered', 'completed', 'closed'].includes(st);
-  const isDispatched = ['dispatched', 'driver_accepted', 'started', 'driving', 'partially_delivered', 'completed', 'closed'].includes(st);
+  const isConfirmed = st === 'confirmed' || st === 'assigned';
+  const isDispatched = ['dispatched', 'driver_accepted', 'started', 'driving', 'partially_delivered'].includes(st);
+  const isCompleted = ['completed', 'closed', 'delivered'].includes(st);
   const col = TRIP_COLORS[st] || TRIP_COLORS.planning;
   const tripId = trip.id || tripSummary.id;
   const { origin, dest } = tripOriginDestination(trip);
@@ -841,14 +842,28 @@ function TripDetailDrawer({
     return t('pln_view_stops', 'View Stops');
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return typeof document !== 'undefined' ? createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-end bg-black/15 transition-colors" onClick={onClose}>
-      <div className={`relative w-full ${isExpanded ? 'max-w-4xl lg:max-w-5xl' : 'max-w-xl'} h-full bg-card shadow-2xl flex flex-col border-l border-border animate-in slide-in-from-right duration-200 transition-all`} onClick={e => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 md:p-8 bg-black/60 backdrop-blur-md transition-all animate-in fade-in-0 duration-150"
+      onClick={onClose}
+    >
+      <div
+        className={`relative w-full ${isExpanded ? 'max-w-6xl' : 'max-w-3xl lg:max-w-4xl'} max-h-[92vh] bg-card shadow-2xl flex flex-col rounded-3xl border border-border overflow-hidden animate-in zoom-in-95 duration-200 transition-all`}
+        onClick={e => e.stopPropagation()}
+      >
 
         {/* Header */}
-        <div className="p-5 border-b border-border bg-surface/40 flex items-start justify-between gap-4 shrink-0">
-          <div>
-            <div className="flex items-center gap-3">
+        <div className="p-4 sm:p-5 border-b border-border bg-surface/50 flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2.5 flex-wrap">
               <h2 className="text-xl font-black text-text-primary">{trip.tripNumber || tripSummary.tripNumber || 'Trip'}</h2>
               <span className={`px-2.5 py-0.5 text-xs font-black rounded-full border-2 uppercase ${col.border} ${col.text}`}>{t(`status_${st}`, st)}</span>
               {trip.validationStatus && (
@@ -862,30 +877,36 @@ function TripDetailDrawer({
               )}
               {detailLoading && <Loader2 className="w-4 h-4 animate-spin text-text-muted" />}
             </div>
-            <p className="text-xs text-text-secondary mt-1 flex items-center gap-2">
-              <span>{origin}</span>
-              <ArrowRight className="w-3 h-3 text-text-muted" />
-              <span>{dest}</span>
-              {(trip.distanceKm || tripSummary.distanceKm) && <><span>·</span><span className="font-semibold text-text-primary">{trip.distanceKm || tripSummary.distanceKm} km</span></>}
+            <p className="text-xs text-text-secondary mt-1 flex items-center gap-1.5 truncate">
+              <span className="font-semibold text-text-primary">{origin}</span>
+              <ArrowRight className="w-3 h-3 text-text-muted shrink-0" />
+              <span className="font-semibold text-text-primary">{dest}</span>
+              {(trip.distanceKm || tripSummary.distanceKm) && <><span>·</span><span className="font-semibold text-primary">{trip.distanceKm || tripSummary.distanceKm} km</span></>}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {truck?.id && (
               <button
                 onClick={() => navigate(`/planning/planner/${truck.id}?date=${trip.plannedDeparture ? String(trip.plannedDeparture).split('T')[0] : ''}&trip=${tripId}`)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-primary text-white shadow-sm hover:opacity-90 active:scale-95 transition-all"
                 title={t('pln_open_planner', 'Route & Load Planner')}
               >
-                <Sparkles className="w-3.5 h-3.5" /><span>{t('pln_planner', 'Route Planner')}</span>
+                <Sparkles className="w-3.5 h-3.5" /><span className="hidden sm:inline">{t('pln_planner', 'Route Planner')}</span>
               </button>
             )}
             <button onClick={() => navigate(`/trips/${tripId}`)} className="btn-secondary text-xs py-1.5 px-2.5 flex items-center gap-1">
-              <ExternalLink className="w-3.5 h-3.5" /><span>{t('jsx_context_openTrip','Open')}</span>
+              <ExternalLink className="w-3.5 h-3.5" /><span className="hidden sm:inline">{t('jsx_context_openTrip','Open')}</span>
             </button>
             <button onClick={() => setIsExpanded(p => !p)} className="p-1.5 hover:bg-surface rounded-xl text-text-secondary hover:text-text-primary transition-colors" title={isExpanded ? t('collapse', 'Collapse') : t('expand', 'Expand')}>
               {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
-            <button onClick={onClose} className="p-1.5 hover:bg-surface rounded-xl text-text-secondary hover:text-text-primary"><X className="w-5 h-5" /></button>
+            <button
+              onClick={onClose}
+              className="p-1.5 hover:bg-red-500/10 hover:text-red-600 rounded-xl text-text-secondary transition-colors border border-border/40 hover:border-red-500/30"
+              title={t('close', 'Close')}
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
@@ -1196,7 +1217,7 @@ function TripDetailDrawer({
                   {loadingAction === 'confirm' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
                   <span>{t('action_confirm_plan', 'Confirm Plan')}</span>
                 </button>
-              ) : isConfirmed && !isDispatched ? (
+              ) : isConfirmed ? (
                 <div className="flex items-center gap-2">
                   <span className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 text-xs font-black flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4" /> {t('status_confirmed', 'Confirmed')}
@@ -1245,6 +1266,19 @@ function TripDetailDrawer({
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>{t('action_reopen_planning', 'Reopen Planning')}</span>
+                  </button>
+                </div>
+              ) : isCompleted ? (
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 text-xs font-black flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4" /> {t(`status_${st}`, st)}
+                  </span>
+                  <button
+                    onClick={() => navigate(`/tracking?tripId=${tripId}`)}
+                    className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold text-primary hover:bg-primary/10 border-primary/30"
+                  >
+                    <Navigation className="w-4 h-4" />
+                    <span>{t('view_tracking_btn', 'View Tracking')}</span>
                   </button>
                 </div>
               ) : null}
