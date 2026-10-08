@@ -52,22 +52,22 @@ export class DropHookEvent {
   locationName: string;
 
   @Column({ nullable: true })
-  address: string;
+  address: string | null;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
-  latitude: number;
+  latitude: number | null;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
-  longitude: number;
+  longitude: number | null;
 
   @Column({ type: 'timestamp' })
   eventTime: Date;
 
   @Column({ nullable: true, type: 'text' })
-  notes: string;
+  notes: string | null;
 
   @Column({ nullable: true })
-  performedBy: string;
+  performedBy: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

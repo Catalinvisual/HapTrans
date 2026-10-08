@@ -44,46 +44,46 @@ export class CrossDockTransfer {
   facilityName: string;
 
   @Column({ nullable: true })
-  facilityAddress: string;
+  facilityAddress: string | null;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
-  latitude: number;
+  latitude: number | null;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
-  longitude: number;
+  longitude: number | null;
 
   @Column({ nullable: true })
-  cargoDescription: string;
+  cargoDescription: string | null;
 
   @Column({ nullable: true, type: 'int' })
-  pallets: number;
+  pallets: number | null;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
-  weightKg: number;
+  weightKg: number | null;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
-  volumeCbm: number;
+  volumeCbm: number | null;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
-  ldm: number;
+  ldm: number | null;
 
   @Column({ type: 'varchar', default: CrossDockStatus.PLANNED })
   status: CrossDockStatus;
 
   @Column({ type: 'timestamp', nullable: true })
-  inboundEta: Date;
+  inboundEta: Date | null;
 
   @Column({ type: 'timestamp', nullable: true })
-  outboundEta: Date;
+  outboundEta: Date | null;
 
   @Column({ type: 'timestamp', nullable: true })
-  transferredAt: Date;
+  transferredAt: Date | null;
 
   @Column({ nullable: true })
-  responsibleUser: string;
+  responsibleUser: string | null;
 
   @Column({ nullable: true, type: 'text' })
-  notes: string;
+  notes: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -437,6 +437,10 @@ export class RoutingService {
     return R * c;
   }
 
+  calculateHaversine(lat1: any, lon1: any, lat2: any, lon2: any): number {
+    return this.haversineDistance(lat1, lon1, lat2, lon2);
+  }
+
   private cachedPrices: any[] = [];
   private lastPricesFetch: number = 0;
 

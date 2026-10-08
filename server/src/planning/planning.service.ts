@@ -8,7 +8,7 @@ import { StopTask, TaskType } from '../trips/stop-task.entity';
 import { OrderStop, OrderStopType } from '../orders/order-stop.entity';
 import { Truck } from '../trucks/truck.entity';
 import { Trailer } from '../trucks/trailer.entity';
-import { Driver } from '../drivers/driver.entity';
+import { Driver, DriverStatus } from '../drivers/driver.entity';
 import { DriverHos } from '../drivers/driver-hos.entity';
 import { Maintenance } from '../maintenance/maintenance.entity';
 import { PlanningView } from './planning-view.entity';
@@ -4791,21 +4791,21 @@ export class PlanningService {
     }
 
     // 3. Record DropHookEvent
-    const dropEvent = this.dropHookRepo.create({
-      companyId: user?.companyId || null,
-      type: DropHookType.DROP,
-      trailerId: trailer.id,
-      truckId: trip?.truck?.id || oldTruckId || null,
-      driverId: trip?.driver?.id || null,
-      tripId: trip?.id || null,
-      locationName: dto.locationName,
-      address: dto.address || null,
-      latitude: dto.latitude || null,
-      longitude: dto.longitude || null,
-      eventTime,
-      notes: dto.notes || null,
-      performedBy: user?.name || user?.email || 'Dispatcher',
-    });
+    const dropEvent = new DropHookEvent();
+    dropEvent.companyId = user?.companyId || null;
+    dropEvent.type = DropHookType.DROP;
+    dropEvent.trailerId = trailer.id;
+    dropEvent.truckId = trip?.truck?.id || oldTruckId || null;
+    dropEvent.driverId = trip?.driver?.id || null;
+    dropEvent.tripId = trip?.id || null;
+    dropEvent.locationName = dto.locationName;
+    dropEvent.address = dto.address || null;
+    dropEvent.latitude = dto.latitude != null ? Number(dto.latitude) : null;
+    dropEvent.longitude = dto.longitude != null ? Number(dto.longitude) : null;
+    dropEvent.eventTime = eventTime;
+    dropEvent.notes = dto.notes || null;
+    dropEvent.performedBy = user?.name || user?.email || 'Dispatcher';
+
     const savedEvent = await this.dropHookRepo.save(dropEvent);
 
     // 4. Log Audit & Timeline
@@ -4902,21 +4902,21 @@ export class PlanningService {
     }
 
     // 3. Record DropHookEvent
-    const hookEvent = this.dropHookRepo.create({
-      companyId: user?.companyId || null,
-      type: DropHookType.HOOK,
-      trailerId: trailer.id,
-      truckId: truck.id,
-      driverId: dto.driverId || trip?.driver?.id || null,
-      tripId: trip?.id || null,
-      locationName: dto.locationName,
-      address: dto.address || null,
-      latitude: dto.latitude || null,
-      longitude: dto.longitude || null,
-      eventTime,
-      notes: dto.notes || null,
-      performedBy: user?.name || user?.email || 'Dispatcher',
-    });
+    const hookEvent = new DropHookEvent();
+    hookEvent.companyId = user?.companyId || null;
+    hookEvent.type = DropHookType.HOOK;
+    hookEvent.trailerId = trailer.id;
+    hookEvent.truckId = truck.id;
+    hookEvent.driverId = dto.driverId || trip?.driver?.id || null;
+    hookEvent.tripId = trip?.id || null;
+    hookEvent.locationName = dto.locationName;
+    hookEvent.address = dto.address || null;
+    hookEvent.latitude = dto.latitude != null ? Number(dto.latitude) : null;
+    hookEvent.longitude = dto.longitude != null ? Number(dto.longitude) : null;
+    hookEvent.eventTime = eventTime;
+    hookEvent.notes = dto.notes || null;
+    hookEvent.performedBy = user?.name || user?.email || 'Dispatcher';
+
     const savedEvent = await this.dropHookRepo.save(hookEvent);
 
     // 4. Audit & Timeline
@@ -4996,29 +4996,37 @@ export class PlanningService {
     outboundEta?: string;
     notes?: string;
   }) {
-    const order = await this.orderRepo.findOne({ where: { id: dto.orderId } });
+    const order = await this.orderRepo.findOne({
+      where: { id: dto.orderId },
+      relations: ['cargoItems'],
+    });
     if (!order) throw new NotFoundException('Order not found');
 
-    const transfer = this.crossDockRepo.create({
-      companyId: user?.companyId || null,
-      orderId: order.id,
-      inboundTripId: dto.inboundTripId || null,
-      outboundTripId: dto.outboundTripId || null,
-      facilityName: dto.facilityName,
-      facilityAddress: dto.facilityAddress || null,
-      latitude: dto.latitude || null,
-      longitude: dto.longitude || null,
-      cargoDescription: dto.cargoDescription || order.cargoDescription || null,
-      pallets: dto.pallets != null ? Number(dto.pallets) : Number(order.pallets || 0),
-      weightKg: dto.weightKg != null ? Number(dto.weightKg) : Number(order.weightKg || 0),
-      volumeCbm: dto.volumeCbm != null ? Number(dto.volumeCbm) : Number(order.volumeCbm || 0),
-      ldm: dto.ldm != null ? Number(dto.ldm) : Number(order.loadingMeters || 0),
-      status: CrossDockStatus.PLANNED,
-      inboundEta: dto.inboundEta ? new Date(dto.inboundEta) : null,
-      outboundEta: dto.outboundEta ? new Date(dto.outboundEta) : null,
-      responsibleUser: user?.name || user?.email || 'Dispatcher',
-      notes: dto.notes || null,
-    });
+    const totalWeight = order.cargoItems?.reduce((sum, item) => sum + Number(item.weightKg || 0), 0) || 0;
+    const totalVolume = order.cargoItems?.reduce((sum, item) => sum + Number(item.volumeCbm || 0), 0) || 0;
+    const totalLdm = order.cargoItems?.reduce((sum, item) => sum + Number(item.ldm || 0), 0) || 0;
+    const totalPallets = order.cargoItems?.reduce((sum, item) => item.unit === 'pallet' ? sum + (item.quantity || 1) : sum, 0) || 0;
+    const cargoDesc = order.cargoItems?.map(item => item.description).filter(Boolean).join(', ') || order.orderNumber || null;
+
+    const transfer = new CrossDockTransfer();
+    transfer.companyId = user?.companyId || null;
+    transfer.orderId = order.id;
+    transfer.inboundTripId = dto.inboundTripId || null;
+    transfer.outboundTripId = dto.outboundTripId || null;
+    transfer.facilityName = dto.facilityName;
+    transfer.facilityAddress = dto.facilityAddress || null;
+    transfer.latitude = dto.latitude != null ? Number(dto.latitude) : null;
+    transfer.longitude = dto.longitude != null ? Number(dto.longitude) : null;
+    transfer.cargoDescription = dto.cargoDescription || cargoDesc;
+    transfer.pallets = dto.pallets != null ? Number(dto.pallets) : totalPallets;
+    transfer.weightKg = dto.weightKg != null ? Number(dto.weightKg) : totalWeight;
+    transfer.volumeCbm = dto.volumeCbm != null ? Number(dto.volumeCbm) : totalVolume;
+    transfer.ldm = dto.ldm != null ? Number(dto.ldm) : totalLdm;
+    transfer.status = CrossDockStatus.PLANNED;
+    transfer.inboundEta = dto.inboundEta ? new Date(dto.inboundEta) : null;
+    transfer.outboundEta = dto.outboundEta ? new Date(dto.outboundEta) : null;
+    transfer.responsibleUser = user?.name || user?.email || 'Dispatcher';
+    transfer.notes = dto.notes || null;
 
     const saved = await this.crossDockRepo.save(transfer);
 
@@ -5289,10 +5297,10 @@ export class PlanningService {
 
     const drivers = await this.driverRepo.find({
       where: {
-        active: true,
-        ...(companyId ? { company: { id: companyId } } : {}),
+        status: DriverStatus.AVAILABLE,
+        ...(companyId ? { user: { companyId } } : {}),
       },
-      relations: ['documents'],
+      relations: ['user', 'documents'],
     });
 
     const currentTrips = await this.tripRepo.find({

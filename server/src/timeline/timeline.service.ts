@@ -35,6 +35,13 @@ export class TimelineService {
     return this.repo.save(event);
   }
 
+  async createEvent(event: { companyId?: string; orderId?: string; tripId?: string; userId?: string; type?: string; action?: string; details?: any }) {
+    if (event.userId) {
+      return this.logUserEvent(event.action || 'Event', event.userId, event.orderId, event.tripId, event.details);
+    }
+    return this.logSystemEvent(event.action || 'Event', event.orderId, event.tripId, event.details);
+  }
+
   async getTimelineForOrder(orderId: string) {
     return this.repo.find({
       where: { order: { id: orderId } },

@@ -63,25 +63,25 @@ export class Trailer {
   isDropped: boolean;
 
   @Column({ nullable: true })
-  dropLocation: string;
+  dropLocation: string | null;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
-  dropLat: number;
+  dropLat: number | null;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
-  dropLng: number;
+  dropLng: number | null;
 
   @Column({ type: 'timestamp', nullable: true })
-  droppedAt: Date;
+  droppedAt: Date | null;
 
   @Column({ type: 'uuid', nullable: true })
-  currentTripId: string;
+  currentTripId: string | null;
 
   @Column({ type: 'uuid', nullable: true })
-  currentTruckId: string;
+  currentTruckId: string | null;
 
   @Column('simple-array', { nullable: true })
-  features: string[]; // e.g. ['ADR', 'Tail-lift', 'Curtainside']
+  features: string[] | null; // e.g. ['ADR', 'Tail-lift', 'Curtainside']
 
   @CreateDateColumn()
   createdAt: Date;
