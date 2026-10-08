@@ -543,7 +543,7 @@ export class TripsService {
 
   async migrateLegacyTrips() {
     const legacyTrips = await this.repo.find({
-      relations: ['company', 'client', 'stops']
+      relations: ['company', 'stops']
     });
 
     let migrated = 0;

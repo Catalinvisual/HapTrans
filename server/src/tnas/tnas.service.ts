@@ -121,13 +121,14 @@ export class TnasService {
   async backupTrips() {
     const data = await this.tripsRepo.find({
       order: { createdAt: 'DESC' },
-      relations: ['client', 'truck', 'driver', 'driver.user']
+      relations: ['orders', 'orders.client', 'truck', 'driver', 'driver.user']
     });
     return data.map(t => {
-      const { client, truck, driver, costs, invoices, documents, messages, ...rest } = t as any;
+      const { orders, truck, driver, costs, invoices, documents, messages, ...rest } = t as any;
+      const clientName = (orders || []).find((o: any) => o?.client)?.client?.name || '';
       return {
         ...rest,
-        clientName: client?.name || '',
+        clientName,
         truckPlate: truck?.plateNumber || '',
         driverName: driver?.user?.name || '',
       };
