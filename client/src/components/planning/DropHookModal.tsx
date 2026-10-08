@@ -250,7 +250,12 @@ export default function DropHookModal({
           </div>
 
           {/* Drop & Hook Audit History Preview */}
-          {recentEvents.length > 0 && (
+          {loadingHistory ? (
+            <div className="pt-2 border-t border-border flex items-center justify-center py-2 text-text-muted gap-1.5 text-xs">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+              <span>{t('loading_history', 'Loading history…')}</span>
+            </div>
+          ) : recentEvents.length > 0 && (
             <div className="pt-2 border-t border-border">
               <p className="font-bold text-[10px] text-text-secondary uppercase mb-2">
                 {t('recent_drop_hook_events', 'Recent Drop & Hook History')}

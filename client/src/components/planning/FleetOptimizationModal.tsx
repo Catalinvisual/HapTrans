@@ -48,7 +48,7 @@ export default function FleetOptimizationModal({
         orderIds: Array.from(selectedOrderIds),
         truckIds: Array.from(selectedTruckIds),
         objective,
-        date: selectedDate,
+        dateRange: { start: selectedDate, end: selectedDate },
       });
       setProposal(data);
       if (data.proposals?.length === 0) {
