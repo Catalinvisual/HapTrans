@@ -20,8 +20,8 @@ interface CustomSelectProps {
   disabled?: boolean;
   /** 'sm' renders a dense trigger for toolbars. Defaults to 'md'. */
   size?: 'sm' | 'md';
-  /** Optional leading icon shown inside the trigger. */
-  icon?: React.ReactNode;
+  /** Optional leading icon shown inside the trigger. Accepts an element or a component type. */
+  icon?: React.ReactNode | React.ElementType;
   /** Optional tooltip for the trigger button. */
   title?: string;
 }
@@ -215,6 +215,15 @@ export default function CustomSelect({
 
   const selectedOption = options.find((o) => o.value === value);
 
+  const iconSize = isSm ? 'w-3.5 h-3.5' : 'w-4 h-4';
+  const renderIcon = (node: React.ReactNode | React.ElementType) => {
+    if (node === null || node === undefined || typeof node === 'boolean') return null;
+    if (React.isValidElement(node)) return node;
+    if (typeof node === 'string' || typeof node === 'number') return <span>{node}</span>;
+    const Icon = node as React.ElementType;
+    return <Icon className={iconSize} />;
+  };
+
   return (
     <div className={`relative ${className}`} ref={wrapperRef}>
       <button
@@ -228,7 +237,7 @@ export default function CustomSelect({
         onKeyDown={handleKeyDown}
       >
         <div className={`flex items-center ${isSm ? 'gap-1.5' : 'gap-2'} truncate`}>
-          {icon && <span className="shrink-0 flex items-center text-slate-400">{icon}</span>}
+          {icon && <span className="shrink-0 flex items-center text-slate-400">{renderIcon(icon)}</span>}
           {selectedOption ? (
             <>
               {hasVisibleDot(selectedOption.color) && (
