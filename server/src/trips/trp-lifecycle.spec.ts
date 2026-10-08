@@ -31,7 +31,12 @@ describe('HapCargo TMS — Definitive Planning, TRP Lifecycle, Audit & Security 
       update: jest.fn().mockResolvedValue({ affected: 1 }),
       delete: jest.fn().mockResolvedValue({ affected: 1 }),
       create: jest.fn((e) => ({ ...e })),
-      createQueryBuilder: jest.fn(),
+      createQueryBuilder: jest.fn().mockReturnValue({
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getCount: jest.fn().mockResolvedValue(5),
+        getMany: jest.fn().mockResolvedValue([]),
+      }),
     };
 
     mockTruckRepo = {
@@ -531,6 +536,9 @@ describe('HapCargo TMS — Definitive Planning, TRP Lifecycle, Audit & Security 
   // ═══════════════════════════════════════════════════════════════════════════
   // 7. UNASSIGN ORDER VS UNPLAN TRIP
   // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 7. UNASSIGN ORDER VS UNPLAN TRIP
+  // ═══════════════════════════════════════════════════════════════════════════
   describe('7. Unassign Order vs Unplan Trip', () => {
     it('should unassign a single order, delete its stops, and keep other orders on the TRP', async () => {
       const trip = {
@@ -549,6 +557,308 @@ describe('HapCargo TMS — Definitive Planning, TRP Lifecycle, Audit & Security 
 
       expect(mockOrderRepo.save).toHaveBeenCalled();
       expect(mockStopRepo.delete).toHaveBeenCalled();
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 8. DRIVER DOCUMENT COMPLIANCE VERIFICATION (PHASE 2)
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('8. Driver Document Compliance Verification', () => {
+    it('should generate blocking conflict when driving license expires before trip arrival', async () => {
+      const conflicts = await service.computeConflicts({
+        trips: [
+          {
+            id: 'trip-lic',
+            tripNumber: 'TRP-LIC-01',
+            status: 'planning',
+            plannedDeparture: new Date('2026-10-10T08:00:00Z'),
+            plannedArrival: new Date('2026-10-15T18:00:00Z'),
+            driverId: 'drv-lic',
+            orders: [],
+          },
+        ],
+        driversById: {
+          'drv-lic': {
+            id: 'drv-lic',
+            user: { name: 'Ion Popescu' },
+            licenseExpiry: new Date('2026-10-12T00:00:00Z'), // expires mid-trip
+          },
+        },
+      });
+
+      const licConflict = conflicts.find((c) => c.code === 'DRIVER_LICENSE_EXPIRED');
+      expect(licConflict).toBeDefined();
+      expect(licConflict?.level).toBe('blocking');
+      expect(licConflict?.message).toContain('driving licence expires');
+    });
+
+    it('should generate blocking conflict when medical certificate expires before trip end', async () => {
+      const conflicts = await service.computeConflicts({
+        trips: [
+          {
+            id: 'trip-med',
+            tripNumber: 'TRP-MED-01',
+            status: 'planning',
+            plannedDeparture: new Date('2026-10-10T08:00:00Z'),
+            plannedArrival: new Date('2026-10-15T18:00:00Z'),
+            driverId: 'drv-med',
+            orders: [],
+          },
+        ],
+        driversById: {
+          'drv-med': {
+            id: 'drv-med',
+            user: { name: 'Vasile Roman' },
+            licenseExpiry: new Date('2027-01-01T00:00:00Z'),
+            medicalExpiry: new Date('2026-10-11T00:00:00Z'), // expired mid-trip
+          },
+        },
+      });
+
+      const medConflict = conflicts.find((c) => c.code === 'DRIVER_MEDICAL_EXPIRED');
+      expect(medConflict).toBeDefined();
+      expect(medConflict?.level).toBe('blocking');
+      expect(medConflict?.message).toContain('medical certificate expires');
+    });
+
+    it('should generate blocking conflict when tachograph card expires during trip', async () => {
+      const conflicts = await service.computeConflicts({
+        trips: [
+          {
+            id: 'trip-tacho',
+            tripNumber: 'TRP-TAC-01',
+            status: 'planning',
+            plannedDeparture: new Date('2026-10-10T08:00:00Z'),
+            plannedArrival: new Date('2026-10-14T18:00:00Z'),
+            driverId: 'drv-tac',
+            orders: [],
+          },
+        ],
+        driversById: {
+          'drv-tac': {
+            id: 'drv-tac',
+            user: { name: 'Mihai Dan' },
+            licenseExpiry: new Date('2027-01-01T00:00:00Z'),
+            medicalExpiry: new Date('2027-01-01T00:00:00Z'),
+            tachoCardExpiry: new Date('2026-10-12T00:00:00Z'),
+          },
+        },
+      });
+
+      const tachoConflict = conflicts.find((c) => c.code === 'DRIVER_TACHO_EXPIRED');
+      expect(tachoConflict).toBeDefined();
+      expect(tachoConflict?.level).toBe('blocking');
+      expect(tachoConflict?.message).toContain('tachograph card expires');
+    });
+
+    it('should generate blocking conflict when ADR cargo is planned but driver ADR certificate is expired or missing', async () => {
+      const conflicts = await service.computeConflicts({
+        trips: [
+          {
+            id: 'trip-adr',
+            tripNumber: 'TRP-ADR-01',
+            status: 'planning',
+            plannedDeparture: new Date('2026-10-10T08:00:00Z'),
+            plannedArrival: new Date('2026-10-15T18:00:00Z'),
+            driverId: 'drv-adr',
+            orders: [
+              {
+                id: 'ord-adr',
+                orderNumber: 'ORD-ADR-01',
+                cargoItems: [{ id: 'cg-1', adrClass: '3' }],
+              },
+            ],
+          },
+        ],
+        driversById: {
+          'drv-adr': {
+            id: 'drv-adr',
+            user: { name: 'Gheorghe ADR' },
+            licenseExpiry: new Date('2027-01-01T00:00:00Z'),
+            documents: [
+              { type: 'ADR Certificate', expiryDate: new Date('2026-10-11T00:00:00Z') }, // expired mid-trip
+            ],
+          },
+        },
+      });
+
+      const adrConflict = conflicts.find((c) => c.code === 'DRIVER_ADR_EXPIRED');
+      expect(adrConflict).toBeDefined();
+      expect(adrConflict?.level).toBe('blocking');
+      expect(adrConflict?.message).toContain('ADR certificate expires');
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 9. TRAILER OVERLAP CONFLICT DETECTION (PHASE 3)
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('9. Trailer Overlap Conflict Detection', () => {
+    it('should flag a blocking TRAILER_OVERLAP conflict when two active trips share the same trailer at overlapping times', async () => {
+      const conflicts = await service.computeConflicts({
+        trips: [
+          {
+            id: 'trip-A',
+            tripNumber: 'TRP-A',
+            status: 'planning',
+            trailerId: 'trailer-101',
+            plannedDeparture: new Date('2026-10-10T10:00:00Z'),
+            plannedArrival: new Date('2026-10-10T15:00:00Z'),
+            orders: [],
+          },
+          {
+            id: 'trip-B',
+            tripNumber: 'TRP-B',
+            status: 'assigned',
+            trailerId: 'trailer-101',
+            plannedDeparture: new Date('2026-10-10T13:00:00Z'),
+            plannedArrival: new Date('2026-10-10T17:00:00Z'),
+            orders: [],
+          },
+        ],
+        trailersById: {
+          'trailer-101': { id: 'trailer-101', plateNumber: 'B-99-TRL' },
+        },
+      });
+
+      const overlap = conflicts.find((c) => c.code === 'TRAILER_OVERLAP');
+      expect(overlap).toBeDefined();
+      expect(overlap?.level).toBe('blocking');
+      expect(overlap?.message).toContain('double-booked');
+      expect(overlap?.params?.trailerPlate).toBe('B-99-TRL');
+    });
+
+    it('should not flag TRAILER_OVERLAP when trips on the same trailer do not overlap in time', async () => {
+      const conflicts = await service.computeConflicts({
+        trips: [
+          {
+            id: 'trip-A',
+            tripNumber: 'TRP-A',
+            status: 'planning',
+            trailerId: 'trailer-101',
+            plannedDeparture: new Date('2026-10-10T08:00:00Z'),
+            plannedArrival: new Date('2026-10-10T12:00:00Z'),
+            orders: [],
+          },
+          {
+            id: 'trip-B',
+            tripNumber: 'TRP-B',
+            status: 'assigned',
+            trailerId: 'trailer-101',
+            plannedDeparture: new Date('2026-10-10T13:00:00Z'),
+            plannedArrival: new Date('2026-10-10T18:00:00Z'),
+            orders: [],
+          },
+        ],
+        trailersById: {
+          'trailer-101': { id: 'trailer-101', plateNumber: 'B-99-TRL' },
+        },
+      });
+
+      const overlap = conflicts.find((c) => c.code === 'TRAILER_OVERLAP');
+      expect(overlap).toBeUndefined();
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 10. SPLIT TRIP VALIDATION & EXECUTION (PHASE 1)
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('10. Split Trip Validation & Execution', () => {
+    it('should throw BadRequestException when no orders are selected for splitting', async () => {
+      const trip = {
+        id: 't-split-empty',
+        status: 'planning',
+        orders: [{ id: 'o1' }, { id: 'o2' }],
+      };
+      mockTripRepo.findOne.mockResolvedValue(trip);
+
+      await expect(service.splitTrip(mockUser, 't-split-empty', { orderIds: [] })).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException when attempting to split off every single order', async () => {
+      const trip = {
+        id: 't-split-all',
+        status: 'planning',
+        orders: [{ id: 'o1' }, { id: 'o2' }],
+      };
+      mockTripRepo.findOne.mockResolvedValue(trip);
+
+      await expect(service.splitTrip(mockUser, 't-split-all', { orderIds: ['o1', 'o2'] })).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should successfully split selected orders into a new trip', async () => {
+      const trip = {
+        id: 't-split-ok',
+        tripNumber: 'TRP-ORIG-01',
+        status: 'planning',
+        orders: [{ id: 'o1', status: 'planned' }, { id: 'o2', status: 'planned' }, { id: 'o3', status: 'planned' }],
+        stops: [],
+      };
+      const newTrip = { id: 't-split-new', tripNumber: 'TRP-SPLIT-02', status: 'planning', orders: [{ id: 'o2' }, { id: 'o3' }], stops: [] };
+
+      mockTripRepo.findOne.mockImplementation((opts: any) => {
+        const id = opts?.where?.id || opts;
+        if (id === 't-split-ok') return Promise.resolve(trip);
+        if (id === 't-split-new') return Promise.resolve(newTrip);
+        return Promise.resolve(trip);
+      });
+
+      mockTripRepo.save.mockResolvedValue(newTrip);
+      mockTripRepo.create.mockReturnValue(newTrip);
+      mockOrderRepo.find.mockResolvedValue([{ id: 'o2', trip }, { id: 'o3', trip }]);
+
+      const result = await service.splitTrip(mockUser, 't-split-ok', { orderIds: ['o2', 'o3'] });
+
+      expect(result).toBeDefined();
+      expect(mockTripRepo.save).toHaveBeenCalled();
+      expect(mockOrderRepo.save).toHaveBeenCalled();
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 11. COMBINE TRIPS (PHASE 6)
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('11. Combine Trips Execution', () => {
+    it('should throw BadRequestException when source and target trip are the same', async () => {
+      await expect(
+        service.combineTrips(mockUser, { sourceTripId: 'trip-same', targetTripId: 'trip-same' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should transfer orders from source to target trip and delete source trip', async () => {
+      const source = {
+        id: 'trip-source',
+        tripNumber: 'TRP-SRC',
+        status: 'planning',
+        orders: [{ id: 'o-src', status: 'planned' }],
+        stops: [],
+      };
+      const target = {
+        id: 'trip-target',
+        tripNumber: 'TRP-TGT',
+        status: 'planning',
+        orders: [{ id: 'o-tgt', status: 'planned' }],
+        stops: [],
+      };
+
+      mockTripRepo.findOne.mockImplementation((opts: any) => {
+        const id = opts?.where?.id || opts;
+        if (id === 'trip-source') return Promise.resolve(source);
+        if (id === 'trip-target') return Promise.resolve({ ...target, orders: [{ id: 'o-tgt' }, { id: 'o-src' }] });
+        return Promise.resolve(null);
+      });
+
+      const combined = await service.combineTrips(mockUser, {
+        sourceTripId: 'trip-source',
+        targetTripId: 'trip-target',
+      });
+
+      expect(combined).toBeDefined();
+      expect(mockTripRepo.delete).toHaveBeenCalledWith({ id: 'trip-source' });
+      expect(mockOrderRepo.save).toHaveBeenCalled();
     });
   });
 });

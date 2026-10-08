@@ -9,6 +9,7 @@ import {
   LayoutGrid, Clock, Map as MapIcon, Sparkles, CheckSquare, Square, RefreshCw,
   ChevronsLeft, ChevronsRight, Plus, ArrowUp, ArrowDown, Layers, Navigation,
   Printer, Maximize2, Minimize2, RotateCcw, Filter, List, FileText, Pencil,
+  Bookmark, BookmarkPlus, Save, Trash2, GitMerge, Wand2, Download, Clock3, Timer,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -26,6 +27,10 @@ import { planningApi } from '../lib/planningApi';
 import OrderWizard from '../components/orders/OrderWizard';
 import { useConfirm } from '../components/SaveConfirmProvider';
 import { fmtMoney, fmtNumber } from '../lib/format';
+import SplitTripModal from '../components/planning/SplitTripModal';
+import CombineTripsModal from '../components/planning/CombineTripsModal';
+import PlanningExportModal from '../components/planning/PlanningExportModal';
+import SavedViewsModal from '../components/planning/SavedViewsModal';
 
 function useResizableSidebar(initialWidth: number = 300, minWidth: number = 220, maxWidth: number = 650) {
   const [width, setWidth] = useState(() => {
@@ -514,10 +519,12 @@ function TripBlock({
 // ─── Resource Row (Gantt Row) ────────────────────────────────────────────────────────
 function ResourceRow({
   resource, trips, fromDate, totalMinutes, hoursVisible, selectedTripId, onSelectTrip, onDropOrder, draggingId, draggingOrder, onOpenPlanner,
+  hosSummary = {}, grouping = 'truck',
 }: {
   resource: any; trips: any[]; fromDate: string; totalMinutes: number; hoursVisible: number; selectedTripId: string | null;
   onSelectTrip: (id: string) => void; onDropOrder: (resourceId: string) => void; draggingId: string | null; draggingOrder?: any;
   onOpenPlanner: (resource: any) => void;
+  hosSummary?: Record<string, any>; grouping?: 'truck' | 'driver' | 'trailer';
 }) {
   const { t } = useTranslation();
   const [isDragOver, setIsDragOver] = useState(false);
@@ -532,13 +539,23 @@ function ResourceRow({
   // Smart capacity feedback for drag-over
   const draggingWeight = draggingOrder ? sumCargo([draggingOrder]).weight : 0;
   const weightRemaining = mw - cargo.weight;
-  const canAcceptDrag = !isMaintenance && draggingId && (draggingWeight === 0 || weightRemaining >= draggingWeight);
+  const resultWeight = cargo.weight + draggingWeight;
+  const capPct = mw > 0 ? Math.round((resultWeight / mw) * 100) : 0;
+  const isOverloaded = resultWeight > mw;
+  const isNearCap = !isOverloaded && capPct >= 90;
+  const canAcceptDrag = !isMaintenance && draggingId && (draggingWeight === 0 || !isOverloaded);
+
+  // Driver HOS summary lookup
+  const driverId = grouping === 'driver' ? resource.id : (resource.driver?.id || null);
+  const hos = driverId ? hosSummary?.[driverId] : null;
 
   const dragZoneClass = isDragOver && draggingId
     ? (isMaintenance
         ? 'bg-red-500/10 ring-2 ring-red-500/40 ring-inset'
         : canAcceptDrag
-          ? 'bg-emerald-500/10 ring-2 ring-emerald-500/40 ring-inset'
+          ? isNearCap
+            ? 'bg-amber-500/10 ring-2 ring-amber-500/40 ring-inset'
+            : 'bg-emerald-500/10 ring-2 ring-emerald-500/40 ring-inset'
           : 'bg-red-500/10 ring-2 ring-red-500/40 ring-inset')
     : 'bg-gradient-to-b from-surface/20 via-transparent to-surface/10';
 
@@ -556,35 +573,66 @@ function ResourceRow({
         {isMaintenance && (
           <div className="flex items-center gap-1 px-1.5 py-1 rounded-lg bg-red-500/10 border border-red-500/20 mb-0.5">
             <span className="text-[10px]">🔧</span>
-            <span className="text-[9px] font-black text-red-600 uppercase tracking-wide">In Maintenance</span>
+            <span className="text-[9px] font-black text-red-600 uppercase tracking-wide">{t('in_maintenance', 'In Maintenance')}</span>
           </div>
         )}
         <div className="flex items-center gap-2">
           <div className={`w-8 h-8 rounded-xl flex items-center justify-center border shrink-0 shadow-sm transition-colors ${
             isMaintenance ? 'bg-red-500/10 border-red-500/30' : hasTrips ? 'bg-primary/10 border-primary/20 group-hover/truck:bg-primary/20' : 'bg-surface border-border'
           }`}>
-            <TruckIcon className={`w-4 h-4 ${isMaintenance ? 'text-red-500' : hasTrips ? 'text-primary' : 'text-text-muted'}`} />
+            {grouping === 'driver' ? (
+              <Users className={`w-4 h-4 ${hasTrips ? 'text-primary' : 'text-text-muted'}`} />
+            ) : grouping === 'trailer' || resource.isTrailer ? (
+              <TruckIcon className={`w-4 h-4 opacity-80 ${hasTrips ? 'text-primary' : 'text-text-muted'}`} />
+            ) : (
+              <TruckIcon className={`w-4 h-4 ${isMaintenance ? 'text-red-500' : hasTrips ? 'text-primary' : 'text-text-muted'}`} />
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <p className="font-black text-text-primary text-xs truncate">{resource.plateNumber || resource.name || resource.user?.name || '—'}</p>
               <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDot}`} />
             </div>
-            <p className="text-[10px] text-text-muted truncate">{resource.brand ? `${resource.brand} ${resource.model || ''}` : (resource.phone || '')}</p>
+            <p className="text-[10px] text-text-muted truncate">{resource.brand ? `${resource.brand} ${resource.model || ''}` : (resource.phone || resource.type || '')}</p>
           </div>
         </div>
-        {resource.driver?.name && (
-          <div className="flex items-center gap-1 text-[10px] text-text-secondary">
-            <Users className="w-3 h-3 shrink-0 text-text-muted" />
-            <span className="truncate font-medium">{resource.driver.name}</span>
+
+        {/* Driver Row in Truck Mode */}
+        {grouping === 'truck' && resource.driver?.name && (
+          <div className="flex items-center justify-between gap-1 text-[10px] text-text-secondary">
+            <div className="flex items-center gap-1 min-w-0 truncate">
+              <Users className="w-3 h-3 shrink-0 text-text-muted" />
+              <span className="truncate font-medium">{resource.driver.name}</span>
+            </div>
+            {hos && (
+              <span className={`text-[9px] px-1 py-0.2 rounded font-bold shrink-0 ${
+                hos.over ? 'bg-red-500/15 text-red-600' : hos.remaining <= 5 ? 'bg-amber-500/15 text-amber-600' : 'bg-emerald-500/15 text-emerald-600'
+              }`} title={`${hos.weeklyDriving}h / 56h used (${hos.remaining}h remaining)`}>
+                {hos.remaining}h rem
+              </span>
+            )}
           </div>
         )}
-        {resource.trailer && (
+
+        {/* HOS display in Driver Mode */}
+        {grouping === 'driver' && hos && (
+          <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[9px] font-bold ${
+            hos.over ? 'bg-red-500/10 text-red-600 border border-red-500/20' : hos.remaining <= 5 ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+          }`} title={`${hos.weeklyDriving}h / 56h weekly driving hours used (${hos.remaining}h remaining)`}>
+            <Clock3 className="w-2.5 h-2.5 shrink-0" />
+            <span className="truncate">{hos.weeklyDriving}h / 56h · {hos.remaining}h {t('remaining', 'rem')}</span>
+          </div>
+        )}
+
+        {/* Trailer in Truck Mode */}
+        {grouping === 'truck' && resource.trailer && (
           <div className="flex items-center gap-1 text-[10px] text-text-secondary mt-0.5">
             <TruckIcon className="w-3 h-3 shrink-0 text-text-muted opacity-80" />
             <span className="truncate font-medium" title={t('trailer', 'Trailer')}>T: {resource.trailer.plateNumber}</span>
           </div>
         )}
+
+        {/* Cargo capacity preview */}
         {cargo.weight > 0 && (
           <div className="grid grid-cols-2 gap-1 pt-1.5 border-t border-border/40">
             <CapBar label="Wt" value={Math.round(cargo.weight / 100) / 10} max={Math.round(mw / 100) / 10} unit="t" />
@@ -619,21 +667,49 @@ function ResourceRow({
           </div>
         )}
 
-        {/* Drop hint */}
+        {/* Dynamic Capacity Drag Feedback Overlay */}
         {isDragOver && draggingId && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-            <div className={`px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-lg flex items-center gap-1.5 ${
-              isMaintenance ? 'bg-red-500' : canAcceptDrag ? 'bg-emerald-500' : 'bg-red-500'
-            }`}>
-              {isMaintenance
-                ? <><AlertTriangle className="w-3.5 h-3.5" />In maintenance — cannot assign</>
-                : canAcceptDrag
-                  ? <><Plus className="w-3.5 h-3.5" />{t('drop_here_label','Drop here')}</>
-                  : <><AlertTriangle className="w-3.5 h-3.5" />Capacity exceeded</>
-              }
-            </div>
+            {isMaintenance ? (
+              <div className="px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-lg flex items-center gap-1.5 bg-red-500">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>{t('maintenance_cannot_assign', 'In maintenance — cannot assign')}</span>
+              </div>
+            ) : (
+              <div className="bg-card/95 backdrop-blur border border-border shadow-2xl rounded-2xl px-4 py-2.5 flex items-center gap-4 text-xs">
+                <div>
+                  <div className="text-[10px] text-text-muted font-bold uppercase">{t('capacity_preview', 'Capacity Preview')}</div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-text-secondary">{fmtNumber(cargo.weight)} kg</span>
+                    <span className="text-primary font-bold">+{fmtNumber(draggingWeight)} kg</span>
+                    <span className="text-text-primary font-black">→ {fmtNumber(resultWeight)} / {fmtNumber(mw)} kg</span>
+                  </div>
+                </div>
+                <div className={`px-2.5 py-1 rounded-full text-xs font-black flex items-center gap-1.5 text-white ${
+                  isOverloaded ? 'bg-red-500 shadow-red-500/30 shadow' : isNearCap ? 'bg-amber-500 shadow-amber-500/30 shadow' : 'bg-emerald-500 shadow-emerald-500/30 shadow'
+                }`}>
+                  {isOverloaded ? (
+                    <>
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      <span>{t('capacity_exceeded', 'Capacity Exceeded')} ({capPct}%)</span>
+                    </>
+                  ) : isNearCap ? (
+                    <>
+                      <Clock3 className="w-3.5 h-3.5" />
+                      <span>{t('capacity_near_limit', 'Near Capacity')} ({capPct}%)</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{t('drop_here_label', 'Drop here')} ({capPct}%)</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
+
         {/* Trip blocks */}
         {trips.map(tr => (
           <TripBlock
@@ -654,13 +730,17 @@ function ResourceRow({
 
 // ─── Trip Detail Drawer ──────────────────────────────────────────────────────
 function TripDetailDrawer({
-  tripSummary, resources = [], drivers = [], trailers = [], conflicts = [],
-  onClose, onAction, onReorderStops, onEditOrder, loadingAction, refreshKey,
+  tripSummary, resources = [], drivers = [], trailers = [], conflicts = [], hosSummary = {},
+  onClose, onAction, onReorderStops, onEditOrder, onSplitTrip, onCombineTrip, onAutoOrderStops,
+  loadingAction, refreshKey,
 }: {
-  tripSummary: any; resources?: any[]; drivers?: any[]; trailers?: any[]; conflicts?: any[];
+  tripSummary: any; resources?: any[]; drivers?: any[]; trailers?: any[]; conflicts?: any[]; hosSummary?: Record<string, any>;
   onClose: () => void; onAction: (action: string, tripId: string, payload?: any) => void;
   onReorderStops: (tripId: string, stopIds: string[]) => void;
   onEditOrder?: (orderId: string, initialStep?: number, highlight?: string) => void;
+  onSplitTrip?: (trip: any) => void;
+  onCombineTrip?: (trip: any) => void;
+  onAutoOrderStops?: (tripId: string) => void;
   loadingAction?: string | null;
   refreshKey?: number;
 }) {
@@ -911,17 +991,41 @@ function TripDetailDrawer({
 
         {/* Resources summary */}
         <div className="px-5 py-3 border-b border-border bg-surface/20 grid grid-cols-3 gap-3 text-xs shrink-0">
-          {[
-            [t('export_col_truck','Truck'), truck?.plateNumber || '—', `${truck?.brand || ''} ${truck?.model || ''}`.trim()],
-            [t('export_col_driver','Driver'), driver?.name || driver?.user?.name || '—', driver?.phone || ''],
-            [t('export_col_trailer','Trailer'), trailer?.plateNumber || '—', trailer?.type || ''],
-          ].map(([lbl, val, sub]) => (
-            <div key={lbl as string} className="bg-card rounded-xl p-2.5 border border-border/60">
-              <p className="text-text-secondary text-[10px]">{lbl}</p>
-              <p className="font-black text-text-primary text-sm truncate mt-0.5">{val}</p>
-              {sub && <p className="text-[9px] text-text-muted mt-0.5 truncate">{sub}</p>}
+          <div className="bg-card rounded-xl p-2.5 border border-border/60">
+            <p className="text-text-secondary text-[10px]">{t('export_col_truck', 'Truck')}</p>
+            <p className="font-black text-text-primary text-sm truncate mt-0.5">{truck?.plateNumber || '—'}</p>
+            {`${truck?.brand || ''} ${truck?.model || ''}`.trim() ? (
+              <p className="text-[9px] text-text-muted mt-0.5 truncate">{`${truck?.brand || ''} ${truck?.model || ''}`.trim()}</p>
+            ) : null}
+          </div>
+
+          <div className="bg-card rounded-xl p-2.5 border border-border/60">
+            <div className="flex items-center justify-between">
+              <p className="text-text-secondary text-[10px]">{t('export_col_driver', 'Driver')}</p>
+              {driver?.id && hosSummary[driver.id] && (
+                <span className={`text-[8px] font-black px-1 rounded uppercase ${
+                  hosSummary[driver.id].over ? 'bg-red-500/15 text-red-600' : hosSummary[driver.id].remaining <= 5 ? 'bg-amber-500/15 text-amber-600' : 'bg-emerald-500/15 text-emerald-600'
+                }`}>
+                  {hosSummary[driver.id].over ? t('over_limit', 'Exceeded') : `${hosSummary[driver.id].remaining}h ${t('remaining', 'rem')}`}
+                </span>
+              )}
             </div>
-          ))}
+            <p className="font-black text-text-primary text-sm truncate mt-0.5">{driver?.name || driver?.user?.name || '—'}</p>
+            {driver?.id && hosSummary[driver.id] ? (
+              <p className="text-[9px] text-text-muted mt-0.5 truncate flex items-center gap-1" title={`${hosSummary[driver.id].weeklyDriving}h used / 56h limit`}>
+                <Clock3 className="w-2.5 h-2.5 shrink-0" />
+                <span>{hosSummary[driver.id].weeklyDriving}h used / 56h limit</span>
+              </p>
+            ) : (
+              driver?.phone ? <p className="text-[9px] text-text-muted mt-0.5 truncate">{driver.phone}</p> : null
+            )}
+          </div>
+
+          <div className="bg-card rounded-xl p-2.5 border border-border/60">
+            <p className="text-text-secondary text-[10px]">{t('export_col_trailer', 'Trailer')}</p>
+            <p className="font-black text-text-primary text-sm truncate mt-0.5">{trailer?.plateNumber || '—'}</p>
+            {trailer?.type ? <p className="text-[9px] text-text-muted mt-0.5 truncate">{trailer.type}</p> : null}
+          </div>
         </div>
 
         {/* Tabs */}
@@ -938,7 +1042,7 @@ function TripDetailDrawer({
           {detailLoading && (
             <div className="flex items-center justify-center gap-2 py-4">
               <Loader2 className="w-5 h-5 animate-spin text-primary" />
-              <span className="text-xs text-text-secondary">Loading trip details…</span>
+              <span className="text-xs text-text-secondary">{t('loading_trip_details', 'Loading trip details…')}</span>
             </div>
           )}
           {!detailLoading && tripConflicts.length > 0 && (
@@ -950,25 +1054,37 @@ function TripDetailDrawer({
                 </h3>
                 <span className="text-[10px] text-red-500 font-semibold">{t('pln_click_to_resolve', 'Click an issue to resolve')}</span>
               </div>
-              {tripConflicts.map((c: any, cIdx: number) => (
-                <div
-                  key={c.id || cIdx}
-                  onClick={() => handleResolveConflict(c)}
-                  className="group text-xs flex items-center justify-between gap-2.5 bg-card hover:bg-red-500/10 p-2.5 rounded-xl border border-red-500/25 hover:border-red-500/50 cursor-pointer transition-all shadow-xs active:scale-[0.99]"
-                  title="Click to navigate and fix this issue"
-                >
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className="px-1.5 py-0.5 text-[8px] font-black uppercase rounded bg-red-500 text-white shrink-0 shadow-xs">
-                      {c.level}
-                    </span>
-                    <span className="text-text-primary font-medium truncate">{c.message}</span>
+              {tripConflicts.map((c: any, cIdx: number) => {
+                const isBlocking = c.level === 'blocking' || c.severity === 'BLOCKING';
+                return (
+                  <div
+                    key={c.id || cIdx}
+                    onClick={() => handleResolveConflict(c)}
+                    className="group text-xs flex flex-col gap-1 bg-card hover:bg-red-500/10 p-2.5 rounded-xl border border-red-500/25 hover:border-red-500/50 cursor-pointer transition-all shadow-xs active:scale-[0.99]"
+                    title={c.recommendedResolution || 'Click to navigate and fix this issue'}
+                  >
+                    <div className="flex items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className={`px-1.5 py-0.5 text-[8px] font-black uppercase rounded text-white shrink-0 shadow-xs ${
+                          isBlocking ? 'bg-red-500' : 'bg-amber-500'
+                        }`}>
+                          {isBlocking ? t('conflict_blocking', 'BLOCKING') : t('conflict_warning', 'WARNING')}
+                        </span>
+                        <span className="text-text-primary font-bold truncate">{c.message}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px] font-bold text-red-600 shrink-0 group-hover:text-red-700">
+                        <span className="hidden sm:inline">{getConflictActionLabel(c)}</span>
+                        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                      </div>
+                    </div>
+                    {c.recommendedResolution && (
+                      <p className="text-[10px] text-text-secondary pl-1 italic">
+                        💡 {c.recommendedResolution}
+                      </p>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-red-600 shrink-0 group-hover:text-red-700">
-                    <span className="hidden sm:inline">{getConflictActionLabel(c)}</span>
-                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -981,6 +1097,29 @@ function TripDetailDrawer({
                   <span>{stops.length} {t('stops', 'Stops')} · {isConfirmed ? t('status_confirmed', 'Confirmed') : t(`status_${st}`, st)}</span>
                 </div>
                 <div className="flex items-center gap-2">
+                  {isPlanning && stops.length > 1 && (
+                    <button
+                      disabled={!!loadingAction}
+                      onClick={async () => {
+                        const ok = await confirm({
+                          type: 'info',
+                          title: t('auto_order_stops', 'Auto-Order Stops'),
+                          message: t('auto_order_confirm', 'Optimize stop sequence for this trip based on route coordinates?'),
+                          confirmText: t('optimize', 'Optimize'),
+                          cancelText: t('cancel', 'Cancel'),
+                        });
+                        if (ok) {
+                          if (onAutoOrderStops) onAutoOrderStops(tripId);
+                          else onAction('auto-order', tripId);
+                        }
+                      }}
+                      className="btn-secondary text-xs py-1.5 px-2.5 flex items-center gap-1.5 font-bold"
+                      title={t('auto_order_tooltip', 'Auto-order stops using route optimization')}
+                    >
+                      {loadingAction === 'auto-order' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 text-primary" />}
+                      <span>{t('auto_order_stops', 'Auto-order Stops')}</span>
+                    </button>
+                  )}
                   {st === 'planning' || st === 'planned' ? (
                     <button
                       disabled={!!loadingAction || blockingConflicts.length > 0}
@@ -1123,10 +1262,10 @@ function TripDetailDrawer({
                             e.stopPropagation();
                             const ok = await confirm({
                               type: 'warning',
-                              title: t('unassign_order', 'Order Verwijderen'),
+                              title: t('unassign_order', 'Unassign Order'),
                               message: t('unassign_order_dialog', 'Remove this order from the trip and return it to the Unassigned Orders list?'),
                               confirmText: t('action_unassign_order', 'Unassign'),
-                              cancelText: t('cancel', 'Annuleren'),
+                              cancelText: t('cancel', 'Cancel'),
                             });
                             if (ok) {
                               onAction('unassign-order', tripId, { orderId: o.id });
@@ -1192,8 +1331,8 @@ function TripDetailDrawer({
               <div className="flex items-start gap-2 min-w-0 flex-1">
                 <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-red-600">⛔ Cannot confirm — blocking conflict</p>
-                  <p className="text-[10px] text-red-500/80 mt-0.5 truncate">{blockingConflicts[0]?.message || 'Resolve blocking issues before confirming'}</p>
+                  <p className="text-xs font-bold text-red-600">⛔ {t('cannot_confirm_blocking', 'Cannot confirm — blocking conflict')}</p>
+                  <p className="text-[10px] text-red-500/80 mt-0.5 truncate">{blockingConflicts[0]?.message || t('resolve_blocking_first', 'Resolve blocking issues before confirming')}</p>
                 </div>
               </div>
               <div className="flex items-center gap-1 text-[10px] font-bold text-red-600 shrink-0 mt-1">
@@ -1208,7 +1347,7 @@ function TripDetailDrawer({
                 <button
                   disabled={!!loadingAction || blockingConflicts.length > 0}
                   onClick={() => onAction('confirm', tripId)}
-                  title={blockingConflicts.length > 0 ? 'Resolve blocking conflicts first' : undefined}
+                  title={blockingConflicts.length > 0 ? t('resolve_blocking_first', 'Resolve blocking issues before confirming') : undefined}
                   className={`btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-black shadow-md shadow-primary/20 ${
                     blockingConflicts.length > 0 ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
@@ -1283,11 +1422,33 @@ function TripDetailDrawer({
               ) : null}
 
               {isPlanning && orders.length > 1 ? (
-                <button disabled={!!loadingAction} onClick={() => onAction('split', tripId)} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold">
-                  {loadingAction === 'split' ? <Loader2 className="w-4 h-4 animate-spin" /> : <SplitSquareHorizontal className="w-4 h-4 text-amber-500" />}
-                  <span>{t('jsx_context_split','Split')}</span>
+                <button
+                  disabled={!!loadingAction}
+                  onClick={() => {
+                    if (onSplitTrip) onSplitTrip(trip);
+                    else onAction('split', tripId);
+                  }}
+                  className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold text-amber-600 hover:text-amber-700"
+                  title={t('jsx_context_split', 'Split Trip')}
+                >
+                  <SplitSquareHorizontal className="w-4 h-4 text-amber-500" />
+                  <span>{t('jsx_context_split', 'Split')}</span>
                 </button>
               ) : null}
+
+              {isPlanning && (
+                <button
+                  disabled={!!loadingAction}
+                  onClick={() => {
+                    if (onCombineTrip) onCombineTrip(trip);
+                  }}
+                  className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold"
+                  title={t('combine_trips', 'Combine Trips')}
+                >
+                  <GitMerge className="w-4 h-4 text-primary" />
+                  <span>{t('combine_trips', 'Combine')}</span>
+                </button>
+              )}
             </div>
 
             {isPlanning && (
@@ -1296,10 +1457,10 @@ function TripDetailDrawer({
                 onClick={async () => {
                   const ok = await confirm({
                     type: 'danger',
-                    title: t('unplan_trip_title', 'Rit Ontplannen'),
-                    message: t('unplan_trip_dialog', 'Deze rit ontplannen? Alle orders worden van dit TRP verwijderd en teruggeplaatst in de niet-toegewezen lijst.'),
-                    confirmText: t('action_unplan_trip', 'Rit Ontplannen'),
-                    cancelText: t('cancel', 'Annuleren'),
+                    title: t('unplan_trip_title', 'Unplan Trip'),
+                    message: t('unplan_trip_dialog', 'Unplan this trip? All orders will be removed from this TRP and returned to the unassigned list.'),
+                    confirmText: t('action_unplan_trip', 'Unplan Trip'),
+                    cancelText: t('cancel', 'Cancel'),
                   });
                   if (ok) {
                     onAction('unplan-trip', tripId);
@@ -1473,7 +1634,78 @@ export default function PlanningPage() {
   const [grouping, setGrouping] = useState<'truck' | 'driver' | 'trailer'>('truck');
   const [attentionActive, setAttentionActive] = useState(false);
 
+  // Enterprise Modals and Saved Views State
+  const [splitTripTarget, setSplitTripTarget] = useState<any | null>(null);
+  const [showCombineModal, setShowCombineModal] = useState(false);
+  const [combineInitialTrip, setCombineInitialTrip] = useState<any | null>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showSaveViewModal, setShowSaveViewModal] = useState(false);
+  const [savedViews, setSavedViews] = useState<any[]>([]);
+  const [currentViewId, setCurrentViewId] = useState<string | null>(null);
+
   const { width: poolWidth, isResizing: isPoolResizing, startResizing: startPoolResizing } = useResizableSidebar(288, 200, 600);
+
+  // Load Saved Views on Mount
+  useEffect(() => {
+    planningApi.getViews().then(views => {
+      if (Array.isArray(views)) setSavedViews(views);
+    }).catch(err => {
+      console.warn('Failed to load saved views:', err);
+    });
+  }, []);
+
+  const handleApplySavedView = (view: any) => {
+    if (!view) {
+      setCurrentViewId(null);
+      return;
+    }
+    setCurrentViewId(view.id);
+    if (view.viewMode) setViewMode(view.viewMode);
+    if (view.grouping) setGrouping(view.grouping);
+    if (view.dateRange?.from) setSelectedDate(view.dateRange.from);
+    if (view.filters) {
+      if (view.filters.status !== undefined) setStatusFilter(view.filters.status);
+      if (view.filters.truckId !== undefined) setTruckFilter(view.filters.truckId);
+      if (view.filters.driverId !== undefined) setDriverFilter(view.filters.driverId);
+      if (view.filters.priority !== undefined) setPriorityFilter(view.filters.priority);
+      if (view.filters.search !== undefined) setSearch(view.filters.search);
+    }
+    toast.success(`${t('view_loaded', 'Loaded view')}: ${view.name}`);
+  };
+
+  const handleUpdateCurrentView = async () => {
+    if (!currentViewId) return;
+    try {
+      await planningApi.updateView(currentViewId, {
+        viewMode,
+        grouping,
+        filters: { status: statusFilter, truckId: truckFilter, driverId: driverFilter, priority: priorityFilter, search },
+        dateRange: { from: selectedDate },
+      });
+      toast.success(t('view_updated', 'Saved view updated'));
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update view');
+    }
+  };
+
+  const handleDeleteSavedView = async (id: string) => {
+    const ok = await confirm({
+      type: 'danger',
+      title: t('delete_view', 'Delete View'),
+      message: t('confirm_delete_view', 'Are you sure you want to delete this saved view?'),
+      confirmText: t('delete', 'Delete'),
+      cancelText: t('cancel', 'Cancel'),
+    });
+    if (!ok) return;
+    try {
+      await planningApi.deleteView(id);
+      setSavedViews(prev => prev.filter(v => v.id !== id));
+      if (currentViewId === id) setCurrentViewId(null);
+      toast.success(t('view_deleted', 'Saved view deleted'));
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete view');
+    }
+  };
 
   // ── Date range ──
   const { from, to, totalMinutes, hoursVisible, fromDateObj } = useMemo(() => {
@@ -1597,8 +1829,9 @@ export default function PlanningPage() {
         toast.success(t('trip_unplanned_ok', 'Trip unplanned and removed'));
         setSelectedTripId(null);
       } else if (action === 'split') {
-        await api.post(`/planning/trips/${tripId}/split`, {});
-        toast.success(t('jsx_splitOk', 'Trip split'));
+        const tr = trips.find((t: any) => t.id === tripId) || selectedTrip;
+        if (tr) setSplitTripTarget(tr);
+        return;
       }
       loadData();
     } catch (err: any) {
@@ -1608,16 +1841,37 @@ export default function PlanningPage() {
     }
   };
 
+  const handleAutoOrderStops = async (tripId: string) => {
+    setLoadingAction('auto-order');
+    try {
+      await planningApi.autoOrderStops(tripId);
+      toast.success(t('auto_order_stops_success', 'Stops reordered and optimized successfully'));
+      setDrawerRefreshKey(k => k + 1);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || t('auto_order_stops_failed', 'Failed to auto-order stops'));
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
   const handleReorderStops = async (tripId: string, stopIds: string[]) => {
     setLoadingAction('reorder');
-    try { await api.put(`/planning/trips/${tripId}/reorder`, { order: stopIds }); toast.success(t('stops_reordered','Stops reordered')); loadData(); }
-    catch (err: any) { toast.error(err.response?.data?.message || 'Failed to reorder stops'); }
-    finally { setLoadingAction(null); }
+    try {
+      await planningApi.reorderTripStops(tripId, stopIds);
+      toast.success(t('stops_reordered', 'Stops reordered'));
+      setDrawerRefreshKey(k => k + 1);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to reorder stops');
+    } finally {
+      setLoadingAction(null);
+    }
   };
 
   const handleDropOrder = async (resourceId: string) => {
     if (resourceId === '__unassigned_trips__') {
-      toast.error(t('drop_unassigned_err', 'Trageți comanda pe un camion valid din listă.'));
+      toast.error(t('drop_unassigned_err', 'Please drop the order onto a valid truck row.'));
       return;
     }
     const orderIds = draggingOrderId ? [draggingOrderId] : Array.from(selectedPoolOrderIds);
@@ -1664,9 +1918,9 @@ export default function PlanningPage() {
     if (unassignedTrips.length === 0) return null;
     return {
       id: '__unassigned_trips__',
-      plateNumber: t('unassigned_trips_plate', 'Fără camion'),
-      brand: t('unassigned_trips_label', 'Curse Nealocate'),
-      model: `${unassignedTrips.length} ${t('jsx_trips', 'curse')}`,
+      plateNumber: t('unassigned_trips_plate', 'No Truck'),
+      brand: t('unassigned_trips_label', 'Unassigned Trips'),
+      model: `${unassignedTrips.length} ${t('jsx_trips', 'trips')}`,
       status: 'unassigned',
       isVirtualUnassigned: true,
       maxWeightKg: 24000,
@@ -1728,7 +1982,13 @@ export default function PlanningPage() {
         resIds.add(r.id);
         continue;
       }
-      const resTrips = trips.filter(tr => grouping === 'driver' ? tr.driver?.id === r.id : (tr.truck?.id === r.id || tr.truckId === r.id));
+      const resTrips = trips.filter(tr =>
+        grouping === 'driver'
+          ? tr.driver?.id === r.id
+          : grouping === 'trailer'
+            ? (tr.trailerId === r.id || tr.trailer?.id === r.id || tr.truck?.trailer?.id === r.id)
+            : (tr.truck?.id === r.id || tr.truckId === r.id)
+      );
       if (resTrips.some(tr => conflictTripSet.has(tr.id))) {
         resIds.add(r.id);
       }
@@ -1764,6 +2024,19 @@ export default function PlanningPage() {
     if (grouping === 'driver') {
       list = (boardData?.drivers || resources.map((r: any) => r.driver).filter(Boolean))
         .filter((d: any, i: number, arr: any[]) => d && arr.findIndex((x: any) => x.id === d.id) === i);
+    } else if (grouping === 'trailer') {
+      list = (boardData?.trailers || []).map((trl: any) => ({
+        id: trl.id,
+        plateNumber: trl.plateNumber,
+        name: trl.plateNumber,
+        brand: trl.type || 'Trailer',
+        model: `${trl.maxWeightKg ? Math.round(trl.maxWeightKg / 1000) + 't' : '34t'} · ${trl.maxPallets || 33} plt`,
+        status: trl.status || 'available',
+        maxWeightKg: trl.maxWeightKg || 28000,
+        maxPallets: trl.maxPallets || 33,
+        maxVolumeCbm: trl.maxVolumeCbm || 90,
+        isTrailer: true,
+      }));
     }
     
     if (grouping === 'truck') {
@@ -1775,7 +2048,9 @@ export default function PlanningPage() {
 
     const getResTrips = (r: any) => {
       if (r.id === '__unassigned_trips__') return unassignedTrips;
-      return trips.filter(tr => grouping === 'driver' ? tr.driver?.id === r.id : (tr.truck?.id === r.id || tr.truckId === r.id));
+      if (grouping === 'driver') return trips.filter(tr => tr.driver?.id === r.id);
+      if (grouping === 'trailer') return trips.filter(tr => tr.trailerId === r.id || tr.trailer?.id === r.id || tr.truck?.trailer?.id === r.id);
+      return trips.filter(tr => tr.truck?.id === r.id || tr.truckId === r.id);
     };
 
     // Attention filter: show only resources with blocking conflicts or maintenance
@@ -1835,7 +2110,7 @@ export default function PlanningPage() {
 
       {/* ── TOP TOOLBAR ────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-border bg-card shrink-0 print:hidden">
-        {/* Left: title + views */}
+        {/* Left: title + views + saved views + grouping */}
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-base font-black text-text-primary whitespace-nowrap">{t('jsx_planningTitle','Planning & Dispatch')}</h1>
           <div className="flex bg-surface p-0.5 rounded-xl border border-border">
@@ -1845,10 +2120,58 @@ export default function PlanningPage() {
               </button>
             ))}
           </div>
+
+          {/* Saved Views Control */}
+          <div className="flex items-center gap-1 bg-surface px-1.5 py-0.5 rounded-xl border border-border">
+            <Bookmark className="w-3.5 h-3.5 text-text-muted ml-1" />
+            <select
+              value={currentViewId || ''}
+              onChange={e => {
+                const val = e.target.value;
+                if (!val) { setCurrentViewId(null); }
+                else {
+                  const found = savedViews.find(v => v.id === val);
+                  if (found) handleApplySavedView(found);
+                }
+              }}
+              className="text-xs font-bold bg-transparent border-0 text-text-primary focus:ring-0 py-1 pr-6 cursor-pointer"
+            >
+              <option value="">{t('saved_views_dropdown', 'Views')}</option>
+              {savedViews.map(v => (
+                <option key={v.id} value={v.id}>{v.name}{v.isDefault ? ' ★' : ''}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => setShowSaveViewModal(true)}
+              className="p-1 hover:bg-card rounded-lg text-text-secondary hover:text-primary transition-colors"
+              title={t('save_current_view', 'Save current view')}
+            >
+              <BookmarkPlus className="w-3.5 h-3.5" />
+            </button>
+            {currentViewId && (
+              <>
+                <button
+                  onClick={handleUpdateCurrentView}
+                  className="p-1 hover:bg-card rounded-lg text-text-secondary hover:text-emerald-500 transition-colors"
+                  title={t('update_view', 'Update saved view with current settings')}
+                >
+                  <Save className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => handleDeleteSavedView(currentViewId)}
+                  className="p-1 hover:bg-card rounded-lg text-text-secondary hover:text-red-500 transition-colors"
+                  title={t('delete_view', 'Delete saved view')}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
+          </div>
+
           {/* Grouping */}
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-text-muted font-bold uppercase">{t('jsx_groupAll','Group')}:</span>
-            {([['truck', t('jsx_groupVehicle','Truck')],['driver', t('jsx_groupDriver','Driver')]] as [string,string][]).map(([id,label]) => (
+            {([['truck', t('jsx_groupVehicle','Truck')],['driver', t('jsx_groupDriver','Driver')],['trailer', t('jsx_groupTrailer','Trailer')]] as [string,string][]).map(([id,label]) => (
               <button key={id} onClick={() => setGrouping(id as any)} className={`text-[10px] px-2 py-0.5 rounded font-bold transition-colors ${grouping === id ? 'bg-primary text-white' : 'bg-surface text-text-secondary hover:text-text-primary border border-border'}`}>{label}</button>
             ))}
           </div>
@@ -1856,6 +2179,12 @@ export default function PlanningPage() {
 
         {/* Right: actions */}
         <div className="flex items-center gap-1.5 shrink-0">
+          <button onClick={() => setShowCombineModal(true)} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold" title={t('combine_trips', 'Combine Trips')}>
+            <GitMerge className="w-4 h-4 text-primary" /><span className="hidden md:inline">{t('combine_trips', 'Combine')}</span>
+          </button>
+          <button onClick={() => setShowExportModal(true)} className="btn-secondary p-2 rounded-xl" title={t('export_planning', 'Export Planning to Excel / CSV')}>
+            <Download className="w-4 h-4" />
+          </button>
           <button onClick={handleUndo} className="btn-secondary p-2 rounded-xl" title={t('jsx_undo','Undo')}><RotateCcw className="w-4 h-4" /></button>
           <button onClick={() => setShowOptimizeModal(true)} className="btn-secondary p-2 rounded-xl" title={t('jsx_optimize','Optimize')}><Sparkles className="w-4 h-4 text-primary" /></button>
           <button onClick={handlePrint} className="btn-secondary p-2 rounded-xl" title={t('jsx_print','Print')}><Printer className="w-4 h-4" /></button>
@@ -2069,7 +2398,7 @@ export default function PlanningPage() {
             className={`group relative flex items-center justify-center w-3 cursor-col-resize shrink-0 select-none z-10 mx-0.5 transition-colors ${
               isPoolResizing ? 'bg-primary/20' : 'hover:bg-primary/10'
             } rounded-lg`}
-            title={t('drag_to_resize', 'Trage pentru a redimensiona')}
+            title={t('drag_to_resize', 'Drag to resize')}
           >
             <div
               className={`w-1 rounded-full transition-all ${
@@ -2159,13 +2488,19 @@ export default function PlanningPage() {
                       <div className="text-center py-24 px-4">
                         <TruckIcon className="w-10 h-10 text-text-muted mx-auto mb-2 opacity-40" />
                         <p className="font-bold text-text-primary">{t('jsx_noTrips','No vehicles found for this period.')}</p>
-                        <p className="text-xs text-text-secondary mt-1">Try selecting another date or clearing filters.</p>
+                        <p className="text-xs text-text-secondary mt-1">{t('try_selecting_other_date', 'Try selecting another date or clearing filters.')}</p>
                       </div>
                     ) : (
                       displayResources.map(res => {
                         const resTrips = res.id === '__unassigned_trips__'
                           ? unassignedTrips
-                          : trips.filter(tr => grouping === 'driver' ? tr.driver?.id === res.id : (tr.truck?.id === res.id || tr.truckId === res.id));
+                          : trips.filter(tr =>
+                              grouping === 'driver'
+                                ? tr.driver?.id === res.id
+                                : grouping === 'trailer'
+                                  ? (tr.trailerId === res.id || tr.trailer?.id === res.id || tr.truck?.trailer?.id === res.id)
+                                  : (tr.truck?.id === res.id || tr.truckId === res.id)
+                            );
                         return (
                           <ResourceRow
                             key={res.id}
@@ -2179,6 +2514,8 @@ export default function PlanningPage() {
                             onDropOrder={handleDropOrder}
                             draggingId={draggingOrderId}
                             draggingOrder={draggingOrder}
+                            hosSummary={boardData?.hosSummary || {}}
+                            grouping={grouping}
                             onOpenPlanner={(r) => {
                               if (r.id === '__unassigned_trips__') {
                                 if (resTrips[0]?.id) setSelectedTripId(resTrips[0].id);
@@ -2213,6 +2550,8 @@ export default function PlanningPage() {
           resources={resources}
           drivers={boardData?.drivers || []}
           trailers={boardData?.trailers || []}
+          conflicts={boardData?.conflicts || []}
+          hosSummary={boardData?.hosSummary || {}}
           onClose={() => {
             setSelectedTripId(null);
             if (searchParams.get('openTrip') || searchParams.get('tripId')) {
@@ -2224,6 +2563,12 @@ export default function PlanningPage() {
           }}
           onAction={handleTripAction}
           onReorderStops={handleReorderStops}
+          onSplitTrip={(tr) => setSplitTripTarget(tr)}
+          onCombineTrip={(tr) => {
+            setCombineInitialTrip(tr);
+            setShowCombineModal(true);
+          }}
+          onAutoOrderStops={handleAutoOrderStops}
           onEditOrder={(orderId, step, highlight) => {
             const h = highlight || 'cargo';
             const s = (step !== undefined && step !== null)
@@ -2248,6 +2593,73 @@ export default function PlanningPage() {
         <OptimizationModal onClose={() => setShowOptimizeModal(false)} onApply={handleApplyOptimization} isLoading={!!loadingAction} />
       )}
 
+      {/* Enterprise Split Trip Modal */}
+      {splitTripTarget && (
+        <SplitTripModal
+          isOpen={!!splitTripTarget}
+          trip={splitTripTarget}
+          onClose={() => setSplitTripTarget(null)}
+          onSuccess={() => {
+            setSplitTripTarget(null);
+            setSelectedTripId(null);
+            loadData();
+          }}
+        />
+      )}
+
+      {/* Enterprise Combine Trips Modal */}
+      {showCombineModal && (
+        <CombineTripsModal
+          isOpen={showCombineModal}
+          trips={trips}
+          initialSourceTrip={combineInitialTrip}
+          onClose={() => {
+            setShowCombineModal(false);
+            setCombineInitialTrip(null);
+          }}
+          onSuccess={() => {
+            setShowCombineModal(false);
+            setCombineInitialTrip(null);
+            setSelectedTripId(null);
+            loadData();
+          }}
+        />
+      )}
+
+      {/* Enterprise Planning Export Modal */}
+      {showExportModal && (
+        <PlanningExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          trips={trips}
+          resources={resources}
+          selectedDate={selectedDate}
+          viewMode={viewMode}
+        />
+      )}
+
+      {/* Enterprise Saved Views Modal */}
+      {showSaveViewModal && (
+        <SavedViewsModal
+          isOpen={showSaveViewModal}
+          onClose={() => setShowSaveViewModal(false)}
+          currentConfig={{
+            viewMode,
+            grouping,
+            selectedDate,
+            search,
+            statusFilter,
+            truckFilter,
+            driverFilter,
+            priorityFilter,
+          }}
+          onSaved={(newView) => {
+            setSavedViews(prev => [...prev, newView]);
+            setCurrentViewId(newView.id);
+          }}
+        />
+      )}
+
       {wizardConfig && (
         <OrderWizard
           key={`${wizardConfig.orderId}-${wizardConfig.initialStep}-${wizardConfig.highlight}`}
@@ -2260,7 +2672,7 @@ export default function PlanningPage() {
             setWizardConfig(null);
             loadData();
             setDrawerRefreshKey(k => k + 1);
-            toast.success(t('order_saved_success', 'Comandă actualizată cu succes!'));
+            toast.success(t('order_saved_success', 'Order updated successfully!'));
           }}
         />
       )}

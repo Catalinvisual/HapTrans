@@ -202,7 +202,7 @@ export class PlanningService {
   private loadTrip(id: string) {
     return this.tripRepo.findOne({
       where: { id },
-      relations: ['company', 'truck', 'truck.driver', 'truck.driver.user', 'trailer', 'driver', 'driver.user',
+      relations: ['company', 'truck', 'truck.driver', 'truck.driver.user', 'truck.driver.documents', 'trailer', 'driver', 'driver.user', 'driver.documents',
         'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.client', 'orders.cargoItems',
         'orders.stops', 'costs', 'dispatcher'],
     });
@@ -440,7 +440,7 @@ export class PlanningService {
       order: { plateNumber: 'ASC' },
     });
 
-    const allDrivers = await this.driverRepo.find({ relations: ['user', 'user.company'] });
+    const allDrivers = await this.driverRepo.find({ relations: ['user', 'user.company', 'documents'] });
     const drivers = allDrivers.filter(
       (d) => !d.user || !d.user.company || (companyId && d.user.company.id === companyId),
     );
@@ -762,6 +762,154 @@ export class PlanningService {
         add({ level: 'blocking', code: 'NO_DRIVER', tripId: t.id, message: `Trip ${t.tripNumber || t.id} has no driver assigned.` });
       }
 
+      // Phase 2: Driver Document Compliance Verification
+      const assignedDriver =
+        driversById[t.driverId] ||
+        driversById[t.driver?.id] ||
+        (t.driver && (t.driver.licenseExpiry || t.driver.documents) ? t.driver : null) ||
+        (truck?.driver && (truck.driver.licenseExpiry || truck.driver.documents) ? truck.driver : null) ||
+        driversById[truck?.driver?.id] ||
+        null;
+
+      const tripStart = t.plannedDeparture ? new Date(t.plannedDeparture) : null;
+      let tripEnd: Date | null = t.plannedArrival ? new Date(t.plannedArrival) : null;
+      if (!tripEnd && tripStart) {
+        tripEnd = new Date(tripStart.getTime() + 24 * 3600 * 1000);
+      }
+      if (!tripEnd && t.stops && t.stops.length > 0) {
+        const sorted = [...t.stops].sort((a: any, b: any) => (a.sequence || a.stopOrder || 0) - (b.sequence || b.stopOrder || 0));
+        const last = sorted[sorted.length - 1];
+        if (last?.timeWindowMax || last?.plannedArrival) {
+          tripEnd = new Date(last.timeWindowMax || last.plannedArrival);
+        }
+      }
+      if (!tripEnd) {
+        tripEnd = new Date();
+      }
+
+      if (assignedDriver && tripEnd && status !== 'completed') {
+        const dName = assignedDriver.user?.name || assignedDriver.name || assignedDriver.licenseNumber || assignedDriver.id;
+        const tripEndStr = tripEnd.toISOString().slice(0, 10);
+
+        // 1. Driving Licence Expiry
+        if (assignedDriver.licenseExpiry) {
+          const licExp = new Date(assignedDriver.licenseExpiry);
+          if (licExp < tripEnd) {
+            const expStr = licExp.toISOString().slice(0, 10);
+            add({
+              level: 'blocking',
+              code: 'DRIVER_LICENSE_EXPIRED',
+              tripId: t.id,
+              resourceId: assignedDriver.id,
+              params: {
+                driverId: assignedDriver.id,
+                driverName: dName,
+                document: 'driving_license',
+                expiryDate: expStr,
+                tripEnd: tripEndStr,
+                resolution: 'Assign a qualified driver with valid driving licence or renew licence before trip end.',
+              },
+              message: `Driver ${dName} driving licence expires on ${expStr}, before planned trip completion (${tripEndStr}). Legally required.`,
+            });
+          }
+        }
+
+        // 2. Medical Certificate Expiry
+        if (assignedDriver.medicalExpiry) {
+          const medExp = new Date(assignedDriver.medicalExpiry);
+          if (medExp < tripEnd) {
+            const expStr = medExp.toISOString().slice(0, 10);
+            add({
+              level: 'blocking',
+              code: 'DRIVER_MEDICAL_EXPIRED',
+              tripId: t.id,
+              resourceId: assignedDriver.id,
+              params: {
+                driverId: assignedDriver.id,
+                driverName: dName,
+                document: 'medical_certificate',
+                expiryDate: expStr,
+                tripEnd: tripEndStr,
+                resolution: 'Assign a driver with valid medical certificate or renew certificate.',
+              },
+              message: `Driver ${dName} medical certificate expires on ${expStr}, before planned trip completion (${tripEndStr}). Legally required.`,
+            });
+          }
+        }
+
+        // 3. Tachograph Card Expiry
+        if (assignedDriver.tachoCardExpiry) {
+          const tachoExp = new Date(assignedDriver.tachoCardExpiry);
+          if (tachoExp < tripEnd) {
+            const expStr = tachoExp.toISOString().slice(0, 10);
+            add({
+              level: 'blocking',
+              code: 'DRIVER_TACHO_EXPIRED',
+              tripId: t.id,
+              resourceId: assignedDriver.id,
+              params: {
+                driverId: assignedDriver.id,
+                driverName: dName,
+                document: 'tacho_card',
+                expiryDate: expStr,
+                tripEnd: tripEndStr,
+                resolution: 'Assign a driver with a valid tachograph card or renew card.',
+              },
+              message: `Driver ${dName} tachograph card expires on ${expStr}, before planned trip completion (${tripEndStr}). Legally required.`,
+            });
+          }
+        }
+
+        // 4. ADR Certificate Expiry (where ADR cargo requires it)
+        const isAdrCargo =
+          (t.orders || []).some(
+            (o: any) =>
+              (o.equipmentRequirements || []).some((e: string) => String(e).toLowerCase().includes('adr')) ||
+              (o.cargoItems || []).some((c: any) => !!c.adrClass) ||
+              o.adrSurcharge,
+          ) ||
+          (t.equipmentRequirements || []).some((e: string) => String(e).toLowerCase().includes('adr')) ||
+          t.adrSurcharge;
+
+        if (isAdrCargo) {
+          const docs = assignedDriver.documents || [];
+          const adrDoc = docs.find((doc: any) => String(doc.type || '').toLowerCase().includes('adr'));
+          if (!adrDoc) {
+            add({
+              level: 'blocking',
+              code: 'DRIVER_ADR_EXPIRED',
+              tripId: t.id,
+              resourceId: assignedDriver.id,
+              params: {
+                driverId: assignedDriver.id,
+                driverName: dName,
+                document: 'adr_certificate',
+                tripEnd: tripEndStr,
+                resolution: 'Assign an ADR-certified driver for hazardous cargo trip.',
+              },
+              message: `Driver ${dName} lacks required ADR certificate for hazardous goods trip ${t.tripNumber || t.id}.`,
+            });
+          } else if (adrDoc.expiryDate && new Date(adrDoc.expiryDate) < tripEnd) {
+            const expStr = new Date(adrDoc.expiryDate).toISOString().slice(0, 10);
+            add({
+              level: 'blocking',
+              code: 'DRIVER_ADR_EXPIRED',
+              tripId: t.id,
+              resourceId: assignedDriver.id,
+              params: {
+                driverId: assignedDriver.id,
+                driverName: dName,
+                document: 'adr_certificate',
+                expiryDate: expStr,
+                tripEnd: tripEndStr,
+                resolution: 'Assign a driver with valid ADR certificate or renew before trip end.',
+              },
+              message: `Driver ${dName} ADR certificate expires on ${expStr}, before planned trip completion (${tripEndStr}). Legally required for ADR transport.`,
+            });
+          }
+        }
+      }
+
       for (const o of t.orders || []) {
         if (!o.stops || o.stops.length === 0) {
           add({ level: 'blocking', code: 'ORDER_NO_STOPS', tripId: t.id, orderId: o.id, message: `Order ${o.orderNumber || o.id} has no stops.` });
@@ -785,6 +933,60 @@ export class PlanningService {
         const { start, end } = this.orderWindow(o);
         if (start && t.plannedDeparture && new Date(t.plannedDeparture) > start) {
           add({ level: 'warning', code: 'DEPARTURE_AFTER_LOADING', tripId: t.id, orderId: o.id, message: `Trip departs after order ${o.orderNumber} loading window.` });
+        }
+      }
+    }
+
+    // Phase 3: Trailer Overlap Conflict Detection
+    const tripsByTrailer: Record<string, any[]> = {};
+    for (const trip of trips) {
+      const t = trip as any;
+      const status = String(t.status || '');
+      if (['completed', 'closed', 'cancelled'].includes(status)) continue;
+      const trailerId = t.trailerId || t.trailer?.id || t.truck?.trailer?.id || null;
+      if (trailerId) {
+        (tripsByTrailer[trailerId] ||= []).push(t);
+      }
+    }
+
+    for (const [trlId, tList] of Object.entries(tripsByTrailer)) {
+      if (tList.length < 2) continue;
+      const trlObj = trailersById[trlId] || tList[0].trailer || tList[0].truck?.trailer;
+      const trlPlate = trlObj?.plateNumber || trlId;
+
+      for (let i = 0; i < tList.length; i++) {
+        for (let j = i + 1; j < tList.length; j++) {
+          const trA = tList[i];
+          const trB = tList[j];
+          const sA = trA.plannedDeparture ? new Date(trA.plannedDeparture).getTime() : 0;
+          const eA = trA.plannedArrival ? new Date(trA.plannedArrival).getTime() : (sA ? sA + 24 * 3600 * 1000 : 0);
+          const sB = trB.plannedDeparture ? new Date(trB.plannedDeparture).getTime() : 0;
+          const eB = trB.plannedArrival ? new Date(trB.plannedArrival).getTime() : (sB ? sB + 24 * 3600 * 1000 : 0);
+
+          if (sA && eA && sB && eB && sA < eB && eA > sB) {
+            const oStart = Math.max(sA, sB);
+            const oEnd = Math.min(eA, eB);
+            const periodStr = `${new Date(oStart).toISOString().slice(0, 16).replace('T', ' ')} → ${new Date(oEnd).toISOString().slice(0, 16).replace('T', ' ')}`;
+
+            add({
+              level: 'blocking',
+              code: 'TRAILER_OVERLAP',
+              tripId: trA.id,
+              resourceId: trlId,
+              params: {
+                trailerId: trlId,
+                trailerPlate: trlPlate,
+                tripA: trA.tripNumber || trA.id,
+                tripB: trB.tripNumber || trB.id,
+                tripAId: trA.id,
+                tripBId: trB.id,
+                overlapStart: new Date(oStart).toISOString(),
+                overlapEnd: new Date(oEnd).toISOString(),
+                resolution: `Reassign trailer ${trlPlate} on either trip ${trA.tripNumber || trA.id} or trip ${trB.tripNumber || trB.id}.`,
+              },
+              message: `Trailer ${trlPlate} is double-booked between trip ${trA.tripNumber || trA.id} and trip ${trB.tripNumber || trB.id} (${periodStr}).`,
+            });
+          }
         }
       }
     }
@@ -1184,6 +1386,33 @@ export class PlanningService {
         await this.stopRepo.save(s);
       }
     }
+
+    // Phase 14: Keep TruckRoutePlan stop sequence consistent with Trip.stops
+    try {
+      const routePlan = await this.routePlanRepo.findOne({
+        where: { tripId },
+        relations: ['stops'],
+      });
+      if (routePlan && routePlan.stops?.length) {
+        for (let i = 0; i < order.length; i++) {
+          const tripStop = byId.get(order[i]);
+          if (tripStop) {
+            const rps = routePlan.stops.find(
+              (s) =>
+                s.orderId === (tripStop as any).orderId &&
+                String(s.type).toLowerCase() === (String(tripStop.type).toLowerCase() === 'pickup' ? RouteStopType.PICKUP : RouteStopType.DELIVERY),
+            );
+            if (rps && rps.sequence !== i + 1) {
+              rps.sequence = i + 1;
+              await this.routePlanStopRepo.save(rps);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      this.logger.warn(`Route plan sync in reorderStops: ${(e as Error).message}`);
+    }
+
     await this.logTimeline('stops_reordered', user, {
       tripId,
       message: `Stops reordered on trip ${trip.tripNumber}.`,
@@ -1268,6 +1497,30 @@ export class PlanningService {
       const s = finalOrder[i];
       s.sequence = i + 1;
       await this.stopRepo.save(s);
+    }
+
+    // Phase 14: Keep TruckRoutePlan stop sequence consistent with Trip.stops
+    try {
+      const routePlan = await this.routePlanRepo.findOne({
+        where: { tripId },
+        relations: ['stops'],
+      });
+      if (routePlan && routePlan.stops?.length) {
+        for (let i = 0; i < finalOrder.length; i++) {
+          const tripStop = finalOrder[i];
+          const rps = routePlan.stops.find(
+            (s) =>
+              s.orderId === (tripStop as any).orderId &&
+              String(s.type).toLowerCase() === (String(tripStop.type).toLowerCase() === 'pickup' ? RouteStopType.PICKUP : RouteStopType.DELIVERY),
+          );
+          if (rps && rps.sequence !== i + 1) {
+            rps.sequence = i + 1;
+            await this.routePlanStopRepo.save(rps);
+          }
+        }
+      }
+    } catch (e) {
+      this.logger.warn(`Route plan sync in autoOrderStops: ${(e as Error).message}`);
     }
 
     await this.logTimeline('stops_auto_ordered', user, {
@@ -2116,6 +2369,125 @@ export class PlanningService {
             message: `Delivery ETA at stop ${s.sequence} is close to or exceeds customer time-window limit by ${delayMin} min.`,
           });
         }
+      }
+    }
+
+    // 5. Driver Document Compliance Check (Phase 2)
+    const tripDriver = trip.driver || trip.truck?.driver || null;
+    let tripEnd: Date | null = trip.plannedArrival ? new Date(trip.plannedArrival) : null;
+    if (!tripEnd && trip.plannedDeparture) {
+      tripEnd = new Date(new Date(trip.plannedDeparture).getTime() + 24 * 3600 * 1000);
+    }
+    if (!tripEnd && stops.length > 0) {
+      const lastStop = stops[stops.length - 1];
+      if (lastStop.timeWindowMax || lastStop.eta) {
+        tripEnd = new Date(lastStop.timeWindowMax || lastStop.eta);
+      }
+    }
+    if (!tripEnd) tripEnd = new Date();
+
+    if (tripDriver && tripEnd) {
+      const dName = tripDriver.user?.name || (tripDriver as any).name || tripDriver.licenseNumber || tripDriver.id;
+      const tripEndStr = tripEnd.toISOString().slice(0, 10);
+
+      if (tripDriver.licenseExpiry && new Date(tripDriver.licenseExpiry) < tripEnd) {
+        const expStr = new Date(tripDriver.licenseExpiry).toISOString().slice(0, 10);
+        conflicts.push({
+          type: 'compliance',
+          severity: 'error',
+          hard: true,
+          blocking: true,
+          code: 'DRIVER_LICENSE_EXPIRED',
+          message: `Driver ${dName} driving licence expires on ${expStr}, before planned trip completion (${tripEndStr}). Legally required.`,
+        });
+      }
+      if (tripDriver.medicalExpiry && new Date(tripDriver.medicalExpiry) < tripEnd) {
+        const expStr = new Date(tripDriver.medicalExpiry).toISOString().slice(0, 10);
+        conflicts.push({
+          type: 'compliance',
+          severity: 'error',
+          hard: true,
+          blocking: true,
+          code: 'DRIVER_MEDICAL_EXPIRED',
+          message: `Driver ${dName} medical certificate expires on ${expStr}, before planned trip completion (${tripEndStr}). Legally required.`,
+        });
+      }
+      if (tripDriver.tachoCardExpiry && new Date(tripDriver.tachoCardExpiry) < tripEnd) {
+        const expStr = new Date(tripDriver.tachoCardExpiry).toISOString().slice(0, 10);
+        conflicts.push({
+          type: 'compliance',
+          severity: 'error',
+          hard: true,
+          blocking: true,
+          code: 'DRIVER_TACHO_EXPIRED',
+          message: `Driver ${dName} tachograph card expires on ${expStr}, before planned trip completion (${tripEndStr}). Legally required.`,
+        });
+      }
+
+      const isAdr =
+        (trip.orders || []).some(
+          (o: any) =>
+            (o.equipmentRequirements || []).some((e: string) => String(e).toLowerCase().includes('adr')) ||
+            (o.cargoItems || []).some((c: any) => !!c.adrClass) ||
+            o.adrSurcharge,
+        ) ||
+        ((trip as any).equipmentRequirements || []).some((e: string) => String(e).toLowerCase().includes('adr')) ||
+        (trip as any).adrSurcharge;
+
+      if (isAdr) {
+        const docs = tripDriver.documents || [];
+        const adrDoc = docs.find((doc: any) => String(doc.type || '').toLowerCase().includes('adr'));
+        if (!adrDoc) {
+          conflicts.push({
+            type: 'compliance',
+            severity: 'error',
+            hard: true,
+            blocking: true,
+            code: 'DRIVER_ADR_EXPIRED',
+            message: `Driver ${dName} lacks required ADR certificate for hazardous goods trip ${trip.tripNumber || trip.id}.`,
+          });
+        } else if (adrDoc.expiryDate && new Date(adrDoc.expiryDate) < tripEnd) {
+          const expStr = new Date(adrDoc.expiryDate).toISOString().slice(0, 10);
+          conflicts.push({
+            type: 'compliance',
+            severity: 'error',
+            hard: true,
+            blocking: true,
+            code: 'DRIVER_ADR_EXPIRED',
+            message: `Driver ${dName} ADR certificate expires on ${expStr}, before planned trip completion (${tripEndStr}). Legally required for ADR transport.`,
+          });
+        }
+      }
+    }
+
+    // 6. Trailer Overlap Check (Phase 3)
+    const activeTrailerId = trip.trailer?.id || trip.truck?.trailer?.id || (trip as any).trailerId || null;
+    if (activeTrailerId && trip.plannedDeparture && tripEnd) {
+      const from = new Date(trip.plannedDeparture);
+      const to = tripEnd;
+      try {
+        const overlappingTrips = await this.tripRepo
+          .createQueryBuilder('t')
+          .where('t.id != :tripId', { tripId: trip.id })
+          .andWhere('(t.trailerId = :trailerId OR t.trailer = :trailerId)', { trailerId: activeTrailerId })
+          .andWhere('t.status NOT IN (:...statuses)', { statuses: ['completed', 'closed', 'cancelled'] })
+          .andWhere('t.plannedDeparture < :to AND (t.plannedArrival IS NULL OR t.plannedArrival > :from)', { from, to })
+          .getMany();
+
+        if (overlappingTrips.length > 0) {
+          const otherTrip = overlappingTrips[0];
+          const trailerPlate = trip.trailer?.plateNumber || trip.truck?.trailer?.plateNumber || activeTrailerId;
+          conflicts.push({
+            type: 'trailer_overlap',
+            severity: 'error',
+            hard: true,
+            blocking: true,
+            code: 'TRAILER_OVERLAP',
+            message: `Trailer ${trailerPlate} is double-booked with trip ${otherTrip.tripNumber || otherTrip.id} during planned trip period.`,
+          });
+        }
+      } catch (e) {
+        // Query builder fallback if relational column name differs
       }
     }
 
@@ -3419,6 +3791,30 @@ export class PlanningService {
     routePlan.version = (routePlan.version || 0) + 1;
 
     const saved = await this.routePlanRepo.save(routePlan);
+
+    // Phase 14: Keep Trip.stops consistent with TruckRoutePlan
+    const activeTripId = saved.tripId || routePlan.tripId || (saved.trip as any)?.id;
+    if (activeTripId) {
+      try {
+        const tripStops = await this.stopRepo.find({
+          where: { trip: { id: activeTripId } },
+          relations: ['tasks', 'tasks.order'],
+        });
+        for (const rps of stops) {
+          const matchingStop = tripStops.find(
+            (ts: any) =>
+              (ts.orderId === rps.orderId || (ts.tasks && ts.tasks.some((tk: any) => tk.order?.id === rps.orderId))) &&
+              String(ts.type).toLowerCase() === (rps.type === RouteStopType.PICKUP ? 'pickup' : 'delivery'),
+          );
+          if (matchingStop && matchingStop.sequence !== rps.sequence) {
+            matchingStop.sequence = rps.sequence;
+            await this.stopRepo.save(matchingStop);
+          }
+        }
+      } catch (e) {
+        this.logger.warn(`Trip stop sync in saveRoutePlan: ${(e as Error).message}`);
+      }
+    }
 
     await this.recordAction(routePlan.auditAction || 'route_saved', {
       routePlanId: saved.id,

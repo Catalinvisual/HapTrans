@@ -104,4 +104,38 @@ export const planningApi = {
     const { data } = await api.get(`/planning/trips/${tripId}/route`);
     return data;
   },
+  splitTrip: async (tripId: string, orderIds: string[]) => {
+    const { data } = await api.post(`/planning/trips/${tripId}/split`, { orderIds });
+    return data;
+  },
+  combineTrips: async (sourceTripId: string, targetTripId: string) => {
+    const { data } = await api.post('/planning/combine', { sourceTripId, targetTripId });
+    return data;
+  },
+  autoOrderStops: async (tripId: string) => {
+    const { data } = await api.post(`/planning/trips/${tripId}/auto-order`);
+    return data;
+  },
+  reorderTripStops: async (tripId: string, stopIds: string[]) => {
+    const { data } = await api.put(`/planning/trips/${tripId}/reorder`, { order: stopIds });
+    return data;
+  },
+
+  // ─── Saved Views ───
+  getViews: async () => {
+    const { data } = await api.get('/planning/views');
+    return data;
+  },
+  saveView: async (dto: { name: string; isDefault?: boolean; filters?: any; sort?: any; grouping?: string; columns?: any; dateRange?: any; viewMode?: string; timelineSettings?: any }) => {
+    const { data } = await api.post('/planning/views', dto);
+    return data;
+  },
+  updateView: async (id: string, dto: any) => {
+    const { data } = await api.patch(`/planning/views/${id}`, dto);
+    return data;
+  },
+  deleteView: async (id: string) => {
+    const { data } = await api.delete(`/planning/views/${id}`);
+    return data;
+  },
 };
