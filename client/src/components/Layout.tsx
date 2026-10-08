@@ -341,6 +341,8 @@ export default function Layout() {
   const navigate = useNavigate();
   const lang = i18n.language as string;
   const title = PAGE_TITLES[location.pathname]?.[lang] ?? 'HapCargo';
+  // Dense workspace pages (Planning board) manage their own date controls and spacing.
+  const isDenseWorkspace = location.pathname === '/planning';
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -639,9 +641,11 @@ export default function Layout() {
             </button>
             <div>
               <h2 className="text-base font-semibold text-text">{title}</h2>
-              <p className="text-xs text-text-secondary hidden sm:block">
-                {formatDate(new Date().toISOString())}
-              </p>
+              {!isDenseWorkspace && (
+                <p className="text-xs text-text-secondary hidden sm:block">
+                  {formatDate(new Date().toISOString())}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -837,7 +841,7 @@ export default function Layout() {
 
         {/* Main content */}
         <main className="flex-1 overflow-y-auto bg-surface">
-          <div className="p-4 md:p-6 w-full mx-auto">
+          <div className={`${isDenseWorkspace ? 'p-0' : 'p-4 md:p-6'} w-full mx-auto`}>
             <Outlet />
           </div>
         </main>

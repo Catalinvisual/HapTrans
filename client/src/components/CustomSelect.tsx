@@ -18,6 +18,12 @@ interface CustomSelectProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  /** 'sm' renders a dense trigger for toolbars. Defaults to 'md'. */
+  size?: 'sm' | 'md';
+  /** Optional leading icon shown inside the trigger. */
+  icon?: React.ReactNode;
+  /** Optional tooltip for the trigger button. */
+  title?: string;
 }
 
 const COLOR_MAP: Record<string, string> = {
@@ -89,7 +95,11 @@ export default function CustomSelect({
   placeholder = 'Select...',
   className = '',
   disabled = false,
+  size = 'md',
+  icon,
+  title,
 }: CustomSelectProps) {
+  const isSm = size === 'sm';
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -210,13 +220,15 @@ export default function CustomSelect({
       <button
         type="button"
         disabled={disabled}
-        className={`w-full flex items-center justify-between px-3.5 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-left ${
+        title={title}
+        className={`w-full flex items-center justify-between ${isSm ? 'h-7 px-2 gap-1 text-xs rounded-lg' : 'px-3.5 py-2 text-sm rounded-xl'} border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-left ${
           disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-primary/50 focus:border-primary focus:ring-2 focus:ring-primary/20'
         } transition-all shadow-sm`}
         onClick={toggleDropdown}
         onKeyDown={handleKeyDown}
       >
-        <div className="flex items-center gap-2 truncate">
+        <div className={`flex items-center ${isSm ? 'gap-1.5' : 'gap-2'} truncate`}>
+          {icon && <span className="shrink-0 flex items-center text-slate-400">{icon}</span>}
           {selectedOption ? (
             <>
               {hasVisibleDot(selectedOption.color) && (
@@ -225,16 +237,16 @@ export default function CustomSelect({
                   style={{ backgroundColor: resolveDotColor(selectedOption.color) }}
                 />
               )}
-              <span className="font-semibold text-slate-800 dark:text-slate-100 truncate text-[13px]">
+              <span className={`font-semibold text-slate-800 dark:text-slate-100 truncate ${isSm ? 'text-xs' : 'text-[13px]'}`}>
                 {selectedOption.label}
               </span>
             </>
           ) : (
-            <span className="text-slate-400 text-sm">{placeholder}</span>
+            <span className={`text-slate-400 ${isSm ? 'text-xs' : 'text-sm'}`}>{placeholder}</span>
           )}
         </div>
         <ChevronDown
-          className={`w-4 h-4 text-slate-400 transition-transform duration-200 flex-shrink-0 ${
+          className={`${isSm ? 'w-3.5 h-3.5' : 'w-4 h-4'} text-slate-400 transition-transform duration-200 flex-shrink-0 ${
             isOpen ? 'rotate-180 text-primary' : ''
           }`}
         />

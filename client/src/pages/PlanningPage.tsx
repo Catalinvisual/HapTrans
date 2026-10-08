@@ -417,52 +417,36 @@ function PoolOrderCard({
       onDragStart={e => { e.dataTransfer.setData('orderId', order.id); e.dataTransfer.effectAllowed = 'move'; setDraggingId(order.id); }}
       onDragEnd={() => setDraggingId(null)}
       onClick={() => onDetail?.(order)}
-      className={`group rounded-2xl p-3 cursor-pointer transition-all select-none border ${
+      className={`group rounded-xl p-2 cursor-pointer transition-all select-none border max-h-[65px] flex flex-col justify-between ${
         isDragging ? 'opacity-40 scale-95 border-primary shadow-lg bg-primary/5'
         : selected ? 'border-primary ring-1 ring-primary/30 shadow bg-card'
         : 'border-border hover:border-primary/50 hover:shadow bg-card'
       }`}
     >
-      <div className="flex items-center justify-between gap-2 mb-1.5">
-        <div className="flex items-center gap-1.5 min-w-0">
+      <div className="flex items-center justify-between gap-1 mb-1">
+        <div className="flex items-center gap-1 min-w-0">
           <button onClick={e => { e.stopPropagation(); onToggle?.(order.id, !selected); }}
             className="text-text-secondary hover:text-primary shrink-0">
             {selected ? <CheckSquare className="w-3.5 h-3.5 text-primary" /> : <Square className="w-3.5 h-3.5" />}
           </button>
-          <span className="font-bold text-text-primary text-xs truncate">{order.orderNumber || '—'}</span>
-          {isUrgent && <span className="px-1 py-0 text-[8px] font-black bg-red-500/10 text-red-600 border border-red-500/20 rounded shrink-0">URGENT</span>}
+          <span className="font-bold text-text-primary text-[11px] truncate">{order.orderNumber || '—'}</span>
+          {isUrgent && <span className="px-1 py-0 text-[7px] font-black bg-red-500/10 text-red-600 border border-red-500/20 rounded shrink-0">URGENT</span>}
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <span className="px-1.5 py-0 text-[8px] font-black rounded-full bg-primary/10 text-primary border border-primary/20">{(order.transportType || 'FTL').toUpperCase()}</span>
-          <button onClick={e => { e.stopPropagation(); onDetail?.(order); }} className="p-0.5 rounded hover:bg-surface text-text-muted hover:text-primary" title={t('jsx_details','Details')}>
-            <Info className="w-3 h-3" />
-          </button>
         </div>
       </div>
 
-      <div className="flex items-center gap-1 text-xs text-text-secondary truncate mb-1">
-        <MapPin className="w-3 h-3 text-blue-500 shrink-0" />
-        <span className="truncate font-medium text-text-primary text-[11px]">{pickup?.city || pickup?.address?.split(',')[0] || '—'}</span>
-        <ArrowRight className="w-2.5 h-2.5 shrink-0 text-text-muted" />
-        <MapPin className="w-3 h-3 text-emerald-500 shrink-0" />
-        <span className="truncate font-medium text-text-primary text-[11px]">{dropoff?.city || dropoff?.address?.split(',')[0] || '—'}</span>
-      </div>
-
-      <div className="flex items-center justify-between text-[10px] pt-1.5 border-t border-border/40">
-        <span className="text-text-secondary">
-          {cargo.weight > 0 ? `${fmtNumber(cargo.weight)} kg` : '—'}
-          {cargo.pallets > 0 ? ` · ${cargo.pallets} plt` : ''}
-          {order.client?.name ? <span className="text-text-muted"> · {order.client.name}</span> : ''}
-        </span>
-        <span className="font-black text-text-primary">{fmtMoney(Number(order.price || 0), 'EUR')}</span>
-      </div>
-
-      {pickup?.dateFrom && (
-        <div className="flex items-center gap-1 mt-1 text-[10px] text-text-muted">
-          <Calendar className="w-2.5 h-2.5" />
-          <span>{fmtShort(pickup.dateFrom)} {pickup.timeFrom ? `· ${pickup.timeFrom}` : ''}</span>
+      <div className="flex items-center justify-between gap-1 text-[10px] text-text-secondary truncate">
+        <div className="flex items-center gap-1 truncate">
+          <MapPin className="w-2.5 h-2.5 text-blue-500 shrink-0" />
+          <span className="truncate font-medium text-text-primary">{pickup?.city || pickup?.address?.split(',')[0] || '—'}</span>
+          <ArrowRight className="w-2 h-2 shrink-0 text-text-muted" />
+          <MapPin className="w-2.5 h-2.5 text-emerald-500 shrink-0" />
+          <span className="truncate font-medium text-text-primary">{dropoff?.city || dropoff?.address?.split(',')[0] || '—'}</span>
         </div>
-      )}
+        <span className="font-black text-text-primary shrink-0">{cargo.weight > 0 ? `${fmtNumber(cargo.weight)}kg` : ''}</span>
+      </div>
     </div>
   );
 }
@@ -631,90 +615,48 @@ function ResourceRow({
     <div className={`flex border-b-2 border-border min-h-[96px] group transition-colors ${isMaintenance ? 'bg-red-500/[0.02] hover:bg-red-500/[0.04]' : 'hover:bg-primary/[0.02]'}`}>
       {/* Resource Column — sticky left — CLICKABLE */}
       <div
-        className={`w-56 shrink-0 px-3 py-2.5 border-r-2 flex flex-col justify-center gap-1.5 sticky left-0 z-10 shadow-[2px_0_6px_rgba(0,0,0,0.06)] cursor-pointer group/truck transition-colors ${
+        className={`w-56 shrink-0 px-2 py-1 border-r flex flex-col justify-center gap-0.5 sticky left-0 z-10 shadow-[2px_0_6px_rgba(0,0,0,0.06)] cursor-pointer group/truck transition-colors ${
           isMaintenance ? 'bg-red-500/5 border-red-500/30 hover:bg-red-500/10' : 'bg-card border-border hover:bg-primary/5'
         }`}
         onClick={() => onOpenPlanner(resource)}
         title={t('pln_open_planner', 'Open Truck Route & Load Planner')}
       >
-        {/* Maintenance banner */}
-        {isMaintenance && (
-          <div className="flex items-center gap-1 px-1.5 py-1 rounded-lg bg-red-500/10 border border-red-500/20 mb-0.5">
-            <span className="text-[10px]">🔧</span>
-            <span className="text-[9px] font-black text-red-600 uppercase tracking-wide">{t('in_maintenance', 'In Maintenance')}</span>
-          </div>
-        )}
-        <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-xl flex items-center justify-center border shrink-0 shadow-sm transition-colors ${
-            isMaintenance ? 'bg-red-500/10 border-red-500/30' : hasTrips ? 'bg-primary/10 border-primary/20 group-hover/truck:bg-primary/20' : 'bg-surface border-border'
-          }`}>
-            {grouping === 'driver' ? (
-              <Users className={`w-4 h-4 ${hasTrips ? 'text-primary' : 'text-text-muted'}`} />
-            ) : grouping === 'trailer' || resource.isTrailer ? (
-              <TruckIcon className={`w-4 h-4 opacity-80 ${hasTrips ? 'text-primary' : 'text-text-muted'}`} />
-            ) : (
-              <TruckIcon className={`w-4 h-4 ${isMaintenance ? 'text-red-500' : hasTrips ? 'text-primary' : 'text-text-muted'}`} />
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <p className="font-black text-text-primary text-xs truncate">{resource.plateNumber || resource.name || resource.user?.name || '—'}</p>
-              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDot}`} />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className={`w-5 h-5 rounded-md flex items-center justify-center border shrink-0 shadow-sm transition-colors ${
+              isMaintenance ? 'bg-red-500/10 border-red-500/30' : hasTrips ? 'bg-primary/10 border-primary/20 group-hover/truck:bg-primary/20' : 'bg-surface border-border'
+            }`}>
+              {grouping === 'driver' ? (
+                <Users className={`w-3 h-3 ${hasTrips ? 'text-primary' : 'text-text-muted'}`} />
+              ) : grouping === 'trailer' || resource.isTrailer ? (
+                <TruckIcon className={`w-3 h-3 opacity-80 ${hasTrips ? 'text-primary' : 'text-text-muted'}`} />
+              ) : (
+                <TruckIcon className={`w-3 h-3 ${isMaintenance ? 'text-red-500' : hasTrips ? 'text-primary' : 'text-text-muted'}`} />
+              )}
             </div>
-            <p className="text-[10px] text-text-muted truncate">{resource.brand ? `${resource.brand} ${resource.model || ''}` : (resource.phone || resource.type || '')}</p>
+            <p className="font-bold text-text-primary text-[11px] truncate" title={resource.brand ? `${resource.brand} ${resource.model || ''}` : ''}>
+              {resource.plateNumber || resource.name || resource.user?.name || '—'} {isMaintenance ? '🔧' : ''}
+            </p>
           </div>
+          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDot}`} title={st} />
         </div>
 
-        {/* Driver Row in Truck Mode */}
-        {grouping === 'truck' && resource.driver?.name && (
-          <div className="flex items-center justify-between gap-1 text-[10px] text-text-secondary">
-            <div className="flex items-center gap-1 min-w-0 truncate">
-              <Users className="w-3 h-3 shrink-0 text-text-muted" />
-              <span className="truncate font-medium">{resource.driver.name}</span>
-            </div>
-            {hos && (
-              <span className={`text-[9px] px-1 py-0.2 rounded font-bold shrink-0 ${
-                hos.over ? 'bg-red-500/15 text-red-600' : hos.remaining <= 5 ? 'bg-amber-500/15 text-amber-600' : 'bg-emerald-500/15 text-emerald-600'
-              }`} title={`${hos.weeklyDriving}h / 56h used (${hos.remaining}h remaining)`}>
-                {hos.remaining}h rem
-              </span>
+        <div className="flex items-center justify-between text-[10px] text-text-secondary pl-6">
+          <div className="flex items-center gap-1 min-w-0 truncate">
+            {grouping === 'truck' && resource.driver?.name && (
+              <>
+                <span className="truncate">{resource.driver.name.split(' ')[0]}</span>
+                {resource.trailer && <span className="text-text-muted">| T: {resource.trailer.plateNumber}</span>}
+              </>
+            )}
+            {grouping === 'driver' && hos && (
+               <span className="truncate">{hos.remaining}h rem</span>
+            )}
+            {(grouping === 'trailer' || resource.isTrailer) && resource.isDropped && (
+              <span className="text-amber-600 truncate">Dropped @ {resource.dropLocation}</span>
             )}
           </div>
-        )}
-
-        {/* HOS display in Driver Mode */}
-        {grouping === 'driver' && hos && (
-          <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[9px] font-bold ${
-            hos.over ? 'bg-red-500/10 text-red-600 border border-red-500/20' : hos.remaining <= 5 ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
-          }`} title={`${hos.weeklyDriving}h / 56h weekly driving hours used (${hos.remaining}h remaining)`}>
-            <Clock3 className="w-2.5 h-2.5 shrink-0" />
-            <span className="truncate">{hos.weeklyDriving}h / 56h · {hos.remaining}h {t('remaining', 'rem')}</span>
-          </div>
-        )}
-
-        {/* Trailer in Truck Mode */}
-        {grouping === 'truck' && resource.trailer && (
-          <div className="flex items-center gap-1 text-[10px] text-text-secondary mt-0.5">
-            <TruckIcon className="w-3 h-3 shrink-0 text-text-muted opacity-80" />
-            <span className="truncate font-medium" title={t('trailer', 'Trailer')}>T: {resource.trailer.plateNumber}</span>
-          </div>
-        )}
-
-        {/* Dropped status in Trailer mode */}
-        {(grouping === 'trailer' || resource.isTrailer) && resource.isDropped && (
-          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 mt-0.5">
-            <Unplug className="w-2.5 h-2.5 text-amber-600 shrink-0" />
-            <span className="text-[8px] font-black uppercase truncate">{t('trailer_dropped', 'Dropped')} @ {resource.dropLocation || 'Yard'}</span>
-          </div>
-        )}
-
-        {/* Cargo capacity preview */}
-        {cargo.weight > 0 && (
-          <div className="grid grid-cols-2 gap-1 pt-1.5 border-t border-border/40">
-            <CapBar label="Wt" value={Math.round(cargo.weight / 100) / 10} max={Math.round(mw / 100) / 10} unit="t" />
-            <CapBar label="Plt" value={cargo.pallets} max={mp} />
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Timeline Area */}
@@ -2316,203 +2258,118 @@ export default function PlanningPage() {
   return (
     <div className={`flex flex-col gap-0 bg-background text-text-primary print:bg-white ${isFullscreen ? 'fixed inset-0 z-[9000] p-0' : 'h-[calc(100vh-4rem)]'}`}>
 
-      {/* ── TOP TOOLBAR ────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-border bg-card shrink-0 print:hidden">
-        {/* Left: title + views + saved views + grouping */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-base font-black text-text-primary whitespace-nowrap">{t('jsx_planningTitle','Planning & Dispatch')}</h1>
-          <div className="flex bg-surface p-0.5 rounded-xl border border-border">
-            {([['all', t('jsx_all','All'), List],['day', t('jsx_day','Day'), Clock],['week', t('jsx_week','Week'), Calendar],['timeline', t('view_timeline','Timeline'), LayoutGrid],['map', t('jsx_map','Map'), MapIcon]] as [string, string, any][]).map(([id, label, Icon]) => (
-              <button key={id} onClick={() => setViewMode(id as any)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === id ? 'bg-card text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}>
-                <Icon className="w-3.5 h-3.5" /><span className="hidden sm:inline">{label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Saved Views Control */}
-          <div className="flex items-center gap-1 bg-surface px-1.5 py-0.5 rounded-xl border border-border">
-            <Bookmark className="w-3.5 h-3.5 text-text-muted ml-1" />
-            <select
-              value={currentViewId || ''}
-              onChange={e => {
-                const val = e.target.value;
-                if (!val) { setCurrentViewId(null); }
-                else {
-                  const found = savedViews.find(v => v.id === val);
-                  if (found) handleApplySavedView(found);
-                }
-              }}
-              className="text-xs font-bold bg-transparent border-0 text-text-primary focus:ring-0 py-1 pr-6 cursor-pointer"
-            >
-              <option value="">{t('saved_views_dropdown', 'Views')}</option>
-              {savedViews.map(v => (
-                <option key={v.id} value={v.id}>{v.name}{v.isDefault ? ' ★' : ''}</option>
-              ))}
-            </select>
-            <button
-              onClick={() => setShowSaveViewModal(true)}
-              className="p-1 hover:bg-card rounded-lg text-text-secondary hover:text-primary transition-colors"
-              title={t('save_current_view', 'Save current view')}
-            >
-              <BookmarkPlus className="w-3.5 h-3.5" />
+            {/* ── SINGLE COMPACT CONTROL TOOLBAR ────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-surface shrink-0 print:hidden overflow-x-auto min-h-[44px]">
+        {/* Left: Views & Grouping */}
+        <div className="flex bg-card p-0.5 rounded-lg border border-border shadow-sm shrink-0">
+          {([['all', t('jsx_all','All'), List],['day', t('jsx_day','Day'), Clock],['week', t('jsx_week','Week'), Calendar],['timeline', t('view_timeline','Timeline'), LayoutGrid],['map', t('jsx_map','Map'), MapIcon]] as [string, string, any][]).map(([id, label, Icon]) => (
+            <button key={id} onClick={() => setViewMode(id as any)} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${viewMode === id ? 'bg-primary/10 text-primary' : 'text-text-secondary hover:text-text-primary'}`} title={label}>
+              <Icon className="w-3.5 h-3.5" />
             </button>
-            {currentViewId && (
-              <>
-                <button
-                  onClick={handleUpdateCurrentView}
-                  className="p-1 hover:bg-card rounded-lg text-text-secondary hover:text-emerald-500 transition-colors"
-                  title={t('update_view', 'Update saved view with current settings')}
-                >
-                  <Save className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => handleDeleteSavedView(currentViewId)}
-                  className="p-1 hover:bg-card rounded-lg text-text-secondary hover:text-red-500 transition-colors"
-                  title={t('delete_view', 'Delete saved view')}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </>
-            )}
-          </div>
-
-          {/* Grouping */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-text-muted font-bold uppercase">{t('jsx_groupAll','Group')}:</span>
-            {([['truck', t('jsx_groupVehicle','Truck')],['driver', t('jsx_groupDriver','Driver')],['trailer', t('jsx_groupTrailer','Trailer')]] as [string,string][]).map(([id,label]) => (
-              <button key={id} onClick={() => setGrouping(id as any)} className={`text-[10px] px-2 py-0.5 rounded font-bold transition-colors ${grouping === id ? 'bg-primary text-white' : 'bg-surface text-text-secondary hover:text-text-primary border border-border'}`}>{label}</button>
-            ))}
-          </div>
+          ))}
         </div>
 
-        {/* Right: actions */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button onClick={() => setShowCombineModal(true)} className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold" title={t('combine_trips', 'Combine Trips')}>
-            <GitMerge className="w-4 h-4 text-primary" /><span className="hidden md:inline">{t('combine_trips', 'Combine')}</span>
-          </button>
-          <button onClick={() => setShowExportModal(true)} className="btn-secondary p-2 rounded-xl" title={t('export_planning', 'Export Planning to Excel / CSV')}>
-            <Download className="w-4 h-4" />
-          </button>
-          <button onClick={handleUndo} className="btn-secondary p-2 rounded-xl" title={t('jsx_undo','Undo')}><RotateCcw className="w-4 h-4" /></button>
-          <button onClick={() => setShowOptimizeModal(true)} className="btn-secondary p-2 rounded-xl" title={t('jsx_optimize','Optimize')}><Sparkles className="w-4 h-4 text-primary" /></button>
-          <button onClick={handlePrint} className="btn-secondary p-2 rounded-xl" title={t('jsx_print','Print')}><Printer className="w-4 h-4" /></button>
-          <button onClick={handleFullscreen} className="btn-secondary p-2 rounded-xl" title={t('jsx_fullscreen','Fullscreen')}>
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
-          <button onClick={() => navigate('/orders/new')} className="btn-primary text-xs py-2 px-3 flex items-center gap-1.5 font-black shadow shadow-primary/20">
-            <span className="hidden sm:inline">{t('jsx_newTransport','New transport')}</span>
-          </button>
+        <div className="w-32 shrink-0">
+          <CustomSelect
+            value={grouping}
+            onChange={(val) => setGrouping(val as any)}
+            size="sm"
+            icon={Layers}
+            options={[
+              { value: 'truck', label: t('jsx_groupVehicle','Truck') },
+              { value: 'driver', label: t('jsx_groupDriver','Driver') },
+              { value: 'trailer', label: t('jsx_groupTrailer','Trailer') }
+            ]}
+          />
         </div>
-      </div>
 
-      {/* ── FILTER BAR ─────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-surface/50 shrink-0 flex-wrap print:hidden">
-        {/* Search */}
-        <div className="relative">
+        <div className="w-[1px] h-5 bg-border mx-1 shrink-0"></div>
+
+        {/* Center: Search & Filters & KPI Pills */}
+        <div className="relative shrink-0">
           <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
           <input
             type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder={t('search_order_placeholder','Search order, client, location…')}
-            className="pl-8 pr-3 py-1.5 text-xs bg-card border border-border rounded-xl text-text-primary focus:outline-none focus:ring-1 focus:ring-primary w-56"
+            className="pl-8 pr-3 py-1 text-[11px] h-[28px] bg-card border border-border rounded-lg text-text-primary focus:outline-none focus:ring-1 focus:ring-primary w-48"
           />
         </div>
 
-        {/* Status — using the app-wide CustomSelect for consistent modern styling */}
-        <div className="w-44">
-          <CustomSelect
-            value={statusFilter}
-            onChange={setStatusFilter}
-            options={[
-              { value: '', label: t('status_all','All Statuses') },
-              ...['planning','planned','assigned','dispatched','driver_accepted','started','loading','driving','partially_delivered','completed','closed','cancelled']
-                .map(s => ({ value: s, label: t(`status_${s}`, s.replace(/_/g,' ')) }))
-            ]}
-          />
-        </div>
-
-        {/* Trucks */}
-        <div className="w-40">
-          <CustomSelect
-            value={truckFilter}
-            onChange={setTruckFilter}
-            options={[
-              { value: '', label: t('jsx_allVehicles','All Trucks') },
-              ...resources.map((r: any) => ({ value: r.id, label: r.plateNumber }))
-            ]}
-          />
-        </div>
-
-        {/* Drivers */}
-        <div className="w-40">
-          <CustomSelect
-            value={driverFilter}
-            onChange={setDriverFilter}
-            options={[
-              { value: '', label: t('jsx_allDrivers','All Drivers') },
-              ...(boardData?.drivers || resources.map((r: any) => r.driver).filter(Boolean))
-                .filter((d: any, i: number, arr: any[]) => d && arr.findIndex((x: any) => x.id === d.id) === i)
-                .map((d: any) => ({ value: d.id, label: d.name || d.user?.name || '—' }))
-            ]}
-          />
-        </div>
-
-        {/* Priority */}
-        <div className="w-32">
-          <CustomSelect
-            value={priorityFilter}
-            onChange={setPriorityFilter}
-            options={[
-              { value: '', label: t('jsx_allPriorities','Priority') },
-              ...['critical','high','normal','low'].map(p => ({ value: p, label: t(`priority_${p}`, p) }))
-            ]}
-          />
+        <div className="flex gap-1.5 shrink-0">
+          <div className="w-28">
+            <CustomSelect size="sm" icon={TruckIcon} value={truckFilter} onChange={setTruckFilter} options={[{ value: '', label: t('jsx_allVehicles','All Trucks') }, ...resources.map((r: any) => ({ value: r.id, label: r.plateNumber }))] } />
+          </div>
+          <div className="w-28">
+            <CustomSelect size="sm" icon={Users} value={driverFilter} onChange={setDriverFilter} options={[{ value: '', label: t('jsx_allDrivers','All Drivers') }, ...(boardData?.drivers || resources.map((r: any) => r.driver).filter(Boolean)).filter((d: any, i: number, arr: any[]) => d && arr.findIndex((x: any) => x.id === d.id) === i).map((d: any) => ({ value: d.id, label: d.name || d.user?.name || '—' }))] } />
+          </div>
+          <div className="w-28">
+            <CustomSelect size="sm" icon={AlertTriangle} value={priorityFilter} onChange={setPriorityFilter} options={[{ value: '', label: t('jsx_allPriorities','Priority') }, ...['critical','high','normal','low'].map(p => ({ value: p, label: t(`priority_${p}`, p) }))] } />
+          </div>
         </div>
 
         {activeFilterCount > 0 && (
-          <button onClick={() => { setSearch(''); setStatusFilter(''); setTruckFilter(''); setDriverFilter(''); setPriorityFilter(''); setAttentionActive(false); }} className="flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-600 bg-red-500/10 border border-red-500/20 px-2.5 py-1.5 rounded-xl transition-colors">
-            <X className="w-3 h-3" />{t('jsx_clearFilters','Clear')} ({activeFilterCount})
+          <button onClick={() => { setSearch(''); setStatusFilter(''); setTruckFilter(''); setDriverFilter(''); setPriorityFilter(''); setAttentionActive(false); }} className="flex items-center justify-center w-7 h-7 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors shrink-0" title={`${t('jsx_clearFilters','Clear')} (${activeFilterCount})`}>
+            <X className="w-3.5 h-3.5" />
           </button>
         )}
 
-        {/* Refresh */}
-        <button onClick={loadData} disabled={isLoading} className="ml-auto flex items-center gap-1 text-xs text-text-secondary hover:text-primary transition-colors" title={t('jsx_recalc','Refresh')}>
-          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-primary' : ''}`} />
-          <span className="hidden sm:inline">{t('jsx_recalc','Refresh')}</span>
-        </button>
-      </div>
+        {/* KPI Pills */}
+        <div className="flex gap-1 bg-card rounded-lg p-0.5 border border-border shrink-0 ml-1">
+          {([
+            { filter: 'planned', value: plannedTripsCount, color: 'blue', isAttention: false },
+            { filter: 'unassigned', value: boardData?.totalUnplanned || orders.length || 0, color: 'amber', isAttention: false },
+            { filter: 'attention', value: attentionResourceIds.size, color: 'red', isAttention: true },
+            { filter: 'driving', value: drivingTripsCount, color: 'emerald', isAttention: false },
+            { filter: 'delayed', value: delayedTripsCount, color: 'purple', isAttention: false },
+          ] as { filter: string; value: number; color: string; isAttention: boolean }[]).map(({ filter, value, color, isAttention }) => {
+            const isActive = isAttention ? attentionActive : statusFilter === filter;
+            return (
+              <button
+                key={filter}
+                onClick={() => {
+                  if (isAttention) { setAttentionActive(a => !a); }
+                  else if (filter === 'unassigned') { setPoolCollapsed(false); setStatusFilter(statusFilter === 'unassigned' ? '' : 'unassigned'); }
+                  else { setStatusFilter(statusFilter === filter ? '' : filter); }
+                }}
+                className={`flex items-center justify-center min-w-[24px] h-[22px] px-1.5 rounded-md text-[11px] font-black transition-all ${isActive ? `bg-${color}-500 text-white shadow-sm` : `bg-surface hover:bg-surface/80 text-${color}-600`}`}
+                title={t(isAttention ? 'jsx_attention' : (filter === 'unassigned' ? 'kpi_unassigned' : (filter === 'planned' ? 'kpi_planned' : `status_${filter}`)), filter)}
+              >
+                {value}
+              </button>
+            );
+          })}
+        </div>
 
-      {/* ── KPI STRIP ──────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-5 gap-0 border-b border-border shrink-0 print:hidden">
-        {([
-          { filter: 'planned', label: t('kpi_planned','Planned'), value: plannedTripsCount, color: 'blue', isAttention: false },
-          { filter: 'unassigned', label: t('kpi_unassigned','Unassigned'), value: boardData?.totalUnplanned || orders.length || 0, color: 'amber', isAttention: false },
-          { filter: 'attention', label: t('jsx_attention','Attention'), value: attentionResourceIds.size, color: 'red', isAttention: true },
-          { filter: 'driving', label: t('status_driving','Driving'), value: drivingTripsCount, color: 'emerald', isAttention: false },
-          { filter: 'delayed', label: t('status_delayed','Delayed'), value: delayedTripsCount, color: 'purple', isAttention: false },
-        ] as { filter: string; label: string; value: number; color: string; isAttention: boolean }[]).map(({ filter, label, value, color, isAttention }) => {
-          const isActive = isAttention ? attentionActive : statusFilter === filter;
-          return (
-            <button
-              key={label}
-              onClick={() => {
-                if (isAttention) {
-                  setAttentionActive(a => !a);
-                } else if (filter === 'unassigned') {
-                  setPoolCollapsed(false);
-                  setStatusFilter(statusFilter === 'unassigned' ? '' : 'unassigned');
-                } else {
-                  setStatusFilter(statusFilter === filter ? '' : filter);
-                }
-              }}
-              className={`py-2.5 px-4 flex items-center justify-between gap-2 text-xs font-bold border-r border-border last:border-0 transition-all hover:bg-surface/60 ${isActive ? `bg-${color}-500/10` : ''}`}
-            >
-              <span className={`${isActive ? `text-${color}-700 dark:text-${color}-400` : 'text-text-secondary'}`}>{label}</span>
-              <span className={`px-2 py-0.5 rounded-full font-black transition-all ${
-                isActive ? `bg-${color}-500 text-white` : `bg-${color}-500/10 text-${color}-600`
-              }`}>{value}</span>
+        <div className="flex-1"></div>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button onClick={() => setShowCombineModal(true)} className="btn-secondary h-[28px] px-2.5 rounded-lg flex items-center gap-1.5 text-[11px] font-bold" title={t('combine_trips', 'Combine Trips')}>
+            <GitMerge className="w-3.5 h-3.5 text-primary" /><span className="hidden xl:inline">{t('combine_trips', 'Combine')}</span>
+          </button>
+          
+          <div className="flex bg-card p-0.5 rounded-lg border border-border shadow-sm">
+            <button onClick={() => setShowExportModal(true)} className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors" title={t('export_planning', 'Export')}>
+              <Download className="w-3.5 h-3.5" />
             </button>
-          );
-        })}
+            <button onClick={loadData} disabled={isLoading} className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors" title={t('jsx_recalc','Refresh')}>
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-primary' : ''}`} />
+            </button>
+            <button onClick={() => setShowOptimizeModal(true)} className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors" title={t('jsx_optimize','AI Auto-plan')}>
+              <Wand2 className="w-3.5 h-3.5 text-amber-500" />
+            </button>
+            <button onClick={handlePrint} className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors" title={t('jsx_print','Print')}>
+              <Printer className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={handleFullscreen} className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors" title={t('jsx_fullscreen','Fullscreen')}>
+              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+
+          <button onClick={() => navigate('/orders/new')} className="h-[28px] px-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg flex items-center gap-1.5 text-[11px] font-black shadow-sm transition-colors">
+            <Plus className="w-3.5 h-3.5" /><span className="hidden lg:inline">{t('jsx_newTransport','New transport')}</span>
+          </button>
+        </div>
       </div>
 
       {/* ── MAIN CONTENT ───────────────────────────────────────────────── */}
@@ -2624,71 +2481,6 @@ export default function PlanningPage() {
             <PlanningMap mapData={mapData} selectedTripId={selectedTripId} onSelectTrip={setSelectedTripId} isLoading={isLoading} />
           ) : (
             <>
-              {/* Date navigator */}
-              <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-surface/20 shrink-0 print:hidden">
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setSelectedDate(d => dayStr(addDays(parseDay(d), viewMode === 'week' ? -7 : -1)))} className="p-1.5 rounded-lg hover:bg-surface text-text-secondary hover:text-text-primary transition-colors">
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => setSelectedDate(dayStr(new Date()))} className="text-xs font-bold text-text-primary hover:text-primary transition-colors px-2">
-                    {viewMode === 'week' ? t('jsx_dateThisWeek','This week') : t('jsx_today','Today')}
-                  </button>
-                  <Flatpickr
-                    value={selectedDate}
-                    onChange={([d]) => d && setSelectedDate(dayStr(d))}
-                    options={{ dateFormat: 'Y-m-d' }}
-                    className="w-28 text-xs font-bold text-center bg-transparent border-none focus:ring-0 cursor-pointer text-text-primary"
-                  />
-                  <button onClick={() => setSelectedDate(d => dayStr(addDays(parseDay(d), viewMode === 'week' ? 7 : 1)))} className="p-1.5 rounded-lg hover:bg-surface text-text-secondary hover:text-text-primary transition-colors">
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                  {viewMode === 'week' && (
-                    <span className="text-xs text-text-secondary">
-                      {fmtShort(fromDateObj)} – {fmtShort(addDays(fromDateObj, 6))}
-                    </span>
-                  )}
-                </div>
-
-                {/* Continuous Timeline Zoom Controls */}
-                <div className="flex items-center gap-1 bg-surface/80 border border-border/80 rounded-xl px-1.5 py-0.5">
-                  <button
-                    onClick={() => setZoomLevel(z => Math.max(0.5, +(z - 0.15).toFixed(2)))}
-                    className="p-1 rounded-lg hover:bg-card text-text-secondary hover:text-text-primary transition-colors"
-                    title={t('zoom_out', 'Zoom Out (or Ctrl + Scroll)')}
-                  >
-                    <ZoomOut className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setZoomLevel(1.0)}
-                    className="px-1.5 py-0.5 text-[10px] font-mono font-bold text-text-primary hover:text-primary transition-colors rounded"
-                    title={t('zoom_reset', 'Reset Zoom (100%)')}
-                  >
-                    {Math.round(zoomLevel * 100)}%
-                  </button>
-                  <button
-                    onClick={() => setZoomLevel(z => Math.min(2.5, +(z + 0.15).toFixed(2)))}
-                    className="p-1 rounded-lg hover:bg-card text-text-secondary hover:text-text-primary transition-colors"
-                    title={t('zoom_in', 'Zoom In (or Ctrl + Scroll)')}
-                  >
-                    <ZoomIn className="w-3.5 h-3.5" />
-                  </button>
-                  <div className="w-px h-3 bg-border mx-0.5" />
-                  <button
-                    onClick={() => setZoomLevel(1.0)}
-                    className="px-1.5 py-0.5 text-[10px] font-bold text-text-secondary hover:text-text-primary hover:bg-card rounded transition-colors"
-                    title={t('zoom_fit', 'Fit to plan')}
-                  >
-                    {t('fit', 'Fit')}
-                  </button>
-                </div>
-
-                {/* Status bar */}
-                <div className="flex items-center gap-3 text-[11px] text-text-secondary">
-                  <span><span className="font-bold text-text-primary">{displayResources.length}</span> {t('jsx_resources','resources')}</span>
-                  <span><span className="font-bold text-text-primary">{trips.length}</span> {t('jsx_tripsInRange','trips in range')}</span>
-                </div>
-              </div>
-
               {/* Timeline grid */}
               <div ref={timelineRef} tabIndex={0} className="flex-1 overflow-auto relative outline-none focus:ring-2 focus:ring-inset focus:ring-primary/20">
                 {isLoading ? (
@@ -2706,12 +2498,28 @@ export default function PlanningPage() {
                 ) : (
                   <div className="min-w-max w-full" style={{ minWidth: `${Math.round(100 * zoomLevel)}%` }}>
                     {/* Time scale header */}
-                    <div className="flex border-b border-border bg-surface/60 sticky top-0 z-20 shadow-sm">
-                      <div className="w-56 shrink-0 border-r border-border/60 bg-surface/80 flex items-center px-3 py-2 sticky left-0 z-30">
-                        <Filter className="w-3.5 h-3.5 text-text-muted mr-1.5" />
-                        <span className="text-[10px] font-bold text-text-secondary uppercase">{t('jsx_resources','Resources')}</span>
+                    <div className="flex border-b border-border bg-surface/60 sticky top-0 z-20 shadow-sm h-10">
+                      <div className="w-56 shrink-0 border-r border-border/60 bg-surface/80 flex items-center justify-between px-2 py-1 sticky left-0 z-30">
+                        {/* Temporal navigation placed here! */}
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => setSelectedDate(d => dayStr(addDays(parseDay(d), viewMode === 'week' ? -7 : -1)))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors">
+                            <ChevronLeft className="w-3.5 h-3.5" />
+                          </button>
+                          <Flatpickr
+                            value={selectedDate}
+                            onChange={([d]) => d && setSelectedDate(dayStr(d))}
+                            options={{ dateFormat: 'Y-m-d' }}
+                            className="w-20 text-[11px] font-bold text-center bg-transparent border-none focus:ring-0 cursor-pointer text-text-primary p-0"
+                          />
+                          <button onClick={() => setSelectedDate(d => dayStr(addDays(parseDay(d), viewMode === 'week' ? 7 : 1)))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors">
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <button onClick={() => setSelectedDate(dayStr(new Date()))} className="text-[10px] font-bold text-primary hover:text-primary/80 px-1">
+                          {viewMode === 'week' ? t('jsx_dateThisWeek','This week') : t('jsx_today','Today')}
+                        </button>
                       </div>
-                      <div className="flex flex-1">
+                      <div className="flex flex-1 relative">
                         {Array.from({ length: hoursVisible }, (_, h) => (
                           <div
                             key={h}
@@ -2726,6 +2534,19 @@ export default function PlanningPage() {
                             }
                           </div>
                         ))}
+                        {/* Right absolute positioned block for indicators and zoom controls */}
+                        <div className="absolute top-1/2 -translate-y-1/2 right-2 flex items-center gap-3 bg-surface/80 backdrop-blur-sm border border-border/60 rounded-lg px-2 py-1 shadow-sm">
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => setZoomLevel(z => Math.max(0.5, +(z - 0.15).toFixed(2)))} className="p-0.5 rounded hover:bg-card text-text-secondary hover:text-text-primary"><ZoomOut className="w-3 h-3" /></button>
+                            <span className="text-[9px] font-mono font-bold w-7 text-center">{Math.round(zoomLevel * 100)}%</span>
+                            <button onClick={() => setZoomLevel(z => Math.min(2.5, +(z + 0.15).toFixed(2)))} className="p-0.5 rounded hover:bg-card text-text-secondary hover:text-text-primary"><ZoomIn className="w-3 h-3" /></button>
+                          </div>
+                          <div className="w-px h-3 bg-border" />
+                          <div className="flex items-center gap-2 text-[10px] font-bold text-text-secondary">
+                            <span>{displayResources.length} res</span>
+                            <span>{trips.length} trips</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
