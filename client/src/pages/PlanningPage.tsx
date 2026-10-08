@@ -1652,7 +1652,6 @@ export default function PlanningPage() {
   };
 
   // ── Derived data ──
-  const counts = boardData?.counts || {};
   const resources: any[] = boardData?.resources || [];
   const trips: any[] = boardData?.trips || [];
   const orders: any[] = boardData?.orders || [];
@@ -1718,7 +1717,7 @@ export default function PlanningPage() {
   const draggingOrder = useMemo(() => draggingOrderId ? orders.find(o => o.id === draggingOrderId) || null : null, [orders, draggingOrderId]);
 
   // Trips & resources with blocking conflicts (for attention filter)
-  const { blockingConflicts, attentionResourceIds } = useMemo(() => {
+  const attentionResourceIds = useMemo(() => {
     const blocking = (boardData?.conflicts || []).filter((c: any) => c.level === 'blocking');
     const conflictTripSet = new Set(blocking.map((c: any) => c.tripId).filter(Boolean));
     const conflictResSet = new Set(blocking.map((c: any) => c.resourceId).filter(Boolean));
@@ -1739,7 +1738,7 @@ export default function PlanningPage() {
       resIds.add('__unassigned_trips__');
     }
 
-    return { blockingConflicts: blocking, attentionResourceIds: resIds };
+    return resIds;
   }, [boardData?.conflicts, resources, trips, grouping, unassignedTrips]);
 
   const activeFilterCount = [search, statusFilter, truckFilter, driverFilter, priorityFilter, attentionActive].filter(Boolean).length;
