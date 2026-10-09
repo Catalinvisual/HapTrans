@@ -350,7 +350,7 @@ export default function ExpensesPage() {
                 <th className="table-header">{t('expenseDescription')}</th>
                 <th className="table-header">{t('expenseAmount')}</th>
                 <th className="table-header">{t('expenseDocument')}</th>
-                <th className="table-header">{t('expenseActions')}</th>
+                <th className="table-header sticky right-0 z-20 bg-surface border-l border-border">{t('expenseActions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -375,7 +375,7 @@ export default function ExpensesPage() {
                         <FileText className="w-4 h-4" /> {t('viewAttached')}
                       </a> : '—'}
                   </td>
-                  <td className="table-cell">
+                  <td className="table-cell sticky right-0 z-10 bg-card border-l border-border">
                     <div className="flex items-center gap-1">
                       <button onClick={() => {
                     setForm({
