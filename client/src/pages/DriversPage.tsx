@@ -1,7 +1,7 @@
 import { useSaveConfirm } from "../components/SaveConfirmProvider";
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Pencil, Trash2, Search, Download, User, Phone, FileText, Calendar, Key, Mail, Truck as TruckIcon, Coins, AlertCircle, BadgeCheck, CalendarDays, Save, Clock } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Download, User, Phone, FileText, Calendar, Key, Mail, Truck as TruckIcon, Coins, AlertCircle, BadgeCheck, CalendarDays, Save, Clock, Eye } from 'lucide-react';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import api from '../lib/api';
@@ -40,6 +40,13 @@ const STATUS_OPTIONS: SelectOption[] = [
   { value: 'sick', label: 'sick' },
   { value: 'vacation', label: 'vacation' },
 ];
+const STATUS_BULLET: Record<string, string> = {
+  available: 'bg-green-500',
+  in_trip: 'bg-primary',
+  off: 'bg-slate-400',
+  sick: 'bg-red-500',
+  vacation: 'bg-amber-500'
+};
 
 export default function DriversPage() {
   const confirmSave = useSaveConfirm();
@@ -295,39 +302,31 @@ export default function DriversPage() {
 
   const driverAssignedTruck = (d: any) => d.trucks?.[0] || trucks.find(tr => tr.driver?.id === d.id);
 
-  const expDateCell = (date: string) => {
-    if (!date) return <span className="text-xs text-text-muted">—</span>;
+  const docValidity = (date: string) => {
+    if (!date) return null;
     const st = docState(date);
-    return (
-      <span className={`flex items-center gap-1 text-xs font-semibold whitespace-nowrap ${st === 'expired' ? 'text-error' : st === 'soon' ? 'text-warning' : 'text-success'}`}>
-        {(st !== 'ok') && <AlertCircle className="w-3.5 h-3.5" />}
-        {formatDate(date)}
-      </span>
-    );
+    return { text: formatDate(date), cls: st === 'expired' ? 'text-red-500' : st === 'soon' ? 'text-amber-600' : 'text-green-600' };
   };
 
   const columns: Column<any>[] = [
     {
-      key: 'name', label: t('name', 'Name'), width: '200px',
-      render: d => (
-        <div>
-          <div className="font-bold text-text-primary flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary"><User className="w-3 h-3" /></span>
-            {d.user?.name || '—'}
+      key: 'name', label: t('driver_contact', 'Șofer & Contact'), width: '240px',
+      render: d => {
+        const email = d.user?.email;
+        return (
+          <div className="leading-tight min-w-0" title={email || undefined}>
+            <div className="font-bold text-[13px] text-text-primary truncate flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_BULLET[d.status] || 'bg-slate-400'}`} />
+              <span className="truncate">{d.user?.name || '—'}</span>
+            </div>
+            {(d.phone || d.licenseNumber) && (
+              <div className="text-[11px] text-text-secondary truncate">
+                {d.phone ? `📞 ${d.phone}` : ''}{d.phone && d.licenseNumber ? ' • ' : ''}{d.licenseNumber ? `Permis: ${d.licenseNumber}` : ''}
+              </div>
+            )}
           </div>
-          <div className="text-[11px] text-text-secondary">{d.user?.email || ''}</div>
-        </div>
-      ),
-    },
-    {
-      key: 'phone', label: t('phone', 'Phone'),
-      render: d => d.phone ? <span className="text-xs font-medium text-text-secondary whitespace-nowrap">{d.phone}</span> : <span className="text-xs text-text-muted">—</span>,
-      hideBelow: 'md',
-    },
-    {
-      key: 'license', label: t('licenseNumber', 'License'),
-      render: d => <span className="text-xs font-semibold text-text-secondary">{d.licenseNumber || '—'}</span>,
-      hideBelow: 'lg',
+        );
+      },
     },
     {
       key: 'truck', label: t('truck', 'Truck'),
@@ -338,23 +337,40 @@ export default function DriversPage() {
       hideBelow: 'lg',
     },
     {
-      key: 'dailyRate', label: t('dailyAllowance', 'Daily'), align: 'right',
-      render: d => <span className="text-xs font-semibold text-text-secondary">{(d.user?.dailyRate || d.dailyRate) ? fmtMoney(d.user?.dailyRate ?? d.dailyRate) : '—'}</span>,
+      key: 'salary', label: t('salary_package', 'Pachet Salarial'), align: 'right', width: '170px',
+      render: d => {
+        const gross = d.user?.grossSalary ?? d.grossSalary;
+        const daily = d.user?.dailyRate ?? d.dailyRate;
+        if (!gross && !daily) return <span className="text-xs text-text-muted">—</span>;
+        return (
+          <div className="text-right leading-tight whitespace-nowrap">
+            <div className="text-[12px] font-bold text-text-primary">{gross ? `${fmtMoney(gross, 'EUR', 0)}/lună` : '—'}</div>
+            {daily ? <div className="text-[11px] text-text-secondary">{t('dailyAllowance', 'Diurnă')}: {fmtMoney(daily, 'EUR', 0)}/zi</div> : null}
+          </div>
+        );
+      },
       hideBelow: 'lg',
     },
     {
-      key: 'grossSalary', label: t('grossSalary', 'Gross'), align: 'right',
-      render: d => <span className="text-xs font-bold text-text-primary">{(d.user?.grossSalary || d.grossSalary) ? fmtMoney(d.user?.grossSalary ?? d.grossSalary) : '—'}</span>,
-      hideBelow: 'lg',
-    },
-    {
-      key: 'licenseExpiry', label: t('expLicense', 'License exp.'), render: d => expDateCell(d.licenseExpiry),
-    },
-    {
-      key: 'medicalExpiry', label: t('expMedical', 'Medical exp.'), render: d => expDateCell(d.medicalExpiry), hideBelow: 'md',
-    },
-    {
-      key: 'tachoExpiry', label: t('expTacho', 'Tacho exp.'), render: d => expDateCell(d.tachoCardExpiry), hideBelow: 'md',
+      key: 'validity', label: t('validity', 'Valabilitate Documente'), width: '240px',
+      render: d => {
+        const lic = docValidity(d.licenseExpiry);
+        const med = docValidity(d.medicalExpiry);
+        const tch = docValidity(d.tachoCardExpiry);
+        if (!lic && !med && !tch) return <span className="text-xs text-text-muted">—</span>;
+        return (
+          <div className="leading-tight">
+            {lic && <div className={`text-[11px] font-semibold whitespace-nowrap ${lic.cls}`}>💳 Permis: {lic.text}</div>}
+            {(med || tch) && (
+              <div className="text-[11px] text-text-secondary whitespace-nowrap">
+                {med && <span className="font-semibold">🏥 Med: <span className={med.cls}>{med.text}</span></span>}
+                {med && tch && <span className="mx-1">•</span>}
+                {tch && <span className="font-semibold">⏱️ Tacho: <span className={tch.cls}>{tch.text}</span></span>}
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'docs', label: t('documents', 'Docs'), align: 'center',
@@ -365,31 +381,20 @@ export default function DriversPage() {
       key: 'status', label: t('status', 'Status'),
       render: d => (
         <div onClick={e => e.stopPropagation()}>
-          <CustomSelect className="w-36 text-xs" value={d.status || 'available'} onChange={val => setDriverStatus(d, val)} options={STATUS_OPTIONS.map(s => ({ value: s.value, label: t(s.label as string, s.value.replace(/_/g, ' ')), color: STATUS_COLORS[s.value] }))} />
+          <CustomSelect className="w-32 text-xs" value={d.status || 'available'} onChange={val => setDriverStatus(d, val)} options={STATUS_OPTIONS.map(s => ({ value: s.value, label: t(s.label as string, s.value.replace(/_/g, ' ')), color: STATUS_COLORS[s.value] }))} />
         </div>
       ),
     },
     {
-      key: 'actions', label: t('actions', 'Actions'), align: 'right',
+      key: 'actions', label: t('actions', 'Acțiuni'), align: 'right', sticky: 'right', width: '90px',
       render: d => (
-        <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
-          <button onClick={() => handleEdit(d)} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('edit', 'Edit')}><Pencil className="w-3.5 h-3.5" /></button>
-          <button onClick={() => handleDelete(d.id)} className="p-1.5 text-text-secondary hover:text-error rounded-lg hover:bg-red-50 transition-colors" title={t('delete', 'Delete')}><Trash2 className="w-3.5 h-3.5" /></button>
+        <div className="flex items-center justify-end gap-0.5" onClick={e => e.stopPropagation()}>
+          <button onClick={() => setDrawerDriverId(d.id)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('details', 'Detalii')}><Eye className="w-3.5 h-3.5" /></button>
+          <button onClick={() => handleEdit(d)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('edit', 'Edit')}><Pencil className="w-3.5 h-3.5" /></button>
+          <button onClick={() => handleDelete(d.id)} className="p-1 text-text-secondary hover:text-error rounded-lg hover:bg-red-50 transition-colors" title={t('delete', 'Delete')}><Trash2 className="w-3.5 h-3.5" /></button>
         </div>
       ),
     },
-  ];
-
-  const footerCells = [
-    <td key="name" colSpan={4} className="px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-text-secondary">{filtered.length} {t('results', 'results')}</td>,
-    <td key="daily" className="px-3.5 py-2 text-right text-xs font-bold text-text-primary">{filtered.some(d => (d.user?.dailyRate || d.dailyRate)) ? `${fmtMoney(filtered.reduce((s, d) => s + Number((d.user?.dailyRate ?? d.dailyRate) || 0), 0), 'EUR', 0)}/zi` : '—'}</td>,
-    <td key="gross" className="px-3.5 py-2 text-right text-xs font-bold text-text-primary">{filtered.some(d => (d.user?.grossSalary || d.grossSalary)) ? `${fmtMoney(filtered.reduce((s, d) => s + Number((d.user?.grossSalary ?? d.grossSalary) || 0), 0), 'EUR', 0)}/lună` : '—'}</td>,
-    <td key="exp1" className="px-3.5 py-2 text-center text-xs font-bold">{filtered.filter(d => isExpired(d.licenseExpiry)).length ? <span className="text-red-500">{filtered.filter(d => isExpired(d.licenseExpiry)).length} {t('expired', 'expired')}</span> : '—'}</td>,
-    <td key="exp2" className="px-3.5 py-2 text-center text-xs font-bold">{filtered.filter(d => isExpired(d.medicalExpiry)).length ? <span className="text-red-500">{filtered.filter(d => isExpired(d.medicalExpiry)).length} {t('expired', 'expired')}</span> : '—'}</td>,
-    <td key="exp3" className="px-3.5 py-2 text-center text-xs font-bold">{filtered.filter(d => isExpired(d.tachoCardExpiry)).length ? <span className="text-red-500">{filtered.filter(d => isExpired(d.tachoCardExpiry)).length} {t('expired', 'expired')}</span> : '—'}</td>,
-    <td key="docs" className="px-3.5 py-2 text-center text-xs font-bold text-text-primary">{filtered.reduce((s, d) => s + (d.documents?.length || 0), 0)}</td>,
-    <td key="status" className="px-3.5 py-2" />,
-    <td key="actions" className="px-3.5 py-2" />,
   ];
 
   const drawerDriver = drawerDriverId ? drivers.find(d => d.id === drawerDriverId) : null;
@@ -599,26 +604,26 @@ const tabs: TabDef[] = drawerDriver ? [
   return (
     <div className="space-y-4 animate-fade-in max-w-[1600px] mx-auto pb-10">
 
-      <KpiStrip items={kpis} />
+      <KpiStrip dense items={kpis} />
 
       <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
-        <div className="p-3 border-b border-border flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2 flex-1 min-w-[300px]">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-              <input className="input pl-9 py-2 text-sm w-full" placeholder={t('search_drivers', 'Search driver, email, license...')} value={search} onChange={e => setSearch(e.target.value)} />
+        <div className="px-2.5 py-2 border-b border-border flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-1 min-w-[260px]">
+            <div className="relative w-[220px] shrink-0">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
+              <input className="input pl-8 pr-3 py-1.5 text-xs w-full" placeholder={t('search_drivers', 'Search driver, email, license...')} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <CustomSelect className="w-40" value={filters.status} onChange={v => setFilters({ status: v })} options={statusOptions} />
+            <div className="w-[140px] shrink-0">
+              <CustomSelect size="sm" value={filters.status} onChange={v => setFilters({ status: v })} options={statusOptions} />
+            </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg whitespace-nowrap">
-              {filtered.length} {t('results', 'results')}
-            </span>
-            <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold whitespace-nowrap">
-              <Download className="w-4 h-4" /> {t('export', 'Export')}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[11px] font-semibold text-text-secondary whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
+            <button onClick={() => setShowExport(true)} className="btn-secondary px-2 py-1.5 flex items-center text-xs font-semibold" title={t('export', 'Export')}>
+              <Download className="w-3.5 h-3.5" />
             </button>
-            <button onClick={() => { setEditId(null); setForm({ name: '', email: '', password: '', phone: '', licenseNumber: '', dailyRate: '', grossSalary: '', licenseExpiry: '', medicalExpiry: '', tachoCardExpiry: '', status: 'available', truckId: '' }); setShowForm(true); }} className="btn-primary flex items-center gap-2 py-2 px-3 text-sm font-semibold whitespace-nowrap">
-              <Plus className="w-4 h-4" /> {t('addDriver', 'Add Driver')}
+            <button onClick={() => { setEditId(null); setForm({ name: '', email: '', password: '', phone: '', licenseNumber: '', dailyRate: '', grossSalary: '', licenseExpiry: '', medicalExpiry: '', tachoCardExpiry: '', status: 'available', truckId: '' }); setShowForm(true); }} className="btn-primary px-2.5 py-1.5 flex items-center gap-1.5 text-xs font-semibold whitespace-nowrap">
+              <Plus className="w-3.5 h-3.5" /> {t('addDriver', 'Add Driver')}
             </button>
           </div>
         </div>
@@ -627,13 +632,13 @@ const tabs: TabDef[] = drawerDriver ? [
           columns={columns}
           data={currentTableItems}
           rowKey={(d: any) => d.id}
-          minWidth="1150px"
+          minWidth="1000px"
           loading={loading}
+          dense
           selectable
           selected={selected}
           onSelectionChange={setSelected}
           onRowClick={(d: any) => setDrawerDriverId(d.id)}
-          footer={<>{footerCells}</>}
           highlightRow={(d: any) => docDates(d).some(dt => isExpired(dt)) ? 'bg-red-50/40 dark:bg-red-950/20' : ''}
           emptyState={
             <div className="p-16 text-center">

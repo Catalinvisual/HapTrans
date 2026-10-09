@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Eye, Download, Share2, Trash2, Mail, BarChart3, Send } from 'lucide-react';
+import { Plus, Search, Eye, Download, Share2, Trash2, Mail, BarChart3, Send, Wallet, CheckCircle2, AlertTriangle, Pencil, FileText } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import ExportModal from '../components/ExportModal';
@@ -12,21 +12,17 @@ import { formatDate } from '../lib/dateUtils';
 import { fmtMoney } from '../lib/format';
 import { matchesSearch } from '../lib/search';
 import CustomSelect from '../components/CustomSelect';
+import type { SelectOption } from '../components/CustomSelect';
 import ConfirmModal from '../components/ConfirmModal';
 import { getCompanySettings } from "../store/settingsStore";
 import { useFormStore } from '../store/formStore';
 import Pagination from '../components/Pagination';
+import KpiStrip from '../components/ui/KpiStrip';
+import DataTable from '../components/ui/DataTable';
+import type { Column } from '../components/ui/DataTable';
 import { useShortcuts } from '../hooks/useShortcuts';
 import { useTableShortcuts } from '../hooks/useTableShortcuts';
 import { useSaveConfirm, useConfirm } from '../components/SaveConfirmProvider';
-const STATUS_COLORS: Record<string, string> = {
-  draft: 'badge-gray',
-  approved: 'bg-indigo-100 text-indigo-700',
-  sent: 'badge-primary',
-  paid: 'badge-success',
-  overdue: 'badge-error',
-  cancelled: 'badge-error'
-};
 export default function InvoicesPage({
   embeddedClientId
 }: {
@@ -99,7 +95,7 @@ export default function InvoicesPage({
     cb: null
   });
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
   const [form, setForm] = useState(formStore.invoicesForm || {
     clientId: '',
@@ -622,7 +618,100 @@ export default function InvoicesPage({
       total
     };
   };
-  return <div className="space-y-5 animate-fade-in">
+  const kpiPaid = displayInvoices.filter(i => i.status === 'paid').reduce((s, i) => s + getInvTotals(i).total, 0);
+  const kpiDue = displayInvoices.filter(i => ['sent', 'approved', 'overdue'].includes(i.status)).reduce((s, i) => s + getInvTotals(i).total, 0);
+  const kpiOverdue = displayInvoices.filter(i => i.status === 'overdue').reduce((s, i) => s + getInvTotals(i).total, 0);
+  const kpiDrafts = displayInvoices.filter(i => i.status === 'draft').length;
+  const kpis = [
+    { key: 'total', label: t('kpi_total', 'Total Emis'), value: fmtMoney(kpiPaid + kpiDue), icon: BarChart3 },
+    { key: 'paid', label: t('kpi_paid', 'Încasat'), value: fmtMoney(kpiPaid), color: '#22c55e', icon: CheckCircle2 },
+    { key: 'due', label: t('kpi_unpaid', 'De Încasat'), value: fmtMoney(kpiDue), color: '#6366f1', icon: Wallet },
+    { key: 'overdue', label: t('kpi_overdue', 'Restanțe'), value: fmtMoney(kpiOverdue), color: '#ef4444', icon: AlertTriangle },
+    { key: 'drafts', label: t('kpi_drafts', 'Ciorne'), value: kpiDrafts, color: '#f97316', icon: FileText },
+  ];
+  const statusOpts: SelectOption[] = [
+    { value: 'draft', label: t('draft'), color: 'text-text-light' },
+    { value: 'approved', label: t('approved') || 'Approved', color: 'text-indigo-600' },
+    { value: 'sent', label: t('sent'), color: 'text-primary' },
+    { value: 'paid', label: t('paid'), color: 'text-success' },
+    { value: 'overdue', label: t('overdue'), color: 'text-error' },
+    { value: 'cancelled', label: t('cancelled'), color: 'text-text-light' },
+  ];
+  const updateStatus = async (inv: any, val: string) => {
+    try {
+      await api.patch(`/invoices/${inv.id}`, { status: val });
+      toast.success(t('statusUpdated'));
+      load();
+    } catch {
+      toast.error(t('error'));
+    }
+  };
+  const isOverdue = (inv: any) => inv.status === 'overdue' || (inv.dueDate && new Date(inv.dueDate) < new Date() && !['paid', 'cancelled', 'draft'].includes(inv.status));
+  const columns: Column<any>[] = [
+    {
+      key: 'invoice', label: t('invoiceNo') + ' / ' + t('client'), width: '200px',
+      render: (inv: any) => (
+        <div className="leading-tight min-w-0">
+          <div className="font-mono text-[13px] font-bold text-text-primary truncate" title={inv.invoiceNumber}>{inv.invoiceNumber}</div>
+          <div className="text-[11px] text-text-secondary truncate max-w-[170px]" title={inv.client?.name || ''}>{inv.client?.name || '—'}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'value', label: t('valueVat', 'Valoare & TVA'), align: 'right', width: '180px',
+      render: (inv: any) => {
+        const totals = getInvTotals(inv);
+        const vatLabel = inv.vatType === 'REVERSE_CHARGE' ? '0% (Taxare inv.)' : inv.vatType === 'EXEMPT' ? '0% (Scutit)' : `${inv.vatPercent}%`;
+        return (
+          <div className="text-right leading-tight whitespace-nowrap">
+            <div className="text-[13px] font-bold text-success">{fmtMoney(totals.total)}</div>
+            <div className="text-[11px] text-text-secondary">{t('net', 'Net')}: {fmtMoney(totals.subtotal)} • TVA: {vatLabel}</div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'dates', label: t('dates', 'Date'), width: '180px',
+      render: (inv: any) => {
+        const od = isOverdue(inv);
+        return (
+          <div className="leading-tight whitespace-nowrap">
+            <div className="text-[11px] text-text-secondary">{t('issueDate')}: {formatDate(inv.issueDate)}</div>
+            <div className={`text-xs font-bold ${od ? 'text-red-600 animate-pulse' : 'text-text-primary'}`}>{t('dueDate')}: {formatDate(inv.dueDate)}</div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'status', label: t('status'), width: '170px',
+      render: (inv: any) => (
+        <div onClick={e => e.stopPropagation()}>
+          <CustomSelect className="w-36 text-xs" value={inv.status} onChange={val => updateStatus(inv, val)} options={statusOpts} />
+        </div>
+      ),
+    },
+    {
+      key: 'actions', label: t('actions'), align: 'right', sticky: 'right', width: '140px',
+      render: (inv: any) => inv.status === 'draft' ? (
+        <div className="flex items-center justify-end gap-0.5">
+          <button onClick={() => handlePreviewDraft(inv)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('previewDraft', 'Vizualizare Draft')}><Eye className="w-3.5 h-3.5" /></button>
+          <button onClick={() => handleEditClick(inv)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('edit', 'Edit')}><Pencil className="w-3.5 h-3.5" /></button>
+          <button onClick={() => handleApprove(inv, false)} className="p-1 text-text-secondary hover:text-success rounded-lg hover:bg-green-50 transition-colors" title={t('approve', 'Aprobă')}><CheckCircle2 className="w-3.5 h-3.5" /></button>
+          <button onClick={() => setDeleteId(inv.id)} className="p-1 text-text-secondary hover:text-error rounded-lg hover:bg-red-50 transition-colors" title={t('delete', 'Șterge')}><Trash2 className="w-3.5 h-3.5" /></button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-end gap-0.5">
+          <button onClick={() => ensurePdfAndExecute(inv, handlePreview)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title="Previzualizare PDF"><Eye className="w-3.5 h-3.5" /></button>
+          <button onClick={() => ensurePdfAndExecute(inv, handleDownload)} className="p-1 text-text-secondary hover:text-success rounded-lg hover:bg-green-50 transition-colors" title="Descărcare PDF"><Download className="w-3.5 h-3.5" /></button>
+          <button onClick={() => ensurePdfAndExecute(inv, handleShare)} className="p-1 text-text-secondary hover:text-warning rounded-lg hover:bg-yellow-50 transition-colors" title="Partajare"><Share2 className="w-3.5 h-3.5" /></button>
+          <button onClick={() => ensurePdfAndExecute(inv, handleSendEmail)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('sendEmailAction') || 'Trimite Email'}><Mail className="w-3.5 h-3.5" /></button>
+          <button onClick={() => setDeleteId(inv.id)} className="p-1 text-text-secondary hover:text-error rounded-lg hover:bg-red-50 transition-colors" title={t('delete', 'Șterge')}><Trash2 className="w-3.5 h-3.5" /></button>
+        </div>
+      ),
+    },
+  ];
+  return <div className="space-y-4 animate-fade-in">
+      <KpiStrip dense items={kpis} />
       {showForm && typeof document !== 'undefined' && createPortal(<div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-card border border-border rounded-2xl shadow-2xl max-w-[90rem] w-full h-[90vh] flex flex-col overflow-hidden">
             <div className="p-6 border-b border-border flex justify-between items-center bg-surface shrink-0">
@@ -848,23 +937,21 @@ export default function InvoicesPage({
 
 
       <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
-        <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3 flex-1 max-w-md shrink-0">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-              <input className="input pl-9 py-2 text-sm" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} />
+        <div className="px-2.5 py-2 border-b border-border flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-1 min-w-[260px]">
+            <div className="relative w-[220px] shrink-0">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
+              <input className="input pl-8 pr-3 py-1.5 text-xs w-full" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold whitespace-nowrap border-primary/20 hover:border-primary/50 text-primary transition-all">
-              <Download className="w-4 h-4" /> {t('export')}
+            <button onClick={() => setShowExport(true)} className="btn-secondary px-2 py-1.5 flex items-center text-xs font-semibold border-primary/20 hover:border-primary/50 text-primary transition-all" title={t('export')}>
+              <Download className="w-3.5 h-3.5" />
             </button>
-            <button onClick={loadAging} className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold whitespace-nowrap border-primary/20 hover:border-primary/50 text-primary transition-all">
-              <BarChart3 className="w-4 h-4" /> {t('agingTitle')}
+            <button onClick={loadAging} className="btn-secondary px-2 py-1.5 flex items-center text-xs font-semibold border-primary/20 hover:border-primary/50 text-primary transition-all" title={t('agingTitle')}>
+              <BarChart3 className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
-              {filtered.length} {t('results')}
-            </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[11px] font-semibold text-text-secondary whitespace-nowrap">{filtered.length} {t('results')}</span>
             <button onClick={() => {
             setEditId(null);
             setForm({
@@ -881,98 +968,31 @@ export default function InvoicesPage({
               notes: ''
             });
             setShowForm(!showForm);
-          }} className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold">
-              <Plus className="w-4 h-4" /> {t('newInvoice')}
+          }} className="btn-primary px-2.5 py-1.5 flex items-center gap-1.5 text-xs font-semibold">
+              <Plus className="w-3.5 h-3.5" /> {t('newInvoice')}
             </button>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead><tr className="bg-surface border-b border-border">
-              {[t('invoiceNo'), t('client'), t('amount'), t('tva'), t('issueDate'), t('dueDate'), t('status'), t('actions')].map(h => <th key={h} className="table-header">{h}</th>)}</tr></thead>
-            <tbody>
-              {loading ? <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr> : filtered.length === 0 ? <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr> : currentTableItems.map((inv: any, idx: number) => {
-              const totals = getInvTotals(inv);
-              return <tr key={inv.id} className={`transition-colors cursor-pointer ${inv.status === 'overdue' ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-surface/60'} ${selectedRowIndex === idx ? 'ring-1 ring-inset ring-primary bg-primary/5' : ''}`} onClick={e => {
-                if ((e.target as HTMLElement).closest('button, select, input, a, .interactive-click')) return;
-                if (inv.status === 'draft') handleEditClick(inv);else if (inv.pdfUrl) window.open(inv.pdfUrl, '_blank');
-              }}>
-                    <td className="table-cell font-mono text-sm font-bold">{inv.invoiceNumber}</td>
-                    <td className="table-cell font-bold text-text">{inv.client?.name}</td>
-                    <td className="table-cell">
-                      <div className="font-bold text-success text-sm">{fmtMoney(totals.total)}</div>
-                      <div className="text-[10px] text-text-secondary font-medium">{t('net', 'Net')}: {fmtMoney(totals.subtotal)}</div>
-                    </td>
-                    <td className="table-cell font-semibold text-text-secondary">
-                      <div>{inv.vatType === 'REVERSE_CHARGE' ? '0% (Taxare inv.)' : inv.vatType === 'EXEMPT' ? '0% (Scutit)' : `${inv.vatPercent}%`}</div>
-                      {inv.vatType !== 'REVERSE_CHARGE' && inv.vatType !== 'EXEMPT' && totals.vatAmount > 0 && <div className="text-[10px] text-text-secondary">{fmtMoney(totals.vatAmount)}</div>}
-                    </td>
-                    <td className="table-cell text-xs font-medium text-text-secondary">{formatDate(inv.issueDate)}</td>
-                    <td className={`table-cell text-xs font-bold ${inv.status === 'overdue' ? 'text-red-600 animate-pulse' : 'text-text-secondary'}`}>{formatDate(inv.dueDate)}</td>
-                    <td className="table-cell"><span className={STATUS_COLORS[inv.status] || 'badge-gray'}>{t(inv.status)}</span></td>
-                    <td className="table-cell">
-                      {inv.status === 'draft' ? <div className="flex items-center gap-2">
-                          <button onClick={() => handlePreviewDraft(inv)} className="btn-secondary py-1.5 px-2 text-xs font-bold" title="Vizualizare Draft">
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleEditClick(inv)} className="btn-secondary py-1.5 px-3 text-xs font-bold" title="Editare Draft">{t('edit') || 'Edit'}</button>
-                          <button onClick={() => handleApprove(inv, false)} className="bg-primary/10 text-primary hover:bg-primary/20 py-1.5 px-3 rounded-lg font-bold text-xs transition-all" title="Aprobare (fără trimitere)">{t('approve') || 'Approve'}</button>
-                          <button onClick={() => handleApprove(inv, true)} className="bg-primary text-white hover:bg-primary-dark py-1.5 px-3 rounded-lg font-bold text-xs transition-all shadow-sm" title="Aprobare și Trimitere Email">{t('approveAndSend') || 'Approve & Send'}</button>
-                          <button onClick={() => setDeleteId(inv.id)} className="p-1 ml-1 text-text-secondary hover:text-error rounded hover:bg-red-50 transition-all" title="Ștergere Draft">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div> : <div className="flex items-center gap-3">
-                          <CustomSelect className="w-32 text-xs" value={inv.status} onChange={async val => {
-                      await api.patch(`/invoices/${inv.id}`, {
-                        status: val
-                      });
-                      toast.success(t('statusUpdated'));
-                      load();
-                    }} options={[{
-                      value: 'approved',
-                      label: t('approved') || 'Approved',
-                      color: 'text-indigo-600'
-                    }, {
-                      value: 'sent',
-                      label: t('sent'),
-                      color: 'text-primary'
-                    }, {
-                      value: 'paid',
-                      label: t('paid'),
-                      color: 'text-success'
-                    }, {
-                      value: 'overdue',
-                      label: t('overdue'),
-                      color: 'text-error'
-                    }, {
-                      value: 'cancelled',
-                      label: t('cancelled'),
-                      color: 'text-text-light'
-                    }]} />
-                          <div className="flex items-center gap-1 border-l border-border pl-3">
-                            <button onClick={() => ensurePdfAndExecute(inv, handlePreview)} className="p-1 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-all" title="Previzualizare PDF">
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => ensurePdfAndExecute(inv, handleDownload)} className="p-1 text-text-secondary hover:text-success rounded hover:bg-green-50 transition-all" title="Descărcare PDF">
-                              <Download className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => ensurePdfAndExecute(inv, handleShare)} className="p-1 text-text-secondary hover:text-warning rounded hover:bg-yellow-50 transition-all" title="Partajare Factură">
-                              <Share2 className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => ensurePdfAndExecute(inv, handleSendEmail)} className="p-1 text-text-secondary hover:text-primary rounded hover:bg-primary-light transition-all" title={t('sendEmailAction') || 'Trimite Email'}>
-                              <Mail className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => setDeleteId(inv.id)} className="p-1 text-text-secondary hover:text-error rounded hover:bg-red-50 transition-all" title="Ștergere Factură">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>}
-                    </td>
-                  </tr>;
-            })}
-            </tbody>
-          </table>
-        </div>
+
+        <DataTable
+          columns={columns}
+          data={currentTableItems}
+          rowKey={(inv: any) => inv.id}
+          minWidth="920px"
+          loading={loading}
+          dense
+          onRowClick={(inv: any) => {
+            if (inv.status === 'draft') handleEditClick(inv); else if (inv.pdfUrl) window.open(inv.pdfUrl, '_blank');
+          }}
+          highlightRow={(inv: any) => inv.status === 'overdue' ? 'bg-red-50/50 dark:bg-red-950/20' : ''}
+          emptyState={
+            <div className="p-16 text-center">
+              <BarChart3 className="w-12 h-12 text-text-muted mx-auto mb-4 opacity-40" />
+              <h3 className="text-lg font-bold text-text-primary mb-1">{t('noData')}</h3>
+              <p className="text-text-secondary">{t('noResult') || 'No invoices found.'}</p>
+            </div>
+          }
+        />
         <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </div>
 
