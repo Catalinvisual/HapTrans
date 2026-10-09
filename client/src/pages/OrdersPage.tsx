@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Loader2, MapPin, FileText, Trash2, Box, Download, Pencil, ExternalLink, Activity, Copy, FilterX, Coins, Weight, Boxes, BadgeEuro, ArrowRight, Flag, Phone, User, Sparkles, Navigation, FileSpreadsheet, Calendar } from 'lucide-react';
+import { Plus, Search, Loader2, MapPin, FileText, Trash2, Box, Download, Pencil, ExternalLink, Activity, Copy, FilterX, Coins, Weight, Boxes, BadgeEuro, ArrowRight, Flag, Phone, User, Navigation, Calendar } from 'lucide-react';
 import api from '../lib/api';
 import OrderWizard from '../components/orders/OrderWizard';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
@@ -25,11 +25,14 @@ import { useNavigate } from 'react-router-dom';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateOrderPdf } from '../lib/pdfGenerator';
 import { fmtMoney, fmtNumber } from '../lib/format';
+import { countryIso } from '../lib/countries';
 import { matchesSearch } from '../lib/search';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 
 const ORDER_STATUSES = ['draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoiced', 'paid', 'cancelled'];
+
+const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 function sortValue(o: any, key: string): any {
   switch (key) {
@@ -286,16 +289,21 @@ export default function OrdersPage() {
   const drawerOrder = drawerOrderId ? orders.find(o => o.id === drawerOrderId) : null;
 
   const columns: Column<any>[] = [
-    { key: 'ref', label: t('order_ref', 'Order'), sortable: true, render: o => (
-      <div className="min-w-0">
-        <div className="font-bold text-primary text-[13px] truncate">{o.orderNumber || o.referenceNumber || '—'}</div>
-        <div className="text-[11px] text-text-secondary truncate">{o.createdAt ? new Date(o.createdAt).toLocaleString('en-GB') : ''}</div>
-      </div>
-    ) },
+    { key: 'ref', label: t('order_ref', 'Order'), sortable: true, width: '140px', render: o => {
+      const created = o.createdAt ? new Date(o.createdAt) : null;
+      return (
+        <div className="min-w-0 leading-tight">
+          <div className="font-bold text-primary text-[13px] truncate">{o.orderNumber || o.referenceNumber || '—'}</div>
+          <div className="text-[11px] text-text-secondary truncate" title={created ? created.toLocaleString('en-GB') : ''}>
+            {created ? created.toLocaleDateString('en-GB') : ''}
+          </div>
+        </div>
+      );
+    } },
     { key: 'client', label: t('client', 'Client'), sortable: true, render: o => (
-      <div className="min-w-0">
-        <div className="font-semibold text-text-primary truncate">{o.client?.name || '—'}</div>
-        {o.contactPhone && <div className="text-[11px] text-text-secondary flex items-center gap-1 truncate"><Phone className="w-2.5 h-2.5" />{o.contactPhone}</div>}
+      <div className="min-w-0 flex items-center gap-1">
+        <span className="font-semibold text-text-primary truncate" title={o.client?.name || ''}>{o.client?.name || '—'}</span>
+        {o.contactPhone && <span className="shrink-0 text-text-muted" title={o.contactPhone}><Phone className="w-3 h-3" /></span>}
       </div>
     ) },
     { key: 'route', label: t('route', 'Route'), render: o => {
@@ -304,20 +312,22 @@ export default function OrdersPage() {
       const dropoff = [...stops].reverse().find((s: any) => s.type === 'dropoff');
       const loc = (s: any) => {
         if (!s) return 'TBD';
-        const parts = [s.city, s.country].filter(Boolean);
-        return parts.length ? parts.join(', ') : (s.address?.split(',')[0] || 'TBD');
+        const city = s.city || s.address?.split(',')[0] || 'TBD';
+        const iso = countryIso(s.country);
+        return iso ? `${city} (${iso})` : city;
       };
+      const full = (s: any) => (s ? [s.address, s.city, s.country].filter(Boolean).join(', ') : 'TBD');
       return (
-        <div className="flex items-center gap-1.5 text-[12px] font-medium text-text-secondary min-w-[180px]">
+        <div className="flex items-center gap-1.5 text-[12px] font-medium text-text-secondary min-w-[170px]">
           <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-          <span className="truncate max-w-[120px]" title={loc(pickup)}>{loc(pickup)}</span>
+          <span className="truncate max-w-[110px]" title={full(pickup)}>{loc(pickup)}</span>
           <ArrowRight className="w-3 h-3 shrink-0 opacity-50" />
           <MapPin className="w-3.5 h-3.5 text-green-500 shrink-0" />
-          <span className="truncate max-w-[120px]" title={loc(dropoff)}>{loc(dropoff)}</span>
+          <span className="truncate max-w-[110px]" title={full(dropoff)}>{loc(dropoff)}</span>
         </div>
       );
     } },
-    { key: 'date', label: t('pickup_date', 'Pickup'), sortable: true, render: o => {
+    { key: 'date', label: t('pickup_date', 'Pickup'), sortable: true, width: '105px', render: o => {
       const s = o.stops?.find((x: any) => x.type === 'pickup');
       if (!s?.dateFrom) return <span className="text-text-muted">—</span>;
       return (
@@ -327,32 +337,33 @@ export default function OrdersPage() {
         </div>
       );
     } },
-    { key: 'type', label: t('type', 'Type'), render: o => (
-      <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${(o.transportType || 'ftl') === 'groupage' || (o.transportType || 'ftl') === 'ltl' ? 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-900' : (o.transportType || 'ftl') === 'express' ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900' : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900'}`}>
+    { key: 'type', label: t('type', 'Type'), width: '76px', render: o => (
+      <span className={`px-1.5 py-px text-[9.5px] font-bold rounded border ${(o.transportType || 'ftl') === 'groupage' || (o.transportType || 'ftl') === 'ltl' ? 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-900' : (o.transportType || 'ftl') === 'express' ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900' : 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900'}`}>
         {(o.transportType || 'ftl').toUpperCase()}
       </span>
     ) },
-    { key: 'weight', label: t('cargo', 'Cargo'), sortable: true, align: 'right', hideBelow: 'md', render: o => {
+    { key: 'weight', label: t('cargo', 'Cargo'), sortable: true, align: 'right', hideBelow: 'md', width: '150px', render: o => {
       const w = o.cargoItems?.reduce((s: number, c: any) => s + Number(c.weightKg || 0), 0) || 0;
       const ldm = o.cargoItems?.reduce((s: number, c: any) => s + Number(c.ldm || 0), 0) || 0;
       const n = o.cargoItems?.length || 0;
-      return (
-        <div className="text-right">
-          <div className="text-[12px] font-bold text-text-primary">{n} {t('items', 'items')}</div>
-          <div className="text-[11px] text-text-secondary whitespace-nowrap">{fmtNumber(w)} kg{ldm > 0 ? ` · ${fmtNumber(ldm, 1)} LDM` : ''}</div>
-        </div>
-      );
+      const parts = [
+        `${n} ${t('items', 'items')}`,
+        w > 0 ? `${fmtNumber(w / 1000, 1)}t` : null,
+        ldm > 0 ? `${fmtNumber(ldm, 1)} LDM` : null,
+      ].filter(Boolean);
+      return <span className="text-[12px] font-semibold text-text-primary whitespace-nowrap">{parts.join(' • ')}</span>;
     } },
-    { key: 'priority', label: t('priority', 'Priority'), render: o => {
+    { key: 'priority', label: t('priority', 'Priority'), width: '84px', render: o => {
       const p = o.priority || 'normal';
-      const cls = p === 'critical' ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900' : p === 'high' ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900' : 'bg-surface text-text-secondary border-border';
-      return <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-full border ${cls}`}>{t(`priority_${p}`, p) as string}</span>;
+      if (p === 'normal') return <span className="text-[11px] text-text-muted font-semibold">{t('priority_normal', 'Normal')}</span>;
+      const cls = p === 'critical' ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900' : 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900';
+      return <span className={`px-1.5 py-px text-[9.5px] font-bold uppercase rounded border ${cls}`}>{t(`priority_${p}`, p) as string}</span>;
     } },
-    { key: 'price', label: t('price', 'Price'), sortable: true, align: 'right', render: o => (
+    { key: 'price', label: t('price', 'Price'), sortable: true, align: 'right', width: '104px', render: o => (
       <div className="text-right font-bold text-text-primary whitespace-nowrap">{fmtMoney(o.price || 0, o.currency || 'EUR')}</div>
     ) },
-    { key: 'status', label: t('status', 'Status'), render: o => <StatusBadge status={o.status} label={t(`status_${o.status}`, o.status.replace(/_/g, ' ')) as string} /> },
-    { key: 'actions', label: t('actions', 'Actions'), align: 'right', render: o => {
+    { key: 'status', label: t('status', 'Status'), width: '120px', render: o => <StatusBadge status={o.status} label={t(`status_${o.status}`, o.status.replace(/_/g, ' ')) as string} /> },
+    { key: 'actions', label: '', align: 'right', sticky: 'right', width: '118px', render: o => {
       const trip = o.trip;
       const trackingToken = trip?.trackingToken;
       const tripStatus = trip?.status || o.status;
@@ -360,44 +371,44 @@ export default function OrdersPage() {
       const isDelivered = ['delivered', 'completed', 'pod_received', 'closed', 'invoiced', 'paid'].includes(tripStatus);
 
       return (
-        <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-end gap-0.5" onClick={e => e.stopPropagation()}>
           {o.status !== 'invoiced' && o.status !== 'paid' && o.status !== 'cancelled' && (
-            <button title={t('create_invoice', 'Create Invoice')} onClick={() => handleCreateInvoice(o)} className="p-1.5 rounded-md text-text-secondary hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10">
-              <FileText className="w-4 h-4" />
+            <button title={t('create_invoice', 'Create Invoice')} onClick={() => handleCreateInvoice(o)} className="p-1 rounded-md text-text-secondary hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10">
+              <FileText className="w-3.5 h-3.5" />
             </button>
           )}
           {trackingToken && (
             <button
               title={t('copy_tracking_link', 'Copy Customer Tracking Link')}
               onClick={() => copyTracking(o)}
-              className="p-1.5 rounded-md text-text-secondary hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10"
+              className="p-1 rounded-md text-text-secondary hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10"
             >
-              <Copy className="w-4 h-4" />
+              <Copy className="w-3.5 h-3.5" />
             </button>
           )}
           {isActiveTracking && trip?.id && (
             <button
               title={t('live_tracking_btn', 'Live Tracking')}
               onClick={() => navigate(`/tracking?tripId=${trip.id}`)}
-              className="p-1.5 rounded-md text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10"
+              className="p-1 rounded-md text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10"
             >
-              <Navigation className="w-4 h-4 animate-pulse" />
+              <Navigation className="w-3.5 h-3.5 animate-pulse" />
             </button>
           )}
           {isDelivered && trip?.id && (
             <button
               title={t('view_tracking_btn', 'View Tracking')}
               onClick={() => navigate(`/tracking?tripId=${trip.id}`)}
-              className="p-1.5 rounded-md text-text-secondary hover:text-primary hover:bg-primary/10"
+              className="p-1 rounded-md text-text-secondary hover:text-primary hover:bg-primary/10"
             >
-              <Navigation className="w-4 h-4" />
+              <Navigation className="w-3.5 h-3.5" />
             </button>
           )}
-          <button title={t('edit', 'Edit')} onClick={() => handleEdit(o.id)} className="p-1.5 rounded-md text-text-secondary hover:text-primary hover:bg-primary/10">
-            <Pencil className="w-4 h-4" />
+          <button title={t('edit', 'Edit')} onClick={() => handleEdit(o.id)} className="p-1 rounded-md text-text-secondary hover:text-primary hover:bg-primary/10">
+            <Pencil className="w-3.5 h-3.5" />
           </button>
-          <button title={t('delete', 'Delete')} onClick={() => handleDeleteClick(o.id)} className="p-1.5 rounded-md text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10">
-            <Trash2 className="w-4 h-4" />
+          <button title={t('delete', 'Delete')} onClick={() => handleDeleteClick(o.id)} className="p-1 rounded-md text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10">
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       );
@@ -415,36 +426,41 @@ export default function OrdersPage() {
         { key: 'delivered', label: t('kpi_delivered', 'Delivered'), value: (statusCounts.delivered || 0) + (statusCounts.pod_received || 0), icon: Flag, color: 'text-green-600', onClick: () => setStatusFilterFromKpi('deliveredGroup'), active: filters.status === 'deliveredGroup' },
         { key: 'invoiced', label: t('kpi_invoiced', 'Invoiced'), value: (statusCounts.ready_for_invoice || 0) + (statusCounts.invoiced || 0) + (statusCounts.paid || 0), icon: BadgeEuro, color: 'text-emerald-600', onClick: () => setStatusFilterFromKpi('invoicedGroup'), active: filters.status === 'invoicedGroup' },
         { key: 'revenue', label: t('kpi_revenue', 'Revenue'), value: fmtMoney(totalRevenue), icon: Coins, color: 'text-primary' },
-      ]} />
+      ]} dense />
 
       <div className="card p-0 overflow-hidden border-border">
-        <div className="p-3 border-b border-border bg-surface/30">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[220px] max-w-[16rem] shrink-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('searchPlaceholder', 'Search by reference, client...')} className="input pl-9 bg-white w-full text-sm" />
+        <div className="px-2.5 py-2 border-b border-border bg-surface/30">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <div className="relative w-[200px] shrink-0">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('searchPlaceholder', 'Search by reference, client...')} className="input pl-8 pr-3 py-1.5 text-xs w-full bg-white" />
             </div>
-            <CustomSelect className="w-36 shrink-0" value={filters.status} onChange={v => setFilter('status', v)} options={[{ value: 'all', label: t('all_statuses', 'All statuses') }, ...ORDER_STATUSES.map(s => ({ value: s, label: t(`status_${s}`, s.replace(/_/g, ' ')) }))]} />
-            <CustomSelect className="w-40 shrink-0" value={filters.client} onChange={v => setFilter('client', v)} options={clientOptions} />
-            <CustomSelect className="w-36 shrink-0" value={filters.country} onChange={v => setFilter('country', v)} options={countryOptions} />
-            <CustomSelect className="w-32 shrink-0" value={filters.type} onChange={v => setFilter('type', v)} options={[{ value: 'all', label: t('all_types', 'All types') }, { value: 'ftl', label: 'FTL' }, { value: 'groupage', label: t('transport_groupage', 'Groupage (LTL)') }, { value: 'express', label: t('express', 'Express') }]} />
-            <CustomSelect className="w-32 shrink-0" value={filters.priority} onChange={v => setFilter('priority', v)} options={[{ value: 'all', label: t('all_priorities', 'All priorities') }, { value: 'normal', label: t('priority_normal', 'Normal') }, { value: 'high', label: t('priority_high', 'High') }, { value: 'critical', label: t('priority_critical', 'Critical') }]} />
+            <div className="w-[120px] shrink-0"><CustomSelect size="sm" title={t('status', 'Status')} value={filters.status} onChange={v => setFilter('status', v)} options={[{ value: 'all', label: t('status', 'Status') }, ...ORDER_STATUSES.map(s => ({ value: s, label: t(`status_${s}`, s.replace(/_/g, ' ')) }))]} /></div>
+            <div className="w-[140px] shrink-0"><CustomSelect size="sm" title={t('client', 'Client')} value={filters.client} onChange={v => setFilter('client', v)} options={clientOptions.map((o, i) => i === 0 ? { ...o, label: t('client', 'Client') } : o)} /></div>
+            <div className="w-[120px] shrink-0"><CustomSelect size="sm" title={t('country', 'Country')} value={filters.country} onChange={v => setFilter('country', v)} options={countryOptions.map((o, i) => i === 0 ? { ...o, label: t('country', 'Country') } : o)} /></div>
+            <div className="w-[96px] shrink-0"><CustomSelect size="sm" title={t('type', 'Type')} value={filters.type} onChange={v => setFilter('type', v)} options={[{ value: 'all', label: t('type', 'Type') }, { value: 'ftl', label: 'FTL' }, { value: 'groupage', label: t('transport_groupage', 'Groupage (LTL)') }, { value: 'express', label: t('express', 'Express') }]} /></div>
+            <div className="w-[116px] shrink-0"><CustomSelect size="sm" title={t('priority', 'Priority')} value={filters.priority} onChange={v => setFilter('priority', v)} options={[{ value: 'all', label: t('priority', 'Priority') }, { value: 'normal', label: t('priority_normal', 'Normal') }, { value: 'high', label: t('priority_high', 'High') }, { value: 'critical', label: t('priority_critical', 'Critical') }]} /></div>
             <div className="relative shrink-0">
-              <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
-              <Flatpickr value={filters.dateFrom} onChange={(_, dateStr) => setFilter('dateFrom', dateStr)} className="input pl-9 bg-card text-sm w-36 cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false }} placeholder={t('from_date', 'From date')} />
+              <Calendar className="w-3.5 h-3.5 text-primary absolute left-2.5 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
+              <Flatpickr
+                value={filters.dateFrom && filters.dateTo ? `${filters.dateFrom} to ${filters.dateTo}` : ''}
+                onChange={(dates) => {
+                  const [a, b] = dates as Date[];
+                  setFilters((f: any) => ({ ...f, dateFrom: a ? ymd(a) : '', dateTo: b ? ymd(b) : '' }));
+                }}
+                className="input pl-8 pr-3 py-1.5 text-xs w-[190px] bg-card cursor-pointer hover:border-primary/50 transition-colors"
+                options={{ mode: 'range', altInput: true, altFormat: 'd M', dateFormat: 'Y-m-d', allowInput: false, showMonths: 1 }}
+                placeholder={t('date_range', 'Date range')}
+                title={t('date_range', 'Date range')}
+              />
             </div>
-            <div className="relative shrink-0">
-              <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
-              <Flatpickr value={filters.dateTo} onChange={(_, dateStr) => setFilter('dateTo', dateStr)} className="input pl-9 bg-card text-sm w-36 cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false }} placeholder={t('to_date', 'To date')} />
-            </div>
-            {hasActiveFilters && <button onClick={() => { setSearch(''); setFilters({ status: 'all', client: 'all', country: 'all', type: 'all', priority: 'all', dateFrom: '', dateTo: '' }); }} className="p-2 rounded-lg text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors shrink-0" title={t('clear_filters', 'Clear filters')}><FilterX className="w-4 h-4" /></button>}
+            {hasActiveFilters && <button onClick={() => { setSearch(''); setFilters({ status: 'all', client: 'all', country: 'all', type: 'all', priority: 'all', dateFrom: '', dateTo: '' }); }} className="p-1.5 rounded-lg text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors shrink-0" title={t('clear_filters', 'Clear filters')}><FilterX className="w-4 h-4" /></button>}
 
-            <div className="flex items-center gap-2 ml-auto shrink-0">
-              <span className="text-xs text-text-secondary font-medium whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
-              <button onClick={() => setShowAiImport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold whitespace-nowrap" title="PDF / Image"><Sparkles className="w-4 h-4 text-primary" />{t('ai_import', 'Import AI')}</button>
-              <button onClick={() => setShowExcelImport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold whitespace-nowrap"><FileSpreadsheet className="w-4 h-4 text-emerald-500" />{t('excel_import', 'Import Excel')}</button>
-              <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold whitespace-nowrap"><Download className="w-4 h-4" />{t('export_csv', 'Export')}</button>
-              <button onClick={handleCreate} className="btn-primary py-2 px-3 flex items-center gap-2 text-sm font-semibold shadow-md shadow-primary/20 whitespace-nowrap"><Plus className="w-4 h-4" />{t('addOrder', 'Create Order')}</button>
+            <div className="flex items-center gap-1.5 ml-auto shrink-0">
+              <span className="text-[11px] text-text-secondary font-medium whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
+              <div className="w-[112px] shrink-0"><CustomSelect size="sm" value="" onChange={v => { if (v === 'ai') setShowAiImport(true); else if (v === 'excel') setShowExcelImport(true); }} placeholder={t('import', 'Import')} icon={Download} options={[{ value: 'ai', label: t('ai_import', 'Import AI') }, { value: 'excel', label: t('excel_import', 'Import Excel') }]} /></div>
+              <button onClick={() => setShowExport(true)} className="btn-secondary py-1.5 px-2 flex items-center text-xs font-semibold" title={t('export_csv', 'Export CSV')}><Download className="w-3.5 h-3.5" /></button>
+              <button onClick={handleCreate} className="btn-primary py-1.5 px-2.5 flex items-center gap-1.5 text-xs font-semibold shadow-md shadow-primary/20 whitespace-nowrap"><Plus className="w-3.5 h-3.5" />{t('addOrder', 'Create Order')}</button>
             </div>
           </div>
         </div>
@@ -460,16 +476,20 @@ export default function OrdersPage() {
           sortDir={sort.dir}
           onSortChange={(key, dir) => setSort({ key, dir })}
           loading={loading}
-          minWidth="1200px"
+          dense
+          minWidth="1040px"
           onRowClick={o => { setDrawerOrderId(o.id); setActiveTab('overview'); }}
           emptyState={<div className="p-16 text-center flex flex-col items-center"><div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mb-4 text-text-muted"><Box className="w-8 h-8" /></div><h3 className="text-lg font-medium text-text-primary">{t('jsx_noOrdersFound')}</h3><p className="text-text-secondary mt-1 max-w-sm">{t('jsx_getStartedBy')}</p><button onClick={handleCreate} className="btn-secondary mt-6 flex items-center gap-2"><Plus className="w-4 h-4" />{t('jsx_createYourFir')}</button></div>}
           footer={
             <>
-              <td colSpan={3} className="px-3.5 py-2.5 text-[12px] font-bold text-text-secondary uppercase tracking-wider">{t('totals', 'Totals')} · {filtered.length} {t('orders', 'orders')}</td>
-              <td className="px-3.5 py-2.5 text-right text-[12px] font-bold text-text-secondary">{fmtNumber(totalWeight)} kg</td>
-              <td colSpan={4} />
-              <td className="px-3.5 py-2.5 text-right text-[13px] font-black text-primary">{fmtMoney(totalRevenue)}</td>
-              <td colSpan={2} />
+              <td colSpan={3} className="px-3 py-2 text-[12px] font-bold text-text-secondary uppercase tracking-wider">{t('totals', 'Totals')} · {filtered.length} {t('orders', 'orders')}</td>
+              <td />
+              <td />
+              <td className="px-3 py-2 text-right text-[12px] font-bold text-text-secondary whitespace-nowrap">{fmtNumber(totalWeight)} kg</td>
+              <td />
+              <td className="px-3 py-2 text-right text-[13px] font-black text-primary whitespace-nowrap">{fmtMoney(totalRevenue)}</td>
+              <td />
+              <td />
             </>
           }
         />

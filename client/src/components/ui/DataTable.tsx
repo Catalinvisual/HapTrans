@@ -10,6 +10,8 @@ export interface Column<T> {
   render?: (row: T) => ReactNode;
   className?: string;
   hideBelow?: 'lg' | 'md' | 'sm';
+  /** Pin the column to the right edge so it stays visible during horizontal scroll. */
+  sticky?: 'right';
 }
 
 interface DataTableProps<T> {
@@ -70,7 +72,7 @@ export default function DataTable<T>({
               <th
                 key={col.key}
                 onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                className={`table-header ${headPad} font-medium text-[11px] text-text-secondary uppercase tracking-wider whitespace-nowrap select-none text-left ${col.sortable ? 'cursor-pointer hover:text-primary' : ''} ${col.hideBelow ? `hidden ${col.hideBelow === 'lg' ? 'lg:table-cell' : col.hideBelow === 'md' ? 'md:table-cell' : 'sm:table-cell'}` : ''}`}
+                className={`table-header ${headPad} font-medium text-[11px] text-text-secondary uppercase tracking-wider whitespace-nowrap select-none text-left ${col.sortable ? 'cursor-pointer hover:text-primary' : ''} ${col.hideBelow ? `hidden ${col.hideBelow === 'lg' ? 'lg:table-cell' : col.hideBelow === 'md' ? 'md:table-cell' : 'sm:table-cell'}` : ''} ${col.sticky === 'right' ? 'sticky right-0 z-20 bg-surface border-l border-border' : ''}`}
                 style={{ width: col.width }}
               >
                 <span className="inline-flex items-center gap-1 font-medium text-[11px] text-text-secondary">
@@ -99,7 +101,7 @@ export default function DataTable<T>({
                     </td>
                   )}
                   {columns.map(col => (
-                    <td key={col.key} className={`${cellPad} ${cellText} ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'} ${col.hideBelow ? `hidden ${col.hideBelow === 'lg' ? 'lg:table-cell' : col.hideBelow === 'md' ? 'md:table-cell' : 'sm:table-cell'}` : ''}`}>
+                    <td key={col.key} className={`${cellPad} ${cellText} ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'} ${col.hideBelow ? `hidden ${col.hideBelow === 'lg' ? 'lg:table-cell' : col.hideBelow === 'md' ? 'md:table-cell' : 'sm:table-cell'}` : ''} ${col.sticky === 'right' ? 'sticky right-0 z-10 bg-card border-l border-border' : ''}`}>
                       {col.render ? col.render(row) : String((row as any)[col.key] ?? '—')}
                     </td>
                   ))}

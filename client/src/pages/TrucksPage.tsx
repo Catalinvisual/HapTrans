@@ -1,7 +1,7 @@
 import { useSaveConfirm } from "../components/SaveConfirmProvider";
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Pencil, Trash2, Search, Download, Truck as TruckIcon, Info, Users, Wrench, Fuel, Battery, Gauge, Boxes, Coins, CalendarDays, CheckCircle2, Settings2, AlertTriangle } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Download, Truck as TruckIcon, Info, Users, Wrench, Fuel, Battery, Gauge, Boxes, Coins, CalendarDays, CheckCircle2, Settings2, AlertTriangle, User, Mail, Weight, Eye } from 'lucide-react';
 import api from '../lib/api';
 import { fmtNumber, fmtMoney, fmtKm } from '../lib/format';
 import ConfirmModal from '../components/ConfirmModal';
@@ -75,7 +75,28 @@ const maintOverdue = (truck: any) => {
   const total = Number(truck.totalMileage ?? 0);
   return !!next && total > next;
 };
-const driverName = (d: any) => d?.user?.name || d?.user?.email || '—';
+const capLetter = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+function humanName(raw?: string | null): string {
+  const s = String(raw || '').trim();
+  if (!s) return '';
+  if (!s.includes('@')) return s;
+  const parts = s
+    .split('@')[0]
+    .split(/[._\-+]+/)
+    .map(p => p.replace(/\d+$/g, ''))
+    .filter(p => p && !/^(sofer|șofer|driver|drv|user|info|contact|admin|office)$/i.test(p));
+  if (parts.length === 2) return `${capLetter(parts[0])} ${capLetter(parts[1])}`;
+  if (parts.length > 2) return `${capLetter(parts[0])} ${capLetter(parts[parts.length - 1]).charAt(0)}.`;
+  if (parts.length === 1) return capLetter(parts[0]);
+  return s;
+}
+const driverEmail = (d: any) => d?.user?.email || (String(d?.name || '').includes('@') ? d.name : '') || '';
+const driverName = (d: any) => {
+  const raw = d?.user?.name || d?.name || '';
+  if (raw && !String(raw).includes('@')) return raw;
+  const mail = driverEmail(d);
+  return mail ? humanName(mail) : '—';
+};
 
 export default function TrucksPage() {
   const navigate = useNavigate();
@@ -358,7 +379,17 @@ export default function TrucksPage() {
     },
     {
       key: 'driver', label: t('driver', 'Driver'),
-      render: tr => tr.driver ? <span className="flex items-center gap-1.5 text-xs font-semibold text-text-primary"><Users className="w-3 h-3 text-text-muted" />{driverName(tr.driver)}</span> : <span className="text-xs text-text-muted italic">{t('no_driver_assigned', 'No driver')}</span>,
+      render: tr => {
+        if (!tr.driver) return <span className="text-xs text-text-muted italic">— {t('unassigned', 'Unassigned')}</span>;
+        const email = driverEmail(tr.driver);
+        return (
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-text-primary min-w-0" title={email || driverName(tr.driver)}>
+            <User className="w-3 h-3 text-text-muted shrink-0" />
+            <span className="truncate">{driverName(tr.driver)}</span>
+            {email && <Mail className="w-3 h-3 text-text-muted/60 shrink-0" />}
+          </span>
+        );
+      },
       hideBelow: 'lg',
     },
     {
@@ -366,19 +397,22 @@ export default function TrucksPage() {
       render: tr => <StatusBadge type="fleet" status={tr.status || 'active'} label={t(`truck_status_${tr.status || 'active'}`, (tr.status || 'active').replace(/_/g, ' ')) as string} />,
     },
     {
-      key: 'payload', label: t('payload', 'Payload'), align: 'right',
-      render: tr => <span className="text-xs font-semibold">{fmtNumber(Number(tr.payloadCapacity || tr.maxWeightKg || 0))} kg</span>,
-      hideBelow: 'lg',
-    },
-    {
-      key: 'pallets', label: t('maxPallets', 'Pallets'), align: 'right',
-      render: tr => <span className="text-xs font-semibold">{Number(tr.maxPallets || 0) || '—'}</span>,
-      hideBelow: 'lg',
-    },
-    {
-      key: 'ldm', label: t('maxLdm', 'LDM'), align: 'right',
-      render: tr => <span className="text-xs font-semibold">{Number(tr.maxLdm || 0) ? `${Number(tr.maxLdm)} m` : '—'}</span>,
-      hideBelow: 'lg',
+      key: 'capacity', label: t('capacity_specs', 'Capacity & specs'), align: 'right', width: '140px',
+      render: tr => {
+        const w = Number(tr.payloadCapacity || tr.maxWeightKg || 0);
+        const pallets = Number(tr.maxPallets || 0);
+        const ldm = Number(tr.maxLdm || 0);
+        return (
+          <div className="text-right leading-tight">
+            <div className="text-[12px] font-bold text-text-primary flex items-center justify-end gap-1">
+              <Weight className="w-3 h-3 text-text-muted" />{w ? `${fmtNumber(w / 1000, 1)}t` : '—'}
+            </div>
+            <div className="text-[11px] text-text-secondary flex items-center justify-end gap-1 whitespace-nowrap">
+              <Boxes className="w-3 h-3 text-text-muted" />{pallets ? `${pallets} plt` : '—'}{ldm ? ` • ${fmtNumber(ldm, 1)} LDM` : ''}
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: 'fuel', label: t('fuel_consumption', 'Fuel'), align: 'right',
@@ -390,7 +424,7 @@ export default function TrucksPage() {
       render: tr => <span className="text-xs font-bold text-primary">{Number(tr.costPerKm || 0) ? fmtMoney(Number(tr.costPerKm)) : '—'}</span>,
     },
     {
-      key: 'service', label: t('next_service', 'Next service'), width: '130px',
+      key: 'service', label: t('next_service', 'Next service'), width: '170px',
       render: tr => {
         // 1. Check if an APK document exists
         const apkDoc = (tr.documents || []).find((d: any) => d.type === 'apk');
@@ -399,20 +433,18 @@ export default function TrucksPage() {
           const barColor = daysLeft <= 0 || daysLeft < 15 ? 'bg-red-500 animate-pulse' : daysLeft < 30 ? 'bg-amber-500' : 'bg-green-500/60';
           const pct = Math.max(0, Math.min(100, Math.round((daysLeft / 365) * 100)));
           return (
-            <div className="min-w-[110px]">
-              <div className="flex justify-between text-[10px] font-semibold mb-1">
-                <span className="text-text-secondary">APK: {new Date(apkDoc.expiryDate).toLocaleDateString(i18n.language || 'en-GB')}</span>
-                {daysLeft <= 0 ? (
-                  <span className="text-red-500 font-bold">{t('service_overdue', 'Overdue')}</span>
-                ) : (
-                  <span className={daysLeft < 15 ? 'text-red-500 font-bold' : daysLeft < 30 ? 'text-amber-600 font-semibold' : 'text-green-600 font-semibold'}>
-                    {daysLeft}d
-                  </span>
-                )}
-              </div>
-              <div className="w-full bg-surface h-1.5 rounded-full overflow-hidden">
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <div className="w-10 bg-surface h-1 rounded-full overflow-hidden shrink-0">
                 <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct || 100}%` }} />
               </div>
+              <span className="text-[11px] font-semibold text-text-secondary">APK {new Date(apkDoc.expiryDate).toLocaleDateString(i18n.language || 'en-GB')}</span>
+              {daysLeft <= 0 ? (
+                <span className="text-red-500 font-bold text-[11px]">{t('service_overdue', 'Overdue')}</span>
+              ) : (
+                <span className={daysLeft < 15 ? 'text-red-500 font-bold text-[11px]' : daysLeft < 30 ? 'text-amber-600 font-semibold text-[11px]' : 'text-green-600 font-semibold text-[11px]'}>
+                  {daysLeft}d
+                </span>
+              )}
             </div>
           );
         }
@@ -424,14 +456,12 @@ export default function TrucksPage() {
         const left = next - total;
         const pct = next > 0 ? Math.min(100, Math.max(0, Math.round((total / next) * 100))) : 0;
         return (
-          <div className="min-w-[110px]">
-            <div className="flex justify-between text-[10px] font-semibold mb-1">
-              <span className="text-text-secondary">{fmtKm(total)}</span>
-              {left <= 0 ? <span className="text-red-500 font-bold">{t('service_overdue', 'Overdue')}</span> : left <= 3000 ? <span className="text-amber-600">{t('service_in', 'in')} {fmtKm(left)}</span> : null}
-            </div>
-            <div className="w-full bg-surface h-1.5 rounded-full overflow-hidden">
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <div className="w-10 bg-surface h-1 rounded-full overflow-hidden shrink-0">
               <div className={`h-full rounded-full ${left <= 0 ? 'bg-red-500' : left <= 3000 ? 'bg-amber-500' : 'bg-green-500/60'}`} style={{ width: `${pct}%` }} />
             </div>
+            <span className="text-[11px] font-semibold text-text-secondary">{fmtKm(total)}</span>
+            {left <= 0 ? <span className="text-red-500 font-bold text-[11px]">{t('service_overdue', 'Overdue')}</span> : left <= 3000 ? <span className="text-amber-600 text-[11px]">{t('service_in', 'in')} {fmtKm(left)}</span> : null}
           </div>
         );
       },
@@ -452,32 +482,31 @@ export default function TrucksPage() {
       hideBelow: 'lg',
     },
     {
-      key: 'actions', label: t('actions', 'Actions'), align: 'right',
+      key: 'actions', label: '', align: 'right', sticky: 'right', width: '108px',
       render: tr => (
-        <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-end gap-0.5" onClick={e => e.stopPropagation()}>
           <button onClick={async (e) => {
              e.stopPropagation();
              try { await generateTruckPdf(tr, company); } catch (err) { toast.error(t('error_pdf', 'Failed to generate PDF')); }
-          }} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('pdf', 'Download PDF')}>
-            <FileText className="w-3.5 h-3.5" />
+          }} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('pdf', 'Download PDF')}>
+            <FileText className="w-3 h-3" />
           </button>
-          <button onClick={() => openEdit(tr)} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('edit', 'Edit')}><Pencil className="w-3.5 h-3.5" /></button>
-          <button onClick={() => setDeleteId(tr.id)} className="p-1.5 text-text-secondary hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors" title={t('delete', 'Delete')}><Trash2 className="w-3.5 h-3.5" /></button>
+          <button onClick={() => setDrawerTruckId(tr.id)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('details', 'Details')}><Eye className="w-3 h-3" /></button>
+          <button onClick={() => openEdit(tr)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('edit', 'Edit')}><Pencil className="w-3 h-3" /></button>
+          <button onClick={() => setDeleteId(tr.id)} className="p-1 text-text-secondary hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors" title={t('delete', 'Delete')}><Trash2 className="w-3 h-3" /></button>
         </div>
       ),
     },
   ];
 
   const footerCells = [
-    <td key="vehicle" colSpan={4} className="px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-text-secondary">{filtered.length} {t('results', 'results')}</td>,
-    <td key="payload" className="px-3.5 py-2 text-right text-xs font-bold text-text-primary">{filtered.length ? fmtNumber(Math.round(filtered.reduce((s, tr) => s + Number(tr.payloadCapacity || tr.maxWeightKg || 0), 0) / filtered.length)) : '—'} kg</td>,
-    <td key="pallets" className="px-3.5 py-2 text-right text-xs font-bold text-text-primary">{filtered.reduce((s, tr) => s + Number(tr.maxPallets || 0), 0) || '—'}</td>,
-    <td key="ldm" className="px-3.5 py-2 text-right text-xs font-bold text-text-primary">{filtered.reduce((s, tr) => s + Number(tr.maxLdm || 0), 0) ? `${fmtNumber(filtered.reduce((s, tr) => s + Number(tr.maxLdm || 0), 0), 1)} m` : '—'}</td>,
-    <td key="fuel" className="px-3.5 py-2 text-right text-xs font-bold text-text-primary">—</td>,
-    <td key="cost" className="px-3.5 py-2 text-right text-xs font-bold text-primary">{avgCost ? fmtMoney(avgCost) : '—'}</td>,
-    <td key="service" className="px-3.5 py-2" />,
-    <td key="docs" className="px-3.5 py-2 text-center text-xs font-bold text-text-primary">{filtered.reduce((s, tr) => s + (tr.documents?.length || 0), 0)}</td>,
-    <td key="actions" className="px-3.5 py-2" />,
+    <td key="vehicle" colSpan={4} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-text-secondary">{filtered.length} {t('results', 'results')}</td>,
+    <td key="capacity" className="px-3 py-2 text-right text-xs font-bold text-text-primary whitespace-nowrap">{filtered.length ? `${fmtNumber(Math.round(filtered.reduce((s, tr) => s + Number(tr.payloadCapacity || tr.maxWeightKg || 0), 0) / filtered.length) / 1000, 1)}t` : '—'} · {filtered.reduce((s, tr) => s + Number(tr.maxPallets || 0), 0) || 0} plt</td>,
+    <td key="fuel" className="px-3 py-2 text-right text-xs font-bold text-text-primary">—</td>,
+    <td key="cost" className="px-3 py-2 text-right text-xs font-bold text-primary whitespace-nowrap">{avgCost ? fmtMoney(avgCost) : '—'}</td>,
+    <td key="service" className="px-3 py-2" />,
+    <td key="docs" className="px-3 py-2 text-center text-xs font-bold text-text-primary">{filtered.reduce((s, tr) => s + (tr.documents?.length || 0), 0)}</td>,
+    <td key="actions" className="px-3 py-2" />,
   ];
 
   const tabs: TabDef[] = drawerTruck ? [
@@ -734,27 +763,25 @@ export default function TrucksPage() {
 
   return (
     <div className="space-y-4 animate-fade-in max-w-[1600px] mx-auto pb-10">
-      <KpiStrip items={kpis} />
+      <KpiStrip items={kpis} dense />
 
       <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-3 border-b border-border flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2 flex-1 min-w-[300px]">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-              <input className="input pl-9 py-2 text-sm w-full" placeholder={t('search_trucks', 'Search truck, driver...')} value={search} onChange={e => setSearch(e.target.value)} />
+        <div className="px-2.5 py-2 border-b border-border flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-1 min-w-[260px]">
+            <div className="relative w-[200px] shrink-0">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
+              <input className="input pl-8 pr-3 py-1.5 text-xs w-full" placeholder={t('search_trucks', 'Search truck, driver...')} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <CustomSelect className="w-40" value={filters.status} onChange={v => setFilters(f => ({ ...f, status: v }))} options={statusOptions} />
-            <CustomSelect className="w-44" value={filters.type} onChange={v => setFilters(f => ({ ...f, type: v }))} options={typeOptions} />
+            <div className="w-[130px] shrink-0"><CustomSelect size="sm" title={t('status', 'Status')} value={filters.status} onChange={v => setFilters(f => ({ ...f, status: v }))} options={statusOptions.map((o, i) => i === 0 ? { ...o, label: t('status', 'Status') } : o)} /></div>
+            <div className="w-[130px] shrink-0"><CustomSelect size="sm" title={t('truckType', 'Type')} value={filters.type} onChange={v => setFilters(f => ({ ...f, type: v }))} options={typeOptions.map((o, i) => i === 0 ? { ...o, label: t('truckType', 'Type') } : o)} /></div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-3 py-1.5 rounded-lg border border-border whitespace-nowrap">
-              {filtered.length} {t('results', 'results')}
-            </span>
-            <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold whitespace-nowrap">
-              <Download className="w-4 h-4" /> <span className="hidden sm:inline">{t('export', 'Export')}</span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[11px] font-semibold text-text-secondary whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
+            <button onClick={() => setShowExport(true)} className="btn-secondary py-1.5 px-2 flex items-center text-xs font-semibold" title={t('export', 'Export')}>
+              <Download className="w-3.5 h-3.5" />
             </button>
-            <button onClick={() => { setForm(initialForm); setShowForm(true); setEditId(null); }} className="btn-primary py-2 px-3 flex items-center gap-2 text-sm font-semibold whitespace-nowrap shadow-md shadow-primary/20">
-              <Plus className="w-4 h-4" /> {t('addTruck', 'Add Truck')}
+            <button onClick={() => { setForm(initialForm); setShowForm(true); setEditId(null); }} className="btn-primary py-1.5 px-2.5 flex items-center gap-1.5 text-xs font-semibold whitespace-nowrap shadow-md shadow-primary/20">
+              <Plus className="w-3.5 h-3.5" /> {t('addTruck', 'Add Truck')}
             </button>
           </div>
         </div>
@@ -763,7 +790,8 @@ export default function TrucksPage() {
           columns={columns}
           data={paginated}
           rowKey={(tr: any) => tr.id}
-          minWidth="1200px"
+          minWidth="1040px"
+          dense
           loading={loading}
           selectable
           selected={selected}

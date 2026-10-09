@@ -38,3 +38,21 @@ export const countryNames: Record<string, Record<string, string>> = {
 export function countryName(code: string, lang: 'ro' | 'en' | 'nl' | 'de' = 'ro'): string {
   return countryNames[code]?.[lang] || code;
 }
+
+const nameToCode: Record<string, string> = {};
+Object.entries(countryNames).forEach(([code, names]) => {
+  nameToCode[code.toLowerCase()] = code;
+  Object.values(names).forEach(n => { nameToCode[n.toLowerCase()] = code; });
+});
+
+/**
+ * Normalize a country value (ISO code or localized name) to a 2-letter ISO code.
+ * Returns null for empty input.
+ */
+export function countryIso(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const v = String(value).trim();
+  if (!v) return null;
+  if (/^[A-Za-z]{2}$/.test(v)) return v.toUpperCase();
+  return nameToCode[v.toLowerCase()] || v.slice(0, 2).toUpperCase();
+}
