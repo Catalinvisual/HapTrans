@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Truck, Search, Loader2, FileText, Trash2, Download, ExternalLink, Activity, Calendar, Coins, Route as RouteIcon, User, Send, Boxes, Gauge, Clock, Wallet, Receipt, Banknote } from 'lucide-react';
+import { Truck, Search, Loader2, FileText, Trash2, Download, ExternalLink, Activity, Calendar, Coins, Route as RouteIcon, User, Send, Boxes, Gauge, Clock, Wallet, Receipt, Banknote, ArrowRight, Scale, LayoutGrid } from 'lucide-react';
 import api from '../lib/api';
 import { fmtNumber, fmtMoney, fmtKm, fmtPercent } from '../lib/format';
 import { matchesSearch } from '../lib/search';
@@ -44,6 +44,32 @@ const tDriverName = (trip: any) => {
   if (d.firstName) return `${d.firstName} ${d.lastName || ''}`.trim();
   return d.user?.email || d.name || '—';
 };
+const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+// Turn a raw name or e-mail local part into a readable short name
+// e.g. "sofer.bogdan.popa3@hapcargo.ro" -> "Bogdan P."
+function humanName(raw?: string | null): string {
+  const s = String(raw || '').trim();
+  if (!s) return '';
+  if (!s.includes('@')) return s;
+  const parts = s
+    .split('@')[0]
+    .split(/[._\-+]+/)
+    .map(p => p.replace(/\d+$/g, ''))
+    .filter(p => p && !/^(sofer|șofer|driver|drv|user|info|contact|admin|office)$/i.test(p));
+  if (parts.length === 2) return `${cap(parts[0])} ${cap(parts[1])}`;
+  if (parts.length > 2) return `${cap(parts[0])} ${cap(parts[parts.length - 1]).charAt(0)}.`;
+  if (parts.length === 1) return cap(parts[0]);
+  return s;
+}
+const tDriverEmail = (trip: any) =>
+  trip.driver?.user?.email || (String(trip.driver?.name || '').includes('@') ? trip.driver.name : '') || '';
+const tDriverDisplay = (trip: any) => {
+  const d = trip.driver;
+  if (!d) return '—';
+  const full = d.firstName ? `${d.firstName} ${d.lastName || ''}`.trim() : (d.user?.name || d.name || '');
+  return humanName(full) || humanName(tDriverEmail(trip)) || '—';
+};
+const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const tWeight = (trip: any) => trip.orders?.reduce((s: number, o: any) => s + (o.cargoItems?.reduce((x: number, c: any) => x + Number(c.weightKg || 0), 0) || 0), 0) || 0;
 const tPallets = (trip: any) => trip.orders?.reduce((s: number, o: any) => s + (o.cargoItems?.reduce((x: number, c: any) => x + Number(c.quantity || 1), 0) || 0), 0) || 0;
 const tDeparture = (trip: any) => {
@@ -108,13 +134,13 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
   const truckOptions: SelectOption[] = useMemo(() => {
     const map = new Map<string, number>();
     trips.forEach(tr => { if (tr.truck?.id) map.set(tr.truck.id, (map.get(tr.truck.id) || 0) + 1); });
-    return [{ value: 'all', label: t('all_trucks', 'All trucks') }, ...[...map.entries()].map(([id, count]) => ({ value: id, label: `${trips.find(tr => tr.truck?.id === id)?.truck?.plateNumber || id} (${count})` }))];
+    return [{ value: 'all', label: t('trucks', 'Trucks') }, ...[...map.entries()].map(([id, count]) => ({ value: id, label: `${trips.find(tr => tr.truck?.id === id)?.truck?.plateNumber || id} (${count})` }))];
   }, [trips, t]);
 
   const driverOptions: SelectOption[] = useMemo(() => {
     const map = new Map<string, number>();
     trips.forEach(tr => { if (tr.driver?.id) map.set(tr.driver.id, (map.get(tr.driver.id) || 0) + 1); });
-    return [{ value: 'all', label: t('all_drivers', 'All drivers') }, ...[...map.entries()].map(([id, count]) => ({ value: id, label: `${tDriverName(trips.find(tr => tr.driver?.id === id) as any)} (${count})` }))];
+    return [{ value: 'all', label: t('drivers', 'Drivers') }, ...[...map.entries()].map(([id, count]) => ({ value: id, label: `${tDriverDisplay(trips.find(tr => tr.driver?.id === id) as any)} (${count})` }))];
   }, [trips, t]);
 
   const statusOptions: SelectOption[] = useMemo(() => [
@@ -242,132 +268,150 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
   };
 
   const columns: Column<any>[] = [
-    { key: 'tripNumber', label: t('trip', 'Trip'), sortable: true, className: 'min-w-[150px]', render: tr => (
-      <div>
-        <div className="font-bold text-primary">{tr.tripNumber || tr.id.slice(0, 8)}</div>
-        <div className="text-[11px] text-text-secondary flex items-center gap-1 mt-0.5">
-          <Calendar className="w-3 h-3" />
-          {tr.createdAt && !isNaN(new Date(tr.createdAt).getTime()) ? new Date(tr.createdAt).toLocaleDateString() : '—'}
-        </div>
-        {tr.orders?.length > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1">
-            {tr.orders.map((o: any) => <span key={o.id} className="text-[10px] bg-primary/10 text-primary font-bold px-1.5 py-px rounded">{o.orderNumber || o.referenceNumber}</span>)}
-          </div>
-        )}
-      </div>
-    ) },
-    { key: 'fleet', label: t('fleet', 'Fleet'), sortable: true, className: 'min-w-[150px]', render: tr => (
-      <div>
-        <div className="font-semibold flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 text-text-muted" />{tr.truck?.plateNumber || '—'}</div>
-        <div className="text-[11px] text-text-secondary mt-0.5 flex items-center gap-1"><User className="w-3 h-3" />{tDriverName(tr)}</div>
-        {tr.trailer?.plateNumber && <div className="text-[10px] text-text-muted mt-0.5">{t('trailer', 'Trailer')}: {tr.trailer.plateNumber}</div>}
-      </div>
-    ) },
-    { key: 'date', label: t('departure', 'Departure'), sortable: true, className: 'min-w-[110px]', render: tr => {
-      const d = tDeparture(tr);
-      return <div className="text-xs">
-        <div className="font-semibold">{d ? d.toLocaleDateString() : '—'}</div>
-        <div className="text-text-secondary">{d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</div>
-      </div>;
-    } },
-    { key: 'route', label: t('route', 'Route'), className: 'min-w-[240px]', render: tr => {
-      const p = tPickup(tr); const d = tDropoff(tr);
+    { key: 'tripNumber', label: t('trip', 'Trip'), sortable: true, className: 'min-w-[112px]', render: tr => {
+      const created = tr.createdAt && !isNaN(new Date(tr.createdAt).getTime()) ? new Date(tr.createdAt).toLocaleDateString() : '—';
+      const orders = tr.orders || [];
       return (
-        <div className="flex items-center gap-2 min-w-[200px]">
-          <div className="flex-1 min-w-0">
-            <div className="text-[11px] font-bold uppercase text-blue-600 dark:text-blue-400 truncate">{p ? (p.city || p.address || '?') : '—'}</div>
-            {p?.country && <div className="text-[10px] text-text-muted">{p.country}</div>}
+        <div className="leading-tight">
+          <div className="flex items-center gap-1 min-w-0">
+            <span className="font-bold text-primary text-[12px] truncate">{tr.tripNumber || tr.id.slice(0, 8)}</span>
+            {orders[0] && <span className="text-[9px] bg-primary/10 text-primary font-bold px-1 py-px rounded shrink-0">{orders[0].orderNumber || orders[0].referenceNumber}</span>}
+            {orders.length > 1 && <span className="text-[9px] text-text-muted shrink-0">+{orders.length - 1}</span>}
           </div>
-          <RouteIcon className="w-3.5 h-3.5 text-text-muted shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="text-[11px] font-bold uppercase text-green-600 dark:text-green-400 truncate">{d ? (d.city || d.address || '?') : '—'}</div>
-            {d?.country && <div className="text-[10px] text-text-muted">{d.country}</div>}
+          <div className="text-[10px] text-text-secondary flex items-center gap-1 mt-0.5">
+            <Calendar className="w-2.5 h-2.5" />{created}
           </div>
         </div>
       );
     } },
-    { key: 'weight', label: t('cargo', 'Cargo'), sortable: true, className: 'min-w-[100px]', render: tr => (
-      <div className="text-xs">
+    { key: 'fleet', label: t('fleet', 'Fleet'), sortable: true, className: 'min-w-[150px]', render: tr => {
+      const name = tDriverDisplay(tr);
+      const email = tDriverEmail(tr);
+      return (
+        <div className="leading-tight">
+          <div className="flex items-center gap-1 text-[12px] min-w-0">
+            <Truck className="w-3.5 h-3.5 text-text-muted shrink-0" />
+            <span className="font-semibold truncate">{tr.truck?.plateNumber || '—'}</span>
+            {name && name !== '—' && (
+              <>
+                <span className="text-text-muted shrink-0">•</span>
+                <User className="w-3 h-3 text-text-muted shrink-0" />
+                <span className="truncate" title={email || name}>{name}</span>
+              </>
+            )}
+          </div>
+          {tr.trailer?.plateNumber && <div className="text-[10px] text-text-muted truncate mt-0.5">{t('trailer', 'Trailer')}: {tr.trailer.plateNumber}</div>}
+        </div>
+      );
+    } },
+    { key: 'date', label: t('departure', 'Departure'), sortable: true, className: 'min-w-[88px]', render: tr => {
+      const d = tDeparture(tr);
+      return <div className="leading-tight text-[11px]">
+        <div className="font-semibold">{d ? d.toLocaleDateString() : '—'}</div>
+        <div className="text-text-secondary">{d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</div>
+      </div>;
+    } },
+    { key: 'route', label: t('route', 'Route'), className: 'min-w-[180px]', render: tr => {
+      const p = tPickup(tr); const d = tDropoff(tr);
+      const city = (s: any) => s?.city || s?.address?.split(',')[0] || '?';
+      const country = (s: any) => (s?.country ? ` (${s.country})` : '');
+      const addr = (s: any) => [s?.address, s?.city, s?.country].filter(Boolean).join(', ');
+      return (
+        <div className="flex items-center gap-1.5 min-w-0 text-[12px]">
+          <span className="font-semibold text-blue-600 dark:text-blue-400 truncate" title={addr(p) || '—'}>{p ? city(p) : '—'}<span className="text-text-muted font-normal">{p ? country(p) : ''}</span></span>
+          <ArrowRight className="w-3 h-3 text-text-muted shrink-0" />
+          <span className="font-semibold text-green-600 dark:text-green-400 truncate" title={addr(d) || '—'}>{d ? city(d) : '—'}<span className="text-text-muted font-normal">{d ? country(d) : ''}</span></span>
+        </div>
+      );
+    } },
+    { key: 'weight', label: t('cargo', 'Cargo'), sortable: true, className: 'min-w-[98px]', render: tr => (
+      <div className="leading-tight text-[11px]">
         <div className="font-semibold flex items-center gap-1"><Boxes className="w-3 h-3 text-text-muted" />{fmtNumber(tPallets(tr))} {t('pallets', 'pal')}</div>
-        <div className="text-text-secondary">{fmtNumber(Math.round(tWeight(tr)))} kg</div>
+        <div className="text-text-secondary flex items-center gap-1"><Scale className="w-3 h-3 text-text-muted" />{fmtNumber(Math.round(tWeight(tr)))} kg</div>
       </div>
     ) },
-    { key: 'distance', label: t('km', 'Km'), sortable: true, align: 'right', className: 'min-w-[80px]', render: tr => (
-      <span className="font-semibold">{tr.distanceKm ? fmtKm(tr.distanceKm) : '—'}</span>
+    { key: 'distance', label: t('km', 'Km'), sortable: true, align: 'right', className: 'min-w-[62px]', render: tr => (
+      <span className="font-semibold text-[12px] whitespace-nowrap">{tr.distanceKm ? fmtKm(tr.distanceKm) : '—'}</span>
     ) },
-    { key: 'revenue', label: t('revenue', 'Revenue'), sortable: true, align: 'right', className: 'min-w-[90px]', render: tr => <span className="font-semibold">{fmtMoney(tRevenue(tr))}</span> },
-    { key: 'cost', label: t('cost', 'Cost'), sortable: true, align: 'right', className: 'min-w-[90px]', render: tr => <span className="text-text-secondary">{fmtMoney(tCost(tr) + tExtraCost(tr))}</span> },
-    { key: 'profit', label: t('profit', 'Profit'), sortable: true, align: 'right', className: 'min-w-[90px]', render: tr => {
+    { key: 'revenue', label: t('revenue', 'Revenue'), sortable: true, align: 'right', className: 'min-w-[88px]', render: tr => <span className="font-semibold text-[12px] whitespace-nowrap">{fmtMoney(tRevenue(tr))}</span> },
+    { key: 'cost', label: t('cost', 'Cost'), sortable: true, align: 'right', className: 'min-w-[84px]', render: tr => <span className="text-text-secondary text-[12px] whitespace-nowrap">{fmtMoney(tCost(tr) + tExtraCost(tr))}</span> },
+    { key: 'profit', label: t('profit', 'Profit'), sortable: true, align: 'right', className: 'min-w-[84px]', render: tr => {
       const p = tProfit(tr);
-      return <span className={`font-bold ${p >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{isNaN(p) ? '—' : fmtMoney(p)}</span>;
+      return <span className={`font-bold text-[12px] whitespace-nowrap ${p >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{isNaN(p) ? '—' : fmtMoney(p)}</span>;
     } },
-    { key: 'status', label: t('status', 'Status'), sortable: true, className: 'min-w-[110px]', render: tr => <StatusBadge type="trip" status={tr.status} label={t(`status_${tr.status}`, tr.status.replace(/_/g, ' ')) as string} /> },
-    { key: 'actions', label: '', align: 'right', className: 'min-w-[90px]', render: tr => (
+    { key: 'status', label: t('status', 'Status'), sortable: true, className: 'min-w-[96px]', render: tr => <StatusBadge type="trip" status={tr.status} label={t(`status_${tr.status}`, tr.status.replace(/_/g, ' ')) as string} /> },
+    { key: 'actions', label: '', align: 'right', className: 'min-w-[84px]', render: tr => (
       <div className="flex items-center justify-end gap-0.5">
         {tr.status === 'planning' && (
-          <button onClick={e => { e.stopPropagation(); handleDispatch(tr.id); }} title={t('jsx_trimiteDispat', 'Send Dispatch')} className="p-1.5 rounded-md text-text-secondary hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-500/10">
-            <Send className="w-4 h-4" />
+          <button onClick={e => { e.stopPropagation(); handleDispatch(tr.id); }} title={t('jsx_trimiteDispat', 'Send Dispatch')} className="p-1 rounded-md text-text-secondary hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-500/10">
+            <Send className="w-3.5 h-3.5" />
           </button>
         )}
-        <button onClick={e => { e.stopPropagation(); navigate(`/trips/${tr.id}`); }} title={t('open_trip', 'Open trip')} className="p-1.5 rounded-md text-text-secondary hover:text-primary hover:bg-primary/10">
-          <ExternalLink className="w-4 h-4" />
+        <button onClick={e => { e.stopPropagation(); navigate(`/trips/${tr.id}`); }} title={t('open_trip', 'Open trip')} className="p-1 rounded-md text-text-secondary hover:text-primary hover:bg-primary/10">
+          <ExternalLink className="w-3.5 h-3.5" />
         </button>
-        <button onClick={e => { e.stopPropagation(); setTripToDelete(tr.id); setDeleteModalOpen(true); }} title={t('delete', 'Delete')} className="p-1.5 rounded-md text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10">
-          <Trash2 className="w-4 h-4" />
+        <button onClick={e => { e.stopPropagation(); setTripToDelete(tr.id); setDeleteModalOpen(true); }} title={t('delete', 'Delete')} className="p-1 rounded-md text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10">
+          <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
     ) },
   ];
 
   const footerCells = [
-    <td key="total" colSpan={4} className="px-3.5 py-2.5 text-[11px] font-bold uppercase text-text-secondary">{t('total', 'Total')} · {filtered.length} {t('trips', 'trips')}</td>,
-    <td key="cargo" className="px-3.5 py-2.5 text-right text-xs font-bold">{fmtNumber(totals.pallets)} {t('pallets', 'pal')} / {fmtNumber(Math.round(totals.distance))} km</td>,
-    <td key="distance" className="px-3.5 py-2.5 text-right text-xs font-bold">{fmtNumber(Math.round(totals.distance))} km</td>,
-    <td key="revenue" className="px-3.5 py-2.5 text-right text-xs font-bold">{fmtMoney(totals.revenue)}</td>,
-    <td key="cost" className="px-3.5 py-2.5 text-right text-xs font-bold text-text-secondary">{fmtMoney(totals.cost)}</td>,
-    <td key="profit" className={`px-3.5 py-2.5 text-right text-xs font-black ${totals.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{fmtMoney(totals.profit)}</td>,
-    <td key="status" className="px-3.5 py-2.5"></td>,
-    <td key="actions" className="px-3.5 py-2.5"></td>
+    <td key="total" colSpan={4} className="px-3 py-2 text-[11px] font-bold uppercase text-text-secondary">{t('total', 'Total')} · {filtered.length} {t('trips', 'trips')}</td>,
+    <td key="cargo" className="px-3 py-2 text-right text-xs font-bold whitespace-nowrap">{fmtNumber(totals.pallets)} {t('pallets', 'pal')} / {fmtNumber(Math.round(totals.distance))} km</td>,
+    <td key="distance" className="px-3 py-2 text-right text-xs font-bold whitespace-nowrap">{fmtNumber(Math.round(totals.distance))} km</td>,
+    <td key="revenue" className="px-3 py-2 text-right text-xs font-bold whitespace-nowrap">{fmtMoney(totals.revenue)}</td>,
+    <td key="cost" className="px-3 py-2 text-right text-xs font-bold text-text-secondary whitespace-nowrap">{fmtMoney(totals.cost)}</td>,
+    <td key="profit" className={`px-3 py-2 text-right text-xs font-black whitespace-nowrap ${totals.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{fmtMoney(totals.profit)}</td>,
+    <td key="status" className="px-3 py-2"></td>,
+    <td key="actions" className="px-3 py-2"></td>
   ];
 
   return (
     <div className="max-w-[1700px] mx-auto space-y-4 animate-fade-in">
-      <KpiStrip items={kpis} />
+      <KpiStrip items={kpis} dense />
 
       <div className="card p-0 overflow-hidden border border-border">
-        <div className="p-3 border-b border-border bg-surface/30">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[220px] max-w-[16rem] shrink-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
+        <div className="px-2.5 py-2 border-b border-border bg-surface/30">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <div className="relative w-[200px] shrink-0">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
               <input
                 type="text"
                 placeholder={t('search_trips', 'Search trip, truck, driver, city...')}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="input pl-9 py-2 text-sm w-full bg-white"
+                className="input pl-8 pr-3 py-1.5 text-xs w-full bg-white"
               />
             </div>
-            <div className="w-40 shrink-0"><CustomSelect options={statusOptions} value={filters.status} onChange={v => setFilters(f => ({ ...f, status: v }))} /></div>
-            <div className="w-44 shrink-0"><CustomSelect options={truckOptions} value={filters.truck} onChange={v => setFilters(f => ({ ...f, truck: v }))} /></div>
-            <div className="w-44 shrink-0"><CustomSelect options={driverOptions} value={filters.driver} onChange={v => setFilters(f => ({ ...f, driver: v }))} /></div>
+            <div className="w-[128px] shrink-0"><CustomSelect size="sm" options={statusOptions} value={filters.status} onChange={v => setFilters(f => ({ ...f, status: v }))} /></div>
+            <div className="w-[148px] shrink-0"><CustomSelect size="sm" options={truckOptions} value={filters.truck} onChange={v => setFilters(f => ({ ...f, truck: v }))} /></div>
+            <div className="w-[148px] shrink-0"><CustomSelect size="sm" options={driverOptions} value={filters.driver} onChange={v => setFilters(f => ({ ...f, driver: v }))} /></div>
             <div className="relative shrink-0">
-              <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
-              <Flatpickr value={filters.dateFrom} onChange={(_, dateStr) => setFilters(f => ({ ...f, dateFrom: dateStr }))} className="input pl-9 py-2 text-sm w-36 bg-card cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false }} placeholder={t('from', 'From')} title={t('from', 'From')} />
-            </div>
-            <div className="relative shrink-0">
-              <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
-              <Flatpickr value={filters.dateTo} onChange={(_, dateStr) => setFilters(f => ({ ...f, dateTo: dateStr }))} className="input pl-9 py-2 text-sm w-36 bg-card cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', allowInput: false }} placeholder={t('to', 'To')} title={t('to', 'To')} />
+              <Calendar className="w-3.5 h-3.5 text-primary absolute left-2.5 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
+              <Flatpickr
+                value={filters.dateFrom && filters.dateTo ? `${filters.dateFrom} to ${filters.dateTo}` : ''}
+                onChange={(dates) => {
+                  const [a, b] = dates as Date[];
+                  setFilters(f => ({ ...f, dateFrom: a ? ymd(a) : '', dateTo: b ? ymd(b) : '' }));
+                }}
+                className="input pl-8 pr-3 py-1.5 text-xs w-[210px] bg-card cursor-pointer hover:border-primary/50 transition-colors"
+                options={{ mode: 'range', altInput: true, altFormat: 'd M', dateFormat: 'Y-m-d', allowInput: false, showMonths: 1 }}
+                placeholder={t('date_range', 'Date range')}
+                title={t('date_range', 'Date range')}
+              />
             </div>
             {hasActiveFilters && (
-              <button onClick={() => { setFilters({ status: 'all', truck: 'all', driver: 'all', dateFrom: '', dateTo: '' }); setSearch(''); }} className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors shrink-0">
+              <button onClick={() => { setFilters({ status: 'all', truck: 'all', driver: 'all', dateFrom: '', dateTo: '' }); setSearch(''); }} className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors shrink-0">
                 <FilterXIcon className="w-3.5 h-3.5" />{t('clear_filters', 'Clear')}
               </button>
             )}
 
-            <div className="flex items-center gap-2 shrink-0 ml-auto">
+            <div className="flex items-center gap-1.5 shrink-0 ml-auto">
               <span className="text-xs text-text-secondary font-medium whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
-              <button onClick={() => openExport(sorted)} className="btn-secondary py-2 px-3 text-sm font-semibold inline-flex items-center gap-2 whitespace-nowrap"><Download className="w-4 h-4" />{t('export_csv', 'Export CSV')}</button>
-              <button onClick={() => navigate('/planning')} className="btn-primary py-2 px-3 text-sm font-semibold inline-flex items-center gap-2 whitespace-nowrap"><Calendar className="w-4 h-4" />{t('go_to_planning', 'Dispatch board')}</button>
+              <button onClick={() => openExport(sorted)} className="btn-secondary py-1.5 px-2.5 text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"><Download className="w-3.5 h-3.5" />{t('export_csv', 'Export CSV')}</button>
+              <button onClick={() => navigate('/planning')} className="btn-primary py-1.5 px-2.5 text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"><LayoutGrid className="w-3.5 h-3.5" />{t('go_to_planning', 'Dispatch board')}</button>
             </div>
           </div>
         </div>
@@ -385,7 +429,8 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
           onSortChange={(key, dir) => setSort({ key, dir })}
           footer={<>{footerCells}</>}
           loading={loading}
-          minWidth="1500px"
+          dense
+          minWidth="1100px"
           emptyState={
             <div className="p-16 text-center flex flex-col items-center">
               <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mb-4 text-text-muted"><Truck className="w-8 h-8" /></div>

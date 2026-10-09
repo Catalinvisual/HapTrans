@@ -28,12 +28,16 @@ interface DataTableProps<T> {
   emptyState?: ReactNode;
   minWidth?: string;
   highlightRow?: (row: T) => string | undefined;
+  dense?: boolean;
 }
 
 export default function DataTable<T>({
   columns, data, rowKey, onRowClick, selectable, selected, onSelectionChange,
-  sortKey, sortDir, onSortChange, footer, loading, emptyState, minWidth = '900px', highlightRow,
+  sortKey, sortDir, onSortChange, footer, loading, emptyState, minWidth = '900px', highlightRow, dense = false,
 }: DataTableProps<T>) {
+  const headPad = dense ? 'px-3 py-2' : 'px-3.5 py-2.5';
+  const cellPad = dense ? 'px-3 py-[6px]' : 'px-3.5 py-3';
+  const cellText = dense ? 'text-[12.5px]' : 'text-[13px]';
   const allSelected = data.length > 0 && (selected?.size || 0) === data.length;
   const toggleRow = (id: string) => {
     if (!onSelectionChange) return;
@@ -58,7 +62,7 @@ export default function DataTable<T>({
         <thead className="sticky top-0 z-10">
           <tr className="bg-surface/80 backdrop-blur border-b border-border">
             {selectable && (
-              <th className="table-header px-3 py-3 w-10">
+              <th className={`table-header ${dense ? 'px-3 py-2' : 'px-3 py-3'} w-10`}>
                 <input type="checkbox" className="w-4 h-4 accent-orange-500 cursor-pointer" checked={allSelected} onChange={toggleAll} />
               </th>
             )}
@@ -66,7 +70,7 @@ export default function DataTable<T>({
               <th
                 key={col.key}
                 onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                className={`table-header px-3.5 py-2.5 font-medium text-[11px] text-text-secondary uppercase tracking-wider whitespace-nowrap select-none text-left ${col.sortable ? 'cursor-pointer hover:text-primary' : ''} ${col.hideBelow ? `hidden ${col.hideBelow === 'lg' ? 'lg:table-cell' : col.hideBelow === 'md' ? 'md:table-cell' : 'sm:table-cell'}` : ''}`}
+                className={`table-header ${headPad} font-medium text-[11px] text-text-secondary uppercase tracking-wider whitespace-nowrap select-none text-left ${col.sortable ? 'cursor-pointer hover:text-primary' : ''} ${col.hideBelow ? `hidden ${col.hideBelow === 'lg' ? 'lg:table-cell' : col.hideBelow === 'md' ? 'md:table-cell' : 'sm:table-cell'}` : ''}`}
                 style={{ width: col.width }}
               >
                 <span className="inline-flex items-center gap-1 font-medium text-[11px] text-text-secondary">
@@ -90,12 +94,12 @@ export default function DataTable<T>({
                   className={`${onRowClick ? 'cursor-pointer' : ''} ${ri % 2 === 1 ? 'bg-surface/25' : ''} ${isSelected ? 'bg-primary/5' : ''} ${highlight || ''} hover:bg-primary/[0.06] transition-colors`}
                 >
                   {selectable && (
-                    <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                    <td className={`${dense ? 'px-3 py-1.5' : 'px-3 py-3'}`} onClick={e => e.stopPropagation()}>
                       <input type="checkbox" className="w-4 h-4 accent-orange-500 cursor-pointer" checked={!!isSelected} onChange={() => toggleRow(id)} />
                     </td>
                   )}
                   {columns.map(col => (
-                    <td key={col.key} className={`px-3.5 py-3 text-[13px] ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'} ${col.hideBelow ? `hidden ${col.hideBelow === 'lg' ? 'lg:table-cell' : col.hideBelow === 'md' ? 'md:table-cell' : 'sm:table-cell'}` : ''}`}>
+                    <td key={col.key} className={`${cellPad} ${cellText} ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'} ${col.hideBelow ? `hidden ${col.hideBelow === 'lg' ? 'lg:table-cell' : col.hideBelow === 'md' ? 'md:table-cell' : 'sm:table-cell'}` : ''}`}>
                       {col.render ? col.render(row) : String((row as any)[col.key] ?? '—')}
                     </td>
                   ))}
