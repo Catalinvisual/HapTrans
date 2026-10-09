@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Filter, Trash2, Plus } from 'lucide-react';
+import { Search, Trash2, Zap, Coins, Route, HandCoins, Wallet, User, FileText } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import CustomSelect from '../components/CustomSelect';
 import { matchesSearch } from '../lib/search';
 import Pagination from '../components/Pagination';
 import ConfirmModal from '../components/ConfirmModal';
+import KpiStrip from '../components/ui/KpiStrip';
+import DataTable from '../components/ui/DataTable';
+import { fmtMoney, fmtNumber, fmtKm } from '../lib/format';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -95,105 +98,127 @@ export default function SettlementPage() {
   const filtered = settlements.filter((s: any) => matchesSearch(search, s.driverName));
 
   const isPerKm = genPayMode === 'per_km';
-  const totalNet = settlements.reduce((sum: number, s: any) => sum + Number(s.netPay || 0), 0);
+
+  const totalDecontat = settlements.reduce((sum: number, s: any) => sum + Number(s.grossPay || 0), 0);
+  const totalKm = settlements.reduce((sum: number, s: any) => sum + Number(s.totalDistance || 0), 0);
+  const totalAvansuri = settlements.reduce((sum: number, s: any) => sum + Number(s.advances || 0), 0);
+  const totalNetToPay = settlements.reduce((sum: number, s: any) => sum + Number(s.netPay || 0), 0);
+
+  const statusOptions = [
+    { value: 'draft', label: t('sett_statusdraft'), color: '#94A3B8' },
+    { value: 'approved', label: t('sett_statusapproved'), color: '#F59E0B' },
+    { value: 'paid', label: t('sett_statuspaid'), color: '#10B981' },
+  ];
+
+  const paged = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const empty = settlements.length === 0;
 
   return <div className="space-y-5 animate-fade-in">
-    <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
-      <div className="p-4 border-b border-border flex flex-wrap items-center gap-x-3 gap-y-2">
-        <div className="relative flex-1 min-w-[200px] max-w-sm shrink-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-          <input className="input pl-9 py-2 text-sm w-full" placeholder={t('searchEmployee')} value={search} onChange={e => setSearch(e.target.value)} />
+    <KpiStrip items={[
+      { key: 'total', label: t('sett_totalNet', 'Total decontat'), value: fmtMoney(totalDecontat), icon: Coins },
+      { key: 'km', label: 'Km totali', value: fmtKm(totalKm), icon: Route },
+      { key: 'avansuri', label: 'Avansuri acordate', value: fmtMoney(totalAvansuri), icon: HandCoins },
+      { key: 'net', label: 'Net de plată', value: fmtMoney(totalNetToPay), icon: Wallet, color: 'text-success' },
+    ]} dense />
+
+    <div className="card flex items-center gap-2 px-3 py-2 flex-wrap">
+      <div className="relative flex-1 min-w-[170px] max-w-[210px] shrink-0">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
+        <input className="input !pl-8 !py-1.5 !text-xs h-8 w-full" placeholder={t('searchEmployee')} value={search} onChange={e => setSearch(e.target.value)} />
+      </div>
+
+      <div className="flex items-center gap-1 bg-surface/60 border border-border rounded-lg px-1.5 py-1 shrink-0">
+        <span className="text-[10px] font-bold uppercase text-text-secondary px-1">{t("jsx_luna")}</span>
+        <CustomSelect size="sm" className="w-24" value={String(selectedMonth)} onChange={val => setSelectedMonth(Number(val))} options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))} />
+        <CustomSelect size="sm" className="w-20" value={String(selectedYear)} onChange={val => setSelectedYear(Number(val))} options={[2024, 2025, 2026, 2027].map(y => ({ value: String(y), label: String(y) }))} />
+      </div>
+
+      <div className="flex items-center gap-1.5 shrink-0">
+        <User className="w-3.5 h-3.5 text-text-secondary" />
+        <CustomSelect size="sm" className="w-44" value={genDriverId} onChange={setGenDriverId} placeholder={t('sett_selectDriver')} options={drivers.map((d: any) => ({ value: d.id, label: d.user?.name || d.id }))} />
+      </div>
+
+      <div className="flex items-center gap-1.5 shrink-0">
+        <CustomSelect size="sm" className="w-32" value={genPayMode} onChange={setGenPayMode} options={[{ value: 'per_km', label: t('sett_perKm') }, { value: 'percent', label: t('sett_percent') }]} />
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] font-black text-text-secondary">{isPerKm ? '€/km' : '%'}</span>
+          <input type="number" step="0.01" className="input !w-16 !py-1 !px-1.5 !text-xs h-8 text-right" value={genPayRate} onChange={e => setGenPayRate(e.target.value)} placeholder={isPerKm ? '0.25' : '10'} />
         </div>
-        
-        <div className="flex items-center gap-2 bg-surface/50 border border-border rounded-xl p-1.5 shrink-0">
-          <div className="flex items-center gap-1.5 px-2">
-            <Filter className="w-4 h-4 text-text-secondary" />
-            <span className="text-sm font-semibold text-text-secondary">{t("jsx_luna")}</span>
+      </div>
+
+      <div className="flex-1" />
+
+      <button onClick={handleGenerate} className="btn-primary !py-1.5 !px-3 text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-md shadow-primary/20">
+        <Zap className="w-4 h-4" /> {t('sett_generate')}
+      </button>
+    </div>
+
+    <div className="card !p-0 overflow-hidden">
+      <DataTable
+        dense
+        minWidth="1080px"
+        loading={loading}
+        rowKey={(s: any) => s.id}
+        data={paged}
+        emptyState={empty ? (
+          <div className="flex flex-col items-center justify-center py-14 px-6 text-center">
+            <div className="w-14 h-14 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mb-4">
+              <FileText className="w-7 h-7" />
+            </div>
+            <h3 className="text-[15px] font-black text-text mb-1.5">{t('sett_noData')}</h3>
+            <p className="text-xs text-text-secondary leading-relaxed mb-5">{MONTHS[selectedMonth - 1]} {selectedYear}</p>
+            <button onClick={handleGenerate} className="btn-primary !px-4 !py-2 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-primary/20">
+              <Zap className="w-4 h-4" /> {t('sett_generate')}
+            </button>
           </div>
-          <CustomSelect className="w-28 text-sm font-semibold shadow-sm" value={String(selectedMonth)} onChange={val => setSelectedMonth(Number(val))} options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))} />
-          <CustomSelect className="w-24 text-sm font-semibold shadow-sm" value={String(selectedYear)} onChange={val => setSelectedYear(Number(val))} options={[2024, 2025, 2026, 2027].map(y => ({ value: String(y), label: String(y) }))} />
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0 ml-auto">
-          <span className="text-xs font-bold text-text-secondary uppercase bg-surface px-3 py-2 rounded-lg shrink-0 border border-border/50">
-            {filtered.length} {t('records')}
-          </span>
-          <span className="text-xs font-bold text-success uppercase bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2 rounded-lg shrink-0 border border-emerald-200 dark:border-emerald-700">
-            {t('sett_totalNet')}: €{Number(totalNet).toFixed(2)}
-          </span>
-        </div>
-      </div>
-
-      <div className="p-4 border-b border-border bg-surface/40 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-sm">
-          <span className="text-xs font-bold text-text-secondary uppercase tracking-wider shrink-0">{t('sett_driver')}</span>
-          <CustomSelect className="w-full" value={genDriverId} onChange={setGenDriverId} placeholder={t('sett_selectDriver')} options={drivers.map((d: any) => ({ value: d.id, label: d.user?.name || d.id }))} />
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">{t('sett_payMode')}</span>
-          <CustomSelect className="w-32 text-sm font-semibold shadow-sm" value={genPayMode} onChange={setGenPayMode} options={[{ value: 'per_km', label: t('sett_perKm') }, { value: 'percent', label: t('sett_percent') }]} />
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">{isPerKm ? '€/km' : '%'}</span>
-          <input type="number" step="0.01" className="input w-24 py-2 text-sm" value={genPayRate} onChange={e => setGenPayRate(e.target.value)} placeholder={isPerKm ? '0.25' : '10'} />
-        </div>
-        
-        <button onClick={handleGenerate} className="btn-primary py-2 px-4 text-sm font-bold flex items-center gap-2 shrink-0 ml-auto shadow-md shadow-primary/20">
-          <Plus className="w-4 h-4" /> {t('sett_generate')}
-        </button>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-surface border-b border-border">
-              <th className="table-header">{t('employee')}</th>
-              <th className="table-header">{t('sett_trips')}</th>
-              <th className="table-header">{t('sett_distance')}</th>
-              <th className="table-header">{t('sett_revenue')}</th>
-              <th className="table-header">{t('sett_gross')}</th>
-              <th className="table-header">{t('advances')}</th>
-              <th className="table-header">{t('deductions')}</th>
-              <th className="table-header">{t('sett_net')}</th>
-              <th className="table-header">{t('status')}</th>
-              <th className="table-header">{t('actions')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? <tr><td colSpan={10} className="text-center py-8 text-text-secondary">{t('loading')}</td></tr> : filtered.length === 0 ? <tr><td colSpan={10} className="text-center py-8 text-text-secondary">{t('sett_noData')}</td></tr> : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((s: any) => (
-              <tr key={s.id} className="border-b border-border hover:bg-surface/60 transition-colors">
-                <td className="p-3 font-semibold">{s.driverName}</td>
-                <td className="p-3 text-center">{s.tripCount}</td>
-                <td className="p-3 text-right">{Number(s.totalDistance).toFixed(0)} km</td>
-                <td className="p-3 text-right">€{Number(s.totalRevenue).toFixed(2)}</td>
-                <td className="p-3 text-right font-semibold">€{Number(s.grossPay).toFixed(2)}</td>
-                <td className="p-3 text-right">
-                  <input type="number" step="0.01" className="input w-24 py-1 text-right text-sm" value={Number(s.advances || 0)} onChange={e => handleUpdate(s.id, 'advances', e.target.value ? Number(e.target.value) : 0)} />
-                </td>
-                <td className="p-3 text-right">
-                  <input type="number" step="0.01" className="input w-24 py-1 text-right text-sm" value={Number(s.deductions || 0)} onChange={e => handleUpdate(s.id, 'deductions', e.target.value ? Number(e.target.value) : 0)} />
-                </td>
-                <td className="p-3 text-right font-bold text-success">€{Number(s.netPay).toFixed(2)}</td>
-                <td className="p-3 text-center">
-                  <CustomSelect className="w-28 text-sm" value={s.status} onChange={val => handleUpdate(s.id, 'status', val)} options={['draft', 'approved', 'paid'].map(v => ({ value: v, label: t('sett_status' + v) }))} />
-                </td>
-                <td className="p-3 text-center">
-                  <button onClick={() => setDeleteId(s.id)} className="p-1.5 text-text-secondary hover:text-error rounded-lg hover:bg-error/10 transition-colors" title={t('delete')}>
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {filtered.length > itemsPerPage && (
-        <div className="p-4 border-t border-border flex items-center justify-between flex-wrap gap-3">
-          <span className="text-xs text-text-secondary">{filtered.length} {t('records')}</span>
-          <Pagination totalItems={filtered.length} itemsPerPage={itemsPerPage} currentPage={currentPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
-        </div>
-      )}
+        ) : (
+          <div className="p-12 text-center text-sm text-text-secondary">{t('noResults')}</div>
+        )}
+        columns={[
+          { key: 'anagajat', label: 'ANGAJAT & TARIFA', align: 'left', render: (s: any) => (
+            <div>
+              <p className="font-bold text-[13px] text-text truncate">{s.driverName}</p>
+              <p className="text-[10px] text-text-secondary mt-0.5">Mod: {s.payMode === 'percent' ? t('sett_percent') : t('sett_perKm')} ({fmtNumber(s.payRate, 2)}{s.payMode === 'percent' ? ' %' : ' €/km'})</p>
+            </div>
+          ) },
+          { key: 'activitate', label: 'ACTIVITATE', align: 'right', render: (s: any) => (
+            <div>
+              <p className="font-semibold text-[12.5px] text-text">{fmtKm(s.totalDistance)}</p>
+              <p className="text-[10px] text-text-secondary mt-0.5">{s.tripCount} {t('sett_trips')}</p>
+            </div>
+          ) },
+          { key: 'venit', label: 'VENIT & BRUT', align: 'right', render: (s: any) => (
+            <div>
+              <p className="font-semibold text-[12.5px] text-text">{fmtMoney(s.grossPay)} Brut</p>
+              <p className="text-[10px] text-text-secondary mt-0.5">{t('sett_revenue', 'Venit cursă: ')}{fmtMoney(s.totalRevenue)}</p>
+            </div>
+          ) },
+          { key: 'avansuri', label: 'AVANSURI & REȚINERI', align: 'right', render: (s: any) => (
+            <div className="inline-flex flex-col items-end gap-0.5">
+              <div className="flex items-center justify-end gap-1.5">
+                <span className="text-[9px] font-bold uppercase text-rose-500" title="Avansuri">Avans</span>
+                <input type="number" step="0.01" className="input !w-[86px] !py-0.5 !px-1.5 !text-xs text-right" value={Number(s.advances || 0)} onChange={e => handleUpdate(s.id, 'advances', e.target.value ? Number(e.target.value) : 0)} />
+              </div>
+              <div className="flex items-center justify-end gap-1.5">
+                <span className="text-[9px] font-bold uppercase text-text-secondary">Rețineri</span>
+                <input type="number" step="0.01" className="input !w-[86px] !py-0.5 !px-1.5 !text-xs text-right" value={Number(s.deductions || 0)} onChange={e => handleUpdate(s.id, 'deductions', e.target.value ? Number(e.target.value) : 0)} />
+              </div>
+            </div>
+          ) },
+          { key: 'net', label: 'NET DE PLATĂ', align: 'right', render: (s: any) => (
+            <span className="inline-block font-black text-[14px] text-success whitespace-nowrap">{fmtMoney(s.netPay)}</span>
+          ) },
+          { key: 'actions', label: 'STATUS & ACȚIUNI', align: 'right', sticky: 'right', width: '150px', render: (s: any) => (
+            <div className="flex items-center justify-end gap-1">
+              <CustomSelect size="sm" className="w-24" value={s.status} onChange={val => handleUpdate(s.id, 'status', val)} options={statusOptions} />
+              <button onClick={() => setDeleteId(s.id)} className="p-1.5 text-text-secondary hover:text-error hover:bg-error/10 rounded-md transition-colors" title={t('delete')}>
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ) },
+        ]}
+      />
+      <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
     </div>
 
     <ConfirmModal

@@ -2,13 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, FileSpreadsheet, FileText, History, Bookmark, CalendarClock, Download, Play, Trash2,
-  LoaderCircle, Plus, FolderOpen, Eye, Pause, CheckCircle2, AlertTriangle, Save
+  LoaderCircle, FolderOpen, Eye, Pause, CheckCircle2, AlertTriangle, Save, Printer
 } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
-import { fmtNumber, fmtPercent } from '../lib/format';
-import AnalyticsToolbar, { computeRange } from '../components/analytics/AnalyticsToolbar';
+import Flatpickr from 'react-flatpickr';
+import 'flatpickr/dist/themes/light.css';
+import { computeRange, toISO } from '../components/analytics/AnalyticsToolbar';
 import type { Granularity } from '../components/analytics/AnalyticsToolbar';
+import CustomSelect from '../components/CustomSelect';
 import KpiSummary from '../components/analytics/KpiSummary';
 import ReportTable from '../components/analytics/ReportTable';
 import ReportChartCard, { chartToPngDataUrl } from '../components/analytics/ReportChartCard';
@@ -22,6 +24,16 @@ const SECTION_LABELS: Record<string, string> = {
   financial: 'rp_section_financial',
   methodology: 'rp_section_methodology',
 };
+
+const RANGE_OPTIONS = [
+  { value: 'this_month', key: 'fin_this_month' },
+  { value: 'last_month', key: 'fin_last_month' },
+  { value: 'last_30_days', key: 'fin_last30d' },
+  { value: 'last_90_days', key: 'fin_last90d' },
+  { value: 'last_12_months', key: 'fin_last12m' },
+  { value: 'this_year', key: 'fin_this_year' },
+  { value: 'custom', key: 'fin_custom_range' },
+];
 
 function mapColumns(cols: any[]): ReportColumn[] {
   return (cols || []).map(c => ({
@@ -253,6 +265,16 @@ export default function ReportsPage() {
     finally { setExporting(null); }
   };
 
+  const autoRunRef = useRef(false);
+  useEffect(() => {
+    if (catLoading || activeKey || autoRunRef.current) return;
+    const def = (catalog || []).find((c: any) => c.key === 'executive_overview') || (catalog || [])[0];
+    if (def) {
+      autoRunRef.current = true;
+      runPreview(def.key);
+    }
+  }, [catalog, catLoading, activeKey]);
+
   const grouped = (SECTION_LABELS ? Object.keys(SECTION_LABELS) : []).map(section => ({
     section,
     items: catalog.filter((c: any) => (c.section || 'operations') === section),
@@ -267,85 +289,109 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6 pb-12 animate-fade-in">
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-text bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-blue-600">
-            {t('nav_reports')}
-          </h1>
-          <p className="text-sm font-medium text-text-secondary mt-1">{t('rp_subtitle')}</p>
-        </div>
-        <AnalyticsToolbar
-          rangeType={rangeType} onRangeType={setRangeType}
-          customFrom={customFrom} customTo={customTo}
-          onCustomFrom={setCustomFrom} onCustomTo={setCustomTo}
-          granularity={granularity} onGranularity={setGranularity}
+      <div className="card flex items-center gap-2 px-3 py-2 flex-wrap">
+        <CustomSelect
+          size="sm"
+          className="w-40 shrink-0"
+          value={rangeType}
+          onChange={v => setRangeType(v)}
+          options={RANGE_OPTIONS.map(p => ({ value: p.value, label: t(p.key) }))}
         />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3 card !p-3">
-        <span className="text-xs font-black uppercase tracking-wider text-text-secondary">{t('rp_filter_title')}</span>
-        <select value={clientId} onChange={e => setClientId(e.target.value)} title={t('rp_filter_client')} className="input !py-2 text-sm bg-surface/60">
+        {rangeType === 'custom' && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Flatpickr value={customFrom} onChange={d => setCustomFrom(toISO(d[0]))} className="input !py-1 !px-2 !text-xs !rounded-lg !w-28 !bg-surface h-8" />
+            <span className="text-text-secondary text-[11px]">–</span>
+            <Flatpickr value={customTo} onChange={d => setCustomTo(toISO(d[0]))} className="input !py-1 !px-2 !text-xs !rounded-lg !w-28 !bg-surface h-8" />
+          </div>
+        )}
+        <div className="flex bg-surface rounded-lg p-0.5 border border-border/60 shrink-0 h-8">
+          {(['day', 'week', 'month'] as Granularity[]).map(g => (
+            <button
+              key={g}
+              onClick={() => setGranularity(g)}
+              className={`px-2.5 text-[10px] font-bold rounded-md transition-all ${granularity === g ? 'bg-white text-primary shadow-sm border border-primary/20' : 'text-text-secondary hover:text-text'}`}
+            >
+              {g === 'day' ? t('an_daily') : g === 'week' ? t('fin_weekly_lbl') : t('fin_monthly_lbl')}
+            </button>
+          ))}
+        </div>
+        <div className="h-5 w-px bg-border mx-1 hidden md:block" />
+        <select value={clientId} onChange={e => setClientId(e.target.value)} title={t('rp_filter_client')} className="input !py-1.5 !text-xs h-8 w-40 bg-surface/60 shrink-0">
           <option value="all">{t('rp_filter_client')}</option>
           {clients.slice(0, 300).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        <select value={truckId} onChange={e => setTruckId(e.target.value)} title={t('rp_filter_truck')} className="input !py-2 text-sm bg-surface/60">
+        <select value={truckId} onChange={e => setTruckId(e.target.value)} title={t('rp_filter_truck')} className="input !py-1.5 !text-xs h-8 w-36 bg-surface/60 shrink-0">
           <option value="all">{t('rp_filter_truck')}</option>
           {trucks.slice(0, 200).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        <select value={driverId} onChange={e => setDriverId(e.target.value)} title={t('rp_filter_driver')} className="input !py-2 text-sm bg-surface/60">
+        <select value={driverId} onChange={e => setDriverId(e.target.value)} title={t('rp_filter_driver')} className="input !py-1.5 !text-xs h-8 w-36 bg-surface/60 shrink-0">
           <option value="all">{t('rp_filter_driver')}</option>
           {drivers.slice(0, 200).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
+        <div className="flex-1" />
+        <button
+          onClick={() => activeKey && doExport(activeKey, currentFilters(), 'xlsx')}
+          disabled={!activeKey || !!exporting}
+          title={t('rp_export_xlsx')}
+          className="btn-secondary !px-2.5 !py-1.5 text-xs shrink-0 disabled:opacity-40"
+        >
+          {exporting === (activeKey || '') + '-xlsx' ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+          <span className="hidden xl:inline ml-1.5">{t('rp_export_xlsx')}</span>
+        </button>
+        <button
+          onClick={() => activeKey && runPreview(activeKey)}
+          title={t('rp_generate', 'Generează Raport')}
+          className="btn-primary !px-3 !py-1.5 text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-md shadow-primary/20"
+        >
+          <Play className="w-3.5 h-3.5" /> {t('rp_generate', 'Generează Raport')}
+        </button>
       </div>
 
-      <div className="flex gap-2 bg-surface/60 p-1 rounded-2xl border border-border/60 w-fit">
+      <div className="card grid grid-cols-2 sm:grid-cols-4 gap-0.5 p-0.5 rounded-xl border border-border/60 w-fit">
         {TABS.map(tb => (
           <button
             key={tb.key}
             onClick={() => setTab(tb.key)}
-            className={`px-4 py-2 text-sm font-bold rounded-xl flex items-center gap-2 transition-all ${tab === tb.key ? 'bg-white text-primary shadow-sm' : 'text-text-secondary hover:text-text'}`}
+            className={`px-3 py-1 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1 transition-all whitespace-nowrap ${tab === tb.key ? 'bg-white text-primary shadow-sm border border-primary/20' : 'text-text-secondary hover:text-text'}`}
           >
-            <tb.icon className="w-4 h-4" />
-            {tb.label}
-            {tb.count !== undefined && <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-surface-hover text-text-secondary">{tb.count}</span>}
+            <tb.icon className="w-3 h-3" />
+            <span>{tb.label}</span>
+            {tb.count !== undefined && <span className="text-[9px] font-black px-1 py-px rounded bg-surface-hover text-text-secondary">{tb.count}</span>}
           </button>
         ))}
       </div>
 
       {tab === 'reports' && (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6">
+          <div className="shrink-0">
             {catLoading ? (
-              <div className="flex items-center justify-center p-10"><LoaderCircle className="w-8 h-8 text-primary animate-spin" /></div>
+              <div className="flex items-center justify-center p-10"><LoaderCircle className="w-6 h-6 text-primary animate-spin" /></div>
             ) : catalog.length === 0 ? (
               <EmptyState icon={FileText} title={t('rp_no_reports')} message={t('rp_no_reports_msg')} />
             ) : (
-              grouped.map(g => (
-                <div key={g.section}>
-                  <h3 className="text-xs font-black uppercase tracking-wider text-text-secondary mb-2 px-1">{t(SECTION_LABELS[g.section] || 'operations')}</h3>
-                  <div className="space-y-2">
+              <div className="card !p-2 space-y-1">
+                {grouped.map(g => (
+                  <div key={g.section}>
+                    <div className="text-[9px] font-black uppercase tracking-wider text-text-secondary px-2 py-1.5">{t(SECTION_LABELS[g.section] || 'operations')}</div>
                     {g.items.map((c: any) => (
                       <button
                         key={c.key}
                         onClick={() => runPreview(c.key)}
-                        className={`w-full text-left card !p-3.5 group transition-all ${activeKey === c.key ? 'border-primary/60 ring-2 ring-primary/20' : ''}`}
+                        title={c.description}
+                        className={`w-full flex items-center gap-2 px-2 py-[7px] rounded-lg text-left transition-all group ${activeKey === c.key ? 'bg-primary/10 border border-primary/30' : 'border border-transparent hover:bg-surface'}`}
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-bold text-text group-hover:text-primary transition-colors flex items-center gap-2">
-                            <FileSpreadsheet className="w-4 h-4 text-primary" /> {c.name}
-                          </span>
-                          <Eye className="w-4 h-4 text-text-secondary opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                        <p className="text-xs text-text-secondary mt-1.5 leading-relaxed">{c.description}</p>
+                        <FileSpreadsheet className="w-4 h-4 text-primary shrink-0" />
+                        <span className={`text-[12px] font-bold truncate flex-1 ${activeKey === c.key ? 'text-primary' : 'text-text'}`}>{c.name}</span>
+                        {activeKey === c.key && <Eye className="w-3.5 h-3.5 text-primary shrink-0" />}
                       </button>
                     ))}
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
 
-          <div className="lg:col-span-3">
+          <div>
             {!activeKey ? (
               <div className="card !p-10 h-full flex items-center justify-center">
                 <EmptyState icon={FolderOpen} title={t('rp_select_report')} message={t('rp_select_report_msg')} />
@@ -356,27 +402,31 @@ export default function ReportsPage() {
               </div>
             ) : payload ? (
               <div className="space-y-4">
-                <div className="card !p-5">
+                <div className="card !px-4 !py-3">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-black text-text">{payload.reportName}</h2>
-                      <p className="text-xs text-text-secondary mt-0.5">
+                    <div className="min-w-0">
+                      <h2 className="text-[15px] font-black text-text truncate">{payload.reportName}</h2>
+                      <p className="text-[11px] text-text-secondary mt-0.5">
                         {fmtDate(payload.period?.from)} → {fmtDate(payload.period?.to)}
                       </p>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => doExport(payload.reportKey, currentFilters(), 'xlsx')} disabled={!!exporting} className="btn-primary !px-3 !py-2 text-xs">
-                        {exporting === payload.reportKey + '-xlsx' ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4 mr-1.5" />}
-                        {t('rp_export_xlsx')}
+                    <div className="flex gap-1.5 items-center">
+                      <button onClick={() => window.print()} title={t('rp_print', 'Print')} className="btn-secondary !px-2.5 !py-1.5 text-xs" disabled={!!exporting}>
+                        <Printer className="w-4 h-4" />
                       </button>
-                      <button onClick={() => doExport(payload.reportKey, currentFilters(), 'pdf')} disabled={!!exporting} className="btn-secondary !px-3 !py-2 text-xs">
+                      <button onClick={() => doExport(payload.reportKey, currentFilters(), 'pdf')} disabled={!!exporting} className="btn-secondary !px-3 !py-1.5 text-xs">
                         {exporting === payload.reportKey + '-pdf' ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4 mr-1.5" />}
                         {t('rp_export_pdf')}
                       </button>
-                      <button onClick={saveCurrent} title={t('rp_save_config')} className="btn-secondary !px-3 !py-2 text-xs">
+                      <button onClick={() => doExport(payload.reportKey, currentFilters(), 'xlsx')} disabled={!!exporting} className="btn-primary !px-3 !py-1.5 text-xs">
+                        {exporting === payload.reportKey + '-xlsx' ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4 mr-1.5" />}
+                        {t('rp_export_xlsx')}
+                      </button>
+                      <div className="h-5 w-px bg-border mx-1" />
+                      <button onClick={saveCurrent} title={t('rp_save_config')} className="btn-secondary !px-2.5 !py-1.5 text-xs">
                         <Save className="w-4 h-4" />
                       </button>
-                      <button onClick={createSchedule} title={t('rp_schedule')} className="btn-secondary !px-3 !py-2 text-xs">
+                      <button onClick={createSchedule} title={t('rp_schedule')} className="btn-secondary !px-2.5 !py-1.5 text-xs">
                         <CalendarClock className="w-4 h-4" />
                       </button>
                     </div>

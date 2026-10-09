@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshCw, Download, Filter, Search } from 'lucide-react';
+import { Search, FileText, Calculator, Wallet, Banknote, Coins, Landmark, Users } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 
@@ -8,7 +8,10 @@ import CustomSelect from '../components/CustomSelect';
 import { generatePayrollPdfBase64 } from '../lib/payrollPdfGenerator';
 import { matchesSearch } from '../lib/search';
 import Pagination from '../components/Pagination';
-import { useSaveConfirm } from '../components/SaveConfirmProvider';
+import KpiStrip from '../components/ui/KpiStrip';
+import DataTable from '../components/ui/DataTable';
+import { fmtMoney, fmtNumber } from '../lib/format';
+
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 export default function PayrollPage() {
 
@@ -87,108 +90,117 @@ export default function PayrollPage() {
     }
   };
   const filtered = payrolls.filter(p => matchesSearch(search, p.user?.name));
-  return <div className="space-y-5 animate-fade-in">
-      <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
-        <div className="p-4 border-b border-border flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
-          <div className="flex items-center gap-3 w-full xl:w-auto">
-            <div className="relative flex-1 xl:w-80">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-              <input className="input pl-9 py-2 text-sm w-full" placeholder={t('searchEmployee')} value={search} onChange={e => setSearch(e.target.value)} />
-            </div>
-            <span className="text-xs font-bold text-text-secondary uppercase bg-surface px-3 py-2 rounded-lg shrink-0 border border-border/50">
-              {filtered.length} {t('records')}
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-2 w-full xl:w-auto overflow-x-auto pb-1 xl:pb-0 scrollbar-hide">
-            <div className="flex items-center gap-2 bg-surface/50 border border-border rounded-xl p-1.5 shrink-0">
-              <div className="flex items-center gap-1.5 px-2">
-                <Filter className="w-4 h-4 text-text-secondary" />
-                <span className="text-sm font-semibold text-text-secondary">{t("jsx_luna")}</span>
-              </div>
-              <CustomSelect className="w-28 text-sm font-semibold shadow-sm" value={String(selectedMonth)} onChange={val => setSelectedMonth(Number(val))} options={MONTHS.map((m, i) => ({
-              value: String(i + 1),
-              label: m
-            }))} />
-              <CustomSelect className="w-24 text-sm font-semibold shadow-sm" value={String(selectedYear)} onChange={val => setSelectedYear(Number(val))} options={[2024, 2025, 2026, 2027].map(y => ({
-              value: String(y),
-              label: String(y)
-            }))} />
-            </div>
 
-            <button onClick={handleGenerate} className="btn-primary py-2 px-4 text-sm font-bold flex items-center gap-2 shrink-0 shadow-md shadow-primary/20">
-              <RefreshCw className="w-4 h-4" /> {t('generatePayroll')}
-            </button>
-          </div>
+  const totalNet = payrolls.reduce((s: number, p: any) => s + Number(p.totalNetToPay || 0), 0);
+  const totalBrut = payrolls.reduce((s: number, p: any) => s + Number(p.grossSalary || 0), 0);
+  const totalDiurne = payrolls.reduce((s: number, p: any) => s + Number(p.totalAllowance || 0), 0);
+  const totalTaxe = payrolls.reduce((s: number, p: any) => s + Number(p.taxAmount || 0), 0);
+
+  const statusOptions = [
+    { value: 'draft', label: 'Draft', color: '#94A3B8' },
+    { value: 'paid', label: 'Plătit', color: '#10B981' },
+    { value: 'sent', label: 'Trimis', color: '#6366F1' },
+  ];
+
+  const paged = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  return <div className="space-y-5 animate-fade-in">
+      <KpiStrip items={[
+        { key: 'net', label: t('payroll_totalNet'), value: fmtMoney(totalNet), icon: Wallet, color: 'text-success' },
+        { key: 'brut', label: t('payroll_gross'), value: fmtMoney(totalBrut), icon: Banknote },
+        { key: 'diurne', label: 'Total Diurne', value: fmtMoney(totalDiurne), icon: Coins },
+        { key: 'taxe', label: t('payroll_tax'), value: fmtMoney(totalTaxe), icon: Landmark },
+        { key: 'angajati', label: 'Angajați', value: fmtNumber(payrolls.length), icon: Users },
+      ]} dense />
+
+      <div className="card flex items-center gap-2 px-3 py-2 flex-wrap">
+        <div className="relative flex-1 min-w-[180px] max-w-[240px] shrink-0">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
+          <input className="input !pl-8 !py-1.5 !text-xs h-8 w-full" placeholder={t('searchEmployee')} value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-surface border-b border-border">
-                <th className="table-header">{t('employee')}</th>
-                <th className="table-header">{t('payroll_gross')}</th>
-                <th className="table-header">{t('payroll_tax')}</th>
-                <th className="table-header">{t('payroll_net')}</th>
-                <th className="table-header">{t('daysWorked')}</th>
-                <th className="table-header">{t('payroll_allowance')}</th>
-                <th className="table-header">{t('bonuses')} / {t('deductions')}</th>
-                <th className="table-header">{t('payroll_totalNet')}</th>
-                <th className="table-header">{t('status')}</th>
-                <th className="table-header">{t('actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? <tr><td colSpan={10} className="text-center py-8 text-text-secondary">{t('loading')}</td></tr> : filtered.length === 0 ? <tr><td colSpan={10} className="text-center py-8 text-text-secondary">{t('noPayrollData')}</td></tr> : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(p => <tr key={p.id} className="hover:bg-surface/60 transition-colors border-b border-border/50 last:border-0">
-                  <td className="table-cell font-bold text-text">
-                    {p.user?.name || '-'}
-                    <div className="text-[10px] font-normal text-text-secondary mt-0.5">{t('payroll_holiday')}: €{Number(p.holidayAllowance).toFixed(2)}</div>
-                  </td>
-                  <td className="table-cell font-semibold text-right">€{Number(p.grossSalary).toFixed(2)}</td>
-                  <td className="table-cell text-error font-medium text-right">-€{Number(p.taxAmount).toFixed(2)}</td>
-                  <td className="table-cell text-success font-semibold text-right">€{Number(p.netSalary).toFixed(2)}</td>
-                  <td className="table-cell font-medium text-text-secondary text-center">
-                    <span className="bg-surface px-2 py-1 rounded-md border border-border">{p.daysWorked} {t('days')}</span>
-                    <div className="text-[10px] text-text-secondary mt-1">@ €{Number(p.dailyAllowance).toFixed(2)}/{t('day')}</div>
-                  </td>
-                  <td className="table-cell font-bold text-primary text-right">€{Number(p.totalAllowance).toFixed(2)}</td>
-                  <td className="table-cell min-w-[120px] text-right">
-                    <div className="flex flex-col gap-1.5 items-end">
-<input type="number" className="input py-1 px-2 text-xs border-success/30 focus:border-success focus:ring-success/20 bg-success/5 w-24 text-right" placeholder={t('bonuses')} defaultValue={p.bonuses || ''} onBlur={e => handleUpdate(p.id, 'bonuses', Number(e.target.value) || 0)} />
-                       <input type="number" className="input py-1 px-2 text-xs border-error/30 focus:border-error focus:ring-error/20 bg-error/5 w-24 text-right" placeholder={t('deductions')} defaultValue={p.deductions || ''} onBlur={e => handleUpdate(p.id, 'deductions', Number(e.target.value) || 0)} />
-                    </div>
-                  </td>
-                  <td className="table-cell text-right">
-                    <div className="bg-success/10 inline-block text-success border border-success/20 px-3 py-1.5 rounded-lg font-bold text-base whitespace-nowrap">
-                      €{Number(p.totalNetToPay).toFixed(2)}
-                    </div>
-                  </td>
-                  <td className="table-cell">
-                    <CustomSelect className="w-28 text-xs" value={p.status} onChange={val => handleUpdate(p.id, 'status', val)} options={[{
-                  value: 'draft',
-                  label: 'Draft',
-                  color: 'text-text-secondary'
-                }, {
-                  value: 'paid',
-                  label: 'Plătit',
-                  color: 'text-success'
-                }, {
-                  value: 'sent',
-                  label: 'Trimis',
-                  color: 'text-primary'
-                }]} />
-                  </td>
-                  <td className="table-cell">
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => handleDownloadPdf(p)} className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary-light rounded transition-colors" title="Descarcă Fluturaș">
-                        <Download className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>)}
-            </tbody>
-          </table>
+
+        <div className="flex items-center gap-1 bg-surface/60 border border-border rounded-lg px-1.5 py-1 shrink-0">
+          <span className="text-[10px] font-bold uppercase text-text-secondary px-1">{t("jsx_luna")}</span>
+          <CustomSelect size="sm" className="w-24" value={String(selectedMonth)} onChange={val => setSelectedMonth(Number(val))} options={MONTHS.map((m, i) => ({
+            value: String(i + 1),
+            label: m
+          }))} />
+          <CustomSelect size="sm" className="w-20" value={String(selectedYear)} onChange={val => setSelectedYear(Number(val))} options={[2024, 2025, 2026, 2027].map(y => ({
+            value: String(y),
+            label: String(y)
+          }))} />
         </div>
+
+        <span className="hidden xl:inline-flex text-[10px] font-bold text-text-secondary uppercase bg-surface px-2 py-1.5 rounded-lg border border-border/50 shrink-0">
+          {filtered.length} {t('records')}
+        </span>
+
+        <div className="flex-1" />
+
+        <button onClick={handleGenerate} className="btn-primary !py-1.5 !px-3 text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-md shadow-primary/20">
+          <Calculator className="w-4 h-4" /> {t('generatePayroll')}
+        </button>
+      </div>
+
+      <div className="card !p-0 overflow-hidden">
+        <DataTable
+          dense
+          minWidth="1040px"
+          loading={loading}
+          rowKey={(p: any) => p.id}
+          data={paged}
+          emptyState={payrolls.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-14 px-6 text-center">
+              <div className="w-14 h-14 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mb-4">
+                <Calculator className="w-7 h-7" />
+              </div>
+              <h3 className="text-[15px] font-black text-text mb-1.5">{t('noPayrollData')}</h3>
+              <p className="text-xs text-text-secondary leading-relaxed mb-5">{MONTHS[selectedMonth - 1]} {selectedYear}</p>
+              <button onClick={handleGenerate} className="btn-primary !px-4 !py-2 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-primary/20">
+                <Calculator className="w-4 h-4" /> {t('generatePayroll')}
+              </button>
+            </div>
+          ) : (
+            <div className="p-12 text-center text-sm text-text-secondary">{t('noResults')}</div>
+          )}
+          columns={[
+            { key: 'employee', label: t('employee'), align: 'left', render: (p: any) => (
+              <div>
+                <p className="font-bold text-[13px] text-text truncate">{p.user?.name || '-'}</p>
+                <p className="text-[10px] font-normal text-text-secondary mt-0.5">{t('payroll_holiday')}: {fmtMoney(p.holidayAllowance)}</p>
+              </div>
+            ) },
+            { key: 'gross', label: 'SALARIU BAZĂ', align: 'right', render: (p: any) => (
+              <div>
+                <p className="font-semibold text-[12.5px] text-text">{fmtMoney(p.grossSalary)}</p>
+                <p className="text-[10px] text-text-secondary mt-0.5">Taxe: <span className="text-error">-{fmtMoney(p.taxAmount)}</span> • Net bază: <span className="text-success">{fmtMoney(p.netSalary)}</span></p>
+              </div>
+            ) },
+            { key: 'days', label: 'ZILE & DIURNĂ', align: 'right', render: (p: any) => (
+              <div>
+                <p className="font-semibold text-[12.5px] text-text">{p.daysWorked} {t('days')} <span className="text-[10px] text-text-secondary">@ {fmtMoney(p.dailyAllowance)}/{t('day')}</span></p>
+                <p className="text-[10px] font-semibold text-primary mt-0.5">Diurnă: {fmtMoney(p.totalAllowance)}</p>
+              </div>
+            ) },
+            { key: 'adjust', label: 'AJUSTĂRI', align: 'right', render: (p: any) => (
+              <div className="flex items-center justify-end gap-1.5">
+                <input type="number" className="input !w-[70px] !py-1 !px-2 !text-xs text-right border-success/30 focus:border-success focus:ring-success/20 bg-success/5" placeholder="+bonus" defaultValue={p.bonuses || ''} title={t('bonuses')} onBlur={e => handleUpdate(p.id, 'bonuses', Number(e.target.value) || 0)} />
+                <input type="number" className="input !w-[70px] !py-1 !px-2 !text-xs text-right border-error/30 focus:border-error focus:ring-error/20 bg-error/5" placeholder="-reținere" defaultValue={p.deductions || ''} title={t('deductions')} onBlur={e => handleUpdate(p.id, 'deductions', Number(e.target.value) || 0)} />
+              </div>
+            ) },
+            { key: 'totalNet', label: 'TOTAL NET DE PLATĂ', align: 'right', render: (p: any) => (
+              <span className="inline-block font-black text-[14px] text-success whitespace-nowrap">{fmtMoney(p.totalNetToPay)}</span>
+            ) },
+            { key: 'actions', label: t('status') + ' & ' + t('actions'), align: 'right', sticky: 'right', width: '150px', render: (p: any) => (
+              <div className="flex items-center justify-end gap-1">
+                <CustomSelect size="sm" className="w-24" value={p.status} onChange={val => handleUpdate(p.id, 'status', val)} options={statusOptions} />
+                <button onClick={() => handleDownloadPdf(p)} className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary-light rounded-md transition-colors" title="Descarcă Fluturaș">
+                  <FileText className="w-4 h-4" />
+                </button>
+              </div>
+            ) },
+          ]}
+        />
         <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </div>
     </div>;
