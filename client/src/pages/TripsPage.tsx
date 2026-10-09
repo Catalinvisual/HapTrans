@@ -272,15 +272,15 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
       const created = tr.createdAt && !isNaN(new Date(tr.createdAt).getTime()) ? new Date(tr.createdAt).toLocaleDateString() : '—';
       const orders = tr.orders || [];
       return (
-        <div className="leading-tight">
-          <div className="flex items-center gap-1 min-w-0">
-            <span className="font-bold text-primary text-[12px] truncate">{tr.tripNumber || tr.id.slice(0, 8)}</span>
-            {orders[0] && <span className="text-[9px] bg-primary/10 text-primary font-bold px-1 py-px rounded shrink-0">{orders[0].orderNumber || orders[0].referenceNumber}</span>}
-            {orders.length > 1 && <span className="text-[9px] text-text-muted shrink-0">+{orders.length - 1}</span>}
-          </div>
-          <div className="text-[10px] text-text-secondary flex items-center gap-1 mt-0.5">
-            <Calendar className="w-2.5 h-2.5" />{created}
-          </div>
+        <div className="leading-[1.15]">
+          <div className="font-bold text-primary text-[11.5px] truncate">{tr.tripNumber || tr.id.slice(0, 8)}</div>
+          {orders[0] && (
+            <div className="text-[9.5px] font-bold text-primary/80 truncate">
+              {orders[0].orderNumber || orders[0].referenceNumber}
+              {orders.length > 1 && <span className="text-text-muted font-semibold"> +{orders.length - 1}</span>}
+            </div>
+          )}
+          <div className="text-[9.5px] text-text-secondary truncate">{created}</div>
         </div>
       );
     } },
