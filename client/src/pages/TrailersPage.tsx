@@ -179,43 +179,64 @@ export default function TrailersPage() {
       key: "plateNumber",
       label: t("plateNumber", "Nr. Înmatriculare"),
       sortable: true,
+      width: "200px",
       render: (r) => (
-        <div className="flex items-center gap-2.5">
-          <span className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center text-primary">
-            {(() => { const I = TYPE_ICONS[r.type] || TrailerIcon; return <I className="w-4 h-4" />; })()}
+        <div className="flex items-center gap-2">
+          <span className="w-7 h-7 rounded-lg bg-surface flex items-center justify-center text-primary shrink-0">
+            {(() => { const I = TYPE_ICONS[r.type] || TrailerIcon; return <I className="w-3.5 h-3.5" />; })()}
           </span>
-          <span className="font-bold">{r.plateNumber}</span>
+          <div className="leading-tight min-w-0">
+            <div className="font-bold text-[13px] text-text-primary truncate">{r.plateNumber}</div>
+            <div className="text-[11px] text-text-secondary truncate">{typeLabel(r, t)}</div>
+          </div>
         </div>
       ),
     },
-    { key: "type", label: t("type", "Tip"), sortable: true, render: (r) => typeLabel(r, t) },
-    { key: "brand", label: t("brand", "Brand"), sortable: true, render: (r) => r.brand || "—" },
-    { key: "year", label: t("year", "An"), sortable: true, render: (r) => r.year || "—" },
-    { key: "pallets", label: t("maxPallets", "Paleți"), sortable: true, render: (r) => r.payloadCapacityPallets || "—", align: "right" },
-    { key: "cbm", label: t("maxVolumeCbm", "Volum m³"), sortable: true, render: (r) => (r.maxVolumeCbm ? Number(r.maxVolumeCbm) + " m³" : "—"), align: "right" },
+    {
+      key: "brand", label: t("brand_year", "Marcă (An)"), sortable: true,
+      render: (r) => (
+        <div className="text-xs whitespace-nowrap">
+          <span className="font-semibold text-text-primary">{r.brand || "—"}</span>
+          {r.year ? <span className="text-text-secondary"> ({r.year})</span> : null}
+        </div>
+      ),
+    },
+    {
+      key: "capacity", label: t("capacity", "Capacitate"), align: "right", width: "160px",
+      render: (r) => {
+        const pallets = Number(r.payloadCapacityPallets || 0);
+        const cbm = Number(r.maxVolumeCbm || 0);
+        return (
+          <div className="text-[12px] whitespace-nowrap text-right">
+            <span className="inline-flex items-center gap-1 font-bold text-text-primary"><Boxes className="w-3 h-3 text-text-muted" />{pallets ? `${pallets} plt` : "—"}</span>
+            <span className="text-text-secondary mx-1">•</span>
+            <span className="inline-flex items-center gap-1 font-semibold text-text-primary"><Box className="w-3 h-3 text-text-muted" />{cbm ? `${cbm} m³` : "—"}</span>
+          </div>
+        );
+      },
+    },
     {
       key: "service",
       label: t("next_service", "Următoarea revizie"),
+      width: "175px",
       render: (r) => {
         if (!r.apkExpiry) return <span className="text-xs text-text-muted">—</span>;
         const daysLeft = Math.ceil((new Date(r.apkExpiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
         const barColor = daysLeft <= 0 || daysLeft < 15 ? 'bg-red-500 animate-pulse' : daysLeft < 30 ? 'bg-amber-500' : 'bg-green-500/60';
         const pct = Math.max(0, Math.min(100, Math.round((daysLeft / 365) * 100)));
         return (
-          <div className="min-w-[110px]">
-            <div className="flex justify-between text-[10px] font-semibold mb-1">
-              <span className="text-text-secondary">{new Date(r.apkExpiry).toLocaleDateString(i18n.language || 'en-GB')}</span>
-              {daysLeft <= 0 ? (
-                <span className="text-red-500 font-bold">{t('service_overdue', 'Overdue')}</span>
-              ) : (
-                <span className={daysLeft < 15 ? 'text-red-500 font-bold' : daysLeft < 30 ? 'text-amber-600 font-semibold' : 'text-green-600 font-semibold'}>
-                  {daysLeft}d
-                </span>
-              )}
-            </div>
-            <div className="w-full bg-surface h-1.5 rounded-full overflow-hidden">
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <div className="w-8 bg-surface h-[3px] rounded-full overflow-hidden shrink-0">
               <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct || 100}%` }} />
             </div>
+            <span className="text-[11px] font-semibold text-text-secondary">{new Date(r.apkExpiry).toLocaleDateString(i18n.language || 'en-GB')}</span>
+            {daysLeft <= 0 ? (
+              <span className="text-red-500 font-bold text-[11px]">{t('service_overdue', 'Overdue')}</span>
+            ) : (
+              <span className={daysLeft < 15 ? 'text-red-500 font-bold text-[11px]' : daysLeft < 30 ? 'text-amber-600 font-semibold text-[11px]' : 'text-green-600 font-semibold text-[11px]'}>
+                [{daysLeft}d]
+              </span>
+            )}
           </div>
         );
       }
@@ -231,17 +252,17 @@ export default function TrailersPage() {
       },
     },
     {
-      key: "actions", label: t("actions", "Acțiuni"), align: "right",
+      key: "actions", label: t("actions", "Acțiuni"), align: "right", sticky: "right", width: "110px",
       render: (tr) => (
-        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
           <button onClick={async (e) => {
              e.stopPropagation();
              try { await generateTrailerPdf(tr, company); } catch (err) { toast.error(t('error_pdf', 'Eroare generare PDF')); }
-          }} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('pdf', 'Download PDF')}>
-            <FileText className="w-3.5 h-3.5" />
+          }} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('pdf', 'Download PDF')}>
+            <FileText className="w-3 h-3" />
           </button>
-          <button onClick={() => openEdit(tr)} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t("edit", "Editează")}><Pencil className="w-3.5 h-3.5" /></button>
-          <button onClick={() => setDeleteId(tr.id)} className="p-1.5 text-text-secondary hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors" title={t("delete", "Șterge")}><Trash2 className="w-3.5 h-3.5" /></button>
+          <button onClick={() => openEdit(tr)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t("edit", "Editează")}><Pencil className="w-3 h-3" /></button>
+          <button onClick={() => setDeleteId(tr.id)} className="p-1 text-text-secondary hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors" title={t("delete", "Șterge")}><Trash2 className="w-3 h-3" /></button>
         </div>
       ),
     },
@@ -306,34 +327,35 @@ export default function TrailersPage() {
   return (
     <div className="space-y-4 animate-fade-in max-w-[1600px] mx-auto pb-10">
       <KpiStrip
+        dense
         items={[
           { key: "total", label: t("total", "Total"), value: total, icon: TrailerIcon },
-          { key: "active", label: t("active", "Active"), value: active, icon: CheckCircle2, color: "text-green-500" },
+          { key: "active", label: t("active", "Activ"), value: active, icon: CheckCircle2, color: "text-green-500" },
           { key: "maintenance", label: t("maintenance", "Mentenanță"), value: maintenance, icon: Wrench, color: "text-amber-500" },
-          { key: "pallets", label: t("maxPallets", "Paleți total"), value: totalPallets, icon: Boxes, color: "text-blue-500" },
-          { key: "cbm", label: t("maxVolumeCbm", "Volum total m³"), value: totalCbm, icon: Box, color: "text-purple-500" },
+          { key: "pallets", label: t("maxPallets", "Capacitate plt"), value: totalPallets, icon: Boxes, color: "text-blue-500" },
+          { key: "cbm", label: t("maxVolumeCbm", "Volum m³"), value: totalCbm, icon: Box, color: "text-purple-500" },
         ]}
       />
 
       <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-3 border-b border-border flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2 flex-1 min-w-[300px]">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-              <input className="input pl-9 py-2 text-sm w-full" placeholder={t("search", "Caută...")} value={search} onChange={(e) => setSearch(e.target.value)} />
+        <div className="px-2.5 py-2 border-b border-border flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-1 min-w-[260px]">
+            <div className="relative w-[200px] shrink-0">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
+              <input className="input pl-8 pr-3 py-1.5 text-xs w-full" placeholder={t("search", "Caută...")} value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <CustomSelect className="w-40" value={filters.status} onChange={(v) => setFilters((f) => ({ ...f, status: v }))} options={[{ value: "all", label: t("allStatuses", "Toate statusurile") }, ...TRAILER_STATUSES]} />
-            <CustomSelect className="w-44" value={filters.type} onChange={(v) => setFilters((f) => ({ ...f, type: v }))} options={[{ value: "all", label: t("allTypes", "Toate tipurile") }, ...TRAILER_TYPES.map((o) => ({ value: o.value, label: t(o.label) || o.default }))]} />
+            <div className="w-[130px] shrink-0"><CustomSelect size="sm" title={t("status", "Status")} value={filters.status} onChange={(v) => setFilters((f) => ({ ...f, status: v }))} options={[{ value: "all", label: t("status", "Status") }, ...TRAILER_STATUSES.map((o) => ({ ...o, label: t(o.label as string) as string }))]} /></div>
+            <div className="w-[140px] shrink-0"><CustomSelect size="sm" title={t("type", "Tip")} value={filters.type} onChange={(v) => setFilters((f) => ({ ...f, type: v }))} options={[{ value: "all", label: t("type", "Tip") }, ...TRAILER_TYPES.map((o) => ({ value: o.value, label: t(o.label) || o.default }))]} /></div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-3 py-1.5 rounded-lg border border-border whitespace-nowrap">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[11px] font-semibold text-text-secondary whitespace-nowrap">
               {filtered.length} {t("results", "results")}
             </span>
-            <button onClick={() => setShowExport(true)} className="btn-secondary py-2 px-3 flex items-center gap-2 text-sm font-semibold whitespace-nowrap">
-              <Download className="w-4 h-4" /> <span className="hidden sm:inline">{t("export", "Export")}</span>
+            <button onClick={() => setShowExport(true)} className="btn-secondary py-1.5 px-2 flex items-center text-xs font-semibold" title={t("export", "Export")}>
+              <Download className="w-3.5 h-3.5" />
             </button>
-            <button onClick={() => { setForm(initialForm); setShowForm(true); setEditId(null); }} className="btn-primary py-2 px-3 flex items-center gap-2 text-sm font-semibold whitespace-nowrap shadow-md shadow-primary/20">
-              <Plus className="w-4 h-4" /> {t("addTrailer", "Adaugă Remorcă")}
+            <button onClick={() => { setForm(initialForm); setShowForm(true); setEditId(null); }} className="btn-primary py-1.5 px-2.5 flex items-center gap-1.5 text-xs font-semibold whitespace-nowrap shadow-md shadow-primary/20">
+              <Plus className="w-3.5 h-3.5" /> {t("addTrailer", "Adaugă Remorcă")}
             </button>
           </div>
         </div>
@@ -347,6 +369,8 @@ export default function TrailersPage() {
           selected={selected}
           loading={loading}
           onSelectionChange={setSelected}
+          dense
+          minWidth="980px"
           emptyState={<div className="text-center py-10 text-text-secondary">{t("noTrailers", "Nicio remorcă găsită")}</div>}
         />
       </div>

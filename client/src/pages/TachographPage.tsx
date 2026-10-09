@@ -1,21 +1,37 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Timer,
-  Activity,
-  Clock,
   Search,
   RefreshCw,
-  Truck,
-  User,
   Coffee,
-  ShieldAlert,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { fmtNumber } from '../lib/format';
 import { matchesSearch } from '../lib/search';
 import CustomSelect, { type SelectOption } from '../components/CustomSelect';
+import DataTable from '../components/ui/DataTable';
+import type { Column } from '../components/ui/DataTable';
+
+const MAX_DAILY_DRIVE = 9 * 3600;
+const MAX_WEEKLY_DRIVE = 56 * 3600;
+const MIN_DAILY_REST = 11 * 3600;
+
+function MicroMetric({ label, value, pct, barColor, hint }: { label: string; value: string; pct: number; barColor: string; hint?: string }) {
+  return (
+    <div title={hint} className="min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-wide text-text-secondary truncate">{label}</span>
+        <span className="text-[11px] font-black text-text-primary whitespace-nowrap">{value}</span>
+      </div>
+      <div className="mt-1 w-full bg-surface h-[3px] rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${Math.max(2, Math.min(100, pct))}%` }} />
+      </div>
+    </div>
+  );
+}
 
 export default function TachographPage() {
   const { t } = useTranslation();
@@ -23,6 +39,7 @@ export default function TachographPage() {
   const [tachographList, setTachographList] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [activityFilter, setActivityFilter] = useState('ALL');
+  const [view, setView] = useState<'cards' | 'table'>('cards');
 
   const loadData = async () => {
     try {
@@ -75,14 +92,14 @@ export default function TachographPage() {
       UNLOADING: t('act_unloading', 'Unloading'),
     };
     return (
-      <span className={`px-2.5 py-1 rounded-lg text-xs font-black tracking-wide uppercase border ${colors[act] || 'bg-slate-50 text-slate-700 border-slate-200'}`}>
+      <span className={`px-2 py-0.5 rounded text-[10px] font-black tracking-wide uppercase border ${colors[act] || 'bg-slate-50 text-slate-700 border-slate-200'}`}>
         {actLabelMap[act] || act}
       </span>
     );
   };
 
   const activityOptions: SelectOption[] = [
-    { value: 'ALL', label: t('filter_all_activities', 'All Activities') },
+    { value: 'ALL', label: t('filter_all_activities', 'Toate Activitățile') },
     { value: 'DRIVING', label: t('act_driving', 'Driving'), color: 'bg-emerald-500' },
     { value: 'BREAK', label: t('act_break', 'Break'), color: 'bg-amber-500' },
     { value: 'REST', label: t('act_rest', 'Rest'), color: 'bg-indigo-500' },
@@ -92,182 +109,232 @@ export default function TachographPage() {
     { value: 'AVAILABILITY', label: t('act_availability', 'Availability'), color: 'bg-slate-500' },
   ];
 
+  const metrics = (item: any) => {
+    const breakSeconds =
+      item.compliance?.breakRequiredIn ??
+      item.compliance?.breakRequiredInSeconds ??
+      item.breakRequiredIn ??
+      item.breakRequiredInSeconds ??
+      9000;
+    const breakMins = Math.round(breakSeconds / 60);
+    const drivingTodaySeconds = item.compliance?.drivingTimeToday ?? item.drivingTimeToday ?? item.drivingTimeTodaySeconds ?? 7200;
+    const weeklyDrivingSeconds = item.compliance?.weeklyDrivingTime ?? item.weeklyDrivingTime ?? item.weeklyDrivingSeconds ?? 90000;
+    const dailyRestSeconds = item.compliance?.dailyRestRemaining ?? item.dailyRestRemaining ?? item.dailyRestRemainingSeconds ?? 39600;
+
+    const driveH = drivingTodaySeconds / 3600;
+    const weekH = weeklyDrivingSeconds / 3600;
+    const restH = dailyRestSeconds / 3600;
+
+    return {
+      breakMins,
+      drivingTodaySeconds,
+      weeklyDrivingSeconds,
+      dailyRestSeconds,
+      driveColor: driveH >= 8.5 ? 'bg-red-500' : driveH >= 7 ? 'bg-amber-500' : 'bg-emerald-500',
+      drivePct: (drivingTodaySeconds / MAX_DAILY_DRIVE) * 100,
+      breakColor: breakMins <= 15 ? 'bg-red-500 animate-pulse' : breakMins <= 60 ? 'bg-amber-500' : 'bg-emerald-500',
+      breakPct: Math.min(100, (breakMins / 60) * 100),
+      weekColor: weekH >= 49 ? 'bg-red-500' : weekH >= 42 ? 'bg-amber-500' : 'bg-emerald-500',
+      weekPct: (weeklyDrivingSeconds / MAX_WEEKLY_DRIVE) * 100,
+      restColor: restH >= 11 ? 'bg-emerald-500' : restH >= 9 ? 'bg-amber-500' : 'bg-red-500',
+      restPct: Math.min(100, (dailyRestSeconds / MIN_DAILY_REST) * 100),
+    };
+  };
+
+  const columns: Column<any>[] = [
+    {
+      key: 'vehicle', label: t('vehicle', 'Vehicul'), width: '130px',
+      render: (item) => <span className="font-bold text-[13px] text-text-primary">{item.plateNumber}</span>,
+    },
+    {
+      key: 'driver', label: t('driver', 'Șofer'),
+      render: (item) => <span className="text-xs font-semibold text-text-primary">{item.driverName}</span>,
+    },
+    { key: 'status', label: t('status', 'Status'), render: (item) => getActivityBadge(item.currentActivity) },
+    {
+      key: 'today', label: t('tacho_driving_today', 'Conducere Azi'), align: 'right',
+      render: (item) => {
+        const m = metrics(item);
+        return (
+          <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+            <div className="w-10 bg-surface h-[3px] rounded-full overflow-hidden"><div className={`h-full ${m.driveColor}`} style={{ width: `${Math.min(100, m.drivePct)}%` }} /></div>
+            <span className="text-[11px] font-semibold text-text-primary">{formatHoursMins(m.drivingTodaySeconds)} / 9h</span>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'break', label: t('tacho_break_required_in', 'Pauză În'), align: 'right',
+      render: (item) => {
+        const m = metrics(item);
+        return <span className={`text-[11px] font-black whitespace-nowrap ${m.breakMins <= 15 ? 'text-red-600' : m.breakMins <= 60 ? 'text-amber-600' : 'text-slate-700'}`}>{m.breakMins > 0 ? `${m.breakMins} min` : t('act_break', 'Break')}</span>;
+      },
+    },
+    {
+      key: 'weekly', label: t('tacho_weekly_driving', 'Conducere Săpt.'), align: 'right',
+      render: (item) => {
+        const m = metrics(item);
+        return (
+          <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+            <div className="w-10 bg-surface h-[3px] rounded-full overflow-hidden"><div className={`h-full ${m.weekColor}`} style={{ width: `${Math.min(100, m.weekPct)}%` }} /></div>
+            <span className="text-[11px] font-semibold text-text-primary">{formatHoursMins(m.weeklyDrivingSeconds)} / 56h</span>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'rest', label: t('tacho_daily_rest', 'Odihnă'), align: 'right',
+      render: (item) => {
+        const m = metrics(item);
+        return (
+          <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+            <div className="w-10 bg-surface h-[3px] rounded-full overflow-hidden"><div className={`h-full ${m.restColor}`} style={{ width: `${m.restPct}%` }} /></div>
+            <span className="text-[11px] font-semibold text-text-primary">{formatHoursMins(m.dailyRestSeconds)} / 11h</span>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'eta', label: t('col_eta_km', 'ETA / KM'), align: 'right',
+      render: (item) => (
+        <div className="text-right leading-tight whitespace-nowrap">
+          {item.eta ? <div className="text-[11px] font-bold text-indigo-600">{new Date(item.eta).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div> : null}
+          <div className="text-[11px] text-text-secondary">{fmtNumber(Math.round(item.odometer || 0))} km</div>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200">
-            <Timer className="w-6 h-6" />
+    <div className="p-4 space-y-3 animate-fade-in max-w-[1600px] mx-auto pb-10">
+      {/* Single control row */}
+      <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-1 min-w-[260px]">
+          <div className="relative w-[220px] shrink-0">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder={t('search_telematics_placeholder', 'Caută placă sau șofer…')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="input pl-8 pr-3 py-1.5 text-xs w-full"
+            />
           </div>
-          <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-              {t('tachograph_monitoring_title', 'Tachograph & Driving Compliance (CE 561/2006)')}
-            </h1>
-            <p className="text-sm text-slate-500 font-medium">
-              {t('tachograph_monitoring_subtitle', 'Live monitoring of driving hours, mandatory breaks, and daily rest')}
-            </p>
+          <div className="w-[170px] shrink-0">
+            <CustomSelect size="sm" value={activityFilter} onChange={(val) => setActivityFilter(val)} options={activityOptions} />
           </div>
         </div>
 
-        <button
-          onClick={loadData}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-white border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm"
-        >
-          <RefreshCw className={`w-4 h-4 text-slate-600 ${loading ? 'animate-spin' : ''}`} />
-          {t('refresh', 'Refresh')}
-        </button>
-      </div>
-
-      {/* Filter Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm">
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder={t('search_telematics_placeholder', 'Search by plate or driver name…')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          />
-        </div>
-
-        <div className="w-full sm:w-56">
-          <CustomSelect
-            value={activityFilter}
-            onChange={(val) => setActivityFilter(val)}
-            options={activityOptions}
-          />
-        </div>
-      </div>
-
-      {/* Driver Tachograph Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filtered.map((item) => {
-          const breakSeconds =
-            item.compliance?.breakRequiredIn ??
-            item.compliance?.breakRequiredInSeconds ??
-            item.breakRequiredIn ??
-            item.breakRequiredInSeconds ??
-            9000;
-          const breakMins = Math.round(breakSeconds / 60);
-          const isBreakSoon = breakMins <= 18 && breakMins > 0;
-          const isBreakOverdue = breakMins <= 0 && item.currentActivity === 'DRIVING';
-
-          const drivingTodaySeconds =
-            item.compliance?.drivingTimeToday ??
-            item.drivingTimeToday ??
-            item.drivingTimeTodaySeconds ??
-            7200;
-
-          const weeklyDrivingSeconds =
-            item.compliance?.weeklyDrivingTime ??
-            item.weeklyDrivingTime ??
-            item.weeklyDrivingSeconds ??
-            90000;
-
-          const dailyRestSeconds =
-            item.compliance?.dailyRestRemaining ??
-            item.dailyRestRemaining ??
-            item.dailyRestRemainingSeconds ??
-            39600;
-
-          return (
-            <div
-              key={item.truckId}
-              className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow space-y-4"
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-[11px] font-semibold text-slate-500 whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
+          <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden">
+            <button
+              onClick={() => setView('cards')}
+              className={`px-2 py-1 text-[11px] font-bold flex items-center gap-1 transition-colors ${view === 'cards' ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-50'}`}
             >
-              {/* Card Header */}
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Truck className="w-4 h-4 text-slate-400" />
-                    <span className="font-black text-slate-900 text-base">{item.plateNumber}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
-                    <User className="w-3 h-3" />
-                    <span className="font-bold text-slate-700">{item.driverName}</span>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  {getActivityBadge(item.currentActivity)}
-                  <div className="text-[11px] font-black text-slate-800 mt-1">
-                    {Math.round(item.speed || 0)} km/h
-                  </div>
-                </div>
-              </div>
-
-              {/* Metrics Grid */}
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <div className="flex items-center justify-between text-slate-400 font-bold uppercase text-[10px]">
-                    <span>{t('tacho_driving_today', 'Driving Today')}</span>
-                    <Clock className="w-3 h-3 text-primary" />
-                  </div>
-                  <div className="font-black text-slate-900 text-sm mt-1">
-                    {formatHoursMins(drivingTodaySeconds)}
-                  </div>
-                  <div className="text-[10px] text-slate-400">{t('tacho_out_of_max_9h', 'of legal max 9h')}</div>
-                </div>
-
-                <div
-                  className={`p-3 rounded-xl border ${
-                    isBreakOverdue
-                      ? 'bg-rose-50 border-rose-200 text-rose-800'
-                      : isBreakSoon
-                      ? 'bg-amber-50 border-amber-200 text-amber-800'
-                      : 'bg-slate-50 border-slate-100 text-slate-900'
-                  }`}
-                >
-                  <div className="flex items-center justify-between font-bold uppercase text-[10px]">
-                    <span>{t('tacho_break_required_in', 'Mandatory Break In')}</span>
-                    <Coffee className="w-3 h-3" />
-                  </div>
-                  <div className="font-black text-sm mt-1">
-                    {breakMins > 0 ? `${breakMins} min` : t('act_break', 'Break')}
-                  </div>
-                  <div className="text-[10px] opacity-80">{t('tacho_break_duration_hint', 'Required break: 45 min')}</div>
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <div className="flex items-center justify-between text-slate-400 font-bold uppercase text-[10px]">
-                    <span>{t('tacho_weekly_driving', 'Weekly Driving')}</span>
-                    <Activity className="w-3 h-3 text-indigo-500" />
-                  </div>
-                  <div className="font-black text-slate-900 text-sm mt-1">
-                    {formatHoursMins(weeklyDrivingSeconds)}
-                  </div>
-                  <div className="text-[10px] text-slate-400">{t('tacho_out_of_max_56h', 'of legal max 56h')}</div>
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <div className="flex items-center justify-between text-slate-400 font-bold uppercase text-[10px]">
-                    <span>{t('tacho_daily_rest', 'Daily Rest')}</span>
-                    <ShieldAlert className="w-3 h-3 text-emerald-500" />
-                  </div>
-                  <div className="font-black text-slate-900 text-sm mt-1">
-                    {formatHoursMins(dailyRestSeconds)}
-                  </div>
-                  <div className="text-[10px] text-slate-400">{t('tacho_min_11h_rest', 'min 11h rest')}</div>
-                </div>
-              </div>
-
-              {/* Progress & ETA Footer */}
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                <div>
-                  Odometer: <span className="font-black text-slate-700">{fmtNumber(Math.round(item.odometer || 0))} km</span>
-                </div>
-                {item.eta && (
-                  <div>
-                    ETA: <span className="font-black text-indigo-600">{new Date(item.eta).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+              <LayoutGrid className="w-3.5 h-3.5" /> {t('tacho_view_cards', 'Carduri')}
+            </button>
+            <button
+              onClick={() => setView('table')}
+              className={`px-2 py-1 text-[11px] font-bold flex items-center gap-1 transition-colors ${view === 'table' ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+            >
+              <List className="w-3.5 h-3.5" /> {t('tacho_view_table', 'Tabel Dens')}
+            </button>
+          </div>
+          <button
+            onClick={loadData}
+            title={t('refresh', 'Refresh')}
+            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
+
+      {view === 'cards' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          {filtered.map((item) => {
+            const m = metrics(item);
+            const restLabel = t('tacho_daily_rest', 'Odihnă');
+            return (
+              <div
+                key={item.truckId}
+                className="p-3 rounded-xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow space-y-3"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                  <div className="flex items-center gap-2 min-w-0 text-[13px] font-bold text-slate-900 leading-tight">
+                    <span className="truncate">🚛 {item.plateNumber}</span>
+                    <span className="text-slate-300">•</span>
+                    <span className="truncate text-slate-700">👤 {item.driverName}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {getActivityBadge(item.currentActivity)}
+                    <span className="text-[11px] font-black text-slate-800">{Math.round(item.speed || 0)} km/h</span>
+                  </div>
+                </div>
+
+                {/* 2x2 micro-progress grid */}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+                  <MicroMetric
+                    label={t('tacho_driving_today', 'Conducere Azi')}
+                    value={`${formatHoursMins(m.drivingTodaySeconds)} / 9h`}
+                    pct={m.drivePct}
+                    barColor={m.driveColor}
+                    hint={t('tacho_driving_today_hint', 'Timp de conducere continuă/zi. Limite legale: 9h (extensibil la 10h de 2x/săptămână).')}
+                  />
+                  <MicroMetric
+                    label={t('tacho_break_required_in', 'Pauză În')}
+                    value={m.breakMins > 0 ? `${m.breakMins} min` : t('act_break', 'Break')}
+                    pct={m.breakPct}
+                    barColor={m.breakColor}
+                    hint={t('tacho_break_hint', 'Timp rămas până la pauza obligatorie de 45 min. Sub 15 min devine critic.')}
+                  />
+                  <MicroMetric
+                    label={t('tacho_weekly_driving', 'Conducere Săpt.')}
+                    value={`${formatHoursMins(m.weeklyDrivingSeconds)} / 56h`}
+                    pct={m.weekPct}
+                    barColor={m.weekColor}
+                    hint={t('tacho_weekly_hint', 'Timp total de conducere în săptămâna curentă. Limita legală: 56h.')}
+                  />
+                  <MicroMetric
+                    label={restLabel}
+                    value={`${formatHoursMins(m.dailyRestSeconds)} / 11h`}
+                    pct={m.restPct}
+                    barColor={m.restColor}
+                    hint={t('tacho_rest_hint', 'Odihnă zilnică acumulată. Minim legal: 11h (redus la 9h de 3x/săptămână).')}
+                  />
+                </div>
+
+                {/* Footer */}
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                  <div>{t('odometer', 'Odometru')}: <span className="font-bold text-slate-700">{fmtNumber(Math.round(item.odometer || 0))} km</span></div>
+                  {item.eta && (
+                    <div>ETA: <span className="font-bold text-indigo-600">{new Date(item.eta).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {!loading && filtered.length === 0 && (
+            <div className="col-span-full p-12 text-center text-sm text-slate-400 font-medium">
+              {t('no_tacho_data', 'Nicio dată tahograf disponibilă.')}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
+          <DataTable
+            columns={columns}
+            data={filtered}
+            rowKey={(item) => item.truckId}
+            minWidth="1000px"
+            dense
+            loading={loading}
+            emptyState={<div className="p-12 text-center text-sm text-slate-400 font-medium">{t('no_tacho_data', 'Nicio dată tahograf disponibilă.')}</div>}
+          />
+        </div>
+      )}
     </div>
   );
 }

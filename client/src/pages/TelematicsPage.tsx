@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
-  Radio,
   Cpu,
   Plus,
   RefreshCw,
@@ -18,10 +17,14 @@ import {
   ExternalLink,
   Wifi,
   WifiOff,
+  MapPin,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import CustomSelect, { type SelectOption } from '../components/CustomSelect';
+import KpiStrip from '../components/ui/KpiStrip';
+import DataTable from '../components/ui/DataTable';
+import type { Column } from '../components/ui/DataTable';
 import { matchesSearch } from '../lib/search';
 
 export default function TelematicsPage() {
@@ -210,6 +213,89 @@ export default function TelematicsPage() {
     { value: 'generic', label: 'Generic FMS', color: 'bg-cyan-500' },
   ];
 
+  const columns: Column<any>[] = [
+    {
+      key: 'truck', label: t('col_truck_model', 'Camion & Model'), width: '150px',
+      render: (c) => (
+        <div className="leading-tight">
+          <div className="font-bold text-[13px] text-slate-900">{c.truckPlate}</div>
+          <div className="text-[11px] text-slate-400">{c.truckBrand} {c.truckModel}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'driver', label: t('col_current_driver', 'Șofer'),
+      render: (c) => <span className="text-xs font-semibold text-slate-800">{c.driverName}</span>,
+    },
+    {
+      key: 'provider', label: t('col_provider_device', 'Provider & Device'),
+      render: (c) => (
+        <div className="leading-tight">
+          <div className="text-xs font-semibold text-slate-700 capitalize">{c.provider === 'test_simulator' ? 'Test Simulator' : c.provider}</div>
+          <div className="text-[11px] text-slate-400 font-mono">{c.providerDeviceId}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'status', label: t('col_status_tacho', 'Status & Tahograf'),
+      render: (c) => (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {getStatusBadge(c.connectionStatus)}
+          {getActivityBadge(c.currentActivity)}
+        </div>
+      ),
+    },
+    {
+      key: 'speed', label: t('col_speed_gps', 'Viteză & GPS'), align: 'right',
+      render: (c) => (
+        <div
+          className="flex items-center justify-end gap-1 whitespace-nowrap"
+          title={c.latitude != null && c.longitude != null ? `${c.latitude.toFixed(5)}, ${c.longitude.toFixed(5)}` : undefined}
+        >
+          <span className="text-xs font-black text-slate-800">{Math.round(c.speed)} km/h</span>
+          {c.latitude != null && <MapPin className="w-3.5 h-3.5 text-slate-400" />}
+        </div>
+      ),
+    },
+    {
+      key: 'break', label: t('col_break_in', 'Pauză În'), align: 'right',
+      render: (c) => {
+        const breakMins = Math.round((c.breakRequiredIn || 0) / 60);
+        const isBreakSoon = breakMins <= 18 && breakMins > 0;
+        return (
+          <span className={`font-black text-[11px] whitespace-nowrap ${isBreakSoon ? 'text-rose-600 animate-pulse' : 'text-slate-700'}`}>
+            {breakMins > 0 ? `${breakMins} min` : t('act_break', 'Break')}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'last', label: t('col_last_update', 'Ultima Actualizare'), align: 'right',
+      render: (c) => <span className="text-[11px] text-slate-500 whitespace-nowrap">{c.lastSeenAt ? new Date(c.lastSeenAt).toLocaleTimeString() : '—'}</span>,
+    },
+    {
+      key: 'actions', label: t('col_actions', 'Actions'), align: 'right', sticky: 'right', width: '80px',
+      render: () => (
+        <div className="flex items-center justify-end gap-0.5">
+          <button
+            onClick={() => navigate('/telematics/simulator')}
+            className="p-1 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+            title={t('open_simulator', 'Test Simulator')}
+          >
+            <Sliders className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => navigate('/trucks')}
+            className="p-1 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            title={t('truck_details', 'Truck Details')}
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   const truckSelectOptions: SelectOption[] = [
     { value: '', label: t('wiz_choose_truck_option', '-- Choose a truck --') },
     ...trucksList.map((tr) => ({
@@ -229,31 +315,42 @@ export default function TelematicsPage() {
   ];
 
   return (
-    <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20">
-              <Radio className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-                {t('telematics_hub_title', 'Telematics & Digital Tachograph Hub')}
-              </h1>
-              <p className="text-sm text-slate-500 font-medium">
-                {t('telematics_hub_subtitle', 'Real-time CAN-bus, GPS tracking, Smart 2 tachograph and driver compliance')}
-              </p>
-            </div>
+    <div className="p-4 space-y-3 max-w-[1600px] mx-auto">
+      {/* Single control row */}
+      <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-1 min-w-[280px]">
+          <div className="relative w-[200px] shrink-0">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder={t('search_telematics_placeholder', 'Search plate, driver or device ID…')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="input pl-8 pr-3 py-1.5 text-xs w-full"
+            />
           </div>
+          <div className="w-[140px] shrink-0">
+            <CustomSelect size="sm" title={t('status', 'Status')} value={statusFilter} onChange={(val) => setStatusFilter(val)} options={statusOptions} />
+          </div>
+          <div className="w-[160px] shrink-0">
+            <CustomSelect size="sm" title={t('provider', 'Provider')} value={providerFilter} onChange={(val) => setProviderFilter(val)} options={providerOptions} />
+          </div>
+          <button
+            onClick={loadData}
+            title={t('refresh', 'Refresh')}
+            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-[11px] font-semibold text-slate-500 whitespace-nowrap">{filteredConnections.length} {t('results', 'results')}</span>
           <button
             onClick={() => navigate('/telematics/simulator')}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors border border-indigo-200"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-bold text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors border border-indigo-200"
           >
-            <Sliders className="w-4 h-4" />
+            <Sliders className="w-3.5 h-3.5" />
             {t('open_simulator', 'Test Simulator')}
           </button>
           <button
@@ -261,188 +358,36 @@ export default function TelematicsPage() {
               setIsWizardOpen(true);
               setWizardStep(1);
             }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-primary text-white hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-bold text-xs bg-primary text-white hover:bg-primary/90 transition-all shadow-sm shadow-primary/20"
           >
-            <Plus className="w-4 h-4" />
-            {t('add_telematics_connection', '+ Add Telematics Connection')}
+            <Plus className="w-3.5 h-3.5" />
+            {t('add_telematics_connection', 'Conexiune nouă')}
           </button>
         </div>
       </div>
 
-      {/* KPI Overview Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              {t('kpi_total_connections', 'Total Connections')}
-            </span>
-            <Cpu className="w-4 h-4 text-primary" />
-          </div>
-          <p className="text-2xl font-black text-slate-900 mt-2">{connections.length}</p>
-          <span className="text-xs font-medium text-slate-500">{t('kpi_obd_fms_desc', 'OBD / FMS / CAN Devices')}</span>
-        </div>
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              {t('kpi_live_connections', 'LIVE Connections')}
-            </span>
-            <Wifi className="w-4 h-4 text-emerald-600" />
-          </div>
-          <p className="text-2xl font-black text-emerald-600 mt-2">
-            {connections.filter((c) => c.connectionStatus === 'LIVE').length}
-          </p>
-          <span className="text-xs font-bold text-emerald-600">{t('kpi_live_latency_desc', '< 30s latency')}</span>
-        </div>
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              {t('kpi_active_trips_trucks', 'Trucks in Trip')}
-            </span>
-            <Truck className="w-4 h-4 text-indigo-600" />
-          </div>
-          <p className="text-2xl font-black text-indigo-600 mt-2">
-            {connections.filter((c) => c.currentActivity === 'DRIVING').length}
-          </p>
-          <span className="text-xs font-medium text-indigo-600">{t('kpi_driving_act_desc', 'Active driving activity')}</span>
-        </div>
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              {t('kpi_offline_devices', 'Offline Devices')}
-            </span>
-            <WifiOff className="w-4 h-4 text-rose-500" />
-          </div>
-          <p className="text-2xl font-black text-rose-500 mt-2">
-            {connections.filter((c) => c.connectionStatus === 'OFFLINE').length}
-          </p>
-          <span className="text-xs font-medium text-rose-500">{t('kpi_offline_time_desc', '> 5 min without signal')}</span>
-        </div>
-      </div>
-
-      {/* Filter Bar with CustomSelect */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm">
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder={t('search_telematics_placeholder', 'Search by plate, driver or device ID…')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          />
-        </div>
-
-        <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap">
-          <div className="w-44">
-            <CustomSelect
-              value={statusFilter}
-              onChange={(val) => setStatusFilter(val)}
-              options={statusOptions}
-            />
-          </div>
-
-          <div className="w-48">
-            <CustomSelect
-              value={providerFilter}
-              onChange={(val) => setProviderFilter(val)}
-              options={providerOptions}
-            />
-          </div>
-
-          <button
-            onClick={loadData}
-            title="Refresh"
-            className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
+      {/* KPI Overview */}
+      <KpiStrip
+        dense
+        items={[
+          { key: 'total', label: t('kpi_total_connections', 'Total'), value: connections.length, icon: Cpu },
+          { key: 'live', label: t('kpi_live_connections', 'LIVE'), value: connections.filter((c) => c.connectionStatus === 'LIVE').length, icon: Wifi, color: 'text-emerald-600', sub: '< 30s' },
+          { key: 'trip', label: t('kpi_active_trips_trucks', 'În Cursă'), value: connections.filter((c) => c.currentActivity === 'DRIVING').length, icon: Truck, color: 'text-indigo-600' },
+          { key: 'offline', label: t('kpi_offline_devices', 'Offline'), value: connections.filter((c) => c.connectionStatus === 'OFFLINE').length, icon: WifiOff, color: 'text-rose-500' },
+        ]}
+      />
 
       {/* Telematics Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] font-black uppercase tracking-wider text-slate-500">
-                <th className="py-3.5 px-4">{t('col_truck_model', 'Truck & Model')}</th>
-                <th className="py-3.5 px-4">{t('col_current_driver', 'Current Driver')}</th>
-                <th className="py-3.5 px-4">{t('col_provider_device', 'Provider & Device')}</th>
-                <th className="py-3.5 px-4">{t('col_connection', 'Connection')}</th>
-                <th className="py-3.5 px-4">{t('col_tacho_activity', 'Tachograph Activity')}</th>
-                <th className="py-3.5 px-4">{t('col_speed_gps', 'Speed & GPS')}</th>
-                <th className="py-3.5 px-4">{t('col_break_in', 'Break in')}</th>
-                <th className="py-3.5 px-4">{t('col_last_update', 'Last Update')}</th>
-                <th className="py-3.5 px-4 text-right">{t('col_actions', 'Actions')}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredConnections.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400 font-medium">
-                    {t('no_telematics_found', 'No active telematics connections found.')}
-                  </td>
-                </tr>
-              ) : (
-                filteredConnections.map((c) => {
-                  const breakMins = Math.round((c.breakRequiredIn || 0) / 60);
-                  const isBreakSoon = breakMins <= 18 && breakMins > 0;
-                  return (
-                    <tr key={c.id || c.truckId} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-3.5 px-4">
-                        <div className="font-black text-slate-900">{c.truckPlate}</div>
-                        <div className="text-xs text-slate-400">{c.truckBrand} {c.truckModel}</div>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-bold text-slate-800">{c.driverName}</div>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-semibold text-slate-700 capitalize">
-                          {c.provider === 'test_simulator' ? 'Test Simulator' : c.provider}
-                        </div>
-                        <div className="text-xs text-slate-400 font-mono">{c.providerDeviceId}</div>
-                      </td>
-                      <td className="py-3.5 px-4">{getStatusBadge(c.connectionStatus)}</td>
-                      <td className="py-3.5 px-4">{getActivityBadge(c.currentActivity)}</td>
-                      <td className="py-3.5 px-4">
-                        <div className="font-black text-slate-800">{Math.round(c.speed)} km/h</div>
-                        <div className="text-[11px] text-slate-400 font-mono">
-                          {c.latitude?.toFixed(4)}, {c.longitude?.toFixed(4)}
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className={`font-black text-xs ${isBreakSoon ? 'text-rose-600 animate-pulse' : 'text-slate-700'}`}>
-                          {breakMins > 0 ? `${breakMins} min` : t('act_break', 'Break')}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-xs text-slate-500">
-                        {c.lastSeenAt ? new Date(c.lastSeenAt).toLocaleTimeString() : '—'}
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => navigate('/telematics/simulator')}
-                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title={t('open_simulator', 'Test Simulator')}
-                          >
-                            <Sliders className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => navigate(`/trucks`)}
-                            className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                            title={t('truck_details', 'Truck Details')}
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+      <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <DataTable
+          columns={columns}
+          data={filteredConnections}
+          rowKey={(c: any) => c.id || c.truckId}
+          minWidth="1100px"
+          dense
+          loading={loading}
+          emptyState={<div className="py-12 text-center text-slate-400 font-medium">{t('no_telematics_found', 'No active telematics connections found.')}</div>}
+        />
       </div>
 
       {/* 7-Step Add Telematics Connection Wizard Modal */}
