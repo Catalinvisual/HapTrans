@@ -72,7 +72,7 @@ export default function DataTable<T>({
               <th
                 key={col.key}
                 onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                className={`table-header ${headPad} font-medium text-[11px] text-text-secondary uppercase tracking-wider whitespace-nowrap select-none text-left ${col.sortable ? 'cursor-pointer hover:text-primary' : ''} ${col.hideBelow ? `hidden ${col.hideBelow === 'lg' ? 'lg:table-cell' : col.hideBelow === 'md' ? 'md:table-cell' : 'sm:table-cell'}` : ''} ${col.sticky === 'right' ? 'sticky right-0 z-20 bg-surface border-l border-border' : ''}`}
+                className={`table-header ${headPad} font-medium text-[11px] text-text-secondary uppercase tracking-wider whitespace-nowrap select-none ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'} ${col.sortable ? 'cursor-pointer hover:text-primary' : ''} ${col.hideBelow ? `hidden ${col.hideBelow === 'lg' ? 'lg:table-cell' : col.hideBelow === 'md' ? 'md:table-cell' : 'sm:table-cell'}` : ''} ${col.sticky === 'right' ? 'sticky right-0 z-20 bg-surface border-l border-border' : ''}`}
                 style={{ width: col.width }}
               >
                 <span className="inline-flex items-center gap-1 font-medium text-[11px] text-text-secondary">

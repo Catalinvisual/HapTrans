@@ -482,7 +482,7 @@ export default function TrucksPage() {
       hideBelow: 'lg',
     },
     {
-      key: 'actions', label: '', align: 'right', sticky: 'right', width: '108px',
+      key: 'actions', label: t('actions', 'Actions'), align: 'right', sticky: 'right', width: '150px',
       render: tr => (
         <div className="flex items-center justify-end gap-0.5" onClick={e => e.stopPropagation()}>
           <button onClick={async (e) => {

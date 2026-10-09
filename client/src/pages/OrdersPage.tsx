@@ -363,7 +363,7 @@ export default function OrdersPage() {
       <div className="text-right font-bold text-text-primary whitespace-nowrap">{fmtMoney(o.price || 0, o.currency || 'EUR')}</div>
     ) },
     { key: 'status', label: t('status', 'Status'), width: '120px', render: o => <StatusBadge status={o.status} label={t(`status_${o.status}`, o.status.replace(/_/g, ' ')) as string} /> },
-    { key: 'actions', label: '', align: 'right', sticky: 'right', width: '118px', render: o => {
+    { key: 'actions', label: t('actions', 'Actions'), align: 'right', sticky: 'right', width: '150px', render: o => {
       const trip = o.trip;
       const trackingToken = trip?.trackingToken;
       const tripStatus = trip?.status || o.status;

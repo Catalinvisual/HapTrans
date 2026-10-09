@@ -340,7 +340,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
       return <span className={`font-bold text-[12px] whitespace-nowrap ${p >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{isNaN(p) ? '—' : fmtMoney(p)}</span>;
     } },
     { key: 'status', label: t('status', 'Status'), sortable: true, className: 'min-w-[96px]', render: tr => <StatusBadge type="trip" status={tr.status} label={t(`status_${tr.status}`, tr.status.replace(/_/g, ' ')) as string} /> },
-    { key: 'actions', label: '', align: 'right', className: 'min-w-[84px]', render: tr => (
+    { key: 'actions', label: t('actions', 'Actions'), align: 'right', className: 'min-w-[110px]', render: tr => (
       <div className="flex items-center justify-end gap-0.5">
         {tr.status === 'planning' && (
           <button onClick={e => { e.stopPropagation(); handleDispatch(tr.id); }} title={t('jsx_trimiteDispat', 'Send Dispatch')} className="p-1 rounded-md text-text-secondary hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-500/10">
