@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import {
   Truck as TruckIcon, Package, Loader2, MapPin, CheckCircle2, AlertTriangle, ExternalLink,
   Users, X, ChevronRight, ChevronLeft, Calendar, ArrowRight, Info, Activity, Search,
-  Undo2, SplitSquareHorizontal, Send, ShieldCheck,
+  Undo2, SplitSquareHorizontal, Send, ShieldCheck, Scale, Boxes,
   LayoutGrid, Clock, Map as MapIcon, Sparkles, CheckSquare, Square, RefreshCw,
   ChevronsLeft, ChevronsRight, Plus, ArrowUp, ArrowDown, Layers, Navigation,
   Printer, Maximize2, Minimize2, RotateCcw, Filter, List, FileText, Pencil,
@@ -159,6 +159,28 @@ function sumCargo(orders: any[]) {
   return { weight, ldm, hasLdm, pallets, volume, ldmFormatted: hasLdm ? fmtNumber(ldm, 1) : '—' };
 }
 
+// Human-friendly driver name: prefer a real name, otherwise derive a short one
+// from the e-mail local part (e.g. "sofer.gabriel.constanti@…" -> "Gabriel C.").
+function driverDisplayName(driver: any): string {
+  if (!driver) return '';
+  const raw = String(driver.name || driver.user?.name || '').trim();
+  if (raw && !raw.includes('@')) return raw;
+  const email = String(driver.user?.email || (raw.includes('@') ? raw : '')).trim();
+  if (email) {
+    const local = email.split('@')[0];
+    const parts = local
+      .split(/[._\-+]+/)
+      .filter((p) => p && !/^(sofer|șofer|driver|drv|user|info|contact|admin|office)$/i.test(p));
+    if (parts.length >= 2) {
+      const first = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+      const last = parts[parts.length - 1].charAt(0).toUpperCase();
+      return `${first} ${last}.`;
+    }
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+  }
+  return raw || '—';
+}
+
 function tripOriginDestination(trip: any) {
   const stops = (trip?.stops || []).slice().sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
   const first = stops[0];
@@ -186,6 +208,15 @@ const TRIP_HEX: Record<string, string> = {
   planning:'#f59e0b', planned:'#3b82f6', assigned:'#8b5cf6', dispatched:'#ec4899',
   driver_accepted:'#14b8a6', started:'#f97316', loading:'#ef4444', driving:'#f59e0b',
   partially_delivered:'#eab308', completed:'#22c55e', closed:'#64748b', cancelled:'#94a3b8',
+};
+
+// KPI pill palette: a coloured dot + a discreet chip background for each state.
+const KPI_COLORS: Record<string, { dot: string; active: string; idle: string }> = {
+  blue:    { dot: 'bg-blue-500',    active: 'bg-blue-500 text-white border-transparent',    idle: 'bg-blue-500/10 text-blue-600 border-blue-500/20 hover:bg-blue-500/20' },
+  amber:   { dot: 'bg-amber-500',   active: 'bg-amber-500 text-white border-transparent',   idle: 'bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20' },
+  red:     { dot: 'bg-red-500',     active: 'bg-red-500 text-white border-transparent',     idle: 'bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20' },
+  emerald: { dot: 'bg-emerald-500', active: 'bg-emerald-500 text-white border-transparent', idle: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20' },
+  purple:  { dot: 'bg-purple-500',  active: 'bg-purple-500 text-white border-transparent',  idle: 'bg-purple-500/10 text-purple-600 border-purple-500/20 hover:bg-purple-500/20' },
 };
 
 // Timeline slot calculation helpers
@@ -468,7 +499,7 @@ function TripBlock({
   const cargo = sumCargo(trip.orders || []);
   const revenue = (trip.orders || []).reduce((s: number, o: any) => s + (Number(o.price) || 0), 0);
   const ordersCount = (trip.orders || []).filter((o: any) => o?.id).length;
-  const driverName = trip.driver?.name || trip.truck?.driver?.name || '';
+  const driverName = driverDisplayName(trip.driver || trip.truck?.driver);
   const trailerPlate = trip.trailer?.plateNumber || trip.trailerPlate || trip.truck?.trailer?.plateNumber || '';
   const blockWidthPct = pos.width;
   const isVeryNarrow = blockWidthPct < 4;
@@ -568,6 +599,28 @@ function TripBlock({
   );
 }
 
+// ─── Compact Capacity Micro-Bar (Weight & Pallets) ───────────────────────────
+function CapacityIndicator({ icon: Icon, text, pct, tooltip }: {
+  icon: any; text: string; pct: number; tooltip: string;
+}) {
+  const over = pct > 100;
+  const tone = over || pct >= 91 ? '#EF4444' : pct >= 71 ? '#F59E0B' : '#22C55E';
+  return (
+    <div className="flex-1 min-w-0" title={tooltip}>
+      <div className="flex items-center gap-0.5" style={{ color: tone }}>
+        <Icon className="w-2.5 h-2.5 shrink-0" />
+        <span className={`text-[8px] font-bold truncate ${over ? 'animate-pulse' : ''}`}>{text}</span>
+      </div>
+      <div className="h-[3px] w-full rounded-full bg-border/50 overflow-hidden mt-0.5">
+        <div
+          className={`h-full rounded-full transition-all duration-300 ${over ? 'animate-pulse' : ''}`}
+          style={{ width: `${Math.min(Math.max(pct, 0), 100)}%`, background: tone }}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ─── Resource Row (Gantt Row) ────────────────────────────────────────────────────────
 function ResourceRow({
   resource, trips, fromDate, totalMinutes, hoursVisible, selectedTripId, onSelectTrip, onDropOrder, draggingId, draggingOrder, onOpenPlanner,
@@ -596,6 +649,15 @@ function ResourceRow({
   const isOverloaded = resultWeight > mw;
   const isNearCap = !isOverloaded && capPct >= 90;
   const canAcceptDrag = !isMaintenance && draggingId && (draggingWeight === 0 || !isOverloaded);
+
+  // Dynamic capacity indicators (weight + pallets)
+  const weightPct = mw > 0 ? (cargo.weight / mw) * 100 : 0;
+  const palletPct = mp > 0 ? (cargo.pallets / mp) * 100 : 0;
+  const driverLabel = driverDisplayName(resource.driver);
+  const weightText = `${(cargo.weight / 1000).toFixed(1)}t / ${(mw / 1000).toFixed(0)}t`;
+  const palletText = `${Math.round(cargo.pallets)} / ${mp} plt`;
+  const weightTooltip = `${t('capacity_weight', 'Weight')}: ${fmtNumber(cargo.weight)} kg / ${fmtNumber(mw)} kg (${Math.round(weightPct)}%)`;
+  const palletTooltip = `${t('capacity_pallets', 'Pallets')}: ${Math.round(cargo.pallets)} / ${mp} EUROPAL (${Math.round(palletPct)}%)`;
 
   // Driver HOS summary lookup
   const driverId = grouping === 'driver' ? resource.id : (resource.driver?.id || null);
@@ -643,9 +705,9 @@ function ResourceRow({
 
         <div className="flex items-center justify-between text-[10px] text-text-secondary pl-6">
           <div className="flex items-center gap-1 min-w-0 truncate">
-            {grouping === 'truck' && resource.driver?.name && (
+            {grouping === 'truck' && driverLabel && (
               <>
-                <span className="truncate">{resource.driver.name.split(' ')[0]}</span>
+                <span className="truncate" title={resource.driver?.name || driverLabel}>{driverLabel}</span>
                 {resource.trailer && <span className="text-text-muted">| T: {resource.trailer.plateNumber}</span>}
               </>
             )}
@@ -657,6 +719,14 @@ function ResourceRow({
             )}
           </div>
         </div>
+
+        {/* Dynamic capacity micro-bars (weight + pallets) */}
+        {grouping !== 'driver' && (
+          <div className="flex items-center gap-2 pl-6 pr-1">
+            <CapacityIndicator icon={Scale} text={weightText} pct={weightPct} tooltip={weightTooltip} />
+            <CapacityIndicator icon={Boxes} text={palletText} pct={palletPct} tooltip={palletTooltip} />
+          </div>
+        )}
       </div>
 
       {/* Timeline Area */}
@@ -2296,11 +2366,11 @@ export default function PlanningPage() {
         </div>
 
         <div className="flex gap-1.5 shrink-0">
-          <div className="w-28">
-            <CustomSelect size="sm" icon={TruckIcon} value={truckFilter} onChange={setTruckFilter} options={[{ value: '', label: t('jsx_allVehicles','All Trucks') }, ...resources.map((r: any) => ({ value: r.id, label: r.plateNumber }))] } />
+          <div className="w-32">
+            <CustomSelect size="sm" icon={TruckIcon} title={t('jsx_allVehicles','All Trucks')} value={truckFilter} onChange={setTruckFilter} options={[{ value: '', label: t('tb_trucks','Trucks') }, ...resources.map((r: any) => ({ value: r.id, label: r.plateNumber }))] } />
           </div>
-          <div className="w-28">
-            <CustomSelect size="sm" icon={Users} value={driverFilter} onChange={setDriverFilter} options={[{ value: '', label: t('jsx_allDrivers','All Drivers') }, ...(boardData?.drivers || resources.map((r: any) => r.driver).filter(Boolean)).filter((d: any, i: number, arr: any[]) => d && arr.findIndex((x: any) => x.id === d.id) === i).map((d: any) => ({ value: d.id, label: d.name || d.user?.name || '—' }))] } />
+          <div className="w-32">
+            <CustomSelect size="sm" icon={Users} title={t('jsx_allDrivers','All Drivers')} value={driverFilter} onChange={setDriverFilter} options={[{ value: '', label: t('tb_drivers','Drivers') }, ...(boardData?.drivers || resources.map((r: any) => r.driver).filter(Boolean)).filter((d: any, i: number, arr: any[]) => d && arr.findIndex((x: any) => x.id === d.id) === i).map((d: any) => ({ value: d.id, label: driverDisplayName(d) || d.name || d.user?.name || '—' }))] } />
           </div>
           <div className="w-28">
             <CustomSelect size="sm" icon={AlertTriangle} value={priorityFilter} onChange={setPriorityFilter} options={[{ value: '', label: t('jsx_allPriorities','Priority') }, ...['critical','high','normal','low'].map(p => ({ value: p, label: t(`priority_${p}`, p) }))] } />
@@ -2323,6 +2393,7 @@ export default function PlanningPage() {
             { filter: 'delayed', value: delayedTripsCount, color: 'purple', isAttention: false },
           ] as { filter: string; value: number; color: string; isAttention: boolean }[]).map(({ filter, value, color, isAttention }) => {
             const isActive = isAttention ? attentionActive : statusFilter === filter;
+            const kpiStyle = KPI_COLORS[color] || KPI_COLORS.blue;
             return (
               <button
                 key={filter}
@@ -2331,9 +2402,10 @@ export default function PlanningPage() {
                   else if (filter === 'unassigned') { setPoolCollapsed(false); setStatusFilter(statusFilter === 'unassigned' ? '' : 'unassigned'); }
                   else { setStatusFilter(statusFilter === filter ? '' : filter); }
                 }}
-                className={`flex items-center justify-center min-w-[24px] h-[22px] px-1.5 rounded-md text-[11px] font-black transition-all ${isActive ? `bg-${color}-500 text-white shadow-sm` : `bg-surface hover:bg-surface/80 text-${color}-600`}`}
+                className={`flex items-center gap-1 min-w-[34px] h-[22px] px-1.5 rounded-md text-[11px] font-black border transition-all ${isActive ? `${kpiStyle.active} shadow-sm` : kpiStyle.idle}`}
                 title={t(isAttention ? 'jsx_attention' : (filter === 'unassigned' ? 'kpi_unassigned' : (filter === 'planned' ? 'kpi_planned' : `status_${filter}`)), filter)}
               >
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-white/90' : kpiStyle.dot}`} />
                 {value}
               </button>
             );
