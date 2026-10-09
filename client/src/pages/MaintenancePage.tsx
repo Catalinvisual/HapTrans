@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Pencil, Trash2, Paperclip, FileText, X } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Paperclip, FileText, X, Wrench, Clock, CalendarCheck, AlertTriangle } from 'lucide-react';
 import api from '../lib/api';
 import { fmtMoney } from '../lib/format';
 import toast from 'react-hot-toast';
@@ -11,6 +11,8 @@ import { matchesSearch } from '../lib/search';
 import CustomSelect from '../components/CustomSelect';
 import Pagination from '../components/Pagination';
 import ConfirmModal from '../components/ConfirmModal';
+import KpiStrip from '../components/ui/KpiStrip';
+import DataTable from '../components/ui/DataTable';
 import { useShortcuts } from '../hooks/useShortcuts';
 import { useTableShortcuts } from '../hooks/useTableShortcuts';
 import { useSaveConfirm } from '../components/SaveConfirmProvider';
@@ -30,7 +32,9 @@ export default function MaintenancePage() {
   const [form, setForm] = useState({ truckId: '', type: 'preventive', description: '', scheduledDate: '', partsCost: '', laborCost: '', odometerKm: '', cost: '', serviceProvider: '', notes: '' });
   const [attForm, setAttForm] = useState({ name: '', fileUrl: '' });
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
 
   const load = async () => {
@@ -151,13 +155,31 @@ export default function MaintenancePage() {
     } catch { toast.error(t('error')); }
   };
 
-  const STATUS = { scheduled:'badge-primary', in_progress:'badge-warning', done:'badge-success' };
   const editingRecord = records.find(r => r.id === editId) || null;
+
+  const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
+    inspection: { label: 'Inspecție', cls: 'bg-amber-500/10 text-amber-700' },
+    preventive: { label: 'Preventivă', cls: 'bg-blue-500/10 text-blue-700' },
+    corrective: { label: 'Corectivă', cls: 'bg-red-500/10 text-red-700' },
+  };
+
+  const STATUS_DOT: Record<string, string> = {
+    scheduled: '#94A3B8',
+    in_progress: '#F59E0B',
+    done: '#10B981',
+  };
+
+  const totalCost = records.reduce((s: number, r: any) => s + Number(r.cost != null ? r.cost : ((Number(r.partsCost) || 0) + (Number(r.laborCost) || 0))), 0);
+  const inProgressCount = records.filter(r => r.status === 'in_progress').length;
+  const plannedCount = records.filter(r => r.status === 'scheduled').length;
+  const overdueCount = records.filter(r => r.status !== 'done' && isPastDate(r.scheduledDate)).length;
 
   const filtered = records.filter(r => {
     const matchTruck = truckFilter === 'all' || (r.truck?.id === truckFilter);
-    const matchSearch = matchesSearch(search, r.truck?.plateNumber, r.description);
-    return matchTruck && matchSearch;
+    const matchType = typeFilter === 'all' || r.type === typeFilter;
+    const matchStatus = statusFilter === 'all' || r.status === statusFilter;
+    const matchSearch = matchesSearch(search, r.truck?.plateNumber, r.description, r.serviceProvider);
+    return matchTruck && matchType && matchStatus && matchSearch;
   });
 
   const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -253,53 +275,93 @@ export default function MaintenancePage() {
           </form>
         </div>
       )}
-      <div className="card p-0 overflow-hidden">
-        <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
-          <div className="relative flex-1 max-w-xs shrink-0"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-            <input className="input pl-9 py-2 text-sm" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} /></div>
-          <CustomSelect className="w-44 text-xs shrink-0" value={truckFilter} onChange={setTruckFilter} options={[
-            { value: 'all', label: t('allTrucks', 'Toate camioanele') },
-            ...trucks.map((t: any) => ({ value: t.id, label: t.plateNumber })),
-          ]} />
-          <button onClick={() => { setShowForm(!showForm); if (showForm) { setEditId(null); resetForm(); } }} className="btn-primary text-sm py-2 px-4 font-semibold shrink-0 whitespace-nowrap"><Plus className="w-4 h-4 mr-1" /> {t('addMaintenance')}</button>
+      <KpiStrip dense items={[
+        { key: 'total', label: 'COST TOTAL MENTENANȚĂ', value: fmtMoney(totalCost), icon: Wrench, color: 'text-primary' },
+        { key: 'inProgress', label: 'ÎN CURS', value: inProgressCount, icon: Clock, color: 'text-warning' },
+        { key: 'planned', label: 'PLANIFICATE', value: plannedCount, icon: CalendarCheck, color: 'text-blue-600' },
+        { key: 'overdue', label: 'DEPAȘITE / URGENTE', value: overdueCount, icon: AlertTriangle, color: 'text-error' },
+      ]} />
+
+      <div className="card flex items-center gap-2 px-3 py-2 flex-wrap">
+        <div className="relative w-[220px] shrink-0">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
+          <input className="input !pl-8 !py-1.5 !text-xs h-8 w-full" placeholder={t('searchMaintenance', 'Caută camion, descriere sau service...')} value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <div className="overflow-x-auto"><table className="w-full">
-          <thead><tr className="bg-surface border-b border-border">
-            {[t('truck'), t('type'), t('description'), t('planned'), t('costs'), t('service'), t('status'), t('actions')].map(h => <th key={h} className="table-header">{h}</th>)}
-          </tr></thead>
-          <tbody>
-            {loading ? <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr>
-              : currentTableItems.length === 0 ? <tr><td colSpan={8} className="table-cell text-center py-8 text-text-secondary">{t('noResults', 'Niciun rezultat')}</td></tr>
-              : currentTableItems.map((r: any, idx: number) => (
-              <tr key={r.id} 
-                  onClick={() => startEdit(r)}
-                  className={`hover:bg-surface/60 transition-colors cursor-pointer ${selectedRowIndex === idx ? 'bg-primary/5 ring-1 ring-inset ring-primary' : ''}`}>
-                <td className="table-cell font-semibold">{r.truck?.plateNumber}</td>
-                <td className="table-cell capitalize">{r.type}</td>
-                <td className="table-cell">{r.description}</td>
-                <td className="table-cell text-xs">{formatDate(r.scheduledDate)}</td>
-                <td className="table-cell text-xs">
-                  {r.cost != null ? fmtMoney(r.cost) : (r.partsCost != null || r.laborCost != null ? fmtMoney((Number(r.partsCost)||0)+(Number(r.laborCost)||0)) : '—')}
-                  {(r.partsCost != null || r.laborCost != null) && <span className="text-[10px] text-text-secondary block">P {Number(r.partsCost)||0} + M {Number(r.laborCost)||0}</span>}
-                </td>
-                <td className="table-cell text-xs">{r.serviceProvider || '—'}</td>
-                <td className="table-cell">
-                  <CustomSelect className="w-32 text-xs" value={r.status} onChange={async val => { await api.patch(`/maintenance/${r.id}`, { status: val }); toast.success(t('statusUpdated')); load(); }} options={[
-                    { value: 'scheduled', label: getTranslatedStatus('scheduled'), color: 'text-primary' },
-                    { value: 'in_progress', label: getTranslatedStatus('in_progress'), color: 'text-warning' },
-                    { value: 'done', label: getTranslatedStatus('done'), color: 'text-success' },
-                  ]} />
-                </td>
-                <td className="table-cell">
-                  <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-                    <button onClick={() => startEdit(r)} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary/10 transition-colors" title={t('edit', 'Edit')}><Pencil className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => setDeleteId(r.id)} className="p-1.5 text-text-secondary hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors" title={t('delete', 'Delete')}><Trash2 className="w-3.5 h-3.5" /></button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table></div>
+        <CustomSelect size="sm" className="w-[150px] shrink-0" value={truckFilter} onChange={setTruckFilter} options={[
+          { value: 'all', label: t('allTrucks', 'Toate camioanele') },
+          ...trucks.map((t: any) => ({ value: t.id, label: t.plateNumber })),
+        ]} />
+        <CustomSelect size="sm" className="w-[120px] shrink-0" value={typeFilter} onChange={setTypeFilter} options={[
+          { value: 'all', label: t('allTypes', 'Toate tipurile') },
+          { value: 'inspection', label: 'Inspecție' },
+          { value: 'preventive', label: 'Preventivă' },
+          { value: 'corrective', label: 'Corectivă' },
+        ]} />
+        <CustomSelect size="sm" className="w-[130px] shrink-0" value={statusFilter} onChange={setStatusFilter} options={[
+          { value: 'all', label: t('allStatuses', 'Toate statusurile') },
+          { value: 'scheduled', label: getTranslatedStatus('scheduled'), color: STATUS_DOT.scheduled },
+          { value: 'in_progress', label: getTranslatedStatus('in_progress'), color: STATUS_DOT.in_progress },
+          { value: 'done', label: getTranslatedStatus('done'), color: STATUS_DOT.done },
+        ]} />
+        <span className="text-[10px] font-bold text-text-secondary uppercase bg-surface px-2 py-1.5 rounded-lg border border-border/50 shrink-0">
+          {filtered.length} {t('records')}
+        </span>
+        <div className="flex-1" />
+        <button onClick={() => { setShowForm(!showForm); if (showForm) { setEditId(null); resetForm(); } }} className="btn-primary !py-1.5 !px-3 text-xs font-bold flex items-center gap-1.5 shrink-0 whitespace-nowrap shadow-md shadow-primary/20">
+          <Plus className="w-4 h-4" /> {t('addMaintenance')}
+        </button>
+      </div>
+
+      <div className="card p-0 overflow-hidden">
+        <DataTable
+          dense
+          minWidth="1080px"
+          loading={loading}
+          rowKey={(r: any) => r.id}
+          data={currentTableItems}
+          emptyState={<div className="p-12 text-center text-sm text-text-secondary">{t('noResults', 'Niciun rezultat')}</div>}
+          onRowClick={(r: any) => startEdit(r)}
+          columns={[
+            { key: 'truck', label: 'CAMION & TIP', align: 'left', render: (r: any) => (
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-[13px] text-text whitespace-nowrap">{r.truck?.plateNumber || '—'}</span>
+                {(TYPE_BADGE[r.type] || TYPE_BADGE.preventive) && <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${(TYPE_BADGE[r.type] || TYPE_BADGE.preventive).cls}`}>{(TYPE_BADGE[r.type] || TYPE_BADGE.preventive).label}</span>}
+              </div>
+            ) },
+            { key: 'description', label: 'DESCRIERE & SERVICE', align: 'left', render: (r: any) => (
+              <div>
+                <p className="font-semibold text-[12.5px] text-text truncate max-w-[280px]">{r.description || '—'}</p>
+                <p className="text-[10px] text-text-secondary mt-0.5 truncate max-w-[280px]">{r.serviceProvider || '—'}</p>
+              </div>
+            ) },
+            { key: 'date', label: 'DATA PLANIFICATĂ', align: 'center', render: (r: any) => (
+              <div className="flex items-center justify-center gap-1.5">
+                <span className={`text-xs whitespace-nowrap ${r.status !== 'done' && isPastDate(r.scheduledDate) ? 'text-error font-bold' : ''}`}>{formatDate(r.scheduledDate)}</span>
+                {r.status !== 'done' && isPastDate(r.scheduledDate) && <span className="text-xs" title="Depășită">⚠️</span>}
+              </div>
+            ) },
+            { key: 'costs', label: 'COSTURI', align: 'right', render: (r: any) => {
+              const costVal = Number(r.cost ?? ((Number(r.partsCost) || 0) + (Number(r.laborCost) || 0)));
+              return (
+                <div className="text-right">
+                  <p className="font-bold text-[12.5px] text-text whitespace-nowrap">{costVal ? fmtMoney(costVal) : '—'}</p>
+                  {(r.partsCost != null || r.laborCost != null) && <p className="text-[10px] text-text-secondary mt-0.5 whitespace-nowrap">Piese: {fmtMoney(r.partsCost)} • Manoperă: {fmtMoney(r.laborCost)}</p>}
+                </div>
+              );
+            } },
+            { key: 'status', label: 'STATUS & ACȚIUNI', align: 'right', sticky: 'right', width: '170px', render: (r: any) => (
+              <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                <CustomSelect size="sm" className="w-[104px]" value={r.status} onChange={async val => { await api.patch(`/maintenance/${r.id}`, { status: val }); toast.success(t('statusUpdated')); load(); }} options={[
+                  { value: 'scheduled', label: getTranslatedStatus('scheduled'), color: STATUS_DOT.scheduled },
+                  { value: 'in_progress', label: getTranslatedStatus('in_progress'), color: STATUS_DOT.in_progress },
+                  { value: 'done', label: getTranslatedStatus('done'), color: STATUS_DOT.done },
+                ]} />
+                <button onClick={() => startEdit(r)} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary/10 transition-colors" title={t('edit', 'Edit')}><Pencil className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setDeleteId(r.id)} className="p-1.5 text-text-secondary hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors" title={t('delete', 'Delete')}><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+            ) },
+          ]}
+        />
         <Pagination
           currentPage={currentPage}
           totalItems={filtered.length}

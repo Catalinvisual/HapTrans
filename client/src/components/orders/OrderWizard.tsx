@@ -7,6 +7,15 @@ import toast from 'react-hot-toast';
 import AddressAutocomplete from '../AddressAutocomplete';
 import CompanyAutocomplete from '../CompanyAutocomplete';
 import CustomDatePicker from '../CustomDatePicker';
+export interface OrderWizardPrefill {
+  pickupAddress?: string;
+  deliveryAddress?: string;
+  pickupDate?: string;
+  contactPerson?: string;
+  contactPhone?: string;
+  clientName?: string;
+  notes?: string;
+}
 interface OrderWizardProps {
   isOpen: boolean;
   onClose: () => void;
@@ -15,6 +24,7 @@ interface OrderWizardProps {
   initialStep?: number;
   highlightSection?: string | null;
   isPortal?: boolean;
+  prefill?: OrderWizardPrefill | null;
 }
 const STEPS = [{
   id: 'general',
@@ -120,6 +130,7 @@ export default function OrderWizard({
   initialStep,
   highlightSection,
   isPortal,
+  prefill,
 }: OrderWizardProps) {
   const {
     t
@@ -399,10 +410,16 @@ export default function OrderWizard({
         setCargoItems([{
           ...emptyCargo
         }]);
+
+        if (prefill) {
+          setPickup(prev => ({ ...prev, address: prefill.pickupAddress || '', scheduledDate: prefill.pickupDate || '' }));
+          setDropoff(prev => ({ ...prev, address: prefill.deliveryAddress || '' }));
+          setForm(prev => ({ ...prev, contactPerson: prefill.contactPerson || '', contactPhone: prefill.contactPhone || '', notes: prefill.notes || '' }));
+        }
       }
       // Removed setCurrentStep(0) so the modal respects initialStep / highlightSection
     }
-  }, [isOpen, orderId]);
+  }, [isOpen, orderId, prefill]);
   useEffect(() => {
     setCostEstimate((prev: any) => {
       if (!prev) return prev;

@@ -81,8 +81,8 @@ const WebsiteHubPage = () => {
           {tabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
-          return <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${isActive ? 'border-primary text-primary bg-card' : 'border-transparent text-text-secondary hover:text-text-secondary hover:border-border'}`}>
-                <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-text-light'}`} />
+          return <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-1.5 px-4 py-2 text-[13px] font-semibold border-b-2 transition-colors whitespace-nowrap ${isActive ? 'border-primary text-primary bg-card' : 'border-transparent text-text-secondary hover:text-text-secondary hover:border-border'}`}>
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-primary' : 'text-text-light'}`} />
                 {tab.label}
               </button>;
         })}

@@ -1,7 +1,7 @@
 import { useSaveConfirm } from "../components/SaveConfirmProvider";
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, Pencil, Key, Search } from 'lucide-react';
+import { Plus, Trash2, Pencil, Key, Search, Users, UserCheck, ShieldCheck, Truck, Eye, EyeOff } from 'lucide-react';
 import api from '../lib/api';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
@@ -11,6 +11,8 @@ import { navItems } from '../components/Sidebar';
 import Pagination from '../components/Pagination';
 import { useShortcuts } from '../hooks/useShortcuts';
 import { useTableShortcuts } from '../hooks/useTableShortcuts';
+import KpiStrip from '../components/ui/KpiStrip';
+import DataTable from '../components/ui/DataTable';
 export default function UsersPage() {
   const confirmSave = useSaveConfirm();
   const {
@@ -42,7 +44,10 @@ export default function UsersPage() {
   });
   const [showPageSelect, setShowPageSelect] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [maskSalary, setMaskSalary] = useState(false);
   const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
   const load = () => api.get('/users').then(r => {
     const sorted = r.data.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
@@ -146,11 +151,20 @@ export default function UsersPage() {
     }
   };
   const ROLE_BADGE: Record<string, string> = {
-    admin: 'badge-error',
-    dispatcher: 'badge-primary',
-    driver: 'badge-success'
+    admin: 'bg-purple-500/10 text-purple-700 border-purple-500/20',
+    dispatcher: 'bg-blue-500/10 text-blue-700 border-blue-500/20',
+    driver: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20',
   };
-  const filtered = users.filter(u => matchesSearch(search, u.name, u.email, u.role, u.language));
+  const formatSalary = (v: any) => (v == null || v === '' ? '—' : `${Number(v).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`);
+  const activeCount = users.filter(u => u.isActive).length;
+  const staffCount = users.filter(u => u.role === 'admin' || u.role === 'dispatcher').length;
+  const driverCount = users.filter(u => u.role === 'driver').length;
+  const filtered = users.filter(u => {
+    const matchRole = roleFilter === 'all' || u.role === roleFilter;
+    const matchStatus = statusFilter === 'all' || (statusFilter === 'active' ? !!u.isActive : !u.isActive);
+    const matchSearch = matchesSearch(search, u.name, u.email, u.role, u.language);
+    return matchRole && matchStatus && matchSearch;
+  });
   const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   useShortcuts({
     'shift+n': () => {
@@ -312,17 +326,37 @@ export default function UsersPage() {
           </form>
         </div>}
 
-      <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
-        <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
-          <div className="relative flex-1 max-w-xs shrink-0">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
-            <input className="input pl-9 py-2 text-sm" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <span className="text-xs font-semibold text-text-secondary uppercase bg-surface px-2.5 py-1.5 rounded-lg">
-              {filtered.length} {t('results')}
-            </span>
-            <button onClick={() => {
+      <KpiStrip dense items={[
+        { key: 'total', label: 'TOTAL UTILIZATORI', value: users.length, icon: Users, color: 'text-primary' },
+        { key: 'active', label: 'ACTIVI', value: activeCount, icon: UserCheck, color: 'text-success' },
+        { key: 'staff', label: 'ADMINI & DISPECERI', value: staffCount, icon: ShieldCheck, color: 'text-blue-600' },
+        { key: 'drivers', label: 'CONTURI ȘOFERI', value: driverCount, icon: Truck, color: 'text-warning' },
+      ]} />
+
+      <div className="card flex items-center gap-2 px-3 py-2 flex-wrap">
+        <div className="relative w-[240px] shrink-0">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
+          <input className="input !pl-8 !py-1.5 !text-xs h-8 w-full" placeholder={t('searchUsers', 'Caută nume sau email...')} value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <CustomSelect size="sm" className="w-[120px] shrink-0" value={roleFilter} onChange={setRoleFilter} options={[
+          { value: 'all', label: t('allRoles', 'Toate rolurile') },
+          { value: 'admin', label: 'Admin' },
+          { value: 'dispatcher', label: t('dispatcher') || 'Dispecer' },
+          { value: 'driver', label: t('driver') || 'Șofer' },
+        ]} />
+        <CustomSelect size="sm" className="w-[120px] shrink-0" value={statusFilter} onChange={setStatusFilter} options={[
+          { value: 'all', label: t('allStatuses', 'Toate statusurile') },
+          { value: 'active', label: t('active'), color: '#10B981' },
+          { value: 'inactive', label: t('inactive'), color: '#EF4444' },
+        ]} />
+        <span className="text-[10px] font-bold text-text-secondary uppercase bg-surface px-2 py-1.5 rounded-lg border border-border/50 shrink-0">
+          {filtered.length} Conturi
+        </span>
+        <button onClick={() => setMaskSalary(!maskSalary)} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary/10 border border-border/60 shrink-0" title="Ascunde / arată salariile">
+          {maskSalary ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+        </button>
+        <div className="flex-1" />
+        <button onClick={() => {
             setEditId(null);
             setForm({
               email: '',
@@ -335,59 +369,68 @@ export default function UsersPage() {
             });
             setShowForm(!showForm);
             setShowPageSelect(false);
-          }} className="btn-primary flex items-center gap-2 py-2 px-4 text-sm font-semibold">
-              <Plus className="w-4 h-4" /> {t('newUser')}
-            </button>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-surface border-b border-border">
-                {[t('name'), t('email'), t('role'), t('payroll_gross') || 'Bruto', t('status'), t('actions')].map((h, i) => <th key={i} className="table-header">{h}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? <tr><td colSpan={6} className="table-cell text-center py-8 text-text-secondary">{t('loading')}</td></tr> : filtered.length === 0 ? <tr><td colSpan={6} className="table-cell text-center py-8 text-text-secondary">{t('noData')}</td></tr> : currentTableItems.map((u: any, idx: number) => <tr key={u.id} className={`hover:bg-surface/60 transition-colors cursor-pointer ${selectedRowIndex === idx ? 'bg-primary/5 ring-1 ring-inset ring-primary' : ''}`} onClick={e => {
-              if ((e.target as HTMLElement).closest('button, select, input, a, .interactive-click')) return;
-              setEditId(u.id);
-              setForm({
-                name: u.name,
-                email: u.email,
-                password: '',
-                role: u.role,
-                grossSalary: u.grossSalary?.toString() || '',
-                dailyRate: u.dailyRate?.toString() || '',
-                allowedPages: u.allowedPages || []
-              });
-              setShowForm(true);
-            }}>
-                  <td className="table-cell font-bold text-text">{u.name}</td>
-                  <td className="table-cell text-xs text-text-secondary">{u.email}</td>
-                  <td className="table-cell"><span className={ROLE_BADGE[u.role] || 'badge-gray'}>{t(u.role)}</span></td>
-                  <td className="table-cell text-sm font-semibold text-text">
-                    {u.grossSalary ? `€${Number(u.grossSalary).toFixed(2)}` : '-'}
-                  </td>
-                  <td className="table-cell">
-                    <span className={u.isActive ? 'badge-success' : 'badge-gray'}>{u.isActive ? t('active') : t('inactive')}</span>
-                  </td>
-                  <td className="table-cell">
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => handleEdit(u)} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary-light transition-all" title="Editare utilizator">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => handleResetPassword(u)} className="p-1.5 text-text-secondary hover:text-warning rounded-lg hover:bg-yellow-50 transition-all" title="Resetare parolă">
-                        <Key className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => setDeactivateUser(u)} className="p-1.5 text-text-secondary hover:text-error rounded-lg hover:bg-red-50 transition-all" title="Dezactivare/Ștergere">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>)}
-            </tbody>
-          </table>
-        </div>
+          }} className="btn-primary !py-1.5 !px-3 text-xs font-bold flex items-center gap-1.5 shrink-0 whitespace-nowrap shadow-md shadow-primary/20">
+          <Plus className="w-4 h-4" /> {t('newUser')}
+        </button>
+      </div>
+
+      <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">
+        <DataTable
+          dense
+          minWidth="1040px"
+          loading={loading}
+          rowKey={(u: any) => u.id}
+          data={currentTableItems}
+          emptyState={<div className="p-12 text-center text-sm text-text-secondary">{t('noData')}</div>}
+          onRowClick={(u: any) => {
+            setEditId(u.id);
+            setForm({
+              name: u.name,
+              email: u.email,
+              password: '',
+              role: u.role,
+              grossSalary: u.grossSalary?.toString() || '',
+              dailyRate: u.dailyRate?.toString() || '',
+              allowedPages: u.allowedPages || []
+            });
+            setShowForm(true);
+          }}
+          columns={[
+            { key: 'user', label: 'UTILIZATOR & CONTACT', align: 'left', render: (u: any) => (
+              <div>
+                <p className="font-bold text-[13px] text-text truncate max-w-[240px]">{u.name || (u.email ? u.email.split('@')[0] : '—')}</p>
+                <p className="text-[10px] text-text-secondary mt-0.5 truncate max-w-[240px]">{u.email}</p>
+              </div>
+            ) },
+            { key: 'role', label: 'ROL & ACCES', align: 'left', render: (u: any) => (
+              <div>
+                <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-md border ${ROLE_BADGE[u.role] || 'bg-slate-500/10 text-slate-600 border-slate-500/20'}`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-current" /> {t(u.role)}
+                </span>
+                <p className="text-[10px] text-text-secondary mt-0.5 truncate max-w-[180px]">{(u.allowedPages && u.allowedPages.length) ? `${u.allowedPages.length} pagini acces` : 'Acces complet'}</p>
+              </div>
+            ) },
+            { key: 'salary', label: 'SALARIU BRUT', align: 'right', render: (u: any) => (
+              <span className="inline-block font-bold text-[12px] text-text whitespace-nowrap">{maskSalary ? '••••••' : formatSalary(u.grossSalary)}</span>
+            ) },
+            { key: 'status', label: 'STATUS & ACȚIUNI', align: 'right', sticky: 'right', width: '190px', render: (u: any) => (
+              <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-md border whitespace-nowrap ${u.isActive ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20' : 'bg-red-500/10 text-red-700 border-red-500/20'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${u.isActive ? 'bg-emerald-500' : 'bg-red-500'}`} /> {u.isActive ? t('active') : t('inactive')}
+                </span>
+                <button onClick={() => handleEdit(u)} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary/10 transition-all" title="Editare utilizator">
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => handleResetPassword(u)} className="p-1.5 text-text-secondary hover:text-warning rounded-lg hover:bg-yellow-50 transition-all" title="Resetare parolă">
+                  <Key className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => setDeactivateUser(u)} className="p-1.5 text-text-secondary hover:text-error rounded-lg hover:bg-red-50 transition-all" title="Dezactivare/Ștergere">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) },
+          ]}
+        />
         <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </div>
     
