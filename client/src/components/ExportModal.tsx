@@ -109,6 +109,40 @@ const EXPORT_TRANSLATIONS: Record<string, Record<string, string>> = {
     errNoRecords: 'Aucun enregistrement trouvé dans l\'intervalle sélectionné pour l\'export.',
     successExport: 'Exportation terminée avec succès!',
     exporting: 'Exportation...'
+  },
+  es: {
+    title: 'Exportar Datos a Excel',
+    rangeLabel: 'Intervalo a Exportar',
+    all: 'Todos los Datos',
+    today: 'Solo Hoy',
+    week: 'Última Semana',
+    month: 'Último Mes',
+    custom: 'Rango Personalizado (Días)',
+    startDate: 'Fecha de Inicio',
+    endDate: 'Fecha de Fin',
+    exportBtn: 'Exportar Ahora',
+    cancelBtn: 'Cancelar',
+    errCompleteRange: 'Por favor seleccione el rango de fechas completo.',
+    errNoRecords: 'No se encontraron registros en el rango seleccionado para exportar.',
+    successExport: '¡Exportación completada con éxito!',
+    exporting: 'Exportando...'
+  },
+  pl: {
+    title: 'Eksportuj Dane do Excela',
+    rangeLabel: 'Zakres do Eksportu',
+    all: 'Wszystkie Dane',
+    today: 'Tylko Dziś',
+    week: 'Ostatni Tydzień',
+    month: 'Ostatni Miesiąc',
+    custom: 'Niestandardowy Zakres (Dni)',
+    startDate: 'Data Początkowa',
+    endDate: 'Data Końcowa',
+    exportBtn: 'Eksportuj Teraz',
+    cancelBtn: 'Anuluj',
+    errCompleteRange: 'Proszę wybrać pełny zakres dat.',
+    errNoRecords: 'Nie znaleziono rekordów w wybranym zakresie do eksportu.',
+    successExport: 'Eksport zakończony pomyślnie!',
+    exporting: 'Eksportowanie...'
   }
 };
 
