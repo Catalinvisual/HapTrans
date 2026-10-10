@@ -139,7 +139,7 @@ class _MainScreenState extends State<MainScreen> {
               'nl': 'Update beschikbaar',
               'de': 'Update verfügbar',
               'fr': 'Mise à jour disponible'
-            }[locale] ?? 'Update Available'),
+            , 'es': 'Actualización Disponible', 'pl': 'Dostępna aktualizacja' }[locale] ?? 'Update Available'),
             content: Text(msg),
             actions: [
               if (!(data['mandatory'] ?? false))
@@ -151,7 +151,7 @@ class _MainScreenState extends State<MainScreen> {
                     'nl': 'Later',
                     'de': 'Später',
                     'fr': 'Plus tard'
-                  }[locale] ?? 'Later'),
+                  , 'es': 'Más tarde', 'pl': 'Później' }[locale] ?? 'Later'),
                 ),
               ElevatedButton(
                 onPressed: () {
@@ -166,7 +166,7 @@ class _MainScreenState extends State<MainScreen> {
                   'nl': 'Nu downloaden',
                   'de': 'Jetzt herunterladen',
                   'fr': 'Télécharger'
-                }[locale] ?? 'Download Now'),
+                , 'es': 'Descargar Ahora', 'pl': 'Pobierz teraz' }[locale] ?? 'Download Now'),
               ),
             ],
           ),
@@ -193,7 +193,7 @@ class _MainScreenState extends State<MainScreen> {
               'nl': 'Downloaden...',
               'de': 'Wird heruntergeladen...',
               'fr': 'Téléchargement...'
-            }[locale] ?? 'Downloading...'),
+            , 'es': 'Descargando...', 'pl': 'Pobieranie...' }[locale] ?? 'Downloading...'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -315,7 +315,7 @@ class _MainScreenState extends State<MainScreen> {
       'nl': ['Home', 'Ritten', 'Tachograaf', 'Documenten', 'Profiel'],
       'de': ['Home', 'Touren', 'Tachograph', 'Dokumente', 'Profil'],
       'fr': ['Accueil', 'Courses', 'Tachygraphe', 'Documents', 'Profil'],
-    };
+     'es': ['Inicio', 'Rutas', 'Tacógrafo', 'Documentos', 'Perfil'], 'pl': ['Dom', 'Kursy', 'Tachograf', 'Dokumenty', 'Profil'] };
     final nav = labels[locale] ?? labels['en'] ?? labels['ro']!;
 
     return Scaffold(

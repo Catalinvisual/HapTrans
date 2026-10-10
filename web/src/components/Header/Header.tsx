@@ -60,7 +60,7 @@ const Header = () => {
     setMobileMenuOpen(false);
   };
 
-  const languages: import('@/context/LanguageContext').Language[] = ['RO', 'EN', 'NL', 'DE', 'FR', 'ES'];
+  const languages: import('@/context/LanguageContext').Language[] = ['RO', 'EN', 'NL', 'DE', 'FR', 'ES', 'PL'];
 
   const LANGS = [
     { code: 'RO', label: 'Română', flag: 'https://flagcdn.com/w40/ro.png' },
@@ -69,6 +69,7 @@ const Header = () => {
     { code: 'DE', label: 'Deutsch', flag: 'https://flagcdn.com/w40/de.png' },
     { code: 'FR', label: 'Français', flag: 'https://flagcdn.com/w40/fr.png' },
     { code: 'ES', label: 'Español', flag: 'https://flagcdn.com/w40/es.png' },
+    { code: 'PL', label: 'Polski', flag: 'https://flagcdn.com/w40/pl.png' },
   ];
 
   const currentLang = LANGS.find(l => l.code === lang) || LANGS[0];

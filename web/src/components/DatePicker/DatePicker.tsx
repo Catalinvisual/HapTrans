@@ -50,6 +50,7 @@ export default function DatePicker({ value, onChange, placeholder = 'DD/MM/YYYY'
     if (lang === 'DE') return 'Das ausgewählte Datum darf nicht in der Vergangenheit liegen.';
     if (lang === 'FR') return 'La date sélectionnée ne peut pas être dans le passé.';
     if (lang === 'ES') return 'La fecha seleccionada no puede estar en el pasado.';
+    if (lang === 'PL') return 'Wybrana data nie może być w przeszłości.';
     return 'Selected date cannot be in the past.';
   };
 

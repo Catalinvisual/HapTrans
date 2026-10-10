@@ -63,13 +63,14 @@ const QuoteForm = () => {
   const [surchargesApplied, setSurchargesApplied] = useState<any>(null);
   const [isAutoWeekend, setIsAutoWeekend] = useState(false);
 
-  const getLabel = (roText: string, enText: string, nlText: string, deText: string, frText: string, esText: string) => {
+  const getLabel = (roText: string, enText: string, nlText: string, deText: string, frText: string, esText: string, plText?: string) => {
     if (lang === 'RO') return roText;
     if (lang === 'EN') return enText;
     if (lang === 'NL') return nlText;
     if (lang === 'DE') return deText;
     if (lang === 'FR') return frText;
     if (lang === 'ES') return esText;
+    if (lang === 'PL') return plText ?? esText;
     return enText;
   };
 
@@ -283,25 +284,18 @@ const QuoteForm = () => {
       {formData.estimatedPrice && (
         <div style={{ marginBottom: '2rem', padding: '1.25rem 1.5rem', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.15rem' }}>
-            <span>⚡ {getLabel("Estimare de preț calculată:", "Estimated price calculated:", "Geschatte prijs berekend:", "Geschätzter Preis berechnet:", "Prix estimé calculé :", "Precio estimado calculado:")}</span>
+            <span>⚡ {getLabel("Estimare de preț calculată:", "Estimated price calculated:", "Geschatte prijs berekend:", "Geschätzter Preis berechnet:", "Prix estimé calculé :", "Precio estimado calculado:", "Obliczona szacunkowa cena:")}</span>
             <span style={{ color: 'var(--primary)', fontSize: '1.35rem' }}>{formData.estimatedPrice}</span>
           </div>
           <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-            {getLabel("Am precompletat detaliile rutei și ale mărfii din calculator. Finalizați cererea completând datele de mai jos pentru a primi oferta exactă!", "We have prefilled the route and cargo details from the calculator. Complete the request by filling in the details below to get the exact offer!", "We hebben de route- en ladingsgegevens uit de calculator vooraf ingevuld. Voltooi de aanvraag door de onderstaande gegevens in te vullen om de exacte offerte te ontvangen!", "Wir haben die Routen- und Frachtdetails aus dem Rechner vorausgefüllt. Schließen Sie die Anfrage ab, indem Sie die untenstehenden Daten eingeben, um das genaue Angebot zu erhalten!", "Nous avons prérempli les détails de l'itinéraire et de la cargaison du calculateur. Finalisez la demande en remplissant les coordonnées ci-dessous pour recevoir l'offre exacte !", "Hemos precompletado los detalles de la ruta y la carga de la calculadora. ¡Complete la solicitud ingresando los datos a continuación para recibir la oferta exacta!")}
+            {getLabel("Am precompletat detaliile rutei și ale mărfii din calculator. Finalizați cererea completând datele de mai jos pentru a primi oferta exactă!", "We have prefilled the route and cargo details from the calculator. Complete the request by filling in the details below to get the exact offer!", "We hebben de route- en ladingsgegevens uit de calculator vooraf ingevuld. Voltooi de aanvraag door de onderstaande gegevens in te vullen om de exacte offerte te ontvangen!", "Wir haben die Routen- und Frachtdetails aus dem Rechner vorausgefüllt. Schließen Sie die Anfrage ab, indem Sie die untenstehenden Daten eingeben, um das genaue Angebot zu erhalten!", "Nous avons prérempli les détails de l'itinéraire et de la cargaison du calculateur. Finalisez la demande en remplissant les coordonnées ci-dessous pour recevoir l'offre exacte !", "Hemos precompletado los detalles de la ruta y la carga de la calculadora. ¡Complete la solicitud ingresando los datos a continuación para recibir la oferta exacta!", "Uzupełniliśmy szczegóły trasy i ładunku z kalkulatora. Dokończ zapytanie, wypełniając poniższe dane, aby otrzymać dokładną ofertę!")}
           </p>
           
           {isAutoWeekend && (
             <div style={{ marginTop: '0.5rem', padding: '0.75rem 1rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#92400e', fontSize: '0.95rem', fontWeight: 600 }}>
               <span style={{ fontSize: '1.25rem' }}>📅</span>
               <span>
-                {getLabel(
-                  "Data selectată cade în weekend! Sistemul a aplicat automat tariful suplimentar de weekend.",
-                  "Selected date falls on a weekend! The system automatically applied the weekend surcharge.",
-                  "De geselecteerde datum valt in het weekend! Het systeem heeft automatisch de weekendtoeslag toegepast.",
-                  "Das ausgewählte Datum fällt auf ein Wochenende! Das System hat automatisch den Wochenendzuschlag berechnet.",
-                  "La date sélectionnée tombe un week-end ! Le système a automatiquement appliqué le supplément week-end.",
-                  "¡La fecha seleccionada cae en fin de semana! El sistema aplicó automáticamente el recargo de fin de semana."
-                )}
+                {getLabel("Data selectată cade în weekend! Sistemul a aplicat automat tariful suplimentar de weekend.", "Selected date falls on a weekend! The system automatically applied the weekend surcharge.", "De geselecteerde datum valt in het weekend! Het systeem heeft automatisch de weekendtoeslag toegepast.", "Das ausgewählte Datum fällt auf ein Wochenende! Das System hat automatisch den Wochenendzuschlag berechnet.", "La date sélectionnée tombe un week-end ! Le système a automatiquement appliqué le supplément week-end.", "¡La fecha seleccionada cae en fin de semana! El sistema aplicó automáticamente el recargo de fin de semana.", "Wybrana data przypada w weekend! System automatycznie zastosował dopłatę weekendową.")}
               </span>
             </div>
           )}
@@ -309,13 +303,13 @@ const QuoteForm = () => {
           {surchargesApplied && (surchargesApplied.adr > 0 || surchargesApplied.night > 0 || surchargesApplied.weekend > 0 || surchargesApplied.holiday > 0) && (
             <div style={{ marginTop: '0.5rem', padding: '0.75rem 1rem', background: 'rgba(255, 255, 255, 0.6)', border: '1px solid rgba(229, 231, 235, 1)', borderRadius: '0.75rem' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.5rem' }}>
-                {getLabel("Defalcare costuri suplimentare aplicate:", "Applied surcharge breakdown:", "Overzicht toegepaste toeslagen:", "Aufschlüsselung der angewendeten Zuschläge:", "Répartition des suppléments appliqués :", "Desglose de recargos aplicados:")}
+                {getLabel("Defalcare costuri suplimentare aplicate:", "Applied surcharge breakdown:", "Overzicht toegepaste toeslagen:", "Aufschlüsselung der angewendeten Zuschläge:", "Répartition des suppléments appliqués :", "Desglose de recargos aplicados:", "Rozbicie zastosowanych dopłat:")}
               </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                {surchargesApplied.adr > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #fde68a' }}>⚠️ {getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR")}: +{fmtMoney(surchargesApplied.adr)}</span>}
-                {surchargesApplied.night > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1d4ed8', background: '#dbeafe', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #bfdbfe' }}>🌙 {getLabel("Noapte", "Night", "Nacht", "Nacht", "Nuit", "Noche")}: +{fmtMoney(surchargesApplied.night)}</span>}
-                {surchargesApplied.weekend > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#047857', background: '#d1fae5', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #a7f3d0' }}>📅 {getLabel("Weekend", "Weekend", "Weekend", "Wochenende", "Week-end", "Fin de semana")}: +{fmtMoney(surchargesApplied.weekend)}</span>}
-                {surchargesApplied.holiday > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#6b21a8', background: '#f3e8ff', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #e9d5ff' }}>🏖️ {getLabel("Sărbători", "Holiday", "Feestdag", "Feiertag", "Férié", "Festivo")}: +{fmtMoney(surchargesApplied.holiday)}</span>}
+                {surchargesApplied.adr > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #fde68a' }}>⚠️ {getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR", "ADR")}: +{fmtMoney(surchargesApplied.adr)}</span>}
+                {surchargesApplied.night > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1d4ed8', background: '#dbeafe', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #bfdbfe' }}>🌙 {getLabel("Noapte", "Night", "Nacht", "Nacht", "Nuit", "Noche", "Noc")}: +{fmtMoney(surchargesApplied.night)}</span>}
+                {surchargesApplied.weekend > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#047857', background: '#d1fae5', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #a7f3d0' }}>📅 {getLabel("Weekend", "Weekend", "Weekend", "Wochenende", "Week-end", "Fin de semana", "Weekend")}: +{fmtMoney(surchargesApplied.weekend)}</span>}
+                {surchargesApplied.holiday > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#6b21a8', background: '#f3e8ff', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #e9d5ff' }}>🏖️ {getLabel("Sărbători", "Holiday", "Feestdag", "Feiertag", "Férié", "Festivo", "Święto")}: +{fmtMoney(surchargesApplied.holiday)}</span>}
               </div>
             </div>
           )}
@@ -506,24 +500,24 @@ const QuoteForm = () => {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem', marginBottom: '1rem', background: 'rgba(243, 244, 246, 0.6)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid rgba(229, 231, 235, 1)' }}>
         <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          {getLabel("Opțiuni Suplimentare / Tarife Speciale", "Additional Options / Special Tariffs", "Aanvullende opties / Speciale tarieven", "Zusätzliche Optionen / Sondertarife", "Options supplémentaires / Tarifs spéciaux", "Opciones adicionales / Tarifas especiales")}
+          {getLabel("Opțiuni Suplimentare / Tarife Speciale", "Additional Options / Special Tariffs", "Aanvullende opties / Speciale tarieven", "Zusätzliche Optionen / Sondertarife", "Options supplémentaires / Tarifs spéciaux", "Opciones adicionales / Tarifas especiales", "Opcje dodatkowe / Taryfy specjalne")}
         </span>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
             <input type="checkbox" name="adrSurcharge" checked={formData.adrSurcharge} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)' }} />
-            ⚠️ {getLabel("ADR (Mărfuri Periculoase)", "ADR (Hazardous Goods)", "ADR (Gevaarlijke stoffen)", "ADR (Gefahrgut)", "ADR (Matières dangereuses)", "ADR (Mercancías peligrosas)")}
+            ⚠️ {getLabel("ADR (Mărfuri Periculoase)", "ADR (Hazardous Goods)", "ADR (Gevaarlijke stoffen)", "ADR (Gefahrgut)", "ADR (Matières dangereuses)", "ADR (Mercancías peligrosas)", "ADR (Towary niebezpieczne)")}
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
             <input type="checkbox" name="nightSurcharge" checked={formData.nightSurcharge} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)' }} />
-            🌙 {getLabel("Transit Noapte / Express", "Night / Express Transit", "Nacht / Express Transit", "Nacht- / Expresstransit", "Transit de Nuit / Express", "Tránsito Nocturno / Exprés")}
+            🌙 {getLabel("Transit Noapte / Express", "Night / Express Transit", "Nacht / Express Transit", "Nacht- / Expresstransit", "Transit de Nuit / Express", "Tránsito Nocturno / Exprés", "Tranzyt nocny / Ekspres")}
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
             <input type="checkbox" name="weekendSurcharge" checked={formData.weekendSurcharge || isAutoWeekend} disabled={isAutoWeekend} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)' }} />
-            📅 {getLabel("Transit Weekend", "Weekend Transit", "Weekend Transit", "Wochenendtransit", "Transit Week-end", "Tránsito de Fin de Semana")}
+            📅 {getLabel("Transit Weekend", "Weekend Transit", "Weekend Transit", "Wochenendtransit", "Transit Week-end", "Tránsito de Fin de Semana", "Tranzyt weekendowy")}
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
             <input type="checkbox" name="holidaySurcharge" checked={formData.holidaySurcharge} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)' }} />
-            🏛️ {getLabel("Transit Sărbători Legale", "Public Holiday Transit", "Transit Erkende Feestdagen", "Gesetzliche Feiertage", "Transit Jours Fériés", "Tránsito en Festivos Oficiales")}
+            🏛️ {getLabel("Transit Sărbători Legale", "Public Holiday Transit", "Transit Erkende Feestdagen", "Gesetzliche Feiertage", "Transit Jours Fériés", "Tránsito en Festivos Oficiales", "Tranzyt w święta państwowe")}
           </label>
         </div>
       </div>

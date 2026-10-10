@@ -8,6 +8,8 @@ const LANGS = [
   { code: 'nl', label: 'Nederlands', flag: 'https://flagcdn.com/w40/nl.png' },
   { code: 'de', label: 'Deutsch', flag: 'https://flagcdn.com/w40/de.png' },
   { code: 'fr', label: 'Français', flag: 'https://flagcdn.com/w40/fr.png' },
+  { code: 'es', label: 'Español', flag: 'https://flagcdn.com/w40/es.png' },
+  { code: 'pl', label: 'Polski', flag: 'https://flagcdn.com/w40/pl.png' },
 ];
 
 export default function LanguageDropdown() {

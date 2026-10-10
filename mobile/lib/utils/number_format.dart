@@ -1,6 +1,6 @@
 import 'package:intl/intl.dart';
 
-const _supportedLocales = ['ro', 'nl', 'de', 'fr', 'en'];
+const _supportedLocales = ['ro', 'nl', 'de', 'fr', 'en', 'es', 'pl'];
 
 final Map<String, NumberFormat> _fmtCache = {};
 

@@ -119,10 +119,18 @@ class AuthProvider extends ChangeNotifier {
           e.type == DioExceptionType.connectionError) {
         return _locale.languageCode == 'ro'
             ? 'Eroare conexiune: Nu se poate contacta serverul. Verificati conexiunea la internet!'
-            : 'Connection Error: Cannot reach the server. Verify your internet connection!';
+            : (_locale.languageCode == 'es'
+                ? 'Error de conexión: No se puede contactar con el servidor. ¡Verifica tu conexión a internet!'
+                : (_locale.languageCode == 'pl'
+                    ? 'Błąd połączenia: Nie można połączyć się z serwerem. Sprawdź połączenie internetowe!'
+                    : 'Connection Error: Cannot reach the server. Verify your internet connection!'));
       }
       if (e.response?.statusCode == 401) {
-        return _locale.languageCode == 'ro' ? 'Email sau parolă incorectă' : 'Invalid email or password';
+        return _locale.languageCode == 'ro'
+            ? 'Email sau parolă incorectă'
+            : (_locale.languageCode == 'es'
+                ? 'Correo o contraseña incorrectos'
+                : (_locale.languageCode == 'pl' ? 'Nieprawidłowy e-mail lub hasło' : 'Invalid email or password'));
       }
       return e.message ?? 'Unknown error';
     } catch (e) {
@@ -151,7 +159,9 @@ class AuthProvider extends ChangeNotifier {
           'en': 'Old password is incorrect',
           'nl': 'Oud wachtwoord is onjuist',
           'de': 'Altes Passwort ist falsch',
-          'fr': 'L\'ancien mot de passe est incorrect'
+          'fr': 'L\'ancien mot de passe est incorrect',
+          'es': 'La contraseña anterior es incorrecta',
+          'pl': 'Stare hasło jest nieprawidłowe'
         }[_locale.languageCode] ?? 'Old password is incorrect';
       }
       return e.response?.data?['message']?.toString() ?? e.message ?? 'Unknown error';

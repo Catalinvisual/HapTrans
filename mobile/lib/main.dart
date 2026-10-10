@@ -58,6 +58,8 @@ class HapCargoApp extends StatelessWidget {
             Locale('nl'),
             Locale('de'),
             Locale('fr'),
+            Locale('es'),
+            Locale('pl'),
           ],
           localizationsDelegates: const [
             AppLocalizations.delegate,

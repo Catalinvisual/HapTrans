@@ -9,18 +9,19 @@ const Footer = () => {
   const [company, setCompany] = useState<any>({});
   const [cmsData, setCmsData] = useState<any>({});
 
-  const getLabel = (roText: string, enText: string, nlText: string, deText: string, frText: string, esText: string) => {
+  const getLabel = (roText: string, enText: string, nlText: string, deText: string, frText: string, esText: string, plText?: string) => {
     if (lang === 'RO') return roText;
     if (lang === 'EN') return enText;
     if (lang === 'NL') return nlText;
     if (lang === 'DE') return deText;
     if (lang === 'FR') return frText;
     if (lang === 'ES') return esText;
+    if (lang === 'PL') return plText ?? esText;
     return enText;
   };
 
   const formatWorkingHours = (text?: string) => {
-    if (!text) return getLabel('Luni - Vineri, 08:00 - 18:00', 'Mon - Fri, 08:00 - 18:00', 'Ma - Vr, 08:00 - 18:00', 'Mo - Fr, 08:00 - 18:00', 'Lun - Ven, 08:00 - 18:00', 'Lun - Vie, 08:00 - 18:00');
+    if (!text) return getLabel('Luni - Vineri, 08:00 - 18:00', 'Mon - Fri, 08:00 - 18:00', 'Ma - Vr, 08:00 - 18:00', 'Mo - Fr, 08:00 - 18:00', 'Lun - Ven, 08:00 - 18:00', 'Lun - Vie, 08:00 - 18:00', "Pon - Pt, 08:00 - 18:00");
     let str = text;
     if (lang === 'RO') {
       str = str.replace(/\b(Mon|Ma|Mo|Lun|Pon)\b/gi, 'Luni').replace(/\b(Fri|Vr|Fr|Ven|Vie|Pt)\b/gi, 'Vineri').replace(/\b(Mon\s*-\s*Fri|Ma\s*-\s*Vr|Mo\s*-\s*Fr|Lun\s*-\s*Ven|Lun\s*-\s*Vie)\b/gi, 'Luni - Vineri');
@@ -96,7 +97,7 @@ const Footer = () => {
         </div>
 
         <div className={styles.column}>
-          <h4 className={styles.title}>{getLabel("Social Media", "Social Media", "Sociale media", "Soziale Medien", "Médias sociaux", "Redes sociales")}</h4>
+          <h4 className={styles.title}>{getLabel("Social Media", "Social Media", "Sociale media", "Soziale Medien", "Médias sociaux", "Redes sociales", "Media społecznościowe")}</h4>
           <div className={styles.socialIcons}>
             <a href={cmsData.social_linkedin || '#'} target={cmsData.social_linkedin ? "_blank" : "_self"} rel="noreferrer" aria-label="LinkedIn">
               <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="32" height="32" viewBox="0 0 48 48">
@@ -142,12 +143,12 @@ const Footer = () => {
         <div className={styles.column}>
           <h4 className={styles.title}>{t('contactTitle') || 'Contact'}</h4>
           <ul className={styles.links} style={{ lineHeight: '1.8' }}>
-            <li>📍 {getLabel("Adresă", "Address", "Adres", "Adresse", "Adresse", "Dirección")}: {company.address || 'Transportweg 1, 1000 AA Amsterdam, Nederland'}</li>
-            <li>📞 {getLabel("Tel", "Tel", "Tel", "Tel", "Tél", "Tel")}: {company.phone || '+31 20 000 0000'}</li>
-            <li>✉️ {getLabel("Email", "Email", "E-mail", "E-Mail", "E-mail", "Correo")}: {company.email || 'office@hapcargo.com'}</li>
-            <li>🏢 {getLabel("Nr. Reg", "Reg No", "KvK nummer", "Reg.-Nr.", "N° RCS", "Nº Reg")}: {company.regNo || '12345678'}</li>
-            <li>💶 {getLabel("CUI / CIF", "VAT No", "BTW nummer", "USt-IdNr.", "N° TVA", "NIF / IVA")}: {company.cui || 'NL123456789B01'}</li>
-            <li>⏰ {getLabel("Program de lucru", "Working Hours", "Openingstijden", "Arbeitszeiten", "Horaires de travail", "Horario de trabajo")}: {formatWorkingHours(company.workingHours)}</li>
+            <li>📍 {getLabel("Adresă", "Address", "Adres", "Adresse", "Adresse", "Dirección", "Adres")}: {company.address || 'Transportweg 1, 1000 AA Amsterdam, Nederland'}</li>
+            <li>📞 {getLabel("Tel", "Tel", "Tel", "Tel", "Tél", "Tel", "Tel")}: {company.phone || '+31 20 000 0000'}</li>
+            <li>✉️ {getLabel("Email", "Email", "E-mail", "E-Mail", "E-mail", "Correo", "E-mail")}: {company.email || 'office@hapcargo.com'}</li>
+            <li>🏢 {getLabel("Nr. Reg", "Reg No", "KvK nummer", "Reg.-Nr.", "N° RCS", "Nº Reg", "Nr rej.")}: {company.regNo || '12345678'}</li>
+            <li>💶 {getLabel("CUI / CIF", "VAT No", "BTW nummer", "USt-IdNr.", "N° TVA", "NIF / IVA", "NIP / VAT")}: {company.cui || 'NL123456789B01'}</li>
+            <li>⏰ {getLabel("Program de lucru", "Working Hours", "Openingstijden", "Arbeitszeiten", "Horaires de travail", "Horario de trabajo", "Godziny pracy")}: {formatWorkingHours(company.workingHours)}</li>
           </ul>
         </div>
       </div>

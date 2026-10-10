@@ -14,6 +14,7 @@ const labels: Record<Language, readonly [string, string]> = {
   DE: ['Hintergrundvideo abspielen', 'Hintergrundvideo pausieren'],
   FR: ['Lire la vidéo de fond', 'Mettre en pause'],
   ES: ['Reproducir vídeo de fondo', 'Pausar vídeo de fondo'],
+  PL: ['Odtwórz wideo w tle', 'Wstrzymaj wideo w tle'],
 };
 function VideoBackground() {
   const { lang } = useLanguage();

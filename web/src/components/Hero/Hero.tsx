@@ -32,13 +32,14 @@ const Hero = () => {
   const [surchargesApplied, setSurchargesApplied] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const getLabel = (roText: string, enText: string, nlText: string, deText: string, frText: string, esText: string) => {
+  const getLabel = (roText: string, enText: string, nlText: string, deText: string, frText: string, esText: string, plText?: string) => {
     if (lang === 'RO') return roText;
     if (lang === 'EN') return enText;
     if (lang === 'NL') return nlText;
     if (lang === 'DE') return deText;
     if (lang === 'FR') return frText;
     if (lang === 'ES') return esText;
+    if (lang === 'PL') return plText ?? esText;
     return enText;
   };
 
@@ -129,22 +130,22 @@ const Hero = () => {
     {
       key: 'adrSurcharge' as const,
       emoji: '⚠️',
-      label: getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR"),
+      label: getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR", "ADR"),
     },
     {
       key: 'nightSurcharge' as const,
       emoji: '🌙',
-      label: getLabel("Noapte / Express", "Night / Express", "Nacht / Express", "Nacht / Express", "Nuit / Express", "Noche / Exprés"),
+      label: getLabel("Noapte / Express", "Night / Express", "Nacht / Express", "Nacht / Express", "Nuit / Express", "Noche / Exprés", "Noc / Ekspres"),
     },
     {
       key: 'weekendSurcharge' as const,
       emoji: '📅',
-      label: getLabel("Weekend", "Weekend", "Weekend", "Wochenende", "Week-end", "Fin de Semana"),
+      label: getLabel("Weekend", "Weekend", "Weekend", "Wochenende", "Week-end", "Fin de Semana", "Weekend"),
     },
     {
       key: 'holidaySurcharge' as const,
       emoji: '🏛️',
-      label: getLabel("Sărbători Legale", "Public Holiday", "Feestdagen", "Feiertage", "Jours Fériés", "Festivos Oficiales"),
+      label: getLabel("Sărbători Legale", "Public Holiday", "Feestdagen", "Feiertage", "Jours Fériés", "Festivos Oficiales", "Święta państwowe"),
     },
   ];
 
@@ -195,6 +196,7 @@ const Hero = () => {
              lang === 'DE' ? <>Internationaler <span className={styles.highlight}>Transport</span>, nach professionellen Standards.</> :
              lang === 'FR' ? <>Transport <span className={styles.highlight}>international</span>, selon des normes professionnelles.</> :
              lang === 'ES' ? <>Transporte <span className={styles.highlight}>internacional</span>, con estándares profesionales.</> :
+             lang === 'PL' ? <>Transport <span className={styles.highlight}>międzynarodowy</span>, według profesjonalnych standardów.</> :
              <>International <span className={styles.highlight}>Transport</span>, at professional standards.</>}
           </h1>
           <p className={`${styles.subtitle} ${styles.animSubtitle}`}>
@@ -203,21 +205,21 @@ const Hero = () => {
 
           <div className={`${styles.ctaGroup} ${styles.animCta}`}>
             <button type="button" onClick={openModal} className="btn btn-primary">
-              {getLabel("Calculează Oferta Instant", "Calculate Instant Quote", "Bereken Directe Offerte", "Sofortiges Angebot berechnen", "Calculer un Devis Instantané", "Calcular Cotización Instantánea")} ⚡
+              {getLabel("Calculează Oferta Instant", "Calculate Instant Quote", "Bereken Directe Offerte", "Sofortiges Angebot berechnen", "Calculer un Devis Instantané", "Calcular Cotización Instantánea", "Oblicz ofertę natychmiast")} ⚡
             </button>
             <a href="/diensten" className="btn btn-ghost-light">
-              {getLabel("Explorează Flota", "Explore Fleet", "Verken de Vloot", "Flotte entdecken", "Explorer la Flotte", "Explorar la Flota")}
+              {getLabel("Explorează Flota", "Explore Fleet", "Verken de Vloot", "Flotte entdecken", "Explorer la Flotte", "Explorar la Flota", "Przeglądaj flotę")}
             </a>
           </div>
 
           <div className={`${styles.dynamicBadges} ${styles.animSubtitle}`}>
             <div className={styles.dynBadge}>
               <span className={styles.networkLive} aria-hidden="true" />
-              <span>{getLabel("⚡ Rețea Europeană 100% Activă", "⚡ 100% Active European Network", "⚡ 100% Actief Europees Netwerk", "⚡ 100% aktives europäisches Netz", "⚡ Réseau européen 100% actif", "⚡ Red europea 100% activa")}</span>
+              <span>{getLabel("⚡ Rețea Europeană 100% Activă", "⚡ 100% Active European Network", "⚡ 100% Actief Europees Netwerk", "⚡ 100% aktives europäisches Netz", "⚡ Réseau européen 100% actif", "⚡ Red europea 100% activa", "⚡ W 100% aktywna sieć europejska")}</span>
             </div>
             <div className={`${styles.dynBadge} ${styles.dispatchLive}`}>
               <span className={styles.dispatchPulse} aria-hidden="true" />
-              <span>{getLabel("Dispecerat live", "Live dispatch", "Live dispatch", "Live Disposition", "Dispatching en direct", "Despacho en vivo")}</span>
+              <span>{getLabel("Dispecerat live", "Live dispatch", "Live dispatch", "Live Disposition", "Dispatching en direct", "Despacho en vivo", "Dyspozycja na żywo")}</span>
             </div>
           </div>
         </div>
@@ -238,17 +240,17 @@ const Hero = () => {
               />
               <div className={styles.fleetLiveBadge}>
                 <span className={styles.networkLive} aria-hidden="true" />
-                {getLabel("⚡ Flotă Euro-6 Activă", "⚡ Euro-6 Active Fleet", "⚡ Actieve Euro-6 Vloot", "⚡ Aktive Euro-6 Flotte", "⚡ Flotte Euro-6 active", "⚡ Flota Euro-6 activa")}
+                {getLabel("⚡ Flotă Euro-6 Activă", "⚡ Euro-6 Active Fleet", "⚡ Actieve Euro-6 Vloot", "⚡ Aktive Euro-6 Flotte", "⚡ Flotte Euro-6 active", "⚡ Flota Euro-6 activa", "⚡ Aktywna flota Euro-6")}
               </div>
             </div>
             <div className={styles.fleetFooter}>
               <div className={styles.fleetFooterMain}>
-                <span className={styles.fleetFooterLabel}>{getLabel("VOLVO FH 460", "VOLVO FH 460", "VOLVO FH 460", "VOLVO FH 460", "VOLVO FH 460", "VOLVO FH 460")}</span>
-                <span className={styles.fleetFooterSub}>{getLabel("Megatracker · Gabarit · Semiremorcă", "Megatrailer · High Cube · Trailer", "Megatrailer · High Cube · Oplegger", "Megatrailer · High Cube · Auflieger", "Mégatrailer · High Cube · Semi-remorque", "Megatrailer · High Cube · Semirremolque")}</span>
+                <span className={styles.fleetFooterLabel}>{getLabel("VOLVO FH 460", "VOLVO FH 460", "VOLVO FH 460", "VOLVO FH 460", "VOLVO FH 460", "VOLVO FH 460", "VOLVO FH 460")}</span>
+                <span className={styles.fleetFooterSub}>{getLabel("Megatracker · Gabarit · Semiremorcă", "Megatrailer · High Cube · Trailer", "Megatrailer · High Cube · Oplegger", "Megatrailer · High Cube · Auflieger", "Mégatrailer · High Cube · Semi-remorque", "Megatrailer · High Cube · Semirremolque", "Megatrailer · Jumbo · Naczepa")}</span>
               </div>
               <div className={styles.fleetFooterChip}>
                 <span className={styles.fleetChipValue}>100<span>+</span></span>
-                <span className={styles.fleetChipLabel}>{getLabel("Camioane în flotă", "Trucks in fleet", "Vrachtwagens in vloot", "Lkw in der Flotte", "Camions en flotte", "Camiones en flota")}</span>
+                <span className={styles.fleetChipLabel}>{getLabel("Camioane în flotă", "Trucks in fleet", "Vrachtwagens in vloot", "Lkw in der Flotte", "Camions en flotte", "Camiones en flota", "Ciężarówki we flocie")}</span>
               </div>
             </div>
           </div>
@@ -281,7 +283,7 @@ const Hero = () => {
               className={`${styles.tab} ${mode === 'express' ? styles.tabActive : ''}`}
               onClick={() => handleMode('express')}
             >
-              <span>⚡</span> {getLabel("Express Freight", "Express Freight", "Express vracht", "Express Fracht", "Fret express", "Carga exprés")}
+              <span>⚡</span> {getLabel("Express Freight", "Express Freight", "Express vracht", "Express Fracht", "Fret express", "Carga exprés", "Ekspresowy przewóz")}
             </button>
             <button
               type="button"
@@ -290,7 +292,7 @@ const Hero = () => {
               className={`${styles.tab} ${mode === 'ftl' ? styles.tabActive : ''}`}
               onClick={() => handleMode('ftl')}
             >
-              <span>🚛</span> {getLabel("Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Carga completa (FTL)")}
+              <span>🚛</span> {getLabel("Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Carga completa (FTL)", "Full Truckload (FTL)")}
             </button>
           </div>
 
@@ -326,7 +328,7 @@ const Hero = () => {
 
                 <div className={styles.rangeWrap}>
                   <div className={styles.rangeHeader}>
-                    <label style={{ margin: 0 }}>{getLabel("Greutate", "Weight", "Gewicht", "Gewicht", "Poids", "Peso")}</label>
+                    <label style={{ margin: 0 }}>{getLabel("Greutate", "Weight", "Gewicht", "Gewicht", "Poids", "Peso", "Waga")}</label>
                     <span className={styles.rangeValue}>{weightLabel}</span>
                   </div>
                   <input
@@ -344,8 +346,8 @@ const Hero = () => {
 
                 <div className={styles.rangeWrap}>
                   <div className={styles.rangeHeader}>
-                    <label style={{ margin: 0 }}>{getLabel("Paleți", "Pallets", "Pallets", "Paletten", "Palettes", "Palets")}</label>
-                    <span className={styles.rangeValue}>{pallets} {getLabel("paleți", "pallets", "pallets", "Paletten", "palettes", "palets")}</span>
+                    <label style={{ margin: 0 }}>{getLabel("Paleți", "Pallets", "Pallets", "Paletten", "Palettes", "Palets", "Palety")}</label>
+                    <span className={styles.rangeValue}>{pallets} {getLabel("paleți", "pallets", "pallets", "Paletten", "palettes", "palets", "palety")}</span>
                   </div>
                   <input
                     type="range"
@@ -365,13 +367,13 @@ const Hero = () => {
                 </button>
 
                 <div className={styles.estimatePreview}>
-                  <span className={styles.estimateLabel}>{getLabel("Estimare instant", "Instant estimate", "Directe schatting", "Sofortige Schätzung", "Estimation instantanée", "Estimación instantánea")}</span>
+                  <span className={styles.estimateLabel}>{getLabel("Estimare instant", "Instant estimate", "Directe schatting", "Sofortige Schätzung", "Estimation instantanée", "Estimación instantánea", "Natychmiastowa wycena")}</span>
                   <span className={styles.estimateValue}>{estimatedPriceRange || '€ 1.380 – € 1.550'}</span>
                 </div>
 
                 <div className={styles.surchargeBlock}>
                   <span className={styles.surchargeTitle}>
-                    {getLabel("Opțiuni Suplimentare", "Additional Options", "Aanvullende opties", "Zusätzliche Optionen", "Options supplémentaires", "Opciones adicionales")}
+                    {getLabel("Opțiuni Suplimentare", "Additional Options", "Aanvullende opties", "Zusätzliche Optionen", "Options supplémentaires", "Opciones adicionales", "Opcje dodatkowe")}
                   </span>
                   <div className={styles.surcharges}>
                     {surchargeItems.map(s => (
@@ -404,12 +406,12 @@ const Hero = () => {
                 </svg>
               </div>
               <h3 className={styles.successTitle}>
-                {getLabel("Oferta estimativă este gata!", "Estimated quote is ready!", "Geschatte offerte is klaar!", "Geschätztes Angebot ist bereit!", "Le devis estimatif est prêt!", "¡El presupuesto estimado está listo!")}
+                {getLabel("Oferta estimativă este gata!", "Estimated quote is ready!", "Geschatte offerte is klaar!", "Geschätztes Angebot ist bereit!", "Le devis estimatif est prêt!", "¡El presupuesto estimado está listo!", "Oferta szacunkowa gotowa!")}
               </h3>
 
               <div className={styles.priceBox}>
                 <span className={styles.priceLabel}>
-                  {getLabel("Preț estimat", "Estimated price", "Geschatte prijs", "Geschätzter Preis", "Prix estimé", "Precio estimado")}
+                  {getLabel("Preț estimat", "Estimated price", "Geschatte prijs", "Geschätzter Preis", "Prix estimé", "Precio estimado", "Szacowana cena")}
                 </span>
                 <span className={styles.priceValue}>
                   {estimatedPriceRange}
@@ -419,19 +421,19 @@ const Hero = () => {
               {surchargesApplied && (surchargesApplied.adr > 0 || surchargesApplied.night > 0 || surchargesApplied.weekend > 0 || surchargesApplied.holiday > 0) && (
                 <div className={styles.surchargeBreakdown}>
                   <span className={styles.surchargeBreakdownTitle}>
-                    {getLabel("Defalcare costuri suplimentare aplicate:", "Applied surcharge breakdown:", "Overzicht toegepaste toeslagen:", "Aufschlüsselung der angewendeten Zuschläge:", "Répartition des suppléments appliqués :", "Desglose de recargos aplicados:")}
+                    {getLabel("Defalcare costuri suplimentare aplicate:", "Applied surcharge breakdown:", "Overzicht toegepaste toeslagen:", "Aufschlüsselung der angewendeten Zuschläge:", "Répartition des suppléments appliqués :", "Desglose de recargos aplicados:", "Rozbicie zastosowanych dopłat:")}
                   </span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-                    {surchargesApplied.adr > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownAmber}`}>⚠️ {getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR")}: +{fmtMoney(surchargesApplied.adr)}</span>}
-                    {surchargesApplied.night > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownBlue}`}>🌙 {getLabel("Noapte", "Night", "Nacht", "Nacht", "Nuit", "Noche")}: +{fmtMoney(surchargesApplied.night)}</span>}
-                    {surchargesApplied.weekend > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownGreen}`}>📅 {getLabel("Weekend", "Weekend", "Weekend", "Wochenende", "Week-end", "Fin de semana")}: +{fmtMoney(surchargesApplied.weekend)}</span>}
-                    {surchargesApplied.holiday > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownPurple}`}>🏛️ {getLabel("Sărbători Legale", "Public Holiday", "Feestdagen", "Feiertag", "Jours Fériés", "Festivos Oficiales")}: +{fmtMoney(surchargesApplied.holiday)}</span>}
+                    {surchargesApplied.adr > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownAmber}`}>⚠️ {getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR", "ADR")}: +{fmtMoney(surchargesApplied.adr)}</span>}
+                    {surchargesApplied.night > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownBlue}`}>🌙 {getLabel("Noapte", "Night", "Nacht", "Nacht", "Nuit", "Noche", "Noc")}: +{fmtMoney(surchargesApplied.night)}</span>}
+                    {surchargesApplied.weekend > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownGreen}`}>📅 {getLabel("Weekend", "Weekend", "Weekend", "Wochenende", "Week-end", "Fin de semana", "Weekend")}: +{fmtMoney(surchargesApplied.weekend)}</span>}
+                    {surchargesApplied.holiday > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownPurple}`}>🏛️ {getLabel("Sărbători Legale", "Public Holiday", "Feestdagen", "Feiertag", "Jours Fériés", "Festivos Oficiales", "Święta państwowe")}: +{fmtMoney(surchargesApplied.holiday)}</span>}
                   </div>
                 </div>
               )}
 
               <p className={styles.successDesc}>
-                {getLabel("Continuă spre formularul complet de cerere de ofertă. Datele tale și prețul estimat vor fi transferate automat!", "Continue to the full quote request form. Your data and estimated price will be transferred automatically!", "Ga naar het volledige offerteformulier. Uw gegevens en geschatte prijs worden automatisch overgedragen!", "Weiter zum vollständigen Angebotsformular. Ihre Daten und der geschätzte Preis werden automatisch übernommen!", "Passez au formulaire complet de demande de devis. Vos données et le prix estimé seront transférés automatiquement !", "Continúe con el formulario de solicitud de cotización completo. ¡Sus datos y precio estimado se transferirán automáticamente!")}
+                {getLabel("Continuă spre formularul complet de cerere de ofertă. Datele tale și prețul estimat vor fi transferate automat!", "Continue to the full quote request form. Your data and estimated price will be transferred automatically!", "Ga naar het volledige offerteformulier. Uw gegevens en geschatte prijs worden automatisch overgedragen!", "Weiter zum vollständigen Angebotsformular. Ihre Daten und der geschätzte Preis werden automatisch übernommen!", "Passez au formulaire complet de demande de devis. Vos données et le prix estimé seront transférés automatiquement !", "Continúe con el formulario de solicitud de cotización completo. ¡Sus datos y precio estimado se transferirán automáticamente!", "Przejdź do pełnego formularza zapytania ofertowego. Twoje dane i szacowana cena zostaną przeniesione automatycznie!")}
               </p>
 
               <div className={styles.btnGroup}>
@@ -446,7 +448,7 @@ const Hero = () => {
                   className={`btn btn-primary ${styles.calcBtn}`}
                   style={{ minWidth: '220px' }}
                 >
-                  {getLabel("Continuă spre cererea de ofertă ➔", "Continue to Quote Request ➔", "Ga naar offerteaanvraag ➔", "Weiter zur Angebotsanfrage ➔", "Continuer vers la demande de devis ➔", "Continuar a la solicitud de cotización ➔")}
+                  {getLabel("Continuă spre cererea de ofertă ➔", "Continue to Quote Request ➔", "Ga naar offerteaanvraag ➔", "Weiter zur Angebotsanfrage ➔", "Continuer vers la demande de devis ➔", "Continuar a la solicitud de cotización ➔", "Przejdź do zapytania ofertowego ➔")}
                 </button>
               </div>
             </div>
@@ -476,19 +478,19 @@ const Hero = () => {
       <div className={styles.statsInner}>
         <div className={styles.statItem}>
           <div className={styles.statValue}>100<em>+</em></div>
-          <div className={styles.statLabel}>{getLabel("Flotă Euro-6 modernă", "Modern Euro-6 Fleet", "Moderne Euro-6 Vloot", "Moderne Euro-6 Flotte", "Flotte Euro-6 moderne", "Flota Euro-6 moderna")}</div>
+          <div className={styles.statLabel}>{getLabel("Flotă Euro-6 modernă", "Modern Euro-6 Fleet", "Moderne Euro-6 Vloot", "Moderne Euro-6 Flotte", "Flotte Euro-6 moderne", "Flota Euro-6 moderna", "Nowoczesna flota Euro-6")}</div>
         </div>
         <div className={styles.statItem}>
           <div className={styles.statValue}>5.000<em>+</em></div>
-          <div className={styles.statLabel}>{getLabel("Livrări finalizate", "Completed Deliveries", "Voltooide leveringen", "Abgeschlossene Lieferungen", "Livraisons terminées", "Entregas completadas")}</div>
+          <div className={styles.statLabel}>{getLabel("Livrări finalizate", "Completed Deliveries", "Voltooide leveringen", "Abgeschlossene Lieferungen", "Livraisons terminées", "Entregas completadas", "Ukończone dostawy")}</div>
         </div>
         <div className={styles.statItem}>
           <div className={styles.statValue}>15<em>+</em></div>
-          <div className={styles.statLabel}>{getLabel("Țări europene acoperite", "European Countries Covered", "Europese landen", "Abgedeckte Länder", "Pays européens", "Países europeos")}</div>
+          <div className={styles.statLabel}>{getLabel("Țări europene acoperite", "European Countries Covered", "Europese landen", "Abgedeckte Länder", "Pays européens", "Países europeos", "Obsługiwane kraje europejskie")}</div>
         </div>
         <div className={styles.statItem}>
           <div className={styles.statValue}>99,4<em>%</em></div>
-          <div className={styles.statLabel}>{getLabel("Livrare la timp garantată", "On-Time Delivery Guarantee", "Op tijd garanție", "Pünktlichkeitsgarantie", "Livraison à temps", "Entrega a tiempo")}</div>
+          <div className={styles.statLabel}>{getLabel("Livrare la timp garantată", "On-Time Delivery Guarantee", "Op tijd garanție", "Pünktlichkeitsgarantie", "Livraison à temps", "Entrega a tiempo", "Gwarancja dostawy na czas")}</div>
         </div>
       </div>
     </div>

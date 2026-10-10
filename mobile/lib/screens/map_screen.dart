@@ -136,7 +136,7 @@ class _MapScreenState extends State<MapScreen> {
     final bool hasActiveTrip = tripProv.trips.any((t) => isActiveTripStatus(t['status']));
 
     return Scaffold(
-      appBar: AppBar(title: Text({'ro':'Hartă Live','en':'Live Map','nl':'Live Kaart','de':'Live-Karte','fr':'Carte en direct'}[locale] ?? 'Live Map')),
+      appBar: AppBar(title: Text({'ro':'Hartă Live','en':'Live Map','nl':'Live Kaart','de':'Live-Karte','fr':'Carte en direct', 'es': 'Mapa en Vivo', 'pl': 'Mapa na żywo' }[locale] ?? 'Live Map')),
       body: Stack(children: [
         FlutterMap(
           mapController: _mapCtrl,
@@ -168,8 +168,8 @@ class _MapScreenState extends State<MapScreen> {
           backgroundColor: (hasActiveTrip || _tracking) ? kSuccess : kPrimary,
           icon: Icon((hasActiveTrip || _tracking) ? Icons.gps_fixed : Icons.play_arrow),
           label: Text(hasActiveTrip 
-            ? ({'ro':'Tracking automat','en':'Auto tracking','nl':'Automatisch tr.'}[locale] ?? 'Auto tracking')
-            : (_tracking ? 'Stop' : ({'ro':'Pornește tracking','en':'Start tracking','nl':'Starten','de':'Tracking starten','fr':'Démarrer le suivi'}[locale] ?? 'Start tracking'))),
+            ? ({'ro':'Tracking automat','en':'Auto tracking','nl':'Automatisch tr.', 'es': 'Tracking automático', 'pl': 'Auto śledzenie' }[locale] ?? 'Auto tracking')
+            : (_tracking ? 'Stop' : ({'ro':'Pornește tracking','en':'Start tracking','nl':'Starten','de':'Tracking starten','fr':'Démarrer le suivi', 'es': 'Iniciar tracking', 'pl': 'Włącz śledzenie' }[locale] ?? 'Start tracking'))),
         )),
       ]),
     );

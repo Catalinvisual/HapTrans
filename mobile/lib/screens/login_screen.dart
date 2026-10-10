@@ -50,6 +50,8 @@ class _LoginScreenState extends State<LoginScreen> {
       'nl': {'title': 'Welkom!', 'sub': 'Log in om verder te gaan', 'email': 'E-mail', 'pass': 'Wachtwoord', 'btn': 'Inloggen', 'err': 'Ongeldig e-mail of wachtwoord'},
       'de': {'title': 'Willkommen!', 'sub': 'Melden Sie sich an, um fortzufahren', 'email': 'E-Mail', 'pass': 'Passwort', 'btn': 'Einloggen', 'err': 'Ungültige E-Mail-Adresse oder Passwort'},
       'fr': {'title': 'Bienvenue !', 'sub': 'Connectez-vous pour continuer', 'email': 'E-mail', 'pass': 'Mot de passe', 'btn': 'Se connecter', 'err': 'E-mail ou mot de passe incorrect'},
+      'es': {'title': '¡Bienvenido!', 'sub': 'Inicia sesión para continuar', 'email': 'Correo electrónico', 'pass': 'Contraseña', 'btn': 'Iniciar sesión', 'err': 'Correo o contraseña incorrectos'},
+      'pl': {'title': 'Witaj!', 'sub': 'Zaloguj się, aby kontynuować', 'email': 'E-mail', 'pass': 'Hasło', 'btn': 'Zaloguj się', 'err': 'Nieprawidłowy e-mail lub hasło'},
     };
     final l = labels[locale] ?? labels['ro']!;
 

@@ -52,6 +52,7 @@ export function AppToaster() {
 
         return (
           <div
+            data-testid="app-toast"
             style={{
               background: 'rgba(11, 27, 42, 0.9)',
               backdropFilter: 'blur(16px)',

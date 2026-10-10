@@ -17,6 +17,8 @@ class LanguageDropdown extends StatelessWidget {
       ('nl', '🇳🇱', 'Nederlands'),
       ('de', '🇩🇪', 'Deutsch'),
       ('fr', '🇫🇷', 'Français'),
+      ('es', '🇪🇸', 'Español'),
+      ('pl', '🇵🇱', 'Polski'),
     ];
 
     final current = langs.firstWhere((l) => l.$1 == currentLocale, orElse: () => langs[0]);

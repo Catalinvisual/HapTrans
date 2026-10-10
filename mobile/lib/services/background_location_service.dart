@@ -67,7 +67,7 @@ class BackgroundLocationService {
             'content': 'Pour suivre correctement le camion lorsque l\'application est fermée ou que l\'écran est éteint, veuillez aller dans Paramètres -> Autorisations -> Localisation et sélectionner:\n\n→ "Toujours autoriser"',
             'button': 'Ouvrir les paramètres',
           },
-        };
+         'es': { 'title': 'Permiso de ubicación en segundo plano', 'content': 'Para monitorizar el camión correctamente cuando la aplicación esté cerrada o la pantalla apagada, ve a Ajustes -> Permisos -> Ubicación y selecciona:\n\n→ "Permitir siempre"', 'button': 'Abrir Ajustes' }, 'pl': { 'title': 'Uprawnienie do lokalizacji w tle', 'content': 'Aby prawidłowo monitorować ciężarówkę, gdy aplikacja jest zamknięta lub ekran wyłączony, przejdź do Ustawienia -> Uprawnienia -> Lokalizacja i wybierz:\n\n→ "Zezwalaj przez cały czas"', 'button': 'Otwórz ustawienia' } };
 
         final lang = translations.containsKey(locale) ? locale : 'en';
         final titleText = translations[lang]!['title']!;

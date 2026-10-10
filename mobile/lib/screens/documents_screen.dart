@@ -440,21 +440,21 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
       'nl': 'Downloaden...',
       'de': 'Wird heruntergeladen...',
       'fr': 'Téléchargement en cours...',
-    }[locale] ?? 'Downloading...';
+     'es': 'Descargando...', 'pl': 'Pobieranie...' }[locale] ?? 'Downloading...';
     final msgSuccess = {
       'ro': 'Salvat în Descărcări (Downloads)',
       'en': 'Saved to Downloads',
       'nl': 'Opgeslagen in Downloads',
       'de': 'In Downloads gespeichert',
       'fr': 'Enregistré dans Téléchargements',
-    }[locale] ?? 'Saved to Downloads';
+     'es': 'Guardado en Descargas', 'pl': 'Zapisano w folderze Pobrane' }[locale] ?? 'Saved to Downloads';
     final msgError = {
       'ro': 'Eroare la descărcare',
       'en': 'Download error',
       'nl': 'Downloadfout',
       'de': 'Downloadfehler',
       'fr': 'Erreur de téléchargement',
-    }[locale] ?? 'Download error';
+     'es': 'Error de descarga', 'pl': 'Błąd pobierania' }[locale] ?? 'Download error';
     try {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msgInProgress)));
       String savePath;

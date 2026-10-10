@@ -20,7 +20,7 @@ class ProfileScreen extends StatelessWidget {
 
 
     return Scaffold(
-      appBar: AppBar(title: Text({'ro':'Profilul meu','en':'My Profile','nl':'Mijn profiel','de':'Mein Profil','fr':'Mon profil'}[locale] ?? 'My Profile')),
+      appBar: AppBar(title: Text({'ro':'Profilul meu','en':'My Profile','nl':'Mijn profiel','de':'Mein Profil','fr':'Mon profil', 'es': 'Mi Perfil', 'pl': 'Mój profil' }[locale] ?? 'My Profile')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -49,7 +49,7 @@ class ProfileScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                {'ro':'Limbă','en':'Language','nl':'Taal','de':'Sprache','fr':'Langue'}[locale] ?? 'Language',
+                {'ro':'Limbă','en':'Language','nl':'Taal','de':'Sprache','fr':'Langue', 'es': 'Idioma', 'pl': 'Język' }[locale] ?? 'Language',
                 style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: kText),
               ),
               const LanguageDropdown(),
@@ -67,7 +67,7 @@ class ProfileScreen extends StatelessWidget {
               'nl': 'Wachtwoord wijzigen',
               'de': 'Passwort ändern',
               'fr': 'Changer le mot de passe'
-            }[locale] ?? 'Change password'),
+            , 'es': 'Cambiar contraseña', 'pl': 'Zmień hasło' }[locale] ?? 'Change password'),
             style: ElevatedButton.styleFrom(
               backgroundColor: kPrimary,
               foregroundColor: Colors.white,
@@ -87,7 +87,7 @@ class ProfileScreen extends StatelessWidget {
               'nl': 'Controleer op updates',
               'de': 'Nach Updates suchen',
               'fr': 'Vérifier les mises à jour'
-            }[locale] ?? 'Check for Updates'),
+            , 'es': 'Buscar Actualizaciones', 'pl': 'Sprawdź aktualizacje' }[locale] ?? 'Check for Updates'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blueAccent,
               foregroundColor: Colors.white,
@@ -102,7 +102,7 @@ class ProfileScreen extends StatelessWidget {
               Navigator.pushReplacementNamed(context, '/login');
             },
             icon: const Icon(Icons.logout),
-            label: Text({'ro':'Deconectare','en':'Logout','nl':'Uitloggen','de':'Abmelden','fr':'Déconnexion'}[locale] ?? 'Logout'),
+            label: Text({'ro':'Deconectare','en':'Logout','nl':'Uitloggen','de':'Abmelden','fr':'Déconnexion', 'es': 'Cerrar sesión', 'pl': 'Wyloguj' }[locale] ?? 'Logout'),
             style: ElevatedButton.styleFrom(
               backgroundColor: kError,
               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -112,7 +112,7 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 24),
           Center(
             child: Text(
-              '${{'ro': 'Versiunea aplicației: ', 'en': 'App Version: ', 'nl': 'App Versie: ', 'de': 'App Version: ', 'fr': 'Version de l\'application: '}[locale] ?? 'App Version: '}$kAppVersionCode',
+              '${{'ro': 'Versiunea aplicației: ', 'en': 'App Version: ', 'nl': 'App Versie: ', 'de': 'App Version: ', 'fr': 'Version de l\'application: ', 'es': 'Versión de la app: ', 'pl': 'Wersja aplikacji: ' }[locale] ?? 'App Version: '}$kAppVersionCode',
               style: const TextStyle(color: Colors.grey, fontSize: 12),
             ),
           ),
@@ -142,7 +142,7 @@ class ProfileScreen extends StatelessWidget {
               'nl': 'U gebruikt al de nieuwste versie.',
               'de': 'Sie verwenden bereits die neueste Version.',
               'fr': 'Vous utilisez déjà la dernière version.'
-            }[locale] ?? 'You are already using the latest version.'),
+            , 'es': 'Ya estás usando la última versión.', 'pl': 'Masz już najnowszą wersję.' }[locale] ?? 'You are already using the latest version.'),
             backgroundColor: kSuccess,
           ),
         );
@@ -170,7 +170,7 @@ class ProfileScreen extends StatelessWidget {
               'nl': 'Downloaden...',
               'de': 'Wird heruntergeladen...',
               'fr': 'Téléchargement...'
-            }[locale] ?? 'Downloading...'),
+            , 'es': 'Descargando...', 'pl': 'Pobieranie...' }[locale] ?? 'Downloading...'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -233,7 +233,7 @@ class ProfileScreen extends StatelessWidget {
               'nl': 'Wachtwoord wijzigen',
               'de': 'Passwort ändern',
               'fr': 'Changer le mot de passe'
-            }[locale] ?? 'Change Password',
+            , 'es': 'Cambiar contraseña', 'pl': 'Zmień hasło' }[locale] ?? 'Change Password',
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: kText),
           ),
           content: Form(
@@ -253,7 +253,7 @@ class ProfileScreen extends StatelessWidget {
                         'nl': 'Oud wachtwoord',
                         'de': 'Altes Passwort',
                         'fr': 'Ancien mot de passe'
-                      }[locale] ?? 'Old password',
+                      , 'es': 'Contraseña anterior', 'pl': 'Stare hasło' }[locale] ?? 'Old password',
                       prefixIcon: const Icon(Icons.lock_outline, size: 20),
                     ),
                     validator: (v) => (v == null || v.isEmpty)
@@ -263,7 +263,7 @@ class ProfileScreen extends StatelessWidget {
                             'nl': 'Voer oud wachtwoord in',
                             'de': 'Geben Sie das alte Passwort ein',
                             'fr': 'Entrez l\'ancien mot de passe'
-                          }[locale] ?? 'Enter old password')
+                          , 'es': 'Introduce tu contraseña anterior', 'pl': 'Wprowadź stare hasło' }[locale] ?? 'Enter old password')
                         : null,
                   ),
                   const SizedBox(height: 12),
@@ -277,7 +277,7 @@ class ProfileScreen extends StatelessWidget {
                         'nl': 'Nieuw wachtwoord',
                         'de': 'Neues Passwort',
                         'fr': 'Nouveau mot de passe'
-                      }[locale] ?? 'New password',
+                      , 'es': 'Contraseña nueva', 'pl': 'Nowe hasło' }[locale] ?? 'New password',
                       prefixIcon: const Icon(Icons.vpn_key_outlined, size: 20),
                     ),
                     validator: (v) {
@@ -288,7 +288,7 @@ class ProfileScreen extends StatelessWidget {
                           'nl': 'Minimaal 6 tekens',
                           'de': 'Mindestens 6 Zeichen',
                           'fr': 'Au moins 6 caractères'
-                        }[locale] ?? 'Minimum 6 characters';
+                        , 'es': 'Mínimo 6 caracteres', 'pl': 'Minimum 6 znaków' }[locale] ?? 'Minimum 6 characters';
                       }
                       return null;
                     },
@@ -304,7 +304,7 @@ class ProfileScreen extends StatelessWidget {
                         'nl': 'Bevestig nieuw wachtwoord',
                         'de': 'Neues Passwort bestätigen',
                         'fr': 'Confirmer le nouveau mot de passe'
-                      }[locale] ?? 'Confirm new password',
+                      , 'es': 'Confirmar la contraseña nueva', 'pl': 'Potwierdź nowe hasło' }[locale] ?? 'Confirm new password',
                       prefixIcon: const Icon(Icons.check_circle_outline, size: 20),
                     ),
                     validator: (v) {
@@ -315,7 +315,7 @@ class ProfileScreen extends StatelessWidget {
                           'nl': 'Wachtwoorden komen niet overeen',
                           'de': 'Passwörter stimmen nicht überein',
                           'fr': 'Les mots de passe ne correspondent pas'
-                        }[locale] ?? 'Passwords do not match';
+                        , 'es': 'Las contraseñas no coinciden', 'pl': 'Hasła nie są zgodne' }[locale] ?? 'Passwords do not match';
                       }
                       return null;
                     },
@@ -334,7 +334,7 @@ class ProfileScreen extends StatelessWidget {
                   'nl': 'Annuleren',
                   'de': 'Abbrechen',
                   'fr': 'Annuler'
-                }[locale] ?? 'Cancel',
+                , 'es': 'Cancelar', 'pl': 'Anuluj' }[locale] ?? 'Cancel',
                 style: const TextStyle(color: kTextSecondary),
               ),
             ),
@@ -349,7 +349,7 @@ class ProfileScreen extends StatelessWidget {
                       if (err != null) {
                         if (context.mounted) {
                           showTopSnackBar(context, 
-                            SnackBar(content: Text({'ro': 'Eroare: $err', 'en': 'Error: $err', 'nl': 'Fout: $err', 'de': 'Fehler: $err', 'fr': 'Erreur: $err'}[locale] ?? err), backgroundColor: kError),
+                            SnackBar(content: Text({'ro': 'Eroare: $err', 'en': 'Error: $err', 'nl': 'Fout: $err', 'de': 'Fehler: $err', 'fr': 'Erreur: $err', 'es': 'Error: $err', 'pl': 'Błąd: $err' }[locale] ?? err), backgroundColor: kError),
                           );
                         }
                       } else {
@@ -363,7 +363,7 @@ class ProfileScreen extends StatelessWidget {
                                 'nl': 'Wachtwoord succesvol gewijzigd!',
                                 'de': 'Passwort erfolgreich geändert!',
                                 'fr': 'Mot de passe changé avec succès !'
-                              }[locale] ?? 'Password changed successfully!'),
+                              , 'es': '¡Contraseña cambiada!', 'pl': 'Hasło zostało zmienione!' }[locale] ?? 'Password changed successfully!'),
                               backgroundColor: kSuccess,
                             ),
                           );
@@ -383,7 +383,7 @@ class ProfileScreen extends StatelessWidget {
                         'nl': 'Wijzigen',
                         'de': 'Ändern',
                         'fr': 'Changer'
-                      }[locale] ?? 'Change',
+                      , 'es': 'Cambiar', 'pl': 'Zmień' }[locale] ?? 'Change',
                       style: const TextStyle(color: Colors.white),
                     ),
             ),

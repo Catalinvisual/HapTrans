@@ -57,7 +57,7 @@ class ChatListScreen extends StatelessWidget {
         'activeTrips': 'Courses Actives',
         'noActive': 'Aucune course active pour le moment',
       },
-    };
+     'es': { 'title': 'Mensajes del Despacho', 'generalChat': 'Chat General con el Despacho', 'generalSub': 'Contacta con el despacho cuando quieras', 'activeTrips': 'Rutas Activas', 'noActive': 'No hay rutas activas en este momento' }, 'pl': { 'title': 'Wiadomości od dyspozytora', 'generalChat': 'Czat ogólny z dyspozytorem', 'generalSub': 'Skontaktuj się z dyspozytorem w każdej chwili', 'activeTrips': 'Aktywne kursy', 'noActive': 'Brak aktywnych kursów na razie' } };
     final t = translations[locale] ?? translations['ro']!;
 
     final generalTrip = {
@@ -272,7 +272,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Row(children: [
             Container(width: 6, height: 6, decoration: BoxDecoration(color: chat.connected ? kSuccess : kError, shape: BoxShape.circle)),
             const SizedBox(width: 4),
-            Text(chat.connected ? ({'ro':'Conectat','en':'Connected','nl':'Verbonden','de':'Verbunden','fr':'Connecté'}[widget.locale] ?? 'Connected') : 'Offline',
+            Text(chat.connected ? ({'ro':'Conectat','en':'Connected','nl':'Verbonden','de':'Verbunden','fr':'Connecté', 'es': 'Conectado', 'pl': 'Połączono' }[widget.locale] ?? 'Connected') : 'Offline',
               style: TextStyle(fontSize: 11, color: chat.connected ? kSuccess : kError)),
           ]),
         ]),
@@ -321,7 +321,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Expanded(child: TextField(
               controller: _ctrl,
               decoration: InputDecoration(
-                hintText: {'ro':'Scrie un mesaj...','en':'Type a message...','nl':'Typ een bericht...','de':'Nachricht schreiben...','fr':'Écrire un message...'}[widget.locale] ?? 'Type a message...',
+                hintText: {'ro':'Scrie un mesaj...','en':'Type a message...','nl':'Typ een bericht...','de':'Nachricht schreiben...','fr':'Écrire un message...', 'es': 'Escribe un mensaje...', 'pl': 'Napisz wiadomość...' }[widget.locale] ?? 'Type a message...',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: const BorderSide(color: kBorder)),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               ),

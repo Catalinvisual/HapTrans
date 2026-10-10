@@ -61,7 +61,7 @@ class ChatProvider extends ChangeNotifier {
       'notif_alert_title': 'Document Expire Bientôt',
       'notif_document_title': 'Nouveau Document Téléversé',
     },
-  };
+   'es': { 'notif_chat_title': 'Nuevo Mensaje', 'notif_chat_file': 'Archivo recibido', 'notif_trip_title': 'Actualización de Ruta', 'notif_alert_title': 'Documento por Vencer', 'notif_document_title': 'Documento Nuevo Subido' }, 'pl': { 'notif_chat_title': 'Nowa wiadomość', 'notif_chat_file': 'Otrzymano plik', 'notif_trip_title': 'Aktualizacja kursu', 'notif_alert_title': 'Dokument wkrótce wygasa', 'notif_document_title': 'Przesłano nowy dokument' } };
 
   String _tr(String key, String locale) {
     return _notifTranslations[locale]?[key] ?? _notifTranslations['en']![key] ?? key;
@@ -106,7 +106,7 @@ class ChatProvider extends ChangeNotifier {
         final titles = {
           'ro': 'Cursă actualizată', 'en': 'Trip Updated',
           'nl': 'Rit bijgewerkt', 'de': 'Fahrt aktualisiert', 'fr': 'Trajet mis à jour',
-        };
+         'es': 'Ruta actualizada', 'pl': 'Kurs zaktualizowany' };
         final title = titles[locale] ?? 'Trip Updated';
         NotificationService().showNotification(
           id: DateTime.now().millisecondsSinceEpoch ~/ 1000,

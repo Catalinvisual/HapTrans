@@ -38,7 +38,7 @@ export default function CareersPage() {
         
         // Fallback to other languages if current is empty
         if (parsed.length === 0) {
-          const fallbackLangs = ['EN', 'RO', 'NL', 'DE', 'FR', 'ES'];
+          const fallbackLangs = ['EN', 'RO', 'NL', 'DE', 'FR', 'ES', 'PL'];
           for (const l of fallbackLangs) {
             if (l !== lang && data[`jobs_${l}`]) {
               try {

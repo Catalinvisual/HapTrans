@@ -1,7 +1,7 @@
 import { ROWS, FR_ROWS, UNIT_ROWS, localizeText, localizeUnit, normalizeLocale } from './reports-i18n';
 
 describe('reports-i18n', () => {
-  it('normalizes the five TMS locales (ro/en/nl/fr/de)', () => {
+  it('normalizes the seven TMS locales (ro/en/nl/fr/de/es/pl)', () => {
     expect(normalizeLocale('ro')).toBe('ro');
     expect(normalizeLocale('ro-RO')).toBe('ro');
     expect(normalizeLocale('en')).toBe('en');
@@ -11,7 +11,10 @@ describe('reports-i18n', () => {
     expect(normalizeLocale('fr')).toBe('fr');
     expect(normalizeLocale('fr-FR')).toBe('fr');
     expect(normalizeLocale('de')).toBe('de');
-    expect(normalizeLocale('pl')).toBe('en');
+    expect(normalizeLocale('es')).toBe('es');
+    expect(normalizeLocale('es-ES')).toBe('es');
+    expect(normalizeLocale('pl')).toBe('pl');
+    expect(normalizeLocale('pl-PL')).toBe('pl');
     expect(normalizeLocale(undefined)).toBe('en');
   });
 
@@ -20,7 +23,7 @@ describe('reports-i18n', () => {
     const missing: string[] = [];
     for (const [key] of ROWS) {
       if (!frKeys.has(key)) missing.push(`${key} -> fr (no row)`);
-      for (const l of ['ro', 'nl', 'de', 'fr'] as const) {
+      for (const l of ['ro', 'nl', 'de', 'fr', 'es', 'pl'] as const) {
         const tr = localizeText(key, l);
         if (!tr || tr.trim().length === 0) missing.push(`${key} -> ${l}`);
       }
@@ -31,7 +34,7 @@ describe('reports-i18n', () => {
   it('provides a localized unit in every language', () => {
     const missing: string[] = [];
     for (const [key] of UNIT_ROWS) {
-      for (const l of ['ro', 'en', 'nl', 'fr', 'de'] as const) {
+      for (const l of ['ro', 'en', 'nl', 'fr', 'de', 'es', 'pl'] as const) {
         const tr = localizeUnit(key, l);
         if (!tr || tr.trim().length === 0) missing.push(`${key} -> ${l}`);
       }
