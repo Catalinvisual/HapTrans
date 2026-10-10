@@ -122,7 +122,7 @@ const Header = () => {
                 {t('clientPortal') || 'Portal Clienți'}
               </Link>
             </div>
-          </div>
+          )}
         </nav>
 
         <div className={styles.actions}>
