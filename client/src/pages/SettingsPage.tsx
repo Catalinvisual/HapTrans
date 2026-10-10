@@ -287,10 +287,10 @@ export default function SettingsPage() {
     colSpan: true
   }];
   const TABS = [
-    { id: 'company', label: '🏢 Date Companie & Facturare' },
-    { id: 'tariffs', label: '🚚 Engine Tarife & Calculator' },
-    { id: 'profile', label: '👤 Profilul Meu & Securitate' },
-    { id: 'server', label: '🔌 Conexiuni & Server' },
+    { id: 'company', label: t('settings_tab_company', '🏢 Date Companie & Facturare') },
+    { id: 'tariffs', label: t('settings_tab_tariffs', '🚚 Engine Tarife & Calculator') },
+    { id: 'profile', label: t('settings_tab_profile', '👤 Profilul Meu & Securitate') },
+    { id: 'server', label: t('settings_tab_server', '🔌 Conexiuni & Server') },
   ];
   const apiBase = import.meta.env.VITE_API_URL || 'https://haptrans-production.up.railway.app/api';
   const wsBase = import.meta.env.VITE_WS_URL || 'http://localhost:3001';
@@ -306,15 +306,15 @@ export default function SettingsPage() {
       {/* Sticky action header */}
       <div className="sticky top-0 z-30 h-[50px] flex items-center justify-between gap-3 px-4 -mx-4 sm:-mx-6 bg-card/95 backdrop-blur-md border-b border-border">
         <div className="min-w-0">
-          <h1 className="text-[15px] font-black tracking-tight text-text leading-tight">Setări Sistem</h1>
-          <p className="text-[11px] text-text-secondary hidden sm:block truncate">Configurează datele firmei, tarifele și conexiunile aplicației.</p>
+          <h1 className="text-[15px] font-black tracking-tight text-text leading-tight">{t('settings_title', 'Setări Sistem')}</h1>
+          <p className="text-[11px] text-text-secondary hidden sm:block truncate">{t('settings_subtitle', 'Configurează datele firmei, tarifele și conexiunile aplicației.')}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={handleReset} className="btn-secondary !py-1.5 !px-3 text-xs font-bold flex items-center gap-1.5">
-            <RefreshCw className="w-3.5 h-3.5" /> Resetează Câmpurile
+            <RefreshCw className="w-3.5 h-3.5" /> {t('settings_reset', 'Resetează Câmpurile')}
           </button>
           <button onClick={handleSave} disabled={!dirty} className="btn-primary !py-1.5 !px-3 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed">
-            <Save className="w-3.5 h-3.5" /> Salvează Modificările
+            <Save className="w-3.5 h-3.5" /> {t('settings_save', 'Salvează Modificările')}
           </button>
         </div>
       </div>
@@ -613,7 +613,7 @@ export default function SettingsPage() {
               <input className="input bg-surface text-text-secondary font-mono text-sm" value={apiBase} readOnly />
               <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md border whitespace-nowrap ${backendOk === false ? 'bg-red-500/10 text-red-700 border-red-500/20' : 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${backendOk === false ? 'bg-red-500' : 'bg-emerald-500'}`} />
-                {backendOk === false ? '🔴 Backend Railway Offline' : '🟢 Backend Railway Connected'}
+                {backendOk === false ? t('settings_backend_offline', '🔴 Backend Railway Offline') : t('settings_backend_online', '🟢 Backend Railway Connected')}
               </span>
             </div>
           </div>
@@ -622,7 +622,7 @@ export default function SettingsPage() {
             <div className="space-y-2">
               <input className="input bg-surface text-text-secondary font-mono text-sm" value={wsBase} readOnly />
               <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md border bg-emerald-500/10 text-emerald-700 border-emerald-500/20 whitespace-nowrap">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> 🟢 WebSocket Active
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {t('settings_ws_active', '🟢 WebSocket Active')}
               </span>
             </div>
           </div>

@@ -66,7 +66,7 @@ const WebsiteHubPage = () => {
     icon: Phone
   }, {
     id: 'social',
-    label: 'Social Media',
+    label: t('website_hub_tabs_social', 'Social Media'),
     icon: Globe
   }];
   const editLangs = ['RO', 'EN', 'NL', 'DE', 'FR', 'ES'];

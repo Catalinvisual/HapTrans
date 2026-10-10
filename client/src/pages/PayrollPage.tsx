@@ -19,6 +19,7 @@ export default function PayrollPage() {
     t,
     i18n
   } = useTranslation();
+  const months = MONTHS.map(m => t(`month_${m.toLowerCase()}`, m));
   const [payrolls, setPayrolls] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
@@ -97,9 +98,9 @@ export default function PayrollPage() {
   const totalTaxe = payrolls.reduce((s: number, p: any) => s + Number(p.taxAmount || 0), 0);
 
   const statusOptions = [
-    { value: 'draft', label: 'Draft', color: '#94A3B8' },
-    { value: 'paid', label: 'Plătit', color: '#10B981' },
-    { value: 'sent', label: 'Trimis', color: '#6366F1' },
+    { value: 'draft', label: t('payroll_draft', 'Draft'), color: '#94A3B8' },
+    { value: 'paid', label: t('payroll_paid', 'Plătit'), color: '#10B981' },
+    { value: 'sent', label: t('payroll_sent', 'Trimis'), color: '#6366F1' },
   ];
 
   const paged = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -108,9 +109,9 @@ export default function PayrollPage() {
       <KpiStrip items={[
         { key: 'net', label: t('payroll_totalNet'), value: fmtMoney(totalNet), icon: Wallet, color: 'text-success' },
         { key: 'brut', label: t('payroll_gross'), value: fmtMoney(totalBrut), icon: Banknote },
-        { key: 'diurne', label: 'Total Diurne', value: fmtMoney(totalDiurne), icon: Coins },
+        { key: 'diurne', label: t('payroll_totalDiurnes', 'Total Diurne'), value: fmtMoney(totalDiurne), icon: Coins },
         { key: 'taxe', label: t('payroll_tax'), value: fmtMoney(totalTaxe), icon: Landmark },
-        { key: 'angajati', label: 'Angajați', value: fmtNumber(payrolls.length), icon: Users },
+        { key: 'angajati', label: t('payroll_employees', 'Angajați'), value: fmtNumber(payrolls.length), icon: Users },
       ]} dense />
 
       <div className="card flex items-center gap-2 px-3 py-2 flex-wrap">
@@ -121,7 +122,7 @@ export default function PayrollPage() {
 
         <div className="flex items-center gap-1 bg-surface/60 border border-border rounded-lg px-1.5 py-1 shrink-0">
           <span className="text-[10px] font-bold uppercase text-text-secondary px-1">{t("jsx_luna")}</span>
-          <CustomSelect size="sm" className="w-24" value={String(selectedMonth)} onChange={val => setSelectedMonth(Number(val))} options={MONTHS.map((m, i) => ({
+          <CustomSelect size="sm" className="w-24" value={String(selectedMonth)} onChange={val => setSelectedMonth(Number(val))} options={months.map((m, i) => ({
             value: String(i + 1),
             label: m
           }))} />
@@ -155,7 +156,7 @@ export default function PayrollPage() {
                 <Calculator className="w-7 h-7" />
               </div>
               <h3 className="text-[15px] font-black text-text mb-1.5">{t('noPayrollData')}</h3>
-              <p className="text-xs text-text-secondary leading-relaxed mb-5">{MONTHS[selectedMonth - 1]} {selectedYear}</p>
+              <p className="text-xs text-text-secondary leading-relaxed mb-5">{months[selectedMonth - 1]} {selectedYear}</p>
               <button onClick={handleGenerate} className="btn-primary !px-4 !py-2 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-primary/20">
                 <Calculator className="w-4 h-4" /> {t('generatePayroll')}
               </button>
@@ -170,25 +171,25 @@ export default function PayrollPage() {
                 <p className="text-[10px] font-normal text-text-secondary mt-0.5">{t('payroll_holiday')}: {fmtMoney(p.holidayAllowance)}</p>
               </div>
             ) },
-            { key: 'gross', label: 'SALARIU BAZĂ', align: 'right', render: (p: any) => (
+            { key: 'gross', label: t('payroll_baseSalary', 'SALARIU BAZĂ'), align: 'right', render: (p: any) => (
               <div>
                 <p className="font-semibold text-[12.5px] text-text">{fmtMoney(p.grossSalary)}</p>
-                <p className="text-[10px] text-text-secondary mt-0.5">Taxe: <span className="text-error">-{fmtMoney(p.taxAmount)}</span> • Net bază: <span className="text-success">{fmtMoney(p.netSalary)}</span></p>
+                <p className="text-[10px] text-text-secondary mt-0.5">{t('payroll_taxes', 'Taxe: ')}<span className="text-error">-{fmtMoney(p.taxAmount)}</span>{t('payroll_netBase', ' • Net bază: ')}<span className="text-success">{fmtMoney(p.netSalary)}</span></p>
               </div>
             ) },
-            { key: 'days', label: 'ZILE & DIURNĂ', align: 'right', render: (p: any) => (
+            { key: 'days', label: t('payroll_daysAndAllowance', 'ZILE & DIURNĂ'), align: 'right', render: (p: any) => (
               <div>
                 <p className="font-semibold text-[12.5px] text-text">{p.daysWorked} {t('days')} <span className="text-[10px] text-text-secondary">@ {fmtMoney(p.dailyAllowance)}/{t('day')}</span></p>
-                <p className="text-[10px] font-semibold text-primary mt-0.5">Diurnă: {fmtMoney(p.totalAllowance)}</p>
+                <p className="text-[10px] font-semibold text-primary mt-0.5">{t('payroll_allowance', 'Diurnă: ')}{fmtMoney(p.totalAllowance)}</p>
               </div>
             ) },
-            { key: 'adjust', label: 'AJUSTĂRI', align: 'right', render: (p: any) => (
+            { key: 'adjust', label: t('payroll_adjustments', 'AJUSTĂRI'), align: 'right', render: (p: any) => (
               <div className="flex items-center justify-end gap-1.5">
-                <input type="number" className="input !w-[70px] !py-1 !px-2 !text-xs text-right border-success/30 focus:border-success focus:ring-success/20 bg-success/5" placeholder="+bonus" defaultValue={p.bonuses || ''} title={t('bonuses')} onBlur={e => handleUpdate(p.id, 'bonuses', Number(e.target.value) || 0)} />
-                <input type="number" className="input !w-[70px] !py-1 !px-2 !text-xs text-right border-error/30 focus:border-error focus:ring-error/20 bg-error/5" placeholder="-reținere" defaultValue={p.deductions || ''} title={t('deductions')} onBlur={e => handleUpdate(p.id, 'deductions', Number(e.target.value) || 0)} />
+                <input type="number" className="input !w-[70px] !py-1 !px-2 !text-xs text-right border-success/30 focus:border-success focus:ring-success/20 bg-success/5" placeholder={t('payroll_bonusPlaceholder', '+bonus')} defaultValue={p.bonuses || ''} title={t('bonuses')} onBlur={e => handleUpdate(p.id, 'bonuses', Number(e.target.value) || 0)} />
+                <input type="number" className="input !w-[70px] !py-1 !px-2 !text-xs text-right border-error/30 focus:border-error focus:ring-error/20 bg-error/5" placeholder={t('payroll_deductionPlaceholder', '-reținere')} defaultValue={p.deductions || ''} title={t('deductions')} onBlur={e => handleUpdate(p.id, 'deductions', Number(e.target.value) || 0)} />
               </div>
             ) },
-            { key: 'totalNet', label: 'TOTAL NET DE PLATĂ', align: 'right', render: (p: any) => (
+            { key: 'totalNet', label: t('payroll_totalNetToPay', 'TOTAL NET DE PLATĂ'), align: 'right', render: (p: any) => (
               <span className="inline-block font-black text-[14px] text-success whitespace-nowrap">{fmtMoney(p.totalNetToPay)}</span>
             ) },
             { key: 'actions', label: t('status') + ' & ' + t('actions'), align: 'right', sticky: 'right', width: '150px', render: (p: any) => (

@@ -219,14 +219,14 @@ const formatNotification = (n: any, lang: string, t: any) => {
     const dropoff = parts[3] || '';
     
     const statusMap: Record<string, Record<string, string>> = {
-      pending: { ro: 'În Așteptare', en: 'Pending', nl: 'In Afwachting', de: 'Ausstehend', fr: 'En attente' },
-      confirmed: { ro: 'Confirmată', en: 'Confirmed', nl: 'Bevestigd', de: 'Bestätigt', fr: 'Confirmé' },
-      loading: { ro: 'La încărcare', en: 'Loading', nl: 'Aan het laden', de: 'Wird geladen', fr: 'En chargement' },
-      in_progress: { ro: 'În desfășurare', en: 'In Progress', nl: 'Onderweg', de: 'Im Gange', fr: 'En cours' },
-      completed: { ro: 'Finalizată', en: 'Completed', nl: 'Voltooid', de: 'Abgeschlossen', fr: 'Terminé' },
-      cancelled: { ro: 'Anulată', en: 'Cancelled', nl: 'Geannuleerd', de: 'Abgebrochen', fr: 'Annulé' },
-      delayed: { ro: 'Întârziată', en: 'Delayed', nl: 'Vertraagd', de: 'Verspätet', fr: 'Retardé' },
-      active: { ro: 'Activă', en: 'Active', nl: 'Actief', de: 'Aktiv', fr: 'Actif' },
+      pending: { ro: 'În Așteptare', en: 'Pending', nl: 'In Afwachting', de: 'Ausstehend', fr: 'En attente', es: 'Pendiente', pl: 'Oczekująca' },
+      confirmed: { ro: 'Confirmată', en: 'Confirmed', nl: 'Bevestigd', de: 'Bestätigt', fr: 'Confirmé', es: 'Confirmada', pl: 'Potwierdzona' },
+      loading: { ro: 'La încărcare', en: 'Loading', nl: 'Aan het laden', de: 'Wird geladen', fr: 'En chargement', es: 'Cargando', pl: 'Ładowanie' },
+      in_progress: { ro: 'În desfășurare', en: 'In Progress', nl: 'Onderweg', de: 'Im Gange', fr: 'En cours', es: 'En curso', pl: 'W trakcie' },
+      completed: { ro: 'Finalizată', en: 'Completed', nl: 'Voltooid', de: 'Abgeschlossen', fr: 'Terminé', es: 'Completada', pl: 'Zakończona' },
+      cancelled: { ro: 'Anulată', en: 'Cancelled', nl: 'Geannuleerd', de: 'Abgebrochen', fr: 'Annulé', es: 'Cancelada', pl: 'Anulowana' },
+      delayed: { ro: 'Întârziată', en: 'Delayed', nl: 'Vertraagd', de: 'Verspätet', fr: 'Retardé', es: 'Retrasada', pl: 'Opóźniona' },
+      active: { ro: 'Activă', en: 'Active', nl: 'Actief', de: 'Aktiv', fr: 'Actif', es: 'Activa', pl: 'Aktywna' },
     };
 
     const cleanStatus = status.toLowerCase().trim();
@@ -260,14 +260,14 @@ const formatNotification = (n: any, lang: string, t: any) => {
       const driverName = match[3];
       
       const statusMap: Record<string, Record<string, string>> = {
-        pending: { ro: 'În Așteptare', en: 'Pending', nl: 'In Afwachting', de: 'Ausstehend', fr: 'En attente' },
-        confirmed: { ro: 'Confirmată', en: 'Confirmed', nl: 'Bevestigd', de: 'Bestätigt', fr: 'Confirmé' },
-        loading: { ro: 'La încărcare', en: 'Loading', nl: 'Aan het laden', de: 'Wird geladen', fr: 'En chargement' },
-        in_progress: { ro: 'În desfășurare', en: 'In Progress', nl: 'Onderweg', de: 'Im Gange', fr: 'En cours' },
-        completed: { ro: 'Finalizată', en: 'Completed', nl: 'Voltooid', de: 'Abgeschlossen', fr: 'Terminé' },
-        cancelled: { ro: 'Anulată', en: 'Cancelled', nl: 'Geannuleerd', de: 'Abgebrochen', fr: 'Annulé' },
-        delayed: { ro: 'Întârziată', en: 'Delayed', nl: 'Vertraagd', de: 'Verspätet', fr: 'Retardé' },
-        active: { ro: 'Activă', en: 'Active', nl: 'Actief', de: 'Aktiv', fr: 'Actif' },
+        pending: { ro: 'În Așteptare', en: 'Pending', nl: 'In Afwachting', de: 'Ausstehend', fr: 'En attente', es: 'Pendiente', pl: 'Oczekująca' },
+        confirmed: { ro: 'Confirmată', en: 'Confirmed', nl: 'Bevestigd', de: 'Bestätigt', fr: 'Confirmé', es: 'Confirmada', pl: 'Potwierdzona' },
+        loading: { ro: 'La încărcare', en: 'Loading', nl: 'Aan het laden', de: 'Wird geladen', fr: 'En chargement', es: 'Cargando', pl: 'Ładowanie' },
+        in_progress: { ro: 'În desfășurare', en: 'In Progress', nl: 'Onderweg', de: 'Im Gange', fr: 'En cours', es: 'En curso', pl: 'W trakcie' },
+        completed: { ro: 'Finalizată', en: 'Completed', nl: 'Voltooid', de: 'Abgeschlossen', fr: 'Terminé', es: 'Completada', pl: 'Zakończona' },
+        cancelled: { ro: 'Anulată', en: 'Cancelled', nl: 'Geannuleerd', de: 'Abgebrochen', fr: 'Annulé', es: 'Cancelada', pl: 'Anulowana' },
+        delayed: { ro: 'Întârziată', en: 'Delayed', nl: 'Vertraagd', de: 'Verspätet', fr: 'Retardé', es: 'Retrasada', pl: 'Opóźniona' },
+        active: { ro: 'Activă', en: 'Active', nl: 'Actief', de: 'Aktiv', fr: 'Actif', es: 'Activa', pl: 'Aktywna' },
       };
 
       let cleanKey = rawStatus.toLowerCase().replace(/\(.*?\)/g, '').trim();

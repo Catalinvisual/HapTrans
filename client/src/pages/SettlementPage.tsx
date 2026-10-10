@@ -11,10 +11,22 @@ import KpiStrip from '../components/ui/KpiStrip';
 import DataTable from '../components/ui/DataTable';
 import { fmtMoney, fmtNumber, fmtKm } from '../lib/format';
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
 export default function SettlementPage() {
   const { t } = useTranslation();
+  const MONTHS = [
+    t('month_january', 'January'),
+    t('month_february', 'February'),
+    t('month_march', 'March'),
+    t('month_april', 'April'),
+    t('month_may', 'May'),
+    t('month_june', 'June'),
+    t('month_july', 'July'),
+    t('month_august', 'August'),
+    t('month_september', 'September'),
+    t('month_october', 'October'),
+    t('month_november', 'November'),
+    t('month_december', 'December'),
+  ];
   const [settlements, setSettlements] = useState<any[]>([]);
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -116,9 +128,9 @@ export default function SettlementPage() {
   return <div className="space-y-5 animate-fade-in">
     <KpiStrip items={[
       { key: 'total', label: t('sett_totalNet', 'Total decontat'), value: fmtMoney(totalDecontat), icon: Coins },
-      { key: 'km', label: 'Km totali', value: fmtKm(totalKm), icon: Route },
-      { key: 'avansuri', label: 'Avansuri acordate', value: fmtMoney(totalAvansuri), icon: HandCoins },
-      { key: 'net', label: 'Net de plată', value: fmtMoney(totalNetToPay), icon: Wallet, color: 'text-success' },
+      { key: 'km', label: t('sett_distance', 'Km totali'), value: fmtKm(totalKm), icon: Route },
+      { key: 'avansuri', label: t('sett_advances', 'Avansuri acordate'), value: fmtMoney(totalAvansuri), icon: HandCoins },
+      { key: 'net', label: t('sett_net_pay', 'Net de plată'), value: fmtMoney(totalNetToPay), icon: Wallet, color: 'text-success' },
     ]} dense />
 
     <div className="card flex items-center gap-2 px-3 py-2 flex-wrap">
@@ -175,40 +187,40 @@ export default function SettlementPage() {
           <div className="p-12 text-center text-sm text-text-secondary">{t('noResults')}</div>
         )}
         columns={[
-          { key: 'anagajat', label: 'ANGAJAT & TARIFA', align: 'left', render: (s: any) => (
+          { key: 'anagajat', label: t('sett_employee_rate', 'ANGAJAT & TARIFA'), align: 'left', render: (s: any) => (
             <div>
               <p className="font-bold text-[13px] text-text truncate">{s.driverName}</p>
               <p className="text-[10px] text-text-secondary mt-0.5">Mod: {s.payMode === 'percent' ? t('sett_percent') : t('sett_perKm')} ({fmtNumber(s.payRate, 2)}{s.payMode === 'percent' ? ' %' : ' €/km'})</p>
             </div>
           ) },
-          { key: 'activitate', label: 'ACTIVITATE', align: 'right', render: (s: any) => (
+          { key: 'activitate', label: t('sett_activity', 'ACTIVITATE'), align: 'right', render: (s: any) => (
             <div>
               <p className="font-semibold text-[12.5px] text-text">{fmtKm(s.totalDistance)}</p>
               <p className="text-[10px] text-text-secondary mt-0.5">{s.tripCount} {t('sett_trips')}</p>
             </div>
           ) },
-          { key: 'venit', label: 'VENIT & BRUT', align: 'right', render: (s: any) => (
+          { key: 'venit', label: t('sett_revenue_gross', 'VENIT & BRUT'), align: 'right', render: (s: any) => (
             <div>
               <p className="font-semibold text-[12.5px] text-text">{fmtMoney(s.grossPay)} Brut</p>
               <p className="text-[10px] text-text-secondary mt-0.5">{t('sett_revenue', 'Venit cursă: ')}{fmtMoney(s.totalRevenue)}</p>
             </div>
           ) },
-          { key: 'avansuri', label: 'AVANSURI & REȚINERI', align: 'right', render: (s: any) => (
+          { key: 'avansuri', label: t('sett_advances_deductions', 'AVANSURI & REȚINERI'), align: 'right', render: (s: any) => (
             <div className="inline-flex flex-col items-end gap-0.5">
               <div className="flex items-center justify-end gap-1.5">
-                <span className="text-[9px] font-bold uppercase text-rose-500" title="Avansuri">Avans</span>
+                <span className="text-[9px] font-bold uppercase text-rose-500" title={t('sett_advances_title')}>{t('sett_advance_short', 'Avans')}</span>
                 <input type="number" step="0.01" className="input !w-[86px] !py-0.5 !px-1.5 !text-xs text-right" value={Number(s.advances || 0)} onChange={e => handleUpdate(s.id, 'advances', e.target.value ? Number(e.target.value) : 0)} />
               </div>
               <div className="flex items-center justify-end gap-1.5">
-                <span className="text-[9px] font-bold uppercase text-text-secondary">Rețineri</span>
+                <span className="text-[9px] font-bold uppercase text-text-secondary">{t('sett_deductions_short', 'Rețineri')}</span>
                 <input type="number" step="0.01" className="input !w-[86px] !py-0.5 !px-1.5 !text-xs text-right" value={Number(s.deductions || 0)} onChange={e => handleUpdate(s.id, 'deductions', e.target.value ? Number(e.target.value) : 0)} />
               </div>
             </div>
           ) },
-          { key: 'net', label: 'NET DE PLATĂ', align: 'right', render: (s: any) => (
+          { key: 'net', label: t('sett_net_pay', 'NET DE PLATĂ'), align: 'right', render: (s: any) => (
             <span className="inline-block font-black text-[14px] text-success whitespace-nowrap">{fmtMoney(s.netPay)}</span>
           ) },
-          { key: 'actions', label: 'STATUS & ACȚIUNI', align: 'right', sticky: 'right', width: '150px', render: (s: any) => (
+          { key: 'actions', label: t('sett_status_actions', 'STATUS & ACȚIUNI'), align: 'right', sticky: 'right', width: '150px', render: (s: any) => (
             <div className="flex items-center justify-end gap-1">
               <CustomSelect size="sm" className="w-24" value={s.status} onChange={val => handleUpdate(s.id, 'status', val)} options={statusOptions} />
               <button onClick={() => setDeleteId(s.id)} className="p-1.5 text-text-secondary hover:text-error hover:bg-error/10 rounded-md transition-colors" title={t('delete')}>

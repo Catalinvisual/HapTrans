@@ -30,15 +30,6 @@ const WebsiteLeadsPage = () => {
     i18n
   } = useTranslation();
   const navigate = useNavigate();
-  const getLabel = (enText: string, roText: string, nlText: string, deText: string, frText: string, plText: string) => {
-    const lang = i18n.language;
-    if (lang === 'ro') return roText;
-    if (lang === 'nl') return nlText;
-    if (lang === 'de') return deText;
-    if (lang === 'fr') return frText;
-    if (lang === 'pl') return plText;
-    return enText;
-  };
   const fetchLeads = async () => {
     try {
       const {
@@ -58,7 +49,7 @@ const WebsiteLeadsPage = () => {
   const convertToQuote = async (id: string) => {
     try {
       await api.post(`/leads/${id}/convert-quote`);
-      toast.success(getLabel("Successfully converted to Quote!", "Transformat în Ofertă cu succes!", "Succesvol omgezet naar Offerte!", "Erfolgreich in Angebot umgewandelt!", "Converti en devis avec succès !", "Pomyślnie przekonwertowano na wycenę!"));
+      toast.success(t('leads_convert_quote_success', 'Successfully converted to Quote!'));
       fetchLeads();
     } catch (error) {
       console.error('Failed to convert to quote', error);
@@ -127,7 +118,7 @@ const WebsiteLeadsPage = () => {
                       <p className="text-text-secondary mb-1">{t('leads.freightDetails', 'Detalii Marfă')}</p>
                       <p className="font-medium">⚖️ {lead.weight}</p>
                       <p className="font-medium">📦 {lead.type || t('common.unspecified', 'Nespecificat')}</p>
-                      {lead.pallets && <p className="font-medium">🏢 {getLabel("Pallets", "Paleți", "Pallets", "Paletten", "Palettes", "Palety")}: {lead.pallets}</p>}
+                      {lead.pallets && <p className="font-medium">🏢 {t('leads_pallets', 'Pallets')}: {lead.pallets}</p>}
                     </div>
                   </div>
 
@@ -146,7 +137,7 @@ const WebsiteLeadsPage = () => {
                   </div>
 
                   {lead.estimatedPrice && <div className="mt-4 p-3 bg-green-50 text-green-900 rounded-md text-sm border border-green-200 flex items-center gap-2">
-                      <span className="font-bold">📊 {getLabel("Estimated Price seen by client", "Preț estimat văzut de client", "Geschatte prijs gezien door klant", "Vom Kunden gesehener geschätzter Preis", "Prix estimé vu par le client", "Szacowana cena widzana przez klienta")}:</span> {lead.estimatedPrice}
+                      <span className="font-bold">📊 {t('leads_estimated_price_seen', 'Estimated Price seen by client')}:</span> {lead.estimatedPrice}
                     </div>}
 
                   {lead.notes && <div className="mt-4 p-3 bg-blue-50 text-blue-900 rounded-md text-sm border border-blue-100">
@@ -162,7 +153,7 @@ const WebsiteLeadsPage = () => {
                     </button>}
                   
                   {['new', 'contacted'].includes(lead.status) && <button onClick={() => convertToQuote(lead.id)} className="w-full py-2 px-4 rounded font-medium text-white bg-purple-600 hover:bg-purple-700 transition-colors flex items-center justify-center gap-2">
-                      📝 {getLabel("Convert to Quote", "Transformă în Ofertă", "Omzetten naar Offerte", "In Angebot umwandeln", "Convertir en devis", "Konwertuj na wycenę")}
+                      📝 {t('leads_convert_to_quote', 'Convert to Quote')}
                     </button>}
                   
                   {['contacted', 'quoted'].includes(lead.status) && <button onClick={() => updateStatus(lead.id, 'accepted')} className="w-full py-2 px-4 rounded font-medium text-white bg-green-600 hover:bg-green-700 transition-colors">

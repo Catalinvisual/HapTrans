@@ -327,10 +327,10 @@ export default function UsersPage() {
         </div>}
 
       <KpiStrip dense items={[
-        { key: 'total', label: 'TOTAL UTILIZATORI', value: users.length, icon: Users, color: 'text-primary' },
-        { key: 'active', label: 'ACTIVI', value: activeCount, icon: UserCheck, color: 'text-success' },
-        { key: 'staff', label: 'ADMINI & DISPECERI', value: staffCount, icon: ShieldCheck, color: 'text-blue-600' },
-        { key: 'drivers', label: 'CONTURI ȘOFERI', value: driverCount, icon: Truck, color: 'text-warning' },
+        { key: 'total', label: t('users_total', 'TOTAL UTILIZATORI'), value: users.length, icon: Users, color: 'text-primary' },
+        { key: 'active', label: t('users_active', 'ACTIVI'), value: activeCount, icon: UserCheck, color: 'text-success' },
+        { key: 'staff', label: t('users_admin_dispatcher', 'ADMINI & DISPECERI'), value: staffCount, icon: ShieldCheck, color: 'text-blue-600' },
+        { key: 'drivers', label: t('users_drivers', 'CONTURI ȘOFERI'), value: driverCount, icon: Truck, color: 'text-warning' },
       ]} />
 
       <div className="card flex items-center gap-2 px-3 py-2 flex-wrap">
@@ -340,19 +340,19 @@ export default function UsersPage() {
         </div>
         <CustomSelect size="sm" className="w-[120px] shrink-0" value={roleFilter} onChange={setRoleFilter} options={[
           { value: 'all', label: t('allRoles', 'Toate rolurile') },
-          { value: 'admin', label: 'Admin' },
+          { value: 'admin', label: t('admin_role', 'Admin') },
           { value: 'dispatcher', label: t('dispatcher') || 'Dispecer' },
           { value: 'driver', label: t('driver') || 'Șofer' },
         ]} />
         <CustomSelect size="sm" className="w-[120px] shrink-0" value={statusFilter} onChange={setStatusFilter} options={[
           { value: 'all', label: t('allStatuses', 'Toate statusurile') },
-          { value: 'active', label: t('active'), color: '#10B981' },
-          { value: 'inactive', label: t('inactive'), color: '#EF4444' },
+          { value: 'active', label: t('status_active', 'Activ'), color: '#10B981' },
+          { value: 'inactive', label: t('status_inactive', 'Inactiv'), color: '#EF4444' },
         ]} />
         <span className="text-[10px] font-bold text-text-secondary uppercase bg-surface px-2 py-1.5 rounded-lg border border-border/50 shrink-0">
-          {filtered.length} Conturi
+          {filtered.length} {t('records')}
         </span>
-        <button onClick={() => setMaskSalary(!maskSalary)} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary/10 border border-border/60 shrink-0" title="Ascunde / arată salariile">
+        <button onClick={() => setMaskSalary(!maskSalary)} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary/10 border border-border/60 shrink-0" title={t('toggle_salary_visibility', 'Ascunde / arată salariile')}>
           {maskSalary ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
         </button>
         <div className="flex-1" />
@@ -396,35 +396,35 @@ export default function UsersPage() {
             setShowForm(true);
           }}
           columns={[
-            { key: 'user', label: 'UTILIZATOR & CONTACT', align: 'left', render: (u: any) => (
+            { key: 'user', label: t('users_col_user_contact', 'UTILIZATOR & CONTACT'), align: 'left', render: (u: any) => (
               <div>
                 <p className="font-bold text-[13px] text-text truncate max-w-[240px]">{u.name || (u.email ? u.email.split('@')[0] : '—')}</p>
                 <p className="text-[10px] text-text-secondary mt-0.5 truncate max-w-[240px]">{u.email}</p>
               </div>
             ) },
-            { key: 'role', label: 'ROL & ACCES', align: 'left', render: (u: any) => (
+            { key: 'role', label: t('users_col_role_access', 'ROL & ACCES'), align: 'left', render: (u: any) => (
               <div>
                 <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-0.5 rounded-md border ${ROLE_BADGE[u.role] || 'bg-slate-500/10 text-slate-600 border-slate-500/20'}`}>
                   <span className="w-1.5 h-1.5 rounded-full bg-current" /> {t(u.role)}
                 </span>
-                <p className="text-[10px] text-text-secondary mt-0.5 truncate max-w-[180px]">{(u.allowedPages && u.allowedPages.length) ? `${u.allowedPages.length} pagini acces` : 'Acces complet'}</p>
+                <p className="text-[10px] text-text-secondary mt-0.5 truncate max-w-[180px]">{(u.allowedPages && u.allowedPages.length) ? `${u.allowedPages.length} ${t('pages_access', 'pagini acces')}` : t('full_access', 'Acces complet')}</p>
               </div>
             ) },
-            { key: 'salary', label: 'SALARIU BRUT', align: 'right', render: (u: any) => (
+            { key: 'salary', label: t('users_col_gross_salary', 'SALARIU BRUT'), align: 'right', render: (u: any) => (
               <span className="inline-block font-bold text-[12px] text-text whitespace-nowrap">{maskSalary ? '••••••' : formatSalary(u.grossSalary)}</span>
             ) },
-            { key: 'status', label: 'STATUS & ACȚIUNI', align: 'right', sticky: 'right', width: '190px', render: (u: any) => (
+            { key: 'status', label: t('users_col_status_actions', 'STATUS & ACȚIUNI'), align: 'right', sticky: 'right', width: '190px', render: (u: any) => (
               <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
                 <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-md border whitespace-nowrap ${u.isActive ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20' : 'bg-red-500/10 text-red-700 border-red-500/20'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${u.isActive ? 'bg-emerald-500' : 'bg-red-500'}`} /> {u.isActive ? t('active') : t('inactive')}
+                  <span className={`w-1.5 h-1.5 rounded-full ${u.isActive ? 'bg-emerald-500' : 'bg-red-500'}`} /> {u.isActive ? t('status_active') : t('status_inactive')}
                 </span>
-                <button onClick={() => handleEdit(u)} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary/10 transition-all" title="Editare utilizator">
+                <button onClick={() => handleEdit(u)} className="p-1.5 text-text-secondary hover:text-primary rounded-lg hover:bg-primary/10 transition-all" title={t('edit_user', 'Editare utilizator')}>
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
-                <button onClick={() => handleResetPassword(u)} className="p-1.5 text-text-secondary hover:text-warning rounded-lg hover:bg-yellow-50 transition-all" title="Resetare parolă">
+                <button onClick={() => handleResetPassword(u)} className="p-1.5 text-text-secondary hover:text-warning rounded-lg hover:bg-yellow-50 transition-all" title={t('reset_password', 'Resetare parolă')}>
                   <Key className="w-3.5 h-3.5" />
                 </button>
-                <button onClick={() => setDeactivateUser(u)} className="p-1.5 text-text-secondary hover:text-error rounded-lg hover:bg-red-50 transition-all" title="Dezactivare/Ștergere">
+                <button onClick={() => setDeactivateUser(u)} className="p-1.5 text-text-secondary hover:text-error rounded-lg hover:bg-red-50 transition-all" title={t('deactivate_delete_user', 'Dezactivare/Ștergere')}>
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -434,7 +434,7 @@ export default function UsersPage() {
         <Pagination currentPage={currentPage} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </div>
     
-      <ConfirmModal isOpen={!!resetPasswordUser} onClose={() => setResetPasswordUser(null)} onConfirm={executeResetPassword} title="Resetare parolă" message={resetPasswordUser ? `Sigur doriți să resetați parola pentru ${resetPasswordUser.user.name}? Noua parolă generată este: ${resetPasswordUser.newPass}` : ''} confirmText="Resetează" type="warning" />
+      <ConfirmModal isOpen={!!resetPasswordUser} onClose={() => setResetPasswordUser(null)} onConfirm={executeResetPassword} title={t('reset_password_title', 'Resetare parolă')} message={resetPasswordUser ? t('reset_password_confirm', 'Sigur doriți să resetați parola pentru {{name}}? Noua parolă generată este: {{pass}}', { name: resetPasswordUser.user.name, pass: resetPasswordUser.newPass }) : ''} confirmText={t('reset_password_btn', 'Resetează')} type="warning" />
       <ConfirmModal isOpen={!!deactivateUser} onClose={() => setDeactivateUser(null)} onConfirm={executeDelete} title={t('confirm', 'Confirmare')} message={t('confirmDeleteUser', 'Sunteți sigur că doriți să ștergeți acest utilizator? Această acțiune este ireversibilă.')} />
     </div>;
 }

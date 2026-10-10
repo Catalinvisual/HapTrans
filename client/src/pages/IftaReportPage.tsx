@@ -119,9 +119,9 @@ export default function IftaReportPage() {
           </div>
           <div className="flex items-center gap-3 px-3 pb-2 text-[9px] font-bold uppercase tracking-wider text-text-secondary border-b border-border/60">
             <span className="w-[180px] shrink-0">{t('ifta_country')}</span>
-            <span className="flex-1 text-right">PONDERE & KM</span>
-            <span className="w-[64px] shrink-0 text-right">PROCENT</span>
-            <span className="w-[52px] shrink-0 text-right">CURSE</span>
+            <span className="flex-1 text-right">{t('ifta_weight_km', 'PONDERE & KM')}</span>
+            <span className="w-[64px] shrink-0 text-right">{t('ifta_procent', 'PROCENT')}</span>
+            <span className="w-[52px] shrink-0 text-right">{t('ifta_curse', 'CURSE')}</span>
           </div>
           <div className="mt-1">
             {filteredCountries.map((c: any, i: number) => {
@@ -155,8 +155,8 @@ export default function IftaReportPage() {
           </div>
           <div className="flex items-center gap-3 px-3 pb-2 text-[9px] font-bold uppercase tracking-wider text-text-secondary border-b border-border/60">
             <span className="w-[110px] shrink-0">{t('truck')}</span>
-            <span className="flex-1">REPARTIZARE PE ȚĂRI</span>
-            <span className="w-[80px] shrink-0 text-right">TOTAL KM</span>
+            <span className="flex-1">{t('ifta_country_breakdown', 'REPARTIZARE PE ȚĂRI')}</span>
+            <span className="w-[80px] shrink-0 text-right">{t('ifta_total_km', 'TOTAL KM')}</span>
           </div>
           <div className="mt-1">
             {filteredTrucks.map((tr: any) => (
@@ -187,11 +187,11 @@ export default function IftaReportPage() {
       data={exportRows}
       filename={`Declaratie_IFTA_${from || 'period'}_${to || 'now'}`}
       sheetName="IFTA"
-      title="Declarație IFTA"
+      title={t('ifta_export_title', 'Declarație IFTA')}
       headers={[
         { key: 'country', label: t('ifta_country') },
         { key: 'km', label: t('ifta_km'), transform: (v: any) => `${fmtNumber(v)} km` },
-        { key: 'percent', label: 'Pondere %', transform: (v: any) => fmtPercent(v) },
+        { key: 'percent', label: t('ifta_ponder', 'Pondere %'), transform: (v: any) => fmtPercent(v) },
         { key: 'trips', label: t('ifta_trips'), transform: (v: any) => String(v) },
       ]}
       getDateField={() => null}

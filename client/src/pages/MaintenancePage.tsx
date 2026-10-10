@@ -158,9 +158,9 @@ export default function MaintenancePage() {
   const editingRecord = records.find(r => r.id === editId) || null;
 
   const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
-    inspection: { label: 'Inspecție', cls: 'bg-amber-500/10 text-amber-700' },
-    preventive: { label: 'Preventivă', cls: 'bg-blue-500/10 text-blue-700' },
-    corrective: { label: 'Corectivă', cls: 'bg-red-500/10 text-red-700' },
+    inspection: { label: t('maint_type_inspection', 'Inspecție'), cls: 'bg-amber-500/10 text-amber-700' },
+    preventive: { label: t('maint_type_preventive', 'Preventivă'), cls: 'bg-blue-500/10 text-blue-700' },
+    corrective: { label: t('maint_type_corrective', 'Corectivă'), cls: 'bg-red-500/10 text-red-700' },
   };
 
   const STATUS_DOT: Record<string, string> = {
@@ -276,10 +276,10 @@ export default function MaintenancePage() {
         </div>
       )}
       <KpiStrip dense items={[
-        { key: 'total', label: 'COST TOTAL MENTENANȚĂ', value: fmtMoney(totalCost), icon: Wrench, color: 'text-primary' },
-        { key: 'inProgress', label: 'ÎN CURS', value: inProgressCount, icon: Clock, color: 'text-warning' },
-        { key: 'planned', label: 'PLANIFICATE', value: plannedCount, icon: CalendarCheck, color: 'text-blue-600' },
-        { key: 'overdue', label: 'DEPAȘITE / URGENTE', value: overdueCount, icon: AlertTriangle, color: 'text-error' },
+        { key: 'total', label: t('maint_total_cost', 'COST TOTAL MENTENANȚĂ'), value: fmtMoney(totalCost), icon: Wrench, color: 'text-primary' },
+        { key: 'inProgress', label: t('maint_in_progress', 'ÎN CURS'), value: inProgressCount, icon: Clock, color: 'text-warning' },
+        { key: 'planned', label: t('maint_planned', 'PLANIFICATE'), value: plannedCount, icon: CalendarCheck, color: 'text-blue-600' },
+        { key: 'overdue', label: t('maint_overdue_urgent', 'DEPAȘITE / URGENTE'), value: overdueCount, icon: AlertTriangle, color: 'text-error' },
       ]} />
 
       <div className="card flex items-center gap-2 px-3 py-2 flex-wrap">
@@ -293,9 +293,9 @@ export default function MaintenancePage() {
         ]} />
         <CustomSelect size="sm" className="w-[120px] shrink-0" value={typeFilter} onChange={setTypeFilter} options={[
           { value: 'all', label: t('allTypes', 'Toate tipurile') },
-          { value: 'inspection', label: 'Inspecție' },
-          { value: 'preventive', label: 'Preventivă' },
-          { value: 'corrective', label: 'Corectivă' },
+          { value: 'inspection', label: t('maint_type_inspection', 'Inspecție') },
+          { value: 'preventive', label: t('maint_type_preventive', 'Preventivă') },
+          { value: 'corrective', label: t('maint_type_corrective', 'Corectivă') },
         ]} />
         <CustomSelect size="sm" className="w-[130px] shrink-0" value={statusFilter} onChange={setStatusFilter} options={[
           { value: 'all', label: t('allStatuses', 'Toate statusurile') },
@@ -322,34 +322,34 @@ export default function MaintenancePage() {
           emptyState={<div className="p-12 text-center text-sm text-text-secondary">{t('noResults', 'Niciun rezultat')}</div>}
           onRowClick={(r: any) => startEdit(r)}
           columns={[
-            { key: 'truck', label: 'CAMION & TIP', align: 'left', render: (r: any) => (
+            { key: 'truck', label: t('maint_col_truck_type', 'CAMION & TIP'), align: 'left', render: (r: any) => (
               <div className="flex items-center gap-2">
                 <span className="font-bold text-[13px] text-text whitespace-nowrap">{r.truck?.plateNumber || '—'}</span>
                 {(TYPE_BADGE[r.type] || TYPE_BADGE.preventive) && <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${(TYPE_BADGE[r.type] || TYPE_BADGE.preventive).cls}`}>{(TYPE_BADGE[r.type] || TYPE_BADGE.preventive).label}</span>}
               </div>
             ) },
-            { key: 'description', label: 'DESCRIERE & SERVICE', align: 'left', render: (r: any) => (
+            { key: 'description', label: t('maint_col_desc_service', 'DESCRIERE & SERVICE'), align: 'left', render: (r: any) => (
               <div>
                 <p className="font-semibold text-[12.5px] text-text truncate max-w-[280px]">{r.description || '—'}</p>
                 <p className="text-[10px] text-text-secondary mt-0.5 truncate max-w-[280px]">{r.serviceProvider || '—'}</p>
               </div>
             ) },
-            { key: 'date', label: 'DATA PLANIFICATĂ', align: 'center', render: (r: any) => (
+            { key: 'date', label: t('maint_col_scheduled_date', 'DATA PLANIFICATĂ'), align: 'center', render: (r: any) => (
               <div className="flex items-center justify-center gap-1.5">
                 <span className={`text-xs whitespace-nowrap ${r.status !== 'done' && isPastDate(r.scheduledDate) ? 'text-error font-bold' : ''}`}>{formatDate(r.scheduledDate)}</span>
-                {r.status !== 'done' && isPastDate(r.scheduledDate) && <span className="text-xs" title="Depășită">⚠️</span>}
+                {r.status !== 'done' && isPastDate(r.scheduledDate) && <span className="text-xs" title={t('maint_overdue', 'Depășită')}>⚠️</span>}
               </div>
             ) },
-            { key: 'costs', label: 'COSTURI', align: 'right', render: (r: any) => {
+            { key: 'costs', label: t('maint_col_costs', 'COSTURI'), align: 'right', render: (r: any) => {
               const costVal = Number(r.cost ?? ((Number(r.partsCost) || 0) + (Number(r.laborCost) || 0)));
               return (
                 <div className="text-right">
                   <p className="font-bold text-[12.5px] text-text whitespace-nowrap">{costVal ? fmtMoney(costVal) : '—'}</p>
-                  {(r.partsCost != null || r.laborCost != null) && <p className="text-[10px] text-text-secondary mt-0.5 whitespace-nowrap">Piese: {fmtMoney(r.partsCost)} • Manoperă: {fmtMoney(r.laborCost)}</p>}
+                  {(r.partsCost != null || r.laborCost != null) && <p className="text-[10px] text-text-secondary mt-0.5 whitespace-nowrap">{t('maint_parts_labor', 'Piese: {parts} • Manoperă: {labor}', { parts: fmtMoney(r.partsCost), labor: fmtMoney(r.laborCost) })}</p>}
                 </div>
               );
             } },
-            { key: 'status', label: 'STATUS & ACȚIUNI', align: 'right', sticky: 'right', width: '170px', render: (r: any) => (
+            { key: 'status', label: t('maint_col_status_actions', 'STATUS & ACȚIUNI'), align: 'right', sticky: 'right', width: '170px', render: (r: any) => (
               <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
                 <CustomSelect size="sm" className="w-[104px]" value={r.status} onChange={async val => { await api.patch(`/maintenance/${r.id}`, { status: val }); toast.success(t('statusUpdated')); load(); }} options={[
                   { value: 'scheduled', label: getTranslatedStatus('scheduled'), color: STATUS_DOT.scheduled },

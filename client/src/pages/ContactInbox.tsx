@@ -38,6 +38,7 @@ const parseStructured = (msg: ContactMessage) => {
 };
 
 const Field = ({ icon: Icon, label, value }: { icon: ElementType; label: string; value: string | null }) => {
+  const { t } = useTranslation();
   const missing = !value || value === '';
   return (
     <div className="rounded-lg border border-border/70 bg-surface/40 px-2.5 py-2">
@@ -46,7 +47,7 @@ const Field = ({ icon: Icon, label, value }: { icon: ElementType; label: string;
         {label}
       </div>
       <div className={`text-[12px] font-semibold truncate ${missing ? 'text-text-muted font-normal italic' : 'text-text'}`}>
-        {missing ? 'Nespecificat' : value}
+        {missing ? t('inbox_unspecified', 'Nespecificat') : value}
       </div>
     </div>
   );
@@ -116,18 +117,18 @@ export default function ContactInbox() {
   return (
     <div className="space-y-4 animate-fade-in">
       <KpiStrip dense items={[
-        { key: 'total', label: 'TOTAL MESAJE', value: total, icon: Mail, color: 'text-primary' },
-        { key: 'unread', label: 'NECITITE', value: unread, icon: Inbox, color: 'text-error' },
-        { key: 'handled', label: 'PRELUATE / CONVERTITE', value: handled, icon: CheckCheck, color: 'text-success' },
-        { key: 'avg', label: 'TIMP MEDIU RĂSPUNS', value: '—', icon: Timer, color: 'text-blue-600' },
+        { key: 'total', label: t('inbox_total_messages', 'TOTAL MESAJE'), value: total, icon: Mail, color: 'text-primary' },
+        { key: 'unread', label: t('inbox_unread', 'NECITITE'), value: unread, icon: Inbox, color: 'text-error' },
+        { key: 'handled', label: t('inbox_handled_converted', 'PRELUATE / CONVERTITE'), value: handled, icon: CheckCheck, color: 'text-success' },
+        { key: 'avg', label: t('inbox_avg_response_time', 'TIMP MEDIU RĂSPUNS'), value: '—', icon: Timer, color: 'text-blue-600' },
       ]} />
 
       <div className="grid lg:grid-cols-[340px_minmax(0,1fr)] bg-card border border-border rounded-xl overflow-hidden shadow-sm min-h-[560px]">
         {/* Master list */}
         <div className="bg-card flex flex-col border-b lg:border-b-0 lg:border-r border-border">
           <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-surface/40">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">Inbox Contact</span>
-            {unread > 0 && <span className="text-[10px] font-bold text-error bg-error/10 px-1.5 py-0.5 rounded-full">{unread} necitite</span>}
+            <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary">{t('inbox_page_title', 'Inbox Contact')}</span>
+            {unread > 0 && <span className="text-[10px] font-bold text-error bg-error/10 px-1.5 py-0.5 rounded-full">{unread} {t('inbox_unread_badge', 'necitite')}</span>}
           </div>
 
           <div className="flex-1 overflow-y-auto custom-scrollbar max-h-[560px]">
@@ -159,10 +160,10 @@ export default function ContactInbox() {
           </div>
 
           <div className="flex items-center justify-between px-3 py-1.5 border-t border-border bg-surface/40">
-            <span className="text-[11px] text-text-secondary">{page} din {totalPages}</span>
+            <span className="text-[11px] text-text-secondary">{page} {t('inbox_page_of', 'din')} {totalPages}</span>
             <div className="flex items-center gap-1">
-              <button onClick={() => setCurrentPage(Math.max(1, page - 1))} disabled={page <= 1} className="p-1 text-text-secondary hover:text-primary disabled:opacity-30" title="Pagina anterioară"><ChevronLeft className="w-3.5 h-3.5" /></button>
-              <button onClick={() => setCurrentPage(Math.min(totalPages, page + 1))} disabled={page >= totalPages} className="p-1 text-text-secondary hover:text-primary disabled:opacity-30" title="Pagina următoare"><ChevronRight className="w-3.5 h-3.5" /></button>
+              <button onClick={() => setCurrentPage(Math.max(1, page - 1))} disabled={page <= 1} className="p-1 text-text-secondary hover:text-primary disabled:opacity-30" title={t('inbox_prev_page', 'Pagina anterioară')}><ChevronLeft className="w-3.5 h-3.5" /></button>
+              <button onClick={() => setCurrentPage(Math.min(totalPages, page + 1))} disabled={page >= totalPages} className="p-1 text-text-secondary hover:text-primary disabled:opacity-30" title={t('inbox_next_page', 'Pagina următoare')}><ChevronRight className="w-3.5 h-3.5" /></button>
             </div>
           </div>
         </div>
@@ -175,7 +176,7 @@ export default function ContactInbox() {
                 <Mail className="w-6 h-6 text-text-muted" />
               </div>
               <p className="text-sm font-semibold text-text mb-1">{t('contactInboxTitle') || 'Inbox Mesaje Contact'}</p>
-              <p className="text-xs text-text-secondary">Selectează un mesaj pentru a-l citi.</p>
+              <p className="text-xs text-text-secondary">{t('inbox_select_message', 'Selectează un mesaj pentru a-l citi.')}</p>
             </div>
           ) : (
             <>
@@ -189,17 +190,17 @@ export default function ContactInbox() {
                     <p className="text-[11px] text-text-secondary truncate">{selected.email}{selected.phone ? ` • ${selected.phone}` : ''} • {fmtTime(selected.createdAt)}</p>
                   </div>
                 </div>
-                {!selected.isRead && <span className="text-[10px] font-bold text-error bg-error/10 px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">Necitit</span>}
+                {!selected.isRead && <span className="text-[10px] font-bold text-error bg-error/10 px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">{t('inbox_unread_label', 'Necitit')}</span>}
               </div>
 
               <div className="px-4 py-3 border-b border-border">
                 <p className="text-[14px] font-bold text-text mb-3">{selected.subject}</p>
                 {rich && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <Field icon={MapPin} label="📍 Ridicare" value={rich.pickup} />
-                    <Field icon={MapPin} label="🏁 Livrare" value={rich.delivery} />
-                    <Field icon={CalendarDays} label="📅 Data preferată" value={rich.date} />
-                    <Field icon={User} label="👤 Contact" value={rich.contact} />
+                    <Field icon={MapPin} label={t('inbox_pickup', '📍 Ridicare')} value={rich.pickup} />
+                    <Field icon={MapPin} label={t('inbox_delivery', '🏁 Livrare')} value={rich.delivery} />
+                    <Field icon={CalendarDays} label={t('inbox_preferred_date', '📅 Data preferată')} value={rich.date} />
+                    <Field icon={User} label={t('inbox_contact', '👤 Contact')} value={rich.contact} />
                   </div>
                 )}
               </div>
@@ -210,14 +211,14 @@ export default function ContactInbox() {
 
               <div className="px-4 py-2.5 border-t border-border flex items-center gap-2 flex-wrap bg-surface/30">
                 <button onClick={() => setShowOrder(true)} className="btn-primary !py-1.5 !px-3 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-primary/20">
-                  <Plus className="w-4 h-4" /> Transformă în Comandă
+                  <Plus className="w-4 h-4" /> {t('inbox_convert_to_order', 'Transformă în Comandă')}
                 </button>
                 <button onClick={replyEmail} className="btn-secondary !py-1.5 !px-3 text-xs font-bold flex items-center gap-1.5">
-                  <Reply className="w-4 h-4" /> Răspunde pe Email
+                  <Reply className="w-4 h-4" /> {t('inbox_reply_email', 'Răspunde pe Email')}
                 </button>
                 {!selected.isRead && (
                   <button onClick={() => markAsRead(selected.id)} className="btn-secondary !py-1.5 !px-3 text-xs font-bold flex items-center gap-1.5">
-                    <Check className="w-4 h-4" /> Marchează citit
+                    <Check className="w-4 h-4" /> {t('inbox_mark_read', 'Marchează citit')}
                   </button>
                 )}
                 <div className="flex-1" />
@@ -232,7 +233,7 @@ export default function ContactInbox() {
         isOpen={showOrder}
         isPortal
         onClose={() => setShowOrder(false)}
-        onSaved={() => { setShowOrder(false); toast.success('Comanda a fost creată!'); }}
+        onSaved={() => { setShowOrder(false); toast.success(t('inbox_order_created', 'Comanda a fost creată!')); }}
         prefill={selected ? {
           pickupAddress: rich?.pickup || undefined,
           deliveryAddress: rich?.delivery || undefined,
@@ -240,7 +241,7 @@ export default function ContactInbox() {
           contactPerson: selected.name,
           contactPhone: selected.phone,
           clientName: selected.name,
-          notes: `Conversie din mesaj contact (${selected.email}):\n${selected.message}`,
+          notes: t('inbox_conversion_notes', 'Conversie din mesaj contact ({{email}}):\n{{message}}', { email: selected.email, message: selected.message }),
         } : null}
       />
     </div>
