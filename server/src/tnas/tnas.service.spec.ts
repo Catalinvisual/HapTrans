@@ -504,4 +504,141 @@ describe('TnasService Backup Methods', () => {
       expect(audit.auditNotice).toContain('Protected');
     });
   });
+
+  describe('backupPlanning Resilience & Fallback (HTTP 500 Fix)', () => {
+    it('should successfully return planning data when tables and relations are healthy', async () => {
+      routePlansRepo.find.mockResolvedValue([
+        {
+          id: 'plan-1',
+          planningDate: '2026-10-10',
+          version: 1,
+          isCurrent: true,
+          isOptimized: true,
+          feasibilityStatus: 'feasible',
+          truck: { plateNumber: 'B10HAP' },
+          driver: { user: { name: 'Dan Driver' } },
+          trip: { tripNumber: 'TR-100' },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]);
+      shipmentsRepo.find.mockResolvedValue([
+        {
+          id: 'ship-1',
+          orderId: 'ord-1',
+          reference: 'SHIP-REF-01',
+          status: 'planned',
+          priority: 1,
+          pickupCity: 'Bucuresti',
+          pickupCountry: 'RO',
+          deliveryCity: 'Rotterdam',
+          deliveryCountry: 'NL',
+          weightKg: 12000,
+          volumeCbm: 33,
+          pallets: 20,
+          client: { name: 'Transport SRL' },
+        },
+      ]);
+      ordersRepo.find.mockResolvedValue([
+        {
+          id: 'ord-1',
+          orderNumber: 'ORD-2026-0099',
+        },
+      ]);
+      crossDocksRepo.find.mockResolvedValue([
+        {
+          id: 'cd-1',
+          orderId: 'ord-1',
+          facilityName: 'CrossDock Hub Arad',
+          status: 'planned',
+          pallets: 10,
+        },
+      ]);
+      planningActionsRepo.find.mockResolvedValue([
+        {
+          id: 'act-1',
+          action: 'optimize_route',
+          truckId: 'trk-1',
+          routePlanId: 'plan-1',
+          user: { name: 'Planner Paul' },
+        },
+      ]);
+
+      const res = await service.backupPlanning();
+
+      expect(res.routePlans).toHaveLength(1);
+      expect(res.routePlans[0].truckPlate).toBe('B10HAP');
+      expect(res.routePlans[0].driverName).toBe('Dan Driver');
+
+      expect(res.shipments).toHaveLength(1);
+      expect(res.shipments[0].orderNumber).toBe('ORD-2026-0099');
+      expect(res.shipments[0].clientName).toBe('Transport SRL');
+      expect(res.shipments[0].cargoWeightKg).toBe(12000);
+
+      expect(res.crossDockTransfers).toHaveLength(1);
+      expect(res.crossDockTransfers[0].facilityName).toBe('CrossDock Hub Arad');
+
+      expect(res.planningActions).toHaveLength(1);
+      expect(res.planningActions[0].userName).toBe('Planner Paul');
+    });
+
+    it('should reproduce error condition (join failure or missing table) and fall back gracefully without throwing 500', async () => {
+      // Simulate relational join failure on routePlansRepo
+      routePlansRepo.find
+        .mockRejectedValueOnce(new Error('Relation driver.user does not exist or has column mismatch'))
+        .mockRejectedValueOnce(new Error('Relation truck/driver/trip failure'))
+        .mockResolvedValueOnce([
+          {
+            id: 'plan-fallback',
+            planningDate: '2026-10-10',
+            version: 1,
+            isCurrent: true,
+            isOptimized: false,
+            feasibilityStatus: 'feasible',
+          },
+        ]);
+
+      // Simulate OneToOne relation crash on shipmentsRepo
+      shipmentsRepo.find
+        .mockRejectedValueOnce(new Error('QueryFailedError: operator does not exist: uuid = character varying'))
+        .mockResolvedValueOnce([
+          {
+            id: 'ship-fallback',
+            orderId: 'ord-unknown',
+            reference: 'REF-FALLBACK',
+            status: 'planned',
+          },
+        ]);
+
+      // Simulate missing table on crossDocksRepo (relation "cross_dock_transfers" does not exist)
+      crossDocksRepo.find.mockRejectedValue(new Error('QueryFailedError: relation "cross_dock_transfers" does not exist'));
+
+      // Simulate failure on planningActionsRepo with successful un-joined fallback
+      planningActionsRepo.find
+        .mockRejectedValueOnce(new Error('Relation user not found'))
+        .mockResolvedValueOnce([
+          {
+            id: 'act-fallback',
+            action: 'manual_assign',
+            truckId: 'trk-1',
+          },
+        ]);
+
+      // Execution MUST NOT throw an error (which would cause HTTP 500 in NestJS)
+      const res = await service.backupPlanning();
+
+      expect(res).toBeDefined();
+      expect(res.routePlans).toHaveLength(1);
+      expect(res.routePlans[0].id).toBe('plan-fallback');
+
+      expect(res.shipments).toHaveLength(1);
+      expect(res.shipments[0].orderNumber).toBe('REF-FALLBACK');
+
+      // Missing cross_dock_transfers table defaults to empty array
+      expect(res.crossDockTransfers).toEqual([]);
+
+      expect(res.planningActions).toHaveLength(1);
+      expect(res.planningActions[0].action).toBe('manual_assign');
+    });
+  });
 });
