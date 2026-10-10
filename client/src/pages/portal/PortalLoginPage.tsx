@@ -19,12 +19,21 @@ export default function PortalLoginPage() {
     if (rawLang) {
       const urlLang = rawLang.toLowerCase();
       const supported = ['ro', 'en', 'nl', 'de', 'fr', 'es', 'pl'];
-      if (supported.includes(urlLang) && i18n.language !== urlLang) {
-        i18n.changeLanguage(urlLang);
+      if (supported.includes(urlLang)) {
+        if (i18n.language !== urlLang) {
+          i18n.changeLanguage(urlLang);
+        }
         localStorage.setItem('hapcargo_lang', urlLang);
+        if (typeof window !== 'undefined') {
+          const newParams = new URLSearchParams(window.location.search);
+          newParams.delete('lang');
+          newParams.delete('lng');
+          const newSearch = newParams.toString();
+          window.history.replaceState({}, '', window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash);
+        }
       }
     }
-  }, [searchParams, i18n]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

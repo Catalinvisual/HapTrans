@@ -59,6 +59,17 @@ export default function SettingsPage() {
     t,
     i18n
   } = useTranslation();
+
+  const getLabel = (enText: string, roText: string, nlText: string, deText: string, frText: string, plText: string, esText?: string) => {
+    const lang = (i18n.language || 'ro').toLowerCase();
+    if (lang === 'ro') return roText;
+    if (lang === 'nl') return nlText;
+    if (lang === 'de') return deText;
+    if (lang === 'fr') return frText;
+    if (lang === 'pl') return plText;
+    if (lang === 'es') return esText || enText;
+    return enText;
+  };
   const {
     user
   } = useAuthStore();

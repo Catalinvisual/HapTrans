@@ -321,7 +321,7 @@ export default function DriversPage() {
             </div>
             {(d.phone || d.licenseNumber) && (
               <div className="text-[11px] text-text-secondary truncate">
-                {d.phone ? `📞 ${d.phone}` : ''}{d.phone && d.licenseNumber ? ' • ' : ''}{d.licenseNumber ? `Permis: ${d.licenseNumber}` : ''}
+                {d.phone ? `📞 ${d.phone}` : ''}{d.phone && d.licenseNumber ? ' • ' : ''}{d.licenseNumber ? `${t('license_short', 'Permis')}: ${d.licenseNumber}` : ''}
               </div>
             )}
           </div>
@@ -344,8 +344,8 @@ export default function DriversPage() {
         if (!gross && !daily) return <span className="text-xs text-text-muted">—</span>;
         return (
           <div className="text-right leading-tight whitespace-nowrap">
-            <div className="text-[12px] font-bold text-text-primary">{gross ? `${fmtMoney(gross, 'EUR', 0)}/lună` : '—'}</div>
-            {daily ? <div className="text-[11px] text-text-secondary">{t('dailyAllowance', 'Diurnă')}: {fmtMoney(daily, 'EUR', 0)}/zi</div> : null}
+            <div className="text-[12px] font-bold text-text-primary">{gross ? `${fmtMoney(gross, 'EUR', 0)}${t('per_month', '/lună')}` : '—'}</div>
+            {daily ? <div className="text-[11px] text-text-secondary">{t('dailyAllowance', 'Diurnă')}: {fmtMoney(daily, 'EUR', 0)}{t('per_day', '/zi')}</div> : null}
           </div>
         );
       },

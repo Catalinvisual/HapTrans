@@ -661,11 +661,11 @@ export default function InvoicesPage({
       key: 'value', label: t('valueVat', 'Valoare & TVA'), align: 'right', width: '180px',
       render: (inv: any) => {
         const totals = getInvTotals(inv);
-        const vatLabel = inv.vatType === 'REVERSE_CHARGE' ? '0% (Taxare inv.)' : inv.vatType === 'EXEMPT' ? '0% (Scutit)' : `${inv.vatPercent}%`;
+        const vatLabel = inv.vatType === 'REVERSE_CHARGE' ? t('vat_reverse_charge', '0% (Taxare inv.)') : inv.vatType === 'EXEMPT' ? t('vat_exempt', '0% (Scutit)') : `${inv.vatPercent}%`;
         return (
           <div className="text-right leading-tight whitespace-nowrap">
             <div className="text-[13px] font-bold text-success">{fmtMoney(totals.total)}</div>
-            <div className="text-[11px] text-text-secondary">{t('net', 'Net')}: {fmtMoney(totals.subtotal)} • TVA: {vatLabel}</div>
+            <div className="text-[11px] text-text-secondary">{t('net', 'Net')}: {fmtMoney(totals.subtotal)} • {t('vat_short', 'TVA')}: {vatLabel}</div>
           </div>
         );
       },
@@ -701,9 +701,9 @@ export default function InvoicesPage({
         </div>
       ) : (
         <div className="flex items-center justify-end gap-0.5">
-          <button onClick={() => ensurePdfAndExecute(inv, handlePreview)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title="Previzualizare PDF"><Eye className="w-3.5 h-3.5" /></button>
-          <button onClick={() => ensurePdfAndExecute(inv, handleDownload)} className="p-1 text-text-secondary hover:text-success rounded-lg hover:bg-green-50 transition-colors" title="Descărcare PDF"><Download className="w-3.5 h-3.5" /></button>
-          <button onClick={() => ensurePdfAndExecute(inv, handleShare)} className="p-1 text-text-secondary hover:text-warning rounded-lg hover:bg-yellow-50 transition-colors" title="Partajare"><Share2 className="w-3.5 h-3.5" /></button>
+          <button onClick={() => ensurePdfAndExecute(inv, handlePreview)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('previewPdf', 'Previzualizare PDF')}><Eye className="w-3.5 h-3.5" /></button>
+          <button onClick={() => ensurePdfAndExecute(inv, handleDownload)} className="p-1 text-text-secondary hover:text-success rounded-lg hover:bg-green-50 transition-colors" title={t('downloadPdf', 'Descărcare PDF')}><Download className="w-3.5 h-3.5" /></button>
+          <button onClick={() => ensurePdfAndExecute(inv, handleShare)} className="p-1 text-text-secondary hover:text-warning rounded-lg hover:bg-yellow-50 transition-colors" title={t('share', 'Partajare')}><Share2 className="w-3.5 h-3.5" /></button>
           <button onClick={() => ensurePdfAndExecute(inv, handleSendEmail)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('sendEmailAction') || 'Trimite Email'}><Mail className="w-3.5 h-3.5" /></button>
           <button onClick={() => setDeleteId(inv.id)} className="p-1 text-text-secondary hover:text-error rounded-lg hover:bg-red-50 transition-colors" title={t('delete', 'Șterge')}><Trash2 className="w-3.5 h-3.5" /></button>
         </div>

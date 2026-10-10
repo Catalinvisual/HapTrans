@@ -158,7 +158,7 @@ export default function DocumentsPage({
     ...Array.from(new Set(displayDocs.map(d => (d.type || d.documentType || '').toString()).filter(Boolean))).map(tv => ({ value: tv, label: typeLabel(tv) })),
   ];
   const refOptions = [
-    { value: 'ALL', label: t('all_refs') || 'Toate Referințele' },
+    { value: 'ALL', label: t('all_refs', 'Toate Referințele') },
     ...Array.from(new Set(displayDocs.map(d => getRef(d)).filter(r => r && r !== '—'))).map(r => ({ value: r, label: r })),
   ];
   const filteredDocs = displayDocs.filter(doc => {
@@ -304,7 +304,7 @@ export default function DocumentsPage({
           <div className="flex items-center gap-1.5 flex-1 min-w-[340px]">
             <div className="relative w-[230px] shrink-0">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
-              <input className="input pl-8 pr-3 py-1.5 text-xs w-full" placeholder={t('searchDocs') || 'Caută fișier, referință, autor...'} value={search} onChange={e => setSearch(e.target.value)} />
+              <input className="input pl-8 pr-3 py-1.5 text-xs w-full" placeholder={t('searchDocs', 'Caută fișier, referință, autor...')} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <div className="w-[150px] shrink-0">
               <CustomSelect size="sm" value={typeFilter} onChange={v => { setTypeFilter(v); setCurrentPage(1); }} options={typeOptions} />

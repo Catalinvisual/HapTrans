@@ -114,11 +114,11 @@ export default function ClientsPage() {
 
   const columns: Column<any>[] = [
     {
-      key: 'client', label: t('name') + ' / CUI', width: '260px',
+      key: 'client', label: `${t('name')} / ${t('vat_short', 'VAT')}`, width: '260px',
       render: c => (
         <div className="leading-tight min-w-0">
           <div className="font-bold text-[13px] text-text-primary truncate">{c.name}</div>
-          <div className="text-[11px] text-text-secondary">CUI: {c.cui || '—'}</div>
+          <div className="text-[11px] text-text-secondary">{t('vat_short', 'VAT')}: {c.cui || '—'}</div>
         </div>
       ),
     },
@@ -232,7 +232,7 @@ export default function ClientsPage() {
           required: true
         }, {
           key: 'cui',
-          label: t('cui') || 'CUI / VAT'
+          label: t('vat_number', 'VAT / Tax ID')
         }, {
           key: 'contactName',
           label: t('contact') || 'Contact'
@@ -320,7 +320,7 @@ export default function ClientsPage() {
       label: 'Client Name'
     }, {
       key: 'cui',
-      label: 'CUI / VAT'
+      label: 'VAT / Tax ID'
     }, {
       key: 'address',
       label: 'Address'

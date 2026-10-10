@@ -32,6 +32,12 @@ export default function LanguageDropdown() {
   const changeLang = (code: string) => {
     i18n.changeLanguage(code);
     localStorage.setItem('hapcargo_lang', code);
+    if (typeof window !== 'undefined' && (window.location.search.includes('lang=') || window.location.search.includes('lng='))) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('lang');
+      url.searchParams.delete('lng');
+      window.history.replaceState({}, '', url.pathname + (url.search ? url.search : '') + url.hash);
+    }
     setOpen(false);
   };
 

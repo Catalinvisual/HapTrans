@@ -190,7 +190,7 @@ export default function SettlementPage() {
           { key: 'anagajat', label: t('sett_employee_rate', 'ANGAJAT & TARIFA'), align: 'left', render: (s: any) => (
             <div>
               <p className="font-bold text-[13px] text-text truncate">{s.driverName}</p>
-              <p className="text-[10px] text-text-secondary mt-0.5">Mod: {s.payMode === 'percent' ? t('sett_percent') : t('sett_perKm')} ({fmtNumber(s.payRate, 2)}{s.payMode === 'percent' ? ' %' : ' €/km'})</p>
+              <p className="text-[10px] text-text-secondary mt-0.5">{t('sett_mode', 'Mod')}: {s.payMode === 'percent' ? t('sett_percent') : t('sett_perKm')} ({fmtNumber(s.payRate, 2)}{s.payMode === 'percent' ? ' %' : ' €/km'})</p>
             </div>
           ) },
           { key: 'activitate', label: t('sett_activity', 'ACTIVITATE'), align: 'right', render: (s: any) => (
@@ -201,7 +201,7 @@ export default function SettlementPage() {
           ) },
           { key: 'venit', label: t('sett_revenue_gross', 'VENIT & BRUT'), align: 'right', render: (s: any) => (
             <div>
-              <p className="font-semibold text-[12.5px] text-text">{fmtMoney(s.grossPay)} Brut</p>
+              <p className="font-semibold text-[12.5px] text-text">{fmtMoney(s.grossPay)} {t('gross', 'Brut')}</p>
               <p className="text-[10px] text-text-secondary mt-0.5">{t('sett_revenue', 'Venit cursă: ')}{fmtMoney(s.totalRevenue)}</p>
             </div>
           ) },
