@@ -10202,7 +10202,28 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'reset_password_title': 'Reset Password',
     'reset_password_confirm': 'Are you sure you want to reset password for {{name}}? New generated password is: {{pass}}',
     'reset_password_btn': 'Reset',
-    'confirmDeleteUser': 'Are you sure you want to delete this user? This action cannot be undone.'
+    'confirmDeleteUser': 'Are you sure you want to delete this user? This action cannot be undone.',
+
+    'settings_title': 'System Settings',
+    'settings_subtitle': 'Configure company details, tariffs, and application connections.',
+    'settings_reset': 'Reset Fields',
+    'settings_save': 'Save Changes',
+    'settings_tab_company': '🏢 Company Data & Invoicing',
+    'settings_tab_tariffs': '🚚 Tariff Engine & Calculator',
+    'settings_tab_profile': '👤 My Profile & Security',
+    'settings_tab_server': '🔌 Connections & Server',
+    'company_name': 'Company Name',
+    'company_reg_no': 'Trade Register No.',
+    'company_phone': 'Telephone',
+    'company_email': 'Official Email',
+    'company_working_hours': 'Working Hours',
+    'company_address': 'Address (Street, No.)',
+    'company_bank': 'Bank',
+    'company_iban': 'IBAN',
+    'company_from_note': 'These details will automatically appear in the FROM section of every generated invoice.',
+    'settings_backend_offline': '🔴 Backend Railway Offline',
+    'settings_backend_online': '🟢 Backend Railway Connected',
+    'settings_ws_active': '🟢 WebSocket Active'
   },
   ro: {
     'status_pending': 'În așteptare',
@@ -10390,7 +10411,17 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'reset_password_title': 'Resetare parolă',
     'reset_password_confirm': 'Sigur doriți să resetați parola pentru {{name}}? Noua parolă generată este: {{pass}}',
     'reset_password_btn': 'Resetează',
-    'confirmDeleteUser': 'Sunteți sigur că doriți să ștergeți acest utilizator? Această acțiune este ireversibilă.'
+    'confirmDeleteUser': 'Sunteți sigur că doriți să ștergeți acest utilizator? Această acțiune este ireversibilă.',
+
+    'company_name': 'Denumire Companie',
+    'company_reg_no': 'Nr. Reg. Comerțului',
+    'company_phone': 'Telefon',
+    'company_email': 'Email Oficial',
+    'company_working_hours': 'Program de lucru',
+    'company_address': 'Adresă (Str., Nr.)',
+    'company_bank': 'Bancă',
+    'company_iban': 'IBAN',
+    'company_from_note': 'Aceste date vor apărea automat în secțiunea FROM a fiecărei facturi generate.'
   },
   nl: {
     'status_pending': 'In afwachting',
@@ -10424,7 +10455,17 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'per_day': '/dag',
     'license_short': 'Rijbewijs',
     'gross': 'Bruto',
-    'sett_mode': 'Modus'
+    'sett_mode': 'Modus',
+
+    'company_name': 'Bedrijfsnaam',
+    'company_reg_no': 'KVK-nummer',
+    'company_phone': 'Telefoon',
+    'company_email': 'Officieel e-mailadres',
+    'company_working_hours': 'Werktijden',
+    'company_address': 'Adres (Straat, Nr.)',
+    'company_bank': 'Bank',
+    'company_iban': 'IBAN',
+    'company_from_note': 'Deze gegevens verschijnen automatisch in het FROM gedeelte van elke gegenereerde factuur.'
   },
   de: {
     'status_pending': 'Ausstehend',
@@ -10458,7 +10499,17 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'per_day': '/Tag',
     'license_short': 'Führerschein',
     'gross': 'Brutto',
-    'sett_mode': 'Modus'
+    'sett_mode': 'Modus',
+
+    'company_name': 'Firmenname',
+    'company_reg_no': 'Handelsregisternummer',
+    'company_phone': 'Telefon',
+    'company_email': 'Offizielle E-Mail',
+    'company_working_hours': 'Arbeitszeiten',
+    'company_address': 'Adresse (Straße, Nr.)',
+    'company_bank': 'Bank',
+    'company_iban': 'IBAN',
+    'company_from_note': 'Diese Daten erscheinen automatisch im FROM-Bereich jeder generierten Rechnung.'
   },
   fr: {
     'status_pending': 'En attente',
@@ -10492,7 +10543,17 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'per_day': '/jour',
     'license_short': 'Permis',
     'gross': 'Brut',
-    'sett_mode': 'Mode'
+    'sett_mode': 'Mode',
+
+    'company_name': "Nom de l'entreprise",
+    'company_reg_no': 'N° Registre de Commerce',
+    'company_phone': 'Téléphone',
+    'company_email': 'E-mail officiel',
+    'company_working_hours': 'Horaires de travail',
+    'company_address': 'Adresse (Rue, N°)',
+    'company_bank': 'Banque',
+    'company_iban': 'IBAN',
+    'company_from_note': 'Ces données apparaîtront automatiquement dans la section FROM de chaque facture générée.'
   },
   es: {
     'status_pending': 'Pendiente',
@@ -10526,7 +10587,17 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'per_day': '/día',
     'license_short': 'Permiso',
     'gross': 'Bruto',
-    'sett_mode': 'Modo'
+    'sett_mode': 'Modo',
+
+    'company_name': 'Nombre de la empresa',
+    'company_reg_no': 'Nº Registro Mercantil',
+    'company_phone': 'Teléfono',
+    'company_email': 'Correo oficial',
+    'company_working_hours': 'Horario laboral',
+    'company_address': 'Dirección (Calle, Nº)',
+    'company_bank': 'Banco',
+    'company_iban': 'IBAN',
+    'company_from_note': 'Estos datos aparecerán automáticamente en la sección EMISOR de cada factura generada.'
   },
   pl: {
     'status_pending': 'Oczekujące',
@@ -10560,7 +10631,17 @@ const additionalTranslations: Record<string, Record<string, string>> = {
     'per_day': '/dzień',
     'license_short': 'Prawo jazdy',
     'gross': 'Brutto',
-    'sett_mode': 'Tryb'
+    'sett_mode': 'Tryb',
+
+    'company_name': 'Nazwa firmy',
+    'company_reg_no': 'Numer KRS / REGON',
+    'company_phone': 'Telefon',
+    'company_email': 'Oficjalny e-mail',
+    'company_working_hours': 'Godziny pracy',
+    'company_address': 'Adres (Ulica, Nr)',
+    'company_bank': 'Bank',
+    'company_iban': 'IBAN',
+    'company_from_note': 'Dane te będą automatycznie widoczne w sekcji NADAWCA każdej wygenerowanej faktury.'
   }
 };
 
