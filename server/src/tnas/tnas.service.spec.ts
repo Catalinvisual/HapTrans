@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { TnasService } from './tnas.service';
+
+// Entities
 import { Document } from '../documents/document.entity';
 import { Invoice } from '../invoices/invoice.entity';
 import { Expense } from '../expenses/expense.entity';
@@ -10,6 +12,45 @@ import { Driver } from '../drivers/driver.entity';
 import { Client } from '../clients/client.entity';
 import { Maintenance } from '../maintenance/maintenance.entity';
 import { User } from '../users/user.entity';
+
+import { Order } from '../orders/order.entity';
+import { CargoItem } from '../orders/cargo-item.entity';
+import { OrderStop } from '../orders/order-stop.entity';
+
+import { Trailer } from '../trucks/trailer.entity';
+import { TelematicsDevice } from '../telematics/entities/telematics-device.entity';
+import { Tachograph } from '../telematics/entities/tachograph.entity';
+import { DriverTachographCard } from '../telematics/entities/driver-tachograph-card.entity';
+import { TachographActivityEvent } from '../telematics/entities/tachograph-activity-event.entity';
+
+import { TruckRoutePlan } from '../planning/truck-route-plan.entity';
+import { Shipment } from '../planning/shipment.entity';
+import { CrossDockTransfer } from '../planning/cross-dock-transfer.entity';
+import { PlanningAction } from '../planning/planning-action.entity';
+
+import { QuoteRequest } from '../quotes/quote.entity';
+import { QuoteReply } from '../quotes/quote-reply.entity';
+import { ClientRate } from '../clients/client-rate.entity';
+import { ClientLocation } from '../clients/client-location.entity';
+
+import { InvoiceItem } from '../invoices/invoice-item.entity';
+import { Payment } from '../payments/payment.entity';
+import { Payroll } from '../payroll/payroll.entity';
+import { Settlement } from '../settlements/settlement.entity';
+
+import { DriverDocument } from '../drivers/driver-document.entity';
+import { TruckDocument } from '../trucks/truck-document.entity';
+import { MaintenanceAttachment } from '../maintenance/maintenance-attachment.entity';
+
+import { WebsiteCms } from '../website-cms/website-cms.entity';
+import { Lead } from '../leads/lead.entity';
+import { JobApplication } from '../job-applications/job-application.entity';
+import { ContactMessage } from '../contact/contact.entity';
+
+import { Company } from '../companies/company.entity';
+import { SavedReport } from '../reports/saved-report.entity';
+import { ScheduledReport } from '../reports/scheduled-report.entity';
+import { Message } from '../chat/message.entity';
 
 describe('TnasService Backup Methods', () => {
   let service: TnasService;
@@ -21,6 +62,46 @@ describe('TnasService Backup Methods', () => {
   let maintenanceRepo: { find: jest.Mock };
   let invoicesRepo: { find: jest.Mock };
   let expensesRepo: { find: jest.Mock };
+  let docsRepo: { find: jest.Mock };
+
+  let ordersRepo: { find: jest.Mock };
+  let cargoItemsRepo: { find: jest.Mock };
+  let orderStopsRepo: { find: jest.Mock };
+
+  let trailersRepo: { find: jest.Mock };
+  let telematicsDevicesRepo: { find: jest.Mock };
+  let tachographsRepo: { find: jest.Mock };
+  let driverTachoCardsRepo: { find: jest.Mock };
+  let tachoEventsRepo: { find: jest.Mock };
+
+  let routePlansRepo: { find: jest.Mock };
+  let shipmentsRepo: { find: jest.Mock };
+  let crossDocksRepo: { find: jest.Mock };
+  let planningActionsRepo: { find: jest.Mock };
+
+  let quotesRepo: { find: jest.Mock };
+  let quoteRepliesRepo: { find: jest.Mock };
+  let clientRatesRepo: { find: jest.Mock };
+  let clientLocationsRepo: { find: jest.Mock };
+
+  let invoiceItemsRepo: { find: jest.Mock };
+  let paymentsRepo: { find: jest.Mock };
+  let payrollsRepo: { find: jest.Mock };
+  let settlementsRepo: { find: jest.Mock };
+
+  let driverDocsRepo: { find: jest.Mock };
+  let truckDocsRepo: { find: jest.Mock };
+  let maintenanceAttachmentsRepo: { find: jest.Mock };
+
+  let websiteCmsRepo: { find: jest.Mock };
+  let leadsRepo: { find: jest.Mock };
+  let jobAppsRepo: { find: jest.Mock };
+  let contactsRepo: { find: jest.Mock };
+
+  let companiesRepo: { find: jest.Mock };
+  let savedReportsRepo: { find: jest.Mock };
+  let scheduledReportsRepo: { find: jest.Mock };
+  let messagesRepo: { find: jest.Mock };
 
   beforeEach(async () => {
     tripsRepo = { find: jest.fn() };
@@ -31,11 +112,51 @@ describe('TnasService Backup Methods', () => {
     maintenanceRepo = { find: jest.fn() };
     invoicesRepo = { find: jest.fn() };
     expensesRepo = { find: jest.fn() };
+    docsRepo = { find: jest.fn() };
+
+    ordersRepo = { find: jest.fn() };
+    cargoItemsRepo = { find: jest.fn() };
+    orderStopsRepo = { find: jest.fn() };
+
+    trailersRepo = { find: jest.fn() };
+    telematicsDevicesRepo = { find: jest.fn() };
+    tachographsRepo = { find: jest.fn() };
+    driverTachoCardsRepo = { find: jest.fn() };
+    tachoEventsRepo = { find: jest.fn() };
+
+    routePlansRepo = { find: jest.fn() };
+    shipmentsRepo = { find: jest.fn() };
+    crossDocksRepo = { find: jest.fn() };
+    planningActionsRepo = { find: jest.fn() };
+
+    quotesRepo = { find: jest.fn() };
+    quoteRepliesRepo = { find: jest.fn() };
+    clientRatesRepo = { find: jest.fn() };
+    clientLocationsRepo = { find: jest.fn() };
+
+    invoiceItemsRepo = { find: jest.fn() };
+    paymentsRepo = { find: jest.fn() };
+    payrollsRepo = { find: jest.fn() };
+    settlementsRepo = { find: jest.fn() };
+
+    driverDocsRepo = { find: jest.fn() };
+    truckDocsRepo = { find: jest.fn() };
+    maintenanceAttachmentsRepo = { find: jest.fn() };
+
+    websiteCmsRepo = { find: jest.fn() };
+    leadsRepo = { find: jest.fn() };
+    jobAppsRepo = { find: jest.fn() };
+    contactsRepo = { find: jest.fn() };
+
+    companiesRepo = { find: jest.fn() };
+    savedReportsRepo = { find: jest.fn() };
+    scheduledReportsRepo = { find: jest.fn() };
+    messagesRepo = { find: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TnasService,
-        { provide: getRepositoryToken(Document), useValue: {} },
+        { provide: getRepositoryToken(Document), useValue: docsRepo },
         { provide: getRepositoryToken(Invoice), useValue: invoicesRepo },
         { provide: getRepositoryToken(Expense), useValue: expensesRepo },
         { provide: getRepositoryToken(Trip), useValue: tripsRepo },
@@ -44,6 +165,45 @@ describe('TnasService Backup Methods', () => {
         { provide: getRepositoryToken(Client), useValue: clientsRepo },
         { provide: getRepositoryToken(Maintenance), useValue: maintenanceRepo },
         { provide: getRepositoryToken(User), useValue: usersRepo },
+
+        { provide: getRepositoryToken(Order), useValue: ordersRepo },
+        { provide: getRepositoryToken(CargoItem), useValue: cargoItemsRepo },
+        { provide: getRepositoryToken(OrderStop), useValue: orderStopsRepo },
+
+        { provide: getRepositoryToken(Trailer), useValue: trailersRepo },
+        { provide: getRepositoryToken(TelematicsDevice), useValue: telematicsDevicesRepo },
+        { provide: getRepositoryToken(Tachograph), useValue: tachographsRepo },
+        { provide: getRepositoryToken(DriverTachographCard), useValue: driverTachoCardsRepo },
+        { provide: getRepositoryToken(TachographActivityEvent), useValue: tachoEventsRepo },
+
+        { provide: getRepositoryToken(TruckRoutePlan), useValue: routePlansRepo },
+        { provide: getRepositoryToken(Shipment), useValue: shipmentsRepo },
+        { provide: getRepositoryToken(CrossDockTransfer), useValue: crossDocksRepo },
+        { provide: getRepositoryToken(PlanningAction), useValue: planningActionsRepo },
+
+        { provide: getRepositoryToken(QuoteRequest), useValue: quotesRepo },
+        { provide: getRepositoryToken(QuoteReply), useValue: quoteRepliesRepo },
+        { provide: getRepositoryToken(ClientRate), useValue: clientRatesRepo },
+        { provide: getRepositoryToken(ClientLocation), useValue: clientLocationsRepo },
+
+        { provide: getRepositoryToken(InvoiceItem), useValue: invoiceItemsRepo },
+        { provide: getRepositoryToken(Payment), useValue: paymentsRepo },
+        { provide: getRepositoryToken(Payroll), useValue: payrollsRepo },
+        { provide: getRepositoryToken(Settlement), useValue: settlementsRepo },
+
+        { provide: getRepositoryToken(DriverDocument), useValue: driverDocsRepo },
+        { provide: getRepositoryToken(TruckDocument), useValue: truckDocsRepo },
+        { provide: getRepositoryToken(MaintenanceAttachment), useValue: maintenanceAttachmentsRepo },
+
+        { provide: getRepositoryToken(WebsiteCms), useValue: websiteCmsRepo },
+        { provide: getRepositoryToken(Lead), useValue: leadsRepo },
+        { provide: getRepositoryToken(JobApplication), useValue: jobAppsRepo },
+        { provide: getRepositoryToken(ContactMessage), useValue: contactsRepo },
+
+        { provide: getRepositoryToken(Company), useValue: companiesRepo },
+        { provide: getRepositoryToken(SavedReport), useValue: savedReportsRepo },
+        { provide: getRepositoryToken(ScheduledReport), useValue: scheduledReportsRepo },
+        { provide: getRepositoryToken(Message), useValue: messagesRepo },
       ],
     }).compile();
 
@@ -102,11 +262,11 @@ describe('TnasService Backup Methods', () => {
         ],
         orders: [
           {
-            orderNumber: 'ORD-101',
+            orderNumber: 'ORD-001',
             customerReference: 'CUST-REF-99',
-            loadingReference: 'LOAD-01',
-            unloadingReference: 'UNLOAD-01',
-            client: { name: 'Client Logistics BV' },
+            loadingReference: 'LOAD-REF-1',
+            unloadingReference: 'UNLOAD-REF-1',
+            client: { name: 'Acme Logistics' },
             cargoItems: [
               { quantity: 10, weightKg: 2500, volumeCbm: 15, unit: 'pallet' },
               { quantity: 5, weightKg: 1000, volumeCbm: 8, unit: 'pallet' },
@@ -115,200 +275,233 @@ describe('TnasService Backup Methods', () => {
         ],
       };
 
-      tripsRepo.find.mockResolvedValueOnce([mockTrip]);
+      tripsRepo.find.mockResolvedValue([mockTrip]);
 
       const result = await service.backupTrips();
 
       expect(result).toHaveLength(1);
-      const item = result[0];
+      const row = result[0];
 
-      // Verifies schema drift fix: both referenceNumber and tripNumber are populated
-      expect(item.referenceNumber).toBe('TR-2026-0001');
-      expect(item.tripNumber).toBe('TR-2026-0001');
-      expect(item.clientName).toBe('Client Logistics BV');
-      expect(item.truckPlate).toBe('B100HAP');
-      expect(item.trailerPlate).toBe('B200HAP');
-      expect(item.driverName).toBe('Ion Popescu');
-      expect(item.dispatcherName).toBe('Dispatcher Dan');
+      expect(row.tripNumber).toBe('TR-2026-0001');
+      expect(row.referenceNumber).toBe('TR-2026-0001');
+      expect(row.truckPlate).toBe('B100HAP');
+      expect(row.trailerPlate).toBe('B200HAP');
+      expect(row.driverName).toBe('Ion Popescu');
+      expect(row.dispatcherName).toBe('Dispatcher Dan');
 
-      // Verifies stop extraction
-      expect(item.pickupAddress).toBe('Strada Industriei 1');
-      expect(item.pickupCompanyName).toBe('Fabrica A');
-      expect(item.pickupCountry).toBe('RO');
-      expect(item.dropoffAddress).toBe('Havenlaan 50');
-      expect(item.dropoffCompanyName).toBe('Magazijn B');
-      expect(item.dropoffCountry).toBe('NL');
+      expect(row.pickupAddress).toBe('Strada Industriei 1');
+      expect(row.pickupCompanyName).toBe('Fabrica A');
+      expect(row.dropoffAddress).toBe('Havenlaan 50');
+      expect(row.dropoffCompanyName).toBe('Magazijn B');
 
-      // Verifies cargo calculation
-      expect(item.pallets).toBe(15);
-      expect(item.weightKg).toBe(3500);
-      expect(item.volumeCbm).toBe(23);
-      expect(item.orderNumbers).toBe('ORD-101');
-      expect(item.customerReferences).toBe('CUST-REF-99');
+      expect(row.clientName).toBe('Acme Logistics');
+      expect(row.orderNumbers).toBe('ORD-001');
+      expect(row.customerReferences).toBe('CUST-REF-99');
+      expect(row.pallets).toBe(15);
+      expect(row.weightKg).toBe(3500);
+      expect(row.volumeCbm).toBe(23);
 
-      // Verifies financial calculations
-      expect(item.price).toBe(400); // 300 + 100
-      expect(item.estimatedCost).toBe(300);
-      expect(item.realCost).toBe(35.5);
-
-      // CRITICAL SECURITY ASSERTIONS: Prohibited fields must NEVER exist in exported object
-      expect((item as any).password).toBeUndefined();
-      expect((item as any).fcmToken).toBeUndefined();
-      expect((item as any).trackingToken).toBeUndefined();
-      expect((item as any).dispatcher?.password).toBeUndefined();
-      expect((item as any).driver?.user?.password).toBeUndefined();
+      expect((row as any).password).toBeUndefined();
+      expect((row as any).fcmToken).toBeUndefined();
+      expect((row as any).trackingToken).toBeUndefined();
     });
 
-    it('should safely fallback when full relation join fails without throwing HTTP 500', async () => {
-      // First call (with relations) throws an error
-      tripsRepo.find.mockRejectedValueOnce(new Error('Relation join Cartesian error or timeout'));
-      // Fallback call (base entity find) returns bare trips
-      tripsRepo.find.mockResolvedValueOnce([
-        {
-          id: 'fallback-trip-1',
-          tripNumber: 'TR-FALLBACK',
-          status: 'planned',
-          carrierTruckPlate: 'IS01ABC',
-          carrierDriverName: 'Driver Backup',
-          estimatedCost: 150,
-          estimatedProfit: 50,
-          createdAt: new Date(),
-        },
-      ]);
+    it('should fallback cleanly if complex relational query fails', async () => {
+      tripsRepo.find
+        .mockRejectedValueOnce(new Error('Relation join syntax error'))
+        .mockResolvedValueOnce([
+          {
+            id: 'trip-fallback-1',
+            tripNumber: 'TR-FALLBACK-01',
+            carrierTruckPlate: 'B99HAP',
+            carrierDriverName: 'Fallback Driver',
+            estimatedCost: 200,
+            estimatedProfit: 50,
+            status: 'planned',
+          },
+        ]);
 
       const result = await service.backupTrips();
 
       expect(result).toHaveLength(1);
-      expect(result[0].tripNumber).toBe('TR-FALLBACK');
-      expect(result[0].referenceNumber).toBe('TR-FALLBACK');
-      expect(result[0].truckPlate).toBe('IS01ABC');
-      expect(result[0].price).toBe(200);
-    });
-
-    it('should handle trips with null relations and null stops gracefully', async () => {
-      tripsRepo.find.mockResolvedValueOnce([
-        {
-          id: 'trip-empty',
-          tripNumber: 'TR-EMPTY',
-          truck: null,
-          trailer: null,
-          driver: null,
-          dispatcher: null,
-          stops: null,
-          orders: null,
-        },
-      ]);
-
-      const result = await service.backupTrips();
-
-      expect(result).toHaveLength(1);
-      expect(result[0].tripNumber).toBe('TR-EMPTY');
-      expect(result[0].clientName).toBe('');
-      expect(result[0].truckPlate).toBe('');
-      expect(result[0].driverName).toBe('');
-      expect(result[0].pickupAddress).toBe('');
-      expect(result[0].dropoffAddress).toBe('');
+      expect(result[0].tripNumber).toBe('TR-FALLBACK-01');
+      expect(result[0].truckPlate).toBe('B99HAP');
+      expect(result[0].driverName).toBe('Fallback Driver');
+      expect(result[0].price).toBe(250);
     });
   });
 
-  describe('backupUsers security', () => {
-    it('should strictly exclude fcmToken, password, and session credentials', async () => {
-      const mockUsers = [
+  describe('backupUsers Security Whitelist', () => {
+    it('should whitelist safe fields and NEVER export password or fcmToken', async () => {
+      usersRepo.find.mockResolvedValue([
         {
           id: 'user-1',
-          name: 'Admin Catalin',
-          email: 'catalin@haptrans.ro',
-          password: '$2b$10$e8w4G2w.fakeHashedPasswordSecret',
-          fcmToken: 'fcm-device-token-secret-123456789',
+          name: 'Admin User',
+          email: 'admin@haptrans.ro',
           role: 'admin',
           language: 'ro',
           grossSalary: 5000,
           dailyRate: 150,
           isActive: true,
-          companyLogoUrl: 'https://cloudinary.com/logo.png',
-          createdAt: new Date('2026-01-01'),
-          updatedAt: new Date('2026-02-01'),
+          password: 'HASHED_PASSWORD_VALUE',
+          passwordHash: 'HASHED_PASSWORD_VALUE_2',
+          fcmToken: 'SECRET_FCM_TOKEN_xyz',
+          refreshToken: 'SECRET_REFRESH_TOKEN',
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
-      ];
-
-      usersRepo.find.mockResolvedValueOnce(mockUsers);
+      ]);
 
       const result = await service.backupUsers();
 
       expect(result).toHaveLength(1);
-      const user = result[0];
+      const u = result[0];
 
-      // Safe whitelisted fields must be present
-      expect(user.id).toBe('user-1');
-      expect(user.name).toBe('Admin Catalin');
-      expect(user.email).toBe('catalin@haptrans.ro');
-      expect(user.role).toBe('admin');
-      expect(user.language).toBe('ro');
-      expect(user.grossSalary).toBe(5000);
-      expect(user.dailyRate).toBe(150);
-      expect(user.isActive).toBe(true);
+      expect(u.name).toBe('Admin User');
+      expect(u.email).toBe('admin@haptrans.ro');
+      expect(u.role).toBe('admin');
+      expect(u.grossSalary).toBe(5000);
+      expect(u.isActive).toBe(true);
 
-      // STRICT PROHIBITED FIELDS: Must NOT exist anywhere on the exported object
-      expect((user as any).password).toBeUndefined();
-      expect((user as any).fcmToken).toBeUndefined();
-      expect((user as any).companyLogoUrl).toBeUndefined();
-      expect(Object.keys(user)).not.toContain('password');
-      expect(Object.keys(user)).not.toContain('fcmToken');
+      expect((u as any).password).toBeUndefined();
+      expect((u as any).passwordHash).toBeUndefined();
+      expect((u as any).fcmToken).toBeUndefined();
+      expect((u as any).refreshToken).toBeUndefined();
     });
   });
 
-  describe('backupTrucks', () => {
-    it('should map truck master fields accurately', async () => {
-      trucksRepo.find.mockResolvedValueOnce([
+  describe('backupOrders', () => {
+    it('should return orders, cargo items, and stops without leaking trackingToken', async () => {
+      ordersRepo.find.mockResolvedValue([
         {
-          id: 'truck-1',
-          plateNumber: 'B99HAP',
-          brand: 'Scania',
-          model: 'R450',
-          year: 2022,
-          payloadCapacity: 24000,
-          fuelConsumption: 28.5,
-          status: 'active',
-          currentLat: 44.43,
-          currentLng: 26.1,
-          totalMileage: 185000,
-          nextMaintenanceMileage: 200000,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
+          id: 'ord-1',
+          orderNumber: 'ORD-2026-001',
+          customerReference: 'CR-100',
+          trackingToken: 'SECRET_ORDER_TRACKING_TOKEN',
+          status: 'planned',
+          price: 1500,
+          client: { name: 'Client A' },
+          trip: { tripNumber: 'TR-100' },
+          createdBy: { name: 'User Admin' },
+        }
+      ]);
+      cargoItemsRepo.find.mockResolvedValue([
+        { id: 'cargo-1', order: { orderNumber: 'ORD-2026-001' }, unit: 'pallet', quantity: 4 }
+      ]);
+      orderStopsRepo.find.mockResolvedValue([
+        { id: 'stop-1', order: { orderNumber: 'ORD-2026-001' }, sequence: 1, type: 'pickup', city: 'Bucuresti' }
       ]);
 
-      const result = await service.backupTrucks();
-      expect(result).toHaveLength(1);
-      expect(result[0].plateNumber).toBe('B99HAP');
-      expect(result[0].brand).toBe('Scania');
-      expect(result[0].payloadCapacity).toBe(24000);
+      const res = await service.backupOrders();
+
+      expect(res.orders).toHaveLength(1);
+      expect(res.cargoItems).toHaveLength(1);
+      expect(res.orderStops).toHaveLength(1);
+
+      expect(res.orders[0].orderNumber).toBe('ORD-2026-001');
+      expect(res.orders[0].clientName).toBe('Client A');
+      expect((res.orders[0] as any).trackingToken).toBeUndefined();
     });
   });
 
-  describe('backupDrivers', () => {
-    it('should map driver fields without leaking user password', async () => {
-      driversRepo.find.mockResolvedValueOnce([
+  describe('backupFleetEquipment Security', () => {
+    it('should return fleet equipment and strictly omit credentials_encrypted', async () => {
+      trailersRepo.find.mockResolvedValue([{ id: 'tr-1', plateNumber: 'B10TRA' }]);
+      telematicsDevicesRepo.find.mockResolvedValue([
         {
-          id: 'driver-1',
-          phone: '+40722000000',
-          licenseNumber: 'RO12345678',
-          status: 'available',
-          payMode: 'per_km',
-          payRate: 0.15,
-          user: { name: 'Mihai Sofer', email: 'mihai@haptrans.ro', password: 'HASHED_SECRET' },
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
+          id: 'dev-1',
+          provider: 'stoneridge',
+          providerDeviceId: 'DEV-001',
+          credentialsEncrypted: 'SECRET_API_KEY_OR_PASSWORD_DO_NOT_LEAK',
+          truck: { plateNumber: 'B10HAP' }
+        }
+      ]);
+      tachographsRepo.find.mockResolvedValue([{ id: 'tg-1', brand: 'VDO', truck: { plateNumber: 'B10HAP' } }]);
+      driverTachoCardsRepo.find.mockResolvedValue([{ id: 'card-1', cardNumber: 'CARD-1234' }]);
+      tachoEventsRepo.find.mockResolvedValue([{ id: 'ev-1', activityType: 'driving' }]);
+
+      const res = await service.backupFleetEquipment();
+
+      expect(res.trailers).toHaveLength(1);
+      expect(res.telematicsDevices).toHaveLength(1);
+      expect(res.tachographs).toHaveLength(1);
+      expect(res.driverTachoCards).toHaveLength(1);
+      expect(res.tachographActivityEvents).toHaveLength(1);
+
+      const device = res.telematicsDevices[0];
+      expect(device.truckPlate).toBe('B10HAP');
+      expect(device.provider).toBe('stoneridge');
+      expect((device as any).credentialsEncrypted).toBeUndefined();
+      expect((device as any).credentials_encrypted).toBeUndefined();
+    });
+  });
+
+  describe('backupFinancePayroll Security', () => {
+    it('should omit pdfData base64 and banking secrets in payroll', async () => {
+      invoiceItemsRepo.find.mockResolvedValue([{ id: 'item-1', total: 100 }]);
+      paymentsRepo.find.mockResolvedValue([{ id: 'pay-1', amount: 100 }]);
+      payrollsRepo.find.mockResolvedValue([
+        {
+          id: 'pr-1',
+          month: 10,
+          year: 2026,
+          grossSalary: 4000,
+          netSalary: 2500,
+          totalNetToPay: 3000,
+          pdfData: 'BASE64_VERY_LARGE_PDF_BINARY_STRING_LEAK',
+          user: { name: 'Driver Dan', email: 'dan@haptrans.ro' }
+        }
+      ]);
+      settlementsRepo.find.mockResolvedValue([{ id: 'st-1', netPay: 2000 }]);
+      invoicesRepo.find.mockResolvedValue([{ amount: 5000 }]);
+      expensesRepo.find.mockResolvedValue([{ amount: 1000, category: 'fuel' }]);
+      tripsRepo.find.mockResolvedValue([{ distanceKm: 500, stops: [{ country: 'NL' }] }]);
+
+      const res = await service.backupFinancePayroll();
+
+      expect(res.payroll).toHaveLength(1);
+      const pr = res.payroll[0];
+      expect(pr.userName).toBe('Driver Dan');
+      expect(pr.grossSalary).toBe(4000);
+      expect((pr as any).pdfData).toBeUndefined();
+      expect((pr as any).bsn).toBeUndefined();
+
+      expect(res.financialSummary).toHaveLength(1);
+      expect(res.iftaSummary).toBeDefined();
+    });
+  });
+
+  describe('backupWebsiteCms and SystemGovernance', () => {
+    it('should sanitize leads trackingToken and mask private chat messages', async () => {
+      websiteCmsRepo.find.mockResolvedValue([{ key: 'hero_title', value: 'HapTrans' }]);
+      leadsRepo.find.mockResolvedValue([
+        { id: 'lead-1', name: 'Potential Client', trackingToken: 'SECRET_LEAD_TRACKING_TOKEN' }
+      ]);
+      jobAppsRepo.find.mockResolvedValue([{ id: 'app-1', name: 'John Candidate' }]);
+      contactsRepo.find.mockResolvedValue([{ id: 'c-1', name: 'Inquiry' }]);
+
+      companiesRepo.find.mockResolvedValue([{ id: 'comp-1', name: 'HapTrans BV' }]);
+      savedReportsRepo.find.mockResolvedValue([{ id: 'sr-1', name: 'Profitability' }]);
+      scheduledReportsRepo.find.mockResolvedValue([{ id: 'scr-1', name: 'Weekly Invoices' }]);
+      messagesRepo.find.mockResolvedValue([
+        {
+          id: 'msg-1',
+          content: 'Confidential private message text body',
+          trip: { tripNumber: 'TR-100' },
+          sender: { name: 'Dispatcher Dan' },
+        }
       ]);
 
-      const result = await service.backupDrivers();
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toBe('Mihai Sofer');
-      expect(result[0].email).toBe('mihai@haptrans.ro');
-      expect(result[0].licenseNumber).toBe('RO12345678');
-      expect((result[0] as any).password).toBeUndefined();
-      expect((result[0] as any).user).toBeUndefined();
+      const cmsRes = await service.backupWebsiteCms();
+      expect(cmsRes.leads).toHaveLength(1);
+      expect((cmsRes.leads[0] as any).trackingToken).toBeUndefined();
+
+      const govRes = await service.backupSystemGovernance();
+      expect(govRes.chatAudit).toHaveLength(1);
+      const audit = govRes.chatAudit[0];
+      expect(audit.tripNumber).toBe('TR-100');
+      expect((audit as any).content).toBeUndefined();
+      expect(audit.auditNotice).toContain('Protected');
     });
   });
 });

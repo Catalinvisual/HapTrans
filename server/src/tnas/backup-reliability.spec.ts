@@ -241,10 +241,10 @@ describe('HapCargo Backup Reliability & Security Suite', () => {
     });
   });
 
-  // TEST 7: Existing workbook filenames compatibility
-  describe('Filename Compatibility', () => {
-    it('should match the exact existing 8 datasets plus Dashboard.xlsx', () => {
-      const expectedFiles = [
+  // TEST 7: Existing workbook filenames compatibility and expanded 25-module coverage
+  describe('Filename Compatibility & Module Coverage', () => {
+    it('should preserve the exact 8 legacy dataset filenames at indices 0-7', () => {
+      const expectedLegacyFiles = [
         'Trips.xlsx',
         'Trucks.xlsx',
         'Drivers.xlsx',
@@ -255,8 +255,47 @@ describe('HapCargo Backup Reliability & Security Suite', () => {
         'Expenses.xlsx',
       ];
 
-      const actualFiles = datasets.map((d: any) => d[1]);
-      expect(actualFiles).toEqual(expectedFiles);
+      const actualLegacyFiles = datasets.slice(0, 8).map((d: any) => d[1]);
+      expect(actualLegacyFiles).toEqual(expectedLegacyFiles);
+    });
+
+    it('should include all expanded structured workbooks for 25-module coverage', () => {
+      const allFiles = datasets.map((d: any) => d[1]);
+      expect(allFiles).toContain('Orders.xlsx');
+      expect(allFiles).toContain('Fleet_Equipment.xlsx');
+      expect(allFiles).toContain('Planning_and_Dispatch.xlsx');
+      expect(allFiles).toContain('Commercial_and_Customers.xlsx');
+      expect(allFiles).toContain('Finance_and_Payroll.xlsx');
+      expect(allFiles).toContain('Documents_Registry.xlsx');
+      expect(allFiles).toContain('Website_CMS.xlsx');
+      expect(allFiles).toContain('System_and_Governance.xlsx');
+    });
+  });
+
+  // TEST 8: Multi-sheet workbook generation & sanitization
+  describe('Multi-Sheet Workbook Generation', () => {
+    it('should generate multi-sheet Orders.xlsx with correct sheet names and columns', async () => {
+      const ordersDatasetDef = datasets.find((d: any) => d[0] === 'orders');
+      const mockOrdersData = {
+        orders: [{ id: 'o1', orderNumber: 'ORD-100', clientName: 'Client X', price: 1200 }],
+        cargoItems: [{ id: 'c1', orderNumber: 'ORD-100', unit: 'pallet', quantity: 5 }],
+        orderStops: [{ id: 's1', orderNumber: 'ORD-100', sequence: 1, type: 'pickup', city: 'Amsterdam' }],
+      };
+
+      const wb = buildExcelWorkbook(ordersDatasetDef, 'Orders Backup', mockOrdersData);
+      const ordersPath = path.join(testOutputDir, 'Orders.xlsx');
+      await wb.xlsx.writeFile(ordersPath);
+
+      const readWb = new ExcelJS.Workbook();
+      await readWb.xlsx.readFile(ordersPath);
+
+      expect(readWb.worksheets).toHaveLength(3);
+      expect(readWb.worksheets.map(w => w.name)).toEqual(['Orders', 'Cargo Items', 'Order Stops']);
+
+      // Check first sheet has headers and data
+      const ordersWs = readWb.getWorksheet('Orders');
+      expect(ordersWs.getRow(1).getCell(1).value).toContain('Orders Backup - Orders');
+      expect(ordersWs.rowCount).toBeGreaterThanOrEqual(3);
     });
   });
 });

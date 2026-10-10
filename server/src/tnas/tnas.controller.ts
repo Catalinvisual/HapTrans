@@ -28,7 +28,7 @@ export class TnasController {
     return this.service.markDownloaded(source, id);
   }
 
-  // ---- BACKUP ENDPOINTS ----
+  // ---- BACKUP ENDPOINTS (LEGACY WORKBOOKS) ----
   @Get('backup/health')
   backupHealth(@Headers('authorization') auth: string) {
     this.checkKey(auth);
@@ -81,5 +81,54 @@ export class TnasController {
   backupExpenses(@Headers('authorization') auth: string) {
     this.checkKey(auth);
     return this.service.backupExpenses();
+  }
+
+  // ---- BACKUP ENDPOINTS (COMPREHENSIVE MULTI-SHEET MODULES) ----
+  @Get('backup/orders')
+  backupOrders(@Headers('authorization') auth: string) {
+    this.checkKey(auth);
+    return this.service.backupOrders();
+  }
+
+  @Get('backup/fleet-equipment')
+  backupFleetEquipment(@Headers('authorization') auth: string) {
+    this.checkKey(auth);
+    return this.service.backupFleetEquipment();
+  }
+
+  @Get('backup/planning')
+  backupPlanning(@Headers('authorization') auth: string) {
+    this.checkKey(auth);
+    return this.service.backupPlanning();
+  }
+
+  @Get('backup/commercial')
+  backupCommercial(@Headers('authorization') auth: string) {
+    this.checkKey(auth);
+    return this.service.backupCommercial();
+  }
+
+  @Get('backup/finance-payroll')
+  backupFinancePayroll(@Headers('authorization') auth: string) {
+    this.checkKey(auth);
+    return this.service.backupFinancePayroll();
+  }
+
+  @Get('backup/documents-registry')
+  backupDocumentsRegistry(@Headers('authorization') auth: string) {
+    this.checkKey(auth);
+    return this.service.backupDocumentsRegistry();
+  }
+
+  @Get('backup/website-cms')
+  backupWebsiteCms(@Headers('authorization') auth: string) {
+    this.checkKey(auth);
+    return this.service.backupWebsiteCms();
+  }
+
+  @Get('backup/system-governance')
+  backupSystemGovernance(@Headers('authorization') auth: string) {
+    this.checkKey(auth);
+    return this.service.backupSystemGovernance();
   }
 }
