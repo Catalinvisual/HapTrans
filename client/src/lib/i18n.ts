@@ -2,6 +2,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { planningResources } from './planningI18n';
+import { langOverrides } from './langOverrides';
 
 const resources = {
   ro: { translation: {
@@ -11081,6 +11082,11 @@ for (const lng of Object.keys(planningResources)) {
   const bundle = planningResources[lng];
   if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
   Object.assign((resources as any)[lng].translation, bundle.translation);
+}
+
+for (const lng of Object.keys(langOverrides)) {
+  if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
+  Object.assign((resources as any)[lng].translation, langOverrides[lng as keyof typeof langOverrides]);
 }
 
 i18n.use(initReactI18next).init({
