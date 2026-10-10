@@ -1,16 +1,31 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, Mail, Truck, LogIn } from 'lucide-react';
 import portalApi from '../../lib/portalApi';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
+import LanguageDropdown from '../../components/LanguageDropdown';
 
 export default function PortalLoginPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const rawLang = searchParams.get('lang') || searchParams.get('lng');
+    if (rawLang) {
+      const urlLang = rawLang.toLowerCase();
+      const supported = ['ro', 'en', 'nl', 'de', 'fr', 'es', 'pl'];
+      if (supported.includes(urlLang) && i18n.language !== urlLang) {
+        i18n.changeLanguage(urlLang);
+        localStorage.setItem('hapcargo_lang', urlLang);
+      }
+    }
+  }, [searchParams, i18n]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -21,16 +36,29 @@ export default function PortalLoginPage() {
       });
       localStorage.setItem('portal_token', res.data.access_token);
       localStorage.setItem('portal_user', JSON.stringify(res.data.user));
-      toast.success(t("toast_loginSuccessfu"));
+      toast.success(t("toast_loginSuccessfu") || "Autentificare reușită");
       navigate('/portal/dashboard');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Invalid credentials');
+      toast.error(err.response?.data?.message || t('invalidCredentials') || 'Date de autentificare incorecte');
     } finally {
       setLoading(false);
     }
   };
+
+  const loadingText = i18n.language === 'en' ? 'Signing in...' :
+    i18n.language === 'nl' ? 'Inloggen...' :
+    i18n.language === 'de' ? 'Anmeldung...' :
+    i18n.language === 'fr' ? 'Connexion...' :
+    i18n.language === 'pl' ? 'Logowanie...' :
+    i18n.language === 'es' ? 'Iniciando sesión...' : 'Autentificare...';
+
   return (
     <div className="min-h-screen flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden bg-[#f7f6f2]">
+      {/* Top right language dropdown */}
+      <div className="absolute top-6 right-6 z-50">
+        <LanguageDropdown />
+      </div>
+
       {/* Decorative premium background elements */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[600px] bg-gradient-to-b from-[#ff6a2b0a] to-transparent pointer-events-none rounded-full blur-3xl opacity-70" />
       <div className="absolute bottom-0 left-[-20%] w-[800px] h-[800px] bg-[radial-gradient(ellipse_at_center,_#ff6a2b0a,_transparent_60%)] pointer-events-none" />
@@ -108,7 +136,7 @@ export default function PortalLoginPage() {
                 disabled={loading} 
                 className="w-full flex justify-center items-center py-3.5 px-4 rounded-[14px] text-[0.95rem] font-[700] text-[#172630] bg-[#FF6A2B] shadow-[0_10px_24px_-12px_rgba(255,106,43,0.55)] hover:-translate-y-[2px] hover:shadow-[0_14px_28px_-14px_rgba(255,106,43,0.7)] hover:bg-[#FF814D] active:translate-y-0 transition-all outline-none focus-visible:ring-[4px] focus-visible:ring-[#FF6A2B]/20 disabled:opacity-50 disabled:hover:translate-y-0"
               >
-                {loading ? 'Autentificare...' : <><LogIn className="w-[18px] h-[18px] mr-2" />{t("jsx_signIn")}</>}
+                {loading ? loadingText : <><LogIn className="w-[18px] h-[18px] mr-2" />{t("jsx_signIn")}</>}
               </button>
             </div>
           </form>

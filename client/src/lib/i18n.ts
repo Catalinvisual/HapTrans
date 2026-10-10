@@ -457,14 +457,14 @@ const resources = {
       jsx_amount: "Amount",
       jsx_noPaymentsRec: "No payments recorded for this invoice yet.",
       jsx_close: "Close",
-      toast_loginSuccessfu: "Login successful",
-      jsx_clientPortal: "Client Portal",
-      jsx_manageYourTra: "Manage your transport orders, invoices, and documents.",
-      jsx_emailAddress: "Email address",
-      jsx_password: "Password",
-      jsx_rememberMe: "Remember me",
-      jsx_forgotYourPas: "Forgot your password?",
-      jsx_signIn: "Sign in",
+      toast_loginSuccessfu: "Autentificare reușită",
+      jsx_clientPortal: "Portal Client",
+      jsx_manageYourTra: "Gestionează-ți comenzile de transport, facturile și documentele.",
+      jsx_emailAddress: "Adresă de email",
+      jsx_password: "Parolă",
+      jsx_rememberMe: "Ține-mă minte",
+      jsx_forgotYourPas: "Ai uitat parola?",
+      jsx_signIn: "Autentificare",
       jsx_loadingOrderD: "Se încarcă detaliile comenzii...",
       jsx_orderNotFound: "Comanda nu a fost găsită",
       jsx_trackingDeta: "Tracking & Details",
@@ -11091,9 +11091,28 @@ for (const lng of Object.keys(langOverrides)) {
   Object.assign((resources as any)[lng].translation, langOverrides[lng as keyof typeof langOverrides]);
 }
 
+const getInitialLanguage = (): string => {
+  const supported = ['ro', 'en', 'nl', 'de', 'fr', 'es', 'pl'];
+  try {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlLang = (params.get('lang') || params.get('lng'))?.toLowerCase();
+      if (urlLang && supported.includes(urlLang)) {
+        localStorage.setItem('hapcargo_lang', urlLang);
+        return urlLang;
+      }
+      const saved = localStorage.getItem('hapcargo_lang')?.toLowerCase();
+      if (saved && supported.includes(saved)) {
+        return saved;
+      }
+    }
+  } catch (e) {}
+  return 'ro';
+};
+
 i18n.use(initReactI18next).init({
   resources,
-  lng: localStorage.getItem('hapcargo_lang') || 'ro',
+  lng: getInitialLanguage(),
   fallbackLng: 'en',
   interpolation: { escapeValue: false },
 });

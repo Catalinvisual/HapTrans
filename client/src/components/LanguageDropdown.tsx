@@ -16,7 +16,8 @@ export default function LanguageDropdown() {
   const { i18n } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const current = LANGS.find(l => l.code === i18n.language) || LANGS[0];
+  const langKey = (i18n.language || '').toLowerCase().substring(0, 2);
+  const current = LANGS.find(l => l.code === langKey) || LANGS[0];
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {

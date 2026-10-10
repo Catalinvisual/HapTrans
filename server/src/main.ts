@@ -289,13 +289,17 @@ async function bootstrap() {
   
   const expressApp = app.getHttpAdapter().getInstance();
   // Serve APK directly with connection close to prevent download hanging
-  expressApp.get('/uploads/HapTrans-v8.apk', (req: express.Request, res: express.Response) => {
-    const apkPath = join(__dirname, '..', 'uploads', 'HapTrans-v8.apk');
+  expressApp.get('/uploads/:apkFile', (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const filename = Array.isArray(req.params.apkFile) ? req.params.apkFile[0] : req.params.apkFile;
+    if (!filename || !filename.endsWith('.apk')) {
+      return next();
+    }
+    const apkPath = join(__dirname, '..', 'uploads', filename);
     if (fs.existsSync(apkPath)) {
       const stat = fs.statSync(apkPath);
       res.setHeader('Content-Length', stat.size);
       res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-      res.setHeader('Content-Disposition', 'attachment; filename="HapTrans-v8.apk"');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.setHeader('Connection', 'close');
       const stream = fs.createReadStream(apkPath);
       stream.pipe(res);
@@ -307,7 +311,7 @@ async function bootstrap() {
   // Serve uploaded files statically at /uploads prefix with basic protection
   app.use('/uploads', (req: express.Request, res: express.Response, next: express.NextFunction) => {
     // Allow public access to the company logo for emails and the APK for auto-updates
-    if (req.path === '/company-logo.png' || req.path === '/HapTrans.apk') {
+    if (req.path === '/company-logo.png' || req.path.endsWith('.apk')) {
       return next();
     }
     if (!req.headers.authorization && !req.query.token) {

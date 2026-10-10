@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, Mail, Truck, ArrowRight } from 'lucide-react';
 import portalApi from '../../lib/portalApi';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import LanguageDropdown from '../../components/LanguageDropdown';
+
 export default function PortalSetPasswordPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const email = searchParams.get('email');
@@ -13,14 +15,33 @@ export default function PortalSetPasswordPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const rawLang = searchParams.get('lang') || searchParams.get('lng');
+    if (rawLang) {
+      const urlLang = rawLang.toLowerCase();
+      const supported = ['ro', 'en', 'nl', 'de', 'fr', 'es', 'pl'];
+      if (supported.includes(urlLang) && i18n.language !== urlLang) {
+        i18n.changeLanguage(urlLang);
+        localStorage.setItem('hapcargo_lang', urlLang);
+      }
+    }
+  }, [searchParams, i18n]);
+
   if (!token || !email) {
-    return <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
+        <div className="absolute top-6 right-6 z-50">
+          <LanguageDropdown />
+        </div>
         <div className="card max-w-md w-full text-center p-8 border border-border shadow-lg rounded-2xl bg-surface">
           <h2 className="text-2xl font-bold text-error mb-2">{t("jsx_invalidLink")}</h2>
           <p className="text-text-secondary">{t("jsx_thisInvitation")}</p>
         </div>
-      </div>;
+      </div>
+    );
   }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
@@ -46,7 +67,26 @@ export default function PortalSetPasswordPage() {
       setLoading(false);
     }
   };
-  return <div className="min-h-screen bg-background flex items-center justify-center p-4">
+
+  const activateText = i18n.language === 'en' ? 'Activate Account' :
+    i18n.language === 'nl' ? 'Account Activeren' :
+    i18n.language === 'de' ? 'Konto aktivieren' :
+    i18n.language === 'fr' ? 'Activer le compte' :
+    i18n.language === 'pl' ? 'Aktywuj konto' :
+    i18n.language === 'es' ? 'Activar cuenta' : 'Activează Contul';
+
+  const activatingText = i18n.language === 'en' ? 'Activating...' :
+    i18n.language === 'nl' ? 'Activeren...' :
+    i18n.language === 'de' ? 'Wird aktiviert...' :
+    i18n.language === 'fr' ? 'Activation...' :
+    i18n.language === 'pl' ? 'Aktywowanie...' :
+    i18n.language === 'es' ? 'Activando...' : 'Se activează...';
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
+      <div className="absolute top-6 right-6 z-50">
+        <LanguageDropdown />
+      </div>
       <div className="card max-w-md w-full p-8 border border-border shadow-xl rounded-2xl bg-surface">
         <div className="flex flex-col items-center mb-8">
           <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-4">
@@ -82,9 +122,10 @@ export default function PortalSetPasswordPage() {
           </div>
 
           <button type="submit" disabled={loading} className="btn-primary w-full py-3 flex items-center justify-center gap-2 mt-4">
-            {loading ? 'Activating...' : 'Activate Account'} <ArrowRight className="w-5 h-5" />
+            {loading ? activatingText : activateText} <ArrowRight className="w-5 h-5" />
           </button>
         </form>
       </div>
-    </div>;
+    </div>
+  );
 }
