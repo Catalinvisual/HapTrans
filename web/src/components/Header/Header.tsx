@@ -111,18 +111,18 @@ const Header = () => {
             <Link href="/contact" className={`${styles.navLink} ${pathname === '/contact' ? styles.navLinkActive : ''}`} onClick={() => setMobileMenuOpen(false)}>{t('contact')}</Link>
           </div>
 
-          {mobileMenuOpen && (
+{mobileMenuOpen && (
             <div className={styles.mobileNavFooter}>
               <Link href="/track" className={styles.mobileCta} style={{ backgroundColor: '#1e293b' }} onClick={() => setMobileMenuOpen(false)}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
                 {t('clientLogin') || 'TRACK ORDER'}
               </Link>
-              <a href="https://joyful-exploration-production.up.railway.app/portal/login" target="_blank" rel="noopener noreferrer" className={styles.mobileCta} style={{ backgroundColor: 'var(--brand)' }} onClick={() => setMobileMenuOpen(false)}>
+              <Link href={`https://joyful-exploration-production.up.railway.app/portal/login?lang=${lang}`} className={styles.mobileCta} style={{ backgroundColor: 'var(--brand)' }} onClick={() => setMobileMenuOpen(false)}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
                 {t('clientPortal') || 'Portal Clienți'}
-              </a>
+              </Link>
             </div>
-          )}
+          </div>
         </nav>
 
         <div className={styles.actions}>
@@ -152,10 +152,10 @@ const Header = () => {
           <Link href="/track" className={`btn ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem', fontSize: '0.9rem', backgroundColor: '#1e293b', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', textDecoration: 'none', width: '42px', height: '42px' }} title={t('clientLogin') || 'TRACK ORDER'}>
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
           </Link>
-          <a href="https://joyful-exploration-production.up.railway.app/portal/login" target="_blank" rel="noopener noreferrer" className={`btn btn-primary ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: 'var(--brand)', borderRadius: '0.3rem 1.5rem 0.3rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#fff', textDecoration: 'none', border: '2px solid var(--brand)', marginLeft: '0.5rem' }}>
+          <Link href={`https://joyful-exploration-production.up.railway.app/portal/login?lang=${lang}`} className={`btn btn-primary ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: 'var(--brand)', borderRadius: '0.3rem 1.5rem 0.3rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#fff', textDecoration: 'none', border: '2px solid var(--brand)', marginLeft: '0.5rem' }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
             {t('clientPortal') || 'Portal Clienți'}
-          </a>
+          </Link>
 
           <button className={styles.mobileMenuBtn} onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-expanded={mobileMenuOpen} aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

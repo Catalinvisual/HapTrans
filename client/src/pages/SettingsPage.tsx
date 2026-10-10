@@ -94,15 +94,7 @@ export default function SettingsPage() {
     company: any;
     tariffs: any;
   } | null>(null);
-  const getLabel = (enText: string, roText: string, nlText: string, deText: string, frText: string, plText: string) => {
-    const lang = i18n.language;
-    if (lang === 'ro') return roText;
-    if (lang === 'nl') return nlText;
-    if (lang === 'de') return deText;
-    if (lang === 'fr') return frText;
-    if (lang === 'pl') return plText;
-    return enText;
-  };
+  
   useEffect(() => {
     api.get('/public/company-settings').then(res => {
       if (res.data && Object.keys(res.data).length > 0) {

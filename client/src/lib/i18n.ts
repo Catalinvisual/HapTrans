@@ -10478,6 +10478,8 @@ smartDispatchAddressError: "Bitte geben Sie zuerst die Abholadresse (Pickup) ein
       "jsx_chatDispatchers": "Porozmawiaj z naszymi dyspozytorami",
       "jsx_availableNow": "Dostępny teraz",
       "jsx_sendAMessage": "Wyślij wiadomość",
+      "jsx_pending": "W oczekiwaniu",
+      "jsx_pNGJPGSVG": "PNG, JPG, SVG – Max 500KB",
       "jsx_subject": "Temat",
       "jsx_egIssue": "Np.: Problem z zamówieniem #1024",
       "jsx_message": "Wiadomość",

@@ -16,7 +16,7 @@ const LANGUAGES = [
 const SECTIONS = [
   { id: 'about', title: 'Despre Noi', icon: Building2, desc: 'Afișat pe pagina /despre-noi. Folosiți <h3> pentru a crea carduri cu informații.' },
   { id: 'services', title: 'Servicii', icon: FileText, desc: 'Afișat pe pagina /servicii. Folosiți <h3> pentru a crea carduri cu servicii.' },
-  { id: 'fleet', title: 'Flota', icon: Truck, desc: 'Afișat pe pagina /flota. Folosiți <h3> pentru a crea carduri cu camioane.' },
+  { id: 'fleet', title: t('website_cms_fleet_title', 'Flota'), icon: Truck, desc: t('website_cms_fleet_desc', 'Afișat pe pagina /flota. Folosiți <h3> pentru a crea carduri cu camioane.') },
 ];
 
 // Default HTML templates to help users if the field is empty
