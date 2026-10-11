@@ -202,12 +202,12 @@ export default function TrailersPage() {
       ),
     },
     {
-      key: "capacity", label: t("capacity", "Capacitate"), align: "right", width: "160px",
+      key: "capacity", label: t("capacity", "Capacitate"), align: "left", width: "160px",
       render: (r) => {
         const pallets = Number(r.payloadCapacityPallets || 0);
         const cbm = Number(r.maxVolumeCbm || 0);
         return (
-          <div className="text-[12px] whitespace-nowrap text-right">
+          <div className="text-[12px] whitespace-nowrap text-left flex items-center gap-1">
             <span className="inline-flex items-center gap-1 font-bold text-text-primary"><Boxes className="w-3 h-3 text-text-muted" />{pallets ? `${pallets} plt` : "—"}</span>
             <span className="text-text-secondary mx-1">•</span>
             <span className="inline-flex items-center gap-1 font-semibold text-text-primary"><Box className="w-3 h-3 text-text-muted" />{cbm ? `${cbm} m³` : "—"}</span>

@@ -340,10 +340,10 @@ export default function MaintenancePage() {
                 {r.status !== 'done' && isPastDate(r.scheduledDate) && <span className="text-xs" title={t('maint_overdue', 'Depășită')}>⚠️</span>}
               </div>
             ) },
-            { key: 'costs', label: t('maint_col_costs', 'COSTURI'), align: 'right', render: (r: any) => {
+            { key: 'costs', label: t('maint_col_costs', 'COSTURI'), align: 'left', render: (r: any) => {
               const costVal = Number(r.cost ?? ((Number(r.partsCost) || 0) + (Number(r.laborCost) || 0)));
               return (
-                <div className="text-right">
+                <div className="text-left">
                   <p className="font-bold text-[12.5px] text-text whitespace-nowrap">{costVal ? fmtMoney(costVal) : '—'}</p>
                   {(r.partsCost != null || r.laborCost != null) && <p className="text-[10px] text-text-secondary mt-0.5 whitespace-nowrap">{t('maint_parts_labor', 'Piese: {parts} • Manoperă: {labor}', { parts: fmtMoney(r.partsCost), labor: fmtMoney(r.laborCost) })}</p>}
                 </div>

@@ -270,8 +270,14 @@ export default function TelematicsPage() {
       },
     },
     {
-      key: 'last', label: t('col_last_update', 'Ultima Actualizare'), align: 'right',
-      render: (c) => <span className="text-[11px] text-slate-500 whitespace-nowrap">{c.lastSeenAt ? new Date(c.lastSeenAt).toLocaleTimeString() : '—'}</span>,
+      key: 'last', label: t('col_last_update', 'Ultima Actualizare'), align: 'right', width: '150px',
+      render: (c) => (
+        <div className="text-right pr-6">
+          <span className="text-[11px] text-slate-500 whitespace-nowrap font-medium">
+            {c.lastSeenAt ? new Date(c.lastSeenAt).toLocaleTimeString() : '—'}
+          </span>
+        </div>
+      ),
     },
     {
       key: 'actions', label: t('col_actions', 'Actions'), align: 'right', sticky: 'right', width: '80px',

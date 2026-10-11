@@ -342,7 +342,7 @@ export default function OrdersPage() {
         {(o.transportType || 'ftl').toUpperCase()}
       </span>
     ) },
-    { key: 'weight', label: t('cargo', 'Cargo'), sortable: true, align: 'right', hideBelow: 'md', width: '150px', render: o => {
+    { key: 'weight', label: t('cargo', 'Cargo'), sortable: true, align: 'left', hideBelow: 'md', width: '150px', render: o => {
       const w = o.cargoItems?.reduce((s: number, c: any) => s + Number(c.weightKg || 0), 0) || 0;
       const ldm = o.cargoItems?.reduce((s: number, c: any) => s + Number(c.ldm || 0), 0) || 0;
       const n = o.cargoItems?.length || 0;

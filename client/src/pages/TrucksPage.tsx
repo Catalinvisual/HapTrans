@@ -397,17 +397,17 @@ export default function TrucksPage() {
       render: tr => <StatusBadge type="fleet" status={tr.status || 'active'} label={t(`truck_status_${tr.status || 'active'}`, (tr.status || 'active').replace(/_/g, ' ')) as string} />,
     },
     {
-      key: 'capacity', label: t('capacity_specs', 'Capacity & specs'), align: 'right', width: '140px',
+      key: 'capacity', label: t('capacity_specs', 'Capacity & specs'), align: 'left', width: '150px',
       render: tr => {
         const w = Number(tr.payloadCapacity || tr.maxWeightKg || 0);
         const pallets = Number(tr.maxPallets || 0);
         const ldm = Number(tr.maxLdm || 0);
         return (
-          <div className="text-right leading-tight">
-            <div className="text-[12px] font-bold text-text-primary flex items-center justify-end gap-1">
+          <div className="text-left leading-tight">
+            <div className="text-[12px] font-bold text-text-primary flex items-center justify-start gap-1">
               <Weight className="w-3 h-3 text-text-muted" />{w ? `${fmtNumber(w / 1000, 1)}t` : '—'}
             </div>
-            <div className="text-[11px] text-text-secondary flex items-center justify-end gap-1 whitespace-nowrap">
+            <div className="text-[11px] text-text-secondary flex items-center justify-start gap-1 whitespace-nowrap">
               <Boxes className="w-3 h-3 text-text-muted" />{pallets ? `${pallets} plt` : '—'}{ldm ? ` • ${fmtNumber(ldm, 1)} LDM` : ''}
             </div>
           </div>

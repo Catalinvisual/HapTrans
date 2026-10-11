@@ -359,7 +359,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
 
   const footerCells = [
     <td key="total" colSpan={4} className="px-3 py-2 text-[11px] font-bold uppercase text-text-secondary">{t('total', 'Total')} · {filtered.length} {t('trips', 'trips')}</td>,
-    <td key="cargo" className="px-3 py-2 text-right text-xs font-bold whitespace-nowrap">{fmtNumber(totals.pallets)} {t('pallets', 'pal')} / {fmtNumber(Math.round(totals.distance))} km</td>,
+    <td key="cargo" className="px-3 py-2 text-left text-xs font-bold whitespace-nowrap">{fmtNumber(totals.pallets)} {t('pallets', 'pal')} / {fmtNumber(Math.round(totals.distance))} km</td>,
     <td key="distance" className="px-3 py-2 text-right text-xs font-bold whitespace-nowrap">{fmtNumber(Math.round(totals.distance))} km</td>,
     <td key="revenue" className="px-3 py-2 text-right text-xs font-bold whitespace-nowrap">{fmtMoney(totals.revenue)}</td>,
     <td key="cost" className="px-3 py-2 text-right text-xs font-bold text-text-secondary whitespace-nowrap">{fmtMoney(totals.cost)}</td>,

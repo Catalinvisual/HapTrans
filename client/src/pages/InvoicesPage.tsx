@@ -658,12 +658,12 @@ export default function InvoicesPage({
       ),
     },
     {
-      key: 'value', label: t('valueVat', 'Valoare & TVA'), align: 'right', width: '180px',
+      key: 'value', label: t('valueVat', 'Valoare & TVA'), align: 'left', width: '180px',
       render: (inv: any) => {
         const totals = getInvTotals(inv);
         const vatLabel = inv.vatType === 'REVERSE_CHARGE' ? t('vat_reverse_charge', '0% (Taxare inv.)') : inv.vatType === 'EXEMPT' ? t('vat_exempt', '0% (Scutit)') : `${inv.vatPercent}%`;
         return (
-          <div className="text-right leading-tight whitespace-nowrap">
+          <div className="text-left leading-tight whitespace-nowrap">
             <div className="text-[13px] font-bold text-success">{fmtMoney(totals.total)}</div>
             <div className="text-[11px] text-text-secondary">{t('net', 'Net')}: {fmtMoney(totals.subtotal)} • {t('vat_short', 'TVA')}: {vatLabel}</div>
           </div>
@@ -683,9 +683,9 @@ export default function InvoicesPage({
       },
     },
     {
-      key: 'status', label: t('status'), width: '170px',
+      key: 'status', label: t('status'), align: 'center', width: '170px',
       render: (inv: any) => (
-        <div onClick={e => e.stopPropagation()}>
+        <div className="flex justify-center" onClick={e => e.stopPropagation()}>
           <CustomSelect className="w-36 text-xs" value={inv.status} onChange={val => updateStatus(inv, val)} options={statusOpts} />
         </div>
       ),

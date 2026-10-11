@@ -378,10 +378,10 @@ export default function DriversPage() {
       hideBelow: 'lg',
     },
     {
-      key: 'status', label: t('status', 'Status'),
+      key: 'status', label: t('status', 'Status'), align: 'center', width: '160px',
       render: d => (
-        <div onClick={e => e.stopPropagation()}>
-          <CustomSelect className="w-32 text-xs" value={d.status || 'available'} onChange={val => setDriverStatus(d, val)} options={STATUS_OPTIONS.map(s => ({ value: s.value, label: t(s.label as string, s.value.replace(/_/g, ' ')), color: STATUS_COLORS[s.value] }))} />
+        <div className="flex justify-center" onClick={e => e.stopPropagation()}>
+          <CustomSelect className="w-[145px] text-xs" value={d.status || 'available'} onChange={val => setDriverStatus(d, val)} options={STATUS_OPTIONS.map(s => ({ value: s.value, label: t(s.label as string, s.value.replace(/_/g, ' ')), color: STATUS_COLORS[s.value] }))} />
         </div>
       ),
     },
