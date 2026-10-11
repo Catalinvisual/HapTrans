@@ -70,18 +70,44 @@ const MapSection = () => {
 
   
   useEffect(() => {
-    if (!sectionRef.current) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setShowGlobe(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: '350px' }
-    );
-    observer.observe(sectionRef.current);
-    return () => observer.disconnect();
+    let triggered = false;
+    const trigger = () => {
+      if (triggered) return;
+      triggered = true;
+      setShowGlobe(true);
+    };
+
+    // Warm up the 3D globe early during idle time, before the user scrolls to it
+    const idleCallback = typeof window !== 'undefined' && 'requestIdleCallback' in window
+      ? (window as any).requestIdleCallback
+      : null;
+
+    const idleId = idleCallback
+      ? idleCallback(trigger, { timeout: 1200 })
+      : setTimeout(trigger, 800);
+
+    let observer: IntersectionObserver | null = null;
+    if (sectionRef.current && typeof IntersectionObserver !== 'undefined') {
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            trigger();
+            observer?.disconnect();
+          }
+        },
+        { rootMargin: '400px' }
+      );
+      observer.observe(sectionRef.current);
+    }
+
+    return () => {
+      if (idleCallback && (window as any).cancelIdleCallback) {
+        (window as any).cancelIdleCallback(idleId);
+      } else {
+        clearTimeout(idleId);
+      }
+      observer?.disconnect();
+    };
   }, []);
 
   const coreHubs = ['NL', 'DE', 'FR', 'PL', 'CZ', 'RO', 'BG'];

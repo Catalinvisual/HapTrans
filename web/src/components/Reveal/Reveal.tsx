@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import styles from './Reveal.module.css';
 
 type RevealProps = {
@@ -10,6 +10,31 @@ type RevealProps = {
   stretch?: boolean;
   as?: keyof React.JSX.IntrinsicElements;
 };
+
+let sharedObserver: IntersectionObserver | null = null;
+const observerCallbacks = new Map<Element, () => void>();
+
+function getSharedObserver(): IntersectionObserver | null {
+  if (typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') return null;
+  if (!sharedObserver) {
+    sharedObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const cb = observerCallbacks.get(entry.target);
+            if (cb) {
+              cb();
+              observerCallbacks.delete(entry.target);
+              sharedObserver?.unobserve(entry.target);
+            }
+          }
+        });
+      },
+      { threshold: 0.01, rootMargin: '0px 0px 80px 0px' }
+    );
+  }
+  return sharedObserver;
+}
 
 const Reveal = ({
   children,
@@ -24,23 +49,19 @@ const Reveal = ({
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
-    if (typeof IntersectionObserver === 'undefined') {
-      requestAnimationFrame(() => node.classList.add(styles.isVisible));
+    const observer = getSharedObserver();
+    if (!observer) {
+      node.classList.add(styles.isVisible);
       return;
     }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            node.classList.add(styles.isVisible);
-            observer.disconnect();
-          }
-        });
-      },
-      { threshold: 0.12, rootMargin: '0px 0px -48px 0px' }
-    );
+    observerCallbacks.set(node, () => {
+      node.classList.add(styles.isVisible);
+    });
     observer.observe(node);
-    return () => observer.disconnect();
+    return () => {
+      observerCallbacks.delete(node);
+      observer?.unobserve(node);
+    };
   }, []);
 
   const TagAny = Tag as React.ElementType;

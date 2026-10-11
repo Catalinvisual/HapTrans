@@ -65,7 +65,7 @@ main [role='dialog'] form button[type='submit'] { border-radius: 20px 8px 20px 8
 }
 
 /* Native scrollbars throughout web; never hide the scrolling affordance. */
-html, body, body * {
+html, body {
   scrollbar-width: thin;
   scrollbar-color: #ff6a2b #f2f4f1;
 }
@@ -82,7 +82,7 @@ html, body, body * {
 /* Modern Chromium prioritizes standard scrollbar properties; opt into its
    pseudo-elements for rounded thumbs, retaining standard colors in Firefox. */
 @supports selector(::-webkit-scrollbar) {
-  html, body, body * { scrollbar-width: auto; scrollbar-color: auto; }
+  html, body { scrollbar-width: auto; scrollbar-color: auto; }
 }
 /* The existing dialog role belongs to the overlay. Its direct child is the
    white scroll panel. Solid end borders inset the native scrollbar from the
@@ -103,7 +103,7 @@ body [role='dialog'][aria-modal='true'] > div:first-child::-webkit-scrollbar-thu
   body [role='dialog'][aria-modal='true'] > div:first-child { scrollbar-color: auto; }
 }
 @media(forced-colors: active) {
-  html, body, body * { scrollbar-color: auto; }
+  html, body { scrollbar-color: auto; }
   ::-webkit-scrollbar-track { background: Canvas; }
   ::-webkit-scrollbar-thumb { background: ButtonText; border-color: Canvas; }
   body [role='dialog'][aria-modal='true'] > div:first-child {

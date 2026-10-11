@@ -1,7 +1,5 @@
 .section {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 600px;
-  position: relative;
+    position: relative;
   isolation: isolate;
   overflow: hidden;
   padding: clamp(5rem, 10vw, 10rem) clamp(1.1rem, 4vw, 3rem) clamp(7rem, 13vw, 13rem);
