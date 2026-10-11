@@ -2,19 +2,22 @@ version: '3.8'
 
 services:
   hc-pdf-sync:
-    image: node:20-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hapcargo-hc-pdf-sync:latest
     container_name: hapcargo-hc-pdf-sync
     restart: unless-stopped
     working_dir: /app
     environment:
       - NODE_ENV=production
-      - SAAS_API_BASE_URL=https://haptrans-production.up.railway.app
+      - SAAS_API_BASE_URL=${SAAS_API_BASE_URL:-https://haptrans-production.up.railway.app}
       - TNAS_API_KEY=${TNAS_API_KEY}
       - TARGET_DIR=/hc-pdf
       - SYNC_INTERVAL_MS=2500
     volumes:
-      # Application script mounted read-only
-      - ./:/app:ro
+      # Application script mounted read-only for hot-updates without rebuilding
+      - ./hc-pdf-sync.js:/app/hc-pdf-sync.js:ro
       # Physical NAS shared folder mounted read-write directly into /hc-pdf
       - /Volume3/HC-PDF:/hc-pdf:rw
     command: ["node", "hc-pdf-sync.js"]

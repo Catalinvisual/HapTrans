@@ -1,116 +1,125 @@
-# Ghid Instalare & Configurare Worker Arhivare HC-PDF pe TerraMaster NAS
+# Ghid Instalare & Deployment Worker Arhivare HC-PDF pe TerraMaster NAS (TOS 7)
 
-Acest ghid descrie configurarea containerului `hapcargo-hc-pdf-sync` pe TerraMaster NAS pentru arhivarea automată a PDF-urilor generate manual direct în rădăcina folderului partajat `HC-PDF`.
+Acest pachet conține configurația de producție pentru worker-ul `hapcargo-hc-pdf-sync` pe TerraMaster NAS (TOS 7).
 
 ---
 
-## 1. Unde se salvează fișierele
+## 1. Structura Pachetului de Deployment
+
+Fișierele din `nas-deployment/hc-pdf-sync/`:
+* `hc-pdf-sync.js` — Scriptul worker-ului Node.js cu suport pentru idempotency pe bază de receipts, validare integritate PDF (`%%EOF`), sanitizare path traversal și locking pe lease.
+* `Dockerfile` — Imagine bazată pe `node:20-alpine` cu dependențe izolate (`axios`, `dotenv`).
+* `docker-compose.yml` — Configurație Compose cu healthcheck automat (`test -w /hc-pdf`) și mapare volum.
+* `package.json` — Dependențe minime de producție.
+* `.env.example` — Template pentru variabilele de mediu (fără secrete).
+* `deploy-tos.sh` — Script automat de deployment și pornire pe NAS.
+
+---
+
+## 2. Destinație de Stocare și Izolare
 
 * **Cale fizică pe NAS (Host)**: `/Volume3/HC-PDF`
 * **Share SMB**: `\\HAPCARGO-NAS01\HC-PDF`
-* **Cale în container**: `/hc-pdf`
-* **Regulă strictă**: Toate fișierele sunt salvate direct în rădăcină (fără subfoldere).
+* **Cale mount în container**: `/hc-pdf`
+* **Director receipts idempotency**: `/Volume3/HC-PDF/.receipts/`
+* **Regulă**: Toate fișierele sunt arhivate direct în rădăcina `/Volume3/HC-PDF`.
 
 > [!IMPORTANT]
-> **Fluxul existent de facturi (`Documents/Invoices`) nu este atins și continuă să funcționeze prin containerul existent fără nicio modificare.**
+> **Izolare completă**: Fluxul existent de sincronizare facturi (`/Volume3/Documents/Invoices` prin containerul `excel-backup` / `tnas-sync`) și Cloudinary rămâne complet separat și neatins. HC-PDF folosește rute dedicate (`/api/tnas/hc-pdf/*`), tabel separat (`archived_pdfs`) și container separat.
 
 ---
 
-## 2. Verificare permisiuni și ACL pe NAS (`drwxrwx---+`)
+## 3. Comenzi Exacte de Deployment pe TerraMaster TOS 7
 
-Directorul `/Volume3/HC-PDF` a fost observat cu permisiuni de tip ACL extins (`+`). Pentru a ne asigura că procesul Node.js din container poate scrie fără probleme, rulați prin SSH pe TerraMaster:
+Executați prin SSH pe TerraMaster:
 
-```bash
-# 1. Inspectare permisiuni și ACL existente
-ls -ld /Volume3/HC-PDF
-getfacl /Volume3/HC-PDF
-
-# 2. Test manual de scriere din terminal
-touch /Volume3/HC-PDF/.test_write && rm /Volume3/HC-PDF/.test_write
-```
-
-Dacă testul returnează `Permission denied`:
-```bash
-# Asigurați acces grupului sau utilizatorului docker fără a compromite securitatea folderului
-chmod 775 /Volume3/HC-PDF
-# sau acordați drepturi utilizatorului specific:
-setfacl -m u:admin:rwx /Volume3/HC-PDF
-```
-
----
-
-## 3. Pași de instalare pe TerraMaster NAS
-
-### Pasul 1: Crearea directorului de lucru pentru container
-Prin SSH pe TerraMaster:
+### Pasul 1: Crearea directorului de lucru
 ```bash
 mkdir -p /Volume3/docker/hc-pdf-sync
+mkdir -p /Volume3/HC-PDF
 ```
 
-### Pasul 2: Copierea fișierelor worker-ului
-Copiați fișierele din `nas-deployment/hc-pdf-sync/` în `/Volume3/docker/hc-pdf-sync/`:
-* `hc-pdf-sync.js`
-* `package.json`
-* `docker-compose.yml`
+### Pasul 2: Verificare permisiuni pe directorul destinație
+```bash
+# Asigurați drepturi de scriere pentru containerul Docker
+chmod 775 /Volume3/HC-PDF
+touch /Volume3/HC-PDF/.perm_check && rm /Volume3/HC-PDF/.perm_check
+```
 
-*Exemplu prin SCP de pe stația de lucru:*
+### Pasul 3: Copierea fișierelor de deployment
+De pe stația locală (sau prin File Manager / WinSCP):
 ```bash
 scp nas-deployment/hc-pdf-sync/* admin@<IP_NAS>:/Volume3/docker/hc-pdf-sync/
 ```
 
-### Pasul 3: Crearea fișierului de configurare `.env`
-În `/Volume3/docker/hc-pdf-sync/.env`:
-```bash
-TNAS_API_KEY=<CHEIA_EXISTENTA_TNAS_API_KEY>
-SAAS_API_BASE_URL=https://haptrans-production.up.railway.app
-SYNC_INTERVAL_MS=2500
-TARGET_DIR=/hc-pdf
-```
-*(Se folosește aceeași cheie `TNAS_API_KEY` folosită deja în containerul `excel-backup`).*
-
-### Pasul 4: Instalarea dependențelor minime și pornirea containerului
+### Pasul 4: Configurarea fișierului `.env` pe NAS
+Pe NAS, în `/Volume3/docker/hc-pdf-sync`:
 ```bash
 cd /Volume3/docker/hc-pdf-sync
-docker compose up -d
+cp .env.example .env
+nano .env
 ```
+Setați valoarea `TNAS_API_KEY`:
+```env
+TNAS_API_KEY=<CHEIA_EXISTENTA_TNAS_API_KEY>
+SAAS_API_BASE_URL=https://haptrans-production.up.railway.app
+TARGET_DIR=/hc-pdf
+SYNC_INTERVAL_MS=2500
+NODE_ENV=production
+```
+*(Folosiți aceeași cheie `TNAS_API_KEY` configurată în Railway).*
 
-### Pasul 5: Verificarea logurilor
+### Pasul 5: Pornirea containerului
 ```bash
-docker logs -f hapcargo-hc-pdf-sync
+cd /Volume3/docker/hc-pdf-sync
+docker compose up -d --build
+```
+*(Sau rulați direct scriptul ajutător: `chmod +x deploy-tos.sh && ./deploy-tos.sh`)*
+
+---
+
+## 4. Comenzi de Inspecție, Sănătate și Monitorizare
+
+### Verificare status container și healthcheck
+```bash
+docker ps --filter "name=hapcargo-hc-pdf-sync"
+```
+Ieșirea trebuie să afișeze `STATUS: Up ... (healthy)`.
+
+Pentru detalii complete despre healthcheck:
+```bash
+docker inspect --format='{{json .State.Health}}' hapcargo-hc-pdf-sync
 ```
 
-Ieșirea așteptată:
+### Monitorizare loguri în timp real
+```bash
+docker logs -f --tail 100 hapcargo-hc-pdf-sync
 ```
+
+Ieșirea normală arată:
+```text
 ====================================================
-HapCargo TerraMaster HC-PDF Sync Worker v1.0
+HapCargo TerraMaster HC-PDF Sync Worker v1.1 (Hardened)
+Worker ID: worker_...
 Destination: /hc-pdf (Root only, no subfolders)
 Poll Interval: 2500ms
 SaaS Endpoint: https://haptrans-production.up.railway.app
 ====================================================
-[OK] Write access confirmed for /hc-pdf
+[OK] Write access & receipts directory confirmed for /hc-pdf
 ```
 
----
-
-## 4. Test Smoke Sintetic (Non-Invoice)
-
-Pentru a valida conexiunea completă fără a genera documente reale de business:
-1. În TMS, navigați la **Camioane** (`/trucks`).
-2. Deschideți detaliile oricărui camion de test și apăsați butonul **PDF**.
-3. În interfață va apărea mesajul: *„Se generează PDF și se arhivează pe TerraMaster...”* urmat de *„PDF salvat cu succes în TerraMaster HC-PDF!”*.
-4. Pe NAS, verificați prezența fișierului în director:
+### Test rapid de scriere din interiorul containerului
 ```bash
-ls -la /Volume3/HC-PDF/
+docker exec -it hapcargo-hc-pdf-sync touch /hc-pdf/.test && docker exec -it hapcargo-hc-pdf-sync rm /hc-pdf/.test
 ```
-Trebuie să vedeți fișierul generat: `Truck_<referinta>_<data>_<hash>.pdf`.
 
 ---
 
-## 5. Procedura de Rollback
+## 5. Procedura de Oprire / Rollback
 
-Dacă este necesară oprirea worker-ului:
+Dacă doriți oprirea sau revenirea:
 ```bash
 cd /Volume3/docker/hc-pdf-sync
 docker compose down
 ```
-Fișierele deja descărcate în `/Volume3/HC-PDF` rămân intacte. Containerul `excel-backup` și sincronizarea facturilor din `/Volume3/Documents/Invoices` nu sunt afectate în niciun fel.
+Documentele deja scrise în `/Volume3/HC-PDF` nu sunt afectate.
