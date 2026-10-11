@@ -62,6 +62,12 @@ function VideoBackground() {
       else { userPaused.current = false; manualPlay = true; }
       sync();
     };
+    const observer = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      sync();
+    }, { threshold: 0.05 });
+    observer.observe(media);
+
     media.addEventListener('error', recoverSource);
     motion.addEventListener('change', motionChanged);
     document.addEventListener('visibilitychange', sync);
@@ -72,6 +78,7 @@ function VideoBackground() {
     return () => {
       disposed = true;
       request++;
+      observer.disconnect();
       media.removeEventListener('error', recoverSource);
       motion.removeEventListener('change', motionChanged);
       document.removeEventListener('visibilitychange', sync);

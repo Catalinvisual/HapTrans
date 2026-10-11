@@ -11,28 +11,45 @@ const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const DEFAULT_LOGO = '/footer-logo.png';
+  const [logoUrl, setLogoUrl] = useState<string>(DEFAULT_LOGO);
   const progressRef = React.useRef<HTMLDivElement>(null);
+  const portalUrl = (process.env.NEXT_PUBLIC_PORTAL_URL || 'https://joyful-exploration-production.up.railway.app').replace(/\/+$/, '');
 
   useEffect(() => {
+    try {
+      const cached = localStorage.getItem('hapcargo_cached_logo');
+      if (cached) setLogoUrl(cached);
+    } catch (e) {}
+
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
     fetch(`${apiUrl}/public/company-settings`)
       .then(r => r.json())
       .then(data => {
-        if (data?.logo) setLogoUrl(data.logo);
+        if (data?.logo) {
+          setLogoUrl(data.logo);
+          try { localStorage.setItem('hapcargo_cached_logo', data.logo); } catch (e) {}
+        }
       })
       .catch(e => console.error(e));
   }, []);
 
   useEffect(() => {
     let ticking = false;
+    let cachedMaxScroll = 0;
+    const updateMaxScroll = () => {
+      cachedMaxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    };
+    updateMaxScroll();
+    window.addEventListener('resize', updateMaxScroll, { passive: true });
+
     const onScroll = () => {
       const scrollTop = window.scrollY;
-      const height = document.documentElement.scrollHeight - window.innerHeight;
-      if (progressRef.current) {
-        progressRef.current.style.width = `${height > 0 ? Math.min(scrollTop / height, 1) * 100 : 0}%`;
+      if (progressRef.current && cachedMaxScroll > 0) {
+        progressRef.current.style.width = `${Math.min(scrollTop / cachedMaxScroll, 1) * 100}%`;
       }
-      setScrolled(scrollTop > 24);
+      const isScrolled = scrollTop > 24;
+      setScrolled(prev => (prev !== isScrolled ? isScrolled : prev));
       ticking = false;
     };
     const onScrollThrottled = () => {
@@ -43,7 +60,10 @@ const Header = () => {
     };
     window.addEventListener('scroll', onScrollThrottled, { passive: true });
     onScroll();
-    return () => window.removeEventListener('scroll', onScrollThrottled);
+    return () => {
+      window.removeEventListener('scroll', onScrollThrottled);
+      window.removeEventListener('resize', updateMaxScroll);
+    };
   }, []);
 
   useEffect(() => {
@@ -80,18 +100,14 @@ const Header = () => {
       <div ref={progressRef} className={styles.scrollProgress} aria-hidden="true" />
       <div className={styles.container}>
         <Link href="/" className={styles.logo} onClick={handleLogoClick}>
-          {logoUrl ? (
-            <img src={logoUrl} alt="Logo" style={{ height: '42px', width: 'auto', objectFit: 'contain' }} />
-          ) : null}
+          <img src={logoUrl} alt="Logo" style={{ height: '42px', width: 'auto', objectFit: 'contain' }} />
         </Link>
 
         <nav className={`${styles.nav} ${mobileMenuOpen ? styles.mobileNavOpen : ''}`}>
           {mobileMenuOpen && (
             <div className={styles.mobileNavHeader}>
               <Link href="/" className={styles.logo} onClick={handleLogoClick}>
-                {logoUrl ? (
-                  <img src={logoUrl} alt="Logo" style={{ height: '42px', width: 'auto', objectFit: 'contain' }} />
-                ) : null}
+                <img src={logoUrl} alt="Logo" style={{ height: '42px', width: 'auto', objectFit: 'contain' }} />
               </Link>
               <button className={styles.mobileCloseBtn} onClick={() => setMobileMenuOpen(false)}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -117,7 +133,7 @@ const Header = () => {
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
                 {t('clientLogin') || 'TRACK ORDER'}
               </Link>
-              <Link href={`https://joyful-exploration-production.up.railway.app/portal/login?lang=${lang.toLowerCase()}`} className={styles.mobileCta} style={{ backgroundColor: 'var(--brand)' }} onClick={() => setMobileMenuOpen(false)}>
+              <Link href={`${portalUrl}/portal/login?lang=${lang.toLowerCase()}`} className={styles.mobileCta} style={{ backgroundColor: 'var(--brand)' }} onClick={() => setMobileMenuOpen(false)}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
                 {t('clientPortal') || 'Portal Clienți'}
               </Link>
@@ -152,7 +168,7 @@ const Header = () => {
           <Link href="/track" className={`btn ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem', fontSize: '0.9rem', backgroundColor: '#1e293b', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', textDecoration: 'none', width: '42px', height: '42px' }} title={t('clientLogin') || 'TRACK ORDER'}>
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
           </Link>
-          <Link href={`https://joyful-exploration-production.up.railway.app/portal/login?lang=${lang.toLowerCase()}`} className={`btn btn-primary ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: 'var(--brand)', borderRadius: '0.3rem 1.5rem 0.3rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#fff', textDecoration: 'none', border: '2px solid var(--brand)', marginLeft: '0.5rem' }}>
+          <Link href={`${portalUrl}/portal/login?lang=${lang.toLowerCase()}`} className={`btn btn-primary ${styles.desktopLoginBtn}`} style={{ padding: '0.6rem 1.25rem', fontSize: '0.9rem', backgroundColor: 'var(--brand)', borderRadius: '0.3rem 1.5rem 0.3rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#fff', textDecoration: 'none', border: '2px solid var(--brand)', marginLeft: '0.5rem' }}>
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
             {t('clientPortal') || 'Portal Clienți'}
           </Link>

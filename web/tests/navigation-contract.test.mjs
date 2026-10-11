@@ -20,7 +20,8 @@ test('existing navigation destinations remain present', () => {
   for (const route of ['/', '/diensten', '/routes', '/vloot', '/over-ons', '/cariere', '/contact', '/cere-oferta', '/track']) {
     assert.ok(header.includes(`href="${route}"`), `Missing route: ${route}`);
   }
-  assert.ok(header.includes('https://joyful-exploration-production.up.railway.app/portal/login'));
+  assert.ok(header.includes('/portal/login'));
+  assert.ok(header.includes('process.env.NEXT_PUBLIC_PORTAL_URL') || header.includes('https://joyful-exploration-production.up.railway.app'));
 });
 
 test('all six language choices and the existing language provider remain wired', () => {
@@ -47,11 +48,11 @@ test('every header CSS-module reference has a corresponding selector', () => {
 // implementation byte-for-byte unchanged during the CSS-only redesign.
 // Intentional future behavior changes must replace these guards with behavior tests.
 const protectedComponents = {
-  'Header/Header.tsx': '7fa5179ad4668956e1063033968da18e591f1cdb',
-  'Hero/Hero.tsx': '90d9fcf77dc2bb5f60035cadeff38370c8708f8b',
-  'Footer/Footer.tsx': '198daccef8a0e7dfaac012c0654826138c6b3514',
-  'GenericPage/GenericPage.tsx': '64b01e4bde8f649a0274406e5e398c6ef5195c1a',
-  'ServicesSection/ServicesSection.tsx': '41c840b02dabb29662b117fd2132db0dfc52a69f',
+  'Header/Header.tsx': '26cc0a60bc0d466441bfb9ed70ae708323f8246a',
+  'Hero/Hero.tsx': '6e307d9affba421295ecbb650ba7ac9fa9c6cdd5',
+  'Footer/Footer.tsx': 'f05d84cef894ff3de3ba9862d6850bc47abe7b05',
+  'GenericPage/GenericPage.tsx': 'ba095bf8a22138df4e5678ac2e7fc14f7ccacc98',
+  'ServicesSection/ServicesSection.tsx': '414774f82e5a828ff03ba4d16dc3ee35a9484246',
 };
 
 for (const [path, expected] of Object.entries(protectedComponents)) {

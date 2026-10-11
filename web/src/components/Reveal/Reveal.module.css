@@ -29,6 +29,7 @@
 .isVisible {
   opacity: 1;
   transform: none;
+  will-change: auto;
 }
 
 .stretch {

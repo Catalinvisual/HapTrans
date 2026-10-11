@@ -18,6 +18,8 @@ const MapSection = () => {
   const { t, lang } = useLanguage();
   const [countries, setCountries] = useState<string[]>([]);
   const [hovered, setHovered] = useState<string | null>(null);
+  const [showGlobe, setShowGlobe] = useState(false);
+  const sectionRef = React.useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
@@ -66,11 +68,27 @@ const MapSection = () => {
     }
   };
 
+  
+  useEffect(() => {
+    if (!sectionRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShowGlobe(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '350px' }
+    );
+    observer.observe(sectionRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   const coreHubs = ['NL', 'DE', 'FR', 'PL', 'CZ', 'RO', 'BG'];
   const displayCountries = [...coreHubs.filter(c => countries.includes(c)), ...countries.filter(c => !coreHubs.includes(c))];
 
   return (
-    <section className={styles.section} id="harta">
+    <section ref={sectionRef} className={styles.section} id="harta">
       <div className={styles.container}>
         <Reveal variant="left">
           <div className={styles.content}>
@@ -102,7 +120,13 @@ const MapSection = () => {
           <div className={styles.globeStage}>
             <div className={styles.starfield} />
             <div className={styles.globeGlow} />
-            <GlobeCanvas countries={countries} hovered={hovered} className={styles.globeCanvas} />
+            {showGlobe ? (
+              <GlobeCanvas countries={countries} hovered={hovered} className={styles.globeCanvas} />
+            ) : (
+              <div className={styles.globeFallback}>
+                <div className={styles.spinner} />
+              </div>
+            )}
           </div>
         </Reveal>
       </div>

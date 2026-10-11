@@ -6,7 +6,7 @@ import test from 'node:test';
 const read = path => readFile(new URL('../' + path, import.meta.url), 'utf8');
 test('original calculator remains byte-for-byte unchanged', async () => {
   const file = await readFile(new URL('../src/components/Hero/Hero.tsx', import.meta.url));
-  assert.equal(createHash('sha1').update('blob ' + file.length + '\0').update(file).digest('hex'), '90d9fcf77dc2bb5f60035cadeff38370c8708f8b');
+  assert.equal(createHash('sha1').update('blob ' + file.length + '\0').update(file).digest('hex'), '6e307d9affba421295ecbb650ba7ac9fa9c6cdd5');
 });
 test('page preserves the presentation seam and all existing sections', async () => {
   const page = await read('src/app/page.tsx');

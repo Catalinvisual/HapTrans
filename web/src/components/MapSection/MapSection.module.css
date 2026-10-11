@@ -14,8 +14,7 @@
   height: 640px;
   background: radial-gradient(circle, rgba(255, 106, 43, 0.12) 0%, transparent 60%);
   border-radius: 50%;
-  filter: blur(20px);
-  pointer-events: none;
+    pointer-events: none;
 }
 
 .section::after {
@@ -27,8 +26,7 @@
   height: 560px;
   background: radial-gradient(circle, rgba(255, 106, 43, 0.08) 0%, transparent 60%);
   border-radius: 50%;
-  filter: blur(24px);
-  pointer-events: none;
+    pointer-events: none;
 }
 
 .container {
@@ -178,8 +176,7 @@
   aspect-ratio: 1 / 1;
   border-radius: 50%;
   background: radial-gradient(ellipse at 50% 50%, rgba(255, 106, 43, 0.18) 0%, rgba(255, 106, 43, 0.06) 45%, transparent 72%);
-  filter: blur(8px);
-  pointer-events: none;
+    pointer-events: none;
   animation: globePulse 6s ease-in-out infinite;
 }
 

@@ -241,16 +241,29 @@ async function bootstrap() {
   app.use(cookieParser());
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  const defaultCorsOrigins: (string | RegExp)[] = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://hapcargo.ro',
+    'https://www.hapcargo.ro',
+    'https://haptrans-production.up.railway.app',
+    'https://joyful-exploration-production.up.railway.app',
+    /\.railway\.app$/,
+  ];
+
+  const configuredCorsOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  const frontendUrl = process.env.FRONTEND_URL?.trim();
+  const corsOrigins: (string | RegExp)[] = [...defaultCorsOrigins, ...configuredCorsOrigins];
+  if (frontendUrl && !corsOrigins.includes(frontendUrl)) {
+    corsOrigins.push(frontendUrl);
+  }
+
   app.enableCors({
-    origin: [
-      'http://localhost:5173',
-      'http://localhost:3000',
-      'https://hapcargo.ro',
-      'https://www.hapcargo.ro',
-      'https://haptrans-production.up.railway.app',
-      'https://joyful-exploration-production.up.railway.app',
-      /\.railway\.app$/,
-    ],
+    origin: corsOrigins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
   });
