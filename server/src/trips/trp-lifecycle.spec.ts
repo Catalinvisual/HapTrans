@@ -1364,7 +1364,7 @@ describe('HapCargo TMS — Definitive Planning, TRP Lifecycle, Audit & Security 
 
       const res = await service.checkLiveTraffic(mockUser, 'trip-traffic-1');
       expect(res.available).toBe(false);
-      expect(res.provider).toBe('none');
+      expect((res as any).provider).toBe('none');
       expect(mockTripRepo.save).toHaveBeenCalled();
     });
 

@@ -294,8 +294,9 @@ describe('HapCargo Backup Reliability & Security Suite', () => {
 
       // Check first sheet has headers and data
       const ordersWs = readWb.getWorksheet('Orders');
-      expect(ordersWs.getRow(1).getCell(1).value).toContain('Orders Backup - Orders');
-      expect(ordersWs.rowCount).toBeGreaterThanOrEqual(3);
+      expect(ordersWs).toBeDefined();
+      expect(ordersWs!.getRow(1).getCell(1).value).toContain('Orders Backup - Orders');
+      expect(ordersWs!.rowCount).toBeGreaterThanOrEqual(3);
     });
   });
 });
