@@ -11,30 +11,84 @@ try {
 }
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 const BASE_URL = (process.env.SAAS_API_BASE_URL || 'https://haptrans-production.up.railway.app').replace(/\/+$/, '');
 const API_KEY = process.env.TNAS_API_KEY || '';
 const TARGET_DIR = process.env.TARGET_DIR || '/hc-pdf';
 const INTERVAL_MS = Number(process.env.SYNC_INTERVAL_MS || 2500); // 2.5 seconds default
+const WORKER_ID = process.env.WORKER_ID || `worker_${os.hostname()}_${process.pid}`;
 
 let isRunning = false;
 
 /**
- * Validates that a file starts with the PDF magic bytes '%PDF' and has size > 0.
+ * Normalizes and sanitizes filename safely:
+ * - Neutralizes path traversal (.., /, \)
+ * - Replaces unsafe characters
+ * - Ensures .pdf extension
+ */
+function sanitizeTargetFilename(filename) {
+  if (!filename || typeof filename !== 'string') {
+    filename = 'document.pdf';
+  }
+  // Strip directory paths and null bytes
+  let clean = path.basename(filename).replace(/\0/g, '');
+  // Remove dangerous traversal patterns or unsafe chars
+  clean = clean.replace(/[^a-zA-Z0-9_\.-]/g, '_');
+  // Avoid leading dots so files are visible
+  clean = clean.replace(/^\.+/, '');
+  // Ensure extension is .pdf
+  if (!clean.toLowerCase().endsWith('.pdf')) {
+    clean = `${clean}.pdf`;
+  }
+  return clean || 'document.pdf';
+}
+
+/**
+ * Verifies filename containment strictly within targetDir.
+ */
+function ensureWithinTargetDir(targetDir, filename) {
+  const safeName = sanitizeTargetFilename(filename);
+  const resolved = path.resolve(targetDir, safeName);
+  const resolvedTarget = path.resolve(targetDir);
+  if (!resolved.startsWith(resolvedTarget + path.sep) && resolved !== resolvedTarget) {
+    throw new Error(`Path traversal attempt detected: ${filename}`);
+  }
+  return safeName;
+}
+
+/**
+ * Validates that a file:
+ * 1. Has size >= 50 bytes (not empty, not truncated snippet)
+ * 2. Starts with '%PDF' magic header
+ * 3. Contains '%%EOF' structural trailer in tail
  */
 function validatePdfFile(filePath) {
   const stat = fs.statSync(filePath);
   if (stat.size === 0) {
     throw new Error('Downloaded PDF file is 0 bytes');
   }
+  if (stat.size < 50) {
+    throw new Error('Downloaded file is too small to be a valid PDF document (under 50 bytes)');
+  }
 
   const fd = fs.openSync(filePath, 'r');
-  const buffer = Buffer.alloc(4);
-  fs.readSync(fd, buffer, 0, 4, 0);
+  const headBuffer = Buffer.alloc(4);
+  fs.readSync(fd, headBuffer, 0, 4, 0);
+
+  if (headBuffer.toString('utf-8') !== '%PDF') {
+    fs.closeSync(fd);
+    throw new Error('Downloaded file does not match PDF signature (%PDF)');
+  }
+
+  // Structural trailer check: PDF files must end with %%EOF marker
+  const tailLength = Math.min(stat.size, 1024);
+  const tailBuffer = Buffer.alloc(tailLength);
+  fs.readSync(fd, tailBuffer, 0, tailLength, stat.size - tailLength);
   fs.closeSync(fd);
 
-  if (buffer.toString('utf-8') !== '%PDF') {
-    throw new Error('Downloaded file does not match PDF signature (%PDF)');
+  if (!tailBuffer.toString('utf-8').includes('%%EOF')) {
+    throw new Error('Downloaded PDF is truncated or missing %%EOF marker');
   }
 
   return stat.size;
@@ -45,7 +99,8 @@ function validatePdfFile(filePath) {
  * Uses fs.linkSync (POSIX atomic exclusive creation) and falls back safely.
  */
 function commitFileExclusively(tmpPath, targetDir, baseFilename) {
-  let candidateName = baseFilename;
+  const safeBase = sanitizeTargetFilename(baseFilename);
+  let candidateName = safeBase;
   let counter = 1;
 
   while (true) {
@@ -59,18 +114,27 @@ function commitFileExclusively(tmpPath, targetDir, baseFilename) {
       return { finalFilename: candidateName, finalPath: targetPath };
     } catch (err) {
       if (err.code === 'EEXIST') {
-        const parsed = path.parse(baseFilename);
-        candidateName = `${parsed.name}_${counter}${parsed.ext}`;
+        const parsed = path.parse(safeBase);
+        candidateName = `${parsed.name}_${counter}${parsed.ext || '.pdf'}`;
         counter++;
       } else {
         // Fallback for filesystems that do not support hardlinks or Windows dev environment:
-        // Check existence and rename atomically
         if (!fs.existsSync(targetPath)) {
-          fs.renameSync(tmpPath, targetPath);
-          return { finalFilename: candidateName, finalPath: targetPath };
+          try {
+            fs.renameSync(tmpPath, targetPath);
+            return { finalFilename: candidateName, finalPath: targetPath };
+          } catch (renErr) {
+            if (renErr.code === 'EEXIST') {
+              const parsed = path.parse(safeBase);
+              candidateName = `${parsed.name}_${counter}${parsed.ext || '.pdf'}`;
+              counter++;
+              continue;
+            }
+            throw renErr;
+          }
         }
-        const parsed = path.parse(baseFilename);
-        candidateName = `${parsed.name}_${counter}${parsed.ext}`;
+        const parsed = path.parse(safeBase);
+        candidateName = `${parsed.name}_${counter}${parsed.ext || '.pdf'}`;
         counter++;
       }
     }
@@ -78,7 +142,7 @@ function commitFileExclusively(tmpPath, targetDir, baseFilename) {
 }
 
 /**
- * Tests directory write permissions on startup.
+ * Tests directory write permissions on startup and creates receipts storage.
  */
 function checkTargetDirectory(dir) {
   if (!fs.existsSync(dir)) {
@@ -86,6 +150,15 @@ function checkTargetDirectory(dir) {
       fs.mkdirSync(dir, { recursive: true });
     } catch (err) {
       throw new Error(`Cannot create target directory ${dir}: ${err.message}`);
+    }
+  }
+
+  const receiptsDir = path.join(dir, '.receipts');
+  if (!fs.existsSync(receiptsDir)) {
+    try {
+      fs.mkdirSync(receiptsDir, { recursive: true });
+    } catch (err) {
+      throw new Error(`Cannot create receipts directory ${receiptsDir}: ${err.message}`);
     }
   }
 
@@ -101,14 +174,47 @@ function checkTargetDirectory(dir) {
 
 /**
  * Downloads a single archive job and writes it directly to the root of targetDir.
+ * Idempotent: Recognizes existing committed jobs via .receipts/<jobId>.json and re-acknowledges
+ * without creating duplicate files.
  */
-async function processArchiveJob(job, targetDir, baseUrl, apiKey) {
+async function processArchiveJob(job, targetDir, baseUrl, apiKey, workerId = WORKER_ID) {
   const { id, filename, signedUrl } = job;
-  const tmpName = `.${filename}.tmp_${Date.now()}_${process.pid}`;
+  const receiptsDir = path.join(targetDir, '.receipts');
+  const receiptPath = path.join(receiptsDir, `${id}.json`);
+
+  // 1. Check idempotency: Has this exact job already been committed to disk?
+  if (fs.existsSync(receiptPath)) {
+    try {
+      const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf-8'));
+      const existingCommittedPath = path.join(targetDir, receipt.finalFilename);
+      if (fs.existsSync(existingCommittedPath)) {
+        const existingBytes = validatePdfFile(existingCommittedPath);
+        console.log(`[IDEMPOTENT] Job ${id} already committed as ${receipt.finalFilename} (${existingBytes} bytes). Re-sending ACK.`);
+        
+        await axios.post(
+          `${baseUrl}/api/tnas/hc-pdf/${id}/downloaded`,
+          { committedFilename: receipt.finalFilename, bytes: existingBytes },
+          {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'X-Worker-Id': workerId,
+            },
+            timeout: 10000,
+          }
+        );
+        return { success: true, finalFilename: receipt.finalFilename, bytes: existingBytes, idempotent: true };
+      }
+    } catch (receiptErr) {
+      console.warn(`[WARN] Receipt inspection failed for ${id}: ${receiptErr.message}. Proceeding to re-download.`);
+    }
+  }
+
+  const safeFilename = ensureWithinTargetDir(targetDir, filename);
+  const tmpName = `.tmp_${id}_${Date.now()}_${process.pid}.pdf`;
   const tmpPath = path.join(targetDir, tmpName);
 
   try {
-    // 1. Download binary stream from signed Cloudinary URL
+    // 2. Download binary stream from signed Cloudinary URL
     const response = await axios({
       method: 'GET',
       url: signedUrl,
@@ -123,23 +229,43 @@ async function processArchiveJob(job, targetDir, baseUrl, apiKey) {
       writer.on('error', reject);
     });
 
-    // 2. Validate PDF signature & size
+    // 3. Validate PDF signature, size & %%EOF marker
     const bytesWritten = validatePdfFile(tmpPath);
 
-    // 3. Atomically commit without overwriting
-    const { finalFilename, finalPath } = commitFileExclusively(tmpPath, targetDir, filename);
+    // 4. Atomically commit without overwriting existing files
+    const { finalFilename, finalPath } = commitFileExclusively(tmpPath, targetDir, safeFilename);
 
-    // 4. Double check final file exists
+    // 5. Double check final file exists
     if (!fs.existsSync(finalPath)) {
       throw new Error(`Committed file missing at ${finalPath}`);
     }
 
-    // 5. Send completion acknowledgement
+    // 6. Record persistent receipt for idempotency
+    try {
+      if (!fs.existsSync(receiptsDir)) {
+        fs.mkdirSync(receiptsDir, { recursive: true });
+      }
+      const receiptTmp = path.join(receiptsDir, `.tmp_${id}_${Date.now()}`);
+      fs.writeFileSync(receiptTmp, JSON.stringify({
+        id,
+        finalFilename,
+        bytes: bytesWritten,
+        committedAt: new Date().toISOString(),
+      }), 'utf-8');
+      fs.renameSync(receiptTmp, receiptPath);
+    } catch (rErr) {
+      console.warn(`[WARN] Failed to write local receipt for ${id}: ${rErr.message}`);
+    }
+
+    // 7. Send completion acknowledgement with actual committed filename
     await axios.post(
       `${baseUrl}/api/tnas/hc-pdf/${id}/downloaded`,
-      {},
+      { committedFilename: finalFilename, bytes: bytesWritten },
       {
-        headers: { Authorization: `Bearer ${apiKey}` },
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'X-Worker-Id': workerId,
+        },
         timeout: 10000,
       }
     );
@@ -152,7 +278,12 @@ async function processArchiveJob(job, targetDir, baseUrl, apiKey) {
       try { fs.unlinkSync(tmpPath); } catch (_) {}
     }
 
-    const isRetryable = !err.message.includes('signature') && !err.message.includes('0 bytes');
+    const isRetryable = !err.message.includes('signature') &&
+                        !err.message.includes('0 bytes') &&
+                        !err.message.includes('too small') &&
+                        !err.message.includes('missing %%EOF') &&
+                        !err.message.includes('traversal');
+
     console.error(`[ERROR] [${new Date().toISOString()}] Job ${id} (${filename}) failed: ${err.message}`);
 
     // Report error back to Railway
@@ -161,7 +292,10 @@ async function processArchiveJob(job, targetDir, baseUrl, apiKey) {
         `${baseUrl}/api/tnas/hc-pdf/${id}/failed`,
         { reason: err.message, retryable: isRetryable },
         {
-          headers: { Authorization: `Bearer ${apiKey}` },
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'X-Worker-Id': workerId,
+          },
           timeout: 10000,
         }
       );
@@ -176,7 +310,7 @@ async function processArchiveJob(job, targetDir, baseUrl, apiKey) {
 /**
  * Runs a single polling cycle.
  */
-async function runSyncCycle(targetDir = TARGET_DIR, baseUrl = BASE_URL, apiKey = API_KEY) {
+async function runSyncCycle(targetDir = TARGET_DIR, baseUrl = BASE_URL, apiKey = API_KEY, workerId = WORKER_ID) {
   if (!apiKey) {
     console.warn(`[WARN] [${new Date().toISOString()}] TNAS_API_KEY is not configured. Skipping poll.`);
     return { skipped: true, reason: 'missing_api_key' };
@@ -184,7 +318,10 @@ async function runSyncCycle(targetDir = TARGET_DIR, baseUrl = BASE_URL, apiKey =
 
   try {
     const res = await axios.get(`${baseUrl}/api/tnas/hc-pdf/pending`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'X-Worker-Id': workerId,
+      },
       timeout: 10000,
     });
 
@@ -197,7 +334,7 @@ async function runSyncCycle(targetDir = TARGET_DIR, baseUrl = BASE_URL, apiKey =
     const results = [];
 
     for (const job of jobs) {
-      const result = await processArchiveJob(job, targetDir, baseUrl, apiKey);
+      const result = await processArchiveJob(job, targetDir, baseUrl, apiKey, workerId);
       results.push(result);
     }
 
@@ -213,7 +350,8 @@ async function runSyncCycle(targetDir = TARGET_DIR, baseUrl = BASE_URL, apiKey =
  */
 async function startDaemon() {
   console.log(`====================================================`);
-  console.log(`HapCargo TerraMaster HC-PDF Sync Worker v1.0`);
+  console.log(`HapCargo TerraMaster HC-PDF Sync Worker v1.1 (Hardened)`);
+  console.log(`Worker ID: ${WORKER_ID}`);
   console.log(`Destination: ${TARGET_DIR} (Root only, no subfolders)`);
   console.log(`Poll Interval: ${INTERVAL_MS}ms`);
   console.log(`SaaS Endpoint: ${BASE_URL}`);
@@ -221,7 +359,7 @@ async function startDaemon() {
 
   try {
     checkTargetDirectory(TARGET_DIR);
-    console.log(`[OK] Write access confirmed for ${TARGET_DIR}`);
+    console.log(`[OK] Write access & receipts directory confirmed for ${TARGET_DIR}`);
   } catch (err) {
     console.error(`[FATAL] ${err.message}`);
     process.exit(1);
@@ -248,6 +386,8 @@ if (require.main === module) {
 }
 
 module.exports = {
+  sanitizeTargetFilename,
+  ensureWithinTargetDir,
   validatePdfFile,
   commitFileExclusively,
   checkTargetDirectory,

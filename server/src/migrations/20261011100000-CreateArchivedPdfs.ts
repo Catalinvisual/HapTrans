@@ -14,6 +14,7 @@ export class CreateArchivedPdfs20261011100000 implements MigrationInterface {
         "sourceReference" varchar(255),
         "fileName" varchar(255) NOT NULL UNIQUE,
         "originalFileName" varchar(255),
+        "committedFileName" varchar(255),
         "fileUrl" text,
         "publicId" varchar(255),
         "resourceType" varchar(50) NOT NULL DEFAULT 'raw',
@@ -28,6 +29,8 @@ export class CreateArchivedPdfs20261011100000 implements MigrationInterface {
         "archivedAt" TIMESTAMP,
         "lastAttemptAt" TIMESTAMP,
         "attemptCount" integer NOT NULL DEFAULT 0,
+        "lockedAt" TIMESTAMP,
+        "lockedBy" varchar(100),
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
         "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
         CONSTRAINT "PK_archived_pdfs" PRIMARY KEY ("id")
@@ -36,6 +39,7 @@ export class CreateArchivedPdfs20261011100000 implements MigrationInterface {
       CREATE INDEX IF NOT EXISTS "IDX_archived_pdfs_status_targetShare" ON "archived_pdfs" ("status", "targetShare");
       CREATE INDEX IF NOT EXISTS "IDX_archived_pdfs_companyId" ON "archived_pdfs" ("companyId");
       CREATE INDEX IF NOT EXISTS "IDX_archived_pdfs_createdAt" ON "archived_pdfs" ("createdAt");
+      CREATE INDEX IF NOT EXISTS "IDX_archived_pdfs_lease" ON "archived_pdfs" ("status", "lockedAt");
     `);
   }
 

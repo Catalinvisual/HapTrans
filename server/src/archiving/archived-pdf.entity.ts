@@ -17,6 +17,7 @@ export enum ArchiveStatus {
 @Index('IDX_archived_pdfs_status_targetShare', ['status', 'targetShare'])
 @Index('IDX_archived_pdfs_companyId', ['companyId'])
 @Index('IDX_archived_pdfs_createdAt', ['createdAt'])
+@Index('IDX_archived_pdfs_lease', ['status', 'lockedAt'])
 export class ArchivedPdf {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -43,6 +44,10 @@ export class ArchivedPdf {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   originalFileName: string | null;
+
+  /** The actual committed filename on the NAS (in case of collision resolution) */
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  committedFileName: string | null;
 
   /** Staging URL in Cloudinary */
   @Column({ type: 'text', nullable: true })
@@ -90,6 +95,14 @@ export class ArchivedPdf {
 
   @Column({ type: 'int', default: 0 })
   attemptCount: number;
+
+  /** Timestamp when a worker claimed this job */
+  @Column({ type: 'timestamp', nullable: true })
+  lockedAt: Date | null;
+
+  /** Identifier of worker currently leasing this job */
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  lockedBy: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

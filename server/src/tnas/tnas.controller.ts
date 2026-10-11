@@ -34,28 +34,34 @@ export class TnasController {
 
   // ---- DEDICATED HC-PDF ARCHIVE ENDPOINTS ----
   @Get('hc-pdf/pending')
-  getHcPdfPending(@Headers('authorization') auth: string) {
+  getHcPdfPending(
+    @Headers('authorization') auth: string,
+    @Headers('x-worker-id') workerId?: string
+  ) {
     this.checkKey(auth);
-    return this.archivingService.getPendingHcPdfJobs();
+    return this.archivingService.getPendingHcPdfJobs(workerId || 'default-worker');
   }
 
   @Post('hc-pdf/:id/downloaded')
   ackHcPdfDownloaded(
     @Param('id') id: string,
-    @Headers('authorization') auth: string
+    @Body() body: any,
+    @Headers('authorization') auth: string,
+    @Headers('x-worker-id') workerId?: string
   ) {
     this.checkKey(auth);
-    return this.archivingService.acknowledgeHcPdfDownload(id);
+    return this.archivingService.acknowledgeHcPdfDownload(id, body, workerId || 'default-worker');
   }
 
   @Post('hc-pdf/:id/failed')
   reportHcPdfFailed(
     @Param('id') id: string,
     @Body() body: any,
-    @Headers('authorization') auth: string
+    @Headers('authorization') auth: string,
+    @Headers('x-worker-id') workerId?: string
   ) {
     this.checkKey(auth);
-    return this.archivingService.reportHcPdfFailure(id, body?.reason, body?.retryable);
+    return this.archivingService.reportHcPdfFailure(id, body?.reason, body?.retryable, workerId || 'default-worker');
   }
 
   // ---- BACKUP ENDPOINTS (LEGACY WORKBOOKS) ----

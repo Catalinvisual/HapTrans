@@ -29,6 +29,14 @@ export class ArchivePdfDto {
 export class AckArchiveJobDto {
   @IsString()
   @IsOptional()
+  @MaxLength(255)
+  committedFilename?: string;
+
+  @IsOptional()
+  bytes?: number;
+
+  @IsString()
+  @IsOptional()
   reason?: string;
 
   @IsOptional()

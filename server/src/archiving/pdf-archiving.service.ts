@@ -11,6 +11,7 @@ import { Repository } from 'typeorm';
 import { v2 as cloudinary } from 'cloudinary';
 import { Readable } from 'stream';
 import * as crypto from 'crypto';
+import * as path from 'path';
 import { ArchivedPdf, ArchiveStatus } from './archived-pdf.entity';
 
 export const MAX_PDF_ARCHIVE_BYTES = parseInt(process.env.MAX_PDF_ARCHIVE_BYTES || '26214400', 10); // 25 MB
@@ -40,14 +41,19 @@ export class PdfArchivingService {
   }
 
   /**
-   * Validates that the uploaded buffer is a valid PDF:
-   * 1. Buffer is not empty.
+   * Validates that the uploaded buffer is a valid, uncorrupted PDF:
+   * 1. Buffer is not empty and meets minimum PDF structural size (>= 50 bytes).
    * 2. Buffer does not exceed MAX_PDF_ARCHIVE_BYTES.
    * 3. Magic bytes start with '%PDF'.
+   * 4. Structural trailer contains '%%EOF' within the tail.
    */
   validatePdfBuffer(buffer: Buffer): void {
     if (!buffer || buffer.length === 0) {
       throw new BadRequestException('Empty file buffer provided');
+    }
+
+    if (buffer.length < 50) {
+      throw new BadRequestException('File is too small to be a valid PDF document (under 50 bytes)');
     }
 
     if (buffer.length > MAX_PDF_ARCHIVE_BYTES) {
@@ -60,6 +66,13 @@ export class PdfArchivingService {
     const header = buffer.subarray(0, 4).toString('utf-8');
     if (header !== '%PDF') {
       throw new BadRequestException('Invalid file format: file does not match PDF signature (%PDF)');
+    }
+
+    // Structural trailer check: PDF files must end with %%EOF marker
+    const tailLength = Math.min(buffer.length, 1024);
+    const tail = buffer.subarray(buffer.length - tailLength).toString('utf-8');
+    if (!tail.includes('%%EOF')) {
+      throw new BadRequestException('Invalid PDF document: missing %%EOF structural trailer (truncated or corrupt file)');
     }
   }
 
@@ -253,22 +266,45 @@ export class PdfArchivingService {
 
   /**
    * Retrieves pending archive jobs specifically targeted for 'HC-PDF'.
-   * Used exclusively by the TerraMaster HC-PDF worker.
+   * Leases pending jobs to the requesting worker for 60 seconds to prevent concurrent processing.
    */
-  async getPendingHcPdfJobs() {
-    const jobs = await this.repo.find({
-      where: {
-        targetShare: 'HC-PDF',
-        status: ArchiveStatus.PENDING,
-        tnasDownloaded: false,
-      },
-      order: { createdAt: 'ASC' },
-      take: 50,
-    });
+  async getPendingHcPdfJobs(workerId = 'default-worker') {
+    const leaseExpiry = new Date(Date.now() - 60000);
+    let candidateJobs: ArchivedPdf[] = [];
 
-    return jobs.map((job) => ({
+    if (typeof this.repo.createQueryBuilder === 'function') {
+      candidateJobs = await this.repo
+        .createQueryBuilder('pdf')
+        .where('pdf.targetShare = :targetShare', { targetShare: 'HC-PDF' })
+        .andWhere('pdf.status = :status', { status: ArchiveStatus.PENDING })
+        .andWhere('pdf.tnasDownloaded = :tnasDownloaded', { tnasDownloaded: false })
+        .andWhere('(pdf.lockedAt IS NULL OR pdf.lockedAt < :leaseExpiry)', { leaseExpiry })
+        .orderBy('pdf.createdAt', 'ASC')
+        .take(50)
+        .getMany();
+    } else {
+      const jobs = await this.repo.find({
+        where: {
+          targetShare: 'HC-PDF',
+          status: ArchiveStatus.PENDING,
+          tnasDownloaded: false,
+        },
+        order: { createdAt: 'ASC' },
+        take: 50,
+      });
+      candidateJobs = jobs.filter((j) => !j.lockedAt || j.lockedAt < leaseExpiry);
+    }
+
+    const now = new Date();
+    for (const job of candidateJobs) {
+      job.lockedAt = now;
+      job.lockedBy = workerId;
+      await this.repo.save(job);
+    }
+
+    return candidateJobs.map((job) => ({
       id: job.id,
-      filename: job.fileName,
+      filename: job.committedFileName || job.fileName,
       targetShare: 'HC-PDF',
       bytes: Number(job.bytes) || 0,
       signedUrl: this.generateSignedUrl(job, 15 * 60), // 15 mins
@@ -279,17 +315,47 @@ export class PdfArchivingService {
   /**
    * Acknowledges that the NAS worker has verified and atomically written the file
    * into the root of /hc-pdf.
+   *
+   * Idempotent: If the job has already been marked ARCHIVED, returns success without error.
+   * Synchronizes committedFileName to ensure the filename stored matches the physical file.
    */
-  async acknowledgeHcPdfDownload(id: string): Promise<{ success: boolean; filename: string }> {
+  async acknowledgeHcPdfDownload(
+    id: string,
+    body?: { committedFilename?: string; bytes?: number },
+    workerId?: string
+  ): Promise<{ success: boolean; filename: string; alreadyArchived?: boolean }> {
     const record = await this.repo.findOne({ where: { id } });
     if (!record) {
       throw new NotFoundException(`Archive job ${id} not found`);
+    }
+
+    // Idempotency: duplicate ACKs are recognized and reconciled safely
+    if (record.status === ArchiveStatus.ARCHIVED) {
+      this.logger.log(`HC-PDF archive already acknowledged: ${record.fileName} (${record.id}) - idempotent response`);
+      return {
+        success: true,
+        filename: record.committedFileName || record.fileName,
+        alreadyArchived: true,
+      };
+    }
+
+    // If collision resolution or worker determined actual committed filename, persist it
+    if (body?.committedFilename) {
+      const sanitizedName = path.basename(body.committedFilename).replace(/[^\w\s\.-]/gi, '_');
+      record.committedFileName = sanitizedName;
+      record.fileName = sanitizedName;
+    }
+
+    if (body?.bytes && Number(body.bytes) > 0) {
+      record.bytes = Number(body.bytes);
     }
 
     record.status = ArchiveStatus.ARCHIVED;
     record.tnasDownloaded = true;
     record.archivedAt = new Date();
     record.errorMessage = null;
+    record.lockedAt = null;
+    record.lockedBy = null;
 
     await this.repo.save(record);
     this.logger.log(`HC-PDF archive confirmed: ${record.fileName} (${record.id})`);
@@ -304,15 +370,24 @@ export class PdfArchivingService {
 
   /**
    * Reports a NAS archival failure (e.g. disk full, permission denied, corrupt download).
+   *
+   * Late failure protection: If the job is already ARCHIVED, it cannot be downgraded by a delayed failure report.
    */
   async reportHcPdfFailure(
     id: string,
     reason: string,
-    retryable = true
-  ): Promise<{ success: boolean; status: string }> {
+    retryable = true,
+    workerId?: string
+  ): Promise<{ success: boolean; status: string; ignored?: boolean }> {
     const record = await this.repo.findOne({ where: { id } });
     if (!record) {
       throw new NotFoundException(`Archive job ${id} not found`);
+    }
+
+    // Late failure protection: never downgrade a successfully archived job
+    if (record.status === ArchiveStatus.ARCHIVED) {
+      this.logger.warn(`Ignored late failure report for already archived job ${id}: ${reason}`);
+      return { success: true, status: ArchiveStatus.ARCHIVED, ignored: true };
     }
 
     record.errorMessage = reason ? reason.slice(0, 1000) : 'Unknown NAS write error';
@@ -320,6 +395,9 @@ export class PdfArchivingService {
     record.status = retryable ? ArchiveStatus.PENDING : ArchiveStatus.FAILED;
     record.lastAttemptAt = new Date();
     record.attemptCount = (record.attemptCount || 0) + 1;
+    // Release lease so subsequent retries or other workers can pick it up
+    record.lockedAt = null;
+    record.lockedBy = null;
 
     await this.repo.save(record);
     this.logger.warn(`HC-PDF archive reported failure for ${record.id}: ${reason} (retryable: ${retryable})`);

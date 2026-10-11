@@ -40,27 +40,32 @@ jest.mock('cloudinary', () => ({
   },
 }));
 
-describe('PdfArchivingService & Integration Tests', () => {
+describe('PdfArchivingService & Integration Tests (Hardened)', () => {
   let service: PdfArchivingService;
   let controller: PdfArchivingController;
   let tnasController: TnasController;
   let mockRepo: any;
   let mockTnasService: any;
 
-  const validPdfBuffer = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF');
-  const invalidBuffer = Buffer.from('NOT_A_VALID_PDF_HEADER');
+  const validPdfBuffer = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\nstartxref\n123\n%%EOF');
+  const invalidBuffer = Buffer.from('NOT_A_VALID_PDF_HEADER_WITH_MORE_THAN_FIFTY_CHARACTERS_FOR_TESTING');
+  const truncatedPdfBuffer = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\nstartxref\n123\nTRUNCATED_STREAM');
 
   beforeEach(async () => {
     process.env.TNAS_API_KEY = 'test-secret-key-123';
 
+    let idCounter = 1;
     const records: ArchivedPdf[] = [];
     mockRepo = {
       create: jest.fn((dto) => ({
-        id: 'arch-uuid-1',
+        id: `arch-uuid-${idCounter++}`,
         createdAt: new Date(),
         updatedAt: new Date(),
         attemptCount: 0,
         isRetryable: true,
+        lockedAt: null,
+        lockedBy: null,
+        committedFileName: null,
         ...dto,
       })),
       save: jest.fn(async (entity) => {
@@ -143,16 +148,23 @@ describe('PdfArchivingService & Integration Tests', () => {
     }).toThrow(BadRequestException);
   });
 
-  // 3. Oversized Upload Rejection
-  it('3. rejects oversized upload exceeding maximum allowed limit', () => {
+  // 3. Truncated PDF Rejection (missing %%EOF)
+  it('3. rejects truncated PDF missing %%EOF structural trailer', () => {
+    expect(() => {
+      service.validatePdfBuffer(truncatedPdfBuffer);
+    }).toThrow(BadRequestException);
+  });
+
+  // 4. Oversized Upload Rejection
+  it('4. rejects oversized upload exceeding maximum allowed limit', () => {
     const hugeBuffer = Buffer.alloc(27 * 1024 * 1024); // 27 MB > 25 MB limit
     expect(() => {
       service.validatePdfBuffer(hugeBuffer);
     }).toThrow(PayloadTooLargeException);
   });
 
-  // 4. Authorized and Unauthorized Requests on NAS Endpoints
-  describe('4. NAS Endpoint Authentication', () => {
+  // 5. NAS Endpoint Authentication
+  describe('5. NAS Endpoint Authentication', () => {
     it('accepts valid TNAS_API_KEY Bearer token', async () => {
       const res = await tnasController.getHcPdfPending('Bearer test-secret-key-123');
       expect(Array.isArray(res)).toBe(true);
@@ -169,8 +181,8 @@ describe('PdfArchivingService & Integration Tests', () => {
     });
   });
 
-  // 5. Tenant / Company Isolation
-  describe('5. Tenant / Company Isolation', () => {
+  // 6. Tenant / Company Isolation
+  describe('6. Tenant / Company Isolation', () => {
     it('prevents user from another company from accessing archive status', async () => {
       const record = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
         sourceType: 'client',
@@ -201,8 +213,8 @@ describe('PdfArchivingService & Integration Tests', () => {
     });
   });
 
-  // 6. Confirmed NAS Archival and Success Response
-  it('6. confirms NAS archival and marks entity archived when ACK received', async () => {
+  // 7. Confirmed NAS Archival and Success Response
+  it('7. confirms NAS archival and marks entity archived when ACK received', async () => {
     const record = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
       sourceType: 'order',
       sourceReference: 'ORD-777',
@@ -210,7 +222,7 @@ describe('PdfArchivingService & Integration Tests', () => {
     });
 
     // NAS worker downloads file and acknowledges
-    const ack = await tnasController.ackHcPdfDownloaded(record.id, 'Bearer test-secret-key-123');
+    const ack = await tnasController.ackHcPdfDownloaded(record.id, {}, 'Bearer test-secret-key-123');
     expect(ack.success).toBe(true);
 
     const updated = await mockRepo.findOne({ where: { id: record.id } });
@@ -219,8 +231,128 @@ describe('PdfArchivingService & Integration Tests', () => {
     expect(updated.archivedAt).toBeInstanceOf(Date);
   });
 
-  // 7. Pending Archive Status after Frontend Wait Timeout
-  it('7. returns status pending when timeout expires before NAS acknowledges', async () => {
+  // 8. Idempotent Duplicate ACK handling
+  it('8. handles duplicate ACK requests idempotently without errors', async () => {
+    const record = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'order',
+      sourceReference: 'ORD-DUP',
+      companyId: 'comp-1',
+    });
+
+    // First ACK
+    const firstAck = await tnasController.ackHcPdfDownloaded(record.id, {}, 'Bearer test-secret-key-123');
+    expect(firstAck.success).toBe(true);
+    expect(firstAck.alreadyArchived).toBeUndefined();
+
+    // Second (duplicate) ACK
+    const secondAck = await tnasController.ackHcPdfDownloaded(record.id, {}, 'Bearer test-secret-key-123');
+    expect(secondAck.success).toBe(true);
+    expect(secondAck.alreadyArchived).toBe(true);
+
+    const updated = await mockRepo.findOne({ where: { id: record.id } });
+    expect(updated.status).toBe(ArchiveStatus.ARCHIVED);
+  });
+
+  // 9. Committed Filename Synchronization on Collision
+  it('9. synchronizes committed filename when worker resolves a filename collision', async () => {
+    const record = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'order',
+      sourceReference: 'ORD-COLLISION',
+      companyId: 'comp-1',
+    });
+
+    // Worker commits as Order_ORD-COLLISION_1.pdf
+    const ack = await tnasController.ackHcPdfDownloaded(
+      record.id,
+      { committedFilename: 'Order_ORD-COLLISION_1.pdf', bytes: 1024 },
+      'Bearer test-secret-key-123',
+      'worker-1'
+    );
+
+    expect(ack.success).toBe(true);
+    expect(ack.filename).toBe('Order_ORD-COLLISION_1.pdf');
+
+    const updated = await mockRepo.findOne({ where: { id: record.id } });
+    expect(updated.fileName).toBe('Order_ORD-COLLISION_1.pdf');
+    expect(updated.committedFileName).toBe('Order_ORD-COLLISION_1.pdf');
+    expect(updated.bytes).toBe(1024);
+  });
+
+  // 10. Worker Lease Locking and Concurrency Control
+  it('10. leases pending jobs to requesting worker and prevents concurrent processing', async () => {
+    const record = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'truck',
+      sourceReference: 'TRK-LEASE',
+      companyId: 'comp-1',
+    });
+
+    // Worker 1 queries pending jobs
+    const worker1Jobs = await tnasController.getHcPdfPending('Bearer test-secret-key-123', 'worker-1');
+    expect(worker1Jobs.length).toBe(1);
+    expect(worker1Jobs[0].id).toBe(record.id);
+
+    // Record is now leased by worker-1
+    const leased = await mockRepo.findOne({ where: { id: record.id } });
+    expect(leased.lockedBy).toBe('worker-1');
+    expect(leased.lockedAt).toBeInstanceOf(Date);
+
+    // Worker 2 queries while lease is active (< 60s)
+    const worker2Jobs = await tnasController.getHcPdfPending('Bearer test-secret-key-123', 'worker-2');
+    expect(worker2Jobs.length).toBe(0); // Job is locked and not returned to worker 2!
+  });
+
+  // 11. Stale Lease Recovery
+  it('11. allows recovery of stale pending jobs after lease expiration (> 60s)', async () => {
+    const record = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'truck',
+      sourceReference: 'TRK-STALE',
+      companyId: 'comp-1',
+    });
+
+    // Worker 1 claimed it, but simulated crash 2 minutes ago
+    record.lockedBy = 'crashed-worker';
+    record.lockedAt = new Date(Date.now() - 120000); // 2 minutes ago
+    await mockRepo.save(record);
+
+    // Worker 2 queries and reclaims the expired job
+    const recoveredJobs = await tnasController.getHcPdfPending('Bearer test-secret-key-123', 'worker-2');
+    expect(recoveredJobs.length).toBe(1);
+    expect(recoveredJobs[0].id).toBe(record.id);
+
+    const updated = await mockRepo.findOne({ where: { id: record.id } });
+    expect(updated.lockedBy).toBe('worker-2');
+  });
+
+  // 12. Late Failure Report Protection
+  it('12. ignores late failure report if job is already successfully ARCHIVED', async () => {
+    const record = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'trailer',
+      sourceReference: 'TRL-LATE',
+      companyId: 'comp-1',
+    });
+
+    // Successfully archived
+    await tnasController.ackHcPdfDownloaded(record.id, {}, 'Bearer test-secret-key-123');
+    const archived = await mockRepo.findOne({ where: { id: record.id } });
+    expect(archived.status).toBe(ArchiveStatus.ARCHIVED);
+
+    // Delayed failure report arrives after ACK
+    const failRes = await tnasController.reportHcPdfFailed(
+      record.id,
+      { reason: 'Late timeout on worker', retryable: false },
+      'Bearer test-secret-key-123'
+    );
+
+    expect(failRes.ignored).toBe(true);
+    expect(failRes.status).toBe(ArchiveStatus.ARCHIVED);
+
+    // Job remains ARCHIVED, not downgraded!
+    const unchanged = await mockRepo.findOne({ where: { id: record.id } });
+    expect(unchanged.status).toBe(ArchiveStatus.ARCHIVED);
+  });
+
+  // 13. Pending Archive Status after Frontend Wait Timeout
+  it('13. returns status pending when timeout expires before NAS acknowledges', async () => {
     const meta = {
       sourceType: 'trailer',
       sourceReference: 'TRL-99',
@@ -238,8 +370,8 @@ describe('PdfArchivingService & Integration Tests', () => {
     expect(record.status).toBe(ArchiveStatus.PENDING);
   });
 
-  // 8. Explicit NAS Write Failure
-  it('8. handles explicit NAS write failure report', async () => {
+  // 14. Explicit NAS Write Failure
+  it('14. handles explicit NAS write failure report', async () => {
     const record = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
       sourceType: 'payroll',
       sourceReference: 'EMP-01',
@@ -259,8 +391,8 @@ describe('PdfArchivingService & Integration Tests', () => {
     expect(updated.isRetryable).toBe(false);
   });
 
-  // 9. Retry Transient Failure
-  it('9. marks job as retryable pending when transient error reported', async () => {
+  // 15. Retry Transient Failure
+  it('15. marks job as retryable pending when transient error reported', async () => {
     const record = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
       sourceType: 'order',
       sourceReference: 'ORD-RETRY',
@@ -279,13 +411,14 @@ describe('PdfArchivingService & Integration Tests', () => {
     expect(updated.isRetryable).toBe(true);
     expect(updated.attemptCount).toBe(1);
 
-    // Job still appears in pending list for subsequent retry!
+    // Job still appears in pending list for subsequent retry and release lease!
+    expect(updated.lockedAt).toBeNull();
     const pendingList = await service.getPendingHcPdfJobs();
     expect(pendingList.some((j) => j.id === record.id)).toBe(true);
   });
 
-  // 10. Duplicate Requests and Filename Collision Prevention
-  it('10. prevents filename collisions and produces distinct filenames for identical inputs', async () => {
+  // 16. Duplicate Requests and Filename Collision Prevention
+  it('16. prevents filename collisions and produces distinct filenames for identical inputs', async () => {
     const fn1 = await service.generateUniqueFilename('order', 'ORD-SAME');
     const fn2 = await service.generateUniqueFilename('order', 'ORD-SAME');
 
@@ -295,8 +428,8 @@ describe('PdfArchivingService & Integration Tests', () => {
     expect(fn2).toMatch(/^Order_ORD-SAME_\d{8}_\d{6}_[a-f0-9]{4}\.pdf$/);
   });
 
-  // 11. Regression Protection: Invoices Workflow Is Untouched
-  describe('11. Invoices Workflow Regression Protection', () => {
+  // 17. Regression Protection: Invoices Workflow Is Untouched
+  describe('17. Invoices Workflow Regression Protection', () => {
     it('verifies existing invoices pending query returns category Invoices and does not leak HC-PDF jobs', async () => {
       // Create an HC-PDF job
       await service.stageAndCreateArchiveRecord(validPdfBuffer, {
