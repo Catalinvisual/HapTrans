@@ -3,10 +3,10 @@ import { CheckCircle2, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 // ─── Custom Toast Renderer ───
 const ToastIcon = ({ type }: { type: string }) => {
-  if (type === 'success') return <CheckCircle2 className="w-5 h-5 text-white flex-shrink-0" />;
-  if (type === 'error') return <XCircle className="w-5 h-5 text-white flex-shrink-0" />;
-  if (type === 'warning') return <AlertTriangle className="w-5 h-5 text-white flex-shrink-0" />;
-  return <Info className="w-5 h-5 text-white flex-shrink-0" />;
+  if (type === 'success') return <CheckCircle2 className="w-5 h-5 text-white flex-shrink-0" aria-hidden="true" />;
+  if (type === 'error') return <XCircle className="w-5 h-5 text-white flex-shrink-0" aria-hidden="true" />;
+  if (type === 'warning') return <AlertTriangle className="w-5 h-5 text-white flex-shrink-0" aria-hidden="true" />;
+  return <Info className="w-5 h-5 text-white flex-shrink-0" aria-hidden="true" />;
 };
 
 const BG: Record<string, string> = {
@@ -32,6 +32,8 @@ export function AppToaster() {
 
         return (
           <div
+            role={type === 'error' ? 'alert' : 'status'}
+            aria-live={type === 'error' ? 'assertive' : 'polite'}
             style={{
               background: BG[type],
               opacity: t.visible ? 1 : 0,
@@ -43,14 +45,15 @@ export function AppToaster() {
             <ToastIcon type={type} />
             <div className="flex-1 min-w-0">
               <p className="text-white text-sm font-medium leading-snug">
-                {typeof t.message === 'string' ? t.message : ''}
+                {typeof t.message === 'function' ? (t.message as any)(t) : t.message}
               </p>
             </div>
             <button
               onClick={() => toast.dismiss(t.id)}
+              aria-label="Close notification"
               className="flex-shrink-0 p-0.5 rounded-full hover:bg-card/20 transition-colors ml-1"
             >
-              <X className="w-4 h-4 text-white/80" />
+              <X className="w-4 h-4 text-white/80" aria-hidden="true" />
             </button>
           </div>
         );

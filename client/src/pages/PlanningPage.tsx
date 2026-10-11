@@ -4,12 +4,12 @@ import {
 import { createPortal } from 'react-dom';
 import {
   Truck as TruckIcon, Package, Loader2, MapPin, CheckCircle2, AlertTriangle, ExternalLink,
-  Users, X, ChevronRight, ChevronLeft, Calendar, ArrowRight, Info, Activity, Search,
+  Users, X, ChevronRight, ChevronLeft, Calendar, ArrowRight, Activity, Search,
   Undo2, SplitSquareHorizontal, Send, ShieldCheck, Scale, Boxes,
   LayoutGrid, Clock, Map as MapIcon, Sparkles, CheckSquare, Square, RefreshCw,
   ChevronsLeft, ChevronsRight, Plus, ArrowUp, ArrowDown, Layers, Navigation,
-  Printer, Maximize2, Minimize2, RotateCcw, Filter, List, FileText, Pencil,
-  Bookmark, BookmarkPlus, Save, Trash2, GitMerge, Wand2, Download, Clock3, Timer,
+  Printer, Maximize2, Minimize2, RotateCcw, List, FileText, Pencil,
+  BookmarkPlus, Save, Trash2, GitMerge, Wand2, Download, Clock3,
   ZoomIn, ZoomOut, Unplug, Link as LinkIcon, ArrowRightLeft, Building2, DollarSign,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
@@ -23,10 +23,11 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import CustomSelect from '../components/CustomSelect';
 import { useSettingsStore } from '../store/settingsStore';
+import { useConfirm } from '../components/SaveConfirmProvider';
 import { generateOrderPdf } from '../lib/pdfGenerator';
+import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { planningApi } from '../lib/planningApi';
 import OrderWizard from '../components/orders/OrderWizard';
-import { useConfirm } from '../components/SaveConfirmProvider';
 import { fmtMoney, fmtNumber } from '../lib/format';
 import SplitTripModal from '../components/planning/SplitTripModal';
 import CombineTripsModal from '../components/planning/CombineTripsModal';
@@ -386,6 +387,7 @@ function PlanningMap({
           ['showStops',showStops,setShowStops,t('layer_stops','Stops')],
           ['showVehicles',showVehicles,setShowVehicles,t('layer_vehicles','Vehicles')],
           ['showTraffic',showTraffic,setShowTraffic,t('layer_traffic','Traffic & Delay')],
+          ['showTolls',showTolls,setShowTolls,t('layer_tolls','Toll Cost Estimates')],
           ['showDropHook',showDropHook,setShowDropHook,t('layer_drop_hook','Drop & Hook')],
           ['showCrossDock',showCrossDock,setShowCrossDock,t('layer_cross_dock','Cross-Dock Hubs')],
           ['showConflicts',showConflicts,setShowConflicts,t('layer_conflicts','Conflicts')],
@@ -405,25 +407,6 @@ function PlanningMap({
           <span className="font-bold text-text-secondary">{t('map_loading','Loading…')}</span>
         </div>
       )}
-    </div>
-  );
-}
-
-// ─── Capacity Bar ────────────────────────────────────────────────────────────
-function CapBar({ label, value, max, unit = '' }: { label: string; value: number; max: number; unit?: string }) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
-  const displayPct = Math.min(100, pct);
-  const color = pct > 95 ? 'bg-red-500' : pct > 75 ? 'bg-amber-500' : 'bg-emerald-500';
-  const textColor = pct > 95 ? 'text-red-500 font-bold' : pct > 75 ? 'text-amber-600 font-bold' : 'text-text-primary';
-  return (
-    <div className="min-w-0">
-      <div className="flex items-center justify-between text-[9px] font-bold text-text-secondary mb-0.5">
-        <span>{label}</span>
-        <span className={textColor}>{value > 0 ? fmtNumber(value, value % 1 !== 0 ? 1 : 0) : '—'}{unit && value > 0 ? unit : ''}</span>
-      </div>
-      <div className="w-full h-1.5 rounded-full bg-border/50 overflow-hidden border border-border/30">
-        <div className={`h-full rounded-full transition-all duration-300 ${color}`} style={{ width: `${displayPct}%` }} />
-      </div>
     </div>
   );
 }
@@ -461,7 +444,7 @@ function PoolOrderCard({
             {selected ? <CheckSquare className="w-3.5 h-3.5 text-primary" /> : <Square className="w-3.5 h-3.5" />}
           </button>
           <span className="font-bold text-text-primary text-[11px] truncate">{order.orderNumber || '—'}</span>
-          {isUrgent && <span className="px-1 py-0 text-[7px] font-black bg-red-500/10 text-red-600 border border-red-500/20 rounded shrink-0">URGENT</span>}
+          {isUrgent && <span className="px-1 py-0 text-[7px] font-black bg-red-500/10 text-red-600 border border-red-500/20 rounded shrink-0">{t('urgent', 'URGENT')}</span>}
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <span className="px-1.5 py-0 text-[8px] font-black rounded-full bg-primary/10 text-primary border border-primary/20">{(order.transportType || 'FTL').toUpperCase()}</span>
@@ -656,7 +639,7 @@ function ResourceRow({
   const driverLabel = driverDisplayName(resource.driver);
   const weightText = `${(cargo.weight / 1000).toFixed(1)}t / ${(mw / 1000).toFixed(0)}t`;
   const palletText = `${Math.round(cargo.pallets)} / ${mp} plt`;
-  const weightTooltip = `${t('capacity_weight', 'Weight')}: ${fmtNumber(cargo.weight)} kg / ${fmtNumber(mw)} kg (${Math.round(weightPct)}%)`;
+  const weightTooltip = `${t('capacity_weight', 'Weight')}: ${fmtNumber(cargo.weight)} kg / ${fmtNumber(mw)} kg (${Math.round(weightPct)}%), ${t('remaining', 'remaining')}: ${fmtNumber(Math.max(0, weightRemaining))} kg`;
   const palletTooltip = `${t('capacity_pallets', 'Pallets')}: ${Math.round(cargo.pallets)} / ${mp} EUROPAL (${Math.round(palletPct)}%)`;
 
   // Driver HOS summary lookup
@@ -896,7 +879,7 @@ function TripDetailDrawer({
       if (res.available) {
         toast.success(res.delayMinutes > 0 ? `Traffic delay: +${res.delayMinutes}m` : 'Normal traffic on route');
       } else {
-        toast.info(res.message || t('traffic_unavailable', 'Live traffic unavailable — provider not configured'));
+        toast(res.message || t('traffic_unavailable', 'Live traffic unavailable — provider not configured'), { icon: 'ℹ️' });
       }
     } catch {
       toast.error('Failed to query traffic');
@@ -913,7 +896,7 @@ function TripDetailDrawer({
       if (res.available) {
         toast.success(`Tolls estimated: ${res.totalAmount} ${res.currency || 'EUR'}`);
       } else {
-        toast.info(res.message || t('toll_unavailable', 'Toll calculation unavailable — provider not configured'));
+        toast(res.message || t('toll_unavailable', 'Toll calculation unavailable — provider not configured'), { icon: 'ℹ️' });
       }
     } catch {
       toast.error('Failed to calculate tolls');
@@ -1739,8 +1722,21 @@ function OrderDetailDrawer({ order, onClose, onPlan }: { order: any; onClose: ()
             <p className="text-sm text-text-secondary mt-0.5">{order.client?.name || '—'}</p>
           </div>
           <div className="flex gap-1.5">
-            <button onClick={() => generateOrderPdf(order, company)} className="p-1.5 bg-card border border-border shadow-sm hover:bg-surface rounded-xl text-text-secondary hover:text-primary transition-colors group relative" title="Download PDF">
-              <FileText className="w-5 h-5" />
+            <button onClick={async () => {
+              try {
+                const { blob, filename } = await generateOrderPdf(order, company, { autoSave: false });
+                await archiveAndDownloadPdf({
+                  pdfBlob: blob,
+                  defaultFilename: filename,
+                  sourceType: 'order',
+                  sourceId: order.id,
+                  sourceReference: order.orderNumber || order.referenceNumber || String(order.id),
+                });
+              } catch (e) {
+                toast.error(t('error_pdf', 'Failed to generate PDF'));
+              }
+            }} className="p-1.5 bg-card border border-border shadow-sm hover:bg-surface rounded-xl text-text-secondary hover:text-primary transition-colors group relative" title={t("download_order_pdf", { reference: order.orderNumber || 'Order', defaultValue: "Download PDF for order {{reference}}" })} aria-label={t("download_order_pdf", { reference: order.orderNumber || 'Order', defaultValue: "Download PDF for order {{reference}}" })}>
+              <FileText className="w-5 h-5" aria-hidden="true" />
             </button>
             <button onClick={onClose} className="p-1.5 hover:bg-surface rounded-xl text-text-secondary hover:text-text-primary transition-colors"><X className="w-5 h-5" /></button>
           </div>
@@ -1786,6 +1782,7 @@ function OrderDetailDrawer({ order, onClose, onPlan }: { order: any; onClose: ()
 export default function PlanningPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const confirm = useConfirm();
 
   // ── State ──
   const [selectedDate, setSelectedDate] = useState<string>(() => dayStr(new Date()));
@@ -2105,18 +2102,6 @@ export default function PlanningPage() {
     finally { setLoadingAction(null); }
   };
 
-  const handleApplyOptimization = async (proposals: any[]) => {
-    setLoadingAction('optimize');
-    try { await api.post('/planning/optimize/apply', { proposals }); toast.success(t('jsx_appliedOk','Optimization applied')); setShowOptimizeModal(false); loadData(); }
-    catch (err: any) { toast.error(err.response?.data?.message || 'Failed to apply'); }
-    finally { setLoadingAction(null); }
-  };
-
-  const handleUndo = async () => {
-    try { await api.post('/planning/undo', {}); toast.success(t('jsx_undone','Action undone')); loadData(); }
-    catch (err: any) { toast.error(err.response?.data?.message || 'Undo failed'); }
-  };
-
   const handlePrint = () => window.print();
 
   const handleFullscreen = () => {
@@ -2416,6 +2401,51 @@ export default function PlanningPage() {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
+          {/* Saved Views Control */}
+          <div className="flex items-center gap-1 bg-card p-0.5 rounded-lg border border-border shadow-sm">
+            <button
+              onClick={() => setShowSaveViewModal(true)}
+              className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors"
+              title={t('save_current_view', 'Save View')}
+            >
+              <BookmarkPlus className="w-3.5 h-3.5 text-primary" />
+            </button>
+            {savedViews.length > 0 && (
+              <select
+                value={currentViewId || ''}
+                onChange={e => {
+                  const v = savedViews.find(s => s.id === e.target.value);
+                  handleApplySavedView(v || null);
+                }}
+                className="bg-transparent text-[11px] font-medium text-text-secondary pr-2 py-0.5 border-none focus:outline-none cursor-pointer max-w-[110px] truncate"
+                title={t('select_saved_view', 'Select Saved View')}
+              >
+                <option value="">{t('default_view', 'Default View')}</option>
+                {savedViews.map(v => (
+                  <option key={v.id} value={v.id}>{v.name}</option>
+                ))}
+              </select>
+            )}
+            {currentViewId && (
+              <>
+                <button
+                  onClick={handleUpdateCurrentView}
+                  className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors"
+                  title={t('update_view', 'Update View')}
+                >
+                  <Save className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => handleDeleteSavedView(currentViewId)}
+                  className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-red-500 transition-colors"
+                  title={t('delete_view', 'Delete View')}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
+          </div>
+
           <button onClick={() => setShowCombineModal(true)} className="btn-secondary h-[28px] px-2.5 rounded-lg flex items-center gap-1.5 text-[11px] font-bold" title={t('combine_trips', 'Combine Trips')}>
             <GitMerge className="w-3.5 h-3.5 text-primary" /><span className="hidden xl:inline">{t('combine_trips', 'Combine')}</span>
           </button>
@@ -2793,7 +2823,8 @@ export default function PlanningPage() {
           isOpen={!!splitTripTarget}
           trip={splitTripTarget}
           onClose={() => setSplitTripTarget(null)}
-          onSuccess={() => {
+          onSplit={async (tripId, orderIds) => {
+            await planningApi.splitTrip(tripId, orderIds);
             setSplitTripTarget(null);
             setSelectedTripId(null);
             loadData();
@@ -2806,12 +2837,13 @@ export default function PlanningPage() {
         <CombineTripsModal
           isOpen={showCombineModal}
           trips={trips}
-          initialSourceTrip={combineInitialTrip}
+          initialTripId={combineInitialTrip?.id || null}
           onClose={() => {
             setShowCombineModal(false);
             setCombineInitialTrip(null);
           }}
-          onSuccess={() => {
+          onCombine={async (sourceTripId, targetTripId) => {
+            await planningApi.combineTrips(sourceTripId, targetTripId);
             setShowCombineModal(false);
             setCombineInitialTrip(null);
             setSelectedTripId(null);
@@ -2828,7 +2860,7 @@ export default function PlanningPage() {
           trips={trips}
           resources={resources}
           selectedDate={selectedDate}
-          viewMode={viewMode}
+          conflicts={boardData?.conflicts || []}
         />
       )}
 
@@ -2837,19 +2869,24 @@ export default function PlanningPage() {
         <SavedViewsModal
           isOpen={showSaveViewModal}
           onClose={() => setShowSaveViewModal(false)}
-          currentConfig={{
-            viewMode,
-            grouping,
-            selectedDate,
-            search,
-            statusFilter,
-            truckFilter,
-            driverFilter,
-            priorityFilter,
-          }}
-          onSaved={(newView) => {
+          onSave={async (name, isDefault) => {
+            const newView = await planningApi.saveView({
+              name,
+              isDefault,
+              viewMode,
+              grouping,
+              filters: {
+                search,
+                status: statusFilter,
+                truckId: truckFilter,
+                driverId: driverFilter,
+                priority: priorityFilter,
+              },
+              dateRange: { from: selectedDate },
+            });
             setSavedViews(prev => [...prev, newView]);
             setCurrentViewId(newView.id);
+            toast.success(t('view_saved', 'View saved successfully'));
           }}
         />
       )}

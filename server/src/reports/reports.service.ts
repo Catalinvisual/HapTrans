@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, StreamableFile, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, StreamableFile, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { promises as fs, existsSync } from 'fs';
@@ -9,6 +9,7 @@ import { AnalyticsFilters } from '../analytics/filters.dto';
 import { PdfService } from '../invoices/pdf.service';
 import { ActionLogsService } from '../action-logs/action-logs.service';
 import { UserRole } from '../users/user.entity';
+import { PdfArchivingService } from '../archiving/pdf-archiving.service';
 import {
   REPORT_CATALOG, getReportDef, reportAllowedForUser, ReportDef, ReportPayload,
 } from './reports.catalog';
@@ -50,6 +51,7 @@ export class ReportsService {
     @InjectRepository(ReportHistory) private readonly historyRepo: Repository<ReportHistory>,
     @InjectRepository(ScheduledReport) private readonly scheduleRepo: Repository<ScheduledReport>,
     private readonly dataSource: DataSource,
+    @Optional() private readonly archiving?: PdfArchivingService,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -108,13 +110,14 @@ export class ReportsService {
       const relPath = `reports/${fileName}`;
       const absPath = join(REPORTS_DIR, fileName);
 
+      let pdfBuf: Buffer | undefined;
       if (format === 'xlsx') {
         const wb = await buildReportWorkbook(payload, undefined, opts.locale);
         await wb.xlsx.writeFile(absPath);
       } else {
         const html = renderReportHtml(payload, opts.locale);
-        const buf = await this.pdf.generatePdfFromHtml(html);
-        await fs.writeFile(absPath, buf);
+        pdfBuf = await this.pdf.generatePdfFromHtml(html);
+        await fs.writeFile(absPath, pdfBuf);
       }
 
       const record = await this.historyRepo.save(this.historyRepo.create({
@@ -135,8 +138,28 @@ export class ReportsService {
         { reportKey: def.key, format, fileName }, user?.companyId,
       ).catch((e) => this.logger.warn(`Audit log failed: ${e.message}`));
 
+      let archiveOperationId: string | undefined = undefined;
+      // Requirement: Archive manual PDF exports to HC-PDF. Exclude scheduled/system runs.
+      if (format === 'pdf' && !opts.system && this.archiving && pdfBuf) {
+        try {
+          const archiveRec = await this.archiving.stageAndCreateArchiveRecord(pdfBuf, {
+            sourceType: 'report',
+            sourceId: record.id,
+            sourceReference: def.key,
+            requestedFilename: fileName,
+            user,
+            companyId: user?.companyId,
+          });
+          archiveOperationId = archiveRec.id;
+          this.logger.log(`Manual report PDF queued for HC-PDF archiving: ${archiveRec.fileName} (${archiveRec.id})`);
+        } catch (archErr: any) {
+          this.logger.warn(`Failed to queue report PDF for HC-PDF archiving: ${archErr?.message}`);
+        }
+      }
+
       return {
         historyId: record.id,
+        archiveOperationId,
         fileName,
         format,
         reportKey: def.key,

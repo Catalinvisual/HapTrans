@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  hc-pdf-sync:
+    image: node:20-alpine
+    container_name: hapcargo-hc-pdf-sync
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      - NODE_ENV=production
+      - SAAS_API_BASE_URL=https://haptrans-production.up.railway.app
+      - TNAS_API_KEY=${TNAS_API_KEY}
+      - TARGET_DIR=/hc-pdf
+      - SYNC_INTERVAL_MS=2500
+    volumes:
+      # Application script mounted read-only
+      - ./:/app:ro
+      # Physical NAS shared folder mounted read-write directly into /hc-pdf
+      - /Volume3/HC-PDF:/hc-pdf:rw
+    command: ["node", "hc-pdf-sync.js"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

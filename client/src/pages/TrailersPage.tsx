@@ -19,6 +19,7 @@ import type { SelectOption } from "../components/CustomSelect";
 import ExportModal from "../components/ExportModal";
 import { useSettingsStore } from '../store/settingsStore';
 import { generateTrailerPdf } from '../lib/pdfGenerator';
+import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { matchesSearch } from '../lib/search';
 import { FileText, Calendar, Clock } from 'lucide-react';
 import ActivityTimeline from '../components/ActivityTimeline';
@@ -257,9 +258,20 @@ export default function TrailersPage() {
         <div className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
           <button onClick={async (e) => {
              e.stopPropagation();
-             try { await generateTrailerPdf(tr, company); } catch (err) { toast.error(t('error_pdf', 'Eroare generare PDF')); }
-          }} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('pdf', 'Download PDF')}>
-            <FileText className="w-3 h-3" />
+             try {
+               const { blob, filename } = await generateTrailerPdf(tr, company, { autoSave: false });
+               await archiveAndDownloadPdf({
+                 pdfBlob: blob,
+                 defaultFilename: filename,
+                 sourceType: 'trailer',
+                 sourceId: tr.id,
+                 sourceReference: tr.plateNumber || String(tr.id),
+               });
+             } catch (err) {
+               toast.error(t('error_pdf', 'Eroare generare PDF'));
+             }
+          }} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('download_trailer_pdf', { plate: tr.plateNumber, defaultValue: 'Download trailer profile PDF: {{plate}}' })} aria-label={t('download_trailer_pdf', { plate: tr.plateNumber, defaultValue: 'Download trailer profile PDF: {{plate}}' })}>
+            <FileText className="w-3 h-3" aria-hidden="true" />
           </button>
           <button onClick={() => openEdit(tr)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t("edit", "Editează")}><Pencil className="w-3 h-3" /></button>
           <button onClick={() => setDeleteId(tr.id)} className="p-1 text-text-secondary hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors" title={t("delete", "Șterge")}><Trash2 className="w-3 h-3" /></button>

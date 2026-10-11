@@ -1,0 +1,14 @@
+{
+  "name": "hc-pdf-sync",
+  "version": "1.0.0",
+  "description": "TerraMaster NAS synchronization worker for HapCargo HC-PDF archive",
+  "main": "hc-pdf-sync.js",
+  "scripts": {
+    "start": "node hc-pdf-sync.js",
+    "test": "node --test test/hc-pdf-sync.spec.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5"
+  }
+}

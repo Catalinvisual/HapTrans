@@ -3,7 +3,10 @@ import autoTable from 'jspdf-autotable';
 import { getCompanySettings } from "../store/settingsStore";
 import { formatDate } from './dateUtils';
 
-export const generatePayrollPdfBase64 = async (payroll: any, t: any): Promise<string> => {
+export const generatePayrollPdf = async (
+  payroll: any,
+  t: any
+): Promise<{ doc: jsPDF; blob: Blob; base64: string; filename: string }> => {
   const doc = new jsPDF({ format: 'a4', unit: 'mm' });
   const co = getCompanySettings();
   
@@ -123,6 +126,15 @@ export const generatePayrollPdfBase64 = async (payroll: any, t: any): Promise<st
   doc.setFont('helvetica', 'italic');
   doc.text(t('automatedPayslip') || 'Dit is een geautomatiseerde loonstrook.', 105, 280, { align: 'center' });
 
-  // Convert to Base64
-  return doc.output('datauristring');
+  const safeName = (payroll.user?.name || 'Employee').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const filename = `Fluturas_Salariu_${safeName}_${payroll.month}_${payroll.year}.pdf`;
+  const base64 = doc.output('datauristring');
+  const blob = doc.output('blob');
+
+  return { doc, blob, base64, filename };
+};
+
+export const generatePayrollPdfBase64 = async (payroll: any, t: any): Promise<string> => {
+  const res = await generatePayrollPdf(payroll, t);
+  return res.base64;
 };

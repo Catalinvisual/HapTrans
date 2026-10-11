@@ -5,7 +5,8 @@ import api from '../lib/api';
 import toast from 'react-hot-toast';
 
 import CustomSelect from '../components/CustomSelect';
-import { generatePayrollPdfBase64 } from '../lib/payrollPdfGenerator';
+import { generatePayrollPdf } from '../lib/payrollPdfGenerator';
+import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { matchesSearch } from '../lib/search';
 import Pagination from '../components/Pagination';
 import KpiStrip from '../components/ui/KpiStrip';
@@ -72,22 +73,17 @@ export default function PayrollPage() {
     }
   };
   const handleDownloadPdf = async (p: any) => {
-    const loadingToast = toast.loading(t('generatingPdf'));
     try {
-      const base64 = await generatePayrollPdfBase64(p, t);
-      const link = document.createElement('a');
-      link.href = `data:application/pdf;base64,${base64}`;
-      link.download = `Fluturas_Salariu_${p.user?.name}_${p.month}_${p.year}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success(t('toast_downloadSuccess'), {
-        id: loadingToast
+      const { blob, filename } = await generatePayrollPdf(p, t);
+      await archiveAndDownloadPdf({
+        pdfBlob: blob,
+        defaultFilename: filename,
+        sourceType: 'payroll',
+        sourceId: p.id,
+        sourceReference: p.user?.name ? `${p.user.name}_${p.year}_${p.month}` : String(p.id),
       });
     } catch (err) {
-      toast.error(t('errGenerate'), {
-        id: loadingToast
-      });
+      toast.error(t('errGenerate', 'Eroare generare PDF'));
     }
   };
   const filtered = payrolls.filter(p => matchesSearch(search, p.user?.name));
@@ -195,8 +191,8 @@ export default function PayrollPage() {
             { key: 'actions', label: t('status') + ' & ' + t('actions'), align: 'right', sticky: 'right', width: '150px', render: (p: any) => (
               <div className="flex items-center justify-end gap-1">
                 <CustomSelect size="sm" className="w-24" value={p.status} onChange={val => handleUpdate(p.id, 'status', val)} options={statusOptions} />
-                <button onClick={() => handleDownloadPdf(p)} className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary-light rounded-md transition-colors" title="Descarcă Fluturaș">
-                  <FileText className="w-4 h-4" />
+                <button onClick={() => handleDownloadPdf(p)} className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary-light rounded-md transition-colors" title={t('download_payslip_for', { name: p.user?.name || '', defaultValue: 'Download payslip for {{name}}' })} aria-label={t('download_payslip_for', { name: p.user?.name || '', defaultValue: 'Download payslip for {{name}}' })}>
+                  <FileText className="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
             ) },

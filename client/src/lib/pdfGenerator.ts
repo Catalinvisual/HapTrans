@@ -139,7 +139,7 @@ async function createBaseDocument(title: string, company: CompanySettings | null
 
 // ─── Generators ──────────────────────────────────────────────────────────────
 
-export async function generateOrderPdf(order: any, company: CompanySettings | null) {
+export async function generateOrderPdf(order: any, company: CompanySettings | null, options?: { autoSave?: boolean }) {
   const { doc, startY } = await createBaseDocument(`Transport Order: ${order?.orderNumber || 'N/A'}`, company, 'landscape');
   let currentY = startY;
 
@@ -248,10 +248,15 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
     doc.text('No cargo details provided.', 40, currentY + 10);
   }
 
-  doc.save(`Order_${order?.orderNumber || 'Document'}.pdf`);
+  const filename = `Order_${order?.orderNumber || 'Document'}.pdf`;
+  if (options?.autoSave !== false) {
+    doc.save(filename);
+  }
+
+  return { doc, blob: doc.output('blob'), filename };
 }
 
-export async function generateClientPdf(client: any, company: CompanySettings | null) {
+export async function generateClientPdf(client: any, company: CompanySettings | null, options?: { autoSave?: boolean }) {
   const { doc, startY } = await createBaseDocument(`Client Profile: ${client?.name || 'N/A'}`, company, 'landscape');
   let currentY = startY;
 
@@ -275,10 +280,15 @@ export async function generateClientPdf(client: any, company: CompanySettings | 
     margin: { left: 40, right: 40 },
   });
 
-  doc.save(`Client_${client?.name?.replace(/[^a-z0-9]/gi, '_') || 'Profile'}.pdf`);
+  const filename = `Client_${client?.name?.replace(/[^a-z0-9]/gi, '_') || 'Profile'}.pdf`;
+  if (options?.autoSave !== false) {
+    doc.save(filename);
+  }
+
+  return { doc, blob: doc.output('blob'), filename };
 }
 
-export async function generateTruckPdf(truck: any, company: CompanySettings | null) {
+export async function generateTruckPdf(truck: any, company: CompanySettings | null, options?: { autoSave?: boolean }) {
   const { doc, startY } = await createBaseDocument(`Truck Profile: ${truck?.plateNumber || 'N/A'}`, company, 'landscape');
   let currentY = startY;
 
@@ -302,10 +312,15 @@ export async function generateTruckPdf(truck: any, company: CompanySettings | nu
     margin: { left: 40, right: 40 },
   });
 
-  doc.save(`Truck_${truck?.plateNumber || 'Specs'}.pdf`);
+  const filename = `Truck_${truck?.plateNumber || 'Specs'}.pdf`;
+  if (options?.autoSave !== false) {
+    doc.save(filename);
+  }
+
+  return { doc, blob: doc.output('blob'), filename };
 }
 
-export async function generateTrailerPdf(trailer: any, company: CompanySettings | null) {
+export async function generateTrailerPdf(trailer: any, company: CompanySettings | null, options?: { autoSave?: boolean }) {
   const { doc, startY } = await createBaseDocument(`Trailer Profile: ${trailer?.plateNumber || 'N/A'}`, company, 'landscape');
   let currentY = startY;
 
@@ -328,5 +343,10 @@ export async function generateTrailerPdf(trailer: any, company: CompanySettings 
     margin: { left: 40, right: 40 },
   });
 
-  doc.save(`Trailer_${trailer?.plateNumber || 'Specs'}.pdf`);
+  const filename = `Trailer_${trailer?.plateNumber || 'Specs'}.pdf`;
+  if (options?.autoSave !== false) {
+    doc.save(filename);
+  }
+
+  return { doc, blob: doc.output('blob'), filename };
 }

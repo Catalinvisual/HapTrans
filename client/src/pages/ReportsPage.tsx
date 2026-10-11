@@ -17,6 +17,7 @@ import ReportChartCard, { chartToPngDataUrl } from '../components/analytics/Repo
 import type { ReportColumn } from '../components/analytics/ReportTable';
 import EmptyState from '../components/analytics/EmptyState';
 import { getCompanySettings } from '../store/settingsStore';
+import { waitForArchiveConfirmation } from '../lib/pdfArchiveHelper';
 
 const SECTION_LABELS: Record<string, string> = {
   operations: 'rp_section_operations',
@@ -183,7 +184,11 @@ export default function ReportsPage() {
         a.download = res.fileName || `report.${format}`;
         a.click();
         window.URL.revokeObjectURL(url);
-        toast.success(t('an_export_done'));
+        if (format === 'pdf' && res.archiveOperationId) {
+          await waitForArchiveConfirmation(res.archiveOperationId, 12000, res.fileName || 'report.pdf');
+        } else {
+          toast.success(t('an_export_done'));
+        }
       }
       loadHistory();
       loadScheduled();
@@ -414,8 +419,8 @@ export default function ReportsPage() {
                       <button onClick={() => window.print()} title={t('rp_print', 'Print')} className="btn-secondary !px-2.5 !py-1.5 text-xs" disabled={!!exporting}>
                         <Printer className="w-4 h-4" />
                       </button>
-                      <button onClick={() => doExport(payload.reportKey, currentFilters(), 'pdf')} disabled={!!exporting} className="btn-secondary !px-3 !py-1.5 text-xs">
-                        {exporting === payload.reportKey + '-pdf' ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4 mr-1.5" />}
+                      <button onClick={() => doExport(payload.reportKey, currentFilters(), 'pdf')} disabled={!!exporting} className="btn-secondary !px-3 !py-1.5 text-xs" title={t('download_report_pdf', { name: payload.reportName, defaultValue: 'Export report PDF: {{name}}' })} aria-label={t('download_report_pdf', { name: payload.reportName, defaultValue: 'Export report PDF: {{name}}' })}>
+                        {exporting === payload.reportKey + '-pdf' ? <LoaderCircle className="w-4 h-4 animate-spin" aria-hidden="true" /> : <FileText className="w-4 h-4 mr-1.5" aria-hidden="true" />}
                         {t('rp_export_pdf')}
                       </button>
                       <button onClick={() => doExport(payload.reportKey, currentFilters(), 'xlsx')} disabled={!!exporting} className="btn-primary !px-3 !py-1.5 text-xs">

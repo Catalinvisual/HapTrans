@@ -19,6 +19,7 @@ import { useShortcuts } from '../hooks/useShortcuts';
 import { useTableShortcuts } from '../hooks/useTableShortcuts';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateClientPdf } from '../lib/pdfGenerator';
+import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 export default function ClientsPage() {
   const confirmSave = useSaveConfirm();
   const formStore = useFormStore();
@@ -166,7 +167,20 @@ export default function ClientsPage() {
       render: c => (
         <div className="flex items-center justify-end gap-0.5" onClick={e => e.stopPropagation()}>
           <button onClick={() => setSelectedClient(c)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('viewDetails', 'View Details')}><Eye className="w-3.5 h-3.5" /></button>
-          <button onClick={async () => { try { await generateClientPdf(c, company); } catch (err) { toast.error(t('error_pdf', 'Failed to generate PDF')); } }} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('pdf', 'Download PDF')}><FileText className="w-3.5 h-3.5" /></button>
+          <button onClick={async () => {
+            try {
+              const { blob, filename } = await generateClientPdf(c, company, { autoSave: false });
+              await archiveAndDownloadPdf({
+                pdfBlob: blob,
+                defaultFilename: filename,
+                sourceType: 'client',
+                sourceId: c.id,
+                sourceReference: c.name || String(c.id),
+              });
+            } catch (err) {
+              toast.error(t('error_pdf', 'Failed to generate PDF'));
+            }
+          }} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('download_client_pdf', { name: c.name, defaultValue: 'Download client profile PDF: {{name}}' })} aria-label={t('download_client_pdf', { name: c.name, defaultValue: 'Download client profile PDF: {{name}}' })}><FileText className="w-3.5 h-3.5" aria-hidden="true" /></button>
           <button onClick={() => setSelectedClient(c)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('edit')}><Pencil className="w-3.5 h-3.5" /></button>
           <button onClick={() => handleDelete(c.id)} className="p-1 text-text-secondary hover:text-error rounded-lg hover:bg-red-50 transition-colors" title={t('delete')}><Trash2 className="w-3.5 h-3.5" /></button>
         </div>

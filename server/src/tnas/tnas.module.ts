@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TnasController } from './tnas.controller';
 import { TnasService } from './tnas.service';
+import { PdfArchivingModule } from '../archiving/pdf-archiving.module';
 
 // Core entities (Legacy 9 datasets)
 import { Document } from '../documents/document.entity';
@@ -74,6 +75,7 @@ import { Message } from '../chat/message.entity';
       WebsiteCms, Lead, JobApplication, ContactMessage,
       Company, SavedReport, ScheduledReport, Message,
     ]),
+    PdfArchivingModule,
   ],
   controllers: [TnasController],
   providers: [TnasService],

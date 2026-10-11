@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { ActionLogsModule } from '../action-logs/action-logs.module';
 import { PdfService } from '../invoices/pdf.service';
+import { PdfArchivingModule } from '../archiving/pdf-archiving.module';
 import { ReportsService } from './reports.service';
 import { ReportsController } from './reports.controller';
 import { ReportsCronService } from './reports-cron.service';
@@ -15,6 +16,7 @@ import { ScheduledReport } from './scheduled-report.entity';
     TypeOrmModule.forFeature([SavedReport, ReportHistory, ScheduledReport]),
     AnalyticsModule,
     ActionLogsModule,
+    PdfArchivingModule,
   ],
   controllers: [ReportsController],
   providers: [ReportsService, PdfService, ReportsCronService],

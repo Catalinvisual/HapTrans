@@ -1,9 +1,13 @@
-import { Controller, Get, Post, Param, Headers, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Headers, UnauthorizedException } from '@nestjs/common';
 import { TnasService } from './tnas.service';
+import { PdfArchivingService } from '../archiving/pdf-archiving.service';
 
 @Controller('tnas')
 export class TnasController {
-  constructor(private service: TnasService) {}
+  constructor(
+    private service: TnasService,
+    private archivingService: PdfArchivingService,
+  ) {}
 
   private checkKey(auth: string) {
     const key = process.env.TNAS_API_KEY;
@@ -26,6 +30,32 @@ export class TnasController {
   ) {
     this.checkKey(auth);
     return this.service.markDownloaded(source, id);
+  }
+
+  // ---- DEDICATED HC-PDF ARCHIVE ENDPOINTS ----
+  @Get('hc-pdf/pending')
+  getHcPdfPending(@Headers('authorization') auth: string) {
+    this.checkKey(auth);
+    return this.archivingService.getPendingHcPdfJobs();
+  }
+
+  @Post('hc-pdf/:id/downloaded')
+  ackHcPdfDownloaded(
+    @Param('id') id: string,
+    @Headers('authorization') auth: string
+  ) {
+    this.checkKey(auth);
+    return this.archivingService.acknowledgeHcPdfDownload(id);
+  }
+
+  @Post('hc-pdf/:id/failed')
+  reportHcPdfFailed(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Headers('authorization') auth: string
+  ) {
+    this.checkKey(auth);
+    return this.archivingService.reportHcPdfFailure(id, body?.reason, body?.retryable);
   }
 
   // ---- BACKUP ENDPOINTS (LEGACY WORKBOOKS) ----

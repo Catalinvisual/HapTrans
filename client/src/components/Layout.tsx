@@ -27,31 +27,34 @@ if (typeof window !== 'undefined') {
 }
 
 const PAGE_TITLES: Record<string, Record<string, string>> = {
-  '/dashboard': { ro: 'Panou de Control', en: 'Dashboard', nl: 'Dashboard' },
-  '/trips': { ro: 'Curse', en: 'Trips', nl: 'Ritten' },
-  '/orders': { ro: 'Comenzi', en: 'Orders', nl: 'Bestellingen', de: 'Bestellungen', fr: 'Commandes' },
-  '/trucks': { ro: 'Camioane', en: 'Trucks', nl: 'Vrachtwagens' },
-  '/trailers': { ro: 'Remorci', en: 'Trailers', nl: 'Aanhangwagens' },
-  '/drivers': { ro: 'Șoferi', en: 'Drivers', nl: 'Chauffeurs' },
-  '/clients': { ro: 'Clienți', en: 'Clients', nl: 'Klanten' },
-  '/map': { ro: 'Hartă Live', en: 'Live Map', nl: 'Live Kaart' },
-  '/documents': { ro: 'Documente', en: 'Documents', nl: 'Documenten' },
-  '/invoices': { ro: 'Facturi', en: 'Invoices', nl: 'Facturen' },
-  '/financial': { ro: 'Financiar', en: 'Financial', nl: 'Financieel' },
-  '/reports': { ro: 'Rapoarte', en: 'Reports', nl: 'Rapporten', de: 'Berichte', fr: 'Rapports' },
-  '/payroll': { ro: 'Salarii (NL)', en: 'Payroll (NL)', nl: 'Salarissen' },
-  '/settlements': { ro: 'Decontări', en: 'Settlements', nl: 'Verrekeningen', de: 'Abrechnungen', fr: 'Règlements' },
-  '/ifta': { ro: 'Raport IFTA', en: 'IFTA Report', nl: 'IFTA-Rapport', de: 'IFTA-Bericht', fr: 'Rapport IFTA' },
-  '/maintenance': { ro: 'Mentenanță', en: 'Maintenance', nl: 'Onderhoud' },
-  '/settings': { ro: 'Setări', en: 'Settings', nl: 'Instellingen' },
-  '/users': { ro: 'Utilizatori', en: 'Users', nl: 'Gebruikers' },
-  '/planning': { ro: 'Planificare', en: 'Planning', nl: 'Planning', de: 'Planung', fr: 'Planification' },
-  '/telematics': { ro: 'Telematică & Dispozitive', en: 'Telematics Hub', nl: 'Telematicahub', de: 'Telematik-Hub', fr: 'Hub Télématique' },
-  '/tachograph': { ro: 'Monitorizare Tahograf', en: 'Tachograph Live', nl: 'Tachograaf Live', de: 'Tachograph Live', fr: 'Tachygraphe en direct' },
-  '/telematics/simulator': { ro: 'Simulator Telematică', en: 'Telematics Simulator', nl: 'Telematicasimulator', de: 'Telematik-Simulator', fr: 'Simulateur Télématique' },
-  '/chat': { ro: 'Chat Dispecerat', en: 'Dispatch Chat', nl: 'Dispatch Chat' },
-  '/website-cms': { ro: 'Conținut Website', en: 'Website Content', nl: 'Website Content' },
-  '/website-quotes': { ro: 'Cereri Ofertă', en: 'Quotes', nl: 'Offertes', de: 'Angebote' },
+  '/dashboard': { ro: 'Panou de Control', en: 'Dashboard', nl: 'Dashboard', de: 'Dashboard', fr: 'Tableau de bord', es: 'Panel de control', pl: 'Pulpit' },
+  '/trips': { ro: 'Curse', en: 'Trips', nl: 'Ritten', de: 'Fahrten', fr: 'Trajets', es: 'Viajes', pl: 'Trasy' },
+  '/orders': { ro: 'Comenzi', en: 'Orders', nl: 'Bestellingen', de: 'Bestellungen', fr: 'Commandes', es: 'Pedidos', pl: 'Zlecenia' },
+  '/trucks': { ro: 'Camioane', en: 'Trucks', nl: 'Vrachtwagens', de: 'Lkw', fr: 'Camions', es: 'Camiones', pl: 'Ciężarówki' },
+  '/trailers': { ro: 'Remorci', en: 'Trailers', nl: 'Aanhangwagens', de: 'Auflieger', fr: 'Remorques', es: 'Remolques', pl: 'Naczepy' },
+  '/drivers': { ro: 'Șoferi', en: 'Drivers', nl: 'Chauffeurs', de: 'Fahrer', fr: 'Chauffeurs', es: 'Conductores', pl: 'Kierowcy' },
+  '/clients': { ro: 'Clienți', en: 'Clients', nl: 'Klanten', de: 'Kunden', fr: 'Clients', es: 'Clientes', pl: 'Klienci' },
+  '/map': { ro: 'Hartă Live', en: 'Live Map', nl: 'Live Kaart', de: 'Live-Karte', fr: 'Carte en direct', es: 'Mapa en vivo', pl: 'Mapa na żywo' },
+  '/tracking': { ro: 'Urmărire Live', en: 'Live Tracking', nl: 'Live Tracking', de: 'Live-Verfolgung', fr: 'Suivi en direct', es: 'Seguimiento en vivo', pl: 'Śledzenie na żywo' },
+  '/track': { ro: 'Urmărire Live', en: 'Live Tracking', nl: 'Live Tracking', de: 'Live-Verfolgung', fr: 'Suivi en direct', es: 'Seguimiento en vivo', pl: 'Śledzenie na żywo' },
+  '/documents': { ro: 'Documente', en: 'Documents', nl: 'Documenten', de: 'Dokumente', fr: 'Documents', es: 'Documentos', pl: 'Dokumenty' },
+  '/invoices': { ro: 'Facturi', en: 'Invoices', nl: 'Facturen', de: 'Rechnungen', fr: 'Factures', es: 'Facturas', pl: 'Faktury' },
+  '/financial': { ro: 'Financiar', en: 'Financial', nl: 'Financieel', de: 'Finanzen', fr: 'Financier', es: 'Finanzas', pl: 'Finanse' },
+  '/reports': { ro: 'Rapoarte', en: 'Reports', nl: 'Rapporten', de: 'Berichte', fr: 'Rapports', es: 'Informes', pl: 'Raporty' },
+  '/payroll': { ro: 'Salarii (NL)', en: 'Payroll (NL)', nl: 'Salarissen', de: 'Lohnabrechnung (NL)', fr: 'Paie (NL)', es: 'Nóminas (NL)', pl: 'Płace (NL)' },
+  '/settlements': { ro: 'Decontări', en: 'Settlements', nl: 'Verrekeningen', de: 'Abrechnungen', fr: 'Règlements', es: 'Liquidaciones', pl: 'Rozliczenia' },
+  '/ifta': { ro: 'Raport IFTA', en: 'IFTA Report', nl: 'IFTA-Rapport', de: 'IFTA-Bericht', fr: 'Rapport IFTA', es: 'Informe IFTA', pl: 'Raport IFTA' },
+  '/maintenance': { ro: 'Mentenanță', en: 'Maintenance', nl: 'Onderhoud', de: 'Wartung', fr: 'Maintenance', es: 'Mantenimiento', pl: 'Konserwacja' },
+  '/expenses': { ro: 'Cheltuieli', en: 'Expenses', nl: 'Uitgaven', de: 'Ausgaben', fr: 'Dépenses', es: 'Gastos', pl: 'Wydatki' },
+  '/settings': { ro: 'Setări', en: 'Settings', nl: 'Instellingen', de: 'Einstellungen', fr: 'Paramètres', es: 'Configuración', pl: 'Ustawienia' },
+  '/users': { ro: 'Utilizatori', en: 'Users', nl: 'Gebruikers', de: 'Benutzer', fr: 'Utilisateurs', es: 'Usuarios', pl: 'Użytkownicy' },
+  '/planning': { ro: 'Planificare', en: 'Planning', nl: 'Planning', de: 'Planung', fr: 'Planification', es: 'Planificación', pl: 'Planowanie' },
+  '/telematics': { ro: 'Telematică & Dispozitive', en: 'Telematics Hub', nl: 'Telematicahub', de: 'Telematik-Hub', fr: 'Hub Télématique', es: 'Centro Telemático', pl: 'Centrum Telematyki' },
+  '/tachograph': { ro: 'Monitorizare Tahograf', en: 'Tachograph Live', nl: 'Tachograaf Live', de: 'Tachograph Live', fr: 'Tachygraphe en direct', es: 'Tacógrafo en vivo', pl: 'Tachograf na żywo' },
+  '/telematics/simulator': { ro: 'Simulator Telematică', en: 'Telematics Simulator', nl: 'Telematicasimulator', de: 'Telematik-Simulator', fr: 'Simulateur Télématique', es: 'Simulador Telemático', pl: 'Symulator Telematyki' },
+  '/chat': { ro: 'Chat Dispecerat', en: 'Dispatch Chat', nl: 'Dispatch Chat', de: 'Disponenten-Chat', fr: 'Chat de répartition', es: 'Chat de despacho', pl: 'Czat dyspozytorski' },
+  '/website-cms': { ro: 'Conținut Website', en: 'Website Content', nl: 'Website Content', de: 'Website-Inhalt', fr: 'Contenu du site', es: 'Contenido del sitio', pl: 'Treść strony' },
+  '/website-quotes': { ro: 'Cereri Ofertă', en: 'Quotes', nl: 'Offertes', de: 'Angebote', fr: 'Devis', es: 'Presupuestos', pl: 'Wyceny' },
 };
 
 // Shared AudioContext to safely handle sound notifications only after user interaction
@@ -102,6 +105,8 @@ const formatNotification = (n: any, lang: string, t: any) => {
     else if (lang === 'nl') title = 'Ritstatus Update';
     else if (lang === 'de') title = 'Fahrtstatus Aktualisierung';
     else if (lang === 'fr') title = 'Mise à jour du statut du trajet';
+    else if (lang === 'es') title = 'Actualización del estado del viaje';
+    else if (lang === 'pl') title = 'Aktualizacja statusu trasy';
     else title = 'Trip Status Update';
   } else if (title.startsWith('notif_')) {
     title = t(title) || title;
@@ -111,6 +116,8 @@ const formatNotification = (n: any, lang: string, t: any) => {
     else if (lang === 'nl') title = 'Document Verloopt Binnenkort';
     else if (lang === 'de') title = 'Dokument läuft bald ab';
     else if (lang === 'fr') title = 'Document expirant bientôt';
+    else if (lang === 'es') title = 'El documento caduca pronto';
+    else if (lang === 'pl') title = 'Dokument wkrótce wygasa';
     else title = 'Document Expiring Soon';
   } else if (title === 'Întârziat') {
     if (lang === 'ro') title = 'Cursă Întârziată';
@@ -118,6 +125,8 @@ const formatNotification = (n: any, lang: string, t: any) => {
     else if (lang === 'nl') title = 'Rit Vertraagd';
     else if (lang === 'de') title = 'Fahrt Verspätet';
     else if (lang === 'fr') title = 'Trajet Retardé';
+    else if (lang === 'es') title = 'Viaje retrasado';
+    else if (lang === 'pl') title = 'Trasa opóźniona';
     else title = 'Trip Delayed';
   } else if (title === 'Risc Întârziere') {
     if (lang === 'ro') title = 'Risc Întârziere Cursă';
@@ -125,13 +134,17 @@ const formatNotification = (n: any, lang: string, t: any) => {
     else if (lang === 'nl') title = 'Risico op Vertraging';
     else if (lang === 'de') title = 'Risiko von Verspätung';
     else if (lang === 'fr') title = 'Risque de Retard';
+    else if (lang === 'es') title = 'Riesgo de retraso';
+    else if (lang === 'pl') title = 'Ryzyko opóźnienia';
     else title = 'Trip Delay Risk';
   } else if (title === 'Factură draft veche (7+ zile)') {
     if (lang === 'ro') title = 'Factură Provizorie (7+ zile)';
     else if (lang === 'en') title = 'Draft Invoice (7+ days)';
     else if (lang === 'nl') title = 'Conceptfactuur (7+ dagen)';
     else if (lang === 'de') title = 'Entwurfsrechnung (7+ Tage)';
-    else if (lang === 'fr') title = 'Facture Brouillon (7+ jours)';
+    else if (lang === 'fr') title = 'Facture brouillon (7+ jours)';
+    else if (lang === 'es') title = 'Factura borrador (7+ días)';
+    else if (lang === 'pl') title = 'Wersja robocza faktury (7+ dni)';
     else title = 'Draft Invoice (7+ days)';
   } else if (title === 'Factură draft uitată (3 zile)') {
     if (lang === 'ro') title = 'Factură Provizorie (3 zile)';
@@ -139,6 +152,8 @@ const formatNotification = (n: any, lang: string, t: any) => {
     else if (lang === 'nl') title = 'Conceptfactuur (3 dagen)';
     else if (lang === 'de') title = 'Entwurfsrechnung (3 Tage)';
     else if (lang === 'fr') title = 'Facture Brouillon (3 jours)';
+    else if (lang === 'es') title = 'Factura borrador (3 días)';
+    else if (lang === 'pl') title = 'Wersja robocza faktury (3 dni)';
     else title = 'Draft Invoice (3 days)';
   } else if (title.includes('Document Nou de la')) {
     const parts = title.split(':');
@@ -339,8 +354,23 @@ export default function Layout() {
   const { user, logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
-  const lang = i18n.language as string;
-  const title = PAGE_TITLES[location.pathname]?.[lang] ?? 'HapCargo';
+  const lang = (i18n.language || 'ro').slice(0, 2);
+  const getPageTitle = (pathname: string, language: string) => {
+    const norm = pathname.endsWith('/') && pathname.length > 1 ? pathname.slice(0, -1) : pathname;
+    const direct = PAGE_TITLES[norm];
+    if (direct) {
+      return direct[language] || direct['en'] || 'HapCargo';
+    }
+    const segments = norm.split('/').filter(Boolean);
+    if (segments.length > 0) {
+      const parent = PAGE_TITLES['/' + segments[0]];
+      if (parent) {
+        return parent[language] || parent['en'] || 'HapCargo';
+      }
+    }
+    return 'HapCargo';
+  };
+  const title = getPageTitle(location.pathname, lang);
   // Dense workspace pages (Planning board) manage their own date controls and spacing.
   const isDenseWorkspace = location.pathname === '/planning';
 
@@ -396,7 +426,7 @@ export default function Layout() {
   }, [isDarkMode]);
 
   useEffect(() => {
-    document.title = title;
+    document.title = title ? `${title} — HapCargo` : 'HapCargo';
   }, [title]);
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);

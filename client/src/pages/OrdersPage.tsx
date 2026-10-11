@@ -24,6 +24,7 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateOrderPdf } from '../lib/pdfGenerator';
+import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { fmtMoney, fmtNumber } from '../lib/format';
 import { countryIso } from '../lib/countries';
 import { matchesSearch } from '../lib/search';
@@ -753,8 +754,19 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
         <>
           <button onClick={async () => {
              const company = useSettingsStore.getState().company;
-             try { await generateOrderPdf(order, company); } catch (e) { toast.error(t('error_pdf', 'Failed to generate PDF')); }
-          }} className="btn-secondary flex items-center gap-1.5 text-sm" title="Download PDF"><FileText className="w-4 h-4" />{t('pdf', 'PDF')}</button>
+             try {
+               const { blob, filename } = await generateOrderPdf(order, company, { autoSave: false });
+               await archiveAndDownloadPdf({
+                 pdfBlob: blob,
+                 defaultFilename: filename,
+                 sourceType: 'order',
+                 sourceId: order.id,
+                 sourceReference: order.orderNumber || order.referenceNumber || String(order.id),
+               });
+             } catch (e) {
+               toast.error(t('error_pdf', 'Failed to generate PDF'));
+             }
+          }} className="btn-secondary flex items-center gap-1.5 text-sm" title={t("download_order_pdf", { reference: order.orderNumber || order.referenceNumber || 'Order', defaultValue: "Download PDF for order {{reference}}" })} aria-label={t("download_order_pdf", { reference: order.orderNumber || order.referenceNumber || 'Order', defaultValue: "Download PDF for order {{reference}}" })}><FileText className="w-4 h-4" aria-hidden="true" />{t('pdf', 'PDF')}</button>
           <button onClick={() => navigate(`/orders/${order.id}`)} className="btn-secondary flex items-center gap-1.5 text-sm"><ExternalLink className="w-4 h-4" />{t('open_order', 'Open page')}</button>
           <button onClick={() => onEdit(order.id)} className="btn-secondary text-sm flex items-center gap-1.5"><Pencil className="w-4 h-4" />{t('edit', 'Edit')}</button>
           <button onClick={() => onDelete(order.id)} className="btn-secondary text-sm flex items-center gap-1.5 text-red-600 border-red-200 hover:bg-red-50"><Trash2 className="w-4 h-4" />{t('delete', 'Delete')}</button>

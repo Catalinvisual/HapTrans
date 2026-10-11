@@ -47,6 +47,7 @@ import { TelematicsModule } from './telematics/telematics.module';
 import { FinancialModule } from './financial/financial.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ReportsModule } from './reports/reports.module';
+import { PdfArchivingModule } from './archiving/pdf-archiving.module';
 
 @Module({
   imports: [
@@ -120,6 +121,7 @@ import { ReportsModule } from './reports/reports.module';
     FinancialModule,
     AnalyticsModule,
     ReportsModule,
+    PdfArchivingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

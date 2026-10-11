@@ -21,6 +21,7 @@ import type { SelectOption } from '../components/CustomSelect';
 import ExportModal from '../components/ExportModal';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateTruckPdf } from '../lib/pdfGenerator';
+import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { matchesSearch } from '../lib/search';
 import { FileText, Calendar, Clock } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -487,9 +488,20 @@ export default function TrucksPage() {
         <div className="flex items-center justify-end gap-0.5" onClick={e => e.stopPropagation()}>
           <button onClick={async (e) => {
              e.stopPropagation();
-             try { await generateTruckPdf(tr, company); } catch (err) { toast.error(t('error_pdf', 'Failed to generate PDF')); }
-          }} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('pdf', 'Download PDF')}>
-            <FileText className="w-3 h-3" />
+             try {
+               const { blob, filename } = await generateTruckPdf(tr, company, { autoSave: false });
+               await archiveAndDownloadPdf({
+                 pdfBlob: blob,
+                 defaultFilename: filename,
+                 sourceType: 'truck',
+                 sourceId: tr.id,
+                 sourceReference: tr.plateNumber || String(tr.id),
+               });
+             } catch (err) {
+               toast.error(t('error_pdf', 'Failed to generate PDF'));
+             }
+          }} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('download_truck_pdf', { plate: tr.plateNumber, defaultValue: 'Download truck profile PDF: {{plate}}' })} aria-label={t('download_truck_pdf', { plate: tr.plateNumber, defaultValue: 'Download truck profile PDF: {{plate}}' })}>
+            <FileText className="w-3 h-3" aria-hidden="true" />
           </button>
           <button onClick={() => setDrawerTruckId(tr.id)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('details', 'Details')}><Eye className="w-3 h-3" /></button>
           <button onClick={() => openEdit(tr)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('edit', 'Edit')}><Pencil className="w-3 h-3" /></button>
