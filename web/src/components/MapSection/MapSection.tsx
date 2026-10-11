@@ -107,6 +107,8 @@ const MapSection = () => {
                   <img
                     src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`}
                     width="20"
+                    loading="lazy"
+                    decoding="async"
                     style={{ borderRadius: '3px', objectFit: 'cover', height: '14px' }}
                     alt={code}
                   />

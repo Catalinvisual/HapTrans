@@ -1,4 +1,6 @@
 .section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 600px;
   position: relative;
   isolation: isolate;
   overflow: hidden;

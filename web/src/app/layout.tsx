@@ -21,6 +21,10 @@ export default function RootLayout({
   return (
     <html lang="ro">
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+        <link rel="dns-prefetch" href="https://flagcdn.com" />
         <link rel="preload" as="video" href="/herovideo.mp4" type="video/mp4" />
       </head>
       <body>

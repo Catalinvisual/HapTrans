@@ -1,4 +1,6 @@
 .section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 600px;
   background: #ffffff;
   padding: var(--space-xl) 1.5rem var(--space-xl);
   position: relative;

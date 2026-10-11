@@ -40,7 +40,15 @@ function parseCountries(value: unknown): number {
 
 export default function TmsStats() {
   const { lang } = useLanguage();
-  const [stats, setStats] = useState<Counts>({ trucks: null, euro6Trucks: null, trips: null, countries: null });
+  const [stats, setStats] = useState<Counts>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('hapcargo_cached_tms_stats');
+        if (cached) return JSON.parse(cached);
+      } catch {}
+    }
+    return { trucks: null, euro6Trucks: null, trips: null, countries: null };
+  });
 
   useEffect(() => {
     let disposed = false;
