@@ -14,12 +14,15 @@ services:
       - SAAS_API_BASE_URL=${SAAS_API_BASE_URL:-https://haptrans-production.up.railway.app}
       - TNAS_API_KEY=${TNAS_API_KEY}
       - TARGET_DIR=/hc-pdf
+      - RECEIPTS_DIR=/receipts
       - SYNC_INTERVAL_MS=2500
     volumes:
       # Application script mounted read-only for hot-updates without rebuilding
       - ./hc-pdf-sync.js:/app/hc-pdf-sync.js:ro
       # Physical NAS shared folder mounted read-write directly into /hc-pdf
       - /Volume3/HC-PDF:/hc-pdf:rw
+      # Dedicated receipts directory outside the HC-PDF shared folder
+      - /Volume3/docker/hc-pdf-sync/receipts:/receipts:rw
     command: ["node", "hc-pdf-sync.js"]
     healthcheck:
       test: ["CMD-SHELL", "test -w /hc-pdf || exit 1"]

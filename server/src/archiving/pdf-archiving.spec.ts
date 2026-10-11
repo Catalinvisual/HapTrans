@@ -80,13 +80,17 @@ describe('PdfArchivingService & Integration Tests (Hardened)', () => {
       findOne: jest.fn(async ({ where }) => {
         if (where.id) return records.find((r) => r.id === where.id) || null;
         if (where.fileName) return records.find((r) => r.fileName === where.fileName) || null;
+        if (where.targetFilename) return records.find((r) => r.targetFilename === where.targetFilename) || null;
         return null;
       }),
-      find: jest.fn(async ({ where }) => {
+      find: jest.fn(async (args) => {
+        const where = args?.where || {};
         return records.filter((r) => {
           if (where.targetShare && r.targetShare !== where.targetShare) return false;
           if (where.status && r.status !== where.status) return false;
           if (where.tnasDownloaded !== undefined && r.tnasDownloaded !== where.tnasDownloaded) return false;
+          if (where.sourceType && r.sourceType !== where.sourceType) return false;
+          if (where.sourceId && r.sourceId !== where.sourceId) return false;
           return true;
         });
       }),
@@ -137,7 +141,8 @@ describe('PdfArchivingService & Integration Tests (Hardened)', () => {
     expect(record.status).toBe(ArchiveStatus.PENDING);
     expect(record.targetShare).toBe('HC-PDF');
     expect(record.tnasDownloaded).toBe(false);
-    expect(record.fileName).toMatch(/^Order_ORD-2026-001_\d{8}_\d{6}_[a-f0-9]{4}\.pdf$/);
+    expect(record.targetFilename).toBe('Order_ORD-2026-001.pdf');
+    expect(record.fileName).toBeDefined();
     expect(record.companyId).toBe('comp-1');
   });
 
@@ -273,8 +278,8 @@ describe('PdfArchivingService & Integration Tests (Hardened)', () => {
     expect(ack.filename).toBe('Order_ORD-COLLISION_1.pdf');
 
     const updated = await mockRepo.findOne({ where: { id: record.id } });
-    expect(updated.fileName).toBe('Order_ORD-COLLISION_1.pdf');
     expect(updated.committedFileName).toBe('Order_ORD-COLLISION_1.pdf');
+    expect(updated.targetFilename).toBe('Order_ORD-COLLISION_1.pdf');
     expect(updated.bytes).toBe(1024);
   });
 
@@ -497,5 +502,161 @@ describe('PdfArchivingService & Integration Tests (Hardened)', () => {
     const updated = await mockRepo.findOne({ where: { id: record.id } });
     expect(updated.status).toBe(ArchiveStatus.ARCHIVED);
     expect(updated.tnasDownloaded).toBe(true);
+  });
+
+  // 21. Stable Target Filename Without Timestamps or Random Suffixes
+  it('21. creates expected stable target filename without timestamps or random suffixes', async () => {
+    const truckRecord = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'truck',
+      sourceId: 'truck-uuid-1',
+      sourceReference: 'B-123-XYZ',
+      requestedFilename: 'Truck_B-123-XYZ.pdf',
+    });
+
+    expect(truckRecord.targetFilename).toBe('Truck_B-123-XYZ.pdf');
+    expect(truckRecord.targetFilename).not.toMatch(/_\d{8}_\d{6}/);
+    expect(truckRecord.targetFilename).not.toMatch(/_[a-f0-9]{4}\.pdf$/);
+
+    const orderRecord = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'order',
+      sourceId: 'order-uuid-1',
+      sourceReference: 'ORD-2026-999',
+      requestedFilename: 'Order_ORD-2026-999.pdf',
+    });
+
+    expect(orderRecord.targetFilename).toBe('Order_ORD-2026-999.pdf');
+  });
+
+  // 22. Regenerating a Truck PDF Enqueues New Content and Targets the Same Stable Filename
+  it('22. regenerating a truck PDF targets the same stable filename and replaces previously archived document', async () => {
+    // 1st generation
+    const gen1 = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'truck',
+      sourceId: 'truck-uuid-10',
+      sourceReference: 'B-100-AAA',
+      requestedFilename: 'Truck_B-100-AAA.pdf',
+    });
+    expect(gen1.targetFilename).toBe('Truck_B-100-AAA.pdf');
+
+    // NAS worker confirms Job 1
+    await tnasController.ackHcPdfDownloaded(gen1.id, { committedFilename: 'Truck_B-100-AAA.pdf' }, 'Bearer test-secret-key-123');
+    const gen1Archived = await mockRepo.findOne({ where: { id: gen1.id } });
+    expect(gen1Archived.status).toBe(ArchiveStatus.ARCHIVED);
+
+    // 2nd generation (Regeneration with new content)
+    const newPdfBuffer = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Specs "Updated" >>\nendobj\ntrailer\n<<>>\nstartxref\n123\n%%EOF');
+    const gen2 = await service.stageAndCreateArchiveRecord(newPdfBuffer, {
+      sourceType: 'truck',
+      sourceId: 'truck-uuid-10',
+      sourceReference: 'B-100-AAA',
+      requestedFilename: 'Truck_B-100-AAA.pdf',
+    });
+
+    // Gen 2 is enqueued as a NEW pending job
+    expect(gen2.id).not.toBe(gen1.id);
+    expect(gen2.status).toBe(ArchiveStatus.PENDING);
+    // Gen 2 targets the EXACT same stable filename
+    expect(gen2.targetFilename).toBe('Truck_B-100-AAA.pdf');
+
+    // Pending jobs list contains gen2 with targetFilename Truck_B-100-AAA.pdf
+    const pendingJobs = await service.getPendingHcPdfJobs('test-worker');
+    const jobInQueue = pendingJobs.find((j) => j.id === gen2.id);
+    expect(jobInQueue).toBeDefined();
+    expect(jobInQueue?.filename).toBe('Truck_B-100-AAA.pdf');
+
+    // Worker acknowledges Gen 2
+    const ack2 = await tnasController.ackHcPdfDownloaded(gen2.id, { committedFilename: 'Truck_B-100-AAA.pdf' }, 'Bearer test-secret-key-123');
+    expect(ack2.success).toBe(true);
+    expect(ack2.filename).toBe('Truck_B-100-AAA.pdf');
+
+    const gen2Archived = await mockRepo.findOne({ where: { id: gen2.id } });
+    expect(gen2Archived.status).toBe(ArchiveStatus.ARCHIVED);
+    expect(gen2Archived.committedFileName).toBe('Truck_B-100-AAA.pdf');
+  });
+
+  // 23. Regeneration Behavior Works for Trailers, Clients, and Orders
+  it('23. regeneration works for trailers, clients, and orders targeting the same stable filename', async () => {
+    const documentTypes = [
+      { type: 'trailer', id: 'trl-1', ref: 'B-555-XYZ', filename: 'Trailer_B-555-XYZ.pdf' },
+      { type: 'order', id: 'ord-1', ref: 'ORD-777', filename: 'Order_ORD-777.pdf' },
+      { type: 'client', id: 'cl-1', ref: 'Trans_Euro', filename: 'Client_Trans_Euro.pdf' },
+    ];
+
+    for (const doc of documentTypes) {
+      const rec1 = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+        sourceType: doc.type,
+        sourceId: doc.id,
+        sourceReference: doc.ref,
+        requestedFilename: doc.filename,
+      });
+      expect(rec1.targetFilename).toBe(doc.filename);
+      await tnasController.ackHcPdfDownloaded(rec1.id, { committedFilename: doc.filename }, 'Bearer test-secret-key-123');
+
+      // Regeneration
+      const rec2 = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+        sourceType: doc.type,
+        sourceId: doc.id,
+        sourceReference: doc.ref,
+        requestedFilename: doc.filename,
+      });
+      expect(rec2.targetFilename).toBe(doc.filename);
+      expect(rec2.id).not.toBe(rec1.id);
+    }
+  });
+
+  // 24. Two Different Entities with Identical Names Cannot Overwrite Each Other
+  it('24. prevents accidental overwrite between two different clients with identical names', async () => {
+    // Client A: named "Acme Logistics", id "client-A-uuid"
+    const clientA = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'client',
+      sourceId: 'client-A-uuid',
+      sourceReference: 'Acme Logistics',
+      requestedFilename: 'Client_Acme_Logistics.pdf',
+    });
+    expect(clientA.targetFilename).toBe('Client_Acme_Logistics.pdf');
+
+    // Client B: also named "Acme Logistics", id "client-B-uuid"
+    const clientB = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'client',
+      sourceId: 'client-B-uuid',
+      sourceReference: 'Acme Logistics',
+      requestedFilename: 'Client_Acme_Logistics.pdf',
+    });
+
+    // Client B must NOT overwrite Client A's filename! It is disambiguated by its document identity (sourceId)
+    expect(clientB.targetFilename).not.toBe(clientA.targetFilename);
+    expect(clientB.targetFilename).toBe('Client_Acme_Logistics_client-B-uuid.pdf');
+
+    // Repeated generation of Client A still targets Client A's filename
+    const clientARegen = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'client',
+      sourceId: 'client-A-uuid',
+      sourceReference: 'Acme Logistics',
+      requestedFilename: 'Client_Acme_Logistics.pdf',
+    });
+    expect(clientARegen.targetFilename).toBe('Client_Acme_Logistics.pdf');
+  });
+
+  // 25. Database Unique Constraint on fileName is Preserved Without Conflict
+  it('25. preserves unique database constraints across multiple regenerations of the same document', async () => {
+    const gen1 = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'order',
+      sourceId: 'ord-unique-test',
+      sourceReference: 'ORD-STABLE',
+      requestedFilename: 'Order_ORD-STABLE.pdf',
+    });
+
+    const gen2 = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'order',
+      sourceId: 'ord-unique-test',
+      sourceReference: 'ORD-STABLE',
+      requestedFilename: 'Order_ORD-STABLE.pdf',
+    });
+
+    // Internal fileName values must remain distinct to satisfy DB unique constraints
+    expect(gen1.fileName).not.toBe(gen2.fileName);
+    // While targetFilename is identical
+    expect(gen1.targetFilename).toBe('Order_ORD-STABLE.pdf');
+    expect(gen2.targetFilename).toBe('Order_ORD-STABLE.pdf');
   });
 });

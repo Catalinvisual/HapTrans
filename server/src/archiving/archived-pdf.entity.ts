@@ -18,6 +18,8 @@ export enum ArchiveStatus {
 @Index('IDX_archived_pdfs_companyId', ['companyId'])
 @Index('IDX_archived_pdfs_createdAt', ['createdAt'])
 @Index('IDX_archived_pdfs_lease', ['status', 'lockedAt'])
+@Index('IDX_archived_pdfs_targetFilename', ['targetFilename'])
+@Index('IDX_archived_pdfs_sourceType_sourceId', ['sourceType', 'sourceId'])
 export class ArchivedPdf {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -38,14 +40,18 @@ export class ArchivedPdf {
   @Column({ type: 'varchar', length: 255, nullable: true })
   sourceReference: string | null;
 
-  /** Safe, unique, sanitized filename placed directly in /hc-pdf root */
+  /** Stable destination filename on the NAS (e.g. Truck_B123XYZ.pdf) */
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  targetFilename: string | null;
+
+  /** Safe, unique internal staging filename placed directly in /hc-pdf root */
   @Column({ type: 'varchar', length: 255, unique: true })
   fileName: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   originalFileName: string | null;
 
-  /** The actual committed filename on the NAS (in case of collision resolution) */
+  /** The actual committed filename on the NAS */
   @Column({ type: 'varchar', length: 255, nullable: true })
   committedFileName: string | null;
 

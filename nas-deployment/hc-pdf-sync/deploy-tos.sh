@@ -11,6 +11,12 @@ if [ ! -d "/Volume3/HC-PDF" ]; then
   mkdir -p /Volume3/HC-PDF
 fi
 
+# 1b. Ensure dedicated receipts directory exists outside shared folder
+if [ ! -d "/Volume3/docker/hc-pdf-sync/receipts" ]; then
+  echo "[INFO] Creating /Volume3/docker/hc-pdf-sync/receipts directory..."
+  mkdir -p /Volume3/docker/hc-pdf-sync/receipts
+fi
+
 # 2. Check write permissions on host directory
 if [ ! -w "/Volume3/HC-PDF" ]; then
   echo "[WARN] /Volume3/HC-PDF is not writable. Setting permissions (chmod 775)..."

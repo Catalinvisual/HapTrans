@@ -90,6 +90,67 @@ export class PdfArchivingService {
   }
 
   /**
+   * Resolves a stable, readable, deterministic NAS destination filename adhering to:
+   * 1. Preserves requested stable filename where practical (e.g. Truck_B123XYZ.pdf, Order_ORD-2026-089.pdf).
+   * 2. No timestamps or random suffixes in the target filename.
+   * 3. Repeated generation of the same logical document (same sourceType and sourceId) targets the exact same filename.
+   * 4. Different documents (different sourceType or sourceId) do not collide, even if client names are identical.
+   */
+  async resolveTargetFilename(meta: ArchiveMetadata): Promise<string> {
+    const cleanType = (meta.sourceType || 'document')
+      .charAt(0)
+      .toUpperCase() + (meta.sourceType || 'document').slice(1).toLowerCase();
+
+    let candidate = '';
+
+    if (meta.requestedFilename) {
+      let name = path.basename(meta.requestedFilename).replace(/\0/g, '');
+      // Strip temporary or random suffixes if mistakenly passed (e.g. _20261011_143022_a8f1 or _1.pdf)
+      name = name.replace(/_\d{8}_\d{6}_[a-f0-9]{4}(?=\.pdf$)/i, '');
+      name = name.replace(/[^a-zA-Z0-9_\.-]/g, '_');
+      if (!name.toLowerCase().endsWith('.pdf')) {
+        name = `${name}.pdf`;
+      }
+      candidate = name;
+    }
+
+    if (!candidate || candidate === '.pdf' || candidate === 'document.pdf') {
+      const safeRef = this.sanitizeReference(meta.sourceReference || meta.sourceId || 'Document');
+      candidate = `${cleanType}_${safeRef}.pdf`;
+    }
+
+    candidate = candidate.replace(/^\.+/, '');
+    if (!candidate.toLowerCase().endsWith('.pdf')) {
+      candidate = `${candidate}.pdf`;
+    }
+
+    // Document Identity Check:
+    // If another archived record already used this targetFilename, verify document identity.
+    const existing = await this.repo.findOne({
+      where: { targetFilename: candidate },
+    });
+
+    if (existing) {
+      const isSameDocument =
+        existing.sourceType === meta.sourceType &&
+        Boolean(meta.sourceId) &&
+        existing.sourceId === meta.sourceId;
+
+      if (!isSameDocument && meta.sourceId) {
+        // Disambiguate different entities sharing identical names (e.g. two clients named "Acme")
+        const ext = path.extname(candidate);
+        const base = path.basename(candidate, ext);
+        const disambiguator = this.sanitizeReference(meta.sourceId);
+        if (!base.endsWith(disambiguator)) {
+          candidate = `${base}_${disambiguator}${ext}`;
+        }
+      }
+    }
+
+    return candidate;
+  }
+
+  /**
    * Generates a safe, descriptive, collision-resistant filename adhering to:
    * <DocType>_<safe-reference>_<YYYYMMDD_HHmmss>_<randomHex>.pdf
    * Example: Order_ORD-2026-089_20261011_143022_a8f1.pdf
@@ -150,6 +211,7 @@ export class PdfArchivingService {
 
   /**
    * Stages a PDF buffer and creates a persistent archive record with status 'pending'.
+   * Always enqueues the newly generated PDF content even if previously archived.
    */
   async stageAndCreateArchiveRecord(
     buffer: Buffer,
@@ -157,30 +219,34 @@ export class PdfArchivingService {
   ): Promise<ArchivedPdf> {
     this.validatePdfBuffer(buffer);
 
-    // Deduplication check: If an identical pending archive job already exists for this source, reuse it to avoid duplicate job creation
+    const targetFilename = await this.resolveTargetFilename(meta);
+
+    // If there were older pending jobs for this exact document, mark them superseded
     if (meta.sourceId) {
-      const existingPending = await this.repo.findOne({
+      const olderPending = await this.repo.find({
         where: {
           sourceType: meta.sourceType,
           sourceId: meta.sourceId,
           targetShare: 'HC-PDF',
           status: ArchiveStatus.PENDING,
         },
-        order: { createdAt: 'DESC' },
       });
-      if (existingPending) {
-        this.logger.log(`Reusing existing pending archive job ${existingPending.id} for ${meta.sourceType}:${meta.sourceId}`);
-        return existingPending;
+      for (const p of olderPending) {
+        p.status = ArchiveStatus.FAILED;
+        p.isRetryable = false;
+        p.errorMessage = 'Superseded by newer PDF generation';
+        await this.repo.save(p);
       }
     }
 
-    const finalFileName = await this.generateUniqueFilename(
+    // Generate unique internal staging filename for Cloudinary and DB unique constraint
+    const stagingFileName = await this.generateUniqueFilename(
       meta.sourceType,
       meta.sourceReference || meta.sourceId
     );
 
     // Upload to Cloudinary staging folder
-    const stagingResult = await this.uploadToStaging(buffer, finalFileName);
+    const stagingResult = await this.uploadToStaging(buffer, stagingFileName);
 
     // Derive company isolation from authenticated user context (never trust client)
     const companyId = meta.user?.companyId || meta.companyId || null;
@@ -192,8 +258,10 @@ export class PdfArchivingService {
       sourceType: meta.sourceType,
       sourceId: meta.sourceId || null,
       sourceReference: meta.sourceReference ? this.sanitizeReference(meta.sourceReference) : null,
-      fileName: finalFileName,
-      originalFileName: meta.requestedFilename || finalFileName,
+      targetFilename,
+      fileName: stagingFileName,
+      originalFileName: meta.requestedFilename || targetFilename,
+      committedFileName: null,
       fileUrl: stagingResult.secure_url || stagingResult.url,
       publicId: stagingResult.public_id,
       resourceType: 'raw',
@@ -226,7 +294,7 @@ export class PdfArchivingService {
   }> {
     const record = await this.stageAndCreateArchiveRecord(buffer, meta);
     const id = record.id;
-    const filename = record.committedFileName || record.fileName;
+    const filename = record.targetFilename || record.committedFileName || record.fileName;
 
     const startTime = Date.now();
     const pollInterval = 350;
@@ -240,7 +308,7 @@ export class PdfArchivingService {
       if (current.status === ArchiveStatus.ARCHIVED) {
         return {
           operationId: id,
-          filename: current.committedFileName || current.fileName,
+          filename: current.committedFileName || current.targetFilename || current.fileName,
           status: ArchiveStatus.ARCHIVED,
           archivedAt: current.archivedAt,
         };
@@ -249,7 +317,7 @@ export class PdfArchivingService {
       if (current.status === ArchiveStatus.FAILED) {
         return {
           operationId: id,
-          filename: current.committedFileName || current.fileName,
+          filename: current.committedFileName || current.targetFilename || current.fileName,
           status: ArchiveStatus.FAILED,
           error: current.errorMessage || 'NAS explicit failure',
         };
@@ -321,7 +389,7 @@ export class PdfArchivingService {
 
     return candidateJobs.map((job) => ({
       id: job.id,
-      filename: job.committedFileName || job.fileName,
+      filename: job.targetFilename || job.committedFileName || job.fileName,
       targetShare: 'HC-PDF',
       bytes: Number(job.bytes) || 0,
       signedUrl: this.generateSignedUrl(job, 15 * 60), // 15 mins
@@ -334,7 +402,7 @@ export class PdfArchivingService {
    * into the root of /hc-pdf.
    *
    * Idempotent: If the job has already been marked ARCHIVED, returns success without error.
-   * Synchronizes committedFileName to ensure the filename stored matches the physical file.
+   * Synchronizes committedFileName and targetFilename without violating unique DB constraints on fileName.
    */
   async acknowledgeHcPdfDownload(
     id: string,
@@ -346,21 +414,25 @@ export class PdfArchivingService {
       throw new NotFoundException(`Archive job ${id} not found`);
     }
 
+    const returnFilename = record.committedFileName || record.targetFilename || record.fileName;
+
     // Idempotency: duplicate ACKs are recognized and reconciled safely
     if (record.status === ArchiveStatus.ARCHIVED) {
-      this.logger.log(`HC-PDF archive already acknowledged: ${record.fileName} (${record.id}) - idempotent response`);
+      this.logger.log(`HC-PDF archive already acknowledged: ${returnFilename} (${record.id}) - idempotent response`);
       return {
         success: true,
-        filename: record.committedFileName || record.fileName,
+        filename: returnFilename,
         alreadyArchived: true,
       };
     }
 
-    // If collision resolution or worker determined actual committed filename, persist it
+    // Persist actual committed filename on the NAS
     if (body?.committedFilename) {
       const sanitizedName = path.basename(body.committedFilename).replace(/[^\w\s\.-]/gi, '_');
       record.committedFileName = sanitizedName;
-      record.fileName = sanitizedName;
+      record.targetFilename = sanitizedName;
+    } else if (!record.committedFileName) {
+      record.committedFileName = record.targetFilename || record.fileName;
     }
 
     if (body?.bytes && Number(body.bytes) > 0) {
@@ -375,14 +447,15 @@ export class PdfArchivingService {
     record.lockedBy = null;
 
     await this.repo.save(record);
-    this.logger.log(`HC-PDF archive confirmed: ${record.fileName} (${record.id})`);
+    const finalCommitted = record.committedFileName || record.targetFilename || record.fileName;
+    this.logger.log(`HC-PDF archive confirmed: ${finalCommitted} (${record.id})`);
 
     // Safe Staging Cleanup: Clean Cloudinary staging asset now that NAS holds final file
     this.safeCleanupStaging(record).catch((err) =>
       this.logger.warn(`Staging cleanup deferred for ${record.id}: ${err.message}`)
     );
 
-    return { success: true, filename: record.fileName };
+    return { success: true, filename: finalCommitted };
   }
 
   /**
@@ -438,7 +511,7 @@ export class PdfArchivingService {
     return {
       id: record.id,
       status: record.status,
-      filename: record.fileName,
+      filename: record.committedFileName || record.targetFilename || record.fileName,
       archivedAt: record.archivedAt,
       errorMessage: record.errorMessage,
       createdAt: record.createdAt,
