@@ -182,30 +182,56 @@ async function processArchiveJob(job, targetDir, baseUrl, apiKey, workerId = WOR
   const receiptsDir = path.join(targetDir, '.receipts');
   const receiptPath = path.join(receiptsDir, `${id}.json`);
 
+  let isAlreadyCommitted = false;
+  let committedFilename = null;
+  let committedBytes = 0;
+
   // 1. Check idempotency: Has this exact job already been committed to disk?
   if (fs.existsSync(receiptPath)) {
     try {
       const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf-8'));
       const existingCommittedPath = path.join(targetDir, receipt.finalFilename);
       if (fs.existsSync(existingCommittedPath)) {
-        const existingBytes = validatePdfFile(existingCommittedPath);
-        console.log(`[IDEMPOTENT] Job ${id} already committed as ${receipt.finalFilename} (${existingBytes} bytes). Re-sending ACK.`);
-        
-        await axios.post(
-          `${baseUrl}/api/tnas/hc-pdf/${id}/downloaded`,
-          { committedFilename: receipt.finalFilename, bytes: existingBytes },
-          {
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              'X-Worker-Id': workerId,
-            },
-            timeout: 10000,
-          }
-        );
-        return { success: true, finalFilename: receipt.finalFilename, bytes: existingBytes, idempotent: true };
+        committedBytes = validatePdfFile(existingCommittedPath);
+        committedFilename = receipt.finalFilename;
+        isAlreadyCommitted = true;
+      } else {
+        console.warn(`[WARN] Receipt found for ${id} but committed file ${receipt.finalFilename} is missing on disk.`);
       }
     } catch (receiptErr) {
-      console.warn(`[WARN] Receipt inspection failed for ${id}: ${receiptErr.message}. Proceeding to re-download.`);
+      console.warn(`[WARN] Corrupt or unreadable receipt file for ${id}: ${receiptErr.message}.`);
+    }
+  }
+
+  // 1b. If already committed to disk, attempt acknowledgement in isolation
+  // CRITICAL FIX: An ACK failure MUST NEVER trigger re-downloading or generating duplicate files!
+  if (isAlreadyCommitted) {
+    console.log(`[IDEMPOTENT] Job ${id} already committed as ${committedFilename} (${committedBytes} bytes). Re-sending ACK.`);
+    try {
+      const ackRes = await axios.post(
+        `${baseUrl}/api/tnas/hc-pdf/${id}/downloaded`,
+        { committedFilename, bytes: committedBytes },
+        {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'X-Worker-Id': workerId,
+          },
+          timeout: 10000,
+        }
+      );
+      console.log(`[OK] ACK confirmed for ${id} (${committedFilename}, HTTP ${ackRes.status})`);
+      return { success: true, finalFilename: committedFilename, bytes: committedBytes, idempotent: true };
+    } catch (ackErr) {
+      const status = ackErr.response ? ackErr.response.status : 'NETWORK_ERROR';
+      const msg = ackErr.response?.data?.message || ackErr.message;
+      console.error(`[ACK_RETRY_FAILED] Acknowledgement for committed job ${id} (${committedFilename}) failed (HTTP ${status}): ${msg}. NOT re-downloading.`);
+      return {
+        success: false,
+        error: `ACK failed (HTTP ${status}): ${msg}`,
+        finalFilename: committedFilename,
+        committed: true,
+        retryable: true,
+      };
     }
   }
 
@@ -240,12 +266,12 @@ async function processArchiveJob(job, targetDir, baseUrl, apiKey, workerId = WOR
       throw new Error(`Committed file missing at ${finalPath}`);
     }
 
-    // 6. Record persistent receipt for idempotency
+    // 6. Record persistent receipt for idempotency atomically
     try {
       if (!fs.existsSync(receiptsDir)) {
         fs.mkdirSync(receiptsDir, { recursive: true });
       }
-      const receiptTmp = path.join(receiptsDir, `.tmp_${id}_${Date.now()}`);
+      const receiptTmp = path.join(receiptsDir, `.tmp_${id}_${Date.now()}.json`);
       fs.writeFileSync(receiptTmp, JSON.stringify({
         id,
         finalFilename,
@@ -258,20 +284,32 @@ async function processArchiveJob(job, targetDir, baseUrl, apiKey, workerId = WOR
     }
 
     // 7. Send completion acknowledgement with actual committed filename
-    await axios.post(
-      `${baseUrl}/api/tnas/hc-pdf/${id}/downloaded`,
-      { committedFilename: finalFilename, bytes: bytesWritten },
-      {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'X-Worker-Id': workerId,
-        },
-        timeout: 10000,
-      }
-    );
-
-    console.log(`[OK] [${new Date().toISOString()}] Archived: ${finalFilename} (${bytesWritten} bytes, Job: ${id})`);
-    return { success: true, finalFilename, bytes: bytesWritten };
+    try {
+      const ackRes = await axios.post(
+        `${baseUrl}/api/tnas/hc-pdf/${id}/downloaded`,
+        { committedFilename: finalFilename, bytes: bytesWritten },
+        {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'X-Worker-Id': workerId,
+          },
+          timeout: 10000,
+        }
+      );
+      console.log(`[OK] [${new Date().toISOString()}] Archived: ${finalFilename} (${bytesWritten} bytes, Job: ${id}, HTTP ${ackRes.status})`);
+      return { success: true, finalFilename, bytes: bytesWritten };
+    } catch (ackErr) {
+      const status = ackErr.response ? ackErr.response.status : 'NETWORK_ERROR';
+      const msg = ackErr.response?.data?.message || ackErr.message;
+      console.error(`[ACK_FAILED] Job ${id} committed as ${finalFilename} (${bytesWritten} bytes), but acknowledgement failed (HTTP ${status}): ${msg}. Receipt saved. Will re-ACK on next cycle.`);
+      return {
+        success: false,
+        finalFilename,
+        error: `ACK failed (HTTP ${status}): ${msg}`,
+        committed: true,
+        retryable: true,
+      };
+    }
   } catch (err) {
     // Cleanup incomplete temporary file
     if (fs.existsSync(tmpPath)) {

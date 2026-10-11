@@ -16,23 +16,7 @@ export class TnasController {
     }
   }
 
-  @Get('pending')
-  getPending(@Headers('authorization') auth: string) {
-    this.checkKey(auth);
-    return this.service.getPendingFiles();
-  }
-
-  @Post(':source/:id/downloaded')
-  markDownloaded(
-    @Param('source') source: string,
-    @Param('id') id: string,
-    @Headers('authorization') auth: string
-  ) {
-    this.checkKey(auth);
-    return this.service.markDownloaded(source, id);
-  }
-
-  // ---- DEDICATED HC-PDF ARCHIVE ENDPOINTS ----
+  // ---- DEDICATED HC-PDF ARCHIVE ENDPOINTS (MUST PRECEDE WILDCARD :source ROUTES) ----
   @Get('hc-pdf/pending')
   getHcPdfPending(
     @Headers('authorization') auth: string,
@@ -62,6 +46,29 @@ export class TnasController {
   ) {
     this.checkKey(auth);
     return this.archivingService.reportHcPdfFailure(id, body?.reason, body?.retryable, workerId || 'default-worker');
+  }
+
+  // ---- LEGACY TNAS INVOICE & DOCUMENT ENDPOINTS ----
+  @Get('pending')
+  getPending(@Headers('authorization') auth: string) {
+    this.checkKey(auth);
+    return this.service.getPendingFiles();
+  }
+
+  @Post(':source/:id/downloaded')
+  markDownloaded(
+    @Param('source') source: string,
+    @Param('id') id: string,
+    @Body() body: any,
+    @Headers('authorization') auth: string,
+    @Headers('x-worker-id') workerId?: string
+  ) {
+    this.checkKey(auth);
+    // Defensive safeguard in case any proxy or router sends hc-pdf through parameterized route
+    if (source === 'hc-pdf') {
+      return this.archivingService.acknowledgeHcPdfDownload(id, body, workerId || 'default-worker');
+    }
+    return this.service.markDownloaded(source, id);
   }
 
   // ---- BACKUP ENDPOINTS (LEGACY WORKBOOKS) ----

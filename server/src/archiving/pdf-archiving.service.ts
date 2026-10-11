@@ -157,6 +157,23 @@ export class PdfArchivingService {
   ): Promise<ArchivedPdf> {
     this.validatePdfBuffer(buffer);
 
+    // Deduplication check: If an identical pending archive job already exists for this source, reuse it to avoid duplicate job creation
+    if (meta.sourceId) {
+      const existingPending = await this.repo.findOne({
+        where: {
+          sourceType: meta.sourceType,
+          sourceId: meta.sourceId,
+          targetShare: 'HC-PDF',
+          status: ArchiveStatus.PENDING,
+        },
+        order: { createdAt: 'DESC' },
+      });
+      if (existingPending) {
+        this.logger.log(`Reusing existing pending archive job ${existingPending.id} for ${meta.sourceType}:${meta.sourceId}`);
+        return existingPending;
+      }
+    }
+
     const finalFileName = await this.generateUniqueFilename(
       meta.sourceType,
       meta.sourceReference || meta.sourceId
@@ -209,7 +226,7 @@ export class PdfArchivingService {
   }> {
     const record = await this.stageAndCreateArchiveRecord(buffer, meta);
     const id = record.id;
-    const filename = record.fileName;
+    const filename = record.committedFileName || record.fileName;
 
     const startTime = Date.now();
     const pollInterval = 350;
@@ -223,7 +240,7 @@ export class PdfArchivingService {
       if (current.status === ArchiveStatus.ARCHIVED) {
         return {
           operationId: id,
-          filename,
+          filename: current.committedFileName || current.fileName,
           status: ArchiveStatus.ARCHIVED,
           archivedAt: current.archivedAt,
         };
@@ -232,7 +249,7 @@ export class PdfArchivingService {
       if (current.status === ArchiveStatus.FAILED) {
         return {
           operationId: id,
-          filename,
+          filename: current.committedFileName || current.fileName,
           status: ArchiveStatus.FAILED,
           error: current.errorMessage || 'NAS explicit failure',
         };

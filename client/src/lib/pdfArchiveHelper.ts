@@ -141,17 +141,18 @@ export async function archiveAndDownloadPdf(opts: ArchiveAndDownloadOptions): Pr
         { id: toastId }
       );
     } else {
-      // Pending after timeout - distinguish clearly that local download succeeded but NAS write is still pending
+      // Pending after timeout: queued on server and pending confirmation on NAS
       toast(
         i18n.t('archivingToNasPending', {
-          defaultValue: 'PDF descărcat local. Arhivarea pe TerraMaster (HC-PDF) este încă în curs de confirmare.',
+          defaultValue: 'Arhivarea pe TerraMaster (HC-PDF) a fost trimisă și este în curs de sincronizare pe NAS.',
           filename: finalName,
         }),
         { id: toastId, icon: '⏳' }
       );
     }
 
-    if (opts.downloadLocally !== false) {
+    // Only initiate local browser download if explicitly requested by caller
+    if (opts.downloadLocally === true) {
       triggerBrowserDownload(opts.pdfBlob, finalName);
     }
 
@@ -170,8 +171,8 @@ export async function archiveAndDownloadPdf(opts: ArchiveAndDownloadOptions): Pr
       { id: toastId }
     );
 
-    // Always preserve local download if requested
-    if (opts.downloadLocally !== false && opts.pdfBlob) {
+    // Only initiate local browser download if explicitly requested by caller
+    if (opts.downloadLocally === true && opts.pdfBlob) {
       triggerBrowserDownload(opts.pdfBlob, opts.defaultFilename);
     }
 
@@ -233,7 +234,7 @@ export async function waitForArchiveConfirmation(
 
   toast(
     i18n.t('archivingToNasPending', {
-      defaultValue: 'PDF descărcat local. Arhivarea pe TerraMaster (HC-PDF) este încă în curs de confirmare.',
+      defaultValue: 'Arhivarea pe TerraMaster (HC-PDF) a fost trimisă și este în curs de sincronizare pe NAS.',
       filename: finalFilename,
     }),
     { id: toastId, icon: '⏳' }

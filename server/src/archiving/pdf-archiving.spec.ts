@@ -449,4 +449,53 @@ describe('PdfArchivingService & Integration Tests (Hardened)', () => {
       expect(hcPdfPending.every((j) => j.targetShare === 'HC-PDF')).toBe(true);
     });
   });
+
+  // 18. Completed Job Disappears from Pending Results
+  it('18. verifies completed job no longer appears in pending results', async () => {
+    const record = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'order',
+      sourceReference: 'ORD-PENDING-CHECK',
+      companyId: 'comp-1',
+    });
+
+    // Before ACK, job appears in pending
+    let pendingJobs = await service.getPendingHcPdfJobs();
+    expect(pendingJobs.some((j) => j.id === record.id)).toBe(true);
+
+    // Complete ACK
+    await tnasController.ackHcPdfDownloaded(record.id, {}, 'Bearer test-secret-key-123');
+
+    // After ACK, job is ARCHIVED and disappears from pending
+    pendingJobs = await service.getPendingHcPdfJobs();
+    expect(pendingJobs.some((j) => j.id === record.id)).toBe(false);
+  });
+
+  // 19. Invalid Job ID Returns NotFoundException
+  it('19. rejects ACK for invalid/non-existent job ID with NotFoundException', async () => {
+    await expect(
+      tnasController.ackHcPdfDownloaded('non-existent-uuid-9999', {}, 'Bearer test-secret-key-123')
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  // 20. Defensive markDownloaded Route Forwarding for hc-pdf
+  it('20. successfully delegates to hc-pdf acknowledgement when invoked via markDownloaded(hc-pdf, ...)', async () => {
+    const record = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'order',
+      sourceReference: 'ORD-DELEGATE',
+      companyId: 'comp-1',
+    });
+
+    const ack = await tnasController.markDownloaded(
+      'hc-pdf',
+      record.id,
+      { committedFilename: 'Order_ORD-DELEGATE.pdf' },
+      'Bearer test-secret-key-123',
+      'worker-fallback'
+    );
+
+    expect(ack.success).toBe(true);
+    const updated = await mockRepo.findOne({ where: { id: record.id } });
+    expect(updated.status).toBe(ArchiveStatus.ARCHIVED);
+    expect(updated.tnasDownloaded).toBe(true);
+  });
 });

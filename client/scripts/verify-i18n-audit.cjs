@@ -205,4 +205,31 @@ describe('Task 5 — HC-PDF Archiving I18n & Accessibility Hardening Audit', () 
       }
     }
   });
+
+  it('9. pdfArchiveHelper prevents unwanted browser downloads and distinguishes archive states', () => {
+    const helperPath = path.join(__dirname, '../src/lib/pdfArchiveHelper.ts');
+    const helperContent = fs.readFileSync(helperPath, 'utf8');
+
+    // Ensure browser download is only triggered when explicitly enabled (downloadLocally === true)
+    assert.ok(
+      helperContent.includes('opts.downloadLocally === true'),
+      'pdfArchiveHelper must only trigger local download if opts.downloadLocally === true'
+    );
+    assert.ok(
+      !helperContent.includes('opts.downloadLocally !== false'),
+      'pdfArchiveHelper must not default to downloading locally (opts.downloadLocally !== false)'
+    );
+
+    // Ensure separate explicit triggerBrowserDownload function exists and is exported
+    assert.ok(
+      helperContent.includes('export function triggerBrowserDownload'),
+      'triggerBrowserDownload must be exported for explicit user downloads'
+    );
+
+    // Ensure distinct toast keys are used for all states
+    assert.ok(helperContent.includes("'archivingToNasLoading'"), 'Must show loading toast');
+    assert.ok(helperContent.includes("'archivingToNasSuccess'"), 'Must show success toast upon confirmation');
+    assert.ok(helperContent.includes("'archivingToNasPending'"), 'Must show pending toast upon timeout');
+    assert.ok(helperContent.includes("'archivingToNasFailed'"), 'Must show failed toast upon archive failure');
+  });
 });

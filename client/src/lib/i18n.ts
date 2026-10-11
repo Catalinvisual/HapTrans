@@ -11096,7 +11096,7 @@ export const archivingResources: Record<string, Record<string, string>> = {
   ro: {
     archivingToNasLoading: 'Se generează PDF-ul și se arhivează în TerraMaster (HC-PDF)...',
     archivingToNasSuccess: 'PDF-ul {{filename}} a fost salvat cu succes în TerraMaster (HC-PDF)',
-    archivingToNasPending: 'PDF-ul {{filename}} a fost descărcat local. Arhivarea pe TerraMaster (HC-PDF) este încă în curs de confirmare.',
+    archivingToNasPending: 'Arhivarea fișierului {{filename}} pe TerraMaster (HC-PDF) a fost trimisă și este în curs de sincronizare pe NAS.',
     archivingToNasFailed: 'Arhivarea pe TerraMaster (HC-PDF) a eșuat: {{error}}',
     archivingToNasUploadFailed: 'Eroare la generarea sau încărcarea PDF-ului: {{error}}',
     archivingToNasDuplicate: 'O operațiune de arhivare este deja în desfășurare. Vă rugăm așteptați.',
@@ -11121,7 +11121,7 @@ export const archivingResources: Record<string, Record<string, string>> = {
   en: {
     archivingToNasLoading: 'Generating PDF and archiving to TerraMaster (HC-PDF)...',
     archivingToNasSuccess: 'PDF {{filename}} successfully archived to TerraMaster (HC-PDF)',
-    archivingToNasPending: 'PDF {{filename}} downloaded locally. TerraMaster (HC-PDF) archival is still pending confirmation.',
+    archivingToNasPending: 'TerraMaster (HC-PDF) archival for {{filename}} was requested and is syncing to NAS.',
     archivingToNasFailed: 'TerraMaster (HC-PDF) archival failed: {{error}}',
     archivingToNasUploadFailed: 'Failed to generate or upload PDF: {{error}}',
     archivingToNasDuplicate: 'An archive operation is already in progress. Please wait.',
@@ -11146,7 +11146,7 @@ export const archivingResources: Record<string, Record<string, string>> = {
   nl: {
     archivingToNasLoading: 'PDF genereren en archiveren naar TerraMaster (HC-PDF)...',
     archivingToNasSuccess: 'PDF {{filename}} succesvol gearchiveerd naar TerraMaster (HC-PDF)',
-    archivingToNasPending: 'PDF {{filename}} lokaal gedownload. TerraMaster (HC-PDF) archivering wacht nog op bevestiging.',
+    archivingToNasPending: 'TerraMaster (HC-PDF) archivering voor {{filename}} is aangevraagd en wordt gesynchroniseerd naar de NAS.',
     archivingToNasFailed: 'TerraMaster (HC-PDF) archivering mislukt: {{error}}',
     archivingToNasUploadFailed: 'Fout bij het genereren of uploaden van PDF: {{error}}',
     archivingToNasDuplicate: 'Er is al een archivering bezig. Even geduld a.u.b.',
@@ -11171,7 +11171,7 @@ export const archivingResources: Record<string, Record<string, string>> = {
   de: {
     archivingToNasLoading: 'PDF wird generiert und auf TerraMaster (HC-PDF) archiviert...',
     archivingToNasSuccess: 'PDF {{filename}} erfolgreich auf TerraMaster (HC-PDF) archiviert',
-    archivingToNasPending: 'PDF {{filename}} lokal heruntergeladen. TerraMaster (HC-PDF)-Archivierung steht noch aus.',
+    archivingToNasPending: 'TerraMaster (HC-PDF)-Archivierung für {{filename}} wurde angefordert und wird mit dem NAS synchronisiert.',
     archivingToNasFailed: 'TerraMaster (HC-PDF)-Archivierung fehlgeschlagen: {{error}}',
     archivingToNasUploadFailed: 'Fehler beim Generieren oder Hochladen der PDF: {{error}}',
     archivingToNasDuplicate: 'Ein Archivierungsvorgang läuft bereits. Bitte warten.',
@@ -11196,7 +11196,7 @@ export const archivingResources: Record<string, Record<string, string>> = {
   fr: {
     archivingToNasLoading: 'Génération du PDF et archivage sur TerraMaster (HC-PDF)...',
     archivingToNasSuccess: 'PDF {{filename}} archivé avec succès sur TerraMaster (HC-PDF)',
-    archivingToNasPending: 'PDF {{filename}} téléchargé localement. L\'archivage sur TerraMaster (HC-PDF) est toujours en attente de confirmation.',
+    archivingToNasPending: 'L\'archivage de {{filename}} sur TerraMaster (HC-PDF) a été demandé et est en cours de synchronisation sur le NAS.',
     archivingToNasFailed: 'L\'archivage sur TerraMaster (HC-PDF) a échoué : {{error}}',
     archivingToNasUploadFailed: 'Échec de la génération ou du téléversement du PDF : {{error}}',
     archivingToNasDuplicate: 'Une opération d\'archivage est déjà en cours. Veuillez patienter.',
@@ -11221,7 +11221,7 @@ export const archivingResources: Record<string, Record<string, string>> = {
   es: {
     archivingToNasLoading: 'Generando PDF y archivando en TerraMaster (HC-PDF)...',
     archivingToNasSuccess: 'PDF {{filename}} archivado con éxito en TerraMaster (HC-PDF)',
-    archivingToNasPending: 'PDF {{filename}} descargado localmente. El archivado en TerraMaster (HC-PDF) aún está pendiente de confirmación.',
+    archivingToNasPending: 'El archivado de {{filename}} en TerraMaster (HC-PDF) ha sido solicitado y se está sincronizando con el NAS.',
     archivingToNasFailed: 'El archivado en TerraMaster (HC-PDF) ha fallado: {{error}}',
     archivingToNasUploadFailed: 'Error al generar o subir el PDF: {{error}}',
     archivingToNasDuplicate: 'Ya hay una operación de archivado en curso. Por favor espere.',
@@ -11246,7 +11246,7 @@ export const archivingResources: Record<string, Record<string, string>> = {
   pl: {
     archivingToNasLoading: 'Generowanie pliku PDF i archiwizacja w TerraMaster (HC-PDF)...',
     archivingToNasSuccess: 'Plik PDF {{filename}} został pomyślnie zarchiwizowany w TerraMaster (HC-PDF)',
-    archivingToNasPending: 'Plik PDF {{filename}} pobrany lokalnie. Archiwizacja w TerraMaster (HC-PDF) wciąż oczekuje na potwierdzenie.',
+    archivingToNasPending: 'Zlecono archiwizację pliku {{filename}} w TerraMaster (HC-PDF) i trwa synchronizacja z dyskiem NAS.',
     archivingToNasFailed: 'Archiwizacja w TerraMaster (HC-PDF) nie powiodła się: {{error}}',
     archivingToNasUploadFailed: 'Błąd podczas generowania lub przesyłania pliku PDF: {{error}}',
     archivingToNasDuplicate: 'Operacja archiwizacji jest już w toku. Proszę czekać.',

@@ -12,7 +12,7 @@ const {
   processArchiveJob,
 } = require('../hc-pdf-sync');
 
-describe('TerraMaster HC-PDF Sync Worker Hardening Tests', () => {
+describe('TerraMaster HC-PDF Sync Worker Hardening & Idempotency Tests', () => {
   let tempDir;
 
   beforeEach(() => {
@@ -138,19 +138,19 @@ describe('TerraMaster HC-PDF Sync Worker Hardening Tests', () => {
     });
   });
 
-  describe('processArchiveJob Idempotency via Receipts', () => {
-    it('detects existing receipt and committed file, re-acknowledging without creating duplicate files', async () => {
+  describe('processArchiveJob Idempotency & Zero-Duplicates Guarantee', () => {
+    it('never creates duplicate files when local receipt exists and ACK fails (e.g. 404 or network timeout)', async () => {
       checkTargetDirectory(tempDir);
       const receiptsDir = path.join(tempDir, '.receipts');
 
-      const jobId = 'job-uuid-1234';
-      const existingFilename = 'Order_ORD-001_20261011_120000_abcd.pdf';
+      const jobId = 'f859c10f-2951-4f7a-b339-5723fddabd6f';
+      const existingFilename = 'Order_ORD-2026-001_20261011_120000_abcd.pdf';
       const existingFilePath = path.join(tempDir, existingFilename);
 
       const validContent = '%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\nstartxref\n123\n%%EOF';
       fs.writeFileSync(existingFilePath, Buffer.from(validContent));
 
-      // Simulate a previously committed job whose ACK dropped
+      // Simulate an existing persistent receipt for this job
       const receipt = {
         id: jobId,
         finalFilename: existingFilename,
@@ -159,25 +159,35 @@ describe('TerraMaster HC-PDF Sync Worker Hardening Tests', () => {
       };
       fs.writeFileSync(path.join(receiptsDir, `${jobId}.json`), JSON.stringify(receipt));
 
-      let ackPayload = null;
-      // Mock axios server interaction
       const mockJob = {
         id: jobId,
-        filename: 'Order_ORD-001_20261011_120000_abcd.pdf',
-        signedUrl: 'https://example.com/fake.pdf',
+        filename: 'Order_ORD-2026-001_20261011_120000_abcd.pdf',
+        signedUrl: 'http://127.0.0.1:9999/should-never-be-called.pdf',
       };
 
-      // Create a local test function that verifies idempotency using processArchiveJob
-      // Since processArchiveJob calls axios, we test the receipt checking branch:
-      const receiptRead = JSON.parse(fs.readFileSync(path.join(receiptsDir, `${jobId}.json`), 'utf-8'));
-      assert.strictEqual(receiptRead.finalFilename, existingFilename);
+      // Call processArchiveJob with non-existent baseUrl to simulate an ACK connection failure / 404
+      const result = await processArchiveJob(mockJob, tempDir, 'http://127.0.0.1:9999', 'test-key', 'worker-test');
 
-      const size = validatePdfFile(existingFilePath);
-      assert.strictEqual(size >= 50, true);
+      // The job must NOT succeed because ACK failed, BUT:
+      assert.strictEqual(result.success, false);
+      assert.strictEqual(result.committed, true);
+      assert.strictEqual(result.finalFilename, existingFilename);
 
-      // Verify no duplicate files exist in tempDir
-      const allFiles = fs.readdirSync(tempDir);
-      assert.strictEqual(allFiles.filter(f => f.startsWith('Order_ORD-001')).length, 1);
+      // CRITICAL ASSERTION: Exactly ONE PDF file must exist in the directory!
+      // Must NOT create Order_..._1.pdf or Order_..._2.pdf!
+      const filesOnDisk = fs.readdirSync(tempDir).filter(f => f.endsWith('.pdf'));
+      assert.strictEqual(filesOnDisk.length, 1);
+      assert.strictEqual(filesOnDisk[0], existingFilename);
+
+      // Simulate a second retry cycle with failing ACK:
+      const result2 = await processArchiveJob(mockJob, tempDir, 'http://127.0.0.1:9999', 'test-key', 'worker-test');
+      assert.strictEqual(result2.success, false);
+      assert.strictEqual(result2.committed, true);
+
+      // Still exactly ONE PDF file on disk!
+      const filesAfterSecondRetry = fs.readdirSync(tempDir).filter(f => f.endsWith('.pdf'));
+      assert.strictEqual(filesAfterSecondRetry.length, 1);
+      assert.strictEqual(filesAfterSecondRetry[0], existingFilename);
     });
   });
 });
