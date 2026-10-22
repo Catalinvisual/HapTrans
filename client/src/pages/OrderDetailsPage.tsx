@@ -74,7 +74,10 @@ export default function OrderDetailsPage() {
                 {order.status === 'pod_received' ? 'Pod received' : (order.status ? order.status.replace('_', ' ') : '—')}
               </span>
             </h1>
-            <p className="text-sm text-text-secondary">{t("jsx_client")}{order.client?.name || t('unspecifiedClient', 'Nespecificat')}</p>
+            <p className="text-sm text-text-secondary flex items-center gap-1.5 mt-1">
+              <span className="text-text-muted">{t('client', 'Client')}:</span>
+              <span className="font-semibold text-text-primary">{order.client?.name || t('unspecifiedClient', 'Nespecificat')}</span>
+            </p>
           </div>
         </div>
         <div className="flex gap-2">

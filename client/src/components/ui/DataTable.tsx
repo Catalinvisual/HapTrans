@@ -60,11 +60,11 @@ export default function DataTable<T>({
 
   return (
     <div className="overflow-x-auto custom-scrollbar">
-      <table className="w-full text-left border-collapse" style={{ minWidth }}>
+      <table className="w-full text-left border-separate border-spacing-0" style={{ minWidth }}>
         <thead className="sticky top-0 z-10">
-          <tr className="bg-surface/80 backdrop-blur border-b border-border">
+          <tr className="bg-surface/80 backdrop-blur">
             {selectable && (
-              <th className={`table-header ${dense ? 'px-3 py-2' : 'px-3 py-3'} w-10`}>
+              <th className={`table-header border-b border-border ${dense ? 'px-3 py-2' : 'px-3 py-3'} w-10`}>
                 <input type="checkbox" className="w-4 h-4 accent-orange-500 cursor-pointer" checked={allSelected} onChange={toggleAll} />
               </th>
             )}
@@ -72,7 +72,7 @@ export default function DataTable<T>({
               <th
                 key={col.key}
                 onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                className={`table-header ${headPad} font-medium text-[11px] text-text-secondary uppercase tracking-wider whitespace-nowrap select-none ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'} ${col.sortable ? 'cursor-pointer hover:text-primary' : ''} ${col.hideBelow ? `hidden ${col.hideBelow === 'lg' ? 'lg:table-cell' : col.hideBelow === 'md' ? 'md:table-cell' : 'sm:table-cell'}` : ''} ${col.sticky === 'right' ? 'sticky right-0 z-20 bg-surface sticky-actions-cell border-l border-border' : ''}`}
+                className={`table-header border-b border-border ${headPad} font-medium text-[11px] text-text-secondary uppercase tracking-wider whitespace-nowrap select-none ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'} ${col.sortable ? 'cursor-pointer hover:text-primary' : ''} ${col.hideBelow ? `hidden ${col.hideBelow === 'lg' ? 'lg:table-cell' : col.hideBelow === 'md' ? 'md:table-cell' : 'sm:table-cell'}` : ''} ${col.sticky === 'right' ? 'sticky right-0 z-20 bg-surface sticky-actions-cell' : ''}`}
                 style={{ width: col.width }}
               >
                 <span className="inline-flex items-center gap-1 font-medium text-[11px] text-text-secondary">
@@ -84,7 +84,7 @@ export default function DataTable<T>({
           </tr>
         </thead>
         {data.length > 0 && (
-          <tbody className="divide-y divide-border/60">
+          <tbody>
             {data.map((row, ri) => {
               const id = rowKey(row);
               const isSelected = selected?.has(id);
@@ -96,12 +96,12 @@ export default function DataTable<T>({
                   className={`${onRowClick ? 'cursor-pointer' : ''} ${ri % 2 === 1 ? 'bg-surface/25' : ''} ${isSelected ? 'bg-primary/5' : ''} ${highlight || ''} hover:bg-primary/[0.06] transition-colors`}
                 >
                   {selectable && (
-                    <td className={`${dense ? 'px-3 py-1.5' : 'px-3 py-3'}`} onClick={e => e.stopPropagation()}>
+                    <td className={`border-b border-border/60 ${dense ? 'px-3 py-1.5' : 'px-3 py-3'}`} onClick={e => e.stopPropagation()}>
                       <input type="checkbox" className="w-4 h-4 accent-orange-500 cursor-pointer" checked={!!isSelected} onChange={() => toggleRow(id)} />
                     </td>
                   )}
                   {columns.map(col => (
-                    <td key={col.key} className={`${cellPad} ${cellText} ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'} ${col.hideBelow ? `hidden ${col.hideBelow === 'lg' ? 'lg:table-cell' : col.hideBelow === 'md' ? 'md:table-cell' : 'sm:table-cell'}` : ''} ${col.sticky === 'right' ? 'sticky right-0 z-10 bg-card sticky-actions-cell border-l border-border' : ''}`}>
+                    <td key={col.key} className={`border-b border-border/60 ${cellPad} ${cellText} ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'} ${col.hideBelow ? `hidden ${col.hideBelow === 'lg' ? 'lg:table-cell' : col.hideBelow === 'md' ? 'md:table-cell' : 'sm:table-cell'}` : ''} ${col.sticky === 'right' ? 'sticky right-0 z-10 bg-card sticky-actions-cell' : ''}`}>
                       {col.render ? col.render(row) : String((row as any)[col.key] ?? '—')}
                     </td>
                   ))}

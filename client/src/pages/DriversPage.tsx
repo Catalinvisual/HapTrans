@@ -620,8 +620,8 @@ const tabs: TabDef[] = drawerDriver ? [
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <span className="text-[11px] font-semibold text-text-secondary whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
-            <button onClick={() => setShowExport(true)} className="btn-secondary px-2 py-1.5 flex items-center text-xs font-semibold" title={t('export', 'Export')}>
-              <ExcelIcon className="w-3.5 h-3.5" />
+            <button type="button" onClick={() => setShowExport(true)} className="p-1 hover:opacity-85 hover:scale-110 active:scale-95 transition-transform duration-150 shrink-0 cursor-pointer flex items-center justify-center" title={t('export', 'Export')}>
+              <ExcelIcon className="w-7 h-7" />
             </button>
             <button onClick={() => { setEditId(null); setForm({ name: '', email: '', password: '', phone: '', licenseNumber: '', dailyRate: '', grossSalary: '', licenseExpiry: '', medicalExpiry: '', tachoCardExpiry: '', status: 'available', truckId: '' }); setShowForm(true); }} className="btn-primary px-2.5 py-1.5 flex items-center gap-1.5 text-xs font-semibold whitespace-nowrap">
               <Plus className="w-3.5 h-3.5" /> {t('addDriver', 'Add Driver')}

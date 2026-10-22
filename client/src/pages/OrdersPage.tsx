@@ -461,7 +461,14 @@ export default function OrdersPage() {
             <div className="flex items-center gap-1.5 ml-auto shrink-0">
               <span className="text-[11px] text-text-secondary font-medium whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
               <div className="w-[112px] shrink-0"><CustomSelect size="sm" value="" onChange={v => { if (v === 'ai') setShowAiImport(true); else if (v === 'excel') setShowExcelImport(true); }} placeholder={t('import', 'Import')} icon={Download} options={[{ value: 'ai', label: t('ai_import', 'Import AI') }, { value: 'excel', label: t('excel_import', 'Import Excel') }]} /></div>
-              <button onClick={() => setShowExport(true)} className="btn-secondary py-1.5 px-2 flex items-center gap-1.5 text-xs font-semibold" title={t('export_csv', 'Export CSV')}><ExcelIcon className="w-3.5 h-3.5" /></button>
+              <button
+                type="button"
+                onClick={() => setShowExport(true)}
+                className="p-1 hover:opacity-85 hover:scale-110 active:scale-95 transition-transform duration-150 shrink-0 cursor-pointer flex items-center justify-center"
+                title={t('export_csv', 'Export Excel')}
+              >
+                <ExcelIcon className="w-7 h-7" />
+              </button>
               <button onClick={handleCreate} className="btn-primary py-1.5 px-2.5 flex items-center gap-1.5 text-xs font-semibold shadow-md shadow-primary/20 whitespace-nowrap"><Plus className="w-3.5 h-3.5" />{t('addOrder', 'Create Order')}</button>
             </div>
           </div>

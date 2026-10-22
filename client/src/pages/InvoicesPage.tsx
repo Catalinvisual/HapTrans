@@ -944,8 +944,8 @@ export default function InvoicesPage({
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
               <input className="input pl-8 pr-3 py-1.5 text-xs w-full" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <button onClick={() => setShowExport(true)} className="btn-secondary px-2 py-1.5 flex items-center text-xs font-semibold border-primary/20 hover:border-primary/50 text-primary transition-all" title={t('export')}>
-              <ExcelIcon className="w-3.5 h-3.5" />
+            <button type="button" onClick={() => setShowExport(true)} className="p-1 hover:opacity-85 hover:scale-110 active:scale-95 transition-transform duration-150 shrink-0 cursor-pointer flex items-center justify-center" title={t('export')}>
+              <ExcelIcon className="w-7 h-7" />
             </button>
             <button onClick={loadAging} className="btn-secondary px-2 py-1.5 flex items-center text-xs font-semibold border-primary/20 hover:border-primary/50 text-primary transition-all" title={t('agingTitle')}>
               <BarChart3 className="w-3.5 h-3.5" />
