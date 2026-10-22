@@ -462,7 +462,20 @@ function PoolOrderCard({
           <MapPin className="w-2.5 h-2.5 text-emerald-500 shrink-0" />
           <span className="truncate font-medium text-text-primary">{dropoff?.city || dropoff?.address?.split(',')[0] || '—'}</span>
         </div>
-        <span className="font-black text-text-primary shrink-0">{cargo.weight > 0 ? `${fmtNumber(cargo.weight)}kg` : ''}</span>
+        <div className="flex items-center gap-1.5 shrink-0 font-black text-text-primary text-[10px]">
+          {cargo.pallets > 0 && (
+            <span className="inline-flex items-center gap-0.5">
+              <PalletIcon className="w-3 h-3" />
+              {cargo.pallets}p
+            </span>
+          )}
+          {cargo.weight > 0 && (
+            <span className="inline-flex items-center gap-0.5">
+              <WeightKgIcon className="w-3 h-3" />
+              {fmtNumber(cargo.weight)}kg
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -574,7 +587,8 @@ function TripBlock({
           {/* Row 4: Cargo + revenue */}
           {!isVeryNarrow && (cargo.weight > 0 || revenue > 0) && (
             <div className="flex items-center gap-1">
-              {cargo.weight > 0 && <span className="text-[8px] text-text-muted">{fmtNumber(cargo.weight)}kg</span>}
+              {cargo.weight > 0 && <span className="text-[8px] text-text-muted inline-flex items-center gap-0.5"><WeightKgIcon className="w-2.5 h-2.5" />{fmtNumber(cargo.weight)}kg</span>}
+              {cargo.pallets > 0 && <span className="text-[8px] text-text-muted inline-flex items-center gap-0.5"><PalletIcon className="w-2.5 h-2.5" />{cargo.pallets}p</span>}
               {revenue > 0 && <span className="text-[8px] font-black" style={{ color: hex }}>{fmtMoney(revenue, 'EUR')}</span>}
               {ordersCount > 0 && <span className="text-[8px] text-text-muted">·{ordersCount}ord</span>}
             </div>
@@ -594,7 +608,7 @@ function CapacityIndicator({ icon: Icon, text, pct, tooltip }: {
   return (
     <div className="flex-1 min-w-0" title={tooltip}>
       <div className="flex items-center gap-0.5" style={{ color: tone }}>
-        <Icon className="w-2.5 h-2.5 shrink-0" />
+        <Icon className="w-3 h-3 shrink-0" />
         <span className={`text-[8px] font-bold truncate ${over ? 'animate-pulse' : ''}`}>{text}</span>
       </div>
       <div className="h-[3px] w-full rounded-full bg-border/50 overflow-hidden mt-0.5">
@@ -709,8 +723,8 @@ function ResourceRow({
         {/* Dynamic capacity micro-bars (weight + pallets) */}
         {grouping !== 'driver' && (
           <div className="flex items-center gap-2 pl-6 pr-1">
-            <CapacityIndicator icon={Scale} text={weightText} pct={weightPct} tooltip={weightTooltip} />
-            <CapacityIndicator icon={Boxes} text={palletText} pct={palletPct} tooltip={palletTooltip} />
+            <CapacityIndicator icon={WeightKgIcon} text={weightText} pct={weightPct} tooltip={weightTooltip} />
+            <CapacityIndicator icon={PalletIcon} text={palletText} pct={palletPct} tooltip={palletTooltip} />
           </div>
         )}
       </div>
@@ -1758,13 +1772,13 @@ function OrderDetailDrawer({ order, onClose, onPlan }: { order: any; onClose: ()
           </div>
           <div className="grid grid-cols-2 gap-2.5 text-xs">
             {[
-              [t('pool_col_weight','Weight'), `${fmtNumber(cargo.weight)} kg`],
-              [t('pool_col_pallets','Pallets'), `${cargo.pallets} plt`],
-              [t('pool_col_volume','Volume'), `${fmtNumber(cargo.volume, 1)} m³`],
-              [t('revenue','Price'), fmtMoney(Number(order.price || 0), 'EUR')],
-            ].map(([l,v]) => (
+              [t('pool_col_weight','Weight'), `${fmtNumber(cargo.weight)} kg`, <WeightKgIcon className="w-4 h-4" />],
+              [t('pool_col_pallets','Pallets'), `${cargo.pallets} plt`, <PalletIcon className="w-4 h-4" />],
+              [t('pool_col_volume','Volume'), `${fmtNumber(cargo.volume, 1)} m³`, null],
+              [t('revenue','Price'), fmtMoney(Number(order.price || 0), 'EUR'), null],
+            ].map(([l, v, icon]) => (
               <div key={l as string} className="bg-card rounded-xl p-3 border border-border/60">
-                <p className="text-text-secondary text-[10px]">{l}</p>
+                <p className="text-text-secondary text-[10px] flex items-center gap-1">{icon}{l}</p>
                 <p className="font-black text-text-primary text-base mt-0.5">{v}</p>
               </div>
             ))}

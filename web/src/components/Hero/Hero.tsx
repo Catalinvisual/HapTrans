@@ -330,9 +330,8 @@ const Hero = () => {
 
                 <div className={styles.rangeWrap}>
                   <div className={styles.rangeHeader}>
-                    <label style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                      <WeightKgIcon className="w-4 h-4" />
-                      {getLabel("Greutate", "Weight", "Gewicht", "Gewicht", "Poids", "Peso", "Waga")}
+                    <label style={{ margin: 0, display: 'inline-flex', alignItems: 'center' }} aria-label="Weight">
+                      <WeightKgIcon className="w-3.5 h-3.5" />
                     </label>
                     <span className={styles.rangeValue}>{weightLabel}</span>
                   </div>
@@ -351,9 +350,8 @@ const Hero = () => {
 
                 <div className={styles.rangeWrap}>
                   <div className={styles.rangeHeader}>
-                    <label style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                      <PalletIcon className="w-4 h-4" />
-                      {getLabel("Paleți", "Pallets", "Pallets", "Paletten", "Palettes", "Palets", "Palety")}
+                    <label style={{ margin: 0, display: 'inline-flex', alignItems: 'center' }} aria-label="Pallets">
+                      <PalletIcon className="w-3.5 h-3.5" />
                     </label>
                     <span className={styles.rangeValue}>{pallets} {getLabel("paleți", "pallets", "pallets", "Paletten", "palettes", "palets", "palety")}</span>
                   </div>
