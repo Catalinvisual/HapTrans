@@ -18,6 +18,7 @@ import type { SelectOption } from '../components/CustomSelect';
 import ActivityTimeline from '../components/ActivityTimeline';
 import ExportModal from '../components/ExportModal';
 import ExcelIcon from '../components/icons/ExcelIcon';
+import ImportIcon from '../components/icons/ImportIcon';
 import { formatDateExcel } from '../lib/exportExcel';
 import AiImportModal from '../components/AiImportModal';
 import ExcelImportModal from '../components/ExcelImportModal';
@@ -460,13 +461,13 @@ export default function OrdersPage() {
 
             <div className="flex items-center gap-1.5 ml-auto shrink-0">
               <span className="text-[11px] text-text-secondary font-medium whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
-              <div className="w-[118px] shrink-0">
+              <div className="w-[120px] shrink-0">
                 <CustomSelect
                   size="sm"
                   value=""
                   onChange={v => { if (v === 'ai') setShowAiImport(true); else if (v === 'excel') setShowExcelImport(true); }}
                   placeholder={t('import', 'Import')}
-                  icon={FileUp}
+                  icon={<ImportIcon className="w-4 h-4" />}
                   options={[
                     {
                       value: 'ai',
