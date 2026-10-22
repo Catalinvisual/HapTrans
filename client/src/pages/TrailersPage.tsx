@@ -17,6 +17,7 @@ import StatusBadge from "../components/ui/StatusBadge";
 import CustomSelect from "../components/CustomSelect";
 import type { SelectOption } from "../components/CustomSelect";
 import ExportModal from "../components/ExportModal";
+import ExcelIcon from "../components/icons/ExcelIcon";
 import { useSettingsStore } from '../store/settingsStore';
 import { generateTrailerPdf } from '../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
@@ -364,7 +365,7 @@ export default function TrailersPage() {
               {filtered.length} {t("results", "results")}
             </span>
             <button onClick={() => setShowExport(true)} className="btn-secondary py-1.5 px-2 flex items-center text-xs font-semibold" title={t("export", "Export")}>
-              <Download className="w-3.5 h-3.5" />
+              <ExcelIcon className="w-3.5 h-3.5" />
             </button>
             <button onClick={() => { setForm(initialForm); setShowForm(true); setEditId(null); }} className="btn-primary py-1.5 px-2.5 flex items-center gap-1.5 text-xs font-semibold whitespace-nowrap shadow-md shadow-primary/20">
               <Plus className="w-3.5 h-3.5" /> {t("addTrailer", "Adaugă Remorcă")}

@@ -17,6 +17,7 @@ import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
 import ActivityTimeline from '../components/ActivityTimeline';
 import ExportModal from '../components/ExportModal';
+import ExcelIcon from '../components/icons/ExcelIcon';
 import { formatDateExcel } from '../lib/exportExcel';
 import AiImportModal from '../components/AiImportModal';
 import ExcelImportModal from '../components/ExcelImportModal';
@@ -460,7 +461,7 @@ export default function OrdersPage() {
             <div className="flex items-center gap-1.5 ml-auto shrink-0">
               <span className="text-[11px] text-text-secondary font-medium whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
               <div className="w-[112px] shrink-0"><CustomSelect size="sm" value="" onChange={v => { if (v === 'ai') setShowAiImport(true); else if (v === 'excel') setShowExcelImport(true); }} placeholder={t('import', 'Import')} icon={Download} options={[{ value: 'ai', label: t('ai_import', 'Import AI') }, { value: 'excel', label: t('excel_import', 'Import Excel') }]} /></div>
-              <button onClick={() => setShowExport(true)} className="btn-secondary py-1.5 px-2 flex items-center text-xs font-semibold" title={t('export_csv', 'Export CSV')}><Download className="w-3.5 h-3.5" /></button>
+              <button onClick={() => setShowExport(true)} className="btn-secondary py-1.5 px-2 flex items-center gap-1.5 text-xs font-semibold" title={t('export_csv', 'Export CSV')}><ExcelIcon className="w-3.5 h-3.5" /></button>
               <button onClick={handleCreate} className="btn-primary py-1.5 px-2.5 flex items-center gap-1.5 text-xs font-semibold shadow-md shadow-primary/20 whitespace-nowrap"><Plus className="w-3.5 h-3.5" />{t('addOrder', 'Create Order')}</button>
             </div>
           </div>

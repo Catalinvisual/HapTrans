@@ -7,6 +7,7 @@ import { Plus, Search, Eye, Download, Share2, Trash2, Mail, BarChart3, Send, Wal
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import ExportModal from '../components/ExportModal';
+import ExcelIcon from '../components/icons/ExcelIcon';
 import { generateInvoicePdfBase64 } from '../lib/invoicePdfGenerator';
 import { formatDate } from '../lib/dateUtils';
 import { fmtMoney } from '../lib/format';
@@ -944,7 +945,7 @@ export default function InvoicesPage({
               <input className="input pl-8 pr-3 py-1.5 text-xs w-full" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <button onClick={() => setShowExport(true)} className="btn-secondary px-2 py-1.5 flex items-center text-xs font-semibold border-primary/20 hover:border-primary/50 text-primary transition-all" title={t('export')}>
-              <Download className="w-3.5 h-3.5" />
+              <ExcelIcon className="w-3.5 h-3.5" />
             </button>
             <button onClick={loadAging} className="btn-secondary px-2 py-1.5 flex items-center text-xs font-semibold border-primary/20 hover:border-primary/50 text-primary transition-all" title={t('agingTitle')}>
               <BarChart3 className="w-3.5 h-3.5" />

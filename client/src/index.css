@@ -369,3 +369,12 @@ input[readonly] {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Permanent, crisp left border and separation shadow for sticky actions columns across TMS */
+.sticky-actions-cell {
+  position: sticky !important;
+  right: 0 !important;
+  box-shadow: -1px 0 0 0 rgb(var(--color-border)), -6px 0 14px -3px rgba(0, 0, 0, 0.08) !important;
+}
+.dark .sticky-actions-cell {
+  box-shadow: -1px 0 0 0 rgb(var(--color-border)), -6px 0 14px -3px rgba(0, 0, 0, 0.35) !important;
+}

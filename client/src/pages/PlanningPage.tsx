@@ -28,6 +28,7 @@ import { generateOrderPdf } from '../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { planningApi } from '../lib/planningApi';
 import OrderWizard from '../components/orders/OrderWizard';
+import ExcelIcon from '../components/icons/ExcelIcon';
 import { fmtMoney, fmtNumber } from '../lib/format';
 import SplitTripModal from '../components/planning/SplitTripModal';
 import CombineTripsModal from '../components/planning/CombineTripsModal';
@@ -2452,7 +2453,7 @@ export default function PlanningPage() {
           
           <div className="flex bg-card p-0.5 rounded-lg border border-border shadow-sm">
             <button onClick={() => setShowExportModal(true)} className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors" title={t('export_planning', 'Export')}>
-              <Download className="w-3.5 h-3.5" />
+              <ExcelIcon className="w-3.5 h-3.5" />
             </button>
             <button onClick={loadData} disabled={isLoading} className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors" title={t('jsx_recalc','Refresh')}>
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-primary' : ''}`} />

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Download, Calendar, Loader2 } from 'lucide-react';
+import ExcelIcon from './icons/ExcelIcon';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import Flatpickr from 'react-flatpickr';
@@ -260,7 +261,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, title, sh
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border bg-surface">
           <div className="flex items-center gap-2">
-            <Download className="w-4 h-4 text-primary" />
+            <ExcelIcon className="w-5 h-5" />
             <h3 className="font-bold text-text text-lg">{tExport.title}</h3>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-surface transition-colors">
@@ -339,7 +340,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, title, sh
         {/* Footer */}
         <div className="flex gap-3 p-5 border-t border-border bg-surface">
           <button onClick={handleExport} disabled={exporting} className="btn-primary flex-1 py-2.5 font-bold shadow-md shadow-primary/20 flex items-center justify-center gap-2">
-            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExcelIcon className="w-4 h-4" />}
             {exporting ? tExport.exporting : tExport.exportBtn}
           </button>
           <button onClick={onClose} className="btn-secondary flex-1 py-2.5 font-bold flex items-center justify-center gap-2">

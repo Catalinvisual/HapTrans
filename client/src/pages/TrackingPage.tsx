@@ -61,14 +61,14 @@ export default function TrackingPage() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{t("jsx_trackingSummar")}</p>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">{t("jsx_order")}{data.orderNumber}
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">{data.orderNumber}
               </h1>
               {data.customerReference && <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{t("jsx_ref")}{data.customerReference}</p>}
             </div>
             <div className="text-right">
               <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-bold shadow-sm ${isDelivered ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-400'}`}>
                 {isDelivered ? <CheckCircle className="w-4 h-4 mr-2" /> : <Truck className="w-4 h-4 mr-2 animate-bounce" />}
-                {data.status ? data.status.toUpperCase().replace('_', ' ') : '—'}
+                {data.status === 'pod_received' ? 'Pod received' : (data.status ? data.status.toUpperCase().replace('_', ' ') : '—')}
               </span>
               <p className="text-xs text-gray-400 mt-2 flex items-center justify-end gap-1">
                 <Clock className="w-3 h-3" />{t("jsx_lastUpdated")}{getTimeAgo(data.updatedAt)}

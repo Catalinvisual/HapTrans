@@ -18,6 +18,7 @@ import StatusBadge from '../components/ui/StatusBadge';
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
 import ExportModal from '../components/ExportModal';
+import ExcelIcon from '../components/icons/ExcelIcon';
 import ActivityTimeline from '../components/ActivityTimeline';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
@@ -414,7 +415,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
 
             <div className="flex items-center gap-1.5 shrink-0 ml-auto">
               <span className="text-xs text-text-secondary font-medium whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
-              <button onClick={() => openExport(sorted)} className="btn-secondary py-1.5 px-2.5 text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"><Download className="w-3.5 h-3.5" />{t('export_csv', 'Export CSV')}</button>
+              <button onClick={() => openExport(sorted)} className="btn-secondary py-1.5 px-2.5 text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"><ExcelIcon className="w-3.5 h-3.5" />{t('export_csv', 'Export CSV')}</button>
               <button onClick={() => navigate('/planning')} className="btn-primary py-1.5 px-2.5 text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"><LayoutGrid className="w-3.5 h-3.5" />{t('go_to_planning', 'Dispatch board')}</button>
             </div>
           </div>

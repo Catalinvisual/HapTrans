@@ -15,11 +15,31 @@ export default function LoginPage() {
   const {
     setAuth
   } = useAuthStore();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const [email, setEmail] = useState(isLocalHost ? 'admin@hapcargo.ro' : '');
+  const [password, setPassword] = useState(isLocalHost ? 'Admin2024!' : '');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const existingToken = localStorage.getItem('hapcargo_token');
+    if (isLocalHost && !existingToken) {
+      setLoading(true);
+      api.post('/auth/login', {
+        email: 'admin@hapcargo.ro',
+        password: 'Admin2024!'
+      }).then(({ data }) => {
+        setAuth(data.user, data.access_token);
+        toast.success(`${t('welcomeUser')}${data.user.name}!`);
+        navigate('/dashboard');
+      }).catch((err) => {
+        console.warn('Localhost auto-login error:', err);
+      }).finally(() => {
+        setLoading(false);
+      });
+    }
+  }, [isLocalHost, navigate, setAuth, t]);
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);

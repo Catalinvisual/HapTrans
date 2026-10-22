@@ -7,6 +7,7 @@ import api from '../lib/api';
 import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import ExportModal from '../components/ExportModal';
+import ExcelIcon from '../components/icons/ExcelIcon';
 import { formatDate } from '../lib/dateUtils';
 import { matchesSearch } from '../lib/search';
 import ClientDetails from '../components/ClientDetails';
@@ -292,7 +293,7 @@ export default function ClientsPage() {
               <input className="input pl-8 pr-3 py-1.5 text-xs w-full" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <button onClick={() => setShowExport(true)} className="btn-secondary px-2 py-1.5 flex items-center text-xs font-semibold border-primary/20 hover:border-primary/50 text-primary transition-all" title={t('export')}>
-              <Download className="w-3.5 h-3.5" />
+              <ExcelIcon className="w-3.5 h-3.5" />
             </button>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
