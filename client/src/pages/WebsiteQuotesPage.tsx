@@ -9,6 +9,8 @@ import 'flatpickr/dist/themes/light.css';
 import { QuoteReplyForm } from './QuoteReplyForm';
 import { useNavigate } from 'react-router-dom';
 import Pagination from '../components/Pagination';
+import PalletIcon from '../components/icons/PalletIcon';
+import WeightKgIcon from '../components/icons/WeightKgIcon';
 interface QuoteReply {
   id: string;
   quoteRequestId: string;
@@ -577,8 +579,8 @@ const WebsiteQuotesPage = () => {
                           <div>
                             <p className="text-text-secondary mb-1 text-xs uppercase font-semibold">{tLocal('cargo_details')}</p>
                             <p className="font-medium">📦 {tLocal('type')}: {quote.cargoType || '-'}</p>
-                            <p className="font-medium">⚖️ {tLocal('weight')}: {quote.cargoWeightKg ? `${quote.cargoWeightKg} kg` : '-'}</p>
-                            <p className="font-medium">🏢 {tLocal('pallets')}: {quote.numberOfPallets || '-'}</p>
+                            <p className="font-medium flex items-center gap-1.5"><WeightKgIcon className="w-4 h-4" /> {tLocal('weight')}: {quote.cargoWeightKg ? `${quote.cargoWeightKg} kg` : '-'}</p>
+                            <p className="font-medium flex items-center gap-1.5"><PalletIcon className="w-4 h-4" /> {tLocal('pallets')}: {quote.numberOfPallets || '-'}</p>
                             <p className="font-medium">📐 {tLocal('volume')}: {quote.cargoVolumeM3 ? `${quote.cargoVolumeM3} m³` : '-'}</p>
                           </div>
 

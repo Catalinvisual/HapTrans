@@ -8,6 +8,8 @@ import AddressAutocomplete from '../components/AddressAutocomplete';
 import { useSettingsStore } from '../store/settingsStore';
 import type { CompanySettings } from '../store/settingsStore';
 import { saveCompanySettings } from '../store/settingsStore';
+import PalletIcon from '../components/icons/PalletIcon';
+import WeightKgIcon from '../components/icons/WeightKgIcon';
 const PriceInput = ({
   value,
   onChange,
@@ -298,7 +300,7 @@ export default function SettingsPage() {
   const apiBase = import.meta.env.VITE_API_URL || 'https://haptrans-production.up.railway.app/api';
   const wsBase = import.meta.env.VITE_WS_URL || 'http://localhost:3001';
 
-  const tariffLabel = (emoji: string, en: string, ro: string, nl: string, de: string, fr: string, pl: string, es: string) => (
+  const tariffLabel = (emoji: React.ReactNode, en: string, ro: string, nl: string, de: string, fr: string, pl: string, es: string) => (
     <label className="label font-bold text-xs flex items-center gap-1.5 text-text">
       {emoji} {getLabel(en, ro, nl, de, fr, pl, es)}
     </label>
@@ -463,7 +465,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-1">
-            {tariffLabel("⚖️", "Weight surcharge", "Spor de greutate", "Gewichtstoeslag", "Gewichtszuschlag", "Surcharge de poids", "Dopłata za wagę", "Recargo por peso")}
+            {tariffLabel(<WeightKgIcon className="w-4 h-4" />, "Weight surcharge", "Spor de greutate", "Gewichtstoeslag", "Gewichtszuschlag", "Surcharge de poids", "Dopłata za wagę", "Recargo por peso")}
             <div className="relative flex items-center">
               <PriceInput className="input text-sm pr-20 font-bold text-text" value={tariffs.weightSurchargePercent} onChange={val => setTariffs(prev => ({
                 ...prev,
@@ -474,18 +476,18 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-1">
-            {tariffLabel("🎚️", "Weight threshold", "Prag de greutate", "Gewichtsdrempel", "Gewichtsgrenze", "Seuil de poids", "Próg wagi", "Umbral de peso")}
+            {tariffLabel(<WeightKgIcon className="w-4 h-4" />, "Weight threshold", "Prag de greutate", "Gewichtsdrempel", "Gewichtsgrenze", "Seuil de poids", "Próg wagi", "Umbral de peso")}
             <div className="relative flex items-center">
               <PriceInput className="input text-sm pr-16 font-bold text-text" value={tariffs.weightThresholdKg} onChange={val => setTariffs(prev => ({
                 ...prev,
                 weightThresholdKg: val
               }))} />
-              <span className="absolute right-2 bg-surface text-text-secondary font-extrabold text-[11px] px-3 py-1 rounded-md select-none pointer-events-none border border-border">KG</span>
+              <span className="absolute right-2 bg-surface text-text-secondary font-extrabold text-[11px] px-3 py-1 rounded-md select-none pointer-events-none border border-border flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />KG</span>
             </div>
           </div>
 
           <div className="space-y-1">
-            {tariffLabel("📦", "0-5 pallets modifier", "Modificator Tarif (0-5 Paleți)", "0-5 pallets tarief modifier", "0-5 Paletten Modifikator", "Modificateur tarif 0-5 palettes", "Mnożnik stawki 0-5 palet", "Modificador tarifa 0-5 palets")}
+            {tariffLabel(<PalletIcon className="w-4 h-4" />, "0-5 pallets modifier", "Modificator Tarif (0-5 Paleți)", "0-5 pallets tarief modifier", "0-5 Paletten Modifikator", "Modificateur tarif 0-5 palettes", "Mnożnik stawki 0-5 palet", "Modificador tarifa 0-5 palets")}
             <div className="relative flex items-center">
               <PriceInput className="input text-sm pr-20 font-bold text-text" placeholder="60" value={tariffs.palletFactorSmall} onChange={val => setTariffs(prev => ({
                 ...prev,
@@ -496,7 +498,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-1">
-            {tariffLabel("📦", "6-15 pallets modifier", "Modificator Tarif (6-15 Paleți)", "6-15 pallets tarief modifier", "6-15 Paletten Modifikator", "Modificateur tarif 6-15 palettes", "Mnożnik stawki 6-15 palet", "Modificador tarifa 6-15 palets")}
+            {tariffLabel(<PalletIcon className="w-4 h-4" />, "6-15 pallets modifier", "Modificator Tarif (6-15 Paleți)", "6-15 pallets tarief modifier", "6-15 Paletten Modifikator", "Modificateur tarif 6-15 palettes", "Mnożnik stawki 6-15 palet", "Modificador tarifa 6-15 palets")}
             <div className="relative flex items-center">
               <PriceInput className="input text-sm pr-20 font-bold text-text" placeholder="85" value={tariffs.palletFactorMedium} onChange={val => setTariffs(prev => ({
                 ...prev,
@@ -507,7 +509,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-1">
-            {tariffLabel("📦", "16-33 pallets modifier", "Modificator Tarif (16-33 Paleți)", "16-33 pallets tarief modifier", "16-33 Paletten Modifikator", "Modificateur tarif 16-33 palettes", "Mnożnik stawki 16-33 palet", "Modificador tarifa 16-33 palets")}
+            {tariffLabel(<PalletIcon className="w-4 h-4" />, "16-33 pallets modifier", "Modificator Tarif (16-33 Paleți)", "16-33 pallets tarief modifier", "16-33 Paletten Modifikator", "Modificateur tarif 16-33 palettes", "Mnożnik stawki 16-33 palet", "Modificador tarifa 16-33 palets")}
             <div className="relative flex items-center">
               <PriceInput className="input text-sm pr-20 font-bold text-text" placeholder="100" value={tariffs.palletFactorFull} onChange={val => setTariffs(prev => ({
                 ...prev,

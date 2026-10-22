@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import Pagination from '../components/Pagination';
+import PalletIcon from '../components/icons/PalletIcon';
+import WeightKgIcon from '../components/icons/WeightKgIcon';
 interface Lead {
   id: string;
   name: string;
@@ -116,9 +118,9 @@ const WebsiteLeadsPage = () => {
                     </div>
                     <div>
                       <p className="text-text-secondary mb-1">{t('leads.freightDetails', 'Detalii Marfă')}</p>
-                      <p className="font-medium">⚖️ {lead.weight}</p>
+                      <p className="font-medium flex items-center gap-1.5"><WeightKgIcon className="w-4 h-4" /> {lead.weight}</p>
                       <p className="font-medium">📦 {lead.type || t('common.unspecified', 'Nespecificat')}</p>
-                      {lead.pallets && <p className="font-medium">🏢 {t('leads_pallets', 'Pallets')}: {lead.pallets}</p>}
+                      {lead.pallets && <p className="font-medium flex items-center gap-1.5"><PalletIcon className="w-4 h-4" /> {t('leads_pallets', 'Pallets')}: {lead.pallets}</p>}
                     </div>
                   </div>
 

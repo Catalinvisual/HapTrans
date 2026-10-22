@@ -19,6 +19,8 @@ import ActivityTimeline from '../components/ActivityTimeline';
 import ExportModal from '../components/ExportModal';
 import ExcelIcon from '../components/icons/ExcelIcon';
 import ImportIcon from '../components/icons/ImportIcon';
+import PalletIcon from '../components/icons/PalletIcon';
+import WeightKgIcon from '../components/icons/WeightKgIcon';
 import { formatDateExcel } from '../lib/exportExcel';
 import AiImportModal from '../components/AiImportModal';
 import ExcelImportModal from '../components/ExcelImportModal';
@@ -545,7 +547,7 @@ export default function OrdersPage() {
               <td colSpan={3} className="px-3 py-2 text-[12px] font-bold text-text-secondary uppercase tracking-wider">{t('totals', 'Totals')} · {filtered.length} {t('orders', 'orders')}</td>
               <td />
               <td />
-              <td className="px-3 py-2 text-right text-[12px] font-bold text-text-secondary whitespace-nowrap">{fmtNumber(totalWeight)} kg</td>
+              <td className="px-3 py-2 text-right text-[12px] font-bold text-text-secondary whitespace-nowrap"><span className="inline-flex items-center gap-1 justify-end"><WeightKgIcon className="w-3.5 h-3.5" />{fmtNumber(totalWeight)} kg</span></td>
               <td />
               <td className="px-3 py-2 text-right text-[13px] font-black text-primary whitespace-nowrap">{fmtMoney(totalRevenue)}</td>
               <td />
@@ -706,7 +708,7 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
             );
           })()}
           <Row icon={<User className="w-3 h-3" />} label={t('contact', 'Contact')} value={`${order.contactPerson || '—'}${order.contactPhone ? ` · ${order.contactPhone}` : ''}`} />
-          <Row icon={<Boxes className="w-3 h-3" />} label={t('cargo_summary', 'Cargo')} value={`${order.cargoItems?.length || 0} ${t('items', 'items')} · ${pallets > 0 ? `${fmtNumber(pallets)} pal · ` : ''}${fmtNumber(weight)} kg · ${fmtNumber(ldm, 2)} LDM · ${fmtNumber(volume, 1)} m³`} />
+          <Row icon={<PalletIcon className="w-3.5 h-3.5" />} label={t('cargo_summary', 'Cargo')} value={`${order.cargoItems?.length || 0} ${t('items', 'items')} · ${pallets > 0 ? `${fmtNumber(pallets)} pal · ` : ''}${fmtNumber(weight)} kg · ${fmtNumber(ldm, 2)} LDM · ${fmtNumber(volume, 1)} m³`} />
           <Row icon={<Activity className="w-3 h-3" />} label={t('equipment', 'Equipment')} value={(order.equipmentRequirements || []).map((r: string) => r.toUpperCase()).join(', ') || '—'} />
           <Row icon={<Box className="w-3 h-3" />} label={t('transport_type', 'Transport type')} value={(order.transportType || 'ftl').toUpperCase()} />
           <Row icon={<Flag className="w-3 h-3" />} label={t('priority', 'Priority')} value={t(`priority_${order.priority || 'normal'}`, order.priority || 'normal')} />
@@ -727,7 +729,7 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
               <span className="text-[11px] font-bold text-text-secondary whitespace-nowrap">×{fmtNumber(c.quantity || 1)} {c.unit}</span>
             </div>
             <div className="flex items-center gap-3 mt-2 text-[11px] text-text-secondary flex-wrap">
-              <span className="flex items-center gap-1"><Weight className="w-3 h-3" />{fmtNumber(c.weightKg || 0)} kg</span>
+              <span className="flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{fmtNumber(c.weightKg || 0)} kg</span>
               {c.ldm ? <span>{fmtNumber(c.ldm, 2)} LDM</span> : null}
               {c.volumeCbm ? <span>{fmtNumber(c.volumeCbm, 1)} m³</span> : null}
               {c.adrClass ? <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-bold">ADR {c.adrClass}</span> : null}

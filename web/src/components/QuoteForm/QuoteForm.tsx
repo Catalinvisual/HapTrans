@@ -6,6 +6,8 @@ import { ChevronDown, UploadCloud, CheckCircle } from 'lucide-react';
 import AddressAutocomplete from '../AddressAutocomplete/AddressAutocomplete';
 import DatePicker from '../DatePicker/DatePicker';
 import TimePicker from '../TimePicker/TimePicker';
+import PalletIcon from '../icons/PalletIcon';
+import WeightKgIcon from '../icons/WeightKgIcon';
 import styles from './QuoteForm.module.css';
 
 
@@ -463,7 +465,10 @@ const QuoteForm = () => {
         </div>
 
         <div className={styles.inputGroup}>
-          <label>{t('cargoWeightKg')} *</label>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <WeightKgIcon className="w-4 h-4" />
+            {t('cargoWeightKg')} *
+          </label>
           <input type="number" name="cargoWeightKg" required min="1" value={formData.cargoWeightKg} onChange={handleChange} />
         </div>
 
@@ -488,7 +493,10 @@ const QuoteForm = () => {
         )}
 
         <div className={styles.inputGroup}>
-          <label>{t('numberOfPallets')}</label>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <PalletIcon className="w-4 h-4" />
+            {t('numberOfPallets')}
+          </label>
           <input type="number" name="numberOfPallets" min="1" value={formData.numberOfPallets} onChange={handleChange} />
         </div>
 

@@ -10,6 +10,8 @@ import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import { useAuthStore } from '../store/authStore';
 import { useConfirm } from '../components/SaveConfirmProvider';
+import PalletIcon from '../components/icons/PalletIcon';
+import WeightKgIcon from '../components/icons/WeightKgIcon';
 const STATUS_COLORS: Record<string, string> = {
   pending: 'badge-gray',
   confirmed: 'badge-primary',
@@ -621,8 +623,8 @@ export default function TripDetailsPage() {
                                     <Box className={`w-4 h-4 text-${markerColor}-500`} />
                                     <span className="capitalize">{t(task.type === 'load' ? 'loading_stop' : task.type === 'unload' ? 'unloading_stop' : task.type)}</span> - {t('orderRef', 'Order')}: {displayRef}
                                   </div>
-                                <div className="text-xs text-text-secondary mt-1">
-                                  {task.plannedTime ? formatDate(task.plannedTime) : '-'} | {t('pallets')}: {task.pallets || 0} ({task.weightKg || 0}{t("jsx_kg")}</div>
+                                <div className="text-xs text-text-secondary mt-1 flex items-center gap-1.5 flex-wrap">
+                                  {task.plannedTime ? formatDate(task.plannedTime) : '-'} | <span className="inline-flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{t('pallets')}: {task.pallets || 0}</span> (<span className="inline-flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{task.weightKg || 0} kg</span>)</div>
                               </div>
                               <span className={`text-xs font-bold px-2 py-1 rounded bg-white border shadow-sm ${task.status === 'completed' ? 'border-green-200 text-green-700' : 'border-gray-200 text-gray-600'}`}>
                                 {t(task.status)}
@@ -717,7 +719,7 @@ export default function TripDetailsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <div className="flex justify-between text-xs font-bold mb-1">
-                              <span className={overWeight ? 'text-red-600' : 'text-text-secondary'}>{t('weight', 'Greutate')}</span>
+                              <span className={`flex items-center gap-1 ${overWeight ? 'text-red-600' : 'text-text-secondary'}`}><WeightKgIcon className="w-3.5 h-3.5" />{t('weight', 'Greutate')}</span>
                               <span className={overWeight ? 'text-red-600' : 'text-text'}>{seg.weight} / {truckMaxWeight} kg</span>
                             </div>
                             <div className="w-full bg-border rounded-full h-2 overflow-hidden">
@@ -727,7 +729,7 @@ export default function TripDetailsPage() {
                           
                           <div>
                             <div className="flex justify-between text-xs font-bold mb-1">
-                              <span className={overPallets ? 'text-red-600' : 'text-text-secondary'}>{t('pallets', 'Paleți')}</span>
+                              <span className={`flex items-center gap-1 ${overPallets ? 'text-red-600' : 'text-text-secondary'}`}><PalletIcon className="w-3.5 h-3.5" />{t('pallets', 'Paleți')}</span>
                               <span className={overPallets ? 'text-red-600' : 'text-text'}>{seg.pallets} / {truckMaxPallets}</span>
                             </div>
                             <div className="w-full bg-border rounded-full h-2 overflow-hidden">

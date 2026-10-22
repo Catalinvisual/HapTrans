@@ -23,6 +23,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import CustomSelect from '../components/CustomSelect';
 import { useSettingsStore } from '../store/settingsStore';
+import PalletIcon from '../components/icons/PalletIcon';
+import WeightKgIcon from '../components/icons/WeightKgIcon';
 import { useConfirm } from '../components/SaveConfirmProvider';
 import { generateOrderPdf } from '../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
@@ -1461,8 +1463,8 @@ function TripDetailDrawer({
                         {o.client?.name && <span className="text-xs font-semibold text-text-primary truncate">· {o.client.name}</span>}
                       </div>
                       <div className="flex flex-wrap gap-2 text-[11px] text-text-secondary mt-1.5">
-                        <span className="px-1.5 py-0.5 bg-surface rounded font-medium">{oc.pallets || o.pallets || 0} pal</span>
-                        <span className="px-1.5 py-0.5 bg-surface rounded font-medium">{fmtNumber(oc.weight || o.weightKg || 0)} kg</span>
+                        <span className="px-1.5 py-0.5 bg-surface rounded font-medium inline-flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{oc.pallets || o.pallets || 0} pal</span>
+                        <span className="px-1.5 py-0.5 bg-surface rounded font-medium inline-flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{fmtNumber(oc.weight || o.weightKg || 0)} kg</span>
                         {(oc.ldm || o.loadingMeters) && <span className="px-1.5 py-0.5 bg-surface rounded font-medium">{oc.ldm || o.loadingMeters} LDM</span>}
                         {(oc.volume || o.volumeCbm) && <span className="px-1.5 py-0.5 bg-surface rounded font-medium">{oc.volume || o.volumeCbm} m³</span>}
                       </div>

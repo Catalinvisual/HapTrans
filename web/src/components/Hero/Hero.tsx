@@ -5,6 +5,8 @@ import styles from './Hero.module.css';
 import { useLanguage } from '@/context/LanguageContext';
 import { useFormatters } from '@/lib/format';
 import AddressAutocomplete from '../AddressAutocomplete/AddressAutocomplete';
+import PalletIcon from '../icons/PalletIcon';
+import WeightKgIcon from '../icons/WeightKgIcon';
 
 const Hero = () => {
   const { t, lang } = useLanguage();
@@ -328,7 +330,10 @@ const Hero = () => {
 
                 <div className={styles.rangeWrap}>
                   <div className={styles.rangeHeader}>
-                    <label style={{ margin: 0 }}>{getLabel("Greutate", "Weight", "Gewicht", "Gewicht", "Poids", "Peso", "Waga")}</label>
+                    <label style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <WeightKgIcon className="w-4 h-4" />
+                      {getLabel("Greutate", "Weight", "Gewicht", "Gewicht", "Poids", "Peso", "Waga")}
+                    </label>
                     <span className={styles.rangeValue}>{weightLabel}</span>
                   </div>
                   <input
@@ -346,7 +351,10 @@ const Hero = () => {
 
                 <div className={styles.rangeWrap}>
                   <div className={styles.rangeHeader}>
-                    <label style={{ margin: 0 }}>{getLabel("Paleți", "Pallets", "Pallets", "Paletten", "Palettes", "Palets", "Palety")}</label>
+                    <label style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <PalletIcon className="w-4 h-4" />
+                      {getLabel("Paleți", "Pallets", "Pallets", "Paletten", "Palettes", "Palets", "Palety")}
+                    </label>
                     <span className={styles.rangeValue}>{pallets} {getLabel("paleți", "pallets", "pallets", "Paletten", "palettes", "palets", "palety")}</span>
                   </div>
                   <input

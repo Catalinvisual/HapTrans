@@ -20,6 +20,8 @@ import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
 import ExportModal from '../components/ExportModal';
 import ExcelIcon from '../components/icons/ExcelIcon';
+import PalletIcon from '../components/icons/PalletIcon';
+import WeightKgIcon from '../components/icons/WeightKgIcon';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateTruckPdf } from '../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
@@ -407,10 +409,10 @@ export default function TrucksPage() {
         return (
           <div className="text-left leading-tight">
             <div className="text-[12px] font-bold text-text-primary flex items-center justify-start gap-1">
-              <Weight className="w-3 h-3 text-text-muted" />{w ? `${fmtNumber(w / 1000, 1)}t` : '—'}
+              <WeightKgIcon className="w-3.5 h-3.5" />{w ? `${fmtNumber(w / 1000, 1)}t` : '—'}
             </div>
             <div className="text-[11px] text-text-secondary flex items-center justify-start gap-1 whitespace-nowrap">
-              <Boxes className="w-3 h-3 text-text-muted" />{pallets ? `${pallets} plt` : '—'}{ldm ? ` • ${fmtNumber(ldm, 1)} LDM` : ''}
+              <PalletIcon className="w-3.5 h-3.5" />{pallets ? `${pallets} plt` : '—'}{ldm ? ` • ${fmtNumber(ldm, 1)} LDM` : ''}
             </div>
           </div>
         );
@@ -514,7 +516,7 @@ export default function TrucksPage() {
 
   const footerCells = [
     <td key="vehicle" colSpan={4} className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-text-secondary">{filtered.length} {t('results', 'results')}</td>,
-    <td key="capacity" className="px-3 py-2 text-right text-xs font-bold text-text-primary whitespace-nowrap">{filtered.length ? `${fmtNumber(Math.round(filtered.reduce((s, tr) => s + Number(tr.payloadCapacity || tr.maxWeightKg || 0), 0) / filtered.length) / 1000, 1)}t` : '—'} · {filtered.reduce((s, tr) => s + Number(tr.maxPallets || 0), 0) || 0} plt</td>,
+    <td key="capacity" className="px-3 py-2 text-right text-xs font-bold text-text-primary whitespace-nowrap"><span className="inline-flex items-center gap-1 justify-end"><WeightKgIcon className="w-3.5 h-3.5" />{filtered.length ? `${fmtNumber(Math.round(filtered.reduce((s, tr) => s + Number(tr.payloadCapacity || tr.maxWeightKg || 0), 0) / filtered.length) / 1000, 1)}t` : '—'} · <PalletIcon className="w-3.5 h-3.5" />{filtered.reduce((s, tr) => s + Number(tr.maxPallets || 0), 0) || 0} plt</span></td>,
     <td key="fuel" className="px-3 py-2 text-right text-xs font-bold text-text-primary">—</td>,
     <td key="cost" className="px-3 py-2 text-right text-xs font-bold text-primary whitespace-nowrap">{avgCost ? fmtMoney(avgCost) : '—'}</td>,
     <td key="service" className="px-3 py-2" />,
@@ -585,8 +587,8 @@ export default function TrucksPage() {
       key: 'specs', label: t('tab_specs', 'Specifications'),
       content: (
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Boxes className="w-3 h-3" />{t('payload', 'Payload')}</div><div className="text-lg font-black mt-0.5">{fmtNumber(Number(drawerTruck.payloadCapacity || drawerTruck.maxWeightKg || 0))} <span className="text-xs text-text-secondary">kg</span></div></div>
-          <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Boxes className="w-3 h-3" />{t('maxPallets', 'Pallets')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.maxPallets || '—'}</div></div>
+          <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{t('payload', 'Payload')}</div><div className="text-lg font-black mt-0.5">{fmtNumber(Number(drawerTruck.payloadCapacity || drawerTruck.maxWeightKg || 0))} <span className="text-xs text-text-secondary">kg</span></div></div>
+          <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{t('maxPallets', 'Pallets')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.maxPallets || '—'}</div></div>
           <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Gauge className="w-3 h-3" />{t('maxLdm', 'LDM')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.maxLdm ? `${drawerTruck.maxLdm} m` : '—'}</div></div>
           <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Boxes className="w-3 h-3" />{t('maxVolumeCbm', 'Volume')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.maxVolumeCbm ? `${drawerTruck.maxVolumeCbm} m³` : '—'}</div></div>
           <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Fuel className="w-3 h-3" />{t('fuel_consumption', 'Fuel')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.fuelConsumption ? `${drawerTruck.fuelConsumption} L/100km` : '—'}</div></div>
@@ -954,9 +956,9 @@ export default function TrucksPage() {
             <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
               <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Boxes className="w-4 h-4"/>{t('section_capacity') || '3. Load Capacity'}</h4>
             </div>
-            <div><label className="label font-semibold">{t('maxWeightKg', 'Max Weight (kg)')}</label><input type="number" className="input" value={form.maxWeightKg} onChange={e => setForm({...form, maxWeightKg: e.target.value})} /></div>
-            <div><label className="label font-semibold">{t('payloadCapacity', 'Payload Capacity (kg)')}</label><input type="number" className="input" value={form.payloadCapacity} onChange={e => setForm({...form, payloadCapacity: e.target.value})} /></div>
-            <div><label className="label font-semibold">{t('maxPallets', 'Max Pallets')}</label><input type="number" className="input" value={form.maxPallets} onChange={e => setForm({...form, maxPallets: e.target.value})} /></div>
+            <div><label className="label font-semibold flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{t('maxWeightKg', 'Max Weight (kg)')}</label><input type="number" className="input" value={form.maxWeightKg} onChange={e => setForm({...form, maxWeightKg: e.target.value})} /></div>
+            <div><label className="label font-semibold flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{t('payloadCapacity', 'Payload Capacity (kg)')}</label><input type="number" className="input" value={form.payloadCapacity} onChange={e => setForm({...form, payloadCapacity: e.target.value})} /></div>
+            <div><label className="label font-semibold flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{t('maxPallets', 'Max Pallets')}</label><input type="number" className="input" value={form.maxPallets} onChange={e => setForm({...form, maxPallets: e.target.value})} /></div>
             <div><label className="label font-semibold">{t('maxLdm', 'Max LDM')}</label><input type="number" step="0.1" className="input" value={form.maxLdm} onChange={e => setForm({...form, maxLdm: e.target.value})} /></div>
             <div><label className="label font-semibold">{t('maxVolumeCbm', 'Max Volume (m³)')}</label><input type="number" className="input" value={form.maxVolumeCbm} onChange={e => setForm({...form, maxVolumeCbm: e.target.value})} /></div>
             <div className="xl:col-span-3"></div>

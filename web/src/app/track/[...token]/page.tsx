@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import Header from '@/components/Header/Header';
 import { useLanguage } from '@/context/LanguageContext';
 import { useFormatters } from '@/lib/format';
+import PalletIcon from '@/components/icons/PalletIcon';
+import WeightKgIcon from '@/components/icons/WeightKgIcon';
 
 interface TrackData {
   referenceNumber: string;
@@ -244,7 +246,21 @@ export default function TrackPage({ params }: { params: any }) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem', padding: '1rem', background: 'var(--surface-alt)', borderRadius: '0.5rem' }}>
               <div>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{t('cargoDetailsLabel') || 'Detalii Marfă'}</p>
-                <p style={{ fontWeight: 600 }}>{data.pallets ? `${fmtNum(data.pallets)} Paleți` : '-'} • {data.weightKg ? `${fmtNum(data.weightKg)} kg` : '-'}</p>
+                <p style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {data.pallets ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <PalletIcon className="w-4 h-4" />
+                      {fmtNum(data.pallets)} Paleți
+                    </span>
+                  ) : '-'}
+                  <span>•</span>
+                  {data.weightKg ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <WeightKgIcon className="w-4 h-4" />
+                      {fmtNum(data.weightKg)} kg
+                    </span>
+                  ) : '-'}
+                </p>
               </div>
               <div>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{t('distanceLabel') || 'Distanță Cursă'}</p>

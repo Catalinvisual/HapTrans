@@ -5,6 +5,8 @@ import api from '../lib/api';
 import { fmtMoney } from '../lib/format';
 import { Loader2, ArrowLeft, Package, MapPin, Clock, FileText, CheckCircle, Truck, Activity } from 'lucide-react';
 import toast from 'react-hot-toast';
+import PalletIcon from '../components/icons/PalletIcon';
+import WeightKgIcon from '../components/icons/WeightKgIcon';
 export default function OrderDetailsPage() {
   const {
     id
@@ -172,18 +174,18 @@ export default function OrderDetailsPage() {
             
             <div className="space-y-6">
               <div className="card p-5">
-                <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Package className="text-orange-500" />{t("jsx_cargoItems")}</h3>
+                <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><PalletIcon className="w-5 h-5" />{t("jsx_cargoItems")}</h3>
   
                 {Array.isArray(order.cargoItems) && order.cargoItems.length > 0 ? <div className="space-y-4">
                     {order.cargoItems.map((item: any, idx: number) => <div key={idx} className="bg-surface border border-border p-4 rounded-xl text-sm">
                         <div className="flex justify-between items-start gap-4 mb-3">
-                          <p className="font-bold text-base">{item.quantity || 1}x {item.unit || item.type || 'pallet'} <span className="text-text-secondary text-sm font-medium block mt-0.5">{item.description || 'No description'}</span></p>
+                          <p className="font-bold text-base flex items-center gap-1.5"><PalletIcon className="w-4 h-4" />{item.quantity || 1}x {item.unit || item.type || 'pallet'} <span className="text-text-secondary text-sm font-medium block mt-0.5">{item.description || 'No description'}</span></p>
                         </div>
                         
                         {/* Specifications */}
                         <div className="grid grid-cols-3 gap-2 mb-3 bg-black/5 p-2 rounded-lg">
                           <div className="text-center">
-                            <span className="block text-[10px] text-text-secondary uppercase font-bold">{t("jsx_weight", "Weight")}</span>
+                            <span className="block text-[10px] text-text-secondary uppercase font-bold flex items-center justify-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{t("jsx_weight", "Weight")}</span>
                             <span className="font-semibold">{item.weightKg ? `${item.weightKg} kg` : '—'}</span>
                           </div>
                           <div className="text-center border-x border-border/50">

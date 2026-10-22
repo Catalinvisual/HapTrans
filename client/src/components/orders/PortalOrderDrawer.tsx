@@ -7,6 +7,8 @@ import { fmtMoney, fmtNumber } from '../../lib/format';
 import DetailDrawer from '../ui/DetailDrawer';
 import type { TabDef } from '../ui/DetailDrawer';
 import StatusBadge from '../ui/StatusBadge';
+import PalletIcon from '../icons/PalletIcon';
+import WeightKgIcon from '../icons/WeightKgIcon';
 
 interface Props {
   order: any;
@@ -76,7 +78,7 @@ export default function PortalOrderDrawer({ order, onClose }: Props) {
           <Row icon={<FileText className="w-3 h-3 text-amber-500" />} label={t('loading_reference', 'Loading ref')} value={order.loadingReference || pickup?.reference} />
           <Row icon={<FileText className="w-3 h-3 text-violet-500" />} label={t('unloading_reference', 'Unloading ref')} value={order.unloadingReference || dropoff?.reference} />
           <Row icon={<User className="w-3 h-3" />} label={t('contact', 'Contact')} value={`${order.contactPerson || '—'}${order.contactPhone ? ` · ${order.contactPhone}` : ''}`} />
-          <Row icon={<Boxes className="w-3 h-3" />} label={t('cargo_summary', 'Cargo')} value={`${cargo.length} ${t('items', 'items')} · ${pallets > 0 ? `${fmtNumber(pallets)} pal · ` : ''}${fmtNumber(sum('weightKg'))} kg · ${fmtNumber(sum('ldm'), 2)} LDM · ${fmtNumber(sum('volumeCbm'), 1)} m³`} />
+          <Row icon={<PalletIcon className="w-3.5 h-3.5" />} label={t('cargo_summary', 'Cargo')} value={`${cargo.length} ${t('items', 'items')} · ${pallets > 0 ? `${fmtNumber(pallets)} pal · ` : ''}${fmtNumber(sum('weightKg'))} kg · ${fmtNumber(sum('ldm'), 2)} LDM · ${fmtNumber(sum('volumeCbm'), 1)} m³`} />
           <Row icon={<Box className="w-3 h-3" />} label={t('transport_type', 'Transport type')} value={(order.transportType || 'ftl').toUpperCase()} />
           <Row icon={<Flag className="w-3 h-3" />} label={t('priority', 'Priority')} value={t(`priority_${order.priority || 'normal'}`, order.priority || 'normal')} />
           <Row label={t('truck', 'Truck')} value={trip?.truck?.plateNumber || trip?.carrierTruckPlate || t('tbd', 'TBD')} />
@@ -97,7 +99,7 @@ export default function PortalOrderDrawer({ order, onClose }: Props) {
               <span className="text-[11px] font-bold text-text-secondary whitespace-nowrap">×{fmtNumber(c.quantity || 1)} {c.unit || c.type || 'pallet'}</span>
             </div>
             <div className="flex items-center gap-3 mt-2 text-[11px] text-text-secondary flex-wrap">
-              <span className="flex items-center gap-1"><Weight className="w-3 h-3" />{fmtNumber(c.weightKg || 0)} kg</span>
+              <span className="flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{fmtNumber(c.weightKg || 0)} kg</span>
               {c.ldm ? <span>{fmtNumber(c.ldm, 2)} LDM</span> : null}
               {c.volumeCbm ? <span>{fmtNumber(c.volumeCbm, 1)} m³</span> : null}
               {(c.adrClass || c.unNumber || c.adrUnNumber) ? <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-bold">ADR {c.adrClass ? `Cls ${c.adrClass}` : ''} {(c.unNumber || c.adrUnNumber) ? `UN ${c.unNumber || c.adrUnNumber}` : ''}</span> : null}

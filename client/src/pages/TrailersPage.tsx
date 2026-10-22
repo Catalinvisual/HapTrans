@@ -18,6 +18,8 @@ import CustomSelect from "../components/CustomSelect";
 import type { SelectOption } from "../components/CustomSelect";
 import ExportModal from "../components/ExportModal";
 import ExcelIcon from "../components/icons/ExcelIcon";
+import PalletIcon from "../components/icons/PalletIcon";
+import WeightKgIcon from "../components/icons/WeightKgIcon";
 import { useSettingsStore } from '../store/settingsStore';
 import { generateTrailerPdf } from '../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
@@ -210,7 +212,7 @@ export default function TrailersPage() {
         const cbm = Number(r.maxVolumeCbm || 0);
         return (
           <div className="text-[12px] whitespace-nowrap text-left flex items-center gap-1">
-            <span className="inline-flex items-center gap-1 font-bold text-text-primary"><Boxes className="w-3 h-3 text-text-muted" />{pallets ? `${pallets} plt` : "—"}</span>
+            <span className="inline-flex items-center gap-1 font-bold text-text-primary"><PalletIcon className="w-3.5 h-3.5" />{pallets ? `${pallets} plt` : "—"}</span>
             <span className="text-text-secondary mx-1">•</span>
             <span className="inline-flex items-center gap-1 font-semibold text-text-primary"><Box className="w-3 h-3 text-text-muted" />{cbm ? `${cbm} m³` : "—"}</span>
           </div>
@@ -302,9 +304,9 @@ export default function TrailersPage() {
           <div><div className="text-xs text-text-secondary">{t("type", "Tip")}</div><div className="font-semibold">{typeLabel(drawerTrailer, t)}</div></div>
           <div><div className="text-xs text-text-secondary">{t("brand", "Brand")}</div><div className="font-semibold">{drawerTrailer.brand || "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("year", "An")}</div><div className="font-semibold">{drawerTrailer.year || "—"}</div></div>
-          <div><div className="text-xs text-text-secondary">{t("payloadCapacity", "Capacitate greutate (kg)")}</div><div className="font-semibold">{drawerTrailer.payloadCapacityWeight ? Number(drawerTrailer.payloadCapacityWeight) + " kg" : "—"}</div></div>
+          <div><div className="text-xs text-text-secondary flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{t("payloadCapacity", "Capacitate greutate (kg)")}</div><div className="font-semibold">{drawerTrailer.payloadCapacityWeight ? Number(drawerTrailer.payloadCapacityWeight) + " kg" : "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("maxLdm", "Max LDM")}</div><div className="font-semibold">{drawerTrailer.maxLdm ? Number(drawerTrailer.maxLdm) : "—"}</div></div>
-          <div><div className="text-xs text-text-secondary">{t("maxPallets", "Paleți")}</div><div className="font-semibold">{drawerTrailer.payloadCapacityPallets || "—"}</div></div>
+          <div><div className="text-xs text-text-secondary flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{t("maxPallets", "Paleți")}</div><div className="font-semibold">{drawerTrailer.payloadCapacityPallets || "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("maxVolumeCbm", "Volum m³")}</div><div className="font-semibold">{drawerTrailer.maxVolumeCbm ? Number(drawerTrailer.maxVolumeCbm) + " m³" : "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("status", "Status")}</div><div><StatusBadge type="fleet" status={drawerTrailer.status} label={t((TRAILER_STATUSES.find(o => o.value === drawerTrailer.status)?.label as string) || drawerTrailer.status)} /></div></div>
           <div className="mt-6 pt-4 border-t border-border/60 grid grid-cols-2 gap-3 text-xs text-text-secondary col-span-1 sm:col-span-2">
@@ -432,8 +434,8 @@ export default function TrailersPage() {
             <div><label className="label font-semibold">{t("type", "Tip")}</label><CustomSelect value={form.type} onChange={(v) => setForm({ ...form, type: v })} options={TRAILER_TYPES.map((o) => ({ value: o.value, label: t(o.label) || o.default }))} /></div>
             <div><label className="label font-semibold">{t("brand", "Brand")}</label><input type="text" className="input" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} /></div>
             <div><label className="label font-semibold">{t("year", "An")}</label><input type="number" className="input" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} /></div>
-            <div><label className="label font-semibold">{t("payloadCapacity", "Capacitate greutate (kg)")}</label><input type="number" className="input" value={form.payloadCapacityWeight} onChange={(e) => setForm({ ...form, payloadCapacityWeight: e.target.value })} min="0" /></div>
-            <div><label className="label font-semibold">{t("maxPallets", "Paleți")}</label><input type="number" className="input" value={form.payloadCapacityPallets} onChange={(e) => setForm({ ...form, payloadCapacityPallets: e.target.value })} min="0" /></div>
+            <div><label className="label font-semibold flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{t("payloadCapacity", "Capacitate greutate (kg)")}</label><input type="number" className="input" value={form.payloadCapacityWeight} onChange={(e) => setForm({ ...form, payloadCapacityWeight: e.target.value })} min="0" /></div>
+            <div><label className="label font-semibold flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{t("maxPallets", "Paleți")}</label><input type="number" className="input" value={form.payloadCapacityPallets} onChange={(e) => setForm({ ...form, payloadCapacityPallets: e.target.value })} min="0" /></div>
             <div><label className="label font-semibold">{t("maxLdm", "Max LDM")}</label><input type="number" step="0.1" className="input" value={form.maxLdm} onChange={(e) => setForm({ ...form, maxLdm: e.target.value })} min="0" /></div>
             <div><label className="label font-semibold">{t("maxVolumeCbm", "Volum (m³)")}</label><input type="number" step="0.1" className="input" value={form.maxVolumeCbm} onChange={(e) => setForm({ ...form, maxVolumeCbm: e.target.value })} min="0" /></div>
             <div>

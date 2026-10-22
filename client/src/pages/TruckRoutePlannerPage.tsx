@@ -12,6 +12,8 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { planningApi } from '../lib/planningApi';
 import { useConfirm } from '../components/SaveConfirmProvider';
+import PalletIcon from '../components/icons/PalletIcon';
+import WeightKgIcon from '../components/icons/WeightKgIcon';
 
 function fmtDate(d: string | Date | null | undefined) {
   if (!d) return '—';
@@ -927,8 +929,8 @@ export default function TruckRoutePlannerPage() {
                       <p className="text-text-muted uppercase font-bold text-[8px]">
                         {isPickup ? t('pln_to_load', 'To load') : t('pln_to_unload', 'To unload')}
                       </p>
-                      <p className={`font-bold truncate ${isPickup ? 'text-blue-600' : 'text-emerald-600'}`}>
-                        {Math.round(stop.pallets || 0)} {t('unit_pallets', 'pal')} · {Math.round(stop.weightKg || 0)} kg
+                      <p className={`font-bold truncate flex items-center gap-1 ${isPickup ? 'text-blue-600' : 'text-emerald-600'}`}>
+                        <PalletIcon className="w-3.5 h-3.5" />{Math.round(stop.pallets || 0)} {t('unit_pallets', 'pal')} · <WeightKgIcon className="w-3.5 h-3.5" />{Math.round(stop.weightKg || 0)} kg
                       </p>
                     </div>
                   </div>
@@ -936,9 +938,9 @@ export default function TruckRoutePlannerPage() {
                   <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
                     <span className="text-[10px] font-bold text-text-secondary">
                       {isPickup ? (
-                        <span>{t('pln_onboard_after', 'On board after')}: <strong className="text-text-primary">{Math.round(stop.liveCumPal ?? stop.cumulativePallets ?? 0)} pal · {Math.round(stop.liveCumWt ?? stop.cumulativeWeightKg ?? 0)} kg</strong></span>
+                        <span>{t('pln_onboard_after', 'On board after')}: <strong className="text-text-primary inline-flex items-center gap-1"><PalletIcon className="w-3 h-3" />{Math.round(stop.liveCumPal ?? stop.cumulativePallets ?? 0)} pal · <WeightKgIcon className="w-3 h-3" />{Math.round(stop.liveCumWt ?? stop.cumulativeWeightKg ?? 0)} kg</strong></span>
                       ) : (
-                        <span>{t('pln_remaining_truck', 'Remaining on truck')}: <strong className="text-text-primary">{Math.round(stop.liveCumPal ?? stop.cumulativePallets ?? 0)} pal · {Math.round(stop.liveCumWt ?? stop.cumulativeWeightKg ?? 0)} kg</strong></span>
+                        <span>{t('pln_remaining_truck', 'Remaining on truck')}: <strong className="text-text-primary inline-flex items-center gap-1"><PalletIcon className="w-3 h-3" />{Math.round(stop.liveCumPal ?? stop.cumulativePallets ?? 0)} pal · <WeightKgIcon className="w-3 h-3" />{Math.round(stop.liveCumWt ?? stop.cumulativeWeightKg ?? 0)} kg</strong></span>
                       )}
                     </span>
                     {stop.loadingSequence != null && (

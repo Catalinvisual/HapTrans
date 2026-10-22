@@ -13,6 +13,7 @@ import type { Column } from '../../components/ui/DataTable';
 import KpiStrip from '../../components/ui/KpiStrip';
 import StatusBadge from '../../components/ui/StatusBadge';
 import OrderWizard from '../../components/orders/OrderWizard';
+import WeightKgIcon from '../../components/icons/WeightKgIcon';
 
 const ORDER_STATUSES = ['draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoiced', 'paid', 'cancelled'];
 
@@ -132,7 +133,7 @@ export default function PortalOrdersPage() {
       return (
         <div className="text-right">
           <div className="text-[12px] font-bold text-text-primary">{o.cargoItems?.length || 0} {t('items', 'items')}</div>
-          <div className="text-[11px] text-text-secondary whitespace-nowrap">{fmtNumber(w)} kg{ldm > 0 ? ` · ${fmtNumber(ldm, 1)} LDM` : ''}</div>
+          <div className="text-[11px] text-text-secondary whitespace-nowrap flex items-center justify-end gap-1"><WeightKgIcon className="w-3 h-3" />{fmtNumber(w)} kg{ldm > 0 ? ` · ${fmtNumber(ldm, 1)} LDM` : ''}</div>
         </div>
       );
     } },

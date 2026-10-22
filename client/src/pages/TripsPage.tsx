@@ -19,6 +19,8 @@ import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
 import ExportModal from '../components/ExportModal';
 import ExcelIcon from '../components/icons/ExcelIcon';
+import PalletIcon from '../components/icons/PalletIcon';
+import WeightKgIcon from '../components/icons/WeightKgIcon';
 import ActivityTimeline from '../components/ActivityTimeline';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
@@ -331,8 +333,8 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
     } },
     { key: 'weight', label: t('cargo', 'Cargo'), sortable: true, className: 'min-w-[98px]', render: tr => (
       <div className="leading-tight text-[11px]">
-        <div className="font-semibold flex items-center gap-1"><Boxes className="w-3 h-3 text-text-muted" />{fmtNumber(tPallets(tr))} {t('pallets', 'pal')}</div>
-        <div className="text-text-secondary flex items-center gap-1"><Scale className="w-3 h-3 text-text-muted" />{fmtNumber(Math.round(tWeight(tr)))} kg</div>
+        <div className="font-semibold flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{fmtNumber(tPallets(tr))} {t('pallets', 'pal')}</div>
+        <div className="text-text-secondary flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{fmtNumber(Math.round(tWeight(tr)))} kg</div>
       </div>
     ) },
     { key: 'distance', label: t('km', 'Km'), sortable: true, align: 'right', className: 'min-w-[62px]', render: tr => (
@@ -364,7 +366,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
 
   const footerCells = [
     <td key="total" colSpan={4} className="px-3 py-2 text-[11px] font-bold uppercase text-text-secondary">{t('total', 'Total')} · {filtered.length} {t('trips', 'trips')}</td>,
-    <td key="cargo" className="px-3 py-2 text-left text-xs font-bold whitespace-nowrap">{fmtNumber(totals.pallets)} {t('pallets', 'pal')} / {fmtNumber(Math.round(totals.distance))} km</td>,
+    <td key="cargo" className="px-3 py-2 text-left text-xs font-bold whitespace-nowrap"><span className="inline-flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{fmtNumber(totals.pallets)} {t('pallets', 'pal')} / {fmtNumber(Math.round(totals.distance))} km</span></td>,
     <td key="distance" className="px-3 py-2 text-right text-xs font-bold whitespace-nowrap">{fmtNumber(Math.round(totals.distance))} km</td>,
     <td key="revenue" className="px-3 py-2 text-right text-xs font-bold whitespace-nowrap">{fmtMoney(totals.revenue)}</td>,
     <td key="cost" className="px-3 py-2 text-right text-xs font-bold text-text-secondary whitespace-nowrap">{fmtMoney(totals.cost)}</td>,

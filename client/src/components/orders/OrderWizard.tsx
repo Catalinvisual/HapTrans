@@ -7,6 +7,8 @@ import toast from 'react-hot-toast';
 import AddressAutocomplete from '../AddressAutocomplete';
 import CompanyAutocomplete from '../CompanyAutocomplete';
 import CustomDatePicker from '../CustomDatePicker';
+import PalletIcon from '../icons/PalletIcon';
+import WeightKgIcon from '../icons/WeightKgIcon';
 export interface OrderWizardPrefill {
   pickupAddress?: string;
   deliveryAddress?: string;
@@ -1123,7 +1125,7 @@ export default function OrderWizard({
                         </div>
                         <div>
                           <label className="block text-xs font-semibold text-text-secondary mb-1.5 flex items-center justify-between">
-                            <span>{t("jsx_quantityOptio")}</span>
+                            <span className="inline-flex items-center gap-1.5"><PalletIcon className="w-3.5 h-3.5" />{t("jsx_quantityOptio")}</span>
                             {isPalletsTarget && <span className="text-[9px] text-orange-500 font-bold uppercase">Target</span>}
                           </label>
                           <input
@@ -1141,7 +1143,7 @@ export default function OrderWizard({
                         </div>
                         <div>
                           <label className="block text-xs font-semibold text-text-secondary mb-1.5 flex items-center justify-between">
-                            <span>{t("jsx_weightKgOp")}</span>
+                            <span className="inline-flex items-center gap-1.5"><WeightKgIcon className="w-3.5 h-3.5" />{t("jsx_weightKgOp")}</span>
                             {isWeightTarget && <span className="text-[9px] text-orange-500 font-bold uppercase">Target</span>}
                           </label>
                           <input
