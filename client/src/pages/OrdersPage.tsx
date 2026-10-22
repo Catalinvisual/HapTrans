@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Search, Loader2, MapPin, FileText, Trash2, Box, Download, Pencil, ExternalLink, Activity, Copy, FilterX, Coins, Weight, Boxes, BadgeEuro, ArrowRight, Flag, Phone, User, Navigation, Calendar, FileUp, Sparkles } from 'lucide-react';
 import api from '../lib/api';
@@ -74,6 +74,20 @@ export default function OrdersPage() {
 
   const [showAiImport, setShowAiImport] = useState(false);
   const [showExcelImport, setShowExcelImport] = useState(false);
+  const [showImportMenu, setShowImportMenu] = useState(false);
+  const importMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (importMenuRef.current && !importMenuRef.current.contains(e.target as Node)) {
+        setShowImportMenu(false);
+      }
+    };
+    if (showImportMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showImportMenu]);
   const [aiImporting, setAiImporting] = useState(false);
   const [aiFile, setAiFile] = useState<File | null>(null);
   const [aiPreview, setAiPreview] = useState<any>(null);
@@ -461,34 +475,42 @@ export default function OrdersPage() {
 
             <div className="flex items-center gap-1.5 ml-auto shrink-0">
               <span className="text-[11px] text-text-secondary font-medium whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
-              <div className="w-[120px] shrink-0">
-                <CustomSelect
-                  size="sm"
-                  value=""
-                  onChange={v => { if (v === 'ai') setShowAiImport(true); else if (v === 'excel') setShowExcelImport(true); }}
-                  placeholder={t('import', 'Import')}
-                  icon={<ImportIcon className="w-4 h-4" />}
-                  options={[
-                    {
-                      value: 'ai',
-                      label: (
-                        <span className="flex items-center gap-2">
-                          <Sparkles className="w-3.5 h-3.5 text-purple-500 shrink-0" />
-                          <span>{t('ai_import', 'Import AI')}</span>
-                        </span>
-                      )
-                    },
-                    {
-                      value: 'excel',
-                      label: (
-                        <span className="flex items-center gap-2">
-                          <ExcelIcon className="w-3.5 h-3.5 shrink-0" />
-                          <span>{t('excel_import', 'Import Excel')}</span>
-                        </span>
-                      )
-                    }
-                  ]}
-                />
+              <div className="relative shrink-0 flex items-center" ref={importMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowImportMenu((v) => !v)}
+                  className="p-1 hover:opacity-85 hover:scale-110 active:scale-95 transition-transform duration-150 shrink-0 cursor-pointer flex items-center justify-center"
+                  title={t('import', 'Import')}
+                >
+                  <ImportIcon className="w-8 h-8" />
+                </button>
+
+                {showImportMenu && (
+                  <div className="absolute right-0 top-full mt-2 z-50 bg-card border border-border rounded-xl shadow-xl p-1.5 min-w-[150px] animate-fade-in flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowImportMenu(false);
+                        setShowAiImport(true);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-text hover:bg-surface hover:text-primary rounded-lg transition-colors text-left cursor-pointer"
+                    >
+                      <Sparkles className="w-4 h-4 text-purple-500 shrink-0" />
+                      <span className="whitespace-nowrap">{t('ai_import', 'Import AI')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowImportMenu(false);
+                        setShowExcelImport(true);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-text hover:bg-surface hover:text-primary rounded-lg transition-colors text-left cursor-pointer"
+                    >
+                      <ExcelIcon className="w-4 h-4 shrink-0" />
+                      <span className="whitespace-nowrap">{t('excel_import', 'Import Excel')}</span>
+                    </button>
+                  </div>
+                )}
               </div>
               <button
                 type="button"
