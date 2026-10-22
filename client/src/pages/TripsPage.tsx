@@ -38,11 +38,15 @@ const tProfit = (trip: any) => {
   return tRevenue(trip) - tCost(trip) - tExtraCost(trip);
 };
 const tDriverName = (trip: any) => {
-  if (!trip.driver) return '—';
-  const d = trip.driver;
-  if (d.user?.name) return d.user.name;
-  if (d.firstName) return `${d.firstName} ${d.lastName || ''}`.trim();
-  return d.user?.email || d.name || '—';
+  if (trip.driver) {
+    const d = trip.driver;
+    if (d.user?.name) return d.user.name;
+    if (d.firstName) return `${d.firstName} ${d.lastName || ''}`.trim();
+    if (d.user?.email || d.name) return d.user?.email || d.name;
+  }
+  if (trip.carrierDriverName) return `${trip.carrierDriverName}${trip.carrierName ? ` (${trip.carrierName})` : ''}`;
+  if (trip.carrierName) return trip.carrierName;
+  return '—';
 };
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 // Turn a raw name or e-mail local part into a readable short name
@@ -291,7 +295,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
         <div className="leading-tight">
           <div className="flex items-center gap-1 text-[12px] min-w-0">
             <Truck className="w-3.5 h-3.5 text-text-muted shrink-0" />
-            <span className="font-semibold truncate">{tr.truck?.plateNumber || '—'}</span>
+            <span className="font-semibold truncate">{tr.truck?.plateNumber || tr.carrierTruckPlate || tr.carrierName || '—'}</span>
             {name && name !== '—' && (
               <>
                 <span className="text-text-muted shrink-0">•</span>
@@ -300,7 +304,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
               </>
             )}
           </div>
-          {tr.trailer?.plateNumber && <div className="text-[10px] text-text-muted truncate mt-0.5">{t('trailer', 'Trailer')}: {tr.trailer.plateNumber}</div>}
+          {(tr.trailer?.plateNumber || tr.carrierTrailerPlate) && <div className="text-[10px] text-text-muted truncate mt-0.5">{t('trailer', 'Trailer')}: {tr.trailer?.plateNumber || tr.carrierTrailerPlate}</div>}
         </div>
       );
     } },
@@ -608,9 +612,10 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
         </div>
         <div>
           <div className="text-[10px] font-bold uppercase text-text-secondary mb-1">{t('trip_details', 'Trip details')}</div>
-          <Row icon={<Truck className="w-3 h-3" />} label={t('truck', 'Truck')} value={trip.truck?.plateNumber || '—'} />
-          <Row icon={<RouteIcon className="w-3 h-3" />} label={t('trailer', 'Trailer')} value={trip.trailer?.plateNumber || '—'} />
+          <Row icon={<Truck className="w-3 h-3" />} label={t('truck', 'Truck')} value={trip.truck?.plateNumber || trip.carrierTruckPlate || '—'} />
+          <Row icon={<RouteIcon className="w-3 h-3" />} label={t('trailer', 'Trailer')} value={trip.trailer?.plateNumber || trip.carrierTrailerPlate || '—'} />
           <Row icon={<User className="w-3 h-3" />} label={t('driver', 'Driver')} value={tDriverName(trip)} />
+          {trip.carrierName && <Row label={t('carrier', 'Carrier')} value={trip.carrierName} />}
           <Row icon={<User className="w-3 h-3" />} label={t('dispatcher', 'Dispatcher')} value={trip.dispatcher?.name || trip.dispatcher?.email || '—'} />
           <Row icon={<Calendar className="w-3 h-3" />} label={t('planned_departure', 'Planned departure')} value={trip.plannedDeparture ? new Date(trip.plannedDeparture).toLocaleString() : '—'} />
           <Row icon={<Clock className="w-3 h-3" />} label={t('planned_arrival', 'Planned arrival')} value={trip.plannedArrival ? new Date(trip.plannedArrival).toLocaleString() : '—'} />
@@ -767,7 +772,7 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
       open
       onClose={onClose}
       title={<span className="flex items-center gap-2"><Truck className="w-4 h-4 text-primary" />{trip.tripNumber || trip.id.slice(0, 8)}</span>}
-      subtitle={`${tDriverName(trip)} · ${trip.truck?.plateNumber || '—'} · ${t('created_at', 'Created')}: ${trip.createdAt ? new Date(trip.createdAt).toLocaleDateString() : '—'}`}
+      subtitle={`${tDriverName(trip)} · ${trip.truck?.plateNumber || trip.carrierTruckPlate || '—'} · ${t('created_at', 'Created')}: ${trip.createdAt ? new Date(trip.createdAt).toLocaleDateString() : '—'}`}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}

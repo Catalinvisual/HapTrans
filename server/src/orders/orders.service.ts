@@ -56,7 +56,7 @@ export class OrdersService {
 
   findAll(status?: string) {
     const findOptions: any = { 
-      relations: ['client', 'stops', 'cargoItems', 'trip'],
+      relations: ['client', 'stops', 'cargoItems', 'trip', 'trip.truck', 'trip.trailer', 'trip.driver', 'trip.driver.user'],
       relationLoadStrategy: 'query',
       order: { createdAt: 'DESC' }
     };
@@ -70,7 +70,7 @@ export class OrdersService {
   findOne(id: string) {
     return this.repo.findOne({ 
       where: { id }, 
-      relations: ['client', 'stops', 'cargoItems', 'trip'] 
+      relations: ['client', 'stops', 'cargoItems', 'trip', 'trip.truck', 'trip.trailer', 'trip.driver', 'trip.driver.user'] 
     });
   }
 
@@ -253,10 +253,13 @@ export class OrdersService {
             widthCm: safeNum(cargoDto.widthCm),
             heightCm: safeNum(cargoDto.heightCm),
             adrClass: cargoDto.adrClass || null,
-            unNumber: cargoDto.adrUnNumber || null,
-            requiresTemperatureControl: cargoDto.isTemperatureControlled || false,
-            temperatureMin: safeNum(cargoDto.requiredTemperature),
-            temperatureMax: safeNum(cargoDto.requiredTemperature),
+            unNumber: cargoDto.unNumber || cargoDto.adrUnNumber || null,
+            properShippingName: cargoDto.properShippingName || null,
+            packingGroup: cargoDto.packingGroup || null,
+            tunnelRestrictionCode: cargoDto.tunnelRestrictionCode || null,
+            requiresTemperatureControl: cargoDto.requiresTemperatureControl ?? cargoDto.isTemperatureControlled ?? false,
+            temperatureMin: safeNum(cargoDto.temperatureMin ?? cargoDto.requiredTemperature),
+            temperatureMax: safeNum(cargoDto.temperatureMax ?? cargoDto.requiredTemperature),
             stackable: cargoDto.stackable || false,
             fragile: cargoDto.fragile || false,
           } as any);
@@ -450,10 +453,13 @@ export class OrdersService {
             widthCm: safeNum(cargoDto.widthCm),
             heightCm: safeNum(cargoDto.heightCm),
             adrClass: cargoDto.adrClass || null,
-            unNumber: cargoDto.adrUnNumber || null,
-            requiresTemperatureControl: cargoDto.isTemperatureControlled || false,
-            temperatureMin: safeNum(cargoDto.requiredTemperature),
-            temperatureMax: safeNum(cargoDto.requiredTemperature),
+            unNumber: cargoDto.unNumber || cargoDto.adrUnNumber || null,
+            properShippingName: cargoDto.properShippingName || null,
+            packingGroup: cargoDto.packingGroup || null,
+            tunnelRestrictionCode: cargoDto.tunnelRestrictionCode || null,
+            requiresTemperatureControl: cargoDto.requiresTemperatureControl ?? cargoDto.isTemperatureControlled ?? false,
+            temperatureMin: safeNum(cargoDto.temperatureMin ?? cargoDto.requiredTemperature),
+            temperatureMax: safeNum(cargoDto.temperatureMax ?? cargoDto.requiredTemperature),
             stackable: cargoDto.stackable || false,
             fragile: cargoDto.fragile || false,
           } as any);

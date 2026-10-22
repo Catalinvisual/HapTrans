@@ -57,7 +57,7 @@ export class TripsService {
 
   findAll(status?: string) {
     const findOptions: any = { 
-      relations: ['truck', 'driver', 'driver.user', 'stops', 'orders', 'orders.cargoItems', 'costs', 'dispatcher'],
+      relations: ['truck', 'driver', 'driver.user', 'trailer', 'stops', 'orders', 'orders.cargoItems', 'costs', 'dispatcher'],
       order: { createdAt: 'DESC' }
     };
     if (status) {
@@ -136,18 +136,18 @@ export class TripsService {
     // Return trip data enriched with relations needed for dashboard breakdowns
     return this.repo.find({
       select: ['id', 'tripNumber', 'createdAt', 'status', 'distanceKm', 'estimatedProfit', 'actualProfit'],
-      relations: ['costs', 'truck', 'driver', 'driver.user', 'stops', 'orders', 'orders.client']
+      relations: ['costs', 'truck', 'driver', 'driver.user', 'trailer', 'stops', 'orders', 'orders.client']
     });
   }
 
   findOne(id: string) {
-    return this.repo.findOne({ where: { id }, relations: ['truck', 'driver', 'driver.user', 'costs', 'documents', 'invoices', 'messages', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.client', 'orders.cargoItems', 'orders.stops', 'dispatcher'] });
+    return this.repo.findOne({ where: { id }, relations: ['truck', 'driver', 'driver.user', 'trailer', 'costs', 'documents', 'invoices', 'messages', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.client', 'orders.cargoItems', 'orders.stops', 'dispatcher'] });
   }
 
   async findByTrackingToken(trackingToken: string): Promise<Trip | null> {
     return this.repo.findOne({
       where: { trackingToken },
-      relations: ['truck', 'driver', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.cargoItems', 'company']
+      relations: ['truck', 'driver', 'driver.user', 'trailer', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.cargoItems', 'company']
     });
   }
 

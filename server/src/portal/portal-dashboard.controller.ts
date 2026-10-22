@@ -22,7 +22,7 @@ export class PortalDashboardController {
     today.setHours(0, 0, 0, 0);
 
     const activeOrders = await this.ordersRepo.count({
-      where: { client: { id: clientId }, status: 'in-transit' },
+      where: { client: { id: clientId }, status: In(['in_transit', 'loading', 'assigned', 'started', 'dispatched', 'in-transit']) },
     });
 
     const totalOrders = await this.ordersRepo.count({

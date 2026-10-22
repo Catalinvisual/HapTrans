@@ -38,7 +38,8 @@ export default function SubcontractorModal({
 
   useEffect(() => {
     if (isOpen) {
-      api.get('/carriers', { params: { limit: 100 } })
+      api.get('/planning/carriers')
+        .catch(() => api.get('/carriers', { params: { limit: 100 } }))
         .then(res => {
           const list = res.data?.data || res.data || [];
           if (Array.isArray(list)) setCarriers(list);
@@ -47,6 +48,21 @@ export default function SubcontractorModal({
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    if (trip && isOpen) {
+      setFleetType(trip.fleetType || 'own_fleet');
+      setCarrierName(trip.carrierName || '');
+      setCarrierRate(trip.carrierRate ?? '');
+      setCarrierCurrency(trip.carrierCurrency || 'EUR');
+      setCarrierReference(trip.carrierReference || '');
+      setCarrierTruckPlate(trip.carrierTruckPlate || '');
+      setCarrierTrailerPlate(trip.carrierTrailerPlate || '');
+      setCarrierDriverName(trip.carrierDriverName || '');
+      setCarrierDriverPhone(trip.carrierDriverPhone || '');
+      setNotes(trip.carrierNotes || '');
+    }
+  }, [trip, isOpen]);
+
   if (!isOpen || !trip) return null;
 
   const handleCarrierChange = (cid: string) => {
@@ -54,7 +70,10 @@ export default function SubcontractorModal({
     const found = carriers.find(c => c.id === cid);
     if (found) {
       setCarrierName(found.name || '');
-      if (found.phone) setCarrierDriverPhone(found.phone);
+      if (found.phone || found.driverPhone) setCarrierDriverPhone(found.driverPhone || found.phone);
+      if (found.driverName) setCarrierDriverName(found.driverName);
+      if (found.truckPlate) setCarrierTruckPlate(found.truckPlate);
+      if (found.trailerPlate) setCarrierTrailerPlate(found.trailerPlate);
     }
   };
 

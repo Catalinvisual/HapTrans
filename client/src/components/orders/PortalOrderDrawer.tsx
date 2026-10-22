@@ -79,8 +79,11 @@ export default function PortalOrderDrawer({ order, onClose }: Props) {
           <Row icon={<Boxes className="w-3 h-3" />} label={t('cargo_summary', 'Cargo')} value={`${cargo.length} ${t('items', 'items')} · ${pallets > 0 ? `${fmtNumber(pallets)} pal · ` : ''}${fmtNumber(sum('weightKg'))} kg · ${fmtNumber(sum('ldm'), 2)} LDM · ${fmtNumber(sum('volumeCbm'), 1)} m³`} />
           <Row icon={<Box className="w-3 h-3" />} label={t('transport_type', 'Transport type')} value={(order.transportType || 'ftl').toUpperCase()} />
           <Row icon={<Flag className="w-3 h-3" />} label={t('priority', 'Priority')} value={t(`priority_${order.priority || 'normal'}`, order.priority || 'normal')} />
-          <Row label={t('truck', 'Truck')} value={trip?.truck?.plateNumber || t('tbd', 'TBD')} />
-          <Row label={t('driver', 'Driver')} value={trip?.driver?.name || t('tbd', 'TBD')} />
+          <Row label={t('truck', 'Truck')} value={trip?.truck?.plateNumber || trip?.carrierTruckPlate || t('tbd', 'TBD')} />
+          {(trip?.trailer?.plateNumber || trip?.carrierTrailerPlate) ? (
+            <Row label={t('trailer', 'Trailer')} value={trip?.trailer?.plateNumber || trip?.carrierTrailerPlate} />
+          ) : null}
+          <Row label={t('driver', 'Driver')} value={trip?.driver?.user?.name || trip?.driver?.name || trip?.carrierDriverName || t('tbd', 'TBD')} />
         </div>
         {order.notes && <div className="bg-surface/40 rounded-xl p-3 border border-border text-[13px] text-text-primary whitespace-pre-wrap">{order.notes}</div>}
       </div>
@@ -91,14 +94,14 @@ export default function PortalOrderDrawer({ order, onClose }: Props) {
           <div key={c.id || i} className="bg-surface/40 rounded-xl p-3.5 border border-border">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[13px] font-bold text-text-primary truncate">{c.description || 'Cargo'}</span>
-              <span className="text-[11px] font-bold text-text-secondary whitespace-nowrap">×{fmtNumber(c.quantity || 1)} {c.unit}</span>
+              <span className="text-[11px] font-bold text-text-secondary whitespace-nowrap">×{fmtNumber(c.quantity || 1)} {c.unit || c.type || 'pallet'}</span>
             </div>
             <div className="flex items-center gap-3 mt-2 text-[11px] text-text-secondary flex-wrap">
               <span className="flex items-center gap-1"><Weight className="w-3 h-3" />{fmtNumber(c.weightKg || 0)} kg</span>
               {c.ldm ? <span>{fmtNumber(c.ldm, 2)} LDM</span> : null}
               {c.volumeCbm ? <span>{fmtNumber(c.volumeCbm, 1)} m³</span> : null}
-              {c.adrClass ? <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-bold">ADR {c.adrClass}</span> : null}
-              {c.requiresTemperatureControl ? <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-bold">{c.temperatureMin ?? c.temperatureMax}°C</span> : null}
+              {(c.adrClass || c.unNumber || c.adrUnNumber) ? <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-bold">ADR {c.adrClass ? `Cls ${c.adrClass}` : ''} {(c.unNumber || c.adrUnNumber) ? `UN ${c.unNumber || c.adrUnNumber}` : ''}</span> : null}
+              {(c.requiresTemperatureControl || c.isTemperatureControlled) ? <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-bold">{c.temperatureMin ?? c.temperatureMax ?? c.requiredTemperature ?? '—'}°C</span> : null}
               {c.fragile ? <span className="text-amber-600 font-semibold">Fragile</span> : null}
             </div>
           </div>

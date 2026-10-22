@@ -36,7 +36,7 @@ export class PortalOrdersController {
     return this.repo.find({
       where: { client: { id: clientId } },
       order: { createdAt: 'DESC' },
-      relations: ['trip', 'trip.driver', 'trip.truck', 'stops', 'cargoItems'],
+      relations: ['trip', 'trip.driver', 'trip.driver.user', 'trip.truck', 'trip.trailer', 'stops', 'cargoItems'],
     });
   }
 

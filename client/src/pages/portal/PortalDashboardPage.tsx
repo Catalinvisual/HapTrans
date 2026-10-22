@@ -68,10 +68,11 @@ export default function PortalDashboardPage() {
           </div>
            <div className="space-y-4">
             {stats.recentActivity?.length > 0 ? stats.recentActivity.map((a: any, i: number) => {
-              const icon = a.status === 'delivered' || a.status === 'pod_received' ? <Package className="w-4 h-4 text-green-500" /> : a.status === 'in-transit' ? <Truck className="w-4 h-4 text-blue-500" /> : <Clock className="w-4 h-4 text-text-secondary" />;
-              const label = a.status === 'delivered' ? t("jsx_orderDeliv") : a.status === 'in-transit' ? t("jsx_orderInTran") : a.status === 'pod_received' ? t("jsx_orderPod") : t("jsx_orderUpdated");
+              const isInTransit = a.status === 'in-transit' || a.status === 'in_transit';
+              const icon = a.status === 'delivered' || a.status === 'pod_received' ? <Package className="w-4 h-4 text-green-500" /> : isInTransit ? <Truck className="w-4 h-4 text-blue-500" /> : <Clock className="w-4 h-4 text-text-secondary" />;
+              const label = a.status === 'delivered' ? t("jsx_orderDeliv") : isInTransit ? t("jsx_orderInTran") : a.status === 'pod_received' ? t("jsx_orderPod") : t("jsx_orderUpdated");
               return <div key={a.id} className="flex gap-4">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${a.status === 'delivered' ? 'bg-green-50' : a.status === 'in-transit' ? 'bg-blue-50' : 'bg-surface'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${a.status === 'delivered' ? 'bg-green-50' : isInTransit ? 'bg-blue-50' : 'bg-surface'}`}>
                   {icon}
                 </div>
                 <div>

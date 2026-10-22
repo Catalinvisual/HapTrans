@@ -1232,7 +1232,7 @@ function TripDetailDrawer({
                 <p className="text-xs font-bold text-emerald-600 truncate">
                   {tollInfo?.available
                     ? `${tollInfo.totalAmount} ${tollInfo.currency || 'EUR'} (${(tollInfo.countries || []).join(', ')})`
-                    : (trip.tollAmount ? `${trip.tollAmount} ${trip.tollCurrency || 'EUR'}` : t('toll_unavailable', 'Toll calculation unavailable — provider not configured'))
+                    : ((trip.tollCost || trip.tollAmount) ? `${trip.tollCost || trip.tollAmount} ${trip.tollCurrency || 'EUR'}` : t('toll_unavailable', 'Toll calculation unavailable — provider not configured'))
                   }
                 </p>
               </div>

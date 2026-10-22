@@ -19,6 +19,7 @@ import { Shipment } from './shipment.entity';
 import { DropHookEvent } from './drop-hook.entity';
 import { CrossDockTransfer } from './cross-dock-transfer.entity';
 import { PlanningController } from './planning.controller';
+import { CarriersController } from './carriers.controller';
 import { PlanningService } from './planning.service';
 import { OptimizationService } from './optimization.service';
 import { RoutingModule } from '../routing/routing.module';
@@ -51,7 +52,7 @@ import { TimelineModule } from '../timeline/timeline.module';
     TimelineModule,
     RoutingModule,
   ],
-  controllers: [PlanningController],
+  controllers: [PlanningController, CarriersController],
   providers: [PlanningService, OptimizationService],
   exports: [PlanningService, OptimizationService],
 })

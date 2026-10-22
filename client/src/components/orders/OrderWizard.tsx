@@ -342,11 +342,11 @@ export default function OrderWizard({
             heightCm: c.heightCm?.toString() || '',
             stackable: Boolean(c.stackable),
             fragile: Boolean(c.fragile),
-            isAdr: Boolean(c.isAdr),
+            isAdr: Boolean(c.isAdr || c.adrClass || c.unNumber || c.adrUnNumber),
             adrClass: c.adrClass || '',
-            adrUnNumber: c.adrUnNumber || '',
-            isTemperatureControlled: Boolean(c.isTemperatureControlled),
-            requiredTemperature: c.requiredTemperature?.toString() || ''
+            adrUnNumber: c.adrUnNumber || c.unNumber || '',
+            isTemperatureControlled: Boolean(c.isTemperatureControlled || c.requiresTemperatureControl),
+            requiredTemperature: (c.requiredTemperature ?? c.temperatureMin ?? '')?.toString()
           })) : [{
             ...emptyCargo
           }]);
@@ -551,17 +551,19 @@ export default function OrderWizard({
       setLoading(true);
       const {
         customerReference,
+        contactPerson,
+        contactPhone,
         ...cleanForm
       } = form;
       const payload = {
         ...cleanForm,
-        orderNumber: form.orderNumber || form.internalReference || undefined,
+        orderNumber: (form as any).orderNumber || form.internalReference || undefined,
         internalReference: form.internalReference || null,
         clientId: isPortal ? undefined : (form.clientId || null),
         price: form.price ? parseFloat(form.price) : null,
-        customerReference: pickup.reference || null,
-        contactPerson: pickup.contactPerson || null,
-        contactPhone: pickup.phone || null,
+        customerReference: form.customerReference || pickup.reference || null,
+        contactPerson: form.contactPerson || pickup.contactPerson || null,
+        contactPhone: form.contactPhone || pickup.phone || null,
         estimatedCost: costEstimate ? costEstimate.totalCost : null,
         estimatedProfit: costEstimate ? costEstimate.profit : null,
         stops: [{
@@ -589,7 +591,15 @@ export default function OrderWizard({
           lengthCm: c.lengthCm ? parseFloat(c.lengthCm) : null,
           widthCm: c.widthCm ? parseFloat(c.widthCm) : null,
           heightCm: c.heightCm ? parseFloat(c.heightCm) : null,
-          requiredTemperature: c.requiredTemperature ? parseFloat(c.requiredTemperature) : null
+          isAdr: Boolean(c.isAdr),
+          adrClass: c.isAdr ? (c.adrClass || null) : null,
+          adrUnNumber: c.isAdr ? (c.adrUnNumber || null) : null,
+          unNumber: c.isAdr ? (c.adrUnNumber || null) : null,
+          isTemperatureControlled: Boolean(c.isTemperatureControlled),
+          requiresTemperatureControl: Boolean(c.isTemperatureControlled),
+          requiredTemperature: c.isTemperatureControlled && c.requiredTemperature ? parseFloat(c.requiredTemperature) : null,
+          temperatureMin: c.isTemperatureControlled && c.requiredTemperature ? parseFloat(c.requiredTemperature) : null,
+          temperatureMax: c.isTemperatureControlled && c.requiredTemperature ? parseFloat(c.requiredTemperature) : null
         }))
       };
       

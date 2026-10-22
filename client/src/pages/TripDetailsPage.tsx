@@ -539,7 +539,7 @@ export default function TripDetailsPage() {
                         {stop.eta && <span className={`px-2 py-0.5 rounded ${stop.etaStatus === 'delayed' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{t("jsx_eTA")}{formatDate(stop.eta)}
                           </span>}
                       </span>
-                      <h4 className="font-bold text-lg text-text">{stop.companyName || 'N/A'}</h4>
+                      <h4 className="font-bold text-lg text-text">{stop.companyName || stop.city || stop.address || '—'}</h4>
                       <p className="text-text-secondary font-medium mt-1 flex items-start gap-2">
                         <MapPin className={`w-4 h-4 shrink-0 mt-0.5 text-${markerColor}-400`} />
                         {stop.address}
@@ -611,8 +611,8 @@ export default function TripDetailsPage() {
                        {stop.tasks && stop.tasks.length > 0 && <div className="mt-3 space-y-2">
                           {stop.tasks.map((task: any) => {
                               const fullOrder = trip.orders?.find((o: any) => o.id === task.order?.id) || task.order;
-                              const loadRef = fullOrder?.loadingReference || fullOrder?.stops?.find((s: any) => s.type === 'pickup')?.reference || fullOrder?.customerReference || fullOrder?.orderNumber || '#N/A';
-                              const unloadRef = fullOrder?.unloadingReference || fullOrder?.stops?.find((s: any) => s.type === 'dropoff')?.reference || fullOrder?.customerReference || fullOrder?.orderNumber || '#N/A';
+                              const loadRef = fullOrder?.loadingReference || fullOrder?.stops?.find((s: any) => s.type === 'pickup')?.reference || fullOrder?.customerReference || fullOrder?.orderNumber || '—';
+                              const unloadRef = fullOrder?.unloadingReference || fullOrder?.stops?.find((s: any) => s.type === 'dropoff')?.reference || fullOrder?.customerReference || fullOrder?.orderNumber || '—';
                               const displayRef = task.type === 'unload' ? unloadRef : loadRef;
                               
                               return <div key={task.id} className={`bg-${markerColor}-50/50 p-3 rounded-xl border border-${markerColor}-100/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3`}>
@@ -642,7 +642,7 @@ export default function TripDetailsPage() {
                     <div className="absolute -left-[28px] top-5 w-0.5 h-full bg-border -z-0"></div>
                     
                     <span className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1 block">{t('pickupPoint', 'Punct Încărcare (Pickup)')}</span>
-                    <h4 className="font-bold text-lg text-text">{trip.pickupCompanyName || trip.client?.name || 'N/A'}</h4>
+                    <h4 className="font-bold text-lg text-text">{trip.pickupCompanyName || trip.client?.name || trip.pickupAddress || '—'}</h4>
                     <p className="text-text-secondary font-medium mt-1 flex items-start gap-2">
                       <MapPin className="w-4 h-4 shrink-0 mt-0.5 text-blue-400" />
                       {trip.pickupAddress}
@@ -664,7 +664,7 @@ export default function TripDetailsPage() {
                     <div className="absolute -left-[35px] top-1 w-4 h-4 rounded-full border-4 border-green-500 bg-card z-10"></div>
                     
                     <span className="text-xs font-bold text-green-600 uppercase tracking-wider mb-1 block">{t('deliveryPoint', 'Punct Descărcare (Delivery)')}</span>
-                    <h4 className="font-bold text-lg text-text">{trip.dropoffCompanyName || 'N/A'}</h4>
+                    <h4 className="font-bold text-lg text-text">{trip.dropoffCompanyName || trip.dropoffAddress || '—'}</h4>
                     <p className="text-text-secondary font-medium mt-1 flex items-start gap-2">
                       <MapPin className="w-4 h-4 shrink-0 mt-0.5 text-green-400" />
                       {trip.dropoffAddress}
@@ -783,7 +783,8 @@ export default function TripDetailsPage() {
                 </div>
                 <div>
                   <span className="text-xs font-semibold text-text-secondary block">{t('driver', 'Șofer')}</span>
-                  <span className="font-bold text-sm text-text">{trip.driver?.user?.name || t('unassigned', 'Neasignat')}</span>
+                  <span className="font-bold text-sm text-text">{trip.driver?.user?.name || trip.carrierDriverName || t('unassigned', 'Neasignat')}</span>
+                  {trip.carrierDriverPhone && <span className="text-xs text-text-secondary block">{trip.carrierDriverPhone}</span>}
                 </div>
               </div>
               <div className="flex items-center gap-4 p-3 bg-surface rounded-xl border border-border">
@@ -792,9 +793,31 @@ export default function TripDetailsPage() {
                 </div>
                 <div>
                   <span className="text-xs font-semibold text-text-secondary block">{t('truck', 'Camion')}</span>
-                  <span className="font-bold text-sm text-text">{trip.truck?.plateNumber || t('unassigned', 'Neasignat')}</span>
+                  <span className="font-bold text-sm text-text">{trip.truck?.plateNumber || trip.carrierTruckPlate || t('unassigned', 'Neasignat')}</span>
                 </div>
               </div>
+              {(trip.trailer?.plateNumber || trip.carrierTrailerPlate) && (
+                <div className="flex items-center gap-4 p-3 bg-surface rounded-xl border border-border">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <Truck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-text-secondary block">{t('trailer', 'Semiremorcă')}</span>
+                    <span className="font-bold text-sm text-text">{trip.trailer?.plateNumber || trip.carrierTrailerPlate}</span>
+                  </div>
+                </div>
+              )}
+              {trip.carrierName && (
+                <div className="flex items-center gap-4 p-3 bg-blue-50/50 rounded-xl border border-blue-200">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                    <Truck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-blue-700 block">{t('subcontractorCarrier', 'Subcontractor / Cărăuș')}</span>
+                    <span className="font-bold text-sm text-blue-900">{trip.carrierName}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -886,7 +909,7 @@ export default function TripDetailsPage() {
                   return <div key={task.id} className="bg-surface/50 p-3 rounded-xl border border-border">
                           <div className="text-xs font-bold text-text mb-2 flex items-center gap-2">
                             <Box className="w-3 h-3 text-primary" />
-                            {t('order', 'Comanda')} {task.order?.referenceNumber || '#N/A'} - {t(task.type)}
+                            {t('order', 'Comanda')} {task.order?.orderNumber || task.order?.referenceNumber || task.order?.customerReference || '—'} - {t(task.type)}
                           </div>
                           <div className="space-y-2">
                             {task.documents?.map((doc: any) => <div key={doc.id} className="flex items-center justify-between p-2 bg-card rounded-lg border border-border">

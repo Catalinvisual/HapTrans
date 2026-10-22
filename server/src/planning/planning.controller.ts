@@ -187,6 +187,11 @@ export class PlanningController {
   }
 
   // ─── Subcontractor / Charter Planning (§8) ───
+  @Get('carriers')
+  getCarriers(@Request() req: any) {
+    return this.planningService.getCarriers(req.user);
+  }
+
   @Post('trips/:tripId/subcontractor')
   assignSubcontractor(@Request() req: any, @Param('tripId') tripId: string, @Body() body: any) {
     return this.planningService.assignSubcontractor(req.user, tripId, body);

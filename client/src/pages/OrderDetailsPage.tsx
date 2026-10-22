@@ -71,10 +71,10 @@ export default function OrderDetailsPage() {
           <div>
             <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3">{t("jsx_order")}{order.orderNumber}
               <span className={`px-3 py-1 text-xs font-bold uppercase rounded-full border ${getStatusColor(order.status)}`}>
-                {order.status?.replace('_', ' ') || 'UNKNOWN'}
+                {order.status ? order.status.replace('_', ' ') : '—'}
               </span>
             </h1>
-            <p className="text-sm text-text-secondary">{t("jsx_client")}{order.client?.name || 'N/A'}</p>
+            <p className="text-sm text-text-secondary">{t("jsx_client")}{order.client?.name || t('unspecifiedClient', 'Nespecificat')}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -174,22 +174,22 @@ export default function OrderDetailsPage() {
                 {Array.isArray(order.cargoItems) && order.cargoItems.length > 0 ? <div className="space-y-4">
                     {order.cargoItems.map((item: any, idx: number) => <div key={idx} className="bg-surface border border-border p-4 rounded-xl text-sm">
                         <div className="flex justify-between items-start gap-4 mb-3">
-                          <p className="font-bold text-base">{item.quantity || '-'}x {item.type} <span className="text-text-secondary text-sm font-medium block mt-0.5">{item.description || 'No description'}</span></p>
+                          <p className="font-bold text-base">{item.quantity || 1}x {item.unit || item.type || 'pallet'} <span className="text-text-secondary text-sm font-medium block mt-0.5">{item.description || 'No description'}</span></p>
                         </div>
                         
                         {/* Specifications */}
                         <div className="grid grid-cols-3 gap-2 mb-3 bg-black/5 p-2 rounded-lg">
                           <div className="text-center">
                             <span className="block text-[10px] text-text-secondary uppercase font-bold">{t("jsx_weight", "Weight")}</span>
-                            <span className="font-semibold">{item.weightKg || '-'} kg</span>
+                            <span className="font-semibold">{item.weightKg ? `${item.weightKg} kg` : '—'}</span>
                           </div>
                           <div className="text-center border-x border-border/50">
                             <span className="block text-[10px] text-text-secondary uppercase font-bold">{t("jsx_ldm", "LDM")}</span>
-                            <span className="font-semibold">{item.ldm || '-'}</span>
+                            <span className="font-semibold">{item.ldm || '—'}</span>
                           </div>
                           <div className="text-center">
                             <span className="block text-[10px] text-text-secondary uppercase font-bold">{t("jsx_volume", "Volume")}</span>
-                            <span className="font-semibold">{item.volumeCbm || '-'} m³</span>
+                            <span className="font-semibold">{item.volumeCbm ? `${item.volumeCbm} m³` : '—'}</span>
                           </div>
                         </div>
 
@@ -200,11 +200,11 @@ export default function OrderDetailsPage() {
                           </span>}
                           {item.stackable && <span className="px-2 py-1 bg-blue-500/10 text-blue-600 border border-blue-500/20 rounded font-bold">{t("jsx_stackable", "Stackable")}</span>}
                           {item.fragile && <span className="px-2 py-1 bg-orange-500/10 text-orange-600 border border-orange-500/20 rounded font-bold">{t("jsx_fragile", "Fragile")}</span>}
-                          {item.isAdr && <span className="px-2 py-1 bg-red-500/10 text-red-600 border border-red-500/20 rounded font-bold">
-                            ADR {item.adrClass && `Cls ${item.adrClass}`} {item.adrUnNumber && `UN ${item.adrUnNumber}`}
+                          {(item.isAdr || item.adrClass || item.unNumber || item.adrUnNumber) && <span className="px-2 py-1 bg-red-500/10 text-red-600 border border-red-500/20 rounded font-bold">
+                            ADR {item.adrClass ? `Cls ${item.adrClass}` : ''} {(item.unNumber || item.adrUnNumber) ? `UN ${item.unNumber || item.adrUnNumber}` : ''}
                           </span>}
-                          {item.isTemperatureControlled && <span className="px-2 py-1 bg-cyan-500/10 text-cyan-600 border border-cyan-500/20 rounded font-bold">
-                            Temp: {item.requiredTemperature}°C
+                          {(item.isTemperatureControlled || item.requiresTemperatureControl) && <span className="px-2 py-1 bg-cyan-500/10 text-cyan-600 border border-cyan-500/20 rounded font-bold">
+                            Temp: {item.requiredTemperature ?? item.temperatureMin ?? '—'}°C
                           </span>}
                         </div>
                       </div>)}

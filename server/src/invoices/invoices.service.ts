@@ -73,13 +73,15 @@ export class InvoicesService implements OnModuleInit {
     let tripObj: any = null;
     if (tripId) {
       try {
-        const trip = await tripRepo.findOne({ where: { id: tripId } });
+        const trip = await tripRepo.findOne({ where: { id: tripId }, relations: ['stops'] });
         if (trip) {
           tripObj = trip;
-          if (inv.trip) {
-            const tripDesc = inv.trip.tripNumber || 'Trip';
-            routeDesc = `Factură pentru cursa ${tripDesc}`;
-          }
+          const pStop = trip.stops?.find((s: any) => s.type === 'pickup') || trip.stops?.[0];
+          const dStop = trip.stops?.filter((s: any) => s.type === 'delivery' || s.type === 'dropoff').pop() || trip.stops?.[trip.stops?.length - 1];
+          const pCity = pStop?.city || pStop?.address?.split(',')[0];
+          const dCity = dStop?.city || dStop?.address?.split(',')[0];
+          const tripNum = trip.tripNumber || 'Trip';
+          routeDesc = pCity && dCity ? `Cursa ${tripNum}: ${pCity} – ${dCity}` : `Factură pentru cursa ${tripNum}`;
         }
       } catch (e) {
         console.error('Failed to fetch trip for route desc', e);
@@ -93,7 +95,7 @@ export class InvoicesService implements OnModuleInit {
       holidaySurchargeFee: 200
     };
     try {
-      const res = await this.repo.manager.query("SELECT `value` FROM website_cms WHERE `key` = 'tariff_settings'");
+      const res = await this.repo.manager.query('SELECT "value" FROM website_cms WHERE "key" = $1', ['tariff_settings']);
       if (res.length > 0 && res[0].value) {
         tariffs = { ...tariffs, ...JSON.parse(res[0].value) };
       }

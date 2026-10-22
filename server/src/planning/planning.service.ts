@@ -5103,9 +5103,45 @@ export class PlanningService {
   // ─── SUBCONTRACTOR / CHARTER PLANNING (§8) ────────────────────────────────
   // ═══════════════════════════════════════════════════════════════════════════
 
+  async getCarriers(_user?: any): Promise<any[]> {
+    const trips = await this.tripRepo.createQueryBuilder('trip')
+      .select([
+        'trip.carrierName',
+        'trip.carrierPhone',
+        'trip.carrierEmail',
+        'trip.carrierTruckPlate',
+        'trip.carrierTrailerPlate',
+        'trip.carrierDriverName',
+        'trip.carrierDriverPhone',
+      ])
+      .where('trip.carrierName IS NOT NULL')
+      .andWhere("trip.carrierName != ''")
+      .getMany();
+
+    const carrierMap = new Map<string, any>();
+    for (const t of trips) {
+      const name = (t.carrierName || '').trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (!carrierMap.has(key)) {
+        carrierMap.set(key, {
+          id: key,
+          name,
+          phone: t.carrierPhone || t.carrierDriverPhone || '',
+          email: t.carrierEmail || '',
+          truckPlate: t.carrierTruckPlate || '',
+          trailerPlate: t.carrierTrailerPlate || '',
+          driverName: t.carrierDriverName || '',
+          driverPhone: t.carrierDriverPhone || '',
+        });
+      }
+    }
+    return Array.from(carrierMap.values());
+  }
+
   async assignSubcontractor(user: any, tripId: string, dto: {
-    fleetType: 'subcontractor' | 'charter';
-    carrierName: string;
+    fleetType: 'own_fleet' | 'subcontractor' | 'charter';
+    carrierName?: string;
     carrierContact?: string;
     carrierPhone?: string;
     carrierEmail?: string;
@@ -5124,22 +5160,38 @@ export class PlanningService {
     if (!trip) throw new NotFoundException('Trip not found');
 
     const previousFleetType = trip.fleetType;
-    trip.fleetType = dto.fleetType || 'subcontractor';
-    trip.carrierName = dto.carrierName;
-    trip.carrierContact = dto.carrierContact || null as any;
-    trip.carrierPhone = dto.carrierPhone || null as any;
-    trip.carrierEmail = dto.carrierEmail || null as any;
-    trip.carrierRate = dto.carrierRate != null ? Number(dto.carrierRate) : null as any;
-    trip.carrierCurrency = dto.carrierCurrency || 'EUR';
-    trip.carrierReference = dto.carrierReference || null as any;
-    trip.carrierTruckPlate = dto.carrierTruckPlate || null as any;
-    trip.carrierTrailerPlate = dto.carrierTrailerPlate || null as any;
-    trip.carrierDriverName = dto.carrierDriverName || null as any;
-    trip.carrierDriverPhone = dto.carrierDriverPhone || null as any;
-    trip.carrierNotes = dto.carrierNotes || null as any;
-    trip.carrierDocumentsValid = dto.carrierDocumentsValid !== false;
-    trip.carrierInsuranceExpiry = dto.carrierInsuranceExpiry ? new Date(dto.carrierInsuranceExpiry) : null as any;
-    trip.carrierStatus = 'assigned';
+    if (dto.fleetType === 'own_fleet') {
+      trip.fleetType = 'own_fleet';
+      trip.carrierName = null as any;
+      trip.carrierContact = null as any;
+      trip.carrierPhone = null as any;
+      trip.carrierEmail = null as any;
+      trip.carrierRate = null as any;
+      trip.carrierReference = null as any;
+      trip.carrierTruckPlate = null as any;
+      trip.carrierTrailerPlate = null as any;
+      trip.carrierDriverName = null as any;
+      trip.carrierDriverPhone = null as any;
+      trip.carrierNotes = null as any;
+      trip.carrierStatus = null as any;
+    } else {
+      trip.fleetType = dto.fleetType || 'subcontractor';
+      trip.carrierName = dto.carrierName || null as any;
+      trip.carrierContact = dto.carrierContact || null as any;
+      trip.carrierPhone = dto.carrierPhone || null as any;
+      trip.carrierEmail = dto.carrierEmail || null as any;
+      trip.carrierRate = dto.carrierRate != null ? Number(dto.carrierRate) : null as any;
+      trip.carrierCurrency = dto.carrierCurrency || 'EUR';
+      trip.carrierReference = dto.carrierReference || null as any;
+      trip.carrierTruckPlate = dto.carrierTruckPlate || null as any;
+      trip.carrierTrailerPlate = dto.carrierTrailerPlate || null as any;
+      trip.carrierDriverName = dto.carrierDriverName || null as any;
+      trip.carrierDriverPhone = dto.carrierDriverPhone || null as any;
+      trip.carrierNotes = dto.carrierNotes || null as any;
+      trip.carrierDocumentsValid = dto.carrierDocumentsValid !== false;
+      trip.carrierInsuranceExpiry = dto.carrierInsuranceExpiry ? new Date(dto.carrierInsuranceExpiry) : null as any;
+      trip.carrierStatus = 'assigned';
+    }
 
     await this.tripRepo.save(trip);
 
