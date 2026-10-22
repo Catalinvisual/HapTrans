@@ -293,7 +293,7 @@ export default function ClientsPage() {
               <input className="input pl-8 pr-3 py-1.5 text-xs w-full" placeholder={t('search')} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <button type="button" onClick={() => setShowExport(true)} className="p-1 hover:opacity-85 hover:scale-110 active:scale-95 transition-transform duration-150 shrink-0 cursor-pointer flex items-center justify-center" title={t('export')}>
-              <ExcelIcon className="w-7 h-7" />
+              <ExcelIcon className="w-8 h-8" />
             </button>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">

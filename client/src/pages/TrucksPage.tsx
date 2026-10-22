@@ -791,7 +791,7 @@ export default function TrucksPage() {
           <div className="flex items-center gap-1.5 shrink-0">
             <span className="text-[11px] font-semibold text-text-secondary whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
             <button type="button" onClick={() => setShowExport(true)} className="p-1 hover:opacity-85 hover:scale-110 active:scale-95 transition-transform duration-150 shrink-0 cursor-pointer flex items-center justify-center" title={t('export', 'Export')}>
-              <ExcelIcon className="w-7 h-7" />
+              <ExcelIcon className="w-8 h-8" />
             </button>
             <button onClick={() => { setForm(initialForm); setShowForm(true); setEditId(null); }} className="btn-primary py-1.5 px-2.5 flex items-center gap-1.5 text-xs font-semibold whitespace-nowrap shadow-md shadow-primary/20">
               <Plus className="w-3.5 h-3.5" /> {t('addTruck', 'Add Truck')}

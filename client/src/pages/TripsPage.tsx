@@ -415,7 +415,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
 
             <div className="flex items-center gap-1.5 shrink-0 ml-auto">
               <span className="text-xs text-text-secondary font-medium whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
-              <button type="button" onClick={() => openExport(sorted)} className="p-1 hover:opacity-85 hover:scale-110 active:scale-95 transition-transform duration-150 shrink-0 cursor-pointer flex items-center justify-center" title={t('export_csv', 'Export Excel')}><ExcelIcon className="w-7 h-7" /></button>
+              <button type="button" onClick={() => openExport(sorted)} className="p-1 hover:opacity-85 hover:scale-110 active:scale-95 transition-transform duration-150 shrink-0 cursor-pointer flex items-center justify-center" title={t('export_csv', 'Export Excel')}><ExcelIcon className="w-8 h-8" /></button>
               <button onClick={() => navigate('/planning')} className="btn-primary py-1.5 px-2.5 text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"><LayoutGrid className="w-3.5 h-3.5" />{t('go_to_planning', 'Dispatch board')}</button>
             </div>
           </div>

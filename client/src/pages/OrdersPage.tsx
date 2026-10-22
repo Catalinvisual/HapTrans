@@ -467,7 +467,7 @@ export default function OrdersPage() {
                 className="p-1 hover:opacity-85 hover:scale-110 active:scale-95 transition-transform duration-150 shrink-0 cursor-pointer flex items-center justify-center"
                 title={t('export_csv', 'Export Excel')}
               >
-                <ExcelIcon className="w-7 h-7" />
+                <ExcelIcon className="w-8 h-8" />
               </button>
               <button onClick={handleCreate} className="btn-primary py-1.5 px-2.5 flex items-center gap-1.5 text-xs font-semibold shadow-md shadow-primary/20 whitespace-nowrap"><Plus className="w-3.5 h-3.5" />{t('addOrder', 'Create Order')}</button>
             </div>
