@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, MapPin, Calendar, Clock, Truck, User, Layers, Scale, Box, Euro, FileText, FileBadge, Navigation, Eye, Wand2, Download, Share2, Plus, Trash2, Edit2, Save, X, UserCheck, Package, Scale as ScaleIcon, Dock, Clock as ClockIcon, Mail, Phone, MapPin as MapPinIcon } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Clock, Truck, User, Layers, Scale, Box, Euro, FileText, FileBadge, Navigation, Eye, Wand2, Download, Share2, Plus, Trash2, Edit2, Save, X, UserCheck, Package, Scale as ScaleIcon, Dock, Clock as ClockIcon, Mail, Phone, MapPin as MapPinIcon, ChevronDown } from 'lucide-react';
 import api from '../lib/api';
 import { fmtMoney, fmtMoneySigned, fmtPercent } from '../lib/format';
 import toast from 'react-hot-toast';
@@ -12,11 +12,57 @@ import { useAuthStore } from '../store/authStore';
 import { useConfirm } from '../components/SaveConfirmProvider';
 import PalletIcon from '../components/icons/PalletIcon';
 import WeightKgIcon from '../components/icons/WeightKgIcon';
+
+const TRIP_STATUSES = [
+  'planning',
+  'planned',
+  'assigned',
+  'dispatched',
+  'driver_accepted',
+  'started',
+  'loading',
+  'driving',
+  'partially_delivered',
+  'completed',
+  'closed',
+  'cancelled',
+];
+
+const TASK_STATUS_CONFIG: Record<string, { labelKey: string; defaultLabel: string; color: string }> = {
+  pending: { labelKey: 'pending', defaultLabel: 'În așteptare', color: 'bg-amber-500/10 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800' },
+  assigned: { labelKey: 'status_assigned', defaultLabel: 'Atribuit', color: 'bg-blue-500/10 text-blue-700 border-blue-300 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800' },
+  arrived: { labelKey: 'arrived', defaultLabel: 'Sosit la rampă', color: 'bg-cyan-500/10 text-cyan-700 border-cyan-300 dark:bg-cyan-950/40 dark:text-cyan-400 dark:border-cyan-800' },
+  in_progress: { labelKey: 'inProgress', defaultLabel: 'În desfășurare', color: 'bg-indigo-500/10 text-indigo-700 border-indigo-300 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-800' },
+  loading: { labelKey: 'loading', defaultLabel: 'La Încărcare', color: 'bg-purple-500/10 text-purple-700 border-purple-300 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-800' },
+  unloading: { labelKey: 'unloading', defaultLabel: 'La Descărcare', color: 'bg-orange-500/10 text-orange-700 border-orange-300 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-800' },
+  completed: { labelKey: 'completed', defaultLabel: 'Finalizat', color: 'bg-emerald-500/10 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800' },
+  problem: { labelKey: 'problem', defaultLabel: 'Problemă / Daună', color: 'bg-rose-500/10 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800' },
+  cancelled: { labelKey: 'cancelled', defaultLabel: 'Anulat', color: 'bg-gray-500/10 text-gray-700 border-gray-300 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700' },
+};
+
+const STOP_STATUS_CONFIG: Record<string, { labelKey: string; defaultLabel: string }> = {
+  pending: { labelKey: 'pending', defaultLabel: 'În așteptare' },
+  arrived: { labelKey: 'arrived', defaultLabel: 'Sosit la locație' },
+  completed: { labelKey: 'completed', defaultLabel: 'Finalizat' },
+  problem: { labelKey: 'problem', defaultLabel: 'Problemă' },
+  cancelled: { labelKey: 'cancelled', defaultLabel: 'Anulat' },
+};
+
 const STATUS_COLORS: Record<string, string> = {
+  planning: 'badge-warning',
+  planned: 'badge-warning',
+  dispatched: 'badge-primary',
+  assigned: 'badge-primary',
+  driver_accepted: 'badge-primary',
+  started: 'badge-warning',
+  loading: 'badge-warning',
+  driving: 'badge-warning',
+  partially_delivered: 'badge-warning',
   pending: 'badge-gray',
   confirmed: 'badge-primary',
   in_progress: 'badge-warning',
   completed: 'badge-success',
+  closed: 'badge-gray',
   cancelled: 'badge-error',
   delayed: 'badge-error',
   draft: 'badge-gray',
@@ -413,9 +459,30 @@ export default function TripDetailsPage() {
               <h1 className="text-2xl font-bold text-text">
                 {trip.tripNumber || trip.referenceNumber || t('noReference', 'Trip Without Reference')}
               </h1>
-              <span className={`${STATUS_COLORS[trip.status] || 'badge-gray'} uppercase px-3 py-1 rounded-lg text-xs font-black shadow-sm`}>
-                {t(trip.status === 'in_progress' ? 'inProgress' : trip.status) || trip.status}
-              </span>
+              <div className="relative inline-flex items-center">
+                <select
+                  aria-label="Trip status"
+                  className={`appearance-none text-xs font-black uppercase tracking-wider pl-3 pr-7 py-1.5 rounded-xl border shadow-xs cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 ${STATUS_COLORS[trip.status] || 'badge-gray'}`}
+                  value={trip.status || 'planned'}
+                  onChange={async (e) => {
+                    const newStatus = e.target.value;
+                    try {
+                      await api.patch(`/trips/${trip.id}`, { status: newStatus });
+                      setTrip((prev: any) => ({ ...prev, status: newStatus }));
+                      toast.success(t('status_updated', 'Status cursă actualizat!'));
+                    } catch (err: any) {
+                      toast.error(err?.response?.data?.message || t('error', 'Eroare la actualizarea statusului'));
+                    }
+                  }}
+                >
+                  {TRIP_STATUSES.map(st => (
+                    <option key={st} value={st} className="bg-card text-text font-semibold capitalize">
+                      {t(`status_${st}`, st.replace(/_/g, ' '))}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 absolute right-2 pointer-events-none opacity-70" />
+              </div>
             </div>
             <p className="text-sm text-text-secondary mt-1 font-medium">
               {t('createdBy', 'Creat de')} <span className="text-primary font-bold">{trip.dispatcher?.name || trip.dispatcher?.email || trip.createdBy?.name || trip.createdBy?.email || t('systemUnknown', 'Sistem / Necunoscut')}</span> {t('onDate', 'pe')} {formatDate(trip.createdAt)}
@@ -534,13 +601,43 @@ export default function TripDetailsPage() {
                         <button disabled={isLast} onClick={() => handleReorder('down')} className="p-1 text-text-secondary hover:text-primary disabled:opacity-30">▼</button>
                       </div>
 
-                      <span className={`text-xs font-bold ${textClass} uppercase tracking-wider mb-1 block flex justify-between`}>
-                        {String(t('stopIndex', 'Stop {{index}}', {
-                    index: stop.sequence
-                  })).replace('{{index}}', stop.sequence.toString())} - {t(stop.status || '', stop.status?.replace(/_/g, ' ') || '')}
-                        {stop.eta && <span className={`px-2 py-0.5 rounded ${stop.etaStatus === 'delayed' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{t("jsx_eTA")}{formatDate(stop.eta)}
-                          </span>}
-                      </span>
+                      <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-xs font-bold ${textClass} uppercase tracking-wider`}>
+                            {String(t('stopIndex', 'Stop {{index}}', {
+                              index: stop.sequence
+                            })).replace('{{index}}', stop.sequence.toString())}
+                          </span>
+                          <div className="relative inline-flex items-center">
+                            <select
+                              aria-label="Stop status"
+                              className="appearance-none text-[11px] font-bold pl-2 pr-6 py-0.5 rounded-lg border border-border/80 bg-card text-text hover:border-primary/50 cursor-pointer transition-colors focus:outline-none"
+                              value={stop.status || 'pending'}
+                              onChange={async e => {
+                                const v = e.target.value;
+                                try {
+                                  await api.patch('/trips/stops/' + stop.id + '/status', { status: v });
+                                  setTrip((prev: any) => ({
+                                    ...prev,
+                                    stops: prev.stops?.map((st: any) => st.id === stop.id ? { ...st, status: v } : st)
+                                  }));
+                                  toast.success(t('saved', 'Status oprire salvat'));
+                                } catch (err: any) {
+                                  toast.error(err?.response?.data?.message || t('error', 'Eroare'));
+                                }
+                              }}
+                            >
+                              {Object.entries(STOP_STATUS_CONFIG).map(([stKey, cfg]) => (
+                                <option key={stKey} value={stKey} className="bg-card text-text">
+                                  {t(cfg.labelKey, cfg.defaultLabel)}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown className="w-3 h-3 absolute right-1.5 pointer-events-none opacity-60" />
+                          </div>
+                        </div>
+                        {stop.eta && <span className={`px-2 py-0.5 rounded text-xs font-semibold ${stop.etaStatus === 'delayed' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{t("jsx_eTA")}{formatDate(stop.eta)}</span>}
+                      </div>
                       <h4 className="font-bold text-lg text-text">{stop.companyName || stop.city || stop.address || '—'}</h4>
                       <p className="text-text-secondary font-medium mt-1 flex items-start gap-2">
                         <MapPin className={`w-4 h-4 shrink-0 mt-0.5 text-${markerColor}-400`} />
@@ -616,22 +713,65 @@ export default function TripDetailsPage() {
                               const loadRef = fullOrder?.loadingReference || fullOrder?.stops?.find((s: any) => s.type === 'pickup')?.reference || fullOrder?.customerReference || fullOrder?.orderNumber || '—';
                               const unloadRef = fullOrder?.unloadingReference || fullOrder?.stops?.find((s: any) => s.type === 'dropoff')?.reference || fullOrder?.customerReference || fullOrder?.orderNumber || '—';
                               const displayRef = task.type === 'unload' ? unloadRef : loadRef;
+                              const currentTaskCfg = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG.pending;
                               
-                              return <div key={task.id} className={`bg-${markerColor}-50/50 p-3 rounded-xl border border-${markerColor}-100/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3`}>
-                                <div>
-                                  <div className={`text-sm font-semibold text-${markerColor}-900 flex items-center gap-2`}>
-                                    <Box className={`w-4 h-4 text-${markerColor}-500`} />
-                                    <span className="capitalize">{t(task.type === 'load' ? 'loading_stop' : task.type === 'unload' ? 'unloading_stop' : task.type)}</span> - {t('orderRef', 'Order')}: {displayRef}
+                              return <div key={task.id} className={`bg-card p-3 rounded-xl border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs`}>
+                                <div className="min-w-0">
+                                  <div className="text-sm font-semibold text-text flex items-center gap-2 flex-wrap">
+                                    <Box className="w-4 h-4 text-primary shrink-0" />
+                                    <span className="capitalize">{t(task.type === 'load' ? 'loading_stop' : task.type === 'unload' ? 'unloading_stop' : task.type)}</span>
+                                    <span className="text-text-muted">·</span>
+                                    <span className="text-xs text-text-secondary">{t('orderRef', 'Comandă')}: <strong className="text-text-primary">{displayRef}</strong></span>
                                   </div>
-                                <div className="text-xs text-text-secondary mt-1 flex items-center gap-1.5 flex-wrap">
-                                  {task.plannedTime ? formatDate(task.plannedTime) : '-'} | <span className="inline-flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{t('pallets')}: {task.pallets || 0}</span> (<span className="inline-flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{task.weightKg || 0} kg</span>)</div>
-                              </div>
-                              <span className={`text-xs font-bold px-2 py-1 rounded bg-white border shadow-sm ${task.status === 'completed' ? 'border-green-200 text-green-700' : 'border-gray-200 text-gray-600'}`}>
-                                {t(task.status)}
-                              </span><select className="ml-2 text-xs font-bold px-2 py-1 rounded bg-white border shadow-sm" value={task.status || 'pending'} onChange={async e => { const v = e.target.value; try { await api.patch('/trips/tasks/' + task.id + '/status', { status: v }); setTrip((prev: any) => ({ ...prev, stops: prev.stops?.map((st: any) => ({ ...st, tasks: (st.tasks || []).map((tk: any) => tk.id === task.id ? { ...tk, status: v } : tk) })) })); toast.success(t('saved', 'Salvat')); } catch (err: any) { toast.error(err?.response?.data?.message || t('error', 'Eroare')); } }} title={t('change_status', 'Change task status')}>
-{['pending', 'completed', 'problem'].map(st => <option key={st} value={st}>{t(st)}</option>)}
-</select>
-                            </div>
+                                  <div className="text-xs text-text-secondary mt-1 flex items-center gap-2 flex-wrap">
+                                    {task.plannedTime && (
+                                      <>
+                                        <span>{formatDate(task.plannedTime)}</span>
+                                        <span className="text-border">·</span>
+                                      </>
+                                    )}
+                                    <span className="inline-flex items-center gap-1 font-semibold text-text-primary">
+                                      <PalletIcon className="w-3.5 h-3.5" />
+                                      {t('pallets', 'Paleți')}: {task.pallets || 0}
+                                    </span>
+                                    <span className="text-border">·</span>
+                                    <span className="inline-flex items-center gap-1 font-semibold text-text-primary">
+                                      <WeightKgIcon className="w-3.5 h-3.5" />
+                                      {task.weightKg || 0} kg
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="relative inline-flex items-center shrink-0">
+                                  <select
+                                    aria-label={t('change_status', 'Schimbă status')}
+                                    className={`appearance-none text-xs font-bold pl-3 pr-7 py-1.5 rounded-full border shadow-2xs cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 ${currentTaskCfg.color}`}
+                                    value={task.status || 'pending'}
+                                    onChange={async e => {
+                                      const v = e.target.value;
+                                      try {
+                                        await api.patch('/trips/tasks/' + task.id + '/status', { status: v });
+                                        setTrip((prev: any) => ({
+                                          ...prev,
+                                          stops: prev.stops?.map((st: any) => ({
+                                            ...st,
+                                            tasks: (st.tasks || []).map((tk: any) => tk.id === task.id ? { ...tk, status: v } : tk)
+                                          }))
+                                        }));
+                                        toast.success(t('saved', 'Status salvat!'));
+                                      } catch (err: any) {
+                                        toast.error(err?.response?.data?.message || t('error', 'Eroare'));
+                                      }
+                                    }}
+                                  >
+                                    {Object.entries(TASK_STATUS_CONFIG).map(([stKey, cfg]) => (
+                                      <option key={stKey} value={stKey} className="bg-card text-text font-medium">
+                                        {t(cfg.labelKey, cfg.defaultLabel)}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <ChevronDown className="w-3.5 h-3.5 absolute right-2 pointer-events-none opacity-60" />
+                                </div>
+                              </div>;
                           })}
                         </div>}
                     </div>;

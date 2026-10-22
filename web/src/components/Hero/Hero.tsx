@@ -330,8 +330,8 @@ const Hero = () => {
 
                 <div className={styles.rangeWrap}>
                   <div className={styles.rangeHeader}>
-                    <label style={{ margin: 0, display: 'inline-flex', alignItems: 'center' }} aria-label="Weight">
-                      <WeightKgIcon className="w-3.5 h-3.5" />
+                    <label style={{ margin: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '7px', background: '#ffffff', border: '1px solid #dce4de', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }} aria-label="Weight">
+                      <WeightKgIcon size={14} />
                     </label>
                     <span className={styles.rangeValue}>{weightLabel}</span>
                   </div>
@@ -350,8 +350,8 @@ const Hero = () => {
 
                 <div className={styles.rangeWrap}>
                   <div className={styles.rangeHeader}>
-                    <label style={{ margin: 0, display: 'inline-flex', alignItems: 'center' }} aria-label="Pallets">
-                      <PalletIcon className="w-3.5 h-3.5" />
+                    <label style={{ margin: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '7px', background: '#ffffff', border: '1px solid #dce4de', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }} aria-label="Pallets">
+                      <PalletIcon size={14} />
                     </label>
                     <span className={styles.rangeValue}>{pallets} {getLabel("paleți", "pallets", "pallets", "Paletten", "palettes", "palets", "palety")}</span>
                   </div>

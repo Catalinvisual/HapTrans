@@ -249,14 +249,14 @@ export default function TrackPage({ params }: { params: any }) {
                 <p style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                   {data.pallets ? (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <PalletIcon className="w-4 h-4" />
+                      <PalletIcon size={16} />
                       {fmtNum(data.pallets)} Paleți
                     </span>
                   ) : '-'}
                   <span>•</span>
                   {data.weightKg ? (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <WeightKgIcon className="w-4 h-4" />
+                      <WeightKgIcon size={16} />
                       {fmtNum(data.weightKg)} kg
                     </span>
                   ) : '-'}

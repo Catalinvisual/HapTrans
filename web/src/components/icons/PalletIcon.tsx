@@ -1,17 +1,26 @@
 import type { ImgHTMLAttributes } from 'react';
 
 export default function PalletIcon({
-  className = 'w-4 h-4',
+  className = '',
   alt = 'pallet',
+  size = 18,
+  style,
   ...props
-}: ImgHTMLAttributes<HTMLImageElement>) {
+}: ImgHTMLAttributes<HTMLImageElement> & { size?: number }) {
   return (
     <img
       src="https://img.icons8.com/isometric/100/pallet.png"
       alt={alt}
-      width={100}
-      height={100}
-      className={`shrink-0 object-contain select-none pointer-events-none inline-block ${className}`}
+      width={size}
+      height={size}
+      style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        objectFit: 'contain',
+        verticalAlign: 'middle',
+        ...style,
+      }}
+      className={`shrink-0 select-none pointer-events-none inline-block ${className}`}
       loading="lazy"
       {...props}
     />
