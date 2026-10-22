@@ -6,7 +6,7 @@ import { UserRole } from '../users/user.entity';
 
 class LoginDto {
   @IsEmail() email: string;
-  @IsString() @MinLength(8) password: string;
+  @IsString() password: string;
   @IsOptional() rememberMe?: boolean;
 }
 

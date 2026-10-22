@@ -36,10 +36,23 @@ export class AuthService {
   }
 
   async login(email: string, password: string, deviceInfo?: string, ipAddress?: string) {
-    const user = await this.usersRepo.findOne({ where: { email }, relations: ['driver'] });
-    if (!user || !user.isActive) throw new UnauthorizedException('Invalid credentials or inactive user');
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const user = await this.usersRepo
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.driver', 'driver')
+      .where('LOWER(TRIM(user.email)) = :email', { email: cleanEmail })
+      .getOne();
+
+    if (!user) {
+      throw new UnauthorizedException('Emailul sau parola introduse sunt incorecte.');
+    }
+    if (!user.isActive) {
+      throw new UnauthorizedException('Contul dumneavoastră este inactiv. Vă rugăm să contactați administratorul.');
+    }
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) throw new UnauthorizedException('Invalid credentials');
+    if (!valid) {
+      throw new UnauthorizedException('Emailul sau parola introduse sunt incorecte.');
+    }
     
     return this.createSessionAndTokens(user, deviceInfo, ipAddress);
   }

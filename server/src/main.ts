@@ -244,6 +244,8 @@ async function bootstrap() {
   const defaultCorsOrigins: (string | RegExp)[] = [
     'http://localhost:5173',
     'http://localhost:3000',
+    /^http:\/\/localhost(:\d+)?$/,
+    /^http:\/\/127\.0\.0\.1(:\d+)?$/,
     'https://hapcargo.ro',
     'https://www.hapcargo.ro',
     'https://haptrans-production.up.railway.app',
@@ -274,7 +276,11 @@ async function bootstrap() {
     '/api/auth/login',
     rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 15, // max 15 login attempts per IP per 15 min
+      max: 30, // max 30 login attempts per IP per 15 min
+      skip: (req) => {
+        const origin = (req.headers.origin || '').toString();
+        return origin.includes('localhost') || origin.includes('127.0.0.1');
+      },
       message: 'Prea multe încercări de autentificare. Vă rugăm să așteptați 15 minute.',
     }),
   );
