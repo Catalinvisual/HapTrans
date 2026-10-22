@@ -369,11 +369,11 @@ input[readonly] {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Permanent, crisp left border and separation shadow for sticky actions columns across TMS */
+/* Permanent, crisp left border without shadow for sticky actions columns across TMS */
 .sticky-actions-cell {
   position: sticky !important;
   right: 0 !important;
-  box-shadow: -1px 0 0 0 rgb(var(--color-border)), -8px 0 16px -2px rgba(0, 0, 0, 0.12) !important;
+  box-shadow: none !important;
 }
 
 .sticky-actions-cell::before {
@@ -386,12 +386,14 @@ input[readonly] {
   background-color: rgb(var(--color-border)) !important;
   pointer-events: none !important;
   z-index: 30 !important;
+  box-shadow: none !important;
 }
 
 .dark .sticky-actions-cell {
-  box-shadow: -1px 0 0 0 rgb(var(--color-border)), -8px 0 16px -2px rgba(0, 0, 0, 0.4) !important;
+  box-shadow: none !important;
 }
 
 .dark .sticky-actions-cell::before {
   background-color: rgb(var(--color-border)) !important;
+  box-shadow: none !important;
 }

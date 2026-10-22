@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Loader2, MapPin, FileText, Trash2, Box, Download, Pencil, ExternalLink, Activity, Copy, FilterX, Coins, Weight, Boxes, BadgeEuro, ArrowRight, Flag, Phone, User, Navigation, Calendar } from 'lucide-react';
+import { Plus, Search, Loader2, MapPin, FileText, Trash2, Box, Download, Pencil, ExternalLink, Activity, Copy, FilterX, Coins, Weight, Boxes, BadgeEuro, ArrowRight, Flag, Phone, User, Navigation, Calendar, FileUp, Sparkles } from 'lucide-react';
 import api from '../lib/api';
 import OrderWizard from '../components/orders/OrderWizard';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
@@ -460,7 +460,35 @@ export default function OrdersPage() {
 
             <div className="flex items-center gap-1.5 ml-auto shrink-0">
               <span className="text-[11px] text-text-secondary font-medium whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
-              <div className="w-[112px] shrink-0"><CustomSelect size="sm" value="" onChange={v => { if (v === 'ai') setShowAiImport(true); else if (v === 'excel') setShowExcelImport(true); }} placeholder={t('import', 'Import')} icon={Download} options={[{ value: 'ai', label: t('ai_import', 'Import AI') }, { value: 'excel', label: t('excel_import', 'Import Excel') }]} /></div>
+              <div className="w-[118px] shrink-0">
+                <CustomSelect
+                  size="sm"
+                  value=""
+                  onChange={v => { if (v === 'ai') setShowAiImport(true); else if (v === 'excel') setShowExcelImport(true); }}
+                  placeholder={t('import', 'Import')}
+                  icon={FileUp}
+                  options={[
+                    {
+                      value: 'ai',
+                      label: (
+                        <span className="flex items-center gap-2">
+                          <Sparkles className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                          <span>{t('ai_import', 'Import AI')}</span>
+                        </span>
+                      )
+                    },
+                    {
+                      value: 'excel',
+                      label: (
+                        <span className="flex items-center gap-2">
+                          <ExcelIcon className="w-3.5 h-3.5 shrink-0" />
+                          <span>{t('excel_import', 'Import Excel')}</span>
+                        </span>
+                      )
+                    }
+                  ]}
+                />
+              </div>
               <button
                 type="button"
                 onClick={() => setShowExport(true)}

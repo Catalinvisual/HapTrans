@@ -260,8 +260,8 @@ export default function ExportModal({ isOpen, onClose, data, filename, title, sh
       <div className="bg-card rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-border animate-slide-up">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border bg-surface">
-          <div className="flex items-center gap-2">
-            <ExcelIcon className="w-5 h-5" />
+          <div className="flex items-center gap-2.5">
+            <ExcelIcon className="w-7 h-7" />
             <h3 className="font-bold text-text text-lg">{tExport.title}</h3>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-surface transition-colors">
@@ -340,7 +340,7 @@ export default function ExportModal({ isOpen, onClose, data, filename, title, sh
         {/* Footer */}
         <div className="flex gap-3 p-5 border-t border-border bg-surface">
           <button onClick={handleExport} disabled={exporting} className="btn-primary flex-1 py-2.5 font-bold shadow-md shadow-primary/20 flex items-center justify-center gap-2">
-            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExcelIcon className="w-4 h-4" />}
+            {exporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <ExcelIcon className="w-5 h-5" />}
             {exporting ? tExport.exporting : tExport.exportBtn}
           </button>
           <button onClick={onClose} className="btn-secondary flex-1 py-2.5 font-bold flex items-center justify-center gap-2">
