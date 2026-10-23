@@ -275,12 +275,20 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
   };
 
   const columns: Column<any>[] = [
-    { key: 'tripNumber', label: t('trip', 'Trip'), sortable: true, className: 'min-w-[112px]', render: tr => {
+    { key: 'tripNumber', label: t('trip', 'Trip'), sortable: true, className: 'min-w-[120px]', render: tr => {
       const created = tr.createdAt && !isNaN(new Date(tr.createdAt).getTime()) ? new Date(tr.createdAt).toLocaleDateString() : '—';
       const orders = tr.orders || [];
+      const isAdr = tr.isAdr || orders.some((o: any) => o.isAdr || (o.adrStatus && o.adrStatus !== 'none'));
       return (
-        <div className="leading-[1.15]">
-          <div className="font-bold text-primary text-[11.5px] truncate">{tr.tripNumber || tr.id.slice(0, 8)}</div>
+        <div className="leading-[1.15] space-y-0.5">
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="font-bold text-primary text-[11.5px] truncate">{tr.tripNumber || tr.id.slice(0, 8)}</span>
+            {isAdr && (
+              <span className="px-1 py-0 text-[7.5px] font-black rounded uppercase bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                ADR
+              </span>
+            )}
+          </div>
           {orders[0] && (
             <div className="text-[9.5px] font-bold text-primary/80 truncate">
               {orders[0].orderNumber || orders[0].referenceNumber}

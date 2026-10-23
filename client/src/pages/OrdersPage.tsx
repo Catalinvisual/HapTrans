@@ -24,6 +24,7 @@ import WeightKgIcon from '../components/icons/WeightKgIcon';
 import { formatDateExcel } from '../lib/exportExcel';
 import AiImportModal from '../components/AiImportModal';
 import ExcelImportModal from '../components/ExcelImportModal';
+import AdrBadge from '../components/common/AdrBadge';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { useSettingsStore } from '../store/settingsStore';
@@ -308,11 +309,22 @@ export default function OrdersPage() {
   const drawerOrder = drawerOrderId ? orders.find(o => o.id === drawerOrderId) : null;
 
   const columns: Column<any>[] = [
-    { key: 'ref', label: t('order_ref', 'Order'), sortable: true, width: '140px', render: o => {
+    { key: 'ref', label: t('order_ref', 'Order'), sortable: true, width: '150px', render: o => {
       const created = o.createdAt ? new Date(o.createdAt) : null;
+      const isAdr = o.isAdr || (o.adrStatus && o.adrStatus !== 'none') || o.cargoItems?.some((c: any) => c.isAdr || c.adrClass || c.unNumber);
       return (
-        <div className="min-w-0 leading-tight">
-          <div className="font-bold text-primary text-[13px] truncate">{o.orderNumber || o.referenceNumber || '—'}</div>
+        <div className="min-w-0 leading-tight space-y-0.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-bold text-primary text-[13px] truncate">{o.orderNumber || o.referenceNumber || '—'}</span>
+            {isAdr && (
+              <AdrBadge
+                status={o.adrStatus}
+                points={o.adrTotalPoints}
+                exemptionType={o.adrExemptionApplied}
+                unNumber={o.cargoItems?.find((c: any) => c.unNumber)?.unNumber}
+              />
+            )}
+          </div>
           <div className="text-[11px] text-text-secondary truncate" title={created ? created.toLocaleString('en-GB') : ''}>
             {created ? created.toLocaleDateString('en-GB') : ''}
           </div>
@@ -674,8 +686,19 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
   const tabs: TabDef[] = [
     { key: 'overview', label: t('tab_overview', 'Overview'), content: (
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <StatusBadge type="order" status={order.status} label={t(`status_${order.status}`, order.status.replace(/_/g, ' '))} size="md" />
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <StatusBadge type="order" status={order.status} label={t(`status_${order.status}`, order.status.replace(/_/g, ' '))} size="md" />
+            {(order.isAdr || (order.adrStatus && order.adrStatus !== 'none')) && (
+              <AdrBadge
+                status={order.adrStatus}
+                points={order.adrTotalPoints}
+                exemptionType={order.adrExemptionApplied}
+                showDetails={true}
+                unNumber={order.cargoItems?.find((c: any) => c.unNumber)?.unNumber}
+              />
+            )}
+          </div>
           {order.trip && <button onClick={() => navigate(`/trips/${order.trip.id}`)} className="text-xs font-bold text-primary hover:underline flex items-center gap-1">{t('open_trip', 'Open trip')} <ExternalLink className="w-3 h-3" /></button>}
         </div>
         <div className="bg-surface/40 rounded-xl p-4 border border-border">
@@ -732,10 +755,25 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
               <span className="flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{fmtNumber(c.weightKg || 0)} kg</span>
               {c.ldm ? <span>{fmtNumber(c.ldm, 2)} LDM</span> : null}
               {c.volumeCbm ? <span>{fmtNumber(c.volumeCbm, 1)} m³</span> : null}
-              {c.adrClass ? <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-bold">ADR {c.adrClass}</span> : null}
+              {(c.isAdr || c.adrClass || c.unNumber) ? (
+                <AdrBadge
+                  status={c.adrStatus || (c.adrExemptionType ? `exempt_${c.adrExemptionType}` : undefined)}
+                  points={c.adrPoints}
+                  exemptionType={c.adrExemptionType}
+                  unNumber={c.unNumber}
+                  adrClass={c.adrClass}
+                  showDetails={true}
+                />
+              ) : null}
               {c.requiresTemperatureControl ? <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-bold">🌡 {c.temperatureMin ?? c.temperatureMax}°C</span> : null}
               {c.fragile ? <span className="text-amber-600 font-semibold">Fragile</span> : null}
             </div>
+            {c.adrDeclarationText && (
+              <div className="w-full mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-[10px] font-mono text-amber-900 dark:text-amber-200 break-words">
+                <span className="font-bold text-[9px] uppercase tracking-wider block text-amber-600 dark:text-amber-400 mb-0.5">ADR 5.4 Transport Document Declaration</span>
+                {c.adrDeclarationText}
+              </div>
+            )}
           </div>
         ))}
         {(!order.cargoItems || order.cargoItems.length === 0) && <div className="text-sm text-text-secondary text-center py-8">{t('no_cargo', 'No cargo items')}</div>}

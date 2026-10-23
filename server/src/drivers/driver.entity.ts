@@ -36,6 +36,24 @@ export class Driver {
   @Column({ nullable: true, type: 'date' })
   tachoCardExpiry: Date;
 
+  @Column({ default: false })
+  hasAdrCertificate: boolean;
+
+  @Column({ nullable: true })
+  adrCertificateNumber: string;
+
+  @Column({ nullable: true, type: 'date' })
+  adrExpiryDate: Date;
+
+  @Column({ type: 'simple-array', nullable: true })
+  adrSpecializations: string[]; // ['basic', 'tanks', 'class1', 'class7']
+
+  @Column({ default: false })
+  adrVerified: boolean;
+
+  @Column({ nullable: true })
+  adrVerifiedBy: string;
+
   @Column({ type: 'varchar', default: 'per_km' })
   payMode: string; // per_km | percent
 

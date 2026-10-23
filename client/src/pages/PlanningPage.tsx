@@ -30,6 +30,7 @@ import { generateOrderPdf } from '../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { planningApi } from '../lib/planningApi';
 import OrderWizard from '../components/orders/OrderWizard';
+import AdrBadge from '../components/common/AdrBadge';
 import ExcelIcon from '../components/icons/ExcelIcon';
 import { fmtMoney, fmtNumber } from '../lib/format';
 import SplitTripModal from '../components/planning/SplitTripModal';
@@ -448,6 +449,9 @@ function PoolOrderCard({
           </button>
           <span className="font-bold text-text-primary text-[11px] truncate">{order.orderNumber || '—'}</span>
           {isUrgent && <span className="px-1 py-0 text-[7px] font-black bg-red-500/10 text-red-600 border border-red-500/20 rounded shrink-0">{t('urgent', 'URGENT')}</span>}
+          {(order.isAdr || (order.adrStatus && order.adrStatus !== 'none') || order.cargoItems?.some((c: any) => c.isAdr)) && (
+            <span className="px-1 py-0 text-[7px] font-black bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded shrink-0" title="ADR Dangerous Goods">ADR</span>
+          )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <span className="px-1.5 py-0 text-[8px] font-black rounded-full bg-primary/10 text-primary border border-primary/20">{(order.transportType || 'FTL').toUpperCase()}</span>
@@ -545,6 +549,11 @@ function TripBlock({
             {trip.fleetType === 'charter' && (
               <span className="shrink-0 px-1 py-0 text-[7px] font-black rounded-sm uppercase bg-pink-500/20 text-pink-700 dark:text-pink-300 border border-pink-500/30" title="Spot Charter Carrier">
                 CHARTER
+              </span>
+            )}
+            {(trip.isAdr || trip.orders?.some((o: any) => o.isAdr || o.adrStatus !== 'none')) && (
+              <span className="shrink-0 px-1 py-0 text-[7px] font-black rounded-sm uppercase bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30" title="ADR Hazardous Trip">
+                ADR
               </span>
             )}
             {trip.trafficDelayMinutes > 0 && (
@@ -1475,6 +1484,13 @@ function TripDetailDrawer({
                       <div className="flex items-center gap-2">
                         <span className="font-black text-primary text-sm">{o.orderNumber || '—'}</span>
                         {o.client?.name && <span className="text-xs font-semibold text-text-primary truncate">· {o.client.name}</span>}
+                        {(o.isAdr || (o.adrStatus && o.adrStatus !== 'none')) && (
+                          <AdrBadge
+                            status={o.adrStatus}
+                            points={o.adrTotalPoints}
+                            exemptionType={o.adrExemptionApplied}
+                          />
+                        )}
                       </div>
                       <div className="flex flex-wrap gap-2 text-[11px] text-text-secondary mt-1.5">
                         <span className="px-1.5 py-0.5 bg-surface rounded font-medium inline-flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{oc.pallets || o.pallets || 0} pal</span>

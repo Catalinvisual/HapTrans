@@ -9,6 +9,7 @@ import type { TabDef } from '../ui/DetailDrawer';
 import StatusBadge from '../ui/StatusBadge';
 import PalletIcon from '../icons/PalletIcon';
 import WeightKgIcon from '../icons/WeightKgIcon';
+import AdrBadge from '../common/AdrBadge';
 
 interface Props {
   order: any;
@@ -57,8 +58,18 @@ export default function PortalOrderDrawer({ order, onClose }: Props) {
   const tabs: TabDef[] = [
     { key: 'overview', label: t('tab_overview', 'Overview'), content: (
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <StatusBadge status={order.status} label={t(`status_${order.status}`, String(order.status || '').replace(/_/g, ' '))} size="md" />
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <StatusBadge status={order.status} label={t(`status_${order.status}`, String(order.status || '').replace(/_/g, ' '))} size="md" />
+            {(order.isAdr || (order.adrStatus && order.adrStatus !== 'none')) && (
+              <AdrBadge
+                status={order.adrStatus}
+                points={order.adrTotalPoints}
+                exemptionType={order.adrExemptionApplied}
+                showDetails={true}
+              />
+            )}
+          </div>
         </div>
         <div className="bg-surface/40 rounded-xl p-4 border border-border">
           <div className="grid grid-cols-2 gap-3">
@@ -102,10 +113,25 @@ export default function PortalOrderDrawer({ order, onClose }: Props) {
               <span className="flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{fmtNumber(c.weightKg || 0)} kg</span>
               {c.ldm ? <span>{fmtNumber(c.ldm, 2)} LDM</span> : null}
               {c.volumeCbm ? <span>{fmtNumber(c.volumeCbm, 1)} m³</span> : null}
-              {(c.adrClass || c.unNumber || c.adrUnNumber) ? <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-bold">ADR {c.adrClass ? `Cls ${c.adrClass}` : ''} {(c.unNumber || c.adrUnNumber) ? `UN ${c.unNumber || c.adrUnNumber}` : ''}</span> : null}
+              {(c.isAdr || c.adrClass || c.unNumber || c.adrUnNumber) ? (
+                <AdrBadge
+                  status={c.adrStatus || (c.adrExemptionType ? `exempt_${c.adrExemptionType}` : undefined)}
+                  points={c.adrPoints}
+                  exemptionType={c.adrExemptionType}
+                  unNumber={c.unNumber || c.adrUnNumber}
+                  adrClass={c.adrClass}
+                  showDetails={true}
+                />
+              ) : null}
               {(c.requiresTemperatureControl || c.isTemperatureControlled) ? <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-bold">{c.temperatureMin ?? c.temperatureMax ?? c.requiredTemperature ?? '—'}°C</span> : null}
               {c.fragile ? <span className="text-amber-600 font-semibold">Fragile</span> : null}
             </div>
+            {c.adrDeclarationText && (
+              <div className="w-full mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-[10px] font-mono text-amber-900 dark:text-amber-200 break-words">
+                <span className="font-bold text-[9px] uppercase tracking-wider block text-amber-600 dark:text-amber-400 mb-0.5">ADR 5.4 Declaration</span>
+                {c.adrDeclarationText}
+              </div>
+            )}
           </div>
         ))}
         {cargo.length === 0 && <div className="text-sm text-text-secondary text-center py-8">{t('no_cargo', 'No cargo items')}</div>}

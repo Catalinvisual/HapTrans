@@ -25,6 +25,7 @@ import { PricingEngine } from '../engines/pricing.engine';
 import { TimelineService } from '../timeline/timeline.service';
 import { OptimizationService } from './optimization.service';
 import { RoutingService } from '../routing/routing.service';
+import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
 
 
 export const ACTIVE_TRIP_STATUSES = [
@@ -122,74 +123,108 @@ export function validateAdrMatrix(
     return conflicts;
   }
 
+  // Evaluate dangerous goods compliance, exemptions (1.1.3.6, LQ, EQ, SP 188), and point totals
+  const adrEval = AdrRulesEngine.evaluateCargo(cargoItems.map(c => ({
+    unNumber: c.unNumber || '',
+    adrClass: c.adrClass || '',
+    transportCategory: c.transportCategory,
+    tunnelRestrictionCode: c.tunnelRestrictionCode,
+    packingGroup: c.packingGroup,
+    quantity: c.quantity,
+    grossMassKg: c.grossMassKg || c.weightKg,
+    netMassKg: c.netMassKg,
+    volumeLiters: c.volumeLiters,
+    limitedQuantity: c.limitedQuantity,
+    exceptedQuantity: c.exceptedQuantity,
+    waste: c.adrWaste,
+    batteryDetails: c.adrBatteryDetails ? (typeof c.adrBatteryDetails === 'string' ? JSON.parse(c.adrBatteryDetails) : c.adrBatteryDetails) : undefined,
+  })));
+
   // 1. Driver Qualification Check
   if (driver) {
     const docs = driver.documents || [];
     const dName = driver.name || driver.user?.name || 'Driver';
     const tripEndStr = tripEnd ? tripEnd.toISOString().slice(0, 10) : 'completion';
 
-    const adrDoc = docs.find((doc: any) => String(doc.type || '').toLowerCase().includes('adr'));
-    if (!adrDoc) {
+    // If the transport is legally exempt from driver certification (e.g. 1.1.3.6 <= 1000 pts, LQ, EQ, SP 188)
+    if (!adrEval.driverCertRequired && cargoItems.length > 0 && !adrEval.requiresVerification) {
       conflicts.push({
-        id: `DRIVER_ADR_INVALID_${trip.id}_${driver.id}`,
-        level: 'blocking',
-        code: 'DRIVER_ADR_INVALID',
+        id: `ADR_EXEMPTION_CONFIRMED_${trip.id}`,
+        level: 'info',
+        code: 'ADR_EXEMPTION_CONFIRMED',
         tripId: trip.id,
-        resourceId: driver.id,
-        params: {
-          driverId: driver.id,
-          driverName: dName,
-          document: 'adr_certificate',
-          tripEnd: tripEndStr,
-          resolution: 'Assign an ADR-certified driver for hazardous cargo trip.',
-        },
-        message: `Driver ${dName} lacks required ADR certificate for hazardous goods trip ${trip.tripNumber || trip.id}.`,
-      });
-    } else if (adrDoc.expiryDate && new Date(adrDoc.expiryDate) < tripEnd) {
-      const expStr = new Date(adrDoc.expiryDate).toISOString().slice(0, 10);
-      conflicts.push({
-        id: `DRIVER_ADR_EXPIRED_${trip.id}_${driver.id}`,
-        level: 'blocking',
-        code: 'DRIVER_ADR_EXPIRED',
-        tripId: trip.id,
-        resourceId: driver.id,
-        params: {
-          driverId: driver.id,
-          driverName: dName,
-          document: 'adr_certificate',
-          expiryDate: expStr,
-          tripEnd: tripEndStr,
-          resolution: 'Assign a driver with valid ADR certificate or renew before trip end.',
-        },
-        message: `Driver ${dName} ADR certificate expires on ${expStr}, before planned trip completion (${tripEndStr}). Legally required for ADR transport.`,
+        message: `${adrEval.statusLabelRo}. Certificatul ADR al șoferului nu este cerut de lege (scutire verificată). Necesar: instruire de bază ADR 1.3 și 1 extinctor min. 2 kg.`,
       });
     } else {
-      // Check class-specific driver endorsements for Class 1 (Explosives) & Class 7 (Radioactive)
-      const docTypeLower = String(adrDoc.type || '').toLowerCase();
-      const docNotesLower = String(adrDoc.notes || '').toLowerCase();
-      for (const item of cargoItems) {
-        const cls = String(item.adrClass).trim();
-        if (cls.startsWith('1') && !docTypeLower.includes('class 1') && !docTypeLower.includes('explosiv') && !docNotesLower.includes('class 1')) {
-          conflicts.push({
-            id: `DRIVER_ADR_INVALID_CL1_${trip.id}_${driver.id}`,
-            level: 'blocking',
-            code: 'DRIVER_ADR_INVALID',
-            tripId: trip.id,
-            resourceId: driver.id,
-            message: `Driver ${dName} lacks specialized ADR Class 1 (Explosives) endorsement required for UN ${item.unNumber || 'cargo'}.`,
-          });
-          break;
-        }
-        if (cls.startsWith('7') && !docTypeLower.includes('class 7') && !docTypeLower.includes('radioactiv') && !docNotesLower.includes('class 7')) {
-          conflicts.push({
-            id: `DRIVER_ADR_INVALID_CL7_${trip.id}_${driver.id}`,
-            level: 'blocking',
-            code: 'DRIVER_ADR_INVALID',
-            tripId: trip.id,
-            resourceId: driver.id,
-            message: `Driver ${dName} lacks specialized ADR Class 7 (Radioactive) endorsement required for UN ${item.unNumber || 'cargo'}.`,
-          });
-          break;
+      // Full ADR rules apply or verification is required -> Check driver ADR certificate
+      const adrDoc = docs.find((doc: any) => String(doc.type || '').toLowerCase().includes('adr')) ||
+        (driver.hasAdrCertificate ? { type: 'ADR Certificate', expiryDate: driver.adrExpiryDate, notes: (driver.adrSpecializations || []).join(' ') } : null);
+
+      if (!adrDoc) {
+        conflicts.push({
+          id: `DRIVER_ADR_INVALID_${trip.id}_${driver.id}`,
+          level: 'blocking',
+          code: 'DRIVER_ADR_INVALID',
+          tripId: trip.id,
+          resourceId: driver.id,
+          params: {
+            driverId: driver.id,
+            driverName: dName,
+            document: 'adr_certificate',
+            tripEnd: tripEndStr,
+            resolution: 'Assign an ADR-certified driver for hazardous cargo trip.',
+          },
+          message: `Driver ${dName} lacks required ADR certificate for hazardous goods trip ${trip.tripNumber || trip.id}.`,
+        });
+      } else if (adrDoc.expiryDate && new Date(adrDoc.expiryDate) < tripEnd) {
+        const expStr = new Date(adrDoc.expiryDate).toISOString().slice(0, 10);
+        conflicts.push({
+          id: `DRIVER_ADR_EXPIRED_${trip.id}_${driver.id}`,
+          level: 'blocking',
+          code: 'DRIVER_ADR_EXPIRED',
+          tripId: trip.id,
+          resourceId: driver.id,
+          params: {
+            driverId: driver.id,
+            driverName: dName,
+            document: 'adr_certificate',
+            expiryDate: expStr,
+            tripEnd: tripEndStr,
+            resolution: 'Assign a driver with valid ADR certificate or renew before trip end.',
+          },
+          message: `Driver ${dName} ADR certificate expires on ${expStr}, before planned trip completion (${tripEndStr}). Legally required for ADR transport.`,
+        });
+      } else {
+        // Check class-specific driver endorsements for Class 1 (Explosives) & Class 7 (Radioactive) & Tanks
+        const docTypeLower = String(adrDoc.type || '').toLowerCase();
+        const docNotesLower = String(adrDoc.notes || '').toLowerCase();
+        const specs = Array.isArray(driver.adrSpecializations) ? driver.adrSpecializations.join(' ').toLowerCase() : '';
+        const allDriverSpecs = `${docTypeLower} ${docNotesLower} ${specs}`;
+
+        for (const item of cargoItems) {
+          const cls = String(item.adrClass).trim();
+          if (cls.startsWith('1') && !allDriverSpecs.includes('class 1') && !allDriverSpecs.includes('explosiv') && !allDriverSpecs.includes('cl1')) {
+            conflicts.push({
+              id: `DRIVER_ADR_INVALID_CL1_${trip.id}_${driver.id}`,
+              level: 'blocking',
+              code: 'DRIVER_ADR_INVALID',
+              tripId: trip.id,
+              resourceId: driver.id,
+              message: `Driver ${dName} lacks specialized ADR Class 1 (Explosives) endorsement required for UN ${item.unNumber || 'cargo'}.`,
+            });
+            break;
+          }
+          if (cls.startsWith('7') && !allDriverSpecs.includes('class 7') && !allDriverSpecs.includes('radioactiv') && !allDriverSpecs.includes('cl7')) {
+            conflicts.push({
+              id: `DRIVER_ADR_INVALID_CL7_${trip.id}_${driver.id}`,
+              level: 'blocking',
+              code: 'DRIVER_ADR_INVALID',
+              tripId: trip.id,
+              resourceId: driver.id,
+              message: `Driver ${dName} lacks specialized ADR Class 7 (Radioactive) endorsement required for UN ${item.unNumber || 'cargo'}.`,
+            });
+            break;
+          }
         }
       }
     }

@@ -161,6 +161,7 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
       ['Reference', normalizeText(order?.orderNumber || order?.referenceNumber || order?.customerReference || '—')],
       ['Price', `€ ${order?.price || 0}`],
       ['Transport Type', (order?.transportType || 'ftl').toUpperCase()],
+      ['ADR Status', (order?.isAdr || (order?.adrStatus && order?.adrStatus !== 'none')) ? `${(order?.adrStatus || 'ADR').toUpperCase()} (${order?.adrTotalPoints || 0} pts${order?.adrExemptionApplied ? ` - ${order?.adrExemptionApplied}` : ''})` : 'Not Applicable (Non-hazardous)'],
     ],
     margin: { left: 40 },
   });
@@ -228,24 +229,60 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
       c.quantity || '0',
       c.unit || '—',
       c.weightKg ? `${c.weightKg} kg` : '—',
-      c.ldm ? `${c.ldm} ldm` : '—'
+      c.ldm ? `${c.ldm} ldm` : '—',
+      (c.isAdr || c.unNumber) ? normalizeText(`${c.unNumber || 'ADR'} (Cls ${c.adrClass || '—'})`) : '—'
     ];
   });
 
   if (cargoData.length > 0) {
     autoTable(doc, {
       startY: currentY,
-      head: [['Description', 'Qty', 'Unit', 'Weight', 'LDM']],
+      head: [['Description', 'Qty', 'Unit', 'Weight', 'LDM', 'ADR']],
       body: cargoData,
       theme: 'grid',
       headStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9 },
       bodyStyles: { fontSize: 9, textColor: [71, 85, 105] },
       margin: { left: 40, right: 40 },
     });
+    currentY = (doc as any).lastAutoTable.finalY + 25;
   } else {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.text('No cargo details provided.', 40, currentY + 10);
+    currentY += 25;
+  }
+
+  // Official ADR 5.4 Dangerous Goods Transport Section
+  const adrItems = (order?.cargoItems || []).filter((c: any) => c.isAdr || c.unNumber || c.adrClass);
+  if (adrItems.length > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(180, 83, 9); // amber-700
+    doc.text('ADR 5.4 Dangerous Goods Transport Declaration (Regulament ADR UNECE)', 40, currentY);
+    currentY += 8;
+
+    const adrTableData = adrItems.map((c: any, i: number) => [
+      i + 1,
+      c.unNumber || '—',
+      normalizeText(c.properShippingName || c.description || '—'),
+      c.adrClass || '—',
+      c.packingGroup || '—',
+      c.tunnelRestrictionCode ? `(${c.tunnelRestrictionCode})` : '—',
+      c.transportCategory !== undefined ? String(c.transportCategory) : '—',
+      c.adrPoints !== undefined ? `${c.adrPoints} pts` : '—',
+      normalizeText(c.adrDeclarationText || `${c.unNumber || ''} ${c.properShippingName || ''}, ${c.adrClass || ''}`)
+    ]);
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['#', 'UN #', 'Proper Shipping Name', 'Class', 'PG', 'Tunnel', 'Cat', 'Points', 'ADR 5.4 Declaration']],
+      body: adrTableData,
+      theme: 'grid',
+      headStyles: { fillColor: [254, 243, 199], textColor: [146, 64, 14], fontStyle: 'bold', fontSize: 8 },
+      bodyStyles: { fontSize: 8, textColor: [30, 41, 59] },
+      columnStyles: { 8: { fontStyle: 'bold', cellWidth: 220 } },
+      margin: { left: 40, right: 40 },
+    });
   }
 
   const filename = `Order_${order?.orderNumber || 'Document'}.pdf`;

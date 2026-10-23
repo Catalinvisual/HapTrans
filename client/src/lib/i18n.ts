@@ -3,6 +3,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { planningResources } from './planningI18n';
 import { langOverrides } from './langOverrides';
+import { adrResources } from './adrI18n';
 
 const resources = {
   ro: { translation: {
@@ -11283,6 +11284,11 @@ export const archivingResources: Record<string, Record<string, string>> = {
 for (const lng of Object.keys(archivingResources)) {
   if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
   Object.assign((resources as any)[lng].translation, archivingResources[lng]);
+}
+
+for (const lng of Object.keys(adrResources)) {
+  if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
+  Object.assign((resources as any)[lng].translation, adrResources[lng]);
 }
 
 

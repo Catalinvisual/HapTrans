@@ -7,6 +7,7 @@ import { Loader2, ArrowLeft, Package, MapPin, Clock, FileText, CheckCircle, Truc
 import toast from 'react-hot-toast';
 import PalletIcon from '../components/icons/PalletIcon';
 import WeightKgIcon from '../components/icons/WeightKgIcon';
+import AdrBadge from '../components/common/AdrBadge';
 export default function OrderDetailsPage() {
   const {
     id
@@ -71,10 +72,18 @@ export default function OrderDetailsPage() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3">{order.orderNumber}
+            <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3 flex-wrap">{order.orderNumber}
               <span className={`px-3 py-1 text-xs font-bold uppercase rounded-full border ${getStatusColor(order.status)}`}>
                 {order.status === 'pod_received' ? 'Pod received' : (order.status ? order.status.replace('_', ' ') : '—')}
               </span>
+              {(order.isAdr || (order.adrStatus && order.adrStatus !== 'none')) && (
+                <AdrBadge
+                  status={order.adrStatus}
+                  points={order.adrTotalPoints}
+                  exemptionType={order.adrExemptionApplied}
+                  showDetails={true}
+                />
+              )}
             </h1>
             <p className="text-sm text-text-secondary flex items-center gap-1.5 mt-1">
               <span className="text-text-muted">{t('client', 'Client')}:</span>
@@ -205,13 +214,26 @@ export default function OrderDetailsPage() {
                           </span>}
                           {item.stackable && <span className="px-2 py-1 bg-blue-500/10 text-blue-600 border border-blue-500/20 rounded font-bold">{t("jsx_stackable", "Stackable")}</span>}
                           {item.fragile && <span className="px-2 py-1 bg-orange-500/10 text-orange-600 border border-orange-500/20 rounded font-bold">{t("jsx_fragile", "Fragile")}</span>}
-                          {(item.isAdr || item.adrClass || item.unNumber || item.adrUnNumber) && <span className="px-2 py-1 bg-red-500/10 text-red-600 border border-red-500/20 rounded font-bold">
-                            ADR {item.adrClass ? `Cls ${item.adrClass}` : ''} {(item.unNumber || item.adrUnNumber) ? `UN ${item.unNumber || item.adrUnNumber}` : ''}
-                          </span>}
+                          {(item.isAdr || item.adrClass || item.unNumber || item.adrUnNumber) && (
+                            <AdrBadge
+                              status={item.adrStatus || (item.adrExemptionType ? `exempt_${item.adrExemptionType}` : undefined)}
+                              points={item.adrPoints}
+                              exemptionType={item.adrExemptionType}
+                              unNumber={item.unNumber || item.adrUnNumber}
+                              adrClass={item.adrClass}
+                              showDetails={true}
+                            />
+                          )}
                           {(item.isTemperatureControlled || item.requiresTemperatureControl) && <span className="px-2 py-1 bg-cyan-500/10 text-cyan-600 border border-cyan-500/20 rounded font-bold">
                             Temp: {item.requiredTemperature ?? item.temperatureMin ?? '—'}°C
                           </span>}
                         </div>
+                        {item.adrDeclarationText && (
+                          <div className="mt-3 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs font-mono text-amber-900 dark:text-amber-200 break-words">
+                            <span className="font-bold text-[10px] uppercase tracking-wider block text-amber-600 dark:text-amber-400 mb-1">ADR 5.4 Transport Document Declaration</span>
+                            {item.adrDeclarationText}
+                          </div>
+                        )}
                       </div>)}
                   </div> : <p className="text-text-secondary">{t("jsx_noCargoItems")}</p>}
               </div>

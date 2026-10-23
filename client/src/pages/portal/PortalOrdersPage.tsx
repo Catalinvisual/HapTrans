@@ -14,6 +14,7 @@ import KpiStrip from '../../components/ui/KpiStrip';
 import StatusBadge from '../../components/ui/StatusBadge';
 import OrderWizard from '../../components/orders/OrderWizard';
 import WeightKgIcon from '../../components/icons/WeightKgIcon';
+import AdrBadge from '../../components/common/AdrBadge';
 
 const ORDER_STATUSES = ['draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoiced', 'paid', 'cancelled'];
 
@@ -92,12 +93,25 @@ export default function PortalOrdersPage() {
   };
 
   const columns: Column<any>[] = [
-    { key: 'ref', label: t('order_ref', 'Order'), sortable: true, render: o => (
-      <div className="min-w-0">
-        <div className="font-bold text-primary text-[13px] truncate">{o.orderNumber || '—'}</div>
-        <div className="text-[11px] text-text-secondary truncate">{o.createdAt ? new Date(o.createdAt).toLocaleString('en-GB') : ''}</div>
-      </div>
-    ) },
+    { key: 'ref', label: t('order_ref', 'Order'), sortable: true, render: o => {
+      const isAdr = o.isAdr || (o.adrStatus && o.adrStatus !== 'none') || o.cargoItems?.some((c: any) => c.isAdr || c.adrClass || c.unNumber);
+      return (
+        <div className="min-w-0 space-y-0.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-bold text-primary text-[13px] truncate">{o.orderNumber || '—'}</span>
+            {isAdr && (
+              <AdrBadge
+                status={o.adrStatus}
+                points={o.adrTotalPoints}
+                exemptionType={o.adrExemptionApplied}
+                unNumber={o.cargoItems?.find((c: any) => c.unNumber)?.unNumber}
+              />
+            )}
+          </div>
+          <div className="text-[11px] text-text-secondary truncate">{o.createdAt ? new Date(o.createdAt).toLocaleString('en-GB') : ''}</div>
+        </div>
+      );
+    } },
     { key: 'route', label: t('route', 'Route'), render: o => {
       const stops = [...(o.stops || [])].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
       const pickup = stops.find((s: any) => s.type === 'pickup');

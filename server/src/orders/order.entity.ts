@@ -98,6 +98,24 @@ export class Order {
   @Column({ type: 'simple-array', nullable: true })
   equipmentRequirements: string[]; // ['frigo', 'adr', 'mega', 'tilt']
 
+  @Column({ default: false })
+  isAdr: boolean;
+
+  @Column({ nullable: true, default: 'none' })
+  adrStatus: string; // 'none' | 'needs_review' | 'confirmed_full_adr' | 'exempt_1136' | 'limited_quantity' | 'excepted_quantity' | 'driver_cert_required' | 'driver_cert_missing' | 'incomplete_docs'
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, nullable: true })
+  adrTotalPoints: number;
+
+  @Column({ default: true })
+  adr1136Eligible: boolean;
+
+  @Column({ nullable: true })
+  adrExemptionApplied: string; // 'none' | '1.1.3.6' | 'lq' | 'eq' | 'sp188'
+
+  @Column({ nullable: true, type: 'text' })
+  adrSummary: string; // JSON with calculation breakdown & compliance checks
+
   @Column({ nullable: true })
   contactPerson: string;
 

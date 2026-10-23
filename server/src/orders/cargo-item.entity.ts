@@ -85,6 +85,72 @@ export class CargoItem {
   @Column({ default: false })
   environmentalHazard: boolean;
 
+  @Column({ nullable: true })
+  technicalName: string; // e.g. "contains ethanol" (SP 274)
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  adrPoints: number; // calculated points under 1.1.3.6
+
+  @Column({ type: 'int', nullable: true })
+  adrFactor: number; // multiplier factor: 50, 20, 3, 1, 0
+
+  @Column({ nullable: true })
+  adrExemptionType: string; // 'none' | '1.1.3.6' | 'lq' | 'eq' | 'sp188' | 'empty_uncleaned' | 'special_provision'
+
+  @Column({ nullable: true, type: 'text' })
+  adrExemptionDetails: string;
+
+  @Column({ nullable: true, default: 'needs_review' })
+  adrStatus: string; // 'needs_review' | 'confirmed' | 'exempt_1136' | 'limited_quantity' | 'excepted_quantity' | 'ineligible'
+
+  @Column({ nullable: true })
+  adrClassificationCode: string;
+
+  @Column({ nullable: true })
+  adrDangerLabels: string;
+
+  @Column({ nullable: true, type: 'text' })
+  adrSpecialProvisions: string;
+
+  @Column({ nullable: true })
+  adrPackagingCode: string; // e.g. "4G", "1A1", "IBC02"
+
+  @Column({ nullable: true })
+  adrPackagingDescription: string; // e.g. "Fibreboard boxes", "Steel drums"
+
+  @Column({ type: 'int', nullable: true })
+  adrPackagingCount: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  adrNetMassKg: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  adrGrossMassKg: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  adrVolumeLiters: number;
+
+  @Column({ type: 'varchar', default: 'packages' })
+  adrTransportType: string; // 'packages' | 'bulk' | 'tank'
+
+  @Column({ nullable: true, type: 'text' })
+  adrBatteryDetails: string; // JSON: chemistry, condition, Wh, gramsLi, equipmentPackaging
+
+  @Column({ default: false })
+  adrWaste: boolean; // True for hazardous waste (ADR 5.4.1.1.3)
+
+  @Column({ default: false })
+  adrEmptyUncleaned: boolean; // Empty uncleaned packagings / tanks (ADR 5.4.1.1.6)
+
+  @Column({ default: false })
+  adrRequiresVerification: boolean;
+
+  @Column({ nullable: true, type: 'text' })
+  adrVerificationReason: string;
+
+  @Column({ nullable: true, type: 'text' })
+  adrDeclarationText: string; // Official ADR 5.4 transport doc line
+
   @Column({ default: false })
   requiresTemperatureControl: boolean;
 

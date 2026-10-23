@@ -9,6 +9,7 @@ import CompanyAutocomplete from '../CompanyAutocomplete';
 import CustomDatePicker from '../CustomDatePicker';
 import PalletIcon from '../icons/PalletIcon';
 import WeightKgIcon from '../icons/WeightKgIcon';
+import AdrCargoSection from './AdrCargoSection';
 export interface OrderWizardPrefill {
   pickupAddress?: string;
   deliveryAddress?: string;
@@ -251,6 +252,25 @@ export default function OrderWizard({
     isAdr: false,
     adrClass: '',
     adrUnNumber: '',
+    unNumber: '',
+    properShippingName: '',
+    technicalName: '',
+    packingGroup: null as string | null,
+    tunnelRestrictionCode: '',
+    transportCategory: undefined as number | undefined,
+    limitedQuantity: false,
+    exceptedQuantity: false,
+    environmentalHazard: false,
+    adrTransportType: 'packages' as 'packages' | 'bulk' | 'tank',
+    adrPackagingCode: '',
+    adrPackagingDescription: '',
+    adrPackagingCount: undefined as number | undefined,
+    adrNetMassKg: '',
+    adrGrossMassKg: '',
+    adrVolumeLiters: '',
+    adrBatteryDetails: undefined as any,
+    adrWaste: false,
+    adrEmptyUncleaned: false,
     isTemperatureControlled: false,
     requiredTemperature: ''
   };
@@ -345,10 +365,34 @@ export default function OrderWizard({
             stackable: Boolean(c.stackable),
             fragile: Boolean(c.fragile),
             isAdr: Boolean(c.isAdr || c.adrClass || c.unNumber || c.adrUnNumber),
-            adrClass: c.adrClass || '',
+            unNumber: c.unNumber || c.adrUnNumber || '',
             adrUnNumber: c.adrUnNumber || c.unNumber || '',
+            properShippingName: c.properShippingName || '',
+            technicalName: c.technicalName || '',
+            adrClass: c.adrClass || '',
+            classificationCode: c.classificationCode || '',
+            packingGroup: c.packingGroup || null,
+            tunnelRestrictionCode: c.tunnelRestrictionCode || '',
+            transportCategory: c.transportCategory,
+            dangerLabels: c.dangerLabels || '',
+            specialProvisions: c.specialProvisions || '',
+            limitedQuantity: Boolean(c.limitedQuantity),
+            exceptedQuantity: Boolean(c.exceptedQuantity),
+            environmentalHazard: Boolean(c.environmentalHazard),
+            adrTransportType: c.adrTransportType || 'packages',
+            adrPackagingCode: c.adrPackagingCode || '',
+            adrPackagingDescription: c.adrPackagingDescription || '',
+            adrPackagingCount: c.adrPackagingCount,
+            adrNetMassKg: c.adrNetMassKg?.toString() || '',
+            adrGrossMassKg: c.adrGrossMassKg?.toString() || '',
+            adrVolumeLiters: c.adrVolumeLiters?.toString() || '',
+            adrBatteryDetails: c.adrBatteryDetails || undefined,
+            adrWaste: Boolean(c.adrWaste),
+            adrEmptyUncleaned: Boolean(c.adrEmptyUncleaned),
             isTemperatureControlled: Boolean(c.isTemperatureControlled || c.requiresTemperatureControl),
-            requiredTemperature: (c.requiredTemperature ?? c.temperatureMin ?? '')?.toString()
+            requiredTemperature: (c.requiredTemperature ?? c.temperatureMin ?? '')?.toString(),
+            temperatureMin: c.temperatureMin?.toString() || '',
+            temperatureMax: c.temperatureMax?.toString() || '',
           })) : [{
             ...emptyCargo
           }]);
@@ -536,6 +580,14 @@ export default function OrderWizard({
     setCostEstimate(null);
     setConfirmedUnprofitable(false);
   };
+  const handleCargoPatch = (i: number, patch: Partial<any>) => {
+    setIsHighlightDismissed(true);
+    const n = [...cargoItems];
+    n[i] = { ...n[i], ...patch };
+    setCargoItems(n);
+    setCostEstimate(null);
+    setConfirmedUnprofitable(false);
+  };
   const handleSubmit = async () => {
     if (!isPortal && !form.clientId) {
       toast.error(t('select_client_required', 'Please select a client before saving the order.'));
@@ -595,13 +647,34 @@ export default function OrderWizard({
           heightCm: c.heightCm ? parseFloat(c.heightCm) : null,
           isAdr: Boolean(c.isAdr),
           adrClass: c.isAdr ? (c.adrClass || null) : null,
-          adrUnNumber: c.isAdr ? (c.adrUnNumber || null) : null,
-          unNumber: c.isAdr ? (c.adrUnNumber || null) : null,
+          adrUnNumber: c.isAdr ? (c.unNumber || c.adrUnNumber || null) : null,
+          unNumber: c.isAdr ? (c.unNumber || c.adrUnNumber || null) : null,
+          properShippingName: c.isAdr ? (c.properShippingName || null) : null,
+          technicalName: c.isAdr ? (c.technicalName || null) : null,
+          classificationCode: c.isAdr ? (c.classificationCode || null) : null,
+          packingGroup: c.isAdr ? (c.packingGroup || null) : null,
+          tunnelRestrictionCode: c.isAdr ? (c.tunnelRestrictionCode || null) : null,
+          transportCategory: c.isAdr && c.transportCategory !== undefined ? Number(c.transportCategory) : null,
+          dangerLabels: c.isAdr ? (c.dangerLabels || null) : null,
+          specialProvisions: c.isAdr ? (c.specialProvisions || null) : null,
+          limitedQuantity: c.isAdr ? Boolean(c.limitedQuantity) : false,
+          exceptedQuantity: c.isAdr ? Boolean(c.exceptedQuantity) : false,
+          environmentalHazard: c.isAdr ? Boolean(c.environmentalHazard) : false,
+          adrTransportType: c.isAdr ? (c.adrTransportType || 'packages') : 'packages',
+          adrPackagingCode: c.isAdr ? (c.adrPackagingCode || null) : null,
+          adrPackagingDescription: c.isAdr ? (c.adrPackagingDescription || null) : null,
+          adrPackagingCount: c.isAdr && c.adrPackagingCount ? parseInt(c.adrPackagingCount as any) : null,
+          adrNetMassKg: c.isAdr && c.adrNetMassKg ? parseFloat(c.adrNetMassKg as any) : null,
+          adrGrossMassKg: c.isAdr && c.adrGrossMassKg ? parseFloat(c.adrGrossMassKg as any) : null,
+          adrVolumeLiters: c.isAdr && c.adrVolumeLiters ? parseFloat(c.adrVolumeLiters as any) : null,
+          adrWaste: c.isAdr ? Boolean(c.adrWaste) : false,
+          adrEmptyUncleaned: c.isAdr ? Boolean(c.adrEmptyUncleaned) : false,
+          adrBatteryDetails: c.isAdr ? c.adrBatteryDetails : null,
           isTemperatureControlled: Boolean(c.isTemperatureControlled),
           requiresTemperatureControl: Boolean(c.isTemperatureControlled),
           requiredTemperature: c.isTemperatureControlled && c.requiredTemperature ? parseFloat(c.requiredTemperature) : null,
-          temperatureMin: c.isTemperatureControlled && c.requiredTemperature ? parseFloat(c.requiredTemperature) : null,
-          temperatureMax: c.isTemperatureControlled && c.requiredTemperature ? parseFloat(c.requiredTemperature) : null
+          temperatureMin: c.isTemperatureControlled && (c.temperatureMin || c.requiredTemperature) ? parseFloat((c.temperatureMin || c.requiredTemperature) as any) : null,
+          temperatureMax: c.isTemperatureControlled && (c.temperatureMax || c.requiredTemperature) ? parseFloat((c.temperatureMax || c.requiredTemperature) as any) : null
         }))
       };
       
@@ -1206,7 +1279,7 @@ export default function OrderWizard({
                         </div>
                       </div>
                     
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 pt-3 border-t border-border/40">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 pt-3 border-t border-border/40">
                       <div>
                         <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_cargoDimension")}</label>
                         <div className="grid grid-cols-3 gap-1">
@@ -1227,22 +1300,19 @@ export default function OrderWizard({
                       </div>
                       <div className="border-l border-border/60 pl-3">
                         <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-text-secondary">
-                          <input type="checkbox" checked={cargo.isAdr} onChange={e => handleCargoChange(index, 'isAdr', e.target.checked)} className="checkbox" />
-                          <span>{t("jsx_requiresADR")}</span>
-                        </label>
-                        {cargo.isAdr && <div className="grid grid-cols-2 gap-1 mt-1">
-                            <input type="text" value={cargo.adrClass || ''} onChange={e => handleCargoChange(index, 'adrClass', e.target.value)} className="input p-1 text-xs" placeholder="Class" />
-                            <input type="text" value={cargo.adrUnNumber || ''} onChange={e => handleCargoChange(index, 'adrUnNumber', e.target.value)} className="input p-1 text-xs" placeholder="UN #" />
-                          </div>}
-                      </div>
-                      <div className="border-l border-border/60 pl-3">
-                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-text-secondary">
                           <input type="checkbox" checked={cargo.isTemperatureControlled} onChange={e => handleCargoChange(index, 'isTemperatureControlled', e.target.checked)} className="checkbox" />
                           <span>{t("jsx_tempControlled")}</span>
                         </label>
                         {cargo.isTemperatureControlled && <input type="number" step="0.5" value={cargo.requiredTemperature || ''} onChange={e => handleCargoChange(index, 'requiredTemperature', e.target.value)} className="input p-1 text-xs mt-1 w-full" placeholder="Temp °C" />}
                       </div>
                     </div>
+
+                    {/* ADR Hazardous Goods Section */}
+                    <AdrCargoSection
+                      item={cargo}
+                      onChange={(patch) => handleCargoPatch(index, patch)}
+                      isPortal={isPortal}
+                    />
                   </div>
                 );
               })}

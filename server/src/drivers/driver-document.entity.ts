@@ -21,6 +21,18 @@ export class DriverDocument {
   @Column({ nullable: true })
   fileUrl: string;
 
+  @Column({ nullable: true, type: 'text' })
+  notes: string;
+
+  @Column({ nullable: true })
+  specializations: string; // e.g. "Basic, Tanks, Class 1, Class 7"
+
+  @Column({ default: false })
+  verified: boolean;
+
+  @Column({ nullable: true })
+  verifiedBy: string;
+
   @CreateDateColumn()
   createdAt: Date;
 }

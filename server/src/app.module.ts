@@ -48,6 +48,7 @@ import { FinancialModule } from './financial/financial.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ReportsModule } from './reports/reports.module';
 import { PdfArchivingModule } from './archiving/pdf-archiving.module';
+import { AdrModule } from './adr/adr.module';
 
 @Module({
   imports: [
@@ -122,6 +123,7 @@ import { PdfArchivingModule } from './archiving/pdf-archiving.module';
     AnalyticsModule,
     ReportsModule,
     PdfArchivingModule,
+    AdrModule,
   ],
   controllers: [AppController],
   providers: [AppService],

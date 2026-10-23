@@ -11,6 +11,7 @@ import { ClientsService } from '../clients/clients.service';
 import { nanoid } from 'nanoid';
 import { randomUUID } from 'crypto';
 import { ActionLogsService } from '../action-logs/action-logs.service';
+import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
 
 @Injectable()
 export class OrdersService {
@@ -255,8 +256,26 @@ export class OrdersService {
             adrClass: cargoDto.adrClass || null,
             unNumber: cargoDto.unNumber || cargoDto.adrUnNumber || null,
             properShippingName: cargoDto.properShippingName || null,
+            technicalName: cargoDto.technicalName || null,
             packingGroup: cargoDto.packingGroup || null,
             tunnelRestrictionCode: cargoDto.tunnelRestrictionCode || null,
+            transportCategory: safeNum(cargoDto.transportCategory),
+            limitedQuantity: Boolean(cargoDto.limitedQuantity),
+            exceptedQuantity: Boolean(cargoDto.exceptedQuantity),
+            environmentalHazard: Boolean(cargoDto.environmentalHazard),
+            adrDangerLabels: cargoDto.adrDangerLabels || null,
+            adrClassificationCode: cargoDto.adrClassificationCode || null,
+            adrSpecialProvisions: cargoDto.adrSpecialProvisions || null,
+            adrPackagingCode: cargoDto.adrPackagingCode || null,
+            adrPackagingDescription: cargoDto.adrPackagingDescription || null,
+            adrPackagingCount: safeNum(cargoDto.adrPackagingCount),
+            adrNetMassKg: safeNum(cargoDto.adrNetMassKg),
+            adrGrossMassKg: safeNum(cargoDto.adrGrossMassKg),
+            adrVolumeLiters: safeNum(cargoDto.adrVolumeLiters),
+            adrTransportType: cargoDto.adrTransportType || 'packages',
+            adrBatteryDetails: typeof cargoDto.adrBatteryDetails === 'object' ? JSON.stringify(cargoDto.adrBatteryDetails) : (cargoDto.adrBatteryDetails || null),
+            adrWaste: Boolean(cargoDto.adrWaste),
+            adrEmptyUncleaned: Boolean(cargoDto.adrEmptyUncleaned),
             requiresTemperatureControl: cargoDto.requiresTemperatureControl ?? cargoDto.isTemperatureControlled ?? false,
             temperatureMin: safeNum(cargoDto.temperatureMin ?? cargoDto.requiredTemperature),
             temperatureMax: safeNum(cargoDto.temperatureMax ?? cargoDto.requiredTemperature),
@@ -266,6 +285,9 @@ export class OrdersService {
           await this.cargoRepo.save(cargo);
         }
       }
+
+      // Automatically evaluate ADR status and 1,000 points calculation
+      await this.evaluateAndSaveAdr(savedOrder.id);
 
       const fullOrder = await this.findOne(savedOrder.id) as any;
 
@@ -455,8 +477,26 @@ export class OrdersService {
             adrClass: cargoDto.adrClass || null,
             unNumber: cargoDto.unNumber || cargoDto.adrUnNumber || null,
             properShippingName: cargoDto.properShippingName || null,
+            technicalName: cargoDto.technicalName || null,
             packingGroup: cargoDto.packingGroup || null,
             tunnelRestrictionCode: cargoDto.tunnelRestrictionCode || null,
+            transportCategory: safeNum(cargoDto.transportCategory),
+            limitedQuantity: Boolean(cargoDto.limitedQuantity),
+            exceptedQuantity: Boolean(cargoDto.exceptedQuantity),
+            environmentalHazard: Boolean(cargoDto.environmentalHazard),
+            adrDangerLabels: cargoDto.adrDangerLabels || null,
+            adrClassificationCode: cargoDto.adrClassificationCode || null,
+            adrSpecialProvisions: cargoDto.adrSpecialProvisions || null,
+            adrPackagingCode: cargoDto.adrPackagingCode || null,
+            adrPackagingDescription: cargoDto.adrPackagingDescription || null,
+            adrPackagingCount: safeNum(cargoDto.adrPackagingCount),
+            adrNetMassKg: safeNum(cargoDto.adrNetMassKg),
+            adrGrossMassKg: safeNum(cargoDto.adrGrossMassKg),
+            adrVolumeLiters: safeNum(cargoDto.adrVolumeLiters),
+            adrTransportType: cargoDto.adrTransportType || 'packages',
+            adrBatteryDetails: typeof cargoDto.adrBatteryDetails === 'object' ? JSON.stringify(cargoDto.adrBatteryDetails) : (cargoDto.adrBatteryDetails || null),
+            adrWaste: Boolean(cargoDto.adrWaste),
+            adrEmptyUncleaned: Boolean(cargoDto.adrEmptyUncleaned),
             requiresTemperatureControl: cargoDto.requiresTemperatureControl ?? cargoDto.isTemperatureControlled ?? false,
             temperatureMin: safeNum(cargoDto.temperatureMin ?? cargoDto.requiredTemperature),
             temperatureMax: safeNum(cargoDto.temperatureMax ?? cargoDto.requiredTemperature),
@@ -466,6 +506,9 @@ export class OrdersService {
           await this.cargoRepo.save(cargo);
         }
       }
+
+      // Re-evaluate ADR status and 1,000 points calculation on update
+      await this.evaluateAndSaveAdr(id);
 
       const fullOrder = await this.findOne(id);
       this.eventEmitter.emit('order.updated', fullOrder);
@@ -825,6 +868,107 @@ export class OrdersService {
 
     // Auto-run the same cost estimation the manual wizard button triggers
     return await this.estimateCostsForOrder(created);
+  }
+
+  /**
+   * Evaluates dangerous goods cargo items for an order, calculates 1,000 points,
+   * checks exemptions (1.1.3.6, LQ, EQ, SP 188), and persists compliance summary.
+   */
+  async evaluateAndSaveAdr(orderId: string): Promise<Order | null> {
+    try {
+      const order = await this.repo.findOne({
+        where: { id: orderId },
+        relations: ['cargoItems'],
+      });
+      if (!order) return null;
+
+      const items = order.cargoItems || [];
+      const adrItems = items.filter(c => c.adrClass || c.unNumber);
+
+      if (adrItems.length === 0) {
+        order.isAdr = false;
+        order.adrStatus = 'none';
+        order.adrTotalPoints = 0;
+        order.adr1136Eligible = false;
+        order.adrExemptionApplied = 'none';
+        order.adrSummary = null;
+        return await this.repo.save(order);
+      }
+
+      const inputItems: AdrItemInput[] = adrItems.map(c => ({
+        id: c.id,
+        unNumber: c.unNumber || '',
+        properShippingName: c.properShippingName || c.description,
+        technicalName: c.technicalName,
+        adrClass: c.adrClass,
+        packingGroup: c.packingGroup,
+        transportCategory: c.transportCategory !== null && c.transportCategory !== undefined ? Number(c.transportCategory) : 3,
+        tunnelRestrictionCode: c.tunnelRestrictionCode,
+        quantity: c.quantity,
+        unit: c.unit,
+        grossMassKg: c.adrGrossMassKg ? Number(c.adrGrossMassKg) : (c.weightKg ? Number(c.weightKg) : undefined),
+        netMassKg: c.adrNetMassKg ? Number(c.adrNetMassKg) : undefined,
+        volumeLiters: c.adrVolumeLiters ? Number(c.adrVolumeLiters) : (c.volumeCbm ? Number(c.volumeCbm) * 1000 : undefined),
+        transportType: (c.adrTransportType as any) || 'packages',
+        limitedQuantity: Boolean(c.limitedQuantity),
+        exceptedQuantity: Boolean(c.exceptedQuantity),
+        environmentalHazard: Boolean(c.environmentalHazard),
+        waste: Boolean(c.adrWaste),
+        emptyUncleaned: Boolean(c.adrEmptyUncleaned),
+        batteryDetails: c.adrBatteryDetails ? (typeof c.adrBatteryDetails === 'string' ? JSON.parse(c.adrBatteryDetails) : c.adrBatteryDetails) : undefined,
+      }));
+
+      const evaluation = AdrRulesEngine.evaluateCargo(inputItems);
+
+      // Save calculated per-line results
+      for (let i = 0; i < adrItems.length; i++) {
+        const cargo = adrItems[i];
+        const line = evaluation.lines[i];
+        if (line) {
+          cargo.adrPoints = line.points;
+          cargo.adrFactor = line.multiplier;
+          cargo.adrExemptionType = line.exemptionApplied;
+          cargo.adrExemptionDetails = line.exemptionReason || null;
+          cargo.adrDeclarationText = line.declarationLine;
+          cargo.adrStatus = evaluation.status;
+          await this.cargoRepo.save(cargo);
+        }
+      }
+
+      // Automatically add 'adr' to equipmentRequirements if dangerous cargo is present
+      const reqs = new Set(order.equipmentRequirements || []);
+      reqs.add('adr');
+
+      order.isAdr = true;
+      order.adrStatus = evaluation.status;
+      order.adrTotalPoints = evaluation.totalPoints;
+      order.adr1136Eligible = evaluation.eligible1136;
+      order.adrExemptionApplied = evaluation.exemptionType;
+      order.equipmentRequirements = Array.from(reqs);
+      order.adrSummary = JSON.stringify({
+        status: evaluation.status,
+        statusLabelRo: evaluation.statusLabelRo,
+        statusLabelEn: evaluation.statusLabelEn,
+        badgeCode: evaluation.badgeCode,
+        totalPoints: evaluation.totalPoints,
+        eligible1136: evaluation.eligible1136,
+        exemptionType: evaluation.exemptionType,
+        driverCertRequired: evaluation.driverCertRequired,
+        driverSpecializationsRequired: evaluation.driverSpecializationsRequired,
+        vehicleCertRequired: evaluation.vehicleCertRequired,
+        vehicleTypesRequired: evaluation.vehicleTypesRequired,
+        orangePlatesRequired: evaluation.orangePlatesRequired,
+        fireExtinguisherMinimumKg: evaluation.fireExtinguisherMinimumKg,
+        verificationReasons: evaluation.verificationReasons,
+        mixedLoadingViolations: evaluation.mixedLoadingViolations,
+        tunnelProhibitions: evaluation.tunnelProhibitions,
+      });
+
+      return await this.repo.save(order);
+    } catch (e: any) {
+      console.warn('evaluateAndSaveAdr failed:', e?.message);
+      return null;
+    }
   }
 
   remove(id: string) {
