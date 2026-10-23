@@ -144,17 +144,17 @@ const Hero = () => {
     {
       key: 'frigoSurcharge' as const,
       emoji: '❄️',
-      label: getLabel("Frigo / Temp.", "Frigo / Temp.", "Frigo / Temp.", "Kühltransport", "Frigo / Temp.", "Frigo / Temp.", "Chłodnia"),
+      label: getLabel("Frigo", "Reefer", "Koeltransport", "Kühltransport", "Frigorifique", "Frigorífico", "Chłodnia"),
     },
     {
       key: 'urgentSurcharge' as const,
       emoji: '⚡',
-      label: getLabel("Urgent / Express", "Urgent / Express", "Spoed / Express", "Eil / Express", "Urgent / Express", "Urgente / Exprés", "Pilne / Ekspres"),
+      label: getLabel("Express", "Express", "Spoed", "Express", "Express", "Exprés", "Ekspres"),
     },
     {
       key: 'tailLiftSurcharge' as const,
       emoji: '🏗️',
-      label: getLabel("Lift / Laadklep", "Tail Lift", "Laadklep", "Ladebordwand", "Hayon élévateur", "Plataforma", "Winda"),
+      label: getLabel("Lift", "Tail-lift", "Laadklep", "Hebebühne", "Hayon", "Plataforma", "Winda"),
     },
   ];
 
@@ -337,10 +337,8 @@ const Hero = () => {
 
                 <div className={styles.rangeWrap}>
                   <div className={styles.rangeHeader}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', borderRadius: '5px', background: '#ffffff', border: '1px solid #dce4de', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }} aria-label="Weight">
-                        <WeightKgIcon size={11} style={{ width: 11, height: 11, maxWidth: 11, maxHeight: 11 }} />
-                      </span>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                      <WeightKgIcon size={20} style={{ width: 20, height: 20, maxWidth: 20, maxHeight: 20 }} />
                       <span style={{ fontSize: '0.8125rem', fontWeight: 650, color: '#334b58' }}>
                         {getLabel("Greutate", "Weight", "Gewicht", "Gewicht", "Poids", "Peso", "Waga")}
                       </span>
@@ -362,10 +360,8 @@ const Hero = () => {
 
                 <div className={styles.rangeWrap}>
                   <div className={styles.rangeHeader}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', borderRadius: '5px', background: '#ffffff', border: '1px solid #dce4de', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }} aria-label="Pallets">
-                        <PalletIcon size={11} style={{ width: 11, height: 11, maxWidth: 11, maxHeight: 11 }} />
-                      </span>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                      <PalletIcon size={20} style={{ width: 20, height: 20, maxWidth: 20, maxHeight: 20 }} />
                       <span style={{ fontSize: '0.8125rem', fontWeight: 650, color: '#334b58' }}>
                         {getLabel("Paleți", "Pallets", "Pallets", "Paletten", "Palettes", "Palets", "Palety")}
                       </span>
@@ -443,9 +439,9 @@ const Hero = () => {
                   </span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
                     {surchargesApplied.adr > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownAmber}`}>⚠️ {getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR", "ADR")}: +{fmtMoney(surchargesApplied.adr)}</span>}
-                    {surchargesApplied.frigo > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownBlue}`}>❄️ {getLabel("Frigo", "Frigo", "Frigo", "Kühl", "Frigo", "Frigo", "Chłodnia")}: +{fmtMoney(surchargesApplied.frigo)}</span>}
-                    {surchargesApplied.urgent > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownGreen}`}>⚡ {getLabel("Urgent", "Urgent", "Spoed", "Express", "Urgent", "Urgente", "Pilne")}: +{fmtMoney(surchargesApplied.urgent)}</span>}
-                    {surchargesApplied.tailLift > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownPurple}`}>🏗️ {getLabel("Lift", "Tail Lift", "Laadklep", "Ladebordwand", "Hayon", "Plataforma", "Winda")}: +{fmtMoney(surchargesApplied.tailLift)}</span>}
+                    {surchargesApplied.frigo > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownBlue}`}>❄️ {getLabel("Frigo", "Reefer", "Koeltransport", "Kühltransport", "Frigorifique", "Frigorífico", "Chłodnia")}: +{fmtMoney(surchargesApplied.frigo)}</span>}
+                    {surchargesApplied.urgent > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownGreen}`}>⚡ {getLabel("Express", "Express", "Spoed", "Express", "Express", "Exprés", "Ekspres")}: +{fmtMoney(surchargesApplied.urgent)}</span>}
+                    {surchargesApplied.tailLift > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownPurple}`}>🏗️ {getLabel("Lift", "Tail-lift", "Laadklep", "Hebebühne", "Hayon", "Plataforma", "Winda")}: +{fmtMoney(surchargesApplied.tailLift)}</span>}
                   </div>
                 </div>
               )}

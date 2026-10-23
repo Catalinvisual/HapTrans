@@ -823,7 +823,7 @@ export default function OrderWizard({
                       { id: 'adr', icon: '⚠️', labelKey: 'eq_adr', fallback: 'ADR' },
                       { id: 'frigo', icon: '❄️', labelKey: 'eq_frigo', fallback: 'Frigo' },
                       { id: 'urgent', icon: '⚡', labelKey: 'eq_urgent', fallback: 'Urgent' },
-                      { id: 'tail_lift', icon: '🏗️', labelKey: 'eq_tail_lift', fallback: 'Lift / Laadklep' },
+                      { id: 'tail_lift', icon: '🏗️', labelKey: 'eq_tail_lift', fallback: 'Lift' },
                       { id: 'tilt', icon: '🚚', labelKey: 'eq_tilt', fallback: 'Prelată' },
                       { id: 'mega', icon: '📏', labelKey: 'eq_mega', fallback: 'Mega' }
                     ].map(eq => {

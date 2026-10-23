@@ -444,8 +444,8 @@ const QuoteForm = () => {
         </div>
 
         <div className={styles.inputGroup}>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <WeightKgIcon size={12} style={{ width: 12, height: 12, maxWidth: 12, maxHeight: 12 }} />
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            <WeightKgIcon size={20} style={{ width: 20, height: 20, maxWidth: 20, maxHeight: 20 }} />
             {t('cargoWeightKg')} *
           </label>
           <input type="number" name="cargoWeightKg" required min="1" value={formData.cargoWeightKg} onChange={handleChange} />
@@ -472,8 +472,8 @@ const QuoteForm = () => {
         )}
 
         <div className={styles.inputGroup}>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <PalletIcon size={12} style={{ width: 12, height: 12, maxWidth: 12, maxHeight: 12 }} />
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            <PalletIcon size={20} style={{ width: 20, height: 20, maxWidth: 20, maxHeight: 20 }} />
             {t('numberOfPallets')}
           </label>
           <input type="number" name="numberOfPallets" min="1" value={formData.numberOfPallets} onChange={handleChange} />
@@ -492,19 +492,19 @@ const QuoteForm = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
             <input type="checkbox" name="adrSurcharge" checked={formData.adrSurcharge} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)' }} />
-            ⚠️ {getLabel("ADR (Mărfuri Periculoase)", "ADR (Dangerous Goods)", "ADR (Gevaarlijke stoffen)", "ADR (Gefahrgut)", "ADR (Matières dangereuses)", "ADR (Mercancías peligrosas)", "ADR (Towary niebezpieczne)")}
+            ⚠️ {getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR", "ADR")}
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
             <input type="checkbox" name="frigoSurcharge" checked={formData.frigoSurcharge} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)' }} />
-            ❄️ {getLabel("Temperatură Controlată (Frigo)", "Controlled Temp (Frigo)", "Geconditioneerd (Frigo)", "Kühltransport (Frigo)", "Température Dirigée (Frigo)", "Temperatura Controlada (Frigorífico)", "Temperatura kontrolowana (Chłodnia)")}
+            ❄️ {getLabel("Frigo", "Reefer", "Koeltransport", "Kühltransport", "Frigorifique", "Frigorífico", "Chłodnia")}
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
             <input type="checkbox" name="urgentSurcharge" checked={formData.urgentSurcharge} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)' }} />
-            ⚡ {getLabel("Transport Urgent / Express", "Urgent / Express Transport", "Spoedtransport / Express", "Eiltransport / Express", "Transport Urgent / Express", "Transporte Urgente / Exprés", "Transport pilny / Ekspres")}
+            ⚡ {getLabel("Express", "Express", "Spoed", "Express", "Express", "Exprés", "Ekspres")}
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
             <input type="checkbox" name="tailLiftSurcharge" checked={formData.tailLiftSurcharge} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)' }} />
-            🏗️ {getLabel("Lift / Obloane (Tail Lift)", "Tail Lift (Hydraulic)", "Laadklep (Hydraulisch)", "Ladebordwand / Hebebühne", "Hayon Élévateur", "Plataforma Elevadora", "Winda załadunkowa")}
+            🏗️ {getLabel("Lift", "Tail-lift", "Laadklep", "Hebebühne", "Hayon", "Plataforma", "Winda")}
           </label>
         </div>
       </div>

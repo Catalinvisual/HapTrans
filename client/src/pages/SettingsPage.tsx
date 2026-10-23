@@ -538,7 +538,7 @@ export default function SettingsPage() {
 
           <div className="space-y-1">
             <label className="label font-bold text-xs text-blue-700 flex items-center gap-1.5">
-              ❄️ {getLabel("Controlled Temp. / Frigo Fee", "Tarif Temperatură Controlată / Frigo", "Toeslag Geconditioneerd / Frigo", "Zuschlag Kühltransport / Frigo", "Surcharge Température Dirigée / Frigo", "Dopłata za chłodnię / Frigo", "Recargo por transporte frigorífico")}
+              ❄️ {getLabel("Reefer Surcharge Fee", "Tarif Suplimentar Frigo", "Toeslag Koeltransport", "Zuschlag Kühltransport", "Surcharge Transport Frigorifique", "Dopłata za chłodnię", "Recargo transporte frigorífico")}
             </label>
             <div className="relative flex items-center">
               <span className="absolute left-3 text-blue-700 font-extrabold text-sm select-none pointer-events-none">€</span>
@@ -552,7 +552,7 @@ export default function SettingsPage() {
 
           <div className="space-y-1">
             <label className="label font-bold text-xs text-emerald-700 flex items-center gap-1.5">
-              ⚡ {getLabel("Urgent / Express Surcharge Fee", "Tarif Transport Urgent / Express", "Spoed / Express Toeslag", "Eil- / Expresszuschlag", "Surcharge Transport Urgent / Express", "Dopłata za transport pilny / ekspres", "Recargo por transporte urgente / exprés")}
+              ⚡ {getLabel("Express Surcharge Fee", "Tarif Transport Express", "Toeslag Spoedtransport", "Expresstransport-Zuschlag", "Surcharge Transport Express", "Dopłata za transport ekspresowy", "Recargo transporte exprés")}
             </label>
             <div className="relative flex items-center">
               <span className="absolute left-3 text-emerald-700 font-extrabold text-sm select-none pointer-events-none">€</span>
@@ -566,7 +566,7 @@ export default function SettingsPage() {
 
           <div className="space-y-1">
             <label className="label font-bold text-xs text-purple-700 flex items-center gap-1.5">
-              🏗️ {getLabel("Tail Lift / Hydraulic Ramp Fee", "Tarif Lift / Obloane Hidraulice", "Laadklep Toeslag (Hydraulisch)", "Ladebordwand- / Hebebühnenzuschlag", "Surcharge Hayon Élévateur", "Dopłata za windę załadunkową", "Recargo por plataforma elevadora")}
+              🏗️ {getLabel("Tail-lift Surcharge Fee", "Tarif Suplimentar Lift", "Toeslag Laadklep", "Hebebühnenzuschlag", "Surcharge Hayon", "Dopłata za windę", "Recargo plataforma elevadora")}
             </label>
             <div className="relative flex items-center">
               <span className="absolute left-3 text-purple-700 font-extrabold text-sm select-none pointer-events-none">€</span>
