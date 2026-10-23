@@ -72,7 +72,8 @@ export class AdrService implements OnApplicationBootstrap {
         const item = this.itemRepo.create({
           version,
           ...seed,
-        });
+          packingGroup: seed.packingGroup ?? undefined,
+        } as any);
         await this.itemRepo.save(item);
         savedCount++;
       }
@@ -192,7 +193,7 @@ export class AdrService implements OnApplicationBootstrap {
       order.adrTotalPoints = 0;
       order.adr1136Eligible = false;
       order.adrExemptionApplied = 'none';
-      order.adrSummary = null;
+      order.adrSummary = '';
       return this.orderRepo.save(order);
     }
 
@@ -229,7 +230,7 @@ export class AdrService implements OnApplicationBootstrap {
         cargo.adrPoints = line.points;
         cargo.adrFactor = line.multiplier;
         cargo.adrExemptionType = line.exemptionApplied;
-        cargo.adrExemptionDetails = line.exemptionReason || null;
+        cargo.adrExemptionDetails = line.exemptionReason || '';
         cargo.adrDeclarationText = line.declarationLine;
         cargo.adrStatus = evaluation.status;
         await this.cargoRepo.save(cargo);
@@ -333,7 +334,7 @@ export class AdrService implements OnApplicationBootstrap {
           properShippingNamePl: record.properShippingNamePl,
           adrClass: record.adrClass,
           classificationCode: record.classificationCode,
-          packingGroup: record.packingGroup,
+          packingGroup: record.packingGroup ?? undefined,
           dangerLabels: record.dangerLabels || record.adrClass,
           specialProvisions: record.specialProvisions || '',
           limitedQuantity: record.limitedQuantity || '0',
@@ -352,7 +353,7 @@ export class AdrService implements OnApplicationBootstrap {
           hazardIdentificationNumber: record.hazardIdentificationNumber,
           technicalNameRequired: Boolean(record.technicalNameRequired),
           batteryCategory: record.batteryCategory,
-        });
+        } as any) as unknown as AdrCatalogItem;
       } else {
         item.properShippingNameEn = record.properShippingNameEn;
         item.properShippingNameRo = record.properShippingNameRo || item.properShippingNameRo;
@@ -362,8 +363,10 @@ export class AdrService implements OnApplicationBootstrap {
         item.tunnelRestrictionCode = record.tunnelRestrictionCode || item.tunnelRestrictionCode;
       }
 
-      await this.itemRepo.save(item);
-      imported++;
+      if (item) {
+        await this.itemRepo.save(item);
+        imported++;
+      }
     }
 
     version.totalEntries = await this.itemRepo.count({ where: { version: { id: version.id } } });

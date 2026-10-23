@@ -38,17 +38,22 @@ export interface AdrCargoItemData {
   adrNetMassKg?: number | string;
   adrGrossMassKg?: number | string;
   adrVolumeLiters?: number | string;
+  netExplosiveMassKg?: number | string;
+  receptacleCapacityLiters?: number | string;
+  packageGrossMassKg?: number | string;
   weightKg?: number | string;
   volumeCbm?: number | string;
   adrWaste?: boolean;
   adrEmptyUncleaned?: boolean;
   adrBatteryDetails?: {
+    cellOrBattery?: 'cell' | 'battery';
     chemistry?: 'lithium_ion' | 'lithium_metal';
     wattHours?: number;
     lithiumGrams?: number;
     packagingMode?: 'standalone' | 'contained_in_equipment' | 'packed_with_equipment';
     condition?: 'normal' | 'damaged_defective' | 'waste' | 'recycling';
     unTestPassed?: boolean;
+    packageGrossMassKg?: number;
   };
   temperatureMin?: number | string;
   temperatureMax?: number | string;
@@ -135,9 +140,11 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
       adrTransportType: 'packages',
       adrBatteryDetails: catalogItem.batteryCategory
         ? {
+            cellOrBattery: 'battery',
             chemistry: catalogItem.batteryCategory === 'lithium_metal' ? 'lithium_metal' : 'lithium_ion',
             packagingMode: 'standalone',
             condition: 'normal',
+            unTestPassed: true,
             wattHours: 0,
             lithiumGrams: 0,
           }
@@ -171,34 +178,94 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
       adrBatteryDetails: undefined,
       adrWaste: false,
       adrEmptyUncleaned: false,
+      netExplosiveMassKg: undefined,
+      receptacleCapacityLiters: undefined,
     });
     setSearchQuery('');
   };
 
-  // Live calculation of 1,000 points
-  const transportCat = item.transportCategory !== undefined ? Number(item.transportCategory) : 3;
-  const isCat0 = transportCat === 0;
-  const multiplier = isCat0 ? 0 : (transportCat === 1 ? 50 : transportCat === 2 ? 3 : transportCat === 3 ? 1 : 0);
+  // Live calculation of 1,000 points per ADR 1.1.3.6
+  const rawCat = item.transportCategory !== undefined ? Number(item.transportCategory) : 3;
+  // ADR 1.1.3.6.3: Empty uncleaned packagings of Cat 1, 2, or 3 are remapped to Transport Category 4!
+  const effectiveCat = item.adrEmptyUncleaned && rawCat !== 0 ? 4 : rawCat;
+  const isCat0 = effectiveCat === 0;
 
-  // Quantity in relevant units: volume in Liters, or net mass in kg, or gross mass
-  const qtyLiters = Number(item.adrVolumeLiters || 0) || (item.volumeCbm ? Number(item.volumeCbm) * 1000 : 0);
-  const qtyKg = Number(item.adrNetMassKg || 0) || Number(item.adrGrossMassKg || 0) || Number(item.weightKg || 0);
-  const calculatedQty = qtyLiters > 0 ? qtyLiters : qtyKg;
-  const calculatedPoints = isCat0 ? 0 : Math.round(calculatedQty * multiplier * 100) / 100;
+  // Cat 1 Note (a) UNs that use factor 20 instead of 50
+  const normUN = (item.unNumber || '').toUpperCase().trim();
+  const isCat1Factor20 = ['UN 0081', 'UN 0082', 'UN 0084', 'UN 0241', 'UN 0331', 'UN 0332', 'UN 0482', 'UN 1005', 'UN 1017'].includes(normUN);
+  const multiplier = isCat0 ? 0 : (effectiveCat === 1 ? (isCat1Factor20 ? 20 : 50) : effectiveCat === 2 ? 3 : effectiveCat === 3 ? 1 : 0);
+
+  // Quantity per ADR 1.1.3.6.3
+  const isClass1 = (item.adrClass || '').startsWith('1');
+  const isCompressedGas = (item.adrClass || '').startsWith('2') && ['1A', '1O', '1F', '1'].some(c => (item.classificationCode || '').includes(c));
+
+  let calculatedQty = 0;
+  let calculatedQtyUnit = 'kg';
+
+  if (isClass1 && Number(item.netExplosiveMassKg || 0) > 0) {
+    calculatedQty = Number(item.netExplosiveMassKg);
+    calculatedQtyUnit = 'kg NEM';
+  } else if (isCompressedGas && Number(item.receptacleCapacityLiters || 0) > 0) {
+    calculatedQty = Number(item.receptacleCapacityLiters);
+    calculatedQtyUnit = 'L apă recipient';
+  } else if (Number(item.adrVolumeLiters || 0) > 0) {
+    calculatedQty = Number(item.adrVolumeLiters);
+    calculatedQtyUnit = 'Litri';
+  } else {
+    calculatedQty = Number(item.adrNetMassKg || 0) || Number(item.adrGrossMassKg || 0) || Number(item.weightKg || 0);
+    calculatedQtyUnit = 'kg';
+  }
+
+  const calculatedPoints = isCat0 ? Infinity : Math.round(calculatedQty * multiplier * 100) / 100;
 
   const isTankOrBulk = item.adrTransportType === 'tank' || item.adrTransportType === 'bulk';
   const isLithium = item.unNumber && ['UN 3480', 'UN 3481', 'UN 3090', 'UN 3091'].some(u => item.unNumber?.includes(u));
 
   // Check SP 188 for lithium batteries
-  const isSp188Exempt =
-    isLithium &&
-    item.adrBatteryDetails?.condition === 'normal' &&
-    ((item.adrBatteryDetails.chemistry === 'lithium_ion' && Number(item.adrBatteryDetails.wattHours || 0) <= 100 && Number(item.adrBatteryDetails.wattHours || 0) > 0) ||
-      (item.adrBatteryDetails.chemistry === 'lithium_metal' && Number(item.adrBatteryDetails.lithiumGrams || 0) <= 2 && Number(item.adrBatteryDetails.lithiumGrams || 0) > 0));
+  const bDet = item.adrBatteryDetails;
+  const isCell = bDet?.cellOrBattery === 'cell';
+  const isBattery = bDet?.cellOrBattery === 'battery';
+  const wh = Number(bDet?.wattHours || 0);
+  const liG = Number(bDet?.lithiumGrams || 0);
+  const unTestOk = bDet?.unTestPassed !== false;
+  const conditionNormal = bDet?.condition === 'normal';
+
+  let isSp188Exempt = false;
+  let sp188NeedVerification = false;
+
+  if (isLithium) {
+    if (!bDet || !conditionNormal || !unTestOk) {
+      isSp188Exempt = false;
+    } else if (bDet.chemistry === 'lithium_ion') {
+      if (wh <= 0) {
+        sp188NeedVerification = true;
+      } else if (isCell && wh <= 20) {
+        isSp188Exempt = true;
+      } else if (isBattery && wh <= 100) {
+        isSp188Exempt = true;
+      } else if (!isCell && !isBattery && wh <= 20) {
+        isSp188Exempt = true;
+      } else if (!isCell && !isBattery && wh <= 100) {
+        sp188NeedVerification = true;
+      }
+    } else if (bDet.chemistry === 'lithium_metal') {
+      if (liG <= 0) {
+        sp188NeedVerification = true;
+      } else if (isCell && liG <= 1) {
+        isSp188Exempt = true;
+      } else if (isBattery && liG <= 2) {
+        isSp188Exempt = true;
+      } else if (!isCell && !isBattery && liG <= 1) {
+        isSp188Exempt = true;
+      } else if (!isCell && !isBattery && liG <= 2) {
+        sp188NeedVerification = true;
+      }
+    }
+  }
 
   const isLqExempt = Boolean(item.limitedQuantity);
   const isEqExempt = Boolean(item.exceptedQuantity);
-  const is1136Exempt = !isCat0 && !isTankOrBulk && calculatedPoints <= 1000 && calculatedQty > 0 && !isSp188Exempt && !isLqExempt;
+  const is1136Exempt = !isCat0 && !isTankOrBulk && calculatedPoints <= 1000 && calculatedQty > 0 && !isSp188Exempt && !isLqExempt && !isEqExempt;
 
   return (
     <div className="mt-3 border-t border-border/60 pt-3">
@@ -495,7 +562,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                 />
               </div>
 
-              <div className="flex items-center gap-4 pt-4">
+              <div className="flex flex-wrap items-center gap-4 pt-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -517,25 +584,98 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
+                    checked={Boolean(item.adrEmptyUncleaned)}
+                    onChange={e => onChange({ adrEmptyUncleaned: e.target.checked })}
+                    className="checkbox"
+                  />
+                  <span className="font-semibold text-text-primary" title="ADR 1.1.3.6.3: Categoriile 1, 2, 3 reîncadrate în Categoria 4 (0 pct)">
+                    {t('adr_empty_uncleaned_label', 'Ambalaje goale necurățate (ADR 1.1.3.6.3)')}
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
                     checked={Boolean(item.environmentalHazard)}
                     onChange={e => onChange({ environmentalHazard: e.target.checked })}
                     className="checkbox"
                   />
-                  <span className="font-semibold text-text-primary">{t('adr_env_hazard', 'Poluant marin / mediu')}</span>
+                  <span className="font-semibold text-text-primary">{t('adr_env_hazard', 'Poluant mediu')}</span>
                 </label>
               </div>
+            </div>
+          )}
+
+          {/* 4b. Normative Quantities for Class 1 (NEM) and Compressed Gases (Water capacity) */}
+          {item.unNumber && (isClass1 || isCompressedGas) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-2 border-t border-border/50 text-xs bg-amber-500/5 p-2 rounded-lg">
+              {isClass1 && (
+                <div>
+                  <label className="block text-[11px] font-bold text-amber-800 dark:text-amber-300 mb-1">
+                    {t('adr_nem_label', 'Masă netă exploziv NEM / NEQ (kg) — ADR 1.1.3.6.3')}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={item.netExplosiveMassKg || ''}
+                    onChange={e => onChange({ netExplosiveMassKg: e.target.value })}
+                    placeholder="Obligatoriu NEM în kg pentru Clasa 1"
+                    className="input w-full font-bold"
+                  />
+                </div>
+              )}
+              {isCompressedGas && (
+                <div>
+                  <label className="block text-[11px] font-bold text-amber-800 dark:text-amber-300 mb-1">
+                    {t('adr_receptacle_cap_label', 'Capacitate recipient în litri de apă (L) — ADR 1.1.3.6.3')}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={item.receptacleCapacityLiters || ''}
+                    onChange={e => onChange({ receptacleCapacityLiters: e.target.value })}
+                    placeholder="Obligatoriu litri capacitate recipient pt gaze comprimate"
+                    className="input w-full font-bold"
+                  />
+                </div>
+              )}
             </div>
           )}
 
           {/* 5. Special Battery Questions (UN 3480, 3481, 3090, 3091) */}
           {isLithium && (
             <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 space-y-2.5 text-xs">
-              <div className="font-bold text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
-                <Battery className="w-4 h-4 text-blue-600" />
-                {t('adr_battery_specs_title', 'Chestionar specific baterii cu litiu (Dispoziția Specială 188 / 376 / 377)')}
+              <div className="font-bold text-blue-900 dark:text-blue-200 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Battery className="w-4 h-4 text-blue-600" />
+                  {t('adr_battery_specs_title', 'Chestionar specific baterii cu litiu (Dispoziția Specială 188 / 376 / 377)')}
+                </span>
+                <span className="text-[10px] text-blue-600 font-normal">UNECE ADR 2025 SP 188</span>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                <div>
+                  <label className="block text-[11px] font-semibold text-text-secondary mb-1">
+                    {t('adr_battery_type', 'Tip element')}
+                  </label>
+                  <select
+                    value={item.adrBatteryDetails?.cellOrBattery || 'battery'}
+                    onChange={e =>
+                      onChange({
+                        adrBatteryDetails: {
+                          ...item.adrBatteryDetails,
+                          cellOrBattery: e.target.value as any,
+                        },
+                      })
+                    }
+                    className="input w-full text-xs font-semibold"
+                  >
+                    <option value="battery">Baterie (max 100 Wh / 2g Li)</option>
+                    <option value="cell">Celulă (max 20 Wh / 1g Li)</option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-[11px] font-semibold text-text-secondary mb-1">
                     {t('adr_battery_chemistry', 'Chimie')}
@@ -560,8 +700,8 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                 <div>
                   <label className="block text-[11px] font-semibold text-text-secondary mb-1">
                     {item.adrBatteryDetails?.chemistry === 'lithium_metal'
-                      ? t('adr_battery_li_grams', 'Gramaj Litiu (g Li/baterie)')
-                      : t('adr_battery_watt_hours', 'Energie (Watt-oră / Wh)')}
+                      ? (item.adrBatteryDetails?.cellOrBattery === 'cell' ? 'Gramaj Li celulă (max 1g)' : 'Gramaj Li baterie (max 2g)')
+                      : (item.adrBatteryDetails?.cellOrBattery === 'cell' ? 'Energie celulă (max 20 Wh)' : 'Energie baterie (max 100 Wh)')}
                   </label>
                   <input
                     type="number"
@@ -631,11 +771,33 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                     }
                     className="input w-full text-xs font-semibold"
                   >
-                    <option value="standalone">Baterii separate (UN 3480 / 3090)</option>
-                    <option value="contained_in_equipment">Montate în echipament (UN 3481 / 3091)</option>
-                    <option value="packed_with_equipment">Ambalate cu echipamentul (UN 3481 / 3091)</option>
+                    <option value="standalone">Baterii separate (max 30 kg/colet)</option>
+                    <option value="contained_in_equipment">Montate în echipament</option>
+                    <option value="packed_with_equipment">Ambalate cu echipamentul</option>
                   </select>
                 </div>
+              </div>
+
+              {/* UN 38.3 Test Compliance Checkbox */}
+              <div className="pt-1 flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={item.adrBatteryDetails?.unTestPassed !== false}
+                    onChange={e =>
+                      onChange({
+                        adrBatteryDetails: {
+                          ...item.adrBatteryDetails,
+                          unTestPassed: e.target.checked,
+                        },
+                      })
+                    }
+                    className="checkbox checkbox-primary"
+                  />
+                  <span className="font-semibold text-[11px] text-text-primary">
+                    {t('adr_un383_test_passed', 'Conform testelor UN Manual of Tests and Criteria Partea III, sub-secțiunea 38.3 (obligatoriu SP 188 c)')}
+                  </span>
+                </label>
               </div>
 
               {/* Live SP 188 Exemption Status */}
@@ -645,7 +807,17 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                   <span>
                     {t(
                       'adr_sp188_eligible',
-                      'Eligibil pentru Scutirea Specială ADR 188 (Sub limita de 100 Wh / 2g Li). Certificatul ADR al șoferului și plăcile portocalii NU sunt cerute.'
+                      'Eligibil pentru Scutirea Specială ADR 188 (Sub limita normativă celulă/baterie). Certificatul ADR al șoferului și plăcile portocalii NU sunt cerute.'
+                    )}
+                  </span>
+                </div>
+              ) : sp188NeedVerification ? (
+                <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-semibold text-[11px] bg-amber-500/10 p-2 rounded-lg">
+                  <HelpCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span>
+                    {t(
+                      'adr_sp188_need_verify',
+                      'Necesită verificare ADR: specificați dacă este celulă sau baterie și introduceți valoarea exactă Wh sau g Li.'
                     )}
                   </span>
                 </div>
@@ -655,7 +827,17 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                   <span>
                     {t(
                       'adr_sp376_alert',
-                      'Baterii deteriorate/defecte (DS 376) — supuse regimului complet ADR și ambalării P908/LP904. Necesită șofer certificat ADR.'
+                      'Baterii deteriorate/defecte (DS 376) — Scutirea SP 188 este interzisă! Supuse regimului complet ADR și ambalării P908/LP904. Necesită șofer certificat ADR.'
+                    )}
+                  </span>
+                </div>
+              ) : item.adrBatteryDetails?.unTestPassed === false ? (
+                <div className="flex items-center gap-1.5 text-red-700 dark:text-red-300 font-semibold text-[11px] bg-red-500/10 p-2 rounded-lg">
+                  <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                  <span>
+                    {t(
+                      'adr_sp188_un383_failed',
+                      'Bateriile care nu au trecut testele UN 38.3 sunt strict interzise sub regimul de scutire SP 188!'
                     )}
                   </span>
                 </div>

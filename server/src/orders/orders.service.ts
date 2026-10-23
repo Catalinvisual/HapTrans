@@ -891,7 +891,7 @@ export class OrdersService {
         order.adrTotalPoints = 0;
         order.adr1136Eligible = false;
         order.adrExemptionApplied = 'none';
-        order.adrSummary = null;
+        order.adrSummary = '';
         return await this.repo.save(order);
       }
 
@@ -928,7 +928,7 @@ export class OrdersService {
           cargo.adrPoints = line.points;
           cargo.adrFactor = line.multiplier;
           cargo.adrExemptionType = line.exemptionApplied;
-          cargo.adrExemptionDetails = line.exemptionReason || null;
+          cargo.adrExemptionDetails = line.exemptionReason || '';
           cargo.adrDeclarationText = line.declarationLine;
           cargo.adrStatus = evaluation.status;
           await this.cargoRepo.save(cargo);
