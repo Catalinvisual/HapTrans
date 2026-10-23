@@ -25,7 +25,7 @@ export class QuotesController {
       data.hasCalculation = false;
     }
 
-    ['adrSurcharge', 'nightSurcharge', 'weekendSurcharge', 'holidaySurcharge'].forEach(field => {
+    ['adrSurcharge', 'frigoSurcharge', 'urgentSurcharge', 'tailLiftSurcharge', 'nightSurcharge', 'weekendSurcharge', 'holidaySurcharge'].forEach(field => {
       if (data[field] === 'true' || data[field] === true) {
         data[field] = true;
       } else {

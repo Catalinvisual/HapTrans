@@ -207,6 +207,9 @@ export class AppController {
         palletFactorMedium: 85,
         palletFactorFull: 100,
         adrSurchargeFee: 100,
+        frigoSurchargeFee: 120,
+        urgentSurchargeFee: 150,
+        tailLiftSurchargeFee: 60,
         nightSurchargeFee: 80,
         weekendSurchargeFee: 150,
         holidaySurchargeFee: 200
@@ -217,7 +220,24 @@ export class AppController {
   }
 
   @Post('public/calculate-quote')
-  async calculateQuote(@Body() body: { distanceKm?: number; from?: string; to?: string; weightKg?: number; pallets?: number; adr?: boolean; nightSurcharge?: boolean; weekendSurcharge?: boolean; holidaySurcharge?: boolean }) {
+  async calculateQuote(@Body() body: {
+    distanceKm?: number;
+    from?: string;
+    to?: string;
+    weightKg?: number;
+    pallets?: number;
+    adr?: boolean;
+    adrSurcharge?: boolean;
+    frigo?: boolean;
+    frigoSurcharge?: boolean;
+    urgent?: boolean;
+    urgentSurcharge?: boolean;
+    tailLift?: boolean;
+    tailLiftSurcharge?: boolean;
+    nightSurcharge?: boolean;
+    weekendSurcharge?: boolean;
+    holidaySurcharge?: boolean;
+  }) {
     try {
       const settings = await this.getTariffSettings();
       let dist = body.distanceKm || 500;
@@ -253,6 +273,9 @@ export class AppController {
       let palletFactorFull = Number(settings.palletFactorFull) || 100;
 
       const adrSurchargeFee = Number(settings.adrSurchargeFee) || 100;
+      const frigoSurchargeFee = Number(settings.frigoSurchargeFee) || 120;
+      const urgentSurchargeFee = Number(settings.urgentSurchargeFee) || 150;
+      const tailLiftSurchargeFee = Number(settings.tailLiftSurchargeFee) || 60;
       const nightSurchargeFee = Number(settings.nightSurchargeFee) || 80;
       const weekendSurchargeFee = Number(settings.weekendSurchargeFee) || 150;
       const holidaySurchargeFee = Number(settings.holidaySurchargeFee) || 200;
@@ -281,11 +304,17 @@ export class AppController {
       basePrice += handlingFee;
 
       let adrCost = 0;
+      let frigoCost = 0;
+      let urgentCost = 0;
+      let tailLiftCost = 0;
       let nightCost = 0;
       let weekendCost = 0;
       let holidayCost = 0;
 
-      if (body.adr) { adrCost = adrSurchargeFee; basePrice += adrCost; }
+      if (body.adr || body.adrSurcharge) { adrCost = adrSurchargeFee; basePrice += adrCost; }
+      if (body.frigo || body.frigoSurcharge) { frigoCost = frigoSurchargeFee; basePrice += frigoCost; }
+      if (body.urgent || body.urgentSurcharge) { urgentCost = urgentSurchargeFee; basePrice += urgentCost; }
+      if (body.tailLift || body.tailLiftSurcharge) { tailLiftCost = tailLiftSurchargeFee; basePrice += tailLiftCost; }
       if (body.nightSurcharge) { nightCost = nightSurchargeFee; basePrice += nightCost; }
       if (body.weekendSurcharge) { weekendCost = weekendSurchargeFee; basePrice += weekendCost; }
       if (body.holidaySurcharge) { holidayCost = holidaySurchargeFee; basePrice += holidayCost; }
@@ -318,6 +347,9 @@ export class AppController {
         },
         surchargesApplied: {
           adr: adrCost,
+          frigo: frigoCost,
+          urgent: urgentCost,
+          tailLift: tailLiftCost,
           night: nightCost,
           weekend: weekendCost,
           holiday: holidayCost

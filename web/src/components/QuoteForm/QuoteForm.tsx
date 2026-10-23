@@ -55,15 +55,14 @@ const QuoteForm = () => {
     distanceKm: '',
     hasCalculation: false, calculationTimestamp: 0,
     adrSurcharge: false,
-    nightSurcharge: false,
-    weekendSurcharge: false,
-    holidaySurcharge: false
+    frigoSurcharge: false,
+    urgentSurcharge: false,
+    tailLiftSurcharge: false
   });
   const [attachment, setAttachment] = useState<File | null>(null);
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [openSelect, setOpenSelect] = useState<'truckType' | 'contactMethod' | null>(null);
   const [surchargesApplied, setSurchargesApplied] = useState<any>(null);
-  const [isAutoWeekend, setIsAutoWeekend] = useState(false);
 
   const getLabel = (roText: string, enText: string, nlText: string, deText: string, frText: string, esText: string, plText?: string) => {
     if (lang === 'RO') return roText;
@@ -86,13 +85,13 @@ const QuoteForm = () => {
       const est = searchParams.get('est');
       const dist = searchParams.get('dist');
       const adr = searchParams.get('adr') === 'true';
-      const night = searchParams.get('night') === 'true';
-      const weekend = searchParams.get('weekend') === 'true';
-      const holiday = searchParams.get('holiday') === 'true';
+      const frigo = searchParams.get('frigo') === 'true';
+      const urgent = searchParams.get('urgent') === 'true';
+      const tailLift = searchParams.get('tailLift') === 'true';
 
       const ts = searchParams.get('ts');
 
-      if (from || to || est || adr || night || weekend || holiday) {
+      if (from || to || est || adr || frigo || urgent || tailLift) {
         // If there's a timestamp, verify it's not older than 15 minutes
         let isValid = false;
         if (ts) {
@@ -117,9 +116,9 @@ const QuoteForm = () => {
             distanceKm: dist || '',
             hasCalculation: !!est,
             adrSurcharge: adr || prev.adrSurcharge,
-            nightSurcharge: night || prev.nightSurcharge,
-            weekendSurcharge: weekend || prev.weekendSurcharge,
-            holidaySurcharge: holiday || prev.holidaySurcharge,
+            frigoSurcharge: frigo || prev.frigoSurcharge,
+            urgentSurcharge: urgent || prev.urgentSurcharge,
+            tailLiftSurcharge: tailLift || prev.tailLiftSurcharge,
             calculationTimestamp: Date.now()
           }));
         } else {
@@ -148,23 +147,10 @@ const QuoteForm = () => {
     }
   }, [searchParams, router, pathname]);
 
-  const { loadingDate, unloadingDate, adrSurcharge, nightSurcharge, weekendSurcharge, holidaySurcharge, distanceKm, cargoWeightKg, numberOfPallets, hasCalculation } = formData;
+  const { loadingDate, unloadingDate, adrSurcharge, frigoSurcharge, urgentSurcharge, tailLiftSurcharge, distanceKm, cargoWeightKg, numberOfPallets, hasCalculation } = formData;
 
   useEffect(() => {
     if (!hasCalculation) return;
-    
-    let isWeekend = false;
-    if (loadingDate) {
-      const day = new Date(loadingDate).getDay();
-      if (day === 0 || day === 6) isWeekend = true;
-    }
-    if (unloadingDate) {
-      const day = new Date(unloadingDate).getDay();
-      if (day === 0 || day === 6) isWeekend = true;
-    }
-
-    setIsAutoWeekend(isWeekend);
-    const effectiveWeekend = isWeekend || weekendSurcharge;
 
     const dist = parseFloat(distanceKm) || 850;
     const weight = parseFloat(cargoWeightKg) || 21000;
@@ -179,9 +165,13 @@ const QuoteForm = () => {
         weightKg: weight,
         pallets: pallets,
         adr: adrSurcharge,
-        nightSurcharge: nightSurcharge,
-        weekendSurcharge: effectiveWeekend,
-        holidaySurcharge: holidaySurcharge
+        frigo: frigoSurcharge,
+        urgent: urgentSurcharge,
+        tailLift: tailLiftSurcharge,
+        adrSurcharge: adrSurcharge,
+        frigoSurcharge: frigoSurcharge,
+        urgentSurcharge: urgentSurcharge,
+        tailLiftSurcharge: tailLiftSurcharge
       })
     })
     .then(res => res.json())
@@ -196,7 +186,7 @@ const QuoteForm = () => {
       }
     })
     .catch(err => console.error(err));
-  }, [loadingDate, unloadingDate, adrSurcharge, nightSurcharge, weekendSurcharge, holidaySurcharge, distanceKm, cargoWeightKg, numberOfPallets, hasCalculation, fmtMoney]);
+  }, [loadingDate, unloadingDate, adrSurcharge, frigoSurcharge, urgentSurcharge, tailLiftSurcharge, distanceKm, cargoWeightKg, numberOfPallets, hasCalculation, fmtMoney]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -223,8 +213,6 @@ const QuoteForm = () => {
       Object.entries(formData).forEach(([key, value]) => {
         if (key === 'truckType' && value) {
           data.append(key, t(value as any));
-        } else if (key === 'weekendSurcharge') {
-          data.append(key, (value || isAutoWeekend).toString());
         } else {
           data.append(key, value.toString());
         }
@@ -252,7 +240,7 @@ const QuoteForm = () => {
         loadingDate: '', loadingTime: '', unloadingDate: '', unloadingTime: '',
         cargoType: '', cargoWeightKg: '', numberOfPallets: '', cargoVolumeM3: '',
         truckType: '', temperatureRequired: '', isUrgent: false, notes: '', estimatedPrice: '', distanceKm: '', hasCalculation: false, calculationTimestamp: 0,
-        adrSurcharge: false, nightSurcharge: false, weekendSurcharge: false, holidaySurcharge: false
+        adrSurcharge: false, frigoSurcharge: false, urgentSurcharge: false, tailLiftSurcharge: false
       });
       setAttachment(null);
     } catch (err) {
@@ -293,25 +281,16 @@ const QuoteForm = () => {
             {getLabel("Am precompletat detaliile rutei și ale mărfii din calculator. Finalizați cererea completând datele de mai jos pentru a primi oferta exactă!", "We have prefilled the route and cargo details from the calculator. Complete the request by filling in the details below to get the exact offer!", "We hebben de route- en ladingsgegevens uit de calculator vooraf ingevuld. Voltooi de aanvraag door de onderstaande gegevens in te vullen om de exacte offerte te ontvangen!", "Wir haben die Routen- und Frachtdetails aus dem Rechner vorausgefüllt. Schließen Sie die Anfrage ab, indem Sie die untenstehenden Daten eingeben, um das genaue Angebot zu erhalten!", "Nous avons prérempli les détails de l'itinéraire et de la cargaison du calculateur. Finalisez la demande en remplissant les coordonnées ci-dessous pour recevoir l'offre exacte !", "Hemos precompletado los detalles de la ruta y la carga de la calculadora. ¡Complete la solicitud ingresando los datos a continuación para recibir la oferta exacta!", "Uzupełniliśmy szczegóły trasy i ładunku z kalkulatora. Dokończ zapytanie, wypełniając poniższe dane, aby otrzymać dokładną ofertę!")}
           </p>
           
-          {isAutoWeekend && (
-            <div style={{ marginTop: '0.5rem', padding: '0.75rem 1rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#92400e', fontSize: '0.95rem', fontWeight: 600 }}>
-              <span style={{ fontSize: '1.25rem' }}>📅</span>
-              <span>
-                {getLabel("Data selectată cade în weekend! Sistemul a aplicat automat tariful suplimentar de weekend.", "Selected date falls on a weekend! The system automatically applied the weekend surcharge.", "De geselecteerde datum valt in het weekend! Het systeem heeft automatisch de weekendtoeslag toegepast.", "Das ausgewählte Datum fällt auf ein Wochenende! Das System hat automatisch den Wochenendzuschlag berechnet.", "La date sélectionnée tombe un week-end ! Le système a automatiquement appliqué le supplément week-end.", "¡La fecha seleccionada cae en fin de semana! El sistema aplicó automáticamente el recargo de fin de semana.", "Wybrana data przypada w weekend! System automatycznie zastosował dopłatę weekendową.")}
-              </span>
-            </div>
-          )}
-
-          {surchargesApplied && (surchargesApplied.adr > 0 || surchargesApplied.night > 0 || surchargesApplied.weekend > 0 || surchargesApplied.holiday > 0) && (
+          {surchargesApplied && (surchargesApplied.adr > 0 || surchargesApplied.frigo > 0 || surchargesApplied.urgent > 0 || surchargesApplied.tailLift > 0) && (
             <div style={{ marginTop: '0.5rem', padding: '0.75rem 1rem', background: 'rgba(255, 255, 255, 0.6)', border: '1px solid rgba(229, 231, 235, 1)', borderRadius: '0.75rem' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.5rem' }}>
                 {getLabel("Defalcare costuri suplimentare aplicate:", "Applied surcharge breakdown:", "Overzicht toegepaste toeslagen:", "Aufschlüsselung der angewendeten Zuschläge:", "Répartition des suppléments appliqués :", "Desglose de recargos aplicados:", "Rozbicie zastosowanych dopłat:")}
               </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                 {surchargesApplied.adr > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #fde68a' }}>⚠️ {getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR", "ADR")}: +{fmtMoney(surchargesApplied.adr)}</span>}
-                {surchargesApplied.night > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1d4ed8', background: '#dbeafe', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #bfdbfe' }}>🌙 {getLabel("Noapte", "Night", "Nacht", "Nacht", "Nuit", "Noche", "Noc")}: +{fmtMoney(surchargesApplied.night)}</span>}
-                {surchargesApplied.weekend > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#047857', background: '#d1fae5', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #a7f3d0' }}>📅 {getLabel("Weekend", "Weekend", "Weekend", "Wochenende", "Week-end", "Fin de semana", "Weekend")}: +{fmtMoney(surchargesApplied.weekend)}</span>}
-                {surchargesApplied.holiday > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#6b21a8', background: '#f3e8ff', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #e9d5ff' }}>🏖️ {getLabel("Sărbători", "Holiday", "Feestdag", "Feiertag", "Férié", "Festivo", "Święto")}: +{fmtMoney(surchargesApplied.holiday)}</span>}
+                {surchargesApplied.frigo > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1d4ed8', background: '#dbeafe', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #bfdbfe' }}>❄️ {getLabel("Frigo", "Frigo", "Frigo", "Kühl", "Frigo", "Frigo", "Chłodnia")}: +{fmtMoney(surchargesApplied.frigo)}</span>}
+                {surchargesApplied.urgent > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#047857', background: '#d1fae5', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #a7f3d0' }}>⚡ {getLabel("Urgent", "Urgent", "Spoed", "Express", "Urgent", "Urgente", "Pilne")}: +{fmtMoney(surchargesApplied.urgent)}</span>}
+                {surchargesApplied.tailLift > 0 && <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#6b21a8', background: '#f3e8ff', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid #e9d5ff' }}>🏗️ {getLabel("Lift", "Tail Lift", "Laadklep", "Ladebordwand", "Hayon", "Plataforma", "Winda")}: +{fmtMoney(surchargesApplied.tailLift)}</span>}
               </div>
             </div>
           )}
@@ -466,7 +445,7 @@ const QuoteForm = () => {
 
         <div className={styles.inputGroup}>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <WeightKgIcon className="w-4 h-4" />
+            <WeightKgIcon size={12} style={{ width: 12, height: 12, maxWidth: 12, maxHeight: 12 }} />
             {t('cargoWeightKg')} *
           </label>
           <input type="number" name="cargoWeightKg" required min="1" value={formData.cargoWeightKg} onChange={handleChange} />
@@ -494,7 +473,7 @@ const QuoteForm = () => {
 
         <div className={styles.inputGroup}>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <PalletIcon className="w-4 h-4" />
+            <PalletIcon size={12} style={{ width: 12, height: 12, maxWidth: 12, maxHeight: 12 }} />
             {t('numberOfPallets')}
           </label>
           <input type="number" name="numberOfPallets" min="1" value={formData.numberOfPallets} onChange={handleChange} />
@@ -508,24 +487,24 @@ const QuoteForm = () => {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem', marginBottom: '1rem', background: 'rgba(243, 244, 246, 0.6)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid rgba(229, 231, 235, 1)' }}>
         <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          {getLabel("Opțiuni Suplimentare / Tarife Speciale", "Additional Options / Special Tariffs", "Aanvullende opties / Speciale tarieven", "Zusätzliche Optionen / Sondertarife", "Options supplémentaires / Tarifs spéciaux", "Opciones adicionales / Tarifas especiales", "Opcje dodatkowe / Taryfy specjalne")}
+          {getLabel("Opțiuni Suplimentare", "Additional Options", "Aanvullende opties", "Zusätzliche Optionen", "Options supplémentaires", "Opciones adicionales", "Opcje dodatkowe")}
         </span>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
             <input type="checkbox" name="adrSurcharge" checked={formData.adrSurcharge} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)' }} />
-            ⚠️ {getLabel("ADR (Mărfuri Periculoase)", "ADR (Hazardous Goods)", "ADR (Gevaarlijke stoffen)", "ADR (Gefahrgut)", "ADR (Matières dangereuses)", "ADR (Mercancías peligrosas)", "ADR (Towary niebezpieczne)")}
+            ⚠️ {getLabel("ADR (Mărfuri Periculoase)", "ADR (Dangerous Goods)", "ADR (Gevaarlijke stoffen)", "ADR (Gefahrgut)", "ADR (Matières dangereuses)", "ADR (Mercancías peligrosas)", "ADR (Towary niebezpieczne)")}
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-            <input type="checkbox" name="nightSurcharge" checked={formData.nightSurcharge} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)' }} />
-            🌙 {getLabel("Transit Noapte / Express", "Night / Express Transit", "Nacht / Express Transit", "Nacht- / Expresstransit", "Transit de Nuit / Express", "Tránsito Nocturno / Exprés", "Tranzyt nocny / Ekspres")}
+            <input type="checkbox" name="frigoSurcharge" checked={formData.frigoSurcharge} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)' }} />
+            ❄️ {getLabel("Temperatură Controlată (Frigo)", "Controlled Temp (Frigo)", "Geconditioneerd (Frigo)", "Kühltransport (Frigo)", "Température Dirigée (Frigo)", "Temperatura Controlada (Frigorífico)", "Temperatura kontrolowana (Chłodnia)")}
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-            <input type="checkbox" name="weekendSurcharge" checked={formData.weekendSurcharge || isAutoWeekend} disabled={isAutoWeekend} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)' }} />
-            📅 {getLabel("Transit Weekend", "Weekend Transit", "Weekend Transit", "Wochenendtransit", "Transit Week-end", "Tránsito de Fin de Semana", "Tranzyt weekendowy")}
+            <input type="checkbox" name="urgentSurcharge" checked={formData.urgentSurcharge} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)' }} />
+            ⚡ {getLabel("Transport Urgent / Express", "Urgent / Express Transport", "Spoedtransport / Express", "Eiltransport / Express", "Transport Urgent / Express", "Transporte Urgente / Exprés", "Transport pilny / Ekspres")}
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-            <input type="checkbox" name="holidaySurcharge" checked={formData.holidaySurcharge} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)' }} />
-            🏛️ {getLabel("Transit Sărbători Legale", "Public Holiday Transit", "Transit Erkende Feestdagen", "Gesetzliche Feiertage", "Transit Jours Fériés", "Tránsito en Festivos Oficiales", "Tranzyt w święta państwowe")}
+            <input type="checkbox" name="tailLiftSurcharge" checked={formData.tailLiftSurcharge} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)' }} />
+            🏗️ {getLabel("Lift / Obloane (Tail Lift)", "Tail Lift (Hydraulic)", "Laadklep (Hydraulisch)", "Ladebordwand / Hebebühne", "Hayon Élévateur", "Plataforma Elevadora", "Winda załadunkowa")}
           </label>
         </div>
       </div>

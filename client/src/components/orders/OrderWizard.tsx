@@ -817,21 +817,42 @@ export default function OrderWizard({
                 )}
                 
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">{t("jsx_equipmentRequi")}</label>
+                  <label className="block text-sm font-medium mb-1.5">{t("jsx_equipmentRequi", "Equipment & Special Requirements")}</label>
                   <div className="flex flex-wrap gap-2">
-                    {['frigo', 'tilt', 'adr', 'mega'].map(eq => {
-                  const selected = form.equipmentRequirements.includes(eq);
-                  return <button key={eq} type="button" onClick={() => {
-                    const reqsArray = Array.isArray(form.equipmentRequirements) ? form.equipmentRequirements : [];
-                    const newReqs = selected ? reqsArray.filter(r => r !== eq) : [...reqsArray, eq];
-                    setForm({
-                      ...form,
-                      equipmentRequirements: newReqs
-                    });
-                  }} className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${selected ? 'bg-primary text-white border-primary shadow-sm' : 'bg-surface border-border text-text-secondary hover:border-primary/50'}`}>
-                          {t(`eq_${eq}`, eq.toUpperCase())}
-                        </button>;
-                })}
+                    {[
+                      { id: 'adr', icon: '⚠️', labelKey: 'eq_adr', fallback: 'ADR' },
+                      { id: 'frigo', icon: '❄️', labelKey: 'eq_frigo', fallback: 'Frigo' },
+                      { id: 'urgent', icon: '⚡', labelKey: 'eq_urgent', fallback: 'Urgent' },
+                      { id: 'tail_lift', icon: '🏗️', labelKey: 'eq_tail_lift', fallback: 'Lift / Laadklep' },
+                      { id: 'tilt', icon: '🚚', labelKey: 'eq_tilt', fallback: 'Prelată' },
+                      { id: 'mega', icon: '📏', labelKey: 'eq_mega', fallback: 'Mega' }
+                    ].map(eq => {
+                      const selected = form.equipmentRequirements.includes(eq.id);
+                      return (
+                        <button
+                          key={eq.id}
+                          type="button"
+                          onClick={() => {
+                            const reqsArray = Array.isArray(form.equipmentRequirements) ? form.equipmentRequirements : [];
+                            const isAdding = !selected;
+                            const newReqs = selected ? reqsArray.filter(r => r !== eq.id) : [...reqsArray, eq.id];
+                            setForm(prev => ({
+                              ...prev,
+                              equipmentRequirements: newReqs,
+                              priority: eq.id === 'urgent' && isAdding ? 'critical' : (eq.id === 'urgent' && !isAdding && prev.priority === 'critical' ? 'normal' : prev.priority)
+                            }));
+                          }}
+                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all flex items-center gap-1.5 ${
+                            selected
+                              ? 'bg-primary text-white border-primary shadow-sm'
+                              : 'bg-surface border-border text-text-secondary hover:border-primary/50'
+                          }`}
+                        >
+                          <span>{eq.icon}</span>
+                          <span>{t(eq.labelKey, eq.fallback)}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">

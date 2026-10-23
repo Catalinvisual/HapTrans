@@ -50,6 +50,9 @@ interface QuoteRequest {
   distanceKm?: string;
   hasCalculation?: boolean;
   adrSurcharge?: boolean;
+  frigoSurcharge?: boolean;
+  urgentSurcharge?: boolean;
+  tailLiftSurcharge?: boolean;
   nightSurcharge?: boolean;
   weekendSurcharge?: boolean;
   holidaySurcharge?: boolean;
@@ -521,10 +524,12 @@ const WebsiteQuotesPage = () => {
                     <div className="flex flex-col">
                       <div className="flex items-center gap-3 flex-wrap">
                         <h3 className="text-lg font-semibold">{quote.companyName}</h3>
-                        {quote.isUrgent && <span className="bg-red-100 text-red-800 text-xs font-bold px-2 py-0.5 rounded uppercase border border-red-200">
-                            {tLocal('urgent')}
+                        {(quote.isUrgent || quote.urgentSurcharge) && <span className="bg-red-100 text-red-800 text-xs font-bold px-2 py-0.5 rounded uppercase border border-red-200">
+                            ⚡ {tLocal('urgent')}
                           </span>}
-                        {quote.adrSurcharge && <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded border border-amber-200">{t("jsx_ADR")}</span>}
+                        {quote.adrSurcharge && <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded border border-amber-200">{t("jsx_ADR", "⚠️ ADR")}</span>}
+                        {quote.frigoSurcharge && <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 rounded border border-blue-200">❄️ {t("eq_frigo", "Frigo")}</span>}
+                        {quote.tailLiftSurcharge && <span className="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-0.5 rounded border border-purple-200">🏗️ {t("eq_tail_lift", "Lift")}</span>}
                         {quote.nightSurcharge && <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 rounded border border-blue-200">{t("jsx_NoapteExp")}</span>}
                         {quote.weekendSurcharge && <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded border border-emerald-200">{t("jsx_Weekend")}</span>}
                         {quote.holidaySurcharge && <span className="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-0.5 rounded border border-purple-200">{t("jsx_SRbToriL")}</span>}
@@ -558,10 +563,13 @@ const WebsiteQuotesPage = () => {
                               {quote.distanceKm && <span className="text-text-secondary ml-2 font-medium">{t("jsx_DistanRut")}{quote.distanceKm}{t("jsx_km")}</span>}
                             </div>
                           </div>}
-                        {(quote.adrSurcharge || quote.nightSurcharge || quote.weekendSurcharge || quote.holidaySurcharge) && <div className="p-4 bg-surface rounded-xl border border-border mb-6 shadow-sm">
+                        {(quote.adrSurcharge || quote.frigoSurcharge || quote.urgentSurcharge || quote.tailLiftSurcharge || quote.nightSurcharge || quote.weekendSurcharge || quote.holidaySurcharge) && <div className="p-4 bg-surface rounded-xl border border-border mb-6 shadow-sm">
                             <span className="font-bold uppercase text-xs text-text-secondary tracking-wider block mb-2">{t("jsx_opIuniTarif")}</span>
                             <div className="flex flex-wrap gap-2">
-                              {quote.adrSurcharge && <span className="bg-amber-100 text-amber-800 font-bold text-xs px-2.5 py-1 rounded-full border border-amber-300">{t("jsx_ADRMRfuri")}</span>}
+                              {quote.adrSurcharge && <span className="bg-amber-100 text-amber-800 font-bold text-xs px-2.5 py-1 rounded-full border border-amber-300">⚠️ {t("jsx_ADRMRfuri", "ADR (Mărfuri Periculoase)")}</span>}
+                              {quote.frigoSurcharge && <span className="bg-blue-100 text-blue-800 font-bold text-xs px-2.5 py-1 rounded-full border border-blue-300">❄️ {t("eq_frigo_full", "Temperatură Controlată (Frigo)")}</span>}
+                              {quote.urgentSurcharge && <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-2.5 py-1 rounded-full border border-emerald-300">⚡ {t("eq_urgent_full", "Transport Urgent / Express")}</span>}
+                              {quote.tailLiftSurcharge && <span className="bg-purple-100 text-purple-800 font-bold text-xs px-2.5 py-1 rounded-full border border-purple-300">🏗️ {t("eq_tail_lift_full", "Lift / Laadklep (Tail Lift)")}</span>}
                               {quote.nightSurcharge && <span className="bg-blue-100 text-blue-800 font-bold text-xs px-2.5 py-1 rounded-full border border-blue-300">{t("jsx_TransitNoap")}</span>}
                               {quote.weekendSurcharge && <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-2.5 py-1 rounded-full border border-emerald-300">{t("jsx_TransitWeek")}</span>}
                               {quote.holidaySurcharge && <span className="bg-purple-100 text-purple-800 font-bold text-xs px-2.5 py-1 rounded-full border border-purple-300">{t("jsx_TransitSR")}</span>}

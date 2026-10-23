@@ -88,6 +88,15 @@ export class QuoteRequest {
   adrSurcharge: boolean;
 
   @Column({ type: 'boolean', default: false, nullable: true })
+  frigoSurcharge: boolean;
+
+  @Column({ type: 'boolean', default: false, nullable: true })
+  urgentSurcharge: boolean;
+
+  @Column({ type: 'boolean', default: false, nullable: true })
+  tailLiftSurcharge: boolean;
+
+  @Column({ type: 'boolean', default: false, nullable: true })
   nightSurcharge: boolean;
 
   @Column({ type: 'boolean', default: false, nullable: true })

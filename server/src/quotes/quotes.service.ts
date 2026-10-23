@@ -130,10 +130,18 @@ export class QuotesService {
       return d;
     };
 
+    const eqReqs: string[] = [];
+    if (quote.adrSurcharge) eqReqs.push('adr');
+    if (quote.frigoSurcharge || (quote.truckType && quote.truckType.toLowerCase().includes('frigo')) || quote.temperatureRequired) eqReqs.push('frigo');
+    if (quote.urgentSurcharge || quote.isUrgent) eqReqs.push('urgent');
+    if (quote.tailLiftSurcharge) eqReqs.push('tail_lift');
+
     const order = await this.ordersService.create({
       clientId: client.id,
       customerReference: `QUOTE-${quote.id.slice(0, 8)}`,
       transportType: 'ftl',
+      priority: (quote.urgentSurcharge || quote.isUrgent) ? 'critical' : 'normal',
+      equipmentRequirements: eqReqs,
       price: quote.estimatedPrice ? Number(quote.estimatedPrice) : undefined,
       currency: 'EUR',
       notes: quote.notes || null,

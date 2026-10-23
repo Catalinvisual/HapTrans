@@ -97,6 +97,9 @@ export default function SettingsPage() {
     palletFactorMedium: 85,
     palletFactorFull: 100,
     adrSurchargeFee: 100,
+    frigoSurchargeFee: 120,
+    urgentSurchargeFee: 150,
+    tailLiftSurchargeFee: 60,
     nightSurchargeFee: 80,
     weekendSurchargeFee: 150,
     holidaySurchargeFee: 200
@@ -535,13 +538,13 @@ export default function SettingsPage() {
 
           <div className="space-y-1">
             <label className="label font-bold text-xs text-blue-700 flex items-center gap-1.5">
-              🌙 {getLabel("Night Driving Surcharge", "Tarif de Noapte / Express", "Nachttoeslag", "Nachtzuschlag", "Surcharge de nuit", "Dopłata nocna", "Recargo nocturno / express")}
+              ❄️ {getLabel("Controlled Temp. / Frigo Fee", "Tarif Temperatură Controlată / Frigo", "Toeslag Geconditioneerd / Frigo", "Zuschlag Kühltransport / Frigo", "Surcharge Température Dirigée / Frigo", "Dopłata za chłodnię / Frigo", "Recargo por transporte frigorífico")}
             </label>
             <div className="relative flex items-center">
               <span className="absolute left-3 text-blue-700 font-extrabold text-sm select-none pointer-events-none">€</span>
-              <PriceInput className="input text-sm pl-8 pr-14 font-bold text-text border-blue-500/30 focus:border-blue-500" value={tariffs.nightSurchargeFee} onChange={val => setTariffs(prev => ({
+              <PriceInput className="input text-sm pl-8 pr-14 font-bold text-text border-blue-500/30 focus:border-blue-500" value={tariffs.frigoSurchargeFee} onChange={val => setTariffs(prev => ({
                 ...prev,
-                nightSurchargeFee: val
+                frigoSurchargeFee: val
               }))} />
               <span className="absolute right-2 bg-blue-500/10 text-blue-700 font-extrabold text-[11px] px-2 py-1 rounded-md select-none pointer-events-none border border-blue-500/20">{t("jsx_eUR")}</span>
             </div>
@@ -549,13 +552,13 @@ export default function SettingsPage() {
 
           <div className="space-y-1">
             <label className="label font-bold text-xs text-emerald-700 flex items-center gap-1.5">
-              🗓️ {getLabel("Weekend Surcharge Fee", "Tarif de Weekend", "Weekendtoeslag", "Wochenendzuschlag", "Surcharge week-end", "Dopłata weekendowa", "Recargo por fin de semana")}
+              ⚡ {getLabel("Urgent / Express Surcharge Fee", "Tarif Transport Urgent / Express", "Spoed / Express Toeslag", "Eil- / Expresszuschlag", "Surcharge Transport Urgent / Express", "Dopłata za transport pilny / ekspres", "Recargo por transporte urgente / exprés")}
             </label>
             <div className="relative flex items-center">
               <span className="absolute left-3 text-emerald-700 font-extrabold text-sm select-none pointer-events-none">€</span>
-              <PriceInput className="input text-sm pl-8 pr-14 font-bold text-text border-emerald-500/30 focus:border-emerald-500" value={tariffs.weekendSurchargeFee} onChange={val => setTariffs(prev => ({
+              <PriceInput className="input text-sm pl-8 pr-14 font-bold text-text border-emerald-500/30 focus:border-emerald-500" value={tariffs.urgentSurchargeFee} onChange={val => setTariffs(prev => ({
                 ...prev,
-                weekendSurchargeFee: val
+                urgentSurchargeFee: val
               }))} />
               <span className="absolute right-2 bg-emerald-500/10 text-emerald-700 font-extrabold text-[11px] px-2 py-1 rounded-md select-none pointer-events-none border border-emerald-500/20">{t("jsx_eUR")}</span>
             </div>
@@ -563,13 +566,13 @@ export default function SettingsPage() {
 
           <div className="space-y-1">
             <label className="label font-bold text-xs text-purple-700 flex items-center gap-1.5">
-              🎉 {getLabel("Public / Bank Holiday Surcharge", "Tarif Sărbători Legale", "Toeslag Erkende Feestdagen", "Zuschlag gesetzliche Feiertage", "Majoration Jours Fériés", "Dopłata za dni ustawowo wolne", "Recargo por días festivos")}
+              🏗️ {getLabel("Tail Lift / Hydraulic Ramp Fee", "Tarif Lift / Obloane Hidraulice", "Laadklep Toeslag (Hydraulisch)", "Ladebordwand- / Hebebühnenzuschlag", "Surcharge Hayon Élévateur", "Dopłata za windę załadunkową", "Recargo por plataforma elevadora")}
             </label>
             <div className="relative flex items-center">
               <span className="absolute left-3 text-purple-700 font-extrabold text-sm select-none pointer-events-none">€</span>
-              <PriceInput className="input text-sm pl-8 pr-14 font-bold text-text border-purple-500/30 focus:border-purple-500" value={tariffs.holidaySurchargeFee} onChange={val => setTariffs(prev => ({
+              <PriceInput className="input text-sm pl-8 pr-14 font-bold text-text border-purple-500/30 focus:border-purple-500" value={tariffs.tailLiftSurchargeFee} onChange={val => setTariffs(prev => ({
                 ...prev,
-                holidaySurchargeFee: val
+                tailLiftSurchargeFee: val
               }))} />
               <span className="absolute right-2 bg-purple-500/10 text-purple-700 font-extrabold text-[11px] px-2 py-1 rounded-md select-none pointer-events-none border border-purple-500/20">{t("jsx_eUR")}</span>
             </div>

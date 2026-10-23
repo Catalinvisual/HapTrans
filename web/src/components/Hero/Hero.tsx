@@ -24,9 +24,9 @@ const Hero = () => {
     phone: '',
     email: '',
     adrSurcharge: false,
-    nightSurcharge: false,
-    weekendSurcharge: false,
-    holidaySurcharge: false
+    frigoSurcharge: false,
+    urgentSurcharge: false,
+    tailLiftSurcharge: false
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [estimatedPriceRange, setEstimatedPriceRange] = useState('');
@@ -99,9 +99,13 @@ const Hero = () => {
           weightKg,
           pallets,
           adr: formData.adrSurcharge,
-          nightSurcharge: formData.nightSurcharge,
-          weekendSurcharge: formData.weekendSurcharge,
-          holidaySurcharge: formData.holidaySurcharge
+          frigo: formData.frigoSurcharge,
+          urgent: formData.urgentSurcharge,
+          tailLift: formData.tailLiftSurcharge,
+          adrSurcharge: formData.adrSurcharge,
+          frigoSurcharge: formData.frigoSurcharge,
+          urgentSurcharge: formData.urgentSurcharge,
+          tailLiftSurcharge: formData.tailLiftSurcharge
         })
       });
 
@@ -114,14 +118,17 @@ const Hero = () => {
             setCalculatedDistance(data.calculationDetails.distanceKm);
           }
         } else {
-          setEstimatedPriceRange(`${fmtMoney(1380)} – ${fmtMoney(1550)}`);
+          const fallbackBase = Math.round(distanceKm * 1.45 + 100);
+          setEstimatedPriceRange(`${fmtMoney(Math.round(fallbackBase * 0.95))} – ${fmtMoney(Math.round(fallbackBase * 1.15))}`);
         }
       } else {
-        setEstimatedPriceRange(`${fmtMoney(1380)} – ${fmtMoney(1550)}`);
+        const fallbackBase = Math.round(distanceKm * 1.45 + 100);
+        setEstimatedPriceRange(`${fmtMoney(Math.round(fallbackBase * 0.95))} – ${fmtMoney(Math.round(fallbackBase * 1.15))}`);
       }
     } catch (err) {
       console.error(err);
-      setEstimatedPriceRange(`${fmtMoney(1380)} – ${fmtMoney(1550)}`);
+      const fallbackBase = Math.round(850 * 1.45 + 100);
+      setEstimatedPriceRange(`${fmtMoney(Math.round(fallbackBase * 0.95))} – ${fmtMoney(Math.round(fallbackBase * 1.15))}`);
     } finally {
       setIsSubmitting(false);
       setStep(2);
@@ -135,19 +142,19 @@ const Hero = () => {
       label: getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR", "ADR"),
     },
     {
-      key: 'nightSurcharge' as const,
-      emoji: '🌙',
-      label: getLabel("Noapte / Express", "Night / Express", "Nacht / Express", "Nacht / Express", "Nuit / Express", "Noche / Exprés", "Noc / Ekspres"),
+      key: 'frigoSurcharge' as const,
+      emoji: '❄️',
+      label: getLabel("Frigo / Temp.", "Frigo / Temp.", "Frigo / Temp.", "Kühltransport", "Frigo / Temp.", "Frigo / Temp.", "Chłodnia"),
     },
     {
-      key: 'weekendSurcharge' as const,
-      emoji: '📅',
-      label: getLabel("Weekend", "Weekend", "Weekend", "Wochenende", "Week-end", "Fin de Semana", "Weekend"),
+      key: 'urgentSurcharge' as const,
+      emoji: '⚡',
+      label: getLabel("Urgent / Express", "Urgent / Express", "Spoed / Express", "Eil / Express", "Urgent / Express", "Urgente / Exprés", "Pilne / Ekspres"),
     },
     {
-      key: 'holidaySurcharge' as const,
-      emoji: '🏛️',
-      label: getLabel("Sărbători Legale", "Public Holiday", "Feestdagen", "Feiertage", "Jours Fériés", "Festivos Oficiales", "Święta państwowe"),
+      key: 'tailLiftSurcharge' as const,
+      emoji: '🏗️',
+      label: getLabel("Lift / Laadklep", "Tail Lift", "Laadklep", "Ladebordwand", "Hayon élévateur", "Plataforma", "Winda"),
     },
   ];
 
@@ -330,9 +337,14 @@ const Hero = () => {
 
                 <div className={styles.rangeWrap}>
                   <div className={styles.rangeHeader}>
-                    <label style={{ margin: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '7px', background: '#ffffff', border: '1px solid #dce4de', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }} aria-label="Weight">
-                      <WeightKgIcon size={14} />
-                    </label>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', borderRadius: '5px', background: '#ffffff', border: '1px solid #dce4de', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }} aria-label="Weight">
+                        <WeightKgIcon size={11} style={{ width: 11, height: 11, maxWidth: 11, maxHeight: 11 }} />
+                      </span>
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 650, color: '#334b58' }}>
+                        {getLabel("Greutate", "Weight", "Gewicht", "Gewicht", "Poids", "Peso", "Waga")}
+                      </span>
+                    </div>
                     <span className={styles.rangeValue}>{weightLabel}</span>
                   </div>
                   <input
@@ -350,9 +362,14 @@ const Hero = () => {
 
                 <div className={styles.rangeWrap}>
                   <div className={styles.rangeHeader}>
-                    <label style={{ margin: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '7px', background: '#ffffff', border: '1px solid #dce4de', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }} aria-label="Pallets">
-                      <PalletIcon size={14} />
-                    </label>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', borderRadius: '5px', background: '#ffffff', border: '1px solid #dce4de', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }} aria-label="Pallets">
+                        <PalletIcon size={11} style={{ width: 11, height: 11, maxWidth: 11, maxHeight: 11 }} />
+                      </span>
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 650, color: '#334b58' }}>
+                        {getLabel("Paleți", "Pallets", "Pallets", "Paletten", "Palettes", "Palets", "Palety")}
+                      </span>
+                    </div>
                     <span className={styles.rangeValue}>{pallets} {getLabel("paleți", "pallets", "pallets", "Paletten", "palettes", "palets", "palety")}</span>
                   </div>
                   <input
@@ -366,15 +383,6 @@ const Hero = () => {
                     onChange={(e) => setPallets(Number(e.target.value))}
                     aria-label="Pallets"
                   />
-                </div>
-
-                <button type="submit" className={`btn btn-primary ${styles.calcBtn}`} disabled={isSubmitting}>
-                  {isSubmitting ? t('calcLoading') : t('calcSubmit')}
-                </button>
-
-                <div className={styles.estimatePreview}>
-                  <span className={styles.estimateLabel}>{getLabel("Estimare instant", "Instant estimate", "Directe schatting", "Sofortige Schätzung", "Estimation instantanée", "Estimación instantánea", "Natychmiastowa wycena")}</span>
-                  <span className={styles.estimateValue}>{estimatedPriceRange || '€ 1.380 – € 1.550'}</span>
                 </div>
 
                 <div className={styles.surchargeBlock}>
@@ -400,6 +408,10 @@ const Hero = () => {
                     ))}
                   </div>
                 </div>
+
+                <button type="submit" className={`btn btn-primary ${styles.calcBtn}`} disabled={isSubmitting}>
+                  {isSubmitting ? t('calcLoading') : t('calcSubmit')}
+                </button>
               </div>
             )}
           </form>
@@ -424,16 +436,16 @@ const Hero = () => {
                 </span>
               </div>
 
-              {surchargesApplied && (surchargesApplied.adr > 0 || surchargesApplied.night > 0 || surchargesApplied.weekend > 0 || surchargesApplied.holiday > 0) && (
+              {surchargesApplied && (surchargesApplied.adr > 0 || surchargesApplied.frigo > 0 || surchargesApplied.urgent > 0 || surchargesApplied.tailLift > 0) && (
                 <div className={styles.surchargeBreakdown}>
                   <span className={styles.surchargeBreakdownTitle}>
                     {getLabel("Defalcare costuri suplimentare aplicate:", "Applied surcharge breakdown:", "Overzicht toegepaste toeslagen:", "Aufschlüsselung der angewendeten Zuschläge:", "Répartition des suppléments appliqués :", "Desglose de recargos aplicados:", "Rozbicie zastosowanych dopłat:")}
                   </span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
                     {surchargesApplied.adr > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownAmber}`}>⚠️ {getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR", "ADR")}: +{fmtMoney(surchargesApplied.adr)}</span>}
-                    {surchargesApplied.night > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownBlue}`}>🌙 {getLabel("Noapte", "Night", "Nacht", "Nacht", "Nuit", "Noche", "Noc")}: +{fmtMoney(surchargesApplied.night)}</span>}
-                    {surchargesApplied.weekend > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownGreen}`}>📅 {getLabel("Weekend", "Weekend", "Weekend", "Wochenende", "Week-end", "Fin de semana", "Weekend")}: +{fmtMoney(surchargesApplied.weekend)}</span>}
-                    {surchargesApplied.holiday > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownPurple}`}>🏛️ {getLabel("Sărbători Legale", "Public Holiday", "Feestdagen", "Feiertag", "Jours Fériés", "Festivos Oficiales", "Święta państwowe")}: +{fmtMoney(surchargesApplied.holiday)}</span>}
+                    {surchargesApplied.frigo > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownBlue}`}>❄️ {getLabel("Frigo", "Frigo", "Frigo", "Kühl", "Frigo", "Frigo", "Chłodnia")}: +{fmtMoney(surchargesApplied.frigo)}</span>}
+                    {surchargesApplied.urgent > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownGreen}`}>⚡ {getLabel("Urgent", "Urgent", "Spoed", "Express", "Urgent", "Urgente", "Pilne")}: +{fmtMoney(surchargesApplied.urgent)}</span>}
+                    {surchargesApplied.tailLift > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownPurple}`}>🏗️ {getLabel("Lift", "Tail Lift", "Laadklep", "Ladebordwand", "Hayon", "Plataforma", "Winda")}: +{fmtMoney(surchargesApplied.tailLift)}</span>}
                   </div>
                 </div>
               )}
@@ -449,7 +461,7 @@ const Hero = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    window.location.href = `/cere-oferta?from=${encodeURIComponent(formData.from)}&to=${encodeURIComponent(formData.to)}&weight=${encodeURIComponent(String(weightKg))}&type=${encodeURIComponent(formData.type)}&pallets=${encodeURIComponent(String(pallets))}&est=${encodeURIComponent(estimatedPriceRange)}&dist=${encodeURIComponent(calculatedDistance)}&adr=${formData.adrSurcharge}&night=${formData.nightSurcharge}&weekend=${formData.weekendSurcharge}&holiday=${formData.holidaySurcharge}&ts=${Date.now()}`;
+                    window.location.href = `/cere-oferta?from=${encodeURIComponent(formData.from)}&to=${encodeURIComponent(formData.to)}&weight=${encodeURIComponent(String(weightKg))}&type=${encodeURIComponent(formData.type)}&pallets=${encodeURIComponent(String(pallets))}&est=${encodeURIComponent(estimatedPriceRange)}&dist=${encodeURIComponent(calculatedDistance)}&adr=${formData.adrSurcharge}&frigo=${formData.frigoSurcharge}&urgent=${formData.urgentSurcharge}&tailLift=${formData.tailLiftSurcharge}&ts=${Date.now()}`;
                   }}
                   className={`btn btn-primary ${styles.calcBtn}`}
                   style={{ minWidth: '220px' }}
