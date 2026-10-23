@@ -33,6 +33,8 @@ const Hero = () => {
   const [calculatedDistance, setCalculatedDistance] = useState(850);
   const [surchargesApplied, setSurchargesApplied] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
   const getLabel = (roText: string, enText: string, nlText: string, deText: string, frText: string, esText: string, plText?: string) => {
     if (lang === 'RO') return roText;
@@ -72,30 +74,36 @@ const Hero = () => {
 
   const handleCalculate = async (e: React.FormEvent) => {
     e.preventDefault();
+    const fromTrim = formData.from?.trim();
+    const toTrim = formData.to?.trim();
+
+    if (!fromTrim || !toTrim) {
+      setAttemptedSubmit(true);
+      setValidationError(
+        getLabel(
+          "Vă rugăm să introduceți atât adresa de încărcare, cât și adresa de livrare pentru a calcula oferta.",
+          "Please enter both pickup and delivery locations to calculate the quote.",
+          "Voer zowel het ophaal- als het afleveradres in om de offerte te berekenen.",
+          "Bitte geben Sie sowohl den Abhol- als auch den Lieferort ein, um das Angebot zu berechnen.",
+          "Veuillez saisir les lieux de chargement et de livraison pour calculer le devis.",
+          "Por favor, introduzca tanto el punto de recogida como el de entrega para calcular el presupuesto.",
+          "Proszę podać zarówno miejsce załadunku, jak i rozładunku, aby obliczyć wycenę."
+        )
+      );
+      return;
+    }
+
+    setValidationError(null);
     setIsSubmitting(true);
 
     try {
-      // Estimate distance heuristic
-      let distanceKm = 850;
-      const fromLower = formData.from.toLowerCase();
-      const toLower = formData.to.toLowerCase();
-      if (fromLower.includes(', ro') && toLower.includes(', ro')) {
-        distanceKm = 350;
-      } else if (fromLower.includes('germany') || toLower.includes('germany') || fromLower.includes(', de') || toLower.includes(', de')) {
-        distanceKm = 1250;
-      } else if (fromLower.includes('france') || toLower.includes('france') || fromLower.includes(', fr') || toLower.includes(', fr')) {
-        distanceKm = 1650;
-      }
-      setCalculatedDistance(distanceKm);
-
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://haptrans-production.up.railway.app/api';
       const res = await fetch(`${apiUrl}/public/calculate-quote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from: formData.from,
-          to: formData.to,
-          distanceKm,
+          from: fromTrim,
+          to: toTrim,
           weightKg,
           pallets,
           adr: formData.adrSurcharge,
@@ -111,27 +119,60 @@ const Hero = () => {
 
       if (res.ok) {
         const data = await res.json();
-        if (data.minEstimate && data.maxEstimate) {
+        if (data.success && data.minEstimate && data.maxEstimate) {
           setEstimatedPriceRange(`${fmtMoney(data.minEstimate)} – ${fmtMoney(data.maxEstimate)}`);
           setSurchargesApplied(data.surchargesApplied || null);
           if (data.calculationDetails && data.calculationDetails.distanceKm) {
             setCalculatedDistance(data.calculationDetails.distanceKm);
           }
+          setStep(2);
+        } else if (data.error) {
+          setValidationError(data.error);
         } else {
+          let distanceKm = 850;
+          const fromLower = fromTrim.toLowerCase();
+          const toLower = toTrim.toLowerCase();
+          if (fromLower.includes(', ro') && toLower.includes(', ro')) {
+            distanceKm = 350;
+          } else if (fromLower.includes('germany') || toLower.includes('germany') || fromLower.includes(', de') || toLower.includes(', de')) {
+            distanceKm = 1250;
+          } else if (fromLower.includes('france') || toLower.includes('france') || fromLower.includes(', fr') || toLower.includes(', fr')) {
+            distanceKm = 1650;
+          }
+          setCalculatedDistance(distanceKm);
           const fallbackBase = Math.round(distanceKm * 1.45 + 100);
           setEstimatedPriceRange(`${fmtMoney(Math.round(fallbackBase * 0.95))} – ${fmtMoney(Math.round(fallbackBase * 1.15))}`);
+          setStep(2);
         }
       } else {
-        const fallbackBase = Math.round(distanceKm * 1.45 + 100);
-        setEstimatedPriceRange(`${fmtMoney(Math.round(fallbackBase * 0.95))} – ${fmtMoney(Math.round(fallbackBase * 1.15))}`);
+        const errData = await res.json().catch(() => null);
+        setValidationError(
+          errData?.error || getLabel(
+            "Nu s-a putut calcula oferta pentru adresele selectate. Vă rugăm să verificați adresele.",
+            "Could not calculate quote for the selected addresses. Please verify addresses.",
+            "Kon offerte niet berekenen voor de geselecteerde adressen.",
+            "Das Angebot für die ausgewählten Adressen konnte nicht berechnet werden.",
+            "Impossible de calculer le devis pour les adresses sélectionnées.",
+            "No se pudo calcular el presupuesto para las direcciones seleccionadas.",
+            "Nie można obliczyć wyceny dla wybranych adresów."
+          )
+        );
       }
     } catch (err) {
       console.error(err);
-      const fallbackBase = Math.round(850 * 1.45 + 100);
-      setEstimatedPriceRange(`${fmtMoney(Math.round(fallbackBase * 0.95))} – ${fmtMoney(Math.round(fallbackBase * 1.15))}`);
+      setValidationError(
+        getLabel(
+          "A apărut o eroare la calcularea ofertei. Vă rugăm să încercați din nou.",
+          "An error occurred while calculating the quote. Please try again.",
+          "Er is een fout opgetreden bij het berekenen van de offerte.",
+          "Beim Berechnen des Angebots ist ein Fehler aufgetreten.",
+          "Une erreur s'est produite lors du calcul du devis.",
+          "Se produjo un error al calcular el presupuesto.",
+          "Wystąpił błąd podczas obliczania wyceny."
+        )
+      );
     } finally {
       setIsSubmitting(false);
-      setStep(2);
     }
   };
 
@@ -284,51 +325,65 @@ const Hero = () => {
             </button>
           </div>
 
-          <div className={styles.tabs} role="tablist" aria-label="Transport mode">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'express'}
-              className={`${styles.tab} ${mode === 'express' ? styles.tabActive : ''}`}
-              onClick={() => handleMode('express')}
-            >
-              <span>⚡</span> {getLabel("Express Freight", "Express Freight", "Express vracht", "Express Fracht", "Fret express", "Carga exprés", "Ekspresowy przewóz")}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'ftl'}
-              className={`${styles.tab} ${mode === 'ftl' ? styles.tabActive : ''}`}
-              onClick={() => handleMode('ftl')}
-            >
-              <span>🚛</span> {getLabel("Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Carga completa (FTL)", "Full Truckload (FTL)")}
-            </button>
-          </div>
-
-          <form className={styles.calcForm} onSubmit={handleCalculate} noValidate>
+          <form className={styles.calcForm} onSubmit={handleCalculate}>
             {step === 1 && (
-              <div className={styles.step1Grid}>
-                <div className={styles.field}>
-                  <label>{t('calcFrom')}</label>
-                  <AddressAutocomplete
-                    value={formData.from}
-                    onChange={(val) => setFormData({ ...formData, from: val })}
-                    placeholder={t('calcFromPlaceholder') || 'ex: București, RO'}
-                    className={styles.modalInput}
-                    required
-                  />
+              <>
+                <div className={styles.tabs} role="tablist" aria-label="Transport mode">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={mode === 'express'}
+                    className={`${styles.tab} ${mode === 'express' ? styles.tabActive : ''}`}
+                    onClick={() => handleMode('express')}
+                  >
+                    <span>⚡</span> {getLabel("Express Freight", "Express Freight", "Express vracht", "Express Fracht", "Fret express", "Carga exprés", "Ekspresowy przewóz")}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={mode === 'ftl'}
+                    className={`${styles.tab} ${mode === 'ftl' ? styles.tabActive : ''}`}
+                    onClick={() => handleMode('ftl')}
+                  >
+                    <span>🚛</span> {getLabel("Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Carga completa (FTL)", "Full Truckload (FTL)")}
+                  </button>
                 </div>
 
-                <div className={styles.field}>
-                  <label>{t('calcTo')}</label>
-                  <AddressAutocomplete
-                    value={formData.to}
-                    onChange={(val) => setFormData({ ...formData, to: val })}
-                    placeholder={t('calcToPlaceholder') || 'ex: Munchen, DE'}
-                    className={styles.modalInput}
-                    required
-                  />
-                </div>
+                {validationError && (
+                  <div className={styles.errorBanner} role="alert">
+                    <span>⚠️</span>
+                    <span>{validationError}</span>
+                  </div>
+                )}
+
+                <div className={styles.step1Grid}>
+                  <div className={styles.field}>
+                    <label>{t('calcFrom')} *</label>
+                    <AddressAutocomplete
+                      value={formData.from}
+                      onChange={(val) => {
+                        setFormData(prev => ({ ...prev, from: val }));
+                        if (validationError && val.trim() && formData.to.trim()) setValidationError(null);
+                      }}
+                      placeholder={t('calcFromPlaceholder') || 'ex: București, RO'}
+                      className={`${styles.modalInput} ${attemptedSubmit && !formData.from.trim() ? styles.inputError : ''}`}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.field}>
+                    <label>{t('calcTo')} *</label>
+                    <AddressAutocomplete
+                      value={formData.to}
+                      onChange={(val) => {
+                        setFormData(prev => ({ ...prev, to: val }));
+                        if (validationError && val.trim() && formData.from.trim()) setValidationError(null);
+                      }}
+                      placeholder={t('calcToPlaceholder') || 'ex: Munchen, DE'}
+                      className={`${styles.modalInput} ${attemptedSubmit && !formData.to.trim() ? styles.inputError : ''}`}
+                      required
+                    />
+                  </div>
 
                 <div className={styles.field}>
                   <label>{t('calcType')}</label>
@@ -409,8 +464,9 @@ const Hero = () => {
                   {isSubmitting ? t('calcLoading') : t('calcSubmit')}
                 </button>
               </div>
-            )}
-          </form>
+            </>
+          )}
+        </form>
 
           {step === 2 && (
             <div className={styles.successBox}>
@@ -422,6 +478,21 @@ const Hero = () => {
               <h3 className={styles.successTitle}>
                 {getLabel("Oferta estimativă este gata!", "Estimated quote is ready!", "Geschatte offerte is klaar!", "Geschätztes Angebot ist bereit!", "Le devis estimatif est prêt!", "¡El presupuesto estimado está listo!", "Oferta szacunkowa gotowa!")}
               </h3>
+
+              <div className={styles.routeInfoBox}>
+                <div className={styles.routeRow}>
+                  <span className={styles.routeLabel}>{getLabel("Traseu", "Route", "Route", "Route", "Itinéraire", "Ruta", "Trasa")}:</span>
+                  <span className={styles.routeValue}>{formData.from} ➔ {formData.to}</span>
+                </div>
+                <div className={styles.routeRow}>
+                  <span className={styles.routeLabel}>{getLabel("Distanță estimată", "Estimated distance", "Geschatte afstand", "Geschätzte Entfernung", "Distance estimée", "Distancia estimada", "Szacowana odległość")}:</span>
+                  <span className={styles.routeValue}>{calculatedDistance} km</span>
+                </div>
+                <div className={styles.routeRow}>
+                  <span className={styles.routeLabel}>{getLabel("Regim", "Mode", "Modus", "Modus", "Mode", "Modo", "Tryb")}:</span>
+                  <span className={styles.routeValue}>{mode === 'express' ? getLabel("⚡ Express Freight", "⚡ Express Freight", "⚡ Express vracht", "⚡ Express Fracht", "⚡ Fret express", "⚡ Carga exprés", "⚡ Ekspres") : getLabel("🚛 Full Truckload (FTL)", "🚛 Full Truckload (FTL)", "🚛 Full Truckload (FTL)", "🚛 Full Truckload (FTL)", "🚛 Fret complet (FTL)", "🚛 Carga completa (FTL)", "🚛 Całopojazdowy (FTL)")}</span>
+                </div>
+              </div>
 
               <div className={styles.priceBox}>
                 <span className={styles.priceLabel}>

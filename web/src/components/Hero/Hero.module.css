@@ -119,6 +119,12 @@ input[type=range].range::-moz-range-thumb { width: 22px; height: 22px; border: 2
 .breakdownBlue { color: #305d81; background: #eff5fa; border-color: #d0dfec; }
 .breakdownGreen { color: #27644c; background: #eff7f1; border-color: #cfe3d7; }
 .breakdownPurple { color: #665084; background: #f6f2fa; border-color: #e0d6ed; }
+.modalPanel .inputError { border-color: #ef4444 !important; background-color: #fef2f2 !important; }
+.errorBanner { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 12px; color: #991b1b; font-size: 0.875rem; font-weight: 600; }
+.routeInfoBox { display: flex; flex-direction: column; gap: 8px; padding: 16px; background: #ffffff; border: 1px solid #dce3df; border-radius: 14px; text-align: left; }
+.routeRow { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; font-size: 0.85rem; }
+.routeLabel { color: #52616a; font-weight: 550; flex-shrink: 0; }
+.routeValue { color: #172630; font-weight: 700; text-align: right; word-break: break-word; }
 .modalPanel :is(button,a,input[type=range],input[type=checkbox]):focus-visible { outline: 2px solid #a83b10; outline-offset: 4px; }
 @media(max-width:600px) {
   .modalOverlay { padding: 8px; }

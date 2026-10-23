@@ -239,23 +239,30 @@ export class AppController {
     holidaySurcharge?: boolean;
   }) {
     try {
+      const from = body.from?.trim();
+      const to = body.to?.trim();
+      if (!from || !to) {
+        return {
+          success: false,
+          error: 'Adresa de preluare și adresa de livrare sunt obligatorii pentru calculul ofertei.'
+        };
+      }
+
       const settings = await this.getTariffSettings();
       let dist = body.distanceKm || 500;
       
       // Calculate real distance if origin and destination are provided
-      if (body.from && body.to) {
-        try {
-          const geoFrom = await this.routingService.geocode(body.from);
-          const geoTo = await this.routingService.geocode(body.to);
-          if (geoFrom && geoTo) {
-            const route = await this.routingService.calculateRoute(geoFrom.lat, geoFrom.lng, geoTo.lat, geoTo.lng);
-            if (route && route.distanceKm) {
-              dist = route.distanceKm;
-            }
+      try {
+        const geoFrom = await this.routingService.geocode(from);
+        const geoTo = await this.routingService.geocode(to);
+        if (geoFrom && geoTo) {
+          const route = await this.routingService.calculateRoute(geoFrom.lat, geoFrom.lng, geoTo.lat, geoTo.lng);
+          if (route && route.distanceKm) {
+            dist = Math.round(route.distanceKm);
           }
-        } catch (err) {
-          console.error('Error calculating real distance in calculate-quote:', err);
         }
+      } catch (err) {
+        console.error('Error calculating real distance in calculate-quote:', err);
       }
 
       const weight = body.weightKg || 5000;
@@ -355,8 +362,8 @@ export class AppController {
           holiday: holidayCost
         }
       };
-    } catch (e) {
-      return { success: false, error: e.toString() };
+    } catch (e: any) {
+      return { success: false, error: e?.toString() };
     }
   }
 }
