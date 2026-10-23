@@ -119,8 +119,8 @@ input[type=range].range::-moz-range-thumb { width: 22px; height: 22px; border: 2
 .breakdownBlue { color: #305d81; background: #eff5fa; border-color: #d0dfec; }
 .breakdownGreen { color: #27644c; background: #eff7f1; border-color: #cfe3d7; }
 .breakdownPurple { color: #665084; background: #f6f2fa; border-color: #e0d6ed; }
-.modalPanel .inputError { border-color: #ef4444 !important; background-color: #fef2f2 !important; }
-.errorBanner { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 12px; color: #991b1b; font-size: 0.875rem; font-weight: 600; }
+.modalPanel .inputError { border-color: #ef4444 !important; background-color: #fef2f2 !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important; }
+.errorBanner { width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: #fef2f2; border: 1.5px solid #ef4444; border-radius: 14px; color: #991b1b; font-size: 0.9rem; font-weight: 650; line-height: 1.5; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.12); }
 .routeInfoBox { display: flex; flex-direction: column; gap: 8px; padding: 16px; background: #ffffff; border: 1px solid #dce3df; border-radius: 14px; text-align: left; }
 .routeRow { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; font-size: 0.85rem; }
 .routeLabel { color: #52616a; font-weight: 550; flex-shrink: 0; }

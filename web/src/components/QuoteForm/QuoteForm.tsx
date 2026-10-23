@@ -118,6 +118,7 @@ const QuoteForm = () => {
             adrSurcharge: adr || prev.adrSurcharge,
             frigoSurcharge: frigo || prev.frigoSurcharge,
             urgentSurcharge: urgent || prev.urgentSurcharge,
+            isUrgent: urgent || prev.isUrgent,
             tailLiftSurcharge: tailLift || prev.tailLiftSurcharge,
             calculationTimestamp: Date.now()
           }));
@@ -192,7 +193,11 @@ const QuoteForm = () => {
     const { name, value, type } = e.target;
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({ ...prev, [name]: checked }));
+      if (name === 'urgentSurcharge') {
+        setFormData(prev => ({ ...prev, urgentSurcharge: checked, isUrgent: checked }));
+      } else {
+        setFormData(prev => ({ ...prev, [name]: checked }));
+      }
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -500,20 +505,13 @@ const QuoteForm = () => {
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
             <input type="checkbox" name="urgentSurcharge" checked={formData.urgentSurcharge} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)' }} />
-            ⚡ {getLabel("Express", "Express", "Spoed", "Express", "Express", "Exprés", "Ekspres")}
+            ⚡ {getLabel("Urgent", "Urgent", "Spoed", "Eiltransport", "Urgent", "Urgente", "Pilne")}
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
             <input type="checkbox" name="tailLiftSurcharge" checked={formData.tailLiftSurcharge} onChange={handleChange} style={{ width: '1.1rem', height: '1.1rem', accentColor: 'var(--primary)' }} />
             🏗️ {getLabel("Lift", "Tail-lift", "Laadklep", "Hebebühne", "Hayon", "Plataforma", "Winda")}
           </label>
         </div>
-      </div>
-
-      <div className={styles.formOptions}>
-        <label className={styles.checkboxLabel}>
-          <input type="checkbox" name="isUrgent" checked={formData.isUrgent} onChange={handleChange} />
-          <span className={styles.checkboxText}>{t('isUrgent')} 🚨</span>
-        </label>
       </div>
 
       <div className={styles.fullWidth}>

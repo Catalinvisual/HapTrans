@@ -190,7 +190,7 @@ const Hero = () => {
     {
       key: 'urgentSurcharge' as const,
       emoji: '⚡',
-      label: getLabel("Express", "Express", "Spoed", "Express", "Express", "Exprés", "Ekspres"),
+      label: getLabel("Urgent", "Urgent", "Spoed", "Eiltransport", "Urgent", "Urgente", "Pilne"),
     },
     {
       key: 'tailLiftSurcharge' as const,
@@ -325,9 +325,16 @@ const Hero = () => {
             </button>
           </div>
 
-          <form className={styles.calcForm} onSubmit={handleCalculate}>
+          <form className={styles.calcForm} onSubmit={handleCalculate} noValidate>
             {step === 1 && (
               <>
+                {validationError && (
+                  <div className={styles.errorBanner} role="alert">
+                    <span style={{ fontSize: '1.25rem' }}>⚠️</span>
+                    <span>{validationError}</span>
+                  </div>
+                )}
+
                 <div className={styles.tabs} role="tablist" aria-label="Transport mode">
                   <button
                     type="button"
@@ -348,13 +355,6 @@ const Hero = () => {
                     <span>🚛</span> {getLabel("Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Full Truckload (FTL)", "Carga completa (FTL)", "Full Truckload (FTL)")}
                   </button>
                 </div>
-
-                {validationError && (
-                  <div className={styles.errorBanner} role="alert">
-                    <span>⚠️</span>
-                    <span>{validationError}</span>
-                  </div>
-                )}
 
                 <div className={styles.step1Grid}>
                   <div className={styles.field}>
@@ -511,7 +511,7 @@ const Hero = () => {
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
                     {surchargesApplied.adr > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownAmber}`}>⚠️ {getLabel("ADR", "ADR", "ADR", "ADR", "ADR", "ADR", "ADR")}: +{fmtMoney(surchargesApplied.adr)}</span>}
                     {surchargesApplied.frigo > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownBlue}`}>❄️ {getLabel("Frigo", "Reefer", "Koeltransport", "Kühltransport", "Frigorifique", "Frigorífico", "Chłodnia")}: +{fmtMoney(surchargesApplied.frigo)}</span>}
-                    {surchargesApplied.urgent > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownGreen}`}>⚡ {getLabel("Express", "Express", "Spoed", "Express", "Express", "Exprés", "Ekspres")}: +{fmtMoney(surchargesApplied.urgent)}</span>}
+                    {surchargesApplied.urgent > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownGreen}`}>⚡ {getLabel("Urgent", "Urgent", "Spoed", "Eiltransport", "Urgent", "Urgente", "Pilne")}: +{fmtMoney(surchargesApplied.urgent)}</span>}
                     {surchargesApplied.tailLift > 0 && <span className={`${styles.breakdownChip} ${styles.breakdownPurple}`}>🏗️ {getLabel("Lift", "Tail-lift", "Laadklep", "Hebebühne", "Hayon", "Plataforma", "Winda")}: +{fmtMoney(surchargesApplied.tailLift)}</span>}
                   </div>
                 </div>

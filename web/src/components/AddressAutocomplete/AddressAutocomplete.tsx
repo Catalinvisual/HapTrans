@@ -81,7 +81,6 @@ export default function AddressAutocomplete({ value, onChange, placeholder, clas
         placeholder={placeholder}
         value={query}
         onChange={handleInputChange}
-        required={required}
         onFocus={() => { if (suggestions.length > 0) setIsOpen(true); }}
         autoComplete="off"
       />
