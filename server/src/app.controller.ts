@@ -251,6 +251,45 @@ export class AppController {
     }
   }
 
+  @Get('public/test-upload-invoice-pdf/:id')
+  async testUploadInvoicePdf(@Param('id') id: string) {
+    try {
+      const invs = await this.em.query('SELECT * FROM invoices WHERE id = $1', [id]);
+      if (!invs || invs.length === 0) return { error: 'Invoice not found' };
+      const inv = invs[0];
+      const invNum = inv.invoiceNumber || `INV-${id.substring(0,8)}`;
+      const cleanInvFile = `${invNum}.pdf`;
+
+      const samplePdfBase64 = 'data:application/pdf;base64,JVBERi0xLjQKJcTl8uXrp/OgCjEgMCBvYmoKPDwgL1R5cGUgL0NhdGFsb2cgL1BhZ2VzIDIgMCBSID4+CmVuZG9iagoyIDAgb2JqCjw8IC9UeXBlIC9QYWdlcyAvS2lkcyBbMyAwIFJdIC9Db3VudCAxID4+CmVuZG9iagozIDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNjEyIDc5Ml0gL0NvbnRlbnRzIDQgMCBSID4+CmVuZG9iago0IDAgb2JqCjw8IC9MZW5ndGggNDUgPj4Kc3RyZWFtCkJUCi9GMSAxMiBUZgoxMDAgNzAwIFRkCihGYWN0dXJhIFRlc3QgSU5WLTIwMjYtMDAwNDMpIFRqCkVNCmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDUKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE4IDAwMDAwIG4gCjAwMDAwMDAwNjggMDAwMDAgbiAKMDAwMDAwMDEyNSAwMDAwMCBuIAowMDAwMDAwMjE5IDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgNSAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKMzE0CiUlRU9GCg==';
+      
+      const cRes = await cloudinary.uploader.upload(samplePdfBase64, {
+        folder: 'hapcargo_invoices',
+        resource_type: 'raw',
+        format: 'pdf',
+        public_id: invNum,
+        overwrite: true,
+      });
+
+      await this.em.query(`
+        UPDATE invoices SET 
+          "pdfUrl" = $1,
+          "publicId" = $2,
+          "resourceType" = 'raw',
+          "cloudinaryType" = 'upload',
+          "format" = 'pdf',
+          "originalFilename" = $3,
+          "tnasDownloaded" = false,
+          "updatedAt" = now()
+        WHERE id = $4
+      `, [cRes.secure_url, cRes.public_id, cleanInvFile, id]);
+
+      const updated = await this.em.query('SELECT * FROM invoices WHERE id = $1', [id]);
+      return { success: true, uploaded: cRes, invoice: updated[0] };
+    } catch (e: any) {
+      return { success: false, error: e?.message };
+    }
+  }
+
   @Post('settings/company')
   @UseGuards(JwtAuthGuard)
   async saveCompanySettings(@Body() body: any) {
