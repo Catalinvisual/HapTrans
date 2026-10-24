@@ -522,15 +522,46 @@ export default function OrderWizard({
   };
 
   const handleNext = () => {
+    if (currentStep === 0) {
+      if (!isPortal && !form.clientId) {
+        toast.error(t('select_client_required', 'Vă rugăm să selectați un client înainte de a continua.'));
+        return;
+      }
+    }
     if (currentStep === 1) {
-      // Validate geocoding coordinates on stop step
+      // Validate pickup
+      if (!pickup.address?.trim()) {
+        toast.error(t('pickup_address_required', 'Adresa de preluare este obligatorie.'));
+        return;
+      }
       if (!pickup.latitude || !pickup.longitude) {
-        toast.error(t('pickup_no_gps', 'Pickup location does not have valid GPS coordinates. Please select an address from the list.'));
+        toast.error(t('pickup_no_gps', 'Locația de preluare nu are coordonate GPS valide. Vă rugăm să selectați o adresă din listă.'));
+        return;
+      }
+      if (!pickup.scheduledDate) {
+        toast.error(t('pickup_date_required', 'Data de preluare este obligatorie.'));
+        return;
+      }
+      // Validate dropoff
+      if (!dropoff.address?.trim()) {
+        toast.error(t('dropoff_address_required', 'Adresa de livrare este obligatorie.'));
         return;
       }
       if (!dropoff.latitude || !dropoff.longitude) {
-        toast.error(t('dropoff_no_gps', 'Delivery location does not have valid GPS coordinates. Please select an address from the list.'));
+        toast.error(t('dropoff_no_gps', 'Locația de livrare nu are coordonate GPS valide. Vă rugăm să selectați o adresă din listă.'));
         return;
+      }
+      if (!dropoff.scheduledDate) {
+        toast.error(t('dropoff_date_required', 'Data de livrare este obligatorie.'));
+        return;
+      }
+      // Validate intermediate stops
+      for (let i = 0; i < extraStops.length; i++) {
+        const s = extraStops[i];
+        if (!s.address?.trim() || !s.latitude || !s.longitude) {
+          toast.error(`${t('stop_address_required', 'Adresa pentru toate opririle intermediare este obligatorie.')} (${i + 1})`);
+          return;
+        }
       }
     }
     if (currentStep === 2) {
@@ -703,6 +734,46 @@ export default function OrderWizard({
     if (!pickup.latitude || !pickup.longitude || !dropoff.latitude || !dropoff.longitude) {
       toast.error(t('both_addresses_need_gps', 'Both addresses must have valid GPS coordinates (geocoded) to save the order.'));
       return;
+    }
+    if (!pickup.scheduledDate) {
+      toast.error(t('pickup_date_required', 'Data de preluare este obligatorie.'));
+      return;
+    }
+    if (!dropoff.scheduledDate) {
+      toast.error(t('dropoff_date_required', 'Data de livrare este obligatorie.'));
+      return;
+    }
+    for (let i = 0; i < extraStops.length; i++) {
+      const s = extraStops[i];
+      if (!s.address?.trim() || !s.latitude || !s.longitude) {
+        toast.error(`${t('stop_address_required', 'Adresa pentru toate opririle intermediare este obligatorie.')} (${i + 1})`);
+        return;
+      }
+    }
+    if (!cargoItems || cargoItems.length === 0) {
+      toast.error(t('cargo_desc_required', 'Descrierea mărfii este obligatorie.'));
+      return;
+    }
+    for (let idx = 0; idx < cargoItems.length; idx++) {
+      const c = cargoItems[idx];
+      if (!c.description?.trim()) {
+        toast.error(`${t('cargo_desc_required', 'Descrierea mărfii este obligatorie.')} (#${idx + 1})`);
+        return;
+      }
+      if (c.isAdr) {
+        if (!c.unNumber) {
+          toast.error(`${t('adr_un_required', 'Selectarea unei substanțe / cod UN este obligatorie pentru marfa ADR.')} (#${idx + 1})`);
+          return;
+        }
+        if (!c.adrPackagingCount || Number(c.adrPackagingCount) <= 0) {
+          toast.error(`${t('adr_packages_required', 'Numărul de colete este obligatoriu pentru marfa ADR.')} (#${idx + 1})`);
+          return;
+        }
+        if ((!c.adrVolumeLiters || Number(c.adrVolumeLiters) <= 0) && (!c.adrNetMassKg || Number(c.adrNetMassKg) <= 0) && (!c.weightKg || Number(c.weightKg) <= 0)) {
+          toast.error(`${t('adr_quantity_required', 'Introduceți volumul (L) sau masa (kg) pentru calculul ADR.')} (#${idx + 1})`);
+          return;
+        }
+      }
     }
     try {
       setLoading(true);
@@ -946,11 +1017,19 @@ export default function OrderWizard({
               <div className="bg-surface/40 p-5 rounded-xl border border-border space-y-4">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-text-secondary">{t("jsx_clientInformat")}</h3>
                 <div>
-                  <label className="block text-sm font-medium mb-1.5" htmlFor="wiz-client">{t("jsx_client")}</label>
-                  <ModalSelect id="wiz-client" value={form.clientId} onChange={v => setForm({
-                ...form,
-                clientId: v
-              })} options={clientOptions} placeholder="Select a client..." />
+                  <label className="block text-sm font-medium mb-1.5" htmlFor="wiz-client">
+                    {t("jsx_client")} <span className="text-red-500 font-bold">*</span>
+                  </label>
+                  <ModalSelect
+                    id="wiz-client"
+                    value={form.clientId}
+                    onChange={v => setForm({
+                      ...form,
+                      clientId: v
+                    })}
+                    options={clientOptions}
+                    placeholder={t('select_client_placeholder', 'Select a client...')}
+                  />
                 </div>
               </div>
               )}
@@ -1129,10 +1208,12 @@ export default function OrderWizard({
                       city: city || p.city,
                       country: country || p.country
                     }));
-                  }} className="input w-full bg-white dark:bg-card" placeholder="e.g. Supplier Warehouse" />
+                  }} className="input w-full bg-white dark:bg-card" placeholder={t('company_placeholder_pickup', 'e.g. Supplier Warehouse')} />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_fullAddress")}</label>
+                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">
+                        {t("jsx_fullAddress")} <span className="text-red-500 font-bold">*</span>
+                      </label>
                       <AddressAutocomplete value={pickup.address} onChange={val => setPickup({
                     ...pickup,
                     address: val
@@ -1145,7 +1226,7 @@ export default function OrderWizard({
                       latitude: lat || null,
                       longitude: lng || null
                     }));
-                  }} placeholder="Street, Number, Zip Code" className="input w-full bg-white dark:bg-card" required />
+                  }} placeholder={t('address_placeholder', 'Street, Number, Zip Code')} className="input w-full bg-white dark:bg-card" required />
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs font-semibold text-text-secondary">{t("jsx_geocoding")}</span>
                         {pickup.latitude && pickup.longitude ? <span className="text-xs font-semibold text-green-600 flex items-center gap-1">{t("jsx_Geocoded")}{pickup.latitude.toFixed(4)}, {pickup.longitude.toFixed(4)})
@@ -1158,38 +1239,50 @@ export default function OrderWizard({
                         <input type="text" value={pickup.contactPerson} onChange={e => setPickup({
                       ...pickup,
                       contactPerson: e.target.value
-                    })} className="input w-full bg-white dark:bg-card" placeholder="Name" />
+                    })} className="input w-full bg-white dark:bg-card" placeholder={t('contact_name_placeholder', 'Name')} />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_phoneNumber")}</label>
                         <input type="text" value={pickup.phone} onChange={e => setPickup({
                       ...pickup,
                       phone: e.target.value
-                    })} className="input w-full bg-white dark:bg-card" placeholder="Phone" />
+                    })} className="input w-full bg-white dark:bg-card" placeholder={t('contact_phone_placeholder', 'Phone')} />
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <CustomDatePicker label="Pickup Time Window (Min)" dateValue={pickup.scheduledDate} timeValue={pickup.scheduledTime || ''} onDateChange={v => setPickup({
-                    ...pickup,
-                    scheduledDate: v
-                  })} onTimeChange={v => setPickup({
-                    ...pickup,
-                    scheduledTime: v
-                  })} />
-                      <CustomDatePicker label="Pickup Time Window (Max)" dateValue={pickup.dateTo} timeValue={pickup.timeUntil || ''} onDateChange={v => setPickup({
-                    ...pickup,
-                    dateTo: v
-                  })} onTimeChange={v => setPickup({
-                    ...pickup,
-                    timeUntil: v
-                  })} />
+                      <CustomDatePicker
+                        label={<span className="flex items-center gap-1">{t('pickup_date_min', 'Pickup Time Window (Min)')} <span className="text-red-500 font-bold">*</span></span>}
+                        dateValue={pickup.scheduledDate}
+                        timeValue={pickup.scheduledTime || ''}
+                        onDateChange={v => setPickup({
+                          ...pickup,
+                          scheduledDate: v
+                        })}
+                        onTimeChange={v => setPickup({
+                          ...pickup,
+                          scheduledTime: v
+                        })}
+                      />
+                      <CustomDatePicker
+                        label={t('pickup_date_max', 'Pickup Time Window (Max)')}
+                        dateValue={pickup.dateTo}
+                        timeValue={pickup.timeUntil || ''}
+                        onDateChange={v => setPickup({
+                          ...pickup,
+                          dateTo: v
+                        })}
+                        onTimeChange={v => setPickup({
+                          ...pickup,
+                          timeUntil: v
+                        })}
+                      />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_referencePO")}</label>
                       <input type="text" value={pickup.reference} onChange={e => setPickup({
                     ...pickup,
                     reference: e.target.value
-                  })} className="input w-full bg-white dark:bg-card" placeholder="e.g. PO-99812 / Loading Instructions" />
+                  })} className="input w-full bg-white dark:bg-card" placeholder={t('pickup_ref_placeholder', 'e.g. PO-99812 / Loading Instructions')} />
                     </div>
                   </div>
                 </div>
@@ -1215,11 +1308,13 @@ export default function OrderWizard({
                   })} onSelectFull={(companyName, address, lat, lng, city, country) => {
                     handleExtraStopSelect(i, address, city, country, lat, lng);
                     handleExtraStopChange(i, { companyName });
-                  }} className="input w-full bg-white dark:bg-card" placeholder="e.g. Cross-dock warehouse" />
+                  }} className="input w-full bg-white dark:bg-card" placeholder={t('stop_company_placeholder', 'e.g. Cross-dock warehouse')} />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_fullAddress")}</label>
-                      <AddressAutocomplete value={stop.address} onChange={val => handleExtraStopChange(i, { address: val })} onSelectFull={(label, city, country, lat, lng) => handleExtraStopSelect(i, label, city, country, lat, lng)} placeholder="Street, Number, Zip Code" className="input w-full bg-white dark:bg-card" />
+                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">
+                        {t("jsx_fullAddress")} <span className="text-red-500 font-bold">*</span>
+                      </label>
+                      <AddressAutocomplete value={stop.address} onChange={val => handleExtraStopChange(i, { address: val })} onSelectFull={(label, city, country, lat, lng) => handleExtraStopSelect(i, label, city, country, lat, lng)} placeholder={t('address_placeholder', 'Street, Number, Zip Code')} className="input w-full bg-white dark:bg-card" />
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs font-semibold text-text-secondary">{t("jsx_geocoding")}</span>
                         {stop.latitude && stop.longitude ? <span className="text-xs font-semibold text-green-600 flex items-center gap-1">{t("jsx_Geocoded")}{stop.latitude.toFixed(4)}, {stop.longitude.toFixed(4)})
@@ -1227,12 +1322,12 @@ export default function OrderWizard({
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <CustomDatePicker label="Stop Time Window (Min)" dateValue={stop.scheduledDate} timeValue={stop.scheduledTime || ''} onDateChange={v => handleExtraStopChange(i, { scheduledDate: v })} onTimeChange={v => handleExtraStopChange(i, { scheduledTime: v })} />
-                      <CustomDatePicker label="Stop Time Window (Max)" dateValue={stop.dateTo} timeValue={stop.timeUntil || ''} onDateChange={v => handleExtraStopChange(i, { dateTo: v })} onTimeChange={v => handleExtraStopChange(i, { timeUntil: v })} />
+                      <CustomDatePicker label={t('stop_date_min', 'Stop Time Window (Min)')} dateValue={stop.scheduledDate} timeValue={stop.scheduledTime || ''} onDateChange={v => handleExtraStopChange(i, { scheduledDate: v })} onTimeChange={v => handleExtraStopChange(i, { scheduledTime: v })} />
+                      <CustomDatePicker label={t('stop_date_max', 'Stop Time Window (Max)')} dateValue={stop.dateTo} timeValue={stop.timeUntil || ''} onDateChange={v => handleExtraStopChange(i, { dateTo: v })} onTimeChange={v => handleExtraStopChange(i, { timeUntil: v })} />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_referencePO")}</label>
-                      <input type="text" value={stop.reference} onChange={e => handleExtraStopChange(i, { reference: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder="e.g. Reference / Instructions" />
+                      <input type="text" value={stop.reference} onChange={e => handleExtraStopChange(i, { reference: e.target.value })} className="input w-full bg-white dark:bg-card" placeholder={t('stop_ref_placeholder', 'e.g. Reference / Instructions')} />
                     </div>
                   </div>
                 </div>)}
@@ -1264,10 +1359,12 @@ export default function OrderWizard({
                       city: city || d.city,
                       country: country || d.country
                     }));
-                  }} className="input w-full bg-white dark:bg-card" placeholder="e.g. Client Destination" />
+                  }} className="input w-full bg-white dark:bg-card" placeholder={t('company_placeholder_delivery', 'e.g. Client Destination')} />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_fullAddress")}</label>
+                      <label className="block text-xs font-semibold text-text-secondary mb-1.5">
+                        {t("jsx_fullAddress")} <span className="text-red-500 font-bold">*</span>
+                      </label>
                       <AddressAutocomplete value={dropoff.address} onChange={val => setDropoff({
                     ...dropoff,
                     address: val
@@ -1280,7 +1377,7 @@ export default function OrderWizard({
                       latitude: lat || null,
                       longitude: lng || null
                     }));
-                  }} placeholder="Street, Number, Zip Code" className="input w-full bg-white dark:bg-card" required />
+                  }} placeholder={t('address_placeholder', 'Street, Number, Zip Code')} className="input w-full bg-white dark:bg-card" required />
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xs font-semibold text-text-secondary">{t("jsx_geocoding")}</span>
                         {dropoff.latitude && dropoff.longitude ? <span className="text-xs font-semibold text-green-600 flex items-center gap-1">{t("jsx_Geocoded")}{dropoff.latitude.toFixed(4)}, {dropoff.longitude.toFixed(4)})
@@ -1293,38 +1390,50 @@ export default function OrderWizard({
                         <input type="text" value={dropoff.contactPerson} onChange={e => setDropoff({
                       ...dropoff,
                       contactPerson: e.target.value
-                    })} className="input w-full bg-white dark:bg-card" placeholder="Name" />
+                    })} className="input w-full bg-white dark:bg-card" placeholder={t('contact_name_placeholder', 'Name')} />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_phoneNumber")}</label>
                         <input type="text" value={dropoff.phone} onChange={e => setDropoff({
                       ...dropoff,
                       phone: e.target.value
-                    })} className="input w-full bg-white dark:bg-card" placeholder="Phone" />
+                    })} className="input w-full bg-white dark:bg-card" placeholder={t('contact_phone_placeholder', 'Phone')} />
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <CustomDatePicker label="Delivery Time Window (Min)" dateValue={dropoff.scheduledDate} timeValue={dropoff.scheduledTime || ''} onDateChange={v => setDropoff({
-                    ...dropoff,
-                    scheduledDate: v
-                  })} onTimeChange={v => setDropoff({
-                    ...dropoff,
-                    scheduledTime: v
-                  })} />
-                      <CustomDatePicker label="Delivery Time Window (Max)" dateValue={dropoff.dateTo} timeValue={dropoff.timeUntil || ''} onDateChange={v => setDropoff({
-                    ...dropoff,
-                    dateTo: v
-                  })} onTimeChange={v => setDropoff({
-                    ...dropoff,
-                    timeUntil: v
-                  })} />
+                      <CustomDatePicker
+                        label={<span className="flex items-center gap-1">{t('delivery_date_min', 'Delivery Time Window (Min)')} <span className="text-red-500 font-bold">*</span></span>}
+                        dateValue={dropoff.scheduledDate}
+                        timeValue={dropoff.scheduledTime || ''}
+                        onDateChange={v => setDropoff({
+                          ...dropoff,
+                          scheduledDate: v
+                        })}
+                        onTimeChange={v => setDropoff({
+                          ...dropoff,
+                          scheduledTime: v
+                        })}
+                      />
+                      <CustomDatePicker
+                        label={t('delivery_date_max', 'Delivery Time Window (Max)')}
+                        dateValue={dropoff.dateTo}
+                        timeValue={dropoff.timeUntil || ''}
+                        onDateChange={v => setDropoff({
+                          ...dropoff,
+                          dateTo: v
+                        })}
+                        onTimeChange={v => setDropoff({
+                          ...dropoff,
+                          timeUntil: v
+                        })}
+                      />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_referenceUnl")}</label>
                       <input type="text" value={dropoff.reference} onChange={e => setDropoff({
                     ...dropoff,
                     reference: e.target.value
-                  })} className="input w-full bg-white dark:bg-card" placeholder="e.g. Gate 3 / Unloading Instructions" />
+                  })} className="input w-full bg-white dark:bg-card" placeholder={t('delivery_ref_placeholder', 'e.g. Gate 3 / Unloading Instructions')} />
                     </div>
                   </div>
                 </div>
@@ -1335,27 +1444,183 @@ export default function OrderWizard({
           {currentStep === 2 && <div className="space-y-4" style={{
           animation: 'stepIn 0.2s ease-out'
         }}>
-              <div className="mb-2 flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <h3 className="text-lg font-semibold text-text-primary">{t("jsx_cargoItems")}</h3>
-                  <p className="text-sm text-text-secondary">{t("jsx_whatAreWeTra")}</p>
-                </div>
-                {adrCargoItems.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleAddAdrCargo}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 dark:text-amber-200 border border-amber-500/30 text-xs font-bold transition-all shadow-sm"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-amber-600" />
-                    <span>{t('adr_add_another_un', '+ Add another UN Code to this Order')}</span>
-                  </button>
-                )}
+              <div className="mb-2">
+                <h3 className="text-lg font-semibold text-text-primary">{t("jsx_cargoItems")}</h3>
+                <p className="text-sm text-text-secondary">{t("jsx_whatAreWeTra")}</p>
+              </div>
+
+              <div className="space-y-3">
+                {cargoItems.map((cargo, index) => {
+                  const isHighlighted = Boolean(highlightSection && !isHighlightDismissed);
+                  const isWeightTarget = isHighlighted && (highlightSection === 'weight' || highlightSection === 'cargo');
+                  const isPalletsTarget = isHighlighted && (highlightSection === 'pallets' || highlightSection === 'quantity' || highlightSection === 'cargo');
+                  const isLdmTarget = isHighlighted && (highlightSection === 'ldm' || highlightSection === 'cargo');
+                  const isVolumeTarget = isHighlighted && (highlightSection === 'volume' || highlightSection === 'cargo');
+
+                  return (
+                    <div
+                      key={index}
+                      className="border border-border rounded-xl p-4 relative group bg-surface/50 transition-all"
+                    >
+                      {isHighlighted && (
+                        <div className="mb-3 flex items-center justify-between">
+                          <span className="text-[11px] font-black uppercase text-orange-600 bg-orange-500/20 px-2.5 py-0.5 rounded-full animate-bounce">
+                            ⚠️ Conflict Target — Adjust {highlightSection === 'weight' ? 'Weight (kg)' : highlightSection === 'ldm' ? 'LDM' : highlightSection === 'volume' ? 'Volume (m³)' : highlightSection === 'pallets' ? 'Quantity (Pallets)' : 'Cargo Specs'}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Header: Physical cargo dimensions for item */}
+                      <div className="flex items-center justify-between pb-2 mb-3 border-b border-border/60">
+                        <div className="flex items-center gap-2">
+                          <Package className="w-4 h-4 text-primary" />
+                          <span className="font-bold text-xs uppercase tracking-wider text-text-primary">
+                            {cargoItems.length > 1
+                              ? `${t('jsx_cargoItem', 'Cargo Item')} #${index + 1}`
+                              : t('order_cargo_main_header', 'Marfă Generală & Specificații Fizice')}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2.5">
+                          {cargo.isAdr && (
+                            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold uppercase bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1 shrink-0">
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                              {cargo.unNumber || 'ADR'}
+                            </span>
+                          )}
+                          {cargoItems.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveCargo(index)}
+                              className="px-2.5 py-1 text-xs font-semibold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg transition-colors flex items-center gap-1.5 shrink-0"
+                              title={t('jsx_removeCargoItem', 'Remove cargo item')}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>{t('btn_delete', 'Șterge')}</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
+                        <div className="col-span-2">
+                          <label className="block text-xs font-semibold text-text-secondary mb-1.5">
+                            {t("jsx_cargoDescripti")} <span className="text-red-500 font-bold">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={cargo.description}
+                            onChange={e => handleCargoChange(index, 'description', e.target.value)}
+                            className="input w-full"
+                            placeholder={t('cargo_desc_placeholder', 'e.g. Pallets of electronics')}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-text-secondary mb-1.5 flex items-center justify-between">
+                            <span className="inline-flex items-center gap-1.5"><PalletIcon className="w-3.5 h-3.5" />{t("cargo_quantity", "Cantitate")}</span>
+                            {isPalletsTarget && <span className="text-[9px] text-orange-500 font-bold uppercase">Target</span>}
+                          </label>
+                          <input
+                            type="number"
+                            value={cargo.quantity != null ? cargo.quantity : ''}
+                            onChange={e => handleCargoChange(index, 'quantity', e.target.value)}
+                            className={`input w-full transition-all ${isPalletsTarget ? 'border-2 border-orange-500 ring-4 ring-orange-500/50 shadow-md shadow-orange-500/30 animate-pulse font-bold' : ''}`}
+                            min="1"
+                            placeholder="1"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("cargo_unit_type", "Tip unitate")}</label>
+                          <ModalSelect value={cargo.unit || 'pallet'} onChange={v => handleCargoChange(index, 'unit', v)} options={unitOptions} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-text-secondary mb-1.5 flex items-center justify-between">
+                            <span className="inline-flex items-center gap-1.5"><WeightKgIcon className="w-3.5 h-3.5" />{t("cargo_weight_kg", "Greutate (kg)")}</span>
+                            {isWeightTarget && <span className="text-[9px] text-orange-500 font-bold uppercase">Target</span>}
+                          </label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={cargo.weightKg || ''}
+                            onChange={e => handleCargoChange(index, 'weightKg', e.target.value)}
+                            className={`input w-full transition-all ${isWeightTarget ? 'border-2 border-orange-500 ring-4 ring-orange-500/50 shadow-md shadow-orange-500/30 animate-pulse font-bold' : ''}`}
+                            placeholder="0"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-text-secondary mb-1.5 flex items-center justify-between">
+                            <span>{t("cargo_volume_cbm", "Volum (m³)")}</span>
+                            {isVolumeTarget && <span className="text-[9px] text-orange-500 font-bold uppercase">Target</span>}
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={cargo.volumeCbm || ''}
+                            onChange={e => handleCargoChange(index, 'volumeCbm', e.target.value)}
+                            className={`input w-full transition-all ${isVolumeTarget ? 'border-2 border-orange-500 ring-4 ring-orange-500/50 shadow-md shadow-orange-500/30 animate-pulse font-bold' : ''}`}
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-text-secondary mb-1.5 flex items-center justify-between">
+                            <span>{t("cargo_ldm", "LDM")}</span>
+                            {isLdmTarget && <span className="text-[9px] text-orange-500 font-bold uppercase">Target</span>}
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={cargo.ldm || ''}
+                            onChange={e => handleCargoChange(index, 'ldm', e.target.value)}
+                            className={`input w-full transition-all ${isLdmTarget ? 'border-2 border-orange-500 ring-4 ring-orange-500/50 shadow-md shadow-orange-500/30 animate-pulse font-bold' : ''}`}
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 pt-3 border-t border-border/40">
+                      <div>
+                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_cargoDimension")}</label>
+                        <div className="grid grid-cols-3 gap-1">
+                          <input type="number" value={cargo.lengthCm || ''} onChange={e => handleCargoChange(index, 'lengthCm', e.target.value)} className="input p-1 text-center" placeholder={t('dim_l', 'L')} />
+                          <input type="number" value={cargo.widthCm || ''} onChange={e => handleCargoChange(index, 'widthCm', e.target.value)} className="input p-1 text-center" placeholder={t('dim_w', 'W')} />
+                          <input type="number" value={cargo.heightCm || ''} onChange={e => handleCargoChange(index, 'heightCm', e.target.value)} className="input p-1 text-center" placeholder={t('dim_h', 'H')} />
+                        </div>
+                      </div>
+                      <div className="flex flex-col justify-center">
+                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-text-secondary">
+                          <input type="checkbox" checked={cargo.stackable} onChange={e => handleCargoChange(index, 'stackable', e.target.checked)} className="checkbox" />
+                          <span>{t("jsx_stackable")}</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-text-secondary mt-1">
+                          <input type="checkbox" checked={cargo.fragile} onChange={e => handleCargoChange(index, 'fragile', e.target.checked)} className="checkbox" />
+                          <span>{t("jsx_fragile")}</span>
+                        </label>
+                      </div>
+                      <div className="border-l border-border/60 pl-3">
+                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-text-secondary">
+                          <input type="checkbox" checked={cargo.isTemperatureControlled} onChange={e => handleCargoChange(index, 'isTemperatureControlled', e.target.checked)} className="checkbox" />
+                          <span>{t("jsx_tempControlled")}</span>
+                        </label>
+                        {cargo.isTemperatureControlled && <input type="number" step="0.5" value={cargo.requiredTemperature || ''} onChange={e => handleCargoChange(index, 'requiredTemperature', e.target.value)} className="input p-1 text-xs mt-1 w-full" placeholder={t('temp_c_placeholder', 'Temp °C')} />}
+                      </div>
+                    </div>
+
+                    {/* ADR Hazardous Goods Section */}
+                    <div className="mt-4 pt-4 border-t border-border/60">
+                      <AdrCargoSection
+                        item={cargo}
+                        onChange={(patch) => handleCargoPatch(index, patch)}
+                        isPortal={isPortal}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
               </div>
 
               {/* Order-Level Composite ADR Assessment Banner */}
               {adrCargoItems.length > 0 && (
-                <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-orange-500/10 border border-amber-500/40 rounded-2xl p-4 shadow-sm animate-in fade-in">
-                  <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-orange-500/10 border border-amber-500/40 rounded-2xl p-4 shadow-sm animate-in fade-in space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2">
                       <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                       <span className="font-bold text-xs text-amber-950 dark:text-amber-200">
@@ -1378,11 +1643,11 @@ export default function OrderWizard({
 
                   {/* Badges for each UN code in the order */}
                   {classifiedAdrItems.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1.5 my-2">
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-amber-500/20">
                       {classifiedAdrItems.map((item: any, idx: number) => (
                         <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-card/80 border border-border/70 text-[11px] font-mono">
                           <span className="font-black text-amber-600 dark:text-amber-400">{item.unNumber}</span>
-                          <span className="truncate max-w-[120px] text-text-secondary">{item.properShippingName}</span>
+                          <span className="truncate max-w-[140px] text-text-secondary">{item.properShippingName}</span>
                           <span className="text-text-muted">· Cls {item.adrClass}</span>
                         </span>
                       ))}
@@ -1390,7 +1655,7 @@ export default function OrderWizard({
                   )}
 
                   {/* Composite Status verdict */}
-                  <div className="mt-2 text-xs font-semibold">
+                  <div className="text-xs font-semibold">
                     {compositeAdr.isExempt1136 ? (
                       <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -1410,166 +1675,26 @@ export default function OrderWizard({
                   </div>
                 </div>
               )}
-              <div className="space-y-3">
-                {cargoItems.map((cargo, index) => {
-                  const isHighlighted = Boolean(highlightSection && !isHighlightDismissed);
-                  const isWeightTarget = isHighlighted && (highlightSection === 'weight' || highlightSection === 'cargo');
-                  const isPalletsTarget = isHighlighted && (highlightSection === 'pallets' || highlightSection === 'quantity' || highlightSection === 'cargo');
-                  const isLdmTarget = isHighlighted && (highlightSection === 'ldm' || highlightSection === 'cargo');
-                  const isVolumeTarget = isHighlighted && (highlightSection === 'volume' || highlightSection === 'cargo');
 
-                  return (
-                    <div
-                      key={index}
-                      className="border border-border rounded-xl p-4 relative group bg-surface/50 transition-all"
-                    >
-                      {isHighlighted && (
-                        <div className="mb-3 flex items-center justify-between">
-                          <span className="text-[11px] font-black uppercase text-orange-600 bg-orange-500/20 px-2.5 py-0.5 rounded-full animate-bounce">
-                            ⚠️ Conflict Target — Adjust {highlightSection === 'weight' ? 'Weight (kg)' : highlightSection === 'ldm' ? 'LDM' : highlightSection === 'volume' ? 'Volume (m³)' : highlightSection === 'pallets' ? 'Quantity (Pallets)' : 'Cargo Specs'}
-                          </span>
-                        </div>
-                      )}
-                      {cargoItems.length > 1 && <button type="button" onClick={() => handleRemoveCargo(index)} className="absolute top-3 right-3 p-1.5 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>}
-
-                      {/* Header 1: Physical cargo dimensions for whole order */}
-                      <div className="flex items-center justify-between pb-2 mb-3 border-b border-border/60">
-                        <div className="flex items-center gap-2">
-                          <Package className="w-4 h-4 text-primary" />
-                          <span className="font-bold text-xs uppercase tracking-wider text-text-primary">
-                            {t('order_cargo_main_header', '1. Marfă Generală & Specificații Fizice (Comandă Totală)')}
-                            {cargoItems.length > 1 && ` — #${index + 1}`}
-                          </span>
-                        </div>
-                        {cargo.isAdr && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                            <AlertTriangle className="w-3 h-3 text-amber-500" />
-                            {cargo.unNumber || 'ADR'}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
-                        <div className="col-span-2">
-                          <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_cargoDescripti")}</label>
-                          <input type="text" value={cargo.description} onChange={e => handleCargoChange(index, 'description', e.target.value)} className="input w-full" placeholder="e.g. Pallets of electronics" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-text-secondary mb-1.5 flex items-center justify-between">
-                            <span className="inline-flex items-center gap-1.5"><PalletIcon className="w-3.5 h-3.5" />{t("jsx_quantityOptio")}</span>
-                            {isPalletsTarget && <span className="text-[9px] text-orange-500 font-bold uppercase">Target</span>}
-                          </label>
-                          <input
-                            type="number"
-                            value={cargo.quantity != null ? cargo.quantity : ''}
-                            onChange={e => handleCargoChange(index, 'quantity', e.target.value)}
-                            className={`input w-full transition-all ${isPalletsTarget ? 'border-2 border-orange-500 ring-4 ring-orange-500/50 shadow-md shadow-orange-500/30 animate-pulse font-bold' : ''}`}
-                            min="1"
-                            placeholder="Optional"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_unitTypeOpti")}</label>
-                          <ModalSelect value={cargo.unit || 'pallet'} onChange={v => handleCargoChange(index, 'unit', v)} options={unitOptions} />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-text-secondary mb-1.5 flex items-center justify-between">
-                            <span className="inline-flex items-center gap-1.5"><WeightKgIcon className="w-3.5 h-3.5" />{t("jsx_weightKgOp")}</span>
-                            {isWeightTarget && <span className="text-[9px] text-orange-500 font-bold uppercase">Target</span>}
-                          </label>
-                          <input
-                            type="number"
-                            step="0.1"
-                            value={cargo.weightKg || ''}
-                            onChange={e => handleCargoChange(index, 'weightKg', e.target.value)}
-                            className={`input w-full transition-all ${isWeightTarget ? 'border-2 border-orange-500 ring-4 ring-orange-500/50 shadow-md shadow-orange-500/30 animate-pulse font-bold' : ''}`}
-                            placeholder="Optional"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-text-secondary mb-1.5 flex items-center justify-between">
-                            <span>{t("jsx_volumeMOp")}</span>
-                            {isVolumeTarget && <span className="text-[9px] text-orange-500 font-bold uppercase">Target</span>}
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={cargo.volumeCbm || ''}
-                            onChange={e => handleCargoChange(index, 'volumeCbm', e.target.value)}
-                            className={`input w-full transition-all ${isVolumeTarget ? 'border-2 border-orange-500 ring-4 ring-orange-500/50 shadow-md shadow-orange-500/30 animate-pulse font-bold' : ''}`}
-                            placeholder="Optional"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-text-secondary mb-1.5 flex items-center justify-between">
-                            <span>{t("jsx_lDMOptional")}</span>
-                            {isLdmTarget && <span className="text-[9px] text-orange-500 font-bold uppercase">Target</span>}
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={cargo.ldm || ''}
-                            onChange={e => handleCargoChange(index, 'ldm', e.target.value)}
-                            className={`input w-full transition-all ${isLdmTarget ? 'border-2 border-orange-500 ring-4 ring-orange-500/50 shadow-md shadow-orange-500/30 animate-pulse font-bold' : ''}`}
-                            placeholder="Optional"
-                          />
-                        </div>
-                      </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 pt-3 border-t border-border/40">
-                      <div>
-                        <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_cargoDimension")}</label>
-                        <div className="grid grid-cols-3 gap-1">
-                          <input type="number" value={cargo.lengthCm || ''} onChange={e => handleCargoChange(index, 'lengthCm', e.target.value)} className="input p-1 text-center" placeholder="L" />
-                          <input type="number" value={cargo.widthCm || ''} onChange={e => handleCargoChange(index, 'widthCm', e.target.value)} className="input p-1 text-center" placeholder="W" />
-                          <input type="number" value={cargo.heightCm || ''} onChange={e => handleCargoChange(index, 'heightCm', e.target.value)} className="input p-1 text-center" placeholder="H" />
-                        </div>
-                      </div>
-                      <div className="flex flex-col justify-center">
-                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-text-secondary">
-                          <input type="checkbox" checked={cargo.stackable} onChange={e => handleCargoChange(index, 'stackable', e.target.checked)} className="checkbox" />
-                          <span>{t("jsx_stackable")}</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-text-secondary mt-1">
-                          <input type="checkbox" checked={cargo.fragile} onChange={e => handleCargoChange(index, 'fragile', e.target.checked)} className="checkbox" />
-                          <span>{t("jsx_fragile")}</span>
-                        </label>
-                      </div>
-                      <div className="border-l border-border/60 pl-3">
-                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-text-secondary">
-                          <input type="checkbox" checked={cargo.isTemperatureControlled} onChange={e => handleCargoChange(index, 'isTemperatureControlled', e.target.checked)} className="checkbox" />
-                          <span>{t("jsx_tempControlled")}</span>
-                        </label>
-                        {cargo.isTemperatureControlled && <input type="number" step="0.5" value={cargo.requiredTemperature || ''} onChange={e => handleCargoChange(index, 'requiredTemperature', e.target.value)} className="input p-1 text-xs mt-1 w-full" placeholder="Temp °C" />}
-                      </div>
-                    </div>
-
-                    {/* ADR Hazardous Goods Section */}
-                    <div className="mt-4 pt-4 border-t border-dashed border-border/80">
-                      <div className="flex items-center gap-2 mb-2">
-                        <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                        <span className="font-bold text-xs uppercase tracking-wider text-amber-900 dark:text-amber-200">
-                          {t('adr_section_header', '2. Marfă Periculoasă ADR (Specific Codului UN)')}
-                        </span>
-                      </div>
-                      <AdrCargoSection
-                        item={cargo}
-                        onChange={(patch) => handleCargoPatch(index, patch)}
-                        isPortal={isPortal}
-                        onAddAnotherAdr={handleAddAdrCargo}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-              </div>
               <div className="flex flex-col sm:flex-row gap-2.5">
-                <button type="button" onClick={handleAddCargo} className="flex-1 py-3 border-2 border-dashed border-border rounded-xl text-text-secondary hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center gap-2 font-medium text-xs">
-                  <Plus className="w-4 h-4" />{t("jsx_addCargoItem")}</button>
-                <button type="button" onClick={handleAddAdrCargo} className="flex-1 py-3 border-2 border-dashed border-amber-500/40 hover:border-amber-500 rounded-xl text-amber-800 dark:text-amber-200 hover:bg-amber-500/10 transition-all flex items-center justify-center gap-2 font-bold text-xs shadow-sm">
-                  <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400" />{t("adr_add_another_un", "+ Add another UN Code / Dangerous Goods Item to this Order")}</button>
+                <button
+                  type="button"
+                  onClick={handleAddCargo}
+                  className="flex-1 py-3 border-2 border-dashed border-border rounded-xl text-text-secondary hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center gap-2 font-medium text-xs"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>{t("jsx_addCargoItem")}</span>
+                </button>
+                {adrCargoItems.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleAddAdrCargo}
+                    className="flex-1 py-3 border-2 border-dashed border-amber-500/40 hover:border-amber-500 rounded-xl text-amber-800 dark:text-amber-200 hover:bg-amber-500/10 transition-all flex items-center justify-center gap-2 font-bold text-xs shadow-sm"
+                  >
+                    <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <span>{t("adr_add_another_un", "Add another UN Code / Dangerous Goods Item to this Order")}</span>
+                  </button>
+                )}
               </div>
 
               {/* ============ COST ESTIMATOR ============ */}

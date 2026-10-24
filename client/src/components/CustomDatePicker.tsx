@@ -8,7 +8,7 @@ interface CustomDatePickerProps {
   timeValue: string; // HH:mm
   onDateChange: (date: string) => void;
   onTimeChange: (time: string) => void;
-  label?: string;
+  label?: React.ReactNode;
 }
 
 

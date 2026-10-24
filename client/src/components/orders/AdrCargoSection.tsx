@@ -16,7 +16,6 @@ import {
   Package,
   X,
   Sparkles,
-  Plus,
   SlidersHorizontal
 } from 'lucide-react';
 import api from '../../lib/api';
@@ -69,7 +68,6 @@ interface AdrCargoSectionProps {
   item: AdrCargoItemData;
   onChange: (patch: Partial<AdrCargoItemData>) => void;
   isPortal?: boolean;
-  onAddAnotherAdr?: () => void;
 }
 
 // Quick selection presets for frequent dangerous goods with language-specific proper shipping names
@@ -166,7 +164,7 @@ const QUICK_PRESETS = [
   }
 ];
 
-export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange, isPortal: _isPortal, onAddAnotherAdr }) => {
+export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange, isPortal: _isPortal }) => {
   const { t, i18n } = useTranslation();
   const currentLang = (i18n.language || 'en').toLowerCase().split('-')[0];
 
@@ -451,7 +449,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
   };
 
   return (
-    <div className="mt-4 border-t border-border/80 pt-4">
+    <div className="space-y-3">
       {/* 1. Header Activation Toggle Card */}
       <div className={`p-4 rounded-2xl border transition-all duration-300 ${
         item.isAdr
@@ -703,14 +701,14 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                   {/* 1. Number of Packages/Boxes */}
                   <div>
                     <label className="block text-[11px] font-bold text-text-primary mb-1">
-                      {t('adr_pkg_count', 'Număr de colete / cutii')} <span className="text-red-500">*</span>
+                      {t('adr_pkg_count', 'Număr de colete / cutii')} <span className="text-red-500 font-bold">*</span>
                     </label>
                     <input
                       type="number"
                       min="1"
                       value={item.adrPackagingCount || ''}
                       onChange={e => onChange({ adrPackagingCount: e.target.value ? parseInt(e.target.value) : undefined })}
-                      placeholder="ex: 20 cutii / bidoane"
+                      placeholder={t('adr_pkg_count_placeholder', 'ex: 20 colete / bidoane')}
                       className="input w-full font-bold text-xs bg-card"
                     />
                     <span className="text-[10px] text-text-secondary mt-0.5 block">
@@ -727,7 +725,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                       type="text"
                       value={item.adrPackagingDescription || ''}
                       onChange={e => onChange({ adrPackagingDescription: e.target.value })}
-                      placeholder="ex: Cutii 4G, Butoaie 1A1, IBC"
+                      placeholder={t('adr_pkg_type_placeholder', 'ex: Cutii 4G, Butoaie 1A1, IBC')}
                       className="input w-full text-xs bg-card"
                     />
                     <span className="text-[10px] text-text-secondary mt-0.5 block">
@@ -747,7 +745,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                       min="0"
                       value={item.adrVolumeLiters || ''}
                       onChange={e => onChange({ adrVolumeLiters: e.target.value })}
-                      placeholder="ex: 500 L"
+                      placeholder={t('adr_volume_placeholder', 'ex: 500 L')}
                       className="input w-full font-bold text-xs bg-card border-amber-500/40"
                     />
                     <span className="text-[10px] text-text-secondary mt-0.5 block">
@@ -767,7 +765,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                       min="0"
                       value={item.adrNetMassKg || ''}
                       onChange={e => onChange({ adrNetMassKg: e.target.value })}
-                      placeholder="ex: 250 kg"
+                      placeholder={t('adr_mass_placeholder', 'ex: 250 kg')}
                       className="input w-full font-bold text-xs bg-card border-amber-500/40"
                     />
                     <span className="text-[10px] text-text-secondary mt-0.5 block">
@@ -805,7 +803,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                         min="0"
                         value={item.netExplosiveMassKg || ''}
                         onChange={e => onChange({ netExplosiveMassKg: e.target.value })}
-                        placeholder="NEM în kg (Clasa 1)"
+                        placeholder={t('adr_nem_placeholder', 'NEM in kg (Class 1)')}
                         className="input w-full font-bold text-xs bg-card"
                       />
                     </div>
@@ -822,7 +820,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                         min="0"
                         value={item.receptacleCapacityLiters || ''}
                         onChange={e => onChange({ receptacleCapacityLiters: e.target.value })}
-                        placeholder="Capacitate în L (Gaze)"
+                        placeholder={t('adr_gas_capacity_placeholder', 'Capacity in L (Gases)')}
                         className="input w-full font-bold text-xs bg-card"
                       />
                     </div>
@@ -1401,21 +1399,6 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                   </div>
                 </div>
               )}
-
-              {/* Action Button: Add another UN Code to this order */}
-              {onAddAnotherAdr && (
-                <div className="mt-3 pt-3 border-t border-border/50 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={onAddAnotherAdr}
-                    className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 dark:text-amber-200 border border-amber-500/30 text-xs font-bold transition-all shadow-sm"
-                  >
-                    <Plus className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                    <span>{t('adr_add_another_un', '+ Add another UN Code / Dangerous Goods Item to this Order')}</span>
-                  </button>
-                </div>
-              )}
-
             </div>
           )}
 
