@@ -143,19 +143,24 @@ export class AppController {
       await this.em.query(`UPDATE "invoices" SET "createdAt" = now() WHERE "createdAt" IS NULL`).catch(() => {});
       await this.em.query(`UPDATE "invoices" SET "updatedAt" = now() WHERE "updatedAt" IS NULL`).catch(() => {});
 
-      await this.em.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "tnasDownloaded" DROP DEFAULT`).catch(() => {});
-      await this.em.query(`
-        ALTER TABLE IF EXISTS "invoices" 
-        ALTER COLUMN "tnasDownloaded" TYPE boolean 
-        USING (
-          CASE 
-            WHEN "tnasDownloaded"::text IN ('true', 't', '1') THEN true 
-            ELSE false 
-          END
-        )
-      `).catch(() => {});
-      await this.em.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "tnasDownloaded" SET DEFAULT false`).catch(() => {});
-      await this.em.query(`UPDATE "invoices" SET "tnasDownloaded" = false WHERE "tnasDownloaded" IS NULL`).catch(() => {});
+      let alterError: any = null;
+      try {
+        await this.em.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "tnasDownloaded" DROP DEFAULT`);
+        await this.em.query(`
+          ALTER TABLE IF EXISTS "invoices" 
+          ALTER COLUMN "tnasDownloaded" TYPE boolean 
+          USING (
+            CASE 
+              WHEN "tnasDownloaded"::text IN ('true', 't', '1') THEN true 
+              ELSE false 
+            END
+          )
+        `);
+        await this.em.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "tnasDownloaded" SET DEFAULT false`);
+        await this.em.query(`UPDATE "invoices" SET "tnasDownloaded" = false WHERE "tnasDownloaded" IS NULL`);
+      } catch (aErr: any) {
+        alterError = { message: aErr?.message, detail: aErr?.detail };
+      }
 
       const countRes = await this.em.query('SELECT COUNT(*) as count FROM invoices');
       const tnasColTypes = await this.em.query(`
@@ -187,6 +192,8 @@ export class AppController {
       }
 
       return {
+        buildCommit: 'd16dd8b-debug',
+        alterError,
         totalInDb: parseInt(countRes[0]?.count || '0', 10),
         hasTnasKey: !!process.env.TNAS_API_KEY,
         tnasKeyLength: process.env.TNAS_API_KEY?.length,
