@@ -57,7 +57,7 @@ export class OrdersService {
 
   findAll(status?: string) {
     const findOptions: any = { 
-      relations: ['client', 'stops', 'cargoItems', 'trip', 'trip.truck', 'trip.trailer', 'trip.driver', 'trip.driver.user'],
+      relations: ['client', 'stops', 'cargoItems', 'trip', 'trip.truck', 'trip.trailer', 'trip.driver', 'trip.driver.user', 'createdBy'],
       relationLoadStrategy: 'query',
       order: { createdAt: 'DESC' }
     };
@@ -71,7 +71,7 @@ export class OrdersService {
   findOne(id: string) {
     return this.repo.findOne({ 
       where: { id }, 
-      relations: ['client', 'stops', 'cargoItems', 'trip', 'trip.truck', 'trip.trailer', 'trip.driver', 'trip.driver.user'] 
+      relations: ['client', 'stops', 'cargoItems', 'trip', 'trip.truck', 'trip.trailer', 'trip.driver', 'trip.driver.user', 'createdBy'] 
     });
   }
 
@@ -186,6 +186,7 @@ export class OrdersService {
         id: orderId,
         company: dto.companyId ? { id: dto.companyId } as any : null,
         client: dto.clientId ? { id: dto.clientId } as any : null,
+        createdBy: user?.id ? { id: user.id } as any : null,
         orderNumber,
         trackingToken,
         createdAt: now,
@@ -301,11 +302,19 @@ export class OrdersService {
             firstStop.latitude, firstStop.longitude,
             lastStop.latitude, lastStop.longitude
           );
-          if (routeResult) {
-            const estimatedCost = dto.estimatedCost !== undefined ? dto.estimatedCost : (routeResult.tollCost || 0);
-            const estimatedProfit = dto.estimatedProfit !== undefined ? dto.estimatedProfit : ((safeNum(dto.price) || 0) - estimatedCost);
+          if (routeResult && routeResult.distanceKm) {
+            // Standard fuel consumption: 32L/100km @ 1.65 EUR/L + toll costs
+            const fuelCost = (routeResult.distanceKm / 100) * 32 * 1.65;
+            const computedCost = Math.round((fuelCost + (Number((routeResult as any).tollCost) || 0)) * 100) / 100;
+            const priceVal = safeNum(finalPrice) ?? 0;
+            const estimatedCost = (dto.estimatedCost !== undefined && dto.estimatedCost !== null)
+              ? safeNum(dto.estimatedCost)
+              : computedCost;
+            const estimatedProfit = (dto.estimatedProfit !== undefined && dto.estimatedProfit !== null)
+              ? safeNum(dto.estimatedProfit)
+              : Math.round((priceVal - (estimatedCost ?? 0)) * 100) / 100;
             await this.repo.update(savedOrder.id, {
-              distanceKm: routeResult.distanceKm,
+              distanceKm: Math.round(routeResult.distanceKm * 100) / 100,
               estimatedCost: estimatedCost,
               estimatedProfit: estimatedProfit,
             } as any);
@@ -509,6 +518,13 @@ export class OrdersService {
 
       // Re-evaluate ADR status and 1,000 points calculation on update
       await this.evaluateAndSaveAdr(id);
+
+      if (dto.stops || dto.price !== undefined) {
+        if (dto.estimatedCost === undefined || dto.estimatedCost === null) {
+          const fresh = await this.findOne(id);
+          if (fresh) await this.estimateCostsForOrder(fresh);
+        }
+      }
 
       const fullOrder = await this.findOne(id);
       this.eventEmitter.emit('order.updated', fullOrder);

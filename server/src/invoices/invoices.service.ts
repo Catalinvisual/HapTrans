@@ -28,9 +28,14 @@ async function deleteFromCloudinary(fileUrl: string) {
   }
 }
 
+import { ActionLogsService } from '../action-logs/action-logs.service';
+
 @Injectable()
 export class InvoicesService implements OnModuleInit {
-  constructor(@InjectRepository(Invoice) private repo: Repository<Invoice>) {}
+  constructor(
+    @InjectRepository(Invoice) private repo: Repository<Invoice>,
+    private actionLogs: ActionLogsService,
+  ) {}
 
   private async buildInvoiceItemsAndTotals(inv: Invoice, dto: any, tripRepo: Repository<Trip>) {
     const amount = dto.amount !== undefined ? Number(dto.amount) : Number(inv.amount || 0);
@@ -179,27 +184,54 @@ export class InvoicesService implements OnModuleInit {
   findAll() { return this.repo.find({ relations: ['client', 'trip', 'items'], order: { createdAt: 'DESC' } }); }
   findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['client', 'trip', 'items'] }); }
 
-  async create(dto: any) {
+  async create(dto: any, user?: any) {
     const payload: any = { ...dto, invoiceNumber: `INV-${Date.now()}` };
     if (dto.clientId) payload.client = { id: dto.clientId };
     if (dto.tripId) payload.trip = { id: dto.tripId };
     const inv = this.repo.create(payload) as any;
     const saved = await this.repo.save(inv);
+    if (user && saved?.id) {
+      try {
+        await this.actionLogs.logAction('Invoice', saved.id, 'CREATED', user, { invoiceNumber: saved.invoiceNumber });
+        if (dto.tripId) {
+          await this.actionLogs.logAction('Trip', dto.tripId, 'INVOICE_GENERATED', user, { invoiceNumber: saved.invoiceNumber });
+        }
+      } catch (err: any) {
+        console.warn('Action log failed for invoice:', err?.message);
+      }
+    }
     return this.findOne(saved.id);
   }
 
-  async approve(id: string) {
+  async approve(id: string, user?: any) {
     const inv = await this.repo.findOne({ where: { id } });
     if (!inv) throw new BadRequestException('Invoice not found');
     inv.status = InvoiceStatus.APPROVED;
-    return this.repo.save(inv);
+    const saved = await this.repo.save(inv);
+    if (user) {
+      try {
+        await this.actionLogs.logAction('Invoice', id, 'APPROVED', user);
+      } catch (err: any) {
+        console.warn('Action log failed for invoice approval:', err?.message);
+      }
+    }
+    return saved;
   }
 
-  async update(id: string, dto: any) {
+  async update(id: string, dto: any, user?: any) {
     const inv = await this.repo.findOne({ where: { id }, relations: ['client', 'trip', 'items'] });
     if (!inv) throw new BadRequestException('Invoice not found');
     Object.assign(inv, dto);
-    return this.repo.save(inv);
+    const saved = await this.repo.save(inv);
+    if (user) {
+      try {
+        const updatedFields = Object.keys(dto);
+        await this.actionLogs.logAction('Invoice', id, 'UPDATED', user, { updatedFields });
+      } catch (err: any) {
+        console.warn('Action log failed for invoice update:', err?.message);
+      }
+    }
+    return saved;
   }
   async remove(id: string) {
     return this.repo.delete(id); 

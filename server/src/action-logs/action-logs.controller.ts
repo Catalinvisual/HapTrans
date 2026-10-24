@@ -13,8 +13,7 @@ export class ActionLogsController {
     @Param('entityId') entityId: string,
     @Req() req: any,
   ) {
-    const companyId = req.user.companyId || req.user.company?.id;
-    if (!companyId) return [];
+    const companyId = req.user?.companyId || req.user?.company?.id;
     return this.service.getLogsForEntity(entityType, entityId, companyId);
   }
 }

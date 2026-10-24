@@ -775,7 +775,11 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
         {order.cargoItems?.map((c: any, i: number) => (
           <div key={c.id || i} className="bg-surface/40 rounded-xl p-3.5 border border-border">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[13px] font-bold text-text-primary truncate">{c.description || 'Cargo'}</span>
+              <span className="text-[13px] font-bold text-text-primary truncate">
+                {c.isAdr && (!c.description || /marf[aă]\s+periculoas[aă]|hazardous\s+goods|gevaarlijke/i.test(c.description))
+                  ? t('adr_cargo_item_default_desc', 'ADR Hazardous Goods Item')
+                  : (c.description || t('cargo', 'Cargo'))}
+              </span>
               <span className="text-[11px] font-bold text-text-secondary whitespace-nowrap">×{fmtNumber(c.quantity || 1)} {c.unit}</span>
             </div>
             <div className="flex items-center gap-3 mt-2 text-[11px] text-text-secondary flex-wrap">
@@ -893,7 +897,6 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
                toast.error(t('error_pdf', 'Failed to generate PDF'));
              }
           }} className="btn-secondary flex items-center gap-1.5 text-sm" title={t("download_order_pdf", { reference: order.orderNumber || order.referenceNumber || 'Order', defaultValue: "Download PDF for order {{reference}}" })} aria-label={t("download_order_pdf", { reference: order.orderNumber || order.referenceNumber || 'Order', defaultValue: "Download PDF for order {{reference}}" })}><FileText className="w-4 h-4" aria-hidden="true" />{t('pdf', 'PDF')}</button>
-          <button onClick={() => navigate(`/orders/${order.id}`)} className="btn-secondary flex items-center gap-1.5 text-sm"><ExternalLink className="w-4 h-4" />{t('open_order', 'Open page')}</button>
           <button onClick={() => onEdit(order.id)} className="btn-secondary text-sm flex items-center gap-1.5"><Pencil className="w-4 h-4" />{t('edit', 'Edit')}</button>
           <button onClick={() => onDelete(order.id)} className="btn-secondary text-sm flex items-center gap-1.5 text-red-600 border-red-200 hover:bg-red-50"><Trash2 className="w-4 h-4" />{t('delete', 'Delete')}</button>
         </>

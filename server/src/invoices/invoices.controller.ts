@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, UseInterceptors, UploadedFile, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, UseInterceptors, UploadedFile, Query, Req } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InvoicesService } from './invoices.service';
 import { PdfService } from './pdf.service';
@@ -34,9 +34,9 @@ export class InvoicesController {
   @Get('aging') getAgingSummary() { return this.service.getAgingSummary(); }
   @Get('overdue') getOverdue() { return this.service.getOverdue(); }
   @Get(':id') findOne(@Param('id') id: string) { return this.service.findOne(id); }
-  @Post() create(@Body() dto: any) { return this.service.create(dto); }
-  @Patch(':id') update(@Param('id') id: string, @Body() dto: any) { return this.service.update(id, dto); }
-  @Patch(':id/approve') approve(@Param('id') id: string) { return this.service.approve(id); }
+  @Post() create(@Body() dto: any, @Req() req: any) { return this.service.create(dto, req.user); }
+  @Patch(':id') update(@Param('id') id: string, @Body() dto: any, @Req() req: any) { return this.service.update(id, dto, req.user); }
+  @Patch(':id/approve') approve(@Param('id') id: string, @Req() req: any) { return this.service.approve(id, req.user); }
   @Delete(':id') remove(@Param('id') id: string) { return this.service.remove(id); }
 
   @Post('generate-pdf')

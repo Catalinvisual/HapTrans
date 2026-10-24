@@ -29,11 +29,15 @@ export class ActionLogsService {
     return this.repo.save(log);
   }
 
-  async getLogsForEntity(entityType: string, entityId: string, companyId: string) {
+  async getLogsForEntity(entityType: string, entityId: string, companyId?: string) {
+    const where: any = { entityType, entityId };
+    if (companyId) {
+      where.companyId = companyId;
+    }
     return this.repo.find({
-      where: { entityType, entityId, companyId },
+      where,
       relations: ['user'],
-      order: { createdAt: 'DESC' },
+      order: { createdAt: 'ASC' },
     });
   }
 }

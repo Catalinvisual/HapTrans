@@ -34,11 +34,14 @@ const storage = new CloudinaryStorage({
   },
 });
 
+import { ActionLogsModule } from "../action-logs/action-logs.module";
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([Invoice, InvoiceItem, Payment]),
     MulterModule.register({ storage }),
     UsersModule,
+    ActionLogsModule,
   ],
   controllers: [InvoicesController],
   providers: [InvoicesService, ResendService, PdfService],
