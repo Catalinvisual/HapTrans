@@ -9,15 +9,11 @@ import {
   Flame,
   ShieldAlert,
   Loader2,
-  Trash2,
   FileCheck,
-  Scale,
   Gauge,
   Copy,
   Check,
   Package,
-  Truck,
-  Info,
   X,
   Sparkles,
   Plus,
@@ -170,7 +166,7 @@ const QUICK_PRESETS = [
   }
 ];
 
-export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange, isPortal, onAddAnotherAdr }) => {
+export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange, isPortal: _isPortal, onAddAnotherAdr }) => {
   const { t, i18n } = useTranslation();
   const currentLang = (i18n.language || 'en').toLowerCase().split('-')[0];
 
@@ -273,14 +269,6 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
 
   // Quick preset button click
   const handleQuickPreset = (preset: typeof QUICK_PRESETS[0]) => {
-    let localizedPresetName = preset.nameEn;
-    if (currentLang === 'nl') localizedPresetName = preset.nameNl;
-    else if (currentLang === 'de') localizedPresetName = preset.nameDe;
-    else if (currentLang === 'fr') localizedPresetName = preset.nameFr;
-    else if (currentLang === 'es') localizedPresetName = preset.nameEs;
-    else if (currentLang === 'pl') localizedPresetName = preset.namePl;
-    else if (currentLang === 'ro') localizedPresetName = preset.nameRo;
-
     setSearchQuery(preset.unNumber);
     handleSelectCatalogItem({
       unNumber: preset.unNumber,

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { X, Save, Loader2, ArrowRight, ArrowLeft, Plus, Trash2, Box, Package, MapPin, FileText, ChevronDown, Calculator, Fuel, AlertTriangle, TrendingUp, TrendingDown, CheckCircle2, ShieldAlert, HelpCircle } from 'lucide-react';
 import api from '../../lib/api';
 import toast from 'react-hot-toast';
