@@ -120,11 +120,22 @@ export default function InvoicesPage({
   }, [showForm, editId, form]);
   const filteredTrips = form.clientId ? trips.filter((t: any) => t.client?.id === form.clientId) : trips;
   const load = async () => {
-    const [inv, cl, tr] = await Promise.all([api.get('/invoices'), api.get('/clients'), api.get('/trips')]);
-    setInvoices(inv.data);
-    setClients(cl.data);
-    setTrips(tr.data);
-    setLoading(false);
+    try {
+      setLoading(true);
+      const [inv, cl, tr] = await Promise.all([
+        api.get('/invoices'),
+        api.get('/clients'),
+        api.get('/trips'),
+      ]);
+      setInvoices(Array.isArray(inv.data) ? inv.data : []);
+      setClients(Array.isArray(cl.data) ? cl.data : []);
+      setTrips(Array.isArray(tr.data) ? tr.data : []);
+    } catch (err: any) {
+      console.error('Failed to load invoices:', err);
+      toast.error(err?.response?.data?.message || t('error', 'Eroare la încărcarea facturilor'));
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => {
     load();

@@ -181,13 +181,85 @@ export class InvoicesService implements OnModuleInit {
     // Migration logic stub
   }
 
-  findAll() { return this.repo.find({ relations: ['client', 'trip', 'items'], order: { createdAt: 'DESC' } }); }
-  findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['client', 'trip', 'items'] }); }
+  findAll() { 
+    return this.repo.find({ 
+      relationLoadStrategy: 'query',
+      relations: ['client', 'trip', 'items'], 
+      order: { createdAt: 'DESC' } 
+    }); 
+  }
+
+  findOne(id: string) { 
+    return this.repo.findOne({ 
+      where: { id }, 
+      relationLoadStrategy: 'query',
+      relations: ['client', 'trip', 'items'] 
+    }); 
+  }
 
   async create(dto: any, user?: any) {
-    const payload: any = { ...dto, invoiceNumber: `INV-${Date.now()}` };
-    if (dto.clientId) payload.client = { id: dto.clientId };
-    if (dto.tripId) payload.trip = { id: dto.tripId };
+    const payload: any = { 
+      ...dto, 
+      invoiceNumber: dto.invoiceNumber || `INV-${Date.now()}` 
+    };
+
+    if (dto.clientId) {
+      payload.client = typeof dto.clientId === 'object' ? dto.clientId : { id: dto.clientId };
+    } else if (dto.client?.id) {
+      payload.client = { id: dto.client.id };
+    }
+
+    if (dto.tripId) {
+      payload.trip = typeof dto.tripId === 'object' ? dto.tripId : { id: dto.tripId };
+    } else if (dto.trip?.id) {
+      payload.trip = { id: dto.trip.id };
+    }
+
+    if (dto.status) {
+      payload.status = dto.status;
+    }
+
+    // Ensure totals are mathematically computed
+    const pN = (v: any) => (v !== undefined && v !== null && v !== '') ? Number(v) : null;
+    const baseAmount = pN(dto.amount) ?? 0;
+    const fuelSurcharge = pN(dto.fuelSurcharge) ?? 0;
+    const fuelCost = fuelSurcharge > 0 ? Number(((baseAmount * fuelSurcharge) / 100).toFixed(2)) : 0;
+    const tollCosts = pN(dto.tollCosts) ?? 0;
+    const extraCosts = pN(dto.extraCosts) ?? 0;
+    const vatPercent = pN(dto.vatPercent) ?? 19;
+    const vatType = dto.vatType || 'NORMAL';
+    const isVat = vatType === 'NORMAL';
+
+    const subtotal = pN(dto.subtotal) ?? (baseAmount + fuelCost + tollCosts + extraCosts);
+    const vatAmount = pN(dto.vatAmount) ?? (isVat ? Number(((subtotal * vatPercent) / 100).toFixed(2)) : 0);
+    const total = pN(dto.total) ?? (subtotal + vatAmount);
+
+    payload.amount = baseAmount;
+    payload.fuelSurcharge = fuelSurcharge;
+    payload.tollCosts = tollCosts;
+    payload.extraCosts = extraCosts;
+    payload.vatPercent = vatPercent;
+    payload.vatType = vatType;
+    payload.subtotal = subtotal;
+    payload.vatAmount = vatAmount;
+    payload.total = total;
+
+    // Ensure items exist
+    if (!payload.items || !Array.isArray(payload.items) || payload.items.length === 0) {
+      const itemDesc = payload.notes || 'Transport services';
+      if (baseAmount > 0 || subtotal > 0) {
+        payload.items = [
+          {
+            description: itemDesc,
+            quantity: 1,
+            unitPrice: baseAmount > 0 ? baseAmount : subtotal,
+            vatRate: isVat ? vatPercent : 0,
+            total: baseAmount > 0 ? baseAmount : subtotal,
+          }
+        ];
+      }
+    }
+
     const inv = this.repo.create(payload) as any;
     const saved = await this.repo.save(inv);
     if (user && saved?.id) {

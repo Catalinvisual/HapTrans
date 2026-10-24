@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Loader2, MapPin, FileText, Trash2, Box, Pencil, ExternalLink, Activity, Copy, FilterX, Coins, Boxes, BadgeEuro, ArrowRight, Flag, Phone, User, Navigation, Calendar, Sparkles } from 'lucide-react';
+import { Plus, Search, Loader2, MapPin, FileText, Trash2, Box, Pencil, ExternalLink, Activity, Copy, FilterX, Coins, Boxes, BadgeEuro, ArrowRight, Flag, Phone, User, Navigation, Calendar, Sparkles, UploadCloud, X } from 'lucide-react';
 import api from '../lib/api';
 import OrderWizard from '../components/orders/OrderWizard';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
@@ -288,15 +288,29 @@ export default function OrdersPage() {
       const paymentTermsDays = o.client?.paymentTermsDays || 30;
       const issueDate = new Date().toISOString().split('T')[0];
       const dueDate = new Date(Date.now() + paymentTermsDays * 86400000).toISOString().split('T')[0];
+      const clientId = o.client?.id || o.clientId || (typeof o.client === 'string' ? o.client : null);
+      const price = Number(o.price || 0);
+      const fuelSurcharge = Number(o.client?.defaultFuelSurchargePercent || 0);
+      const fuelCost = fuelSurcharge > 0 ? Number(((price * fuelSurcharge) / 100).toFixed(2)) : 0;
+      const tollCosts = Number(o.tollCost || o.tollCosts || 0) || 0;
+      const subtotal = Math.round((price + fuelCost + tollCosts) * 100) / 100;
+      const vatPercent = 19;
+      const vatAmount = Math.round(((subtotal * vatPercent) / 100) * 100) / 100;
+      const total = Math.round((subtotal + vatAmount) * 100) / 100;
+
       const res = await api.post('/invoices', {
-        clientId: o.client?.id,
+        clientId,
         tripId: o.trip?.id || null,
-        amount: Number(o.price || 0),
-        fuelSurcharge: o.client?.defaultFuelSurchargePercent || 0,
+        amount: price,
+        fuelSurcharge,
         extraCosts: 0,
-        tollCosts: Number(o.tollCost || 0) || 0,
-        vatPercent: 19,
+        tollCosts,
+        vatPercent,
         vatType: 'NORMAL',
+        subtotal,
+        vatAmount,
+        total,
+        status: 'approved',
         issueDate,
         dueDate,
         notes: `Factura pentru comanda ${o.orderNumber || o.referenceNumber || ''}`.trim(),
@@ -323,7 +337,7 @@ export default function OrdersPage() {
       formData.append('company', JSON.stringify(getCompanySettings()));
       await api.post(`/invoices/upload-pdf/${savedInvoice.id}`, formData);
 
-      await api.patch(`/orders/${o.id}`, { status: 'ready_for_invoice' });
+      await api.patch(`/orders/${o.id}`, { status: 'invoiced' });
       await fetchOrders();
       toast.dismiss(loadId);
       toast.success(t('toast_invoiceGenerat', 'Factură generată cu succes!'));
@@ -430,11 +444,15 @@ export default function OrdersPage() {
 
       return (
         <div className="flex items-center justify-end gap-0.5" onClick={e => e.stopPropagation()}>
-          {o.status !== 'invoiced' && o.status !== 'paid' && o.status !== 'cancelled' && (
-            <button title={t('create_invoice', 'Create Invoice')} onClick={() => handleCreateInvoice(o)} className="p-1 rounded-md text-text-secondary hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10">
+          {o.status !== 'invoiced' && o.status !== 'paid' && o.status !== 'cancelled' ? (
+            <button title={t('create_invoice', 'Generează factură')} onClick={() => handleCreateInvoice(o)} className="p-1 rounded-md text-text-secondary hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10">
               <FileText className="w-3.5 h-3.5" />
             </button>
-          )}
+          ) : (o.status === 'invoiced' || o.status === 'paid') ? (
+            <button title={t('view_invoice', 'Vezi Factura în pagina Facturi')} onClick={() => navigate('/invoices')} className="p-1 rounded-md text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10">
+              <FileText className="w-3.5 h-3.5" />
+            </button>
+          ) : null}
           {trackingToken && (
             <button
               title={t('copy_tracking_link', 'Copy Customer Tracking Link')}
@@ -663,6 +681,18 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [docType, setDocType] = useState('cmr');
   const [docNotes, setDocNotes] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const docTypeOptions: SelectOption[] = [
+    { value: 'cmr', label: t('doc_type_cmr', 'CMR') },
+    { value: 'invoice', label: t('doc_type_invoice', 'Factură (Invoice)') },
+    { value: 'pod', label: t('doc_type_pod', 'Dovadă livrare (POD)') },
+    { value: 'delivery_note', label: t('doc_type_delivery_note', 'Aviz expediție') },
+    { value: 'packing_list', label: t('doc_type_packing_list', 'Packing List (Listă ambalare)') },
+    { value: 'photo', label: t('doc_type_photo', 'Fotografie marfă / încărcare') },
+    { value: 'weight_ticket', label: t('doc_type_weight_ticket', 'Tichet cântar') },
+    { value: 'other', label: t('doc_type_other', 'Altele') },
+  ];
 
   useEffect(() => {
     if (activeTab === 'documents') {
@@ -880,33 +910,82 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
                 {t('select_file', 'Fișier *')}
               </label>
               <input
+                ref={fileInputRef}
                 type="file"
+                className="hidden"
                 onChange={e => setSelectedFile(e.target.files?.[0] || null)}
-                className="block w-full text-xs text-text-primary file:mr-2.5 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer"
-                required
               />
+              {!selectedFile ? (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                  onDrop={e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      setSelectedFile(e.dataTransfer.files[0]);
+                    }
+                  }}
+                  className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-primary/30 hover:border-primary/60 bg-surface/40 hover:bg-surface/80 rounded-xl cursor-pointer transition-all group text-center"
+                >
+                  <div className="w-10 h-10 rounded-full bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center mb-2 transition-colors">
+                    <UploadCloud className="w-5 h-5 text-primary" />
+                  </div>
+                  <span className="text-xs font-semibold text-text-primary">
+                    {t('choose_file', 'Alege fișier sau trage aici')}
+                  </span>
+                  <span className="text-[10px] text-text-secondary mt-0.5">
+                    {t('drag_or_browse', 'PDF, PNG, JPG până la 20MB')}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-2.5 bg-surface/80 border border-primary/30 rounded-xl">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <FileText className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-text-primary truncate">
+                        {selectedFile.name}
+                      </div>
+                      <div className="text-[10px] text-text-secondary">
+                        {(selectedFile.size / 1024).toFixed(1)} KB
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10 rounded-md transition-colors"
+                    >
+                      {t('change_file', 'Schimbă')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                      className="p-1 text-text-secondary hover:text-red-500 rounded-md transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                  {t('document_type', 'Tip Document')}
-                </label>
-                <select
-                  value={docType}
-                  onChange={e => setDocType(e.target.value)}
-                  className="input w-full text-xs py-1.5"
-                >
-                  <option value="cmr">CMR</option>
-                  <option value="invoice">{t('invoice', 'Factură (Invoice)')}</option>
-                  <option value="pod">{t('pod', 'Dovadă livrare (POD)')}</option>
-                  <option value="delivery_note">{t('delivery_note', 'Aviz expediție')}</option>
-                  <option value="packing_list">{t('packing_list', 'Packing List')}</option>
-                  <option value="photo">{t('photo', 'Fotografie marfă / încărcare')}</option>
-                  <option value="weight_ticket">{t('weight_ticket', 'Tichet cântar')}</option>
-                  <option value="other">{t('other', 'Altele')}</option>
-                </select>
-              </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-text-secondary mb-1">
+                {t('document_type', 'Tip Document')} *
+              </label>
+              <CustomSelect
+                value={docType}
+                onChange={(val: string) => setDocType(val)}
+                options={docTypeOptions}
+                className="w-full"
+              />
             </div>
 
             <div>
