@@ -656,6 +656,7 @@ export default function OrdersPage() {
 }
 
 function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, onDelete, t, navigate }: any) {
+  const [documents, setDocuments] = useState<any[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showDocUploadForm, setShowDocUploadForm] = useState(false);
