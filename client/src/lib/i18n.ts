@@ -11323,6 +11323,8 @@ export const orderCoreResources: Record<string, Record<string, string>> = {
     jsx_estimatedCost: 'Estimated Cost',
     jsx_estimatedProfi: 'Estimated Profit',
     open_order: 'Open page',
+    same_pickup_dropoff_error: 'Pickup and delivery locations cannot be the same address in the same order!',
+    cost_enter_price_prompt: 'Please enter the agreed price in Step 1 to calculate profit and margin.',
   },
   nl: {
     price: 'Prijs',
@@ -11346,6 +11348,8 @@ export const orderCoreResources: Record<string, Record<string, string>> = {
     jsx_estimatedCost: 'Geschatte kosten',
     jsx_estimatedProfi: 'Geschatte winst',
     open_order: 'Pagina openen',
+    same_pickup_dropoff_error: 'Ophaal- en afleverlocaties kunnen niet hetzelfde adres zijn in dezelfde order!',
+    cost_enter_price_prompt: 'Voer de overeengekomen prijs in bij Stap 1 om winst en marge te berekenen.',
   },
   ro: {
     price: 'Preț',
@@ -11369,6 +11373,8 @@ export const orderCoreResources: Record<string, Record<string, string>> = {
     jsx_estimatedCost: 'Cost estimat',
     jsx_estimatedProfi: 'Profit estimat',
     open_order: 'Deschide pagina',
+    same_pickup_dropoff_error: 'Adresa de încărcare și adresa de descărcare nu pot fi identice în același order!',
+    cost_enter_price_prompt: 'Introduceți prețul agreat în Pasul 1 pentru a calcula profitul și marja.',
   },
   de: {
     price: 'Preis',
@@ -11392,6 +11398,8 @@ export const orderCoreResources: Record<string, Record<string, string>> = {
     jsx_estimatedCost: 'Geschätzte Kosten',
     jsx_estimatedProfi: 'Geschätzter Gewinn',
     open_order: 'Seite öffnen',
+    same_pickup_dropoff_error: 'Abhol- und Lieferadresse dürfen im selben Auftrag nicht identisch sein!',
+    cost_enter_price_prompt: 'Bitte geben Sie den vereinbarten Preis in Schritt 1 ein, um Gewinn und Marge zu berechnen.',
   },
   fr: {
     price: 'Prix',
@@ -11415,6 +11423,8 @@ export const orderCoreResources: Record<string, Record<string, string>> = {
     jsx_estimatedCost: 'Coût estimé',
     jsx_estimatedProfi: 'Bénéfice estimé',
     open_order: 'Ouvrir la page',
+    same_pickup_dropoff_error: 'Les adresses de chargement et de livraison ne peuvent pas être identiques dans la même commande !',
+    cost_enter_price_prompt: 'Veuillez saisir le prix convenu à l\'étape 1 pour calculer le bénéfice et la marge.',
   },
   es: {
     price: 'Precio',
@@ -11438,6 +11448,8 @@ export const orderCoreResources: Record<string, Record<string, string>> = {
     jsx_estimatedCost: 'Coste estimado',
     jsx_estimatedProfi: 'Beneficio estimado',
     open_order: 'Abrir página',
+    same_pickup_dropoff_error: '¡La dirección de recogida y la de entrega no pueden ser idénticas en el mismo pedido!',
+    cost_enter_price_prompt: 'Por favor, ingrese el precio acordado en el Paso 1 para calcular beneficio y margen.',
   },
   pl: {
     price: 'Cena',
@@ -11461,6 +11473,8 @@ export const orderCoreResources: Record<string, Record<string, string>> = {
     jsx_estimatedCost: 'Szacowany koszt',
     jsx_estimatedProfi: 'Szacowany zysk',
     open_order: 'Otwórz stronę',
+    same_pickup_dropoff_error: 'Adres załadunku i rozładunku nie mogą być takie same w tym samym zleceniu!',
+    cost_enter_price_prompt: 'Wprowadź uzgodnioną cenę w kroku 1, aby obliczyć zysk i marżę.',
   },
 };
 

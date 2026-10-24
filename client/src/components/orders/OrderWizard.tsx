@@ -123,6 +123,24 @@ function ModalSelect({
     </>;
 }
 
+const normalizeAddr = (str?: string) => (str || '').toLowerCase().trim().replace(/[,\s.-]+/g, ' ');
+
+const isSameLocation = (
+  loc1?: { address?: string; latitude?: number | null; longitude?: number | null } | null,
+  loc2?: { address?: string; latitude?: number | null; longitude?: number | null } | null
+) => {
+  if (!loc1 || !loc2) return false;
+  const a1 = normalizeAddr(loc1.address);
+  const a2 = normalizeAddr(loc2.address);
+  if (a1 && a2 && a1 === a2) return true;
+  if (loc1.latitude && loc1.longitude && loc2.latitude && loc2.longitude) {
+    const latDiff = Math.abs(Number(loc1.latitude) - Number(loc2.latitude));
+    const lngDiff = Math.abs(Number(loc1.longitude) - Number(loc2.longitude));
+    if (latDiff < 0.0005 && lngDiff < 0.0005) return true;
+  }
+  return false;
+};
+
 // Using CustomDatePicker instead of inline DateTimeInput
 
 export default function OrderWizard({
@@ -520,6 +538,10 @@ export default function OrderWizard({
         toast.error(t('dropoff_date_required', 'Data de livrare este obligatorie.'));
         return;
       }
+      if (isSameLocation(pickup, dropoff)) {
+        toast.error(t('same_pickup_dropoff_error', 'Adresa de încărcare și adresa de descărcare nu pot fi identice în același order!'));
+        return;
+      }
       // Validate intermediate stops
       for (let i = 0; i < extraStops.length; i++) {
         const s = extraStops[i];
@@ -531,7 +553,7 @@ export default function OrderWizard({
     }
     if (currentStep === 2) {
       // On cargo step, require cost calculation acknowledgement if showing unprofitable
-      if (costEstimate && costEstimate.profit < 0 && !confirmedUnprofitable) {
+      if (costEstimate && costEstimate.agreedPrice > 0 && costEstimate.profit < 0 && !confirmedUnprofitable) {
         toast.error(t('cost_confirm_required', 'Please confirm that you accept the unprofitable order.'));
         return;
       }
@@ -706,6 +728,10 @@ export default function OrderWizard({
     }
     if (!dropoff.scheduledDate) {
       toast.error(t('dropoff_date_required', 'Data de livrare este obligatorie.'));
+      return;
+    }
+    if (isSameLocation(pickup, dropoff)) {
+      toast.error(t('same_pickup_dropoff_error', 'Adresa de încărcare și adresa de descărcare nu pot fi identice în același order!'));
       return;
     }
     for (let i = 0; i < extraStops.length; i++) {
@@ -1200,6 +1226,10 @@ export default function OrderWizard({
                     ...pickup,
                     address: val
                   })} onSelectFull={(label, city, country, lat, lng) => {
+                    if (dropoff.address && isSameLocation({ address: label, latitude: lat, longitude: lng }, dropoff)) {
+                      toast.error(t('same_pickup_dropoff_error', 'Adresa de încărcare și adresa de descărcare nu pot fi identice în același order!'));
+                      return;
+                    }
                     setPickup(p => ({
                       ...p,
                       address: label,
@@ -1332,6 +1362,10 @@ export default function OrderWizard({
                     ...dropoff,
                     companyName: val
                   })} onSelectFull={(companyName, address, lat, lng, city, country) => {
+                    if (pickup.address && isSameLocation(pickup, { address, latitude: lat, longitude: lng })) {
+                      toast.error(t('same_pickup_dropoff_error', 'Adresa de încărcare și adresa de descărcare nu pot fi identice în același order!'));
+                      return;
+                    }
                     setDropoff(d => ({
                       ...d,
                       companyName,
@@ -1351,6 +1385,10 @@ export default function OrderWizard({
                     ...dropoff,
                     address: val
                   })} onSelectFull={(label, city, country, lat, lng) => {
+                    if (pickup.address && isSameLocation(pickup, { address: label, latitude: lat, longitude: lng })) {
+                      toast.error(t('same_pickup_dropoff_error', 'Adresa de încărcare și adresa de descărcare nu pot fi identice în același order!'));
+                      return;
+                    }
                     setDropoff(d => ({
                       ...d,
                       address: label,
@@ -1775,29 +1813,37 @@ export default function OrderWizard({
                     </div>
 
                     {/* Profit analysis */}
-                    <div className={`rounded-xl p-4 border-2 ${costEstimate.profit >= 0 ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/40'}`}>
+                    <div className={`rounded-xl p-4 border-2 ${costEstimate.agreedPrice <= 0 ? 'bg-amber-500/10 border-amber-500/30' : costEstimate.profit >= 0 ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/40'}`}>
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-sm font-semibold text-text-secondary">{t('cost_agreed_price', 'Agreed Price')}</span>
                         <span className="font-bold">€{costEstimate.agreedPrice.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className={`text-sm font-bold flex items-center gap-1.5 ${costEstimate.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {costEstimate.profit >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                        <span className={`text-sm font-bold flex items-center gap-1.5 ${costEstimate.agreedPrice <= 0 ? 'text-amber-600' : costEstimate.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {costEstimate.agreedPrice <= 0 ? <AlertTriangle className="w-4 h-4" /> : costEstimate.profit >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                           {t('cost_estimated_profit', 'Estimated Profit')}
                         </span>
-                        <span className={`font-black text-lg ${costEstimate.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {costEstimate.profit >= 0 ? '+' : ''}€{costEstimate.profit.toFixed(2)}
+                        <span className={`font-black text-lg ${costEstimate.agreedPrice <= 0 ? 'text-amber-600' : costEstimate.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {costEstimate.agreedPrice > 0 && costEstimate.profit >= 0 ? '+' : ''}€{costEstimate.profit.toFixed(2)}
                         </span>
                       </div>
-                      {costEstimate.profit >= 0 && (
-                        <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
+                      {costEstimate.agreedPrice <= 0 ? (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1 font-medium">
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                          {t('cost_enter_price_prompt', 'Introduceți prețul agreat în Pasul 1 pentru a calcula profitul și marja.')}
+                        </p>
+                      ) : costEstimate.profit >= 0 ? (
+                        <p className="text-xs text-green-600 mt-2 flex items-center gap-1 font-semibold">
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                           {t('cost_profitable', 'This order is profitable. Margin: {{margin}}%', {
-                            margin: ((costEstimate.profit / costEstimate.agreedPrice) * 100).toFixed(1)
+                            margin: (costEstimate.totalCost > 0
+                              ? Math.min(99.9, Math.max(0.1, (costEstimate.profit / costEstimate.agreedPrice) * 100))
+                              : 100
+                            ).toFixed(1)
                           })}
                         </p>
-                      )}
-                      {costEstimate.profit < 0 && (
+                      ) : null}
+                      {costEstimate.agreedPrice > 0 && costEstimate.profit < 0 && (
                         <div className="mt-3 bg-red-500/10 border border-red-400/40 rounded-lg p-3">
                           <p className="text-xs font-bold text-red-600 flex items-center gap-1.5 mb-1">
                             <AlertTriangle className="w-3.5 h-3.5" />

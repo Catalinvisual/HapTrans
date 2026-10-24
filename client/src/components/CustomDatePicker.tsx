@@ -130,7 +130,7 @@ export default function CustomDatePicker({ dateValue, timeValue, onDateChange, o
       let className = "w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all duration-200 ";
       
       if (isPast) {
-        className += "text-text-muted/40 cursor-not-allowed opacity-35";
+        className += "text-slate-400 dark:text-slate-500 line-through decoration-slate-400 dark:decoration-slate-500 cursor-not-allowed select-none bg-slate-100/50 dark:bg-slate-800/20";
       } else if (isSelected) {
         className += "bg-primary text-white font-bold shadow-lg shadow-primary/35 scale-105 hover:bg-primary-dark";
       } else if (isToday) {

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Order, OrderStatus } from './order.entity';
@@ -14,7 +14,9 @@ import { ActionLogsService } from '../action-logs/action-logs.service';
 import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
 
 @Injectable()
-export class OrdersService {
+export class OrdersService implements OnModuleInit {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     @InjectRepository(Order) private repo: Repository<Order>,
     @InjectRepository(OrderStop) private stopRepo: Repository<OrderStop>,
@@ -25,6 +27,22 @@ export class OrdersService {
     private clientsService: ClientsService,
     private actionLogsService: ActionLogsService,
   ) {}
+
+  async onModuleInit() {
+    try {
+      await this.repo.query(`
+        ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "createdById" uuid REFERENCES "users"("id") ON DELETE SET NULL;
+      `);
+      // Backfill existing orders where createdById is null with an active admin or dispatcher
+      await this.repo.query(`
+        UPDATE "orders"
+        SET "createdById" = (SELECT id FROM "users" WHERE role IN ('admin', 'dispatcher') ORDER BY "createdAt" ASC LIMIT 1)
+        WHERE "createdById" IS NULL AND EXISTS (SELECT 1 FROM "users" WHERE role IN ('admin', 'dispatcher'));
+      `);
+    } catch (e: any) {
+      this.logger.warn(`Failed to auto-migrate orders.createdById: ${e?.message}`);
+    }
+  }
 
   /**
    * Returns a suggested price for this client+route based on the client's
@@ -184,7 +202,7 @@ export class OrdersService {
       const now = new Date();
       const order = this.repo.create({
         id: orderId,
-        company: dto.companyId ? { id: dto.companyId } as any : null,
+        company: dto.companyId ? { id: dto.companyId } as any : ((user as any)?.companyId ? { id: (user as any).companyId } as any : ((user as any)?.company?.id ? { id: (user as any).company.id } as any : null)),
         client: dto.clientId ? { id: dto.clientId } as any : null,
         createdBy: user?.id ? { id: user.id } as any : null,
         orderNumber,
@@ -331,7 +349,14 @@ export class OrdersService {
 
       if (user && savedOrder?.id) {
         try {
-          await this.actionLogsService.logAction('Order', savedOrder.id, 'CREATED', user, null, dto.companyId);
+          await this.actionLogsService.logAction(
+            'Order',
+            savedOrder.id,
+            'CREATED',
+            user,
+            null,
+            dto.companyId || (user as any)?.companyId || (user as any)?.company?.id,
+          );
         } catch (logErr: any) {
           console.warn('Action log failed for order creation:', logErr?.message);
         }

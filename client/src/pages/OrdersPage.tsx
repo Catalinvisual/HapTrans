@@ -758,6 +758,7 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
             );
           })()}
           <Row icon={<User className="w-3 h-3" />} label={t('contact', 'Contact')} value={`${order.contactPerson || '—'}${order.contactPhone ? ` · ${order.contactPhone}` : ''}`} />
+          <Row icon={<User className="w-3 h-3 text-primary" />} label={t('createdBy', 'Created by')} value={order.createdBy?.name || order.createdBy?.email || '—'} />
           <Row icon={<PalletIcon className="w-3.5 h-3.5" />} label={t('cargo_summary', 'Cargo')} value={`${order.cargoItems?.length || 0} ${t('items', 'items')} · ${pallets > 0 ? `${fmtNumber(pallets)} pal · ` : ''}${fmtNumber(weight)} kg · ${fmtNumber(ldm, 2)} LDM · ${fmtNumber(volume, 1)} m³`} />
           <Row icon={<Activity className="w-3 h-3" />} label={t('equipment', 'Equipment')} value={(order.equipmentRequirements || []).map((r: string) => r.toUpperCase()).join(', ') || '—'} />
           <Row icon={<Box className="w-3 h-3" />} label={t('transport_type', 'Transport type')} value={(order.transportType || 'ftl').toUpperCase()} />

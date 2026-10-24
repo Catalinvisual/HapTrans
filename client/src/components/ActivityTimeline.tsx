@@ -70,7 +70,7 @@ export default function ActivityTimeline({ entityType, entityId, createdAt, crea
                   {log.action === 'CREATED' ? t('action_created', 'Created') : t('action_updated', 'Updated')}
                 </div>
                 <div className="text-xs text-text-secondary mt-0.5">
-                  {t('by', 'by')} {log.user?.name || log.user?.email || 'System'} · {new Date(log.createdAt).toLocaleString()}
+                  {t('by', 'by')} {log.user?.name || log.user?.email || (log.action === 'CREATED' ? createdBy : null) || 'System'} · {new Date(log.createdAt).toLocaleString()}
                 </div>
                 {log.action === 'UPDATED' && log.details?.updatedFields && (
                   <div className="text-[10px] text-text-muted mt-1 uppercase tracking-wide">

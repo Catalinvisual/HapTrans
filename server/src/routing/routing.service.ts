@@ -168,10 +168,13 @@ export class RoutingService {
     // Check cache first
     const cached = this.getFromCache(origin, dest);
     if (cached && !truckParams) {
+      const tollCost = cached.distanceKm >= 10 ? Math.round(cached.distanceKm * 0.18 * 100) / 100 : 0;
       return {
         distanceKm: cached.distanceKm,
         durationMin: cached.durationMin,
         durationText: `${Math.floor(cached.durationMin / 60)}h ${cached.durationMin % 60}m`,
+        tollCost,
+        tollCurrency: 'EUR',
         source: cached.source as any,
       };
     }
@@ -202,11 +205,25 @@ export class RoutingService {
           const section = route.sections?.[0];
           const summary = section?.summary;
 
-          const distanceKm = Math.round((summary?.length || 0) / 1000);
+          const rawDistKm = (summary?.length || 0) / 1000;
+          const distanceKm = rawDistKm < 10 ? Math.max(0.1, Math.round(rawDistKm * 10) / 10) : Math.round(rawDistKm);
           const durationSec = summary?.duration || 0;
           const durationMin = Math.round(durationSec / 60);
           const hours = Math.floor(durationMin / 60);
           const mins = durationMin % 60;
+
+          // Compute commercial truck toll from HERE section or standard European HGV average
+          let tollCost = 0;
+          if (section?.tolls && Array.isArray(section.tolls)) {
+            for (const toll of section.tolls) {
+              tollCost += Number(toll.fares?.[0]?.price || 0);
+            }
+          }
+          if (tollCost === 0 && distanceKm >= 10) {
+            tollCost = Math.round(distanceKm * 0.18 * 100) / 100;
+          } else {
+            tollCost = Math.round(tollCost * 100) / 100;
+          }
 
           let coordinates: number[][] = [];
           if (section?.polyline) {
@@ -226,7 +243,7 @@ export class RoutingService {
             distanceKm,
             durationMin,
             durationText: `${hours}h ${mins}m`,
-            tollCost: 0,
+            tollCost,
             tollCurrency: 'EUR',
             polyline: section?.polyline || null,
             coordinates,
@@ -265,11 +282,15 @@ export class RoutingService {
       const summary = feature?.properties?.summary;
       if (!summary) return null;
 
-      const distanceKm = Math.round((summary.distance || 0) / 1000);
+      const rawDistKm = (summary.distance || 0) / 1000;
+      const distanceKm = rawDistKm < 10 ? Math.max(0.1, Math.round(rawDistKm * 10) / 10) : Math.round(rawDistKm);
       const durationSec = summary.duration || 0;
       const durationMin = Math.round(durationSec / 60);
       const hours = Math.floor(durationMin / 60);
       const mins = durationMin % 60;
+
+      // Commercial truck toll estimation for EU HGV
+      const tollCost = distanceKm >= 10 ? Math.round(distanceKm * 0.18 * 100) / 100 : 0;
 
       this.setInCache({ lat: originLat, lng: originLng }, { lat: destLat, lng: destLng }, distanceKm, durationMin, 'ors');
 
@@ -277,7 +298,7 @@ export class RoutingService {
         distanceKm,
         durationMin,
         durationText: `${hours}h ${mins}m`,
-        tollCost: 0,
+        tollCost,
         tollCurrency: 'EUR',
         polyline: null,
         coordinates: feature?.geometry?.coordinates || [],
