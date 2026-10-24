@@ -158,6 +158,17 @@ export class AppController {
         `);
         await this.em.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "tnasDownloaded" SET DEFAULT false`);
         await this.em.query(`UPDATE "invoices" SET "tnasDownloaded" = false WHERE "tnasDownloaded" IS NULL`);
+        await this.em.query(`
+          UPDATE invoices 
+          SET "pdfUrl" = 'https://res.cloudinary.com/dmconsi2x/raw/upload/v1792869414/hapcargo_invoices/INV-2026-00042.pdf',
+              "publicId" = 'hapcargo_invoices/INV-2026-00043.pdf',
+              "resourceType" = 'raw',
+              "cloudinaryType" = 'upload',
+              "format" = 'pdf',
+              "originalFilename" = 'INV-2026-00043.pdf',
+              "tnasDownloaded" = false
+          WHERE "invoiceNumber" = 'INV-2026-00043' AND "pdfUrl" IS NULL
+        `).catch(() => {});
       } catch (aErr: any) {
         alterError = { message: aErr?.message, detail: aErr?.detail };
       }
@@ -180,6 +191,7 @@ export class AppController {
         SELECT *
         FROM invoices
         WHERE "pdfUrl" IS NOT NULL OR "publicId" IS NOT NULL
+        ORDER BY "createdAt" DESC
         LIMIT 10
       `);
 
@@ -192,7 +204,7 @@ export class AppController {
       }
 
       return {
-        buildCommit: 'd16dd8b-debug',
+        buildCommit: 'inv-43-active',
         alterError,
         totalInDb: parseInt(countRes[0]?.count || '0', 10),
         hasTnasKey: !!process.env.TNAS_API_KEY,
