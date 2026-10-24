@@ -142,15 +142,25 @@ export class AppController {
       await this.em.query(`UPDATE "invoices" SET "updatedAt" = now() WHERE "updatedAt" IS NULL`).catch(() => {});
 
       const countRes = await this.em.query('SELECT COUNT(*) as count FROM invoices');
-      const latestInvoices = await this.em.query(`
-        SELECT id, "invoiceNumber", "status", "createdAt", "amount", "clientId", "tripId"
+      const stats = await this.em.query(`
+        SELECT 
+          COUNT(*) as total,
+          COUNT("pdfUrl") as with_pdf_url,
+          COUNT("publicId") as with_public_id,
+          COUNT(*) FILTER (WHERE "tnasDownloaded" = false OR "tnasDownloaded" IS NULL) as not_downloaded,
+          COUNT(*) FILTER (WHERE ("tnasDownloaded" = false OR "tnasDownloaded" IS NULL) AND "publicId" IS NOT NULL) as pending_for_tnas
+        FROM invoices
+      `);
+      const sampleInvoices = await this.em.query(`
+        SELECT id, "invoiceNumber", "status", "createdAt", "amount", "pdfUrl", "publicId", "tnasDownloaded"
         FROM invoices
         ORDER BY "createdAt" DESC
-        LIMIT 50
+        LIMIT 10
       `);
       return {
         totalInDb: parseInt(countRes[0]?.count || '0', 10),
-        invoices: latestInvoices,
+        stats: stats[0],
+        invoices: sampleInvoices,
       };
     } catch (e: any) {
       return { error: e?.message };
