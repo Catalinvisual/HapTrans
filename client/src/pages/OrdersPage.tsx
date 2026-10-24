@@ -319,23 +319,27 @@ export default function OrdersPage() {
 
       // Generate invoice PDF
       const lang = (i18n.language === 'ro' ? 'en' : (i18n.language as any)) || 'en';
-      const base64Pdf = await generateInvoicePdfBase64(savedInvoice, lang);
-      const arr = base64Pdf.split(',');
-      const mime = arr[0]?.match(/:(.*?);/)?.[1] || 'application/pdf';
-      const bstr = atob(arr[1] || '');
-      let n = bstr.length;
-      const u8arr = new Uint8Array(n);
-      while (n--) {
-        u8arr[n] = bstr.charCodeAt(n);
-      }
-      const invNum = (savedInvoice?.invoiceNumber || `INV-${o.orderNumber || o.id}`).trim();
-      const cleanFileName = invNum.toUpperCase().startsWith('INV') ? `${invNum}.pdf` : `Invoice_${invNum}.pdf`;
-      const file = new File([u8arr], cleanFileName, { type: mime });
+      try {
+        const base64Pdf = await generateInvoicePdfBase64(savedInvoice, lang);
+        const arr = base64Pdf.split(',');
+        const mime = arr[0]?.match(/:(.*?);/)?.[1] || 'application/pdf';
+        const bstr = atob(arr[1] || '');
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const invNum = (savedInvoice?.invoiceNumber || `INV-${o.orderNumber || o.id}`).trim();
+        const cleanFileName = invNum.toUpperCase().startsWith('INV') ? `${invNum}.pdf` : `Invoice_${invNum}.pdf`;
+        const file = new File([u8arr], cleanFileName, { type: mime });
 
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('company', JSON.stringify(getCompanySettings()));
-      await api.post(`/invoices/upload-pdf/${savedInvoice.id}`, formData);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('company', JSON.stringify(getCompanySettings()));
+        await api.post(`/invoices/upload-pdf/${savedInvoice.id}`, formData);
+      } catch (pdfErr) {
+        console.warn('PDF upload failed, invoice record is preserved:', pdfErr);
+      }
 
       await api.patch(`/orders/${o.id}`, { status: 'invoiced' });
       await fetchOrders();

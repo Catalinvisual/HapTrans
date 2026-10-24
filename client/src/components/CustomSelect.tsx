@@ -203,9 +203,11 @@ export default function CustomSelect({
       setFocusedIndex(-1);
     } else if (wrapperRef.current) {
       const rect = wrapperRef.current.getBoundingClientRect();
+      const fitsBelow = rect.bottom + 260 <= window.innerHeight;
+      const topPos = fitsBelow ? rect.bottom + 4 : Math.max(10, rect.top - 264);
       setCoords({
-        left: rect.left,
-        top: rect.bottom + window.scrollY,
+        left: Math.max(10, Math.min(rect.left, window.innerWidth - Math.max(rect.width, 190) - 10)),
+        top: topPos,
         width: Math.max(rect.width, 190),
       });
       setFocusedIndex(options.findIndex((o) => o.value === value));
@@ -265,7 +267,7 @@ export default function CustomSelect({
         typeof document !== 'undefined' &&
         createPortal(
           <div
-            className="absolute z-[9999] mt-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 overflow-hidden animate-fade-in-up"
+            className="fixed z-[99999] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 overflow-hidden animate-fade-in-up"
             style={{
               left: coords.left,
               top: coords.top,

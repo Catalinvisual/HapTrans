@@ -181,20 +181,24 @@ export class InvoicesService implements OnModuleInit {
     // Migration logic stub
   }
 
-  findAll() { 
-    return this.repo.find({ 
-      relationLoadStrategy: 'query',
-      relations: ['client', 'trip', 'items'], 
-      order: { createdAt: 'DESC' } 
-    }); 
+  async findAll() { 
+    return this.repo.createQueryBuilder('invoice')
+      .leftJoinAndSelect('invoice.client', 'client')
+      .leftJoinAndSelect('invoice.trip', 'trip')
+      .leftJoinAndSelect('invoice.items', 'items')
+      .leftJoinAndSelect('invoice.payments', 'payments')
+      .orderBy('invoice.createdAt', 'DESC')
+      .getMany();
   }
 
-  findOne(id: string) { 
-    return this.repo.findOne({ 
-      where: { id }, 
-      relationLoadStrategy: 'query',
-      relations: ['client', 'trip', 'items'] 
-    }); 
+  async findOne(id: string) { 
+    return this.repo.createQueryBuilder('invoice')
+      .leftJoinAndSelect('invoice.client', 'client')
+      .leftJoinAndSelect('invoice.trip', 'trip')
+      .leftJoinAndSelect('invoice.items', 'items')
+      .leftJoinAndSelect('invoice.payments', 'payments')
+      .where('invoice.id = :id', { id })
+      .getOne();
   }
 
   async create(dto: any, user?: any) {
