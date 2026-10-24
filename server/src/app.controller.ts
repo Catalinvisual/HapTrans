@@ -142,24 +142,22 @@ export class AppController {
       await this.em.query(`UPDATE "invoices" SET "updatedAt" = now() WHERE "updatedAt" IS NULL`).catch(() => {});
 
       const countRes = await this.em.query('SELECT COUNT(*) as count FROM invoices');
-      const stats = await this.em.query(`
-        SELECT 
-          COUNT(*) as total,
-          COUNT("pdfUrl") as with_pdf_url,
-          COUNT("publicId") as with_public_id,
-          COUNT(*) FILTER (WHERE "tnasDownloaded" = false OR "tnasDownloaded" IS NULL) as not_downloaded,
-          COUNT(*) FILTER (WHERE ("tnasDownloaded" = false OR "tnasDownloaded" IS NULL) AND "publicId" IS NOT NULL) as pending_for_tnas
-        FROM invoices
+      const colInfo = await this.em.query(`
+        SELECT column_name, data_type, udt_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'invoices' AND column_name IN ('tnasDownloaded', 'publicId', 'pdfUrl', 'id')
       `);
+      const distinctTnas = await this.em.query(`SELECT DISTINCT "tnasDownloaded"::text as val, COUNT(*) as cnt FROM invoices GROUP BY "tnasDownloaded"::text`);
       const sampleInvoices = await this.em.query(`
-        SELECT id, "invoiceNumber", "status", "createdAt", "amount", "pdfUrl", "publicId", "tnasDownloaded"
+        SELECT id, "invoiceNumber", "status", "createdAt", "amount", "pdfUrl", "publicId", "tnasDownloaded"::text as "tnasDownloaded"
         FROM invoices
         ORDER BY "createdAt" DESC
         LIMIT 10
       `);
       return {
         totalInDb: parseInt(countRes[0]?.count || '0', 10),
-        stats: stats[0],
+        colInfo,
+        distinctTnas,
         invoices: sampleInvoices,
       };
     } catch (e: any) {
