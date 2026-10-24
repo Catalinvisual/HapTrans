@@ -128,6 +128,25 @@ export class AppController {
     }
   }
 
+  @Get('public/test-invoices')
+  async getTestInvoices() {
+    try {
+      const countRes = await this.em.query('SELECT COUNT(*) as count FROM invoices');
+      const latestInvoices = await this.em.query(`
+        SELECT id, "invoiceNumber", "status", "createdAt", "amount", "clientId", "tripId"
+        FROM invoices
+        ORDER BY "createdAt" DESC
+        LIMIT 40
+      `);
+      return {
+        totalInDb: parseInt(countRes[0]?.count || '0', 10),
+        invoices: latestInvoices,
+      };
+    } catch (e: any) {
+      return { error: e?.message };
+    }
+  }
+
   @Post('settings/company')
   @UseGuards(JwtAuthGuard)
   async saveCompanySettings(@Body() body: any) {
