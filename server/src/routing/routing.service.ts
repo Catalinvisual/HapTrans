@@ -9,6 +9,7 @@ import { TollCalculationResult, TollSection, TollCalculationVehicle } from './to
 interface CachedMatrixItem {
   distanceKm: number;
   durationMin: number;
+  tollCost?: number;
   timestamp: number;
   source: string;
 }
@@ -50,11 +51,12 @@ export class RoutingService {
     return item;
   }
 
-  private setInCache(origin: LatLng, dest: LatLng, distanceKm: number, durationMin: number, source: string) {
+  private setInCache(origin: LatLng, dest: LatLng, distanceKm: number, durationMin: number, source: string, tollCost: number = 0) {
     const key = this.getCacheKey(origin, dest);
     this.matrixCache.set(key, {
       distanceKm: Math.round(distanceKm * 100) / 100,
       durationMin: Math.round(durationMin),
+      tollCost: Math.round(tollCost * 100) / 100,
       timestamp: Date.now(),
       source,
     });
@@ -168,7 +170,9 @@ export class RoutingService {
     // Check cache first
     const cached = this.getFromCache(origin, dest);
     if (cached && !truckParams) {
-      const tollCost = cached.distanceKm >= 10 ? Math.round(cached.distanceKm * 0.18 * 100) / 100 : 0;
+      const tollCost = (cached as any).tollCost !== undefined && (cached as any).tollCost > 0
+        ? (cached as any).tollCost
+        : (cached.distanceKm > 0 ? Math.round(cached.distanceKm * 0.19 * 100) / 100 : 0);
       return {
         distanceKm: cached.distanceKm,
         durationMin: cached.durationMin,
@@ -219,8 +223,8 @@ export class RoutingService {
               tollCost += Number(toll.fares?.[0]?.price || 0);
             }
           }
-          if (tollCost === 0 && distanceKm >= 10) {
-            tollCost = Math.round(distanceKm * 0.18 * 100) / 100;
+          if (tollCost <= 0 && distanceKm > 0) {
+            tollCost = Math.round(distanceKm * 0.19 * 100) / 100;
           } else {
             tollCost = Math.round(tollCost * 100) / 100;
           }
@@ -237,7 +241,7 @@ export class RoutingService {
             }
           }
 
-          this.setInCache(origin, dest, distanceKm, durationMin, 'here');
+          this.setInCache(origin, dest, distanceKm, durationMin, 'here', tollCost);
 
           return {
             distanceKm,
@@ -289,10 +293,10 @@ export class RoutingService {
       const hours = Math.floor(durationMin / 60);
       const mins = durationMin % 60;
 
-      // Commercial truck toll estimation for EU HGV
-      const tollCost = distanceKm >= 10 ? Math.round(distanceKm * 0.18 * 100) / 100 : 0;
+      // Commercial truck toll estimation for EU HGV (average 0.19 EUR/km)
+      const tollCost = distanceKm > 0 ? Math.round(distanceKm * 0.19 * 100) / 100 : 0;
 
-      this.setInCache({ lat: originLat, lng: originLng }, { lat: destLat, lng: destLng }, distanceKm, durationMin, 'ors');
+      this.setInCache({ lat: originLat, lng: originLng }, { lat: destLat, lng: destLng }, distanceKm, durationMin, 'ors', tollCost);
 
       return {
         distanceKm,

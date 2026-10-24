@@ -656,9 +656,13 @@ export default function OrdersPage() {
 }
 
 function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, onDelete, t, navigate }: any) {
-  const [documents, setDocuments] = useState<any[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showDocUploadForm, setShowDocUploadForm] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [docType, setDocType] = useState('cmr');
+  const [docNotes, setDocNotes] = useState('');
+
   useEffect(() => {
     if (activeTab === 'documents') {
       setDocsLoading(true);
@@ -666,24 +670,32 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
     }
   }, [activeTab, order.id]);
 
-  const uploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const uploadFileWithNotes = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFile) {
+      toast.error(t('select_file_required', 'Vă rugăm să selectați un fișier'));
+      return;
+    }
     setUploading(true);
     try {
       const fd = new FormData();
-      fd.append('file', file);
+      fd.append('file', selectedFile);
       fd.append('orderId', order.id);
-      fd.append('type', 'other');
+      fd.append('type', docType);
+      if (docNotes.trim()) {
+        fd.append('notes', docNotes.trim());
+      }
       await api.post('/documents/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       toast.success(t('doc_uploaded', 'Document uploaded'));
       const r = await api.get(`/documents/order/${order.id}`);
       setDocuments(r.data);
+      setSelectedFile(null);
+      setDocNotes('');
+      setShowDocUploadForm(false);
     } catch (err) {
       toast.error(t('doc_upload_error', 'Upload failed'));
     } finally {
       setUploading(false);
-      e.target.value = '';
     }
   };
 
@@ -837,21 +849,131 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
       </div>
     ) },
     { key: 'documents', label: t('tab_documents', 'Documents'), badge: documents.length, content: (
-      <div className="space-y-2">
-        <label className={`flex items-center justify-center gap-2 w-full py-3 text-sm font-bold text-primary bg-primary/5 border-2 border-dashed border-primary/30 rounded-xl cursor-pointer hover:bg-primary/10 transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
-          {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}{uploading ? t('uploading', 'Uploading...') : t('upload_document', 'Upload document')}
-          <input type="file" className="hidden" onChange={uploadFile} />
-        </label>
-        {docsLoading ? <div className="flex justify-center p-6"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div> : documents.map((d: any) => (
-          <div key={d.id} className="flex items-center gap-3 bg-surface/40 rounded-xl p-3 border border-border">
-            <FileText className="w-5 h-5 text-primary shrink-0" />
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-semibold text-text-primary truncate">{d.originalFilename || d.fileName || 'Document'}</div>
-              <div className="text-[11px] text-text-secondary">{d.documentType || d.type} · {d.uploadedAt ? new Date(d.uploadedAt).toLocaleString() : ''}</div>
+      <div className="space-y-3">
+        {!showDocUploadForm ? (
+          <button
+            type="button"
+            onClick={() => setShowDocUploadForm(true)}
+            className="flex items-center justify-center gap-2 w-full py-2.5 text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 border-2 border-dashed border-primary/30 rounded-xl transition-all"
+          >
+            <Plus className="w-4 h-4" /> {t('add_document', 'Adaugă document cu notițe')}
+          </button>
+        ) : (
+          <form onSubmit={uploadFileWithNotes} className="bg-surface/70 dark:bg-card/70 border border-primary/30 rounded-xl p-3.5 space-y-3 shadow-sm">
+            <div className="flex justify-between items-center pb-2 border-b border-border/50">
+              <span className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-primary" />
+                {t('upload_new_doc', 'Adăugare Document')}
+              </span>
+              <button
+                type="button"
+                onClick={() => { setShowDocUploadForm(false); setSelectedFile(null); }}
+                className="text-text-secondary hover:text-text-primary text-xs"
+              >
+                ✕
+              </button>
             </div>
-            <button onClick={() => deleteDoc(d.id)} className="p-1.5 rounded-md text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"><Trash2 className="w-4 h-4" /></button>
-          </div>
-        ))}
+
+            <div>
+              <label className="block text-[11px] font-semibold text-text-secondary mb-1">
+                {t('select_file', 'Fișier *')}
+              </label>
+              <input
+                type="file"
+                onChange={e => setSelectedFile(e.target.files?.[0] || null)}
+                className="block w-full text-xs text-text-primary file:mr-2.5 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark cursor-pointer"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[11px] font-semibold text-text-secondary mb-1">
+                  {t('document_type', 'Tip Document')}
+                </label>
+                <select
+                  value={docType}
+                  onChange={e => setDocType(e.target.value)}
+                  className="input w-full text-xs py-1.5"
+                >
+                  <option value="cmr">CMR</option>
+                  <option value="invoice">{t('invoice', 'Factură (Invoice)')}</option>
+                  <option value="pod">{t('pod', 'Dovadă livrare (POD)')}</option>
+                  <option value="delivery_note">{t('delivery_note', 'Aviz expediție')}</option>
+                  <option value="packing_list">{t('packing_list', 'Packing List')}</option>
+                  <option value="photo">{t('photo', 'Fotografie marfă / încărcare')}</option>
+                  <option value="weight_ticket">{t('weight_ticket', 'Tichet cântar')}</option>
+                  <option value="other">{t('other', 'Altele')}</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-text-secondary mb-1">
+                {t('notes', 'Notițe / Instrucțiuni document')}
+              </label>
+              <textarea
+                value={docNotes}
+                onChange={e => setDocNotes(e.target.value)}
+                placeholder={t('doc_notes_placeholder', 'Introduceți orice notițe sau detalii despre acest document...')}
+                className="input w-full text-xs py-1.5"
+                rows={2}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => { setShowDocUploadForm(false); setSelectedFile(null); }}
+                className="btn-secondary !px-2.5 !py-1 !text-xs"
+              >
+                {t('cancel', 'Anulează')}
+              </button>
+              <button
+                type="submit"
+                disabled={uploading || !selectedFile}
+                className="btn-primary !px-3 !py-1 !text-xs flex items-center gap-1.5 disabled:opacity-60"
+              >
+                {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+                {uploading ? t('uploading', 'Se încarcă...') : t('upload', 'Încarcă document')}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {docsLoading ? (
+          <div className="flex justify-center p-6"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+        ) : (
+          documents.map((d: any) => (
+            <div key={d.id} className="flex flex-col gap-1.5 bg-surface/50 rounded-xl p-3 border border-border">
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5 text-primary shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-semibold text-text-primary truncate">{d.originalFilename || d.fileName || 'Document'}</div>
+                  <div className="text-[11px] text-text-secondary">
+                    <span className="font-semibold text-primary/90 uppercase">{d.documentType || d.type}</span> · {d.uploadedAt ? new Date(d.uploadedAt).toLocaleString() : ''}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {d.fileUrl && (
+                    <a href={d.fileUrl} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-md text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors" title={t('view', 'Vizualizează')}>
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  )}
+                  <button onClick={() => deleteDoc(d.id)} className="p-1.5 rounded-md text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title={t('delete', 'Șterge')}>
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              {d.notes && (
+                <div className="text-xs text-text-secondary bg-surface/80 dark:bg-card/80 p-2 rounded-lg border border-border/50 text-[11px] flex items-start gap-1.5 mt-0.5">
+                  <span className="font-bold text-text-primary shrink-0">{t('notes', 'Notițe')}:</span>
+                  <span className="italic text-text-primary">{d.notes}</span>
+                </div>
+              )}
+            </div>
+          ))
+        )}
         {!docsLoading && documents.length === 0 && <div className="text-sm text-text-secondary text-center py-6">{t('no_documents', 'No documents yet')}</div>}
       </div>
     ) },

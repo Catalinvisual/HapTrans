@@ -1,6 +1,6 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, Not, Like, In } from 'typeorm';
 import { Document, DocumentType } from './document.entity';
@@ -21,7 +21,7 @@ cloudinary.config({
 });
 
 @Injectable()
-export class DocumentsService {
+export class DocumentsService implements OnModuleInit {
   constructor(
     @InjectRepository(Document) private repo: Repository<Document>,
     @InjectRepository(DocumentShare) private shareRepo: Repository<DocumentShare>,
@@ -30,6 +30,16 @@ export class DocumentsService {
     @InjectRepository(Driver) private driverRepo: Repository<Driver>,
     private notificationsService: NotificationsService,
   ) {}
+
+  async onModuleInit() {
+    try {
+      await this.repo.query(`
+        ALTER TABLE "documents" ADD COLUMN IF NOT EXISTS "notes" text;
+      `);
+    } catch {
+      // ignore
+    }
+  }
 
   findAll() {
     return this.repo.find({ relations: ['trip', 'order', 'uploadedBy'], order: { uploadedAt: 'DESC' } });

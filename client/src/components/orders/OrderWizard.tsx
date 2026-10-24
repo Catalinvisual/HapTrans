@@ -482,15 +482,18 @@ export default function OrderWizard({
         }
       });
       const { distanceKm, durationMin, durationText, tollCost } = res.data;
+      const parsedToll = typeof tollCost === 'number' && tollCost > 0
+        ? tollCost
+        : (distanceKm > 0 ? Math.round(distanceKm * 0.19 * 100) / 100 : 0);
       const fuelCost = ((distanceKm / 100) * fuelConsumption * fuelPrice);
-      const totalCost = fuelCost + (tollCost || 0);
+      const totalCost = fuelCost + parsedToll;
       const agreedPrice = parseFloat(form.price) || 0;
       const profit = agreedPrice - totalCost;
       setCostEstimate({
         distanceKm,
         durationMin,
         durationText,
-        tollCost: tollCost || 0,
+        tollCost: parsedToll,
         fuelCost,
         totalCost,
         agreedPrice,

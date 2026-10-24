@@ -554,10 +554,78 @@ export class OrdersService implements OnModuleInit {
       const fullOrder = await this.findOne(id);
       this.eventEmitter.emit('order.updated', fullOrder);
 
-      if (user) {
-        // Find which fields were updated, simplify by logging dto keys
-        const updatedFields = Object.keys(dto).filter(k => dto[k] !== undefined);
-        await this.actionLogsService.logAction('Order', id, 'UPDATED', user, { updatedFields }, (fullOrder as any).company?.id);
+      if (user && existingOrder && fullOrder) {
+        const changes: Record<string, { old: any; new: any }> = {};
+
+        const fieldsToCheck = [
+          'price', 'currency', 'status', 'priority', 'transportType', 
+          'estimatedCost', 'estimatedProfit', 'distanceKm',
+          'internalReference', 'customerReference', 'loadingReference', 
+          'unloadingReference', 'contactPerson', 'contactPhone', 'notes'
+        ];
+
+        for (const field of fieldsToCheck) {
+          const oldVal = (existingOrder as any)[field] ?? null;
+          const newVal = (fullOrder as any)[field] ?? null;
+
+          const isNum = field === 'price' || field === 'estimatedCost' || field === 'estimatedProfit' || field === 'distanceKm';
+          if (isNum) {
+            const numOld = oldVal !== null && oldVal !== undefined ? Math.round(Number(oldVal) * 100) / 100 : null;
+            const numNew = newVal !== null && newVal !== undefined ? Math.round(Number(newVal) * 100) / 100 : null;
+            if (numOld !== numNew) {
+              changes[field] = { old: numOld, new: numNew };
+            }
+          } else {
+            const strOld = (oldVal ?? '').toString().trim();
+            const strNew = (newVal ?? '').toString().trim();
+            if (strOld !== strNew) {
+              changes[field] = { old: strOld || null, new: strNew || null };
+            }
+          }
+        }
+
+        const oldClientId = existingOrder.client?.id || null;
+        const newClientId = fullOrder.client?.id || null;
+        if (oldClientId !== newClientId) {
+          changes['client'] = {
+            old: existingOrder.client?.name || 'None',
+            new: fullOrder.client?.name || 'None',
+          };
+        }
+
+        const oldEq = [...(existingOrder.equipmentRequirements || [])].sort().join(', ');
+        const newEq = [...(fullOrder.equipmentRequirements || [])].sort().join(', ');
+        if (oldEq !== newEq) {
+          changes['equipmentRequirements'] = { old: oldEq || 'None', new: newEq || 'None' };
+        }
+
+        if (dto.stops) {
+          const oldStopsStr = (existingOrder.stops || []).map((s: any) => s.address || s.city || '').filter(Boolean).join(' → ');
+          const newStopsStr = (fullOrder.stops || []).map((s: any) => s.address || s.city || '').filter(Boolean).join(' → ');
+          if (oldStopsStr !== newStopsStr) {
+            changes['route'] = { old: oldStopsStr || '—', new: newStopsStr || '—' };
+          }
+        }
+
+        if (dto.cargoItems) {
+          const oldCargoStr = (existingOrder.cargoItems || []).map((c: any) => `${c.quantity || 1} ${c.unit || ''} ${c.description || ''}`).join(', ');
+          const newCargoStr = (fullOrder.cargoItems || []).map((c: any) => `${c.quantity || 1} ${c.unit || ''} ${c.description || ''}`).join(', ');
+          if (oldCargoStr !== newCargoStr) {
+            changes['cargoItems'] = { old: oldCargoStr || '—', new: newCargoStr || '—' };
+          }
+        }
+
+        const updatedFields = Object.keys(changes);
+        if (updatedFields.length > 0) {
+          await this.actionLogsService.logAction(
+            'Order',
+            id,
+            'UPDATED',
+            user,
+            { updatedFields, changes },
+            (fullOrder as any).company?.id || (user as any)?.companyId,
+          );
+        }
       }
 
       return fullOrder;
