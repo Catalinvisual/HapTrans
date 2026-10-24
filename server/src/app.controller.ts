@@ -5,6 +5,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { v2 as cloudinary } from 'cloudinary';
 import { UsersService } from './users/users.service';
 import { RoutingService } from './routing/routing.service';
+import { TnasService } from './tnas/tnas.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -15,6 +16,7 @@ export class AppController {
     private readonly appService: AppService,
     private readonly usersService: UsersService,
     private readonly routingService: RoutingService,
+    private readonly tnasService: TnasService,
   ) {}
 
   @Get()
@@ -156,16 +158,29 @@ export class AppController {
         FROM invoices
       `);
       const sampleInvs = await this.em.query(`
-        SELECT id, "invoiceNumber", "status", "pdfUrl", "publicId", "tnasDownloaded"::text as "tnasDownloaded"
+        SELECT *
         FROM invoices
         WHERE "pdfUrl" IS NOT NULL OR "publicId" IS NOT NULL
         LIMIT 10
       `);
+
+      let pendingFilesResult: any = null;
+      let pendingFilesError: any = null;
+      try {
+        pendingFilesResult = await this.tnasService.getPendingFiles();
+      } catch (err: any) {
+        pendingFilesError = { message: err?.message, stack: err?.stack };
+      }
+
       return {
         totalInDb: parseInt(countRes[0]?.count || '0', 10),
+        hasTnasKey: !!process.env.TNAS_API_KEY,
+        tnasKeyLength: process.env.TNAS_API_KEY?.length,
         tnasColTypes,
         invCounts: invCounts[0],
         sampleInvs,
+        pendingFilesResult,
+        pendingFilesError,
       };
     } catch (e: any) {
       return { error: e?.message };
