@@ -337,7 +337,7 @@ export class DocumentsService {
         // If personal/compliance doc (e.g. LICENSE, medical) or no active trip found:
         // Use driver's real human name instead of arbitrary license numbers (e.g. no BU444795)
         if (!reference && driver) {
-          const realName = (driver.name || driver.user?.name || `${driver.firstName || ''} ${driver.lastName || ''}`).trim();
+          const realName = (driver.user?.name || (driver as any).name || '').trim();
           if (realName) {
             reference = realName.replace(/\s+/g, '_');
           }
@@ -421,7 +421,7 @@ export class DocumentsService {
           FROM drivers d WHERE d."userId" = $5
         `, [
           displayType,
-          cleanRef,
+          reference,
           expiryDate,
           fileUrlToSave,
           user.id,

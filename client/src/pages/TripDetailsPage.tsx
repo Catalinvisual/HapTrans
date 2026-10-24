@@ -1,7 +1,24 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, MapPin, Calendar, Clock, Truck, User, Layers, Scale, Box, Euro, FileText, FileBadge, Navigation, Eye, Wand2, Download, Share2, Plus, Trash2, Edit2, Save, X, UserCheck, Package, Scale as ScaleIcon, Dock, Clock as ClockIcon, Mail, Phone, MapPin as MapPinIcon, ChevronDown } from 'lucide-react';
+import {
+  ArrowLeft,
+  MapPin,
+  Calendar,
+  Clock,
+  Truck,
+  User,
+  Box,
+  Euro,
+  FileText,
+  FileBadge,
+  Navigation,
+  Eye,
+  Wand2,
+  Download,
+  Share2,
+  ChevronDown,
+} from 'lucide-react';
 import api from '../lib/api';
 import { fmtMoney, fmtMoneySigned, fmtPercent } from '../lib/format';
 import toast from 'react-hot-toast';
@@ -71,18 +88,6 @@ const STATUS_COLORS: Record<string, string> = {
   overdue: 'badge-error'
 };
 
-const getOrderPallets = (o: any) => o.cargoItems?.reduce((sum: number, c: any) => sum + (c.unit === 'pallet' ? Number(c.quantity || 1) : 0), 0) || Number(o.pallets || 0);
-const getOrderWeight = (o: any) => o.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || Number(o.weightKg || 0);
-
-const normAddr = (s: any) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-const addrMatch = (a: any, b: any): boolean => {
-  const x = normAddr(a), y = normAddr(b);
-  if (!x || !y) return false;
-  if (x === y) return true;
-  if (x.length >= 12 && (x.includes(y) || y.includes(x))) return true;
-  return false;
-};
-
 export default function TripDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -93,12 +98,6 @@ export default function TripDetailsPage() {
   const [loading, setLoading] = useState(true);
   const { user } = useAuthStore();
   const isDispatcher = user?.role === 'dispatcher';
-  const [editingStopId, setEditingStopId] = useState<string | null>(null);
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [stopForm, setStopForm] = useState<any>({});
-  const [taskForm, setTaskForm] = useState<any>({});
-  const [costForm, setCostForm] = useState<any>({ type: "extra", amount: "", description: "", category: "extra", driverId: "", truckId: "" });
-  const [editingCostId, setEditingCostId] = useState<string | null>(null);
   useEffect(() => {
     const fetchTrip = async (isInitial = false) => {
       try {
@@ -151,218 +150,7 @@ export default function TripDetailsPage() {
     }
   };
 
-  // Cost handlers
-  const handleAddCost = async () => {
-    if (!trip) return;
-    if (!costForm.amount || Number(costForm.amount) <= 0) { toast.error(t("invalidAmount", "Sumă invalidă")); return; }
-    try {
-      await api.post(`/trips/${trip.id}/costs`, {
-        type: costForm.type,
-        amount: Number(costForm.amount),
-        description: costForm.description,
-        category: costForm.category,
-        driverId: costForm.driverId || undefined,
-        truckId: costForm.truckId || undefined
-      });
-      toast.success(t("costAdded", "Cost adăugat"));
-      setCostForm({ type: "extra", amount: "", description: "", category: "extra", driverId: "", truckId: "" });
-      const res = await api.get(`/trips/${trip.id}`);
-      setTrip(res.data);
-    } catch (e: any) {
-      toast.error(e.response?.data?.message || t("error", "Eroare"));
-    }
-  };
 
-  const handleStartEditCost = (cost: any) => {
-    setEditingCostId(cost.id);
-    setCostForm({
-      type: cost.type,
-      amount: cost.amount,
-      description: cost.description || "",
-      category: cost.category || "extra",
-      driverId: cost.driverId || "",
-      truckId: cost.truckId || ""
-    });
-  };
-
-  const handleCancelEditCost = () => {
-    setEditingCostId(null);
-    setCostForm({ type: "extra", amount: "", description: "", category: "extra", driverId: "", truckId: "" });
-  };
-
-  const handleUpdateCost = async (costId: string) => {
-    try {
-      await api.patch(`/trips/costs/${costId}`, costForm);
-      toast.success(t("costUpdated", "Cost actualizat"));
-      const res = await api.get(`/trips/${trip.id}`);
-      setTrip(res.data);
-      setEditingCostId(null);
-      setCostForm({ type: "extra", amount: "", description: "", category: "extra", driverId: "", truckId: "" });
-    } catch (e: any) {
-      toast.error(e.response?.data?.message || t("error", "Eroare"));
-    }
-  };
-
-  const handleDeleteCost = async (costId: string) => {
-    const ok = await confirm({
-      type: 'danger',
-      title: t('delete', 'Șterge'),
-      message: t("confirmDeleteCost", "Ștergi acest cost?"),
-      confirmText: t('delete', 'Șterge'),
-      cancelText: t('cancel', 'Anulează')
-    });
-    if (!ok) return;
-    try {
-      await api.delete(`/trips/costs/${costId}`);
-      toast.success(t("costDeleted", "Cost șters"));
-      const res = await api.get(`/trips/${trip.id}`);
-      setTrip(res.data);
-    } catch (e: any) {
-      toast.error(e.response?.data?.message || t("error", "Eroare"));
-    }
-  };
-
-  const handleDeleteStop = async (stopId: string) => {
-    const ok = await confirm({
-      type: 'danger',
-      title: t('delete', 'Șterge'),
-      message: t("confirmDeleteStop", "Ștergi această oprire?"),
-      confirmText: t('delete', 'Șterge'),
-      cancelText: t('cancel', 'Anulează')
-    });
-    if (!ok) return;
-    try {
-      await api.delete(`/trips/stops/${stopId}`);
-      toast.success(t("stopDeleted", "Oprire ștearsă"));
-      const res = await api.get(`/trips/${trip.id}`);
-      setTrip(res.data);
-    } catch (e: any) {
-      toast.error(e.response?.data?.message || t("error", "Eroare"));
-    }
-  };
-
-  const handleStartEditStop = (stop: any) => {
-    setEditingStopId(stop.id);
-    setStopForm({
-      address: stop.address || "",
-      companyName: stop.companyName || "",
-      country: stop.country || "RO",
-      type: stop.type || "pickup",
-      timeWindowMin: stop.timeWindowMin ? new Date(stop.timeWindowMin).toISOString().slice(0, 16) : "",
-      timeWindowMax: stop.timeWindowMax ? new Date(stop.timeWindowMax).toISOString().slice(0, 16) : "",
-      latitude: stop.latitude || "",
-      longitude: stop.longitude || "",
-      contactPerson: stop.contactPerson || "",
-      phone: stop.phone || "",
-      email: stop.email || "",
-      reference: stop.reference || "",
-      rampDock: stop.rampDock || "",
-    });
-  };
-
-  const handleCancelEditStop = () => {
-    setEditingStopId(null);
-    setStopForm({});
-  };
-
-  const handleUpdateStop = async (stopId: string) => {
-    try {
-      await api.patch(`/trips/stops/${stopId}`, stopForm);
-      toast.success(t("stopUpdated", "Oprire actualizată"));
-      const res = await api.get(`/trips/${trip.id}`);
-      setTrip(res.data);
-      setEditingStopId(null);
-      setStopForm({});
-    } catch (e: any) {
-      toast.error(e.response?.data?.message || t("error", "Eroare"));
-    }
-  };
-
-  const handleAddTask = async (stopId: string) => {
-    if (!trip) return;
-    try {
-      const newTask = {
-        type: "load",
-        pallets: 0,
-        weightKg: 0,
-        quantity: 0,
-        plannedTime: new Date().toISOString().slice(0, 16),
-        orderId: trip.orders?.[0]?.id || "",
-      };
-      await api.post(`/trips/stops/${stopId}/tasks`, newTask);
-      toast.success(t("taskAdded", "Sarcină adăugată"));
-      const res = await api.get(`/trips/${trip.id}`);
-      setTrip(res.data);
-    } catch (e: any) {
-      toast.error(e.response?.data?.message || t("error", "Eroare"));
-    }
-  };
-
-  const handleStartEditTask = (task: any) => {
-    setEditingTaskId(task.id);
-    setTaskForm({
-      type: task.type || "load",
-      pallets: task.pallets || 0,
-      weightKg: task.weightKg || 0,
-      quantity: task.quantity || 0,
-      plannedTime: task.plannedTime ? new Date(task.plannedTime).toISOString().slice(0, 16) : "",
-      orderId: task.order?.id || "",
-      reference: task.reference || "",
-      issueNote: task.issueNote || "",
-    });
-  };
-
-  const handleCancelEditTask = () => {
-    setEditingTaskId(null);
-    setTaskForm({});
-  };
-
-  const handleUpdateTask = async (taskId: string) => {
-    try {
-      await api.patch(`/trips/tasks/${taskId}`, taskForm);
-      toast.success(t("taskUpdated", "Sarcină actualizată"));
-      const res = await api.get(`/trips/${trip.id}`);
-      setTrip(res.data);
-      setEditingTaskId(null);
-      setTaskForm({});
-    } catch (e: any) {
-      toast.error(e.response?.data?.message || t("error", "Eroare"));
-    }
-  };
-
-  const handleDeleteTask = async (taskId: string) => {
-    const ok = await confirm({
-      type: 'danger',
-      title: t('delete', 'Șterge'),
-      message: t("confirmDeleteTask", "Ștergi această sarcină?"),
-      confirmText: t('delete', 'Șterge'),
-      cancelText: t('cancel', 'Anulează')
-    });
-    if (!ok) return;
-    try {
-      // No delete endpoint yet - just update status to problem or mark deleted
-      await api.patch(`/trips/tasks/${taskId}`, { status: "problem", issueNote: "Deleted by user" });
-      toast.success(t("taskDeleted", "Sarcină marcată ca problemă"));
-      const res = await api.get(`/trips/${trip.id}`);
-      setTrip(res.data);
-    } catch (e: any) {
-      toast.error(e.response?.data?.message || t("error", "Eroare"));
-    }
-  };
-
-  // Validation helpers
-  const getLoadedPallets = (stop: any) => {
-    return stop.tasks?.filter((t: any) => t.type === "load").reduce((s: number, t: any) => s + (t.pallets || 0), 0) || 0;
-  };
-  const getUnloadedPallets = (stop: any) => {
-    return stop.tasks?.filter((t: any) => t.type === "unload").reduce((s: number, t: any) => s + (t.pallets || 0), 0) || 0;
-  };
-  const getLoadedWeight = (stop: any) => {
-    return stop.tasks?.filter((t: any) => t.type === "load").reduce((s: number, t: any) => s + Number(t.weightKg || 0), 0) || 0;
-  };
-  const getUnloadedWeight = (stop: any) => {
-    return stop.tasks?.filter((t: any) => t.type === "unload").reduce((s: number, t: any) => s + Number(t.weightKg || 0), 0) || 0;
-  };
 
   if (loading) {
     return <div className="flex items-center justify-center h-[70vh]">
@@ -431,8 +219,7 @@ export default function TripDetailsPage() {
   const profit = basePrice - totalCost;
   const profitMargin = basePrice > 0 ? profit / basePrice * 100 : 0;
   
-  const totalPallets = trip.orders?.reduce((sum: number, o: any) => sum + getOrderPallets(o), 0) || 0;
-  const totalWeight = trip.orders?.reduce((sum: number, o: any) => sum + getOrderWeight(o), 0) || 0;
+
   const handleShare = async (url: string, title: string) => {
     if (navigator.share) {
       try {
@@ -645,68 +432,6 @@ export default function TripDetailsPage() {
                       </p>
                       
                       {/* Tasks List for this Stop */}
-                      
-                       {editingStopId === stop.id && (
-                         <div className="mt-3 p-4 bg-surface/50 rounded-xl border border-border space-y-4">
-                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                             <div>
-                               <label className="label">{t("address", "Adresa")}</label>
-                               <input type="text" className="input" value={stopForm.address} onChange={e => setStopForm({...stopForm, address: e.target.value})} placeholder={t("addressPlaceholder", "Adresa oprire")} />
-                             </div>
-                             <div>
-                               <label className="label">{t("companyName", "Companie")}</label>
-                               <input type="text" className="input" value={stopForm.companyName} onChange={e => setStopForm({...stopForm, companyName: e.target.value})} placeholder={t("companyNamePlaceholder", "Nume companie")} />
-                             </div>
-                             <div>
-                               <label className="label">{t("country", "Țară")}</label>
-                               <input type="text" className="input" value={stopForm.country} onChange={e => setStopForm({...stopForm, country: e.target.value})} placeholder="RO" />
-                             </div>
-                             <div>
-                               <label className="label">{t("type", "Tip")}</label>
-                               <select className="input" value={stopForm.type} onChange={e => setStopForm({...stopForm, type: e.target.value})}>
-                                 <option value="pickup">{t("pickup", "Încărcare")}</option>
-                                 <option value="delivery">{t("delivery", "Descărcare")}</option>
-                                 <option value="customs">{t("customs", "Vamă")}</option>
-                                 <option value="other">{t("other", "Altele")}</option>
-                               </select>
-                             </div>
-<div>
-                                <label className="label">{t("timeWindowMin", "Fereastră Min")}</label>
-                                <div className="relative">
-                                  <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
-                                  <Flatpickr value={stopForm.timeWindowMin ? stopForm.timeWindowMin.replace('T', ' ').slice(0, 16) : ''} onChange={(_, dateStr) => setStopForm({...stopForm, timeWindowMin: dateStr ? dateStr.replace(' ', 'T') : ''})} className="input pl-9 bg-card cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y H:i', dateFormat: 'Y-m-d H:i', enableTime: true, time_24hr: true, allowInput: false }} placeholder={t("dateTimeHint", "DD/MM/YYYY HH:mm")} />
-                                </div>
-                              </div>
-                              <div>
-                                <label className="label">{t("timeWindowMax", "Fereastră Max")}</label>
-                                <div className="relative">
-                                  <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
-                                  <Flatpickr value={stopForm.timeWindowMax ? stopForm.timeWindowMax.replace('T', ' ').slice(0, 16) : ''} onChange={(_, dateStr) => setStopForm({...stopForm, timeWindowMax: dateStr ? dateStr.replace(' ', 'T') : ''})} className="input pl-9 bg-card cursor-pointer hover:border-primary/50 transition-colors" options={{ altInput: true, altFormat: 'd/m/Y H:i', dateFormat: 'Y-m-d H:i', enableTime: true, time_24hr: true, allowInput: false }} placeholder={t("dateTimeHint", "DD/MM/YYYY HH:mm")} />
-                                </div>
-                              </div>
-                             <div>
-                               <label className="label">{t("contactPerson", "Persoană Contact")}</label>
-                               <input type="text" className="input" value={stopForm.contactPerson} onChange={e => setStopForm({...stopForm, contactPerson: e.target.value})} placeholder={t("contactPersonPlaceholder", "Nume persoană contact")} />
-                             </div>
-                             <div>
-                               <label className="label">{t("phone", "Telefon")}</label>
-                               <input type="tel" className="input" value={stopForm.phone} onChange={e => setStopForm({...stopForm, phone: e.target.value})} placeholder={t("phonePlaceholder", "Număr telefon")} />
-                             </div>
-                             <div>
-                               <label className="label">{t("email", "Email")}</label>
-                               <input type="email" className="input" value={stopForm.email} onChange={e => setStopForm({...stopForm, email: e.target.value})} placeholder={t("emailPlaceholder", "Email contact")} />
-                             </div>
-                             <div>
-                               <label className="label">{t("reference", "Referință")}</label>
-                               <input type="text" className="input" value={stopForm.reference} onChange={e => setStopForm({...stopForm, reference: e.target.value})} placeholder={t("referencePlaceholder", "Referință oprire")} />
-                             </div>
-                             <div>
-                               <label className="label">{t("rampDock", "Rampă/Doc")}</label>
-                               <input type="text" className="input" value={stopForm.rampDock} onChange={e => setStopForm({...stopForm, rampDock: e.target.value})} placeholder={t("rampDockPlaceholder", "Rampă/Doc")} />
-                             </div>
-                           </div>
-                         </div>
-                       )}
                        {stop.tasks && stop.tasks.length > 0 && <div className="mt-3 space-y-2">
                           {stop.tasks.map((task: any) => {
                               const fullOrder = trip.orders?.find((o: any) => o.id === task.order?.id) || task.order;
