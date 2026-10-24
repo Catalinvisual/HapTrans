@@ -51,6 +51,7 @@ export default function InvoicesPage({
   }), []);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showExport, setShowExport] = useState(false);
   const [showAging, setShowAging] = useState(false);
   const [aging, setAging] = useState<any>(null);
@@ -122,10 +123,11 @@ export default function InvoicesPage({
   const load = async () => {
     try {
       setLoading(true);
+      const timestamp = Date.now();
       const [inv, cl, tr] = await Promise.all([
-        api.get('/invoices'),
-        api.get('/clients'),
-        api.get('/trips'),
+        api.get(`/invoices?_t=${timestamp}`),
+        api.get(`/clients?_t=${timestamp}`),
+        api.get(`/trips?_t=${timestamp}`),
       ]);
       setInvoices(Array.isArray(inv.data) ? inv.data : []);
       setClients(Array.isArray(cl.data) ? cl.data : []);
@@ -566,8 +568,18 @@ export default function InvoicesPage({
       }
     }
   };
+  const isOverdue = (inv: any) => inv.status === 'overdue' || (inv.dueDate && new Date(inv.dueDate) < new Date() && !['paid', 'cancelled', 'draft'].includes(inv.status));
   const displayInvoices = embeddedClientId ? invoices.filter((inv: any) => inv.client?.id === embeddedClientId) : invoices;
-  const filtered = displayInvoices.filter(i => matchesSearch(search, i.invoiceNumber, i.client?.name, i.status, i.notes, i.amount)).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  const filtered = displayInvoices.filter(i => {
+    if (statusFilter !== 'all') {
+      if (statusFilter === 'overdue') {
+        if (!isOverdue(i)) return false;
+      } else if (i.status !== statusFilter) {
+        return false;
+      }
+    }
+    return matchesSearch(search, i.invoiceNumber, i.client?.name, i.status, i.notes, i.amount);
+  }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   const currentTableItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   useShortcuts({
     'shift+n': () => {
@@ -662,7 +674,6 @@ export default function InvoicesPage({
       toast.error(t('error'));
     }
   };
-  const isOverdue = (inv: any) => inv.status === 'overdue' || (inv.dueDate && new Date(inv.dueDate) < new Date() && !['paid', 'cancelled', 'draft'].includes(inv.status));
   const columns: Column<any>[] = [
     {
       key: 'invoice', label: t('invoiceNo') + ' / ' + t('client'), width: '200px',
@@ -965,6 +976,29 @@ export default function InvoicesPage({
             <button onClick={loadAging} className="btn-secondary px-2 py-1.5 flex items-center text-xs font-semibold border-primary/20 hover:border-primary/50 text-primary transition-all" title={t('agingTitle')}>
               <BarChart3 className="w-3.5 h-3.5" />
             </button>
+            <div className="flex items-center gap-1 border-l border-border pl-2 overflow-x-auto">
+              {[
+                { id: 'all', label: t('all', 'Toate') },
+                { id: 'approved', label: t('approved', 'Aprobate') },
+                { id: 'draft', label: t('draft', 'Ciorne') },
+                { id: 'sent', label: t('sent', 'Trimise') },
+                { id: 'paid', label: t('paid', 'Încasate') },
+                { id: 'overdue', label: t('overdue', 'Restante') },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => { setStatusFilter(tab.id); setCurrentPage(1); }}
+                  className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                    statusFilter === tab.id
+                      ? 'bg-primary text-white shadow-xs'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <span className="text-[11px] font-semibold text-text-secondary whitespace-nowrap">{filtered.length} {t('results')}</span>

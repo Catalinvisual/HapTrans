@@ -182,41 +182,81 @@ export class InvoicesService implements OnModuleInit {
   }
 
   async findAll() { 
-    return this.repo.createQueryBuilder('invoice')
-      .leftJoinAndSelect('invoice.client', 'client')
-      .leftJoinAndSelect('invoice.trip', 'trip')
-      .leftJoinAndSelect('invoice.items', 'items')
-      .leftJoinAndSelect('invoice.payments', 'payments')
-      .orderBy('invoice.createdAt', 'DESC')
-      .getMany();
+    try {
+      return await this.repo.createQueryBuilder('invoice')
+        .leftJoinAndSelect('invoice.client', 'client')
+        .leftJoinAndSelect('invoice.trip', 'trip')
+        .leftJoinAndSelect('invoice.items', 'items')
+        .leftJoinAndSelect('invoice.payments', 'payments')
+        .orderBy('invoice.createdAt', 'DESC')
+        .getMany();
+    } catch (err: any) {
+      console.error('QueryBuilder failed in InvoicesService.findAll, trying repo.find fallback:', err?.message);
+      try {
+        return await this.repo.find({
+          relations: ['client', 'trip', 'items', 'payments'],
+          order: { createdAt: 'DESC' }
+        });
+      } catch (err2: any) {
+        console.error('repo.find with relations failed in findAll, returning base find:', err2?.message);
+        return await this.repo.find({ order: { createdAt: 'DESC' } });
+      }
+    }
   }
 
   async findOne(id: string) { 
-    return this.repo.createQueryBuilder('invoice')
-      .leftJoinAndSelect('invoice.client', 'client')
-      .leftJoinAndSelect('invoice.trip', 'trip')
-      .leftJoinAndSelect('invoice.items', 'items')
-      .leftJoinAndSelect('invoice.payments', 'payments')
-      .where('invoice.id = :id', { id })
-      .getOne();
+    try {
+      return await this.repo.createQueryBuilder('invoice')
+        .leftJoinAndSelect('invoice.client', 'client')
+        .leftJoinAndSelect('invoice.trip', 'trip')
+        .leftJoinAndSelect('invoice.items', 'items')
+        .leftJoinAndSelect('invoice.payments', 'payments')
+        .where('invoice.id = :id', { id })
+        .getOne();
+    } catch (err: any) {
+      console.error('QueryBuilder failed in InvoicesService.findOne, trying repo.findOne fallback:', err?.message);
+      return await this.repo.findOne({ where: { id }, relations: ['client', 'trip', 'items', 'payments'] });
+    }
   }
 
   async create(dto: any, user?: any) {
     const payload: any = { 
       ...dto, 
-      invoiceNumber: dto.invoiceNumber || `INV-${Date.now()}` 
     };
 
-    if (dto.clientId) {
-      payload.client = typeof dto.clientId === 'object' ? dto.clientId : { id: dto.clientId };
-    } else if (dto.client?.id) {
+    // Safely associate client relation
+    if (dto.clientId && typeof dto.clientId === 'string' && dto.clientId.trim() !== '') {
+      payload.client = { id: dto.clientId.trim() };
+    } else if (dto.client?.id && typeof dto.client.id === 'string' && dto.client.id.trim() !== '') {
+      payload.client = { id: dto.client.id.trim() };
+    } else if (typeof dto.client === 'object' && dto.client !== null && dto.client.id) {
       payload.client = { id: dto.client.id };
+    } else {
+      payload.client = null;
     }
+    delete payload.clientId;
 
-    if (dto.tripId) {
-      payload.trip = typeof dto.tripId === 'object' ? dto.tripId : { id: dto.tripId };
-    } else if (dto.trip?.id) {
+    // Safely associate trip relation
+    if (dto.tripId && typeof dto.tripId === 'string' && dto.tripId.trim() !== '') {
+      payload.trip = { id: dto.tripId.trim() };
+    } else if (dto.trip?.id && typeof dto.trip.id === 'string' && dto.trip.id.trim() !== '') {
+      payload.trip = { id: dto.trip.id.trim() };
+    } else if (typeof dto.trip === 'object' && dto.trip !== null && dto.trip.id) {
       payload.trip = { id: dto.trip.id };
+    } else {
+      payload.trip = null;
+    }
+    delete payload.tripId;
+
+    // Clean empty string dates to null for Postgres date columns
+    if (payload.issueDate === '' || payload.issueDate === undefined) payload.issueDate = null;
+    if (payload.dueDate === '' || payload.dueDate === undefined) payload.dueDate = null;
+
+    // Generate unique invoice number if not provided
+    if (!payload.invoiceNumber || String(payload.invoiceNumber).trim() === '') {
+      const year = new Date().getFullYear();
+      const count = await this.repo.count();
+      payload.invoiceNumber = `INV-${year}-${String(count + 1).padStart(5, '0')}`;
     }
 
     if (dto.status) {

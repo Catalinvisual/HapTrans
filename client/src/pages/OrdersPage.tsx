@@ -283,12 +283,17 @@ export default function OrdersPage() {
   };
 
   const handleCreateInvoice = async (o: any) => {
+    const clientId = o.client?.id || o.clientId || (typeof o.client === 'string' ? o.client : null);
+    if (!clientId) {
+      toast.error(t('order_needs_client', 'Comanda trebuie să aibă un client selectat înainte de facturare. Editează comanda și alege un client.'));
+      return;
+    }
+
     const loadId = toast.loading(t('archivingToNasLoading', 'Se generează PDF-ul...'));
     try {
       const paymentTermsDays = o.client?.paymentTermsDays || 30;
       const issueDate = new Date().toISOString().split('T')[0];
       const dueDate = new Date(Date.now() + paymentTermsDays * 86400000).toISOString().split('T')[0];
-      const clientId = o.client?.id || o.clientId || (typeof o.client === 'string' ? o.client : null);
       const price = Number(o.price || 0);
       const fuelSurcharge = Number(o.client?.defaultFuelSurchargePercent || 0);
       const fuelCost = fuelSurcharge > 0 ? Number(((price * fuelSurcharge) / 100).toFixed(2)) : 0;
@@ -344,7 +349,10 @@ export default function OrdersPage() {
       await api.patch(`/orders/${o.id}`, { status: 'invoiced' });
       await fetchOrders();
       toast.dismiss(loadId);
-      toast.success(t('toast_invoiceGenerat', 'Factură generată cu succes!'));
+      toast.success(t('toast_invoiceGenerat', 'Factură generată cu succes! Redirecționare către Facturi...'));
+      setTimeout(() => {
+        navigate('/invoices');
+      }, 500);
     } catch (err: any) {
       toast.dismiss(loadId);
       toast.error(err?.response?.data?.message || t('error', 'Eroare la generarea facturii'));
