@@ -17,16 +17,14 @@ import {
   Wand2,
   Download,
   Share2,
+  Plus,
   ChevronDown,
 } from 'lucide-react';
 import api from '../lib/api';
 import { fmtMoney, fmtMoneySigned, fmtPercent } from '../lib/format';
 import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
-import Flatpickr from 'react-flatpickr';
-import 'flatpickr/dist/themes/light.css';
 import { useAuthStore } from '../store/authStore';
-import { useConfirm } from '../components/SaveConfirmProvider';
 import PalletIcon from '../components/icons/PalletIcon';
 import WeightKgIcon from '../components/icons/WeightKgIcon';
 
@@ -88,11 +86,22 @@ const STATUS_COLORS: Record<string, string> = {
   overdue: 'badge-error'
 };
 
+const getOrderPallets = (o: any) => o.cargoItems?.reduce((sum: number, c: any) => sum + (c.unit === 'pallet' ? Number(c.quantity || 1) : 0), 0) || Number(o.pallets || 0);
+const getOrderWeight = (o: any) => o.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || Number(o.weightKg || 0);
+
+const normAddr = (s: any) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const addrMatch = (a: any, b: any): boolean => {
+  const x = normAddr(a), y = normAddr(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  if (x.length >= 12 && (x.includes(y) || y.includes(x))) return true;
+  return false;
+};
+
 export default function TripDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
-  const confirm = useConfirm();
   const [trip, setTrip] = useState<any>(null);
   const [timeline, setTimeline] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

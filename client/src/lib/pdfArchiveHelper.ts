@@ -101,7 +101,7 @@ export async function archiveAndDownloadPdf(opts: ArchiveAndDownloadOptions): Pr
   activeOperations.add(opKey);
   const toastId = toast.loading(
     i18n.t('archivingToNasLoading', {
-      defaultValue: 'Se generează PDF-ul și se arhivează în TerraMaster (HC-PDF)...',
+      defaultValue: 'Se generează PDF-ul...',
     })
   );
 
@@ -126,7 +126,7 @@ export async function archiveAndDownloadPdf(opts: ArchiveAndDownloadOptions): Pr
     if (data.status === 'archived') {
       toast.success(
         i18n.t('archivingToNasSuccess', {
-          defaultValue: 'PDF salvat cu succes în TerraMaster: HC-PDF',
+          defaultValue: 'PDF salvat în HC-PDF: {{filename}}',
           filename: finalName,
         }),
         { id: toastId }
@@ -136,7 +136,7 @@ export async function archiveAndDownloadPdf(opts: ArchiveAndDownloadOptions): Pr
       toast.error(
         i18n.t('archivingToNasFailed', {
           error: sanitized,
-          defaultValue: 'Arhivarea pe TerraMaster (HC-PDF) a eșuat: {{error}}',
+          defaultValue: 'Salvarea în HC-PDF a eșuat: {{error}}',
         }),
         { id: toastId }
       );
@@ -144,7 +144,7 @@ export async function archiveAndDownloadPdf(opts: ArchiveAndDownloadOptions): Pr
       // Pending after timeout: queued on server and pending confirmation on NAS
       toast(
         i18n.t('archivingToNasPending', {
-          defaultValue: 'Arhivarea pe TerraMaster (HC-PDF) a fost trimisă și este în curs de sincronizare pe NAS.',
+          defaultValue: 'PDF trimis către HC-PDF: {{filename}}',
           filename: finalName,
         }),
         { id: toastId, icon: '⏳' }
@@ -197,7 +197,7 @@ export async function waitForArchiveConfirmation(
 ): Promise<'archived' | 'pending' | 'failed'> {
   const toastId = toast.loading(
     i18n.t('archivingToNasLoading', {
-      defaultValue: 'Se generează PDF-ul și se arhivează în TerraMaster (HC-PDF)...',
+      defaultValue: 'Se generează PDF-ul...',
     })
   );
   const finalFilename = filename || operationId;
@@ -208,7 +208,7 @@ export async function waitForArchiveConfirmation(
       if (res.data?.status === 'archived') {
         toast.success(
           i18n.t('archivingToNasSuccess', {
-            defaultValue: 'PDF salvat cu succes în TerraMaster: HC-PDF',
+            defaultValue: 'PDF salvat în HC-PDF: {{filename}}',
             filename: finalFilename,
           }),
           { id: toastId }
@@ -220,7 +220,7 @@ export async function waitForArchiveConfirmation(
         toast.error(
           i18n.t('archivingToNasFailed', {
             error: sanitized,
-            defaultValue: 'Arhivarea pe TerraMaster (HC-PDF) a eșuat: {{error}}',
+            defaultValue: 'Salvarea în HC-PDF a eșuat: {{error}}',
           }),
           { id: toastId }
         );
@@ -234,7 +234,7 @@ export async function waitForArchiveConfirmation(
 
   toast(
     i18n.t('archivingToNasPending', {
-      defaultValue: 'Arhivarea pe TerraMaster (HC-PDF) a fost trimisă și este în curs de sincronizare pe NAS.',
+      defaultValue: 'PDF trimis către HC-PDF: {{filename}}',
       filename: finalFilename,
     }),
     { id: toastId, icon: '⏳' }

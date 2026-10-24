@@ -303,39 +303,8 @@ export class DocumentsService {
           relations: ['user'],
         });
 
-        const isShipmentDoc = [
-          DocumentType.POD,
-          DocumentType.CMR,
-          DocumentType.AVIZ,
-          DocumentType.PACKING_LIST,
-          DocumentType.PHOTO,
-          DocumentType.FUEL,
-        ].includes(normalizedType);
-
-        // If it's a shipment doc, attempt to link with the driver's active trip & order
-        if (driver && isShipmentDoc) {
-          const activeTrip = await this.tripRepo.findOne({
-            where: [
-              { driver: { id: driver.id }, status: In(['in_transit', 'loading', 'driving', 'driver_accepted', 'dispatched', 'partially_delivered']) },
-              { driver: { id: driver.id } },
-            ],
-            relations: ['orders'],
-            order: { updatedAt: 'DESC' },
-          });
-
-          if (activeTrip) {
-            resolvedTrip = activeTrip;
-            if (activeTrip.orders?.length) {
-              resolvedOrder = activeTrip.orders[0];
-              reference = resolvedOrder.orderNumber || resolvedOrder.internalReference || activeTrip.tripNumber;
-            } else if (activeTrip.tripNumber) {
-              reference = activeTrip.tripNumber;
-            }
-          }
-        }
-
-        // If personal/compliance doc (e.g. LICENSE, medical) or no active trip found:
-        // Use driver's real human name instead of arbitrary license numbers (e.g. no BU444795)
+        // If personal/compliance doc (e.g. LICENSE, medical) or uploaded without explicit trip/order:
+        // Use driver's real human name instead of arbitrary codes
         if (!reference && driver) {
           const realName = (driver.user?.name || (driver as any).name || '').trim();
           if (realName) {
@@ -343,7 +312,7 @@ export class DocumentsService {
           }
         }
       } catch (err) {
-        console.warn('Could not resolve driver or active trip for doc upload:', err);
+        console.warn('Could not resolve driver for doc upload:', err);
       }
     }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Loader2, MapPin, FileText, Trash2, Box, Download, Pencil, ExternalLink, Activity, Copy, FilterX, Coins, Weight, Boxes, BadgeEuro, ArrowRight, Flag, Phone, User, Navigation, Calendar, FileUp, Sparkles } from 'lucide-react';
+import { Plus, Search, Loader2, MapPin, FileText, Trash2, Box, Pencil, ExternalLink, Activity, Copy, FilterX, Coins, Boxes, BadgeEuro, ArrowRight, Flag, Phone, User, Navigation, Calendar, Sparkles } from 'lucide-react';
 import api from '../lib/api';
 import OrderWizard from '../components/orders/OrderWizard';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
@@ -27,8 +27,9 @@ import ExcelImportModal from '../components/ExcelImportModal';
 import AdrBadge from '../components/common/AdrBadge';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { useSettingsStore } from '../store/settingsStore';
+import { useSettingsStore, getCompanySettings } from '../store/settingsStore';
 import { generateOrderPdf } from '../lib/pdfGenerator';
+import { generateInvoicePdfBase64 } from '../lib/invoicePdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { fmtMoney, fmtNumber } from '../lib/format';
 import { countryIso } from '../lib/countries';
@@ -56,7 +57,7 @@ function sortValue(o: any, key: string): any {
 }
 
 export default function OrdersPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -282,11 +283,12 @@ export default function OrdersPage() {
   };
 
   const handleCreateInvoice = async (o: any) => {
+    const loadId = toast.loading(t('archivingToNasLoading', 'Se generează PDF-ul...'));
     try {
       const paymentTermsDays = o.client?.paymentTermsDays || 30;
       const issueDate = new Date().toISOString().split('T')[0];
       const dueDate = new Date(Date.now() + paymentTermsDays * 86400000).toISOString().split('T')[0];
-      await api.post('/invoices', {
+      const res = await api.post('/invoices', {
         clientId: o.client?.id,
         tripId: o.trip?.id || null,
         amount: Number(o.price || 0),
@@ -299,10 +301,35 @@ export default function OrdersPage() {
         dueDate,
         notes: `Factura pentru comanda ${o.orderNumber || o.referenceNumber || ''}`.trim(),
       });
+      const savedInvoice = res.data;
+
+      // Generate invoice PDF
+      const lang = (i18n.language === 'ro' ? 'en' : (i18n.language as any)) || 'en';
+      const base64Pdf = await generateInvoicePdfBase64(savedInvoice, lang);
+      const arr = base64Pdf.split(',');
+      const mime = arr[0]?.match(/:(.*?);/)?.[1] || 'application/pdf';
+      const bstr = atob(arr[1] || '');
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      const invNum = (savedInvoice?.invoiceNumber || `INV-${o.orderNumber || o.id}`).trim();
+      const cleanFileName = invNum.toUpperCase().startsWith('INV') ? `${invNum}.pdf` : `Invoice_${invNum}.pdf`;
+      const file = new File([u8arr], cleanFileName, { type: mime });
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('company', JSON.stringify(getCompanySettings()));
+      await api.post(`/invoices/upload-pdf/${savedInvoice.id}`, formData);
+
       await api.patch(`/orders/${o.id}`, { status: 'ready_for_invoice' });
-      toast.success(t('toast_invoiceGenerat', 'Factură creată!'));
+      await fetchOrders();
+      toast.dismiss(loadId);
+      toast.success(t('toast_invoiceGenerat', 'Factură generată cu succes!'));
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || t('error', 'Eroare'));
+      toast.dismiss(loadId);
+      toast.error(err?.response?.data?.message || t('error', 'Eroare la generarea facturii'));
     }
   };
 

@@ -184,7 +184,8 @@ export class InvoicesService implements OnModuleInit {
     if (dto.clientId) payload.client = { id: dto.clientId };
     if (dto.tripId) payload.trip = { id: dto.tripId };
     const inv = this.repo.create(payload) as any;
-    return this.repo.save(inv);
+    const saved = await this.repo.save(inv);
+    return this.findOne(saved.id);
   }
 
   async approve(id: string) {

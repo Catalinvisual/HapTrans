@@ -170,6 +170,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
         setState(() {
           _commentCtrl.clear();
           _selectedFiles.clear();
+          _selectedTripId = null;
         });
         Navigator.pop(context); // Close upload sheet
         _fetchDocuments();
@@ -301,6 +302,15 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
   void _showUploadSheet() {
     final l = AppLocalizations.of(context);
     final trips = context.read<TripProvider>().trips;
+    final activeTrips = trips.where((t) {
+      final s = (t['status']?.toString() ?? '').toLowerCase();
+      return !['cancelled', 'completed', 'delivered'].contains(s);
+    }).toList();
+
+    _selectedTripId = null;
+    _commentCtrl.clear();
+    _selectedFiles.clear();
+    _signatureController.clear();
 
     showModalBottomSheet(
       context: context,
@@ -351,18 +361,31 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                 ),
                 const SizedBox(height: 16),
 
-                // Trip Selector (if available)
-                if (trips.isNotEmpty) ...[
-                  const Text('Trip (Optional)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                // Trip Selector (only if active trips exist)
+                if (activeTrips.isNotEmpty) ...[
+                  Text(
+                    l.locale.languageCode == 'ro' ? 'Cursă asociată (Opțional)' : 'Associated Trip (Optional)',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
                     value: _selectedTripId,
-                    hint: const Text('General Document (No Trip)'),
+                    hint: Text(
+                      l.locale.languageCode == 'ro' ? 'Document General (Fără cursă)' : 'General Document (No Trip)',
+                    ),
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('General Document (No Trip)')),
-                      ...trips.map((t) => DropdownMenuItem(
+                      DropdownMenuItem(
+                        value: null,
+                        child: Text(
+                          l.locale.languageCode == 'ro' ? 'Document General (Fără cursă)' : 'General Document (No Trip)',
+                        ),
+                      ),
+                      ...activeTrips.map((t) => DropdownMenuItem(
                             value: t['id']?.toString(),
-                            child: Text('${t['tripNumber'] ?? t['id']} (${tripPickup(t)} ➔ ${tripDropoff(t)})', overflow: TextOverflow.ellipsis),
+                            child: Text(
+                              '${t['tripNumber'] ?? t['id']} (${tripPickup(t)} ➔ ${tripDropoff(t)})',
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           )),
                     ],
                     onChanged: (val) => setSheetState(() => _selectedTripId = val),
@@ -374,37 +397,100 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                   const SizedBox(height: 16),
                 ],
 
-                // Pick Action Buttons
+                // Pick Action Buttons (Camera, Files, Signature)
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                        ),
                         onPressed: () async {
                           await _pickImage(ImageSource.camera);
                           setSheetState(() {});
                         },
-                        icon: const Icon(Icons.camera_alt, color: kPrimary),
-                        label: Text(l.translate('upload_camera'), style: const TextStyle(color: kPrimary)),
+                        icon: const Icon(Icons.camera_alt, color: kPrimary, size: 18),
+                        label: Text(
+                          l.translate('upload_camera'),
+                          style: const TextStyle(color: kPrimary, fontSize: 11),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                        ),
                         onPressed: () async {
                           await _pickFile();
                           setSheetState(() {});
                         },
-                        icon: const Icon(Icons.folder, color: kPrimary),
-                        label: Text(l.translate('upload_gallery_files'), style: const TextStyle(color: kPrimary), overflow: TextOverflow.ellipsis),
+                        icon: const Icon(Icons.folder, color: kPrimary, size: 18),
+                        label: Text(
+                          l.translate('upload_gallery_files'),
+                          style: const TextStyle(color: kPrimary, fontSize: 11),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                        ),
+                        onPressed: () async {
+                          await _captureSignature(setSheetState);
+                        },
+                        icon: const Icon(Icons.draw, color: kPrimary, size: 18),
+                        label: Text(
+                          l.locale.languageCode == 'ro' ? 'Semnătură' : 'Signature',
+                          style: const TextStyle(color: kPrimary, fontSize: 11),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ),
                   ],
                 ),
 
-                // Selected count preview
+                // Selected files preview
                 if (_selectedFiles.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  Text('Fișiere selectate: ${fmtNum(_selectedFiles.length, l.locale.languageCode)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: kSuccess)),
+                  Text(
+                    '${l.locale.languageCode == 'ro' ? 'Fișiere pregătite' : 'Selected files'} (${_selectedFiles.length}):',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: kSuccess),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: _selectedFiles.asMap().entries.map((entry) {
+                      final idx = entry.key;
+                      final f = entry.value;
+                      final fname = f.path.split(Platform.pathSeparator).last;
+                      final isSig = fname.contains('SIG');
+                      return InputChip(
+                        avatar: Icon(
+                          isSig ? Icons.draw : Icons.description,
+                          size: 16,
+                          color: isSig ? Colors.amber.shade800 : kPrimary,
+                        ),
+                        label: Text(
+                          isSig ? (l.locale.languageCode == 'ro' ? 'Semnătură' : 'Signature') : fname,
+                          style: const TextStyle(fontSize: 11),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        onDeleted: () {
+                          setSheetState(() {
+                            _selectedFiles.removeAt(idx);
+                          });
+                          setState(() {});
+                        },
+                      );
+                    }).toList(),
+                  ),
                 ],
 
                 const SizedBox(height: 16),
