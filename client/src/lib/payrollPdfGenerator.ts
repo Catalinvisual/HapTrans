@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getCompanySettings } from "../store/settingsStore";
 import { formatDate } from './dateUtils';
+import { sanitizeClientNameForFilename } from './filenameUtils';
 
 export const generatePayrollPdf = async (
   payroll: any,
@@ -126,8 +127,8 @@ export const generatePayrollPdf = async (
   doc.setFont('helvetica', 'italic');
   doc.text(t('automatedPayslip') || 'Dit is een geautomatiseerde loonstrook.', 105, 280, { align: 'center' });
 
-  const safeName = (payroll.user?.name || 'Employee').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const filename = `Fluturas_Salariu_${safeName}_${payroll.month}_${payroll.year}.pdf`;
+  const safeName = sanitizeClientNameForFilename(payroll.user?.name || 'Employee');
+  const filename = `Fluturas Salariu - ${safeName} - ${payroll.month}_${payroll.year}.pdf`;
   const base64 = doc.output('datauristring');
   const blob = doc.output('blob');
 

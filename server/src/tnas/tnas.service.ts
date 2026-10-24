@@ -205,11 +205,11 @@ export class TnasService {
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '')
             .replace(/[^a-zA-Z0-9_\-\s]/g, '')
-            .replace(/[\s\-]+/g, '_')
-            .replace(/_{2,}/g, '_')
-            .replace(/^_+|_+$/g, '')
-            .slice(0, 30);
-          fallbackFile = safeClient ? `${baseNum}_${safeClient}.pdf` : `${baseNum}.pdf`;
+            .replace(/\s+/g, ' ')
+            .replace(/[\-_]{2,}/g, '-')
+            .trim()
+            .slice(0, 35);
+          fallbackFile = safeClient ? `${baseNum} - ${safeClient}.pdf` : `${baseNum}.pdf`;
         }
         results.push({
           id: i.id,

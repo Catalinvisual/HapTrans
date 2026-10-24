@@ -4,7 +4,7 @@ import type { CompanySettings } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
 import { format } from 'date-fns';
 import { fmtNumber } from './format';
-import { getCleanOrderFilename } from './filenameUtils';
+import { getCleanOrderFilename, getCleanProfileFilename } from './filenameUtils';
 
 // ─── Formatting Helpers ────────────────────────────────────────────────────────
 
@@ -320,7 +320,7 @@ export async function generateClientPdf(client: any, company: CompanySettings | 
     margin: { left: 40, right: 40 },
   });
 
-  const filename = `Client_${client?.name?.replace(/[^a-z0-9]/gi, '_') || 'Profile'}.pdf`;
+  const filename = getCleanProfileFilename('Client', client?.name);
   if (options?.autoSave !== false) {
     doc.save(filename);
   }
@@ -352,7 +352,7 @@ export async function generateTruckPdf(truck: any, company: CompanySettings | nu
     margin: { left: 40, right: 40 },
   });
 
-  const filename = `Truck_${truck?.plateNumber || 'Specs'}.pdf`;
+  const filename = getCleanProfileFilename('Truck', truck?.plateNumber);
   if (options?.autoSave !== false) {
     doc.save(filename);
   }
@@ -383,7 +383,7 @@ export async function generateTrailerPdf(trailer: any, company: CompanySettings 
     margin: { left: 40, right: 40 },
   });
 
-  const filename = `Trailer_${trailer?.plateNumber || 'Specs'}.pdf`;
+  const filename = getCleanProfileFilename('Trailer', trailer?.plateNumber);
   if (options?.autoSave !== false) {
     doc.save(filename);
   }
