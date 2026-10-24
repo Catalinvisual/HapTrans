@@ -125,15 +125,32 @@ export class TnasService {
   ) {}
 
   generateSignedUrl(entity: any, expiresInSeconds: number) {
+    // If entity already has an accessible direct URL (e.g. valid Cloudinary upload URL), prefer it
+    if (entity.pdfUrl && typeof entity.pdfUrl === 'string' && entity.pdfUrl.startsWith('http')) {
+      return entity.pdfUrl;
+    }
+    if (entity.fileUrl && typeof entity.fileUrl === 'string' && entity.fileUrl.startsWith('http')) {
+      return entity.fileUrl;
+    }
+    if (entity.receiptUrl && typeof entity.receiptUrl === 'string' && entity.receiptUrl.startsWith('http')) {
+      return entity.receiptUrl;
+    }
+
     if (!entity.publicId) return entity.fileUrl || entity.pdfUrl || entity.receiptUrl;
+
+    const isRaw = (entity.resourceType || '').toLowerCase() === 'raw';
+    const cType = entity.cloudinaryType || (isRaw ? 'upload' : 'authenticated');
 
     const options: any = {
       secure: true,
-      sign_url: true,
-      type: entity.cloudinaryType || 'authenticated',
-      resource_type: entity.resourceType || 'raw',
-      expires_at: Math.floor(Date.now() / 1000) + expiresInSeconds,
+      sign_url: cType === 'authenticated',
+      type: cType,
+      resource_type: entity.resourceType || (isRaw ? 'raw' : 'image'),
     };
+
+    if (cType === 'authenticated') {
+      options.expires_at = Math.floor(Date.now() / 1000) + expiresInSeconds;
+    }
     
     if (entity.resourceType === 'image' && entity.format) {
       options.format = entity.format;
@@ -143,50 +160,77 @@ export class TnasService {
   }
 
   async getPendingFiles() {
-    const whereCondition = [
-      { tnasDownloaded: false, publicId: Not(IsNull()) },
-      { tnasDownloaded: IsNull() as any, publicId: Not(IsNull()) }
-    ];
-
-    const docs = await this.docsRepo.find({ where: whereCondition });
-    const invs = await this.invoicesRepo.find({ where: whereCondition });
-    const exps = await this.expensesRepo.find({ where: whereCondition });
-
     const results = [];
 
-    for (const d of docs) {
-      results.push({
-        id: d.id,
-        source: 'documents',
-        filename: d.originalFilename || d.fileName,
-        category: 'Documents',
-        signedUrl: this.generateSignedUrl(d, 15 * 60),
-        createdAt: d.uploadedAt,
+    // 1. Documents
+    try {
+      const docs = await this.docsRepo.find({
+        where: [
+          { tnasDownloaded: false, publicId: Not(IsNull()) },
+          { tnasDownloaded: IsNull() as any, publicId: Not(IsNull()) }
+        ]
       });
+
+      for (const d of docs) {
+        results.push({
+          id: d.id,
+          source: 'documents',
+          filename: d.originalFilename || d.fileName,
+          category: 'Documents',
+          signedUrl: this.generateSignedUrl(d, 15 * 60),
+          createdAt: d.uploadedAt,
+        });
+      }
+    } catch (docErr: any) {
+      this.logger.error(`Failed to load pending documents: ${docErr?.message}`);
     }
 
-    for (const i of invs) {
-      const invNum = (i.invoiceNumber || '').trim();
-      const cleanInvFile = invNum ? (invNum.toUpperCase().startsWith('INV') ? `${invNum}.pdf` : `Invoice_${invNum}.pdf`) : 'Invoice.pdf';
-      results.push({
-        id: i.id,
-        source: 'invoices',
-        filename: i.originalFilename || cleanInvFile,
-        category: 'Invoices',
-        signedUrl: this.generateSignedUrl(i, 15 * 60),
-        createdAt: i.createdAt,
-      });
+    // 2. Invoices (hardened against varchar/boolean column mismatch & supporting pdfUrl/publicId)
+    try {
+      const invs = await this.invoicesRepo
+        .createQueryBuilder('i')
+        .where('(i.tnasDownloaded IS NULL OR i.tnasDownloaded = false OR CAST(i.tnasDownloaded AS text) IN (\'false\', \'0\'))')
+        .andWhere('(i.publicId IS NOT NULL OR i.pdfUrl IS NOT NULL)')
+        .orderBy('i.createdAt', 'DESC')
+        .getMany();
+
+      for (const i of invs) {
+        const invNum = (i.invoiceNumber || '').trim();
+        const cleanInvFile = invNum ? (invNum.toUpperCase().startsWith('INV') ? `${invNum}.pdf` : `Invoice_${invNum}.pdf`) : 'Invoice.pdf';
+        results.push({
+          id: i.id,
+          source: 'invoices',
+          filename: i.originalFilename || cleanInvFile,
+          category: 'Invoices',
+          signedUrl: this.generateSignedUrl(i, 15 * 60),
+          createdAt: i.createdAt,
+        });
+      }
+    } catch (invErr: any) {
+      this.logger.error(`Failed to load pending invoices: ${invErr?.message}`);
     }
 
-    for (const e of exps) {
-      results.push({
-        id: e.id,
-        source: 'expenses',
-        filename: e.originalFilename || `Expense_${e.id.substring(0,8)}.pdf`,
-        category: 'Expenses',
-        signedUrl: this.generateSignedUrl(e, 15 * 60),
-        createdAt: e.createdAt,
+    // 3. Expenses
+    try {
+      const exps = await this.expensesRepo.find({
+        where: [
+          { tnasDownloaded: false, publicId: Not(IsNull()) },
+          { tnasDownloaded: IsNull() as any, publicId: Not(IsNull()) }
+        ]
       });
+
+      for (const e of exps) {
+        results.push({
+          id: e.id,
+          source: 'expenses',
+          filename: e.originalFilename || `Expense_${e.id.substring(0,8)}.pdf`,
+          category: 'Expenses',
+          signedUrl: this.generateSignedUrl(e, 15 * 60),
+          createdAt: e.createdAt,
+        });
+      }
+    } catch (expErr: any) {
+      this.logger.error(`Failed to load pending expenses: ${expErr?.message}`);
     }
 
     return results;
@@ -204,6 +248,14 @@ export class TnasService {
 
     entity.tnasDownloaded = true;
     await repo.save(entity);
+
+    // Defensive update in case of column typing issues on legacy tables
+    await repo.createQueryBuilder()
+      .update()
+      .set({ tnasDownloaded: true as any })
+      .where("id = :id", { id })
+      .execute()
+      .catch(() => {});
 
     return { success: true };
   }

@@ -143,6 +143,20 @@ export class AppController {
       await this.em.query(`UPDATE "invoices" SET "createdAt" = now() WHERE "createdAt" IS NULL`).catch(() => {});
       await this.em.query(`UPDATE "invoices" SET "updatedAt" = now() WHERE "updatedAt" IS NULL`).catch(() => {});
 
+      await this.em.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "tnasDownloaded" DROP DEFAULT`).catch(() => {});
+      await this.em.query(`
+        ALTER TABLE IF EXISTS "invoices" 
+        ALTER COLUMN "tnasDownloaded" TYPE boolean 
+        USING (
+          CASE 
+            WHEN "tnasDownloaded"::text IN ('true', 't', '1') THEN true 
+            ELSE false 
+          END
+        )
+      `).catch(() => {});
+      await this.em.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "tnasDownloaded" SET DEFAULT false`).catch(() => {});
+      await this.em.query(`UPDATE "invoices" SET "tnasDownloaded" = false WHERE "tnasDownloaded" IS NULL`).catch(() => {});
+
       const countRes = await this.em.query('SELECT COUNT(*) as count FROM invoices');
       const tnasColTypes = await this.em.query(`
         SELECT table_name, column_name, data_type 

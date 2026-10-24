@@ -96,8 +96,23 @@ async function preFlightDbFix(): Promise<void> {
     await client.query(`UPDATE "invoices" SET "createdAt" = now() WHERE "createdAt" IS NULL`).catch(() => {});
     await client.query(`UPDATE "invoices" SET "updatedAt" = now() WHERE "updatedAt" IS NULL`).catch(() => {});
 
+    // Ensure invoices.tnasDownloaded is boolean (fixing varchar column mismatch)
+    await client.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "tnasDownloaded" DROP DEFAULT`).catch(() => {});
+    await client.query(`
+      ALTER TABLE IF EXISTS "invoices" 
+      ALTER COLUMN "tnasDownloaded" TYPE boolean 
+      USING (
+        CASE 
+          WHEN "tnasDownloaded"::text IN ('true', 't', '1') THEN true 
+          ELSE false 
+        END
+      )
+    `).catch(() => {});
+    await client.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "tnasDownloaded" SET DEFAULT false`).catch(() => {});
+    await client.query(`UPDATE "invoices" SET "tnasDownloaded" = false WHERE "tnasDownloaded" IS NULL`).catch(() => {});
+
     await client.end();
-    Logger.log('payments/date + legacy user&driver + invoices id/createdAt ensured', 'DB');
+    Logger.log('payments/date + legacy user&driver + invoices id/createdAt/tnasDownloaded ensured', 'DB');
   } catch (err) {
     Logger.error(`pre-flight DB fix skipped: ${(err as Error).message}`, undefined, 'DB');
   }
