@@ -1,11 +1,10 @@
 import { EntityManager } from 'typeorm';
-import { Controller, Get, UseGuards, Post, Body, Param } from '@nestjs/common';
+import { Controller, Get, UseGuards, Post, Body } from '@nestjs/common';
 import { AppService } from './app.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { v2 as cloudinary } from 'cloudinary';
 import { UsersService } from './users/users.service';
 import { RoutingService } from './routing/routing.service';
-import { TnasService } from './tnas/tnas.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -16,7 +15,6 @@ export class AppController {
     private readonly appService: AppService,
     private readonly usersService: UsersService,
     private readonly routingService: RoutingService,
-    private readonly tnasService: TnasService,
   ) {}
 
   @Get()
@@ -130,177 +128,7 @@ export class AppController {
     }
   }
 
-  @Get('public/test-invoices')
-  async getTestInvoices() {
-    try {
-      await this.em.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`).catch(() => {});
-      await this.em.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "id" SET DEFAULT gen_random_uuid()`).catch(() => {});
-      await this.em.query(`ALTER TABLE IF EXISTS "invoices" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP DEFAULT now()`).catch(() => {});
-      await this.em.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "createdAt" SET DEFAULT now()`).catch(() => {});
-      await this.em.query(`ALTER TABLE IF EXISTS "invoices" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT now()`).catch(() => {});
-      await this.em.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "updatedAt" SET DEFAULT now()`).catch(() => {});
-      await this.em.query(`UPDATE "invoices" SET "id" = gen_random_uuid() WHERE "id" IS NULL`).catch(() => {});
-      await this.em.query(`UPDATE "invoices" SET "createdAt" = now() WHERE "createdAt" IS NULL`).catch(() => {});
-      await this.em.query(`UPDATE "invoices" SET "updatedAt" = now() WHERE "updatedAt" IS NULL`).catch(() => {});
 
-      let alterError: any = null;
-      try {
-        await this.em.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "tnasDownloaded" DROP DEFAULT`);
-        await this.em.query(`
-          ALTER TABLE IF EXISTS "invoices" 
-          ALTER COLUMN "tnasDownloaded" TYPE boolean 
-          USING (
-            CASE 
-              WHEN "tnasDownloaded"::text IN ('true', 't', '1') THEN true 
-              ELSE false 
-            END
-          )
-        `);
-        await this.em.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "tnasDownloaded" SET DEFAULT false`);
-        await this.em.query(`UPDATE "invoices" SET "tnasDownloaded" = false WHERE "tnasDownloaded" IS NULL`);
-        await this.em.query(`
-          UPDATE invoices 
-          SET "pdfUrl" = 'https://res.cloudinary.com/dmconsi2x/raw/upload/v1792869414/hapcargo_invoices/INV-2026-00042.pdf',
-              "publicId" = 'hapcargo_invoices/INV-2026-00043.pdf',
-              "resourceType" = 'raw',
-              "cloudinaryType" = 'upload',
-              "format" = 'pdf',
-              "originalFilename" = 'INV-2026-00043.pdf',
-              "tnasDownloaded" = false
-          WHERE "invoiceNumber" = 'INV-2026-00043' AND "pdfUrl" IS NULL
-        `).catch(() => {});
-      } catch (aErr: any) {
-        alterError = { message: aErr?.message, detail: aErr?.detail };
-      }
-
-      const countRes = await this.em.query('SELECT COUNT(*) as count FROM invoices');
-      const tnasColTypes = await this.em.query(`
-        SELECT table_name, column_name, data_type 
-        FROM information_schema.columns 
-        WHERE column_name = 'tnasDownloaded'
-      `);
-      const invCounts = await this.em.query(`
-        SELECT 
-          COUNT(*) as total,
-          COUNT("pdfUrl") as with_pdf_url,
-          COUNT("publicId") as with_public_id,
-          COUNT(*) FILTER (WHERE "publicId" IS NOT NULL AND ("tnasDownloaded"::text IN ('false', '0') OR "tnasDownloaded" IS NULL)) as pending_invoices
-        FROM invoices
-      `);
-      const sampleInvs = await this.em.query(`
-        SELECT *
-        FROM invoices
-        WHERE "pdfUrl" IS NOT NULL OR "publicId" IS NOT NULL
-        ORDER BY "createdAt" DESC
-        LIMIT 10
-      `);
-
-      let pendingFilesResult: any = null;
-      let pendingFilesError: any = null;
-      try {
-        pendingFilesResult = await this.tnasService.getPendingFiles();
-      } catch (err: any) {
-        pendingFilesError = { message: err?.message, stack: err?.stack };
-      }
-
-      return {
-        buildCommit: 'inv-43-active',
-        alterError,
-        totalInDb: parseInt(countRes[0]?.count || '0', 10),
-        hasTnasKey: !!process.env.TNAS_API_KEY,
-        tnasKeyLength: process.env.TNAS_API_KEY?.length,
-        tnasColTypes,
-        invCounts: invCounts[0],
-        sampleInvs,
-        pendingFilesResult,
-        pendingFilesError,
-      };
-    } catch (e: any) {
-      return { error: e?.message };
-    }
-  }
-
-  @Get('public/test-create-invoice')
-  async testCreateInvoiceGet() {
-    return this.testCreateInvoice({ amount: 1550, notes: 'Factură test HapTrans browser trigger' });
-  }
-
-  @Post('public/test-create-invoice')
-  async testCreateInvoice(@Body() body: any) {
-    try {
-      const crypto = require('crypto');
-      const countRes = await this.em.query('SELECT COUNT(*) as count FROM invoices');
-      const count = parseInt(countRes[0]?.count || '0', 10);
-      const year = new Date().getFullYear();
-      const invoiceNumber = `INV-${year}-${String(count + 1).padStart(5, '0')}`;
-      const newId = crypto.randomUUID();
-      const amount = Number(body?.amount || 1250);
-      const vatPercent = Number(body?.vatPercent || 19);
-      const vatAmount = Number(((amount * vatPercent) / 100).toFixed(2));
-      const total = amount + vatAmount;
-
-      await this.em.query(`
-        INSERT INTO invoices (
-          "id", "invoiceNumber", "status", "amount", "subtotal", "vatPercent", "vatAmount", "total", 
-          "notes", "createdAt", "updatedAt"
-        ) VALUES (
-          $1, $2, 'approved', $3, $3, $4, $5, $6, $7, now(), now()
-        )
-      `, [
-        newId, 
-        invoiceNumber, 
-        amount, 
-        vatPercent, 
-        vatAmount, 
-        total, 
-        body?.notes || 'Factura test sistem HapTrans'
-      ]);
-
-      const inserted = await this.em.query('SELECT * FROM invoices WHERE id = $1', [newId]);
-      return { success: true, invoice: inserted[0] };
-    } catch (e: any) {
-      return { success: false, error: e?.message };
-    }
-  }
-
-  @Get('public/test-upload-invoice-pdf/:id')
-  async testUploadInvoicePdf(@Param('id') id: string) {
-    try {
-      const invs = await this.em.query('SELECT * FROM invoices WHERE id = $1', [id]);
-      if (!invs || invs.length === 0) return { error: 'Invoice not found' };
-      const inv = invs[0];
-      const invNum = inv.invoiceNumber || `INV-${id.substring(0,8)}`;
-      const cleanInvFile = `${invNum}.pdf`;
-
-      const samplePdfBase64 = 'data:application/pdf;base64,JVBERi0xLjQKJcTl8uXrp/OgCjEgMCBvYmoKPDwgL1R5cGUgL0NhdGFsb2cgL1BhZ2VzIDIgMCBSID4+CmVuZG9iagoyIDAgb2JqCjw8IC9UeXBlIC9QYWdlcyAvS2lkcyBbMyAwIFJdIC9Db3VudCAxID4+CmVuZG9iagozIDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNjEyIDc5Ml0gL0NvbnRlbnRzIDQgMCBSID4+CmVuZG9iago0IDAgb2JqCjw8IC9MZW5ndGggNDUgPj4Kc3RyZWFtCkJUCi9GMSAxMiBUZgoxMDAgNzAwIFRkCihGYWN0dXJhIFRlc3QgSU5WLTIwMjYtMDAwNDMpIFRqCkVNCmVuZHN0cmVhbQplbmRvYmoKeHJlZgowIDUKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDE4IDAwMDAwIG4gCjAwMDAwMDAwNjggMDAwMDAgbiAKMDAwMDAwMDEyNSAwMDAwMCBuIAowMDAwMDAwMjE5IDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgNSAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKMzE0CiUlRU9GCg==';
-      
-      const cRes = await cloudinary.uploader.upload(samplePdfBase64, {
-        folder: 'hapcargo_invoices',
-        resource_type: 'raw',
-        format: 'pdf',
-        public_id: invNum,
-        overwrite: true,
-      });
-
-      await this.em.query(`
-        UPDATE invoices SET 
-          "pdfUrl" = $1,
-          "publicId" = $2,
-          "resourceType" = 'raw',
-          "cloudinaryType" = 'upload',
-          "format" = 'pdf',
-          "originalFilename" = $3,
-          "tnasDownloaded" = false,
-          "updatedAt" = now()
-        WHERE id = $4
-      `, [cRes.secure_url, cRes.public_id, cleanInvFile, id]);
-
-      const updated = await this.em.query('SELECT * FROM invoices WHERE id = $1', [id]);
-      return { success: true, uploaded: cRes, invoice: updated[0] };
-    } catch (e: any) {
-      return { success: false, error: e?.message };
-    }
-  }
 
   @Post('settings/company')
   @UseGuards(JwtAuthGuard)
