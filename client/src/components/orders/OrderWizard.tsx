@@ -481,7 +481,6 @@ export default function OrderWizard({
     });
   }, [fuelConsumption, fuelPrice, form.price]);
 
-  if (!isOpen) return null;
   const handleCalculateCost = async () => {
     if (!pickup.latitude || !pickup.longitude || !dropoff.latitude || !dropoff.longitude) {
       toast.error(t('cost_calc_no_coords', 'Please validate pickup and delivery addresses first (Step 2).'));
@@ -836,6 +835,9 @@ export default function OrderWizard({
     value: 'other',
     label: t('unit_other', 'Other')
   }];
+
+  if (!isOpen) return null;
+
   const modalContent = <div className="fixed inset-0 z-[20000] flex items-center justify-center p-3 md:p-5" style={{
     backdropFilter: 'blur(6px)',
     backgroundColor: 'rgba(0,0,0,0.65)'
