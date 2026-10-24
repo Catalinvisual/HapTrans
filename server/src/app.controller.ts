@@ -157,6 +157,11 @@ export class AppController {
     }
   }
 
+  @Get('public/test-create-invoice')
+  async testCreateInvoiceGet() {
+    return this.testCreateInvoice({ amount: 1550, notes: 'Factură test HapTrans browser trigger' });
+  }
+
   @Post('public/test-create-invoice')
   async testCreateInvoice(@Body() body: any) {
     try {
