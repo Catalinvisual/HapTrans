@@ -5,8 +5,8 @@ import '../utils/constants.dart';
 import '../widgets/language_dropdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dio/dio.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
+import '../providers/update_provider.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -78,22 +78,79 @@ class ProfileScreen extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          ElevatedButton.icon(
-            onPressed: () => _checkForUpdateManual(context, locale),
-            icon: const Icon(Icons.system_update),
-            label: Text({
-              'ro': 'Verifică Actualizări',
-              'en': 'Check for Updates',
-              'nl': 'Controleer op updates',
-              'de': 'Nach Updates suchen',
-              'fr': 'Vérifier les mises à jour'
-            , 'es': 'Buscar Actualizaciones', 'pl': 'Sprawdź aktualizacje' }[locale] ?? 'Check for Updates'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blueAccent,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
+          Consumer<UpdateProvider>(
+            builder: (context, updateProv, child) {
+              if (updateProv.hasUpdate) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () => updateProv.promptUpdateDialog(context, locale: locale),
+                      icon: const Icon(Icons.download_rounded, color: Colors.white, size: 20),
+                      label: Text(
+                        {
+                          'ro': 'Actualizare Disponibilă (v${updateProv.serverVersionCode ?? ''}) - Descarcă',
+                          'en': 'Update Available (v${updateProv.serverVersionCode ?? ''}) - Download',
+                          'nl': 'Update beschikbaar (v${updateProv.serverVersionCode ?? ''}) - Nu downloaden',
+                          'de': 'Update verfügbar (v${updateProv.serverVersionCode ?? ''}) - Jetzt herunterladen',
+                          'fr': 'Mise à jour disponible (v${updateProv.serverVersionCode ?? ''}) - Télécharger',
+                          'es': 'Actualización Disponible (v${updateProv.serverVersionCode ?? ''}) - Descargar',
+                          'pl': 'Dostępna aktualizacja (v${updateProv.serverVersionCode ?? ''}) - Pobierz',
+                        }[locale] ?? 'Update Available - Download',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kPrimary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 4,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Center(
+                      child: Text(
+                        {
+                          'ro': 'O nouă versiune este pregătită pentru instalare!',
+                          'en': 'A new version is ready to install!',
+                          'nl': 'Er staat een nieuwe versie klaar om te installeren!',
+                          'de': 'Eine neue Version ist zur Installation bereit!',
+                          'fr': 'Une nouvelle version est prête à être installée !',
+                          'es': '¡Hay una nueva versión lista para instalar!',
+                          'pl': 'Nowa wersja jest gotowa do instalacji!',
+                        }[locale] ?? 'A new version is ready to install!',
+                        style: TextStyle(fontSize: 11, color: Colors.amber.shade800, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                );
+              }
+
+              return ElevatedButton.icon(
+                onPressed: () => updateProv.checkForUpdates(context: context, manual: true, locale: locale),
+                icon: updateProv.isChecking
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Icon(Icons.system_update),
+                label: Text(
+                  {
+                    'ro': 'Verifică Actualizări',
+                    'en': 'Check for Updates',
+                    'nl': 'Controleer op updates',
+                    'de': 'Nach Updates suchen',
+                    'fr': 'Vérifier les mises à jour',
+                    'es': 'Buscar Actualizaciones',
+                    'pl': 'Sprawdź aktualizacje',
+                  }[locale] ?? 'Check for Updates',
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 12),
           ElevatedButton.icon(
@@ -122,97 +179,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _checkForUpdateManual(BuildContext context, String locale) async {
-    try {
-      final res = await Dio().get('$kApiUrl/auth/app-version');
-      final data = res.data;
-      final serverVersion = data['versionCode'] ?? 0;
-      
-      if (serverVersion > kAppVersionCode) {
-        final url = data['url'];
-        if (url != null) {
-          _downloadAndInstallUpdate(context, url, locale);
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text({
-              'ro': 'Folosiți deja ultima versiune.',
-              'en': 'You are already using the latest version.',
-              'nl': 'U gebruikt al de nieuwste versie.',
-              'de': 'Sie verwenden bereits die neueste Version.',
-              'fr': 'Vous utilisez déjà la dernière version.'
-            , 'es': 'Ya estás usando la última versión.', 'pl': 'Masz już najnowszą wersję.' }[locale] ?? 'You are already using the latest version.'),
-            backgroundColor: kSuccess,
-          ),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Eroare la verificarea actualizării: $e'), backgroundColor: kError),
-      );
-    }
-  }
 
-  Future<void> _downloadAndInstallUpdate(BuildContext context, String url, String locale) async {
-    final ValueNotifier<double> progressNotifier = ValueNotifier(0.0);
-    
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => ValueListenableBuilder<double>(
-        valueListenable: progressNotifier,
-        builder: (context, progress, child) {
-          return AlertDialog(
-            title: Text({
-              'ro': 'Se descarcă...',
-              'en': 'Downloading...',
-              'nl': 'Downloaden...',
-              'de': 'Wird heruntergeladen...',
-              'fr': 'Téléchargement...'
-            , 'es': 'Descargando...', 'pl': 'Pobieranie...' }[locale] ?? 'Downloading...'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                LinearProgressIndicator(value: progress),
-                const SizedBox(height: 16),
-                Text('${(progress * 100).toStringAsFixed(0)}%'),
-              ],
-            ),
-          );
-        }
-      ),
-    );
-
-    try {
-      final dir = await getExternalStorageDirectory();
-      if (dir == null) return;
-      final filePath = '${dir.path}/HapTrans_update.apk';
-      
-      final dio = Dio();
-      await dio.download(
-        url,
-        filePath,
-        onReceiveProgress: (received, total) {
-          if (total != -1) {
-            progressNotifier.value = received / total;
-          }
-        },
-      );
-      
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context); // Close downloading dialog
-      }
-      await OpenFilex.open(filePath);
-    } catch (e) {
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Eroare descărcare: $e'), backgroundColor: Colors.red),
-      );
-    }
-  }
 
   void _showChangePasswordDialog(BuildContext context, AuthProvider auth, String locale) {
     final oldCtrl = TextEditingController();

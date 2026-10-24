@@ -20,6 +20,7 @@ import 'trips_screen.dart';
 import 'tachograph_screen.dart';
 import 'documents_screen.dart';
 import 'profile_screen.dart';
+import '../providers/update_provider.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -28,23 +29,45 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _selectedIndex = 0;
   Timer? _pollingTimer;
+  Timer? _updateTimer;
   StreamSubscription<Position>? _gpsSubscription;
   bool _isAutoTracking = false;
-  bool _checkedForUpdate = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<AuthProvider>();
       final tripProv = context.read<TripProvider>();
       final chatProv = context.read<ChatProvider>();
 
       _checkAndRequestPermissions();
-      _checkForUpdate(auth.locale.languageCode);
+
+      // Check for updates shortly after startup
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) {
+          context.read<UpdateProvider>().checkForUpdates(
+            context: context,
+            autoPrompt: true,
+            locale: auth.locale.languageCode,
+          );
+        }
+      });
+
+      // Periodically check for updates while the app is actively used (every 2 minutes)
+      _updateTimer = Timer.periodic(const Duration(minutes: 2), (_) {
+        if (mounted) {
+          context.read<UpdateProvider>().checkForUpdates(
+            context: context,
+            autoPrompt: true,
+            locale: auth.locale.languageCode,
+          );
+        }
+      });
 
       tripProv.addListener(() {
         if (mounted) {
@@ -117,125 +140,24 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  Future<void> _checkForUpdate(String locale) async {
-    if (_checkedForUpdate) return;
-    _checkedForUpdate = true;
-    try {
-      final res = await Dio().get('$kApiUrl/auth/app-version');
-      final data = res.data;
-      final serverVersion = data['versionCode'] ?? 0;
-      if (serverVersion > kAppVersionCode) {
-        if (!mounted) return;
-        final msg = data['message']?[locale] ?? data['message']?['en'] ?? 'O nouă versiune este disponibilă! Vă rugăm să actualizați.';
-        final url = data['url'];
-        
-        showDialog(
-          context: context,
-          barrierDismissible: !(data['mandatory'] ?? false),
-          builder: (ctx) => AlertDialog(
-            title: Text({
-              'ro': 'Actualizare Disponibilă',
-              'en': 'Update Available',
-              'nl': 'Update beschikbaar',
-              'de': 'Update verfügbar',
-              'fr': 'Mise à jour disponible'
-            , 'es': 'Actualización Disponible', 'pl': 'Dostępna aktualizacja' }[locale] ?? 'Update Available'),
-            content: Text(msg),
-            actions: [
-              if (!(data['mandatory'] ?? false))
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: Text({
-                    'ro': 'Mai târziu',
-                    'en': 'Later',
-                    'nl': 'Later',
-                    'de': 'Später',
-                    'fr': 'Plus tard'
-                  , 'es': 'Más tarde', 'pl': 'Później' }[locale] ?? 'Later'),
-                ),
-              ElevatedButton(
-                onPressed: () {
-                  if (url != null) {
-                    Navigator.pop(ctx);
-                    _downloadAndInstallUpdate(url, locale);
-                  }
-                },
-                child: Text({
-                  'ro': 'Descarcă Acum',
-                  'en': 'Download Now',
-                  'nl': 'Nu downloaden',
-                  'de': 'Jetzt herunterladen',
-                  'fr': 'Télécharger'
-                , 'es': 'Descargar Ahora', 'pl': 'Pobierz teraz' }[locale] ?? 'Download Now'),
-              ),
-            ],
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('Failed to check for updates: $e');
-    }
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _pollingTimer?.cancel();
+    _updateTimer?.cancel();
+    _gpsSubscription?.cancel();
+    super.dispose();
   }
 
-  Future<void> _downloadAndInstallUpdate(String url, String locale) async {
-    final ValueNotifier<double> progressNotifier = ValueNotifier(0.0);
-    
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => ValueListenableBuilder<double>(
-        valueListenable: progressNotifier,
-        builder: (context, progress, child) {
-          return AlertDialog(
-            title: Text({
-              'ro': 'Se descarcă...',
-              'en': 'Downloading...',
-              'nl': 'Downloaden...',
-              'de': 'Wird heruntergeladen...',
-              'fr': 'Téléchargement...'
-            , 'es': 'Descargando...', 'pl': 'Pobieranie...' }[locale] ?? 'Downloading...'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                LinearProgressIndicator(value: progress),
-                const SizedBox(height: 16),
-                Text('${(progress * 100).toStringAsFixed(0)}%'),
-              ],
-            ),
-          );
-        }
-      ),
-    );
-
-    try {
-      final dir = await getExternalStorageDirectory();
-      if (dir == null) return;
-      final filePath = '${dir.path}/HapTrans_update.apk';
-      
-      final dio = Dio();
-      await dio.download(
-        url,
-        filePath,
-        onReceiveProgress: (received, total) {
-          if (total != -1) {
-            progressNotifier.value = received / total;
-          }
-        },
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      final auth = context.read<AuthProvider>();
+      context.read<UpdateProvider>().checkForUpdates(
+        context: context,
+        autoPrompt: true,
+        locale: auth.locale.languageCode,
       );
-      
-      if (mounted && Navigator.canPop(context)) {
-        Navigator.pop(context); // Close downloading dialog
-      }
-      await OpenFilex.open(filePath);
-    } catch (e) {
-      if (mounted && Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Eroare descărcare: $e'), backgroundColor: Colors.red),
-        );
-      }
     }
   }
 
@@ -289,12 +211,6 @@ class _MainScreenState extends State<MainScreen> {
     notif.onTokenReady = (token) => auth.syncFcmTokenValue(token);
   }
 
-  @override
-  void dispose() {
-    _pollingTimer?.cancel();
-    _gpsSubscription?.cancel();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {

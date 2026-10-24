@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/trip_provider.dart';
 import 'providers/chat_provider.dart';
+import 'providers/update_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
 import 'utils/constants.dart';
@@ -45,6 +46,7 @@ class HapCargoApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider(prefs)),
         ChangeNotifierProvider(create: (_) => TripProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) => UpdateProvider()),
       ],
       child: Consumer<AuthProvider>(
         builder: (ctx, auth, _) => MaterialApp(
