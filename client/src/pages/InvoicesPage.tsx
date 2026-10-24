@@ -511,22 +511,28 @@ export default function InvoicesPage({
           const res = await api.post('/invoices', dataToSubmit);
           savedInvoice = res.data;
         }
-        const base64Pdf = await generateInvoicePdfBase64(savedInvoice, lang);
-        const arr = base64Pdf.split(',');
-        const mime = arr[0].match(/:(.*?);/)[1];
-        const bstr = atob(arr[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while (n--) {
-          u8arr[n] = bstr.charCodeAt(n);
+
+        try {
+          const base64Pdf = await generateInvoicePdfBase64(savedInvoice, lang);
+          const arr = base64Pdf.split(',');
+          const mime = arr[0].match(/:(.*?);/)[1];
+          const bstr = atob(arr[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+          }
+          const file = new File([u8arr], getCleanInvoiceFilename(savedInvoice.invoiceNumber), {
+            type: mime
+          });
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('company', JSON.stringify(getCompanySettings()));
+          await api.post(`/invoices/upload-pdf/${savedInvoice.id}`, formData);
+        } catch (pdfErr) {
+          console.warn('PDF generation/upload failed, invoice was preserved:', pdfErr);
         }
-        const file = new File([u8arr], getCleanInvoiceFilename(savedInvoice.invoiceNumber), {
-          type: mime
-        });
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('company', JSON.stringify(getCompanySettings()));
-        await api.post(`/invoices/upload-pdf/${savedInvoice.id}`, formData);
+
         if (editId) {
           toast.success(t('draftUpdated') || t('statusUpdated'));
         } else {
@@ -534,9 +540,11 @@ export default function InvoicesPage({
         }
         setShowForm(false);
         setEditId(null);
-        load();
+        setCurrentPage(1);
+        setStatusFilter('all');
+        await load();
       } catch (err: any) {
-        toast.error(t('error'));
+        toast.error(err?.response?.data?.message || t('error'));
       }
     } else if (invoiceLangModal.type === 'ensure') {
       const invoice = invoiceLangModal.data;

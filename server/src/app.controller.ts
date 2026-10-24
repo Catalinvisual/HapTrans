@@ -131,12 +131,22 @@ export class AppController {
   @Get('public/test-invoices')
   async getTestInvoices() {
     try {
+      await this.em.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`).catch(() => {});
+      await this.em.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "id" SET DEFAULT gen_random_uuid()`).catch(() => {});
+      await this.em.query(`ALTER TABLE IF EXISTS "invoices" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP DEFAULT now()`).catch(() => {});
+      await this.em.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "createdAt" SET DEFAULT now()`).catch(() => {});
+      await this.em.query(`ALTER TABLE IF EXISTS "invoices" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT now()`).catch(() => {});
+      await this.em.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "updatedAt" SET DEFAULT now()`).catch(() => {});
+      await this.em.query(`UPDATE "invoices" SET "id" = gen_random_uuid() WHERE "id" IS NULL`).catch(() => {});
+      await this.em.query(`UPDATE "invoices" SET "createdAt" = now() WHERE "createdAt" IS NULL`).catch(() => {});
+      await this.em.query(`UPDATE "invoices" SET "updatedAt" = now() WHERE "updatedAt" IS NULL`).catch(() => {});
+
       const countRes = await this.em.query('SELECT COUNT(*) as count FROM invoices');
       const latestInvoices = await this.em.query(`
         SELECT id, "invoiceNumber", "status", "createdAt", "amount", "clientId", "tripId"
         FROM invoices
         ORDER BY "createdAt" DESC
-        LIMIT 40
+        LIMIT 50
       `);
       return {
         totalInDb: parseInt(countRes[0]?.count || '0', 10),

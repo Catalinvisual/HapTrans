@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Like } from 'typeorm';
+import * as crypto from 'crypto';
 import { Invoice, InvoiceStatus } from './invoice.entity';
 import { InvoiceItem } from './invoice-item.entity';
 import { Trip } from '../trips/trip.entity';
@@ -178,7 +179,19 @@ export class InvoicesService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    // Migration logic stub
+    try {
+      await this.repo.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`).catch(() => {});
+      await this.repo.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "id" SET DEFAULT gen_random_uuid()`).catch(() => {});
+      await this.repo.query(`ALTER TABLE IF EXISTS "invoices" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP DEFAULT now()`).catch(() => {});
+      await this.repo.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "createdAt" SET DEFAULT now()`).catch(() => {});
+      await this.repo.query(`ALTER TABLE IF EXISTS "invoices" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT now()`).catch(() => {});
+      await this.repo.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "updatedAt" SET DEFAULT now()`).catch(() => {});
+      await this.repo.query(`UPDATE "invoices" SET "id" = gen_random_uuid() WHERE "id" IS NULL`).catch(() => {});
+      await this.repo.query(`UPDATE "invoices" SET "createdAt" = now() WHERE "createdAt" IS NULL`).catch(() => {});
+      await this.repo.query(`UPDATE "invoices" SET "updatedAt" = now() WHERE "updatedAt" IS NULL`).catch(() => {});
+    } catch (e: any) {
+      console.warn('Invoices onModuleInit note:', e?.message);
+    }
   }
 
   async findAll() { 
@@ -223,6 +236,17 @@ export class InvoicesService implements OnModuleInit {
     const payload: any = { 
       ...dto, 
     };
+
+    // Guarantee non-null primary key UUID and timestamp
+    if (!payload.id || String(payload.id).trim() === '') {
+      payload.id = crypto.randomUUID();
+    }
+    if (!payload.createdAt) {
+      payload.createdAt = new Date();
+    }
+    if (!payload.updatedAt) {
+      payload.updatedAt = new Date();
+    }
 
     // Safely associate client relation
     if (dto.clientId && typeof dto.clientId === 'string' && dto.clientId.trim() !== '') {

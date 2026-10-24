@@ -84,8 +84,20 @@ async function preFlightDbFix(): Promise<void> {
     await client.query(`ALTER TABLE IF EXISTS "drivers" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP DEFAULT now()`);
     await client.query(`ALTER TABLE IF EXISTS "drivers" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT now()`);
     await client.query(`ALTER TABLE IF EXISTS "drivers" ALTER COLUMN "updated_at" DROP NOT NULL`).catch(() => {});
+
+    // Invoices table fixes: ensure id and createdAt defaults and backfill any NULL values
+    await client.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`).catch(() => {});
+    await client.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "id" SET DEFAULT gen_random_uuid()`).catch(() => {});
+    await client.query(`ALTER TABLE IF EXISTS "invoices" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP DEFAULT now()`).catch(() => {});
+    await client.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "createdAt" SET DEFAULT now()`).catch(() => {});
+    await client.query(`ALTER TABLE IF EXISTS "invoices" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT now()`).catch(() => {});
+    await client.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "updatedAt" SET DEFAULT now()`).catch(() => {});
+    await client.query(`UPDATE "invoices" SET "id" = gen_random_uuid() WHERE "id" IS NULL`).catch(() => {});
+    await client.query(`UPDATE "invoices" SET "createdAt" = now() WHERE "createdAt" IS NULL`).catch(() => {});
+    await client.query(`UPDATE "invoices" SET "updatedAt" = now() WHERE "updatedAt" IS NULL`).catch(() => {});
+
     await client.end();
-    Logger.log('payments/date + legacy user&driver columns ensured', 'DB');
+    Logger.log('payments/date + legacy user&driver + invoices id/createdAt ensured', 'DB');
   } catch (err) {
     Logger.error(`pre-flight DB fix skipped: ${(err as Error).message}`, undefined, 'DB');
   }
