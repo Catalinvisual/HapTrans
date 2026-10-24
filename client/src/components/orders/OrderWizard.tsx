@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { useTranslation } from 'react-i18next';
-import { X, Save, Loader2, ArrowRight, ArrowLeft, Plus, Trash2, Box, MapPin, FileText, ChevronDown, Calculator, Fuel, AlertTriangle, TrendingUp, TrendingDown, CheckCircle2, ShieldAlert, HelpCircle } from 'lucide-react';
+import { X, Save, Loader2, ArrowRight, ArrowLeft, Plus, Trash2, Box, Package, MapPin, FileText, ChevronDown, Calculator, Fuel, AlertTriangle, TrendingUp, TrendingDown, CheckCircle2, ShieldAlert, HelpCircle } from 'lucide-react';
 import api from '../../lib/api';
 import toast from 'react-hot-toast';
 import AddressAutocomplete from '../AddressAutocomplete';
@@ -555,6 +554,36 @@ export default function OrderWizard({
   }]);
   const handleRemoveCargo = (i: number) => setCargoItems(cargoItems.filter((_, idx) => idx !== i));
 
+  // Bi-directional synchronization between cargo items (ADR / Frigo) and form.equipmentRequirements
+  useEffect(() => {
+    const hasAdr = cargoItems.some((c: any) => c.isAdr || c.unNumber);
+    const hasFrigo = cargoItems.some((c: any) => c.isTemperatureControlled);
+
+    setForm(prev => {
+      const curReqs = new Set(Array.isArray(prev.equipmentRequirements) ? prev.equipmentRequirements : []);
+      let changed = false;
+
+      if (hasAdr && !curReqs.has('adr')) {
+        curReqs.add('adr');
+        changed = true;
+      } else if (!hasAdr && curReqs.has('adr')) {
+        curReqs.delete('adr');
+        changed = true;
+      }
+
+      if (hasFrigo && !curReqs.has('frigo')) {
+        curReqs.add('frigo');
+        changed = true;
+      } else if (!hasFrigo && curReqs.has('frigo')) {
+        curReqs.delete('frigo');
+        changed = true;
+      }
+
+      if (!changed) return prev;
+      return { ...prev, equipmentRequirements: Array.from(curReqs) };
+    });
+  }, [cargoItems]);
+
   // Composite ADR 1.1.3.6 Order-Level Assessment
   const adrCargoItems = useMemo(() => cargoItems.filter((c: any) => c.isAdr), [cargoItems]);
   const classifiedAdrItems = useMemo(() => cargoItems.filter((c: any) => c.isAdr && c.unNumber), [cargoItems]);
@@ -966,15 +995,19 @@ export default function OrderWizard({
                 )}
                 
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">{t("jsx_equipmentRequi", "Equipment & Special Requirements")}</label>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-semibold text-text-primary">
+                      {t("jsx_equipmentRequi", "Equipment & Special Requirements")}
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
                     {[
-                      { id: 'adr', icon: '⚠️', labelKey: 'eq_adr', fallback: 'ADR' },
-                      { id: 'frigo', icon: '❄️', labelKey: 'eq_frigo', fallback: 'Frigo' },
-                      { id: 'urgent', icon: '⚡', labelKey: 'eq_urgent', fallback: 'Urgent' },
-                      { id: 'tail_lift', icon: '🏗️', labelKey: 'eq_tail_lift', fallback: 'Lift' },
-                      { id: 'tilt', icon: '🚚', labelKey: 'eq_tilt', fallback: 'Prelată' },
-                      { id: 'mega', icon: '📏', labelKey: 'eq_mega', fallback: 'Mega' }
+                      { id: 'adr', icon: '⚠️', labelKey: 'eq_adr', fallback: 'ADR', descKey: 'eq_adr_desc', fallbackDesc: 'Dangerous goods' },
+                      { id: 'frigo', icon: '❄️', labelKey: 'eq_frigo', fallback: 'Frigo', descKey: 'eq_frigo_desc', fallbackDesc: 'Controlled temp' },
+                      { id: 'urgent', icon: '⚡', labelKey: 'eq_urgent', fallback: 'Express', descKey: 'eq_urgent_desc', fallbackDesc: 'Critical priority' },
+                      { id: 'tail_lift', icon: '🏗️', labelKey: 'eq_tail_lift', fallback: 'Tail-lift', descKey: 'eq_tail_lift_desc', fallbackDesc: 'Hydraulic lift' },
+                      { id: 'tilt', icon: '🚚', labelKey: 'eq_tilt', fallback: 'Tilt', descKey: 'eq_tilt_desc', fallbackDesc: 'Curtainsider' },
+                      { id: 'mega', icon: '📏', labelKey: 'eq_mega', fallback: 'Mega', descKey: 'eq_mega_desc', fallbackDesc: '3m load height' }
                     ].map(eq => {
                       const selected = form.equipmentRequirements.includes(eq.id);
                       return (
@@ -985,20 +1018,60 @@ export default function OrderWizard({
                             const reqsArray = Array.isArray(form.equipmentRequirements) ? form.equipmentRequirements : [];
                             const isAdding = !selected;
                             const newReqs = selected ? reqsArray.filter(r => r !== eq.id) : [...reqsArray, eq.id];
+
+                            // Direct synchronization with Step 3 cargo items
+                            if (eq.id === 'adr') {
+                              setCargoItems(prev => {
+                                if (isAdding) {
+                                  if (prev.length > 0 && !prev.some((c: any) => c.isAdr)) {
+                                    return prev.map((c, idx) => idx === 0 ? { ...c, isAdr: true } : c);
+                                  }
+                                } else {
+                                  return prev.map(c => !c.unNumber ? { ...c, isAdr: false } : c);
+                                }
+                                return prev;
+                              });
+                            }
+
+                            if (eq.id === 'frigo') {
+                              setCargoItems(prev => {
+                                if (isAdding) {
+                                  if (prev.length > 0 && !prev.some((c: any) => c.isTemperatureControlled)) {
+                                    return prev.map((c, idx) => idx === 0 ? { ...c, isTemperatureControlled: true } : c);
+                                  }
+                                } else {
+                                  return prev.map(c => ({ ...c, isTemperatureControlled: false }));
+                                }
+                                return prev;
+                              });
+                            }
+
                             setForm(prev => ({
                               ...prev,
                               equipmentRequirements: newReqs,
                               priority: eq.id === 'urgent' && isAdding ? 'critical' : (eq.id === 'urgent' && !isAdding && prev.priority === 'critical' ? 'normal' : prev.priority)
                             }));
                           }}
-                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all flex items-center gap-1.5 ${
+                          className={`p-3 text-left rounded-xl border transition-all duration-200 flex flex-col justify-between ${
                             selected
-                              ? 'bg-primary text-white border-primary shadow-sm'
-                              : 'bg-surface border-border text-text-secondary hover:border-primary/50'
+                              ? 'bg-primary/10 border-primary ring-2 ring-primary/40 shadow-sm'
+                              : 'bg-card border-border/80 hover:border-primary/40 hover:bg-black/5 dark:hover:bg-white/5'
                           }`}
                         >
-                          <span>{eq.icon}</span>
-                          <span>{t(eq.labelKey, eq.fallback)}</span>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-lg">{eq.icon}</span>
+                            {selected && (
+                              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                            )}
+                          </div>
+                          <div>
+                            <div className={`text-xs font-bold leading-tight ${selected ? 'text-primary' : 'text-text-primary'}`}>
+                              {t(eq.labelKey, eq.fallback)}
+                            </div>
+                            <div className="text-[10px] text-text-secondary mt-0.5 line-clamp-1">
+                              {t(eq.descKey, eq.fallbackDesc)}
+                            </div>
+                          </div>
                         </button>
                       );
                     })}
@@ -1359,6 +1432,24 @@ export default function OrderWizard({
                       {cargoItems.length > 1 && <button type="button" onClick={() => handleRemoveCargo(index)} className="absolute top-3 right-3 p-1.5 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors">
                           <Trash2 className="w-4 h-4" />
                         </button>}
+
+                      {/* Header 1: Physical cargo dimensions for whole order */}
+                      <div className="flex items-center justify-between pb-2 mb-3 border-b border-border/60">
+                        <div className="flex items-center gap-2">
+                          <Package className="w-4 h-4 text-primary" />
+                          <span className="font-bold text-xs uppercase tracking-wider text-text-primary">
+                            {t('order_cargo_main_header', '1. Marfă Generală & Specificații Fizice (Comandă Totală)')}
+                            {cargoItems.length > 1 && ` — #${index + 1}`}
+                          </span>
+                        </div>
+                        {cargo.isAdr && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3 text-amber-500" />
+                            {cargo.unNumber || 'ADR'}
+                          </span>
+                        )}
+                      </div>
+
                       <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
                         <div className="col-span-2">
                           <label className="block text-xs font-semibold text-text-secondary mb-1.5">{t("jsx_cargoDescripti")}</label>
@@ -1455,12 +1546,20 @@ export default function OrderWizard({
                     </div>
 
                     {/* ADR Hazardous Goods Section */}
-                    <AdrCargoSection
-                      item={cargo}
-                      onChange={(patch) => handleCargoPatch(index, patch)}
-                      isPortal={isPortal}
-                      onAddAnotherAdr={handleAddAdrCargo}
-                    />
+                    <div className="mt-4 pt-4 border-t border-dashed border-border/80">
+                      <div className="flex items-center gap-2 mb-2">
+                        <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                        <span className="font-bold text-xs uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                          {t('adr_section_header', '2. Marfă Periculoasă ADR (Specific Codului UN)')}
+                        </span>
+                      </div>
+                      <AdrCargoSection
+                        item={cargo}
+                        onChange={(patch) => handleCargoPatch(index, patch)}
+                        isPortal={isPortal}
+                        onAddAnotherAdr={handleAddAdrCargo}
+                      />
+                    </div>
                   </div>
                 );
               })}

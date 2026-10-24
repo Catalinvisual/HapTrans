@@ -20,7 +20,8 @@ import {
   Info,
   X,
   Sparkles,
-  Plus
+  Plus,
+  SlidersHorizontal
 } from 'lucide-react';
 import api from '../../lib/api';
 
@@ -178,7 +179,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
   const [isSearching, setIsSearching] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [confirmDeactivateOpen, setConfirmDeactivateOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'classification' | 'packaging' | 'exemptions' | 'batteries' | 'declaration'>('classification');
+  const [activeTab, setActiveTab] = useState<'exemptions' | 'declaration' | 'special_regimes' | 'batteries'>('exemptions');
   const [copiedDeclaration, setCopiedDeclaration] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
@@ -696,34 +697,182 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                 </div>
               </div>
 
-              {/* Sub-Tabs Navigation */}
+              {/* ================= PRIMARY ADR INPUTS (PACKAGING & QUANTITIES PER UN CODE) ================= */}
+              <div className="bg-amber-500/5 dark:bg-amber-500/10 border-2 border-amber-500/30 rounded-xl p-4 mb-4 shadow-sm">
+                <div className="flex items-center justify-between mb-3 pb-2 border-b border-amber-500/20">
+                  <div className="flex items-center gap-2">
+                    <Package className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <h4 className="font-bold text-xs text-amber-950 dark:text-amber-200 uppercase tracking-wide">
+                      {t('adr_substance_qty_title', 'Cantități & Ambalaje Substanță Periculoasă')} ({item.unNumber})
+                    </h4>
+                  </div>
+                  <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-800 dark:text-amber-300">
+                    Cat. {transportCat} · Factor x{multiplier === Infinity ? '∞' : multiplier}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  {/* 1. Number of Packages/Boxes */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-text-primary mb-1">
+                      {t('adr_pkg_count', 'Număr de colete / cutii')} <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={item.adrPackagingCount || ''}
+                      onChange={e => onChange({ adrPackagingCount: e.target.value ? parseInt(e.target.value) : undefined })}
+                      placeholder="ex: 20 cutii / bidoane"
+                      className="input w-full font-bold text-xs bg-card"
+                    />
+                    <span className="text-[10px] text-text-secondary mt-0.5 block">
+                      {t('adr_pkg_count_hint', 'Număr cutii/bidoane/colete din acest cod UN')}
+                    </span>
+                  </div>
+
+                  {/* 2. Packaging Type/Description */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-text-primary mb-1">
+                      {t('adr_pkg_type', 'Tip ambalaj (ADR Cap. 6)')}
+                    </label>
+                    <input
+                      type="text"
+                      value={item.adrPackagingDescription || ''}
+                      onChange={e => onChange({ adrPackagingDescription: e.target.value })}
+                      placeholder="ex: Cutii 4G, Butoaie 1A1, IBC"
+                      className="input w-full text-xs bg-card"
+                    />
+                    <span className="text-[10px] text-text-secondary mt-0.5 block">
+                      {t('adr_pkg_type_hint', 'ex: Cutii 4G, Butoaie 1A1, Canistre 3H1, IBC')}
+                    </span>
+                  </div>
+
+                  {/* 3. Dangerous Goods Volume (Liters) */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-text-primary mb-1 flex items-center justify-between">
+                      <span>{t('adr_volume_liters', 'Volum în litri (L)')}</span>
+                      <span className="text-[10px] text-text-secondary font-normal">(lichide)</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={item.adrVolumeLiters || ''}
+                      onChange={e => onChange({ adrVolumeLiters: e.target.value })}
+                      placeholder="ex: 500 L"
+                      className="input w-full font-bold text-xs bg-card border-amber-500/40"
+                    />
+                    <span className="text-[10px] text-text-secondary mt-0.5 block">
+                      {t('adr_volume_liters_hint', 'Volum lichid substanță periculoasă')}
+                    </span>
+                  </div>
+
+                  {/* 4. Dangerous Goods Net Mass (kg) */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-text-primary mb-1 flex items-center justify-between">
+                      <span>{t('adr_net_mass', 'Masă netă substanță (kg)')}</span>
+                      <span className="text-[10px] text-text-secondary font-normal">(solide/subst.)</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={item.adrNetMassKg || ''}
+                      onChange={e => onChange({ adrNetMassKg: e.target.value })}
+                      placeholder="ex: 250 kg"
+                      className="input w-full font-bold text-xs bg-card border-amber-500/40"
+                    />
+                    <span className="text-[10px] text-text-secondary mt-0.5 block">
+                      {t('adr_net_mass_hint', 'Kg net substanță periculoasă (fără ambalaj)')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Transport configuration row & Live Item Points */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3 pt-3 border-t border-amber-500/20 text-xs">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-text-secondary mb-1">
+                      {t('adr_transport_mode', 'Configurație transport')}
+                    </label>
+                    <select
+                      value={item.adrTransportType || 'packages'}
+                      onChange={e => onChange({ adrTransportType: e.target.value as any })}
+                      className="input w-full text-xs font-semibold bg-card"
+                    >
+                      <option value="packages">📦 {t('adr_type_packages', 'Colete / Ambalaje (Packages)')}</option>
+                      <option value="tank">🛢️ {t('adr_type_tank', 'Cisternă (Tank)')}</option>
+                      <option value="bulk">⛰️ {t('adr_type_bulk', 'Vrac (Bulk)')}</option>
+                    </select>
+                  </div>
+
+                  {/* Class 1 NEM or Compressed Gas Water Capacity if applicable */}
+                  {isClass1 && (
+                    <div>
+                      <label className="block text-[11px] font-bold text-red-600 dark:text-red-400 mb-1">
+                        {t('adr_nem_label', 'Masă Netă Exploziv (NEM/NEQ kg)')}
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={item.netExplosiveMassKg || ''}
+                        onChange={e => onChange({ netExplosiveMassKg: e.target.value })}
+                        placeholder="NEM în kg (Clasa 1)"
+                        className="input w-full font-bold text-xs bg-card"
+                      />
+                    </div>
+                  )}
+
+                  {isCompressedGas && (
+                    <div>
+                      <label className="block text-[11px] font-bold text-blue-600 dark:text-blue-400 mb-1">
+                        {t('adr_receptacle_cap_label', 'Capacitate recipient apă (L)')}
+                      </label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={item.receptacleCapacityLiters || ''}
+                        onChange={e => onChange({ receptacleCapacityLiters: e.target.value })}
+                        placeholder="Capacitate în L (Gaze)"
+                        className="input w-full font-bold text-xs bg-card"
+                      />
+                    </div>
+                  )}
+
+                  {/* Live Points Feedback for this UN substance */}
+                  <div className={`${(isClass1 || isCompressedGas) ? 'md:col-span-1' : 'md:col-span-2'} flex items-center justify-between p-2.5 rounded-lg bg-card border border-border`}>
+                    <div className="flex items-center gap-2">
+                      <Gauge className="w-4 h-4 text-primary" />
+                      <div>
+                        <div className="font-bold text-xs">
+                          {t('adr_calc_points_item', 'Puncte ADR 1.1.3.6')} :{' '}
+                          <span className={calculatedPoints <= 1000 ? 'text-green-600 dark:text-green-400 font-black' : 'text-red-600 dark:text-red-400 font-black'}>
+                            {isCat0 ? '∞ (Categoria 0)' : `${calculatedPoints} puncte`}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-text-secondary font-mono">
+                          {calculatedQty} {calculatedQtyUnit} × {multiplier === Infinity ? '∞' : multiplier} factor = {calculatedPoints} pct
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      {calculatedPoints <= 1000 && !isCat0 ? (
+                        <span className="text-[10px] px-2 py-1 rounded bg-green-500/20 text-green-700 dark:text-green-300 font-bold">
+                          ✓ {t('adr_substance_under_1000', 'Sub 1.000 pct (Scutit)')}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] px-2 py-1 rounded bg-red-500/20 text-red-700 dark:text-red-300 font-bold">
+                          ⚠️ {t('adr_substance_over_1000', 'ADR Complet Obligatoriu')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sub-Tabs Navigation for Advanced ADR Details */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 mb-3 scrollbar-none border-b border-border/40">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('classification')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
-                    activeTab === 'classification'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'text-text-secondary hover:bg-black/5 dark:hover:bg-white/5'
-                  }`}
-                >
-                  <FileCheck className="w-3.5 h-3.5" />
-                  {t('adr_tab_classification', '1. Classification & Identity')}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('packaging')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
-                    activeTab === 'packaging'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'text-text-secondary hover:bg-black/5 dark:hover:bg-white/5'
-                  }`}
-                >
-                  <Package className="w-3.5 h-3.5" />
-                  {t('adr_tab_packaging', '2. Packaging & Quantities')}
-                </button>
-
                 <button
                   type="button"
                   onClick={() => setActiveTab('exemptions')}
@@ -734,10 +883,36 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                   }`}
                 >
                   <Gauge className="w-3.5 h-3.5" />
-                  {t('adr_tab_exemptions', '3. Exemptions & 1,000 Points')}
+                  {t('adr_tab_exemptions', '1. Scutiri & Regula 1.000 Puncte')}
                   <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${calculatedPoints <= 1000 ? 'bg-green-500/20 text-green-700 dark:text-green-300' : 'bg-red-500/20 text-red-700 dark:text-red-300'}`}>
                     {calculatedPoints} pts
                   </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('declaration')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                    activeTab === 'declaration'
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'text-text-secondary hover:bg-black/5 dark:hover:bg-white/5'
+                  }`}
+                >
+                  <FileCheck className="w-3.5 h-3.5" />
+                  {t('adr_tab_declaration', '2. Declarație Oficială ADR 5.4')}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('special_regimes')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                    activeTab === 'special_regimes'
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'text-text-secondary hover:bg-black/5 dark:hover:bg-white/5'
+                  }`}
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  {t('adr_tab_tech_special', '3. Regimuri Speciale & Clasificare Avansată')}
                 </button>
 
                 {isLithium && (
@@ -751,28 +926,15 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                     }`}
                   >
                     <Battery className="w-3.5 h-3.5" />
-                    {t('adr_tab_batteries', '4. Lithium Batteries (SP 188)')}
+                    {t('adr_tab_batteries', '4. Baterii cu Litiu (SP 188)')}
                     {isSp188Exempt && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
                   </button>
                 )}
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('declaration')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
-                    activeTab === 'declaration'
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'text-text-secondary hover:bg-black/5 dark:hover:bg-white/5'
-                  }`}
-                >
-                  <FileCheck className="w-3.5 h-3.5" />
-                  {t('adr_tab_declaration', '5. Official ADR 5.4 Declaration')}
-                </button>
               </div>
 
-              {/* TAB 1: CLASSIFICATION & IDENTITY */}
-              {activeTab === 'classification' && (
-                <div className="space-y-3 animate-in fade-in">
+              {/* TAB: SPECIAL REGIMES & ADVANCED CLASSIFICATION */}
+              {activeTab === 'special_regimes' && (
+                <div className="space-y-3.5 animate-in fade-in">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                     <div>
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
@@ -816,17 +978,17 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
 
                     <div>
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_col_transport_cat', 'Transport Category (1.1.3.6)')}
+                        {t('adr_col_tunnel', 'Tunnel Restriction Code')}
                       </label>
                       <input
                         type="text"
-                        value={`${t('adr_calc_cat', 'Category')} ${transportCat} (${t('adr_calc_multiplier', 'Factor')} x${multiplier})`}
+                        value={item.tunnelRestrictionCode || '(-)'}
                         readOnly
-                        className="input w-full bg-black/5 dark:bg-white/5 font-bold text-primary"
+                        className="input w-full bg-black/5 dark:bg-white/5 font-mono"
                       />
                     </div>
 
-                    <div className="col-span-2 md:col-span-3">
+                    <div className="col-span-2 md:col-span-4">
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
                         {t('adr_col_proper_name', 'Proper Shipping Name (ADR 3.1.2)')}
                       </label>
@@ -838,134 +1000,19 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                       />
                     </div>
 
-                    <div>
+                    <div className="col-span-2 md:col-span-4">
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_col_tunnel', 'Tunnel Restriction Code')}
+                        {t('adr_tech_name', 'Technical Name (required for N.O.S. entries under SP 274)')}
                       </label>
                       <input
                         type="text"
-                        value={item.tunnelRestrictionCode || '(-)'}
-                        readOnly
-                        className="input w-full bg-black/5 dark:bg-white/5 font-mono"
+                        value={item.technicalName || ''}
+                        onChange={e => onChange({ technicalName: e.target.value })}
+                        placeholder={t('adr_tech_name_placeholder', 'e.g. contains ethanol and acetone')}
+                        className="input w-full text-xs"
                       />
                     </div>
                   </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                      {t('adr_tech_name', 'Technical Name (required for N.O.S. entries under SP 274)')}
-                    </label>
-                    <input
-                      type="text"
-                      value={item.technicalName || ''}
-                      onChange={e => onChange({ technicalName: e.target.value })}
-                      placeholder={t('adr_tech_name_placeholder', 'e.g. contains ethanol and acetone')}
-                      className="input w-full text-xs"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 2: PACKAGING & QUANTITIES */}
-              {activeTab === 'packaging' && (
-                <div className="space-y-3 animate-in fade-in">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_transport_mode', 'Transport Configuration')}
-                      </label>
-                      <select
-                        value={item.adrTransportType || 'packages'}
-                        onChange={e => onChange({ adrTransportType: e.target.value as any })}
-                        className="input w-full text-xs font-semibold"
-                      >
-                        <option value="packages">{t('adr_type_packages', 'Packaged Goods (Packages)')}</option>
-                        <option value="tank">{t('adr_type_tank', 'Tank Transport (Tank)')}</option>
-                        <option value="bulk">{t('adr_type_bulk', 'Bulk Transport (Bulk)')}</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_pkg_type', 'Packaging Type (ADR Chapter 6)')}
-                      </label>
-                      <input
-                        type="text"
-                        value={item.adrPackagingDescription || ''}
-                        onChange={e => onChange({ adrPackagingDescription: e.target.value })}
-                        placeholder="e.g. Steel drums 1A1, 4G boxes, IBC 31HA1"
-                        className="input w-full"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_volume_liters', 'Volume in Liters')}
-                      </label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        value={item.adrVolumeLiters || ''}
-                        onChange={e => onChange({ adrVolumeLiters: e.target.value })}
-                        placeholder="e.g. 500 L"
-                        className="input w-full font-bold"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_net_mass', 'Net Substance Mass (kg)')}
-                      </label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        value={item.adrNetMassKg || ''}
-                        onChange={e => onChange({ adrNetMassKg: e.target.value })}
-                        placeholder="e.g. 250 kg"
-                        className="input w-full font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Normative Quantities for Class 1 (NEM) and Compressed Gases (Water capacity) */}
-                  {(isClass1 || isCompressedGas) && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs">
-                      {isClass1 && (
-                        <div>
-                          <label className="block text-[11px] font-bold text-amber-900 dark:text-amber-200 mb-1">
-                            {t('adr_nem_label', 'Net Explosive Mass NEM / NEQ (kg) — ADR 1.1.3.6.3')}
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={item.netExplosiveMassKg || ''}
-                            onChange={e => onChange({ netExplosiveMassKg: e.target.value })}
-                            placeholder="Mandatory NEM in kg for Class 1"
-                            className="input w-full font-bold"
-                          />
-                        </div>
-                      )}
-                      {isCompressedGas && (
-                        <div>
-                          <label className="block text-[11px] font-bold text-amber-900 dark:text-amber-200 mb-1">
-                            {t('adr_receptacle_cap_label', 'Receptacle Water Capacity (L) — ADR 1.1.3.6.3')}
-                          </label>
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            value={item.receptacleCapacityLiters || ''}
-                            onChange={e => onChange({ receptacleCapacityLiters: e.target.value })}
-                            placeholder="Water capacity in litres for compressed gases"
-                            className="input w-full font-bold"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   {/* Special Regime Checkboxes */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-2 border-t border-border/50 text-xs">
