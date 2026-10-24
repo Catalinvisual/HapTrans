@@ -834,11 +834,11 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                         <div className="font-bold text-xs">
                           {t('adr_calc_points_item', 'Puncte ADR 1.1.3.6')} :{' '}
                           <span className={calculatedPoints <= 1000 ? 'text-green-600 dark:text-green-400 font-black' : 'text-red-600 dark:text-red-400 font-black'}>
-                            {isCat0 ? '∞ (Categoria 0)' : `${calculatedPoints} puncte`}
+                            {isCat0 ? `∞ (${t('adr_cat0_label', 'Categoria 0')})` : `${calculatedPoints} ${t('adr_points_unit', 'puncte')}`}
                           </span>
                         </div>
                         <div className="text-[10px] text-text-secondary font-mono">
-                          {calculatedQty} {calculatedQtyUnit} × {multiplier === Infinity ? '∞' : multiplier} factor = {calculatedPoints} pct
+                          {calculatedQty} {calculatedQtyUnit} × {multiplier === Infinity ? '∞' : multiplier} factor = {calculatedPoints} {t('adr_points_unit_short', 'pct')}
                         </div>
                       </div>
                     </div>

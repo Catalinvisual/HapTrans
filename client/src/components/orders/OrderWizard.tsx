@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { X, Save, Loader2, ArrowRight, ArrowLeft, Plus, Trash2, Box, Package, MapPin, FileText, ChevronDown, Calculator, Fuel, AlertTriangle, TrendingUp, TrendingDown, CheckCircle2, ShieldAlert, HelpCircle } from 'lucide-react';
@@ -171,42 +171,7 @@ export default function OrderWizard({
   const [fuelPrice, setFuelPrice] = useState(1.65); // €/L
   const [confirmedUnprofitable, setConfirmedUnprofitable] = useState(false);
 
-  // Progress bar pixel positions computed via refs
-  const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [barLeft, setBarLeft] = useState(0);
-  const [barTotalWidth, setBarTotalWidth] = useState(0);
-  const [barOrangeWidth, setBarOrangeWidth] = useState(0);
-  const headerRef = useRef<HTMLDivElement>(null);
-  const recalcBar = () => {
-    const refs = stepRefs.current;
-    if (!refs[0] || !refs[STEPS.length - 1] || !headerRef.current) return;
-    const containerRect = headerRef.current.getBoundingClientRect();
-    const firstRect = refs[0].getBoundingClientRect();
-    const lastRect = refs[STEPS.length - 1].getBoundingClientRect();
-    const firstCenter = firstRect.left + firstRect.width / 2 - containerRect.left;
-    const lastCenter = lastRect.left + lastRect.width / 2 - containerRect.left;
-    setBarLeft(firstCenter);
-    setBarTotalWidth(lastCenter - firstCenter);
-    if (currentStep === 0) {
-      setBarOrangeWidth(0);
-    } else if (currentStep >= STEPS.length - 1) {
-      setBarOrangeWidth(lastCenter - firstCenter);
-    } else {
-      const curRef = refs[currentStep];
-      if (curRef) {
-        const curRect = curRef.getBoundingClientRect();
-        const curCenter = curRect.left + curRect.width / 2 - containerRect.left;
-        setBarOrangeWidth(curCenter - firstCenter);
-      }
-    }
-  };
-  useLayoutEffect(() => {
-    if (isOpen) {
-      // Small delay to let modal render first
-      const t = setTimeout(recalcBar, 20);
-      return () => clearTimeout(t);
-    }
-  }, [isOpen, currentStep]);
+
   const [form, setForm] = useState({
     clientId: '',
     customerReference: '',
@@ -960,49 +925,66 @@ export default function OrderWizard({
           </button>
         </div>
 
-        {/* Step indicators with pixel-perfect bar */}
-        <div className="px-4 py-2 border-b border-border bg-white dark:bg-card shrink-0" ref={headerRef} style={{
-        position: 'relative'
-      }}>
-          {/* Gray full connector */}
-          <div className="absolute bg-border" style={{
-          top: 8 + 14,
-          left: barLeft,
-          width: barTotalWidth,
-          height: 2,
-          zIndex: 0
-        }} />
-          {/* Orange progress */}
-          <div className="absolute bg-primary transition-all duration-400" style={{
-          top: 8 + 14,
-          left: barLeft,
-          width: barOrangeWidth,
-          height: 2,
-          zIndex: 0
-        }} />
+        {/* Step indicators with responsive CSS connector */}
+        <div className="px-4 py-2 border-b border-border bg-white dark:bg-card shrink-0">
+          <div className="flex items-start justify-between relative">
+            {/* Gray full connector */}
+            <div
+              className="absolute bg-border pointer-events-none"
+              style={{
+                top: '14px',
+                left: 'calc(100% / 6)',
+                width: 'calc(100% * 2 / 3)',
+                height: 2,
+                zIndex: 0
+              }}
+            />
+            {/* Orange progress */}
+            <div
+              className="absolute bg-primary transition-all duration-300 pointer-events-none"
+              style={{
+                top: '14px',
+                left: 'calc(100% / 6)',
+                width: `calc((100% * 2 / 3) * (${currentStep} / ${STEPS.length - 1}))`,
+                height: 2,
+                zIndex: 0
+              }}
+            />
 
-          <div className="flex items-start justify-between">
             {STEPS.map((step, idx) => {
-            const StepIcon = step.icon;
-            const isActive = idx === currentStep;
-            const isPast = idx < currentStep;
-            return <div key={step.id} ref={el => {
-              stepRefs.current[idx] = el;
-            }} className="flex flex-col items-center flex-1" style={{
-              position: 'relative',
-              zIndex: 2
-            }}>
+              const StepIcon = step.icon;
+              const isActive = idx === currentStep;
+              const isPast = idx < currentStep;
+              return (
+                <div
+                  key={step.id}
+                  className="flex flex-col items-center flex-1"
+                  style={{
+                    position: 'relative',
+                    zIndex: 2
+                  }}
+                >
                   <div className="bg-white dark:bg-card rounded-full ring-4 ring-white dark:ring-card">
-                    <button type="button" onClick={() => (orderId || idx <= currentStep) && setCurrentStep(idx)} className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 focus:outline-none
-                        ${isActive ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-110' : (orderId || isPast) ? 'bg-primary/20 text-primary cursor-pointer hover:bg-primary/30' : 'bg-surface border-2 border-border text-text-muted cursor-default'}`}>
+                    <button
+                      type="button"
+                      onClick={() => (orderId || idx <= currentStep) && setCurrentStep(idx)}
+                      className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 focus:outline-none ${
+                        isActive
+                          ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-110'
+                          : (orderId || isPast)
+                            ? 'bg-primary/20 text-primary cursor-pointer hover:bg-primary/30'
+                            : 'bg-surface border-2 border-border text-text-muted cursor-default'
+                      }`}
+                    >
                       <StepIcon className="w-3.5 h-3.5" />
                     </button>
                   </div>
                   <span className={`text-[10px] mt-1.5 font-semibold text-center leading-tight ${isActive ? 'text-primary' : 'text-text-secondary'}`}>
                     {t(step.titleKey, step.fallbackTitle)}
                   </span>
-                </div>;
-          })}
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -1018,7 +1000,7 @@ export default function OrderWizard({
                 <h3 className="text-xs font-bold uppercase tracking-widest text-text-secondary">{t("jsx_clientInformat")}</h3>
                 <div>
                   <label className="block text-sm font-medium mb-1.5" htmlFor="wiz-client">
-                    {t("jsx_client")} <span className="text-red-500 font-bold">*</span>
+                    {t("jsx_client")}
                   </label>
                   <ModalSelect
                     id="wiz-client"
@@ -1212,7 +1194,7 @@ export default function OrderWizard({
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">
-                        {t("jsx_fullAddress")} <span className="text-red-500 font-bold">*</span>
+                        {t("jsx_fullAddress")}
                       </label>
                       <AddressAutocomplete value={pickup.address} onChange={val => setPickup({
                     ...pickup,
@@ -1251,7 +1233,7 @@ export default function OrderWizard({
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <CustomDatePicker
-                        label={<span className="flex items-center gap-1">{t('pickup_date_min', 'Pickup Time Window (Min)')} <span className="text-red-500 font-bold">*</span></span>}
+                        label={t('pickup_date_min', 'Pickup Time Window (Min)')}
                         dateValue={pickup.scheduledDate}
                         timeValue={pickup.scheduledTime || ''}
                         onDateChange={v => setPickup({
@@ -1312,7 +1294,7 @@ export default function OrderWizard({
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">
-                        {t("jsx_fullAddress")} <span className="text-red-500 font-bold">*</span>
+                        {t("jsx_fullAddress")}
                       </label>
                       <AddressAutocomplete value={stop.address} onChange={val => handleExtraStopChange(i, { address: val })} onSelectFull={(label, city, country, lat, lng) => handleExtraStopSelect(i, label, city, country, lat, lng)} placeholder={t('address_placeholder', 'Street, Number, Zip Code')} className="input w-full bg-white dark:bg-card" />
                       <div className="flex items-center gap-2 mt-1">
@@ -1363,7 +1345,7 @@ export default function OrderWizard({
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-text-secondary mb-1.5">
-                        {t("jsx_fullAddress")} <span className="text-red-500 font-bold">*</span>
+                        {t("jsx_fullAddress")}
                       </label>
                       <AddressAutocomplete value={dropoff.address} onChange={val => setDropoff({
                     ...dropoff,
@@ -1402,7 +1384,7 @@ export default function OrderWizard({
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <CustomDatePicker
-                        label={<span className="flex items-center gap-1">{t('delivery_date_min', 'Delivery Time Window (Min)')} <span className="text-red-500 font-bold">*</span></span>}
+                        label={t('delivery_date_min', 'Delivery Time Window (Min)')}
                         dateValue={dropoff.scheduledDate}
                         timeValue={dropoff.scheduledTime || ''}
                         onDateChange={v => setDropoff({
