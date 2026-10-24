@@ -1,5 +1,5 @@
 import { EntityManager } from 'typeorm';
-import { Controller, Get, UseGuards, Post, Body } from '@nestjs/common';
+import { Controller, Get, UseGuards, Post, Body, Param } from '@nestjs/common';
 import { AppService } from './app.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { v2 as cloudinary } from 'cloudinary';
