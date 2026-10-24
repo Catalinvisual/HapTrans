@@ -142,23 +142,30 @@ export class AppController {
       await this.em.query(`UPDATE "invoices" SET "updatedAt" = now() WHERE "updatedAt" IS NULL`).catch(() => {});
 
       const countRes = await this.em.query('SELECT COUNT(*) as count FROM invoices');
-      const colInfo = await this.em.query(`
-        SELECT column_name, data_type, udt_name 
+      const tnasColTypes = await this.em.query(`
+        SELECT table_name, column_name, data_type 
         FROM information_schema.columns 
-        WHERE table_name = 'invoices' AND column_name IN ('tnasDownloaded', 'publicId', 'pdfUrl', 'id')
+        WHERE column_name = 'tnasDownloaded'
       `);
-      const distinctTnas = await this.em.query(`SELECT DISTINCT "tnasDownloaded"::text as val, COUNT(*) as cnt FROM invoices GROUP BY "tnasDownloaded"::text`);
-      const sampleInvoices = await this.em.query(`
-        SELECT id, "invoiceNumber", "status", "createdAt", "amount", "pdfUrl", "publicId", "tnasDownloaded"::text as "tnasDownloaded"
+      const invCounts = await this.em.query(`
+        SELECT 
+          COUNT(*) as total,
+          COUNT("pdfUrl") as with_pdf_url,
+          COUNT("publicId") as with_public_id,
+          COUNT(*) FILTER (WHERE "publicId" IS NOT NULL AND ("tnasDownloaded"::text IN ('false', '0') OR "tnasDownloaded" IS NULL)) as pending_invoices
         FROM invoices
-        ORDER BY "createdAt" DESC
+      `);
+      const sampleInvs = await this.em.query(`
+        SELECT id, "invoiceNumber", "status", "pdfUrl", "publicId", "tnasDownloaded"::text as "tnasDownloaded"
+        FROM invoices
+        WHERE "pdfUrl" IS NOT NULL OR "publicId" IS NOT NULL
         LIMIT 10
       `);
       return {
         totalInDb: parseInt(countRes[0]?.count || '0', 10),
-        colInfo,
-        distinctTnas,
-        invoices: sampleInvoices,
+        tnasColTypes,
+        invCounts: invCounts[0],
+        sampleInvs,
       };
     } catch (e: any) {
       return { error: e?.message };
