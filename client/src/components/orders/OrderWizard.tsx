@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { X, Save, Loader2, ArrowRight, ArrowLeft, Plus, Trash2, Box, MapPin, FileText, ChevronDown, Calculator, Fuel, AlertTriangle, TrendingUp, TrendingDown, CheckCircle2 } from 'lucide-react';
+import { X, Save, Loader2, ArrowRight, ArrowLeft, Plus, Trash2, Box, MapPin, FileText, ChevronDown, Calculator, Fuel, AlertTriangle, TrendingUp, TrendingDown, CheckCircle2, ShieldAlert, Gauge } from 'lucide-react';
 import api from '../../lib/api';
 import toast from 'react-hot-toast';
 import AddressAutocomplete from '../AddressAutocomplete';
@@ -549,7 +549,81 @@ export default function OrderWizard({
   const handleAddCargo = () => setCargoItems([...cargoItems, {
     ...emptyCargo
   }]);
+  const handleAddAdrCargo = () => setCargoItems([...cargoItems, {
+    ...emptyCargo,
+    isAdr: true,
+    description: t('adr_cargo_item_default_desc', 'ADR Dangerous Goods Item')
+  }]);
   const handleRemoveCargo = (i: number) => setCargoItems(cargoItems.filter((_, idx) => idx !== i));
+
+  // Composite ADR 1.1.3.6 Order-Level Assessment
+  const adrCargoItems = useMemo(() => cargoItems.filter((c: any) => c.isAdr), [cargoItems]);
+  const classifiedAdrItems = useMemo(() => cargoItems.filter((c: any) => c.isAdr && c.unNumber), [cargoItems]);
+
+  const compositeAdr = useMemo(() => {
+    let totalPoints = 0;
+    let hasCat0 = false;
+    let hasTank = false;
+    let hasDamagedBattery = false;
+    let allExemptByProvision = classifiedAdrItems.length > 0;
+
+    for (const c of classifiedAdrItems) {
+      const cat = c.transportCategory !== undefined ? Number(c.transportCategory) : 3;
+      if (cat === 0) hasCat0 = true;
+      if (c.adrTransportType === 'tank' || c.adrTransportType === 'bulk') hasTank = true;
+
+      let mult = 1;
+      if (cat === 0) mult = Infinity;
+      else if (cat === 1) mult = 50;
+      else if (cat === 2) mult = 3;
+      else if (cat === 3) mult = 1;
+      else if (cat === 4) mult = 0;
+
+      if (c.adrEmptyUncleaned && [1, 2, 3].includes(cat)) mult = 0;
+
+      const isClass1 = (c.adrClass || '').startsWith('1');
+      const isCompGas = (c.adrClass || '').startsWith('2') && ['1A', '1O', '1F', '1'].some((x: string) => (c.classificationCode || '').includes(x));
+
+      let qty = 0;
+      if (isClass1 && Number(c.netExplosiveMassKg || 0) > 0) qty = Number(c.netExplosiveMassKg);
+      else if (isCompGas && Number(c.receptacleCapacityLiters || 0) > 0) qty = Number(c.receptacleCapacityLiters);
+      else if (Number(c.adrVolumeLiters || 0) > 0) qty = Number(c.adrVolumeLiters);
+      else qty = Number(c.adrNetMassKg || 0) || Number(c.adrGrossMassKg || 0) || Number(c.weightKg || 0);
+
+      const isLq = Boolean(c.limitedQuantity);
+      const isEq = Boolean(c.exceptedQuantity);
+      const isLithium = c.unNumber && ['UN 3480', 'UN 3481', 'UN 3090', 'UN 3091'].some((u: string) => c.unNumber?.includes(u));
+      const bDet = c.adrBatteryDetails;
+      if (bDet?.condition === 'damaged_defective') hasDamagedBattery = true;
+
+      const isSp188 = Boolean(isLithium && bDet && bDet.condition === 'normal' && bDet.unTestPassed !== false && (
+        (bDet.chemistry === 'lithium_ion' && ((bDet.cellOrBattery === 'cell' && (bDet.wattHours || 0) <= 20) || (bDet.cellOrBattery === 'battery' && (bDet.wattHours || 0) <= 100))) ||
+        (bDet.chemistry === 'lithium_metal' && ((bDet.cellOrBattery === 'cell' && (bDet.lithiumGrams || 0) <= 1) || (bDet.cellOrBattery === 'battery' && (bDet.lithiumGrams || 0) <= 2)))
+      ));
+
+      if (isLq || isEq || isSp188) {
+        // Exempt from point accumulation
+      } else {
+        allExemptByProvision = false;
+        totalPoints += (qty * mult);
+      }
+    }
+
+    const roundedPoints = hasCat0 ? Infinity : Math.round(totalPoints * 100) / 100;
+    const isExempt1136 = !hasCat0 && !hasTank && !hasDamagedBattery && roundedPoints <= 1000 && !allExemptByProvision && classifiedAdrItems.length > 0;
+    const isFullRegime = hasCat0 || hasTank || hasDamagedBattery || roundedPoints > 1000;
+
+    return {
+      totalPoints: roundedPoints,
+      hasCat0,
+      hasTank,
+      hasDamagedBattery,
+      allExemptByProvision,
+      isExempt1136,
+      isFullRegime,
+      itemsCount: classifiedAdrItems.length
+    };
+  }, [classifiedAdrItems]);
   const handleAddExtraStop = () => setExtraStops([...extraStops, {
     ...emptyStop
   }]);
@@ -1185,10 +1259,81 @@ export default function OrderWizard({
           {currentStep === 2 && <div className="space-y-4" style={{
           animation: 'stepIn 0.2s ease-out'
         }}>
-              <div className="mb-2">
-                <h3 className="text-lg font-semibold text-text-primary">{t("jsx_cargoItems")}</h3>
-                <p className="text-sm text-text-secondary">{t("jsx_whatAreWeTra")}</p>
+              <div className="mb-2 flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h3 className="text-lg font-semibold text-text-primary">{t("jsx_cargoItems")}</h3>
+                  <p className="text-sm text-text-secondary">{t("jsx_whatAreWeTra")}</p>
+                </div>
+                {adrCargoItems.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleAddAdrCargo}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 dark:text-amber-200 border border-amber-500/30 text-xs font-bold transition-all shadow-sm"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-amber-600" />
+                    <span>{t('adr_add_another_un', '+ Add another UN Code to this Order')}</span>
+                  </button>
+                )}
               </div>
+
+              {/* Order-Level Composite ADR Assessment Banner */}
+              {adrCargoItems.length > 0 && (
+                <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-orange-500/10 border border-amber-500/40 rounded-2xl p-4 shadow-sm animate-in fade-in">
+                  <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                      <span className="font-bold text-xs text-amber-950 dark:text-amber-200">
+                        {t('adr_multi_un_summary_title', 'ADR Composite Order Assessment (UNECE ADR 1.1.3.6)')}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-500/30">
+                        {t('adr_multi_un_items_count', '{{count}} Dangerous Goods item(s)', { count: classifiedAdrItems.length })}
+                      </span>
+                      <span className={`text-[11px] font-mono font-black px-2.5 py-0.5 rounded-full ${
+                        compositeAdr.hasCat0 || compositeAdr.totalPoints > 1000
+                          ? 'bg-red-500 text-white'
+                          : 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300'
+                      }`}>
+                        {compositeAdr.hasCat0 ? 'CAT 0 (∞)' : `${compositeAdr.totalPoints} / 1,000 pts`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Badges for each UN code in the order */}
+                  {classifiedAdrItems.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 my-2">
+                      {classifiedAdrItems.map((item: any, idx: number) => (
+                        <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-card/80 border border-border/70 text-[11px] font-mono">
+                          <span className="font-black text-amber-600 dark:text-amber-400">{item.unNumber}</span>
+                          <span className="truncate max-w-[120px] text-text-secondary">{item.properShippingName}</span>
+                          <span className="text-text-muted">· Cls {item.adrClass}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Composite Status verdict */}
+                  <div className="mt-2 text-xs font-semibold">
+                    {compositeAdr.isExempt1136 ? (
+                      <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>{t('adr_overall_status_exempt', 'Order Partial Exemption Active (ADR 1.1.3.6) — Orange plates and driver ADR certification exempt')}</span>
+                      </div>
+                    ) : compositeAdr.isFullRegime ? (
+                      <div className="flex items-center gap-2 text-red-700 dark:text-red-300 bg-red-500/10 p-2.5 rounded-xl border border-red-500/20">
+                        <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                        <span>{t('adr_overall_status_full', 'Full ADR Regime Mandatory for this Order — Certified driver, orange plates, and full safety equipment required')}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
+                        <HelpCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>{t('adr_res_need_data', 'Enter volume or mass to calculate ADR 1.1.3.6 points.')}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="space-y-3">
                 {cargoItems.map((cargo, index) => {
                   const isHighlighted = Boolean(highlightSection && !isHighlightDismissed);
@@ -1312,13 +1457,18 @@ export default function OrderWizard({
                       item={cargo}
                       onChange={(patch) => handleCargoPatch(index, patch)}
                       isPortal={isPortal}
+                      onAddAnotherAdr={handleAddAdrCargo}
                     />
                   </div>
                 );
               })}
               </div>
-              <button type="button" onClick={handleAddCargo} className="w-full py-3 border-2 border-dashed border-border rounded-xl text-text-secondary hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center gap-2 font-medium">
-                <Plus className="w-4 h-4" />{t("jsx_addCargoItem")}</button>
+              <div className="flex flex-col sm:flex-row gap-2.5">
+                <button type="button" onClick={handleAddCargo} className="flex-1 py-3 border-2 border-dashed border-border rounded-xl text-text-secondary hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center gap-2 font-medium text-xs">
+                  <Plus className="w-4 h-4" />{t("jsx_addCargoItem")}</button>
+                <button type="button" onClick={handleAddAdrCargo} className="flex-1 py-3 border-2 border-dashed border-amber-500/40 hover:border-amber-500 rounded-xl text-amber-800 dark:text-amber-200 hover:bg-amber-500/10 transition-all flex items-center justify-center gap-2 font-bold text-xs shadow-sm">
+                  <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400" />{t("adr_add_another_un", "+ Add another UN Code / Dangerous Goods Item to this Order")}</button>
+              </div>
 
               {/* ============ COST ESTIMATOR ============ */}
               {!isPortal && (

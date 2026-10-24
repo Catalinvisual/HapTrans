@@ -20,7 +20,7 @@ import {
   Info,
   X,
   Sparkles,
-  ChevronRight
+  Plus
 } from 'lucide-react';
 import api from '../../lib/api';
 
@@ -72,14 +72,21 @@ interface AdrCargoSectionProps {
   item: AdrCargoItemData;
   onChange: (patch: Partial<AdrCargoItemData>) => void;
   isPortal?: boolean;
+  onAddAnotherAdr?: () => void;
 }
 
-// Quick selection presets for frequent dangerous goods
+// Quick selection presets for frequent dangerous goods with language-specific proper shipping names
 const QUICK_PRESETS = [
   {
     key: 'flammable',
     unNumber: 'UN 1202',
-    name: 'DIESEL FUEL / MOTORINĂ',
+    nameEn: 'DIESEL FUEL',
+    nameNl: 'DIESELOLIE / GASOLIE',
+    nameRo: 'COMBUSTIBIL DIESEL',
+    nameDe: 'DIESELKRAFTSTOFF',
+    nameFr: 'CARBURANT DIESEL (GAZOIL)',
+    nameEs: 'COMBUSTIBLE PARA MOTORES DIESEL',
+    namePl: 'OLEJ NAPĘDOWY',
     class: '3',
     pg: 'III',
     cat: 3,
@@ -91,7 +98,13 @@ const QUICK_PRESETS = [
   {
     key: 'batteries',
     unNumber: 'UN 3480',
-    name: 'LITHIUM ION BATTERIES',
+    nameEn: 'LITHIUM ION BATTERIES',
+    nameNl: 'LITHIUM-IONENBATTERIJEN',
+    nameRo: 'BATERII CU IONI DE LITIU',
+    nameDe: 'LITHIUM-IONEN-BATTERIEN',
+    nameFr: 'BATTERIES AU LITHIUM IONIQUE',
+    nameEs: 'BATERÍAS DE ION LITIO',
+    namePl: 'BATERIE LITOWO-JONOWE',
     class: '9',
     pg: null,
     cat: 2,
@@ -103,7 +116,13 @@ const QUICK_PRESETS = [
   {
     key: 'gases',
     unNumber: 'UN 1950',
-    name: 'AEROSOLS, flammable',
+    nameEn: 'AEROSOLS, flammable',
+    nameNl: 'SPUITBUSSEN (AEROSOLEN), brandbaar',
+    nameRo: 'AEROSOLI, inflamabili',
+    nameDe: 'DRUCKGASPACKUNGEN (AEROSOLE), entzündbar',
+    nameFr: 'AÉROSOLS, inflammables',
+    nameEs: 'AEROSOLES, inflamables',
+    namePl: 'AEROZOLE, palne',
     class: '2',
     pg: null,
     cat: 2,
@@ -115,7 +134,13 @@ const QUICK_PRESETS = [
   {
     key: 'corrosive',
     unNumber: 'UN 1789',
-    name: 'HYDROCHLORIC ACID',
+    nameEn: 'HYDROCHLORIC ACID',
+    nameNl: 'CHLOORWATERSTOFZUUR (ZOUTZUUR)',
+    nameRo: 'ACID CLORHIDRIC',
+    nameDe: 'CHLORWASSERSTOFFSÄURE (SALZSÄURE)',
+    nameFr: 'ACIDE CHLORHYDRIQUE',
+    nameEs: 'ÁCIDO CLORHÍDRICO',
+    namePl: 'KWAS CHLOROWODOROWY (SOLNY)',
     class: '8',
     pg: 'II',
     cat: 2,
@@ -127,7 +152,13 @@ const QUICK_PRESETS = [
   {
     key: 'toxic',
     unNumber: 'UN 2810',
-    name: 'TOXIC LIQUID, ORGANIC, N.O.S.',
+    nameEn: 'TOXIC LIQUID, ORGANIC, N.O.S.',
+    nameNl: 'GIFTIGE VLOEISTOF, ORGANISCH, N.E.G.',
+    nameRo: 'LICHID TOXIC, ORGANIC, N.S.A.',
+    nameDe: 'GIFTIGER ORGANISCHER FLÜSSIGER STOFF, N.A.G.',
+    nameFr: 'LIQUIDE TOXIQUE ORGANIQUE, N.S.A.',
+    nameEs: 'LÍQUIDO TÓXICO, ORGÁNICO, N.E.P.',
+    namePl: 'MATERIAŁ TRUJĄCY CIEKŁY ORGANICZNY, I.N.O.',
     class: '6.1',
     pg: 'II',
     cat: 2,
@@ -138,9 +169,9 @@ const QUICK_PRESETS = [
   }
 ];
 
-export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange, isPortal }) => {
+export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange, isPortal, onAddAnotherAdr }) => {
   const { t, i18n } = useTranslation();
-  const currentLang = i18n.language || 'ro';
+  const currentLang = (i18n.language || 'en').toLowerCase().split('-')[0];
 
   const [searchQuery, setSearchQuery] = useState(item.unNumber || '');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -196,14 +227,14 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
 
   // Handle item selection from catalog
   const handleSelectCatalogItem = (catalogItem: any) => {
-    const localizedName =
-      (currentLang === 'ro' && catalogItem.properShippingNameRo) ||
-      (currentLang === 'de' && catalogItem.properShippingNameDe) ||
-      (currentLang === 'fr' && catalogItem.properShippingNameFr) ||
-      (currentLang === 'nl' && catalogItem.properShippingNameNl) ||
-      (currentLang === 'es' && catalogItem.properShippingNameEs) ||
-      (currentLang === 'pl' && catalogItem.properShippingNamePl) ||
-      catalogItem.properShippingNameEn;
+    let localizedName = catalogItem.properShippingNameEn;
+    if (currentLang === 'nl') localizedName = catalogItem.properShippingNameNl || catalogItem.nameNl || catalogItem.properShippingNameEn;
+    else if (currentLang === 'de') localizedName = catalogItem.properShippingNameDe || catalogItem.nameDe || catalogItem.properShippingNameEn;
+    else if (currentLang === 'fr') localizedName = catalogItem.properShippingNameFr || catalogItem.nameFr || catalogItem.properShippingNameEn;
+    else if (currentLang === 'es') localizedName = catalogItem.properShippingNameEs || catalogItem.nameEs || catalogItem.properShippingNameEn;
+    else if (currentLang === 'pl') localizedName = catalogItem.properShippingNamePl || catalogItem.namePl || catalogItem.properShippingNameEn;
+    else if (currentLang === 'ro') localizedName = catalogItem.properShippingNameRo || catalogItem.nameRo || catalogItem.properShippingNameEn;
+    else localizedName = catalogItem.properShippingNameEn || catalogItem.nameEn || catalogItem.name;
 
     setSearchQuery(catalogItem.unNumber);
     setIsDropdownOpen(false);
@@ -241,11 +272,27 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
 
   // Quick preset button click
   const handleQuickPreset = (preset: typeof QUICK_PRESETS[0]) => {
+    let localizedPresetName = preset.nameEn;
+    if (currentLang === 'nl') localizedPresetName = preset.nameNl;
+    else if (currentLang === 'de') localizedPresetName = preset.nameDe;
+    else if (currentLang === 'fr') localizedPresetName = preset.nameFr;
+    else if (currentLang === 'es') localizedPresetName = preset.nameEs;
+    else if (currentLang === 'pl') localizedPresetName = preset.namePl;
+    else if (currentLang === 'ro') localizedPresetName = preset.nameRo;
+
     setSearchQuery(preset.unNumber);
     handleSelectCatalogItem({
       unNumber: preset.unNumber,
-      properShippingNameEn: preset.name,
-      properShippingNameRo: preset.name,
+      properShippingNameEn: preset.nameEn,
+      nameEn: preset.nameEn,
+      properShippingNameNl: preset.nameNl,
+      nameNl: preset.nameNl,
+      properShippingNameRo: preset.nameRo,
+      nameRo: preset.nameRo,
+      properShippingNameDe: preset.nameDe,
+      properShippingNameFr: preset.nameFr,
+      properShippingNameEs: preset.nameEs,
+      properShippingNamePl: preset.namePl,
       adrClass: preset.class,
       packingGroup: preset.pg,
       transportCategory: preset.cat,
@@ -326,10 +373,10 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
     calculatedQtyUnit = 'kg NEM';
   } else if (isCompressedGas && Number(item.receptacleCapacityLiters || 0) > 0) {
     calculatedQty = Number(item.receptacleCapacityLiters);
-    calculatedQtyUnit = 'L apă recipient';
+    calculatedQtyUnit = 'L';
   } else if (Number(item.adrVolumeLiters || 0) > 0) {
     calculatedQty = Number(item.adrVolumeLiters);
-    calculatedQtyUnit = 'Litri';
+    calculatedQtyUnit = currentLang === 'ro' ? 'Litri' : currentLang === 'nl' ? 'Liters' : 'L';
   } else {
     calculatedQty = Number(item.adrNetMassKg || 0) || Number(item.adrGrossMassKg || 0) || Number(item.weightKg || 0);
     calculatedQtyUnit = 'kg';
@@ -392,20 +439,20 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
   const declarationLine = useMemo(() => {
     if (!item.unNumber) return '';
     const parts: string[] = [];
-    if (item.adrWaste) parts.push('DEȘEU / WASTE');
+    if (item.adrWaste) parts.push(currentLang === 'nl' ? 'AFVAL' : currentLang === 'ro' ? 'DEȘEU' : 'WASTE');
     parts.push(item.unNumber);
     parts.push((item.properShippingName || '').toUpperCase());
     if (item.technicalName) parts.push(`(${item.technicalName})`);
     if (item.adrClass) parts.push(item.adrClass);
     if (item.packingGroup) parts.push(item.packingGroup);
     if (item.tunnelRestrictionCode) parts.push(`(${item.tunnelRestrictionCode})`);
-    if (item.environmentalHazard) parts.push('POLUANT PENTRU MEDIU / ENVIRONMENTALLY HAZARDOUS');
-    if (item.limitedQuantity) parts.push('CANTITATE LIMITATĂ / LIMITED QUANTITY (LQ)');
-    if (item.exceptedQuantity) parts.push('CANTITATE EXCEPTATĂ / EXCEPTED QUANTITY (EQ)');
-    if (item.adrEmptyUncleaned) parts.push('AMBALAJ GOL NECURĂȚAT / EMPTY UNCLEANED PACKAGING');
-    if (is1136Exempt) parts.push(`SCUTIRE 1.1.3.6 (${calculatedPoints} pct)`);
+    if (item.environmentalHazard) parts.push(currentLang === 'nl' ? 'MILIEUGEVAARLIJK' : currentLang === 'ro' ? 'POLUANT PENTRU MEDIU' : 'ENVIRONMENTALLY HAZARDOUS');
+    if (item.limitedQuantity) parts.push(currentLang === 'nl' ? 'BEPERKTE HOEVEELHEID (LQ)' : 'LIMITED QUANTITY (LQ)');
+    if (item.exceptedQuantity) parts.push(currentLang === 'nl' ? 'UITGEZONDERDE HOEVEELHEID (EQ)' : 'EXCEPTED QUANTITY (EQ)');
+    if (item.adrEmptyUncleaned) parts.push(currentLang === 'nl' ? 'LEGE ONGEREINIGDE VERPAKKING' : 'EMPTY UNCLEANED PACKAGING');
+    if (is1136Exempt) parts.push(`ADR 1.1.3.6 (${calculatedPoints} pts)`);
     return parts.filter(Boolean).join(', ');
-  }, [item, is1136Exempt, calculatedPoints]);
+  }, [item, is1136Exempt, calculatedPoints, currentLang]);
 
   const handleCopyDeclaration = () => {
     if (!declarationLine) return;
@@ -433,10 +480,10 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
             <div>
               <div className="text-sm font-bold text-amber-950 dark:text-amber-200 flex items-center gap-2">
                 <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                <span>{t('adr_hazardous_cargo_toggle', 'Marfă periculoasă conform normelor ADR')}</span>
+                <span>{t('adr_hazardous_cargo_toggle', 'Dangerous goods according to ADR regulations')}</span>
               </div>
               <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-0.5">
-                {t('adr_toggle_subtitle', 'Activare catalog oficial UNECE ADR 2025, reguli automate și scutiri legale')}
+                {t('adr_toggle_subtitle', 'Activate official UNECE ADR 2025 catalog, automatic rules, and legal exemptions')}
               </p>
             </div>
           </label>
@@ -445,7 +492,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-black tracking-wider uppercase px-2.5 py-1 rounded-full bg-amber-500 text-white shadow-sm flex items-center gap-1.5 animate-in fade-in">
                 <Sparkles className="w-3.5 h-3.5" />
-                {t('adr_badge_active', 'ADR 2025 ACTIV')}
+                {t('adr_badge_active', 'ADR 2025 ACTIVE')}
               </span>
             </div>
           )}
@@ -458,9 +505,9 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
           <div className="flex items-start gap-3 text-xs font-semibold text-red-900 dark:text-red-200">
             <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-bold">{t('adr_confirm_deactivate_title', 'Confirmați dezactivarea clasificării ADR?')}</p>
+              <p className="text-sm font-bold">{t('adr_confirm_deactivate_title', 'Confirm deactivation of ADR classification?')}</p>
               <p className="text-xs font-normal text-red-700 dark:text-red-300 mt-1">
-                {t('adr_confirm_deactivate_desc', 'Toate datele oficiale completate (Nr. UN, Denumire, Puncte ADR, Ambalaje) vor fi eliminate din această poziție.')}
+                {t('adr_confirm_deactivate_desc', 'All entered ADR data (UN number, proper shipping name, 1,000-point calculation, packaging) will be removed.')}
               </p>
               <div className="flex gap-2.5 mt-3">
                 <button
@@ -468,14 +515,14 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                   onClick={confirmDeactivation}
                   className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-colors shadow-sm"
                 >
-                  {t('adr_confirm_deactivate_yes', 'Da, elimină datele ADR')}
+                  {t('adr_confirm_deactivate_yes', 'Yes, remove ADR data')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmDeactivateOpen(false)}
                   className="px-3 py-1.5 bg-surface border border-border rounded-lg text-xs font-semibold hover:bg-card transition-colors"
                 >
-                  {t('adr_confirm_deactivate_cancel', 'Anulează')}
+                  {t('adr_confirm_deactivate_cancel', 'Cancel')}
                 </button>
               </div>
             </div>
@@ -487,16 +534,17 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
       {item.isAdr && (
         <div className="mt-3.5 space-y-4 bg-surface/60 border border-border/80 rounded-2xl p-4 shadow-sm backdrop-blur-sm animate-in fade-in">
           
-          {/* 2. Quick Presets Bar (Pills) for instant selection */}
+          {/* Quick Presets Bar (Pills) for instant selection */}
           <div>
             <div className="text-[11px] font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center justify-between">
-              <span>{t('adr_quick_categories', 'Categorii rapide și substanțe frecvente')}</span>
-              <span className="text-[10px] text-text-secondary font-normal font-mono">ADR 2025 Table A</span>
+              <span>{t('adr_quick_categories', 'Quick categories & common substances')}</span>
+              <span className="text-[10px] text-text-secondary font-normal font-mono">UNECE ADR 2025 Table A</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
               {QUICK_PRESETS.map((p) => {
                 const Icon = p.icon;
                 const isSelected = item.unNumber === p.unNumber;
+                const displayName = currentLang === 'nl' ? p.nameNl : currentLang === 'ro' ? p.nameRo : p.nameEn;
                 return (
                   <button
                     key={p.key}
@@ -510,7 +558,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                   >
                     <Icon className="w-4 h-4 shrink-0" />
                     <div className="overflow-hidden leading-tight">
-                      <div className="font-bold truncate text-[11px]">{t(p.labelKey, p.name)}</div>
+                      <div className="font-bold truncate text-[11px]">{t(p.labelKey, displayName)}</div>
                       <div className="text-[10px] opacity-75 font-mono">{p.unNumber} · Cls {p.class}</div>
                     </div>
                   </button>
@@ -519,15 +567,15 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
             </div>
           </div>
 
-          {/* 3. Official Catalog Search & Autocomplete */}
+          {/* Official Catalog Search & Autocomplete */}
           <div className="relative pt-1" ref={searchContainerRef}>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-bold text-text-primary flex items-center gap-2">
                 <Search className="w-4 h-4 text-primary" />
-                {t('adr_search_label', 'Căutare Catalog ADR (Număr UN sau Denumire oficială)')}
+                {t('adr_search_label', 'ADR Catalog Search (UN Number or Proper Shipping Name)')}
               </label>
               <span className="text-[11px] text-text-secondary font-normal">
-                {t('adr_catalog_ref', 'Referință: UNECE ADR 2025 Tabelul A')}
+                {t('adr_catalog_ref', 'Reference: UNECE ADR 2025 Table A')}
               </span>
             </div>
 
@@ -563,14 +611,13 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
             {isDropdownOpen && searchResults.length > 0 && (
               <div className="absolute z-50 left-0 right-0 mt-1.5 bg-card border border-border/80 rounded-2xl shadow-2xl max-h-72 overflow-y-auto custom-scrollbar divide-y divide-border/40 backdrop-blur-md">
                 {searchResults.map((res: any) => {
-                  const title =
-                    (currentLang === 'ro' && res.properShippingNameRo) ||
-                    (currentLang === 'de' && res.properShippingNameDe) ||
-                    (currentLang === 'fr' && res.properShippingNameFr) ||
-                    (currentLang === 'nl' && res.properShippingNameNl) ||
-                    (currentLang === 'es' && res.properShippingNameEs) ||
-                    (currentLang === 'pl' && res.properShippingNamePl) ||
-                    res.properShippingNameEn;
+                  let title = res.properShippingNameEn;
+                  if (currentLang === 'nl') title = res.properShippingNameNl || res.properShippingNameEn;
+                  else if (currentLang === 'de') title = res.properShippingNameDe || res.properShippingNameEn;
+                  else if (currentLang === 'fr') title = res.properShippingNameFr || res.properShippingNameEn;
+                  else if (currentLang === 'es') title = res.properShippingNameEs || res.properShippingNameEn;
+                  else if (currentLang === 'pl') title = res.properShippingNamePl || res.properShippingNameEn;
+                  else if (currentLang === 'ro') title = res.properShippingNameRo || res.properShippingNameEn;
 
                   return (
                     <div
@@ -586,10 +633,10 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                           <span className="group-hover:text-primary transition-colors">{title}</span>
                         </div>
                         <div className="text-[11px] text-text-secondary mt-1 flex flex-wrap items-center gap-3 font-mono">
-                          <span className="px-1.5 py-0.2 bg-black/5 dark:bg-white/5 rounded">Clasa {res.adrClass}</span>
-                          {res.packingGroup && <span className="px-1.5 py-0.2 bg-black/5 dark:bg-white/5 rounded">GE {res.packingGroup}</span>}
-                          <span className="px-1.5 py-0.2 bg-black/5 dark:bg-white/5 rounded">Cat. {res.transportCategory}</span>
-                          {res.tunnelRestrictionCode && <span className="px-1.5 py-0.2 bg-black/5 dark:bg-white/5 rounded">Tunel {res.tunnelRestrictionCode}</span>}
+                          <span className="px-1.5 py-0.2 bg-black/5 dark:bg-white/5 rounded">Class {res.adrClass}</span>
+                          {res.packingGroup && <span className="px-1.5 py-0.2 bg-black/5 dark:bg-white/5 rounded">PG {res.packingGroup}</span>}
+                          <span className="px-1.5 py-0.2 bg-black/5 dark:bg-white/5 rounded">Cat {res.transportCategory}</span>
+                          {res.tunnelRestrictionCode && <span className="px-1.5 py-0.2 bg-black/5 dark:bg-white/5 rounded">Tunnel {res.tunnelRestrictionCode}</span>}
                           {res.limitedQuantity && <span className="text-blue-600 dark:text-blue-400 font-semibold">LQ: {res.limitedQuantity}</span>}
                         </div>
                       </div>
@@ -597,7 +644,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                         type="button"
                         className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-bold shrink-0 group-hover:bg-primary group-hover:text-white transition-all shadow-sm"
                       >
-                        {t('adr_select_btn', 'Selectează')}
+                        {t('adr_select_btn', 'Select')}
                       </button>
                     </div>
                   );
@@ -606,7 +653,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
             )}
           </div>
 
-          {/* 4. Active Classified Item Bar & Hazard Placard */}
+          {/* Active Classified Item Bar & Hazard Placard */}
           {item.unNumber && (
             <div className="bg-card border border-border/80 rounded-2xl p-3.5 shadow-sm">
               <div className="flex items-center justify-between flex-wrap gap-2 mb-3 pb-3 border-b border-border/50">
@@ -624,30 +671,32 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                       </span>
                     </div>
                     <div className="text-[11px] text-text-secondary mt-0.5 flex items-center gap-2">
-                      <span>{t('adr_col_class', 'Clasă ADR')}: <strong>{item.adrClass}</strong></span>
+                      <span>{t('adr_col_class', 'ADR Class')}: <strong>{item.adrClass}</strong></span>
                       <span>·</span>
-                      <span>{t('adr_col_packing_group', 'GE')}: <strong>{item.packingGroup || '—'}</strong></span>
+                      <span>{t('adr_col_packing_group', 'PG')}: <strong>{item.packingGroup || '—'}</strong></span>
                       <span>·</span>
                       <span>{t('adr_col_transport_cat', 'Cat')}: <strong>{transportCat} (x{multiplier})</strong></span>
                       <span>·</span>
-                      <span>{t('adr_col_tunnel', 'Tunel')}: <strong>{item.tunnelRestrictionCode || '(-)'}</strong></span>
+                      <span>{t('adr_col_tunnel', 'Tunnel')}: <strong>{item.tunnelRestrictionCode || '(-)'}</strong></span>
                     </div>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery('');
-                    onChange({ unNumber: undefined, properShippingName: undefined });
-                  }}
-                  className="text-xs text-text-secondary hover:text-red-500 px-2.5 py-1 rounded-lg border border-border/60 hover:border-red-500/40 transition-colors"
-                >
-                  {t('adr_clear_selection', 'Schimbă substanța / Căutare nouă')}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      onChange({ unNumber: undefined, properShippingName: undefined });
+                    }}
+                    className="text-xs text-text-secondary hover:text-red-500 px-2.5 py-1 rounded-lg border border-border/60 hover:border-red-500/40 transition-colors"
+                  >
+                    {t('adr_clear_selection', 'Change substance / New search')}
+                  </button>
+                </div>
               </div>
 
-              {/* 5. Enterprise Sub-Tabs Navigation */}
+              {/* Sub-Tabs Navigation */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 mb-3 scrollbar-none border-b border-border/40">
                 <button
                   type="button"
@@ -659,7 +708,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                   }`}
                 >
                   <FileCheck className="w-3.5 h-3.5" />
-                  {t('adr_tab_classification', '1. Clasificare & Identificare')}
+                  {t('adr_tab_classification', '1. Classification & Identity')}
                 </button>
 
                 <button
@@ -672,7 +721,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                   }`}
                 >
                   <Package className="w-3.5 h-3.5" />
-                  {t('adr_tab_packaging', '2. Ambalare & Cantități')}
+                  {t('adr_tab_packaging', '2. Packaging & Quantities')}
                 </button>
 
                 <button
@@ -685,9 +734,9 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                   }`}
                 >
                   <Gauge className="w-3.5 h-3.5" />
-                  {t('adr_tab_exemptions', '3. Scutiri & Regula 1.000 Puncte')}
+                  {t('adr_tab_exemptions', '3. Exemptions & 1,000 Points')}
                   <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${calculatedPoints <= 1000 ? 'bg-green-500/20 text-green-700 dark:text-green-300' : 'bg-red-500/20 text-red-700 dark:text-red-300'}`}>
-                    {calculatedPoints} pct
+                    {calculatedPoints} pts
                   </span>
                 </button>
 
@@ -702,7 +751,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                     }`}
                   >
                     <Battery className="w-3.5 h-3.5" />
-                    {t('adr_tab_batteries', '4. Baterii cu Litiu (SP 188)')}
+                    {t('adr_tab_batteries', '4. Lithium Batteries (SP 188)')}
                     {isSp188Exempt && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
                   </button>
                 )}
@@ -717,7 +766,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                   }`}
                 >
                   <FileCheck className="w-3.5 h-3.5" />
-                  {t('adr_tab_declaration', '5. Declarație Oficială ADR 5.4')}
+                  {t('adr_tab_declaration', '5. Official ADR 5.4 Declaration')}
                 </button>
               </div>
 
@@ -727,7 +776,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                     <div>
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_col_un', 'Număr UN')}
+                        {t('adr_col_un', 'UN Number')}
                       </label>
                       <input
                         type="text"
@@ -739,7 +788,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
 
                     <div>
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_col_class', 'Clasă ADR')}
+                        {t('adr_col_class', 'ADR Class')}
                       </label>
                       <input
                         type="text"
@@ -751,27 +800,27 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
 
                     <div>
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_col_packing_group', 'Grupă Ambalare (GE)')}
+                        {t('adr_col_packing_group', 'Packing Group (PG)')}
                       </label>
                       <select
                         value={item.packingGroup || ''}
                         onChange={e => onChange({ packingGroup: e.target.value || null })}
                         className="input w-full text-xs font-semibold"
                       >
-                        <option value="">{t('adr_pg_none', 'Fără GE (N/A)')}</option>
-                        <option value="I">{t('adr_pg_i', 'GE I (Pericol mare)')}</option>
-                        <option value="II">{t('adr_pg_ii', 'GE II (Pericol mediu)')}</option>
-                        <option value="III">{t('adr_pg_iii', 'GE III (Pericol mic)')}</option>
+                        <option value="">{t('adr_pg_none', 'No PG (N/A)')}</option>
+                        <option value="I">{t('adr_pg_i', 'PG I (High danger)')}</option>
+                        <option value="II">{t('adr_pg_ii', 'PG II (Medium danger)')}</option>
+                        <option value="III">{t('adr_pg_iii', 'PG III (Low danger)')}</option>
                       </select>
                     </div>
 
                     <div>
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_col_transport_cat', 'Categorie Transport (1.1.3.6)')}
+                        {t('adr_col_transport_cat', 'Transport Category (1.1.3.6)')}
                       </label>
                       <input
                         type="text"
-                        value={`Categoria ${transportCat} (Factor x${multiplier})`}
+                        value={`${t('adr_calc_cat', 'Category')} ${transportCat} (${t('adr_calc_multiplier', 'Factor')} x${multiplier})`}
                         readOnly
                         className="input w-full bg-black/5 dark:bg-white/5 font-bold text-primary"
                       />
@@ -779,7 +828,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
 
                     <div className="col-span-2 md:col-span-3">
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_col_proper_name', 'Denumire oficială de transport (ADR 3.1.2)')}
+                        {t('adr_col_proper_name', 'Proper Shipping Name (ADR 3.1.2)')}
                       </label>
                       <input
                         type="text"
@@ -791,7 +840,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
 
                     <div>
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_col_tunnel', 'Cod Restricție Tunel')}
+                        {t('adr_col_tunnel', 'Tunnel Restriction Code')}
                       </label>
                       <input
                         type="text"
@@ -804,13 +853,13 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
 
                   <div>
                     <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                      {t('adr_tech_name', 'Denumire tehnică (obligatorie pentru N.S.A. conform DS 274)')}
+                      {t('adr_tech_name', 'Technical Name (required for N.O.S. entries under SP 274)')}
                     </label>
                     <input
                       type="text"
                       value={item.technicalName || ''}
                       onChange={e => onChange({ technicalName: e.target.value })}
-                      placeholder={t('adr_tech_name_placeholder', 'Ex: conține etanol și acetonă')}
+                      placeholder={t('adr_tech_name_placeholder', 'e.g. contains ethanol and acetone')}
                       className="input w-full text-xs"
                     />
                   </div>
@@ -823,35 +872,35 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                     <div>
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_transport_mode', 'Configurație transport')}
+                        {t('adr_transport_mode', 'Transport Configuration')}
                       </label>
                       <select
                         value={item.adrTransportType || 'packages'}
                         onChange={e => onChange({ adrTransportType: e.target.value as any })}
                         className="input w-full text-xs font-semibold"
                       >
-                        <option value="packages">{t('adr_type_packages', 'Colete / Ambalaje (Packages)')}</option>
-                        <option value="tank">{t('adr_type_tank', 'Cisternă (Tank)')}</option>
-                        <option value="bulk">{t('adr_type_bulk', 'Vrac (Bulk)')}</option>
+                        <option value="packages">{t('adr_type_packages', 'Packaged Goods (Packages)')}</option>
+                        <option value="tank">{t('adr_type_tank', 'Tank Transport (Tank)')}</option>
+                        <option value="bulk">{t('adr_type_bulk', 'Bulk Transport (Bulk)')}</option>
                       </select>
                     </div>
 
                     <div>
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_pkg_type', 'Tip ambalaj (ADR Cap. 6)')}
+                        {t('adr_pkg_type', 'Packaging Type (ADR Chapter 6)')}
                       </label>
                       <input
                         type="text"
                         value={item.adrPackagingDescription || ''}
                         onChange={e => onChange({ adrPackagingDescription: e.target.value })}
-                        placeholder="Ex: Butoaie oțel 1A1, Cutii 4G, IBC"
+                        placeholder="e.g. Steel drums 1A1, 4G boxes, IBC 31HA1"
                         className="input w-full"
                       />
                     </div>
 
                     <div>
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_volume_liters', 'Cantitate lichid (Litri)')}
+                        {t('adr_volume_liters', 'Volume in Liters')}
                       </label>
                       <input
                         type="number"
@@ -859,14 +908,14 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                         min="0"
                         value={item.adrVolumeLiters || ''}
                         onChange={e => onChange({ adrVolumeLiters: e.target.value })}
-                        placeholder="Ex: 500 L"
+                        placeholder="e.g. 500 L"
                         className="input w-full font-bold"
                       />
                     </div>
 
                     <div>
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_net_mass', 'Masă netă / substanță (kg)')}
+                        {t('adr_net_mass', 'Net Substance Mass (kg)')}
                       </label>
                       <input
                         type="number"
@@ -874,7 +923,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                         min="0"
                         value={item.adrNetMassKg || ''}
                         onChange={e => onChange({ adrNetMassKg: e.target.value })}
-                        placeholder="Ex: 250 kg"
+                        placeholder="e.g. 250 kg"
                         className="input w-full font-bold"
                       />
                     </div>
@@ -886,7 +935,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                       {isClass1 && (
                         <div>
                           <label className="block text-[11px] font-bold text-amber-900 dark:text-amber-200 mb-1">
-                            {t('adr_nem_label', 'Masă netă exploziv NEM / NEQ (kg) — ADR 1.1.3.6.3')}
+                            {t('adr_nem_label', 'Net Explosive Mass NEM / NEQ (kg) — ADR 1.1.3.6.3')}
                           </label>
                           <input
                             type="number"
@@ -894,7 +943,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                             min="0"
                             value={item.netExplosiveMassKg || ''}
                             onChange={e => onChange({ netExplosiveMassKg: e.target.value })}
-                            placeholder="Obligatoriu NEM în kg pentru Clasa 1"
+                            placeholder="Mandatory NEM in kg for Class 1"
                             className="input w-full font-bold"
                           />
                         </div>
@@ -902,7 +951,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                       {isCompressedGas && (
                         <div>
                           <label className="block text-[11px] font-bold text-amber-900 dark:text-amber-200 mb-1">
-                            {t('adr_receptacle_cap_label', 'Capacitate recipient în litri de apă (L) — ADR 1.1.3.6.3')}
+                            {t('adr_receptacle_cap_label', 'Receptacle Water Capacity (L) — ADR 1.1.3.6.3')}
                           </label>
                           <input
                             type="number"
@@ -910,7 +959,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                             min="0"
                             value={item.receptacleCapacityLiters || ''}
                             onChange={e => onChange({ receptacleCapacityLiters: e.target.value })}
-                            placeholder="Obligatoriu litri capacitate recipient pt gaze comprimate"
+                            placeholder="Water capacity in litres for compressed gases"
                             className="input w-full font-bold"
                           />
                         </div>
@@ -928,7 +977,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                         className="checkbox checkbox-sm"
                       />
                       <span className="font-semibold text-text-primary text-[11px]">
-                        {t('adr_lq_label', 'Cantități Limitate (LQ ADR 3.4)')}
+                        {t('adr_lq_label', 'Limited Quantities (LQ ADR 3.4)')}
                       </span>
                     </label>
 
@@ -940,7 +989,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                         className="checkbox checkbox-sm"
                       />
                       <span className="font-semibold text-text-primary text-[11px]">
-                        {t('adr_eq_label', 'Cantități Exceptate (EQ ADR 3.5)')}
+                        {t('adr_eq_label', 'Excepted Quantities (EQ ADR 3.5)')}
                       </span>
                     </label>
 
@@ -952,11 +1001,11 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                         className="checkbox checkbox-sm"
                       />
                       <span className="font-semibold text-text-primary text-[11px]">
-                        {t('adr_waste_label', 'Deșeu periculos (WASTE)')}
+                        {t('adr_waste_label', 'Hazardous Waste (WASTE)')}
                       </span>
                     </label>
 
-                    <label className="flex items-center gap-2 p-2 rounded-lg border border-border/60 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer" title="ADR 1.1.3.6.3: Categoriile 1, 2, 3 reîncadrate în Categoria 4 (0 puncte)">
+                    <label className="flex items-center gap-2 p-2 rounded-lg border border-border/60 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer" title="ADR 1.1.3.6.3: Categories 1, 2, 3 remapped to Category 4 (0 pts)">
                       <input
                         type="checkbox"
                         checked={Boolean(item.adrEmptyUncleaned)}
@@ -964,7 +1013,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                         className="checkbox checkbox-sm"
                       />
                       <span className="font-semibold text-text-primary text-[11px]">
-                        {t('adr_empty_uncleaned_label', 'Ambalaje goale necurățate (0 pct)')}
+                        {t('adr_empty_uncleaned_label', 'Empty Uncleaned Packaging (0 pts)')}
                       </span>
                     </label>
 
@@ -976,7 +1025,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                         className="checkbox checkbox-sm"
                       />
                       <span className="font-semibold text-text-primary text-[11px]">
-                        {t('adr_env_hazard', 'Poluant pentru mediu (Marine Pollutant)')}
+                        {t('adr_env_hazard', 'Environmentally Hazardous (Marine Pollutant)')}
                       </span>
                     </label>
                   </div>
@@ -991,7 +1040,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-bold text-text-primary flex items-center gap-2">
                         <Gauge className="w-4 h-4 text-primary" />
-                        {t('adr_points_card_title', 'Calcul automat conform ADR 1.1.3.6 (Regula celor 1.000 de puncte)')}
+                        {t('adr_points_card_title', 'ADR 1.1.3.6 Point Calculation (1,000-Point Rule)')}
                       </span>
                       <div className="flex items-center gap-2">
                         <span className={`font-mono text-xs font-black px-2.5 py-1 rounded-lg ${
@@ -1003,7 +1052,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                             ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300'
                             : 'bg-red-500/20 text-red-700 dark:text-red-300'
                         }`}>
-                          {isCat0 ? 'CAT 0 (∞)' : `${calculatedPoints} / 1.000 ${t('adr_points_unit', 'puncte')}`}
+                          {isCat0 ? 'CAT 0 (∞)' : `${calculatedPoints} / 1,000 ${t('adr_points_unit', 'points')}`}
                         </span>
                       </div>
                     </div>
@@ -1023,32 +1072,32 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] text-text-secondary font-mono">
-                      <span>0 pct</span>
+                      <span>0 pts</span>
                       <span>
                         {isCat0
-                          ? 'Categoria 0 — Regim complet obligatoriu'
-                          : `${pointsRemaining} ${t('adr_points_remaining', 'puncte rămase până la regim complet')}`}
+                          ? t('adr_cat0_regime_required', 'Transport Category 0 — Full ADR regime mandatory regardless of quantity')
+                          : `${pointsRemaining} ${t('adr_points_remaining', 'points remaining before full ADR regime')}`}
                       </span>
-                      <span>1.000 pct</span>
+                      <span>1,000 pts</span>
                     </div>
 
                     {/* Mathematical Formula Breakdown */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px] bg-card p-3 rounded-xl border border-border/60 mt-3">
                       <div>
-                        <span className="text-text-secondary block">{t('adr_calc_cat', 'Categorie')}</span>
-                        <span className="font-bold">Categoria {transportCat}</span>
+                        <span className="text-text-secondary block">{t('adr_calc_cat', 'Category')}</span>
+                        <span className="font-bold">{t('adr_calc_cat', 'Category')} {transportCat}</span>
                       </div>
                       <div>
-                        <span className="text-text-secondary block">{t('adr_calc_multiplier', 'Factor multiplicare')}</span>
+                        <span className="text-text-secondary block">{t('adr_calc_multiplier', 'Factor')}</span>
                         <span className="font-bold font-mono">x {multiplier}</span>
                       </div>
                       <div>
-                        <span className="text-text-secondary block">{t('adr_calc_qty', 'Cantitate calcul')}</span>
+                        <span className="text-text-secondary block">{t('adr_calc_qty', 'Calculated quantity')}</span>
                         <span className="font-bold">{calculatedQty} {calculatedQtyUnit}</span>
                       </div>
                       <div>
-                        <span className="text-text-secondary block">{t('adr_calc_points', 'Contribuție poziție')}</span>
-                        <span className="font-black text-primary font-mono">{calculatedPoints} pct</span>
+                        <span className="text-text-secondary block">{t('adr_calc_points', 'Item points contribution')}</span>
+                        <span className="font-black text-primary font-mono">{calculatedPoints} pts</span>
                       </div>
                     </div>
 
@@ -1057,46 +1106,46 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                       {isSp188Exempt ? (
                         <div className="p-3 rounded-xl bg-green-500/10 text-green-700 dark:text-green-300 text-xs font-semibold flex items-center gap-2.5 border border-green-500/20">
                           <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
-                          <span>{t('adr_res_sp188', 'Scutire specială verificată conform ADR SP 188 (Baterii Litiu).')}</span>
+                          <span>{t('adr_res_sp188', 'Exempt under Special Provision 188 (Low power lithium battery). No orange plates or driver ADR certificate required.')}</span>
                         </div>
                       ) : isLqExempt ? (
                         <div className="p-3 rounded-xl bg-blue-500/10 text-blue-700 dark:text-blue-300 text-xs font-semibold flex items-center gap-2.5 border border-blue-500/20">
                           <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
-                          <span>{t('adr_res_lq', 'Scutire Cantități Limitate conform ADR 3.4 (LQ).')}</span>
+                          <span>{t('adr_res_lq', 'Exempt under ADR Chapter 3.4 (Limited Quantities LQ). Standard ADR driver certificate not required.')}</span>
                         </div>
                       ) : isEqExempt ? (
                         <div className="p-3 rounded-xl bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 text-xs font-semibold flex items-center gap-2.5 border border-indigo-500/20">
                           <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />
-                          <span>{t('adr_res_eq', 'Scutit conform ADR Cap. 3.5 (Cantități Exceptate EQ).')}</span>
+                          <span>{t('adr_res_eq', 'Exempt under ADR Chapter 3.5 (Excepted Quantities EQ).')}</span>
                         </div>
                       ) : isCat0 ? (
                         <div className="p-3 rounded-xl bg-red-500/10 text-red-700 dark:text-red-300 text-xs font-semibold flex items-center gap-2.5 border border-red-500/20">
                           <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-                          <span>{t('adr_res_cat0', 'Categoria de transport 0 — NU este eligibilă pentru scutire. Regim complet ADR obligatoriu indiferent de cantitate.')}</span>
+                          <span>{t('adr_res_cat0', 'Transport Category 0: Full ADR regime mandatory regardless of quantity (no 1.1.3.6 exemption permitted).')}</span>
                         </div>
                       ) : isTankOrBulk ? (
                         <div className="p-3 rounded-xl bg-red-500/10 text-red-700 dark:text-red-300 text-xs font-semibold flex items-center gap-2.5 border border-red-500/20">
                           <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-                          <span>{t('adr_res_tank', 'Transport în cisternă sau vrac — Regula celor 1.000 de puncte NU se aplică. Regim complet obligatoriu.')}</span>
+                          <span>{t('adr_res_tank', 'Bulk / Tank Transport: Full ADR regime mandatory. Orange plates and specialized ADR driver certification required.')}</span>
                         </div>
                       ) : is1136Exempt ? (
                         <div className="p-3 rounded-xl bg-green-500/10 text-green-700 dark:text-green-300 text-xs font-semibold flex items-center gap-2.5 border border-green-500/20">
                           <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
                           <span>
-                            {t('adr_res_1136_exempt', 'Scutire parțială conform ADR 1.1.3.6 — condiții verificate ({{points}} pct <= 1.000). Certificat șofer scutit. Echipare minimă: 1 extinctor 2kg.', { points: calculatedPoints })}
+                            {t('adr_res_1136_exempt', 'Partial exemption under ADR 1.1.3.6 verified ({{points}} pts <= 1,000). Driver ADR certificate and orange plates exempt. Minimum equipment: one 2kg extinguisher.', { points: calculatedPoints })}
                           </span>
                         </div>
                       ) : calculatedPoints > 1000 ? (
                         <div className="p-3 rounded-xl bg-red-500/10 text-red-700 dark:text-red-300 text-xs font-semibold flex items-center gap-2.5 border border-red-500/20">
                           <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
                           <span>
-                            {t('adr_res_over1000', 'Peste limita celor 1.000 de puncte ({{points}} pct). Se aplică regimul complet ADR: certificat șofer obligatoriu, plăci portocalii, echipare completă.', { points: calculatedPoints })}
+                            {t('adr_res_over1000', 'Exceeds 1,000-point threshold ({{points}} pts). Full ADR regime mandatory: Driver certificate, orange plates, and full safety equipment required.', { points: calculatedPoints })}
                           </span>
                         </div>
                       ) : (
                         <div className="p-3 rounded-xl bg-amber-500/10 text-amber-800 dark:text-amber-300 text-xs font-semibold flex items-center gap-2.5 border border-amber-500/20">
                           <HelpCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                          <span>{t('adr_res_need_data', 'Introduceți cantitatea în litri sau kilograme pentru finalizarea calculului celor 1.000 de puncte.')}</span>
+                          <span>{t('adr_res_need_data', 'Enter volume or mass to calculate ADR 1.1.3.6 points.')}</span>
                         </div>
                       )}
                     </div>
@@ -1110,7 +1159,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                   <div className="font-bold text-blue-900 dark:text-blue-200 flex items-center justify-between mb-2">
                     <span className="flex items-center gap-2 text-sm">
                       <Battery className="w-4 h-4 text-blue-600" />
-                      {t('adr_battery_specs_title', 'Chestionar specific baterii cu litiu (Dispoziția Specială 188 / 376 / 377)')}
+                      {t('adr_battery_specs_title', 'Lithium Battery Assessment (Special Provisions 188 / 376 / 377)')}
                     </span>
                     <span className="text-[10px] text-blue-700 dark:text-blue-300 font-mono font-bold px-2 py-0.5 rounded bg-blue-500/20">
                       UNECE ADR 2025 SP 188
@@ -1120,7 +1169,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
                     <div>
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_battery_type', 'Tip element')}
+                        {t('adr_battery_type', 'Element Type')}
                       </label>
                       <select
                         value={item.adrBatteryDetails?.cellOrBattery || 'battery'}
@@ -1134,14 +1183,14 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                         }
                         className="input w-full text-xs font-semibold"
                       >
-                        <option value="battery">{t('adr_battery_pack', 'Baterie (max 100 Wh / 2g Li)')}</option>
-                        <option value="cell">{t('adr_battery_cell', 'Celulă (max 20 Wh / 1g Li)')}</option>
+                        <option value="battery">{t('adr_battery_pack', 'Battery (max 100 Wh / 2g Li)')}</option>
+                        <option value="cell">{t('adr_battery_cell', 'Cell (max 20 Wh / 1g Li)')}</option>
                       </select>
                     </div>
 
                     <div>
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_battery_chemistry', 'Chimie')}
+                        {t('adr_battery_chemistry', 'Battery Chemistry')}
                       </label>
                       <select
                         value={item.adrBatteryDetails?.chemistry || 'lithium_ion'}
@@ -1155,16 +1204,16 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                         }
                         className="input w-full text-xs font-semibold"
                       >
-                        <option value="lithium_ion">{t('adr_ion', 'Ion de litiu (Li-ion)')}</option>
-                        <option value="lithium_metal">{t('adr_metal', 'Litiu metalic (Li-metal)')}</option>
+                        <option value="lithium_ion">{t('adr_ion', 'Lithium-Ion (Li-Ion)')}</option>
+                        <option value="lithium_metal">{t('adr_metal', 'Lithium-Metal (Li-Metal)')}</option>
                       </select>
                     </div>
 
                     <div>
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
                         {item.adrBatteryDetails?.chemistry === 'lithium_metal'
-                          ? (item.adrBatteryDetails?.cellOrBattery === 'cell' ? 'Gramaj Li celulă (max 1g)' : 'Gramaj Li baterie (max 2g)')
-                          : (item.adrBatteryDetails?.cellOrBattery === 'cell' ? 'Energie celulă (max 20 Wh)' : 'Energie baterie (max 100 Wh)')}
+                          ? (item.adrBatteryDetails?.cellOrBattery === 'cell' ? 'Cell Li mass (max 1g)' : 'Battery Li mass (max 2g)')
+                          : (item.adrBatteryDetails?.cellOrBattery === 'cell' ? 'Cell capacity (max 20 Wh)' : 'Battery capacity (max 100 Wh)')}
                       </label>
                       <input
                         type="number"
@@ -1190,14 +1239,14 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                             },
                           })
                         }
-                        placeholder={item.adrBatteryDetails?.chemistry === 'lithium_metal' ? 'Ex: 1.5 g' : 'Ex: 85 Wh'}
+                        placeholder={item.adrBatteryDetails?.chemistry === 'lithium_metal' ? 'e.g. 1.5 g' : 'e.g. 85 Wh'}
                         className="input w-full font-bold"
                       />
                     </div>
 
                     <div>
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_battery_condition', 'Stare baterie')}
+                        {t('adr_battery_condition', 'Battery Condition')}
                       </label>
                       <select
                         value={item.adrBatteryDetails?.condition || 'normal'}
@@ -1211,16 +1260,16 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                         }
                         className="input w-full text-xs font-semibold"
                       >
-                        <option value="normal">{t('adr_condition_normal', 'Normală (nouă / funcțională)')}</option>
-                        <option value="damaged_defective">{t('adr_condition_damaged', 'Deteriorată / Defectă (DS 376)')}</option>
-                        <option value="waste">{t('adr_condition_waste', 'Deșeu pentru eliminare (DS 377)')}</option>
-                        <option value="recycling">{t('adr_condition_recycling', 'Destinată reciclării (DS 377)')}</option>
+                        <option value="normal">{t('adr_condition_normal', 'Normal (New / Undamaged)')}</option>
+                        <option value="damaged_defective">{t('adr_condition_damaged', 'Damaged / Defective (SP 376)')}</option>
+                        <option value="waste">{t('adr_condition_waste', 'Waste for disposal (SP 377)')}</option>
+                        <option value="recycling">{t('adr_condition_recycling', 'Destined for recycling (SP 377)')}</option>
                       </select>
                     </div>
 
                     <div>
                       <label className="block text-[11px] font-semibold text-text-secondary mb-1">
-                        {t('adr_battery_pkg_mode', 'Montaj / Ambalare')}
+                        {t('adr_battery_pkg_mode', 'Packaging Mode')}
                       </label>
                       <select
                         value={item.adrBatteryDetails?.packagingMode || 'standalone'}
@@ -1234,9 +1283,9 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                         }
                         className="input w-full text-xs font-semibold"
                       >
-                        <option value="standalone">{t('adr_standalone', 'Baterii separate (max 30 kg/colet)')}</option>
-                        <option value="contained_in_equipment">{t('adr_in_equipment', 'Montate în echipament')}</option>
-                        <option value="packed_with_equipment">{t('adr_with_equipment', 'Ambalate cu echipamentul')}</option>
+                        <option value="standalone">{t('adr_standalone', 'Batteries Only (max 30 kg/package)')}</option>
+                        <option value="contained_in_equipment">{t('adr_in_equipment', 'Contained in Equipment')}</option>
+                        <option value="packed_with_equipment">{t('adr_with_equipment', 'Packed with Equipment')}</option>
                       </select>
                     </div>
                   </div>
@@ -1258,7 +1307,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                         className="checkbox checkbox-primary checkbox-sm"
                       />
                       <span className="font-semibold text-[11px] text-text-primary">
-                        {t('adr_un383_test_passed', 'Conform testelor UN Manual of Tests and Criteria Partea III, sub-secțiunea 38.3 (obligatoriu SP 188 c)')}
+                        {t('adr_un383_test_passed', 'Compliant with UN Manual of Tests and Criteria Part III, sub-section 38.3 (Mandatory for SP 188 c)')}
                       </span>
                     </label>
                   </div>
@@ -1267,22 +1316,22 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                   {isSp188Exempt ? (
                     <div className="flex items-center gap-2 text-green-700 dark:text-green-300 font-semibold text-xs bg-green-500/10 p-3 rounded-xl border border-green-500/20">
                       <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
-                      <span>{t('adr_sp188_eligible', 'Eligibil pentru Scutirea Specială ADR 188 (Sub limita normativă celulă/baterie). Certificatul ADR al șoferului și plăcile portocalii NU sunt cerute.')}</span>
+                      <span>{t('adr_sp188_eligible', 'Eligible for Special Provision 188 Exemption (Below cell/battery threshold). Driver ADR certificate and orange plates NOT required.')}</span>
                     </div>
                   ) : sp188NeedVerification ? (
                     <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-semibold text-xs bg-amber-500/10 p-3 rounded-xl border border-amber-500/20">
                       <HelpCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>{t('adr_sp188_need_verify', 'Necesită verificare ADR: specificați dacă este celulă sau baterie și introduceți valoarea exactă Wh sau g Li.')}</span>
+                      <span>{t('adr_sp188_need_verify', 'Verification required: specify cell vs battery and enter exact Wh or g Li capacity.')}</span>
                     </div>
                   ) : item.adrBatteryDetails?.condition === 'damaged_defective' ? (
                     <div className="flex items-center gap-2 text-red-700 dark:text-red-300 font-semibold text-xs bg-red-500/10 p-3 rounded-xl border border-red-500/20">
                       <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-                      <span>{t('adr_sp376_alert', 'Baterii deteriorate/defecte (DS 376) — Scutirea SP 188 este interzisă! Supuse regimului complet ADR și ambalării P908/LP904. Necesită șofer certificat ADR.')}</span>
+                      <span>{t('adr_sp376_alert', 'Damaged / defective batteries (SP 376) — SP 188 exemption strictly prohibited! Subject to full ADR regime and packaging P908/LP904.')}</span>
                     </div>
                   ) : item.adrBatteryDetails?.unTestPassed === false ? (
                     <div className="flex items-center gap-2 text-red-700 dark:text-red-300 font-semibold text-xs bg-red-500/10 p-3 rounded-xl border border-red-500/20">
                       <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-                      <span>{t('adr_sp188_un383_failed', 'Bateriile care nu au trecut testele UN 38.3 sunt strict interzise sub regimul de scutire SP 188!')}</span>
+                      <span>{t('adr_sp188_un383_failed', 'Batteries failing UN 38.3 tests are strictly prohibited under SP 188 exemption regime!')}</span>
                     </div>
                   ) : null}
                 </div>
@@ -1295,7 +1344,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-bold text-text-primary flex items-center gap-2">
                         <FileCheck className="w-4 h-4 text-primary" />
-                        {t('adr_declaration_preview', 'Previzualizare Declarație Document de Transport ADR 5.4')}
+                        {t('adr_declaration_preview', 'ADR 5.4 Transport Document Declaration Line Preview')}
                       </span>
                       <button
                         type="button"
@@ -1303,7 +1352,7 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                         className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-lg text-xs font-bold transition-all shadow-sm"
                       >
                         {copiedDeclaration ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                        {copiedDeclaration ? t('adr_declaration_copied', 'Copiat!') : t('adr_declaration_copy', 'Copiază text declarație')}
+                        {copiedDeclaration ? t('adr_declaration_copied', 'Copied!') : t('adr_declaration_copy', 'Copy declaration text')}
                       </button>
                     </div>
 
@@ -1312,9 +1361,23 @@ export const AdrCargoSection: React.FC<AdrCargoSectionProps> = ({ item, onChange
                     </div>
 
                     <p className="text-[11px] text-text-secondary mt-2">
-                      Format standard obligatoriu conform Regulamentului UNECE ADR 5.4.1.1.1 pentru CMR și declarații vamale.
+                      {t('adr_declaration_footnote', 'Mandatory standard format according to UNECE ADR 5.4.1.1.1 for CMR and consignment notes.')}
                     </p>
                   </div>
+                </div>
+              )}
+
+              {/* Action Button: Add another UN Code to this order */}
+              {onAddAnotherAdr && (
+                <div className="mt-3 pt-3 border-t border-border/50 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={onAddAnotherAdr}
+                    className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 dark:text-amber-200 border border-amber-500/30 text-xs font-bold transition-all shadow-sm"
+                  >
+                    <Plus className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <span>{t('adr_add_another_un', '+ Add another UN Code / Dangerous Goods Item to this Order')}</span>
+                  </button>
                 </div>
               )}
 
