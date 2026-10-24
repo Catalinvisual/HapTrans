@@ -157,6 +157,44 @@ export class AppController {
     }
   }
 
+  @Post('public/test-create-invoice')
+  async testCreateInvoice(@Body() body: any) {
+    try {
+      const crypto = require('crypto');
+      const countRes = await this.em.query('SELECT COUNT(*) as count FROM invoices');
+      const count = parseInt(countRes[0]?.count || '0', 10);
+      const year = new Date().getFullYear();
+      const invoiceNumber = `INV-${year}-${String(count + 1).padStart(5, '0')}`;
+      const newId = crypto.randomUUID();
+      const amount = Number(body?.amount || 1250);
+      const vatPercent = Number(body?.vatPercent || 19);
+      const vatAmount = Number(((amount * vatPercent) / 100).toFixed(2));
+      const total = amount + vatAmount;
+
+      await this.em.query(`
+        INSERT INTO invoices (
+          "id", "invoiceNumber", "status", "amount", "subtotal", "vatPercent", "vatAmount", "total", 
+          "notes", "createdAt", "updatedAt"
+        ) VALUES (
+          $1, $2, 'approved', $3, $3, $4, $5, $6, $7, now(), now()
+        )
+      `, [
+        newId, 
+        invoiceNumber, 
+        amount, 
+        vatPercent, 
+        vatAmount, 
+        total, 
+        body?.notes || 'Factura test sistem HapTrans'
+      ]);
+
+      const inserted = await this.em.query('SELECT * FROM invoices WHERE id = $1', [newId]);
+      return { success: true, invoice: inserted[0] };
+    } catch (e: any) {
+      return { success: false, error: e?.message };
+    }
+  }
+
   @Post('settings/company')
   @UseGuards(JwtAuthGuard)
   async saveCompanySettings(@Body() body: any) {
