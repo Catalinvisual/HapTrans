@@ -166,10 +166,12 @@ export class TnasService {
     }
 
     for (const i of invs) {
+      const invNum = (i.invoiceNumber || '').trim();
+      const cleanInvFile = invNum ? (invNum.toUpperCase().startsWith('INV') ? `${invNum}.pdf` : `Invoice_${invNum}.pdf`) : 'Invoice.pdf';
       results.push({
         id: i.id,
         source: 'invoices',
-        filename: i.originalFilename || `Invoice_${i.invoiceNumber}.pdf`,
+        filename: i.originalFilename || cleanInvFile,
         category: 'Invoices',
         signedUrl: this.generateSignedUrl(i, 15 * 60),
         createdAt: i.createdAt,

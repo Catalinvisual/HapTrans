@@ -285,7 +285,10 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
     });
   }
 
-  const filename = `Order_${order?.orderNumber || 'Document'}.pdf`;
+  const rawNum = (order?.orderNumber || order?.customerReference || '').trim();
+  const filename = rawNum
+    ? (rawNum.toUpperCase().startsWith('ORD') ? `${rawNum}.pdf` : `Order_${rawNum}.pdf`)
+    : 'Order.pdf';
   if (options?.autoSave !== false) {
     doc.save(filename);
   }

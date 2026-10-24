@@ -1102,14 +1102,17 @@ export default function TripDetailsPage() {
                         <span className={`${STATUS_COLORS[inv.status] || 'badge-gray'} text-[10px] px-1.5 py-0.5 rounded uppercase font-bold`}>{t(inv.status)}</span>
                       </div>
                       <div className="flex gap-1 shrink-0">
-                        {inv.pdfUrl ? <>
+                        {(() => {
+                          const invNum = (inv.invoiceNumber || '').trim();
+                          const invFileName = invNum ? (invNum.toUpperCase().startsWith('INV') ? `${invNum}.pdf` : `Invoice_${invNum}.pdf`) : 'Invoice.pdf';
+                          return inv.pdfUrl ? <>
                             <button onClick={() => window.open(inv.pdfUrl, '_blank')} className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors">
                               <Eye className="w-4 h-4" />
                             </button>
-                            <a href={inv.pdfUrl} download={`Invoice_${inv.invoiceNumber}.pdf`} className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors">
+                            <a href={inv.pdfUrl} download={invFileName} className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors">
                               <Download className="w-4 h-4" />
                             </a>
-                            <button onClick={() => handleShare(inv.pdfUrl, `Invoice_${inv.invoiceNumber}.pdf`)} className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors">
+                            <button onClick={() => handleShare(inv.pdfUrl, invFileName)} className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors">
                               <Share2 className="w-4 h-4" />
                             </button>
                           </> : inv.pdfData ? <>
@@ -1119,10 +1122,11 @@ export default function TripDetailsPage() {
                     }} className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors">
                                 <Eye className="w-4 h-4" />
                              </button>
-                             <a href={inv.pdfData} download={`Invoice_${inv.invoiceNumber}.pdf`} className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors">
+                             <a href={inv.pdfData} download={invFileName} className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-colors">
                               <Download className="w-4 h-4" />
                             </a>
-                          </> : null}
+                          </> : null;
+                        })()}
                       </div>
                     </div>)}
                 </div> : <p className="text-sm text-text-secondary px-2">{t('noInvoices', 'Nicio factură')}</p>}

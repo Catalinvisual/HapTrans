@@ -78,12 +78,17 @@ export class DriverTripsService {
 
   async submitPod(userId: string, id: string, dto: any) {
     const trip = await this.findOwnedTrip(userId, id);
+    const orderRef = trip.orders?.[0]?.orderNumber || trip.tripNumber || 'Trip';
+    const cleanRef = orderRef.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const defaultName = cleanRef.toUpperCase().startsWith('POD') ? `${cleanRef}.png` : `POD_${cleanRef}.png`;
+
     const doc = this.docsRepo.create({
       trip,
+      order: trip.orders?.[0] || null,
       documentType: DocumentType.POD,
-      fileName: dto.fileName || 'POD_semnatura.png',
+      fileName: (dto.fileName && !dto.fileName.includes('semnatura')) ? dto.fileName : defaultName,
       fileUrl: dto.signature || null,
-      notes: dto.note || null,
+      notes: dto.note || `POD — ${orderRef}`,
       uploadedBy: { id: userId },
     });
     await this.docsRepo.save(doc);

@@ -304,10 +304,14 @@ export default function InvoicesPage({
       toast.error(t('allowPopups'));
     }
   };
+  const getCleanInvoiceFilename = (invoiceNumber?: string) => {
+    const clean = (invoiceNumber || 'Document').trim();
+    return clean.toUpperCase().startsWith('INV') ? `${clean}.pdf` : `Invoice_${clean}.pdf`;
+  };
   const handleDownload = (invoice: any) => {
     const link = document.createElement('a');
     link.href = invoice.pdfUrl || invoice.pdfData;
-    link.download = `Invoice_${invoice.invoiceNumber}.pdf`;
+    link.download = getCleanInvoiceFilename(invoice.invoiceNumber);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -331,7 +335,7 @@ export default function InvoicesPage({
           while (n--) {
             u8arr[n] = bstr.charCodeAt(n);
           }
-          const file = new File([u8arr], `Invoice_${invoice.invoiceNumber}.pdf`, {
+          const file = new File([u8arr], getCleanInvoiceFilename(invoice.invoiceNumber), {
             type: mime
           });
           await navigator.share({
@@ -455,7 +459,7 @@ export default function InvoicesPage({
       while (n--) {
         u8arr[n] = bstr.charCodeAt(n);
       }
-      const file = new File([u8arr], `Invoice_${officialInvoice.invoiceNumber}.pdf`, {
+      const file = new File([u8arr], getCleanInvoiceFilename(officialInvoice.invoiceNumber), {
         type: mime
       });
       const formData = new FormData();
@@ -503,7 +507,7 @@ export default function InvoicesPage({
         while (n--) {
           u8arr[n] = bstr.charCodeAt(n);
         }
-        const file = new File([u8arr], `Invoice_${savedInvoice.invoiceNumber}.pdf`, {
+        const file = new File([u8arr], getCleanInvoiceFilename(savedInvoice.invoiceNumber), {
           type: mime
         });
         const formData = new FormData();
@@ -534,7 +538,7 @@ export default function InvoicesPage({
         while (n--) {
           u8arr[n] = bstr.charCodeAt(n);
         }
-        const file = new File([u8arr], `Invoice_${invoice.invoiceNumber}.pdf`, {
+        const file = new File([u8arr], getCleanInvoiceFilename(invoice.invoiceNumber), {
           type: mime
         });
         const formData = new FormData();

@@ -150,12 +150,15 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
 
       for (final file in _selectedFiles) {
         final ext = file.path.split('.').last;
+        final cleanDocName = tripRef != null
+            ? '${_selectedTypeKey.toUpperCase()}_$tripRef.$ext'
+            : '${_selectedTypeKey.toUpperCase()}_Document.$ext';
         final formData = FormData.fromMap({
           'type': _selectedTypeKey.toLowerCase(),
           if (_selectedTripId != null) 'tripId': _selectedTripId,
           if (tripRef != null) 'reference': tripRef.toString(),
           'notes': _commentCtrl.text.trim(),
-          'file': await MultipartFile.fromFile(file.path, filename: 'DOC_${DateTime.now().millisecondsSinceEpoch}.$ext'),
+          'file': await MultipartFile.fromFile(file.path, filename: cleanDocName),
         });
         await dio.post('/documents/upload', data: formData);
       }

@@ -2,7 +2,7 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, Not, Like } from 'typeorm';
+import { Repository, IsNull, Not, Like, In } from 'typeorm';
 import { Document, DocumentType } from './document.entity';
 import { DocumentShare } from './document-share.entity';
 import { Trip } from '../trips/trip.entity';
@@ -133,6 +133,74 @@ export class DocumentsService {
     }
   }
 
+  /**
+   * Builds clean, readable, collision-resistant base filenames without ugly redundant prefixes
+   * like ORDER_ORD or INVOICE_INV, and without arbitrary internal codes.
+   */
+  buildCleanBaseName(prefix: string, reference: string): string {
+    const normPrefix = (prefix || '').trim().toUpperCase();
+    let cleanRef = (reference || '')
+      .trim()
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .replace(/_{2,}/g, '_')
+      .replace(/^_+|_+$/g, '');
+
+    if (!cleanRef) return normPrefix || 'DOCUMENT';
+
+    const upperRef = cleanRef.toUpperCase();
+
+    // Deduplicate if reference is already identical or starts with prefix
+    if (
+      upperRef === normPrefix ||
+      upperRef.startsWith(`${normPrefix}_`) ||
+      upperRef.startsWith(`${normPrefix}-`)
+    ) {
+      return cleanRef;
+    }
+
+    // Deduplicate ORDER / ORD (e.g. ORDER + ORD-2026-0001 -> ORD-2026-0001)
+    if (
+      (normPrefix === 'ORDER' || normPrefix === 'DOCUMENT') &&
+      (upperRef.startsWith('ORD-') || upperRef.startsWith('ORD_') || upperRef.startsWith('ORDER-') || upperRef.startsWith('ORDER_'))
+    ) {
+      return cleanRef;
+    }
+
+    // Deduplicate INVOICE / INV (e.g. INVOICE + INV-2026-0001 -> INV-2026-0001)
+    if (
+      (normPrefix === 'INVOICE' || normPrefix === 'DOCUMENT') &&
+      (upperRef.startsWith('INV-') || upperRef.startsWith('INV_') || upperRef.startsWith('INVOICE-') || upperRef.startsWith('INVOICE_'))
+    ) {
+      return cleanRef;
+    }
+
+    // Deduplicate TRIP / TRP (e.g. TRIP + TRP-2026-0001 -> TRP-2026-0001)
+    if (
+      (normPrefix === 'TRIP' || normPrefix === 'DOCUMENT') &&
+      (upperRef.startsWith('TRP-') || upperRef.startsWith('TRP_') || upperRef.startsWith('TRIP-') || upperRef.startsWith('TRIP_'))
+    ) {
+      return cleanRef;
+    }
+
+    // Deduplicate CMR
+    if (
+      normPrefix === 'CMR' &&
+      (upperRef.startsWith('CMR-') || upperRef.startsWith('CMR_'))
+    ) {
+      return cleanRef;
+    }
+
+    // Deduplicate POD
+    if (
+      normPrefix === 'POD' &&
+      (upperRef.startsWith('POD-') || upperRef.startsWith('POD_'))
+    ) {
+      return cleanRef;
+    }
+
+    return normPrefix ? `${normPrefix}_${cleanRef}` : cleanRef;
+  }
+
   private async uploadToCloudinary(
     buffer: Buffer,
     options: {
@@ -162,7 +230,7 @@ export class DocumentsService {
   }
 
   /**
-   * Constructs the final English filename before Cloudinary, uploads to Cloudinary,
+   * Constructs clean, professional filenames, uploads to Cloudinary,
    * stores document in database and triggers notifications.
    */
   async uploadAndCreate(file: Express.Multer.File, dto: UploadDocumentDto, user?: any): Promise<Document> {
@@ -184,7 +252,18 @@ export class DocumentsService {
           where: [{ id: dto.tripId }, { tripNumber: dto.tripId }],
           relations: ['orders'],
         });
-        if (resolvedTrip?.tripNumber) {
+        const isShipmentDoc = [
+          DocumentType.POD,
+          DocumentType.CMR,
+          DocumentType.AVIZ,
+          DocumentType.PACKING_LIST,
+          DocumentType.INVOICE,
+        ].includes(normalizedType);
+
+        if (resolvedTrip?.orders?.length && isShipmentDoc) {
+          resolvedOrder = resolvedTrip.orders[0];
+          reference = resolvedOrder.orderNumber || resolvedOrder.internalReference || resolvedTrip.tripNumber;
+        } else if (resolvedTrip?.tripNumber) {
           reference = resolvedTrip.tripNumber;
         } else if (resolvedTrip?.id) {
           reference = resolvedTrip.id;
@@ -216,34 +295,62 @@ export class DocumentsService {
       reference = resolvedTrip.orders[0].orderNumber || resolvedTrip.tripNumber || 'TRP';
     }
 
-    // If driver document (e.g. LICENSE) or uploaded by a driver without trip/order
-    if (!reference && (normalizedType === DocumentType.LICENCE || user?.role === 'driver')) {
+    // If driver document (e.g. LICENSE) or uploaded by a driver without explicit trip/order
+    if (!reference && user?.id) {
       try {
-        if (user?.id) {
-          const driver = await this.driverRepo.findOne({
-            where: [{ user: { id: user.id } }, { id: user.id }],
+        const driver = await this.driverRepo.findOne({
+          where: [{ user: { id: user.id } }, { id: user.id }],
+          relations: ['user'],
+        });
+
+        const isShipmentDoc = [
+          DocumentType.POD,
+          DocumentType.CMR,
+          DocumentType.AVIZ,
+          DocumentType.PACKING_LIST,
+          DocumentType.PHOTO,
+          DocumentType.FUEL,
+        ].includes(normalizedType);
+
+        // If it's a shipment doc, attempt to link with the driver's active trip & order
+        if (driver && isShipmentDoc) {
+          const activeTrip = await this.tripRepo.findOne({
+            where: [
+              { driver: { id: driver.id }, status: In(['in_transit', 'loading', 'driving', 'driver_accepted', 'dispatched', 'partially_delivered']) },
+              { driver: { id: driver.id } },
+            ],
+            relations: ['orders'],
+            order: { updatedAt: 'DESC' },
           });
-          if (driver?.licenseNumber) {
-            reference = `DRV-${driver.licenseNumber}`;
-          } else if (driver?.id) {
-            reference = `DRV-${driver.id.slice(0, 8).toUpperCase()}`;
+
+          if (activeTrip) {
+            resolvedTrip = activeTrip;
+            if (activeTrip.orders?.length) {
+              resolvedOrder = activeTrip.orders[0];
+              reference = resolvedOrder.orderNumber || resolvedOrder.internalReference || activeTrip.tripNumber;
+            } else if (activeTrip.tripNumber) {
+              reference = activeTrip.tripNumber;
+            }
+          }
+        }
+
+        // If personal/compliance doc (e.g. LICENSE, medical) or no active trip found:
+        // Use driver's real human name instead of arbitrary license numbers (e.g. no BU444795)
+        if (!reference && driver) {
+          const realName = (driver.name || driver.user?.name || `${driver.firstName || ''} ${driver.lastName || ''}`).trim();
+          if (realName) {
+            reference = realName.replace(/\s+/g, '_');
           }
         }
       } catch (err) {
-        console.warn('Could not resolve driver for doc upload:', err);
-      }
-      if (!reference && user?.id) {
-        reference = `DRV-${user.id.slice(0, 8).toUpperCase()}`;
+        console.warn('Could not resolve driver or active trip for doc upload:', err);
       }
     }
 
-    // Default fallback reference
+    // Default fallback reference (clean and generic, no ugly invented codes)
     if (!reference) {
-      reference = `DOC-${Date.now().toString().slice(-6)}`;
+      reference = 'Doc';
     }
-
-    // Sanitize reference for filenames (letters, numbers, hyphens, underscores)
-    const cleanRef = reference.replace(/[^a-zA-Z0-9_-]/g, '_');
 
     // 3. File extension & Resource Type
     const originalName = file.originalname || 'document.pdf';
@@ -256,8 +363,8 @@ export class DocumentsService {
     const treatAsImage = (file.mimetype && file.mimetype.startsWith('image/')) || isImageExt;
     const resourceType: 'image' | 'raw' = treatAsImage ? 'image' : 'raw';
 
-    // 4. Construct unique filename & public_id before sending to Cloudinary
-    const baseName = `${englishPrefix}_${cleanRef}`;
+    // 4. Construct unique, clean filename & public_id before sending to Cloudinary
+    const baseName = this.buildCleanBaseName(englishPrefix, reference);
     const existingCount = await this.repo.count({
       where: [
         { fileName: Like(`${baseName}%`) },
