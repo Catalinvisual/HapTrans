@@ -7,6 +7,7 @@ import portalApi from '../../lib/portalApi';
 import { formatDate } from '../../lib/dateUtils';
 import { fmtMoney } from '../../lib/format';
 import { matchesSearch } from '../../lib/search';
+import { getCleanInvoiceFilename } from '../../lib/filenameUtils';
 import Pagination from '../../components/Pagination';
 import DataTable from '../../components/ui/DataTable';
 import type { Column } from '../../components/ui/DataTable';
@@ -66,7 +67,7 @@ export default function PortalInvoicesPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = (inv.invoiceNumber || 'invoice') + '.pdf';
+      a.download = getCleanInvoiceFilename(inv.invoiceNumber, inv.client?.name);
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {

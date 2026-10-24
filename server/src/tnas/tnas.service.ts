@@ -189,6 +189,7 @@ export class TnasService {
     try {
       const invs = await this.invoicesRepo
         .createQueryBuilder('i')
+        .leftJoinAndSelect('i.client', 'client')
         .where('(i.tnasDownloaded IS NULL OR i.tnasDownloaded = false OR CAST(i.tnasDownloaded AS text) IN (\'false\', \'0\'))')
         .andWhere('(i.publicId IS NOT NULL OR i.pdfUrl IS NOT NULL)')
         .orderBy('i.createdAt', 'DESC')
@@ -196,11 +197,24 @@ export class TnasService {
 
       for (const i of invs) {
         const invNum = (i.invoiceNumber || '').trim();
-        const cleanInvFile = invNum ? (invNum.toUpperCase().startsWith('INV') ? `${invNum}.pdf` : `Invoice_${invNum}.pdf`) : 'Invoice.pdf';
+        let fallbackFile = 'Invoice.pdf';
+        if (invNum) {
+          const baseNum = invNum.toUpperCase().startsWith('INV') ? invNum : `Invoice_${invNum}`;
+          const rawClient = (i.client?.name || '').trim();
+          const safeClient = rawClient
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-zA-Z0-9_\-\s]/g, '')
+            .replace(/[\s\-]+/g, '_')
+            .replace(/_{2,}/g, '_')
+            .replace(/^_+|_+$/g, '')
+            .slice(0, 30);
+          fallbackFile = safeClient ? `${baseNum}_${safeClient}.pdf` : `${baseNum}.pdf`;
+        }
         results.push({
           id: i.id,
           source: 'invoices',
-          filename: i.originalFilename || cleanInvFile,
+          filename: i.originalFilename || fallbackFile,
           category: 'Invoices',
           signedUrl: this.generateSignedUrl(i, 15 * 60),
           createdAt: i.createdAt,

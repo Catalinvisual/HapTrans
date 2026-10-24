@@ -30,6 +30,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSettingsStore, getCompanySettings } from '../store/settingsStore';
 import { generateOrderPdf } from '../lib/pdfGenerator';
 import { generateInvoicePdfBase64 } from '../lib/invoicePdfGenerator';
+import { getCleanInvoiceFilename } from '../lib/filenameUtils';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { fmtMoney, fmtNumber } from '../lib/format';
 import { countryIso } from '../lib/countries';
@@ -335,7 +336,7 @@ export default function OrdersPage() {
           u8arr[n] = bstr.charCodeAt(n);
         }
         const invNum = (savedInvoice?.invoiceNumber || `INV-${o.orderNumber || o.id}`).trim();
-        const cleanFileName = invNum.toUpperCase().startsWith('INV') ? `${invNum}.pdf` : `Invoice_${invNum}.pdf`;
+        const cleanFileName = getCleanInvoiceFilename(invNum, o.client?.name);
         const file = new File([u8arr], cleanFileName, { type: mime });
 
         const formData = new FormData();

@@ -4,6 +4,7 @@ import type { CompanySettings } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
 import { format } from 'date-fns';
 import { fmtNumber } from './format';
+import { getCleanOrderFilename } from './filenameUtils';
 
 // ─── Formatting Helpers ────────────────────────────────────────────────────────
 
@@ -286,9 +287,8 @@ export async function generateOrderPdf(order: any, company: CompanySettings | nu
   }
 
   const rawNum = (order?.orderNumber || order?.customerReference || '').trim();
-  const filename = rawNum
-    ? (rawNum.toUpperCase().startsWith('ORD') ? `${rawNum}.pdf` : `Order_${rawNum}.pdf`)
-    : 'Order.pdf';
+  const clientName = order?.client?.name || order?.clientName;
+  const filename = getCleanOrderFilename(rawNum, clientName);
   if (options?.autoSave !== false) {
     doc.save(filename);
   }

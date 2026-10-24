@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import ExportModal from '../components/ExportModal';
 import ExcelIcon from '../components/icons/ExcelIcon';
 import { generateInvoicePdfBase64 } from '../lib/invoicePdfGenerator';
+import { getCleanInvoiceFilename } from '../lib/filenameUtils';
 import { formatDate } from '../lib/dateUtils';
 import { fmtMoney } from '../lib/format';
 import { matchesSearch } from '../lib/search';
@@ -317,14 +318,10 @@ export default function InvoicesPage({
       toast.error(t('allowPopups'));
     }
   };
-  const getCleanInvoiceFilename = (invoiceNumber?: string) => {
-    const clean = (invoiceNumber || 'Document').trim();
-    return clean.toUpperCase().startsWith('INV') ? `${clean}.pdf` : `Invoice_${clean}.pdf`;
-  };
   const handleDownload = (invoice: any) => {
     const link = document.createElement('a');
     link.href = invoice.pdfUrl || invoice.pdfData;
-    link.download = getCleanInvoiceFilename(invoice.invoiceNumber);
+    link.download = getCleanInvoiceFilename(invoice.invoiceNumber, invoice.client?.name);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -348,7 +345,7 @@ export default function InvoicesPage({
           while (n--) {
             u8arr[n] = bstr.charCodeAt(n);
           }
-          const file = new File([u8arr], getCleanInvoiceFilename(invoice.invoiceNumber), {
+          const file = new File([u8arr], getCleanInvoiceFilename(invoice.invoiceNumber, invoice.client?.name), {
             type: mime
           });
           await navigator.share({
@@ -472,7 +469,7 @@ export default function InvoicesPage({
       while (n--) {
         u8arr[n] = bstr.charCodeAt(n);
       }
-      const file = new File([u8arr], getCleanInvoiceFilename(officialInvoice.invoiceNumber), {
+      const file = new File([u8arr], getCleanInvoiceFilename(officialInvoice.invoiceNumber, officialInvoice.client?.name || invoice.client?.name), {
         type: mime
       });
       const formData = new FormData();
@@ -522,7 +519,8 @@ export default function InvoicesPage({
           while (n--) {
             u8arr[n] = bstr.charCodeAt(n);
           }
-          const file = new File([u8arr], getCleanInvoiceFilename(savedInvoice.invoiceNumber), {
+          const clientName = savedInvoice?.client?.name || invoiceLangModal.data?.client?.name || invoiceLangModal.data?.clientName;
+          const file = new File([u8arr], getCleanInvoiceFilename(savedInvoice.invoiceNumber, clientName), {
             type: mime
           });
           const formData = new FormData();
@@ -559,7 +557,7 @@ export default function InvoicesPage({
         while (n--) {
           u8arr[n] = bstr.charCodeAt(n);
         }
-        const file = new File([u8arr], getCleanInvoiceFilename(invoice.invoiceNumber), {
+        const file = new File([u8arr], getCleanInvoiceFilename(invoice.invoiceNumber, invoice.client?.name), {
           type: mime
         });
         const formData = new FormData();
