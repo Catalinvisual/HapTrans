@@ -35,10 +35,27 @@ function sanitizeTargetFilename(filename) {
   }
   // Strip directory paths and null bytes
   let clean = path.basename(filename).replace(/\0/g, '');
-  // Remove dangerous traversal patterns or unsafe chars
-  clean = clean.replace(/[^a-zA-Z0-9_\.-]/g, '_');
+
+  // Convert legacy or accidental _-_ patterns to " - " and replace underscores after dash with spaces
+  if (clean.includes('_-_')) {
+    clean = clean.replace(/_\-_/g, ' - ');
+    const dashIdx = clean.indexOf(' - ');
+    if (dashIdx !== -1) {
+      const beforeDash = clean.slice(0, dashIdx);
+      const afterDash = clean.slice(dashIdx + 3).replace(/_/g, ' ');
+      clean = `${beforeDash} - ${afterDash}`;
+    }
+  }
+
+  // Also clean up loose "_ - " or " - _"
+  clean = clean.replace(/_\s*-\s*/g, ' - ').replace(/\s*-\s*_/g, ' - ');
+
+  // Remove dangerous traversal patterns or unsafe chars, preserving spaces, alphanumeric, dot, hyphen, underscore
+  clean = clean.replace(/[^a-zA-Z0-9_\.\s-]/g, '');
+  // Normalize multiple spaces
+  clean = clean.replace(/\s+/g, ' ').trim();
   // Avoid leading dots so files are visible
-  clean = clean.replace(/^\.+/, '');
+  clean = clean.replace(/^\.+/, '').trim();
   // Ensure extension is .pdf
   if (!clean.toLowerCase().endsWith('.pdf')) {
     clean = `${clean}.pdf`;

@@ -659,4 +659,51 @@ describe('PdfArchivingService & Integration Tests (Hardened)', () => {
     expect(gen1.targetFilename).toBe('Order_ORD-STABLE.pdf');
     expect(gen2.targetFilename).toBe('Order_ORD-STABLE.pdf');
   });
+
+  // 26. Clean Filename Formatting with Spaces and Hyphens (Preserves Spaces, Heals _-_)
+  it('26. formats targetFilename with clean spaces and hyphen, and heals legacy _-_ pattern', async () => {
+    // Standard order with client name
+    const orderRecord = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'order',
+      sourceId: 'ord-space-1',
+      sourceReference: 'ORD-2026-000033',
+      requestedFilename: 'ORD-2026-000033 - SigmaTrans SRL.pdf',
+    });
+    expect(orderRecord.targetFilename).toBe('ORD-2026-000033 - SigmaTrans SRL.pdf');
+
+    // Standard truck with plate
+    const truckRecord = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'truck',
+      sourceId: 'truck-space-1',
+      sourceReference: 'CJ33ZTF',
+      requestedFilename: 'Truck - CJ33ZTF.pdf',
+    });
+    expect(truckRecord.targetFilename).toBe('Truck - CJ33ZTF.pdf');
+
+    // Healing ugly legacy _-_ and underscores after dash
+    const uglyOrderRecord = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'order',
+      sourceId: 'ord-ugly-1',
+      sourceReference: 'ORD-2026-000034',
+      requestedFilename: 'ORD-2026-000034_-_SigmaTrans_SRL.pdf',
+    });
+    expect(uglyOrderRecord.targetFilename).toBe('ORD-2026-000034 - SigmaTrans SRL.pdf');
+
+    // Healing ugly legacy Truck_-_CJ33ZTF
+    const uglyTruckRecord = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'truck',
+      sourceId: 'truck-ugly-1',
+      sourceReference: 'CJ34ZTF',
+      requestedFilename: 'Truck_-_CJ34ZTF.pdf',
+    });
+    expect(uglyTruckRecord.targetFilename).toBe('Truck - CJ34ZTF.pdf');
+
+    // Fallback format when requestedFilename is omitted
+    const fallbackRecord = await service.stageAndCreateArchiveRecord(validPdfBuffer, {
+      sourceType: 'truck',
+      sourceId: 'truck-fb-1',
+      sourceReference: 'CJ-35-ZTF',
+    });
+    expect(fallbackRecord.targetFilename).toBe('Truck_CJ-35-ZTF.pdf');
+  });
 });

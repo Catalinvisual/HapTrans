@@ -81,20 +81,25 @@ export class PdfArchivingService {
    */
   sanitizeReference(ref: string | undefined): string {
     if (!ref) return 'DOC';
-    // Remove personal IDs/sensitive data markers and keep alphanumeric, hyphen, underscore
     return ref
       .trim()
-      .replace(/[^a-zA-Z0-9_-]/g, '_')
-      .replace(/_{2,}/g, '_')
-      .slice(0, 40);
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9_\s-]/g, '')
+      .replace(/\s+/g, ' ')
+      .replace(/[\-_]{2,}/g, '-')
+      .slice(0, 40)
+      .trim();
   }
 
   /**
    * Resolves a stable, readable, deterministic NAS destination filename adhering to:
-   * 1. Preserves requested stable filename where practical (e.g. Truck_B123XYZ.pdf, Order_ORD-2026-089.pdf).
-   * 2. No timestamps or random suffixes in the target filename.
-   * 3. Repeated generation of the same logical document (same sourceType and sourceId) targets the exact same filename.
-   * 4. Different documents (different sourceType or sourceId) do not collide, even if client names are identical.
+   * 1. Preserves requested stable filename with clean spaces and hyphen formatting:
+   *    e.g. "ORD-2026-000033 - SigmaTrans SRL.pdf", "Truck - CJ33ZTF.pdf"
+   * 2. Cleans up any legacy or accidental underscore-hyphen patterns like "_-_" into " - "
+   * 3. No timestamps or random suffixes in the target filename.
+   * 4. Repeated generation of the same logical document (same sourceType and sourceId) targets the exact same filename.
+   * 5. Different documents (different sourceType or sourceId) do not collide, even if client names are identical.
    */
   async resolveTargetFilename(meta: ArchiveMetadata): Promise<string> {
     const cleanType = (meta.sourceType || 'document')
@@ -107,7 +112,29 @@ export class PdfArchivingService {
       let name = path.basename(meta.requestedFilename).replace(/\0/g, '');
       // Strip temporary or random suffixes if mistakenly passed (e.g. _20261011_143022_a8f1 or _1.pdf)
       name = name.replace(/_\d{8}_\d{6}_[a-f0-9]{4}(?=\.pdf$)/i, '');
-      name = name.replace(/[^a-zA-Z0-9_\.-]/g, '_');
+
+      // Normalize diacritics
+      name = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+      // Convert legacy or accidental _-_ patterns to " - " and replace underscores after dash with spaces
+      if (name.includes('_-_')) {
+        name = name.replace(/_\-_/g, ' - ');
+        const dashIdx = name.indexOf(' - ');
+        if (dashIdx !== -1) {
+          const beforeDash = name.slice(0, dashIdx);
+          const afterDash = name.slice(dashIdx + 3).replace(/_/g, ' ');
+          name = `${beforeDash} - ${afterDash}`;
+        }
+      }
+
+      // Also clean up loose "_ - " or " - _"
+      name = name.replace(/_\s*-\s*/g, ' - ').replace(/\s*-\s*_/g, ' - ');
+
+      // Strip unsafe filesystem characters, preserving spaces, alphanumeric, dot, hyphen, underscore
+      name = name.replace(/[^a-zA-Z0-9_\.\s-]/g, '');
+      // Normalize multiple spaces
+      name = name.replace(/\s+/g, ' ').trim();
+
       if (!name.toLowerCase().endsWith('.pdf')) {
         name = `${name}.pdf`;
       }
@@ -115,11 +142,11 @@ export class PdfArchivingService {
     }
 
     if (!candidate || candidate === '.pdf' || candidate === 'document.pdf') {
-      const safeRef = this.sanitizeReference(meta.sourceReference || meta.sourceId || 'Document');
-      candidate = `${cleanType}_${safeRef}.pdf`;
+      const cleanRef = this.sanitizeReference(meta.sourceReference || meta.sourceId || 'Document');
+      candidate = `${cleanType}_${cleanRef}.pdf`;
     }
 
-    candidate = candidate.replace(/^\.+/, '');
+    candidate = candidate.replace(/^\.+/, '').trim();
     if (!candidate.toLowerCase().endsWith('.pdf')) {
       candidate = `${candidate}.pdf`;
     }
@@ -142,7 +169,8 @@ export class PdfArchivingService {
         const base = path.basename(candidate, ext);
         const disambiguator = this.sanitizeReference(meta.sourceId);
         if (!base.endsWith(disambiguator)) {
-          candidate = `${base}_${disambiguator}${ext}`;
+          const sep = base.includes(' - ') ? ' - ' : '_';
+          candidate = `${base}${sep}${disambiguator}${ext}`;
         }
       }
     }

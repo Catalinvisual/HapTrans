@@ -24,18 +24,18 @@ export function sanitizeClientNameForFilename(clientName?: string | null): strin
  */
 export function getCleanInvoiceFilename(invoiceNumber?: string | null, clientName?: string | null): string {
   const clean = (invoiceNumber || 'Document').trim();
-  const base = clean.toUpperCase().startsWith('INV') ? clean : `Invoice_${clean}`;
+  const base = clean.toUpperCase().startsWith('INV') ? clean : (clean === 'Document' ? 'Document' : `Invoice - ${clean}`);
   const safeClient = sanitizeClientNameForFilename(clientName);
   return safeClient ? `${base} - ${safeClient}.pdf` : `${base}.pdf`;
 }
 
 /**
  * Returns a standardized, clean transport order filename with dash separator:
- * e.g. "ORD-2026-000032 - DHL Express.pdf" or "Order_ORD-2026-000032 - DHL Express.pdf"
+ * e.g. "ORD-2026-000032 - DHL Express.pdf" or "Order - 104 - DHL Express.pdf"
  */
 export function getCleanOrderFilename(orderNumber?: string | null, clientName?: string | null): string {
   const clean = (orderNumber || 'Order').trim();
-  const base = clean.toUpperCase().startsWith('ORD') ? clean : `Order_${clean}`;
+  const base = clean.toUpperCase().startsWith('ORD') ? clean : (clean === 'Order' ? 'Order' : `Order - ${clean}`);
   const safeClient = sanitizeClientNameForFilename(clientName);
   return safeClient ? `${base} - ${safeClient}.pdf` : `${base}.pdf`;
 }
