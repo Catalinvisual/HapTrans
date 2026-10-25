@@ -48,3 +48,14 @@ export function getCleanProfileFilename(type: 'Client' | 'Truck' | 'Trailer', id
   const cleanId = sanitizeClientNameForFilename(identifier || 'Profile');
   return cleanId ? `${type} - ${cleanId}.pdf` : `${type}.pdf`;
 }
+
+/**
+ * Returns a standardized, clean trip sheet filename with dash separator:
+ * e.g. "TRP-2026-000012 - CJ33ZTF.pdf" or "Trip - 104 - Ion Popescu.pdf"
+ */
+export function getCleanTripFilename(tripNumber?: string | null, identifier?: string | null): string {
+  const clean = (tripNumber || 'Trip').trim();
+  const base = clean.toUpperCase().startsWith('TRP') ? clean : (clean === 'Trip' ? 'Trip' : `Trip - ${clean}`);
+  const safeId = sanitizeClientNameForFilename(identifier);
+  return safeId ? `${base} - ${safeId}.pdf` : `${base}.pdf`;
+}

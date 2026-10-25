@@ -408,11 +408,52 @@ export default function TrailersPage() {
         tabs={detailTabs}
         activeTab={drawerTab}
         onTabChange={setDrawerTab}
-        headerRight={
+        footer={
           drawerTrailer ? (
-            <button className="btn-secondary px-3 py-1.5 text-xs flex items-center gap-1.5" onClick={() => openEdit(drawerTrailer)}>
-              <Pencil className="w-3.5 h-3.5" /> {t("edit", "Editează")}
-            </button>
+            <div className="flex items-center gap-2 justify-end w-full">
+              <button
+                onClick={async () => {
+                  const company = useSettingsStore.getState().company;
+                  try {
+                    const { blob, filename } = await generateTrailerPdf(drawerTrailer, company, { autoSave: false });
+                    await archiveAndDownloadPdf({
+                      pdfBlob: blob,
+                      defaultFilename: filename,
+                      sourceType: 'trailer',
+                      sourceId: drawerTrailer.id,
+                      sourceReference: drawerTrailer.plateNumber || String(drawerTrailer.id),
+                    });
+                  } catch {
+                    toast.error(t('error_pdf', 'Eroare generare PDF'));
+                  }
+                }}
+                className="btn-secondary flex items-center gap-1.5 text-sm"
+                title={t('download_trailer_pdf', { plate: drawerTrailer.plateNumber, defaultValue: 'Download trailer profile PDF: {{plate}}' })}
+                aria-label={t('download_trailer_pdf', { plate: drawerTrailer.plateNumber, defaultValue: 'Download trailer profile PDF: {{plate}}' })}
+              >
+                <FileText className="w-4 h-4" aria-hidden="true" />{t('pdf', 'PDF')}
+              </button>
+              <button
+                onClick={() => {
+                  const tr = drawerTrailer;
+                  setDrawerId(null);
+                  openEdit(tr);
+                }}
+                className="btn-secondary text-sm flex items-center gap-1.5"
+              >
+                <Pencil className="w-4 h-4" />{t('edit', 'Editează')}
+              </button>
+              <button
+                onClick={() => {
+                  const id = drawerTrailer.id;
+                  setDrawerId(null);
+                  setDeleteId(id);
+                }}
+                className="btn-secondary text-sm flex items-center gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
+              >
+                <Trash2 className="w-4 h-4" />{t('delete', 'Șterge')}
+              </button>
+            </div>
           ) : null
         }
       />

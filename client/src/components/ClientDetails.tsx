@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Building2, Save, Plus, Trash2, Edit } from 'lucide-react';
+import { ArrowLeft, Building2, Save, Plus, Trash2, Edit, FileText } from 'lucide-react';
+import { useSettingsStore } from '../store/settingsStore';
+import { generateClientPdf } from '../lib/pdfGenerator';
+import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { useSaveConfirm, useConfirm } from './SaveConfirmProvider';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
@@ -145,18 +148,44 @@ export default function ClientDetails({
   };
 
 return <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center gap-4">
-        <button onClick={onBack} className="p-2 hover:bg-surface rounded-xl transition-colors">
-          <ArrowLeft className="w-6 h-6 text-text-secondary" />
-        </button>
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-            <Building2 className="w-6 h-6 text-primary" />
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-2 hover:bg-surface rounded-xl transition-colors">
+            <ArrowLeft className="w-6 h-6 text-text-secondary" />
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+              <Building2 className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-text">{client.name}</h2>
+              <p className="text-sm text-text-secondary">{t('clientProfile')}</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-2xl font-bold text-text">{client.name}</h2>
-            <p className="text-sm text-text-secondary">{t('clientProfile')}</p>
-          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={async () => {
+              const company = useSettingsStore.getState().company;
+              try {
+                const { blob, filename } = await generateClientPdf(client, company, { autoSave: false });
+                await archiveAndDownloadPdf({
+                  pdfBlob: blob,
+                  defaultFilename: filename,
+                  sourceType: 'client',
+                  sourceId: client.id,
+                  sourceReference: client.name || String(client.id),
+                });
+              } catch {
+                toast.error(t('error_pdf', 'Failed to generate PDF'));
+              }
+            }}
+            className="btn-secondary flex items-center gap-1.5 text-sm"
+            title={t('download_client_pdf', { name: client.name, defaultValue: 'Download client profile PDF: {{name}}' })}
+          >
+            <FileText className="w-4 h-4" />{t('pdf', 'PDF')}
+          </button>
         </div>
       </div>
 

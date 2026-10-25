@@ -4,7 +4,7 @@ import type { CompanySettings } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
 import { format } from 'date-fns';
 import { fmtNumber } from './format';
-import { getCleanOrderFilename, getCleanProfileFilename } from './filenameUtils';
+import { getCleanOrderFilename, getCleanProfileFilename, getCleanTripFilename } from './filenameUtils';
 
 // ─── Formatting Helpers ────────────────────────────────────────────────────────
 
@@ -390,3 +390,135 @@ export async function generateTrailerPdf(trailer: any, company: CompanySettings 
 
   return { doc, blob: doc.output('blob'), filename };
 }
+
+export async function generateTripPdf(trip: any, company: CompanySettings | null, options?: { autoSave?: boolean }) {
+  const tripNum = trip?.tripNumber || trip?.referenceNumber || (trip?.id ? `TRP-${String(trip.id).slice(0, 8)}` : 'Trip');
+  const { doc, startY } = await createBaseDocument(`Trip Sheet: ${tripNum}`, company, 'landscape');
+  let currentY = startY;
+
+  const driverName = trip?.driver?.name || trip?.driver?.user?.name || trip?.carrierDriverName || '—';
+  const truckPlate = trip?.truck?.plateNumber || trip?.carrierTruckPlate || '—';
+  const trailerPlate = trip?.trailer?.plateNumber || trip?.carrierTrailerPlate || '—';
+  const dispatcherName = trip?.dispatcher?.name || trip?.dispatcher?.email || '—';
+  const carrierName = trip?.carrierName || '—';
+
+  // 1. Trip Specifications & Assignments Table
+  autoTable(doc, {
+    startY: currentY,
+    theme: 'grid',
+    head: [['Trip Specification', 'Details', 'Planning & Timing', 'Schedule']],
+    styles: { fontSize: 9, cellPadding: 4 },
+    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold' },
+    columnStyles: {
+      0: { fontStyle: 'bold', cellWidth: 120, fillColor: [248, 250, 252] },
+      1: { cellWidth: 260 },
+      2: { fontStyle: 'bold', cellWidth: 120, fillColor: [248, 250, 252] },
+      3: { cellWidth: 260 },
+    },
+    body: [
+      ['Trip Reference', tripNum, 'Status', formatStatus(trip?.status)],
+      ['Truck Plate', truckPlate, 'Planned Departure', fmtDateTime(trip?.plannedDeparture)],
+      ['Trailer Plate', trailerPlate, 'Planned Arrival', fmtDateTime(trip?.plannedArrival)],
+      ['Assigned Driver', driverName, 'Actual Departure', fmtDateTime(trip?.actualDeparture)],
+      ['Carrier (Subcontractor)', carrierName, 'Actual Arrival', fmtDateTime(trip?.actualArrival)],
+      ['Dispatcher', dispatcherName, 'Total Distance', trip?.distanceKm ? `${fmtNumber(trip.distanceKm)} km` : '—'],
+    ],
+    margin: { left: 40, right: 40 },
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 15;
+
+  // 2. Stops / Route Schedule Table
+  const stops = (trip?.stops || []).slice().sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
+  if (stops.length > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(30, 41, 59);
+    doc.text('Route & Itinerary Stops', 40, currentY);
+    currentY += 6;
+
+    const stopRows = stops.map((s: any, idx: number) => {
+      const typeStr = (s.type || 'Stop').toUpperCase();
+      const locStr = [s.companyName, s.address, s.city, s.postalCode, s.country].filter(Boolean).join(', ');
+      const schedStr = fmtDateTime(s.plannedDate || s.scheduledArrival || s.arrivalDate || s.time);
+      const notes = normalizeText(s.notes || s.instructions || '—');
+      return [
+        idx + 1,
+        typeStr,
+        normalizeText(locStr || '—'),
+        schedStr,
+        notes,
+      ];
+    });
+
+    autoTable(doc, {
+      startY: currentY,
+      theme: 'grid',
+      head: [['#', 'Type', 'Location & Address', 'Scheduled Time', 'Instructions / Notes']],
+      styles: { fontSize: 8.5, cellPadding: 4 },
+      headStyles: { fillColor: [51, 65, 85], textColor: [255, 255, 255], fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 25, halign: 'center' },
+        1: { cellWidth: 65, fontStyle: 'bold' },
+        2: { cellWidth: 320 },
+        3: { cellWidth: 120 },
+        4: { cellWidth: 230 },
+      },
+      body: stopRows,
+      margin: { left: 40, right: 40 },
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+  }
+
+  // 3. Attached Transport Orders Table
+  const orders = trip?.orders || [];
+  if (orders.length > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(30, 41, 59);
+    doc.text('Assigned Transport Orders', 40, currentY);
+    currentY += 6;
+
+    const orderRows = orders.map((o: any, idx: number) => {
+      const orderRef = o.orderNumber || o.referenceNumber || `ORD-${String(o.id || '').slice(0, 8)}`;
+      const client = o.client?.name || o.clientName || '—';
+      const cargoSummary = (o.cargoItems || []).map((c: any) => `${c.quantity || 1}x ${c.description || 'cargo'}`).join('; ') || 'General cargo';
+      const priceStr = o.price ? `€${fmtNumber(o.price)}` : '—';
+      return [
+        idx + 1,
+        orderRef,
+        normalizeText(client),
+        normalizeText(cargoSummary),
+        priceStr,
+      ];
+    });
+
+    autoTable(doc, {
+      startY: currentY,
+      theme: 'grid',
+      head: [['#', 'Order Reference', 'Client', 'Cargo Summary', 'Revenue']],
+      styles: { fontSize: 8.5, cellPadding: 4 },
+      headStyles: { fillColor: [71, 85, 105], textColor: [255, 255, 255], fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 25, halign: 'center' },
+        1: { cellWidth: 140, fontStyle: 'bold' },
+        2: { cellWidth: 200 },
+        3: { cellWidth: 300 },
+        4: { cellWidth: 95, halign: 'right' },
+      },
+      body: orderRows,
+      margin: { left: 40, right: 40 },
+    });
+  }
+
+  const rawTripNum = trip?.tripNumber || (trip?.id ? `TRP-${String(trip.id).slice(0, 8)}` : 'Trip');
+  const tripIdentifier = trip?.truck?.plateNumber || driverName;
+  const filename = getCleanTripFilename(rawTripNum, tripIdentifier);
+  if (options?.autoSave !== false) {
+    doc.save(filename);
+  }
+
+  return { doc, blob: doc.output('blob'), filename };
+}
+

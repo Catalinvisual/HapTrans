@@ -678,6 +678,32 @@ const tabs: TabDef[] = drawerDriver ? [
         tabs={tabs}
         activeTab={drawerTab}
         onTabChange={setDrawerTab}
+        footer={
+          drawerDriver ? (
+            <div className="flex items-center gap-2 justify-end w-full">
+              <button
+                onClick={() => {
+                  const d = drawerDriver;
+                  setDrawerDriverId(null);
+                  handleEdit(d);
+                }}
+                className="btn-secondary text-sm flex items-center gap-1.5"
+              >
+                <Pencil className="w-4 h-4" />{t('edit', 'Edit')}
+              </button>
+              <button
+                onClick={() => {
+                  const id = drawerDriver.id;
+                  setDrawerDriverId(null);
+                  handleDelete(id);
+                }}
+                className="btn-secondary text-sm flex items-center gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
+              >
+                <Trash2 className="w-4 h-4" />{t('delete', 'Delete')}
+              </button>
+            </div>
+          ) : null
+        }
       />
 
       {showForm && <div className="card animate-fade-in bg-card border border-border rounded-2xl p-6 shadow-md">

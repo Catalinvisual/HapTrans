@@ -26,7 +26,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import PalletIcon from '../components/icons/PalletIcon';
 import WeightKgIcon from '../components/icons/WeightKgIcon';
 import { useConfirm } from '../components/SaveConfirmProvider';
-import { generateOrderPdf } from '../lib/pdfGenerator';
+import { generateOrderPdf, generateTripPdf } from '../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { planningApi } from '../lib/planningApi';
 import OrderWizard from '../components/orders/OrderWizard';
@@ -1152,6 +1152,27 @@ function TripDetailDrawer({
                 <Sparkles className="w-3.5 h-3.5" /><span className="hidden sm:inline">{t('pln_planner', 'Route Planner')}</span>
               </button>
             )}
+            <button
+              onClick={async () => {
+                const company = useSettingsStore.getState().company;
+                try {
+                  const { blob, filename } = await generateTripPdf(trip, company, { autoSave: false });
+                  await archiveAndDownloadPdf({
+                    pdfBlob: blob,
+                    defaultFilename: filename,
+                    sourceType: 'trip',
+                    sourceId: trip.id,
+                    sourceReference: trip.tripNumber || String(trip.id),
+                  });
+                } catch {
+                  toast.error(t('error_pdf', 'Failed to generate PDF'));
+                }
+              }}
+              className="btn-secondary text-xs py-1.5 px-2.5 flex items-center gap-1"
+              title={t('download_trip_pdf', { reference: trip.tripNumber || 'Trip', defaultValue: 'Download trip sheet PDF: {{reference}}' })}
+            >
+              <FileText className="w-3.5 h-3.5" /><span className="hidden sm:inline">{t('pdf', 'PDF')}</span>
+            </button>
             <button onClick={() => navigate(`/trips/${tripId}`)} className="btn-secondary text-xs py-1.5 px-2.5 flex items-center gap-1">
               <ExternalLink className="w-3.5 h-3.5" /><span className="hidden sm:inline">{t('jsx_context_openTrip','Open')}</span>
             </button>

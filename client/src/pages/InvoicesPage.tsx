@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import { useTranslation } from 'react-i18next';
+import { format } from 'date-fns';
 import { Plus, Search, Eye, Download, Share2, Trash2, Mail, BarChart3, Send, Wallet, CheckCircle2, AlertTriangle, Pencil, FileText } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
@@ -712,6 +713,20 @@ export default function InvoicesPage({
           <div className="leading-tight whitespace-nowrap">
             <div className="text-[11px] text-text-secondary">{t('issueDate')}: {formatDate(inv.issueDate)}</div>
             <div className={`text-xs font-bold ${od ? 'text-red-600 animate-pulse' : 'text-text-primary'}`}>{t('dueDate')}: {formatDate(inv.dueDate)}</div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'createdAt', label: t('created_at_time', 'Data & Ora Creare'), width: '150px',
+      render: (inv: any) => {
+        if (!inv.createdAt) return <span className="text-text-secondary text-xs">—</span>;
+        const d = new Date(inv.createdAt);
+        if (isNaN(d.getTime())) return <span className="text-text-secondary text-xs">—</span>;
+        return (
+          <div className="leading-tight whitespace-nowrap">
+            <div className="text-[12px] font-semibold text-text-primary">{format(d, 'dd/MM/yyyy')}</div>
+            <div className="text-[11px] text-text-secondary">{format(d, 'HH:mm:ss')}</div>
           </div>
         );
       },

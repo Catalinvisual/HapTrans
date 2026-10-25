@@ -851,11 +851,52 @@ export default function TrucksPage() {
         tabs={tabs}
         activeTab={drawerTab}
         onTabChange={setDrawerTab}
-        headerRight={
+        footer={
           drawerTruck ? (
-            <button className="btn-secondary px-3 py-1.5 text-xs flex items-center gap-1.5" onClick={() => { setDrawerTruckId(null); openEdit(drawerTruck); }}>
-              <Pencil className="w-3.5 h-3.5" /> {t('edit', 'Edit')}
-            </button>
+            <div className="flex items-center gap-2 justify-end w-full">
+              <button
+                onClick={async () => {
+                  const company = useSettingsStore.getState().company;
+                  try {
+                    const { blob, filename } = await generateTruckPdf(drawerTruck, company, { autoSave: false });
+                    await archiveAndDownloadPdf({
+                      pdfBlob: blob,
+                      defaultFilename: filename,
+                      sourceType: 'truck',
+                      sourceId: drawerTruck.id,
+                      sourceReference: drawerTruck.plateNumber || String(drawerTruck.id),
+                    });
+                  } catch {
+                    toast.error(t('error_pdf', 'Failed to generate PDF'));
+                  }
+                }}
+                className="btn-secondary flex items-center gap-1.5 text-sm"
+                title={t('download_truck_pdf', { plate: drawerTruck.plateNumber, defaultValue: 'Download truck profile PDF: {{plate}}' })}
+                aria-label={t('download_truck_pdf', { plate: drawerTruck.plateNumber, defaultValue: 'Download truck profile PDF: {{plate}}' })}
+              >
+                <FileText className="w-4 h-4" aria-hidden="true" />{t('pdf', 'PDF')}
+              </button>
+              <button
+                onClick={() => {
+                  const tr = drawerTruck;
+                  setDrawerTruckId(null);
+                  openEdit(tr);
+                }}
+                className="btn-secondary text-sm flex items-center gap-1.5"
+              >
+                <Pencil className="w-4 h-4" />{t('edit', 'Edit')}
+              </button>
+              <button
+                onClick={() => {
+                  const id = drawerTruck.id;
+                  setDrawerTruckId(null);
+                  setDeleteId(id);
+                }}
+                className="btn-secondary text-sm flex items-center gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
+              >
+                <Trash2 className="w-4 h-4" />{t('delete', 'Delete')}
+              </button>
+            </div>
           ) : null
         }
       />

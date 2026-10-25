@@ -25,6 +25,9 @@ import { fmtMoney, fmtMoneySigned, fmtPercent } from '../lib/format';
 import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
 import { useAuthStore } from '../store/authStore';
+import { useSettingsStore } from '../store/settingsStore';
+import { generateTripPdf } from '../lib/pdfGenerator';
+import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import PalletIcon from '../components/icons/PalletIcon';
 import WeightKgIcon from '../components/icons/WeightKgIcon';
 
@@ -286,7 +289,28 @@ export default function TripDetailsPage() {
           </div>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <button
+            onClick={async () => {
+              const company = useSettingsStore.getState().company;
+              try {
+                const { blob, filename } = await generateTripPdf(trip, company, { autoSave: false });
+                await archiveAndDownloadPdf({
+                  pdfBlob: blob,
+                  defaultFilename: filename,
+                  sourceType: 'trip',
+                  sourceId: trip.id,
+                  sourceReference: trip.tripNumber || String(trip.id),
+                });
+              } catch {
+                toast.error(t('error_pdf', 'Failed to generate PDF'));
+              }
+            }}
+            className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold border-border text-text hover:bg-surface"
+            title={t('download_trip_pdf', { reference: trip.tripNumber || 'Trip', defaultValue: 'Download trip sheet PDF: {{reference}}' })}
+          >
+            <FileText className="w-4 h-4" /> {t('pdf', 'PDF')}
+          </button>
           {trip.status === 'planning' && <button onClick={async () => {
           try {
             await api.patch(`/trips/${trip.id}`, {

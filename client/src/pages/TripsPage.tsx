@@ -1,8 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Truck, Search, Loader2, FileText, Trash2, Download, ExternalLink, Activity, Calendar, Coins, Route as RouteIcon, User, Send, Gauge, Clock, Wallet, Receipt, Banknote, ArrowRight, LayoutGrid } from 'lucide-react';
+import { Truck, Search, Loader2, FileText, Trash2, Download, ExternalLink, Activity, Calendar, Coins, Route as RouteIcon, User, Send, Gauge, Clock, Wallet, Receipt, Banknote, ArrowRight, LayoutGrid, Pencil } from 'lucide-react';
 import api from '../lib/api';
+import { generateTripPdf } from '../lib/pdfGenerator';
+import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
+import { useSettingsStore } from '../store/settingsStore';
 import { fmtNumber, fmtMoney, fmtKm, fmtPercent } from '../lib/format';
 import { matchesSearch } from '../lib/search';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
@@ -362,6 +365,28 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
             <Send className="w-3.5 h-3.5" />
           </button>
         )}
+        <button
+          onClick={async (e) => {
+            e.stopPropagation();
+            const company = useSettingsStore.getState().company;
+            try {
+              const { blob, filename } = await generateTripPdf(tr, company, { autoSave: false });
+              await archiveAndDownloadPdf({
+                pdfBlob: blob,
+                defaultFilename: filename,
+                sourceType: 'trip',
+                sourceId: tr.id,
+                sourceReference: tr.tripNumber || String(tr.id),
+              });
+            } catch {
+              toast.error(t('error_pdf', 'Failed to generate PDF'));
+            }
+          }}
+          title={t('download_trip_pdf', { reference: tr.tripNumber || 'Trip', defaultValue: 'Download trip sheet PDF: {{reference}}' })}
+          className="p-1 rounded-md text-text-secondary hover:text-primary hover:bg-primary/10"
+        >
+          <FileText className="w-3.5 h-3.5" />
+        </button>
         <button onClick={e => { e.stopPropagation(); navigate(`/trips/${tr.id}`); }} title={t('open_trip', 'Open trip')} className="p-1 rounded-md text-text-secondary hover:text-primary hover:bg-primary/10">
           <ExternalLink className="w-3.5 h-3.5" />
         </button>
@@ -486,6 +511,11 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
           tripId={drawerTripId}
           onClose={() => setDrawerTripId(null)}
           onRefetch={fetchTrips}
+          onDelete={(id) => {
+            setDrawerTripId(null);
+            setTripToDelete(id);
+            setDeleteModalOpen(true);
+          }}
         />
       )}
       <ConfirmDeleteModal isOpen={deleteModalOpen} onClose={() => { setDeleteModalOpen(false); setTripToDelete(null); }} onConfirm={confirmDelete} />
@@ -517,9 +547,10 @@ interface TripDetailDrawerProps {
   tripId: string;
   onClose: () => void;
   onRefetch?: () => void;
+  onDelete?: (id: string) => void;
 }
 
-function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps) {
+function TripDetailDrawer({ tripId, onClose, onRefetch, onDelete }: TripDetailDrawerProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [trip, setTrip] = useState<any>(null);
@@ -605,7 +636,6 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <StatusBadge type="trip" status={trip.status} label={t(`status_${trip.status}`, trip.status.replace(/_/g, ' ')) as string} size="md" />
-          <button onClick={() => navigate(`/trips/${trip.id}`)} className="text-xs font-bold text-primary hover:underline flex items-center gap-1">{t('open_full_page', 'Open full page')} <ExternalLink className="w-3 h-3" /></button>
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-surface/40 rounded-xl p-3 border border-border">
@@ -788,23 +818,64 @@ function TripDetailDrawer({ tripId, onClose, onRefetch }: TripDetailDrawerProps)
       activeTab={activeTab}
       onTabChange={setActiveTab}
       footer={
-        <>
-          {['planning', 'planned'].includes(trip.status) && (
-            <button onClick={() => updateStatus('dispatched')} className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-lg bg-orange-600 text-white hover:bg-orange-700 transition-colors">
-              <Send className="w-4 h-4" />{t('dispatch_trip', 'Dispatch trip')}
+        <div className="flex items-center justify-between gap-3 w-full flex-wrap">
+          <div className="flex items-center gap-2">
+            {['planning', 'planned'].includes(trip.status) && (
+              <button onClick={() => updateStatus('dispatched')} className="btn-primary !px-3 !py-1.5 text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                <Send className="w-3.5 h-3.5" />{t('dispatch_trip', 'Dispatch trip')}
+              </button>
+            )}
+            {!['completed', 'closed'].includes(trip.status) && (
+              <button onClick={() => updateStatus('completed')} className="btn-secondary !px-3 !py-1.5 text-xs font-bold text-green-600 border-green-200 hover:bg-green-50 dark:hover:bg-green-500/10 flex items-center gap-1.5">
+                <CheckIcon className="w-3.5 h-3.5" />{t('mark_completed', 'Mark completed')}
+              </button>
+            )}
+            {!['cancelled', 'completed', 'closed'].includes(trip.status) && (
+              <button onClick={() => updateStatus('cancelled')} className="btn-secondary !px-3 !py-1.5 text-xs font-bold text-text-secondary hover:text-red-600 hover:border-red-300 flex items-center gap-1.5">
+                {t('cancel_trip', 'Cancel trip')}
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              onClick={async () => {
+                const company = useSettingsStore.getState().company;
+                try {
+                  const { blob, filename } = await generateTripPdf(trip, company, { autoSave: false });
+                  await archiveAndDownloadPdf({
+                    pdfBlob: blob,
+                    defaultFilename: filename,
+                    sourceType: 'trip',
+                    sourceId: trip.id,
+                    sourceReference: trip.tripNumber || String(trip.id),
+                  });
+                } catch {
+                  toast.error(t('error_pdf', 'Failed to generate PDF'));
+                }
+              }}
+              className="btn-secondary flex items-center gap-1.5 text-sm"
+              title={t('download_trip_pdf', { reference: trip.tripNumber || 'Trip', defaultValue: 'Download trip sheet PDF: {{reference}}' })}
+              aria-label={t('download_trip_pdf', { reference: trip.tripNumber || 'Trip', defaultValue: 'Download trip sheet PDF: {{reference}}' })}
+            >
+              <FileText className="w-4 h-4" aria-hidden="true" />{t('pdf', 'PDF')}
             </button>
-          )}
-          {!['completed', 'closed'].includes(trip.status) && (
-            <button onClick={() => updateStatus('completed')} className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors">
-              <CheckIcon className="w-4 h-4" />{t('mark_completed', 'Mark completed')}
+            <button onClick={() => navigate(`/trips/${trip.id}`)} className="btn-secondary text-sm flex items-center gap-1.5">
+              <Pencil className="w-4 h-4" />{t('edit', 'Edit')}
             </button>
-          )}
-          {!['cancelled', 'completed', 'closed'].includes(trip.status) && (
-            <button onClick={() => updateStatus('cancelled')} className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-lg border border-border text-text-secondary hover:text-red-600 hover:border-red-300 transition-colors">
-              <Trash2 className="w-4 h-4" />{t('cancel_trip', 'Cancel trip')}
+            <button
+              onClick={() => {
+                if (onDelete) {
+                  onDelete(trip.id);
+                } else {
+                  onClose();
+                }
+              }}
+              className="btn-secondary text-sm flex items-center gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
+            >
+              <Trash2 className="w-4 h-4" />{t('delete', 'Delete')}
             </button>
-          )}
-        </>
+          </div>
+        </div>
       }
     />
   );
