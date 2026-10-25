@@ -550,9 +550,12 @@ export class DocumentsService implements OnModuleInit {
     });
     return documents.map(doc => ({
       id: doc.id,
+      source: 'documents',
       filename: doc.originalFilename || doc.fileName,
+      category: 'Documents',
       signedUrl: this.generateSignedUrl(doc, 15 * 60), // 15 mins
       uploadedAt: doc.uploadedAt,
+      createdAt: doc.uploadedAt,
     }));
   }
 

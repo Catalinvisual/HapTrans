@@ -55,15 +55,6 @@ export class TnasController {
     return this.service.getPendingFiles();
   }
 
-  @Post(':id/downloaded')
-  markAnyDownloaded(
-    @Param('id') id: string,
-    @Headers('authorization') auth: string
-  ) {
-    this.checkKey(auth);
-    return this.service.markAnyDownloaded(id);
-  }
-
   @Post(':source/:id/downloaded')
   markDownloaded(
     @Param('source') source: string,

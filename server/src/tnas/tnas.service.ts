@@ -1,10 +1,7 @@
-import { Injectable, NotFoundException, UnauthorizedException, Logger, Optional } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, Not, In } from 'typeorm';
 import { v2 as cloudinary } from 'cloudinary';
-import { Readable } from 'stream';
-import { PdfService } from '../invoices/pdf.service';
-import { generateInvoiceHtml } from '../invoices/pdf-template';
 
 // Core entities (Legacy 9 datasets)
 import { Document } from '../documents/document.entity';
@@ -125,25 +122,19 @@ export class TnasService {
     @InjectRepository(SavedReport) private savedReportsRepo: Repository<SavedReport>,
     @InjectRepository(ScheduledReport) private scheduledReportsRepo: Repository<ScheduledReport>,
     @InjectRepository(Message) private messagesRepo: Repository<Message>,
-    @Optional() private pdfService?: PdfService,
   ) {}
 
   generateSignedUrl(entity: any, expiresInSeconds: number) {
-    // If entity already has an accessible direct URL (e.g. valid Cloudinary upload URL), prefer it
+    // Invoices with direct public Cloudinary URLs can be downloaded directly
     if (entity.pdfUrl && typeof entity.pdfUrl === 'string' && entity.pdfUrl.startsWith('http')) {
       return entity.pdfUrl;
     }
-    if (entity.fileUrl && typeof entity.fileUrl === 'string' && entity.fileUrl.startsWith('http')) {
-      return entity.fileUrl;
-    }
-    if (entity.receiptUrl && typeof entity.receiptUrl === 'string' && entity.receiptUrl.startsWith('http')) {
-      return entity.receiptUrl;
-    }
 
-    if (!entity.publicId) return entity.fileUrl || entity.pdfUrl || entity.receiptUrl;
+    if (!entity.publicId) return entity.fileUrl || entity.pdfUrl || entity.receiptUrl || '';
 
     const isRaw = (entity.resourceType || '').toLowerCase() === 'raw';
-    const cType = entity.cloudinaryType || (isRaw ? 'upload' : 'authenticated');
+    const isAuth = entity.cloudinaryType === 'authenticated' || (!entity.cloudinaryType && !entity.pdfUrl && Boolean(entity.fileUrl));
+    const cType = entity.cloudinaryType || (isAuth ? 'authenticated' : (isRaw ? 'upload' : 'authenticated'));
 
     const options: any = {
       secure: true,
@@ -155,7 +146,7 @@ export class TnasService {
     if (cType === 'authenticated') {
       options.expires_at = Math.floor(Date.now() / 1000) + expiresInSeconds;
     }
-    
+
     if (entity.resourceType === 'image' && entity.format) {
       options.format = entity.format;
     }
@@ -166,13 +157,14 @@ export class TnasService {
   async getPendingFiles() {
     const results = [];
 
-    // 1. Documents (Manual documents uploaded in TMS or mobile app)
+    // 1. Documents (Manual documents uploaded in TMS or mobile app -> HC-Docs / Documents)
     try {
       const docs = await this.docsRepo.find({
         where: [
           { tnasDownloaded: false, publicId: Not(IsNull()) },
           { tnasDownloaded: IsNull() as any, publicId: Not(IsNull()) }
-        ]
+        ],
+        order: { uploadedAt: 'DESC' }
       });
 
       for (const d of docs) {
@@ -189,14 +181,13 @@ export class TnasService {
       this.logger.error(`Failed to load pending documents: ${docErr?.message}`);
     }
 
-    // 2. Invoices (Exclusively routed to HC-Docs / Invoices)
+    // 2. Invoices (Generated invoices -> HC-Docs / Invoices)
     try {
       const invs = await this.invoicesRepo
         .createQueryBuilder('i')
         .leftJoinAndSelect('i.client', 'client')
-        .leftJoinAndSelect('i.items', 'items')
-        .leftJoinAndSelect('i.trip', 'trip')
         .where('(i.tnasDownloaded IS NULL OR i.tnasDownloaded = false OR CAST(i.tnasDownloaded AS text) IN (\'false\', \'0\'))')
+        .andWhere('(i.publicId IS NOT NULL OR i.pdfUrl IS NOT NULL)')
         .orderBy('i.createdAt', 'DESC')
         .getMany();
 
@@ -216,98 +207,14 @@ export class TnasService {
             .slice(0, 35);
           fallbackFile = safeClient ? `${baseNum} - ${safeClient}.pdf` : `${baseNum}.pdf`;
         }
-
-        // Self-healing 1: If invoice has pdfData (base64) but missing Cloudinary upload, upload it now
-        if ((!i.pdfUrl || !i.publicId) && i.pdfData && typeof i.pdfData === 'string' && i.pdfData.includes('base64,')) {
-          try {
-            const base64Data = i.pdfData.split('base64,')[1];
-            const buffer = Buffer.from(base64Data, 'base64');
-            const cleanPublicId = fallbackFile.replace(/\.pdf$/i, '').replace(/[^a-zA-Z0-9_-]/g, '_');
-            const uploadRes = await new Promise<any>((resolve, reject) => {
-              const stream = cloudinary.uploader.upload_stream(
-                {
-                  folder: 'hapcargo_invoices',
-                  public_id: cleanPublicId,
-                  resource_type: 'raw',
-                  type: 'upload',
-                  format: 'pdf',
-                  overwrite: true,
-                },
-                (err, res) => (err ? reject(err) : resolve(res))
-              );
-              const r = new Readable();
-              r.push(buffer);
-              r.push(null);
-              r.pipe(stream);
-            });
-            i.pdfUrl = uploadRes.secure_url || uploadRes.url;
-            i.publicId = uploadRes.public_id;
-            i.originalFilename = fallbackFile;
-            i.resourceType = 'raw';
-            i.cloudinaryType = 'upload';
-            i.format = 'pdf';
-            await this.invoicesRepo.save(i);
-          } catch (upErr: any) {
-            this.logger.warn(`Failed to upload invoice ${i.id} pdfData to Cloudinary: ${upErr?.message}`);
-          }
-        }
-
-        // Self-healing 2: If invoice still lacks a generated PDF, generate and upload via backend Puppeteer
-        if ((!i.pdfUrl || !i.publicId) && this.pdfService) {
-          try {
-            let companySettings: any = {};
-            try {
-              const cmsRes: any[] = await this.invoicesRepo.manager.query(
-                `SELECT "value" FROM "website_cms" WHERE "key" = 'company_settings'`
-              );
-              if (cmsRes && cmsRes[0]?.value) {
-                companySettings = typeof cmsRes[0].value === 'string' ? JSON.parse(cmsRes[0].value) : cmsRes[0].value;
-              }
-            } catch (cmsErr) {}
-
-            const html = generateInvoiceHtml(i, companySettings, 'en');
-            const pdfBuffer = await this.pdfService.generatePdfFromHtml(html);
-            const cleanPublicId = fallbackFile.replace(/\.pdf$/i, '').replace(/[^a-zA-Z0-9_-]/g, '_');
-            const uploadRes = await new Promise<any>((resolve, reject) => {
-              const stream = cloudinary.uploader.upload_stream(
-                {
-                  folder: 'hapcargo_invoices',
-                  public_id: cleanPublicId,
-                  resource_type: 'raw',
-                  type: 'upload',
-                  format: 'pdf',
-                  overwrite: true,
-                },
-                (err, res) => (err ? reject(err) : resolve(res))
-              );
-              const r = new Readable();
-              r.push(pdfBuffer);
-              r.push(null);
-              r.pipe(stream);
-            });
-            i.pdfUrl = uploadRes.secure_url || uploadRes.url;
-            i.publicId = uploadRes.public_id;
-            i.originalFilename = fallbackFile;
-            i.resourceType = 'raw';
-            i.cloudinaryType = 'upload';
-            i.format = 'pdf';
-            await this.invoicesRepo.save(i);
-          } catch (genErr: any) {
-            this.logger.warn(`Failed to auto-generate PDF for invoice ${i.id}: ${genErr?.message}`);
-          }
-        }
-
-        // Add to pending results if accessible direct URL or publicId is available
-        if (i.pdfUrl || i.publicId) {
-          results.push({
-            id: i.id,
-            source: 'invoices',
-            filename: i.originalFilename || fallbackFile,
-            category: 'Invoices',
-            signedUrl: this.generateSignedUrl(i, 15 * 60),
-            createdAt: i.createdAt,
-          });
-        }
+        results.push({
+          id: i.id,
+          source: 'invoices',
+          filename: i.originalFilename || fallbackFile,
+          category: 'Invoices',
+          signedUrl: this.generateSignedUrl(i, 15 * 60),
+          createdAt: i.createdAt,
+        });
       }
     } catch (invErr: any) {
       this.logger.error(`Failed to load pending invoices: ${invErr?.message}`);
@@ -341,10 +248,20 @@ export class TnasService {
 
   async markDownloaded(source: string, id: string) {
     let repo: Repository<any>;
-    if (source === 'documents') repo = this.docsRepo;
-    else if (source === 'invoices') repo = this.invoicesRepo;
-    else if (source === 'expenses') repo = this.expensesRepo;
-    else throw new NotFoundException('Invalid source');
+    const cleanSource = (source || '').toLowerCase();
+    if (cleanSource === 'documents' || cleanSource === 'document') repo = this.docsRepo;
+    else if (cleanSource === 'invoices' || cleanSource === 'invoice') repo = this.invoicesRepo;
+    else if (cleanSource === 'expenses' || cleanSource === 'expense') repo = this.expensesRepo;
+    else {
+      // Automatic detection fallback
+      const inv = await this.invoicesRepo.findOne({ where: { id } });
+      if (inv) repo = this.invoicesRepo;
+      else {
+        const doc = await this.docsRepo.findOne({ where: { id } });
+        if (doc) repo = this.docsRepo;
+        else repo = this.expensesRepo;
+      }
+    }
 
     const entity = await repo.findOne({ where: { id } });
     if (!entity) throw new NotFoundException();
@@ -361,40 +278,6 @@ export class TnasService {
       .catch(() => {});
 
     return { success: true };
-  }
-
-  async markAnyDownloaded(id: string) {
-    // Try invoices first
-    const inv = await this.invoicesRepo.findOne({ where: { id } });
-    if (inv) {
-      inv.tnasDownloaded = true;
-      await this.invoicesRepo.save(inv);
-      await this.invoicesRepo.createQueryBuilder()
-        .update()
-        .set({ tnasDownloaded: true as any })
-        .where("id = :id", { id })
-        .execute()
-        .catch(() => {});
-      return { success: true, source: 'invoices' };
-    }
-
-    // Try documents
-    const doc = await this.docsRepo.findOne({ where: { id } });
-    if (doc) {
-      doc.tnasDownloaded = true;
-      await this.docsRepo.save(doc);
-      return { success: true, source: 'documents' };
-    }
-
-    // Try expenses
-    const exp = await this.expensesRepo.findOne({ where: { id } });
-    if (exp) {
-      exp.tnasDownloaded = true;
-      await this.expensesRepo.save(exp);
-      return { success: true, source: 'expenses' };
-    }
-
-    throw new NotFoundException(`Item with id ${id} not found across invoices, documents or expenses`);
   }
 
   // ==========================================
