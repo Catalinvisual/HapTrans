@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Building2, Save, Plus, Trash2, Edit, FileText } from 'lucide-react';
+import { Building2, Save, Plus, Trash2, Edit, FileText, Calendar, Clock, Pencil } from 'lucide-react';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateClientPdf } from '../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
@@ -19,24 +19,34 @@ import type { TabDef } from './ui/DetailDrawer';
 
 export default function ClientDetails({
   client,
-  onBack
+  onBack,
+  onUpdate
 }: {
   client: any;
   onBack: () => void;
+  onUpdate?: (updated: any) => void;
 }) {
   const confirmSave = useSaveConfirm();
   const confirm = useConfirm();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState('general');
   const [rates, setRates] = useState<any[]>([]);
   const [loadingRates, setLoadingRates] = useState(true);
 
-  // Form states
+  // View vs Edit state
+  const [isEditing, setIsEditing] = useState(false);
+  const [clientData, setClientData] = useState({ ...client });
   const [generalForm, setGeneralForm] = useState({ ...client });
   const [rateForm, setRateForm] = useState<any>(null);
   const [locations, setLocations] = useState<any[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(false);
   const [locationForm, setLocationForm] = useState<any>(null);
+
+  useEffect(() => {
+    setClientData({ ...client });
+    setGeneralForm({ ...client });
+    setIsEditing(false);
+  }, [client]);
 
   useEffect(() => {
     loadRates();
@@ -54,16 +64,21 @@ export default function ClientDetails({
     }
   };
 
-  const handleSaveGeneral = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveGeneral = async (e?: React.FormEvent) => {
+    if (e && e.preventDefault) e.preventDefault();
     const isConfirmed = await confirmSave();
     if (!isConfirmed) return;
     try {
       const { rates, invoices, orders, portalUsers, company, ...updateData } = generalForm as any;
-      await api.patch(`/clients/${client.id}`, updateData);
-      toast.success(t("toast_dateGeneraleS"));
+      const res = await api.patch(`/clients/${clientData.id}`, updateData);
+      const updated = res.data ? { ...clientData, ...res.data } : { ...clientData, ...updateData };
+      setClientData(updated);
+      setGeneralForm(updated);
+      setIsEditing(false);
+      if (onUpdate) onUpdate(updated);
+      toast.success(t("toast_dateGeneraleS", "Datele generale au fost salvate cu succes"));
     } catch {
-      toast.error(t("toast_eroareLaSalva"));
+      toast.error(t("toast_eroareLaSalva", "Eroare la salvare"));
     }
   };
 
@@ -159,12 +174,93 @@ export default function ClientDetails({
     {
       key: 'general',
       label: t('tabGeneral', 'General'),
-      content: (
+      content: !isEditing ? (
+        <div className="space-y-6 max-w-4xl">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs text-text-secondary">{t('companyName', 'Companie')}</div>
+              <div className="font-semibold text-text-primary text-base">{clientData.name || '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-text-secondary">{t('vatCui', 'CUI / CIF')}</div>
+              <div className="font-semibold text-text-primary">{clientData.cui || '—'}</div>
+            </div>
+            <div className="sm:col-span-2">
+              <div className="text-xs text-text-secondary">{t('address', 'Adresă')}</div>
+              <div className="font-semibold text-text-primary">{clientData.address || '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-text-secondary">{t('contactName', 'Persoană contact')}</div>
+              <div className="font-semibold text-text-primary">{clientData.contactName || '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-text-secondary">{t('contactEmail', 'Email contact')}</div>
+              <div className="font-semibold text-text-primary">{clientData.contactEmail || clientData.email || '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-text-secondary">{t('phone', 'Telefon')}</div>
+              <div className="font-semibold text-text-primary">{clientData.phone || '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-text-secondary">{t('paymentTermsDays', 'Termen plată (zile)')}</div>
+              <div className="font-semibold text-text-primary">{clientData.paymentTermsDays ?? 30} {t('days', 'zile')}</div>
+            </div>
+            <div>
+              <div className="text-xs text-text-secondary">{t('defaultFuelSurcharge', 'Suprataxă combustibil')}</div>
+              <div className="font-semibold text-text-primary">{clientData.defaultFuelSurchargePercent ?? 0}%</div>
+            </div>
+            <div>
+              <div className="text-xs text-text-secondary">{t('creditLimitEur', 'Limită credit')}</div>
+              <div className="font-semibold text-text-primary">€{Number(clientData.creditLimit || 0).toLocaleString()}</div>
+            </div>
+            <div>
+              <div className="text-xs text-text-secondary">{t('defaultCurrency', 'Monedă implicită')}</div>
+              <div className="font-semibold text-text-primary">{clientData.currency || 'EUR'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-text-secondary">{t('preferredInvoiceLanguage', 'Limbă facturare preferată')}</div>
+              <div className="font-semibold text-text-primary uppercase">{clientData.invoiceLanguage || 'en'}</div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-border/60 grid grid-cols-2 gap-3 text-xs text-text-secondary col-span-1 sm:col-span-2">
+              <div className="flex items-start gap-2 bg-surface/30 p-2.5 rounded-xl border border-border/40">
+                <div className="p-1.5 bg-primary/10 rounded-lg text-primary mt-0.5 shrink-0">
+                  <Calendar className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">{t('created_at', 'Created')}</div>
+                  <div className="font-semibold text-text-primary mt-0.5">{clientData.createdAt ? new Date(clientData.createdAt).toLocaleDateString(i18n.language || 'en-GB') : '—'}</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 bg-surface/30 p-2.5 rounded-xl border border-border/40">
+                <div className="p-1.5 bg-blue-100 dark:bg-blue-950/40 rounded-lg text-blue-600 dark:text-blue-400 mt-0.5 shrink-0">
+                  <Clock className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">{t('last_updated', 'Last updated')}</div>
+                  <div className="font-semibold text-text-primary mt-0.5">{clientData.updatedAt ? new Date(clientData.updatedAt).toLocaleDateString(i18n.language || 'en-GB') : '—'}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-border">
+            <ActivityTimeline
+              entityType="Client"
+              entityId={clientData.id}
+              createdAt={clientData.createdAt}
+              createdBy={clientData.createdBy?.name || clientData.createdBy?.email}
+              updatedAt={clientData.updatedAt}
+              updatedBy={clientData.updatedBy?.name || clientData.updatedBy?.email}
+            />
+          </div>
+        </div>
+      ) : (
         <form onSubmit={handleSaveGeneral} className="space-y-6 max-w-4xl">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="label">{t('companyName')}</label>
-              <input className="input" value={generalForm.name} onChange={e => setGeneralForm({ ...generalForm, name: e.target.value })} />
+              <input className="input" value={generalForm.name} onChange={e => setGeneralForm({ ...generalForm, name: e.target.value })} required />
             </div>
             <div>
               <label className="label">{t('vatCui')}</label>
@@ -202,21 +298,6 @@ export default function ClientDetails({
               <label className="label">{t('preferredInvoiceLanguage')}</label>
               <CustomSelect value={generalForm.invoiceLanguage || 'en'} onChange={val => setGeneralForm({ ...generalForm, invoiceLanguage: val })} options={[{ value: 'en', label: 'English' }, { value: 'nl', label: 'Dutch' }, { value: 'ro', label: 'Romanian' }, { value: 'de', label: 'German' }, { value: 'fr', label: 'French' }]} />
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <button type="submit" className="btn-primary py-2 px-6 flex items-center gap-2">
-              <Save className="w-4 h-4" /> {t('saveSettings')}
-            </button>
-          </div>
-          <div className="mt-6 pt-4 border-t border-border">
-            <ActivityTimeline
-              entityType="Client"
-              entityId={client.id}
-              createdAt={client.createdAt}
-              createdBy={client.createdBy?.name || client.createdBy?.email}
-              updatedAt={client.updatedAt}
-              updatedBy={client.updatedBy?.name || client.updatedBy?.email}
-            />
           </div>
         </form>
       ),
@@ -467,35 +548,70 @@ export default function ClientDetails({
       onTabChange={setActiveTab}
       footer={
         <div className="flex items-center gap-2 justify-end w-full">
-          <button
-            type="button"
-            onClick={async () => {
-              const company = useSettingsStore.getState().company;
-              try {
-                const { blob, filename } = await generateClientPdf(client, company, { autoSave: false });
-                await archiveAndDownloadPdf({
-                  pdfBlob: blob,
-                  defaultFilename: filename,
-                  sourceType: 'client',
-                  sourceId: client.id,
-                  sourceReference: client.name || String(client.id),
-                });
-              } catch {
-                toast.error(t('error_pdf', 'Failed to generate PDF'));
-              }
-            }}
-            className="btn-secondary flex items-center gap-1.5 text-sm"
-            title={t('download_client_pdf', { name: client.name, defaultValue: 'Download client profile PDF: {{name}}' })}
-          >
-            <FileText className="w-4 h-4" />{t('pdf', 'PDF')}
-          </button>
-          <button
-            type="button"
-            onClick={onBack}
-            className="btn-secondary text-sm"
-          >
-            {t('close', 'Închide')}
-          </button>
+          {!isEditing ? (
+            <>
+              <button
+                type="button"
+                onClick={async () => {
+                  const company = useSettingsStore.getState().company;
+                  try {
+                    const { blob, filename } = await generateClientPdf(clientData, company, { autoSave: false });
+                    await archiveAndDownloadPdf({
+                      pdfBlob: blob,
+                      defaultFilename: filename,
+                      sourceType: 'client',
+                      sourceId: clientData.id,
+                      sourceReference: clientData.name || String(clientData.id),
+                    });
+                  } catch {
+                    toast.error(t('error_pdf', 'Failed to generate PDF'));
+                  }
+                }}
+                className="btn-secondary flex items-center gap-1.5 text-sm"
+                title={t('download_client_pdf', { name: clientData.name, defaultValue: 'Download client profile PDF: {{name}}' })}
+              >
+                <FileText className="w-4 h-4" />{t('pdf', 'PDF')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setGeneralForm({ ...clientData });
+                  setIsEditing(true);
+                  setActiveTab('general');
+                }}
+                className="btn-secondary text-sm flex items-center gap-1.5"
+              >
+                <Pencil className="w-4 h-4" />{t('edit', 'Editează')}
+              </button>
+              <button
+                type="button"
+                onClick={onBack}
+                className="btn-secondary text-sm"
+              >
+                {t('close', 'Închide')}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setGeneralForm({ ...clientData });
+                  setIsEditing(false);
+                }}
+                className="btn-secondary text-sm"
+              >
+                {t('cancel', 'Anulează')}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveGeneral}
+                className="btn-primary text-sm flex items-center gap-1.5"
+              >
+                <Save className="w-4 h-4" />{t('save', 'Salvează')}
+              </button>
+            </>
+          )}
         </div>
       }
     />

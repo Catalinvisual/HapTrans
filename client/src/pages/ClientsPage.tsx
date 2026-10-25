@@ -21,6 +21,7 @@ import { useTableShortcuts } from '../hooks/useTableShortcuts';
 import { useSettingsStore } from '../store/settingsStore';
 import { generateClientPdf } from '../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
+import DetailDrawer from '../components/ui/DetailDrawer';
 export default function ClientsPage() {
   const confirmSave = useSaveConfirm();
   const formStore = useFormStore();
@@ -229,54 +230,84 @@ export default function ClientsPage() {
 
       <KpiStrip dense items={kpis} />
 
-      {showForm && <div className="card animate-fade-in bg-card border border-border rounded-2xl p-6 shadow-md">
-          <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">
-            {editId ? t('editClient') || 'Editează client' : t('addClient')}
-          </h3>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      {showForm && (
+        <DetailDrawer
+          open
+          onClose={() => {
+            setShowForm(false);
+            setEditId(null);
+          }}
+          title={editId ? t('editClient') || 'Editează client' : t('addClient')}
+          footer={
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setEditId(null);
+                }}
+                className="btn-secondary"
+              >
+                {t('cancel', 'Anulează')}
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="btn-primary"
+              >
+                {t('save', 'Salvează')}
+              </button>
+            </div>
+          }
+        >
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Basic fields */}
             {[{
-          key: 'name',
-          label: t('name'),
-          required: true
-        }, {
-          key: 'cui',
-          label: t('vat_number', 'VAT / Tax ID')
-        }, {
-          key: 'contactName',
-          label: t('contact') || 'Contact'
-        }, {
-          key: 'contactEmail',
-          label: t('email') || 'Email contact'
-        }, {
-          key: 'phone',
-          label: t('phone')
-        }].map(f => <div key={f.key}>
+              key: 'name',
+              label: t('name'),
+              required: true
+            }, {
+              key: 'cui',
+              label: t('vat_number', 'VAT / Tax ID')
+            }, {
+              key: 'contactName',
+              label: t('contact') || 'Contact'
+            }, {
+              key: 'contactEmail',
+              label: t('email') || 'Email contact'
+            }, {
+              key: 'phone',
+              label: t('phone')
+            }].map(f => (
+              <div key={f.key}>
                 <label className="label font-semibold">{f.label}</label>
-                <input className="input" value={(form as any)[f.key]} onChange={e => setForm({
-            ...form,
-            [f.key]: e.target.value
-          })} required={f.required} />
-              </div>)}
+                <input
+                  className="input"
+                  value={(form as any)[f.key]}
+                  onChange={e => setForm({
+                    ...form,
+                    [f.key]: e.target.value
+                  })}
+                  required={f.required}
+                />
+              </div>
+            ))}
 
             {/* Address — wider */}
             <div className="md:col-span-2">
               <label className="label font-semibold">{t('address')}</label>
-              <AddressAutocomplete value={form.address} onChange={val => setForm({
-            ...form,
-            address: val
-          })} placeholder="Street, No., Building..." />
-            </div>
-
-            <div className="flex gap-3 col-span-1 md:col-span-2 lg:col-span-3 pt-3 border-t border-border mt-2">
-              <button type="submit" className="btn-primary !px-4 !py-1.5 text-sm font-bold shadow-md shadow-primary/20">{t('save')}</button>
-              <button type="button" onClick={() => {
-            setShowForm(false);
-            setEditId(null);
-          }} className="btn-secondary !px-4 !py-1.5 text-sm font-bold">{t('cancel')}</button>
+              <AddressAutocomplete
+                value={form.address}
+                onChange={val => setForm({
+                  ...form,
+                  address: val
+                })}
+                placeholder="Street, No., Building..."
+              />
             </div>
           </form>
-        </div>}
+        </DetailDrawer>
+      )}
 
 
       <div className="card p-0 overflow-hidden bg-card border border-border rounded-2xl shadow-sm">

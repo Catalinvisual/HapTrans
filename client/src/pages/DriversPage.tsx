@@ -750,11 +750,31 @@ const tabs: TabDef[] = drawerDriver ? [
         }
       />
 
-      {showForm && <div className="card animate-fade-in bg-card border border-border rounded-2xl p-6 shadow-md">
-          <h3 className="font-bold text-lg text-text mb-5 text-primary border-b border-border pb-3">
-            {editId ? t('editDriver') : t('addDriver')}
-          </h3>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      {showForm && (
+        <DetailDrawer
+          open
+          onClose={() => { setShowForm(false); setEditId(null); }}
+          title={editId ? t('editDriver') : t('addDriver')}
+          footer={
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => { setShowForm(false); setEditId(null); }}
+              >
+                {t('cancel', 'Anulează')}
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleSubmit}
+              >
+                {t('save', 'Salvează')}
+              </button>
+            </div>
+          }
+        >
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Name */}
             <div>
               <label className="label font-semibold flex items-center gap-1">
@@ -823,7 +843,7 @@ const tabs: TabDef[] = drawerDriver ? [
             </div>
 
             {/* Truck Assignment */}
-            <div>
+            <div className="md:col-span-2">
               <label className="label font-semibold">{t('truck', 'Truck')}</label>
               <CustomSelect value={form.truckId} onChange={val => setForm({ ...form, truckId: val })} options={[{ value: '', label: t('no_truck', 'No truck (free)') }, ...trucks.map(tr => ({ value: tr.id, label: `${tr.plateNumber} ${tr.brand}` }))]} />
             </div>
@@ -852,18 +872,9 @@ const tabs: TabDef[] = drawerDriver ? [
               <Flatpickr type="hidden" value={form.tachoCardExpiry} onChange={(_, dateStr) => setForm({ ...form, tachoCardExpiry: dateStr })} onClick={e => { e.stopPropagation(); const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} onFocus={e => { const fp = (e.target as any)._flatpickr; if (fp) fp.open(); }} className={`input bg-card ${isPastDate(form.tachoCardExpiry) ? 'border-red-500 text-red-600 bg-red-50/20' : ''}`} options={fpOptions} placeholder="DD/MM/YYYY" />
               {isPastDate(form.tachoCardExpiry) && <span className="text-xs text-red-600 font-semibold mt-1 block">⚠️ {getErrorMessage()}</span>}
             </div>
-
-            {/* Actions */}
-            <div className="flex gap-3 md:col-span-2 lg:col-span-3 pt-3 border-t border-border mt-2">
-              <button type="submit" className="btn-primary !px-4 !py-1.5 text-sm font-bold shadow-md shadow-primary/20">
-                {t('save')}
-              </button>
-              <button type="button" onClick={() => { setShowForm(false); setEditId(null); }} className="btn-secondary !px-4 !py-1.5 text-sm font-bold">
-                {t('cancel')}
-              </button>
-            </div>
           </form>
-        </div>}
+        </DetailDrawer>
+      )}
 
       <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={executeDelete} type="danger" />
       <ExportModal isOpen={showExport} onClose={() => setShowExport(false)} data={filtered} filename="Drivers_HapCargo" title="Drivers" sheetName="Drivers" getDateField={d => d.createdAt} headers={[

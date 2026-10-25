@@ -18,7 +18,7 @@ export default function ActivityTimeline({
   updatedAt?: string;
   updatedBy?: string;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -61,6 +61,8 @@ export default function ActivityTimeline({
     stops: t('stops', 'Opriri'),
     total: t('total', 'Total'),
     invoiceNumber: t('invoiceNumber', 'Număr factură'),
+    issueDate: t('issueDate', 'Data emiterii'),
+    dueDate: t('dueDate', 'Data scadenței'),
 
     // Trucks / Trailers / Fleet
     plateNumber: t('plateNumber', 'Număr înmatriculare'),
@@ -76,6 +78,12 @@ export default function ActivityTimeline({
     type: t('type', 'Tip'),
     year: t('year', 'An fabricație'),
     payloadCapacity: t('payload', 'Sarcină utilă'),
+    payloadCapacityWeight: t('payload', 'Sarcină utilă (kg)'),
+    payloadCapacityPallets: t('maxPallets', 'Paleți'),
+    maxLdm: t('maxLdm', 'Max LDM'),
+    maxVolumeCbm: t('maxVolumeCbm', 'Volum m³'),
+    apkExpiry: t('next_service', 'Următoarea revizie'),
+    next_service: t('next_service', 'Următoarea revizie'),
     fuelConsumption: t('fuel_consumption', 'Consum'),
     tollCost: t('tolls', 'Taxe drum'),
 
@@ -101,11 +109,28 @@ export default function ActivityTimeline({
     licenseExpiry: t('expLicense', 'Expirare permis'),
     medicalExpiry: t('expMedical', 'Expirare fișă medicală'),
     tachoCardExpiry: t('expTacho', 'Expirare card tahograf'),
+    expiryDate: t('expiry_date', 'Data expirării'),
   };
 
-  const formatVal = (field: string, val: any) => {
+  const isDateValue = (str: any) => {
+    if (typeof str !== 'string') return false;
+    return /^\d{4}-\d{2}-\d{2}(T.*)?$/.test(str) || /^\d{2}\/\d{2}\/\d{4}$/.test(str);
+  };
+
+  const parseToTimestamp = (val: any) => {
+    if (!val) return null;
+    if (typeof val === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(val)) {
+      const [d, m, y] = val.split('/');
+      return new Date(`${y}-${m}-${d}T00:00:00`).getTime();
+    }
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d.getTime();
+  };
+
+  const formatVal = (field: string, val: any): string => {
     if (val === null || val === undefined || val === '') return '—';
     if (typeof val === 'object') {
+      if (val instanceof Date) return val.toLocaleDateString(i18n.language || 'en-GB');
       if (val.plateNumber) return val.plateNumber;
       if (val.name) return val.name;
       if (val.orderNumber) return val.orderNumber;
@@ -117,6 +142,10 @@ export default function ActivityTimeline({
       return `€${Number(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
     if (['distanceKm', 'distance'].includes(field)) return `${val} km`;
+    if (['apkExpiry', 'licenseExpiry', 'medicalExpiry', 'tachoCardExpiry', 'dueDate', 'issueDate', 'expiryDate'].includes(field) || isDateValue(val)) {
+      const ts = parseToTimestamp(val);
+      if (ts) return new Date(ts).toLocaleDateString(i18n.language || 'en-GB');
+    }
     return String(val);
   };
 
@@ -217,24 +246,30 @@ export default function ActivityTimeline({
                       <span className="font-semibold text-text-primary">{userName}</span> · {new Date(log.createdAt).toLocaleString()}
                     </div>
 
-                    {log.action === 'UPDATED' && log.details?.changes && Object.keys(log.details.changes).length > 0 ? (
-                      <div className="mt-1.5 space-y-1 bg-surface/70 dark:bg-card/70 p-2 rounded-lg border border-border/60">
-                        {Object.entries(log.details.changes).map(([field, change]: [string, any]) => (
-                          <div key={field} className="text-[11px] flex items-center gap-1.5 flex-wrap">
-                            <span className="font-semibold text-text-primary">
-                              {fieldLabels[field] || field}:
-                            </span>
-                            <span className="line-through text-red-500/80 bg-red-500/10 px-1 rounded text-[10px]">
-                              {formatVal(field, change.old)}
-                            </span>
-                            <ArrowRight className="w-3 h-3 text-text-muted shrink-0" />
-                            <span className="font-bold text-green-600 dark:text-green-400 bg-green-500/10 px-1 rounded text-[10px]">
-                              {formatVal(field, change.new)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : log.action === 'UPDATED' && log.details?.updatedFields && log.details.updatedFields.length > 0 ? (
+                    {log.action === 'UPDATED' && log.details?.changes && Object.keys(log.details.changes).length > 0 ? (() => {
+                      const validChanges = Object.entries(log.details.changes).filter(([field, change]: [string, any]) => {
+                        return formatVal(field, change?.old) !== formatVal(field, change?.new);
+                      });
+                      if (validChanges.length === 0) return null;
+                      return (
+                        <div className="mt-1.5 space-y-1 bg-surface/70 dark:bg-card/70 p-2 rounded-lg border border-border/60">
+                          {validChanges.map(([field, change]: [string, any]) => (
+                            <div key={field} className="text-[11px] flex items-center gap-1.5 flex-wrap">
+                              <span className="font-semibold text-text-primary">
+                                {fieldLabels[field] || field}:
+                              </span>
+                              <span className="line-through text-red-500/80 bg-red-500/10 px-1 rounded text-[10px]">
+                                {formatVal(field, change.old)}
+                              </span>
+                              <ArrowRight className="w-3 h-3 text-text-muted shrink-0" />
+                              <span className="font-bold text-green-600 dark:text-green-400 bg-green-500/10 px-1 rounded text-[10px]">
+                                {formatVal(field, change.new)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })() : log.action === 'UPDATED' && log.details?.updatedFields && log.details.updatedFields.length > 0 ? (
                       <div className="text-[10px] text-text-muted mt-1 uppercase tracking-wide">
                         {t('edited_fields', 'Câmpuri modificate')}: {log.details.updatedFields.map((f: string) => fieldLabels[f] || f).join(', ')}
                       </div>

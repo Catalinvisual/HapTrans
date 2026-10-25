@@ -671,6 +671,7 @@ export default function TrucksPage() {
             <div className="relative">
               <Calendar className="w-4 h-4 text-primary absolute left-3 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
               <Flatpickr 
+                type="hidden"
                 value={docForm.expiryDate} 
                 onChange={(_, dateStr) => setDocForm({ ...docForm, expiryDate: dateStr })} 
                 className="input pl-9 w-full bg-card" 

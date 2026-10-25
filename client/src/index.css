@@ -71,6 +71,10 @@
     hover:border-gray-400 dark:hover:border-gray-500
     focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 text-text;
   }
+  input[type="hidden"],
+  input.flatpickr-input[type="hidden"] {
+    display: none !important;
+  }
   .btn-primary {
     @apply inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg font-medium text-sm
     hover:bg-primary-dark active:scale-95 transition-all duration-150 shadow-sm cursor-pointer border-0;

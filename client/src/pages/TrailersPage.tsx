@@ -308,6 +308,7 @@ export default function TrailersPage() {
           <div><div className="text-xs text-text-secondary">{t("maxLdm", "Max LDM")}</div><div className="font-semibold">{drawerTrailer.maxLdm ? Number(drawerTrailer.maxLdm) : "—"}</div></div>
           <div><div className="text-xs text-text-secondary flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{t("maxPallets", "Paleți")}</div><div className="font-semibold">{drawerTrailer.payloadCapacityPallets || "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("maxVolumeCbm", "Volum m³")}</div><div className="font-semibold">{drawerTrailer.maxVolumeCbm ? Number(drawerTrailer.maxVolumeCbm) + " m³" : "—"}</div></div>
+          <div><div className="text-xs text-text-secondary">{t("next_service", "Următoarea revizie")}</div><div className="font-semibold">{drawerTrailer.apkExpiry ? new Date(drawerTrailer.apkExpiry).toLocaleDateString(i18n.language || 'en-GB') : "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("status", "Status")}</div><div><StatusBadge type="fleet" status={drawerTrailer.status} label={t((TRAILER_STATUSES.find(o => o.value === drawerTrailer.status)?.label as string) || drawerTrailer.status)} /></div></div>
           <div className="mt-6 pt-4 border-t border-border/60 grid grid-cols-2 gap-3 text-xs text-text-secondary col-span-1 sm:col-span-2">
             <div className="flex items-start gap-2 bg-surface/30 p-2.5 rounded-xl border border-border/40">
@@ -489,6 +490,7 @@ export default function TrailersPage() {
               <div className="relative">
                 <Calendar className="w-4 h-4 text-text-secondary absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
                 <Flatpickr
+                  type="hidden"
                   value={form.apkExpiry}
                   onChange={(_, dateStr) => setForm({ ...form, apkExpiry: dateStr })}
                   className="input pl-9 bg-card cursor-pointer hover:border-primary/50 transition-colors h-[38px] w-full"
