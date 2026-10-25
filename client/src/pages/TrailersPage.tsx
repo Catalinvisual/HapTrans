@@ -329,13 +329,18 @@ export default function TrailersPage() {
               </div>
             </div>
           </div>
+          <div className="mt-4">
+            <ActivityTimeline
+              entityType="Trailer"
+              entityId={drawerTrailer.id}
+              createdAt={drawerTrailer.createdAt}
+              createdBy={drawerTrailer.createdBy?.name || drawerTrailer.createdBy?.email}
+              updatedAt={drawerTrailer.updatedAt}
+              updatedBy={drawerTrailer.updatedBy?.name || drawerTrailer.updatedBy?.email}
+            />
+          </div>
         </div>
       ),
-    },
-    {
-      key: "activity",
-      label: t("tab_activity", "Activity"),
-      content: <ActivityTimeline entityType="Trailer" entityId={drawerTrailer.id} />,
     },
   ] : [];
 

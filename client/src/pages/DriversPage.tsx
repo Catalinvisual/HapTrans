@@ -1,7 +1,7 @@
 import { useSaveConfirm } from "../components/SaveConfirmProvider";
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Pencil, Trash2, Search, Download, User, Phone, FileText, Calendar, Key, Mail, Truck as TruckIcon, Coins, AlertCircle, BadgeCheck, CalendarDays, Save, Clock, Eye } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, User, Phone, FileText, Calendar, Key, Mail, Truck as TruckIcon, Coins, AlertCircle, BadgeCheck, CalendarDays, Save, Clock, Eye } from 'lucide-react';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import api from '../lib/api';
@@ -494,6 +494,16 @@ const tabs: TabDef[] = drawerDriver ? [
               </div>
             </div>
           </div>
+          <div className="mt-4">
+            <ActivityTimeline
+              entityType="Driver"
+              entityId={drawerDriver.id}
+              createdAt={drawerDriver.createdAt}
+              createdBy={drawerDriver.createdBy?.name || drawerDriver.createdBy?.email}
+              updatedAt={drawerDriver.updatedAt}
+              updatedBy={drawerDriver.updatedBy?.name || drawerDriver.updatedBy?.email}
+            />
+          </div>
         </div>
       ),
     },
@@ -594,12 +604,6 @@ const tabs: TabDef[] = drawerDriver ? [
         </div>
       ),
     },
-    {
-      key: 'activity',
-      label: t('tab_activity', 'Activity'),
-      content: <ActivityTimeline entityType="Driver" entityId={drawerDriver.id} />,
-    },
-
   ] : [];
 
   return (

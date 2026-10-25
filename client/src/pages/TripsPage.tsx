@@ -666,6 +666,16 @@ function TripDetailDrawer({ tripId, onClose, onRefetch, onDelete }: TripDetailDr
           <Row icon={<Coins className="w-3 h-3" />} label={t('tolls', 'Tolls')} value={Number(trip.tollCost || 0) ? fmtMoney(trip.tollCost) : '—'} />
           <Row icon={<Calendar className="w-3 h-3" />} label={t('created_at', 'Created')} value={trip.createdAt ? new Date(trip.createdAt).toLocaleString() : '—'} />
         </div>
+        <div className="mt-4">
+          <ActivityTimeline
+            entityType="Trip"
+            entityId={trip.id}
+            createdAt={trip.createdAt}
+            createdBy={trip.createdBy?.name || trip.dispatcher?.name || trip.dispatcher?.email}
+            updatedAt={trip.updatedAt}
+            updatedBy={trip.updatedBy?.name || trip.updatedBy?.email}
+          />
+        </div>
       </div>
     ) },
     { key: 'route', label: t('tab_route', 'Route'), badge: stops.length, content: (
@@ -799,11 +809,6 @@ function TripDetailDrawer({ tripId, onClose, onRefetch, onDelete }: TripDetailDr
           </div>
         ))}
         {!docsLoading && documents.length === 0 && <div className="text-sm text-text-secondary text-center py-6">{t('no_documents', 'No documents yet')}</div>}
-      </div>
-    ) },
-    { key: 'timeline', label: t('tab_timeline', 'Timeline'), content: (
-      <div className="py-2">
-        <ActivityTimeline entityType="Trip" entityId={trip.id} />
       </div>
     ) },
   ];

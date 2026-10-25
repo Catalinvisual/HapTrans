@@ -824,7 +824,14 @@ function OrderDetailDrawer({ order, activeTab, setActiveTab, onClose, onEdit, on
         </div>
         {order.notes && <div className="bg-surface/40 rounded-xl p-3 border border-border text-[13px] text-text-primary whitespace-pre-wrap">{order.notes}</div>}
         <div className="mt-4">
-          <ActivityTimeline entityType="Order" entityId={order.id} createdAt={order.createdAt} createdBy={order.createdBy?.name || order.createdBy?.email} />
+          <ActivityTimeline
+            entityType="Order"
+            entityId={order.id}
+            createdAt={order.createdAt}
+            createdBy={order.createdBy?.name || order.createdBy?.email}
+            updatedAt={order.updatedAt}
+            updatedBy={order.updatedBy?.name || order.updatedBy?.email}
+          />
         </div>
       </div>
     ) },

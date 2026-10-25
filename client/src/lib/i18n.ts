@@ -7,6 +7,7 @@ import { adrResources } from './adrI18n';
 
 const resources = {
   ro: { translation: {
+      "activity_audit_history": "Istoric Modificări & Audit",
       "jsx_sendRequest": "Trimite Cererea",
       "loadingDate": "Data Incarcare",
       "loadingTime": "Ora Incarcare",

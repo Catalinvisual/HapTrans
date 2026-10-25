@@ -190,7 +190,7 @@ return <div className="space-y-6 animate-fade-in">
       </div>
 
       <div className="flex items-center gap-2 border-b border-border overflow-x-auto">
-        {['general', 'portal', 'rates', 'locations', 'invoices', 'trips', 'documents', 'activity'].map(tab => <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-3 font-semibold text-sm transition-colors border-b-2 whitespace-nowrap ${activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-text'}`}>
+        {['general', 'portal', 'rates', 'locations', 'invoices', 'trips', 'documents'].map(tab => <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-3 font-semibold text-sm transition-colors border-b-2 whitespace-nowrap ${activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-text'}`}>
             {t(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`, tab.charAt(0).toUpperCase() + tab.slice(1))}
           </button>)}
       </div>
@@ -278,9 +278,21 @@ return <div className="space-y-6 animate-fade-in">
             }]} />
               </div>
             </div>
-            <button type="submit" className="btn-primary py-2 px-6 flex items-center gap-2">
-              <Save className="w-4 h-4" /> {t('saveSettings')}
-            </button>
+            <div className="flex items-center gap-3">
+              <button type="submit" className="btn-primary py-2 px-6 flex items-center gap-2">
+                <Save className="w-4 h-4" /> {t('saveSettings')}
+              </button>
+            </div>
+            <div className="mt-6 pt-4 border-t border-border">
+              <ActivityTimeline
+                entityType="Client"
+                entityId={client.id}
+                createdAt={client.createdAt}
+                createdBy={client.createdBy?.name || client.createdBy?.email}
+                updatedAt={client.updatedAt}
+                updatedBy={client.updatedBy?.name || client.updatedBy?.email}
+              />
+            </div>
           </form>}
 
         {activeTab === 'portal' && <ClientPortalAccess clientId={client.id} />}
@@ -519,10 +531,6 @@ return <div className="space-y-6 animate-fade-in">
 
         {activeTab === 'documents' && <div className="py-2">
             <DocumentsPage embeddedClientId={client.id} />
-          </div>}
-
-        {activeTab === 'activity' && <div className="py-2">
-            <ActivityTimeline entityType="Client" entityId={client.id} />
           </div>}
       </div>
     </div>;

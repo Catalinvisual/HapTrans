@@ -1,7 +1,7 @@
 import { useSaveConfirm } from "../components/SaveConfirmProvider";
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Pencil, Trash2, Search, Download, Truck as TruckIcon, Info, Users, Wrench, Fuel, Battery, Gauge, Boxes, Coins, CalendarDays, CheckCircle2, Settings2, AlertTriangle, User, Mail, Weight, Eye } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Truck as TruckIcon, Info, Users, Wrench, Fuel, Battery, Gauge, Boxes, Coins, CalendarDays, CheckCircle2, Settings2, AlertTriangle, User, Mail, Eye } from 'lucide-react';
 import api from '../lib/api';
 import { fmtNumber, fmtMoney, fmtKm } from '../lib/format';
 import ConfirmModal from '../components/ConfirmModal';
@@ -576,12 +576,18 @@ export default function TrucksPage() {
               </div>
             </div>
           </div>
+          <div className="mt-4">
+            <ActivityTimeline
+              entityType="Truck"
+              entityId={drawerTruck.id}
+              createdAt={drawerTruck.createdAt}
+              createdBy={drawerTruck.createdBy?.name || drawerTruck.createdBy?.email}
+              updatedAt={drawerTruck.updatedAt}
+              updatedBy={drawerTruck.updatedBy?.name || drawerTruck.updatedBy?.email}
+            />
+          </div>
         </div>
       ),
-    },
-    {
-      key: 'activity', label: t('tab_activity', 'Activity'),
-      content: <ActivityTimeline entityType="Truck" entityId={drawerTruck.id} />
     },
     {
       key: 'specs', label: t('tab_specs', 'Specifications'),
