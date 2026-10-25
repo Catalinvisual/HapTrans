@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, ChevronDown, Clock, ArrowRight, History } from 'lucide-react';
+import { Loader2, ChevronDown, ArrowRight, History } from 'lucide-react';
 import api from '../lib/api';
 
 export default function ActivityTimeline({
