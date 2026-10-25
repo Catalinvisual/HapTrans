@@ -1,7 +1,7 @@
 import { useSaveConfirm } from "../components/SaveConfirmProvider";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Pencil, Trash2, Search, Truck as TrailerIcon, Container, Snowflake, Box, Package, Boxes, CheckCircle2, Wrench, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Truck as TrailerIcon, Container, Snowflake, Box, Package, Boxes, CheckCircle2, Wrench } from "lucide-react";
 import api from "../lib/api";
 import ConfirmModal from "../components/ConfirmModal";
 import toast from "react-hot-toast";

@@ -1,7 +1,7 @@
 import { useSaveConfirm } from "../components/SaveConfirmProvider";
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Pencil, Search, Download, Trash2, Users, Percent, Calendar, FileText, Eye } from 'lucide-react';
+import { Plus, Pencil, Search, Trash2, Users, Percent, Calendar, FileText, Eye } from 'lucide-react';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import api from '../lib/api';
 import ConfirmModal from '../components/ConfirmModal';
