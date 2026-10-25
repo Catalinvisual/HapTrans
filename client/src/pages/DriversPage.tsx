@@ -13,6 +13,9 @@ import { fmtMoney } from '../lib/format';
 import CustomSelect from '../components/CustomSelect';
 import type { SelectOption } from '../components/CustomSelect';
 import ActivityTimeline from '../components/ActivityTimeline';
+import { generateDriverPdf } from '../lib/pdfGenerator';
+import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
+import { useSettingsStore } from '../store/settingsStore';
 import { useFormStore } from '../store/formStore';
 import Pagination from '../components/Pagination';
 import { useShortcuts } from '../hooks/useShortcuts';
@@ -387,10 +390,25 @@ export default function DriversPage() {
       ),
     },
     {
-      key: 'actions', label: t('actions', 'Acțiuni'), align: 'right', sticky: 'right', width: '90px',
+      key: 'actions', label: t('actions', 'Acțiuni'), align: 'right', sticky: 'right', width: '120px',
       render: d => (
         <div className="flex items-center justify-end gap-0.5" onClick={e => e.stopPropagation()}>
           <button onClick={() => setDrawerDriverId(d.id)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('details', 'Detalii')}><Eye className="w-3.5 h-3.5" /></button>
+          <button onClick={async () => {
+            const company = useSettingsStore.getState().company;
+            try {
+              const { blob, filename } = await generateDriverPdf(d, company, { autoSave: false });
+              await archiveAndDownloadPdf({
+                pdfBlob: blob,
+                defaultFilename: filename,
+                sourceType: 'driver',
+                sourceId: d.id,
+                sourceReference: d.user?.name || String(d.id),
+              });
+            } catch {
+              toast.error(t('error_pdf', 'Failed to generate PDF'));
+            }
+          }} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('download_driver_pdf', { name: d.user?.name || 'Driver', defaultValue: 'Download driver profile PDF: {{name}}' })}><FileText className="w-3.5 h-3.5" /></button>
           <button onClick={() => handleEdit(d)} className="p-1 text-text-secondary hover:text-primary rounded-lg hover:bg-surface transition-colors" title={t('edit', 'Edit')}><Pencil className="w-3.5 h-3.5" /></button>
           <button onClick={() => handleDelete(d.id)} className="p-1 text-text-secondary hover:text-error rounded-lg hover:bg-red-50 transition-colors" title={t('delete', 'Delete')}><Trash2 className="w-3.5 h-3.5" /></button>
         </div>
@@ -685,6 +703,28 @@ const tabs: TabDef[] = drawerDriver ? [
         footer={
           drawerDriver ? (
             <div className="flex items-center gap-2 justify-end w-full">
+              <button
+                onClick={async () => {
+                  const company = useSettingsStore.getState().company;
+                  try {
+                    const { blob, filename } = await generateDriverPdf(drawerDriver, company, { autoSave: false });
+                    await archiveAndDownloadPdf({
+                      pdfBlob: blob,
+                      defaultFilename: filename,
+                      sourceType: 'driver',
+                      sourceId: drawerDriver.id,
+                      sourceReference: drawerDriver.user?.name || String(drawerDriver.id),
+                    });
+                  } catch {
+                    toast.error(t('error_pdf', 'Failed to generate PDF'));
+                  }
+                }}
+                className="btn-secondary flex items-center gap-1.5 text-sm"
+                title={t('download_driver_pdf', { name: drawerDriver.user?.name || 'Driver', defaultValue: 'Download driver profile PDF: {{name}}' })}
+                aria-label={t('download_driver_pdf', { name: drawerDriver.user?.name || 'Driver', defaultValue: 'Download driver profile PDF: {{name}}' })}
+              >
+                <FileText className="w-4 h-4" aria-hidden="true" />{t('pdf', 'PDF')}
+              </button>
               <button
                 onClick={() => {
                   const d = drawerDriver;

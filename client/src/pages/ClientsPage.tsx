@@ -225,12 +225,6 @@ export default function ClientsPage() {
     onDelete: c => setDeleteId(c.id),
     isActive: !showForm && !selectedClient
   });
-  if (selectedClient) {
-    return <ClientDetails client={selectedClient} onBack={() => {
-      setSelectedClient(null);
-      load();
-    }} />;
-  }
   return <div className="space-y-4 animate-fade-in">
 
       <KpiStrip dense items={kpis} />
@@ -351,5 +345,15 @@ export default function ClientsPage() {
     }]} />
     
       <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={executeDelete} type="danger" />
+
+      {selectedClient && (
+        <ClientDetails
+          client={selectedClient}
+          onBack={() => {
+            setSelectedClient(null);
+            load();
+          }}
+        />
+      )}
     </div>;
 }

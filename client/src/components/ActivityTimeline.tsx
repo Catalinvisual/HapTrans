@@ -152,7 +152,7 @@ export default function ActivityTimeline({
       id: 'synthetic-created',
       action: 'CREATED',
       createdAt: createdAt,
-      user: { name: createdBy || 'Sistem' }
+      user: { name: createdBy || t('system', 'System') }
     });
   }
 
@@ -162,7 +162,7 @@ export default function ActivityTimeline({
       id: 'synthetic-updated',
       action: 'UPDATED',
       createdAt: updatedAt,
-      user: { name: updatedBy || createdBy || 'Sistem' }
+      user: { name: updatedBy || createdBy || t('system', 'System') }
     });
   }
 
@@ -201,7 +201,7 @@ export default function ActivityTimeline({
           ) : (
             displayLogs.map((log: any, idx: number) => {
               const isCreated = log.action === 'CREATED';
-              const userName = log.user?.name || log.user?.email || (isCreated ? createdBy : updatedBy) || 'Sistem';
+              const userName = log.user?.name || log.user?.email || (isCreated ? createdBy : updatedBy) || t('system', 'System');
               return (
                 <div key={log.id || idx} className="flex gap-2.5">
                   <div className="w-2 mt-1 shrink-0 flex flex-col items-center">

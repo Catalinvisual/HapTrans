@@ -42,9 +42,9 @@ export function getCleanOrderFilename(orderNumber?: string | null, clientName?: 
 
 /**
  * Returns a standardized, clean profile or spec filename with dash separator:
- * e.g. "Client - Mega Trans.pdf", "Truck - B-123-XYZ.pdf", "Trailer - B-456-ABC.pdf"
+ * e.g. "Client - Mega Trans.pdf", "Truck - B-123-XYZ.pdf", "Trailer - B-456-ABC.pdf", "Driver - Ion Popescu.pdf"
  */
-export function getCleanProfileFilename(type: 'Client' | 'Truck' | 'Trailer', identifier?: string | null): string {
+export function getCleanProfileFilename(type: 'Client' | 'Truck' | 'Trailer' | 'Driver', identifier?: string | null): string {
   const cleanId = sanitizeClientNameForFilename(identifier || 'Profile');
   return cleanId ? `${type} - ${cleanId}.pdf` : `${type}.pdf`;
 }

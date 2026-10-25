@@ -5,7 +5,7 @@ import i18n from './i18n';
 export interface ArchiveAndDownloadOptions {
   pdfBlob: Blob;
   defaultFilename: string;
-  sourceType: 'order' | 'trip' | 'client' | 'truck' | 'trailer' | 'payroll' | 'report' | 'other';
+  sourceType: 'order' | 'trip' | 'client' | 'truck' | 'trailer' | 'driver' | 'payroll' | 'report' | 'other';
   sourceId?: string;
   sourceReference?: string;
   downloadLocally?: boolean;

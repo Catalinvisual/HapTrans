@@ -391,6 +391,41 @@ export async function generateTrailerPdf(trailer: any, company: CompanySettings 
   return { doc, blob: doc.output('blob'), filename };
 }
 
+export async function generateDriverPdf(driver: any, company: CompanySettings | null, options?: { autoSave?: boolean }) {
+  const driverName = driver?.user?.name || driver?.name || 'Driver';
+  const { doc, startY } = await createBaseDocument(`Driver Profile: ${driverName}`, company, 'landscape');
+  let currentY = startY;
+
+  autoTable(doc, {
+    startY: currentY,
+    theme: 'grid',
+    head: [['Information', 'Details']],
+    styles: { fontSize: 10, cellPadding: 5 },
+    columnStyles: { 0: { fontStyle: 'bold', textColor: [30, 41, 59], cellWidth: 150, fillColor: [248, 250, 252] } },
+    body: [
+      ['Full Name', driverName],
+      ['Email', driver?.user?.email || '—'],
+      ['Phone', driver?.phone || driver?.user?.phone || '—'],
+      ['Status', (driver?.status || 'active').toUpperCase()],
+      ['License Number', driver?.licenseNumber || '—'],
+      ['License Expiry', fmtDate(driver?.licenseExpiry)],
+      ['Medical Expiry', fmtDate(driver?.medicalExpiry)],
+      ['Tachograph Card Expiry', fmtDate(driver?.tachoCardExpiry)],
+      ['Gross Salary', driver?.grossSalary ? `€${fmtNumber(driver.grossSalary)}` : (driver?.user?.grossSalary ? `€${fmtNumber(driver.user.grossSalary)}` : '—')],
+      ['Daily Allowance', driver?.dailyRate ? `€${fmtNumber(driver.dailyRate)}` : (driver?.user?.dailyRate ? `€${fmtNumber(driver.user.dailyRate)}` : '—')],
+      ['Assigned Truck', driver?.assignedTruck?.plateNumber || driver?.truck?.plateNumber || '—'],
+    ],
+    margin: { left: 40, right: 40 },
+  });
+
+  const filename = getCleanProfileFilename('Driver', driverName);
+  if (options?.autoSave !== false) {
+    doc.save(filename);
+  }
+
+  return { doc, blob: doc.output('blob'), filename };
+}
+
 export async function generateTripPdf(trip: any, company: CompanySettings | null, options?: { autoSave?: boolean }) {
   const tripNum = trip?.tripNumber || trip?.referenceNumber || (trip?.id ? `TRP-${String(trip.id).slice(0, 8)}` : 'Trip');
   const { doc, startY } = await createBaseDocument(`Trip Sheet: ${tripNum}`, company, 'landscape');
