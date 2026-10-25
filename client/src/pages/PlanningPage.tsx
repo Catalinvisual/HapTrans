@@ -5,11 +5,11 @@ import { createPortal } from 'react-dom';
 import {
   Truck as TruckIcon, Package, Loader2, MapPin, CheckCircle2, AlertTriangle, ExternalLink,
   Users, X, ChevronRight, ChevronLeft, Calendar, ArrowRight, Activity, Search,
-  Undo2, SplitSquareHorizontal, Send, ShieldCheck, Scale, Boxes,
+  Undo2, SplitSquareHorizontal, Send, ShieldCheck,
   LayoutGrid, Clock, Map as MapIcon, Sparkles, CheckSquare, Square, RefreshCw,
   ChevronsLeft, ChevronsRight, Plus, ArrowUp, ArrowDown, Layers, Navigation,
   Printer, Maximize2, Minimize2, RotateCcw, List, FileText, Pencil,
-  BookmarkPlus, Save, Trash2, GitMerge, Wand2, Download, Clock3,
+  BookmarkPlus, Save, Trash2, GitMerge, Wand2, Clock3,
   ZoomIn, ZoomOut, Unplug, Link as LinkIcon, ArrowRightLeft, Building2, DollarSign,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';

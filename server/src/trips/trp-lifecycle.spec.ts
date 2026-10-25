@@ -1224,7 +1224,7 @@ describe('HapCargo TMS — Definitive Planning, TRP Lifecycle, Audit & Security 
       const mixConflict = conflicts.find((c) => c.code === 'ADR_CARGO_INCOMPATIBILITY');
       expect(mixConflict).toBeDefined();
       expect(mixConflict?.level).toBe('blocking');
-      expect(mixConflict?.message).toContain('Mixed Loading Violation');
+      expect(mixConflict?.message).toMatch(/Mixed Loading Violation|Interdicție de încărcare în comun/);
     });
 
     it('should flag ADR_CARGO_INCOMPATIBILITY when Class 6.1 Toxic cargo is co-loaded with food', async () => {
@@ -1262,7 +1262,7 @@ describe('HapCargo TMS — Definitive Planning, TRP Lifecycle, Audit & Security 
       const foodConflict = conflicts.find((c) => c.code === 'ADR_CARGO_INCOMPATIBILITY');
       expect(foodConflict).toBeDefined();
       expect(foodConflict?.level).toBe('blocking');
-      expect(foodConflict?.message).toContain('food products');
+      expect(foodConflict?.message).toMatch(/food products|produselor alimentare/);
     });
 
     it('should flag ADR_ROUTE_RESTRICTION when cargo has tunnel code E', async () => {

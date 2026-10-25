@@ -527,8 +527,9 @@ export default function InvoicesPage({
           formData.append('file', file);
           formData.append('company', JSON.stringify(getCompanySettings()));
           await api.post(`/invoices/upload-pdf/${savedInvoice.id}`, formData);
-        } catch (pdfErr) {
+        } catch (pdfErr: any) {
           console.warn('PDF generation/upload failed, invoice was preserved:', pdfErr);
+          toast.error((t('invoicePdfWarning', 'Factura a fost salvată, dar generarea automată a PDF-ului a eșuat:') + ' ' + (pdfErr?.message || 'Eroare PDF')), { duration: 5000 });
         }
 
         if (editId) {

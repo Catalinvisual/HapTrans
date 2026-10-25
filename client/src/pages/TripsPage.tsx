@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Truck, Search, Loader2, FileText, Trash2, Download, ExternalLink, Activity, Calendar, Coins, Route as RouteIcon, User, Send, Boxes, Gauge, Clock, Wallet, Receipt, Banknote, ArrowRight, Scale, LayoutGrid } from 'lucide-react';
+import { Truck, Search, Loader2, FileText, Trash2, Download, ExternalLink, Activity, Calendar, Coins, Route as RouteIcon, User, Send, Gauge, Clock, Wallet, Receipt, Banknote, ArrowRight, LayoutGrid } from 'lucide-react';
 import api from '../lib/api';
 import { fmtNumber, fmtMoney, fmtKm, fmtPercent } from '../lib/format';
 import { matchesSearch } from '../lib/search';

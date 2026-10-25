@@ -1,7 +1,10 @@
-import { Injectable, NotFoundException, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, Not, In } from 'typeorm';
 import { v2 as cloudinary } from 'cloudinary';
+import { Readable } from 'stream';
+import { PdfService } from '../invoices/pdf.service';
+import { generateInvoiceHtml } from '../invoices/pdf-template';
 
 // Core entities (Legacy 9 datasets)
 import { Document } from '../documents/document.entity';
@@ -122,6 +125,7 @@ export class TnasService {
     @InjectRepository(SavedReport) private savedReportsRepo: Repository<SavedReport>,
     @InjectRepository(ScheduledReport) private scheduledReportsRepo: Repository<ScheduledReport>,
     @InjectRepository(Message) private messagesRepo: Repository<Message>,
+    @Optional() private pdfService?: PdfService,
   ) {}
 
   generateSignedUrl(entity: any, expiresInSeconds: number) {
@@ -162,7 +166,7 @@ export class TnasService {
   async getPendingFiles() {
     const results = [];
 
-    // 1. Documents
+    // 1. Documents (Manual documents uploaded in TMS or mobile app)
     try {
       const docs = await this.docsRepo.find({
         where: [
@@ -185,13 +189,14 @@ export class TnasService {
       this.logger.error(`Failed to load pending documents: ${docErr?.message}`);
     }
 
-    // 2. Invoices (hardened against varchar/boolean column mismatch & supporting pdfUrl/publicId)
+    // 2. Invoices (Exclusively routed to HC-Docs / Invoices)
     try {
       const invs = await this.invoicesRepo
         .createQueryBuilder('i')
         .leftJoinAndSelect('i.client', 'client')
+        .leftJoinAndSelect('i.items', 'items')
+        .leftJoinAndSelect('i.trip', 'trip')
         .where('(i.tnasDownloaded IS NULL OR i.tnasDownloaded = false OR CAST(i.tnasDownloaded AS text) IN (\'false\', \'0\'))')
-        .andWhere('(i.publicId IS NOT NULL OR i.pdfUrl IS NOT NULL)')
         .orderBy('i.createdAt', 'DESC')
         .getMany();
 
@@ -211,14 +216,98 @@ export class TnasService {
             .slice(0, 35);
           fallbackFile = safeClient ? `${baseNum} - ${safeClient}.pdf` : `${baseNum}.pdf`;
         }
-        results.push({
-          id: i.id,
-          source: 'invoices',
-          filename: i.originalFilename || fallbackFile,
-          category: 'Invoices',
-          signedUrl: this.generateSignedUrl(i, 15 * 60),
-          createdAt: i.createdAt,
-        });
+
+        // Self-healing 1: If invoice has pdfData (base64) but missing Cloudinary upload, upload it now
+        if ((!i.pdfUrl || !i.publicId) && i.pdfData && typeof i.pdfData === 'string' && i.pdfData.includes('base64,')) {
+          try {
+            const base64Data = i.pdfData.split('base64,')[1];
+            const buffer = Buffer.from(base64Data, 'base64');
+            const cleanPublicId = fallbackFile.replace(/\.pdf$/i, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+            const uploadRes = await new Promise<any>((resolve, reject) => {
+              const stream = cloudinary.uploader.upload_stream(
+                {
+                  folder: 'hapcargo_invoices',
+                  public_id: cleanPublicId,
+                  resource_type: 'raw',
+                  type: 'upload',
+                  format: 'pdf',
+                  overwrite: true,
+                },
+                (err, res) => (err ? reject(err) : resolve(res))
+              );
+              const r = new Readable();
+              r.push(buffer);
+              r.push(null);
+              r.pipe(stream);
+            });
+            i.pdfUrl = uploadRes.secure_url || uploadRes.url;
+            i.publicId = uploadRes.public_id;
+            i.originalFilename = fallbackFile;
+            i.resourceType = 'raw';
+            i.cloudinaryType = 'upload';
+            i.format = 'pdf';
+            await this.invoicesRepo.save(i);
+          } catch (upErr: any) {
+            this.logger.warn(`Failed to upload invoice ${i.id} pdfData to Cloudinary: ${upErr?.message}`);
+          }
+        }
+
+        // Self-healing 2: If invoice still lacks a generated PDF, generate and upload via backend Puppeteer
+        if ((!i.pdfUrl || !i.publicId) && this.pdfService) {
+          try {
+            let companySettings: any = {};
+            try {
+              const cmsRes: any[] = await this.invoicesRepo.manager.query(
+                `SELECT "value" FROM "website_cms" WHERE "key" = 'company_settings'`
+              );
+              if (cmsRes && cmsRes[0]?.value) {
+                companySettings = typeof cmsRes[0].value === 'string' ? JSON.parse(cmsRes[0].value) : cmsRes[0].value;
+              }
+            } catch (cmsErr) {}
+
+            const html = generateInvoiceHtml(i, companySettings, 'en');
+            const pdfBuffer = await this.pdfService.generatePdfFromHtml(html);
+            const cleanPublicId = fallbackFile.replace(/\.pdf$/i, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+            const uploadRes = await new Promise<any>((resolve, reject) => {
+              const stream = cloudinary.uploader.upload_stream(
+                {
+                  folder: 'hapcargo_invoices',
+                  public_id: cleanPublicId,
+                  resource_type: 'raw',
+                  type: 'upload',
+                  format: 'pdf',
+                  overwrite: true,
+                },
+                (err, res) => (err ? reject(err) : resolve(res))
+              );
+              const r = new Readable();
+              r.push(pdfBuffer);
+              r.push(null);
+              r.pipe(stream);
+            });
+            i.pdfUrl = uploadRes.secure_url || uploadRes.url;
+            i.publicId = uploadRes.public_id;
+            i.originalFilename = fallbackFile;
+            i.resourceType = 'raw';
+            i.cloudinaryType = 'upload';
+            i.format = 'pdf';
+            await this.invoicesRepo.save(i);
+          } catch (genErr: any) {
+            this.logger.warn(`Failed to auto-generate PDF for invoice ${i.id}: ${genErr?.message}`);
+          }
+        }
+
+        // Add to pending results if accessible direct URL or publicId is available
+        if (i.pdfUrl || i.publicId) {
+          results.push({
+            id: i.id,
+            source: 'invoices',
+            filename: i.originalFilename || fallbackFile,
+            category: 'Invoices',
+            signedUrl: this.generateSignedUrl(i, 15 * 60),
+            createdAt: i.createdAt,
+          });
+        }
       }
     } catch (invErr: any) {
       this.logger.error(`Failed to load pending invoices: ${invErr?.message}`);
@@ -272,6 +361,40 @@ export class TnasService {
       .catch(() => {});
 
     return { success: true };
+  }
+
+  async markAnyDownloaded(id: string) {
+    // Try invoices first
+    const inv = await this.invoicesRepo.findOne({ where: { id } });
+    if (inv) {
+      inv.tnasDownloaded = true;
+      await this.invoicesRepo.save(inv);
+      await this.invoicesRepo.createQueryBuilder()
+        .update()
+        .set({ tnasDownloaded: true as any })
+        .where("id = :id", { id })
+        .execute()
+        .catch(() => {});
+      return { success: true, source: 'invoices' };
+    }
+
+    // Try documents
+    const doc = await this.docsRepo.findOne({ where: { id } });
+    if (doc) {
+      doc.tnasDownloaded = true;
+      await this.docsRepo.save(doc);
+      return { success: true, source: 'documents' };
+    }
+
+    // Try expenses
+    const exp = await this.expensesRepo.findOne({ where: { id } });
+    if (exp) {
+      exp.tnasDownloaded = true;
+      await this.expensesRepo.save(exp);
+      return { success: true, source: 'expenses' };
+    }
+
+    throw new NotFoundException(`Item with id ${id} not found across invoices, documents or expenses`);
   }
 
   // ==========================================

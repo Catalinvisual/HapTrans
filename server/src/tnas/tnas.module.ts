@@ -61,6 +61,7 @@ import { Company } from '../companies/company.entity';
 import { SavedReport } from '../reports/saved-report.entity';
 import { ScheduledReport } from '../reports/scheduled-report.entity';
 import { Message } from '../chat/message.entity';
+import { PdfService } from '../invoices/pdf.service';
 
 @Module({
   imports: [
@@ -78,7 +79,7 @@ import { Message } from '../chat/message.entity';
     PdfArchivingModule,
   ],
   controllers: [TnasController],
-  providers: [TnasService],
+  providers: [TnasService, PdfService],
   exports: [TnasService],
 })
 export class TnasModule {}

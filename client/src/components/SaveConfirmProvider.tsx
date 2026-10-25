@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 import ConfirmModal from './ConfirmModal';
 import { useTranslation } from 'react-i18next';
 
@@ -8,6 +8,7 @@ export interface ConfirmActionOptions {
   confirmText?: string;
   cancelText?: string;
   type?: 'danger' | 'warning' | 'info' | 'success';
+  variant?: 'danger' | 'warning' | 'info' | 'success';
 }
 
 interface SaveConfirmContextType {
@@ -68,7 +69,7 @@ export const SaveConfirmProvider = ({ children }: { children: ReactNode }) => {
         message: opts.message,
         confirmText: opts.confirmText || t('confirm', 'Confirmă'),
         cancelText: opts.cancelText || t('cancel', 'Anulează'),
-        type: opts.type || 'warning',
+        type: opts.type || opts.variant || 'warning',
         resolve,
       });
     });

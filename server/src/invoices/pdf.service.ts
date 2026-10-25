@@ -1,24 +1,64 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import * as puppeteer from 'puppeteer';
+import * as fs from 'fs';
+import { execSync } from 'child_process';
 
 @Injectable()
 export class PdfService implements OnModuleDestroy {
   private readonly logger = new Logger(PdfService.name);
-  private browser: puppeteer.Browser | null = null;
+  private browser: any = null;
 
-  async getBrowser(): Promise<puppeteer.Browser> {
+  private resolveExecutablePath(): string | undefined {
+    if (process.env.PUPPETEER_EXECUTABLE_PATH && fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
+      return process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
+
+    const commonPaths = [
+      '/usr/bin/chromium',
+      '/usr/bin/chromium-browser',
+      '/usr/bin/google-chrome',
+      '/usr/bin/google-chrome-stable',
+      '/usr/lib/chromium/chromium',
+      '/snap/bin/chromium',
+    ];
+
+    for (const p of commonPaths) {
+      if (fs.existsSync(p)) return p;
+    }
+
+    try {
+      const which = execSync('which chromium || which chromium-browser || which google-chrome || echo not_found')
+        .toString()
+        .trim();
+      const first = which.split('\n')[0].trim();
+      if (first && first !== 'not_found' && !first.includes('no ') && fs.existsSync(first)) {
+        return first;
+      }
+    } catch {}
+
+    return undefined;
+  }
+
+  async getBrowser(): Promise<any> {
     if (!this.browser) {
       this.logger.log('Launching Puppeteer browser instance...');
-      this.browser = await puppeteer.launch({
-        headless: true,  
+      const puppeteer = require('puppeteer');
+      const execPath = this.resolveExecutablePath();
+      if (execPath) {
+        this.logger.log(`Using Chromium executable: ${execPath}`);
+      }
+      const launchOptions: any = {
+        headless: true,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-gpu',
-          // '--single-process'
         ],
-      });
+      };
+      if (execPath) {
+        launchOptions.executablePath = execPath;
+      }
+      this.browser = await puppeteer.launch(launchOptions);
     }
     return this.browser;
   }
@@ -30,7 +70,7 @@ export class PdfService implements OnModuleDestroy {
   }
 
   async generatePdfFromHtml(html: string): Promise<Buffer> {
-    let page: puppeteer.Page | null = null;
+    let page: any = null;
     try {
       const browser = await this.getBrowser();
       

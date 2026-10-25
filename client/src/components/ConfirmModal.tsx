@@ -1,4 +1,3 @@
-import React from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, X, Info, CheckCircle, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';

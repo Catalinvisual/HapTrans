@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import PortalOrderDrawer from '../../components/orders/PortalOrderDrawer';
 import { Plus, Search, MapPin, ArrowRight, Box, Boxes, Activity, Flag, BadgeEuro, FilterX } from 'lucide-react';
 import portalApi from '../../lib/portalApi';
 import { fmtMoney, fmtNumber } from '../../lib/format';

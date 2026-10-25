@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, SplitSquareHorizontal, CheckSquare, Square, Package, AlertTriangle, ArrowRight, Loader2 } from 'lucide-react';
+import { X, SplitSquareHorizontal, CheckSquare, Square, AlertTriangle, ArrowRight, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { fmtNumber, fmtMoney } from '../../lib/format';
 import { useConfirm } from '../SaveConfirmProvider';
@@ -54,11 +54,6 @@ export default function SplitTripModal({ isOpen, onClose, trip, onSplit, isLoadi
   const selectedPallets = selectedOrders.reduce((sum: number, o: any) => {
     const p = (o.cargoItems || []).reduce((s: number, c: any) => s + (Number(c.quantity) || 0), 0) || Number(o.pallets) || 0;
     return sum + p;
-  }, 0);
-
-  const selectedLdm = selectedOrders.reduce((sum: number, o: any) => {
-    const l = (o.cargoItems || []).reduce((s: number, c: any) => s + (Number(c.ldm) || 0), 0) || Number(o.loadingMeters || o.ldm) || 0;
-    return sum + l;
   }, 0);
 
   // Count stops associated with selected orders

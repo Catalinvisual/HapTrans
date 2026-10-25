@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Box, MapPin, FileText, User, Boxes, Flag, Weight, Download, Loader2 } from 'lucide-react';
+import { Box, MapPin, FileText, User, Flag, Download, Loader2 } from 'lucide-react';
 import { notify } from '../AppToaster';
 import portalApi from '../../lib/portalApi';
 import { fmtMoney, fmtNumber } from '../../lib/format';

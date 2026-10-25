@@ -343,8 +343,9 @@ export default function OrdersPage() {
         formData.append('file', file);
         formData.append('company', JSON.stringify(getCompanySettings()));
         await api.post(`/invoices/upload-pdf/${savedInvoice.id}`, formData);
-      } catch (pdfErr) {
+      } catch (pdfErr: any) {
         console.warn('PDF upload failed, invoice record is preserved:', pdfErr);
+        toast.error((t('invoicePdfWarning', 'Factura a fost creată, dar generarea automată a PDF-ului a eșuat:') + ' ' + (pdfErr?.message || 'Eroare PDF')), { duration: 5000 });
       }
 
       await api.patch(`/orders/${o.id}`, { status: 'invoiced' });
