@@ -103,7 +103,7 @@ export class PdfService implements OnModuleDestroy {
     } finally {
       // Close only the page, keep the browser open for next requests
       if (page) {
-        await page.close().catch(e => this.logger.error(`Error closing page: ${e.message}`));
+        await page.close().catch((e: any) => this.logger.error(`Error closing page: ${e?.message || e}`));
       }
     }
   }
