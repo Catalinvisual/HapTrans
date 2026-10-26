@@ -505,7 +505,7 @@ export default function TruckRoutePlannerPage() {
     const orderNum = stop.order?.orderNumber || stop.shipmentId || `#${orderId.slice(0, 8)}`;
     const ok = await confirm({
       type: 'warning',
-      title: t('unassign_order_title', 'Dezasociază comanda'),
+      title: `${t('unassign_order_title', 'Dezasociază comanda')} (${orderNum})`,
       message: t('unassign_order_confirm', `Sigur doriți să eliminați această comandă de pe acest camion și să o returnați în secțiunea de comenzi nealocate (Unassigned Orders)?`),
       confirmText: t('unassign_btn', 'Dezasociază'),
       cancelText: t('cancel', 'Anulează'),
