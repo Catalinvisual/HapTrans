@@ -25,6 +25,56 @@ function fmtDate(d: string | Date | null | undefined) {
   });
 }
 
+function formatDriverDisplayName(driver: any): string {
+  if (!driver) return '—';
+
+  // 1. Explicit first name + last name
+  const first = (driver.firstName || driver.user?.firstName || '').trim();
+  const last = (driver.lastName || driver.user?.lastName || '').trim();
+  if (first && last) {
+    return `${first} ${last}`;
+  }
+
+  // 2. Direct name or user name
+  const raw = String(
+    driver.name ||
+    driver.fullName ||
+    driver.user?.name ||
+    driver.driver?.name ||
+    driver.driver?.user?.name ||
+    ''
+  ).trim();
+
+  if (raw && !raw.includes('@') && raw !== '—') {
+    return raw;
+  }
+
+  // 3. Email derivation: e.g. "sofer.gabriel.constantin9@hapcargo.ro" -> "Gabriel Constantin"
+  const email = String(
+    driver.user?.email ||
+    driver.email ||
+    driver.driver?.user?.email ||
+    (raw.includes('@') ? raw : '')
+  ).trim();
+
+  if (email) {
+    const local = email.split('@')[0];
+    const parts = local
+      .split(/[._\-+0-9]+/)
+      .filter((p) => p && !/^(sofer|șofer|driver|drv|user|info|contact|admin|office|test|haptrans|hapcargo)$/i.test(p));
+    if (parts.length >= 2) {
+      const capFirst = parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase();
+      const capLast = parts[parts.length - 1].charAt(0).toUpperCase() + parts[parts.length - 1].slice(1).toLowerCase();
+      return `${capFirst} ${capLast}`;
+    }
+    if (parts.length === 1) {
+      return parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase();
+    }
+  }
+
+  return raw || email || '—';
+}
+
 export default function TruckRoutePlannerPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -125,13 +175,14 @@ export default function TruckRoutePlannerPage() {
 
   useEffect(() => { loadProfiles(); }, [loadProfiles]);
   useEffect(() => { loadPlan(date); }, [truckId, date, queryTrip]);
+  const effectiveTruckId = truckId || routePlan?.truckId || routePlan?.truck?.id || '';
   useEffect(() => {
-    if (truckId) {
-      api.get(`/trucks/${truckId}`).then((res) => {
+    if (effectiveTruckId && !fallbackTruck) {
+      api.get(`/trucks/${effectiveTruckId}`).then((res) => {
         if (res.data) setFallbackTruck(res.data);
       }).catch(() => {});
     }
-  }, [truckId]);
+  }, [effectiveTruckId, fallbackTruck]);
 
   const sortedStops = useMemo(() => {
     const raw = [...(routePlan?.stops || [])].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
@@ -676,7 +727,15 @@ export default function TruckRoutePlannerPage() {
 
   const trip = routePlan?.trip || {};
   const truck = routePlan?.truck || trip.truck || fallbackTruck || null;
-  const driver = routePlan?.driver || trip.driver || truck?.driver || fallbackTruck?.driver || null;
+  const candidateDrivers = [
+    routePlan?.driver,
+    trip.driver,
+    truck?.driver,
+    fallbackTruck?.driver,
+  ].filter(Boolean);
+  const driver = candidateDrivers.find((d: any) =>
+    (d?.user && (d.user.name || d.user.email)) || d?.name || d?.fullName || (d?.firstName && d?.lastName) || d?.email
+  ) || candidateDrivers[0] || null;
   const trailer = routePlan?.trailer || trip.trailer || truck?.trailer || fallbackTruck?.trailer || null;
   const hasStops = sortedStops.length > 0;
   const trpNumber = routePlan?.tripNumber || trip.tripNumber || (queryTrip ? `TRP` : t('pln_planner', 'Route Planner'));
@@ -773,7 +832,7 @@ export default function TruckRoutePlannerPage() {
               </span>
             </div>
             <div className="flex items-center gap-3 text-xs text-text-secondary mt-1">
-              <span>{t('export_col_driver', 'Driver')}: <strong className="text-text-primary">{driver?.user?.name || driver?.user?.email || '—'}</strong></span>
+              <span>{t('export_col_driver', 'Driver')}: <strong className="text-text-primary" title={driver?.user?.email || driver?.email || undefined}>{formatDriverDisplayName(driver)}</strong></span>
               <span>·</span>
               <span>{t('export_col_trailer', 'Trailer')}: <strong className="text-text-primary">{trailer?.plateNumber || '—'}</strong></span>
               <span>·</span>

@@ -3538,16 +3538,14 @@ export class PlanningService {
     }
 
     if (routePlan) {
-      if (!routePlan.truck) {
-        routePlan.truck = truck;
-      } else {
-        if (!routePlan.truck.driver && truck.driver) routePlan.truck.driver = truck.driver;
-        if (!routePlan.truck.trailer && truck.trailer) routePlan.truck.trailer = truck.trailer;
-      }
-      if (!routePlan.driver && truck.driver) {
+      routePlan.truck = { ...truck, ...(routePlan.truck || {}) };
+      if (truck.driver) routePlan.truck.driver = truck.driver;
+      if (truck.trailer) routePlan.truck.trailer = truck.trailer;
+
+      if (truck.driver && (!routePlan.driver || !routePlan.driver.user)) {
         routePlan.driver = truck.driver;
       }
-      if (!(routePlan as any).trailer && truck.trailer) {
+      if (truck.trailer && !(routePlan as any).trailer) {
         (routePlan as any).trailer = truck.trailer;
       }
     }
@@ -3825,16 +3823,14 @@ export class PlanningService {
     }
 
     if (routePlan) {
-      if (!routePlan.truck) {
-        routePlan.truck = truck;
-      } else {
-        if (!routePlan.truck.driver && truck.driver) routePlan.truck.driver = truck.driver;
-        if (!routePlan.truck.trailer && truck.trailer) routePlan.truck.trailer = truck.trailer;
-      }
-      if (!routePlan.driver && truck.driver) {
+      routePlan.truck = { ...truck, ...(routePlan.truck || {}) };
+      if (truck.driver) routePlan.truck.driver = truck.driver;
+      if (truck.trailer) routePlan.truck.trailer = truck.trailer;
+
+      if (truck.driver && (!routePlan.driver || !routePlan.driver.user)) {
         routePlan.driver = truck.driver;
       }
-      if (!(routePlan as any).trailer && truck.trailer) {
+      if (truck.trailer && !(routePlan as any).trailer) {
         (routePlan as any).trailer = truck.trailer;
       }
       if (routePlan.truck) {
