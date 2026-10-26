@@ -515,9 +515,21 @@ function TripBlock({
 
   return (
     <div
+      draggable={['planning', 'planned', 'assigned'].includes(st)}
+      onDragStart={(e) => {
+        e.stopPropagation();
+        e.dataTransfer.setData('application/json', JSON.stringify({
+          type: 'assigned-trip',
+          tripId: trip.id,
+          tripNumber: trip.tripNumber,
+          orderIds: (trip.orders || []).map((o: any) => o.id).filter(Boolean),
+        }));
+        e.dataTransfer.effectAllowed = 'move';
+      }}
       className="absolute top-1 bottom-1 cursor-pointer group/block z-[5]"
       style={{ left: `${pos.left}%`, width: `${pos.width}%`, minWidth: '3rem' }}
       onClick={onClick}
+      title={['planning', 'planned', 'assigned'].includes(st) ? t('drag_trip_to_unassign', 'Trage spre Order Pool pentru a dezasocia, sau click pentru detalii') : undefined}
     >
       <div
         className={`h-full rounded-xl border-2 overflow-hidden transition-all duration-150 flex flex-col ${
@@ -1898,6 +1910,7 @@ export default function PlanningPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [selectedPoolOrderIds, setSelectedPoolOrderIds] = useState<Set<string>>(new Set());
   const [draggingOrderId, setDraggingOrderId] = useState<string | null>(null);
+  const [isPoolDragOver, setIsPoolDragOver] = useState(false);
 
   const [wizardConfig, setWizardConfig] = useState<{ orderId: string; initialStep: number; highlight: string | null } | null>(null);
   const [drawerRefreshKey, setDrawerRefreshKey] = useState(0);
@@ -2577,9 +2590,60 @@ export default function PlanningPage() {
 
         {/* ORDER POOL (left panel) */}
         <div 
-          className={`relative flex flex-col border border-border rounded-xl shadow-sm bg-card shrink-0 overflow-hidden print:hidden ${isPoolResizing ? 'select-none transition-none' : 'transition-all duration-300'}`}
+          className={`relative flex flex-col border border-border rounded-xl shadow-sm bg-card shrink-0 overflow-hidden print:hidden ${isPoolResizing ? 'select-none transition-none' : 'transition-all duration-300'} ${isPoolDragOver ? 'ring-2 ring-primary border-primary bg-primary/5' : ''}`}
           style={{ width: poolCollapsed ? 40 : poolWidth }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (!isPoolDragOver) setIsPoolDragOver(true);
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+              setIsPoolDragOver(false);
+            }
+          }}
+          onDrop={async (e) => {
+            e.preventDefault();
+            setIsPoolDragOver(false);
+            try {
+              const rawData = e.dataTransfer.getData('application/json');
+              const textData = e.dataTransfer.getData('text/plain');
+              let parsed: any = null;
+              if (rawData) {
+                try { parsed = JSON.parse(rawData); } catch {}
+              }
+              if (parsed?.type === 'assigned-trip') {
+                const tripId = parsed.tripId;
+                const ok = await confirm({
+                  type: 'warning',
+                  title: t('unassign_trip_title', 'Dezasociază cursa'),
+                  message: t('unassign_trip_msg', `Sigur doriți să dezasociați cursa ${parsed.tripNumber || ''} și să trimiteți comenzile înapoi în lista de comenzi nealocate?`),
+                  confirmText: t('unassign', 'Dezasociază'),
+                  cancelText: t('cancel', 'Anulează'),
+                });
+                if (!ok) return;
+                await planningApi.unplanTrip(tripId);
+                toast.success(t('trip_unplanned_pool', 'Cursa a fost dezasociată. Comenzile au revenit în lista de comenzi nealocate.'));
+                loadData();
+              } else if (parsed?.type === 'assigned-order' || (textData && !parsed)) {
+                const orderId = parsed?.orderId || textData;
+                if (!orderId) return;
+                await api.post('/planning/unplan', { orderIds: [orderId] });
+                toast.success(t('order_unassigned_pool', 'Comanda a fost returnată la comenzi nealocate.'));
+                loadData();
+              }
+            } catch (err: any) {
+              toast.error(err?.response?.data?.message || t('action_failed', 'Acțiunea a eșuat'));
+            }
+          }}
         >
+          {isPoolDragOver && (
+            <div className="absolute inset-0 z-50 bg-primary/10 backdrop-blur-[2px] border-2 border-dashed border-primary rounded-xl flex flex-col items-center justify-center p-4 text-center pointer-events-none">
+              <Undo2 className="w-8 h-8 text-primary animate-bounce mb-2" />
+              <p className="font-black text-sm text-primary">{t('drop_to_unassign', 'Eliberează aici pentru a dezasocia')}</p>
+              <p className="text-[11px] text-text-secondary mt-1">{t('drop_to_unassign_hint', 'Comanda sau cursa va fi returnată la nealocate')}</p>
+            </div>
+          )}
           {/* Pool header */}
           <div className={`flex items-center justify-between p-2.5 border-b border-border bg-surface/30 shrink-0 ${poolCollapsed ? 'flex-col gap-2' : ''}`}>
             {!poolCollapsed && (

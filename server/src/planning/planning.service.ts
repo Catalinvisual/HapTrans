@@ -1327,6 +1327,7 @@ export class PlanningService {
     }
     await this.stopRepo.delete({ trip: { id: tripId } });
     await this.taskRepo.delete({ stop: { trip: { id: tripId } } });
+    await this.routePlanRepo.delete({ tripId });
     await this.tripRepo.delete({ id: tripId });
     await this.logTimeline('trip_deleted', user, {
       tripId,
@@ -3482,6 +3483,15 @@ export class PlanningService {
       relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'driver', 'driver.user', 'trip'],
     });
 
+    const isTripCompleted = routePlan?.trip && ['completed', 'closed', 'cancelled'].includes(String(routePlan.trip.status).toLowerCase());
+    const areStopsCompleted = routePlan?.stops?.length ? routePlan.stops.every(s => s.order && ['completed', 'delivered'].includes(String(s.order.status).toLowerCase())) : false;
+
+    if (routePlan && (isTripCompleted || areStopsCompleted)) {
+      await this.routePlanStopRepo.delete({ routePlanId: routePlan.id });
+      await this.routePlanRepo.delete({ id: routePlan.id });
+      routePlan = null;
+    }
+
     if (!routePlan) {
       const profile = await this.getDefaultProfile(userCompanyId);
 
@@ -3718,8 +3728,24 @@ export class PlanningService {
       order: { stops: { sequence: 'ASC' } },
     });
 
-    if (routePlan && routePlan.trip && ['completed', 'closed', 'cancelled'].includes(String(routePlan.trip.status).toLowerCase())) {
+    const isTripCompleted = routePlan?.trip && ['completed', 'closed', 'cancelled'].includes(String(routePlan.trip.status).toLowerCase());
+    const areStopsCompleted = routePlan?.stops?.length ? routePlan.stops.every(s => s.order && ['completed', 'delivered'].includes(String(s.order.status).toLowerCase())) : false;
+
+    if (routePlan && (isTripCompleted || areStopsCompleted)) {
+      await this.routePlanStopRepo.delete({ routePlanId: routePlan.id });
+      await this.routePlanRepo.delete({ id: routePlan.id });
       routePlan = null;
+    }
+
+    if (routePlan?.stops?.length) {
+      const activeStops = routePlan.stops.filter(s => !s.order || !['completed', 'delivered', 'cancelled'].includes(String(s.order.status).toLowerCase()));
+      if (activeStops.length !== routePlan.stops.length) {
+        const removed = routePlan.stops.filter(s => s.order && ['completed', 'delivered', 'cancelled'].includes(String(s.order.status).toLowerCase()));
+        for (const rm of removed) {
+          await this.routePlanStopRepo.delete({ id: rm.id });
+        }
+        routePlan.stops = activeStops;
+      }
     }
 
     if (!routePlan || !routePlan.stops || routePlan.stops.length === 0) {

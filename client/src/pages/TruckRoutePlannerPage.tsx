@@ -6,10 +6,11 @@ import {
   Package, Loader2, MapPin, AlertTriangle, X, ArrowUp, ArrowDown,
   Lock, Unlock, RotateCcw, Sparkles, Save,
   CheckCircle2, Info, Route as RouteIcon, ClipboardList, GripVertical, GripHorizontal,
-  ShieldAlert, ArrowRight, Navigation, ArrowLeft, ShieldCheck, Send,
+  ShieldAlert, ArrowRight, Navigation, ArrowLeft, ShieldCheck, Send, Undo2,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import api from '../lib/api';
 import { planningApi } from '../lib/planningApi';
 import { useConfirm } from '../components/SaveConfirmProvider';
 import PalletIcon from '../components/icons/PalletIcon';
@@ -80,6 +81,13 @@ export default function TruckRoutePlannerPage() {
       }
       if (!plan) {
         plan = await planningApi.getRoutePlan(truckId, d);
+      }
+      if (!queryTrip && plan) {
+        const isPlanCompleted = ['completed', 'closed', 'cancelled'].includes(String(plan?.trip?.status || plan?.tripStatus).toLowerCase());
+        const areAllStopsCompleted = plan?.stops?.length > 0 && plan.stops.every((s: any) => ['completed', 'delivered'].includes(String(s.order?.status).toLowerCase()));
+        if (isPlanCompleted || areAllStopsCompleted) {
+          plan = { ...plan, stops: [], trip: null, tripId: null, tripStatus: null };
+        }
       }
       setRoutePlan(plan);
       setDirty(false);
@@ -429,6 +437,68 @@ export default function TruckRoutePlannerPage() {
     }
   };
 
+  const handleUnassignStop = async (stop: any) => {
+    const orderId = stop.orderId || stop.order?.id;
+    if (!orderId) {
+      toast.error(t('stop_has_no_order', 'Această oprire nu este asociată unei comenzi.'));
+      return;
+    }
+    const orderNum = stop.order?.orderNumber || stop.shipmentId || `#${orderId.slice(0, 8)}`;
+    const ok = await confirm({
+      type: 'warning',
+      title: t('unassign_order_title', 'Dezasociază comanda'),
+      message: t('unassign_order_confirm', `Sigur doriți să eliminați comanda ${orderNum} de pe acest camion și să o returnați în secțiunea de comenzi nealocate (Unassigned Orders)?`),
+      confirmText: t('unassign', 'Dezasociază'),
+      cancelText: t('cancel', 'Anulează'),
+    });
+    if (!ok) return;
+
+    setActionLoading(`unassign-${stop.id}`);
+    try {
+      if (effectiveTripId) {
+        await planningApi.unassignOrder(effectiveTripId, orderId);
+      } else {
+        await api.post('/planning/unplan', { orderIds: [orderId] });
+      }
+      toast.success(t('order_unassigned_success', 'Comanda a fost trimisă înapoi la comenzi nealocate'));
+      await loadPlan(date);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('action_failed', 'Acțiunea a eșuat'));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleUnplanAll = async () => {
+    if (!sortedStops.length) return;
+    const ok = await confirm({
+      type: 'warning',
+      title: t('unplan_all_title', 'Golire camion / Dezasociere comenzi'),
+      message: t('unplan_all_confirm', 'Sigur doriți să goliți camionul? Toate comenzile de pe acest camion vor fi returnate în lista de comenzi nealocate.'),
+      confirmText: t('unplan_all', 'Golește camionul'),
+      cancelText: t('cancel', 'Anulează'),
+    });
+    if (!ok) return;
+
+    setActionLoading('unplan-all');
+    try {
+      if (effectiveTripId) {
+        await planningApi.unplanTrip(effectiveTripId);
+      } else {
+        const orderIds = Array.from(new Set(sortedStops.map((s: any) => s.orderId || s.order?.id).filter(Boolean)));
+        if (orderIds.length) {
+          await api.post('/planning/unplan', { orderIds });
+        }
+      }
+      toast.success(t('truck_cleared_success', 'Camionul a fost golit. Comenzile au revenit în comenzi nealocate.'));
+      await loadPlan(date);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || t('action_failed', 'Acțiunea a eșuat'));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleConfirmPlan = async () => {
     if (!effectiveTripId) {
       toast.error('No associated TRP found to confirm.');
@@ -722,6 +792,18 @@ export default function TruckRoutePlannerPage() {
             <span className="hidden xl:inline">{t('pln_reset', 'Reset')}</span>
           </button>
 
+          {sortedStops.length > 0 && !isPlanningLocked && (
+            <button
+              onClick={handleUnplanAll}
+              disabled={!!actionLoading}
+              className="btn-secondary text-xs py-2 px-3 flex items-center gap-1 font-bold text-red-500 hover:text-red-600 hover:bg-red-500/10 border-red-500/20 disabled:opacity-40"
+              title={t('unplan_all', 'Golește camion (trimite comenzile la comenzi nealocate)')}
+            >
+              <Undo2 className="w-3.5 h-3.5" />
+              <span className="hidden xl:inline">{t('unplan_all', 'Golește')}</span>
+            </button>
+          )}
+
           <button
             onClick={() => handleOptimize()}
             disabled={!!actionLoading || isPlanningLocked}
@@ -902,6 +984,16 @@ export default function TruckRoutePlannerPage() {
                           >
                             <ArrowDown className="w-3.5 h-3.5" />
                           </button>
+                          {(stop.orderId || stop.order?.id) && (
+                            <button
+                              onClick={() => handleUnassignStop(stop)}
+                              disabled={!!actionLoading || isPlanningLocked}
+                              className="p-1 rounded-md text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-30"
+                              title={t('unassign_order', 'Dezasociază comanda (trimite înapoi la comenzi nealocate)')}
+                            >
+                              <Undo2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </div>
                       <p className="text-sm font-bold text-text-primary truncate mt-0.5">
