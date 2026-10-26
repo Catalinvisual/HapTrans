@@ -3718,12 +3718,16 @@ export class PlanningService {
       order: { stops: { sequence: 'ASC' } },
     });
 
+    if (routePlan && routePlan.trip && ['completed', 'closed', 'cancelled'].includes(String(routePlan.trip.status).toLowerCase())) {
+      routePlan = null;
+    }
+
     if (!routePlan || !routePlan.stops || routePlan.stops.length === 0) {
       if (routePlan && (!routePlan.stops || routePlan.stops.length === 0)) {
         await this.routePlanRepo.delete({ id: routePlan.id });
       }
 
-      // Look for any trip belonging to this truck that has stops or orders
+      // Look for active trip belonging to this truck that has stops or orders
       const tripQb = this.tripRepo.createQueryBuilder('trip')
         .leftJoinAndSelect('trip.truck', 'truck')
         .leftJoinAndSelect('truck.driver', 'truckDriver')
@@ -3746,14 +3750,15 @@ export class PlanningService {
 
       const trips = await tripQb.orderBy('trip.createdAt', 'DESC').getMany();
       const tripsWithContent = trips.filter(tr => (tr.stops && tr.stops.length > 0) || (tr.orders && tr.orders.length > 0));
+      const activeTrips = tripsWithContent.filter(tr => !['completed', 'closed', 'cancelled'].includes(String(tr.status).toLowerCase()));
 
-      const matchingTrip = tripsWithContent.find(tr => {
+      const matchingTrip = activeTrips.find(tr => {
         const depStr = tr.plannedDeparture ? new Date(tr.plannedDeparture).toISOString().split('T')[0] : '';
         const arrStr = tr.plannedArrival ? new Date(tr.plannedArrival).toISOString().split('T')[0] : '';
         return depStr === planningDate || arrStr === planningDate;
-      }) || tripsWithContent.find(tr => 
+      }) || activeTrips.find(tr => 
         ['planning', 'planned', 'assigned', 'dispatched', 'driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'].includes(String(tr.status))
-      ) || tripsWithContent[0];
+      );
 
       if (matchingTrip) {
         routePlan = await this.createRoutePlanFromTrip(matchingTrip.id, planningDate);

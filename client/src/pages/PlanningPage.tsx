@@ -432,7 +432,12 @@ function PoolOrderCard({
   return (
     <div
       draggable
-      onDragStart={e => { e.dataTransfer.setData('orderId', order.id); e.dataTransfer.effectAllowed = 'move'; setDraggingId(order.id); }}
+      onDragStart={e => {
+        e.dataTransfer.setData('orderId', order.id);
+        e.dataTransfer.setData('text/plain', order.id);
+        e.dataTransfer.effectAllowed = 'move';
+        setDraggingId(order.id);
+      }}
       onDragEnd={() => setDraggingId(null)}
       onClick={() => onDetail?.(order)}
       className={`group rounded-xl p-2 cursor-pointer transition-all select-none border max-h-[65px] flex flex-col justify-between ${
@@ -633,12 +638,13 @@ function CapacityIndicator({ icon: Icon, text, pct, tooltip }: {
 // ─── Resource Row (Gantt Row) ────────────────────────────────────────────────────────
 function ResourceRow({
   resource, trips, fromDate, totalMinutes, hoursVisible, selectedTripId, onSelectTrip, onDropOrder, draggingId, draggingOrder, onOpenPlanner,
-  hosSummary = {}, grouping = 'truck',
+  hosSummary = {}, grouping = 'truck', colWidth = 52, timelineWidth,
 }: {
   resource: any; trips: any[]; fromDate: string; totalMinutes: number; hoursVisible: number; selectedTripId: string | null;
-  onSelectTrip: (id: string) => void; onDropOrder: (resourceId: string) => void; draggingId: string | null; draggingOrder?: any;
+  onSelectTrip: (id: string) => void; onDropOrder: (resourceId: string, orderId?: string) => void; draggingId: string | null; draggingOrder?: any;
   onOpenPlanner: (resource: any) => void;
   hosSummary?: Record<string, any>; grouping?: 'truck' | 'driver' | 'trailer';
+  colWidth?: number; timelineWidth?: number;
 }) {
   const { t } = useTranslation();
   const [isDragOver, setIsDragOver] = useState(false);
@@ -649,6 +655,7 @@ function ResourceRow({
   const isMaintenance = st === 'maintenance';
   const statusDot = { active:'bg-emerald-400', available:'bg-emerald-400', assigned:'bg-blue-400', driving:'bg-amber-400', maintenance:'bg-red-400', inactive:'bg-slate-400' }[st] || 'bg-slate-400';
   const hasTrips = trips.length > 0;
+  const calcTimelineWidth = timelineWidth || (hoursVisible * colWidth);
 
   // Smart capacity feedback for drag-over
   const draggingWeight = draggingOrder ? sumCargo([draggingOrder]).weight : 0;
@@ -657,7 +664,7 @@ function ResourceRow({
   const capPct = mw > 0 ? Math.round((resultWeight / mw) * 100) : 0;
   const isOverloaded = resultWeight > mw;
   const isNearCap = !isOverloaded && capPct >= 90;
-  const canAcceptDrag = !isMaintenance && draggingId && (draggingWeight === 0 || !isOverloaded);
+  const canAcceptDrag = !isMaintenance && (draggingWeight === 0 || !isOverloaded);
 
   // Dynamic capacity indicators (weight + pallets)
   const weightPct = mw > 0 ? (cargo.weight / mw) * 100 : 0;
@@ -672,7 +679,7 @@ function ResourceRow({
   const driverId = grouping === 'driver' ? resource.id : (resource.driver?.id || null);
   const hos = driverId ? hosSummary?.[driverId] : null;
 
-  const dragZoneClass = isDragOver && draggingId
+  const dragZoneClass = isDragOver
     ? (isMaintenance
         ? 'bg-red-500/10 ring-2 ring-red-500/40 ring-inset'
         : canAcceptDrag
@@ -682,14 +689,43 @@ function ResourceRow({
           : 'bg-red-500/10 ring-2 ring-red-500/40 ring-inset')
     : 'bg-gradient-to-b from-surface/20 via-transparent to-surface/10';
 
+  const handleRowDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (!isDragOver) setIsDragOver(true);
+  };
+
+  const handleRowDragLeave = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
+  };
+
+  const handleRowDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const droppedId = e.dataTransfer.getData('orderId') || e.dataTransfer.getData('text/plain') || draggingId;
+    if (!isMaintenance && droppedId) {
+      onDropOrder(resource.id, droppedId);
+    }
+  };
+
   return (
-    <div className={`flex border-b-2 border-border min-h-[96px] group transition-colors ${isMaintenance ? 'bg-red-500/[0.02] hover:bg-red-500/[0.04]' : 'hover:bg-primary/[0.02]'}`}>
-      {/* Resource Column — sticky left — CLICKABLE */}
+    <div
+      className={`flex border-b-2 border-border min-h-[96px] group transition-colors ${isMaintenance ? 'bg-red-500/[0.02] hover:bg-red-500/[0.04]' : 'hover:bg-primary/[0.02]'}`}
+      style={{ minWidth: `${224 + calcTimelineWidth}px` }}
+    >
+      {/* Resource Column — sticky left — CLICKABLE & DROP TARGET */}
       <div
-        className={`w-56 shrink-0 px-2 py-1 border-r flex flex-col justify-center gap-0.5 sticky left-0 z-10 shadow-[2px_0_6px_rgba(0,0,0,0.06)] cursor-pointer group/truck transition-colors ${
-          isMaintenance ? 'bg-red-500/5 border-red-500/30 hover:bg-red-500/10' : 'bg-card border-border hover:bg-primary/5'
+        className={`w-56 shrink-0 px-2 py-1 border-r flex flex-col justify-center gap-0.5 sticky left-0 z-10 shadow-[2px_0_6px_rgba(0,0,0,0.06)] cursor-pointer group/truck transition-all ${
+          isDragOver
+            ? (isMaintenance ? 'bg-red-500/20 ring-2 ring-red-500 ring-inset' : 'bg-primary/20 ring-2 ring-primary ring-inset scale-[1.01]')
+            : isMaintenance ? 'bg-red-500/5 border-red-500/30 hover:bg-red-500/10' : 'bg-card border-border hover:bg-primary/5'
         }`}
         onClick={() => onOpenPlanner(resource)}
+        onDragOver={handleRowDragOver}
+        onDragLeave={handleRowDragLeave}
+        onDrop={handleRowDrop}
         title={t('pln_open_planner', 'Open Truck Route & Load Planner')}
       >
         <div className="flex items-center justify-between">
@@ -741,14 +777,19 @@ function ResourceRow({
       {/* Timeline Area */}
       <div
         className={`relative flex-1 transition-all duration-150 ${dragZoneClass}`}
-        onDragOver={e => { if (draggingId && !isMaintenance) { e.preventDefault(); setIsDragOver(true); } }}
-        onDragLeave={() => setIsDragOver(false)}
-        onDrop={e => { e.preventDefault(); setIsDragOver(false); if (!isMaintenance) onDropOrder(resource.id); }}
+        style={{ minWidth: `${calcTimelineWidth}px` }}
+        onDragOver={handleRowDragOver}
+        onDragLeave={handleRowDragLeave}
+        onDrop={handleRowDrop}
       >
         {/* Hour grid lines */}
-        <div className="absolute inset-0 flex pointer-events-none">
+        <div className="absolute inset-0 flex pointer-events-none" style={{ minWidth: `${calcTimelineWidth}px` }}>
           {Array.from({ length: hoursVisible }, (_, h) => (
-            <div key={h} className="flex-1 border-r border-border/20 last:border-0" />
+            <div
+              key={h}
+              className="flex-1 border-r border-border/20 last:border-0"
+              style={{ minWidth: `${colWidth}px`, width: `${colWidth}px` }}
+            />
           ))}
         </div>
 
@@ -1978,6 +2019,8 @@ export default function PlanningPage() {
   const [crossDockConfig, setCrossDockConfig] = useState<{ isOpen: boolean; orderId?: string; tripId?: string }>({ isOpen: false });
   const [subcontractorTargetTrip, setSubcontractorTargetTrip] = useState<any | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(1.0);
+  const colWidth = useMemo(() => Math.max(48, Math.round(52 * zoomLevel)), [zoomLevel]);
+  const totalTimelineWidth = useMemo(() => hoursVisible * colWidth, [hoursVisible, colWidth]);
 
   // Continuous Timeline Zoom with Ctrl/Cmd + Mouse Wheel
   useEffect(() => {
@@ -2140,12 +2183,13 @@ export default function PlanningPage() {
     }
   };
 
-  const handleDropOrder = async (resourceId: string) => {
+  const handleDropOrder = async (resourceId: string, droppedOrderId?: string) => {
     if (resourceId === '__unassigned_trips__') {
       toast.error(t('drop_unassigned_err', 'Please drop the order onto a valid truck row.'));
       return;
     }
-    const orderIds = draggingOrderId ? [draggingOrderId] : Array.from(selectedPoolOrderIds);
+    const oId = droppedOrderId || draggingOrderId;
+    const orderIds = oId ? [oId] : Array.from(selectedPoolOrderIds);
     if (!orderIds.length) return;
     setLoadingAction('assign');
     try {
@@ -2652,106 +2696,109 @@ export default function PlanningPage() {
                     <button onClick={loadData} className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-bold shadow-md"><RefreshCw className="w-3.5 h-3.5" /><span>{t('jsx_recalc','Retry')}</span></button>
                   </div>
                 ) : (
-                  <div className="min-w-max w-full" style={{ minWidth: `${Math.round(100 * zoomLevel)}%` }}>
-                    {/* Time scale header */}
-                    <div className="flex border-b border-border bg-surface/60 sticky top-0 z-20 shadow-sm h-10">
-                      <div className="w-56 shrink-0 border-r border-border/60 bg-surface/80 flex items-center justify-between px-2 py-1 sticky left-0 z-30">
-                        {/* Temporal navigation placed here! */}
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => setSelectedDate(d => dayStr(addDays(parseDay(d), viewMode === 'week' ? -7 : -1)))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors">
-                            <ChevronLeft className="w-3.5 h-3.5" />
-                          </button>
-                          <Flatpickr
-                            value={selectedDate}
-                            onChange={([d]) => d && setSelectedDate(dayStr(d))}
-                            options={{ dateFormat: 'Y-m-d' }}
-                            className="w-20 text-[11px] font-bold text-center bg-transparent border-none focus:ring-0 cursor-pointer text-text-primary p-0"
-                          />
-                          <button onClick={() => setSelectedDate(d => dayStr(addDays(parseDay(d), viewMode === 'week' ? 7 : 1)))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors">
-                            <ChevronRight className="w-3.5 h-3.5" />
-                          </button>
+                  <div className="w-full" style={{ minWidth: `${224 + totalTimelineWidth}px` }}>
+                        {/* Time scale header */}
+                        <div className="flex border-b border-border bg-surface/60 sticky top-0 z-20 shadow-sm h-10" style={{ minWidth: `${224 + totalTimelineWidth}px` }}>
+                          <div className="w-56 shrink-0 border-r border-border/60 bg-surface/80 flex items-center justify-between px-2 py-1 sticky left-0 z-30">
+                            {/* Temporal navigation placed here! */}
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => setSelectedDate(d => dayStr(addDays(parseDay(d), viewMode === 'week' ? -7 : -1)))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors">
+                                <ChevronLeft className="w-3.5 h-3.5" />
+                              </button>
+                              <Flatpickr
+                                value={selectedDate}
+                                onChange={([d]) => d && setSelectedDate(dayStr(d))}
+                                options={{ dateFormat: 'Y-m-d' }}
+                                className="w-20 text-[11px] font-bold text-center bg-transparent border-none focus:ring-0 cursor-pointer text-text-primary p-0"
+                              />
+                              <button onClick={() => setSelectedDate(d => dayStr(addDays(parseDay(d), viewMode === 'week' ? 7 : 1)))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors">
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <button onClick={() => setSelectedDate(dayStr(new Date()))} className="text-[10px] font-bold text-primary hover:text-primary/80 px-1">
+                              {viewMode === 'week' ? t('jsx_dateThisWeek','This week') : t('jsx_today','Today')}
+                            </button>
+                          </div>
+                          <div className="flex flex-1 relative" style={{ minWidth: `${totalTimelineWidth}px` }}>
+                            {Array.from({ length: hoursVisible }, (_, h) => (
+                              <div
+                                key={h}
+                                className="flex-1 text-center text-[10px] font-bold text-text-secondary py-2 border-r border-border/30 last:border-0"
+                                style={{ minWidth: `${colWidth}px`, width: `${colWidth}px` }}
+                              >
+                                {viewMode === 'all'
+                                  ? addDays(fromDateObj, h).toLocaleDateString([], { day: 'numeric', month: 'short' })
+                                  : viewMode === 'week'
+                                    ? addDays(fromDateObj, h).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
+                                    : `${String(h).padStart(2,'0')}:00`
+                                }
+                              </div>
+                            ))}
+                            {/* Right absolute positioned block for indicators and zoom controls */}
+                            <div className="absolute top-1/2 -translate-y-1/2 right-2 flex items-center gap-3 bg-surface/80 backdrop-blur-sm border border-border/60 rounded-lg px-2 py-1 shadow-sm">
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => setZoomLevel(z => Math.max(0.5, +(z - 0.15).toFixed(2)))} className="p-0.5 rounded hover:bg-card text-text-secondary hover:text-text-primary"><ZoomOut className="w-3 h-3" /></button>
+                                <span className="text-[9px] font-mono font-bold w-7 text-center">{Math.round(zoomLevel * 100)}%</span>
+                                <button onClick={() => setZoomLevel(z => Math.min(2.5, +(z + 0.15).toFixed(2)))} className="p-0.5 rounded hover:bg-card text-text-secondary hover:text-text-primary"><ZoomIn className="w-3 h-3" /></button>
+                              </div>
+                              <div className="w-px h-3 bg-border" />
+                              <div className="flex items-center gap-2 text-[10px] font-bold text-text-secondary">
+                                <span>{displayResources.length} res</span>
+                                <span>{trips.length} trips</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <button onClick={() => setSelectedDate(dayStr(new Date()))} className="text-[10px] font-bold text-primary hover:text-primary/80 px-1">
-                          {viewMode === 'week' ? t('jsx_dateThisWeek','This week') : t('jsx_today','Today')}
-                        </button>
-                      </div>
-                      <div className="flex flex-1 relative">
-                        {Array.from({ length: hoursVisible }, (_, h) => (
-                          <div
-                            key={h}
-                            className="flex-1 text-center text-[10px] font-bold text-text-secondary py-2 border-r border-border/30 last:border-0"
-                            style={{ minWidth: `${Math.max(48, Math.round(52 * zoomLevel))}px` }}
-                          >
-                            {viewMode === 'all'
-                              ? addDays(fromDateObj, h).toLocaleDateString([], { day: 'numeric', month: 'short' })
-                              : viewMode === 'week'
-                                ? addDays(fromDateObj, h).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
-                                : `${String(h).padStart(2,'0')}:00`
-                            }
-                          </div>
-                        ))}
-                        {/* Right absolute positioned block for indicators and zoom controls */}
-                        <div className="absolute top-1/2 -translate-y-1/2 right-2 flex items-center gap-3 bg-surface/80 backdrop-blur-sm border border-border/60 rounded-lg px-2 py-1 shadow-sm">
-                          <div className="flex items-center gap-1">
-                            <button onClick={() => setZoomLevel(z => Math.max(0.5, +(z - 0.15).toFixed(2)))} className="p-0.5 rounded hover:bg-card text-text-secondary hover:text-text-primary"><ZoomOut className="w-3 h-3" /></button>
-                            <span className="text-[9px] font-mono font-bold w-7 text-center">{Math.round(zoomLevel * 100)}%</span>
-                            <button onClick={() => setZoomLevel(z => Math.min(2.5, +(z + 0.15).toFixed(2)))} className="p-0.5 rounded hover:bg-card text-text-secondary hover:text-text-primary"><ZoomIn className="w-3 h-3" /></button>
-                          </div>
-                          <div className="w-px h-3 bg-border" />
-                          <div className="flex items-center gap-2 text-[10px] font-bold text-text-secondary">
-                            <span>{displayResources.length} res</span>
-                            <span>{trips.length} trips</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Resource rows */}
-                    {displayResources.length === 0 ? (
-                      <div className="text-center py-24 px-4">
-                        <TruckIcon className="w-10 h-10 text-text-muted mx-auto mb-2 opacity-40" />
-                        <p className="font-bold text-text-primary">{t('jsx_noTrips','No vehicles found for this period.')}</p>
-                        <p className="text-xs text-text-secondary mt-1">{t('try_selecting_other_date', 'Try selecting another date or clearing filters.')}</p>
-                      </div>
-                    ) : (
-                      displayResources.map(res => {
-                        const resTrips = res.id === '__unassigned_trips__'
-                          ? unassignedTrips
-                          : trips.filter(tr =>
-                              grouping === 'driver'
-                                ? tr.driver?.id === res.id
-                                : grouping === 'trailer'
-                                  ? (tr.trailerId === res.id || tr.trailer?.id === res.id || tr.truck?.trailer?.id === res.id)
-                                  : (tr.truck?.id === res.id || tr.truckId === res.id)
+                        {/* Resource rows */}
+                        {displayResources.length === 0 ? (
+                          <div className="text-center py-24 px-4">
+                            <TruckIcon className="w-10 h-10 text-text-muted mx-auto mb-2 opacity-40" />
+                            <p className="font-bold text-text-primary">{t('jsx_noTrips','No vehicles found for this period.')}</p>
+                            <p className="text-xs text-text-secondary mt-1">{t('try_selecting_other_date', 'Try selecting another date or clearing filters.')}</p>
+                          </div>
+                        ) : (
+                          displayResources.map(res => {
+                            const resTrips = res.id === '__unassigned_trips__'
+                              ? unassignedTrips
+                              : trips.filter(tr =>
+                                  grouping === 'driver'
+                                    ? tr.driver?.id === res.id
+                                    : grouping === 'trailer'
+                                      ? (tr.trailerId === res.id || tr.trailer?.id === res.id || tr.truck?.trailer?.id === res.id)
+                                      : (tr.truck?.id === res.id || tr.truckId === res.id)
+                                );
+                            return (
+                              <ResourceRow
+                                key={res.id}
+                                resource={res}
+                                trips={resTrips}
+                                fromDate={from}
+                                totalMinutes={totalMinutes}
+                                hoursVisible={hoursVisible}
+                                selectedTripId={selectedTripId}
+                                onSelectTrip={setSelectedTripId}
+                                onDropOrder={handleDropOrder}
+                                draggingId={draggingOrderId}
+                                draggingOrder={draggingOrder}
+                                hosSummary={boardData?.hosSummary || {}}
+                                grouping={grouping}
+                                colWidth={colWidth}
+                                timelineWidth={totalTimelineWidth}
+                                onOpenPlanner={(r) => {
+                                  if (r.id === '__unassigned_trips__') {
+                                    if (resTrips[0]?.id) setSelectedTripId(resTrips[0].id);
+                                    return;
+                                  }
+                                  const activeTrip = resTrips.find(tr => !['completed', 'closed', 'cancelled'].includes(String(tr.status).toLowerCase()));
+                                  const tripParam = activeTrip?.id ? `&trip=${activeTrip.id}` : '';
+                                  navigate(`/planning/planner/${r.id}?date=${selectedDate}${tripParam}`);
+                                }}
+                              />
                             );
-                        return (
-                          <ResourceRow
-                            key={res.id}
-                            resource={res}
-                            trips={resTrips}
-                            fromDate={from}
-                            totalMinutes={totalMinutes}
-                            hoursVisible={hoursVisible}
-                            selectedTripId={selectedTripId}
-                            onSelectTrip={setSelectedTripId}
-                            onDropOrder={handleDropOrder}
-                            draggingId={draggingOrderId}
-                            draggingOrder={draggingOrder}
-                            hosSummary={boardData?.hosSummary || {}}
-                            grouping={grouping}
-                            onOpenPlanner={(r) => {
-                              if (r.id === '__unassigned_trips__') {
-                                if (resTrips[0]?.id) setSelectedTripId(resTrips[0].id);
-                                return;
-                              }
-                              const tripParam = resTrips[0]?.id ? `&trip=${resTrips[0].id}` : '';
-                              navigate(`/planning/planner/${r.id}?date=${selectedDate}${tripParam}`);
-                            }}
-                          />
-                        );
-                      })
-                    )}
-                  </div>
+                          })
+                        )}
+                      </div>
                 )}
               </div>
 

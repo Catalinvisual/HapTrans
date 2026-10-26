@@ -70,7 +70,7 @@ export default function ConfirmModal({
   };
 
   const modalContent = (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[10000] p-4 animate-in fade-in duration-150" onClick={handleClose}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100000] p-4 animate-in fade-in duration-150" onClick={handleClose}>
       <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-2xl border border-border flex flex-col items-center text-center relative animate-in zoom-in-95 duration-150" onClick={e => e.stopPropagation()}>
         <button onClick={handleClose} className="absolute top-4 right-4 p-1.5 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface transition-colors">
           <X className="w-4 h-4" />
