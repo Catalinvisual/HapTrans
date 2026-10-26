@@ -33,7 +33,29 @@ export const ACTIVE_TRIP_STATUSES = [
   'started', 'loading', 'driving', 'partially_delivered',
 ];
 export const PLANNING_TRIP_STATUSES = ['planning', 'planned', 'assigned'];
-export const UNPLANNED_ORDER_STATUSES = ['draft', 'new', 'planned'];
+export const UNPLANNED_ORDER_STATUSES = [
+  'draft',
+  'new',
+  'planned',
+  'unassigned',
+  'pending',
+  'confirmed',
+  'assigned',
+  'open',
+  'created',
+  'needs_review',
+  'in_review',
+  'active',
+];
+export const TERMINAL_ORDER_STATUSES = [
+  'delivered',
+  'completed',
+  'pod_received',
+  'ready_for_invoice',
+  'invoiced',
+  'paid',
+  'cancelled',
+];
 const IN_PROGRESS_TRIP_STATUSES = ['driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'];
 
 export interface PlanningConflict {
@@ -384,9 +406,34 @@ export class PlanningService {
       .leftJoinAndSelect('order.client', 'client')
       .leftJoinAndSelect('order.cargoItems', 'cargoItems')
       .leftJoinAndSelect('order.stops', 'stops')
-      .where('order.tripId IS NULL')
-      .andWhere('order.status IN (:...statuses)', { statuses: UNPLANNED_ORDER_STATUSES })
-      .andWhere(this.companyBracket(companyId, 'order.companyId'));
+      .leftJoin('order.trip', 'orderTrip')
+      .where(
+        new Brackets((b) => {
+          b.where('order.trip IS NULL')
+            .orWhere('order.tripId IS NULL')
+            .orWhere('orderTrip.id IS NULL')
+            .orWhere('orderTrip.status IN (:...inactiveTripStatuses)', {
+              inactiveTripStatuses: ['cancelled', 'closed'],
+            });
+        }),
+      )
+      .andWhere(
+        new Brackets((b) => {
+          b.where('order.status IN (:...statuses)', { statuses: UNPLANNED_ORDER_STATUSES })
+            .orWhere('order.status IS NULL');
+        }),
+      )
+      .andWhere(
+        new Brackets((b) => {
+          b.where('LOWER(order.status) NOT IN (:...terminalStatuses)', { terminalStatuses: TERMINAL_ORDER_STATUSES })
+            .orWhere('order.status IS NULL');
+        }),
+      );
+
+    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+    if (!isAdmin && companyId) {
+      orderQb.andWhere(this.companyBracket(companyId, 'order.companyId'));
+    }
 
     if (q.clientId) orderQb.andWhere('order.clientId IN (:...cids)', { cids: String(q.clientId).split(',') });
     if (q.priority) orderQb.andWhere('order.priority IN (:...prios)', { prios: String(q.priority).split(',') });
@@ -526,9 +573,34 @@ export class PlanningService {
       .leftJoinAndSelect('order.client', 'client')
       .leftJoinAndSelect('order.cargoItems', 'cargoItems')
       .leftJoinAndSelect('order.stops', 'stops')
-      .where('order.tripId IS NULL')
-      .andWhere('order.status IN (:...statuses)', { statuses: UNPLANNED_ORDER_STATUSES })
-      .andWhere(this.companyBracket(companyId, 'order.companyId'));
+      .leftJoin('order.trip', 'orderTrip')
+      .where(
+        new Brackets((b) => {
+          b.where('order.trip IS NULL')
+            .orWhere('order.tripId IS NULL')
+            .orWhere('orderTrip.id IS NULL')
+            .orWhere('orderTrip.status IN (:...inactiveTripStatuses)', {
+              inactiveTripStatuses: ['cancelled', 'closed'],
+            });
+        }),
+      )
+      .andWhere(
+        new Brackets((b) => {
+          b.where('order.status IN (:...statuses)', { statuses: UNPLANNED_ORDER_STATUSES })
+            .orWhere('order.status IS NULL');
+        }),
+      )
+      .andWhere(
+        new Brackets((b) => {
+          b.where('LOWER(order.status) NOT IN (:...terminalStatuses)', { terminalStatuses: TERMINAL_ORDER_STATUSES })
+            .orWhere('order.status IS NULL');
+        }),
+      );
+
+    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+    if (!isAdmin && companyId) {
+      orderQb.andWhere(this.companyBracket(companyId, 'order.companyId'));
+    }
 
     if (q.dateStrict === 'true') {
       orderQb.andWhere(
@@ -1853,8 +1925,29 @@ export class PlanningService {
       .leftJoinAndSelect('order.client', 'client')
       .leftJoinAndSelect('order.cargoItems', 'cargoItems')
       .leftJoinAndSelect('order.stops', 'stops')
-      .where('order.tripId IS NULL')
-      .andWhere('order.status IN (:...statuses)', { statuses: UNPLANNED_ORDER_STATUSES })
+      .leftJoin('order.trip', 'orderTrip')
+      .where(
+        new Brackets((b) => {
+          b.where('order.trip IS NULL')
+            .orWhere('order.tripId IS NULL')
+            .orWhere('orderTrip.id IS NULL')
+            .orWhere('orderTrip.status IN (:...inactiveTripStatuses)', {
+              inactiveTripStatuses: ['cancelled', 'closed'],
+            });
+        }),
+      )
+      .andWhere(
+        new Brackets((b) => {
+          b.where('order.status IN (:...statuses)', { statuses: UNPLANNED_ORDER_STATUSES })
+            .orWhere('order.status IS NULL');
+        }),
+      )
+      .andWhere(
+        new Brackets((b) => {
+          b.where('LOWER(order.status) NOT IN (:...terminalStatuses)', { terminalStatuses: TERMINAL_ORDER_STATUSES })
+            .orWhere('order.status IS NULL');
+        }),
+      )
       .andWhere(this.companyBracket(companyId, 'order.companyId'))
       .andWhere(
         new Brackets((b) => {
@@ -1998,8 +2091,29 @@ export class PlanningService {
         .leftJoinAndSelect('order.client', 'client')
         .leftJoinAndSelect('order.cargoItems', 'cargoItems')
         .leftJoinAndSelect('order.stops', 'stops')
-        .where('order.tripId IS NULL')
-        .andWhere('order.status IN (:...statuses)', { statuses: UNPLANNED_ORDER_STATUSES })
+        .leftJoin('order.trip', 'orderTrip')
+        .where(
+          new Brackets((b) => {
+            b.where('order.trip IS NULL')
+              .orWhere('order.tripId IS NULL')
+              .orWhere('orderTrip.id IS NULL')
+              .orWhere('orderTrip.status IN (:...inactiveTripStatuses)', {
+                inactiveTripStatuses: ['cancelled', 'closed'],
+              });
+          }),
+        )
+        .andWhere(
+          new Brackets((b) => {
+            b.where('order.status IN (:...statuses)', { statuses: UNPLANNED_ORDER_STATUSES })
+              .orWhere('order.status IS NULL');
+          }),
+        )
+        .andWhere(
+          new Brackets((b) => {
+            b.where('LOWER(order.status) NOT IN (:...terminalStatuses)', { terminalStatuses: TERMINAL_ORDER_STATUSES })
+              .orWhere('order.status IS NULL');
+          }),
+        )
         .andWhere(this.companyBracket(companyId, 'order.companyId'))
         .andWhere(
           new Brackets((b) => {
