@@ -49,6 +49,7 @@ export default function TruckRoutePlannerPage() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [activeStopId, setActiveStopId] = useState<string | null>(null);
+  const [fallbackTruck, setFallbackTruck] = useState<any>(null);
 
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<maplibregl.Map | null>(null);
@@ -124,6 +125,13 @@ export default function TruckRoutePlannerPage() {
 
   useEffect(() => { loadProfiles(); }, [loadProfiles]);
   useEffect(() => { loadPlan(date); }, [truckId, date, queryTrip]);
+  useEffect(() => {
+    if (truckId) {
+      api.get(`/trucks/${truckId}`).then((res) => {
+        if (res.data) setFallbackTruck(res.data);
+      }).catch(() => {});
+    }
+  }, [truckId]);
 
   const sortedStops = useMemo(() => {
     const raw = [...(routePlan?.stops || [])].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
@@ -447,8 +455,8 @@ export default function TruckRoutePlannerPage() {
     const ok = await confirm({
       type: 'warning',
       title: t('unassign_order_title', 'Dezasociază comanda'),
-      message: t('unassign_order_confirm', `Sigur doriți să eliminați comanda ${orderNum} de pe acest camion și să o returnați în secțiunea de comenzi nealocate (Unassigned Orders)?`),
-      confirmText: t('unassign', 'Dezasociază'),
+      message: t('unassign_order_confirm', `Sigur doriți să eliminați această comandă de pe acest camion și să o returnați în secțiunea de comenzi nealocate (Unassigned Orders)?`),
+      confirmText: t('unassign_btn', 'Dezasociază'),
       cancelText: t('cancel', 'Anulează'),
     });
     if (!ok) return;
@@ -456,11 +464,15 @@ export default function TruckRoutePlannerPage() {
     setActionLoading(`unassign-${stop.id}`);
     try {
       if (effectiveTripId) {
-        await planningApi.unassignOrder(effectiveTripId, orderId);
+        try {
+          await planningApi.unassignOrder(effectiveTripId, orderId);
+        } catch {
+          await api.post('/planning/unplan', { orderIds: [orderId] });
+        }
       } else {
         await api.post('/planning/unplan', { orderIds: [orderId] });
       }
-      toast.success(t('order_unassigned_success', 'Comanda a fost trimisă înapoi la comenzi nealocate'));
+      toast.success(t('order_unassigned_success', 'Comanda a fost trimisă înapoi la comenzi nealocate.'));
       await loadPlan(date);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || t('action_failed', 'Acțiunea a eșuat'));
@@ -475,7 +487,7 @@ export default function TruckRoutePlannerPage() {
       type: 'warning',
       title: t('unplan_all_title', 'Golire camion / Dezasociere comenzi'),
       message: t('unplan_all_confirm', 'Sigur doriți să goliți camionul? Toate comenzile de pe acest camion vor fi returnate în lista de comenzi nealocate.'),
-      confirmText: t('unplan_all', 'Golește camionul'),
+      confirmText: t('unplan_all_btn', 'Golește camionul'),
       cancelText: t('cancel', 'Anulează'),
     });
     if (!ok) return;
@@ -483,7 +495,16 @@ export default function TruckRoutePlannerPage() {
     setActionLoading('unplan-all');
     try {
       if (effectiveTripId) {
-        await planningApi.unplanTrip(effectiveTripId);
+        try {
+          await planningApi.unplanTrip(effectiveTripId);
+        } catch (tripErr: any) {
+          const orderIds = Array.from(new Set(sortedStops.map((s: any) => s.orderId || s.order?.id).filter(Boolean)));
+          if (orderIds.length) {
+            await api.post('/planning/unplan', { orderIds });
+          } else {
+            throw tripErr;
+          }
+        }
       } else {
         const orderIds = Array.from(new Set(sortedStops.map((s: any) => s.orderId || s.order?.id).filter(Boolean)));
         if (orderIds.length) {
@@ -654,9 +675,10 @@ export default function TruckRoutePlannerPage() {
   };
 
   const trip = routePlan?.trip || {};
-  const truck = routePlan?.truck || trip.truck || null;
-  const driver = routePlan?.driver || trip.driver || truck?.driver || null;
-  const trailer = routePlan?.trailer || trip.trailer || null;
+  const truck = routePlan?.truck || trip.truck || fallbackTruck || null;
+  const driver = routePlan?.driver || trip.driver || truck?.driver || fallbackTruck?.driver || null;
+  const trailer = routePlan?.trailer || trip.trailer || truck?.trailer || fallbackTruck?.trailer || null;
+  const hasStops = sortedStops.length > 0;
   const trpNumber = routePlan?.tripNumber || trip.tripNumber || (queryTrip ? `TRP` : t('pln_planner', 'Route Planner'));
 
   const effectiveTripStatus = String(routePlan?.tripStatus || trip.status || 'planning').toLowerCase();
@@ -764,7 +786,7 @@ export default function TruckRoutePlannerPage() {
           {/* Action buttons */}
           <button
             onClick={handleSave}
-            disabled={!dirty || !!actionLoading || isPlanningLocked}
+            disabled={!hasStops || !dirty || !!actionLoading || isPlanningLocked}
             className="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5 font-bold disabled:opacity-40"
             title={t('save_draft', 'Save Draft')}
           >
@@ -774,7 +796,7 @@ export default function TruckRoutePlannerPage() {
 
           <button
             onClick={handleRecalculate}
-            disabled={!!actionLoading}
+            disabled={!hasStops || !!actionLoading}
             className="btn-secondary text-xs py-2 px-3 flex items-center gap-1 font-bold disabled:opacity-40"
             title={t('pln_recalculate_loads', 'Recalculate Loads')}
           >
@@ -784,7 +806,7 @@ export default function TruckRoutePlannerPage() {
 
           <button
             onClick={handleReset}
-            disabled={!!actionLoading || isPlanningLocked}
+            disabled={!hasStops || !!actionLoading || isPlanningLocked}
             className="btn-secondary text-xs py-2 px-3 flex items-center gap-1 font-bold text-text-muted hover:text-red-600 disabled:opacity-40"
             title={t('pln_reset_plan', 'Reset Route')}
           >
@@ -792,12 +814,12 @@ export default function TruckRoutePlannerPage() {
             <span className="hidden xl:inline">{t('pln_reset', 'Reset')}</span>
           </button>
 
-          {sortedStops.length > 0 && !isPlanningLocked && (
+          {hasStops && !isPlanningLocked && (
             <button
               onClick={handleUnplanAll}
               disabled={!!actionLoading}
               className="btn-secondary text-xs py-2 px-3 flex items-center gap-1 font-bold text-red-500 hover:text-red-600 hover:bg-red-500/10 border-red-500/20 disabled:opacity-40"
-              title={t('unplan_all', 'Golește camion (trimite comenzile la comenzi nealocate)')}
+              title={t('unplan_all_tooltip', 'Golește camion (trimite comenzile la comenzi nealocate)')}
             >
               <Undo2 className="w-3.5 h-3.5" />
               <span className="hidden xl:inline">{t('unplan_all', 'Golește')}</span>
@@ -806,7 +828,7 @@ export default function TruckRoutePlannerPage() {
 
           <button
             onClick={() => handleOptimize()}
-            disabled={!!actionLoading || isPlanningLocked}
+            disabled={!hasStops || !!actionLoading || isPlanningLocked}
             className="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5 font-bold border-violet-500/30 text-violet-600 hover:bg-violet-500/10 disabled:opacity-40"
             title={t('optimize_plan_btn', 'Optimize Route')}
           >
@@ -816,7 +838,7 @@ export default function TruckRoutePlannerPage() {
 
           <button
             onClick={handleValidate}
-            disabled={!!actionLoading}
+            disabled={!hasStops || !!actionLoading}
             className="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5 font-bold disabled:opacity-40"
             title={t('validate_plan_btn', 'Validate Plan')}
           >
@@ -828,8 +850,8 @@ export default function TruckRoutePlannerPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={handleDispatchToDriver}
-                disabled={!!actionLoading}
-                className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-black shadow-md shadow-primary/20 bg-emerald-600 hover:bg-emerald-700 text-white"
+                disabled={!hasStops || !!actionLoading}
+                className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-black shadow-md shadow-primary/20 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40"
                 title={effectiveTripStatus === 'dispatched' ? t('action_send_update', 'Send Update') : t('action_send_to_driver', 'Send to Driver')}
               >
                 {actionLoading === 'dispatch' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
@@ -849,7 +871,7 @@ export default function TruckRoutePlannerPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowConfirmModal(true)}
-                disabled={!!actionLoading || isNotFeasible}
+                disabled={!hasStops || !!actionLoading || isNotFeasible}
                 className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-black shadow-md shadow-primary/20 disabled:opacity-40"
                 title={t('action_confirm_plan', 'Confirm Plan')}
               >
@@ -858,8 +880,8 @@ export default function TruckRoutePlannerPage() {
               </button>
               <button
                 onClick={handleDispatchToDriver}
-                disabled={!!actionLoading}
-                className="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5 font-bold text-emerald-600 hover:bg-emerald-500/10 border-emerald-500/30"
+                disabled={!hasStops || !!actionLoading || isNotFeasible}
+                className="btn-secondary text-xs py-2 px-3.5 flex items-center gap-1.5 font-bold text-emerald-600 hover:bg-emerald-500/10 border-emerald-500/30 disabled:opacity-40"
                 title={t('action_send_to_driver', 'Send to Driver')}
               >
                 {actionLoading === 'dispatch' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

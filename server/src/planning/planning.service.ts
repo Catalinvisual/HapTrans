@@ -340,9 +340,7 @@ export class PlanningService {
       if (!trip) continue;
       const remaining = (trip.orders || []).filter((o) => o && o.id);
       if (!remaining.length) {
-        await this.stopRepo.delete({ trip: { id: newTripId } });
-        await this.taskRepo.delete({ stop: { trip: { id: newTripId } } });
-        await this.tripRepo.delete({ id: newTripId });
+        await this.cleanupTripRecords(newTripId);
       }
     }
 
@@ -1315,20 +1313,54 @@ export class PlanningService {
     return { unplanned: orderIds.length, trips: result };
   }
 
+  private async cleanupTripRecords(tripId: string) {
+    // 1. Detach all orders
+    await this.orderRepo.createQueryBuilder()
+      .update(Order)
+      .set({ trip: null as any, status: 'new' as any })
+      .where('"tripId" = :tripId', { tripId })
+      .execute();
+
+    // 2. Delete tasks and stops
+    const stops = await this.stopRepo.find({ where: { trip: { id: tripId } }, select: ['id'] });
+    const stopIds = stops.map(s => s.id);
+    if (stopIds.length > 0) {
+      await this.taskRepo.createQueryBuilder()
+        .delete()
+        .from(StopTask)
+        .where('"stopId" IN (:...stopIds)', { stopIds })
+        .execute();
+      await this.stopRepo.createQueryBuilder()
+        .delete()
+        .from(Stop)
+        .where('id IN (:...stopIds)', { stopIds })
+        .execute();
+    }
+
+    // 3. Delete route plan stops and route plans
+    const routePlans = await this.routePlanRepo.find({ where: { tripId }, select: ['id'] });
+    const routePlanIds = routePlans.map(rp => rp.id);
+    if (routePlanIds.length > 0) {
+      await this.routePlanStopRepo.createQueryBuilder()
+        .delete()
+        .from(RoutePlanStop)
+        .where('"routePlanId" IN (:...routePlanIds)', { routePlanIds })
+        .execute();
+      await this.routePlanRepo.createQueryBuilder()
+        .delete()
+        .from(TruckRoutePlan)
+        .where('id IN (:...routePlanIds)', { routePlanIds })
+        .execute();
+    }
+
+    // 4. Delete the trip itself
+    await this.tripRepo.delete({ id: tripId });
+  }
+
   private async deleteTrip(tripId: string, user: any, reason: string) {
     const trip = await this.loadTrip(tripId);
     if (!trip) return;
-    for (const o of trip.orders || []) {
-      if (o && o.id) {
-        o.trip = null as any;
-        o.status = 'new';
-        await this.orderRepo.save(o);
-      }
-    }
-    await this.stopRepo.delete({ trip: { id: tripId } });
-    await this.taskRepo.delete({ stop: { trip: { id: tripId } } });
-    await this.routePlanRepo.delete({ tripId });
-    await this.tripRepo.delete({ id: tripId });
+    await this.cleanupTripRecords(tripId);
     await this.logTimeline('trip_deleted', user, {
       tripId,
       message: `Trip ${trip.tripNumber} deleted (${reason}).`,
@@ -2734,10 +2766,7 @@ export class PlanningService {
     const remainingOrders = (reloaded?.orders || []).filter(o => o && o.id);
 
     if (!remainingOrders.length) {
-      await this.stopRepo.delete({ trip: { id: tripId } });
-      await this.taskRepo.delete({ stop: { trip: { id: tripId } } });
-      await this.routePlanRepo.delete({ tripId });
-      await this.tripRepo.delete({ id: tripId });
+      await this.cleanupTripRecords(tripId);
 
       await this.logTimeline('trip_unplanned', user, {
         tripId,
@@ -2773,27 +2802,16 @@ export class PlanningService {
       throw new BadRequestException('Cannot unplan a Dispatched or in-progress trip. Please cancel or recall dispatch instead.');
     }
 
-    const orders = trip.orders || [];
-    for (const o of orders) {
-      if (o && o.id) {
-        o.trip = null as any;
-        o.status = 'new';
-        await this.orderRepo.save(o);
-      }
-    }
-
-    await this.stopRepo.delete({ trip: { id: tripId } });
-    await this.taskRepo.delete({ stop: { trip: { id: tripId } } });
-    await this.routePlanRepo.delete({ tripId });
-    await this.tripRepo.delete({ id: tripId });
+    const ordersCount = (trip.orders || []).filter(o => o && o.id).length;
+    await this.cleanupTripRecords(tripId);
 
     await this.logTimeline('trip_unplanned', user, {
       tripId,
-      message: `TRP ${trip.tripNumber} unplanned. All ${orders.length} orders returned to Unassigned pool.`,
+      message: `TRP ${trip.tripNumber} unplanned. All ${ordersCount} orders returned to Unassigned pool.`,
       companyId: trip.company?.id || null,
     });
 
-    return { success: true, tripId, unassignedOrdersCount: orders.length };
+    return { success: true, tripId, unassignedOrdersCount: ordersCount };
   }
 
   async driverReceived(tripId: string) {
@@ -2902,9 +2920,7 @@ export class PlanningService {
       companyId: source.company?.id || null,
       _ordersCount: sourceOrders.length,
     });
-    await this.stopRepo.delete({ trip: { id: source.id } });
-    await this.taskRepo.delete({ stop: { trip: { id: source.id } } });
-    await this.tripRepo.delete({ id: source.id });
+    await this.cleanupTripRecords(source.id);
 
     await this.rebuildStops(target.id);
     await this.recalculateTrip(target.id);
@@ -3480,7 +3496,7 @@ export class PlanningService {
 
     let routePlan = await this.routePlanRepo.findOne({
       where: { truckId, planningDate, isCurrent: true },
-      relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'driver', 'driver.user', 'trip'],
+      relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'driver', 'driver.user', 'trip', 'trip.trailer', 'trip.driver', 'trip.driver.user'],
     });
 
     const isTripCompleted = routePlan?.trip && ['completed', 'closed', 'cancelled'].includes(String(routePlan.trip.status).toLowerCase());
@@ -3519,6 +3535,21 @@ export class PlanningService {
       };
 
       routePlan = await this.routePlanRepo.save(routePlan);
+    }
+
+    if (routePlan) {
+      if (!routePlan.truck) {
+        routePlan.truck = truck;
+      } else {
+        if (!routePlan.truck.driver && truck.driver) routePlan.truck.driver = truck.driver;
+        if (!routePlan.truck.trailer && truck.trailer) routePlan.truck.trailer = truck.trailer;
+      }
+      if (!routePlan.driver && truck.driver) {
+        routePlan.driver = truck.driver;
+      }
+      if (!(routePlan as any).trailer && truck.trailer) {
+        (routePlan as any).trailer = truck.trailer;
+      }
     }
 
     return routePlan;
@@ -3720,11 +3751,11 @@ export class PlanningService {
   }
 
   async getRoutePlan(truckId: string, planningDate: string, userCompanyId?: string | null): Promise<TruckRoutePlan | null> {
-    await this.assertTruckAccess(truckId, userCompanyId);
+    const truck = await this.assertTruckAccess(truckId, userCompanyId);
 
     let routePlan = await this.routePlanRepo.findOne({
       where: { truckId, planningDate, isCurrent: true },
-      relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'driver', 'driver.user', 'trip'],
+      relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'driver', 'driver.user', 'trip', 'trip.trailer', 'trip.driver', 'trip.driver.user'],
       order: { stops: { sequence: 'ASC' } },
     });
 
@@ -3794,8 +3825,17 @@ export class PlanningService {
     }
 
     if (routePlan) {
-      if (!routePlan.driver && routePlan.truck?.driver) {
-        routePlan.driver = routePlan.truck.driver;
+      if (!routePlan.truck) {
+        routePlan.truck = truck;
+      } else {
+        if (!routePlan.truck.driver && truck.driver) routePlan.truck.driver = truck.driver;
+        if (!routePlan.truck.trailer && truck.trailer) routePlan.truck.trailer = truck.trailer;
+      }
+      if (!routePlan.driver && truck.driver) {
+        routePlan.driver = truck.driver;
+      }
+      if (!(routePlan as any).trailer && truck.trailer) {
+        (routePlan as any).trailer = truck.trailer;
       }
       if (routePlan.truck) {
         const caps = this.resolveTruckCapacity(routePlan.truck);

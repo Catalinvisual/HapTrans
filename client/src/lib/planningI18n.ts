@@ -638,6 +638,16 @@ const en: Record<string, string> = {
   adr_class_7: "Class 7 — Radioactive material",
   adr_class_8: "Class 8 — Corrosives",
   adr_class_9: "Class 9 — Miscellaneous dangerous goods",
+  unplan_all: "Clear",
+  unplan_all_title: "Clear Truck / Unassign Orders",
+  unplan_all_confirm: "Are you sure you want to clear the truck? All orders from this truck will be returned to the unassigned orders pool.",
+  unplan_all_btn: "Clear Truck",
+  unplan_all_tooltip: "Clear truck (return all orders to unassigned pool)",
+  unassign_order_title: "Unassign Order",
+  unassign_order_confirm: "Are you sure you want to remove this order from this truck and return it to the unassigned orders pool?",
+  unassign_btn: "Unassign",
+  truck_cleared_success: "Truck cleared. Orders returned to the unassigned pool.",
+  order_unassigned_success: "Order returned to the unassigned pool.",
 };
 
 const ro: Record<string, string> = {
@@ -1210,6 +1220,16 @@ const ro: Record<string, string> = {
   adr_class_7: "Clasa 7 — Materiale radioactive",
   adr_class_8: "Clasa 8 — Substanțe corozive",
   adr_class_9: "Clasa 9 — Substanțe periculoase diverse",
+  unplan_all: "Golește",
+  unplan_all_title: "Golire camion / Dezasociere comenzi",
+  unplan_all_confirm: "Sigur doriți să goliți camionul? Toate comenzile de pe acest camion vor fi returnate în lista de comenzi nealocate.",
+  unplan_all_btn: "Golește camionul",
+  unplan_all_tooltip: "Golește camion (trimite comenzile la comenzi nealocate)",
+  unassign_order_title: "Dezasociază comanda",
+  unassign_order_confirm: "Sigur doriți să eliminați această comandă de pe acest camion și să o returnați în secțiunea de comenzi nealocate (Unassigned Orders)?",
+  unassign_btn: "Dezasociază",
+  truck_cleared_success: "Camionul a fost golit. Comenzile au revenit în comenzi nealocate.",
+  order_unassigned_success: "Comanda a fost trimisă înapoi la comenzi nealocate.",
 };
 
 const nl: Record<string, string> = {
@@ -1782,6 +1802,16 @@ const nl: Record<string, string> = {
   adr_class_7: "Klasse 7 — Radioactieve stoffen",
   adr_class_8: "Klasse 8 — Bijtende stoffen",
   adr_class_9: "Klasse 9 — Diverse gevaarlijke stoffen",
+  unplan_all: "Legen",
+  unplan_all_title: "Vrachtwagen legen / Orders ontkoppelen",
+  unplan_all_confirm: "Weet u zeker dat u de vrachtwagen wilt legen? Alle orders van deze vrachtwagen worden teruggestuurd naar niet-toegewezen orders.",
+  unplan_all_btn: "Vrachtwagen legen",
+  unplan_all_tooltip: "Vrachtwagen legen (stuur orders terug naar niet-toegewezen)",
+  unassign_order_title: "Order ontkoppelen",
+  unassign_order_confirm: "Weet u zeker dat u deze order van deze vrachtwagen wilt verwijderen en wilt terugsturen naar de niet-toegewezen orders?",
+  unassign_btn: "Ontkoppelen",
+  truck_cleared_success: "Vrachtwagen geleegd. Orders teruggestuurd naar niet-toegewezen.",
+  order_unassigned_success: "Order teruggestuurd naar niet-toegewezen.",
 };
 
 const de: Record<string, string> = {
@@ -2354,6 +2384,16 @@ const de: Record<string, string> = {
   adr_class_7: "Klasse 7 — Radioaktive Stoffe",
   adr_class_8: "Klasse 8 — Ätzende Stoffe",
   adr_class_9: "Klasse 9 — Verschiedene gefährliche Stoffe",
+  unplan_all: "Leeren",
+  unplan_all_title: "LKW leeren / Aufträge trennen",
+  unplan_all_confirm: "Sind Sie sicher, dass Sie den LKW leeren möchten? Alle Aufträge dieses LKWs werden an die nicht zugewiesenen Aufträge zurückgegeben.",
+  unplan_all_btn: "LKW leeren",
+  unplan_all_tooltip: "LKW leeren (alle Aufträge an nicht zugewiesen zurückgeben)",
+  unassign_order_title: "Auftrag trennen",
+  unassign_order_confirm: "Sind Sie sicher, dass Sie diesen Auftrag von diesem LKW entfernen und an die nicht zugewiesenen Aufträge zurückgeben möchten?",
+  unassign_btn: "Trennen",
+  truck_cleared_success: "LKW geleert. Aufträge wurden an nicht zugewiesen zurückgegeben.",
+  order_unassigned_success: "Auftrag wurde an nicht zugewiesen zurückgegeben.",
 };
 
 const fr: Record<string, string> = {
@@ -2926,6 +2966,16 @@ const fr: Record<string, string> = {
   adr_class_7: "Classe 7 — Matières radioactives",
   adr_class_8: "Classe 8 — Matières corrosives",
   adr_class_9: "Classe 9 — Matières dangereuses diverses",
+  unplan_all: "Vider",
+  unplan_all_title: "Vider le camion / Désassigner les commandes",
+  unplan_all_confirm: "Êtes-vous sûr de vouloir vider le camion ? Toutes les commandes de ce camion seront renvoyées vers la liste des commandes non assignées.",
+  unplan_all_btn: "Vider le camion",
+  unplan_all_tooltip: "Vider le camion (renvoyer les commandes aux non assignées)",
+  unassign_order_title: "Désassigner la commande",
+  unassign_order_confirm: "Êtes-vous sûr de vouloir retirer cette commande de ce camion et la renvoyer vers les commandes non assignées ?",
+  unassign_btn: "Désassigner",
+  truck_cleared_success: "Camion vidé. Les commandes sont retournées aux non assignées.",
+  order_unassigned_success: "Commande renvoyée aux commandes non assignées.",
 };
 
 const es: Record<string, string> = {
@@ -3583,6 +3633,16 @@ const es: Record<string, string> = {
   adr_class_7: "Clase 7 — Materias radiactivas",
   adr_class_8: "Clase 8 — Materias corrosivas",
   adr_class_9: "Clase 9 — Materias peligrosas diversas",
+  unplan_all: "Vaciar",
+  unplan_all_title: "Vaciar camión / Desasignar pedidos",
+  unplan_all_confirm: "¿Está seguro de que desea vaciar el camión? Todos los pedidos de este camión se devolverán a la lista de pedidos no asignados.",
+  unplan_all_btn: "Vaciar camión",
+  unplan_all_tooltip: "Vaciar camión (devolver pedidos a no asignados)",
+  unassign_order_title: "Desasignar pedido",
+  unassign_order_confirm: "¿Está seguro de que desea eliminar este pedido de este camión y devolverlo a la lista de pedidos no asignados?",
+  unassign_btn: "Desasignar",
+  truck_cleared_success: "Camión vaciado. Los pedidos han vuelto a no asignados.",
+  order_unassigned_success: "Pedido devuelto a la lista de no asignados.",
 };
 
 const pl: Record<string, string> = {
@@ -4240,6 +4300,16 @@ const pl: Record<string, string> = {
   adr_class_7: "Klasa 7 — Materiały promieniotwórcze",
   adr_class_8: "Klasa 8 — Materiały żrące",
   adr_class_9: "Klasa 9 — Różne materiały niebezpieczne",
+  unplan_all: "Opróżnij",
+  unplan_all_title: "Opróżnij ciężarówkę / Odłącz zamówienia",
+  unplan_all_confirm: "Czy na pewno chcesz opróżnić ciężarówkę? Wszystkie zamówienia z tej ciężarówki zostaną przeniesione z powrotem do nieprzypisanych zamówień.",
+  unplan_all_btn: "Opróżnij ciężarówkę",
+  unplan_all_tooltip: "Opróżnij ciężarówkę (zwróć zamówienia do nieprzypisanych)",
+  unassign_order_title: "Odłącz zamówienie",
+  unassign_order_confirm: "Czy na pewno chcesz usunąć to zamówienie z tej ciężarówki i zwrócić je do nieprzypisanych zamówień?",
+  unassign_btn: "Odłącz",
+  truck_cleared_success: "Ciężarówka opróżniona. Zamówienia wróciły do nieprzypisanych.",
+  order_unassigned_success: "Zamówienie zwrócone do nieprzypisanych.",
 };
 
 export const planningResources: Record<string, { translation: Record<string, string> }> = {
