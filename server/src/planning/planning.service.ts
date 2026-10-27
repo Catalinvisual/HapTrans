@@ -412,18 +412,10 @@ export class PlanningService {
       .where(
         new Brackets((b) => {
           b.where('orderTrip.id IS NULL')
-            .orWhere('order."tripId" IS NULL')
-            .orWhere('order.trip IS NULL')
             .orWhere('order.tripId IS NULL')
-            .orWhere('orderTrip.status IN (:...inactiveTripStatuses)', {
-              inactiveTripStatuses: ['cancelled', 'closed'],
+            .orWhere('orderTrip.status NOT IN (:...activeTripStatuses)', {
+              activeTripStatuses: ACTIVE_TRIP_STATUSES,
             });
-        }),
-      )
-      .andWhere(
-        new Brackets((b) => {
-          b.where('LOWER(order.status) NOT IN (:...terminalStatuses)', { terminalStatuses: TERMINAL_ORDER_STATUSES })
-            .orWhere('order.status IS NULL');
         }),
       );
 
@@ -579,18 +571,10 @@ export class PlanningService {
       .where(
         new Brackets((b) => {
           b.where('orderTrip.id IS NULL')
-            .orWhere('order."tripId" IS NULL')
-            .orWhere('order.trip IS NULL')
             .orWhere('order.tripId IS NULL')
-            .orWhere('orderTrip.status IN (:...inactiveTripStatuses)', {
-              inactiveTripStatuses: ['cancelled', 'closed'],
+            .orWhere('orderTrip.status NOT IN (:...activeTripStatuses)', {
+              activeTripStatuses: ACTIVE_TRIP_STATUSES,
             });
-        }),
-      )
-      .andWhere(
-        new Brackets((b) => {
-          b.where('LOWER(order.status) NOT IN (:...terminalStatuses)', { terminalStatuses: TERMINAL_ORDER_STATUSES })
-            .orWhere('order.status IS NULL');
         }),
       );
 

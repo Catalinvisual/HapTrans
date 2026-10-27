@@ -1817,78 +1817,184 @@ function TripDetailDrawer({
 }
 
 // ─── Order Detail Drawer ─────────────────────────────────────────────────────
-function OrderDetailDrawer({ order, onClose, onPlan }: { order: any; onClose: () => void; onPlan?: (order: any) => void }) {
+function OrderDetailDrawer({
+  order,
+  onClose,
+  onEdit,
+  onPlan,
+}: {
+  order: any;
+  onClose: () => void;
+  onEdit?: (order: any) => void;
+  onPlan?: (order: any) => void;
+}) {
   const { t } = useTranslation();
-  const company = useSettingsStore(s => s.company);
+  const company = useSettingsStore((s) => s.company);
   if (!order) return null;
-  const pickup = (order.stops || []).find((s: any) => s.type === 'pickup') || order.stops?.[0];
-  const dropoff = (order.stops || []).filter((s: any) => s.type === 'delivery' || s.type === 'dropoff').pop() || order.stops?.[order.stops?.length - 1];
+  const stops = [...(order.stops || [])].sort((a: any, b: any) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+  const pickup = stops.find((s: any) => s.type === 'pickup') || stops[0];
+  const dropoff = [...stops].reverse().find((s: any) => s.type === 'delivery' || s.type === 'dropoff') || stops[stops.length - 1];
   const cargo = sumCargo([order]);
 
-  return typeof document !== 'undefined' ? createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ backdropFilter: 'blur(6px)', backgroundColor: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
-      <div className="relative w-full max-w-lg bg-card shadow-2xl rounded-3xl flex flex-col overflow-hidden border border-border animate-in zoom-in-95 duration-150" style={{ maxHeight: '85vh' }} onClick={e => e.stopPropagation()}>
-        <div className="flex-1 overflow-y-auto">
-        <div className="flex items-start justify-between p-5 border-b border-border bg-surface/40 shrink-0">
-          <div>
-            <h2 className="text-xl font-black text-text-primary">{order.orderNumber || '—'}</h2>
-            <p className="text-sm text-text-secondary mt-0.5">{order.client?.name || '—'}</p>
-          </div>
-          <div className="flex gap-1.5">
-            <button onClick={async () => {
-              try {
-                const { blob, filename } = await generateOrderPdf(order, company, { autoSave: false });
-                await archiveAndDownloadPdf({
-                  pdfBlob: blob,
-                  defaultFilename: filename,
-                  sourceType: 'order',
-                  sourceId: order.id,
-                  sourceReference: order.orderNumber || order.referenceNumber || String(order.id),
-                });
-              } catch (e) {
-                toast.error(t('error_pdf', 'Failed to generate PDF'));
-              }
-            }} className="p-1.5 bg-card border border-border shadow-sm hover:bg-surface rounded-xl text-text-secondary hover:text-primary transition-colors group relative" title={t("download_order_pdf", { reference: order.orderNumber || 'Order', defaultValue: "Download PDF for order {{reference}}" })} aria-label={t("download_order_pdf", { reference: order.orderNumber || 'Order', defaultValue: "Download PDF for order {{reference}}" })}>
-              <FileText className="w-5 h-5" aria-hidden="true" />
-            </button>
-            <button onClick={onClose} className="p-1.5 hover:bg-surface rounded-xl text-text-secondary hover:text-text-primary transition-colors"><X className="w-5 h-5" /></button>
-          </div>
-        </div>
-        <div className="flex-1 p-5 space-y-4">
-          <div className="bg-surface/50 rounded-2xl border border-border p-4 space-y-3">
-            <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" />{t('route_section','Route')}</h3>
-            {pickup && <div className="flex gap-2.5 items-start">
-              <span className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">↑</span>
-              <div><p className="text-xs font-bold text-blue-600 uppercase">{t('loading_stop','Pickup')}</p><p className="font-semibold text-text-primary">{pickup.companyName || pickup.city || '—'}</p><p className="text-xs text-text-secondary">{pickup.address || ''}</p>{pickup.dateFrom && <p className="text-xs text-blue-500 mt-0.5">{fmtDate(pickup.dateFrom)} {pickup.timeFrom || ''}</p>}</div>
-            </div>}
-            {dropoff && <div className="flex gap-2.5 items-start pt-2 border-t border-border/40">
-              <span className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">↓</span>
-              <div><p className="text-xs font-bold text-emerald-600 uppercase">{t('unloading_stop','Delivery')}</p><p className="font-semibold text-text-primary">{dropoff.companyName || dropoff.city || '—'}</p><p className="text-xs text-text-secondary">{dropoff.address || ''}</p>{dropoff.dateFrom && <p className="text-xs text-emerald-500 mt-0.5">{fmtDate(dropoff.dateFrom)} {dropoff.timeFrom || ''}</p>}</div>
-            </div>}
-          </div>
-          <div className="grid grid-cols-2 gap-2.5 text-xs">
-            {[
-              [t('pool_col_weight','Weight'), `${fmtNumber(cargo.weight)} kg`, <WeightKgIcon className="w-4 h-4" />],
-              [t('pool_col_pallets','Pallets'), `${cargo.pallets} plt`, <PalletIcon className="w-4 h-4" />],
-              [t('pool_col_volume','Volume'), `${fmtNumber(cargo.volume, 1)} m³`, null],
-              [t('revenue','Price'), fmtMoney(Number(order.price || 0), 'EUR'), null],
-            ].map(([l, v, icon]) => (
-              <div key={l as string} className="bg-card rounded-xl p-3 border border-border/60">
-                <p className="text-text-secondary text-[10px] flex items-center gap-1">{icon}{l}</p>
-                <p className="font-black text-text-primary text-base mt-0.5">{v}</p>
+  return typeof document !== 'undefined'
+    ? createPortal(
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          style={{ backdropFilter: 'blur(6px)', backgroundColor: 'rgba(0,0,0,0.6)' }}
+          onClick={onClose}
+        >
+          <div
+            className="relative w-full max-w-lg bg-card shadow-2xl rounded-3xl flex flex-col overflow-hidden border border-border animate-in zoom-in-95 duration-150"
+            style={{ maxHeight: '85vh' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex-1 overflow-y-auto">
+              <div className="flex items-start justify-between p-5 border-b border-border bg-surface/40 shrink-0">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-black text-text-primary">{order.orderNumber || '—'}</h2>
+                    <span className="px-2 py-0.5 text-[10px] font-black rounded-full bg-primary/10 text-primary border border-primary/20 uppercase">
+                      {order.transportType || 'FTL'}
+                    </span>
+                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-surface border border-border text-text-secondary uppercase">
+                      {order.status || 'New'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-text-secondary mt-1 font-medium">{order.client?.name || '—'}</p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => onEdit?.(order)}
+                    className="p-1.5 bg-card border border-border shadow-sm hover:bg-surface rounded-xl text-text-secondary hover:text-primary transition-colors flex items-center gap-1 text-xs font-bold px-2.5"
+                    title={t('edit_order', 'Editează comanda')}
+                  >
+                    <Pencil className="w-4 h-4 text-primary" />
+                    <span>{t('edit', 'Editează')}</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const { blob, filename } = await generateOrderPdf(order, company, { autoSave: false });
+                        await archiveAndDownloadPdf({
+                          pdfBlob: blob,
+                          defaultFilename: filename,
+                          sourceType: 'order',
+                          sourceId: order.id,
+                          sourceReference: order.orderNumber || order.referenceNumber || String(order.id),
+                        });
+                      } catch (e) {
+                        toast.error(t('error_pdf', 'Failed to generate PDF'));
+                      }
+                    }}
+                    className="p-1.5 bg-card border border-border shadow-sm hover:bg-surface rounded-xl text-text-secondary hover:text-primary transition-colors"
+                    title={t('download_order_pdf', { reference: order.orderNumber || 'Order', defaultValue: 'Download PDF' })}
+                  >
+                    <FileText className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="p-1.5 hover:bg-surface rounded-xl text-text-secondary hover:text-text-primary transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
-            ))}
+
+              <div className="flex-1 p-5 space-y-4">
+                {/* Route stops */}
+                <div className="bg-surface/50 rounded-2xl border border-border p-4 space-y-3">
+                  <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-primary" />
+                    {t('route_section', 'Traseu')} ({stops.length} {t('stops', 'puncte')})
+                  </h3>
+                  {stops.map((stop: any, idx: number) => {
+                    const isPick = stop.type === 'pickup' || idx === 0;
+                    return (
+                      <div key={stop.id || idx} className={`flex gap-2.5 items-start ${idx > 0 ? 'pt-2.5 border-t border-border/40' : ''}`}>
+                        <span
+                          className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 ${
+                            isPick ? 'bg-blue-500/10 text-blue-600' : 'bg-emerald-500/10 text-emerald-600'
+                          }`}
+                        >
+                          {isPick ? '↑' : '↓'}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-[11px] font-bold uppercase ${isPick ? 'text-blue-600' : 'text-emerald-600'}`}>
+                            {isPick ? t('loading_stop', 'Încărcare') : t('unloading_stop', 'Descărcare')} #{stop.sequence || idx + 1}
+                          </p>
+                          <p className="font-semibold text-text-primary text-[13px]">{stop.companyName || stop.city || '—'}</p>
+                          {stop.address && <p className="text-xs text-text-secondary truncate">{stop.address}</p>}
+                          {stop.dateFrom && (
+                            <p className="text-xs text-text-muted mt-0.5">
+                              {fmtDate(stop.dateFrom)} {stop.timeFrom || ''}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Cargo Metrics */}
+                <div className="grid grid-cols-2 gap-2.5 text-xs">
+                  {[
+                    [t('pool_col_weight', 'Weight'), `${fmtNumber(cargo.weight)} kg`, <WeightKgIcon key="w" className="w-4 h-4" />],
+                    [t('pool_col_pallets', 'Pallets'), `${cargo.pallets} plt`, <PalletIcon key="p" className="w-4 h-4" />],
+                    [t('pool_col_volume', 'Volume'), `${fmtNumber(cargo.volume, 1)} m³`, null],
+                    [t('revenue', 'Price'), fmtMoney(Number(order.price || 0), 'EUR'), null],
+                  ].map(([l, v, icon]) => (
+                    <div key={l as string} className="bg-card rounded-xl p-3 border border-border/60">
+                      <p className="text-text-secondary text-[10px] flex items-center gap-1">
+                        {icon}
+                        {l}
+                      </p>
+                      <p className="font-black text-text-primary text-base mt-0.5">{v}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* References */}
+                {(order.customerReference || order.internalReference || order.loadingReference) && (
+                  <div className="bg-surface/30 rounded-xl p-3 border border-border/50 text-xs space-y-1">
+                    <p className="text-[10px] font-bold uppercase text-text-secondary mb-1">{t('references', 'Referințe')}</p>
+                    {order.customerReference && (
+                      <p className="text-text-secondary text-[11px]">
+                        Ref Client: <span className="font-bold text-text-primary">{order.customerReference}</span>
+                      </p>
+                    )}
+                    {order.internalReference && (
+                      <p className="text-text-secondary text-[11px]">
+                        Ref Intern: <span className="font-bold text-text-primary">{order.internalReference}</span>
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="px-5 py-4 border-t border-border bg-surface/40 flex items-center justify-between gap-2 shrink-0">
+                <button onClick={onClose} className="btn-secondary text-xs py-2 px-3">
+                  {t('jsx_close', 'Închide')}
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => onEdit?.(order)}
+                    className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold text-primary border-primary/30 hover:bg-primary/5"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    <span>{t('edit_order', 'Editează comanda')}</span>
+                  </button>
+                  <button onClick={() => onPlan?.(order)} className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-bold">
+                    <TruckIcon className="w-4 h-4" />
+                    <span>{t('jsx_planNow', 'Planifică acum')}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="px-5 py-4 border-t border-border bg-surface/40 flex justify-end gap-2 shrink-0">
-          <button onClick={() => onPlan?.(order)} className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-bold">
-            <TruckIcon className="w-4 h-4" /><span>{t('jsx_planNow','Plan Now')}</span>
-          </button>
-        </div>
-        </div>
-      </div>
-    </div>, document.body
-  ) : null;
+        </div>,
+        document.body,
+      )
+    : null;
 }
 
 // ─── MAIN PAGE ───────────────────────────────────────────────────────────────
@@ -2818,7 +2924,7 @@ export default function PlanningPage() {
                   sortedOrders.map(o => (
                     <PoolOrderCard key={o.id} order={o} selected={selectedPoolOrderIds.has(o.id)}
                       onToggle={(id, sel) => { const next = new Set(selectedPoolOrderIds); if (sel) next.add(id); else next.delete(id); setSelectedPoolOrderIds(next); }}
-                      onDetail={order => setWizardConfig({ orderId: order.id, initialStep: 0, highlight: null })}
+                      onDetail={order => setSelectedOrderId(order.id)}
                       draggingId={draggingOrderId} setDraggingId={setDraggingOrderId}
                     />
                   ))
@@ -3054,6 +3160,10 @@ export default function PlanningPage() {
         <OrderDetailDrawer
           order={selectedOrder}
           onClose={() => setSelectedOrderId(null)}
+          onEdit={order => {
+            setSelectedOrderId(null);
+            setWizardConfig({ orderId: order.id, initialStep: 0, highlight: null });
+          }}
           onPlan={order => { setSelectedPoolOrderIds(new Set([order.id])); setSelectedOrderId(null); }}
         />
       )}
