@@ -399,7 +399,8 @@ export class PlanningService {
   async pool(user: any, q: any) {
     const companyId = user?.companyId || null;
     const search = (q.search || '').toString().trim();
-    const limit = Math.min(Number(q.limit) || 500, 500);
+    const hasLimit = q.limit !== undefined && q.limit !== '' && q.limit !== 'all';
+    const limit = hasLimit ? Math.max(1, Number(q.limit)) : null;
     const offset = Math.max(Number(q.offset) || 0, 0);
 
     const orderQb = this.orderRepo
@@ -410,18 +411,13 @@ export class PlanningService {
       .leftJoin('order.trip', 'orderTrip')
       .where(
         new Brackets((b) => {
-          b.where('order.trip IS NULL')
+          b.where('orderTrip.id IS NULL')
+            .orWhere('order."tripId" IS NULL')
+            .orWhere('order.trip IS NULL')
             .orWhere('order.tripId IS NULL')
-            .orWhere('orderTrip.id IS NULL')
             .orWhere('orderTrip.status IN (:...inactiveTripStatuses)', {
               inactiveTripStatuses: ['cancelled', 'closed'],
             });
-        }),
-      )
-      .andWhere(
-        new Brackets((b) => {
-          b.where('LOWER(order.status) IN (:...statuses)', { statuses: UNPLANNED_ORDER_STATUSES.map(s => s.toLowerCase()) })
-            .orWhere('order.status IS NULL');
         }),
       )
       .andWhere(
@@ -445,7 +441,7 @@ export class PlanningService {
       });
     }
     if (q.status) {
-      const statuses = String(q.status).split(',').map(s => s.trim().toLowerCase()).filter((s) => UNPLANNED_ORDER_STATUSES.map(u => u.toLowerCase()).includes(s));
+      const statuses = String(q.status).split(',').map(s => s.trim().toLowerCase());
       if (statuses.length) orderQb.andWhere('LOWER(order.status) IN (:...stat)', { stat: statuses });
     }
     if (search) {
@@ -469,7 +465,10 @@ export class PlanningService {
       });
     }
 
-    const orders = await orderQb.orderBy('order.createdAt', 'DESC').offset(offset).limit(limit).getMany();
+    let ordersQuery = orderQb.orderBy('order.createdAt', 'DESC');
+    if (offset > 0) ordersQuery = ordersQuery.offset(offset);
+    if (limit) ordersQuery = ordersQuery.limit(limit);
+    const orders = await ordersQuery.getMany();
     return { orders };
   }
 
@@ -480,7 +479,8 @@ export class PlanningService {
     const from = new Date(`${fromStr}T00:00:00`);
     const to = new Date(`${toStr}T23:59:59.999`);
     const search = (q.search || '').toString().trim();
-    const limit = Math.min(Number(q.limit) || 500, 1000);
+    const hasLimit = q.limit !== undefined && q.limit !== '' && q.limit !== 'all';
+    const limit = hasLimit ? Math.max(1, Number(q.limit)) : null;
     const offset = Math.max(Number(q.offset) || 0, 0);
 
     const trucks = await this.truckRepo.find({
@@ -578,18 +578,13 @@ export class PlanningService {
       .leftJoin('order.trip', 'orderTrip')
       .where(
         new Brackets((b) => {
-          b.where('order.trip IS NULL')
+          b.where('orderTrip.id IS NULL')
+            .orWhere('order."tripId" IS NULL')
+            .orWhere('order.trip IS NULL')
             .orWhere('order.tripId IS NULL')
-            .orWhere('orderTrip.id IS NULL')
             .orWhere('orderTrip.status IN (:...inactiveTripStatuses)', {
               inactiveTripStatuses: ['cancelled', 'closed'],
             });
-        }),
-      )
-      .andWhere(
-        new Brackets((b) => {
-          b.where('LOWER(order.status) IN (:...statuses)', { statuses: UNPLANNED_ORDER_STATUSES.map(s => s.toLowerCase()) })
-            .orWhere('order.status IS NULL');
         }),
       )
       .andWhere(
@@ -624,7 +619,7 @@ export class PlanningService {
       });
     }
     if (q.status) {
-      const statuses = String(q.status).split(',').map(s => s.trim().toLowerCase()).filter((s) => UNPLANNED_ORDER_STATUSES.map(u => u.toLowerCase()).includes(s));
+      const statuses = String(q.status).split(',').map(s => s.trim().toLowerCase());
       if (statuses.length) orderQb.andWhere('LOWER(order.status) IN (:...stat)', { stat: statuses });
     }
     if (search) {
@@ -648,7 +643,10 @@ export class PlanningService {
       });
     }
     const totalUnplanned = await orderQb.getCount();
-    const orders = await orderQb.orderBy('order.createdAt', 'DESC').offset(offset).limit(limit).getMany();
+    let ordersQuery = orderQb.orderBy('order.createdAt', 'DESC');
+    if (offset > 0) ordersQuery = ordersQuery.offset(offset);
+    if (limit) ordersQuery = ordersQuery.limit(limit);
+    const orders = await ordersQuery.getMany();
 
     const resources = trucks
       .filter((t) => String(t.status) !== 'inactive')

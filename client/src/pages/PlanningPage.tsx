@@ -2116,7 +2116,6 @@ export default function PlanningPage() {
             vehicleId: truckFilter || undefined,
             driverId: driverFilter || undefined,
             priority: priorityFilter || undefined,
-            limit: 500,
           },
         }),
         api.get('/planning/map-data', { params: { from, to } }).catch(() => api.get('/planning/map', { params: { from, to } })),
@@ -2378,7 +2377,14 @@ export default function PlanningPage() {
     }
     if (sortPool === 'priority') {
       const p: Record<string,number> = { critical: 0, high: 1, normal: 2, low: 3 };
-      return o.sort((a, b) => (p[a.priority] ?? 2) - (p[b.priority] ?? 2));
+      return o.sort((a, b) => {
+        const pa = p[a.priority] ?? 2;
+        const pb = p[b.priority] ?? 2;
+        if (pa !== pb) return pa - pb;
+        const da = new Date(a.createdAt || 0).getTime();
+        const db = new Date(b.createdAt || 0).getTime();
+        return db - da;
+      });
     }
     if (sortPool === 'date') return o.sort((a, b) => {
       const da = a.stops?.[0]?.dateFrom || '9999'; const db = b.stops?.[0]?.dateFrom || '9999';
@@ -2812,7 +2818,7 @@ export default function PlanningPage() {
                   sortedOrders.map(o => (
                     <PoolOrderCard key={o.id} order={o} selected={selectedPoolOrderIds.has(o.id)}
                       onToggle={(id, sel) => { const next = new Set(selectedPoolOrderIds); if (sel) next.add(id); else next.delete(id); setSelectedPoolOrderIds(next); }}
-                      onDetail={order => setSelectedOrderId(order.id)}
+                      onDetail={order => setWizardConfig({ orderId: order.id, initialStep: 0, highlight: null })}
                       draggingId={draggingOrderId} setDraggingId={setDraggingOrderId}
                     />
                   ))
@@ -2908,29 +2914,13 @@ export default function PlanningPage() {
                                 >
                                   {viewMode === 'all' ? (
                                     <div className="flex flex-col items-center justify-center leading-tight">
-                                      {isToday ? (
-                                        <>
-                                          <span className="text-[8px] font-black uppercase text-primary tracking-wider">
-                                            {t('jsx_today', 'Today')}
-                                          </span>
-                                          <span className="text-[10px] font-bold">
-                                            {colDate.toLocaleDateString([], { day: 'numeric', month: 'short' })}
-                                          </span>
-                                        </>
-                                      ) : (
-                                        <span>
-                                          {colDate.toLocaleDateString([], { day: 'numeric', month: 'short' })}
-                                        </span>
-                                      )}
+                                      <span className="text-[10px] font-bold">
+                                        {colDate.toLocaleDateString([], { day: 'numeric', month: 'short' })}
+                                      </span>
                                     </div>
                                   ) : viewMode === 'week' ? (
                                     <div className="flex flex-col items-center justify-center leading-tight">
-                                      {isToday && (
-                                        <span className="text-[8px] font-black uppercase text-primary tracking-wider">
-                                          {t('jsx_today', 'Today')}
-                                        </span>
-                                      )}
-                                      <span>
+                                      <span className="text-[10px] font-bold">
                                         {colDate.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}
                                       </span>
                                     </div>
