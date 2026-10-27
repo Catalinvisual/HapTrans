@@ -398,6 +398,15 @@ export default function OrderWizard({
             reference: s.reference || '',
             notes: s.notes || ''
           })));
+          if (order.estimatedCost !== undefined && order.estimatedCost !== null) {
+            setCostEstimate({
+              totalCost: Number(order.estimatedCost),
+              profit: Number(order.estimatedProfit ?? 0),
+              distanceKm: Number(order.distanceKm ?? 0),
+              fuelCost: 0,
+              tollCost: 0
+            });
+          }
         }).catch(err => {
             console.error("Error fetching order data:", err);
             toast.error("Failed to load order details.");
@@ -786,8 +795,8 @@ export default function OrderWizard({
         customerReference: form.customerReference || pickup.reference || null,
         contactPerson: form.contactPerson || pickup.contactPerson || null,
         contactPhone: form.contactPhone || pickup.phone || null,
-        estimatedCost: costEstimate ? costEstimate.totalCost : null,
-        estimatedProfit: costEstimate ? costEstimate.profit : null,
+        estimatedCost: costEstimate ? costEstimate.totalCost : undefined,
+        estimatedProfit: costEstimate ? costEstimate.profit : undefined,
         stops: [{
           type: 'pickup',
           sequence: 1,

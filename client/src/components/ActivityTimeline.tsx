@@ -59,6 +59,10 @@ export default function ActivityTimeline({
     contactPhone: t('contact_phone', 'Telefon contact'),
     notes: t('notes', 'Notițe'),
     stops: t('stops', 'Opriri'),
+    pickupDate: t('pickup_date_time', 'Dată / Oră încărcare'),
+    deliveryDate: t('delivery_date_time', 'Dată / Oră descărcare'),
+    pickupAddress: t('pickup_address', 'Adresă încărcare'),
+    deliveryAddress: t('delivery_address', 'Adresă descărcare'),
     total: t('total', 'Total'),
     invoiceNumber: t('invoiceNumber', 'Număr factură'),
     issueDate: t('issueDate', 'Data emiterii'),
@@ -142,6 +146,18 @@ export default function ActivityTimeline({
       return `€${Number(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
     if (['distanceKm', 'distance'].includes(field)) return `${val} km`;
+    if (['pickupDate', 'deliveryDate', 'pickupTime', 'deliveryTime', 'loadingDate', 'unloadingDate'].includes(field)) {
+      if (!val || val === '—') return '—';
+      const parts = String(val).split(' ');
+      const datePart = parts[0];
+      const timePart = parts.slice(1).join(' ');
+      const ts = parseToTimestamp(datePart);
+      if (ts) {
+        const dStr = new Date(ts).toLocaleDateString(i18n.language || 'en-GB');
+        return timePart ? `${dStr} ${timePart}` : dStr;
+      }
+      return String(val);
+    }
     if (['apkExpiry', 'licenseExpiry', 'medicalExpiry', 'tachoCardExpiry', 'dueDate', 'issueDate', 'expiryDate'].includes(field) || isDateValue(val)) {
       const ts = parseToTimestamp(val);
       if (ts) return new Date(ts).toLocaleDateString(i18n.language || 'en-GB');
@@ -258,11 +274,11 @@ export default function ActivityTimeline({
                               <span className="font-semibold text-text-primary">
                                 {fieldLabels[field] || field}:
                               </span>
-                              <span className="line-through text-red-500/80 bg-red-500/10 px-1 rounded text-[10px]">
+                              <span className="text-text-secondary bg-surface dark:bg-card px-2 py-0.5 rounded border border-border/70 text-[11px] font-medium">
                                 {formatVal(field, change.old)}
                               </span>
-                              <ArrowRight className="w-3 h-3 text-text-muted shrink-0" />
-                              <span className="font-bold text-green-600 dark:text-green-400 bg-green-500/10 px-1 rounded text-[10px]">
+                              <ArrowRight className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                              <span className="font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/25 px-2 py-0.5 rounded text-[11px]">
                                 {formatVal(field, change.new)}
                               </span>
                             </div>

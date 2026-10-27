@@ -544,11 +544,27 @@ export class OrdersService implements OnModuleInit {
       // Re-evaluate ADR status and 1,000 points calculation on update
       await this.evaluateAndSaveAdr(id);
 
-      if (dto.stops || dto.price !== undefined) {
+      const oldStopLocations = (existingOrder?.stops || [])
+        .map((s: any) => `${s.latitude || ''},${s.longitude || ''},${s.address || ''}`)
+        .join('|');
+      const newStopLocations = (processedStops || [])
+        .map((s: any) => `${s.latitude || ''},${s.longitude || ''},${s.address || ''}`)
+        .join('|');
+      const stopLocationsChanged = processedStops.length > 0 && oldStopLocations !== newStopLocations;
+      const priceChanged = dto.price !== undefined && Math.round(Number(dto.price) * 100) !== Math.round(Number(existingOrder?.price || 0) * 100);
+
+      // Only recalculate route distance and costs if stop locations physically changed OR if explicitly requested
+      if (stopLocationsChanged || (dto.estimatedCost !== undefined && dto.estimatedCost !== null)) {
         if (dto.estimatedCost === undefined || dto.estimatedCost === null) {
           const fresh = await this.findOne(id);
           if (fresh) await this.estimateCostsForOrder(fresh);
         }
+      } else if (priceChanged) {
+        // If only price changed without stop location changes, update profit directly based on existing cost
+        const priceNum = Number(dto.price) || 0;
+        const currentCost = Number(existingOrder?.estimatedCost) || 0;
+        const profit = Math.round((priceNum - currentCost) * 100) / 100;
+        await this.repo.update(id, { estimatedProfit: profit } as any);
       }
 
       const fullOrder = await this.findOne(id);
@@ -557,12 +573,22 @@ export class OrdersService implements OnModuleInit {
       if (user && existingOrder && fullOrder) {
         const changes: Record<string, { old: any; new: any }> = {};
 
+        // Only log cost & distance if the route location actually changed or user provided explicit estimatedCost
+        const shouldCheckCosts = stopLocationsChanged || (dto.estimatedCost !== undefined && dto.estimatedCost !== null);
+        const shouldCheckProfit = shouldCheckCosts || priceChanged || (dto.estimatedProfit !== undefined && dto.estimatedProfit !== null);
+
         const fieldsToCheck = [
           'price', 'currency', 'status', 'priority', 'transportType', 
-          'estimatedCost', 'estimatedProfit', 'distanceKm',
           'internalReference', 'customerReference', 'loadingReference', 
           'unloadingReference', 'contactPerson', 'contactPhone', 'notes'
         ];
+
+        if (shouldCheckCosts) {
+          fieldsToCheck.push('estimatedCost', 'distanceKm');
+        }
+        if (shouldCheckProfit) {
+          fieldsToCheck.push('estimatedProfit');
+        }
 
         for (const field of fieldsToCheck) {
           const oldVal = (existingOrder as any)[field] ?? null;
@@ -600,6 +626,30 @@ export class OrdersService implements OnModuleInit {
         }
 
         if (dto.stops) {
+          const fmtStopDateTime = (s: any) => {
+            if (!s) return '';
+            const d = s.dateFrom ? String(s.dateFrom).slice(0, 10) : (s.scheduledDate ? String(s.scheduledDate).slice(0, 10) : '');
+            const t = s.timeFrom || s.scheduledTime || '';
+            const until = s.timeUntil ? ` - ${s.timeUntil}` : '';
+            return [d, t ? `${t}${until}` : ''].filter(Boolean).join(' ');
+          };
+
+          const oldPickup = (existingOrder.stops || []).find((s: any) => s.type === 'pickup') || existingOrder.stops?.[0];
+          const newPickup = (fullOrder.stops || []).find((s: any) => s.type === 'pickup') || fullOrder.stops?.[0];
+          const oldPickupDateTime = fmtStopDateTime(oldPickup);
+          const newPickupDateTime = fmtStopDateTime(newPickup);
+          if (oldPickupDateTime !== newPickupDateTime) {
+            changes['pickupDate'] = { old: oldPickupDateTime || '—', new: newPickupDateTime || '—' };
+          }
+
+          const oldDropoff = (existingOrder.stops || []).find((s: any) => s.type === 'dropoff') || existingOrder.stops?.[existingOrder.stops.length - 1];
+          const newDropoff = (fullOrder.stops || []).find((s: any) => s.type === 'dropoff') || fullOrder.stops?.[fullOrder.stops.length - 1];
+          const oldDropoffDateTime = fmtStopDateTime(oldDropoff);
+          const newDropoffDateTime = fmtStopDateTime(newDropoff);
+          if (oldDropoffDateTime !== newDropoffDateTime) {
+            changes['deliveryDate'] = { old: oldDropoffDateTime || '—', new: newDropoffDateTime || '—' };
+          }
+
           const oldStopsStr = (existingOrder.stops || []).map((s: any) => s.address || s.city || '').filter(Boolean).join(' → ');
           const newStopsStr = (fullOrder.stops || []).map((s: any) => s.address || s.city || '').filter(Boolean).join(' → ');
           if (oldStopsStr !== newStopsStr) {
@@ -608,8 +658,18 @@ export class OrdersService implements OnModuleInit {
         }
 
         if (dto.cargoItems) {
-          const oldCargoStr = (existingOrder.cargoItems || []).map((c: any) => `${c.quantity || 1} ${c.unit || ''} ${c.description || ''}`).join(', ');
-          const newCargoStr = (fullOrder.cargoItems || []).map((c: any) => `${c.quantity || 1} ${c.unit || ''} ${c.description || ''}`).join(', ');
+          const formatCargoList = (items: any[]) => (items || []).map((c: any) => {
+            const parts = [
+              c.quantity ? `${c.quantity} ${c.unit || 'pal'}` : '',
+              c.description || '',
+              c.weightKg ? `${c.weightKg} kg` : '',
+              c.unNumber ? `ADR UN ${c.unNumber}` : ''
+            ].filter(Boolean);
+            return parts.join(' • ');
+          }).join('; ');
+
+          const oldCargoStr = formatCargoList(existingOrder.cargoItems);
+          const newCargoStr = formatCargoList(fullOrder.cargoItems);
           if (oldCargoStr !== newCargoStr) {
             changes['cargoItems'] = { old: oldCargoStr || '—', new: newCargoStr || '—' };
           }
