@@ -667,8 +667,11 @@ const en: Record<string, string> = {
   drop_to_unassign_hint: "The order or trip will be returned to unassigned orders",
   order_unassigned_pool: "The order has been returned to unassigned orders.",
   jsx_retry: "Retry",
-  unable_load_planning: "Unable to load planning data",
   error_loading_orders: "Error loading orders",
+  plan_order_title: "Assign Order to Truck",
+  plan_order_select_truck: "Select Truck",
+  plan_order_confirm_btn: "Confirm & Plan",
+  select_truck_required: "Please select a truck",
 };
 
 const ro: Record<string, string> = {
@@ -1272,6 +1275,10 @@ const ro: Record<string, string> = {
   jsx_retry: "Reîncearcă",
   unable_load_planning: "Nu s-au putut încărca datele de planificare",
   error_loading_orders: "Eroare la încărcarea comenzilor",
+  plan_order_title: "Alocă comanda pe camion",
+  plan_order_select_truck: "Selectați camionul",
+  plan_order_confirm_btn: "Confirmă și Planifică",
+  select_truck_required: "Vă rugăm să selectați un camion",
 };
 
 const nl: Record<string, string> = {
@@ -1875,6 +1882,10 @@ const nl: Record<string, string> = {
   jsx_retry: "Opnieuw proberen",
   unable_load_planning: "Kan planningsgegevens niet laden",
   error_loading_orders: "Fout bij laden van orders",
+  plan_order_title: "Wijs order toe aan vrachtwagen",
+  plan_order_select_truck: "Selecteer vrachtwagen",
+  plan_order_confirm_btn: "Bevestig en plan",
+  select_truck_required: "Selecteer een vrachtwagen",
 };
 
 const de: Record<string, string> = {
@@ -2478,6 +2489,10 @@ const de: Record<string, string> = {
   jsx_retry: "Erneut versuchen",
   unable_load_planning: "Planungsdaten konnten nicht geladen werden",
   error_loading_orders: "Fehler beim Laden der Aufträge",
+  plan_order_title: "Auftrag LKW zuweisen",
+  plan_order_select_truck: "LKW auswählen",
+  plan_order_confirm_btn: "Bestätigen & Planen",
+  select_truck_required: "Bitte wählen Sie einen LKW",
 };
 
 const fr: Record<string, string> = {
@@ -3081,6 +3096,10 @@ const fr: Record<string, string> = {
   jsx_retry: "Réessayer",
   unable_load_planning: "Impossible de charger les données de planification",
   error_loading_orders: "Erreur lors du chargement des commandes",
+  plan_order_title: "Assigner la commande au camion",
+  plan_order_select_truck: "Sélectionner le camion",
+  plan_order_confirm_btn: "Confirmer et planifier",
+  select_truck_required: "Veuillez sélectionner un camion",
 };
 
 const es: Record<string, string> = {
@@ -3767,8 +3786,11 @@ const es: Record<string, string> = {
   drop_to_unassign_hint: "El pedido o viaje será devuelto a no asignados",
   order_unassigned_pool: "El pedido ha sido devuelto a los pedidos no asignados.",
   jsx_retry: "Reintentar",
-  unable_load_planning: "No se pudieron cargar los datos de planificación",
   error_loading_orders: "Error al cargar los pedidos",
+  plan_order_title: "Asignar pedido al camión",
+  plan_order_select_truck: "Seleccionar camión",
+  plan_order_confirm_btn: "Confirmar y planificar",
+  select_truck_required: "Por favor seleccione un camión",
 };
 
 const pl: Record<string, string> = {
@@ -4455,8 +4477,11 @@ const pl: Record<string, string> = {
   drop_to_unassign_hint: "Zamówienie lub trasa zostanie zwrócona do nieprzypisanych",
   order_unassigned_pool: "Zamówienie zostało zwrócone do zamówień nieprzypisanych.",
   jsx_retry: "Ponów próbę",
-  unable_load_planning: "Nie można załadować danych planowania",
   error_loading_orders: "Błąd podczas ładowania zamówień",
+  plan_order_title: "Przypisz zlecenie do ciężarówki",
+  plan_order_select_truck: "Wybierz ciężarówkę",
+  plan_order_confirm_btn: "Potwierdź i zaplanuj",
+  select_truck_required: "Wybierz ciężarówkę",
 };
 
 export const planningResources: Record<string, { translation: Record<string, string> }> = {

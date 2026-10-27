@@ -30,6 +30,7 @@ import { generateOrderPdf, generateTripPdf } from '../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { planningApi } from '../lib/planningApi';
 import OrderWizard from '../components/orders/OrderWizard';
+import OrderDetailDrawer from '../components/orders/OrderDetailDrawer';
 import AdrBadge from '../components/common/AdrBadge';
 import ExcelIcon from '../components/icons/ExcelIcon';
 import { fmtMoney, fmtNumber } from '../lib/format';
@@ -1816,187 +1817,6 @@ function TripDetailDrawer({
   ) : null;
 }
 
-// ─── Order Detail Drawer ─────────────────────────────────────────────────────
-function OrderDetailDrawer({
-  order,
-  onClose,
-  onEdit,
-  onPlan,
-}: {
-  order: any;
-  onClose: () => void;
-  onEdit?: (order: any) => void;
-  onPlan?: (order: any) => void;
-}) {
-  const { t } = useTranslation();
-  const company = useSettingsStore((s) => s.company);
-  if (!order) return null;
-  const stops = [...(order.stops || [])].sort((a: any, b: any) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
-  const pickup = stops.find((s: any) => s.type === 'pickup') || stops[0];
-  const dropoff = [...stops].reverse().find((s: any) => s.type === 'delivery' || s.type === 'dropoff') || stops[stops.length - 1];
-  const cargo = sumCargo([order]);
-
-  return typeof document !== 'undefined'
-    ? createPortal(
-        <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-          style={{ backdropFilter: 'blur(6px)', backgroundColor: 'rgba(0,0,0,0.6)' }}
-          onClick={onClose}
-        >
-          <div
-            className="relative w-full max-w-lg bg-card shadow-2xl rounded-3xl flex flex-col overflow-hidden border border-border animate-in zoom-in-95 duration-150"
-            style={{ maxHeight: '85vh' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex-1 overflow-y-auto">
-              <div className="flex items-start justify-between p-5 border-b border-border bg-surface/40 shrink-0">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-black text-text-primary">{order.orderNumber || '—'}</h2>
-                    <span className="px-2 py-0.5 text-[10px] font-black rounded-full bg-primary/10 text-primary border border-primary/20 uppercase">
-                      {order.transportType || 'FTL'}
-                    </span>
-                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-surface border border-border text-text-secondary uppercase">
-                      {order.status || 'New'}
-                    </span>
-                  </div>
-                  <p className="text-sm text-text-secondary mt-1 font-medium">{order.client?.name || '—'}</p>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => onEdit?.(order)}
-                    className="p-1.5 bg-card border border-border shadow-sm hover:bg-surface rounded-xl text-text-secondary hover:text-primary transition-colors flex items-center gap-1 text-xs font-bold px-2.5"
-                    title={t('edit_order', 'Editează comanda')}
-                  >
-                    <Pencil className="w-4 h-4 text-primary" />
-                    <span>{t('edit', 'Editează')}</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      try {
-                        const { blob, filename } = await generateOrderPdf(order, company, { autoSave: false });
-                        await archiveAndDownloadPdf({
-                          pdfBlob: blob,
-                          defaultFilename: filename,
-                          sourceType: 'order',
-                          sourceId: order.id,
-                          sourceReference: order.orderNumber || order.referenceNumber || String(order.id),
-                        });
-                      } catch (e) {
-                        toast.error(t('error_pdf', 'Failed to generate PDF'));
-                      }
-                    }}
-                    className="p-1.5 bg-card border border-border shadow-sm hover:bg-surface rounded-xl text-text-secondary hover:text-primary transition-colors"
-                    title={t('download_order_pdf', { reference: order.orderNumber || 'Order', defaultValue: 'Download PDF' })}
-                  >
-                    <FileText className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={onClose}
-                    className="p-1.5 hover:bg-surface rounded-xl text-text-secondary hover:text-text-primary transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex-1 p-5 space-y-4">
-                {/* Route stops */}
-                <div className="bg-surface/50 rounded-2xl border border-border p-4 space-y-3">
-                  <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-primary" />
-                    {t('route_section', 'Traseu')} ({stops.length} {t('stops', 'puncte')})
-                  </h3>
-                  {stops.map((stop: any, idx: number) => {
-                    const isPick = stop.type === 'pickup' || idx === 0;
-                    return (
-                      <div key={stop.id || idx} className={`flex gap-2.5 items-start ${idx > 0 ? 'pt-2.5 border-t border-border/40' : ''}`}>
-                        <span
-                          className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 ${
-                            isPick ? 'bg-blue-500/10 text-blue-600' : 'bg-emerald-500/10 text-emerald-600'
-                          }`}
-                        >
-                          {isPick ? '↑' : '↓'}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className={`text-[11px] font-bold uppercase ${isPick ? 'text-blue-600' : 'text-emerald-600'}`}>
-                            {isPick ? t('loading_stop', 'Încărcare') : t('unloading_stop', 'Descărcare')} #{stop.sequence || idx + 1}
-                          </p>
-                          <p className="font-semibold text-text-primary text-[13px]">{stop.companyName || stop.city || '—'}</p>
-                          {stop.address && <p className="text-xs text-text-secondary truncate">{stop.address}</p>}
-                          {stop.dateFrom && (
-                            <p className="text-xs text-text-muted mt-0.5">
-                              {fmtDate(stop.dateFrom)} {stop.timeFrom || ''}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Cargo Metrics */}
-                <div className="grid grid-cols-2 gap-2.5 text-xs">
-                  {[
-                    [t('pool_col_weight', 'Weight'), `${fmtNumber(cargo.weight)} kg`, <WeightKgIcon key="w" className="w-4 h-4" />],
-                    [t('pool_col_pallets', 'Pallets'), `${cargo.pallets} plt`, <PalletIcon key="p" className="w-4 h-4" />],
-                    [t('pool_col_volume', 'Volume'), `${fmtNumber(cargo.volume, 1)} m³`, null],
-                    [t('revenue', 'Price'), fmtMoney(Number(order.price || 0), 'EUR'), null],
-                  ].map(([l, v, icon]) => (
-                    <div key={l as string} className="bg-card rounded-xl p-3 border border-border/60">
-                      <p className="text-text-secondary text-[10px] flex items-center gap-1">
-                        {icon}
-                        {l}
-                      </p>
-                      <p className="font-black text-text-primary text-base mt-0.5">{v}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* References */}
-                {(order.customerReference || order.internalReference || order.loadingReference) && (
-                  <div className="bg-surface/30 rounded-xl p-3 border border-border/50 text-xs space-y-1">
-                    <p className="text-[10px] font-bold uppercase text-text-secondary mb-1">{t('references', 'Referințe')}</p>
-                    {order.customerReference && (
-                      <p className="text-text-secondary text-[11px]">
-                        Ref Client: <span className="font-bold text-text-primary">{order.customerReference}</span>
-                      </p>
-                    )}
-                    {order.internalReference && (
-                      <p className="text-text-secondary text-[11px]">
-                        Ref Intern: <span className="font-bold text-text-primary">{order.internalReference}</span>
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="px-5 py-4 border-t border-border bg-surface/40 flex items-center justify-between gap-2 shrink-0">
-                <button onClick={onClose} className="btn-secondary text-xs py-2 px-3">
-                  {t('jsx_close', 'Închide')}
-                </button>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => onEdit?.(order)}
-                    className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold text-primary border-primary/30 hover:bg-primary/5"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    <span>{t('edit_order', 'Editează comanda')}</span>
-                  </button>
-                  <button onClick={() => onPlan?.(order)} className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-bold">
-                    <TruckIcon className="w-4 h-4" />
-                    <span>{t('jsx_planNow', 'Planifică acum')}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )
-    : null;
-}
-
 // ─── MAIN PAGE ───────────────────────────────────────────────────────────────
 export default function PlanningPage() {
   const { t } = useTranslation();
@@ -2020,6 +1840,9 @@ export default function PlanningPage() {
 
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [orderDrawerTab, setOrderDrawerTab] = useState('overview');
+  const [assignOrderModal, setAssignOrderModal] = useState<any | null>(null);
+  const [selectedAssignTruckId, setSelectedAssignTruckId] = useState<string>('');
   const [selectedPoolOrderIds, setSelectedPoolOrderIds] = useState<Set<string>>(new Set());
   const [draggingOrderId, setDraggingOrderId] = useState<string | null>(null);
   const [isPoolDragOver, setIsPoolDragOver] = useState(false);
@@ -3159,12 +2982,20 @@ export default function PlanningPage() {
       {selectedOrder && (
         <OrderDetailDrawer
           order={selectedOrder}
+          activeTab={orderDrawerTab}
+          setActiveTab={setOrderDrawerTab}
           onClose={() => setSelectedOrderId(null)}
-          onEdit={order => {
+          onEdit={(orderId) => {
             setSelectedOrderId(null);
-            setWizardConfig({ orderId: order.id, initialStep: 0, highlight: null });
+            setWizardConfig({ orderId, initialStep: 0, highlight: null });
           }}
-          onPlan={order => { setSelectedPoolOrderIds(new Set([order.id])); setSelectedOrderId(null); }}
+          onPlan={(order) => {
+            setSelectedOrderId(null);
+            setSelectedAssignTruckId(resources[0]?.id || '');
+            setAssignOrderModal(order);
+          }}
+          t={t}
+          navigate={navigate}
         />
       )}
 
@@ -3523,6 +3354,145 @@ export default function PlanningPage() {
               >
                 {loadingAction === 'assign' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                 {t('past_date_confirm', 'Confirmă și Alocă')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {assignOrderModal && (
+        <div
+          className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setAssignOrderModal(null)}
+        >
+          <div
+            className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-lg p-6 space-y-4 animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                  <TruckIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-text-primary">
+                    {t('plan_order_title', 'Alocă comanda pe camion')}
+                  </h3>
+                  <p className="text-xs text-text-secondary">
+                    {assignOrderModal.orderNumber || '—'} · {assignOrderModal.client?.name || '—'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setAssignOrderModal(null)}
+                className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Order quick overview */}
+            <div className="bg-surface/50 rounded-2xl p-3.5 border border-border/80 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-text-primary">{assignOrderModal.orderNumber}</span>
+                <span className="text-[11px] font-black text-primary uppercase px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20">
+                  {assignOrderModal.transportType || 'FTL'}
+                </span>
+              </div>
+              {(() => {
+                const stops = [...(assignOrderModal.stops || [])].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
+                const pick = stops.find((s: any) => s.type === 'pickup') || stops[0];
+                const drop = [...stops].reverse().find((s: any) => s.type === 'delivery' || s.type === 'dropoff') || stops[stops.length - 1];
+                return (
+                  <div className="space-y-1 text-[11px] text-text-secondary">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+                      <span className="font-semibold text-text-primary">{pick?.companyName || pick?.city || '—'}</span>
+                      {pick?.dateFrom && <span className="text-text-muted">({fmtDate(pick.dateFrom)})</span>}
+                    </div>
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                      <span className="font-semibold text-text-primary">{drop?.companyName || drop?.city || '—'}</span>
+                      {drop?.dateFrom && <span className="text-text-muted">({fmtDate(drop.dateFrom)})</span>}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Truck Selector */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-text-primary">
+                {t('plan_order_select_truck', 'Selectați camionul')} *
+              </label>
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                {resources.map((truck) => {
+                  const isSelected = (selectedAssignTruckId || resources[0]?.id) === truck.id;
+                  return (
+                    <div
+                      key={truck.id}
+                      onClick={() => setSelectedAssignTruckId(truck.id)}
+                      className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                        isSelected
+                          ? 'border-primary bg-primary/10 ring-1 ring-primary shadow-xs'
+                          : 'border-border bg-surface/30 hover:bg-surface/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${
+                          isSelected ? 'bg-primary text-white' : 'border border-border'
+                        }`}>
+                          {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-text-primary">{truck.plateNumber}</span>
+                            {truck.status && (
+                              <span className="text-[10px] uppercase font-bold text-text-muted">
+                                ({truck.status})
+                              </span>
+                            )}
+                          </div>
+                          {truck.driver?.user?.name && (
+                            <p className="text-[11px] text-text-secondary mt-0.5">
+                              {truck.driver.user.name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-bold text-text-muted">
+                        {truck.maxPayloadKg ? `${fmtNumber(truck.maxPayloadKg / 1000, 1)}t` : ''}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <button
+                onClick={() => setAssignOrderModal(null)}
+                disabled={!!loadingAction}
+                className="btn-secondary text-xs py-2 px-4 font-bold"
+              >
+                {t('cancel', 'Anulează')}
+              </button>
+              <button
+                onClick={async () => {
+                  const targetTruckId = selectedAssignTruckId || resources[0]?.id;
+                  if (!targetTruckId) {
+                    toast.error(t('select_truck_required', 'Vă rugăm să selectați un camion'));
+                    return;
+                  }
+                  const orderToPlan = assignOrderModal;
+                  setAssignOrderModal(null);
+                  handleDropOrder(targetTruckId, orderToPlan.id);
+                }}
+                disabled={!!loadingAction || !resources.length}
+                className="btn-primary text-xs py-2 px-5 font-black flex items-center gap-1.5 shadow-md shadow-primary/20"
+              >
+                {loadingAction === 'assign' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                {t('plan_order_confirm_btn', 'Confirmă și Planifică')}
               </button>
             </div>
           </div>
