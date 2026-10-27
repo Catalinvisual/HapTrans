@@ -663,6 +663,9 @@ const en: Record<string, string> = {
   past_date_opt_wizard_desc: "Manually adjust date windows and cargo details before assigning.",
   past_date_cancel: "Cancel",
   past_date_confirm: "Confirm & Assign",
+  drop_to_unassign: "Drop here to unassign",
+  drop_to_unassign_hint: "The order or trip will be returned to unassigned orders",
+  order_unassigned_pool: "The order has been returned to unassigned orders.",
 };
 
 const ro: Record<string, string> = {
@@ -1260,6 +1263,9 @@ const ro: Record<string, string> = {
   past_date_opt_wizard_desc: "Ajustează manual ferestrele de timp și detaliile mărfii înainte de alocare.",
   past_date_cancel: "Anulează",
   past_date_confirm: "Confirmă și Alocă",
+  drop_to_unassign: "Eliberează aici pentru a dezasocia",
+  drop_to_unassign_hint: "Comanda sau cursa va fi returnată la nealocate",
+  order_unassigned_pool: "Comanda a fost returnată la comenzi nealocate.",
 };
 
 const nl: Record<string, string> = {
@@ -1857,6 +1863,9 @@ const nl: Record<string, string> = {
   past_date_opt_wizard_desc: "Pas handmatig tijdvensters en vrachtdetails aan voor toewijzing.",
   past_date_cancel: "Annuleren",
   past_date_confirm: "Bevestigen & Toewijzen",
+  drop_to_unassign: "Laat hier los om te ontkoppelen",
+  drop_to_unassign_hint: "De order of rit wordt teruggestuurd naar niet-toegewezen",
+  order_unassigned_pool: "De order is teruggestuurd naar niet-toegewezen orders.",
 };
 
 const de: Record<string, string> = {
@@ -2454,6 +2463,9 @@ const de: Record<string, string> = {
   past_date_opt_wizard_desc: "Passen Sie Zeitfenster und Frachtdetails vor der Zuweisung manuell an.",
   past_date_cancel: "Abbrechen",
   past_date_confirm: "Bestätigen & Zuweisen",
+  drop_to_unassign: "Hier ablegen zum Zuweisung aufheben",
+  drop_to_unassign_hint: "Der Auftrag oder die Tour wird zu den nicht zugewiesenen zurückgebracht",
+  order_unassigned_pool: "Der Auftrag wurde zu den nicht zugewiesenen Aufträgen zurückgebracht.",
 };
 
 const fr: Record<string, string> = {
@@ -3051,6 +3063,9 @@ const fr: Record<string, string> = {
   past_date_opt_wizard_desc: "Ajustez manuellement les créneaux horaires et les détails avant l'affectation.",
   past_date_cancel: "Annuler",
   past_date_confirm: "Confirmer et Affecter",
+  drop_to_unassign: "Déposer ici pour désassigner",
+  drop_to_unassign_hint: "La commande ou le trajet sera renvoyé aux non assignés",
+  order_unassigned_pool: "La commande a été renvoyée aux commandes non assignées.",
 };
 
 const es: Record<string, string> = {
@@ -3733,6 +3748,9 @@ const es: Record<string, string> = {
   past_date_opt_wizard_desc: "Ajuste manualmente las ventanas horarias y los detalles antes de asignar.",
   past_date_cancel: "Cancelar",
   past_date_confirm: "Confirmar y Asignar",
+  drop_to_unassign: "Soltar aquí para desasignar",
+  drop_to_unassign_hint: "El pedido o viaje será devuelto a no asignados",
+  order_unassigned_pool: "El pedido ha sido devuelto a los pedidos no asignados.",
 };
 
 const pl: Record<string, string> = {
@@ -4415,6 +4433,9 @@ const pl: Record<string, string> = {
   past_date_opt_wizard_desc: "Ręcznie dostosuj okna czasowe i szczegóły ładunku przed przypisaniem.",
   past_date_cancel: "Anuluj",
   past_date_confirm: "Potwierdź i Przypisz",
+  drop_to_unassign: "Upuść tutaj, aby odłączyć",
+  drop_to_unassign_hint: "Zamówienie lub trasa zostanie zwrócona do nieprzypisanych",
+  order_unassigned_pool: "Zamówienie zostało zwrócone do zamówień nieprzypisanych.",
 };
 
 export const planningResources: Record<string, { translation: Record<string, string> }> = {

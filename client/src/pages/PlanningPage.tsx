@@ -2116,6 +2116,7 @@ export default function PlanningPage() {
             vehicleId: truckFilter || undefined,
             driverId: driverFilter || undefined,
             priority: priorityFilter || undefined,
+            limit: 500,
           },
         }),
         api.get('/planning/map-data', { params: { from, to } }).catch(() => api.get('/planning/map', { params: { from, to } })),
