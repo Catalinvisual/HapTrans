@@ -28,6 +28,8 @@ import { generateOrderPdf } from '../../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../../lib/pdfArchiveHelper';
 import { fmtMoney, fmtNumber } from '../../lib/format';
 import api from '../../lib/api';
+import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 export interface OrderDetailDrawerProps {
   order: any;
@@ -38,8 +40,8 @@ export interface OrderDetailDrawerProps {
   onDelete?: (orderId: string) => void;
   onPlan?: (order: any) => void;
   onRefetch?: () => void;
-  t: (key: string, fallback?: any, options?: any) => string;
-  navigate: (path: string) => void;
+  t?: any;
+  navigate?: any;
 }
 
 export default function OrderDetailDrawer({
@@ -51,9 +53,13 @@ export default function OrderDetailDrawer({
   onDelete,
   onPlan,
   onRefetch,
-  t,
-  navigate,
+  t: customT,
+  navigate: customNavigate,
 }: OrderDetailDrawerProps) {
+  const { t: hookT } = useTranslation();
+  const hookNavigate = useNavigate();
+  const t = customT || hookT;
+  const navigate = customNavigate || hookNavigate;
   const [internalTab, setInternalTab] = useState('overview');
   const currentTab = activeTab ?? internalTab;
   const handleTabChange = setActiveTab ?? setInternalTab;
