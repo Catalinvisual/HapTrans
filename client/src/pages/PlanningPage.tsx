@@ -26,7 +26,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import PalletIcon from '../components/icons/PalletIcon';
 import WeightKgIcon from '../components/icons/WeightKgIcon';
 import { useConfirm } from '../components/SaveConfirmProvider';
-import { generateOrderPdf, generateTripPdf } from '../lib/pdfGenerator';
+import { generateTripPdf } from '../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { planningApi } from '../lib/planningApi';
 import OrderWizard from '../components/orders/OrderWizard';
@@ -430,6 +430,22 @@ function PoolOrderCard({
   const isUrgent = pickup?.dateFrom && new Date(pickup.dateFrom).getTime() - Date.now() < 86400000 * 2;
   const isDragging = draggingId === order.id;
 
+  // Real ADR detection: order must have actual dangerous goods items or classified UN / ADR class
+  const adrItem = order.cargoItems?.find((c: any) => c.unNumber || c.adrClass);
+  const isAdr = Boolean(adrItem || (order.isAdr && order.cargoItems?.some((c: any) => c.unNumber || c.adrClass)));
+
+  // Date formatting for pickup and delivery
+  const fmtStopDate = (stop: any) => {
+    const dStr = stop?.dateFrom || stop?.scheduledDate;
+    if (!dStr) return null;
+    const d = new Date(dStr);
+    if (isNaN(d.getTime())) return String(dStr).slice(0, 10);
+    const dateFormatted = d.toLocaleDateString([], { day: 'numeric', month: 'short' });
+    return stop.timeFrom ? `${dateFormatted} ${stop.timeFrom}` : dateFormatted;
+  };
+  const pickupDate = fmtStopDate(pickup);
+  const dropoffDate = fmtStopDate(dropoff);
+
   return (
     <div
       draggable
@@ -441,7 +457,7 @@ function PoolOrderCard({
       }}
       onDragEnd={() => setDraggingId(null)}
       onClick={() => onDetail?.(order)}
-      className={`group rounded-xl p-2 cursor-pointer transition-all select-none border max-h-[65px] flex flex-col justify-between ${
+      className={`group rounded-xl p-2 cursor-pointer transition-all select-none border flex flex-col justify-between ${
         isDragging ? 'opacity-40 scale-95 border-primary shadow-lg bg-primary/5'
         : selected ? 'border-primary ring-1 ring-primary/30 shadow bg-card'
         : 'border-border hover:border-primary/50 hover:shadow bg-card'
@@ -455,8 +471,13 @@ function PoolOrderCard({
           </button>
           <span className="font-bold text-text-primary text-[11px] truncate">{order.orderNumber || '—'}</span>
           {isUrgent && <span className="px-1 py-0 text-[7px] font-black bg-red-500/10 text-red-600 border border-red-500/20 rounded shrink-0">{t('urgent', 'URGENT')}</span>}
-          {(order.isAdr || (order.adrStatus && order.adrStatus !== 'none') || order.cargoItems?.some((c: any) => c.isAdr)) && (
-            <span className="px-1 py-0 text-[7px] font-black bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded shrink-0" title="ADR Dangerous Goods">ADR</span>
+          {isAdr && (
+            <span
+              className="px-1 py-0 text-[7px] font-black bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded shrink-0"
+              title={adrItem?.unNumber ? `ADR ${adrItem.unNumber}` : "ADR Dangerous Goods"}
+            >
+              {adrItem?.unNumber ? `ADR ${adrItem.unNumber}` : "ADR"}
+            </span>
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -487,6 +508,31 @@ function PoolOrderCard({
           )}
         </div>
       </div>
+
+      {(pickupDate || dropoffDate) && (
+        <div className="flex items-center justify-between text-[9px] text-text-secondary pt-1 mt-1 border-t border-border/40">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {pickupDate && (
+              <span className="flex items-center gap-0.5 text-blue-600 dark:text-blue-400 font-semibold" title={t('loading_stop', 'Încărcare')}>
+                <span className="text-[10px] leading-none font-black">↑</span>
+                <span>{pickupDate}</span>
+              </span>
+            )}
+            {pickupDate && dropoffDate && <ArrowRight className="w-2 h-2 text-text-muted shrink-0" />}
+            {dropoffDate && (
+              <span className="flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400 font-semibold" title={t('unloading_stop', 'Descărcare')}>
+                <span className="text-[10px] leading-none font-black">↓</span>
+                <span>{dropoffDate}</span>
+              </span>
+            )}
+          </div>
+          {order.client?.name && (
+            <span className="text-[9px] text-text-muted truncate max-w-[80px]" title={order.client.name}>
+              {order.client.name}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
