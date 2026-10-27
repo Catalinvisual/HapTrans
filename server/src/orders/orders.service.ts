@@ -553,18 +553,32 @@ export class OrdersService implements OnModuleInit {
       const stopLocationsChanged = processedStops.length > 0 && oldStopLocations !== newStopLocations;
       const priceChanged = dto.price !== undefined && Math.round(Number(dto.price) * 100) !== Math.round(Number(existingOrder?.price || 0) * 100);
 
-      // Only recalculate route distance and costs if stop locations physically changed OR if explicitly requested
-      if (stopLocationsChanged || (dto.estimatedCost !== undefined && dto.estimatedCost !== null)) {
+      const hasExplicitNewCost = dto.estimatedCost !== undefined && dto.estimatedCost !== null && Math.round(Number(dto.estimatedCost) * 100) !== Math.round(Number(existingOrder?.estimatedCost || 0) * 100);
+      const hasExplicitNewProfit = dto.estimatedProfit !== undefined && dto.estimatedProfit !== null && Math.round(Number(dto.estimatedProfit) * 100) !== Math.round(Number(existingOrder?.estimatedProfit || 0) * 100);
+
+      // Only recalculate route distance and costs if stop locations physically changed
+      if (stopLocationsChanged) {
         if (dto.estimatedCost === undefined || dto.estimatedCost === null) {
           const fresh = await this.findOne(id);
           if (fresh) await this.estimateCostsForOrder(fresh);
         }
-      } else if (priceChanged) {
-        // If only price changed without stop location changes, update profit directly based on existing cost
-        const priceNum = Number(dto.price) || 0;
-        const currentCost = Number(existingOrder?.estimatedCost) || 0;
-        const profit = Math.round((priceNum - currentCost) * 100) / 100;
-        await this.repo.update(id, { estimatedProfit: profit } as any);
+      } else {
+        // If route did NOT change physical locations: protect existing cost, distance and profit from being modified
+        if (!hasExplicitNewCost && existingOrder?.estimatedCost !== undefined && existingOrder?.estimatedCost !== null) {
+          await this.repo.update(id, { 
+            estimatedCost: existingOrder.estimatedCost, 
+            distanceKm: existingOrder.distanceKm 
+          } as any);
+        }
+        if (priceChanged) {
+          // If only price changed without stop location changes, update profit directly based on existing cost
+          const priceNum = Number(dto.price) || 0;
+          const currentCost = Number(existingOrder?.estimatedCost) || 0;
+          const profit = Math.round((priceNum - currentCost) * 100) / 100;
+          await this.repo.update(id, { estimatedProfit: profit } as any);
+        } else if (!hasExplicitNewProfit && existingOrder?.estimatedProfit !== undefined && existingOrder?.estimatedProfit !== null) {
+          await this.repo.update(id, { estimatedProfit: existingOrder.estimatedProfit } as any);
+        }
       }
 
       const fullOrder = await this.findOne(id);
@@ -573,9 +587,9 @@ export class OrdersService implements OnModuleInit {
       if (user && existingOrder && fullOrder) {
         const changes: Record<string, { old: any; new: any }> = {};
 
-        // Only log cost & distance if the route location actually changed or user provided explicit estimatedCost
-        const shouldCheckCosts = stopLocationsChanged || (dto.estimatedCost !== undefined && dto.estimatedCost !== null);
-        const shouldCheckProfit = shouldCheckCosts || priceChanged || (dto.estimatedProfit !== undefined && dto.estimatedProfit !== null);
+        // Only log cost & distance if the route location actually changed or user provided explicit new cost
+        const shouldCheckCosts = stopLocationsChanged || hasExplicitNewCost;
+        const shouldCheckProfit = shouldCheckCosts || priceChanged || hasExplicitNewProfit;
 
         const fieldsToCheck = [
           'price', 'currency', 'status', 'priority', 'transportType', 

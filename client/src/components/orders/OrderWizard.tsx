@@ -178,6 +178,7 @@ export default function OrderWizard({
   useEffect(() => {
     if (isOpen) {
       setIsHighlightDismissed(false);
+      setIsCostRecalculated(false);
       setCurrentStep(resolveTargetStep(highlightSection, initialStep));
     }
   }, [isOpen, initialStep, highlightSection, orderId]);
@@ -185,6 +186,7 @@ export default function OrderWizard({
   // Cost estimator state
   const [costEstimate, setCostEstimate] = useState<any>(null);
   const [costLoading, setCostLoading] = useState(false);
+  const [isCostRecalculated, setIsCostRecalculated] = useState(false);
   const [fuelConsumption, setFuelConsumption] = useState(32); // L/100km
   const [fuelPrice, setFuelPrice] = useState(1.65); // €/L
   const [confirmedUnprofitable, setConfirmedUnprofitable] = useState(false);
@@ -508,6 +510,7 @@ export default function OrderWizard({
         agreedPrice,
         profit,
       });
+      setIsCostRecalculated(true);
       setConfirmedUnprofitable(false);
     } catch (err) {
       toast.error(t('cost_calc_error', 'Cost calculation failed. Please try again.'));
@@ -786,6 +789,15 @@ export default function OrderWizard({
         contactPhone,
         ...cleanForm
       } = form;
+      const costPayload: any = {};
+      if (!orderId && costEstimate) {
+        costPayload.estimatedCost = costEstimate.totalCost;
+        costPayload.estimatedProfit = costEstimate.profit;
+      } else if (orderId && isCostRecalculated && costEstimate) {
+        costPayload.estimatedCost = costEstimate.totalCost;
+        costPayload.estimatedProfit = costEstimate.profit;
+      }
+
       const payload = {
         ...cleanForm,
         orderNumber: (form as any).orderNumber || form.internalReference || undefined,
@@ -795,8 +807,7 @@ export default function OrderWizard({
         customerReference: form.customerReference || pickup.reference || null,
         contactPerson: form.contactPerson || pickup.contactPerson || null,
         contactPhone: form.contactPhone || pickup.phone || null,
-        estimatedCost: costEstimate ? costEstimate.totalCost : undefined,
-        estimatedProfit: costEstimate ? costEstimate.profit : undefined,
+        ...costPayload,
         stops: [{
           type: 'pickup',
           sequence: 1,
