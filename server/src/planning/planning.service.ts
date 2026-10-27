@@ -2952,7 +2952,7 @@ export class PlanningService {
 
     let routePlan = await this.routePlanRepo.findOne({
       where: { tripId },
-      relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'driver', 'driver.user', 'trip'],
+      relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'driver', 'driver.user', 'trip', 'trip.orders'],
       order: { stops: { sequence: 'ASC' } },
     });
 
@@ -3867,7 +3867,7 @@ export class PlanningService {
 
     let routePlan = await this.routePlanRepo.findOne({
       where: { truckId, planningDate, isCurrent: true },
-      relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'driver', 'driver.user', 'trip', 'trip.trailer', 'trip.driver', 'trip.driver.user'],
+      relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'driver', 'driver.user', 'trip', 'trip.orders', 'trip.trailer', 'trip.driver', 'trip.driver.user'],
       order: { stops: { sequence: 'ASC' } },
     });
 

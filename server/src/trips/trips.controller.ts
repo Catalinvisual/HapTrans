@@ -15,7 +15,7 @@ export class TripsController {
     private scanner: TripScannerService,
   ) {}
 
-  @Get() findAll(@Query("status") status?: string) { return this.service.findAll(status); }
+  @Get() findAll(@Query("status") status?: string, @Query("truckId") truckId?: string) { return this.service.findAll(status, truckId); }
 
   @Get("driver/trips")
   findDriverTrips(@Request() req: any) {

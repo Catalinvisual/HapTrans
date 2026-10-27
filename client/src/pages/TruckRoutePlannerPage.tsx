@@ -7,12 +7,14 @@ import {
   Lock, Unlock, RotateCcw, Sparkles, Save,
   CheckCircle2, Info, Route as RouteIcon, ClipboardList, GripVertical, GripHorizontal,
   ShieldAlert, ArrowRight, Navigation, ArrowLeft, ShieldCheck, Send, Undo2,
+  FileText, ChevronDown, Calendar, ExternalLink,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import api from '../lib/api';
 import { planningApi } from '../lib/planningApi';
 import { useConfirm } from '../components/SaveConfirmProvider';
+import OrderWizard from '../components/orders/OrderWizard';
 import PalletIcon from '../components/icons/PalletIcon';
 import WeightKgIcon from '../components/icons/WeightKgIcon';
 
@@ -100,6 +102,9 @@ export default function TruckRoutePlannerPage() {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [activeStopId, setActiveStopId] = useState<string | null>(null);
   const [fallbackTruck, setFallbackTruck] = useState<any>(null);
+  const [selectedWizardOrderId, setSelectedWizardOrderId] = useState<string | null>(null);
+  const [truckTrips, setTruckTrips] = useState<any[]>([]);
+  const [showTripMenu, setShowTripMenu] = useState(false);
 
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<maplibregl.Map | null>(null);
@@ -183,6 +188,48 @@ export default function TruckRoutePlannerPage() {
       }).catch(() => {});
     }
   }, [effectiveTruckId, fallbackTruck]);
+
+  useEffect(() => {
+    if (effectiveTruckId) {
+      api.get('/trips', { params: { truckId: effectiveTruckId } })
+        .then((res) => {
+          if (Array.isArray(res.data)) {
+            setTruckTrips(res.data.filter((t: any) => !['cancelled', 'closed'].includes(String(t.status).toLowerCase())));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [effectiveTruckId, effectiveTripId]);
+
+  const ORDER_COLOR_THEMES = useMemo(() => [
+    { badge: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 hover:bg-blue-500/25' },
+    { badge: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30 hover:bg-purple-500/25' },
+    { badge: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/25' },
+    { badge: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25' },
+    { badge: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 hover:bg-rose-500/25' },
+    { badge: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/25' },
+  ], []);
+
+  const orderColorMap = useMemo(() => {
+    const map = new Map<string, number>();
+    (routePlan?.stops || []).forEach((s: any) => {
+      const key = s.order?.orderNumber || s.orderNumber || s.orderId;
+      if (key && !map.has(key)) {
+        map.set(key, map.size % ORDER_COLOR_THEMES.length);
+      }
+    });
+    return map;
+  }, [routePlan, ORDER_COLOR_THEMES]);
+
+  const resolveStopOrder = useCallback((stop: any) => {
+    const o = stop.order || (stop.orderId && routePlan?.trip?.orders?.find((x: any) => x.id === stop.orderId)) || null;
+    const orderNumber = o?.orderNumber || stop.orderNumber || (stop.orderId ? `ORD-${stop.orderId.slice(0, 8)}` : null);
+    const orderId = o?.id || stop.orderId || null;
+    const key = orderNumber || orderId || 'default';
+    const colorIndex = orderColorMap.get(key) ?? 0;
+    const theme = ORDER_COLOR_THEMES[colorIndex];
+    return { order: o, orderNumber, orderId, theme };
+  }, [routePlan, orderColorMap, ORDER_COLOR_THEMES]);
 
   const sortedStops = useMemo(() => {
     const raw = [...(routePlan?.stops || [])].sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
@@ -814,9 +861,59 @@ export default function TruckRoutePlannerPage() {
           </button>
           <div>
             <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="px-2.5 py-1 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-black">
-                {trpNumber}
-              </span>
+              {truckTrips.length > 1 ? (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowTripMenu(!showTripMenu)}
+                    className="px-2.5 py-1 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-black flex items-center gap-1.5 hover:bg-primary/20 transition-all cursor-pointer shadow-xs"
+                    title={t('pln_trip_selector', 'Schimbă Cursa')}
+                  >
+                    <span>{trpNumber}</span>
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showTripMenu ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {showTripMenu && (
+                    <div
+                      className="absolute left-0 top-full mt-1.5 w-64 bg-card border border-border rounded-xl shadow-xl z-50 p-1.5 space-y-1"
+                      onMouseLeave={() => setShowTripMenu(false)}
+                    >
+                      <div className="px-2 py-1 text-[10px] font-bold uppercase text-text-muted tracking-wider">
+                        {t('pln_trip_selector', 'Schimbă Cursa')} ({truckTrips.length})
+                      </div>
+                      {truckTrips.map((tr) => {
+                        const isCurrent = tr.id === effectiveTripId || tr.tripNumber === trpNumber;
+                        const dep = tr.plannedDeparture ? fmtDate(tr.plannedDeparture) : '—';
+                        return (
+                          <button
+                            key={tr.id}
+                            onClick={() => {
+                              setShowTripMenu(false);
+                              const depDate = tr.plannedDeparture ? String(tr.plannedDeparture).split('T')[0] : date;
+                              navigate(`/planning/planner/${effectiveTruckId}?trip=${tr.id}&date=${depDate}`);
+                            }}
+                            className={`w-full text-left px-2.5 py-2 rounded-lg text-xs flex items-center justify-between gap-2 transition-all ${
+                              isCurrent ? 'bg-primary/15 text-primary font-black' : 'hover:bg-surface text-text-primary'
+                            }`}
+                          >
+                            <div>
+                              <div className="font-bold flex items-center gap-1">
+                                <span>{tr.tripNumber || tr.id.slice(0, 8)}</span>
+                                <span className="text-[10px] font-normal uppercase text-text-muted">· {tr.status}</span>
+                              </div>
+                              <div className="text-[10px] text-text-secondary mt-0.5">{dep} · {(tr.stops || []).length} {t('jsx_stops', 'stops')}</div>
+                            </div>
+                            {isCurrent && <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <span className="px-2.5 py-1 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-black">
+                  {trpNumber}
+                </span>
+              )}
               <h1 className="text-base font-black text-text-primary flex items-center gap-2">
                 <span>{truck?.plateNumber || t('pln_planner', 'Route Planner')}</span>
                 {truck?.brand && <span className="text-xs text-text-muted font-semibold">({truck.brand} {truck.model || ''})</span>}
@@ -1006,25 +1103,65 @@ export default function TruckRoutePlannerPage() {
               const nextIdx = idx < sortedStops.length - 1 ? idx + 1 : -1;
               const isActive = activeStopId === stop.id;
 
+              const { orderNumber, orderId, theme: orderTheme } = resolveStopOrder(stop);
+
+              const stopDateStr = stop.scheduledDate || (stop.eta ? new Date(stop.eta).toISOString().split('T')[0] : null);
+              const prevStop = idx > 0 ? sortedStops[idx - 1] : null;
+              const prevDateStr = prevStop ? (prevStop.scheduledDate || (prevStop.eta ? new Date(prevStop.eta).toISOString().split('T')[0] : null)) : null;
+              const isDateChange = stopDateStr && prevDateStr && stopDateStr !== prevDateStr;
+              const dayLabel = stopDateStr ? new Date(stopDateStr + 'T12:00:00').toLocaleDateString(undefined, {
+                weekday: 'short', month: 'short', day: 'numeric'
+              }) : null;
+
               return (
-                <div
-                  key={stop.id}
-                  onClick={() => focusStop(stop)}
-                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverId(stop.id); }}
-                  onDragLeave={() => setDragOverId((id) => (id === stop.id ? null : id))}
-                  onDrop={(e) => { e.preventDefault(); handleDrop(stop.id); }}
-                  className={`rounded-xl border p-3 bg-surface/50 hover:bg-surface/80 transition-all cursor-pointer ${isPickup ? 'border-blue-500/25 hover:border-blue-500/40' : 'border-emerald-500/25 hover:border-emerald-500/40'} ${stop.locked ? 'border-amber-400/60 ring-1 ring-amber-400/30' : ''} ${dragOverId === stop.id && dragId !== stop.id ? 'ring-2 ring-primary border-primary scale-[1.01]' : ''} ${dragId === stop.id ? 'opacity-40' : ''} ${isActive ? 'ring-2 ring-primary shadow-md' : ''}`}
-                >
-                  <div className="flex items-start gap-2.5">
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-black shrink-0 ${isPickup ? 'bg-blue-600' : 'bg-emerald-600'}`}>
-                      {stop.sequence}
+                <div key={stop.id} className="space-y-1.5">
+                  {isDateChange && dayLabel && (
+                    <div className="flex items-center gap-2 pt-2 pb-1 text-[11px] font-bold text-text-muted">
+                      <div className="h-px bg-border flex-1" />
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface border border-border text-text-secondary text-[11px] font-semibold shadow-xs">
+                        <Calendar className="w-3 h-3 text-primary" />
+                        {dayLabel}
+                      </span>
+                      <div className="h-px bg-border flex-1" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={`text-[10px] font-black uppercase ${isPickup ? 'text-blue-600' : 'text-emerald-600'}`}>
-                          {isPickup ? t('pln_pickup', 'Pickup') : t('pln_delivery', 'Delivery')}
-                          {stop.shipmentId && <span className="text-text-muted normal-case ml-1">· {stop.shipmentId.slice(0, 8)}</span>}
-                        </span>
+                  )}
+
+                  <div
+                    onClick={() => focusStop(stop)}
+                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverId(stop.id); }}
+                    onDragLeave={() => setDragOverId((id) => (id === stop.id ? null : id))}
+                    onDrop={(e) => { e.preventDefault(); handleDrop(stop.id); }}
+                    className={`rounded-xl border p-3 bg-surface/50 hover:bg-surface/80 transition-all cursor-pointer ${isPickup ? 'border-blue-500/25 hover:border-blue-500/40' : 'border-emerald-500/25 hover:border-emerald-500/40'} ${stop.locked ? 'border-amber-400/60 ring-1 ring-amber-400/30' : ''} ${dragOverId === stop.id && dragId !== stop.id ? 'ring-2 ring-primary border-primary scale-[1.01]' : ''} ${dragId === stop.id ? 'opacity-40' : ''} ${isActive ? 'ring-2 ring-primary shadow-md' : ''}`}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-black shrink-0 ${isPickup ? 'bg-blue-600' : 'bg-emerald-600'}`}>
+                        {stop.sequence}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                            <span className={`text-[10px] font-black uppercase tracking-wide shrink-0 ${isPickup ? 'text-blue-600' : 'text-emerald-600'}`}>
+                              {isPickup ? t('pln_pickup', 'Pickup') : t('pln_delivery', 'Delivery')}
+                            </span>
+                            {orderNumber && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (orderId) setSelectedWizardOrderId(orderId);
+                                }}
+                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer ${orderTheme.badge}`}
+                                title={t('pln_open_in_wizard_hint', 'Deschide comanda în Wizard')}
+                              >
+                                <FileText className="w-2.5 h-2.5 shrink-0" />
+                                <span className="truncate max-w-[120px]">{orderNumber}</span>
+                                <ExternalLink className="w-2 h-2 opacity-60 shrink-0" />
+                              </button>
+                            )}
+                            {stop.shipmentId && !orderNumber && (
+                              <span className="text-[10px] text-text-muted normal-case truncate">· {stop.shipmentId.slice(0, 8)}</span>
+                            )}
+                          </div>
                         <div className="flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
                           {!stop.locked && (
                             <div
@@ -1131,6 +1268,7 @@ export default function TruckRoutePlannerPage() {
                         <Info className="w-3 h-3" />{warnFor.length}
                       </span>
                     )}
+                  </div>
                   </div>
                 </div>
               );
@@ -1453,6 +1591,20 @@ export default function TruckRoutePlannerPage() {
             </div>
           </div>
         </div>
+      )}
+      {/* Order Wizard Modal overlay */}
+      {selectedWizardOrderId && (
+        <OrderWizard
+          key={selectedWizardOrderId}
+          isOpen={true}
+          orderId={selectedWizardOrderId}
+          initialStep={1}
+          onClose={() => setSelectedWizardOrderId(null)}
+          onSaved={() => {
+            setSelectedWizardOrderId(null);
+            loadPlan(date, true);
+          }}
+        />
       )}
     </div>
   );

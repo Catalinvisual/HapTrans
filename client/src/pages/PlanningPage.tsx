@@ -1914,6 +1914,12 @@ export default function PlanningPage() {
 
   const [wizardConfig, setWizardConfig] = useState<{ orderId: string; initialStep: number; highlight: string | null } | null>(null);
   const [drawerRefreshKey, setDrawerRefreshKey] = useState(0);
+  const [pastDateConflict, setPastDateConflict] = useState<{
+    orders: any[];
+    resourceId: string;
+    orderIds: string[];
+    actionType: 'roll' | 'retro' | 'wizard';
+  } | null>(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
@@ -2204,13 +2210,110 @@ export default function PlanningPage() {
     const oId = droppedOrderId || draggingOrderId;
     const orderIds = oId ? [oId] : Array.from(selectedPoolOrderIds);
     if (!orderIds.length) return;
+
+    // Check if any order has dates in the past (< today)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const pastOrders = orderIds.map(id => orders.find((o: any) => o.id === id)).filter((o: any) => {
+      if (!o) return false;
+      const pickupDateStr = o.stops?.[0]?.dateFrom || o.stops?.[0]?.timeWindowMin;
+      if (!pickupDateStr) return false;
+      const d = new Date(pickupDateStr);
+      return !isNaN(d.getTime()) && d < today;
+    });
+
+    if (pastOrders.length > 0) {
+      setPastDateConflict({
+        orders: pastOrders,
+        resourceId,
+        orderIds,
+        actionType: 'roll',
+      });
+      return;
+    }
+
+    executeAssign(orderIds, resourceId);
+  };
+
+  const executeAssign = async (orderIds: string[], resourceId: string) => {
     setLoadingAction('assign');
     try {
       await api.post('/planning/assign', { orderIds, truckId: resourceId, date: selectedDate });
-      toast.success(t('jsx_assignedOk','Orders assigned'));
-      setSelectedPoolOrderIds(new Set()); setDraggingOrderId(null); loadData();
-    } catch (err: any) { toast.error(err.response?.data?.message || 'Assignment failed'); }
-    finally { setLoadingAction(null); }
+      toast.success(t('jsx_assignedOk', 'Orders assigned'));
+      setSelectedPoolOrderIds(new Set());
+      setDraggingOrderId(null);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Assignment failed');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleConfirmPastDate = async () => {
+    if (!pastDateConflict) return;
+    const { orders: conflictingOrders, resourceId, orderIds, actionType } = pastDateConflict;
+
+    if (actionType === 'wizard') {
+      setPastDateConflict(null);
+      if (conflictingOrders[0]?.id) {
+        setWizardConfig({ orderId: conflictingOrders[0].id, initialStep: 1, highlight: 'stops' });
+      }
+      return;
+    }
+
+    setLoadingAction('assign');
+    try {
+      if (actionType === 'roll') {
+        // Automatically roll dates forward to selectedDate, preserving transit duration
+        for (const po of conflictingOrders) {
+          if (!po.stops || po.stops.length === 0) continue;
+          const oldPickup = po.stops[0]?.dateFrom || po.stops[0]?.timeWindowMin;
+          const oldDelivery = po.stops[po.stops.length - 1]?.dateFrom || po.stops[po.stops.length - 1]?.timeWindowMin;
+          let deltaDays = 0;
+          if (oldPickup && oldDelivery) {
+            const t1 = new Date(oldPickup).getTime();
+            const t2 = new Date(oldDelivery).getTime();
+            if (!isNaN(t1) && !isNaN(t2) && t2 > t1) {
+              deltaDays = Math.round((t2 - t1) / (1000 * 60 * 60 * 24));
+            }
+          }
+          const newPickupDate = selectedDate;
+          const dTarget = new Date(selectedDate);
+          dTarget.setDate(dTarget.getDate() + deltaDays);
+          const newDeliveryDate = dTarget.toISOString().split('T')[0];
+
+          const updatedStops = po.stops.map((s: any, idx: number) => {
+            const isDelivery = idx === po.stops.length - 1 && po.stops.length > 1;
+            const targetDate = isDelivery ? newDeliveryDate : newPickupDate;
+            return {
+              ...s,
+              dateFrom: targetDate,
+              timeWindowMin: s.timeFrom ? `${targetDate}T${s.timeFrom}:00` : `${targetDate}T09:00:00`,
+              timeWindowMax: s.timeUntil ? `${targetDate}T${s.timeUntil}:00` : `${targetDate}T18:00:00`,
+            };
+          });
+
+          try {
+            await api.patch(`/orders/${po.id}`, { stops: updatedStops });
+          } catch {
+            // best effort stop update
+          }
+        }
+      }
+
+      await api.post('/planning/assign', { orderIds, truckId: resourceId, date: selectedDate });
+      toast.success(t('jsx_assignedOk', 'Orders assigned'));
+      setSelectedPoolOrderIds(new Set());
+      setDraggingOrderId(null);
+      setPastDateConflict(null);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Assignment failed');
+    } finally {
+      setLoadingAction(null);
+    }
   };
 
   const handlePrint = () => window.print();
@@ -3135,6 +3238,152 @@ export default function PlanningPage() {
               >
                 {loadingAction === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 {dispatchModalTrip.status === 'dispatched' ? t('dispatch_update_btn', 'Send Update') : t('dispatch_send_btn', 'Send Dispatch')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {pastDateConflict && (
+        <div className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150" onClick={() => setPastDateConflict(null)}>
+          <div className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-lg p-6 space-y-4 animate-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-500">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-text-primary">{t('past_date_modal_title', 'Comandă cu date în trecut detectată')}</h3>
+                  <p className="text-xs text-text-secondary">{t('past_date_modal_desc', 'Comanda selectată are date de încărcare sau descărcare în trecut. Cum doriți să procedați?')}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPastDateConflict(null)}
+                className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* List of orders with old dates */}
+            <div className="bg-surface/60 rounded-2xl p-3 border border-border/80 space-y-1.5 text-xs max-h-40 overflow-y-auto">
+              {pastDateConflict.orders.map((po) => {
+                const pDate = po.stops?.[0]?.dateFrom ? new Date(po.stops[0].dateFrom).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+                const dDate = po.stops?.[po.stops.length - 1]?.dateFrom ? new Date(po.stops[po.stops.length - 1].dateFrom).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+                return (
+                  <div key={po.id} className="flex items-center justify-between py-1 px-2 rounded-lg bg-card/80 border border-border/50 text-xs">
+                    <div className="font-bold text-text-primary flex items-center gap-1.5">
+                      <Package className="w-3.5 h-3.5 text-primary" />
+                      <span>{po.orderNumber}</span>
+                      {po.client?.name && <span className="text-text-muted font-normal">· {po.client.name}</span>}
+                    </div>
+                    <div className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+                      <span>{pDate}</span>
+                      <ArrowRight className="w-3 h-3 text-text-muted" />
+                      <span>{dDate}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Selection cards */}
+            <div className="space-y-2">
+              <div
+                onClick={() => setPastDateConflict(prev => prev ? ({ ...prev, actionType: 'roll' }) : null)}
+                className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                  pastDateConflict.actionType === 'roll'
+                    ? 'border-primary bg-primary/10 ring-1 ring-primary shadow-xs'
+                    : 'border-border bg-surface/30 hover:bg-surface/60'
+                }`}
+              >
+                <div className="flex items-start gap-2.5">
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                    pastDateConflict.actionType === 'roll' ? 'bg-primary text-white' : 'border border-border'
+                  }`}>
+                    {pastDateConflict.actionType === 'roll' && <CheckCircle2 className="w-4 h-4" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-text-primary">
+                        {t('past_date_opt_roll_title', 'Actualizează automat la data planificată (Recomandat)')}
+                      </span>
+                      <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                        {t('jsx_recommended', 'Recomandat')}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-text-secondary mt-0.5 leading-relaxed">
+                      {t('past_date_opt_roll_desc', 'Setează încărcarea la data planificată și recalculează livrarea, păstrând durata de tranzit.')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                onClick={() => setPastDateConflict(prev => prev ? ({ ...prev, actionType: 'retro' }) : null)}
+                className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                  pastDateConflict.actionType === 'retro'
+                    ? 'border-primary bg-primary/10 ring-1 ring-primary shadow-xs'
+                    : 'border-border bg-surface/30 hover:bg-surface/60'
+                }`}
+              >
+                <div className="flex items-start gap-2.5">
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                    pastDateConflict.actionType === 'retro' ? 'bg-primary text-white' : 'border border-border'
+                  }`}>
+                    {pastDateConflict.actionType === 'retro' && <CheckCircle2 className="w-4 h-4" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-black text-text-primary">
+                      {t('past_date_opt_retro_title', 'Păstrează datele originale (Cursă retroactivă)')}
+                    </span>
+                    <p className="text-[11px] text-text-secondary mt-0.5 leading-relaxed">
+                      {t('past_date_opt_retro_desc', 'Salvează ca înregistrare istorică/efectuată fără a modifica datele originale.')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                onClick={() => setPastDateConflict(prev => prev ? ({ ...prev, actionType: 'wizard' }) : null)}
+                className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                  pastDateConflict.actionType === 'wizard'
+                    ? 'border-primary bg-primary/10 ring-1 ring-primary shadow-xs'
+                    : 'border-border bg-surface/30 hover:bg-surface/60'
+                }`}
+              >
+                <div className="flex items-start gap-2.5">
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                    pastDateConflict.actionType === 'wizard' ? 'bg-primary text-white' : 'border border-border'
+                  }`}>
+                    {pastDateConflict.actionType === 'wizard' && <CheckCircle2 className="w-4 h-4" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-black text-text-primary">
+                      {t('past_date_opt_wizard_title', 'Deschide în Order Wizard')}
+                    </span>
+                    <p className="text-[11px] text-text-secondary mt-0.5 leading-relaxed">
+                      {t('past_date_opt_wizard_desc', 'Ajustează manual ferestrele de timp și detaliile mărfii înainte de alocare.')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <button
+                onClick={() => setPastDateConflict(null)}
+                disabled={!!loadingAction}
+                className="btn-secondary text-xs py-2 px-4 font-bold"
+              >
+                {t('past_date_cancel', 'Anulează')}
+              </button>
+              <button
+                onClick={handleConfirmPastDate}
+                disabled={!!loadingAction}
+                className="btn-primary text-xs py-2 px-5 font-black flex items-center gap-1.5 shadow-md shadow-primary/20"
+              >
+                {loadingAction === 'assign' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                {t('past_date_confirm', 'Confirmă și Alocă')}
               </button>
             </div>
           </div>

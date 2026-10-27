@@ -55,14 +55,21 @@ export class TripsService {
     private actionLogs: ActionLogsService,
   ) {}
 
-  findAll(status?: string) {
+  findAll(status?: string, truckId?: string) {
     const findOptions: any = { 
       relations: ['truck', 'driver', 'driver.user', 'trailer', 'stops', 'orders', 'orders.cargoItems', 'costs', 'dispatcher'],
       order: { createdAt: 'DESC' }
     };
+    const where: any = {};
     if (status) {
       const statuses = status.split(',');
-      findOptions.where = { status: In(statuses) };
+      where.status = In(statuses);
+    }
+    if (truckId) {
+      where.truck = { id: truckId };
+    }
+    if (Object.keys(where).length > 0) {
+      findOptions.where = where;
     }
     return this.repo.find(findOptions);
   }
