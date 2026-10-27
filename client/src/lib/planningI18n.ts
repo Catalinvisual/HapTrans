@@ -666,6 +666,9 @@ const en: Record<string, string> = {
   drop_to_unassign: "Drop here to unassign",
   drop_to_unassign_hint: "The order or trip will be returned to unassigned orders",
   order_unassigned_pool: "The order has been returned to unassigned orders.",
+  jsx_retry: "Retry",
+  unable_load_planning: "Unable to load planning data",
+  error_loading_orders: "Error loading orders",
 };
 
 const ro: Record<string, string> = {
@@ -1266,6 +1269,9 @@ const ro: Record<string, string> = {
   drop_to_unassign: "Eliberează aici pentru a dezasocia",
   drop_to_unassign_hint: "Comanda sau cursa va fi returnată la nealocate",
   order_unassigned_pool: "Comanda a fost returnată la comenzi nealocate.",
+  jsx_retry: "Reîncearcă",
+  unable_load_planning: "Nu s-au putut încărca datele de planificare",
+  error_loading_orders: "Eroare la încărcarea comenzilor",
 };
 
 const nl: Record<string, string> = {
@@ -1866,6 +1872,9 @@ const nl: Record<string, string> = {
   drop_to_unassign: "Laat hier los om te ontkoppelen",
   drop_to_unassign_hint: "De order of rit wordt teruggestuurd naar niet-toegewezen",
   order_unassigned_pool: "De order is teruggestuurd naar niet-toegewezen orders.",
+  jsx_retry: "Opnieuw proberen",
+  unable_load_planning: "Kan planningsgegevens niet laden",
+  error_loading_orders: "Fout bij laden van orders",
 };
 
 const de: Record<string, string> = {
@@ -2466,6 +2475,9 @@ const de: Record<string, string> = {
   drop_to_unassign: "Hier ablegen zum Zuweisung aufheben",
   drop_to_unassign_hint: "Der Auftrag oder die Tour wird zu den nicht zugewiesenen zurückgebracht",
   order_unassigned_pool: "Der Auftrag wurde zu den nicht zugewiesenen Aufträgen zurückgebracht.",
+  jsx_retry: "Erneut versuchen",
+  unable_load_planning: "Planungsdaten konnten nicht geladen werden",
+  error_loading_orders: "Fehler beim Laden der Aufträge",
 };
 
 const fr: Record<string, string> = {
@@ -3066,6 +3078,9 @@ const fr: Record<string, string> = {
   drop_to_unassign: "Déposer ici pour désassigner",
   drop_to_unassign_hint: "La commande ou le trajet sera renvoyé aux non assignés",
   order_unassigned_pool: "La commande a été renvoyée aux commandes non assignées.",
+  jsx_retry: "Réessayer",
+  unable_load_planning: "Impossible de charger les données de planification",
+  error_loading_orders: "Erreur lors du chargement des commandes",
 };
 
 const es: Record<string, string> = {
@@ -3751,6 +3766,9 @@ const es: Record<string, string> = {
   drop_to_unassign: "Soltar aquí para desasignar",
   drop_to_unassign_hint: "El pedido o viaje será devuelto a no asignados",
   order_unassigned_pool: "El pedido ha sido devuelto a los pedidos no asignados.",
+  jsx_retry: "Reintentar",
+  unable_load_planning: "No se pudieron cargar los datos de planificación",
+  error_loading_orders: "Error al cargar los pedidos",
 };
 
 const pl: Record<string, string> = {
@@ -4436,6 +4454,9 @@ const pl: Record<string, string> = {
   drop_to_unassign: "Upuść tutaj, aby odłączyć",
   drop_to_unassign_hint: "Zamówienie lub trasa zostanie zwrócona do nieprzypisanych",
   order_unassigned_pool: "Zamówienie zostało zwrócone do zamówień nieprzypisanych.",
+  jsx_retry: "Ponów próbę",
+  unable_load_planning: "Nie można załadować danych planowania",
+  error_loading_orders: "Błąd podczas ładowania zamówień",
 };
 
 export const planningResources: Record<string, { translation: Record<string, string> }> = {

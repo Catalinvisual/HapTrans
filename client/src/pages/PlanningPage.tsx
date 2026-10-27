@@ -2911,9 +2911,9 @@ export default function PlanningPage() {
                 ) : fetchError ? (
                   <div className="text-center py-6 px-2">
                     <AlertTriangle className="w-6 h-6 text-amber-500 mx-auto mb-2" />
-                    <p className="text-xs font-bold text-text-primary">Error loading</p>
+                    <p className="text-xs font-bold text-text-primary">{t('error_loading_orders', 'Error loading orders')}</p>
                     <p className="text-[10px] text-text-secondary mb-2">{fetchError}</p>
-                    <button onClick={loadData} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 mx-auto"><RefreshCw className="w-3 h-3" />{t('jsx_recalc','Retry')}</button>
+                    <button onClick={loadData} className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 mx-auto"><RefreshCw className="w-3 h-3" />{t('jsx_retry', 'Retry')}</button>
                   </div>
                 ) : sortedOrders.length === 0 ? (
                   <div className="text-center py-8">
@@ -2977,9 +2977,9 @@ export default function PlanningPage() {
                 ) : fetchError ? (
                   <div className="flex flex-col items-center justify-center h-full px-6 text-center">
                     <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mb-3"><AlertTriangle className="w-6 h-6" /></div>
-                    <p className="font-bold text-text-primary text-base">Unable to load planning data</p>
+                    <p className="font-bold text-text-primary text-base">{t('unable_load_planning', 'Unable to load planning data')}</p>
                     <p className="text-xs text-text-secondary max-w-sm mt-1 mb-4">{fetchError}</p>
-                    <button onClick={loadData} className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-bold shadow-md"><RefreshCw className="w-3.5 h-3.5" /><span>{t('jsx_recalc','Retry')}</span></button>
+                    <button onClick={loadData} className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 font-bold shadow-md"><RefreshCw className="w-3.5 h-3.5" /><span>{t('jsx_retry', 'Retry')}</span></button>
                   </div>
                 ) : (
                   <div className="w-full" style={{ minWidth: `${224 + totalTimelineWidth}px` }}>
