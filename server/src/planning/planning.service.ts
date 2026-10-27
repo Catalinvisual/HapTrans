@@ -559,6 +559,7 @@ export class PlanningService {
         new Brackets((b) => {
           b.where('trip.plannedDeparture BETWEEN :from AND :to', { from, to })
             .orWhere('trip.plannedArrival BETWEEN :from AND :to', { from, to })
+            .orWhere('(trip.plannedDeparture <= :to AND trip.plannedArrival >= :from)', { from, to })
             .orWhere('trip.plannedDeparture IS NULL AND trip.createdAt BETWEEN :from AND :to', { from, to });
         }),
       )

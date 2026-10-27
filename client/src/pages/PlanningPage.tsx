@@ -794,15 +794,21 @@ function ResourceRow({
         onDragLeave={handleRowDragLeave}
         onDrop={handleRowDrop}
       >
-        {/* Hour grid lines */}
+        {/* Day / hour grid lines */}
         <div className="absolute inset-0 flex pointer-events-none" style={{ minWidth: `${calcTimelineWidth}px` }}>
-          {Array.from({ length: hoursVisible }, (_, h) => (
-            <div
-              key={h}
-              className="flex-1 border-r border-border/20 last:border-0"
-              style={{ minWidth: `${colWidth}px`, width: `${colWidth}px` }}
-            />
-          ))}
+          {Array.from({ length: hoursVisible }, (_, h) => {
+            const colDate = addDays(parseDay(fromDate), h);
+            const isToday = dayStr(colDate) === dayStr(new Date());
+            return (
+              <div
+                key={h}
+                className={`flex-1 border-r border-border/20 last:border-0 ${
+                  isToday ? 'bg-primary/[0.04]' : ''
+                }`}
+                style={{ minWidth: `${colWidth}px`, width: `${colWidth}px` }}
+              />
+            );
+          })}
         </div>
 
         {/* Maintenance overlay */}
@@ -2018,8 +2024,8 @@ export default function PlanningPage() {
   const { from, to, totalMinutes, hoursVisible, fromDateObj } = useMemo(() => {
     const curr = parseDay(selectedDate);
     if (viewMode === 'all') {
-      const start = addDays(curr, -15);
-      const end = addDays(curr, 15);
+      const start = curr;
+      const end = addDays(curr, 30);
       return { from: dayStr(start), to: dayStr(end), totalMinutes: 31 * 24 * 60, hoursVisible: 31, fromDateObj: start };
     }
     if (viewMode === 'week') {
@@ -2887,20 +2893,52 @@ export default function PlanningPage() {
                             </button>
                           </div>
                           <div className="flex flex-1 relative" style={{ minWidth: `${totalTimelineWidth}px` }}>
-                            {Array.from({ length: hoursVisible }, (_, h) => (
-                              <div
-                                key={h}
-                                className="flex-1 text-center text-[10px] font-bold text-text-secondary py-2 border-r border-border/30 last:border-0"
-                                style={{ minWidth: `${colWidth}px`, width: `${colWidth}px` }}
-                              >
-                                {viewMode === 'all'
-                                  ? addDays(fromDateObj, h).toLocaleDateString([], { day: 'numeric', month: 'short' })
-                                  : viewMode === 'week'
-                                    ? addDays(fromDateObj, h).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
-                                    : `${String(h).padStart(2,'0')}:00`
-                                }
-                              </div>
-                            ))}
+                            {Array.from({ length: hoursVisible }, (_, h) => {
+                              const colDate = addDays(fromDateObj, h);
+                              const colDateStr = dayStr(colDate);
+                              const isToday = colDateStr === dayStr(new Date());
+                              return (
+                                <div
+                                  key={h}
+                                  className={`flex-1 text-center text-[10px] font-bold py-1.5 border-r border-border/30 last:border-0 transition-colors ${
+                                    isToday ? 'bg-primary/10 text-primary font-black border-primary/30' : 'text-text-secondary'
+                                  }`}
+                                  style={{ minWidth: `${colWidth}px`, width: `${colWidth}px` }}
+                                >
+                                  {viewMode === 'all' ? (
+                                    <div className="flex flex-col items-center justify-center leading-tight">
+                                      {isToday ? (
+                                        <>
+                                          <span className="text-[8px] font-black uppercase text-primary tracking-wider">
+                                            {t('jsx_today', 'Today')}
+                                          </span>
+                                          <span className="text-[10px] font-bold">
+                                            {colDate.toLocaleDateString([], { day: 'numeric', month: 'short' })}
+                                          </span>
+                                        </>
+                                      ) : (
+                                        <span>
+                                          {colDate.toLocaleDateString([], { day: 'numeric', month: 'short' })}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : viewMode === 'week' ? (
+                                    <div className="flex flex-col items-center justify-center leading-tight">
+                                      {isToday && (
+                                        <span className="text-[8px] font-black uppercase text-primary tracking-wider">
+                                          {t('jsx_today', 'Today')}
+                                        </span>
+                                      )}
+                                      <span>
+                                        {colDate.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    `${String(h).padStart(2,'0')}:00`
+                                  )}
+                                </div>
+                              );
+                            })}
                             {/* Right absolute positioned block for indicators and zoom controls */}
                             <div className="absolute top-1/2 -translate-y-1/2 right-2 flex items-center gap-3 bg-surface/80 backdrop-blur-sm border border-border/60 rounded-lg px-2 py-1 shadow-sm">
                               <div className="flex items-center gap-1">
