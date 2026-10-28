@@ -427,7 +427,7 @@ function PoolOrderCard({
   const pickup = (order.stops || []).find((s: any) => s.type === 'pickup') || order.stops?.[0];
   const dropoff = (order.stops || []).filter((s: any) => s.type === 'delivery' || s.type === 'dropoff').pop() || order.stops?.[order.stops?.length - 1];
   const cargo = sumCargo([order]);
-  const p = order.priority || 'normal';
+  const p = String(order.priority || 'normal').trim().toLowerCase();
   const isCritical = p === 'critical' || p === 'urgent';
   const isHigh = p === 'high';
   const isDragging = draggingId === order.id;
@@ -506,14 +506,14 @@ function PoolOrderCard({
         </div>
         <div className="flex items-center gap-1.5 shrink-0 font-black text-text-primary text-[10px]">
           {cargo.pallets > 0 && (
-            <span className="inline-flex items-center gap-0.5">
-              <PalletIcon className="w-3 h-3" />
+            <span className="inline-flex items-center gap-1">
+              <PalletIcon className="w-3.5 h-3.5" />
               {cargo.pallets}p
             </span>
           )}
           {cargo.weight > 0 && (
-            <span className="inline-flex items-center gap-0.5">
-              <WeightKgIcon className="w-3 h-3" />
+            <span className="inline-flex items-center gap-1">
+              <WeightKgIcon className="w-3.5 h-3.5" />
               {fmtNumber(cargo.weight)}kg
             </span>
           )}
@@ -670,9 +670,9 @@ function TripBlock({
 
           {/* Row 4: Cargo + revenue */}
           {!isVeryNarrow && (cargo.weight > 0 || revenue > 0) && (
-            <div className="flex items-center gap-1">
-              {cargo.weight > 0 && <span className="text-[8px] text-text-muted inline-flex items-center gap-0.5"><WeightKgIcon className="w-2.5 h-2.5" />{fmtNumber(cargo.weight)}kg</span>}
-              {cargo.pallets > 0 && <span className="text-[8px] text-text-muted inline-flex items-center gap-0.5"><PalletIcon className="w-2.5 h-2.5" />{cargo.pallets}p</span>}
+            <div className="flex items-center gap-1.5">
+              {cargo.weight > 0 && <span className="text-[8px] text-text-muted inline-flex items-center gap-0.5"><WeightKgIcon className="w-3 h-3" />{fmtNumber(cargo.weight)}kg</span>}
+              {cargo.pallets > 0 && <span className="text-[8px] text-text-muted inline-flex items-center gap-0.5"><PalletIcon className="w-3 h-3" />{cargo.pallets}p</span>}
               {revenue > 0 && <span className="text-[8px] font-black" style={{ color: hex }}>{fmtMoney(revenue, 'EUR')}</span>}
               {ordersCount > 0 && <span className="text-[8px] text-text-muted">·{ordersCount}ord</span>}
             </div>
@@ -691,8 +691,8 @@ function CapacityIndicator({ icon: Icon, text, pct, tooltip }: {
   const tone = over || pct >= 91 ? '#EF4444' : pct >= 71 ? '#F59E0B' : '#22C55E';
   return (
     <div className="flex-1 min-w-0" title={tooltip}>
-      <div className="flex items-center gap-0.5" style={{ color: tone }}>
-        <Icon className="w-3 h-3 shrink-0" />
+      <div className="flex items-center gap-1" style={{ color: tone }}>
+        <Icon className="w-3.5 h-3.5 shrink-0" />
         <span className={`text-[8px] font-bold truncate ${over ? 'animate-pulse' : ''}`}>{text}</span>
       </div>
       <div className="h-[3px] w-full rounded-full bg-border/50 overflow-hidden mt-0.5">
