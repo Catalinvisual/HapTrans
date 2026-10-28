@@ -6,6 +6,7 @@ import { Invoice, InvoiceStatus } from './invoice.entity';
 import { InvoiceItem } from './invoice-item.entity';
 import { Trip } from '../trips/trip.entity';
 import { v2 as cloudinary } from 'cloudinary';
+import { computeAuditChanges } from '../action-logs/diff.util';
 
 async function deleteFromCloudinary(fileUrl: string) {
   if (!fileUrl || !fileUrl.includes('cloudinary.com')) return;
@@ -361,12 +362,16 @@ export class InvoicesService implements OnModuleInit {
   async update(id: string, dto: any, user?: any) {
     const inv = await this.repo.findOne({ where: { id }, relations: ['client', 'trip', 'items'] });
     if (!inv) throw new BadRequestException('Invoice not found');
+    // Compute the real diff BEFORE mutating the entity
+    const { updatedFields, changes } = computeAuditChanges(inv, dto, {
+      relations: { clientId: 'client', tripId: 'trip' },
+      ignore: ['items', 'client', 'trip'],
+    });
     Object.assign(inv, dto);
     const saved = await this.repo.save(inv);
-    if (user) {
+    if (user && updatedFields.length > 0) {
       try {
-        const updatedFields = Object.keys(dto);
-        await this.actionLogs.logAction('Invoice', id, 'UPDATED', user, { updatedFields });
+        await this.actionLogs.logAction('Invoice', id, 'UPDATED', user, { updatedFields, changes });
       } catch (err: any) {
         console.warn('Action log failed for invoice update:', err?.message);
       }

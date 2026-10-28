@@ -16,6 +16,7 @@ import { PlanningEngine } from '../engines/planning.engine';
 import { PricingEngine } from '../engines/pricing.engine';
 import { CostEngine } from '../engines/cost.engine';
 import { ActionLogsService } from '../action-logs/action-logs.service';
+import { computeAuditChanges } from '../action-logs/diff.util';
 import { randomUUID } from 'crypto';
 
 const TRIP_STATUS_FLOW: Record<string, string[]> = {
@@ -360,9 +361,13 @@ export class TripsService {
     }
 
     if (user) {
-      const updatedFields = Object.keys(dto);
+      // Log only the fields whose value really changed (system-generated dispatch fields excluded)
+      const { updatedFields, changes } = computeAuditChanges(existing, dto, {
+        relations: { driverId: 'driver', truckId: 'truck', trailerId: 'trailer', clientId: 'client' },
+        ignore: ['orders', 'stops', 'costs', 'pickupAddress', 'dropoffAddress', 'client', 'trackingToken', 'dispatchVersion', 'dispatchedAt', 'dispatchedBy'],
+      });
       if (updatedFields.length > 0) {
-        await this.actionLogs.logAction('Trip', id, 'UPDATED', user, { updatedFields });
+        await this.actionLogs.logAction('Trip', id, 'UPDATED', user, { updatedFields, changes });
       }
     }
 

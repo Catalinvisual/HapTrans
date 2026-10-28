@@ -5,6 +5,7 @@ import { Client } from './client.entity';
 import { ClientRate } from './client-rate.entity';
 import { ClientLocation } from './client-location.entity';
 import { ActionLogsService } from '../action-logs/action-logs.service';
+import { computeAuditChanges } from '../action-logs/diff.util';
 
 @Injectable()
 export class ClientsService {
@@ -28,9 +29,9 @@ export class ClientsService {
     const existing = await this.repo.findOne({ where: { id } });
     await this.repo.update(id, dto); 
     if (user && existing) {
-      const updatedFields = Object.keys(dto).filter(k => (existing as any)[k] !== (dto as any)[k]);
+      const { updatedFields, changes } = computeAuditChanges(existing, dto, { ignore: ['rates', 'locations'] });
       if (updatedFields.length > 0) {
-        await this.actionLogs.logAction('Client', id, 'UPDATED', user, { updatedFields });
+        await this.actionLogs.logAction('Client', id, 'UPDATED', user, { updatedFields, changes });
       }
     }
     return this.repo.findOne({ where: { id } });

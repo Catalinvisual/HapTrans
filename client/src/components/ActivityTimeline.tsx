@@ -189,7 +189,15 @@ export default function ActivityTimeline({
     );
   }
 
-  const displayLogs = [...logs];
+  // Hide "updated" entries whose recorded changes contain no real difference (e.g. legacy noise)
+  const displayLogs = logs.filter((log: any) => {
+    if (log.action !== 'UPDATED') return true;
+    const changes = log.details?.changes;
+    if (!changes || typeof changes !== 'object') return true;
+    return Object.entries(changes).some(([field, change]: [string, any]) =>
+      formatVal(field, change?.old) !== formatVal(field, change?.new)
+    );
+  });
   const hasCreatedLog = displayLogs.some((l: any) => l.action === 'CREATED');
   
   if (!hasCreatedLog && createdAt) {

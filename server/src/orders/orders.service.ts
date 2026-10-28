@@ -544,11 +544,26 @@ export class OrdersService implements OnModuleInit {
       // Re-evaluate ADR status and 1,000 points calculation on update
       await this.evaluateAndSaveAdr(id);
 
-      const oldStopLocations = (existingOrder?.stops || [])
-        .map((s: any) => `${s.latitude || ''},${s.longitude || ''},${s.address || ''}`)
+      // Compare stop locations in a representation-independent way.
+      // Postgres returns decimal coords as strings ("51.923400") while the client sends floats (51.9234),
+      // and relation rows are not guaranteed to come back in sequence order. Comparing raw strings made
+      // every save look like a route change, which silently re-ran routing and changed km / cost / profit.
+      const normCoord = (v: any): string => {
+        const n = parseFloat(String(v ?? ''));
+        return isNaN(n) ? '' : n.toFixed(5); // ~1 m precision
+      };
+      const stopLocationKey = (s: any): string => {
+        const lat = normCoord(s?.latitude);
+        const lng = normCoord(s?.longitude);
+        if (lat && lng) return `${lat},${lng}`;
+        return String(s?.address || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      };
+      const oldStopLocations = [...(existingOrder?.stops || [])]
+        .sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0))
+        .map(stopLocationKey)
         .join('|');
       const newStopLocations = (processedStops || [])
-        .map((s: any) => `${s.latitude || ''},${s.longitude || ''},${s.address || ''}`)
+        .map(stopLocationKey)
         .join('|');
       const stopLocationsChanged = processedStops.length > 0 && oldStopLocations !== newStopLocations;
       const priceChanged = dto.price !== undefined && Math.round(Number(dto.price) * 100) !== Math.round(Number(existingOrder?.price || 0) * 100);
@@ -583,6 +598,10 @@ export class OrdersService implements OnModuleInit {
 
       const fullOrder = await this.findOne(id);
       this.eventEmitter.emit('order.updated', fullOrder);
+
+      const bySequence = (a: any, b: any) => (a.sequence || 0) - (b.sequence || 0);
+      if (existingOrder?.stops) existingOrder.stops = [...existingOrder.stops].sort(bySequence);
+      if (fullOrder?.stops) fullOrder.stops = [...fullOrder.stops].sort(bySequence);
 
       if (user && existingOrder && fullOrder) {
         const changes: Record<string, { old: any; new: any }> = {};
@@ -680,7 +699,7 @@ export class OrdersService implements OnModuleInit {
               c.unNumber ? `ADR UN ${c.unNumber}` : ''
             ].filter(Boolean);
             return parts.join(' • ');
-          }).join('; ');
+          }).sort().join('; ');
 
           const oldCargoStr = formatCargoList(existingOrder.cargoItems);
           const newCargoStr = formatCargoList(fullOrder.cargoItems);

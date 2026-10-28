@@ -9,6 +9,7 @@ import { User } from '../users/user.entity';
 import { Truck } from '../trucks/truck.entity';
 import * as bcrypt from 'bcrypt';
 import { ActionLogsService } from '../action-logs/action-logs.service';
+import { computeAuditChanges } from '../action-logs/diff.util';
 
 @Injectable()
 export class DriversService {
@@ -63,8 +64,18 @@ export class DriversService {
   }
 
   async update(id: string, dto: any, userParam?: any) {
-    const driver = await this.repo.findOne({ where: { id }, relations: ['user'] });
+    const driver = await this.repo.findOne({ where: { id }, relations: ['user', 'trucks'] });
     if (!driver) throw new Error('Driver not found');
+
+    // Snapshot of the current state (driver + linked user) used for the audit diff
+    const beforeSnapshot: any = {
+      ...driver,
+      name: driver.user?.name,
+      email: driver.user?.email,
+      grossSalary: (driver.user as any)?.grossSalary,
+      dailyRate: (driver.user as any)?.dailyRate,
+      truck: (driver as any).trucks?.[0] || null,
+    };
 
     if (driver.user) {
       if (dto.name) driver.user.name = dto.name;
@@ -105,9 +116,13 @@ export class DriversService {
     }
 
     if (userParam) {
-      const updatedFields = Object.keys(dto);
+      const { updatedFields, changes } = computeAuditChanges(beforeSnapshot, dto, {
+        relations: { truckId: 'truck' },
+        ignore: ['user', 'userId', 'documents', 'trips', 'trucks'],
+        masked: ['password'],
+      });
       if (updatedFields.length > 0) {
-        await this.actionLogs.logAction('Driver', id, 'UPDATED', userParam, { updatedFields });
+        await this.actionLogs.logAction('Driver', id, 'UPDATED', userParam, { updatedFields, changes });
       }
     }
 

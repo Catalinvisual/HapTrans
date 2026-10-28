@@ -6,6 +6,7 @@ import { TruckDocument } from './truck-document.entity';
 import { Not } from 'typeorm';
 import { TruckStatus } from './truck.entity';
 import { ActionLogsService } from '../action-logs/action-logs.service';
+import { computeAuditChanges } from '../action-logs/diff.util';
 
 @Injectable()
 export class TrucksService {
@@ -58,13 +59,16 @@ export class TrucksService {
       delete data.trailerId;
     }
     
-    const existing = await this.repo.findOne({ where: { id } });
+    const existing = await this.repo.findOne({ where: { id }, relations: ['trailer', 'driver', 'driver.user'] });
     await this.repo.update(id, data); 
     
     if (user && existing) {
-      const updatedFields = Object.keys(dto).filter(k => (existing as any)[k] !== dto[k]);
+      const { updatedFields, changes } = computeAuditChanges(existing, dto, {
+        relations: { trailerId: 'trailer', driverId: 'driver' },
+        ignore: ['documents', 'trips', 'trailer', 'driver'],
+      });
       if (updatedFields.length > 0) {
-        await this.actionLogs.logAction('Truck', id, 'UPDATED', user, { updatedFields });
+        await this.actionLogs.logAction('Truck', id, 'UPDATED', user, { updatedFields, changes });
       }
     }
     return this.repo.findOne({ where: { id }, relations: ['documents', 'trips', 'driver', 'driver.user', 'trailer'] });
