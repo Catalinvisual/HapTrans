@@ -57,6 +57,10 @@ export default function ActivityTimeline({
     unloadingReference: t('unloading_reference', 'Ref. descărcare'),
     contactPerson: t('contact_person', 'Persoană contact'),
     contactPhone: t('contact_phone', 'Telefon contact'),
+    pickupContact: t('pickup_contact', 'Persoană contact încărcare'),
+    pickupPhone: t('pickup_phone', 'Telefon încărcare'),
+    deliveryContact: t('delivery_contact', 'Persoană contact descărcare'),
+    deliveryPhone: t('delivery_phone', 'Telefon descărcare'),
     notes: t('notes', 'Notițe'),
     stops: t('stops', 'Opriri'),
     pickupDate: t('pickup_date_time', 'Dată / Oră încărcare'),
@@ -114,6 +118,16 @@ export default function ActivityTimeline({
     medicalExpiry: t('expMedical', 'Expirare fișă medicală'),
     tachoCardExpiry: t('expTacho', 'Expirare card tahograf'),
     expiryDate: t('expiry_date', 'Data expirării'),
+  };
+
+  const getFieldLabel = (field: string): string => {
+    if (fieldLabels[field]) return fieldLabels[field];
+    // Convert camelCase or snake_case to Human Readable Title (e.g. contactPerson -> Contact Person)
+    return field
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/_/g, ' ')
+      .replace(/^\w/, c => c.toUpperCase())
+      .trim();
   };
 
   const isDateValue = (str: any) => {
@@ -280,7 +294,7 @@ export default function ActivityTimeline({
                           {validChanges.map(([field, change]: [string, any]) => (
                             <div key={field} className="text-[11px] flex items-center gap-1.5 flex-wrap">
                               <span className="font-semibold text-text-primary">
-                                {fieldLabels[field] || field}:
+                                {getFieldLabel(field)}:
                               </span>
                               <span className="text-text-secondary bg-surface dark:bg-card px-2 py-0.5 rounded border border-border/70 text-[11px] font-medium">
                                 {formatVal(field, change.old)}
@@ -295,7 +309,7 @@ export default function ActivityTimeline({
                       );
                     })() : log.action === 'UPDATED' && log.details?.updatedFields && log.details.updatedFields.length > 0 ? (
                       <div className="text-[10px] text-text-muted mt-1 uppercase tracking-wide">
-                        {t('edited_fields', 'Câmpuri modificate')}: {log.details.updatedFields.map((f: string) => fieldLabels[f] || f).join(', ')}
+                        {t('edited_fields', 'Câmpuri modificate')}: {log.details.updatedFields.map((f: string) => getFieldLabel(f)).join(', ')}
                       </div>
                     ) : null}
                   </div>

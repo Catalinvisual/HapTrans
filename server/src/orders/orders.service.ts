@@ -11,6 +11,7 @@ import { ClientsService } from '../clients/clients.service';
 import { nanoid } from 'nanoid';
 import { randomUUID } from 'crypto';
 import { ActionLogsService } from '../action-logs/action-logs.service';
+import { computeAuditChanges } from '../action-logs/diff.util';
 import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
 
 @Injectable()
@@ -604,53 +605,27 @@ export class OrdersService implements OnModuleInit {
       if (fullOrder?.stops) fullOrder.stops = [...fullOrder.stops].sort(bySequence);
 
       if (user && existingOrder && fullOrder) {
-        const changes: Record<string, { old: any; new: any }> = {};
-
         // Only log cost & distance if the route location actually changed or user provided explicit new cost
         const shouldCheckCosts = stopLocationsChanged || hasExplicitNewCost;
         const shouldCheckProfit = shouldCheckCosts || priceChanged || hasExplicitNewProfit;
 
-        const fieldsToCheck = [
-          'price', 'currency', 'status', 'priority', 'transportType', 
-          'internalReference', 'customerReference', 'loadingReference', 
-          'unloadingReference', 'contactPerson', 'contactPhone', 'notes'
+        const ignoreFields = [
+          'stops', 'cargoItems', 'id', 'createdAt', 'updatedAt', 'deletedAt',
+          'company', 'companyId', 'createdBy', 'updatedBy', 'trip', 'documents'
         ];
-
-        if (shouldCheckCosts) {
-          fieldsToCheck.push('estimatedCost', 'distanceKm');
+        if (!shouldCheckCosts) {
+          ignoreFields.push('estimatedCost', 'distanceKm');
         }
-        if (shouldCheckProfit) {
-          fieldsToCheck.push('estimatedProfit');
-        }
-
-        for (const field of fieldsToCheck) {
-          const oldVal = (existingOrder as any)[field] ?? null;
-          const newVal = (fullOrder as any)[field] ?? null;
-
-          const isNum = field === 'price' || field === 'estimatedCost' || field === 'estimatedProfit' || field === 'distanceKm';
-          if (isNum) {
-            const numOld = oldVal !== null && oldVal !== undefined ? Math.round(Number(oldVal) * 100) / 100 : null;
-            const numNew = newVal !== null && newVal !== undefined ? Math.round(Number(newVal) * 100) / 100 : null;
-            if (numOld !== numNew) {
-              changes[field] = { old: numOld, new: numNew };
-            }
-          } else {
-            const strOld = (oldVal ?? '').toString().trim();
-            const strNew = (newVal ?? '').toString().trim();
-            if (strOld !== strNew) {
-              changes[field] = { old: strOld || null, new: strNew || null };
-            }
-          }
+        if (!shouldCheckProfit) {
+          ignoreFields.push('estimatedProfit');
         }
 
-        const oldClientId = existingOrder.client?.id || null;
-        const newClientId = fullOrder.client?.id || null;
-        if (oldClientId !== newClientId) {
-          changes['client'] = {
-            old: existingOrder.client?.name || 'None',
-            new: fullOrder.client?.name || 'None',
-          };
-        }
+        // Dynamically compute audit changes for all input fields passed in the DTO or present on the order
+        const baseAudit = computeAuditChanges(existingOrder, { ...updateData, ...dto }, {
+          relations: { clientId: 'client' },
+          ignore: ignoreFields,
+        });
+        const changes: Record<string, { old: any; new: any }> = { ...baseAudit.changes };
 
         const oldEq = [...(existingOrder.equipmentRequirements || [])].sort().join(', ');
         const newEq = [...(fullOrder.equipmentRequirements || [])].sort().join(', ');
@@ -669,18 +644,44 @@ export class OrdersService implements OnModuleInit {
 
           const oldPickup = (existingOrder.stops || []).find((s: any) => s.type === 'pickup') || existingOrder.stops?.[0];
           const newPickup = (fullOrder.stops || []).find((s: any) => s.type === 'pickup') || fullOrder.stops?.[0];
+          
           const oldPickupDateTime = fmtStopDateTime(oldPickup);
           const newPickupDateTime = fmtStopDateTime(newPickup);
           if (oldPickupDateTime !== newPickupDateTime) {
             changes['pickupDate'] = { old: oldPickupDateTime || '—', new: newPickupDateTime || '—' };
           }
 
+          const oldPickupPhone = (oldPickup?.phone || '').trim();
+          const newPickupPhone = (newPickup?.phone || '').trim();
+          if (oldPickupPhone !== newPickupPhone) {
+            changes['pickupPhone'] = { old: oldPickupPhone || null, new: newPickupPhone || null };
+          }
+
+          const oldPickupContact = (oldPickup?.contactPerson || '').trim();
+          const newPickupContact = (newPickup?.contactPerson || '').trim();
+          if (oldPickupContact !== newPickupContact) {
+            changes['pickupContact'] = { old: oldPickupContact || null, new: newPickupContact || null };
+          }
+
           const oldDropoff = (existingOrder.stops || []).find((s: any) => s.type === 'dropoff') || existingOrder.stops?.[existingOrder.stops.length - 1];
           const newDropoff = (fullOrder.stops || []).find((s: any) => s.type === 'dropoff') || fullOrder.stops?.[fullOrder.stops.length - 1];
+          
           const oldDropoffDateTime = fmtStopDateTime(oldDropoff);
           const newDropoffDateTime = fmtStopDateTime(newDropoff);
           if (oldDropoffDateTime !== newDropoffDateTime) {
             changes['deliveryDate'] = { old: oldDropoffDateTime || '—', new: newDropoffDateTime || '—' };
+          }
+
+          const oldDropoffPhone = (oldDropoff?.phone || '').trim();
+          const newDropoffPhone = (newDropoff?.phone || '').trim();
+          if (oldDropoffPhone !== newDropoffPhone) {
+            changes['deliveryPhone'] = { old: oldDropoffPhone || null, new: newDropoffPhone || null };
+          }
+
+          const oldDropoffContact = (oldDropoff?.contactPerson || '').trim();
+          const newDropoffContact = (newDropoff?.contactPerson || '').trim();
+          if (oldDropoffContact !== newDropoffContact) {
+            changes['deliveryContact'] = { old: oldDropoffContact || null, new: newDropoffContact || null };
           }
 
           const oldStopsStr = (existingOrder.stops || []).map((s: any) => s.address || s.city || '').filter(Boolean).join(' → ');

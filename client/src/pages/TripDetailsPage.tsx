@@ -30,6 +30,7 @@ import { generateTripPdf } from '../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import PalletIcon from '../components/icons/PalletIcon';
 import WeightKgIcon from '../components/icons/WeightKgIcon';
+import ActivityTimeline from '../components/ActivityTimeline';
 
 const TRIP_STATUSES = [
   'planning',
@@ -894,6 +895,20 @@ export default function TripDetailsPage() {
           
         </div>
       </div>
+
+      {/* Activity & Audit History */}
+      {trip?.id && (
+        <div className="mt-6">
+          <ActivityTimeline
+            entityType="Trip"
+            entityId={trip.id}
+            createdAt={trip.createdAt}
+            createdBy={trip.createdBy?.name || trip.dispatcher?.name || trip.dispatcher?.email}
+            updatedAt={trip.updatedAt}
+            updatedBy={trip.updatedBy?.name || trip.updatedBy?.email}
+          />
+        </div>
+      )}
 
       {/* Timeline Section */}
       <div className="card p-6 bg-card border border-border rounded-2xl shadow-sm mt-6">

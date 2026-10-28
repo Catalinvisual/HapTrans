@@ -427,8 +427,9 @@ function PoolOrderCard({
   const pickup = (order.stops || []).find((s: any) => s.type === 'pickup') || order.stops?.[0];
   const dropoff = (order.stops || []).filter((s: any) => s.type === 'delivery' || s.type === 'dropoff').pop() || order.stops?.[order.stops?.length - 1];
   const cargo = sumCargo([order]);
-  const isUrgent = pickup?.dateFrom && new Date(pickup.dateFrom).getTime() - Date.now() < 86400000 * 2;
-  const isDragging = draggingId === order.id;
+  const p = order.priority || 'normal';
+  const isCritical = p === 'critical' || p === 'urgent';
+  const isHigh = p === 'high';
 
   // Real ADR detection: order must have actual dangerous goods items or classified UN / ADR class
   const adrItem = order.cargoItems?.find((c: any) => c.unNumber || c.adrClass);
@@ -470,10 +471,19 @@ function PoolOrderCard({
             {selected ? <CheckSquare className="w-3.5 h-3.5 text-primary" /> : <Square className="w-3.5 h-3.5" />}
           </button>
           <span className="font-bold text-text-primary text-[11px] truncate">{order.orderNumber || '—'}</span>
-          {isUrgent && <span className="px-1 py-0 text-[7px] font-black bg-red-500/10 text-red-600 border border-red-500/20 rounded shrink-0">{t('urgent', 'URGENT')}</span>}
+          {isCritical && (
+            <span className="px-1 py-0 text-[7px] font-black bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 rounded shrink-0">
+              {t('priority_critical', 'CRITICAL')}
+            </span>
+          )}
+          {isHigh && (
+            <span className="px-1 py-0 text-[7px] font-black bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded shrink-0">
+              {t('priority_high', 'HIGH')}
+            </span>
+          )}
           {isAdr && (
             <span
-              className="px-1 py-0 text-[7px] font-black bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded shrink-0"
+              className="px-1 py-0 text-[7px] font-black bg-purple-500/15 text-purple-700 dark:text-purple-400 border border-purple-500/30 rounded shrink-0"
               title={adrItem?.unNumber ? `ADR ${adrItem.unNumber}` : "ADR Dangerous Goods"}
             >
               {adrItem?.unNumber ? `ADR ${adrItem.unNumber}` : "ADR"}

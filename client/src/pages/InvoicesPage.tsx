@@ -26,6 +26,7 @@ import type { Column } from '../components/ui/DataTable';
 import { useShortcuts } from '../hooks/useShortcuts';
 import { useTableShortcuts } from '../hooks/useTableShortcuts';
 import { useSaveConfirm, useConfirm } from '../components/SaveConfirmProvider';
+import ActivityTimeline from '../components/ActivityTimeline';
 export default function InvoicesPage({
   embeddedClientId
 }: {
@@ -908,6 +909,12 @@ export default function InvoicesPage({
                 notes: e.target.value
               })} />
                 </div>
+
+                {editId && (
+                  <div className="md:col-span-2 mt-4">
+                    <ActivityTimeline entityType="Invoice" entityId={editId} />
+                  </div>
+                )}
                 
                 <div className="md:col-span-2 pt-6 border-t border-border mt-2 flex items-center justify-end gap-3 sticky bottom-0 bg-card">
                   <button type="button" onClick={() => {

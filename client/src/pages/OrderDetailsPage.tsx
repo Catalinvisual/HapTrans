@@ -3,11 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import { fmtMoney } from '../lib/format';
-import { Loader2, ArrowLeft, Package, MapPin, Clock, FileText, CheckCircle, Truck, Activity } from 'lucide-react';
+import { Loader2, ArrowLeft, MapPin, FileText, CheckCircle, Truck, Activity } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PalletIcon from '../components/icons/PalletIcon';
 import WeightKgIcon from '../components/icons/WeightKgIcon';
 import AdrBadge from '../components/common/AdrBadge';
+import ActivityTimeline from '../components/ActivityTimeline';
 export default function OrderDetailsPage() {
   const {
     id
@@ -19,18 +20,13 @@ export default function OrderDetailsPage() {
     t
   } = useTranslation();
   const [order, setOrder] = useState<any>(null);
-  const [timeline, setTimeline] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   useEffect(() => {
     const fetchOrder = async () => {
       try {
-        const [orderRes, timelineRes] = await Promise.all([
-          api.get(`/orders/${id}`),
-          api.get(`/action-logs/Order/${id}`).catch(() => ({ data: [] }))
-        ]);
+        const orderRes = await api.get(`/orders/${id}`);
         setOrder(orderRes.data);
-        setTimeline(timelineRes.data || []);
       } catch (err) {
         toast.error(t("toast_failedToLoad"));
         navigate('/orders');
@@ -39,7 +35,7 @@ export default function OrderDetailsPage() {
       }
     };
     fetchOrder();
-  }, [id, navigate]);
+  }, [id, navigate, t]);
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   if (!order) return null;
   const getStatusColor = (status: string) => {
@@ -278,52 +274,18 @@ export default function OrderDetailsPage() {
               <p className="text-3xl font-black mt-2 text-green-600">{fmtMoney(order.estimatedProfit || 0)}</p>
             </div>
           </div>}
-        {activeTab === 'timeline' && (() => {
-          const displayTimeline = [...timeline];
-          if (!displayTimeline.some((e: any) => e.action === 'CREATED' || e.action === 'Order Created') && order.createdAt) {
-            displayTimeline.unshift({
-              id: 'synthetic-created',
-              action: t('action_order_created', 'Order Created'),
-              createdAt: order.createdAt,
-              user: { name: order.createdBy?.name || order.createdBy?.email || 'System' },
-              details: null
-            });
-          }
-          return (
-            <div className="card p-5">
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Clock className="text-purple-500" />{t("jsx_eventHistory", "Event History")}</h3>
-              {displayTimeline.length === 0 ? (
-                <p className="text-text-secondary">{t("jsx_noEventsLogge", "No events logged yet.")}</p>
-              ) : (
-                <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
-                  {displayTimeline.map((event: any, index: number) => (
-                    <div key={event.id || index} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                      <div className="flex items-center justify-center w-10 h-10 rounded-full border-white bg-primary/10 text-primary shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
-                        <CheckCircle className="w-5 h-5" />
-                      </div>
-                      <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-surface p-4 rounded-xl shadow-sm border border-border">
-                        <div className="flex justify-between items-center mb-1">
-                          <p className="font-bold text-text-primary capitalize">{event.action}</p>
-                          <span className="text-xs text-text-secondary">{new Date(event.createdAt).toLocaleString()}</span>
-                        </div>
-                        <p className="text-sm text-text-secondary">{t("jsx_by", "by ")}{event.user?.name || event.user?.email || 'System'}</p>
-                        {event.details && typeof event.details === 'object' ? (
-                          event.details.updatedFields ? (
-                            <p className="mt-1 text-xs text-text-muted">Fields: {event.details.updatedFields.join(', ')}</p>
-                          ) : (
-                            <pre className="mt-2 text-xs bg-black/5 p-2 rounded text-text-secondary overflow-x-auto">{JSON.stringify(event.details, null, 2)}</pre>
-                          )
-                        ) : event.details ? (
-                          <pre className="mt-2 text-xs bg-black/5 p-2 rounded text-text-secondary overflow-x-auto">{event.details}</pre>
-                        ) : null}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })()}
+        {activeTab === 'timeline' && (
+          <div className="card p-5">
+            <ActivityTimeline
+              entityType="Order"
+              entityId={order.id}
+              createdAt={order.createdAt}
+              createdBy={order.createdBy?.name || order.createdBy?.email}
+              updatedAt={order.updatedAt}
+              updatedBy={order.updatedBy?.name || order.updatedBy?.email}
+            />
+          </div>
+        )}
       </div>
     </div>;
 }
