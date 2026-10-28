@@ -430,6 +430,7 @@ function PoolOrderCard({
   const p = order.priority || 'normal';
   const isCritical = p === 'critical' || p === 'urgent';
   const isHigh = p === 'high';
+  const isDragging = draggingId === order.id;
 
   // Real ADR detection: order must have actual dangerous goods items or classified UN / ADR class
   const adrItem = order.cargoItems?.find((c: any) => c.unNumber || c.adrClass);
