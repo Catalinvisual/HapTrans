@@ -104,7 +104,7 @@ export default function IftaReportPage() {
         <RefreshCw className="w-3.5 h-3.5" /> {t('refresh')}
       </button>
       <button onClick={() => setExportOpen(true)} className="btn-primary !py-1.5 !px-3 text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-md shadow-primary/20">
-        <Download className="w-4 h-4" /> {t('ifta_export', 'Export Declarație IFTA')}
+        <Download className="w-4 h-4" /> {t('ifta_export', 'Export EU Transit Report')}
       </button>
     </div>
 
@@ -185,9 +185,9 @@ export default function IftaReportPage() {
       isOpen={exportOpen}
       onClose={() => setExportOpen(false)}
       data={exportRows}
-      filename={`Declaratie_IFTA_${from || 'period'}_${to || 'now'}`}
-      sheetName="IFTA"
-      title={t('ifta_export_title', 'Declarație IFTA')}
+      filename={`EU_Transit_Report_${from || 'period'}_${to || 'now'}`}
+      sheetName="EU Transit"
+      title={t('ifta_export_title', 'EU Transit & Cabotage Report')}
       headers={[
         { key: 'country', label: t('ifta_country') },
         { key: 'km', label: t('ifta_km'), transform: (v: any) => `${fmtNumber(v)} km` },

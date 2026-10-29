@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, EntityManager } from 'typeorm';
 import { Order, OrderStatus } from './order.entity';
 import { OrderStop } from './order-stop.entity';
 import { CargoItem } from './cargo-item.entity';
@@ -133,7 +133,18 @@ export class OrdersService implements OnModuleInit {
     });
   }
 
-  async create(dto: any, user?: any) {
+  async create(dto: any, user?: any, manager?: EntityManager) {
+    // When an EntityManager is supplied the order (and its stops/cargo) are
+    // written inside the caller's transaction, so a failed conversion cannot
+    // leave a half-created order behind.
+    const repo = manager ? manager.getRepository(Order) : this.repo;
+    const stopRepo = manager ? manager.getRepository(OrderStop) : this.stopRepo;
+    const cargoRepo = manager ? manager.getRepository(CargoItem) : this.cargoRepo;
+    const findFullOrder = (orderId: string) =>
+      repo.findOne({
+        where: { id: orderId },
+        relations: ['client', 'stops', 'cargoItems', 'trip', 'trip.truck', 'trip.trailer', 'trip.driver', 'trip.driver.user', 'createdBy'],
+      });
     try {
       // 1. Validate
       this.validationEngine.validateOrder(dto);
@@ -201,7 +212,7 @@ export class OrdersService implements OnModuleInit {
 
       const orderId = randomUUID();
       const now = new Date();
-      const order = this.repo.create({
+      const order = repo.create({
         id: orderId,
         company: dto.companyId ? { id: dto.companyId } as any : ((user as any)?.companyId ? { id: (user as any).companyId } as any : ((user as any)?.company?.id ? { id: (user as any).company.id } as any : null)),
         client: dto.clientId ? { id: dto.clientId } as any : null,
@@ -225,13 +236,13 @@ export class OrdersService implements OnModuleInit {
         status: dto.status || status
       } as any);
 
-      const savedOrder = await this.repo.save(order) as any as Order;
+      const savedOrder = await repo.save(order) as any as Order;
 
       // 3. Create stops
       if (processedStops.length > 0) {
         for (let i = 0; i < processedStops.length; i++) {
           const stopDto = processedStops[i];
-          const stop = this.stopRepo.create({
+          const stop = stopRepo.create({
             order: { id: savedOrder.id } as any,
             company: dto.companyId ? { id: dto.companyId } as any : null,
             sequence: i + 1,
@@ -253,7 +264,7 @@ export class OrdersService implements OnModuleInit {
             reference: stopDto.loadingReference || stopDto.reference || null,
             notes: stopDto.notes || null
           } as any);
-          await this.stopRepo.save(stop);
+          await stopRepo.save(stop);
         }
       }
 
@@ -261,7 +272,7 @@ export class OrdersService implements OnModuleInit {
       if (dto.cargoItems && dto.cargoItems.length > 0) {
         for (let i = 0; i < dto.cargoItems.length; i++) {
           const cargoDto = dto.cargoItems[i];
-          const cargo = this.cargoRepo.create({
+          const cargo = cargoRepo.create({
             order: { id: savedOrder.id } as any,
             company: dto.companyId ? { id: dto.companyId } as any : null,
             description: cargoDto.description || 'Cargo Item',
@@ -302,14 +313,12 @@ export class OrdersService implements OnModuleInit {
             stackable: cargoDto.stackable || false,
             fragile: cargoDto.fragile || false,
           } as any);
-          await this.cargoRepo.save(cargo);
+          await cargoRepo.save(cargo);
         }
       }
 
       // Automatically evaluate ADR status and 1,000 points calculation
-      await this.evaluateAndSaveAdr(savedOrder.id);
-
-      const fullOrder = await this.findOne(savedOrder.id) as any;
+      await this.evaluateAndSaveAdr(savedOrder.id, manager);
 
       // 5b. Auto-calculate route distance & estimated cost
       const allStops = processedStops.filter(s => s.latitude && s.longitude);
@@ -332,7 +341,7 @@ export class OrdersService implements OnModuleInit {
             const estimatedProfit = (dto.estimatedProfit !== undefined && dto.estimatedProfit !== null)
               ? safeNum(dto.estimatedProfit)
               : Math.round((priceVal - (estimatedCost ?? 0)) * 100) / 100;
-            await this.repo.update(savedOrder.id, {
+            await repo.update(savedOrder.id, {
               distanceKm: Math.round(routeResult.distanceKm * 100) / 100,
               estimatedCost: estimatedCost,
               estimatedProfit: estimatedProfit,
@@ -343,7 +352,7 @@ export class OrdersService implements OnModuleInit {
         }
       }
 
-      const updatedOrder = await this.findOne(savedOrder.id);
+      const updatedOrder = await findFullOrder(savedOrder.id);
 
       // 5c. Emit Domain Event
       this.eventEmitter.emit('order.created', updatedOrder);
@@ -1077,9 +1086,11 @@ export class OrdersService implements OnModuleInit {
    * Evaluates dangerous goods cargo items for an order, calculates 1,000 points,
    * checks exemptions (1.1.3.6, LQ, EQ, SP 188), and persists compliance summary.
    */
-  async evaluateAndSaveAdr(orderId: string): Promise<Order | null> {
+  async evaluateAndSaveAdr(orderId: string, manager?: EntityManager): Promise<Order | null> {
+    const repo = manager ? manager.getRepository(Order) : this.repo;
+    const cargoRepo = manager ? manager.getRepository(CargoItem) : this.cargoRepo;
     try {
-      const order = await this.repo.findOne({
+      const order = await repo.findOne({
         where: { id: orderId },
         relations: ['cargoItems'],
       });
@@ -1095,7 +1106,7 @@ export class OrdersService implements OnModuleInit {
         order.adr1136Eligible = false;
         order.adrExemptionApplied = 'none';
         order.adrSummary = '';
-        return await this.repo.save(order);
+        return await repo.save(order);
       }
 
       const inputItems: AdrItemInput[] = adrItems.map(c => ({
@@ -1134,7 +1145,7 @@ export class OrdersService implements OnModuleInit {
           cargo.adrExemptionDetails = line.exemptionReason || '';
           cargo.adrDeclarationText = line.declarationLine;
           cargo.adrStatus = evaluation.status;
-          await this.cargoRepo.save(cargo);
+          await cargoRepo.save(cargo);
         }
       }
 
@@ -1167,7 +1178,7 @@ export class OrdersService implements OnModuleInit {
         tunnelProhibitions: evaluation.tunnelProhibitions,
       });
 
-      return await this.repo.save(order);
+      return await repo.save(order);
     } catch (e: any) {
       console.warn('evaluateAndSaveAdr failed:', e?.message);
       return null;

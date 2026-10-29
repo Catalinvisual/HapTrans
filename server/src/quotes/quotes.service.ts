@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { QuoteRequest } from './quote.entity';
+import { DataSource, EntityManager, Repository } from 'typeorm';
+import { QuoteRequest, QuoteStatus } from './quote.entity';
+import { Order } from '../orders/order.entity';
 import { ResendService } from '../email/resend.service';
 import { QuoteReply } from './quote-reply.entity';
 import { ClientsService } from '../clients/clients.service';
@@ -16,10 +17,13 @@ export class QuotesService {
     private repo: Repository<QuoteRequest>,
     @InjectRepository(QuoteReply)
     private replyRepo: Repository<QuoteReply>,
+    @InjectRepository(Order)
+    private orderRepo: Repository<Order>,
     private resendService: ResendService,
     private clientsService: ClientsService,
     private tripsService: TripsService,
     private ordersService: OrdersService,
+    private dataSource: DataSource,
   ) {}
 
   async findAll() {
@@ -71,23 +75,49 @@ export class QuotesService {
     const quote = await this.repo.findOne({ where: { id } });
     if (!quote) throw new NotFoundException('Quote not found');
 
-    // Convert the quote into a full order (client, stops, cargo) first
+    // Convert the quote into a full order (client, stops, cargo) first. This
+    // call is itself atomic/idempotent, so retries reuse the same order.
     const order = await this.convertToOrder(id);
     if (!order) throw new NotFoundException('Order conversion failed');
 
-    // Create a trip for it and assign the order
-    const trip = await this.tripsService.create({
-      notes: `Converted from Quote Request ${quote.id.slice(0, 8)}.\nWeight: ${quote.cargoWeightKg || 'N/A'}, Pallets: ${quote.numberOfPallets || 'N/A'}\nNotes: ${quote.notes || ''}`,
-      plannedDeparture: quote.loadingDate ? new Date(`${quote.loadingDate}T${quote.loadingTime || '08:00'}`) : null,
-      plannedArrival: quote.unloadingDate ? new Date(`${quote.unloadingDate}T${quote.unloadingTime || '18:00'}`) : null,
+    // Serialize the trip phase on the quote row. Concurrent requests for the
+    // same quote queue here; the first creates the trip, the rest reuse it.
+    return this.dataSource.transaction(async (manager) => {
+      const quoteRepo = manager.getRepository(QuoteRequest);
+      const locked = await quoteRepo.findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked) throw new NotFoundException('Quote not found');
+
+      // Deterministic trip number + unique constraint is the second guard:
+      // even if this lock is not honoured, a retry reuses the existing trip.
+      const tripReference = `QT-${quote.id}`;
+      let trip = await this.tripsService.findByTripNumber(tripReference);
+
+      if (!trip) {
+        try {
+          trip = await this.tripsService.create({
+            referenceNumber: tripReference,
+            notes: `Converted from Quote Request ${quote.id.slice(0, 8)}.\nWeight: ${quote.cargoWeightKg || 'N/A'}, Pallets: ${quote.numberOfPallets || 'N/A'}\nNotes: ${quote.notes || ''}`,
+            plannedDeparture: quote.loadingDate ? new Date(`${quote.loadingDate}T${quote.loadingTime || '08:00'}`) : null,
+            plannedArrival: quote.unloadingDate ? new Date(`${quote.unloadingDate}T${quote.unloadingTime || '18:00'}`) : null,
+          });
+        } catch (error) {
+          // Unique tripNumber conflict: another request won the race.
+          trip = await this.tripsService.findByTripNumber(tripReference);
+          if (!trip) throw error;
+        }
+      }
+
+      // assignOrders is idempotent, so recovery after a crash between trip
+      // creation and assignment also works.
+      await this.tripsService.assignOrders(trip.id, [order.id]);
+
+      await quoteRepo.update(id, { status: QuoteStatus.ACCEPTED });
+
+      return { tripId: trip.id, orderId: order.id, clientId: (order as any).client?.id };
     });
-
-    await this.tripsService.assignOrders(trip.id, [order.id]);
-
-    // Update quote status to accepted
-    await this.updateStatus(id, 'accepted');
-
-    return { tripId: trip.id, orderId: order.id, clientId: (order as any).client?.id };
   }
 
   /**
@@ -95,9 +125,40 @@ export class QuotesService {
    * Price is taken from the quote's estimated price when available.
    */
   async convertToOrder(id: string) {
-    const quote = await this.repo.findOne({ where: { id } });
-    if (!quote) throw new NotFoundException('Quote not found');
+    // Everything runs in a single transaction with a row lock on the quote:
+    // - concurrent requests serialize on the lock, so only the first creates
+    //   an order; the rest reuse it (idempotent retries / double clicks);
+    // - if order creation fails, quote status and the order are rolled back
+    //   together, so a subsequent attempt can safely recover;
+    // - a quote already marked "accepted" but without an order (e.g. crashed
+    //   previous attempt) is recovered by creating the missing order.
+    return this.dataSource.transaction(async (manager) => {
+      const quoteRepo = manager.getRepository(QuoteRequest);
+      const orderRepo = manager.getRepository(Order);
 
+      const quote = await quoteRepo.findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!quote) throw new NotFoundException('Quote not found');
+
+      const customerReference = `QUOTE-${quote.id.slice(0, 8)}`;
+
+      const existingOrder = await orderRepo.findOne({ where: { customerReference } });
+      if (existingOrder) {
+        if (quote.status !== QuoteStatus.ACCEPTED) {
+          await quoteRepo.update(id, { status: QuoteStatus.ACCEPTED });
+        }
+        return existingOrder;
+      }
+
+      const order = await this.createOrderFromQuote(quote, customerReference, manager);
+      await quoteRepo.update(id, { status: QuoteStatus.ACCEPTED });
+      return order;
+    });
+  }
+
+  private async createOrderFromQuote(quote: QuoteRequest, customerReference: string, manager?: EntityManager) {
     // Find or create client
     let client: any = null;
     if (quote.companyName) {
@@ -138,7 +199,7 @@ export class QuotesService {
 
     const order = await this.ordersService.create({
       clientId: client.id,
-      customerReference: `QUOTE-${quote.id.slice(0, 8)}`,
+      customerReference,
       transportType: 'ftl',
       priority: (quote.urgentSurcharge || quote.isUrgent) ? 'critical' : 'normal',
       equipmentRequirements: eqReqs,
@@ -172,9 +233,7 @@ export class QuotesService {
           volumeCbm: quote.cargoVolumeM3 ? Number(quote.cargoVolumeM3) : undefined,
         },
       ],
-    });
-
-    await this.updateStatus(id, 'accepted');
+    }, undefined, manager);
 
     return order;
   }

@@ -1,47 +1,15 @@
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import {
-  LayoutDashboard, Route, Truck, Users, UserCheck, Map, MessageSquare, FileText,
-  Receipt, BarChart3, Wrench, Settings, UserCog, X, Banknote, Wallet, CalendarDays, Globe, Box, Container,
-  ChevronLeft, ChevronRight, Radio, Timer, FileBarChart2
-} from 'lucide-react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
-
-export const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, key: 'dashboard' },
-  { to: '/trips', icon: Route, key: 'trips' },
-  { to: '/orders', icon: Box, key: 'orders' },
-  { to: '/website-quotes', icon: Globe, key: 'websiteQuotes' },
-  { to: '/map', icon: Map, key: 'liveMap' },
-  { to: '/trucks', icon: Truck, key: 'trucks' },
-  { to: '/trailers', icon: Container, key: 'trailers' },
-  { to: '/telematics', icon: Radio, key: 'telematics' },
-  { to: '/tachograph', icon: Timer, key: 'tachograph' },
-  { to: '/planning', icon: CalendarDays, key: 'planning' },
-  { to: '/drivers', icon: UserCheck, key: 'drivers' },
-  { to: '/clients', icon: Users, key: 'clients' },
-  { to: '/chat', icon: MessageSquare, key: 'chat' },
-  { to: '/documents', icon: FileText, key: 'documents' },
-  { to: '/invoices', icon: Receipt, key: 'invoices' },
-  { to: '/financial', icon: BarChart3, key: 'financial' },
-  { to: '/reports', icon: FileBarChart2, key: 'reports' },
-  { to: '/payroll', icon: Banknote, key: 'payroll' },
-  { to: '/settlements', icon: Wallet, key: 'settlements' },
-  { to: '/ifta', icon: BarChart3, key: 'ifta' },
-  { to: '/maintenance', icon: Wrench, key: 'maintenance' },
-  { to: '/expenses', icon: Wallet, key: 'expenses' },
-  { to: '/website-cms', icon: Globe, key: 'websiteCms' },
-  { to: '/users', icon: UserCog, key: 'users' },
-  { to: '/settings', icon: Settings, key: 'settings' },
-];
+import { navItems, filterNavItems } from '../lib/navPermissions';
+import { useAuthStore } from '../store/authStore';
+import { useSettingsStore } from '../store/settingsStore';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-import { useAuthStore } from '../store/authStore';
-import { useSettingsStore } from '../store/settingsStore';
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { t } = useTranslation();
@@ -59,25 +27,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     localStorage.setItem('sidebarCollapsed', isCollapsed.toString());
   }, [isCollapsed]);
 
-  const isDispatcher = user?.role === 'dispatcher';
-  const restrictedKeys = ['financial', 'payroll', 'expenses', 'websiteCms', 'users', 'settings'];
-
-  const filteredNavItems = navItems.filter(item => {
-    if (user?.allowedPages && user.allowedPages.length > 0) {
-      return user.allowedPages.includes(item.key);
-    }
-    if (isDispatcher && restrictedKeys.includes(item.key)) {
-      return false;
-    }
-    return true;
-  });
+  const filteredNavItems = filterNavItems(user, navItems);
 
   return (
     <>
       {/* Mobile overlay */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 md:hidden" 
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={onClose}
         />
       )}
@@ -90,8 +47,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               <img src={company.logo} alt="Logo" className="h-8 w-auto max-w-none object-left object-contain" />
             ) : null}
           </div>
-          
-          <button 
+
+          <button
             className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-card border border-border rounded-full items-center justify-center text-text-secondary hover:text-primary hover:border-primary transition-colors z-10"
             onClick={() => setIsCollapsed(!isCollapsed)}
             title={isCollapsed ? t('expand', 'Expand') : t('collapse', 'Collapse')}
@@ -113,8 +70,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               title={isCollapsed ? t(item.key) : undefined}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group ${
-                  isActive 
-                    ? 'bg-primary text-white font-semibold shadow-md shadow-primary/20' 
+                  isActive
+                    ? 'bg-primary text-white font-semibold shadow-md shadow-primary/20'
                     : 'text-text-secondary hover:bg-surface hover:text-primary'
                 } ${isCollapsed ? 'justify-center' : 'justify-start'}`
               }

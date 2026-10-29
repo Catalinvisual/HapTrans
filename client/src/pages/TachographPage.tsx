@@ -144,7 +144,19 @@ export default function TachographPage() {
   const columns: Column<any>[] = [
     {
       key: 'vehicle', label: t('vehicle', 'Vehicul'), width: '130px',
-      render: (item) => <span className="font-bold text-[13px] text-text-primary">{item.plateNumber}</span>,
+      render: (item) => (
+        <div className="flex items-center gap-1.5">
+          <span className="font-bold text-[13px] text-text-primary">{item.plateNumber}</span>
+          {item.simulated && (
+            <span
+              className="px-1.5 py-0.5 rounded text-[9px] font-black tracking-wide bg-indigo-100 text-indigo-700 border border-indigo-200"
+              title={t('simulated_data', 'Simulated data')}
+            >
+              SIM
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       key: 'driver', label: t('driver', 'Șofer'),
@@ -265,6 +277,14 @@ export default function TachographPage() {
                 <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
                   <div className="flex items-center gap-2 min-w-0 text-[13px] font-bold text-slate-900 leading-tight">
                     <span className="truncate">🚛 {item.plateNumber}</span>
+                    {item.simulated && (
+                      <span
+                        className="px-1.5 py-0.5 rounded text-[9px] font-black tracking-wide bg-indigo-100 text-indigo-700 border border-indigo-200 shrink-0"
+                        title={t('simulated_data', 'Simulated data')}
+                      >
+                        SIM
+                      </span>
+                    )}
                     <span className="text-slate-300">•</span>
                     <span className="truncate text-slate-700">👤 {item.driverName}</span>
                   </div>

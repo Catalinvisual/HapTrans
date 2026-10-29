@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { AppToaster } from './components/AppToaster';
 import PWAReloadPrompt from './components/PWAReloadPrompt';
@@ -47,8 +47,6 @@ const TripsPage        = lazy(() => import('./pages/TripsPage'));
 const OrdersPage       = lazy(() => import('./pages/OrdersPage'));
 const OrderDetailsPage = lazy(() => import('./pages/OrderDetailsPage'));
 const TripDetailsPage  = lazy(() => import('./pages/TripDetailsPage'));
-const TrucksPage       = lazy(() => import('./pages/TrucksPage'));
-const TrailersPage     = lazy(() => import('./pages/TrailersPage'));
 const DriversPage      = lazy(() => import('./pages/DriversPage'));
 const ClientsPage      = lazy(() => import('./pages/ClientsPage'));
 const LiveMapPage      = lazy(() => import('./pages/LiveMapPage'));
@@ -56,9 +54,9 @@ const DocumentsPage    = lazy(() => import('./pages/DocumentsPage'));
 const InvoicesPage     = lazy(() => import('./pages/InvoicesPage'));
 const FinancialPage    = lazy(() => import('./pages/FinancialPage'));
 const ReportsPage      = lazy(() => import('./pages/ReportsPage'));
-const PayrollPage      = lazy(() => import('./pages/PayrollPage'));
-const SettlementPage   = lazy(() => import('./pages/SettlementPage'));
 const IftaReportPage   = lazy(() => import('./pages/IftaReportPage'));
+const FleetPage        = lazy(() => import('./pages/FleetPage'));
+const PayrollHubPage   = lazy(() => import('./pages/PayrollHubPage'));
 const MaintenancePage  = lazy(() => import('./pages/MaintenancePage'));
 const SettingsPage     = lazy(() => import('./pages/SettingsPage'));
 const ExpensesPage     = lazy(() => import('./pages/ExpensesPage'));
@@ -67,10 +65,8 @@ const ChatPage         = lazy(() => import('./pages/ChatPage'));
 const PlanningPage     = lazy(() => import('./pages/PlanningPage'));
 const TruckRoutePlannerPage = lazy(() => import('./pages/TruckRoutePlannerPage'));
 const WebsiteHubPage   = lazy(() => import('./pages/WebsiteHubPage'));
-const WebsiteQuotesPage = lazy(() => import('./pages/WebsiteQuotesPage'));
 const SharedDocumentPage = lazy(() => import('./pages/SharedDocumentPage'));
 const TrackingPage     = lazy(() => import('./pages/TrackingPage'));
-const TelematicsPage   = lazy(() => import('./pages/TelematicsPage'));
 const TachographPage   = lazy(() => import('./pages/TachographPage'));
 const TelematicsSimulatorPage = lazy(() => import('./pages/TelematicsSimulatorPage'));
 
@@ -98,6 +94,16 @@ function PageLoader() {
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore();
   return token ? <>{children}</> : <Navigate to="/login" replace />;
+}
+
+// Preserves old deep links: keeps query params (e.g. ?editId=, ?tripId=) when
+// redirecting legacy routes to their new integrated module location.
+function LegacyRedirect({ toBase, tab }: { toBase: string; tab?: string }) {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  if (tab) params.set('tab', tab);
+  const q = params.toString();
+  return <Navigate to={q ? `${toBase}?${q}` : toBase} replace />;
 }
 
 export default function App() {
@@ -167,9 +173,12 @@ export default function App() {
             <Route path="trips/:id" element={<Suspense fallback={<PageLoader />}><TripDetailsPage /></Suspense>} />
             <Route path="orders" element={<Suspense fallback={<PageLoader />}><OrdersPage /></Suspense>} />
             <Route path="orders/:id" element={<Suspense fallback={<PageLoader />}><OrderDetailsPage /></Suspense>} />
-            <Route path="website-quotes" element={<Suspense fallback={<PageLoader />}><WebsiteQuotesPage /></Suspense>} />
-            <Route path="trucks" element={<Suspense fallback={<PageLoader />}><TrucksPage /></Suspense>} />
-            <Route path="trailers" element={<Suspense fallback={<PageLoader />}><TrailersPage /></Suspense>} />
+            {/* Legacy quantity-quote URL → Orders (Quote Requests tab), params preserved */}
+            <Route path="website-quotes" element={<LegacyRedirect toBase="/orders" tab="quotes" />} />
+            {/* Fleet & Equipment replaces standalone trucks/trailers entries */}
+            <Route path="fleet" element={<Suspense fallback={<PageLoader />}><FleetPage /></Suspense>} />
+            <Route path="trucks" element={<LegacyRedirect toBase="/fleet" tab="trucks" />} />
+            <Route path="trailers" element={<LegacyRedirect toBase="/fleet" tab="trailers" />} />
             <Route path="drivers" element={<Suspense fallback={<PageLoader />}><DriversPage /></Suspense>} />
             <Route path="clients" element={<Suspense fallback={<PageLoader />}><ClientsPage /></Suspense>} />
             <Route path="map" element={<Suspense fallback={<PageLoader />}><LiveMapPage /></Suspense>} />
@@ -179,9 +188,11 @@ export default function App() {
             <Route path="invoices" element={<Suspense fallback={<PageLoader />}><InvoicesPage /></Suspense>} />
             <Route path="financial" element={<Suspense fallback={<PageLoader />}><FinancialPage /></Suspense>} />
             <Route path="reports" element={<Suspense fallback={<PageLoader />}><ReportsPage /></Suspense>} />
-            <Route path="payroll" element={<Suspense fallback={<PageLoader />}><PayrollPage /></Suspense>} />
-            <Route path="settlements" element={<Suspense fallback={<PageLoader />}><SettlementPage /></Suspense>} />
-            <Route path="ifta" element={<Suspense fallback={<PageLoader />}><IftaReportPage /></Suspense>} />
+            <Route path="payroll" element={<Suspense fallback={<PageLoader />}><PayrollHubPage /></Suspense>} />
+            <Route path="settlements" element={<LegacyRedirect toBase="/payroll" tab="settlements" />} />
+            {/* EU Transit & Cabotage Report (formerly IFTA); legacy URL kept working */}
+            <Route path="eu-transit" element={<Suspense fallback={<PageLoader />}><IftaReportPage /></Suspense>} />
+            <Route path="ifta" element={<LegacyRedirect toBase="/eu-transit" />} />
             <Route path="website-cms" element={<Suspense fallback={<PageLoader />}><WebsiteHubPage /></Suspense>} />
             <Route path="maintenance" element={<Suspense fallback={<PageLoader />}><MaintenancePage /></Suspense>} />
             <Route path="expenses" element={<Suspense fallback={<PageLoader />}><ExpensesPage /></Suspense>} />
@@ -190,7 +201,9 @@ export default function App() {
             <Route path="chat" element={<Suspense fallback={<PageLoader />}><ChatPage /></Suspense>} />
             <Route path="planning" element={<Suspense fallback={<PageLoader />}><PlanningPage /></Suspense>} />
             <Route path="planning/planner/:truckId" element={<Suspense fallback={<PageLoader />}><TruckRoutePlannerPage /></Suspense>} />
-            <Route path="telematics" element={<Suspense fallback={<PageLoader />}><TelematicsPage /></Suspense>} />
+            {/* Telematics device configuration moved to Settings → Telematics & Integrations.
+                Keep legacy URLs (and the old simulator deep link) working; simulator is admin-gated. */}
+            <Route path="telematics" element={<LegacyRedirect toBase="/settings" tab="telematics" />} />
             <Route path="tachograph" element={<Suspense fallback={<PageLoader />}><TachographPage /></Suspense>} />
             <Route path="telematics/simulator" element={<Suspense fallback={<PageLoader />}><TelematicsSimulatorPage /></Suspense>} />
           </Route>

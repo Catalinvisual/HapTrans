@@ -1,7 +1,8 @@
 import { useSaveConfirm } from "../components/SaveConfirmProvider";
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Pencil, Trash2, Search, User, Phone, FileText, Calendar, Key, Mail, Truck as TruckIcon, Coins, AlertCircle, BadgeCheck, CalendarDays, Save, Clock, Eye } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, Pencil, Trash2, Search, User, Phone, FileText, Calendar, Key, Mail, Truck as TruckIcon, Coins, AlertCircle, BadgeCheck, CalendarDays, Save, Clock, Eye, Activity } from 'lucide-react';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import api from '../lib/api';
@@ -554,6 +555,11 @@ const tabs: TabDef[] = drawerDriver ? [
       key: 'hos', label: t('hos_tab', 'HOS'), badge: hosSummary?.overDaily ? hosSummary.overDaily : 0,
       content: (
         <div className="space-y-4">
+          <div className="flex justify-end">
+            <Link to="/tachograph" className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
+              <Activity className="w-3.5 h-3.5" />{t('tachograph', 'Tahograf')}
+            </Link>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div className="bg-surface/50 rounded-xl p-3 border border-border">
               <div className="text-[10px] font-bold uppercase text-text-secondary">{t('hos_driving_today', 'Conducere azi')}</div>

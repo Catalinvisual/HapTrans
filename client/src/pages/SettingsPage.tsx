@@ -1,9 +1,13 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { canSection } from '../lib/navPermissions';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import { Save, Building2, User, Server, Upload, X, ImageIcon, Calculator, RefreshCw } from 'lucide-react';
+
+const TelematicsPage = lazy(() => import('./TelematicsPage'));
 import AddressAutocomplete from '../components/AddressAutocomplete';
 import { useSettingsStore } from '../store/settingsStore';
 import type { CompanySettings } from '../store/settingsStore';
@@ -104,7 +108,27 @@ export default function SettingsPage() {
     weekendSurchargeFee: 150,
     holidaySurchargeFee: 200
   });
-  const [activeTab, setActiveTab] = useState('company');
+  const [searchParams, setSearchParams] = useSearchParams();
+  // "settings" grants the general settings tabs; "telematics" grants only the
+  // Telematics & Integrations tab. They are independent permissions so a user
+  // with telematics access cannot view/change company, tariffs or server data.
+  const canGeneralSettings = canSection(user, 'settings', 'settings');
+  const showTelematicsTab = canSection(user, 'telematics', 'settings');
+  const allowedTabs = [
+    ...(canGeneralSettings ? ['company', 'tariffs', 'profile', 'server'] : []),
+    ...(showTelematicsTab ? ['telematics'] : []),
+  ];
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
+    return tab && allowedTabs.includes(tab) ? tab : (allowedTabs[0] || '');
+  });
+  const allowedTabsKey = allowedTabs.join(',');
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    const next = tab && allowedTabs.includes(tab) ? tab : (allowedTabs[0] || '');
+    if (next !== activeTab) setActiveTab(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, allowedTabsKey]);
   const [backendOk, setBackendOk] = useState<boolean | null>(null);
   const snapshotRef = useRef<{
     company: any;
@@ -295,10 +319,13 @@ export default function SettingsPage() {
     colSpan: true
   }];
   const TABS = [
+    ...(canGeneralSettings ? [
     { id: 'company', label: getLabel("🏢 Company Data & Invoicing", "🏢 Date Companie & Facturare", "🏢 Bedrijfsgegevens & Facturering", "🏢 Firmendaten & Abrechnung", "🏢 Données Entreprise & Facturation", "🏢 Dane Firmy i Fakturowanie", "🏢 Datos Empresa y Facturación") },
     { id: 'tariffs', label: getLabel("🚚 Tariff Engine & Calculator", "🚚 Engine Tarife & Calculator", "🚚 Tariefengine & Calculator", "🚚 Tarife-Engine & Rechner", "🚚 Moteur Tarifs & Calculateur", "🚚 Silnik Taryf i Kalkulator", "🚚 Motor Tarifas y Calculadora") },
     { id: 'profile', label: getLabel("👤 My Profile & Security", "👤 Profilul Meu & Securitate", "👤 Mijn Profiel & Beveiliging", "👤 Mein Profil & Sicherheit", "👤 Mon Profil & Sécurité", "👤 Mój Profil i Bezpieczeństwo", "👤 Mi Perfil y Seguridad") },
     { id: 'server', label: getLabel("🔌 Connections & Server", "🔌 Conexiuni & Server", "🔌 Verbindingen & Server", "🔌 Verbindungen & Server", "🔌 Connexions & Serveur", "🔌 Połączenia i Serwer", "🔌 Conexiones y Servidor") },
+    ] : []),
+    ...(showTelematicsTab ? [{ id: 'telematics', label: getLabel("📡 Telematics & Integrations", "📡 Telematică & Integrații", "📡 Telematica & Integraties", "📡 Telematik & Integrationen", "📡 Télématique & Intégrations", "📡 Telematyka i Integracje", "📡 Telemática y Integraciones") }] : []),
   ];
   const apiBase = import.meta.env.VITE_API_URL || 'https://haptrans-production.up.railway.app/api';
   const wsBase = import.meta.env.VITE_WS_URL || 'http://localhost:3001';
@@ -309,6 +336,15 @@ export default function SettingsPage() {
     </label>
   );
 
+  if (!canGeneralSettings && !showTelematicsTab) {
+    return <div className="max-w-3xl">
+      <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-2">
+        <h1 className="text-[15px] font-black tracking-tight text-text">{getLabel("Access restricted", "Acces restricționat", "Toegang beperkt", "Zugriff eingeschränkt", "Accès restreint", "Dostęp ograniczony", "Acceso restringido")}</h1>
+        <p className="text-sm text-text-secondary">{getLabel("You do not have permission to view the system settings.", "Nu ai permisiunea de a vizualiza setările sistemului.", "Je hebt geen toestemming om de systeeminstellingen te bekijken.", "Sie haben keine Berechtigung, die Systemeinstellungen anzuzeigen.", "Vous n'avez pas la permission de consulter les paramètres système.", "Nie masz uprawnień do wyświetlania ustawień systemu.", "No tienes permiso para ver la configuración del sistema.")}</p>
+      </div>
+    </div>;
+  }
+
   return <div className="space-y-4 animate-fade-in max-w-5xl">
 
       {/* Sticky action header */}
@@ -317,14 +353,14 @@ export default function SettingsPage() {
           <h1 className="text-[15px] font-black tracking-tight text-text leading-tight">{getLabel("System Settings", "Setări Sistem", "Systeeminstellingen", "Systemeinstellungen", "Paramètres Système", "Ustawienia Systemu", "Configuración del Sistema")}</h1>
           <p className="text-[11px] text-text-secondary hidden sm:block truncate">{getLabel("Configure company details, tariffs, and application connections.", "Configurează datele firmei, tarifele și conexiunile aplicației.", "Configureer bedrijfsgegevens, tarieven en app-verbindingen.", "Konfigurieren Sie Firmendaten, Tarife und App-Verbindungen.", "Configurez les données de l'entreprise, les tarifs et les connexions de l'application.", "Skonfiguruj dane firmy, taryfy i połączenia aplikacji.", "Configure los datos de la empresa, las tarifas y las conexiones de la aplicación.")}</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        {canGeneralSettings && <div className="flex items-center gap-2 shrink-0">
           <button onClick={handleReset} className="btn-secondary !py-1.5 !px-3 text-xs font-bold flex items-center gap-1.5">
             <RefreshCw className="w-3.5 h-3.5" /> {getLabel("Reset Fields", "Resetează Câmpurile", "Velden Herstellen", "Felder Zurücksetzen", "Réinitialiser les Champs", "Zresetuj Pola", "Restablecer Campos")}
           </button>
           <button onClick={handleSave} disabled={!dirty} className="btn-primary !py-1.5 !px-3 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed">
             <Save className="w-3.5 h-3.5" /> {getLabel("Save Changes", "Salvează Modificările", "Wijzigingen Opslaan", "Änderungen Speichern", "Enregistrer les Modifications", "Zapisz Zmiany", "Guardar Cambios")}
           </button>
-        </div>
+        </div>}
       </div>
 
       {/* Tabs */}
@@ -332,7 +368,12 @@ export default function SettingsPage() {
         {TABS.map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => {
+              setActiveTab(tab.id);
+              const next = new URLSearchParams(searchParams);
+              if (tab.id === 'company') next.delete('tab'); else next.set('tab', tab.id);
+              setSearchParams(next);
+            }}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${activeTab === tab.id ? 'bg-card shadow-sm text-primary border border-border' : 'text-text-secondary hover:text-text'}`}
           >
             {tab.label}
@@ -636,5 +677,11 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>}
+
+      {activeTab === 'telematics' && (
+        <Suspense fallback={<div className="p-10 text-center text-text-secondary">{getLabel("Loading", "Se încarcă", "Laden", "Lädt", "Chargement", "Ładowanie", "Cargando")}…</div>}>
+          <TelematicsPage />
+        </Suspense>
+      )}
     </div>;
 }

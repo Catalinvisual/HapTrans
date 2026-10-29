@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
+import { useAuthStore } from '../store/authStore';
 import CustomSelect, { type SelectOption } from '../components/CustomSelect';
 import KpiStrip from '../components/ui/KpiStrip';
 import DataTable from '../components/ui/DataTable';
@@ -30,6 +31,8 @@ import { matchesSearch } from '../lib/search';
 export default function TelematicsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
 
   const [loading, setLoading] = useState(true);
   const [connections, setConnections] = useState<any[]>([]);
@@ -218,7 +221,17 @@ export default function TelematicsPage() {
       key: 'truck', label: t('col_truck_model', 'Camion & Model'), width: '150px',
       render: (c) => (
         <div className="leading-tight">
-          <div className="font-bold text-[13px] text-slate-900">{c.truckPlate}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-[13px] text-slate-900">{c.truckPlate}</span>
+            {c.simulated && (
+              <span
+                className="px-1.5 py-0.5 rounded text-[9px] font-black tracking-wide bg-indigo-100 text-indigo-700 border border-indigo-200"
+                title={t('simulated_data', 'Simulated data')}
+              >
+                SIM
+              </span>
+            )}
+          </div>
           <div className="text-[11px] text-slate-400">{c.truckBrand} {c.truckModel}</div>
         </div>
       ),
@@ -352,6 +365,7 @@ export default function TelematicsPage() {
 
         <div className="flex items-center gap-1.5 shrink-0">
           <span className="text-[11px] font-semibold text-slate-500 whitespace-nowrap">{filteredConnections.length} {t('results', 'results')}</span>
+          {isAdmin && <>
           <button
             onClick={() => navigate('/telematics/simulator')}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-bold text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors border border-indigo-200"
@@ -369,6 +383,7 @@ export default function TelematicsPage() {
             <Plus className="w-3.5 h-3.5" />
             {t('add_telematics_connection', 'Conexiune nouă')}
           </button>
+          </>}
         </div>
       </div>
 
@@ -397,7 +412,7 @@ export default function TelematicsPage() {
       </div>
 
       {/* 7-Step Add Telematics Connection Wizard Modal */}
-      {isWizardOpen && (
+      {isAdmin && isWizardOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
@@ -565,7 +580,7 @@ export default function TelematicsPage() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-xs font-medium">
                     <Key className="w-4 h-4 shrink-0 text-amber-600" />
-                    {t('wiz_api_encrypted_hint', 'API credentials are encrypted server-side (AES-256) and never exposed to the client.')}
+                    {t('wiz_api_encrypted_hint', 'API credentials are stored server-side (base64-encoded) and never exposed to the client. Enable encryption at rest for production.')}
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase">{t('wiz_api_key_label', 'API Key / Access Token')}</label>

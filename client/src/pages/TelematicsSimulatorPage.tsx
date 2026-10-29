@@ -11,11 +11,24 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
+import { useAuthStore } from '../store/authStore';
 import CustomSelect, { type SelectOption } from '../components/CustomSelect';
 
 export default function TelematicsSimulatorPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
+  const getLabel = (enText: string, roText: string, nlText: string, deText: string, frText: string, plText: string, esText?: string) => {
+    const lang = (i18n.language || 'ro').toLowerCase();
+    if (lang === 'ro') return roText;
+    if (lang === 'nl') return nlText;
+    if (lang === 'de') return deText;
+    if (lang === 'fr') return frText;
+    if (lang === 'pl') return plText;
+    if (lang === 'es') return esText || enText;
+    return enText;
+  };
 
   const [trucks, setTrucks] = useState<any[]>([]);
   const [selectedTruckId, setSelectedTruckId] = useState<string>('truck-sim-1');
@@ -33,10 +46,11 @@ export default function TelematicsSimulatorPage() {
   };
 
   useEffect(() => {
+    if (!isAdmin) return;
     loadSimData();
     const interval = setInterval(loadSimData, 2000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isAdmin]);
 
   const selectedTruck = trucks.find((t) => t.truckId === selectedTruckId) || trucks[0];
 
@@ -136,6 +150,17 @@ export default function TelematicsSimulatorPage() {
     { id: 9, title: '9. Loading Delay', desc: 'Driver enters LOADING activity, marks ETA as AT_RISK' },
     { id: 10, title: '10. Multiple Stops', desc: 'Progresses through intermediate pickup & delivery stops' },
   ];
+
+  if (!isAdmin) {
+    return (
+      <div className="p-6 max-w-3xl mx-auto">
+        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-2">
+          <h1 className="text-[15px] font-black tracking-tight text-text">{getLabel("Access restricted", "Acces restricționat", "Toegang beperkt", "Zugriff eingeschränkt", "Accès restreint", "Dostęp ograniczony", "Acceso restringido")}</h1>
+          <p className="text-sm text-text-secondary">{getLabel("Only administrators can use the telematics simulator.", "Doar administratorii pot folosi simulatorul de telematikă.", "Alleen beheerders kunnen de telematieksimulator gebruiken.", "Nur Administratoren dürfen den Telematik-Simulator verwenden.", "Seuls les administrateurs peuvent utiliser le simulateur télématique.", "Tylko administratorzy mogą korzystać z symulatora telematyki.", "Solo los administradores pueden usar el simulador de telemática.")}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">

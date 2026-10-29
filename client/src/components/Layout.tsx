@@ -13,7 +13,7 @@ import { useShortcuts } from '../hooks/useShortcuts';
 import ShortcutsHelpModal from './ShortcutsHelpModal';
 import GlobalSearchModal from './GlobalSearchModal';
 import ConfirmModal from './ConfirmModal';
-import { navItems } from './Sidebar';
+import { navItems, filterNavItems } from '../lib/navPermissions';
 import { io } from 'socket.io-client';
 
 let deferredPrompt: any = null;
@@ -41,7 +41,9 @@ const PAGE_TITLES: Record<string, Record<string, string>> = {
   '/invoices': { ro: 'Facturi', en: 'Invoices', nl: 'Facturen', de: 'Rechnungen', fr: 'Factures', es: 'Facturas', pl: 'Faktury' },
   '/financial': { ro: 'Financiar', en: 'Financial', nl: 'Financieel', de: 'Finanzen', fr: 'Financier', es: 'Finanzas', pl: 'Finanse' },
   '/reports': { ro: 'Rapoarte', en: 'Reports', nl: 'Rapporten', de: 'Berichte', fr: 'Rapports', es: 'Informes', pl: 'Raporty' },
-  '/payroll': { ro: 'Salarii (NL)', en: 'Payroll (NL)', nl: 'Salarissen', de: 'Lohnabrechnung (NL)', fr: 'Paie (NL)', es: 'Nóminas (NL)', pl: 'Płace (NL)' },
+  '/fleet': { ro: 'Flotă & Echipamente', en: 'Fleet & Equipment', nl: 'Vloot & Uitrusting', de: 'Flotte & Ausrüstung', fr: 'Flotte & Équipements', es: 'Flota y Equipos', pl: 'Flota i Wyposażenie' },
+  '/payroll': { ro: 'Salarizare & Decontări', en: 'Payroll & Settlements', nl: 'Salarissen & Afrekeningen', de: 'Lohn & Abrechnungen', fr: 'Paie & Règlements', es: 'Nóminas y Liquidaciones', pl: 'Płace i Rozliczenia' },
+  '/eu-transit': { ro: 'Tranzit UE & Cabotaj', en: 'EU Transit & Cabotage', nl: 'EU-Transit & Cabotage', de: 'EU-Transit & Kabotage', fr: 'Transit UE & Cabotage', es: 'Tránsito UE y Cabotaje', pl: 'Tranzyt UE i Kabotaż' },
   '/settlements': { ro: 'Decontări', en: 'Settlements', nl: 'Verrekeningen', de: 'Abrechnungen', fr: 'Règlements', es: 'Liquidaciones', pl: 'Rozliczenia' },
   '/ifta': { ro: 'Raport IFTA', en: 'IFTA Report', nl: 'IFTA-Rapport', de: 'IFTA-Bericht', fr: 'Rapport IFTA', es: 'Informe IFTA', pl: 'Raport IFTA' },
   '/maintenance': { ro: 'Mentenanță', en: 'Maintenance', nl: 'Onderhoud', de: 'Wartung', fr: 'Maintenance', es: 'Mantenimiento', pl: 'Konserwacja' },
@@ -443,17 +445,7 @@ export default function Layout() {
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
-  const isDispatcher = user?.role === 'dispatcher';
-  const restrictedKeys = ['financial', 'payroll', 'expenses', 'websiteCms', 'users', 'settings'];
-  const filteredNavItems = navItems.filter(item => {
-    if (user?.allowedPages && user.allowedPages.length > 0) {
-      return user.allowedPages.includes(item.key);
-    }
-    if (isDispatcher && restrictedKeys.includes(item.key)) {
-      return false;
-    }
-    return true;
-  });
+  const filteredNavItems = filterNavItems(user, navItems);
 
   const navigateSidebar = (direction: number) => {
     if (filteredNavItems.length === 0) return;

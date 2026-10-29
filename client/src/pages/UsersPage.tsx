@@ -7,7 +7,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import CustomSelect from '../components/CustomSelect';
 import { matchesSearch } from '../lib/search';
-import { navItems } from '../components/Sidebar';
+import { navItems, aliasKeysFor } from '../lib/navPermissions';
 import Pagination from '../components/Pagination';
 import { useShortcuts } from '../hooks/useShortcuts';
 import { useTableShortcuts } from '../hooks/useTableShortcuts';
@@ -289,18 +289,19 @@ export default function UsersPage() {
                       <div className="max-h-64 overflow-y-auto p-2 custom-scrollbar">
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                         {navItems.map(item => {
-                  const isSelected = form.allowedPages.includes(item.key);
+                  const aliases = aliasKeysFor(item.key);
+                  const isSelected = aliases.some(k => form.allowedPages.includes(k));
                   return <label key={item.key} className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors border ${isSelected ? 'border-primary bg-primary/5 text-primary' : 'border-transparent hover:bg-surface'}`}>
                               <input type="checkbox" className="w-4 h-4 rounded border-border text-primary focus:ring-primary" checked={isSelected} onChange={e => {
                       if (e.target.checked) {
                         setForm({
                           ...form,
-                          allowedPages: [...form.allowedPages, item.key]
+                          allowedPages: Array.from(new Set([...form.allowedPages, item.key]))
                         });
                       } else {
                         setForm({
                           ...form,
-                          allowedPages: form.allowedPages.filter(p => p !== item.key)
+                          allowedPages: form.allowedPages.filter(p => !aliases.includes(p))
                         });
                       }
                     }} />

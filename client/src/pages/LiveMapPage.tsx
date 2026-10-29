@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Navigation, Truck, Map as MapIcon, Search } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Navigation, Truck, Map as MapIcon, Search, Activity } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import api from '../lib/api';
@@ -13,6 +14,14 @@ const DRIVER_TRANSLATIONS: Record<string, string> = {
   nl: 'Chauffeur',
   de: 'Fahrer',
   fr: 'Chauffeur'
+};
+type TachoStatus = {
+  truckId?: string;
+  truckPlate?: string;
+  driverName?: string;
+  currentActivity?: string;
+  connectionStatus?: string;
+  simulated?: boolean;
 };
 const ETA_TRANSLATIONS: Record<string, any> = {
   ro: {
@@ -215,6 +224,8 @@ export default function LiveMapPage() {
   const [tripsList, setTripsList] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSatellite, setIsSatellite] = useState(false);
+  const tachoRef = useRef<Record<string, TachoStatus>>({});
+  const [tachoConnectedCount, setTachoConnectedCount] = useState(0);
 
   // Refs to avoid stale closures in the WebSocket listener
   const tripsRef = useRef<any[]>([]);
@@ -229,6 +240,46 @@ export default function LiveMapPage() {
   const activeRoutesRef = useRef<Record<string, [number, number][]>>({});
   const animationFramesRef = useRef<Record<string, number>>({});
   const lastUpdateTimesRef = useRef<Record<string, number>>({});
+  // Tachograph status for the live map (read-only). Missing/failed data is
+  // surfaced as "unavailable" instead of inventing driving times.
+  useEffect(() => {
+    let cancelled = false;
+    const loadTacho = async () => {
+      try {
+        const res = await api.get('/telematics');
+        if (cancelled) return;
+        const map: Record<string, TachoStatus> = {};
+        (res.data || []).forEach((c: TachoStatus) => {
+          if (c.truckId) map[c.truckId] = c;
+          if (c.truckPlate) map[`plate:${c.truckPlate}`] = c;
+        });
+        tachoRef.current = map;
+        setTachoConnectedCount((res.data || []).filter((c: TachoStatus) => c.connectionStatus === 'ONLINE').length);
+      } catch {
+        if (cancelled) return;
+        tachoRef.current = {};
+        setTachoConnectedCount(0);
+      }
+    };
+    loadTacho();
+    const interval = setInterval(loadTacho, 60000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const tachoHtml = (plate?: string, driverName?: string) => {
+    const row = (plate && tachoRef.current[`plate:${plate}`])
+      || Object.values(tachoRef.current).find((r) => driverName && r.driverName && r.driverName === driverName);
+    if (!row) {
+      return `<div style="font-size:11px;color:#94a3b8;margin-top:2px">${t('tachograph', 'Tachograph')}: ${t('tacho_unavailable', 'Unavailable')}</div>`;
+    }
+    const activity = row.currentActivity || t('tacho_unavailable', 'Unavailable');
+    const sim = row.simulated ? ' - SIM' : '';
+    return `<div style="font-size:11px;color:#475569;margin-top:2px">${t('tachograph', 'Tachograph')}: <b>${activity}</b>${sim}</div>`;
+  };
+
   useEffect(() => {
     initMap();
     return () => {
@@ -479,6 +530,7 @@ export default function LiveMapPage() {
           <div style="font-family:sans-serif;padding:6px 8px;min-width:140px">
             <div style="font-size:12px;font-weight:bold;color:#0F172A;margin-bottom:4px;border-bottom:1px solid #E2E8F0;padding-bottom:4px">${label}</div>
             ${subtextHtml}
+            ${tachoHtml(label, popupText)}
           </div>
         `);
       }
@@ -527,6 +579,7 @@ export default function LiveMapPage() {
         <div style="font-family:sans-serif;padding:6px 8px;min-width:140px">
           <div style="font-size:12px;font-weight:bold;color:#0F172A;margin-bottom:4px;border-bottom:1px solid #E2E8F0;padding-bottom:4px">${label}</div>
           ${subtextHtml}
+          ${tachoHtml(label, popupText)}
         </div>
       `)).addTo(mapInstance.current);
     markersRef.current[id] = marker;
@@ -910,6 +963,7 @@ export default function LiveMapPage() {
             <div style="font-family:sans-serif;padding:6px 8px;min-width:140px">
               <div style="font-size:12px;font-weight:bold;color:#0F172A;margin-bottom:4px;border-bottom:1px solid #E2E8F0;padding-bottom:4px">${label}</div>
               ${subHtml}
+              ${tachoHtml(label, driverName)}
             </div>
           `);
         }
@@ -935,6 +989,10 @@ export default function LiveMapPage() {
           <input type="text" className="input pl-9 pr-4 py-2 w-full bg-card border border-border rounded-xl shadow-sm focus:ring-2 focus:ring-primary/20 text-sm" placeholder={t('searchTruckRefCity') || "Caută camion, oraș sau referință..."} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
         </form>
         <div className="flex items-center gap-3 shrink-0">
+          <Link to="/tachograph" className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-sm font-medium hover:bg-surface transition-colors shadow-sm" title={t('tachograph', 'Tahograf')}>
+            <Activity className="w-4 h-4 text-primary" />{t('tachograph', 'Tahograf')}
+            {tachoConnectedCount > 0 && <span className="px-1.5 py-0.5 rounded-full bg-success/10 text-success text-[10px] font-bold">{tachoConnectedCount}</span>}
+          </Link>
           <button type="button" onClick={() => setIsSatellite(!isSatellite)} className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-sm font-medium hover:bg-surface transition-colors shadow-sm">
             {isSatellite ? <><MapIcon className="w-4 h-4 text-primary" />{t("jsx_hartStandard")}</> : <><MapIcon className="w-4 h-4 text-primary" />{t("jsx_satelit")}</>}
           </button>

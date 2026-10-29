@@ -76,10 +76,12 @@ export class TelematicsService {
       const simulatedList = this.simulatorService.getAllSimulatedTrucks();
 
       if (!devices || devices.length === 0) {
-        // Return rich simulated fleet overview so the page is immediately populated and responsive
+        // Simulated fallback fleet (dev/test). Marked clearly so it can never
+        // be mistaken for real telemetry by the UI or by API consumers.
         return simulatedList.map((sim) => ({
           id: `dev-${sim.truckId}`,
           truckId: sim.truckId,
+          simulated: true,
           truckPlate: sim.plateNumber,
           truckBrand: 'DAF',
           truckModel: 'XF 480',
@@ -102,12 +104,15 @@ export class TelematicsService {
         }));
       }
 
-      // Map each device to live summary
+      // Map each device to live summary. `simulated` flags rows whose live
+      // values currently come from the in-memory simulator instead of the
+      // provider hardware.
       return devices.map((d) => {
         const sim = simulatedList.find((s) => s.truckId === d.truckId || s.plateNumber === d.truck?.plateNumber);
         return {
           id: d.id,
           truckId: d.truckId,
+          simulated: !!sim,
           truckPlate: d.truck?.plateNumber || sim?.plateNumber || '—',
           truckBrand: d.truck?.brand || '—',
           truckModel: d.truck?.model || '—',
@@ -227,6 +232,7 @@ export class TelematicsService {
     const driverName = sim?.driverName || truck.driver?.user?.name || (truck.driver as any)?.name || '—';
 
     return {
+      simulated: !device || !!sim,
       vehicle: {
         id: truck.id,
         plateNumber: truck.plateNumber,
@@ -282,6 +288,7 @@ export class TelematicsService {
       return {
         truckId: sim.truckId,
         plateNumber: sim.plateNumber,
+        simulated: true, // whole fleet tachograph overview is fed by the simulator
         driverId: sim.driverId,
         driverName: sim.driverName,
         currentActivity: sim.currentActivity,
@@ -332,6 +339,7 @@ export class TelematicsService {
       truckId: sim.truckId,
       plateNumber: sim.plateNumber,
       driverName: sim.driverName,
+      simulated: simList.length > 0, // served from simulator until real devices provide data
       connectionStatus: sim.connectionStatus,
       currentTrip: {
         id: sim.tripId,

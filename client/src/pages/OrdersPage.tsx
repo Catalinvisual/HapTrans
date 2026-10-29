@@ -1,6 +1,8 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, MapPin, FileText, Trash2, Box, Pencil, Activity, Copy, FilterX, Coins, Boxes, BadgeEuro, ArrowRight, Flag, Phone, Navigation, Calendar, Sparkles } from 'lucide-react';
+import { Plus, Search, MapPin, FileText, Trash2, Box, Pencil, Activity, Copy, FilterX, Coins, Boxes, BadgeEuro, ArrowRight, Flag, Phone, Navigation, Calendar, Sparkles, Globe } from 'lucide-react';
+
+const WebsiteQuotesPage = lazy(() => import('./WebsiteQuotesPage'));
 import api from '../lib/api';
 import OrderWizard from '../components/orders/OrderWizard';
 import OrderDetailDrawer from '../components/orders/OrderDetailDrawer';
@@ -23,7 +25,9 @@ import AiImportModal from '../components/AiImportModal';
 import ExcelImportModal from '../components/ExcelImportModal';
 import AdrBadge from '../components/common/AdrBadge';
 import toast from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuthStore } from '../store/authStore';
+import { canSection } from '../lib/navPermissions';
 import { getCompanySettings } from '../store/settingsStore';
 import { generateInvoicePdfBase64 } from '../lib/invoicePdfGenerator';
 import { getCleanInvoiceFilename } from '../lib/filenameUtils';
@@ -55,6 +59,16 @@ function sortValue(o: any, key: string): any {
 export default function OrdersPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Integrated module tabs: Orders (+ transport orders) and Quote Requests.
+  const showQuotesTab = canSection(user, 'websiteQuotes', 'orders');
+  const activeModuleTab = searchParams.get('tab') === 'quotes' && showQuotesTab ? 'quotes' : 'orders';
+  const selectModuleTab = (id: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (id === 'quotes') next.set('tab', id); else next.delete('tab');
+    setSearchParams(next);
+  };
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -504,6 +518,29 @@ export default function OrdersPage() {
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-4 animate-fade-in">
+      {showQuotesTab && (
+        <div className="flex items-center gap-1 bg-surface/70 border border-border rounded-xl p-1 w-fit max-w-full overflow-x-auto custom-scrollbar sticky top-0 z-30">
+          <button
+            onClick={() => selectModuleTab('orders')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1.5 ${activeModuleTab === 'orders' ? 'bg-card shadow-sm text-primary border border-border' : 'text-text-secondary hover:text-text'}`}
+          >
+            <Box className="w-3.5 h-3.5" />{t('orders')}
+          </button>
+          <button
+            onClick={() => selectModuleTab('quotes')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1.5 ${activeModuleTab === 'quotes' ? 'bg-card shadow-sm text-primary border border-border' : 'text-text-secondary hover:text-text'}`}
+          >
+            <Globe className="w-3.5 h-3.5" />{t('websiteQuotes')}
+          </button>
+        </div>
+      )}
+
+      {activeModuleTab === 'quotes' ? (
+        <Suspense fallback={<div className="p-10 text-center text-text-secondary">{t('common.loading', 'Loading')}...</div>}>
+          <WebsiteQuotesPage />
+        </Suspense>
+      ) : (
+      <>
       <KpiStrip items={[
         { key: 'total', label: t('kpi_total', 'Total'), value: orders.length, icon: Box, color: 'text-text-primary', onClick: () => setStatusFilterFromKpi('all'), active: filters.status === 'all' },
         { key: 'planned', label: t('kpi_planned', 'Planned'), value: (statusCounts.new || 0) + (statusCounts.planned || 0), icon: Boxes, color: 'text-amber-600', onClick: () => setStatusFilterFromKpi('plannedGroup'), active: filters.status === 'plannedGroup' },
@@ -624,6 +661,8 @@ export default function OrdersPage() {
 
         <Pagination currentPage={currentPage} totalItems={sorted.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
       </div>
+      </>
+      )}
 
       <BulkBar count={selected.size} onClear={() => setSelected(new Set())}>
         <CustomSelect className="w-44" value="" onChange={v => { if (v) bulkSetStatus(v); }} options={[{ value: '', label: t('bulk_change_status', 'Change status...') }, ...ORDER_STATUSES.filter(s => s !== 'cancelled').map(s => ({ value: s, label: t(`status_${s}`, s.replace(/_/g, ' ')) }))]} />

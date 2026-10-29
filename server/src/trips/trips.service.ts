@@ -246,8 +246,27 @@ export class TripsService {
   }
 
 
+  findByTripNumber(tripNumber: string) {
+    return this.repo.findOne({
+      where: { tripNumber },
+      relations: ['orders', 'stops'],
+    });
+  }
+
   async assignOrders(tripId: string, orderIds: string[]) {
-    const result = await this.planningEngine.assignOrdersToTrip(tripId, orderIds);
+    // Idempotency guard: retries (or a recovery after a crash between trip
+    // creation and assignment) must not duplicate stop tasks or emails.
+    const trip = await this.repo.findOne({ where: { id: tripId }, relations: ['orders'] });
+    if (!trip) throw new NotFoundException('Trip not found');
+
+    const alreadyAssigned = new Set((trip.orders || []).map(o => o.id));
+    const pendingOrderIds = orderIds.filter(id => !alreadyAssigned.has(id));
+
+    if (pendingOrderIds.length === 0) {
+      return this.findOne(tripId);
+    }
+
+    const result = await this.planningEngine.assignOrdersToTrip(tripId, pendingOrderIds);
     await this.recalculateTripMetrics(tripId);
     await this.recalculateFinancials(tripId);
     
@@ -256,7 +275,7 @@ export class TripsService {
     if (updatedTrip && updatedTrip.trackingToken && updatedTrip.orders) {
       for (const order of updatedTrip.orders) {
         // Only send for the orders we just assigned
-        if (orderIds.includes(order.id) && order.client?.contactEmail) {
+        if (pendingOrderIds.includes(order.id) && order.client?.contactEmail) {
           const tripPayload = {
             status: updatedTrip.status,
             referenceNumber: updatedTrip.tripNumber,

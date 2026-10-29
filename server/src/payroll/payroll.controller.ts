@@ -1,7 +1,11 @@
-import { Controller, Get, Post, Body, Param, Patch, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { PayrollService } from './payroll.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
+// Payroll contains confidential salary data; access requires an
+// authenticated user (same standard as settlements and financial modules).
 @Controller('payrolls')
+@UseGuards(JwtAuthGuard)
 export class PayrollController {
   constructor(private readonly payrollService: PayrollService) {}
 
