@@ -31,8 +31,9 @@ export default function FleetPage() {
   };
 
   return (
-    <div className="space-y-3 animate-fade-in">
-      {tabs.length > 1 && (
+    <div className="max-w-[1600px] mx-auto space-y-3 animate-fade-in">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-bold text-text-primary">{t('fleet', 'Fleet')}</h2>
         <div className="flex items-center gap-1 bg-surface/70 border border-border rounded-xl p-1 w-fit max-w-full overflow-x-auto">
           {tabs.map(tab => (
             <button
@@ -45,7 +46,8 @@ export default function FleetPage() {
             </button>
           ))}
         </div>
-      )}
+      </div>
+
       <Suspense fallback={null}>
         {active === 'trailers' ? <TrailersPage /> : <TrucksPage />}
       </Suspense>
