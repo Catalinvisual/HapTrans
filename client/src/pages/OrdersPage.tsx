@@ -537,9 +537,7 @@ return (
       </div>
 
       {activeModuleTab === 'quotes' ? (
-        <Suspense fallback={<div className="p-10 text-center text-text-secondary">{t('common.loading', 'Loading')}...</div>}}>
-          <WebsiteQuotesPage />
-        </Suspense>
+        <WebsiteQuotesPage />
       ) : (
       <>
       <KpiStrip items={[
