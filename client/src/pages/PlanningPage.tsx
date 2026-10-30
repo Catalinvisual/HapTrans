@@ -3198,7 +3198,6 @@ export default function PlanningPage() {
             setWizardConfig(null);
             loadData();
             setDrawerRefreshKey(k => k + 1);
-            toast.success(t('order_saved_success', 'Order updated successfully!'));
           }}
         />
       )}
