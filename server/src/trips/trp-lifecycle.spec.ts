@@ -76,12 +76,18 @@ describe('HapCargo TMS — Definitive Planning, TRP Lifecycle, Audit & Security 
       create: jest.fn((e) => ({ id: 'cd-1', ...e })),
       find: jest.fn().mockResolvedValue([]),
     };
-
-    mockOrderRepo = {
+mockOrderRepo = {
       findOne: jest.fn(),
       find: jest.fn(),
-      save: jest.fn((e) => Promise.resolve(Array.isArray(e) ? e.map(x => ({ ...x })) : { ...e })),
+      save: jest.fn((e) => Promise.resolve(Array.isArray(e) ? e.map(x => 
+({ ...x })) : { ...e })),
       update: jest.fn().mockResolvedValue({ affected: 1 }),
+      createQueryBuilder: jest.fn().mockReturnValue({
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getCount: jest.fn().mockResolvedValue(5),
+        getMany: jest.fn().mockResolvedValue([]),
+      }),
       findByIds: jest.fn(),
     };
 
