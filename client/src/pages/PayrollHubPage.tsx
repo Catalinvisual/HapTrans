@@ -31,16 +31,16 @@ export default function PayrollHubPage() {
   };
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="space-y-3 animate-fade-in">
       {tabs.length > 1 && (
-        <div className="flex items-center gap-1 bg-surface/70 border border-border rounded-xl p-1 w-fit max-w-full overflow-x-auto custom-scrollbar sticky top-0 z-30">
+        <div className="flex items-center gap-1 bg-surface/70 border border-border rounded-xl p-1 w-fit max-w-full overflow-x-auto">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => select(tab.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1.5 ${active === tab.id ? 'bg-card shadow-sm text-primary border border-border' : 'text-text-secondary hover:text-text'}`}
+              className={`px-2 py-1 rounded-sm text-[10px] font-bold whitespace-nowrap transition-colors flex items-center gap-1.5 ${active === tab.id ? 'bg-primary text-primary-100 border border-primary/20' : 'text-text-secondary hover:text-text hover:bg-surface/50'}`}
             >
-              <tab.icon className="w-3.5 h-3.5" />
+              <tab.icon className="w-3 h-3" />
               {tab.label}
             </button>
           ))}
