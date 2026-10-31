@@ -8,6 +8,7 @@ import { AnalyticsFilters } from './filters.dto';
 import {
   num, round2, pctChange, isoDay, weekKey, monthKey, bucketKeyForDate,
   buildBuckets, parseRange, isoDaysBetween, isOnTime, Granularity, PeriodRange,
+  resolveCreatedAtExpr,
 } from './analytics.utils';
 import {
   tripRevenue, tripDirectCost, tripProfit, tripDistance, DEFAULT_COST_PER_KM,
@@ -37,9 +38,9 @@ class WhereBuilder {
   params: any[] = [];
   private readonly prefix: string;
 
-  constructor(prefix: string, from: Date, to: Date, f: AnalyticsFilters, companyId?: string | null) {
+  constructor(prefix: string, tsExpr: string, from: Date, to: Date, f: AnalyticsFilters, companyId?: string | null) {
     this.prefix = prefix;
-    this.add(`${prefix}.created_at BETWEEN $${this.push(from.toISOString())} AND $${this.push(to.toISOString())}`);
+    this.add(`${tsExpr} BETWEEN $${this.push(from.toISOString())} AND $${this.push(to.toISOString())}`);
     // Legacy rows created before the multi-company migration have companyId NULL;
     // still count them instead of silently filtering the whole dataset to zero.
     if (companyId) this.add(`(${prefix}."companyId" IS NULL OR ${prefix}."companyId" = $${this.push(companyId)})`);
@@ -167,8 +168,8 @@ export interface OrderRow {
   has_pod?: boolean;
 }
 
-const ORDERS_SELECT = `
-  SELECT o.id, o.order_number, o.status, o.created_at,
+const ordersSelectSql = (tsExpr: string) => `
+  SELECT o.id, o.order_number, o.status, ${tsExpr} AS created_at,
     o.requested_delivery_at, o.actual_delivery_at, o.is_late, o.late_minutes,
     o."clientId", o."tripId", COALESCE(o.price::float, 0) AS price,
     o.origin_country, o.destination_country, o.origin_city, o.destination_city,
@@ -178,9 +179,9 @@ const ORDERS_SELECT = `
   LEFT JOIN clients c ON c.id = o."clientId"
 `;
 
-const TRIPS_SELECT = `
+const tripsSelectSql = (tsExpr: string) => `
   SELECT
-    t.id, t.created_at, t.status, t."truckId", t."driverId", t."trailerId",
+    t.id, ${tsExpr} AS created_at, t.status, t."truckId", t."driverId", t."trailerId",
     COALESCE(NULLIF(TRIM(t.distance_km), '')::float, t."distanceKm"::float) AS distance,
     COALESCE(NULLIF(TRIM(t.revenue_amount), '')::float, t."estimatedProfit"::float, 0) AS rev_fallback,
     COALESCE(NULLIF(TRIM(t.cost_amount), '')::float, t."estimatedCost"::float, 0) AS cost_fallback,
@@ -750,14 +751,15 @@ export class AnalyticsService {
     const { period } = parseRange(f.from, f.to, 3);
     const f2: AnalyticsFilters = { ...f, clientId: id };
     const data = await this.loadPeriod(period, f2, user?.companyId || null);
+    const oTs = await resolveCreatedAtExpr(this.dataSource, 'orders', 'o');
     const rows = await this.dataSource.query(
-      `SELECT o.id, o.order_number, o.status, o.created_at, o.requested_delivery_at, o.actual_delivery_at,
+      `SELECT o.id, o.order_number, o.status, ${oTs} AS created_at, o.requested_delivery_at, o.actual_delivery_at,
         o.is_late, o.late_minutes, o."tripId", COALESCE(o.price::float,0) AS price,
         o.origin_city, o.destination_city, o.origin_country, o.destination_country,
         c.name AS client_name
        FROM orders o LEFT JOIN clients c ON c.id = o."clientId"
-       WHERE o."clientId" = $1 AND o.created_at BETWEEN $2 AND $3
-       ORDER BY o.created_at DESC LIMIT 500`,
+       WHERE o."clientId" = $1 AND ${oTs} BETWEEN $2 AND $3
+       ORDER BY 4 DESC LIMIT 500`,
       [id, period.from, period.to],
     );
     const otifGood = ((data.orders || []) as any[]).filter((o: any) => isOnTime(o.actual_delivery_at, o.requested_delivery_at)).length;
@@ -973,18 +975,25 @@ export class AnalyticsService {
   }
 
   private async loadPeriod(r: PeriodRange, f: AnalyticsFilters, companyId?: string | null) {
-    const orderW = new WhereBuilder('o', r.from, r.to, f, companyId);
+    // Resolve the actual creation-timestamp columns (camelCase TypeORM vs
+    // snake_case legacy) so the date window never silently matches nothing.
+    const [oTs, tTs, stTs] = await Promise.all([
+      resolveCreatedAtExpr(this.dataSource, 'orders', 'o'),
+      resolveCreatedAtExpr(this.dataSource, 'trips', 't'),
+      resolveCreatedAtExpr(this.dataSource, 'stops', 'st'),
+    ]);
+    const orderW = new WhereBuilder('o', oTs, r.from, r.to, f, companyId);
     orderW.applyOrderFilters(f);
     const orders = await this.dataSource.query(
-      `${ORDERS_SELECT} ${orderW.whereSql()}`,
+      `${ordersSelectSql(oTs)} ${orderW.whereSql()}`,
       orderW.params,
     );
 
-    const tripW = new WhereBuilder('t', r.from, r.to, f, companyId);
+    const tripW = new WhereBuilder('t', tTs, r.from, r.to, f, companyId);
     tripW.applyTripExistenceFilters(f);
     tripW.applyTripFilters(f);
     const trips = await this.dataSource.query(
-      `${TRIPS_SELECT} ${tripW.whereSql()}`,
+      `${tripsSelectSql(tTs)} ${tripW.whereSql()}`,
       tripW.params,
     );
     // Load raw cost rows only for trips that need per-category or carrier breakdown
@@ -1006,7 +1015,7 @@ export class AnalyticsService {
     const tripsFiltered = trips as TripRow[];
 
     // pickups for OTP + series
-    const pkW = new WhereBuilder('o', r.from, r.to, f, companyId);
+    const pkW = new WhereBuilder('o', oTs, r.from, r.to, f, companyId);
     pkW.applyOrderFilters(f);
     const pickupStops = await this.dataSource.query(
       `SELECT s."orderId", s."dateFrom", s."timeFrom", o.status, o.is_late, o.late_minutes
@@ -1019,7 +1028,7 @@ export class AnalyticsService {
     );
 
     // Trip stops for OTP (delivery windows already covered by order rows)
-    const stopsW = new WhereBuilder('st', r.from, r.to, f, companyId);
+    const stopsW = new WhereBuilder('st', stTs, r.from, r.to, f, companyId);
     stopsW.applyTripFilters(f);
     const tripStopRows = tripIds.length
       ? await this.dataSource.query(

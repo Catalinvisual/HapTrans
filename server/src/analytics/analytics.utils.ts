@@ -168,3 +168,47 @@ export function isOnTime(actual: Date | string | null | undefined, promised: Dat
   if (isNaN(a) || isNaN(p)) return false;
   return a <= p + graceMinutes * 60000;
 }
+
+// ---------------------------------------------------------------------------
+// Schema-agnostic creation-timestamp resolution. The production DB mixes
+// camelCase (`"createdAt"`, written by TypeORM) and snake_case (`created_at`,
+// written by older raw-SQL versions) columns. Analytics must count rows by
+// whichever timestamp actually carries data, otherwise entire report periods
+// silently resolve to zero.
+// ---------------------------------------------------------------------------
+const tsExprCache: Record<string, string> = {};
+
+export interface RawQuerySource {
+  query: (sql: string, params?: any[]) => Promise<any[]>;
+}
+
+/**
+ * Resolves a SQL expression that reads the creation timestamp for `table`
+ * rows through `alias`. When both column layouts exist the camelCase column
+ * wins first, falling back to the snake_case one (COALESCE). Result is cached
+ * per table for the lifetime of the process.
+ */
+export async function resolveCreatedAtExpr(
+  dataSource: RawQuerySource,
+  table: string,
+  alias: string,
+): Promise<string> {
+  if (tsExprCache[table]) return tsExprCache[table];
+  const res: any[] = await dataSource.query(
+    `SELECT
+       EXISTS(SELECT 1 FROM information_schema.columns
+              WHERE table_name = $1 AND column_name = 'createdAt') AS camel,
+       EXISTS(SELECT 1 FROM information_schema.columns
+              WHERE table_name = $1 AND column_name = 'created_at') AS snake`,
+    [table],
+  );
+  const camel = res?.[0]?.camel === true;
+  const snake = res?.[0]?.snake === true;
+  const expr = camel && snake
+    ? `COALESCE(${alias}."createdAt"::timestamptz, ${alias}.created_at)`
+    : camel
+      ? `${alias}."createdAt"::timestamptz`
+      : `${alias}.created_at`;
+  tsExprCache[table] = expr;
+  return expr;
+}

@@ -6,6 +6,7 @@ import { TrucksService } from '../trucks/trucks.service';
 import { DriversService } from '../drivers/drivers.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { resolveCreatedAtExpr } from '../analytics/analytics.utils';
 
 export interface AnalyticsQuery {
   from?: string;
@@ -97,8 +98,8 @@ function buildBuckets(from: Date, to: Date, granularity: 'day' | 'week' | 'month
   return map;
 }
 
-const ORDERS_SQL = `
-  SELECT o.id, o.created_at, o.status, o."tripId", o."clientId",
+const ORDERS_SQL = (oTs: string) => `
+  SELECT o.id, ${oTs} AS created_at, o.status, o."tripId", o."clientId",
     o.requested_delivery_at, o.actual_delivery_at, o.is_late, o.late_minutes,
     o."transportType" AS transport_type, o.priority,
     o.origin_country, o.destination_country, o.origin_city, o.destination_city,
@@ -107,14 +108,14 @@ const ORDERS_SQL = `
   FROM orders o
   LEFT JOIN clients c ON c.id = o."clientId"
   LEFT JOIN trips tr ON tr.id = o."tripId"
-  WHERE o.created_at BETWEEN $1 AND $2
+  WHERE ${oTs} BETWEEN $1 AND $2
     AND ($3::uuid IS NULL OR o."clientId" = $3)
     AND ($4::uuid IS NULL OR tr."truckId" = $4)
     AND ($5::uuid IS NULL OR tr."driverId" = $5)
-  ORDER BY o.created_at ASC`;
+  ORDER BY 2 ASC`;
 
-const TRIPS_SQL = `
-  SELECT t.id, t.created_at, t.status, t."truckId", t."driverId",
+const TRIPS_SQL = (tTs: string) => `
+  SELECT t.id, ${tTs} AS created_at, t.status, t."truckId", t."driverId",
     t."plannedArrival", t."actualArrival",
     COALESCE(NULLIF(TRIM(t.distance_km), '')::float, t."distanceKm"::float) AS dist,
     COALESCE(NULLIF(TRIM(t.revenue_amount), '')::float, t."estimatedProfit"::float, 0) AS revenue,
@@ -122,18 +123,18 @@ const TRIPS_SQL = `
     COALESCE(NULLIF(TRIM(t.margin_amount), '')::float, t."actualProfit"::float, 0) AS margin,
     t.trip_number
   FROM trips t
-  WHERE t.created_at BETWEEN $1 AND $2
+  WHERE ${tTs} BETWEEN $1 AND $2
     AND ($4::uuid IS NULL OR t."truckId" = $4)
     AND ($5::uuid IS NULL OR t."driverId" = $5)
     AND ($3::uuid IS NULL OR EXISTS (SELECT 1 FROM orders o WHERE o."tripId" = t.id AND o."clientId" = $3))
-  ORDER BY t.created_at ASC`;
+  ORDER BY 2 ASC`;
 
-const COUNTRY_SQL = `
+const COUNTRY_SQL = (oTs: string) => `
   SELECT s.type, s.country, count(*)::int AS n
   FROM order_stops s
   JOIN orders o ON o.id = s."orderId"
   LEFT JOIN trips tr ON tr.id = o."tripId"
-  WHERE o.created_at BETWEEN $1 AND $2
+  WHERE ${oTs} BETWEEN $1 AND $2
     AND ($3::uuid IS NULL OR o."clientId" = $3)
     AND ($4::uuid IS NULL OR tr."truckId" = $4)
     AND ($5::uuid IS NULL OR tr."driverId" = $5)
@@ -311,12 +312,16 @@ export class DashboardService {
     const P = [from, to, client, truck, driver];
     const PP = [prevFrom, prevTo, client, truck, driver];
 
+    const [oTs, tTs] = await Promise.all([
+      resolveCreatedAtExpr(this.dataSource, 'orders', 'o'),
+      resolveCreatedAtExpr(this.dataSource, 'trips', 't'),
+    ]);
     const [curOrders, prevOrders, curTrips, prevTrips, countryRows, truckRows, driverRows] = await Promise.all([
-      this.dataSource.query(ORDERS_SQL, P),
-      this.dataSource.query(ORDERS_SQL, PP),
-      this.dataSource.query(TRIPS_SQL, P),
-      this.dataSource.query(TRIPS_SQL, PP),
-      this.dataSource.query(COUNTRY_SQL, P),
+      this.dataSource.query(ORDERS_SQL(oTs), P),
+      this.dataSource.query(ORDERS_SQL(oTs), PP),
+      this.dataSource.query(TRIPS_SQL(tTs), P),
+      this.dataSource.query(TRIPS_SQL(tTs), PP),
+      this.dataSource.query(COUNTRY_SQL(oTs), P),
       this.dataSource.query(`SELECT id, "plateNumber" AS name FROM trucks`),
       this.dataSource.query(`SELECT d.id, COALESCE(u.name, concat_ws(' ', d.first_name, d.last_name)) AS name FROM drivers d LEFT JOIN users u ON u.id = d."userId"`),
     ]);
