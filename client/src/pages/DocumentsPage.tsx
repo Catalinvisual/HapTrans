@@ -13,10 +13,7 @@ export default function DocumentsPage({
 }: {
   embeddedClientId?: string;
 }) {
-  const {
-    t,
-    i18n
-  } = useTranslation();
+  const { t } = useTranslation();
   const [docs, setDocs] = useState<any[]>([]);
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -200,10 +197,16 @@ export default function DocumentsPage({
       key: 'type', label: t('type') || 'Tip', align: 'center',
       render: (doc: any) => <span className="badge-primary whitespace-nowrap text-[11px]">{typeLabel((doc.type || doc.documentType || '').toString())}</span>,
     },
-    {
-      key: 'date', label: t('date') || 'Data', align: 'center',
-      render: (doc: any) => <span className="text-xs text-text-secondary whitespace-nowrap">{doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleString(i18n.language || 'ro-RO', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</span>,
+  {
+    key: 'date', label: t('date') || 'Data', align: 'center',
+    render: (doc: any) => {
+      if (!doc.uploadedAt) return <span className="text-xs text-text-secondary whitespace-nowrap">—</span>;
+      const d = new Date(doc.uploadedAt);
+      const p2 = (n: number) => String(n).padStart(2, '0');
+      const txt = `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+      return <span className="text-xs text-text-secondary whitespace-nowrap">{txt}</span>;
     },
+  },
     {
       key: 'actions', label: t('actions') || 'Acțiuni', align: 'right', sticky: 'right', width: '100px',
       render: (doc: any) => (

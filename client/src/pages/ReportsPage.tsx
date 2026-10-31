@@ -335,15 +335,6 @@ export default function ReportsPage() {
         </select>
         <div className="flex-1" />
         <button
-          onClick={() => activeKey && doExport(activeKey, currentFilters(), 'xlsx')}
-          disabled={!activeKey || !!exporting}
-          title={t('rp_export_xlsx')}
-          className="btn-secondary !px-2.5 !py-1.5 text-xs shrink-0 disabled:opacity-40"
-        >
-          {exporting === (activeKey || '') + '-xlsx' ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-          <span className="hidden xl:inline ml-1.5">{t('rp_export_xlsx')}</span>
-        </button>
-        <button
           onClick={() => activeKey && runPreview(activeKey)}
           title={t('rp_generate', 'Generează Raport')}
           className="btn-primary !px-3 !py-1.5 text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-md shadow-primary/20"
@@ -464,7 +455,6 @@ export default function ReportsPage() {
 
       {tab === 'history' && (
         <div className="card !p-0 overflow-hidden">
-          <div className="p-4 border-b border-border/50 bg-surface/30"></div>
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left">
               <thead className="text-[10px] uppercase font-bold text-text-secondary bg-surface/60">

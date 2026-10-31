@@ -78,7 +78,10 @@ export default function ReportTable({ columns, rows, maxHeight, totalRow }: Repo
         )}
       </table>
       {rows.length === 0 && (
-        <div className="p-8 text-center text-sm text-text-secondary">—</div>
+        <div className="p-8 text-center">
+          <p className="text-sm font-semibold text-text-secondary">—</p>
+          <p className="text-xs text-text-muted mt-1 max-w-sm mx-auto">No records for the selected period and filters. Try a wider date range (e.g. Last 90 days / This year) or clear the client / truck / driver filters.</p>
+        </div>
       )}
     </div>
   );

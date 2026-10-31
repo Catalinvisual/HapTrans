@@ -22,6 +22,8 @@ export interface NavItem {
   to: string;
   icon: LucideIcon;
   key: string;
+  /** Optional i18n key for the visible label (defaults to `t(key)`). */
+  labelKey?: string;
 }
 
 // Canonical sidebar structure (re-organized single-entry modules):
@@ -43,7 +45,7 @@ export const navItems: NavItem[] = [
   { to: '/reports', icon: FileBarChart2, key: 'reports' },
   { to: '/maintenance', icon: Wrench, key: 'maintenance' },
   { to: '/expenses', icon: Wallet, key: 'expenses' },
-  { to: '/payroll', icon: Banknote, key: 'payroll' },
+  { to: '/payroll', icon: Banknote, key: 'payroll', labelKey: 'navPayrollModule' },
   { to: '/eu-transit', icon: Globe, key: 'euTransit' },
   { to: '/website-cms', icon: Globe, key: 'websiteCms' },
   { to: '/users', icon: UserCog, key: 'users' },

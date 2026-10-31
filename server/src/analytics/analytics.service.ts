@@ -40,7 +40,9 @@ class WhereBuilder {
   constructor(prefix: string, from: Date, to: Date, f: AnalyticsFilters, companyId?: string | null) {
     this.prefix = prefix;
     this.add(`${prefix}.created_at BETWEEN $${this.push(from.toISOString())} AND $${this.push(to.toISOString())}`);
-    if (companyId) this.add(`${prefix}."companyId" = $${this.push(companyId)}`);
+    // Legacy rows created before the multi-company migration have companyId NULL;
+    // still count them instead of silently filtering the whole dataset to zero.
+    if (companyId) this.add(`(${prefix}."companyId" IS NULL OR ${prefix}."companyId" = $${this.push(companyId)})`);
   }
 
   private push(v: any): number {
@@ -1108,7 +1110,7 @@ export class AnalyticsService {
   private async loadTruckFleet(f: AnalyticsFilters, companyId?: string | null) {
     const params: any[] = [];
     let where = `1=1`;
-    if (companyId) { params.push(companyId); where += ` AND t."companyId" = $${params.length}`; }
+    if (companyId) { params.push(companyId); where += ` AND (t."companyId" IS NULL OR t."companyId" = $${params.length})`; }
     return this.dataSource.query(
       `SELECT t.id, t."plateNumber", t.brand, t.model, t.status, t."fuelConsumption"::float AS fuel_consumption,
         t."costPerKm"::float AS cost_per_km, t."nextMaintenanceMileage"::float AS next_maintenance

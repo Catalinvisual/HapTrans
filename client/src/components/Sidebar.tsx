@@ -67,7 +67,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <NavLink
               key={item.to}
               to={item.to}
-              title={isCollapsed ? t(item.key) : undefined}
+              title={isCollapsed ? (item.labelKey ? t(item.labelKey, 'Payroll & Settlements') : t(item.key)) : undefined}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group ${
                   isActive
@@ -86,7 +86,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   <item.icon className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${isActive ? 'scale-110 text-white' : 'group-hover:scale-110'}`} strokeWidth={isActive ? 2.5 : 2} />
                   {!isCollapsed && (
                     <span className={`truncate text-sm capitalize transition-colors ${isActive ? 'text-white' : ''}`}>
-                      {t(item.key)}
+                      {item.labelKey ? t(item.labelKey, 'Payroll & Settlements') : t(item.key)}
                     </span>
                   )}
                 </>
