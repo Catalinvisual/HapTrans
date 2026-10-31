@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, MapPin, FileText, Trash2, Box, Pencil, Activity, Copy, FilterX, Coins, Boxes, BadgeEuro, ArrowRight, Flag, Phone, Navigation, Calendar, Sparkles, Globe } from 'lucide-react';
+import { Plus, Search, MapPin, FileText, Trash2, Box, Pencil, Activity, Copy, FilterX, Coins, Boxes, BadgeEuro, ArrowRight, Flag, Phone, Navigation, Calendar, Sparkles } from 'lucide-react';
 
 const WebsiteQuotesPage = lazy(() => import('./WebsiteQuotesPage'));
 import api from '../lib/api';
@@ -60,15 +60,11 @@ export default function OrdersPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   // Integrated module tabs: Orders (+ transport orders) and Quote Requests.
+  // Tab switching is handled in the topbar (Layout.tsx).
   const showQuotesTab = canSection(user, 'websiteQuotes', 'orders');
   const activeModuleTab = searchParams.get('tab') === 'quotes' && showQuotesTab ? 'quotes' : 'orders';
-  const selectModuleTab = (id: string) => {
-    const next = new URLSearchParams(searchParams);
-    if (id === 'quotes') next.set('tab', id); else next.delete('tab');
-    setSearchParams(next);
-  };
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -518,7 +514,6 @@ export default function OrdersPage() {
 
 return (
     <div className="max-w-[1600px] mx-auto space-y-3 animate-fade-in">
-
       {activeModuleTab === 'quotes' ? (
         <WebsiteQuotesPage />
       ) : (
@@ -535,22 +530,6 @@ return (
       <div className="card p-0 overflow-hidden border-border">
         <div className="px-2.5 py-2 border-b border-border bg-surface/30">
           <div className="flex flex-wrap items-center gap-1.5">
-            {showQuotesTab && (
-              <div className="flex items-center gap-0.5 bg-surface/60 border border-border rounded-full p-0.5 shrink-0 mr-1">
-                <button
-                  onClick={() => selectModuleTab('orders')}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-1.5 ${activeModuleTab === 'orders' ? 'bg-primary text-white shadow-sm' : 'text-text-secondary hover:text-text-primary hover:bg-surface'}`}
-                >
-                  <Box className="w-3.5 h-3.5" />{t('orders')}
-                </button>
-                <button
-                  onClick={() => selectModuleTab('quotes')}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-1.5 ${activeModuleTab === 'quotes' ? 'bg-primary text-white shadow-sm' : 'text-text-secondary hover:text-text-primary hover:bg-surface'}`}
-                >
-                  <Globe className="w-3.5 h-3.5" />{t('websiteQuotes')}
-                </button>
-              </div>
-            )}
             <div className="relative w-[200px] shrink-0">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('searchPlaceholder', 'Search by reference, client...')} className="input pl-8 pr-3 py-1.5 text-xs w-full bg-white" />

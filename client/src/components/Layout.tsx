@@ -1,11 +1,11 @@
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect, useRef } from 'react';
 import { formatDate } from '../lib/dateUtils';
 import Sidebar from './Sidebar';
 import LanguageDropdown from './LanguageDropdown';
 import { useAuthStore } from '../store/authStore';
-import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard, Search, Download, Moon, Sun, BellRing } from 'lucide-react';
+import { Bell, LogOut, CheckCheck, FileText, MessageSquare, Truck, AlertTriangle, Menu, Keyboard, Search, Download, Moon, Sun, BellRing, Box, Globe, Container, Banknote, Wallet } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
@@ -13,7 +13,7 @@ import { useShortcuts } from '../hooks/useShortcuts';
 import ShortcutsHelpModal from './ShortcutsHelpModal';
 import GlobalSearchModal from './GlobalSearchModal';
 import ConfirmModal from './ConfirmModal';
-import { navItems, filterNavItems } from '../lib/navPermissions';
+import { navItems, filterNavItems, canSection } from '../lib/navPermissions';
 import { io } from 'socket.io-client';
 
 let deferredPrompt: any = null;
@@ -376,6 +376,42 @@ export default function Layout() {
   // Dense workspace pages (Planning board) manage their own date controls and spacing.
   const isDenseWorkspace = location.pathname === '/planning';
 
+  // Module tab groups (Orders/Quotes, Trucks/Trailers, Payroll/Settlements) rendered in the topbar.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isOrdersPath = location.pathname.startsWith('/orders');
+  const isFleetPath = location.pathname === '/fleet';
+  const isPayrollPath = location.pathname === '/payroll';
+  const moduleTabs = (() => {
+    if (isOrdersPath && canSection(user, 'websiteQuotes', 'orders')) {
+      return [
+        { id: 'orders', label: t('orders', 'Orders'), icon: Box },
+        { id: 'quotes', label: t('websiteQuotes', 'Quote Requests'), icon: Globe },
+      ];
+    }
+    if (isFleetPath) {
+      return [
+        ...(canSection(user, 'trucks', 'fleet') ? [{ id: 'trucks', label: t('trucks', 'Trucks'), icon: Truck }] : []),
+        ...(canSection(user, 'trailers', 'fleet') ? [{ id: 'trailers', label: t('trailers', 'Trailers'), icon: Container }] : []),
+      ];
+    }
+    if (isPayrollPath) {
+      return [
+        ...(canSection(user, 'payroll', 'payroll') ? [{ id: 'payroll', label: t('payroll', 'Payroll'), icon: Banknote }] : []),
+        ...(canSection(user, 'settlements', 'payroll') ? [{ id: 'settlements', label: t('settlements', 'Settlements'), icon: Wallet }] : []),
+      ];
+    }
+    return [];
+  })();
+  const requestedTab = searchParams.get('tab');
+  const activeModuleTab = isOrdersPath
+    ? (requestedTab === 'quotes' ? 'quotes' : 'orders')
+    : moduleTabs.some(x => x.id === requestedTab) ? requestedTab! : moduleTabs[0]?.id || '';
+  const selectModuleTab = (id: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (id === 'orders') next.delete('tab'); else next.set('tab', id);
+    setSearchParams(next, { replace: false });
+  };
+
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -669,6 +705,21 @@ export default function Layout() {
                 </p>
               )}
             </div>
+            {/* Module tabs — right next to the page title */}
+            {moduleTabs.length > 0 && (
+              <div className="hidden md:flex items-center gap-1 bg-surface/70 border border-border rounded-full p-1 ml-2 shadow-sm">
+                {moduleTabs.map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => selectModuleTab(tab.id)}
+                    className={`px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition-colors flex items-center gap-1.5 ${activeModuleTab === tab.id ? 'bg-primary text-white' : 'text-text-secondary hover:text-text hover:bg-surface/60'}`}
+                  >
+                    <tab.icon className="w-3.5 h-3.5" />
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-3">
             {/* Desktop Install Button */}
