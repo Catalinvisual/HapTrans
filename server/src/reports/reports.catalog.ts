@@ -145,7 +145,7 @@ export const REPORT_CATALOG: ReportDef[] = [
         kpi('openOrders', 'Open orders', k.operations.openOrders, 'count'),
         kpi('activeTrips', 'Active trips', k.operations.activeTrips, 'count'),
         kpi('completedTrips', 'Completed trips', k.operations.completedTrips, 'count'),
-        kpi('deliveries', 'Deliveries', k.service.otif.total, 'count'),
+        kpi('deliveries', 'Deliveries', k.operations.deliveries, 'count'),
         kpi('otif', 'OTIF', k.service.otif.rate, '%', r.trends.otif),
         kpi('otd', 'OTD', k.service.otd.rate, '%', r.trends.otd),
         kpi('otp', 'OTP', k.service.otp.rate, '%', null),

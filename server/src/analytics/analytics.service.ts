@@ -8,7 +8,7 @@ import { AnalyticsFilters } from './filters.dto';
 import {
   num, round2, pctChange, isoDay, weekKey, monthKey, bucketKeyForDate,
   buildBuckets, parseRange, isoDaysBetween, isOnTime, Granularity, PeriodRange,
-  resolveCreatedAtExpr,
+  resolveCreatedAtExpr, createdAtColumns, tsExprFor,
 } from './analytics.utils';
 import {
   tripRevenue, tripDirectCost, tripProfit, tripDistance, DEFAULT_COST_PER_KM,
@@ -29,6 +29,42 @@ function numParam(v: string | undefined | null): string | null {
   return v;
 }
 
+/**
+ * Trips remain relevant when either the trip itself was created in the period
+ * OR any order attached to it lies in the period. Many deployments only carry
+ * one of the two timestamps reliably, so counting trips strictly by
+ * `created_at` silently hides entire periods of activity.
+ */
+async function buildTripsDateClause(
+  dataSource: any,
+  from: Date,
+  to: Date,
+  f: AnalyticsFilters,
+  companyId?: string | null,
+): Promise<SqlFilters> {
+  const [tCols, oCols] = await Promise.all([
+    createdAtColumns(dataSource, 'trips'),
+    createdAtColumns(dataSource, 'orders'),
+  ]);
+  const tTs = tsExprFor(tCols, 't');
+  const oTs = tsExprFor(oCols, 'o3');
+  const tripFilter = new WhereBuilder('t', tTs, from, to, f, companyId);
+  const orderFilter = new WhereBuilder('o3', oTs, from, to, f, companyId);
+  const offset = tripFilter.params.length;
+  const shiftedOrderClauses = orderFilter.clauses.map((cl: string) =>
+    cl.replace(/\$(\d+)/g, (_m, d: string) => `$${Number(d) + offset}`));
+  const shiftedOrderParams = shiftedOrderClauses.length ? orderFilter.params : [];
+  const clauses: string[] = [];
+  const params: any[] = [...tripFilter.params, ...shiftedOrderParams];
+  if (shiftedOrderClauses.length) {
+    const orderExists = `EXISTS (SELECT 1 FROM orders o3 WHERE o3."tripId" = t.id AND (${shiftedOrderClauses.join(' AND ')}))`;
+    clauses.push(`(${tripFilter.clauses.join(' AND ')} OR ${orderExists})`);
+  } else {
+    clauses.push(tripFilter.clauses.join(' AND '));
+  }
+  return { clauses, params };
+}
+
 // ---------------------------------------------------------------------------
 // Builds trippable WHERE clauses for the trips query. Parameter ordering is
 // shared between the trips and orders queries so both stay consistent.
@@ -38,12 +74,14 @@ class WhereBuilder {
   params: any[] = [];
   private readonly prefix: string;
 
-  constructor(prefix: string, tsExpr: string, from: Date, to: Date, f: AnalyticsFilters, companyId?: string | null) {
+  constructor(prefix: string, tsExpr: string, from: Date, to: Date, f: AnalyticsFilters, companyId?: string | null, includeDate = true) {
     this.prefix = prefix;
-    this.add(`${tsExpr} BETWEEN $${this.push(from.toISOString())} AND $${this.push(to.toISOString())}`);
+    if (includeDate) {
+      this.add(`${tsExpr} BETWEEN $${this.push(from.toISOString())} AND $${this.push(to.toISOString())}`);
+    }
     // Legacy rows created before the multi-company migration have companyId NULL;
     // still count them instead of silently filtering the whole dataset to zero.
-    if (companyId) this.add(`(${prefix}."companyId" IS NULL OR ${prefix}."companyId" = $${this.push(companyId)})`);
+    if (companyId && includeDate) this.add(`(${prefix}."companyId" IS NULL OR ${prefix}."companyId" = $${this.push(companyId)})`);
   }
 
   private push(v: any): number {
@@ -276,6 +314,22 @@ export class AnalyticsService {
     const fin = this.aggregatePeriodFinancials(cur.trips);
     const prevFin = this.aggregatePeriodFinancials(prev.trips);
 
+    // Standalone orders (no trip attached) carry their order value as revenue:
+    // with only trip-based aggregation, periods whose work was done at order
+    // level report €0 revenue and a blank financial trend.
+    const standaloneRevenue = round2((cur.orders as any[]).filter((o: any) =>
+      !o.tripId && String(o.status).toLowerCase() !== 'cancelled',
+    ).reduce((s: number, o: any) => s + num(o.price), 0));
+    const prevStandaloneRevenue = round2((prev.orders as any[]).filter((o: any) =>
+      !o.tripId && String(o.status).toLowerCase() !== 'cancelled',
+    ).reduce((s: number, o: any) => s + num(o.price), 0));
+    fin.revenue = round2(fin.revenue + standaloneRevenue);
+    fin.profit = round2(fin.profit + standaloneRevenue);
+    fin.margin = fin.revenue > 0 ? round2((fin.profit / fin.revenue) * 100) : 0;
+    prevFin.revenue = round2(prevFin.revenue + prevStandaloneRevenue);
+    prevFin.profit = round2(prevFin.profit + prevStandaloneRevenue);
+    prevFin.margin = prevFin.revenue > 0 ? round2((prevFin.profit / prevFin.revenue) * 100) : 0;
+
     // ---- Fleet KPIs ----
     const fleet = this.computeFleetKpis(cur.trips, trucks);
 
@@ -285,8 +339,8 @@ export class AnalyticsService {
     // ---- Bucketed series ----
     const curMap = buildBuckets(period.from, period.to, granularity);
     const prevMap = buildBuckets(previous.from, previous.to, granularity);
-    this.fillSeries(curMap, cur);
-    this.fillSeries(prevMap, prev);
+    this.fillSeries(curMap, cur, granularity);
+    this.fillSeries(prevMap, prev, granularity);
     // pickup series (needs pickup rows per bucket)
     for (const s of cur.pickupStops) {
       if (s.dateFrom) {
@@ -401,7 +455,7 @@ export class AnalyticsService {
       tripStatusDistribution,
       byCountry: this.countryStats(cur.orders),
       customers: customerTable,
-      topCustomersRevenue: customerTable.slice().sort((a, b) => b.revenue - a.revenue).slice(0, f.limit ? num(f.limit) : 10).map(c => ({ id: c.id, name: c.name, revenue: c.revenue, margin: c.margin, otif: c.otif })),
+      topCustomersRevenue: customerTable.slice().sort((a, b) => b.revenue - a.revenue).slice(0, f.limit ? num(f.limit) : 10).map(c => ({ id: c.id, name: c.name, orders: c.orders, trips: c.trips, revenue: c.revenue, margin: c.margin, otif: c.otif })),
       topCustomersProfit: customerTable.slice().sort((a, b) => b.profit - a.profit).slice(0, 10).map(c => ({ id: c.id, name: c.name, profit: c.profit, margin: c.margin })),
       worstMarginCustomers: customerTable.filter(c => c.revenue > 0).sort((a, b) => a.margin - b.margin).slice(0, 10),
       routes,
@@ -526,8 +580,8 @@ export class AnalyticsService {
     // ---- Series ----
     const curMap = buildBuckets(period.from, period.to, granularity as any);
     const prevMap = buildBuckets(previous.from, previous.to, granularity as any);
-    this.fillSeries(curMap, cur);
-    this.fillSeries(prevMap, prev);
+    this.fillSeries(curMap, cur, granularity as any);
+    this.fillSeries(prevMap, prev, granularity as any);
     for (const i of invoicesNow.invoices) {
       if (String(i.status).toLowerCase() === 'cancelled') continue;
       const idate = i.issue_date || i.createdAt;
@@ -989,12 +1043,21 @@ export class AnalyticsService {
       orderW.params,
     );
 
-    const tripW = new WhereBuilder('t', tTs, r.from, r.to, f, companyId);
-    tripW.applyTripExistenceFilters(f);
-    tripW.applyTripFilters(f);
+    // Trips: created in the period OR having an order created in the period
+    // (legacy DBs often carry only one of the two timestamps reliably).
+    const tripsDateFx = await buildTripsDateClause(this.dataSource, r.from, r.to, f, companyId);
+    const tripFW = new WhereBuilder('t', tTs, r.from, r.to, f, companyId || null, false);
+    tripFW.applyTripExistenceFilters(f);
+    tripFW.applyTripFilters(f);
+    const fwOffset = tripsDateFx.params.length;
+    const tripClauses = [
+      ...tripsDateFx.clauses,
+      ...tripFW.clauses.map((cl: string) => cl.replace(/\$(\d+)/g, (_m, d: string) => `$${Number(d) + fwOffset}`)),
+    ];
+    const tripsWhere = tripClauses.filter(Boolean).join(' AND ');
     const trips = await this.dataSource.query(
-      `${tripsSelectSql(tTs)} ${tripW.whereSql()}`,
-      tripW.params,
+      `${tripsSelectSql(tTs)} ${tripsWhere ? `WHERE ${tripsWhere}` : ''}`,
+      [...tripsDateFx.params, ...tripFW.params],
     );
     // Load raw cost rows only for trips that need per-category or carrier breakdown
     const tripIds = trips.map((t: any) => t.id);
@@ -1238,6 +1301,17 @@ export class AnalyticsService {
 
   private computeCustomerTable(trips: TripRow[], orders: OrderRow[]) {
     const customers: Record<string, any> = {};
+    const ensure = (o: OrderRow) => {
+      const key = String(o.clientId || '__none__');
+      if (!customers[key]) customers[key] = {
+        id: o.clientId, name: o.client_name || '—', orders: 0, trips: 0,
+        revenue: 0, cost: 0, profit: 0, km: 0, lateDeliveries: 0, otifGood: 0, otifTotal: 0,
+        disDelivered: 0,
+      };
+      return customers[key];
+    };
+    // Trip-level revenue/cost/km attributed across the clients of the orders
+    // attached to each trip.
     const orderByTrip: Record<string, OrderRow[]> = {};
     for (const o of orders) {
       if (!o.tripId) continue;
@@ -1247,49 +1321,48 @@ export class AnalyticsService {
     for (const t of trips) {
       const rev = tripRevenue(t);
       const cost = tripDirectCost(t);
-      const trpOrders = orderByTrip[t.id] || [];
-      const share = trpOrders.length > 0 ? trpOrders.length : 1;
-      const seen = new Set<string>();
+      const km = tripDistance(t);
+      const trpOrders = (orderByTrip[t.id] || []).filter(x => x.clientId);
+      if (!trpOrders.length) continue;
+      const clientShare = new Set(trpOrders.map((x: any) => String(x.clientId))).size || 1;
       for (const o of trpOrders) {
-        if (!o.clientId || seen.has(o.clientId)) continue;
-        seen.add(o.clientId);
-        if (!customers[o.clientId]) customers[o.clientId] = {
-          id: o.clientId, name: o.client_name || '—', orders: 0, trips: 0,
-          revenue: 0, cost: 0, profit: 0, km: 0, lateDeliveries: 0, otifGood: 0, otifTotal: 0,
-        };
-        const c = customers[o.clientId];
-        c.orders++;
-        c.trips += 1 / share;
-        c.revenue += rev / (share * (new Set(trpOrders.map((x: any) => x.clientId)).size || 1));
-        c.cost += cost / (share * (new Set(trpOrders.map((x: any) => x.clientId)).size || 1));
-        c.km += tripDistance(t) / share;
+        const c = ensure(o);
+        c.trips += 1 / trpOrders.length;
+        c.revenue += rev / clientShare;
+        c.cost += cost / clientShare;
+        c.km += km / clientShare;
       }
     }
-    // per-order service metrics (independent of attribution sharing)
+    // Per-order metrics. Standalone orders (no trip) contribute their own
+    // order value as revenue, otherwise a period with only planless orders
+    // shows zero customer revenue.
     for (const o of orders) {
       if (!o.clientId) continue;
+      const c = ensure(o);
       const st = String(o.status).toLowerCase();
       const late = o.is_late === true || String(o.is_late) === 'true' || num(o.late_minutes) > 0;
+      if (st !== 'cancelled') {
+        c.orders += 1;
+        if (!o.tripId) c.revenue += num(o.price);
+      }
       if (ORDER_DELIVERED.has(st)) {
-        if (!customers[o.clientId]) customers[o.clientId] = { id: o.clientId, name: o.client_name || '—', orders: 0, trips: 0, revenue: 0, cost: 0, profit: 0, km: 0, lateDeliveries: 0, otifGood: 0, otifTotal: 0 };
-        if (!customers[o.clientId].disDelivered) customers[o.clientId].disDelivered = 0;
-        customers[o.clientId].disDelivered += 1;
-        if (late) customers[o.clientId].lateDeliveries += 1;
+        c.disDelivered += 1;
+        if (late) c.lateDeliveries += 1;
         if (o.actual_delivery_at && o.requested_delivery_at) {
-          customers[o.clientId].otifTotal += 1;
-          if (isOnTime(o.actual_delivery_at, o.requested_delivery_at)) customers[o.clientId].otifGood += 1;
+          c.otifTotal += 1;
+          if (isOnTime(o.actual_delivery_at, o.requested_delivery_at)) c.otifGood += 1;
         }
       }
     }
     return Object.values(customers)
       .map((c: any) => ({
         id: c.id, name: c.name, orders: c.orders, trips: round2(c.trips),
-        revenue: round2(c.revenue), cost: round2(c.cost), profit: round2(c.profit),
-        margin: c.revenue > 0 ? round2((c.profit / c.revenue) * 100) : 0,
+        revenue: round2(c.revenue), cost: round2(c.cost), profit: round2(c.revenue - c.cost),
+        margin: c.revenue > 0 ? round2(((c.revenue - c.cost) / c.revenue) * 100) : 0,
         km: round2(c.km),
         revenuePerKm: c.km > 0 ? round2(c.revenue / c.km) : 0,
         costPerKm: c.km > 0 ? round2(c.cost / c.km) : 0,
-        profitPerKm: c.km > 0 ? round2(c.profit / c.km) : 0,
+        profitPerKm: c.km > 0 ? round2((c.revenue - c.cost) / c.km) : 0,
         otif: c.otifTotal > 0 ? round2((c.otifGood / c.otifTotal) * 100) : null,
         lateDeliveries: c.lateDeliveries,
       }))
@@ -1444,6 +1517,11 @@ export class AnalyticsService {
       if (!map[key]) continue;
       map[key].orders += 1;
       const st = String(o.status).toLowerCase();
+      // Standalone orders (no trip) contribute their order value to the
+      // financial trend; with only trip-based series these buckets stay at 0.
+      if (!o.tripId && st !== 'cancelled') {
+        map[key].revenue += num(o.price);
+      }
       if (ORDER_DELIVERED.has(st)) {
         map[key].ordersDelivered += 1;
         if (o.actual_delivery_at && o.requested_delivery_at) {

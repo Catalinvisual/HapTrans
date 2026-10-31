@@ -176,39 +176,63 @@ export function isOnTime(actual: Date | string | null | undefined, promised: Dat
 // whichever timestamp actually carries data, otherwise entire report periods
 // silently resolve to zero.
 // ---------------------------------------------------------------------------
-const tsExprCache: Record<string, string> = {};
+const tsColsCache: Record<string, { camel: boolean; snake: boolean }> = {};
 
 export interface RawQuerySource {
   query: (sql: string, params?: any[]) => Promise<any[]>;
 }
 
 /**
- * Resolves a SQL expression that reads the creation timestamp for `table`
- * rows through `alias`. When both column layouts exist the camelCase column
- * wins first, falling back to the snake_case one (COALESCE). Result is cached
- * per table for the lifetime of the process.
+ * Detects which creation-timestamp columns exist for `table`
+ * (information_schema probe, cached per table for the process lifetime).
  */
-export async function resolveCreatedAtExpr(
+export async function createdAtColumns(
   dataSource: RawQuerySource,
   table: string,
-  alias: string,
-): Promise<string> {
-  if (tsExprCache[table]) return tsExprCache[table];
+): Promise<{ camel: boolean; snake: boolean }> {
+  if (tsColsCache[table]) return tsColsCache[table];
   const res: any[] = await dataSource.query(
     `SELECT
+       EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = $1) AS tbl,
        EXISTS(SELECT 1 FROM information_schema.columns
               WHERE table_name = $1 AND column_name = 'createdAt') AS camel,
        EXISTS(SELECT 1 FROM information_schema.columns
               WHERE table_name = $1 AND column_name = 'created_at') AS snake`,
     [table],
   );
-  const camel = res?.[0]?.camel === true;
-  const snake = res?.[0]?.snake === true;
-  const expr = camel && snake
-    ? `COALESCE(${alias}."createdAt"::timestamptz, ${alias}.created_at)`
-    : camel
-      ? `${alias}."createdAt"::timestamptz`
-      : `${alias}.created_at`;
-  tsExprCache[table] = expr;
-  return expr;
+  const cols = {
+    camel: res?.[0]?.camel === true,
+    snake: res?.[0]?.snake === true,
+  };
+  if (res?.[0]?.tbl !== true) {
+    cols.camel = false;
+    cols.snake = false;
+  }
+  tsColsCache[table] = cols;
+  return cols;
+}
+
+/**
+ * Builds a SQL expression that reads the creation timestamp of a table's rows
+ * through `alias`. When both layouts exist the camelCase column wins first,
+ * falling back to the snake_case one (COALESCE). Assumes the table exists;
+ * falls back to the snake_case literal otherwise.
+ */
+export function tsExprFor(
+  cols: { camel: boolean; snake: boolean } | null | undefined,
+  alias: string,
+): string {
+  if (cols?.camel && cols?.snake) return `COALESCE(${alias}."createdAt"::timestamptz, ${alias}.created_at)`;
+  if (cols?.camel) return `${alias}."createdAt"::timestamptz`;
+  return `${alias}.created_at`;
+}
+
+/** Convenience wrapper: resolve + build in one call (cached). */
+export async function resolveCreatedAtExpr(
+  dataSource: RawQuerySource,
+  table: string,
+  alias: string,
+): Promise<string> {
+  const cols = await createdAtColumns(dataSource, table);
+  return tsExprFor(cols, alias);
 }
