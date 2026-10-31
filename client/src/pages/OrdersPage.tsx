@@ -518,27 +518,6 @@ export default function OrdersPage() {
 
 return (
     <div className="max-w-[1600px] mx-auto space-y-3 animate-fade-in">
-      <div className="flex items-center gap-3 flex-wrap">
-        <h2 className="text-lg font-bold text-text-primary shrink-0">{t('orders', 'Orders')}</h2>
-        {showQuotesTab && (
-          <div className="flex items-center gap-1 bg-surface/60 border border-border rounded-full p-1 overflow-x-auto">
-            <button
-              onClick={() => selectModuleTab('orders')}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-1.5 ${activeModuleTab === 'orders' ? 'bg-primary text-white shadow-sm' : 'text-text-secondary hover:text-text-primary hover:bg-surface'}`}
-            >
-              <Box className="w-3.5 h-3.5" />
-              {t('orders')}
-            </button>
-            <button
-              onClick={() => selectModuleTab('quotes')}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-1.5 ${activeModuleTab === 'quotes' ? 'bg-primary text-white shadow-sm' : 'text-text-secondary hover:text-text-primary hover:bg-surface'}`}
-            >
-              <Globe className="w-3.5 h-3.5" />
-              {t('websiteQuotes')}
-            </button>
-          </div>
-        )}
-      </div>
 
       {activeModuleTab === 'quotes' ? (
         <WebsiteQuotesPage />
@@ -556,6 +535,22 @@ return (
       <div className="card p-0 overflow-hidden border-border">
         <div className="px-2.5 py-2 border-b border-border bg-surface/30">
           <div className="flex flex-wrap items-center gap-1.5">
+            {showQuotesTab && (
+              <div className="flex items-center gap-0.5 bg-surface/60 border border-border rounded-full p-0.5 shrink-0 mr-1">
+                <button
+                  onClick={() => selectModuleTab('orders')}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-1.5 ${activeModuleTab === 'orders' ? 'bg-primary text-white shadow-sm' : 'text-text-secondary hover:text-text-primary hover:bg-surface'}`}
+                >
+                  <Box className="w-3.5 h-3.5" />{t('orders')}
+                </button>
+                <button
+                  onClick={() => selectModuleTab('quotes')}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-1.5 ${activeModuleTab === 'quotes' ? 'bg-primary text-white shadow-sm' : 'text-text-secondary hover:text-text-primary hover:bg-surface'}`}
+                >
+                  <Globe className="w-3.5 h-3.5" />{t('websiteQuotes')}
+                </button>
+              </div>
+            )}
             <div className="relative w-[200px] shrink-0">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('searchPlaceholder', 'Search by reference, client...')} className="input pl-8 pr-3 py-1.5 text-xs w-full bg-white" />

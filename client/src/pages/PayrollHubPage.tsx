@@ -30,28 +30,27 @@ export default function PayrollHubPage() {
     setSearchParams(next, { replace: false });
   };
 
+  const tabBar = tabs.length > 1 ? (
+    <div className="flex items-center gap-0.5 bg-surface/60 border border-border rounded-full p-0.5 shrink-0">
+      {tabs.map(tab => (
+        <button
+          key={tab.id}
+          onClick={() => select(tab.id)}
+          className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-1.5 ${active === tab.id ? 'bg-primary text-white shadow-sm' : 'text-text-secondary hover:text-text-primary hover:bg-surface'}`}
+        >
+          <tab.icon className="w-3.5 h-3.5" />
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  ) : null;
+
   return (
     <div className="max-w-[1600px] mx-auto space-y-3 animate-fade-in">
-      <div className="flex items-center gap-3 flex-wrap">
-        <h2 className="text-lg font-bold text-text-primary shrink-0">{t('payroll', 'Payroll')}</h2>
-        {tabs.length > 1 && (
-          <div className="flex items-center gap-1 bg-surface/60 border border-border rounded-full p-1 overflow-x-auto">
-            {tabs.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => select(tab.id)}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-1.5 ${active === tab.id ? 'bg-primary text-white shadow-sm' : 'text-text-secondary hover:text-text-primary hover:bg-surface'}`}
-              >
-                <tab.icon className="w-3.5 h-3.5" />
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
       <Suspense fallback={null}>
-        {active === 'settlements' ? <SettlementPage /> : <PayrollPage />}
+        {active === 'settlements'
+          ? <SettlementPage tabBar={tabBar} />
+          : <PayrollPage tabBar={tabBar} />}
       </Suspense>
     </div>
   );

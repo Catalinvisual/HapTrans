@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, FileText, Calculator, Wallet, Banknote, Coins, Landmark, Users } from 'lucide-react';
 import api from '../lib/api';
@@ -14,7 +15,7 @@ import DataTable from '../components/ui/DataTable';
 import { fmtMoney, fmtNumber } from '../lib/format';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-export default function PayrollPage() {
+export default function PayrollPage({ tabBar }: { tabBar?: ReactNode }) {
 
   const {
     t,
@@ -111,6 +112,7 @@ export default function PayrollPage() {
       ]} dense />
 
       <div className="card flex items-center gap-2 px-3 py-2 flex-wrap">
+        {tabBar}
         <div className="relative flex-1 min-w-[180px] max-w-[240px] shrink-0">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
           <input className="input !pl-8 !py-1.5 !text-xs h-8 w-full" placeholder={t('searchEmployee')} value={search} onChange={e => setSearch(e.target.value)} />

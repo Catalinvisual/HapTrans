@@ -1,5 +1,6 @@
 import { useSaveConfirm } from "../components/SaveConfirmProvider";
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Pencil, Trash2, Search, Truck as TruckIcon, Info, Users, Wrench, Fuel, Battery, Gauge, Boxes, Coins, CalendarDays, CheckCircle2, Settings2, AlertTriangle, User, Mail, Eye } from 'lucide-react';
 import api from '../lib/api';
@@ -102,7 +103,7 @@ const driverName = (d: any) => {
   return mail ? humanName(mail) : '—';
 };
 
-export default function TrucksPage() {
+export default function TrucksPage({ tabBar }: { tabBar?: ReactNode }) {
   const navigate = useNavigate();
   const confirmSave = useSaveConfirm();
   const formStore = useFormStore();
@@ -790,6 +791,7 @@ export default function TrucksPage() {
       <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
         <div className="px-2.5 py-2 border-b border-border flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 flex-1 min-w-[260px]">
+            {tabBar}
             <div className="relative w-[200px] shrink-0">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
               <input className="input pl-8 pr-3 py-1.5 text-xs w-full" placeholder={t('search_trucks', 'Search truck, driver...')} value={search} onChange={e => setSearch(e.target.value)} />
