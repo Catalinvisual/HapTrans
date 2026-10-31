@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Trash2, Zap, Coins, Route, HandCoins, Wallet, User, FileText } from 'lucide-react';
 import api from '../lib/api';
@@ -12,7 +11,7 @@ import KpiStrip from '../components/ui/KpiStrip';
 import DataTable from '../components/ui/DataTable';
 import { fmtMoney, fmtNumber, fmtKm } from '../lib/format';
 
-export default function SettlementPage({ tabBar }: { tabBar?: ReactNode }) {
+export default function SettlementPage() {
   const { t } = useTranslation();
   const MONTHS = [
     t('month_january', 'January'),
@@ -135,7 +134,6 @@ export default function SettlementPage({ tabBar }: { tabBar?: ReactNode }) {
     ]} dense />
 
     <div className="card flex items-center gap-2 px-3 py-2 flex-wrap">
-      {tabBar}
       <div className="relative flex-1 min-w-[170px] max-w-[210px] shrink-0">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
         <input className="input !pl-8 !py-1.5 !text-xs h-8 w-full" placeholder={t('searchEmployee')} value={search} onChange={e => setSearch(e.target.value)} />

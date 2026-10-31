@@ -1,6 +1,5 @@
 import { useSaveConfirm } from "../components/SaveConfirmProvider";
 import { useEffect, useState, useMemo, useCallback } from "react";
-import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Pencil, Trash2, Search, Truck as TrailerIcon, Container, Snowflake, Box, Package, Boxes, CheckCircle2, Wrench } from "lucide-react";
 import api from "../lib/api";
@@ -55,7 +54,7 @@ const typeLabel = (tl: any, t: any) => {
   return t(opt?.label || "trailer_type_standard") || opt?.default || "Standard";
 };
 
-export default function TrailersPage({ tabBar }: { tabBar?: ReactNode }) {
+export default function TrailersPage() {
   const confirmSave = useSaveConfirm();
   const formStore = useFormStore();
   const { t, i18n } = useTranslation();
@@ -362,7 +361,6 @@ export default function TrailersPage({ tabBar }: { tabBar?: ReactNode }) {
       <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
         <div className="px-2.5 py-2 border-b border-border flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 flex-1 min-w-[260px]">
-            {tabBar}
             <div className="relative w-[200px] shrink-0">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
               <input className="input pl-8 pr-3 py-1.5 text-xs w-full" placeholder={t("search", "Caută...")} value={search} onChange={(e) => setSearch(e.target.value)} />

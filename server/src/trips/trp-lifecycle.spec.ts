@@ -43,6 +43,7 @@ describe('HapCargo TMS — Definitive Planning, TRP Lifecycle, Audit & Security 
         andWhere: jest.fn().mockReturnThis(),
         getCount: jest.fn().mockResolvedValue(5),
         getMany: jest.fn().mockResolvedValue([]),
+        update: jest.fn().mockReturnValue({ set: jest.fn().mockResolvedValue({ affected: 1 }) }),
       }),
     };
 
@@ -83,11 +84,23 @@ mockOrderRepo = {
 ({ ...x })) : { ...e })),
       update: jest.fn().mockResolvedValue({ affected: 1 }),
       createQueryBuilder: jest.fn().mockReturnValue({
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        getCount: jest.fn().mockResolvedValue(5),
-        getMany: jest.fn().mockResolvedValue([]),
-      }),
+  update: jest.fn().mockReturnValue({
+    set: jest.fn().mockReturnValue({
+      where: jest.fn().mockReturnValue({
+        execute: jest.fn().mockResolvedValue({ affected: 1 })
+      })
+    })
+  }),
+
+  where: jest.fn().mockReturnThis(),
+  andWhere: jest.fn().mockReturnThis(),
+  getCount: jest.fn().mockResolvedValue(5),
+  getMany: jest.fn().mockResolvedValue([]),
+  findOne: jest.fn(),
+  find: jest.fn(),
+  save: jest.fn((e) => Promise.resolve(Array.isArray(e) ? e.map(x => ({ ...x })) : { ...e })),
+  findByIds: jest.fn()
+}),
       findByIds: jest.fn(),
     };
 
