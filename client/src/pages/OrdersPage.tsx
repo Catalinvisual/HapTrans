@@ -517,22 +517,28 @@ export default function OrdersPage() {
   const hasActiveFilters = Object.values(filters).some(v => v !== 'all' && v !== '') || search.trim() !== '';
 
 return (
-    <div className="max-w-[1600px] mx-auto space-y-1 animate-fade-in">
-      <div className="flex items-center gap-1 bg-surface/70 border border-border rounded-xl p-1 w-fit max-w-full overflow-x-auto">
-        <button
-          onClick={() => selectModuleTab('orders')}
-          className={`px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors flex items-center gap-1.5 ${activeModuleTab === 'orders' ? 'bg-primary text-white border border-primary/20' : 'text-text-secondary hover:text-text hover:bg-surface/50'}`}
-        >
-          <Box className="w-3 h-3" />{t('orders')}
-        </button>
-        <button
-          onClick={() => selectModuleTab('quotes')}
-          className={`px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors flex items-center gap-1.5 ${activeModuleTab === 'quotes' ? 'bg-primary text-white border border-primary/20' : 'text-text-secondary hover:text-text hover:bg-surface/50'}`}
-        >
-          <Globe className="w-3 h-3" />{t('websiteQuotes')}
-        </button>
+    <div className="max-w-[1600px] mx-auto space-y-3 animate-fade-in">
+      <div className="flex items-center gap-3 flex-wrap">
+        <h2 className="text-lg font-bold text-text-primary shrink-0">{t('orders', 'Orders')}</h2>
+        {showQuotesTab && (
+          <div className="flex items-center gap-1 bg-surface/60 border border-border rounded-full p-1 overflow-x-auto">
+            <button
+              onClick={() => selectModuleTab('orders')}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-1.5 ${activeModuleTab === 'orders' ? 'bg-primary text-white shadow-sm' : 'text-text-secondary hover:text-text-primary hover:bg-surface'}`}
+            >
+              <Box className="w-3.5 h-3.5" />
+              {t('orders')}
+            </button>
+            <button
+              onClick={() => selectModuleTab('quotes')}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-1.5 ${activeModuleTab === 'quotes' ? 'bg-primary text-white shadow-sm' : 'text-text-secondary hover:text-text-primary hover:bg-surface'}`}
+            >
+              <Globe className="w-3.5 h-3.5" />
+              {t('websiteQuotes')}
+            </button>
+          </div>
+        )}
       </div>
-      <h2 className="text-lg font-bold text-text-primary">{t('orders', 'Orders')}</h2>
 
       {activeModuleTab === 'quotes' ? (
         <WebsiteQuotesPage />
