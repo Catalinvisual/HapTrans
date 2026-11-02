@@ -628,7 +628,7 @@ function TripBlock({
 
           {/* Row 2: Route */}
           {!isNarrow && origin !== '—' && (
-            <div className="text-[8px] text-text-secondary truncate flex items-center gap-0.5">
+            <div className="text-[8px] text-text-primary truncate flex items-center gap-0.5">
               <MapPin className="w-2 h-2 shrink-0 text-blue-500" />
               <span className="truncate">{origin}</span>
               {dest !== '—' && <><ArrowRight className="w-1.5 h-1.5 shrink-0 opacity-60" /><span className="truncate">{dest}</span></>}
@@ -639,17 +639,17 @@ function TripBlock({
           {!isVeryNarrow && (
             <div className="flex items-center gap-1 flex-wrap">
               {driverName && (
-                <span className="text-[8px] text-text-muted font-semibold truncate flex items-center gap-0.5">
+                <span className="text-[8px] text-text-secondary font-semibold truncate flex items-center gap-0.5">
                   <Users className="w-2 h-2 shrink-0" />{driverName}
                 </span>
               )}
               {trailerPlate && (
-                <span className="text-[8px] text-text-muted font-semibold truncate flex items-center gap-0.5" title={t('trailer', 'Trailer')}>
+                <span className="text-[8px] text-text-secondary font-semibold truncate flex items-center gap-0.5" title={t('trailer', 'Trailer')}>
                   <TruckIcon className="w-2 h-2 shrink-0 opacity-80" />{trailerPlate}
                 </span>
               )}
               {!isNarrow && trip.plannedDeparture && (
-                <span className="text-[8px] text-text-muted">
+                <span className="text-[8px] text-text-secondary">
                   {fmtTime(trip.plannedDeparture)}{trip.plannedArrival ? ` → ${fmtTime(trip.plannedArrival)}` : ''}
                 </span>
               )}
@@ -659,10 +659,10 @@ function TripBlock({
           {/* Row 4: Cargo + revenue */}
           {!isVeryNarrow && (cargo.weight > 0 || revenue > 0) && (
             <div className="flex items-center gap-1.5">
-              {cargo.weight > 0 && <span className="text-[8px] text-text-muted inline-flex items-center gap-0.5"><WeightKgIcon className="w-3 h-3" />{fmtNumber(cargo.weight)}kg</span>}
-              {cargo.pallets > 0 && <span className="text-[8px] text-text-muted inline-flex items-center gap-0.5"><PalletIcon className="w-3 h-3" />{cargo.pallets}p</span>}
+              {cargo.weight > 0 && <span className="text-[8px] text-text-secondary inline-flex items-center gap-0.5"><WeightKgIcon className="w-3 h-3" />{fmtNumber(cargo.weight)}kg</span>}
+              {cargo.pallets > 0 && <span className="text-[8px] text-text-secondary inline-flex items-center gap-0.5"><PalletIcon className="w-3 h-3" />{cargo.pallets}p</span>}
               {revenue > 0 && <span className="text-[8px] font-black" style={{ color: hex }}>{fmtMoney(revenue, 'EUR')}</span>}
-              {ordersCount > 0 && <span className="text-[8px] text-text-muted">·{ordersCount}ord</span>}
+              {ordersCount > 0 && <span className="text-[8px] text-text-secondary">·{ordersCount}ord</span>}
             </div>
           )}
         </div>
@@ -2881,7 +2881,7 @@ export default function PlanningPage() {
                               return (
                                 <div
                                   key={h}
-                                  className={`flex-1 text-center text-[10px] font-bold py-1.5 border-r border-border/30 last:border-0 transition-colors ${
+                                  className={`flex-1 flex items-center justify-center text-center text-[10px] font-bold py-1.5 border-r border-border/30 last:border-0 transition-colors ${
                                     isToday ? 'bg-primary/10 text-primary font-black border-primary/30' : 'text-text-secondary'
                                   }`}
                                   style={{ minWidth: `${colWidth}px`, width: `${colWidth}px` }}
