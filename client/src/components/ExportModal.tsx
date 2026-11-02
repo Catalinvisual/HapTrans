@@ -236,10 +236,22 @@ export default function ExportModal({ isOpen, onClose, data, filename, title, sh
         : rangeType === 'month' ? `Last 30 days (until ${dateKey(new Date())})`
         : `Period: ${formatDateExcel(startDate)} — ${formatDateExcel(endDate)}`;
 
+      const baseName = filename
+        .replace(/[_\s]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+      const periodSuffix =
+        rangeType === 'all' ? 'all'
+        : rangeType === 'today' ? dateKey(new Date())
+        : rangeType === 'week' ? `last-7-days`
+        : rangeType === 'month' ? `last-30-days`
+        : `${startDate}-to-${endDate}`;
+      const downloadName = `${baseName}-${periodSuffix}`;
+
       await exportExcel({
-        filename,
+        filename: downloadName,
         sheetName: sheetName || 'Data',
-        title: title || filename.replace(/[_-]/g, ' '),
+        title: title || baseName.replace(/-/g, ' '),
         subtitle: `${periodText} · ${filtered.length} records · Generated on ${dateKey(new Date())}`,
         headers: headers.map(h => ({ key: h.key, label: h.label })),
         rows,

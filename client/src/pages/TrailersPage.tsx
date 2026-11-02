@@ -516,7 +516,7 @@ export default function TrailersPage() {
         isOpen={showExport}
         onClose={() => setShowExport(false)}
         data={filtered}
-        filename={"Trailers_" + new Date().toISOString().slice(0, 10)}
+        filename="Trailers-HapCargo"
         title={t("trailers", "Remorci")}
         sheetName="Trailers"
         getDateField={(tr) => tr.createdAt}

@@ -136,7 +136,7 @@ export default function PlanningExportModal({
         { key: 'conflictState', label: 'Compliance & Conflicts' },
       ];
 
-      const filename = `planning_export_${selectedDate || new Date().toISOString().slice(0, 10)}`;
+      const filename = `Planning-HapCargo-${selectedDate || new Date().toISOString().slice(0, 10)}`;
 
       if (format === 'xlsx') {
         await exportExcel({

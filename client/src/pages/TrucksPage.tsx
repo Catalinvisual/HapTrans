@@ -363,7 +363,7 @@ export default function TrucksPage() {
             <TruckIcon className="w-3.5 h-3.5 text-primary" />{tr.plateNumber}
             {tr.trailer && (
               <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 font-bold px-1.5 py-0.2 rounded-md" title={`${t('trailer', 'Trailer')}: ${tr.trailer.plateNumber}`}>
-                {t('trailer', 'Trailer')}: {tr.trailer.plateNumber}
+                T: {tr.trailer.plateNumber}
               </span>
             )}
           </div>

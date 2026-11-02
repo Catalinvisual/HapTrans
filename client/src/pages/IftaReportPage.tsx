@@ -185,7 +185,7 @@ export default function IftaReportPage() {
       isOpen={exportOpen}
       onClose={() => setExportOpen(false)}
       data={exportRows}
-      filename={`EU_Transit_Report_${from || 'period'}_${to || 'now'}`}
+      filename="EU-Transit-Report"
       sheetName="EU Transit"
       title={t('ifta_export_title', 'EU Transit & Cabotage Report')}
       headers={[
