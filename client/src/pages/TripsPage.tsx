@@ -25,6 +25,8 @@ import ExcelIcon from '../components/icons/ExcelIcon';
 import PalletIcon from '../components/icons/PalletIcon';
 import WeightKgIcon from '../components/icons/WeightKgIcon';
 import ActivityTimeline from '../components/ActivityTimeline';
+import { orderIsAdr, tripIsAdr } from '../lib/adrDetect';
+import { driverDisplayName } from '../lib/driverName';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import toast from 'react-hot-toast';
@@ -43,42 +45,10 @@ const tProfit = (trip: any) => {
   if (trip.estimatedProfit != null && !isNaN(Number(trip.estimatedProfit))) return Number(trip.estimatedProfit);
   return tRevenue(trip) - tCost(trip) - tExtraCost(trip);
 };
-const tDriverName = (trip: any) => {
-  if (trip.driver) {
-    const d = trip.driver;
-    if (d.user?.name) return d.user.name;
-    if (d.firstName) return `${d.firstName} ${d.lastName || ''}`.trim();
-    if (d.user?.email || d.name) return d.user?.email || d.name;
-  }
-  if (trip.carrierDriverName) return `${trip.carrierDriverName}${trip.carrierName ? ` (${trip.carrierName})` : ''}`;
-  if (trip.carrierName) return trip.carrierName;
-  return '—';
-};
-const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
-// Turn a raw name or e-mail local part into a readable short name
-// e.g. "sofer.bogdan.popa3@hapcargo.ro" -> "Bogdan P."
-function humanName(raw?: string | null): string {
-  const s = String(raw || '').trim();
-  if (!s) return '';
-  if (!s.includes('@')) return s;
-  const parts = s
-    .split('@')[0]
-    .split(/[._\-+]+/)
-    .map(p => p.replace(/\d+$/g, ''))
-    .filter(p => p && !/^(sofer|șofer|driver|drv|user|info|contact|admin|office)$/i.test(p));
-  if (parts.length === 2) return `${cap(parts[0])} ${cap(parts[1])}`;
-  if (parts.length > 2) return `${cap(parts[0])} ${cap(parts[parts.length - 1]).charAt(0)}.`;
-  if (parts.length === 1) return cap(parts[0]);
-  return s;
-}
+const tDriverName = (trip: any) => driverDisplayName(trip);
 const tDriverEmail = (trip: any) =>
   trip.driver?.user?.email || (String(trip.driver?.name || '').includes('@') ? trip.driver.name : '') || '';
-const tDriverDisplay = (trip: any) => {
-  const d = trip.driver;
-  if (!d) return '—';
-  const full = d.firstName ? `${d.firstName} ${d.lastName || ''}`.trim() : (d.user?.name || d.name || '');
-  return humanName(full) || humanName(tDriverEmail(trip)) || '—';
-};
+const tDriverDisplay = (trip: any) => driverDisplayName(trip);
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const tWeight = (trip: any) => trip.orders?.reduce((s: number, o: any) => s + (o.cargoItems?.reduce((x: number, c: any) => x + Number(c.weightKg || 0), 0) || 0), 0) || 0;
 const tPallets = (trip: any) => trip.orders?.reduce((s: number, o: any) => s + (o.cargoItems?.reduce((x: number, c: any) => x + Number(c.quantity || 1), 0) || 0), 0) || 0;
@@ -281,7 +251,7 @@ export default function TripsPage({ embeddedClientId }: { embeddedClientId?: str
     { key: 'tripNumber', label: t('trip', 'Trip'), sortable: true, className: 'min-w-[120px]', render: tr => {
       const created = tr.createdAt && !isNaN(new Date(tr.createdAt).getTime()) ? new Date(tr.createdAt).toLocaleDateString() : '—';
       const orders = tr.orders || [];
-      const isAdr = tr.isAdr || orders.some((o: any) => o.isAdr || (o.adrStatus && o.adrStatus !== 'none'));
+      const isAdr = tripIsAdr(tr);
       return (
         <div className="leading-[1.15] space-y-0.5">
           <div className="flex items-center gap-1 flex-wrap">

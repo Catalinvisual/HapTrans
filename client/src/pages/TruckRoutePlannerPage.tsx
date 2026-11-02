@@ -12,6 +12,7 @@ import {
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import api from '../lib/api';
+import { statusBadgeClass as statusBadgeFromLib } from '../lib/statusColors';
 import { planningApi } from '../lib/planningApi';
 import { useConfirm } from '../components/SaveConfirmProvider';
 import OrderWizard from '../components/orders/OrderWizard';
@@ -793,16 +794,7 @@ export default function TruckRoutePlannerPage() {
   const isNotFeasible = effectiveValidationStatus === 'not_feasible' || (validationResult?.conflicts?.length > 0);
 
   const statusBadgeClass = useMemo(() => {
-    switch (effectiveTripStatus) {
-      case 'confirmed': return 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600';
-      case 'dispatched': return 'bg-blue-500/10 border-blue-500/30 text-blue-600';
-      case 'driver_received':
-      case 'driver_accepted':
-      case 'started':
-      case 'in_transit': return 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600';
-      case 'completed': return 'bg-purple-500/10 border-purple-500/30 text-purple-600';
-      default: return 'bg-surface border-border text-text-secondary';
-    }
+    return statusBadgeFromLib(effectiveTripStatus === 'in_transit' ? 'in_transit' : effectiveTripStatus);
   }, [effectiveTripStatus]);
 
   const validationBadgeClass = useMemo(() => {

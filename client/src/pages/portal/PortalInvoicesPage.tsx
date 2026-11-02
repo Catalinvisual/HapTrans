@@ -13,6 +13,7 @@ import DataTable from '../../components/ui/DataTable';
 import type { Column } from '../../components/ui/DataTable';
 import KpiStrip from '../../components/ui/KpiStrip';
 import StatusBadge from '../../components/ui/StatusBadge';
+import { statusBadgeClass } from '../../lib/statusColors';
 import OrderWizard from '../../components/orders/OrderWizard';
 export default function PortalInvoicesPage() {
   const { t, i18n } = useTranslation();
@@ -74,19 +75,7 @@ export default function PortalInvoicesPage() {
       notify.error(err?.response?.data?.message || 'Eroare generare PDF.');
     }
   };
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'paid':
-        return 'bg-green-100 text-green-700';
-      case 'overdue':
-        return 'bg-red-100 text-red-700 animate-pulse';
-      case 'sent':
-      case 'viewed':
-        return 'bg-blue-100 text-blue-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
-  };
+  const getStatusColor = (status: string) => statusBadgeClass(status);
   const columns: Column<any>[] = [
     { key: 'invoice', label: t('jsx_invoice', 'Invoice'), render: inv => (
       <div className="min-w-0">
@@ -102,10 +91,9 @@ export default function PortalInvoicesPage() {
     ) },
     { key: 'total', label: t('jsx_total', 'Total'), align: 'right', render: inv => <div className="text-right font-bold text-text-primary whitespace-nowrap">{fmtMoney(Number(inv.total) || 0)}</div> },
     { key: 'balance', label: t('jsx_balance', 'Balance'), align: 'right', render: inv => <div className="text-right font-black text-primary whitespace-nowrap">{fmtMoney(balanceOf(inv))}</div> },
-    { key: 'status', label: t('jsx_status', 'Status'), render: inv => {
-      const map: Record<string, string> = { paid: 'paid', overdue: 'cancelled', sent: 'new', viewed: 'new', draft: 'draft' };
-      return <StatusBadge status={map[inv.status] || 'draft'} label={<span className="capitalize">{inv.status}</span>} />;
-    } },
+    { key: 'status', label: t('jsx_status', 'Status'), render: inv => (
+      <StatusBadge status={inv.status || 'draft'} label={<span className="capitalize">{inv.status}</span>} />
+    ) },
     { key: 'actions', label: t('jsx_actions', 'Actions'), align: 'right', render: inv => {
       const canPay = ['sent', 'viewed', 'overdue'].includes(inv.status) && balanceOf(inv) > 0;
       return (

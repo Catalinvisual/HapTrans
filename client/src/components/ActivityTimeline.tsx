@@ -264,7 +264,7 @@ export default function ActivityTimeline({
       {!isCollapsed && (
         <div className="mt-3 overflow-y-auto max-h-64 pr-1 space-y-3 custom-scrollbar border-t border-border/40 pt-3">
           {displayLogs.length === 0 ? (
-            <div className="text-xs text-text-muted">{t('no_activity_recorded', 'Nicio activitate înregistrată încă.')}</div>
+            <div className="text-xs text-text-muted">{t('no_activity_recorded', 'No activity recorded yet.')}</div>
           ) : (
             displayLogs.map((log: any, idx: number) => {
               const isCreated = log.action === 'CREATED';
@@ -277,10 +277,10 @@ export default function ActivityTimeline({
                   </div>
                   <div className="flex-1 min-w-0 pb-1">
                     <div className="text-xs font-bold text-text-primary">
-                      {isCreated ? t('action_created', 'Creat') : log.action === 'UPDATED' ? t('action_updated', 'Modificat') : log.action}
+                      {isCreated ? t('action_created', 'Created') : log.action === 'UPDATED' ? t('action_updated', 'Updated') : log.action}
                     </div>
                     <div className="text-[11px] text-text-secondary mt-0.5">
-                      {t('by', 'de către')}{' '}
+                      {t('by', 'by')}{' '}
                       <span className="font-semibold text-text-primary">{userName}</span> · {new Date(log.createdAt).toLocaleString()}
                     </div>
 

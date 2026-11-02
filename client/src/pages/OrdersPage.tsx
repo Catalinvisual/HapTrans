@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Plus, Search, MapPin, FileText, Trash2, Box, Pencil, Activity, Copy, FilterX, Coins, Boxes, BadgeEuro, ArrowRight, Flag, Phone, Navigation, Calendar, Sparkles } from 'lucide-react';
 
 const WebsiteQuotesPage = lazy(() => import('./WebsiteQuotesPage'));
+import { orderIsAdr } from '../lib/adrDetect';
 import api from '../lib/api';
 import OrderWizard from '../components/orders/OrderWizard';
 import OrderDetailDrawer from '../components/orders/OrderDetailDrawer';
@@ -371,7 +372,7 @@ export default function OrdersPage() {
   const columns: Column<any>[] = [
     { key: 'ref', label: t('order_ref', 'Order'), sortable: true, width: '150px', render: o => {
       const created = o.createdAt ? new Date(o.createdAt) : null;
-      const isAdr = o.isAdr || (o.adrStatus && o.adrStatus !== 'none') || o.cargoItems?.some((c: any) => c.isAdr || c.adrClass || c.unNumber);
+      const isAdr = orderIsAdr(o);
       return (
         <div className="min-w-0 leading-tight space-y-0.5">
           <div className="flex items-center gap-1.5 flex-wrap">

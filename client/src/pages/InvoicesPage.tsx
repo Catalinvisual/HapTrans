@@ -667,12 +667,12 @@ export default function InvoicesPage({
     { key: 'drafts', label: t('kpi_drafts', 'Ciorne'), value: kpiDrafts, color: '#f97316', icon: FileText },
   ];
   const statusOpts: SelectOption[] = [
-    { value: 'draft', label: t('draft'), color: 'text-text-light' },
-    { value: 'approved', label: t('approved') || 'Approved', color: 'text-indigo-600' },
-    { value: 'sent', label: t('sent'), color: 'text-primary' },
-    { value: 'paid', label: t('paid'), color: 'text-success' },
-    { value: 'overdue', label: t('overdue'), color: 'text-error' },
-    { value: 'cancelled', label: t('cancelled'), color: 'text-text-light' },
+    { value: 'draft', label: t('draft'), color: 'text-gray-500' },
+    { value: 'approved', label: t('approved') || 'Approved', color: 'text-emerald-600' },
+    { value: 'sent', label: t('sent'), color: 'text-emerald-600' },
+    { value: 'paid', label: t('paid'), color: 'text-green-600' },
+    { value: 'overdue', label: t('overdue'), color: 'text-red-600' },
+    { value: 'cancelled', label: t('cancelled'), color: 'text-gray-500' },
   ];
   const updateStatus = async (inv: any, val: string) => {
     try {

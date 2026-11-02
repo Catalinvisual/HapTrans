@@ -14,6 +14,7 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import OrderWizard from '../../components/orders/OrderWizard';
 import WeightKgIcon from '../../components/icons/WeightKgIcon';
 import AdrBadge from '../../components/common/AdrBadge';
+import { orderIsAdr } from '../../lib/adrDetect';
 
 const ORDER_STATUSES = ['draft', 'new', 'planned', 'assigned', 'loading', 'in_transit', 'delivered', 'pod_received', 'ready_for_invoice', 'invoiced', 'paid', 'cancelled'];
 
@@ -93,7 +94,7 @@ export default function PortalOrdersPage() {
 
   const columns: Column<any>[] = [
     { key: 'ref', label: t('order_ref', 'Order'), sortable: true, render: o => {
-      const isAdr = o.isAdr || (o.adrStatus && o.adrStatus !== 'none') || o.cargoItems?.some((c: any) => c.isAdr || c.adrClass || c.unNumber);
+      const isAdr = orderIsAdr(o);
       return (
         <div className="min-w-0 space-y-0.5">
           <div className="flex items-center gap-1.5 flex-wrap">

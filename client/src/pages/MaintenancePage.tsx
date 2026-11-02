@@ -164,8 +164,8 @@ export default function MaintenancePage() {
   };
 
   const STATUS_DOT: Record<string, string> = {
-    scheduled: '#94A3B8',
-    in_progress: '#F59E0B',
+    scheduled: '#F59E0B',
+    in_progress: '#6366F1',
     done: '#10B981',
   };
 

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
+import { statusBadgeClass } from '../lib/statusColors';
+import { orderIsAdr } from '../lib/adrDetect';
 import { fmtMoney } from '../lib/format';
 import { Loader2, ArrowLeft, MapPin, FileText, CheckCircle, Truck, Activity } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -38,28 +40,6 @@ export default function OrderDetailsPage() {
   }, [id, navigate, t]);
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   if (!order) return null;
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'draft':
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-      case 'new':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'planned':
-        return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'assigned':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'in_transit':
-        return 'bg-blue-500 text-white border-blue-600';
-      case 'delivered':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'invoiced':
-        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-      case 'paid':
-        return 'bg-green-500 text-white border-green-600';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
   return <div className="max-w-[1600px] mx-auto space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -69,10 +49,10 @@ export default function OrderDetailsPage() {
           </button>
           <div>
             <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3 flex-wrap">{order.orderNumber}
-              <span className={`px-3 py-1 text-xs font-bold uppercase rounded-full border ${getStatusColor(order.status)}`}>
+              <span className={`px-3 py-1 text-xs font-bold uppercase rounded-full border ${statusBadgeClass(order.status)}`}>
                 {order.status === 'pod_received' ? 'Pod received' : (order.status ? order.status.replace('_', ' ') : '—')}
               </span>
-              {(order.isAdr || (order.adrStatus && order.adrStatus !== 'none')) && (
+              {orderIsAdr(order) && (
                 <AdrBadge
                   status={order.adrStatus}
                   points={order.adrTotalPoints}

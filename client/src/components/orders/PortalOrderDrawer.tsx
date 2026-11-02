@@ -10,6 +10,7 @@ import StatusBadge from '../ui/StatusBadge';
 import PalletIcon from '../icons/PalletIcon';
 import WeightKgIcon from '../icons/WeightKgIcon';
 import AdrBadge from '../common/AdrBadge';
+import { driverEntityDisplayName } from '../../lib/driverName';
 
 interface Props {
   order: any;
@@ -47,6 +48,9 @@ export default function PortalOrderDrawer({ order, onClose }: Props) {
   const pallets = cargo.reduce((s: number, c: any) => s + (c.unit === 'pallet' ? Number(c.quantity) || 0 : 0), 0);
   const addr = (s: any) => s ? [s.companyName, s.address, s.city, s.country].filter(Boolean).join(', ') : '—';
   const trip = order.trip;
+  const driverNameReadable = driverEntityDisplayName(trip?.driver) !== '—'
+    ? driverEntityDisplayName(trip?.driver)
+    : trip?.carrierDriverName || t('tbd', 'TBD');
 
   const openDoc = async (id: string) => {
     try {
@@ -96,7 +100,7 @@ export default function PortalOrderDrawer({ order, onClose }: Props) {
           {(trip?.trailer?.plateNumber || trip?.carrierTrailerPlate) ? (
             <Row label={t('trailer', 'Trailer')} value={trip?.trailer?.plateNumber || trip?.carrierTrailerPlate} />
           ) : null}
-          <Row label={t('driver', 'Driver')} value={trip?.driver?.user?.name || trip?.driver?.name || trip?.carrierDriverName || t('tbd', 'TBD')} />
+          <Row label={t('driver', 'Driver')} value={driverNameReadable} />
         </div>
         {order.notes && <div className="bg-surface/40 rounded-xl p-3 border border-border text-[13px] text-text-primary whitespace-pre-wrap">{order.notes}</div>}
       </div>

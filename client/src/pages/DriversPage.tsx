@@ -30,13 +30,14 @@ import BulkBar from '../components/ui/BulkBar';
 import ExportModal from '../components/ExportModal';
 import ExcelIcon from '../components/icons/ExcelIcon';
 import { formatDateExcel } from '../lib/exportExcel';
+import { humanName } from '../lib/driverName';
 
 const STATUS_COLORS: Record<string, string> = {
-  available: 'text-success',
-  in_trip: 'text-primary',
-  off: 'text-text-secondary',
-  sick: 'text-error',
-  vacation: 'text-warning'
+  available: 'text-green-600',
+  in_trip: 'text-indigo-600',
+  off: 'text-gray-500',
+  sick: 'text-red-600',
+  vacation: 'text-amber-600'
 };
 const STATUS_OPTIONS: SelectOption[] = [
   { value: 'available', label: 'available' },
@@ -47,8 +48,8 @@ const STATUS_OPTIONS: SelectOption[] = [
 ];
 const STATUS_BULLET: Record<string, string> = {
   available: 'bg-green-500',
-  in_trip: 'bg-primary',
-  off: 'bg-slate-400',
+  in_trip: 'bg-indigo-500',
+  off: 'bg-gray-400',
   sick: 'bg-red-500',
   vacation: 'bg-amber-500'
 };
@@ -322,7 +323,7 @@ export default function DriversPage() {
           <div className="leading-tight min-w-0" title={email || undefined}>
             <div className="font-bold text-[13px] text-text-primary truncate flex items-center gap-1.5">
               <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_BULLET[d.status] || 'bg-slate-400'}`} />
-              <span className="truncate">{d.user?.name || '—'}</span>
+              <span className="truncate">{humanName(d.user?.name) || '—'}</span>
             </div>
             {(d.phone || d.licenseNumber) && (
               <div className="text-[11px] text-text-secondary truncate">
@@ -477,7 +478,7 @@ const tabs: TabDef[] = drawerDriver ? [
           <div className="flex items-center gap-3 p-4 bg-surface/50 rounded-xl border border-border">
             <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary"><User className="w-6 h-6" /></div>
             <div>
-              <div className="font-black text-lg text-text-primary">{drawerDriver.user?.name || '—'}</div>
+              <div className="font-black text-lg text-text-primary">{humanName(drawerDriver.user?.name) || '—'}</div>
               <div className="text-sm text-text-secondary">{drawerDriver.user?.email}{drawerDriver.phone ? ` · ${drawerDriver.phone}` : ''}</div>
             </div>
           </div>
@@ -701,7 +702,7 @@ const tabs: TabDef[] = drawerDriver ? [
       <DetailDrawer
         open={!!drawerDriver}
         onClose={() => { setDrawerDriverId(null); setDrawerTab('overview'); }}
-        title={drawerDriver?.user?.name || ''}
+        title={humanName(drawerDriver?.user?.name) || ''}
         subtitle={drawerDriver?.user?.email || ''}
         tabs={tabs}
         activeTab={drawerTab}

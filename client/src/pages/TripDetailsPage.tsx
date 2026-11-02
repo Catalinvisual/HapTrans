@@ -21,6 +21,9 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import api from '../lib/api';
+import { statusBadgeClass } from '../lib/statusColors';
+import { orderIsAdr } from '../lib/adrDetect';
+import { driverDisplayName } from '../lib/driverName';
 import { fmtMoney, fmtMoneySigned, fmtPercent } from '../lib/format';
 import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
@@ -49,7 +52,7 @@ const TRIP_STATUSES = [
 
 const TASK_STATUS_CONFIG: Record<string, { labelKey: string; defaultLabel: string; color: string }> = {
   pending: { labelKey: 'pending', defaultLabel: 'În așteptare', color: 'bg-amber-500/10 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800' },
-  assigned: { labelKey: 'status_assigned', defaultLabel: 'Atribuit', color: 'bg-blue-500/10 text-blue-700 border-blue-300 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800' },
+  assigned: { labelKey: 'status_assigned', defaultLabel: 'Atribuit', color: 'bg-purple-500/10 text-purple-700 border-purple-300 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-800' },
   arrived: { labelKey: 'arrived', defaultLabel: 'Sosit la rampă', color: 'bg-cyan-500/10 text-cyan-700 border-cyan-300 dark:bg-cyan-950/40 dark:text-cyan-400 dark:border-cyan-800' },
   in_progress: { labelKey: 'inProgress', defaultLabel: 'În desfășurare', color: 'bg-indigo-500/10 text-indigo-700 border-indigo-300 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-800' },
   loading: { labelKey: 'loading', defaultLabel: 'La Încărcare', color: 'bg-purple-500/10 text-purple-700 border-purple-300 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-800' },
@@ -67,28 +70,7 @@ const STOP_STATUS_CONFIG: Record<string, { labelKey: string; defaultLabel: strin
   cancelled: { labelKey: 'cancelled', defaultLabel: 'Anulat' },
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  planning: 'badge-warning',
-  planned: 'badge-warning',
-  dispatched: 'badge-primary',
-  assigned: 'badge-primary',
-  driver_accepted: 'badge-primary',
-  started: 'badge-warning',
-  loading: 'badge-warning',
-  driving: 'badge-warning',
-  partially_delivered: 'badge-warning',
-  pending: 'badge-gray',
-  confirmed: 'badge-primary',
-  in_progress: 'badge-warning',
-  completed: 'badge-success',
-  closed: 'badge-gray',
-  cancelled: 'badge-error',
-  delayed: 'badge-error',
-  draft: 'badge-gray',
-  sent: 'badge-primary',
-  paid: 'badge-success',
-  overdue: 'badge-error'
-};
+
 
 const getOrderPallets = (o: any) => o.cargoItems?.reduce((sum: number, c: any) => sum + (c.unit === 'pallet' ? Number(c.quantity || 1) : 0), 0) || Number(o.pallets || 0);
 const getOrderWeight = (o: any) => o.cargoItems?.reduce((sum: number, c: any) => sum + Number(c.weightKg || 0), 0) || Number(o.weightKg || 0);
@@ -262,7 +244,7 @@ export default function TripDetailsPage() {
               <div className="relative inline-flex items-center">
                 <select
                   aria-label="Trip status"
-                  className={`appearance-none text-xs font-black uppercase tracking-wider pl-3 pr-7 py-1.5 rounded-xl border shadow-xs cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 ${STATUS_COLORS[trip.status] || 'badge-gray'}`}
+                  className={`appearance-none text-xs font-black uppercase tracking-wider pl-3 pr-7 py-1.5 rounded-xl border shadow-xs cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 ${statusBadgeClass(trip.status)}`}
                   value={trip.status || 'planned'}
                   onChange={async (e) => {
                     const newStatus = e.target.value;
@@ -285,7 +267,7 @@ export default function TripDetailsPage() {
               </div>
             </div>
             <p className="text-sm text-text-secondary mt-1 font-medium">
-              {t('createdBy', 'Creat de')} <span className="text-primary font-bold">{trip.dispatcher?.name || trip.dispatcher?.email || trip.createdBy?.name || trip.createdBy?.email || t('systemUnknown', 'Sistem / Necunoscut')}</span> {t('onDate', 'pe')} {formatDate(trip.createdAt)}
+              {t('createdBy', 'Created by')} <span className="text-primary font-bold">{trip.dispatcher?.name || trip.dispatcher?.email || trip.createdBy?.name || trip.createdBy?.email || t('systemUnknown', 'System / Unknown')}</span> {t('onDate', 'on')} {formatDate(trip.createdAt)}
             </p>
           </div>
         </div>
@@ -684,7 +666,7 @@ export default function TripDetailsPage() {
                 </div>
                 <div>
                   <span className="text-xs font-semibold text-text-secondary block">{t('driver', 'Șofer')}</span>
-                  <span className="font-bold text-sm text-text">{trip.driver?.user?.name || trip.carrierDriverName || t('unassigned', 'Neasignat')}</span>
+                  <span className="font-bold text-sm text-text">{driverDisplayName(trip) !== '—' ? driverDisplayName(trip) : trip.carrierDriverName || t('unassigned', 'Neasignat')}</span>
                   {trip.carrierDriverPhone && <span className="text-xs text-text-secondary block">{trip.carrierDriverPhone}</span>}
                 </div>
               </div>
@@ -858,7 +840,7 @@ export default function TripDetailsPage() {
                       <div className="flex items-center gap-2 truncate">
                         <FileBadge className="w-4 h-4 text-primary shrink-0" />
                         <span className="text-sm font-semibold truncate">#{inv.invoiceNumber || 'Draft'}</span>
-                        <span className={`${STATUS_COLORS[inv.status] || 'badge-gray'} text-[10px] px-1.5 py-0.5 rounded uppercase font-bold`}>{t(inv.status)}</span>
+                        <span className={`${statusBadgeClass(inv.status)} text-[10px] px-1.5 py-0.5 rounded uppercase font-bold`}>{t(inv.status)}</span>
                       </div>
                       <div className="flex gap-1 shrink-0">
                         {(() => {

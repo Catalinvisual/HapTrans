@@ -15,6 +15,8 @@ import {
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import api from '../lib/api';
+import { orderIsAdr, tripIsAdr } from '../lib/adrDetect';
+import { driverEntityDisplayName } from '../lib/driverName';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
 import { useShortcuts } from '../hooks/useShortcuts';
@@ -165,26 +167,12 @@ function sumCargo(orders: any[]) {
   return { weight, ldm, hasLdm, pallets, volume, ldmFormatted: hasLdm ? fmtNumber(ldm, 1) : '—' };
 }
 
-// Human-friendly driver name: prefer a real name, otherwise derive a short one
-// from the e-mail local part (e.g. "sofer.gabriel.constanti@…" -> "Gabriel C.").
+// Human-friendly driver name: prefer a real name, otherwise derive a readable
+// full name from the e-mail local part (e.g. "sofer.bogdan.popa3@…" -> "Bogdan Popa").
 function driverDisplayName(driver: any): string {
   if (!driver) return '';
-  const raw = String(driver.name || driver.user?.name || '').trim();
-  if (raw && !raw.includes('@')) return raw;
-  const email = String(driver.user?.email || (raw.includes('@') ? raw : '')).trim();
-  if (email) {
-    const local = email.split('@')[0];
-    const parts = local
-      .split(/[._\-+]+/)
-      .filter((p) => p && !/^(sofer|șofer|driver|drv|user|info|contact|admin|office)$/i.test(p));
-    if (parts.length >= 2) {
-      const first = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
-      const last = parts[parts.length - 1].charAt(0).toUpperCase();
-      return `${first} ${last}.`;
-    }
-    if (parts.length === 1) return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
-  }
-  return raw || '—';
+  const n = driverEntityDisplayName(driver);
+  return n === '—' ? '' : n;
 }
 
 function tripOriginDestination(trip: any) {
@@ -626,7 +614,7 @@ function TripBlock({
                 CHARTER
               </span>
             )}
-            {(trip.isAdr || trip.orders?.some((o: any) => o.isAdr || o.adrStatus !== 'none')) && (
+            {tripIsAdr(trip) && (
               <span className="shrink-0 px-1 py-0 text-[7px] font-black rounded-sm uppercase bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30" title="ADR Hazardous Trip">
                 ADR
               </span>
@@ -822,7 +810,7 @@ function ResourceRow({
           <div className="flex items-center gap-1 min-w-0 truncate">
             {grouping === 'truck' && driverLabel && (
               <>
-                <span className="truncate" title={resource.driver?.name || driverLabel}>{driverLabel}</span>
+                <span className="truncate" title={driverLabel}>{driverLabel}</span>
                 {resource.trailer && <span className="text-text-muted">| T: {resource.trailer.plateNumber}</span>}
               </>
             )}
@@ -1327,7 +1315,7 @@ function TripDetailDrawer({
                 </span>
               )}
             </div>
-            <p className="font-black text-text-primary text-sm truncate mt-0.5">{driver?.name || driver?.user?.name || trip.carrierDriverName || '—'}</p>
+            <p className="font-black text-text-primary text-sm truncate mt-0.5">{(driver && driverEntityDisplayName(driver) !== '—') ? driverEntityDisplayName(driver) : trip.carrierDriverName || '—'}</p>
             {driver?.id && hosSummary[driver.id] ? (
               <p className="text-[9px] text-text-muted mt-0.5 truncate flex items-center gap-1" title={`${hosSummary[driver.id].weeklyDriving}h used / 56h limit`}>
                 <Clock3 className="w-2.5 h-2.5 shrink-0" />
@@ -1622,7 +1610,7 @@ function TripDetailDrawer({
                       <div className="flex items-center gap-2">
                         <span className="font-black text-primary text-sm">{o.orderNumber || '—'}</span>
                         {o.client?.name && <span className="text-xs font-semibold text-text-primary truncate">· {o.client.name}</span>}
-                        {(o.isAdr || (o.adrStatus && o.adrStatus !== 'none')) && (
+                        {orderIsAdr(o) && (
                           <AdrBadge
                             status={o.adrStatus}
                             points={o.adrTotalPoints}
@@ -3223,7 +3211,7 @@ export default function PlanningPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <span className="text-text-secondary text-[10px] uppercase font-bold">{t('export_col_driver', 'Driver')}</span>
-                  <p className="font-black text-text-primary text-sm mt-0.5">{dispatchModalTrip.driver?.name || dispatchModalTrip.driver?.user?.name || dispatchModalTrip.truck?.driver?.user?.name || '—'}</p>
+                  <p className="font-black text-text-primary text-sm mt-0.5">{[dispatchModalTrip.driver, dispatchModalTrip.truck?.driver].map(d => d && driverEntityDisplayName(d) !== '—' ? driverEntityDisplayName(d) : null).find(Boolean) || dispatchModalTrip.carrierDriverName || '—'}</p>
                   {dispatchModalTrip.driver?.phone && <p className="text-[10px] text-text-muted mt-0.5">{dispatchModalTrip.driver.phone}</p>}
                 </div>
                 <div>
@@ -3510,7 +3498,7 @@ export default function PlanningPage() {
                           </div>
                           {truck.driver?.user?.name && (
                             <p className="text-[11px] text-text-secondary mt-0.5">
-                              {truck.driver.user.name}
+                              {driverEntityDisplayName(truck.driver)}
                             </p>
                           )}
                         </div>
