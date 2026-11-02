@@ -68,24 +68,47 @@ const COLOR_MAP: Record<string, string> = {
   'text-cyan-500': '#06B6D4',
   'text-cyan-600': '#0891B2',
   'cyan': '#06B6D4',
+  'bg-gray-400': '#9CA3AF',
+  'bg-gray-500': '#6B7280',
+  'text-gray-400': '#9CA3AF',
+  'text-gray-500': '#6B7280',
+  'text-slate-400': '#94A3B8',
+  'bg-slate-400': '#94A3B8',
+  'bg-teal-500': '#14B8A6',
+  'text-teal-500': '#14B8A6',
+  'teal': '#14B8A6',
+  'bg-sky-500': '#0EA5E9',
+  'text-sky-500': '#0EA5E9',
+  'sky': '#0EA5E9',
+  'bg-violet-500': '#8B5CF6',
+  'text-violet-500': '#8B5CF6',
+  'violet': '#8B5CF6',
+  'bg-orange-500': '#F97316',
+  'text-orange-500': '#F97316',
+  'orange': '#F97316',
+  'bg-primary': '#F97316',
+  'text-primary': '#F97316',
+  'primary': '#F97316',
+  'bg-green-500': '#22C55E',
+  'bg-green-600': '#16A34A',
+  'text-green-500': '#22C55E',
+  'text-green-600': '#16A34A',
+  'green': '#22C55E',
 };
 
 function hasVisibleDot(color?: string): boolean {
-  if (!color) return false;
-  const c = color.toLowerCase().trim();
-  if (c.includes('slate') || c.includes('gray') || c.includes('grey') || c === 'transparent') return false;
-  return true;
+  return Boolean(color && color !== 'transparent');
 }
 
 function resolveDotColor(color?: string): string {
-  if (!color) return '#10B981';
+  if (!color) return '#94A3B8';
   if (color.startsWith('#') || color.startsWith('rgb')) return color;
   const found = COLOR_MAP[color.toLowerCase()];
   if (found) return found;
   for (const [k, v] of Object.entries(COLOR_MAP)) {
     if (color.includes(k)) return v;
   }
-  return '#10B981';
+  return '#94A3B8';
 }
 
 export default function CustomSelect({

@@ -22,6 +22,7 @@ import ActivityTimeline from '../ActivityTimeline';
 import PalletIcon from '../icons/PalletIcon';
 import WeightKgIcon from '../icons/WeightKgIcon';
 import AdrBadge from '../common/AdrBadge';
+import { orderIsAdr } from '../../lib/adrDetect';
 import toast from 'react-hot-toast';
 import { useSettingsStore } from '../../store/settingsStore';
 import { generateOrderPdf } from '../../lib/pdfGenerator';
@@ -171,7 +172,7 @@ export default function OrderDetailDrawer({
                 label={t(`status_${order.status}`, order.status.replace(/_/g, ' '))}
                 size="md"
               />
-              {(order.isAdr || (order.adrStatus && order.adrStatus !== 'none')) && (
+              {orderIsAdr(order) && (
                 <AdrBadge
                   status={order.adrStatus}
                   points={order.adrTotalPoints}

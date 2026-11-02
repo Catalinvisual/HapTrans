@@ -1,6 +1,7 @@
-// Centralized ADR detection. A trip/order is ADR only if it has real
-// dangerous goods (UN number, ADR class) or a confirmed evaluation status.
-// Statuses such as 'needs_review', 'ineligible' or 'none' must NOT flag a trip.
+// Centralized ADR detection. A trip/order shows the ADR badge only if it has
+// real dangerous goods (UN number, ADR class on cargo items) or a confirmed
+// ADR evaluation status. The generic boolean flag `isAdr` alone is NOT enough —
+// it can be set from surcharge quotes without any actual dangerous goods.
 
 const POSITIVE_STATUSES = new Set([
   'exempt_1136',
@@ -19,12 +20,11 @@ const POSITIVE_STATUSES = new Set([
 ]);
 
 const hasDgField = (c: any) => Boolean(
-  c?.unNumber || c?.adrUnNumber || c?.adrClass || c?.isAdr,
+  c?.unNumber || c?.adrUnNumber || c?.adrClass,
 );
 
 export function orderIsAdr(o: any): boolean {
   if (!o) return false;
-  if (o.isAdr === true) return true;
   if (POSITIVE_STATUSES.has(String(o.adrStatus || ''))) return true;
   if (Array.isArray(o.cargoItems) && o.cargoItems.some(hasDgField)) return true;
   return false;

@@ -10,6 +10,7 @@ import StatusBadge from '../ui/StatusBadge';
 import PalletIcon from '../icons/PalletIcon';
 import WeightKgIcon from '../icons/WeightKgIcon';
 import AdrBadge from '../common/AdrBadge';
+import { orderIsAdr } from '../../lib/adrDetect';
 import { driverEntityDisplayName } from '../../lib/driverName';
 
 interface Props {
@@ -65,7 +66,7 @@ export default function PortalOrderDrawer({ order, onClose }: Props) {
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
             <StatusBadge status={order.status} label={t(`status_${order.status}`, String(order.status || '').replace(/_/g, ' '))} size="md" />
-            {(order.isAdr || (order.adrStatus && order.adrStatus !== 'none')) && (
+            {orderIsAdr(order) && (
               <AdrBadge
                 status={order.adrStatus}
                 points={order.adrTotalPoints}
