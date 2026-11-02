@@ -25,7 +25,8 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://res.cloudinary.com" />
         <link rel="dns-prefetch" href="https://flagcdn.com" />
-        <link rel="preload" as="video" href="/herovideo.mp4" type="video/mp4" />
+        {/* Hero video loads when the hero mounts (fade-in when ready), so it no longer blocks the page */}
+
       </head>
       <body>
         <Providers>
