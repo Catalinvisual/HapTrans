@@ -3004,15 +3004,17 @@ export default function PlanningPage() {
                 )}
 </div>
 
-    <PlanningResultsPanel
-      boardData={boardData}
-      selectedTripId={selectedTripId}
-      grouping={grouping}
-      truckFilter={truckFilter}
-      driverFilter={driverFilter}
-      priorityFilter={priorityFilter}
-      searchFilter={searchFilter}
-/>
+{boardData ? (
+      <PlanningResultsPanel
+        boardData={boardData}
+        selectedTripId={selectedTripId}
+        grouping={grouping}
+        truckFilter={truckFilter}
+        driverFilter={driverFilter}
+        priorityFilter={priorityFilter}
+        searchFilter={searchFilter}
+      />
+    ) : null}
 
     {/* Status bar footer */}
               <div className="flex items-center justify-between px-4 py-2 border-t border-border bg-surface/30 text-[10px] text-text-secondary shrink-0 print:hidden">
