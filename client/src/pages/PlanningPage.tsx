@@ -2978,9 +2978,11 @@ export default function PlanningPage() {
                         )}
                       </div>
                 )}
-              </div>
+</div>
 
-              {/* Status bar footer */}
+    <PlanningResultsPanel />
+
+    {/* Status bar footer */}
               <div className="flex items-center justify-between px-4 py-2 border-t border-border bg-surface/30 text-[10px] text-text-secondary shrink-0 print:hidden">
                 <span>{t('jsx_resources','Resources')}: <span className="font-bold text-text-primary">{displayResources.length}/{resources.length}</span></span>
                 <span>{t('drag_hint','Drag orders onto truck rows to assign')}</span>
