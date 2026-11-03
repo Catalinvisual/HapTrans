@@ -1,139 +1,1451 @@
-import { useMemo } from 'react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  List as ListIcon,
+  Map as MapIcon,
+  DollarSign,
+  Clock,
+  AlertTriangle,
+  Leaf,
+  ChevronDown,
+  ChevronUp,
+  GripHorizontal,
+  FileSpreadsheet,
+  FileText,
+  Download,
+  Loader2,
+} from 'lucide-react';
+import CustomSelect from '../CustomSelect';
+import { appLocale, fmtMoney, fmtNumber } from '../../lib/format';
+import { buildTripMetrics, costBucket, minutesBetween, nameOfDriver, toMs, toNum } from '../../lib/planningResultsMetrics';
+
+type ViewKey = 'results' | 'route' | 'costs' | 'driver' | 'conflicts' | 'emissions';
+type ExportFormat = 'xlsx' | 'csv' | 'pdf';
+
+interface Header {
+  key: string;
+  label: string;
+  align?: 'left' | 'center' | 'right';
+}
+
+interface ExportData {
+  fileBase: string;
+  headers: Header[];
+  rows: Record<string, any>[];
+}
+
+const VIEWS: ViewKey[] = ['results', 'route', 'costs', 'driver', 'conflicts', 'emissions'];
+const HEIGHT_KEY = 'hapcargo:planningResultsHeight';
+const COLLAPSED_KEY = 'hapcargo:planningResultsCollapsed';
+const VIEW_KEY = 'hapcargo:planningResultsView';
+const MIN_HEIGHT = 260;
+const MAX_HEIGHT = 800;
+const DEFAULT_HEIGHT = 360;
+
+function fmtMinutes(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return '';
+  const sign = value < 0 ? '-' : '';
+  const abs = Math.abs(Math.round(value));
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  return h > 0 ? `${sign}${h}h ${m}m` : `${sign}${m}m`;
+}
+
+function fmtDateTime(value: any): string {
+  const ms = toMs(value);
+  if (ms === null) return '';
+  return new Date(ms).toLocaleString(appLocale(), {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function fmtDateShort(value: any): string {
+  const ms = toMs(value);
+  if (ms === null) return '';
+  return new Date(ms).toLocaleDateString(appLocale(), { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function csvEscape(value: any): string {
+  const s = value === null || value === undefined ? '' : String(value);
+  return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function readStoredHeight(): number {
+  if (typeof window === 'undefined') return DEFAULT_HEIGHT;
+  try {
+    const raw = Number(window.localStorage.getItem(HEIGHT_KEY));
+    if (Number.isFinite(raw) && raw >= MIN_HEIGHT && raw <= MAX_HEIGHT) return raw;
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_HEIGHT;
+}
+
+function readStoredCollapsed(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(COLLAPSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function readStoredView(): ViewKey {
+  if (typeof window === 'undefined') return 'results';
+  try {
+    const raw = window.localStorage.getItem(VIEW_KEY) as ViewKey | null;
+    if (raw && VIEWS.includes(raw)) return raw;
+  } catch {
+    /* ignore */
+  }
+  return 'results';
+}
 
 export default function PlanningResultsPanel({
   boardData,
   selectedTripId,
-  grouping,
   truckFilter,
   driverFilter,
   priorityFilter,
   searchFilter,
+  from,
+  to,
+  onSelectTrip,
 }: {
   boardData: any;
   selectedTripId: string | null;
-  grouping: 'truck' | 'driver' | 'trailer';
+  grouping?: 'truck' | 'driver' | 'trailer';
   truckFilter: string;
   driverFilter: string;
   priorityFilter: string;
   searchFilter: string;
+  from?: string;
+  to?: string;
+  onSelectTrip?: (id: string) => void;
 }) {
   const { t } = useTranslation();
 
+  const [view, setView] = useState<ViewKey>(readStoredView);
+  const [collapsed, setCollapsed] = useState<boolean>(readStoredCollapsed);
+  const [height, setHeight] = useState<number>(readStoredHeight);
+  const [dragging, setDragging] = useState(false);
+  const [exporting, setExporting] = useState<ExportFormat | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(HEIGHT_KEY, String(height));
+    } catch {
+      /* ignore */
+    }
+  }, [height]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(COLLAPSED_KEY, collapsed ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, [collapsed]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(VIEW_KEY, view);
+    } catch {
+      /* ignore */
+    }
+  }, [view]);
+
+  const startResize = (event: any) => {
+    if (collapsed) return;
+    event.preventDefault();
+    setDragging(true);
+    const startY = event.clientY;
+    const startHeight = height;
+
+    const onMove = (moveEvent: any) => {
+      const next = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, startHeight + (startY - moveEvent.clientY)));
+      setHeight(next);
+    };
+    const finish = () => {
+      setDragging(false);
+      document.body.style.userSelect = '';
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', finish);
+      document.removeEventListener('pointercancel', finish);
+    };
+
+    document.body.style.userSelect = 'none';
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', finish);
+    document.addEventListener('pointercancel', finish);
+  };
+
   const trips = useMemo(() => {
-    if (!boardData?.trips?.length) return [];
-    return boardData.trips.filter((tr: any) => {
-      const truckOk = !truckFilter || tr.truck?.plateNumber?.toString().includes(truckFilter);
+    const list: any[] = boardData?.trips || [];
+    const query = String(searchFilter || '').trim().toLowerCase();
+    return list.filter((trip: any) => {
+      const truckOk =
+        !truckFilter ||
+        trip?.truck?.id === truckFilter ||
+        trip?.trailer?.id === truckFilter ||
+        trip?.truckId === truckFilter ||
+        trip?.trailerId === truckFilter;
       const driverOk =
         !driverFilter ||
-        (tr.driver?.user?.name?.toString().includes(driverFilter) ||
-          tr.driver?.name?.toString().includes(driverFilter));
+        trip?.driver?.id === driverFilter ||
+        trip?.truck?.driver?.id === driverFilter ||
+        trip?.driverId === driverFilter;
+      const priorityOk =
+        !priorityFilter ||
+        (trip?.orders || []).some((order: any) => String(order?.priority || '') === priorityFilter);
       const searchOk =
-        !searchFilter ||
-        tr.tripNumber?.toString().toLowerCase().includes(searchFilter.toLowerCase()) ||
-        (tr.driver?.name?.toString().toLowerCase().includes(searchFilter.toLowerCase()));
-      return truckOk && driverOk && searchOk;
+        !query ||
+        [
+          trip?.tripNumber,
+          trip?.truck?.plateNumber,
+          trip?.carrierTruckPlate,
+          trip?.trailer?.plateNumber,
+          nameOfDriver(trip?.driver || trip?.truck?.driver),
+          trip?.carrierDriverName,
+          ...(trip?.orders || []).flatMap((order: any) => [
+            order?.orderNumber,
+            order?.customerReference,
+            order?.internalReference,
+            order?.client?.name,
+          ]),
+        ].some((value) => String(value || '').toLowerCase().includes(query));
+      return truckOk && driverOk && priorityOk && searchOk;
     });
-  }, [boardData.trips, truckFilter, driverFilter, searchFilter]);
+  }, [boardData?.trips, truckFilter, driverFilter, priorityFilter, searchFilter]);
 
-  const selectedTrip = useMemo(() => {
+  const metrics = useMemo(() => trips.map(buildTripMetrics), [trips]);
+
+  const selected = useMemo(() => {
     if (!selectedTripId) return null;
-    return trips.find((t: any) => t.id === selectedTripId) || null;
-  }, [selectedTripId, trips]);
+    return (
+      metrics.find((m) => m.id === selectedTripId || (m.tripNumber && m.tripNumber === selectedTripId)) || null
+    );
+  }, [metrics, selectedTripId]);
 
-  return (
-    <div className="planning-results-panel">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-surface/30">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-text-primary">
-            {t('planning_results', 'Planning Calculation Results')}
-          </span>
-          <select className="input input-sm" onChange={() => {}}>
-            <option value="results">{t('results', 'Results')}</option>
-          </select>
-        </div>
-        <div className="flex items-center gap-2">
-          <button className="btn-secondary text-xs py-1 px-2">{t('export', 'Export')}</button>
-        </div>
-      </div>
+  const totals = useMemo(() => {
+    const sum = (key: keyof (typeof metrics)[number]) => {
+      let total = 0;
+      let any = false;
+      for (const metric of metrics) {
+        const value = (metric as any)[key];
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          total += value;
+          any = true;
+        }
+      }
+      return any ? total : null;
+    };
+    const utilValues = metrics
+      .map((m) => m.utilizationPct)
+      .filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
+    const currencies = Array.from(new Set(metrics.map((m) => m.currency).filter(Boolean)));
+    return {
+      distance: sum('distanceKm'),
+      travel: sum('travelMin'),
+      driving: sum('drivingMin'),
+      waiting: sum('waitingMin'),
+      loading: sum('loadingMin'),
+      unloading: sum('unloadingMin'),
+      toll: sum('toll'),
+      fuel: sum('fuelCost'),
+      driver: sum('driverCost'),
+      other: sum('otherCost'),
+      recorded: sum('recordedTotal'),
+      estimated: sum('estimatedCost'),
+      totalCost: sum('totalCost'),
+      revenue: sum('revenue'),
+      profit: sum('profit'),
+      utilization:
+        utilValues.length > 0 ? utilValues.reduce((a, b) => a + b, 0) / utilValues.length : null,
+      currency: currencies.length === 1 ? currencies[0] : currencies.length === 0 ? 'EUR' : null,
+    };
+  }, [metrics]);
 
-      <div className="p-4">
-        <span className="font-medium mb-2">
-          {t('aggregate', 'Aggregated results for trips in range')}
+  const driverRows = useMemo(() => {
+    const grouped = new Map<
+      string,
+      { key: string; driver: any; name: string; tripCount: number }
+    >();
+    for (const metric of metrics) {
+      if (!metric.driverEntity && !metric.driverName) continue;
+      const key = metric.driverEntity?.id || metric.driverName || metric.id;
+      const existing = grouped.get(key);
+      if (existing) existing.tripCount += 1;
+      else
+        grouped.set(key, {
+          key,
+          driver: metric.driverEntity,
+          name: metric.driverName,
+          tripCount: 1,
+        });
+    }
+    const hosSummary = boardData?.hosSummary || {};
+    return Array.from(grouped.values()).map((row) => {
+      const driverId = row.driver?.id;
+      const hos = driverId ? hosSummary[driverId] : null;
+      return {
+        ...row,
+        hos,
+        weekly: toNum(hos?.weeklyDriving),
+        remaining: toNum(hos?.remaining),
+        over: Boolean(hos?.over),
+        payMode: row.driver?.payMode || '',
+        payRate: toNum(row.driver?.payRate),
+      };
+    });
+  }, [metrics, boardData?.hosSummary]);
+
+  const conflicts = useMemo(() => {
+    const tripIds = new Set(metrics.map((m) => m.id));
+    const truckIds = new Set(metrics.map((m) => m.truckId).filter(Boolean));
+    const driverIds = new Set(metrics.map((m) => m.driverId).filter(Boolean));
+    return (boardData?.conflicts || []).filter((conflict: any) => {
+      if (!conflict?.tripId && !conflict?.resourceId) return true;
+      if (conflict?.tripId && tripIds.has(conflict.tripId)) return true;
+      if (conflict?.resourceId && (truckIds.has(conflict.resourceId) || driverIds.has(conflict.resourceId))) {
+        return true;
+      }
+      return false;
+    });
+  }, [boardData?.conflicts, metrics]);
+
+  const tripNumberById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const metric of metrics) map.set(metric.id, metric.tripNumber);
+    return map;
+  }, [metrics]);
+
+  const resourceLabel = useCallback(
+    (id?: string) => {
+      if (!id) return '';
+      const byTruck = metrics.find((m) => m.truckId === id);
+      if (byTruck) return byTruck.truckPlate || String(id).slice(0, 8);
+      const byDriver = metrics.find((m) => m.driverId === id);
+      if (byDriver) return byDriver.driverName || String(id).slice(0, 8);
+      return String(id).slice(0, 8);
+    },
+    [metrics],
+  );
+
+  const rangeLabel = useMemo(() => {
+    if (!from && !to) return t('pr.all_trips', 'All trips in range');
+    const start = from ? fmtDateShort(from) : 'â€¦';
+    const end = to ? fmtDateShort(to) : 'â€¦';
+    return `${start} â€“ ${end}`;
+  }, [from, to, t]);
+
+  const reportSubtitle = useCallback(
+    (rowCount: number) =>
+      `${t('pr.report_range', 'Range')}: ${rangeLabel} Â· ${t('pr.generated', 'Generated')}: ${new Date().toLocaleString(
+        appLocale(),
+      )} Â· ${rowCount} ${t('pr.rows', 'rows')}`,
+    [rangeLabel, t],
+  );
+
+  const statusBadge = (raw: string) => {
+    const status = String(raw || '').toLowerCase();
+    const label = t(`status_${status}`, raw || t('pr.not_provided', 'Not provided'));
+    const cls =
+      status === 'completed' || status === 'closed'
+        ? 'bg-emerald-500/15 text-emerald-600'
+        : status === 'cancelled'
+        ? 'bg-rose-500/15 text-rose-600'
+        : status === 'driving' || status === 'in_transit' || status === 'started' || status === 'loading'
+        ? 'bg-amber-500/15 text-amber-600'
+        : status === 'assigned' || status === 'dispatched' || status === 'driver_accepted'
+        ? 'bg-blue-500/15 text-blue-600'
+        : 'bg-slate-500/15 text-slate-600';
+    return (
+      <span className={`inline-flex px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wide ${cls}`}>
+        {label}
+      </span>
+    );
+  };
+
+  const levelBadge = (raw: string) => {
+    const level = String(raw || '').toLowerCase();
+    const label =
+      level === 'blocking'
+        ? t('pr.blocking', 'Blocking')
+        : level === 'warning'
+        ? t('pr.warning', 'Warning')
+        : t('pr.info', 'Info');
+    const cls =
+      level === 'blocking'
+        ? 'bg-rose-500/15 text-rose-600'
+        : level === 'warning'
+        ? 'bg-amber-500/15 text-amber-600'
+        : 'bg-slate-500/15 text-slate-600';
+    return (
+      <span className={`inline-flex px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wide ${cls}`}>
+        {label}
+      </span>
+    );
+  };
+
+  const np = () => <span className="italic text-text-muted/70">{t('pr.not_provided', 'Not provided')}</span>;
+  const nc = () => <span className="italic text-text-muted/70">{t('pr.not_calculated', 'Not calculated')}</span>;
+  const na = () => <span className="italic text-text-muted/70">{t('pr.unavailable', 'Unavailable')}</span>;
+
+  const moneyOr = (value: number | null, currency: string) =>
+    value === null ? nc() : <span className="tabular-nums">{fmtMoney(value, currency)}</span>;
+
+  const totalMoney = (value: number | null) => {
+    if (value === null) return <span className="text-text-muted">â€”</span>;
+    if (totals.currency === null) {
+      return <span className="italic text-text-muted/80">{t('pr.mixed_currency', 'Mixed currencies')}</span>;
+    }
+    return <span className="tabular-nums">{fmtMoney(value, totals.currency)}</span>;
+  };
+
+  const timeOr = (value: number | null) =>
+    value === null ? nc() : <span className="tabular-nums">{fmtMinutes(value)}</span>;
+
+  const renderEmpty = (message: string) => (
+    <div className="h-full min-h-[120px] flex flex-col items-center justify-center gap-2 p-6 text-center text-text-secondary">
+      <ListIcon className="w-6 h-6 text-text-muted" />
+      <span className="text-xs font-medium">{message}</span>
+    </div>
+  );
+
+  const buildExportFor = useCallback(
+    (target: ViewKey): ExportData => {
+      const dateTag = new Date().toISOString().slice(0, 10);
+      if (target === 'results') {
+        const headers: Header[] = [
+          { key: 'trip', label: t('pr.trip', 'Trip') },
+          { key: 'truck', label: t('pr.truck', 'Truck') },
+          { key: 'trailer', label: t('pr.trailer', 'Trailer') },
+          { key: 'driver', label: t('pr.driver', 'Driver') },
+          { key: 'distance', label: t('pr.distance_km', 'Distance (km)'), align: 'right' },
+          { key: 'travel', label: `${t('pr.travel_time', 'Travel time')} (min)`, align: 'right' },
+          { key: 'driving', label: `${t('pr.driving_time', 'Driving time')} (min)`, align: 'right' },
+          { key: 'waiting', label: `${t('pr.waiting', 'Waiting')} (min)`, align: 'right' },
+          { key: 'loading', label: `${t('pr.loading', 'Loading')} (min)`, align: 'right' },
+          { key: 'unloading', label: `${t('pr.unloading', 'Unloading')} (min)`, align: 'right' },
+          { key: 'departure', label: t('pr.departure', 'Departure') },
+          { key: 'arrival', label: t('pr.arrival', 'Arrival') },
+          { key: 'toll', label: t('pr.toll', 'Toll'), align: 'right' },
+          { key: 'fuel', label: t('pr.fuel', 'Fuel'), align: 'right' },
+          { key: 'driverCost', label: t('pr.driver_cost', 'Driver cost'), align: 'right' },
+          { key: 'other', label: t('pr.other_costs', 'Other costs'), align: 'right' },
+          { key: 'totalCost', label: t('pr.total_cost', 'Total cost'), align: 'right' },
+          { key: 'revenue', label: t('pr.revenue', 'Revenue'), align: 'right' },
+          { key: 'profit', label: t('pr.profit', 'Profit'), align: 'right' },
+          { key: 'emptyKm', label: t('pr.empty_km', 'Empty km'), align: 'right' },
+          { key: 'utilization', label: `${t('pr.utilization', 'Utilization')} (%)`, align: 'right' },
+          { key: 'currency', label: t('pr.currency', 'Currency') },
+          { key: 'status', label: t('pr.status', 'Status') },
+        ];
+        const rows = metrics.map((m) => ({
+          trip: m.tripNumber,
+          truck: m.truckPlate,
+          trailer: m.trailerPlate,
+          driver: m.driverName,
+          distance: m.distanceKm ?? '',
+          travel: m.travelMin ?? '',
+          driving: m.drivingMin ?? '',
+          waiting: m.waitingMin ?? '',
+          loading: m.loadingMin ?? '',
+          unloading: m.unloadingMin ?? '',
+          departure: fmtDateTime(m.departure),
+          arrival: fmtDateTime(m.arrival),
+          toll: m.toll ?? '',
+          fuel: m.fuelCost ?? '',
+          driverCost: m.driverCost ?? '',
+          other: m.otherCost ?? '',
+          totalCost: m.totalCost ?? '',
+          revenue: m.revenue ?? '',
+          profit: m.profit ?? '',
+          emptyKm: '',
+          utilization: m.utilizationPct ?? '',
+          currency: m.currency,
+          status: t(`status_${String(m.status || '').toLowerCase()}`, m.status || ''),
+        }));
+        return { fileBase: `planning-results-${dateTag}`, headers, rows };
+      }
+
+      if (target === 'route') {
+        const headers: Header[] = [
+          { key: 'num', label: '#', align: 'right' },
+          { key: 'type', label: t('pr.type', 'Type') },
+          { key: 'location', label: t('pr.location', 'Location') },
+          { key: 'company', label: t('pr.company', 'Company') },
+          { key: 'timeWindow', label: t('pr.time_window', 'Time window') },
+          { key: 'eta', label: t('pr.eta', 'ETA') },
+          { key: 'ata', label: t('pr.ata', 'ATA') },
+          { key: 'service', label: `${t('pr.service_time', 'Service time')} (min)`, align: 'right' },
+          { key: 'distance', label: `${t('pr.distance_from_prev', 'Distance from previous stop')} (km)`, align: 'right' },
+          { key: 'tasks', label: t('pr.tasks', 'Tasks') },
+        ];
+        if (!selected) return { fileBase: `planning-route-${dateTag}`, headers, rows: [] };
+        const rows = selected.stops.map((stop: any, index: number) => {
+          const type = String(stop?.type || '').toLowerCase();
+          const service = minutesBetween(stop?.ata, stop?.completedAt);
+          return {
+            num: index + 1,
+            type:
+              type === 'pickup'
+                ? t('pr.pickup', 'Pickup')
+                : type === 'delivery'
+                ? t('pr.delivery', 'Delivery')
+                : stop?.type || '',
+            location: [stop?.city, stop?.address].filter(Boolean).join(', '),
+            company: stop?.companyName || '',
+            timeWindow: [fmtDateTime(stop?.timeWindowMin), fmtDateTime(stop?.timeWindowMax)]
+              .filter(Boolean)
+              .join(' â€“ '),
+            eta: fmtDateTime(stop?.eta),
+            ata: fmtDateTime(stop?.ata),
+            service: service ?? '',
+            distance: toNum(stop?.distanceToStopKm) ?? '',
+            tasks: (stop?.tasks || []).map((task: any) => task?.type || '').filter(Boolean).join(', '),
+          };
+        });
+        return { fileBase: `planning-route-${dateTag}`, headers, rows };
+      }
+
+      if (target === 'costs') {
+        const headers: Header[] = [
+          { key: 'category', label: t('pr.cost_category', 'Category') },
+          { key: 'type', label: t('pr.cost_type', 'Cost type') },
+          { key: 'description', label: t('pr.description', 'Description') },
+          { key: 'amount', label: t('pr.amount', 'Amount'), align: 'right' },
+          { key: 'currency', label: t('pr.currency', 'Currency') },
+          { key: 'source', label: t('pr.source', 'Source') },
+        ];
+        if (selected) {
+          const rows = selected.costs.map((cost: any) => ({
+            category: t(`pr.cat_${costBucket(cost)}`, costBucket(cost)),
+            type: cost?.type || '',
+            description: cost?.description || '',
+            amount: toNum(cost?.amount) ?? '',
+            currency: selected.currency,
+            source: t('pr.recorded', 'Recorded'),
+          }));
+          if (selected.recordedTotal !== null) {
+            rows.push({
+              category: t('pr.total', 'Total'),
+              type: '',
+              description: '',
+              amount: selected.recordedTotal,
+              currency: selected.currency,
+              source: '',
+            });
+          }
+          return { fileBase: `planning-costs-${dateTag}`, headers, rows };
+        }
+        const totalRecorded =
+          (totals.fuel ?? 0) + (totals.toll ?? 0) + (totals.driver ?? 0) + (totals.other ?? 0);
+        const currency = totals.currency || 'MIXED';
+        const rows = [
+          { category: t('pr.cat_fuel', 'Fuel'), amount: totals.fuel ?? '', currency },
+          { category: t('pr.cat_toll', 'Toll'), amount: totals.toll ?? '', currency },
+          { category: t('pr.cat_driver', 'Driver salaries'), amount: totals.driver ?? '', currency },
+          { category: t('pr.cat_other', 'Other costs'), amount: totals.other ?? '', currency },
+          { category: t('pr.total', 'Total'), amount: totalRecorded, currency },
+        ].map((row) => ({ ...row, type: '', description: '', source: t('pr.recorded', 'Recorded') }));
+        return { fileBase: `planning-costs-${dateTag}`, headers, rows };
+      }
+
+      if (target === 'driver') {
+        const headers: Header[] = [
+          { key: 'driver', label: t('pr.driver', 'Driver') },
+          { key: 'trips', label: t('pr.trips_assigned', 'Assigned trips'), align: 'right' },
+          { key: 'weekly', label: `${t('pr.weekly_driving', 'Weekly driving')} (h)`, align: 'right' },
+          { key: 'remaining', label: `${t('pr.remaining_driving', 'Remaining driving')} (h)`, align: 'right' },
+          { key: 'status', label: t('pr.hos_status', 'HOS status') },
+          { key: 'payMode', label: t('pr.pay_mode', 'Pay mode') },
+          { key: 'payRate', label: t('pr.pay_rate', 'Rate'), align: 'right' },
+        ];
+        const rows = driverRows.map((row) => ({
+          driver: row.name,
+          trips: row.tripCount,
+          weekly: row.weekly ?? '',
+          remaining: row.remaining ?? '',
+          status: !row.hos
+            ? t('pr.unavailable', 'Unavailable')
+            : row.over
+            ? t('pr.over_limit', 'Over limit')
+            : t('pr.within_limit', 'Within limit'),
+          payMode: row.payMode,
+          payRate: row.payRate ?? '',
+        }));
+        return { fileBase: `planning-driver-hours-${dateTag}`, headers, rows };
+      }
+
+      if (target === 'conflicts') {
+        const headers: Header[] = [
+          { key: 'level', label: t('pr.level', 'Level') },
+          { key: 'code', label: t('pr.code', 'Code') },
+          { key: 'message', label: t('pr.message', 'Message') },
+          { key: 'trip', label: t('pr.related_trip', 'Related trip') },
+          { key: 'resource', label: t('pr.related_resource', 'Related resource') },
+        ];
+        const rows = conflicts.map((conflict: any) => ({
+          level: conflict?.level || '',
+          code: conflict?.code || '',
+          message: conflict?.message || '',
+          trip: conflict?.tripId ? tripNumberById.get(conflict.tripId) || conflict.tripId : '',
+          resource: conflict?.resourceId ? resourceLabel(conflict.resourceId) : '',
+        }));
+        return { fileBase: `planning-conflicts-${dateTag}`, headers, rows };
+      }
+
+      const headers: Header[] = [
+        { key: 'trip', label: t('pr.trip', 'Trip') },
+        { key: 'truck', label: t('pr.truck', 'Truck') },
+        { key: 'fuelType', label: t('pr.fuel_type', 'Fuel type') },
+        { key: 'distance', label: t('pr.distance_km', 'Distance (km)'), align: 'right' },
+        { key: 'consumption', label: t('pr.consumption', 'Consumption (L/100 km)'), align: 'right' },
+        { key: 'liters', label: t('pr.estimated_fuel', 'Estimated fuel (L)'), align: 'right' },
+        { key: 'factor', label: t('pr.co2_factor', 'COâ‚‚ factor (kg/L)'), align: 'right' },
+        { key: 'co2', label: t('pr.estimated_co2', 'Estimated COâ‚‚ (kg)'), align: 'right' },
+        { key: 'status', label: t('pr.status', 'Status') },
+      ];
+      const rows = metrics.map((m) => ({
+        trip: m.tripNumber,
+        truck: m.truckPlate,
+        fuelType: m.fuelTypeRaw || (m.emissionAssumed ? 'diesel' : ''),
+        distance: m.distanceKm ?? '',
+        consumption: m.consumption ?? '',
+        liters: m.fuelLiters ?? '',
+        factor: m.emissionFactor ?? '',
+        co2: m.co2Kg ?? '',
+        status: m.isElectric
+          ? t('pr.electric_unavailable', 'COâ‚‚ estimate is not available for electric vehicles.')
+          : m.co2Kg === null
+          ? t('pr.not_calculated', 'Not calculated')
+          : t('pr.estimated', 'Estimated'),
+      }));
+      return { fileBase: `planning-emissions-${dateTag}`, headers, rows };
+    },
+    [
+      conflicts,
+      driverRows,
+      metrics,
+      resourceLabel,
+      selected,
+      t,
+      totals.currency,
+      totals.driver,
+      totals.fuel,
+      totals.other,
+      totals.toll,
+      tripNumberById,
+    ],
+  );
+
+  const currentExport = useMemo(() => buildExportFor(view), [buildExportFor, view]);
+  const canExport = currentExport.rows.length > 0;
+
+  const exportView = useCallback(
+    async (format: ExportFormat) => {
+      if (!currentExport.rows.length) return;
+      setExporting(format);
+      const { fileBase, headers, rows } = currentExport;
+      const subtitle = reportSubtitle(rows.length);
+      try {
+        if (format === 'xlsx') {
+          const { exportExcel } = await import('../../lib/exportExcel');
+          await exportExcel({
+            filename: `${fileBase}.xlsx`,
+            sheetName: t('pr.title', 'Planning Calculation Results').slice(0, 31),
+            title: t('pr.title', 'Planning Calculation Results'),
+            subtitle,
+            headers,
+            rows,
+          });
+        } else if (format === 'csv') {
+          const lines = [
+            t('pr.title', 'Planning Calculation Results'),
+            subtitle,
+            '',
+            headers.map((header) => csvEscape(header.label)).join(','),
+            ...rows.map((row) => headers.map((header) => csvEscape(row[header.key])).join(',')),
+          ];
+          downloadBlob(
+            new Blob([`\uFEFF${lines.join('\r\n')}`], { type: 'text/csv;charset=utf-8;' }),
+            `${fileBase}.csv`,
+          );
+        } else {
+          const jsPdfModule: any = await import('jspdf');
+          const JsPDF = jsPdfModule.default ?? jsPdfModule;
+          const autoTableModule: any = await import('jspdf-autotable');
+          const autoTable = autoTableModule.default ?? autoTableModule;
+          const doc = new JsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+          const pageWidth = doc.internal.pageSize.getWidth();
+          doc.setFontSize(14);
+          doc.setTextColor(15, 23, 42);
+          doc.text(t('pr.title', 'Planning Calculation Results'), 40, 40);
+          doc.setFontSize(8);
+          doc.setTextColor(100, 116, 139);
+          doc.text(subtitle, 40, 56, { maxWidth: pageWidth - 80 });
+          const columnStyles: Record<number, any> = {};
+          headers.forEach((header, index) => {
+            columnStyles[index] = { halign: header.align || 'left' };
+          });
+          autoTable(doc, {
+            startY: 72,
+            head: [headers.map((header) => header.label)],
+            body: rows.map((row) => headers.map((header) => (row[header.key] === null || row[header.key] === undefined ? '' : String(row[header.key])))),
+            styles: { fontSize: 6.5, cellPadding: 3, overflow: 'linebreak', textColor: [30, 41, 59] },
+            headStyles: { fillColor: [249, 115, 22], textColor: 255, fontStyle: 'bold', fontSize: 7 },
+            alternateRowStyles: { fillColor: [255, 247, 240] },
+            columnStyles,
+            margin: { left: 40, right: 40 },
+          });
+          doc.save(`${fileBase}.pdf`);
+        }
+      } catch (error) {
+        console.error('Planning results export failed', error);
+      } finally {
+        setExporting(null);
+      }
+    },
+    [currentExport, reportSubtitle, t],
+  );
+
+  const viewOptions = [
+    {
+      value: 'results',
+      label: (
+        <span className="flex items-center gap-1.5">
+          <ListIcon className="w-3.5 h-3.5" />
+          {t('pr.results', 'Results')}
         </span>
-        <table className="min-w-full divide divide-border/20">
+      ),
+    },
+    {
+      value: 'route',
+      label: (
+        <span className="flex items-center gap-1.5">
+          <MapIcon className="w-3.5 h-3.5" />
+          {t('pr.route', 'Route & Stops')}
+        </span>
+      ),
+    },
+    {
+      value: 'costs',
+      label: (
+        <span className="flex items-center gap-1.5">
+          <DollarSign className="w-3.5 h-3.5" />
+          {t('pr.costs', 'Costs & Revenue')}
+        </span>
+      ),
+    },
+    {
+      value: 'driver',
+      label: (
+        <span className="flex items-center gap-1.5">
+          <Clock className="w-3.5 h-3.5" />
+          {t('pr.driver_hours', 'Driver Hours')}
+        </span>
+      ),
+    },
+    {
+      value: 'conflicts',
+      label: (
+        <span className="flex items-center gap-1.5">
+          <AlertTriangle className="w-3.5 h-3.5" />
+          {t('pr.conflicts', 'Conflicts')}
+        </span>
+      ),
+    },
+    {
+      value: 'emissions',
+      label: (
+        <span className="flex items-center gap-1.5">
+          <Leaf className="w-3.5 h-3.5" />
+          {t('pr.emissions', 'Emissions')}
+        </span>
+      ),
+    },
+  ];
+
+  const thBase =
+    'sticky top-0 z-10 bg-surface px-2.5 py-2 text-[9px] font-black uppercase tracking-wider text-text-secondary border-b border-border whitespace-nowrap';
+  const thL = `${thBase} text-left`;
+  const thR = `${thBase} text-right`;
+  const td = 'px-2.5 py-1.5 whitespace-nowrap text-text-primary border-b border-border/40';
+  const tdR = 'px-2.5 py-1.5 whitespace-nowrap text-right tabular-nums text-text-primary border-b border-border/40';
+
+  const summaryCard = (label: string, value: any, tone = 'text-text-primary') => (
+    <div className="rounded-xl border border-border bg-surface/60 px-3 py-2 min-w-[130px]">
+      <div className="text-[9px] font-black uppercase tracking-wider text-text-secondary">{label}</div>
+      <div className={`mt-0.5 text-sm font-black tabular-nums ${tone}`}>{value}</div>
+    </div>
+  );
+
+  const renderResults = () => {
+    if (metrics.length === 0) return renderEmpty(t('pr.no_trips', 'No trips in range'));
+    return (
+      <div className="min-w-full">
+        <table className="w-full border-collapse text-[11px]">
           <thead>
             <tr>
-              <th className="text-left text-xs font-bold py-2 px-3 text-text-secondary">
-                {t('trip', 'Trip')}
-              </th>
-              <th className="text-left text-xs font-bold py_2 px-3 text-text-secondary">
-                {t('truck', 'Truck')}
-              </th>
-              <th className="text-left text-xs font-bold py_2 px-3 text-text-secondary">
-                {t('driver', 'Driver')}
-              </th>
-              <th className="text-left text-xs font-bold py_2 px-3 text-text-secondary">
-                {t('distance', 'Distance (km)')}
-              </th>
-              <th className="text-left text-xs font-bold py_2 px-3 text-text-secondary">
-                {t('duration', 'Duration (min)')}
-              </th>
-              <th className="text-left text-xs font-bold py_2 px-3 text-text-secondary">
-                {t('toll', 'Toll (€)')}
-              </th>
-              <th className="text-left text-xs font-bold py_2 px-3 text-text-secondary">
-                {t('fuel_cost', 'Fuel (€)')}
-              </th>
-              <th className="text-left text-xs font-bold py_2 px-3 text-text-secondary">
-                {t('driver_cost', 'Driver (€)')}
-              </th>
-              <th className="text-left text-xs font-bold py_2 px-3 text-text-secondary">
-                {t('total_cost', 'Total (€)')}
-              </th>
-              <th className="text-left text-xs font-bold py_2 px-3 text-text-secondary">
-                {t('revenue', 'Revenue (€)')}
-              </th>
-              <th className="text-left text-xs font-bold py_2 px-3 text-text-secondary">
-                {t('profit', 'Profit (€)')}
-              </th>
-              <th className="text-left text-xs font-bold py_2 px-3 text-text-secondary">
-                {t('utilization', 'Utilization %')}
-              </th>
-              <th className="text-left text-xs font-bold py_2 px-3 text-text-secondary">
-                {t('status', 'Status')}
-              </th>
+              <th className={thL}>{t('pr.trip', 'Trip')}</th>
+              <th className={thL}>{t('pr.truck', 'Truck')}</th>
+              <th className={thL}>{t('pr.trailer', 'Trailer')}</th>
+              <th className={thL}>{t('pr.driver', 'Driver')}</th>
+              <th className={thR}>{t('pr.distance_km', 'Distance (km)')}</th>
+              <th className={thR}>{t('pr.travel_time', 'Travel time')}</th>
+              <th className={thR}>{t('pr.driving_time', 'Driving time')}</th>
+              <th className={thR}>{t('pr.waiting', 'Waiting')}</th>
+              <th className={thR}>{t('pr.loading', 'Loading')}</th>
+              <th className={thR}>{t('pr.unloading', 'Unloading')}</th>
+              <th className={thL}>{t('pr.departure', 'Departure')}</th>
+              <th className={thL}>{t('pr.arrival', 'Arrival')}</th>
+              <th className={thR}>{t('pr.toll', 'Toll')}</th>
+              <th className={thR}>{t('pr.fuel', 'Fuel')}</th>
+              <th className={thR}>{t('pr.driver_cost', 'Driver cost')}</th>
+              <th className={thR}>{t('pr.other_costs', 'Other costs')}</th>
+              <th className={thR}>{t('pr.total_cost', 'Total cost')}</th>
+              <th className={thR}>{t('pr.revenue', 'Revenue')}</th>
+              <th className={thR}>{t('pr.profit', 'Profit')}</th>
+              <th className={thR}>{t('pr.empty_km', 'Empty km')}</th>
+              <th className={thR}>{t('pr.utilization', 'Utilization')}</th>
+              <th className={thL}>{t('pr.status', 'Status')}</th>
             </tr>
           </thead>
           <tbody>
-            {trips.length > 0 ? (
-              trips.map((r, i) => (
-                <tr key={i} className="hover:bg-surface/50">
-                  <td className="text-[10px] py-3 px-3">{r.tripNumber || '—'}</td>
-                  <td className="text-[10px] py-3 px-3">{r.truckPlate || '—'}</td>
-                  <td className="text-[10px] py-3 px-3">
-                    {r.driver?.user?.name || r.driver?.name || '—'}
-                  </td>
-                  <td className="text-[10px] py-3 px-3">{r.distanceKm} km</td>
-                  <td className="text-[10px] py-3 px-3">{r.durationMin} min</td>
-                  <td className="text-[10px] py-3 px-3">—</td>
-                  <td className="text-[10px] py-3 px-3">—</td>
-                  <td className="text-[10px] py-3 px-3">—</td>
-                  <td className="text-[10px] py-3 px-3">—</td>
-                  <td className="text-[10px] py-3 px-3">—</td>
-                  <td className="text-[10px] py-3 px-3">{r.status || '—'}</td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={13} className="text-center text-text-secondary py-8">
-                  {t('no_trips', 'No trips in range')}
+            {metrics.map((m) => (
+              <tr
+                key={m.id}
+                onClick={() => onSelectTrip?.(m.id)}
+                className={`cursor-pointer transition-colors ${
+                  selected?.id === m.id ? 'bg-primary/10' : 'hover:bg-primary/5'
+                }`}
+              >
+                <td className={`${td} font-bold`}>{m.tripNumber || np()}</td>
+                <td className={td}>{m.truckPlate || np()}</td>
+                <td className={td}>{m.trailerPlate || np()}</td>
+                <td className={td}>{m.driverName || np()}</td>
+                <td className={tdR}>{m.distanceKm === null ? np() : fmtNumber(m.distanceKm, 0)}</td>
+                <td className={tdR}>{timeOr(m.travelMin)}</td>
+                <td className={tdR}>{timeOr(m.drivingMin)}</td>
+                <td className={tdR}>{timeOr(m.waitingMin)}</td>
+                <td className={tdR}>{timeOr(m.loadingMin)}</td>
+                <td className={tdR}>{timeOr(m.unloadingMin)}</td>
+                <td className={td}>
+                  {m.departure ? <span className="tabular-nums">{fmtDateTime(m.departure)}</span> : np()}
                 </td>
+                <td className={td}>
+                  {m.arrival ? <span className="tabular-nums">{fmtDateTime(m.arrival)}</span> : np()}
+                </td>
+                <td className={tdR}>{moneyOr(m.toll, m.currency)}</td>
+                <td className={tdR}>{moneyOr(m.fuelCost, m.currency)}</td>
+                <td className={tdR}>{moneyOr(m.driverCost, m.currency)}</td>
+                <td className={tdR}>{moneyOr(m.otherCost, m.currency)}</td>
+                <td className={`${tdR} font-bold`}>{moneyOr(m.totalCost, m.currency)}</td>
+                <td className={tdR}>{moneyOr(m.revenue, m.currency)}</td>
+                <td
+                  className={`${tdR} font-bold ${
+                    m.profit === null ? '' : m.profit < 0 ? 'text-rose-500' : 'text-emerald-600'
+                  }`}
+                >
+                  {moneyOr(m.profit, m.currency)}
+                </td>
+                <td className={tdR}>{nc()}</td>
+                <td className={tdR}>
+                  {m.utilizationPct === null ? nc() : `${fmtNumber(m.utilizationPct, 0)}%`}
+                </td>
+                <td className={td}>{statusBadge(m.status)}</td>
               </tr>
-            )}
+            ))}
+            <tr className="bg-surface/80 font-bold">
+              <td className={`${td} text-[10px]`}>
+                {t('pr.total', 'Total')} ({metrics.length})
+              </td>
+              <td className={td} />
+              <td className={td} />
+              <td className={td} />
+              <td className={tdR}>{totals.distance === null ? 'â€”' : fmtNumber(totals.distance, 0)}</td>
+              <td className={tdR}>{totals.travel === null ? 'â€”' : fmtMinutes(totals.travel)}</td>
+              <td className={tdR}>{totals.driving === null ? 'â€”' : fmtMinutes(totals.driving)}</td>
+              <td className={tdR}>{totals.waiting === null ? 'â€”' : fmtMinutes(totals.waiting)}</td>
+              <td className={tdR}>{totals.loading === null ? 'â€”' : fmtMinutes(totals.loading)}</td>
+              <td className={tdR}>{totals.unloading === null ? 'â€”' : fmtMinutes(totals.unloading)}</td>
+              <td className={td} />
+              <td className={td} />
+              <td className={tdR}>{totalMoney(totals.toll)}</td>
+              <td className={tdR}>{totalMoney(totals.fuel)}</td>
+              <td className={tdR}>{totalMoney(totals.driver)}</td>
+              <td className={tdR}>{totalMoney(totals.other)}</td>
+              <td className={tdR}>{totalMoney(totals.totalCost)}</td>
+              <td className={tdR}>{totalMoney(totals.revenue)}</td>
+              <td className={tdR}>{totalMoney(totals.profit)}</td>
+              <td className={tdR}>â€”</td>
+              <td className={tdR}>
+                {totals.utilization === null ? 'â€”' : `${fmtNumber(totals.utilization, 0)}%`}
+              </td>
+              <td className={td} />
+            </tr>
           </tbody>
         </table>
       </div>
+    );
+  };
+
+  const renderRoute = () => {
+    if (!selected) {
+      return (
+        <div className="h-full min-h-[140px] flex flex-col items-center justify-center gap-3 p-6 text-center">
+          <MapIcon className="w-7 h-7 text-text-muted" />
+          <p className="text-xs text-text-secondary">{t('pr.select_trip_prompt', 'Select a trip to see its details.')}</p>
+          {metrics.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 justify-center max-w-2xl max-h-24 overflow-auto">
+              {metrics.slice(0, 24).map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => onSelectTrip?.(m.id)}
+                  className="px-2 py-1 rounded-lg border border-border bg-surface hover:border-primary/60 text-[10px] font-semibold text-text-primary"
+                >
+                  {m.tripNumber || m.id.slice(0, 8)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+    const stops = selected.stops;
+    return (
+      <div className="p-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2 text-[11px]">
+          <span className="font-black text-text-primary">{selected.tripNumber}</span>
+          <span>
+            <span className="text-text-secondary">{t('pr.truck', 'Truck')}:</span>{' '}
+            {selected.truckPlate || np()}
+          </span>
+          <span>
+            <span className="text-text-secondary">{t('pr.driver', 'Driver')}:</span>{' '}
+            {selected.driverName || np()}
+          </span>
+          <span>
+            <span className="text-text-secondary">{t('pr.distance_km', 'Distance (km)')}:</span>{' '}
+            {selected.distanceKm === null ? nc() : fmtNumber(selected.distanceKm, 0)}
+          </span>
+          <span>
+            <span className="text-text-secondary">{t('pr.travel_time', 'Travel time')}:</span>{' '}
+            {timeOr(selected.travelMin)}
+          </span>
+          {statusBadge(selected.status)}
+        </div>
+        {stops.length === 0 ? (
+          renderEmpty(t('pr.no_stops', 'No stops for this trip.'))
+        ) : (
+          <table className="w-full border-collapse text-[11px]">
+            <thead>
+              <tr>
+                <th className={thR}>#</th>
+                <th className={thL}>{t('pr.type', 'Type')}</th>
+                <th className={thL}>{t('pr.location', 'Location')}</th>
+                <th className={thL}>{t('pr.stop', 'Stop')}</th>
+                <th className={thL}>{t('pr.time_window', 'Time window')}</th>
+                <th className={thL}>{t('pr.eta', 'ETA')}</th>
+                <th className={thL}>{t('pr.ata', 'ATA')}</th>
+                <th className={thR}>{t('pr.service_time', 'Service time')}</th>
+                <th className={thR}>{t('pr.distance_from_prev', 'Distance from previous stop')}</th>
+                <th className={thL}>{t('pr.tasks', 'Tasks')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stops.map((stop: any, index: number) => {
+                const type = String(stop?.type || '').toLowerCase();
+                const service = minutesBetween(stop?.ata, stop?.completedAt);
+                const windowValue = [fmtDateTime(stop?.timeWindowMin), fmtDateTime(stop?.timeWindowMax)]
+                  .filter(Boolean)
+                  .join(' â€“ ');
+                const taskLabel = (stop?.tasks || [])
+                  .map((task: any) => {
+                    const taskType = String(task?.type || '').toLowerCase();
+                    if (taskType === 'load') return t('pr.pickup', 'Pickup');
+                    if (taskType === 'unload') return t('pr.delivery', 'Delivery');
+                    return task?.type || '';
+                  })
+                  .filter(Boolean)
+                  .join(', ');
+                return (
+                  <tr key={stop?.id || index} className="hover:bg-primary/5">
+                    <td className={tdR}>{index + 1}</td>
+                    <td className={td}>
+                      {type === 'pickup'
+                        ? t('pr.pickup', 'Pickup')
+                        : type === 'delivery'
+                        ? t('pr.delivery', 'Delivery')
+                        : stop?.type || np()}
+                    </td>
+                    <td className={td}>{[stop?.city, stop?.address].filter(Boolean).join(', ') || np()}</td>
+                    <td className={td}>{stop?.companyName || np()}</td>
+                    <td className={td}>{windowValue || np()}</td>
+                    <td className={td}>
+                      {fmtDateTime(stop?.eta) ? (
+                        <span className="tabular-nums">{fmtDateTime(stop?.eta)}</span>
+                      ) : (
+                        np()
+                      )}
+                    </td>
+                    <td className={td}>
+                      {fmtDateTime(stop?.ata) ? (
+                        <span className="tabular-nums">{fmtDateTime(stop?.ata)}</span>
+                      ) : (
+                        np()
+                      )}
+                    </td>
+                    <td className={tdR}>{service === null ? nc() : fmtMinutes(service)}</td>
+                    <td className={tdR}>
+                      {toNum(stop?.distanceToStopKm) === null
+                        ? np()
+                        : fmtNumber(toNum(stop?.distanceToStopKm), 1)}
+                    </td>
+                    <td className={td}>{taskLabel || np()}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    );
+  };
+
+  const renderCosts = () => {
+    if (!selected) {
+      const recorded =
+        (totals.fuel ?? 0) + (totals.toll ?? 0) + (totals.driver ?? 0) + (totals.other ?? 0);
+      const hasRecorded =
+        totals.fuel !== null || totals.toll !== null || totals.driver !== null || totals.other !== null;
+      const categories: { key: string; value: number | null }[] = [
+        { key: 'cat_fuel', value: totals.fuel },
+        { key: 'cat_toll', value: totals.toll },
+        { key: 'cat_driver', value: totals.driver },
+        { key: 'cat_other', value: totals.other },
+      ];
+      return (
+        <div className="p-3">
+          <div className="flex flex-wrap gap-2 mb-3">
+            {summaryCard(t('pr.revenue', 'Revenue'), totalMoney(totals.revenue), 'text-emerald-600')}
+            {summaryCard(t('pr.recorded_costs', 'Recorded costs'), hasRecorded ? totalMoney(recorded) : nc())}
+            {summaryCard(t('pr.estimated_cost', 'Estimated cost'), totalMoney(totals.estimated))}
+            {summaryCard(
+              t('pr.profit', 'Profit'),
+              totalMoney(totals.profit),
+              totals.profit !== null && totals.profit < 0 ? 'text-rose-500' : 'text-emerald-600',
+            )}
+          </div>
+          {!hasRecorded ? (
+            renderEmpty(t('pr.no_costs', 'No recorded costs.'))
+          ) : (
+            <table className="w-full border-collapse text-[11px]">
+              <thead>
+                <tr>
+                  <th className={thL}>{t('pr.cost_breakdown', 'Breakdown by category')}</th>
+                  <th className={thR}>{t('pr.amount', 'Amount')}</th>
+                  <th className={thR}>{t('pr.share', 'Share')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {categories.map((category) => (
+                  <tr key={category.key} className="hover:bg-primary/5">
+                    <td className={td}>{t(`pr.${category.key}`, category.key)}</td>
+                    <td className={tdR}>{totalMoney(category.value)}</td>
+                    <td className={tdR}>
+                      {category.value === null || recorded <= 0
+                        ? 'â€”'
+                        : `${fmtNumber((category.value / recorded) * 100, 1)}%`}
+                    </td>
+                  </tr>
+                ))}
+                <tr className="bg-surface/80 font-bold">
+                  <td className={td}>{t('pr.total', 'Total')}</td>
+                  <td className={tdR}>{totalMoney(recorded)}</td>
+                  <td className={tdR}>100%</td>
+                </tr>
+              </tbody>
+            </table>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="p-3">
+        <div className="flex flex-wrap gap-2 mb-3">
+          {summaryCard(t('pr.revenue', 'Revenue'), moneyOr(selected.revenue, selected.currency), 'text-emerald-600')}
+          {summaryCard(t('pr.recorded_costs', 'Recorded costs'), moneyOr(selected.recordedTotal, selected.currency))}
+          {summaryCard(t('pr.estimated_cost', 'Estimated cost'), moneyOr(selected.estimatedCost, selected.currency))}
+          {summaryCard(
+            t('pr.profit', 'Profit'),
+            moneyOr(selected.profit, selected.currency),
+            selected.profit !== null && selected.profit < 0 ? 'text-rose-500' : 'text-emerald-600',
+          )}
+        </div>
+        {selected.costs.length === 0 ? (
+          renderEmpty(t('pr.no_costs', 'No recorded costs.'))
+        ) : (
+          <table className="w-full border-collapse text-[11px]">
+            <thead>
+              <tr>
+                <th className={thL}>{t('pr.cost_category', 'Category')}</th>
+                <th className={thL}>{t('pr.cost_type', 'Cost type')}</th>
+                <th className={thL}>{t('pr.description', 'Description')}</th>
+                <th className={thR}>{t('pr.amount', 'Amount')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {selected.costs.map((cost: any, index: number) => (
+                <tr key={cost?.id || index} className="hover:bg-primary/5">
+                  <td className={td}>{t(`pr.cat_${costBucket(cost)}`, costBucket(cost))}</td>
+                  <td className={td}>{cost?.type || np()}</td>
+                  <td className={td}>{cost?.description || np()}</td>
+                  <td className={tdR}>{moneyOr(toNum(cost?.amount), selected.currency)}</td>
+                </tr>
+              ))}
+              <tr className="bg-surface/80 font-bold">
+                <td className={td}>{t('pr.recorded_costs', 'Recorded costs')}</td>
+                <td className={td} />
+                <td className={td} />
+                <td className={tdR}>{moneyOr(selected.recordedTotal, selected.currency)}</td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+      </div>
+    );
+  };
+
+  const renderDriver = () => {
+    if (driverRows.length === 0) return renderEmpty(t('pr.no_trips', 'No trips in range'));
+    return (
+      <div className="p-3">
+        <table className="w-full border-collapse text-[11px]">
+          <thead>
+            <tr>
+              <th className={thL}>{t('pr.driver', 'Driver')}</th>
+              <th className={thR}>{t('pr.trips_assigned', 'Assigned trips')}</th>
+              <th className={thR}>{t('pr.weekly_driving', 'Weekly driving')}</th>
+              <th className={thR}>{t('pr.remaining_driving', 'Remaining driving')}</th>
+              <th className={thL}>{t('pr.hos_status', 'HOS status')}</th>
+              <th className={thL}>{t('pr.pay_mode', 'Pay mode')}</th>
+              <th className={thR}>{t('pr.pay_rate', 'Rate')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {driverRows.map((row) => (
+              <tr key={row.key} className="hover:bg-primary/5">
+                <td className={`${td} font-bold`}>{row.name || np()}</td>
+                <td className={tdR}>{row.tripCount}</td>
+                <td className={tdR}>
+                  {row.weekly === null ? na() : `${fmtNumber(row.weekly, 1)} h`}
+                </td>
+                <td className={tdR}>
+                  {row.remaining === null ? na() : `${fmtNumber(row.remaining, 1)} h`}
+                </td>
+                <td className={td}>
+                  {!row.hos ? (
+                    <span className="italic text-text-muted/70">{t('pr.no_hos', 'No HOS data for this driver.')}</span>
+                  ) : row.over ? (
+                    <span className="inline-flex px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wide bg-rose-500/15 text-rose-600">
+                      {t('pr.over_limit', 'Over limit')}
+                    </span>
+                  ) : (
+                    <span className="inline-flex px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wide bg-emerald-500/15 text-emerald-600">
+                      {t('pr.within_limit', 'Within limit')}
+                    </span>
+                  )}
+                </td>
+                <td className={td}>{row.payMode || np()}</td>
+                <td className={tdR}>{row.payRate === null ? np() : fmtNumber(row.payRate, 2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderConflicts = () => {
+    if (conflicts.length === 0) return renderEmpty(t('pr.no_conflicts', 'No planning conflicts.'));
+    return (
+      <div className="p-3">
+        <table className="w-full border-collapse text-[11px]">
+          <thead>
+            <tr>
+              <th className={thL}>{t('pr.level', 'Level')}</th>
+              <th className={thL}>{t('pr.code', 'Code')}</th>
+              <th className={thL}>{t('pr.message', 'Message')}</th>
+              <th className={thL}>{t('pr.related_trip', 'Related trip')}</th>
+              <th className={thL}>{t('pr.related_resource', 'Related resource')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {conflicts.map((conflict: any, index: number) => (
+              <tr
+                key={conflict?.id || index}
+                onClick={() => conflict?.tripId && onSelectTrip?.(conflict.tripId)}
+                className={conflict?.tripId ? 'cursor-pointer hover:bg-primary/5' : ''}
+              >
+                <td className={td}>{levelBadge(conflict?.level)}</td>
+                <td className={td}>{conflict?.code || np()}</td>
+                <td className={`${td} whitespace-normal min-w-[240px]`}>{conflict?.message || np()}</td>
+                <td className={td}>
+                  {conflict?.tripId ? tripNumberById.get(conflict.tripId) || conflict.tripId : 'â€”'}
+                </td>
+                <td className={td}>{conflict?.resourceId ? resourceLabel(conflict.resourceId) : 'â€”'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderEmissions = () => {
+    if (metrics.length === 0) return renderEmpty(t('pr.no_trips', 'No trips in range'));
+    const estimatedMetrics = metrics.filter((m) => m.co2Kg !== null);
+    const totalFuel = estimatedMetrics.reduce((sum, m) => sum + (m.fuelLiters ?? 0), 0);
+    const totalCo2 = estimatedMetrics.reduce((sum, m) => sum + (m.co2Kg ?? 0), 0);
+    const usesAssumption = metrics.some((m) => m.emissionAssumed);
+    return (
+      <div className="p-3">
+        <div className="flex flex-wrap gap-2 mb-3">
+          {summaryCard(
+            t('pr.estimated_fuel', 'Estimated fuel (L)'),
+            estimatedMetrics.length ? fmtNumber(totalFuel, 1) : nc(),
+          )}
+          {summaryCard(
+            t('pr.estimated_co2', 'Estimated COâ‚‚ (kg)'),
+            estimatedMetrics.length ? fmtNumber(totalCo2, 1) : nc(),
+            'text-emerald-600',
+          )}
+          {summaryCard(
+            `${t('pr.estimated', 'Estimated')} / ${t('pr.trips', 'Trips')}`,
+            `${estimatedMetrics.length} / ${metrics.length}`,
+          )}
+        </div>
+        <table className="w-full border-collapse text-[11px]">
+          <thead>
+            <tr>
+              <th className={thL}>{t('pr.trip', 'Trip')}</th>
+              <th className={thL}>{t('pr.truck', 'Truck')}</th>
+              <th className={thL}>{t('pr.fuel_type', 'Fuel type')}</th>
+              <th className={thR}>{t('pr.distance_km', 'Distance (km)')}</th>
+              <th className={thR}>{t('pr.consumption', 'Consumption (L/100 km)')}</th>
+              <th className={thR}>{t('pr.estimated_fuel', 'Estimated fuel (L)')}</th>
+              <th className={thR}>{t('pr.co2_factor', 'COâ‚‚ factor (kg/L)')}</th>
+              <th className={thR}>{t('pr.estimated_co2', 'Estimated COâ‚‚ (kg)')}</th>
+              <th className={thL}>{t('pr.status', 'Status')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {metrics.map((m) => (
+              <tr
+                key={m.id}
+                onClick={() => onSelectTrip?.(m.id)}
+                className={`cursor-pointer transition-colors ${
+                  selected?.id === m.id ? 'bg-primary/10' : 'hover:bg-primary/5'
+                }`}
+              >
+                <td className={`${td} font-bold`}>{m.tripNumber || np()}</td>
+                <td className={td}>{m.truckPlate || np()}</td>
+                <td className={td}>
+                  {m.fuelTypeRaw || (m.emissionAssumed ? 'diesel*' : np())}
+                </td>
+                <td className={tdR}>{m.distanceKm === null ? np() : fmtNumber(m.distanceKm, 0)}</td>
+                <td className={tdR}>
+                  {m.consumption === null ? nc() : fmtNumber(m.consumption, 1)}
+                </td>
+                <td className={tdR}>{m.fuelLiters === null ? nc() : fmtNumber(m.fuelLiters, 1)}</td>
+                <td className={tdR}>
+                  {m.emissionFactor === null ? na() : fmtNumber(m.emissionFactor, 2)}
+                </td>
+                <td className={`${tdR} font-bold`}>{m.co2Kg === null ? nc() : fmtNumber(m.co2Kg, 1)}</td>
+                <td className={td}>
+                  {m.isElectric ? (
+                    <span className="italic text-text-muted/70">
+                      {t('pr.electric_unavailable', 'COâ‚‚ estimate is not available for electric vehicles.')}
+                    </span>
+                  ) : m.co2Kg === null ? (
+                    nc()
+                  ) : (
+                    <span className="inline-flex px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wide bg-emerald-500/15 text-emerald-600">
+                      {t('pr.estimated', 'Estimated')}
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+            <tr className="bg-surface/80 font-bold">
+              <td className={td}>{t('pr.total', 'Total')}</td>
+              <td className={td} />
+              <td className={td} />
+              <td className={tdR}>{totals.distance === null ? 'â€”' : fmtNumber(totals.distance, 0)}</td>
+              <td className={tdR} />
+              <td className={tdR}>{estimatedMetrics.length ? fmtNumber(totalFuel, 1) : 'â€”'}</td>
+              <td className={tdR} />
+              <td className={tdR}>{estimatedMetrics.length ? fmtNumber(totalCo2, 1) : 'â€”'}</td>
+              <td className={td} />
+            </tr>
+          </tbody>
+        </table>
+        <div className="mt-2 space-y-1 text-[10px] text-text-secondary">
+          <p>{t('pr.emission_note', 'Estimates based on distance Ã— consumption Ã— emission factor. They do not replace real measurements.')}</p>
+          {usesAssumption && (
+            <p>{t('pr.emission_assumption_diesel', 'Fuel type is missing; diesel is assumed (2.68 kg COâ‚‚/L).')}</p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderContent = () => {
+    switch (view) {
+      case 'route':
+        return renderRoute();
+      case 'costs':
+        return renderCosts();
+      case 'driver':
+        return renderDriver();
+      case 'conflicts':
+        return renderConflicts();
+      case 'emissions':
+        return renderEmissions();
+      case 'results':
+      default:
+        return renderResults();
+    }
+  };
+
+  const exportButtonClass =
+    'h-7 px-2 rounded-lg border border-border bg-surface hover:border-primary/60 hover:text-primary text-text-primary text-[10px] font-bold inline-flex items-center gap-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
+
+  return (
+    <div
+      ref={panelRef}
+      className="planning-results-panel shrink-0 flex flex-col border-t-2 border-primary/30 bg-surface shadow-[0_-6px_20px_rgba(15,23,42,0.08)]"
+      style={{ height: collapsed ? 48 : height, transition: dragging ? 'none' : 'height 160ms ease' }}
+    >
+      <div
+        onPointerDown={startResize}
+        role="separator"
+        aria-orientation="horizontal"
+        title={t('pr.resize', 'Drag to resize')}
+        className={`h-1.5 w-full shrink-0 flex items-center justify-center group ${
+          collapsed ? 'cursor-default' : 'cursor-row-resize'
+        }`}
+      >
+        <GripHorizontal className="w-4 h-3 text-border group-hover:text-primary/70" />
+      </div>
+
+      <div className="h-10 shrink-0 flex items-center gap-2 px-3 border-b border-border bg-surface/60">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <ListIcon className="w-3.5 h-3.5" />
+          </span>
+          <span className="text-[12px] font-black text-text-primary truncate">
+            {t('pr.title', 'Planning Calculation Results')}
+          </span>
+          <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold shrink-0">
+            {metrics.length} {t('pr.trips', 'Trips')}
+          </span>
+          {selected && (
+            <span className="hidden md:inline text-[10px] font-semibold text-text-secondary truncate">
+              Â· {selected.tripNumber}
+            </span>
+          )}
+        </div>
+
+        <div className="flex-1" />
+
+        <CustomSelect
+          size="sm"
+          className="w-44 sm:w-52 shrink-0"
+          value={view}
+          onChange={(value) => setView(value as ViewKey)}
+          options={viewOptions}
+          title={t('pr.reports', 'Reports')}
+        />
+
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => exportView('xlsx')}
+            disabled={!canExport || exporting !== null}
+            title={t('pr.export_excel', 'Excel')}
+            className={exportButtonClass}
+          >
+            {exporting === 'xlsx' ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+            )}
+            <span className="hidden lg:inline">Excel</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => exportView('csv')}
+            disabled={!canExport || exporting !== null}
+            title={t('pr.export_csv', 'CSV')}
+            className={exportButtonClass}
+          >
+            {exporting === 'csv' ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <FileText className="w-3.5 h-3.5" />
+            )}
+            <span className="hidden lg:inline">CSV</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => exportView('pdf')}
+            disabled={!canExport || exporting !== null}
+            title={t('pr.export_pdf', 'PDF')}
+            className={exportButtonClass}
+          >
+            {exporting === 'pdf' ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Download className="w-3.5 h-3.5" />
+            )}
+            <span className="hidden lg:inline">PDF</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCollapsed((value) => !value)}
+            title={collapsed ? t('pr.expand', 'Expand') : t('pr.collapse', 'Collapse')}
+            className="h-7 w-7 rounded-lg border border-border bg-surface hover:border-primary/60 hover:text-primary text-text-primary inline-flex items-center justify-center transition-colors"
+          >
+            {collapsed ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+      </div>
+
+      {!collapsed && (
+        <div className="flex-1 min-h-0 overflow-auto custom-scrollbar">{renderContent()}</div>
+      )}
     </div>
   );
 }

@@ -1921,30 +1921,6 @@ export default function PlanningPage() {
     }
   }, [searchParams, setSearchParams]);
 
-  useEffect(() => {
-    let mounted = true;
-    async function fetchBoard() {
-      setIsLoading(true);
-      setFetchError(null);
-      try {
-        const { data } = await api.get('/planning/board');
-        if (mounted) {
-          setBoardData(data);
-        }
-      } catch (e: any) {
-        if (mounted) {
-          setFetchError(e?.message || 'Failed to load board');
-        }
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-    fetchBoard();
-    return () => { mounted = false; };
-  }, []);
-
   const [poolCollapsed, setPoolCollapsed] = useState(false);
   const [showOptimizeModal, setShowOptimizeModal] = useState(false);
   const [dispatchModalTrip, setDispatchModalTrip] = useState<any>(null);
@@ -3013,6 +2989,9 @@ export default function PlanningPage() {
         driverFilter={driverFilter}
         priorityFilter={priorityFilter}
         searchFilter={searchFilter}
+        from={from}
+        to={to}
+        onSelectTrip={setSelectedTripId}
       />
     ) : null}
 
