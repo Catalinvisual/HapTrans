@@ -219,6 +219,10 @@ export function buildTripMetrics(trip: any) {
     driverName,
     driverEntity,
     distanceKm,
+    emptyKm:
+      toNum(trip?.emptyKm) ??
+      toNum(trip?.deadheadKm) ??
+      toNum(trip?.emptyKilometers),
     travelMin,
     drivingMin,
     waitingMin,

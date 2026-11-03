@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between } from 'typeorm';
 import { TelematicsDevice, TelematicsConnectionStatus, TelematicsProviderType } from '../entities/telematics-device.entity';
 import { Tachograph } from '../entities/tachograph.entity';
 import { DriverTachographCard } from '../entities/driver-tachograph-card.entity';
@@ -320,6 +320,137 @@ export class TelematicsService {
         },
       };
     });
+  }
+
+  // 5b. Driver Activity Timeline (tachograph activity records only)
+  async getDriverActivity(driverId: string, fromStr?: string, toStr?: string) {
+    const to = toStr ? new Date(toStr) : new Date();
+    const from = fromStr ? new Date(fromStr) : new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000);
+    if (isNaN(from.getTime()) || isNaN(to.getTime())) {
+      throw new BadRequestException('Invalid activity date range');
+    }
+    if (from.getTime() > to.getTime()) {
+      throw new BadRequestException('Activity range start must be before end');
+    }
+
+    const driver = await this.driverRepo.findOne({
+      where: { id: driverId },
+      relations: ['user'],
+    });
+    if (!driver) throw new NotFoundException('Driver not found');
+
+    const events = await this.tachoEventsRepo.find({
+      where: { driverId, startTime: Between(from, to) },
+      order: { startTime: 'ASC' },
+    });
+
+    const normalize = (activity: string): string => {
+      const value = String(activity || '').toUpperCase();
+      if (value === 'DRIVING') return 'DRIVING';
+      if (value === 'BREAK') return 'BREAK';
+      if (value === 'REST') return 'REST';
+      if (value === 'WORKING' || value === 'OTHER_WORK') return 'WORKING';
+      if (value === 'AVAILABILITY') return 'AVAILABILITY';
+      if (value === 'LOADING') return 'LOADING';
+      if (value === 'UNLOADING') return 'UNLOADING';
+      return 'UNKNOWN';
+    };
+
+    const blocks: any[] = [];
+    let cursor: Date | null = null;
+
+    for (const event of events) {
+      const start = new Date(event.startTime);
+      const end = event.endTime ? new Date(event.endTime) : null;
+      if (cursor && start.getTime() > cursor.getTime() + 60000) {
+        blocks.push({
+          activity: 'UNKNOWN',
+          start: cursor.toISOString(),
+          end: start.toISOString(),
+          durationSeconds: Math.round((start.getTime() - cursor.getTime()) / 1000),
+          source: 'missing',
+          gap: true,
+        });
+      }
+      const durationSeconds = end
+        ? Math.max(0, Math.round((end.getTime() - start.getTime()) / 1000))
+        : Math.max(0, Number(event.duration) || 0);
+      blocks.push({
+        id: event.id,
+        activity: normalize(event.activity),
+        rawActivity: event.activity,
+        start: start.toISOString(),
+        end: end ? end.toISOString() : null,
+        durationSeconds,
+        source: event.source || 'tachograph',
+        truckId: event.truckId || null,
+        tripId: event.tripId || null,
+        latitude: event.latitude ?? null,
+        longitude: event.longitude ?? null,
+        gap: false,
+      });
+      cursor = end || start;
+    }
+
+    const summary = blocks.reduce(
+      (acc, block) => {
+        const key =
+          block.activity === 'DRIVING'
+            ? 'drivingSeconds'
+            : block.activity === 'BREAK'
+            ? 'breakSeconds'
+            : block.activity === 'REST'
+            ? 'restSeconds'
+            : block.activity === 'AVAILABILITY'
+            ? 'availabilitySeconds'
+            : block.activity === 'WORKING'
+            ? 'workSeconds'
+            : block.activity === 'UNKNOWN'
+            ? 'unknownSeconds'
+            : 'otherSeconds';
+        acc[key] += Number(block.durationSeconds) || 0;
+        return acc;
+      },
+      {
+        drivingSeconds: 0,
+        breakSeconds: 0,
+        restSeconds: 0,
+        workSeconds: 0,
+        availabilitySeconds: 0,
+        unknownSeconds: 0,
+        otherSeconds: 0,
+      },
+    );
+
+    const hasRecords = blocks.length > 0;
+    const drivingRemaining = Math.max(0, this.complianceService.MAX_DAILY_DRIVING_NORMAL - summary.drivingSeconds);
+    const weeklyRemaining = Math.max(0, this.complianceService.MAX_WEEKLY_DRIVING - summary.drivingSeconds);
+
+    const warnings: string[] = [];
+    if (summary.unknownSeconds > 0) {
+      warnings.push('unknown_gaps');
+    }
+    if (summary.drivingSeconds >= this.complianceService.MAX_DAILY_DRIVING_NORMAL) {
+      warnings.push('daily_limit_reached');
+    }
+
+    return {
+      available: hasRecords,
+      reason: hasRecords ? null : 'no_activity_records',
+      driverId,
+      driverName: driver.user?.name || (driver as any).name || null,
+      from: from.toISOString(),
+      to: to.toISOString(),
+      blocks,
+      summary: {
+        ...summary,
+        drivingRemainingSeconds: drivingRemaining,
+        weeklyDrivingRemainingSeconds: weeklyRemaining,
+      },
+      warnings,
+      source: 'tachograph',
+      note: 'Activities come from stored tachograph/telematics records only. Planned trip schedules are never converted into activity records. Legal compliance cannot be confirmed from incomplete data.',
+    };
   }
 
   // 6. Mobile Driver App Endpoint: /api/mobile/my-truck

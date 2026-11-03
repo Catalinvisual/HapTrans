@@ -220,6 +220,21 @@ export class PlanningController {
   }
 
   // ─── Fleet-Wide VRP Optimization (§5) ───
+  @Get('trips/:tripId/route-alternatives')
+  getRouteAlternatives(@Request() req: any, @Param('tripId') tripId: string, @Query() query: any) {
+    return this.planningService.getTripRouteAlternatives(req.user, tripId, query);
+  }
+
+  @Post('trips/:tripId/route-alternatives/apply')
+  applyRouteAlternative(@Request() req: any, @Param('tripId') tripId: string, @Body() body: any) {
+    return this.planningService.applyTripRouteAlternative(req.user, tripId, body);
+  }
+
+  @Get('trips/:tripId/live-eta')
+  getLiveEta(@Request() req: any, @Param('tripId') tripId: string) {
+    return this.planningService.getTripLiveEta(req.user, tripId);
+  }
+
   @Post('optimize-fleet')
   optimizeFleet(@Request() req: any, @Body() body: any) {
     return this.planningService.optimizeFleetProposal(req.user, body);

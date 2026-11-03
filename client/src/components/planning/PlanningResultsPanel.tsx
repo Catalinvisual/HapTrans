@@ -125,6 +125,7 @@ export default function PlanningResultsPanel({
   from,
   to,
   onSelectTrip,
+  focusSignal,
 }: {
   boardData: any;
   selectedTripId: string | null;
@@ -136,6 +137,7 @@ export default function PlanningResultsPanel({
   from?: string;
   to?: string;
   onSelectTrip?: (id: string) => void;
+  focusSignal?: number;
 }) {
   const { t } = useTranslation();
 
@@ -144,6 +146,22 @@ export default function PlanningResultsPanel({
   const [height, setHeight] = useState<number>(readStoredHeight);
   const [dragging, setDragging] = useState(false);
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
+  const [quickFilter, setQuickFilter] = useState('');
+  const [statusFilterValue, setStatusFilterValue] = useState('');
+  const [sortKey, setSortKey] = useState('tripNumber');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [showColumns, setShowColumns] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = window.localStorage.getItem('hapcargo:planningResultsColumns');
+      if (raw) return JSON.parse(raw);
+    } catch {
+      /* ignore */
+    }
+    return {};
+  });
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareIds, setCompareIds] = useState<string[]>([]);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -169,6 +187,13 @@ export default function PlanningResultsPanel({
       /* ignore */
     }
   }, [view]);
+
+  useEffect(() => {
+    if (!focusSignal) return;
+    setCollapsed(false);
+    setView('results');
+    panelRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [focusSignal]);
 
   const startResize = (event: any) => {
     if (collapsed) return;
@@ -235,6 +260,64 @@ export default function PlanningResultsPanel({
 
   const metrics = useMemo(() => trips.map(buildTripMetrics), [trips]);
 
+  const metricById = useMemo(() => {
+    const map = new Map<string, (typeof metrics)[number]>();
+    for (const metric of metrics) map.set(metric.id, metric);
+    return map;
+  }, [metrics]);
+
+  const quickFilteredMetrics = useMemo(() => {
+    const query = quickFilter.trim().toLowerCase();
+    return metrics.filter((metric) => {
+      if (statusFilterValue && metric.status !== statusFilterValue) return false;
+      if (!query) return true;
+      return [metric.tripNumber, metric.truckPlate, metric.trailerPlate, metric.driverName, metric.status].some(
+        (value) => String(value || '').toLowerCase().includes(query),
+      );
+    });
+  }, [metrics, quickFilter, statusFilterValue]);
+
+  const sortOptions = [
+    { key: 'tripNumber', label: t('pr.trip', 'Trip') },
+    { key: 'truckPlate', label: t('pr.truck', 'Truck') },
+    { key: 'driverName', label: t('pr.driver', 'Driver') },
+    { key: 'distanceKm', label: t('pr.distance_km', 'Distance (km)') },
+    { key: 'drivingMin', label: t('pr.driving_time', 'Driving time') },
+    { key: 'travelMin', label: t('pr.travel_time', 'Travel time') },
+    { key: 'toll', label: t('pr.toll', 'Toll') },
+    { key: 'totalCost', label: t('pr.total_cost', 'Total cost') },
+    { key: 'revenue', label: t('pr.revenue', 'Revenue') },
+    { key: 'profit', label: t('pr.profit', 'Profit') },
+    { key: 'utilizationPct', label: t('pr.utilization', 'Utilization') },
+  ];
+
+  const displayMetrics = useMemo(() => {
+    const list = [...quickFilteredMetrics];
+    list.sort((a, b) => {
+      const av = (a as any)[sortKey];
+      const bv = (b as any)[sortKey];
+      const result =
+        typeof av === 'number' && typeof bv === 'number'
+          ? av - bv
+          : String(av ?? '').localeCompare(String(bv ?? ''), appLocale());
+      return sortDir === 'asc' ? result : -result;
+    });
+    return list;
+  }, [quickFilteredMetrics, sortKey, sortDir]);
+
+  const compareMetrics = useMemo(
+    () => compareIds.map((id) => metricById.get(id)).filter(Boolean) as (typeof metrics),
+    [compareIds, metricById],
+  );
+
+  const toggleCompare = useCallback((id: string) => {
+    setCompareIds((prev) => {
+      if (prev.includes(id)) return prev.filter((value) => value !== id);
+      if (prev.length >= 3) return prev;
+      return [...prev, id];
+    });
+  }, []);
+
   const selected = useMemo(() => {
     if (!selectedTripId) return null;
     return (
@@ -261,6 +344,7 @@ export default function PlanningResultsPanel({
     const currencies = Array.from(new Set(metrics.map((m) => m.currency).filter(Boolean)));
     return {
       distance: sum('distanceKm'),
+      emptyKm: sum('emptyKm'),
       travel: sum('travelMin'),
       driving: sum('drivingMin'),
       waiting: sum('waitingMin'),
@@ -349,16 +433,16 @@ export default function PlanningResultsPanel({
 
   const rangeLabel = useMemo(() => {
     if (!from && !to) return t('pr.all_trips', 'All trips in range');
-    const start = from ? fmtDateShort(from) : 'â€¦';
-    const end = to ? fmtDateShort(to) : 'â€¦';
-    return `${start} â€“ ${end}`;
+    const start = from ? fmtDateShort(from) : '…';
+    const end = to ? fmtDateShort(to) : '…';
+    return `${start} – ${end}`;
   }, [from, to, t]);
 
   const reportSubtitle = useCallback(
     (rowCount: number) =>
-      `${t('pr.report_range', 'Range')}: ${rangeLabel} Â· ${t('pr.generated', 'Generated')}: ${new Date().toLocaleString(
+      `${t('pr.report_range', 'Range')}: ${rangeLabel} · ${t('pr.generated', 'Generated')}: ${new Date().toLocaleString(
         appLocale(),
-      )} Â· ${rowCount} ${t('pr.rows', 'rows')}`,
+      )} · ${rowCount} ${t('pr.rows', 'rows')}`,
     [rangeLabel, t],
   );
 
@@ -411,7 +495,7 @@ export default function PlanningResultsPanel({
     value === null ? nc() : <span className="tabular-nums">{fmtMoney(value, currency)}</span>;
 
   const totalMoney = (value: number | null) => {
-    if (value === null) return <span className="text-text-muted">â€”</span>;
+    if (value === null) return <span className="text-text-muted">—</span>;
     if (totals.currency === null) {
       return <span className="italic text-text-muted/80">{t('pr.mixed_currency', 'Mixed currencies')}</span>;
     }
@@ -514,7 +598,7 @@ export default function PlanningResultsPanel({
             company: stop?.companyName || '',
             timeWindow: [fmtDateTime(stop?.timeWindowMin), fmtDateTime(stop?.timeWindowMax)]
               .filter(Boolean)
-              .join(' â€“ '),
+              .join(' – '),
             eta: fmtDateTime(stop?.eta),
             ata: fmtDateTime(stop?.ata),
             service: service ?? '',
@@ -619,8 +703,8 @@ export default function PlanningResultsPanel({
         { key: 'distance', label: t('pr.distance_km', 'Distance (km)'), align: 'right' },
         { key: 'consumption', label: t('pr.consumption', 'Consumption (L/100 km)'), align: 'right' },
         { key: 'liters', label: t('pr.estimated_fuel', 'Estimated fuel (L)'), align: 'right' },
-        { key: 'factor', label: t('pr.co2_factor', 'COâ‚‚ factor (kg/L)'), align: 'right' },
-        { key: 'co2', label: t('pr.estimated_co2', 'Estimated COâ‚‚ (kg)'), align: 'right' },
+        { key: 'factor', label: t('pr.co2_factor', 'CO₂ factor (kg/L)'), align: 'right' },
+        { key: 'co2', label: t('pr.estimated_co2', 'Estimated CO₂ (kg)'), align: 'right' },
         { key: 'status', label: t('pr.status', 'Status') },
       ];
       const rows = metrics.map((m) => ({
@@ -633,7 +717,7 @@ export default function PlanningResultsPanel({
         factor: m.emissionFactor ?? '',
         co2: m.co2Kg ?? '',
         status: m.isElectric
-          ? t('pr.electric_unavailable', 'COâ‚‚ estimate is not available for electric vehicles.')
+          ? t('pr.electric_unavailable', 'CO₂ estimate is not available for electric vehicles.')
           : m.co2Kg === null
           ? t('pr.not_calculated', 'Not calculated')
           : t('pr.estimated', 'Estimated'),
@@ -797,11 +881,189 @@ export default function PlanningResultsPanel({
     </div>
   );
 
+  const resultColumns = [
+    { key: 'tripNumber', index: 1, label: t('pr.trip', 'Trip') },
+    { key: 'truckPlate', index: 2, label: t('pr.truck', 'Truck') },
+    { key: 'trailerPlate', index: 3, label: t('pr.trailer', 'Trailer') },
+    { key: 'driverName', index: 4, label: t('pr.driver', 'Driver') },
+    { key: 'distanceKm', index: 5, label: t('pr.distance_km', 'Distance (km)') },
+    { key: 'travelMin', index: 6, label: t('pr.travel_time', 'Travel time') },
+    { key: 'drivingMin', index: 7, label: t('pr.driving_time', 'Driving time') },
+    { key: 'waitingMin', index: 8, label: t('pr.waiting', 'Waiting') },
+    { key: 'loadingMin', index: 9, label: t('pr.loading', 'Loading') },
+    { key: 'unloadingMin', index: 10, label: t('pr.unloading', 'Unloading') },
+    { key: 'departure', index: 11, label: t('pr.departure', 'Departure') },
+    { key: 'arrival', index: 12, label: t('pr.arrival', 'Arrival') },
+    { key: 'toll', index: 13, label: t('pr.toll', 'Toll') },
+    { key: 'fuelCost', index: 14, label: t('pr.fuel', 'Fuel') },
+    { key: 'driverCost', index: 15, label: t('pr.driver_cost', 'Driver cost') },
+    { key: 'otherCost', index: 16, label: t('pr.other_costs', 'Other costs') },
+    { key: 'totalCost', index: 17, label: t('pr.total_cost', 'Total cost') },
+    { key: 'revenue', index: 18, label: t('pr.revenue', 'Revenue') },
+    { key: 'profit', index: 19, label: t('pr.profit', 'Profit') },
+    { key: 'emptyKm', index: 20, label: t('pr.empty_km', 'Empty km') },
+    { key: 'utilizationPct', index: 21, label: t('pr.utilization', 'Utilization') },
+    { key: 'status', index: 22, label: t('pr.status', 'Status') },
+  ];
+
+  const hiddenColumnCss = resultColumns
+    .filter((column) => visibleColumns[column.key] === false)
+    .map((column) => `.pr-results-table tr > *:nth-child(${column.index}){display:none}`)
+    .join('\n');
+
+  const toggleColumn = (key: string) => {
+    setVisibleColumns((prev) => {
+      const next = { ...prev, [key]: prev[key] === false };
+      try {
+        window.localStorage.setItem('hapcargo:planningResultsColumns', JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
+
+  const statusOptions = Array.from(new Set(metrics.map((metric) => metric.status).filter(Boolean)));
+
   const renderResults = () => {
     if (metrics.length === 0) return renderEmpty(t('pr.no_trips', 'No trips in range'));
     return (
       <div className="min-w-full">
-        <table className="w-full border-collapse text-[11px]">
+        {hiddenColumnCss ? <style>{hiddenColumnCss}</style> : null}
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-border bg-surface/70 px-2 py-1.5">
+          <input
+            value={quickFilter}
+            onChange={(event) => setQuickFilter(event.target.value)}
+            placeholder={t('up_res_filter', 'Filter trips…')}
+            className="input h-7 w-44 text-[10px]"
+            aria-label={t('up_res_filter', 'Filter trips…')}
+          />
+          <select
+            value={statusFilterValue}
+            onChange={(event) => setStatusFilterValue(event.target.value)}
+            className="input h-7 w-32 text-[10px]"
+            aria-label={t('up_res_status', 'Status')}
+          >
+            <option value="">{t('up_res_all_statuses', 'All statuses')}</option>
+            {statusOptions.map((status) => (
+              <option key={status} value={status}>
+                {t(`status_${status}`, status)}
+              </option>
+            ))}
+          </select>
+          <select
+            value={sortKey}
+            onChange={(event) => setSortKey(event.target.value)}
+            className="input h-7 w-36 text-[10px]"
+            aria-label={t('up_res_sort', 'Sort by')}
+          >
+            {sortOptions.map((option) => (
+              <option key={option.key} value={option.key}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+            className="btn-secondary h-7 px-2 text-[10px] font-black"
+            title={sortDir === 'asc' ? t('up_res_asc', 'Ascending') : t('up_res_desc', 'Descending')}
+            aria-label={sortDir === 'asc' ? t('up_res_asc', 'Ascending') : t('up_res_desc', 'Descending')}
+          >
+            {sortDir === 'asc' ? '\u2191' : '\u2193'}
+          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowColumns((prev) => !prev)}
+              className="btn-secondary h-7 px-2 text-[10px] font-bold"
+              title={t('up_res_columns', 'Columns')}
+            >
+              {t('up_res_columns', 'Columns')}
+            </button>
+            {showColumns && (
+              <div className="absolute left-0 top-8 z-30 max-h-64 w-52 overflow-y-auto rounded-xl border border-border bg-card p-1.5 shadow-xl">
+                {resultColumns.map((column) => (
+                  <label key={column.key} className="flex cursor-pointer items-center gap-1.5 rounded px-1.5 py-1 text-[10px] text-text-primary hover:bg-surface">
+                    <input
+                      type="checkbox"
+                      className="checkbox"
+                      checked={visibleColumns[column.key] !== false}
+                      onChange={() => toggleColumn(column.key)}
+                    />
+                    {column.label}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setCompareMode((prev) => !prev);
+              if (compareMode) setCompareIds([]);
+            }}
+            className={`h-7 px-2 text-[10px] font-black rounded-lg border ${compareMode ? 'bg-primary text-white border-primary' : 'bg-card border-border text-text-secondary'}`}
+            title={t('up_res_compare_hint', 'Compare mode: click up to 3 trips to compare them')}
+          >
+            {t('up_res_compare', 'Compare')}
+          </button>
+          {compareMode && (
+            <span className="text-[9px] font-semibold text-primary" title={t('up_res_compare_max', 'You can compare at most 3 trips')}>
+              {t('up_res_compare_hint', 'Compare mode: click up to 3 trips to compare them')} ({compareIds.length}/3)
+            </span>
+          )}
+          {compareIds.length > 0 && (
+            <button type="button" onClick={() => setCompareIds([])} className="text-[10px] font-bold text-primary hover:underline">
+              {t('up_res_clear', 'Clear selection')}
+            </button>
+          )}
+          <span className="ml-auto text-[9px] font-bold text-text-muted">
+            {displayMetrics.length} / {metrics.length}
+          </span>
+        </div>
+        {compareMetrics.length >= 2 && (
+          <div className="overflow-x-auto border-b border-border bg-primary/5 p-2">
+            <table className="w-full border-collapse text-[10px]">
+              <thead>
+                <tr>
+                  <th className="px-2 py-1 text-left text-[9px] font-black uppercase text-text-secondary">
+                    {t('up_res_compare', 'Compare')}
+                  </th>
+                  {compareMetrics.map((metric) => (
+                    <th key={metric.id} className="px-2 py-1 text-right text-[9px] font-black text-text-primary">
+                      {metric.tripNumber || metric.id.slice(0, 8)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { key: 'distanceKm', label: t('pr.distance_km', 'Distance (km)'), format: (value: any) => (value === null ? '—' : `${fmtNumber(value, 0)} km`) },
+                  { key: 'drivingMin', label: t('pr.driving_time', 'Driving time'), format: (value: any) => (value === null ? '—' : fmtMinutes(value)) },
+                  { key: 'toll', label: t('pr.toll', 'Toll'), format: (value: any) => (value === null ? '—' : fmtMoney(value, 'EUR')) },
+                  { key: 'totalCost', label: t('pr.total_cost', 'Total cost'), format: (value: any) => (value === null ? '—' : fmtMoney(value, 'EUR')) },
+                  { key: 'revenue', label: t('pr.revenue', 'Revenue'), format: (value: any) => (value === null ? '—' : fmtMoney(value, 'EUR')) },
+                  { key: 'profit', label: t('pr.profit', 'Profit'), format: (value: any) => (value === null ? '—' : fmtMoney(value, 'EUR')) },
+                  { key: 'utilizationPct', label: t('pr.utilization', 'Utilization'), format: (value: any) => (value === null ? '—' : `${fmtNumber(value, 0)}%`) },
+                ].map((row) => (
+                  <tr key={row.key} className="border-t border-border/40">
+                    <td className="px-2 py-1 text-[10px] font-bold text-text-secondary">{row.label}</td>
+                    {compareMetrics.map((metric) => (
+                      <td key={`${row.key}-${metric.id}`} className="px-2 py-1 text-right tabular-nums text-text-primary">
+                        {row.format((metric as any)[row.key])}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {displayMetrics.length === 0 ? (
+          renderEmpty(t('pr.no_trips', 'No trips in range'))
+        ) : (
+        <table className="pr-results-table w-full border-collapse text-[11px]">
           <thead>
             <tr>
               <th className={thL}>{t('pr.trip', 'Trip')}</th>
@@ -829,12 +1091,16 @@ export default function PlanningResultsPanel({
             </tr>
           </thead>
           <tbody>
-            {metrics.map((m) => (
+            {displayMetrics.map((m) => (
               <tr
                 key={m.id}
-                onClick={() => onSelectTrip?.(m.id)}
+                onClick={() => (compareMode ? toggleCompare(m.id) : onSelectTrip?.(m.id))}
                 className={`cursor-pointer transition-colors ${
-                  selected?.id === m.id ? 'bg-primary/10' : 'hover:bg-primary/5'
+                  compareIds.includes(m.id)
+                    ? 'bg-primary/15 ring-1 ring-inset ring-primary/30'
+                    : selected?.id === m.id
+                    ? 'bg-primary/10'
+                    : 'hover:bg-primary/5'
                 }`}
               >
                 <td className={`${td} font-bold`}>{m.tripNumber || np()}</td>
@@ -866,7 +1132,9 @@ export default function PlanningResultsPanel({
                 >
                   {moneyOr(m.profit, m.currency)}
                 </td>
-                <td className={tdR}>{nc()}</td>
+                <td className={tdR}>
+                  {m.emptyKm === null || m.emptyKm === undefined ? nc() : <span className="tabular-nums">{fmtNumber(m.emptyKm, 0)}</span>}
+                </td>
                 <td className={tdR}>
                   {m.utilizationPct === null ? nc() : `${fmtNumber(m.utilizationPct, 0)}%`}
                 </td>
@@ -880,12 +1148,12 @@ export default function PlanningResultsPanel({
               <td className={td} />
               <td className={td} />
               <td className={td} />
-              <td className={tdR}>{totals.distance === null ? 'â€”' : fmtNumber(totals.distance, 0)}</td>
-              <td className={tdR}>{totals.travel === null ? 'â€”' : fmtMinutes(totals.travel)}</td>
-              <td className={tdR}>{totals.driving === null ? 'â€”' : fmtMinutes(totals.driving)}</td>
-              <td className={tdR}>{totals.waiting === null ? 'â€”' : fmtMinutes(totals.waiting)}</td>
-              <td className={tdR}>{totals.loading === null ? 'â€”' : fmtMinutes(totals.loading)}</td>
-              <td className={tdR}>{totals.unloading === null ? 'â€”' : fmtMinutes(totals.unloading)}</td>
+              <td className={tdR}>{totals.distance === null ? '—' : fmtNumber(totals.distance, 0)}</td>
+              <td className={tdR}>{totals.travel === null ? '—' : fmtMinutes(totals.travel)}</td>
+              <td className={tdR}>{totals.driving === null ? '—' : fmtMinutes(totals.driving)}</td>
+              <td className={tdR}>{totals.waiting === null ? '—' : fmtMinutes(totals.waiting)}</td>
+              <td className={tdR}>{totals.loading === null ? '—' : fmtMinutes(totals.loading)}</td>
+              <td className={tdR}>{totals.unloading === null ? '—' : fmtMinutes(totals.unloading)}</td>
               <td className={td} />
               <td className={td} />
               <td className={tdR}>{totalMoney(totals.toll)}</td>
@@ -895,14 +1163,15 @@ export default function PlanningResultsPanel({
               <td className={tdR}>{totalMoney(totals.totalCost)}</td>
               <td className={tdR}>{totalMoney(totals.revenue)}</td>
               <td className={tdR}>{totalMoney(totals.profit)}</td>
-              <td className={tdR}>â€”</td>
+              <td className={tdR}>{totals.emptyKm === null ? '—' : fmtNumber(totals.emptyKm, 0)}</td>
               <td className={tdR}>
-                {totals.utilization === null ? 'â€”' : `${fmtNumber(totals.utilization, 0)}%`}
+                {totals.utilization === null ? '—' : `${fmtNumber(totals.utilization, 0)}%`}
               </td>
               <td className={td} />
             </tr>
           </tbody>
         </table>
+        )}
       </div>
     );
   };
@@ -977,7 +1246,7 @@ export default function PlanningResultsPanel({
                 const service = minutesBetween(stop?.ata, stop?.completedAt);
                 const windowValue = [fmtDateTime(stop?.timeWindowMin), fmtDateTime(stop?.timeWindowMax)]
                   .filter(Boolean)
-                  .join(' â€“ ');
+                  .join(' – ');
                 const taskLabel = (stop?.tasks || [])
                   .map((task: any) => {
                     const taskType = String(task?.type || '').toLowerCase();
@@ -1073,7 +1342,7 @@ export default function PlanningResultsPanel({
                     <td className={tdR}>{totalMoney(category.value)}</td>
                     <td className={tdR}>
                       {category.value === null || recorded <= 0
-                        ? 'â€”'
+                        ? '—'
                         : `${fmtNumber((category.value / recorded) * 100, 1)}%`}
                     </td>
                   </tr>
@@ -1211,9 +1480,9 @@ export default function PlanningResultsPanel({
                 <td className={td}>{conflict?.code || np()}</td>
                 <td className={`${td} whitespace-normal min-w-[240px]`}>{conflict?.message || np()}</td>
                 <td className={td}>
-                  {conflict?.tripId ? tripNumberById.get(conflict.tripId) || conflict.tripId : 'â€”'}
+                  {conflict?.tripId ? tripNumberById.get(conflict.tripId) || conflict.tripId : '—'}
                 </td>
-                <td className={td}>{conflict?.resourceId ? resourceLabel(conflict.resourceId) : 'â€”'}</td>
+                <td className={td}>{conflict?.resourceId ? resourceLabel(conflict.resourceId) : '—'}</td>
               </tr>
             ))}
           </tbody>
@@ -1236,7 +1505,7 @@ export default function PlanningResultsPanel({
             estimatedMetrics.length ? fmtNumber(totalFuel, 1) : nc(),
           )}
           {summaryCard(
-            t('pr.estimated_co2', 'Estimated COâ‚‚ (kg)'),
+            t('pr.estimated_co2', 'Estimated CO₂ (kg)'),
             estimatedMetrics.length ? fmtNumber(totalCo2, 1) : nc(),
             'text-emerald-600',
           )}
@@ -1254,8 +1523,8 @@ export default function PlanningResultsPanel({
               <th className={thR}>{t('pr.distance_km', 'Distance (km)')}</th>
               <th className={thR}>{t('pr.consumption', 'Consumption (L/100 km)')}</th>
               <th className={thR}>{t('pr.estimated_fuel', 'Estimated fuel (L)')}</th>
-              <th className={thR}>{t('pr.co2_factor', 'COâ‚‚ factor (kg/L)')}</th>
-              <th className={thR}>{t('pr.estimated_co2', 'Estimated COâ‚‚ (kg)')}</th>
+              <th className={thR}>{t('pr.co2_factor', 'CO₂ factor (kg/L)')}</th>
+              <th className={thR}>{t('pr.estimated_co2', 'Estimated CO₂ (kg)')}</th>
               <th className={thL}>{t('pr.status', 'Status')}</th>
             </tr>
           </thead>
@@ -1285,7 +1554,7 @@ export default function PlanningResultsPanel({
                 <td className={td}>
                   {m.isElectric ? (
                     <span className="italic text-text-muted/70">
-                      {t('pr.electric_unavailable', 'COâ‚‚ estimate is not available for electric vehicles.')}
+                      {t('pr.electric_unavailable', 'CO₂ estimate is not available for electric vehicles.')}
                     </span>
                   ) : m.co2Kg === null ? (
                     nc()
@@ -1301,11 +1570,11 @@ export default function PlanningResultsPanel({
               <td className={td}>{t('pr.total', 'Total')}</td>
               <td className={td} />
               <td className={td} />
-              <td className={tdR}>{totals.distance === null ? 'â€”' : fmtNumber(totals.distance, 0)}</td>
+              <td className={tdR}>{totals.distance === null ? '—' : fmtNumber(totals.distance, 0)}</td>
               <td className={tdR} />
-              <td className={tdR}>{estimatedMetrics.length ? fmtNumber(totalFuel, 1) : 'â€”'}</td>
+              <td className={tdR}>{estimatedMetrics.length ? fmtNumber(totalFuel, 1) : '—'}</td>
               <td className={tdR} />
-              <td className={tdR}>{estimatedMetrics.length ? fmtNumber(totalCo2, 1) : 'â€”'}</td>
+              <td className={tdR}>{estimatedMetrics.length ? fmtNumber(totalCo2, 1) : '—'}</td>
               <td className={td} />
             </tr>
           </tbody>
@@ -1313,7 +1582,7 @@ export default function PlanningResultsPanel({
         <div className="mt-2 space-y-1 text-[10px] text-text-secondary">
           <p>{t('pr.emission_note', 'Estimates based on distance Ã— consumption Ã— emission factor. They do not replace real measurements.')}</p>
           {usesAssumption && (
-            <p>{t('pr.emission_assumption_diesel', 'Fuel type is missing; diesel is assumed (2.68 kg COâ‚‚/L).')}</p>
+            <p>{t('pr.emission_assumption_diesel', 'Fuel type is missing; diesel is assumed (2.68 kg CO₂/L).')}</p>
           )}
         </div>
       </div>
@@ -1372,7 +1641,7 @@ export default function PlanningResultsPanel({
           </span>
           {selected && (
             <span className="hidden md:inline text-[10px] font-semibold text-text-secondary truncate">
-              Â· {selected.tripNumber}
+              · {selected.tripNumber}
             </span>
           )}
         </div>

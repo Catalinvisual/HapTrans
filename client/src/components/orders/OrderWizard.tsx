@@ -10,6 +10,7 @@ import CustomDatePicker from '../CustomDatePicker';
 import PalletIcon from '../icons/PalletIcon';
 import WeightKgIcon from '../icons/WeightKgIcon';
 import AdrCargoSection from './AdrCargoSection';
+import { calculateLdm, calculateVolumeCbm, hasNoCapacityData } from '../../lib/cargoCalc';
 export interface OrderWizardPrefill {
   pickupAddress?: string;
   deliveryAddress?: string;
@@ -707,10 +708,39 @@ export default function OrderWizard({
     };
     setExtraStops(n);
   };
+  // Fields that were derived automatically; they may be recalculated, while
+  // manually entered values are never overwritten.
+  const autoVolumeFields = useRef<Set<string>>(new Set());
+  const autoLdmFields = useRef<Set<string>>(new Set());
+
   const handleCargoChange = (i: number, field: string, value: any) => {
     setIsHighlightDismissed(true);
     const n = [...cargoItems];
-    n[i][field] = value;
+    const next = { ...n[i], [field]: value };
+    const structural = ['lengthCm', 'widthCm', 'heightCm', 'quantity'].includes(field);
+
+    if (structural) {
+      const volumeKey = `${i}:volume`;
+      const ldmKey = `${i}:ldm`;
+      const maySetVolume = !next.volumeCbm || autoVolumeFields.current.has(volumeKey);
+      const maySetLdm = !next.ldm || autoLdmFields.current.has(ldmKey);
+      const volume = calculateVolumeCbm(next);
+      const ldm = calculateLdm(next);
+      if (volume !== null && maySetVolume) {
+        next.volumeCbm = String(volume);
+        autoVolumeFields.current.add(volumeKey);
+      }
+      if (ldm !== null && maySetLdm) {
+        next.ldm = String(ldm);
+        autoLdmFields.current.add(ldmKey);
+      }
+    } else if (field === 'volumeCbm') {
+      autoVolumeFields.current.delete(`${i}:volume`);
+    } else if (field === 'ldm') {
+      autoLdmFields.current.delete(`${i}:ldm`);
+    }
+
+    n[i] = next;
     setCargoItems(n);
     // Reset cost estimate when modal closes
     setCostEstimate(null);
@@ -1646,6 +1676,18 @@ export default function OrderWizard({
                         {cargo.isTemperatureControlled && <input type="number" step="0.5" value={cargo.requiredTemperature || ''} onChange={e => handleCargoChange(index, 'requiredTemperature', e.target.value)} className="input p-1 text-xs mt-1 w-full" placeholder={t('temp_c_placeholder', 'Temp °C')} />}
                       </div>
                     </div>
+
+                    {hasNoCapacityData(cargo) && (
+                      <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-2 py-1 text-[10px] font-bold text-amber-700 dark:text-amber-400">
+                        <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                        <span>{t('up_cargo_missing_dims', 'Cargo measurements are incomplete. LDM and volume cannot be validated reliably for this order.')}</span>
+                      </p>
+                    )}
+                    {(cargo.volumeCbm || cargo.ldm) && (cargo.lengthCm || cargo.widthCm || cargo.heightCm) && (
+                      <p className="mt-2 text-[9px] text-text-muted">
+                        {t('up_cargo_auto_calc', 'Calculated automatically from dimensions and quantity. You can overwrite it.')}
+                      </p>
+                    )}
 
                     {/* ADR Hazardous Goods Section */}
                     <div className="mt-4 pt-4 border-t border-border/60">

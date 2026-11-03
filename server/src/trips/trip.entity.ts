@@ -136,6 +136,19 @@ export class Trip {
   @Column({ type: 'varchar', default: 'normal' })
   trafficStatus: string; // 'normal' | 'congested' | 'heavy_delay' | 'unavailable'
 
+  // Live ETA (calculated from GPS position + traffic-aware routing only)
+  @Column({ type: 'timestamp', nullable: true })
+  lastLiveEta: Date | null;
+
+  @Column({ type: 'varchar', default: 'unknown' })
+  etaStatus: string; // 'on_time' | 'at_risk' | 'late' | 'unknown'
+
+  @Column({ type: 'timestamp', nullable: true })
+  lastEtaAt: Date | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  etaSource: string; // e.g. 'gps+here'
+
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2, default: 0 })
   estimatedCost: number;
 

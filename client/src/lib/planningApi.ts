@@ -211,6 +211,29 @@ export const planningApi = {
     return data;
   },
 
+  getTripRouteAlternatives: async (tripId: string, params?: { avoidTolls?: boolean; avoidFerries?: boolean; count?: number }) => {
+    const { data } = await api.get(`/planning/trips/${tripId}/route-alternatives`, { params });
+    return data;
+  },
+  applyTripRouteAlternative: async (tripId: string, payload: {
+    distanceKm: number;
+    durationMin: number;
+    tollCost?: number | null;
+    tollStatus?: 'calculated' | 'unavailable';
+    source?: string;
+  }) => {
+    const { data } = await api.post(`/planning/trips/${tripId}/route-alternatives/apply`, payload);
+    return data;
+  },
+  getTripLiveEta: async (tripId: string) => {
+    const { data } = await api.get(`/planning/trips/${tripId}/live-eta`);
+    return data;
+  },
+  getDriverActivity: async (driverId: string, params?: { from?: string; to?: string }) => {
+    const { data } = await api.get(`/telematics/drivers/${driverId}/activity`, { params });
+    return data;
+  },
+
   getTripTolls: async (tripId: string) => {
     const { data } = await api.get(`/planning/trips/${tripId}/tolls`);
     return data;

@@ -3,6 +3,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { planningResources } from './planningI18n';
 import { planningResultsResources } from './planningResultsResources';
+import { planningUpgradeResources } from './planningUpgradeI18n';
 import { langOverrides } from './langOverrides';
 import { adrResources } from './adrI18n';
 
@@ -11130,6 +11131,11 @@ for (const lng of Object.keys(planningResources)) {
 for (const lng of Object.keys(planningResultsResources)) {
   if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
   Object.assign((resources as any)[lng].translation, (planningResultsResources as any)[lng]);
+}
+
+for (const lng of Object.keys(planningUpgradeResources)) {
+  if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
+  Object.assign((resources as any)[lng].translation, (planningUpgradeResources as any)[lng].translation);
 }
 
 

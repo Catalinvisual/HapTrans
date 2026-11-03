@@ -18,6 +18,7 @@ import { RoutePlanStop } from './route-plan-stop.entity';
 import { Shipment } from './shipment.entity';
 import { DropHookEvent } from './drop-hook.entity';
 import { CrossDockTransfer } from './cross-dock-transfer.entity';
+import { TelematicsDevice } from '../telematics/entities/telematics-device.entity';
 import { PlanningController } from './planning.controller';
 import { CarriersController } from './carriers.controller';
 import { PlanningService } from './planning.service';
@@ -47,6 +48,7 @@ import { TimelineModule } from '../timeline/timeline.module';
       Shipment,
       DropHookEvent,
       CrossDockTransfer,
+      TelematicsDevice,
     ]),
     EnginesModule,
     TimelineModule,

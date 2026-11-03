@@ -45,6 +45,9 @@ import DropHookModal from '../components/planning/DropHookModal';
 import CrossDockModal from '../components/planning/CrossDockModal';
 import SubcontractorModal from '../components/planning/SubcontractorModal';
 import FleetOptimizationModal from '../components/planning/FleetOptimizationModal';
+import RouteComparisonModal from '../components/planning/RouteComparisonModal';
+import DriverActivityTimeline from '../components/planning/DriverActivityTimeline';
+import TrafficIncidentsModal from '../components/planning/TrafficIncidentsModal';
 
 function useResizableSidebar(initialWidth: number = 300, minWidth: number = 220, maxWidth: number = 650) {
   const [width, setWidth] = useState(() => {
@@ -935,7 +938,7 @@ function ResourceRow({
 function TripDetailDrawer({
   tripSummary, resources = [], drivers = [], trailers = [], conflicts = [], hosSummary = {},
   onClose, onAction, onReorderStops, onEditOrder, onSplitTrip, onCombineTrip, onAutoOrderStops,
-  onDropHook, onCrossDock, onSubcontractor,
+  onDropHook, onCrossDock, onSubcontractor, onOpenDriverActivity,
   loadingAction, refreshKey,
 }: {
   tripSummary: any; resources?: any[]; drivers?: any[]; trailers?: any[]; conflicts?: any[]; hosSummary?: Record<string, any>;
@@ -948,6 +951,7 @@ function TripDetailDrawer({
   onDropHook?: (payload: { mode: 'drop' | 'hook'; trailerId?: string; tripId?: string }) => void;
   onCrossDock?: (payload: { tripId?: string }) => void;
   onSubcontractor?: (trip: any) => void;
+  onOpenDriverActivity?: (driver: any) => void;
   loadingAction?: string | null;
   refreshKey?: number;
 }) {
@@ -965,6 +969,8 @@ function TripDetailDrawer({
   const [trafficInfo, setTrafficInfo] = useState<any | null>(null);
   const [calculatingTolls, setCalculatingTolls] = useState(false);
   const [tollInfo, setTollInfo] = useState<any | null>(null);
+  const [etaInfo, setEtaInfo] = useState<any | null>(null);
+  const [loadingEta, setLoadingEta] = useState(false);
 
   useEffect(() => {
     setAuditEvents(null);
@@ -1411,6 +1417,89 @@ function TripDetailDrawer({
 
 
 
+
+        {/* Live ETA + driver activity preview */}
+        <div className="px-5 py-2 border-b border-border bg-surface/20 grid grid-cols-1 lg:grid-cols-2 gap-2 shrink-0">
+          <div className="rounded-xl border border-border bg-card p-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Navigation className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span className="text-[10px] font-black uppercase tracking-wide text-text-secondary truncate">
+                  {t('up_eta_title', 'Live ETA')}
+                </span>
+                {etaInfo?.freshness && (
+                  <span className={`px-1 py-0.5 rounded text-[8px] font-black uppercase ${etaInfo.freshness === 'live' ? 'bg-emerald-500/15 text-emerald-600' : 'bg-amber-500/15 text-amber-600'}`}>
+                    {etaInfo.freshness === 'live' ? t('up_eta_fresh', 'Live') : t('up_eta_stale_label', 'Stale')}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  setLoadingEta(true);
+                  try {
+                    const res = await planningApi.getTripLiveEta(tripId);
+                    setEtaInfo(res);
+                    if (!res.available) toast(res.message || t('up_eta_no_gps', 'No GPS position available for the assigned truck. Live ETA cannot be calculated.'), { icon: 'i' });
+                  } catch {
+                    toast.error(t('up_eta_unavailable', 'Live ETA unavailable — routing provider not configured.'));
+                  } finally {
+                    setLoadingEta(false);
+                  }
+                }}
+                disabled={loadingEta}
+                className="btn-secondary text-[10px] py-1 px-2 font-bold flex items-center gap-1 shrink-0"
+                title={t('up_eta_refresh', 'Update ETA')}
+                aria-label={t('up_eta_refresh', 'Update ETA')}
+              >
+                {loadingEta ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                <span>{t('up_eta_refresh', 'Update ETA')}</span>
+              </button>
+            </div>
+            {etaInfo ? (
+              etaInfo.available ? (
+                <div className="mt-1 space-y-1">
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-text-secondary">
+                    <span>{t('up_eta_remaining', 'Remaining distance')}: <b className="text-text-primary">{fmtNumber(etaInfo.totalRemainingKm, 0)} km</b></span>
+                    <span>{t('up_eta_last_update', 'Last GPS update')}: <b className="text-text-primary">{etaInfo.lastGpsAt ? new Date(etaInfo.lastGpsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</b></span>
+                  </div>
+                  {(etaInfo.stops || []).slice(0, 3).map((stop: any) => (
+                    <div key={stop.stopId} className="flex items-center justify-between gap-2 text-[10px]">
+                      <span className="truncate text-text-secondary">#{stop.sequence} {stop.city || stop.companyName || t('up_eta_stop', 'Stop')}</span>
+                      <span className="flex items-center gap-1.5 shrink-0">
+                        <span className="tabular-nums font-bold text-text-primary">{new Date(stop.liveEta).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        {stop.deviationMin !== null && (
+                          <span className={`text-[9px] font-black ${stop.deviationMin > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                            {stop.deviationMin > 0 ? '+' : ''}{stop.deviationMin}m
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                  {etaInfo.freshness === 'stale' && (
+                    <p className="text-[9px] text-amber-600">{t('up_eta_stale', 'GPS position is older than 15 minutes — treat this ETA as stale.')}</p>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-1 text-[10px] text-text-muted">{etaInfo.message || t('up_eta_no_gps', 'No GPS position available for the assigned truck. Live ETA cannot be calculated.')}</p>
+              )
+            ) : (
+              <p className="mt-1 text-[10px] text-text-muted">{t('up_eta_note', 'Live ETA uses the last GPS position and truck routing. Service time at stops is not included.')}</p>
+            )}
+          </div>
+          {driver?.id ? (
+            <DriverActivityTimeline
+              driverId={driver.id}
+              driverName={driverEntityDisplayName(driver)}
+              compact
+              onOpenFull={() => onOpenDriverActivity?.(driver)}
+            />
+          ) : (
+            <div className="rounded-xl border border-border bg-card p-2.5 text-[10px] text-text-muted">
+              {t('up_act_no_data', 'No tachograph activity records for this driver.')}
+            </div>
+          )}
+        </div>
 
         {/* Tabs */}
         <div className="flex border-b border-border bg-surface/20 px-5 gap-5 text-xs shrink-0">
@@ -1923,6 +2012,10 @@ export default function PlanningPage() {
 
   const [poolCollapsed, setPoolCollapsed] = useState(false);
   const [showOptimizeModal, setShowOptimizeModal] = useState(false);
+  const [compareTrip, setCompareTrip] = useState<any | null>(null);
+  const [activityDriver, setActivityDriver] = useState<{ id: string; name?: string } | null>(null);
+  const [trafficTrip, setTrafficTrip] = useState<any | null>(null);
+  const [resultsSignal, setResultsSignal] = useState(0);
   const [dispatchModalTrip, setDispatchModalTrip] = useState<any>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sortPool, setSortPool] = useState<'priority' | 'date' | 'weight' | 'client'>('priority');
@@ -2659,6 +2752,65 @@ export default function PlanningPage() {
             <GitMerge className="w-3.5 h-3.5 text-primary" /><span className="hidden xl:inline">{t('combine_trips', 'Combine')}</span>
           </button>
           
+          {/* Contextual planning tools */}
+          <div className="flex items-center gap-0.5 bg-card p-0.5 rounded-lg border border-border shadow-sm">
+            <button
+              type="button"
+              onClick={() => selectedTrip && setCompareTrip(selectedTrip)}
+              disabled={!selectedTrip}
+              className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              title={t('up_compare_routes', 'Compare routes')}
+              aria-label={t('up_compare_routes', 'Compare routes')}
+            >
+              <Navigation className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const truckId = selectedTrip?.truck?.id || selectedTrip?.truckId;
+                if (truckId) navigate(`/fleet?tab=trucks&editId=${truckId}&highlight=profile`);
+              }}
+              disabled={!selectedTrip?.truck?.id && !selectedTrip?.truckId}
+              className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              title={t('up_cmp_profile', 'Routing profile')}
+              aria-label={t('up_cmp_profile', 'Routing profile')}
+            >
+              <TruckIcon className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const drv = selectedTrip?.driver || selectedTrip?.truck?.driver;
+                if (drv?.id) setActivityDriver({ id: drv.id, name: driverEntityDisplayName(drv) });
+              }}
+              disabled={!(selectedTrip?.driver?.id || selectedTrip?.truck?.driver?.id)}
+              className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              title={t('up_driver_activity', 'Driver activity')}
+              aria-label={t('up_driver_activity', 'Driver activity')}
+            >
+              <Activity className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => selectedTrip && setTrafficTrip(selectedTrip)}
+              disabled={!selectedTrip}
+              className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              title={t('up_traffic_incidents', 'Traffic & incidents')}
+              aria-label={t('up_traffic_incidents', 'Traffic & incidents')}
+            >
+              <Clock3 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setResultsSignal((value) => value + 1)}
+              className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors"
+              title={t('up_planning_results', 'Planning results')}
+              aria-label={t('up_planning_results', 'Planning results')}
+            >
+              <List className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           <div className="flex bg-card p-0.5 rounded-lg border border-border shadow-sm">
             <button onClick={() => setShowExportModal(true)} className="p-1 hover:bg-surface rounded-md text-text-secondary hover:text-primary transition-colors" title={t('export_planning', 'Export')}>
               <ExcelIcon className="w-3.5 h-3.5" />
@@ -2992,6 +3144,7 @@ export default function PlanningPage() {
         from={from}
         to={to}
         onSelectTrip={setSelectedTripId}
+        focusSignal={resultsSignal}
       />
     ) : null}
 
@@ -3035,6 +3188,7 @@ export default function PlanningPage() {
           onDropHook={(cfg) => setDropHookConfig({ isOpen: true, mode: cfg.mode, trailerId: cfg.trailerId, tripId: cfg.tripId })}
           onCrossDock={(cfg) => setCrossDockConfig({ isOpen: true, tripId: cfg.tripId })}
           onSubcontractor={(tr) => setSubcontractorTargetTrip(tr)}
+          onOpenDriverActivity={(drv) => drv?.id && setActivityDriver({ id: drv.id, name: driverEntityDisplayName(drv) })}
           onEditOrder={(orderId, step, highlight) => {
             const h = highlight || 'cargo';
             const s = (step !== undefined && step !== null)
@@ -3156,6 +3310,32 @@ export default function PlanningPage() {
             loadData();
           }}
         />
+      )}
+
+      {compareTrip && (
+        <RouteComparisonModal
+          trip={compareTrip}
+          onClose={() => setCompareTrip(null)}
+          onApplied={(updated) => {
+            loadData();
+            if (updated?.id) setSelectedTripId(updated.id);
+          }}
+        />
+      )}
+
+      {trafficTrip && <TrafficIncidentsModal trip={trafficTrip} onClose={() => setTrafficTrip(null)} />}
+
+      {activityDriver && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-3 sm:p-6 backdrop-blur-md" onClick={() => setActivityDriver(null)}>
+          <div className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-3xl border border-border bg-card p-3 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <DriverActivityTimeline
+              driverId={activityDriver.id}
+              driverName={activityDriver.name}
+              onClose={() => setActivityDriver(null)}
+            />
+          </div>
+        </div>,
+        document.body,
       )}
 
       {/* Enterprise Planning Export Modal */}

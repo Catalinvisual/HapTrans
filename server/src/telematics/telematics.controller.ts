@@ -127,6 +127,17 @@ export class TelematicsController {
     return { success: true, status: 'LIVE' };
   }
 
+  // Driver activity timeline — built strictly from tachograph activity records.
+  @UseGuards(JwtAuthGuard)
+  @Get('drivers/:driverId/activity')
+  getDriverActivity(
+    @Param('driverId') driverId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.telematicsService.getDriverActivity(driverId, from, to);
+  }
+
   // 7. Mobile Driver App Telematics
   @UseGuards(JwtAuthGuard)
   @Get('mobile/my-truck')

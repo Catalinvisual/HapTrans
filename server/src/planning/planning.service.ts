@@ -26,6 +26,7 @@ import { TimelineService } from '../timeline/timeline.service';
 import { OptimizationService } from './optimization.service';
 import { RoutingService } from '../routing/routing.service';
 import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
+import { TelematicsDevice } from '../telematics/entities/telematics-device.entity';
 
 
 export const ACTIVE_TRIP_STATUSES = [
@@ -140,6 +141,7 @@ export class PlanningService {
     @InjectRepository(Shipment) private readonly shipmentRepo: Repository<Shipment>,
     @InjectRepository(DropHookEvent) private readonly dropHookRepo: Repository<DropHookEvent>,
     @InjectRepository(CrossDockTransfer) private readonly crossDockRepo: Repository<CrossDockTransfer>,
+    @InjectRepository(TelematicsDevice) private readonly telematicsDeviceRepo: Repository<TelematicsDevice>,
     private readonly planningEngine: PlanningEngine,
     private readonly optimizationEngine: OptimizationEngine,
     private readonly pricingEngine: PricingEngine,
@@ -2944,17 +2946,20 @@ export class PlanningService {
       routePlan = await this.createRoutePlanFromTrip(tripId);
     }
 
-    // Always guarantee single source of truth from Trip:
-    if (trip.driver) {
-      routePlan.driver = trip.driver;
-      routePlan.driverId = trip.driver.id;
+    // Always guarantee single source of truth from Trip, falling back to the truck's
+    // assigned driver/trailer when the trip itself has no explicit assignment.
+    const resolvedDriver = trip.driver || (trip as any).truck?.driver || null;
+    if (resolvedDriver) {
+      routePlan.driver = resolvedDriver;
+      routePlan.driverId = resolvedDriver.id;
     }
     if (trip.truck) {
       routePlan.truck = trip.truck;
       routePlan.truckId = trip.truck.id;
     }
-    if (trip.trailer) {
-      (routePlan as any).trailer = trip.trailer;
+    const resolvedTrailer = trip.trailer || (trip as any).truck?.trailer || null;
+    if (resolvedTrailer) {
+      (routePlan as any).trailer = resolvedTrailer;
     }
     (routePlan as any).tripStatus = trip.status;
     (routePlan as any).tripNumber = trip.tripNumber;
@@ -5283,6 +5288,338 @@ export class PlanningService {
     }
 
     return tollResult;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ─── TRUCK ROUTE COMPARISON ───────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /** Truck technical profile used by routing and toll providers. */
+  private truckRoutingProfile(trip: any) {
+    const truck = trip?.truck || {};
+    const emissionMap: Record<string, number> = {
+      'euro 6': 6, 'euro 5': 5, 'euro 4': 4, 'euro 3': 3, 'euro 2': 2, 'euro 1': 1,
+    };
+    const euronorm = String(truck.euronorm || '').toLowerCase().trim();
+    return {
+      weightKg: Number(truck.maxWeightKg) || undefined,
+      heightCm: Number(truck.heightCm) || undefined,
+      widthCm: Number(truck.widthCm) || undefined,
+      lengthCm: Number(truck.lengthCm) || undefined,
+      axleCount: Number(truck.axleCount) || undefined,
+      emissionType: emissionMap[euronorm] || undefined,
+    };
+  }
+
+  async getTripRouteAlternatives(user: any, tripId: string, body: any = {}) {
+    const trip = await this.tripRepo.findOne({
+      where: { id: tripId },
+      relations: ['stops', 'truck', 'trailer', 'orders', 'driver'],
+    });
+    if (!trip) throw new NotFoundException('Trip not found');
+
+    const stops = (trip.stops || [])
+      .slice()
+      .sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+    const validStops = stops.filter((s) => s.latitude && s.longitude);
+    if (validStops.length < 2) {
+      return { available: false, reason: 'missing_coordinates', routes: [] };
+    }
+
+    const origin = { lat: Number(validStops[0].latitude), lng: Number(validStops[0].longitude) };
+    const destination = {
+      lat: Number(validStops[validStops.length - 1].latitude),
+      lng: Number(validStops[validStops.length - 1].longitude),
+    };
+
+    const profile = this.truckRoutingProfile(trip);
+    const raw = await this.routingService.calculateRouteAlternatives(
+      origin.lat,
+      origin.lng,
+      destination.lat,
+      destination.lng,
+      { ...profile, avoidTolls: !!body.avoidTolls, avoidFerries: !!body.avoidFerries },
+      Math.min(3, Math.max(1, Number(body.count) || 3)),
+    );
+
+    if (!raw.length) {
+      return { available: false, reason: 'provider_unavailable', routes: [] };
+    }
+
+    const revenue = (trip.orders || []).reduce((sum, order: any) => sum + (Number(order.price) || 0), 0);
+    const currency = (trip.orders || []).find((o: any) => o.currency)?.currency || 'EUR';
+
+    const routes = await Promise.all(
+      raw.map(async (route, index) => {
+        let breakdown: any = null;
+        try {
+          const financials = await this.pricingEngine.calculateFinancials({
+            ...trip,
+            distanceKm: route.distanceKm,
+            tollCost: Number.isFinite(Number(route.tollCost)) ? Number(route.tollCost) : 0,
+          } as any);
+          breakdown = financials.costBreakdown;
+        } catch (e) {
+          this.logger.warn(`Alternative cost calculation failed: ${(e as Error).message}`);
+        }
+
+        const totalCost = breakdown ? Number(breakdown.total) : null;
+        return {
+          index,
+          distanceKm: route.distanceKm,
+          durationMin: route.durationMin,
+          durationText: route.durationText,
+          tollCost: Number.isFinite(Number(route.tollCost)) ? Number(route.tollCost) : null,
+          tollStatus: route.tollStatus || 'unavailable',
+          fuelCost: breakdown ? Number(breakdown.fuelCost) : null,
+          driverCost: breakdown ? Number(breakdown.driverCost) : null,
+          totalCost,
+          revenue: revenue > 0 ? revenue : null,
+          profit: revenue > 0 && totalCost !== null ? Math.round((revenue - totalCost) * 100) / 100 : null,
+          coordinates: route.coordinates || [],
+          source: route.source,
+        };
+      }),
+    );
+
+    // Recommendation considers both cost and time (not simply the shortest route).
+    const costValues = routes.map((r) => r.totalCost).filter((v): v is number => v !== null && Number.isFinite(v));
+    const timeValues = routes.map((r) => r.durationMin).filter((v) => Number.isFinite(v) && v > 0);
+    const minCost = costValues.length ? Math.min(...costValues) : null;
+    const maxCost = costValues.length ? Math.max(...costValues) : null;
+    const minTime = timeValues.length ? Math.min(...timeValues) : null;
+    const maxTime = timeValues.length ? Math.max(...timeValues) : null;
+
+    let recommendedIndex: number | null = null;
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (const route of routes) {
+      const costNorm =
+        route.totalCost !== null && minCost !== null && maxCost !== null && maxCost > minCost
+          ? (route.totalCost - minCost) / (maxCost - minCost)
+          : 0;
+      const timeNorm =
+        minTime !== null && maxTime !== null && maxTime > minTime
+          ? (route.durationMin - minTime) / (maxTime - minTime)
+          : 0;
+      const score = costNorm * 0.5 + timeNorm * 0.5;
+      if (score < bestScore) {
+        bestScore = score;
+        recommendedIndex = route.index;
+      }
+    }
+
+    return {
+      available: true,
+      provider: raw[0].source,
+      providerNote:
+        raw[0].source === 'here'
+          ? 'Truck routing with HERE (height, width, weight, axles, emission class, toll fares)'
+          : 'Truck routing with OpenRouteService (toll fares unavailable)',
+      currency,
+      revenue: revenue > 0 ? revenue : null,
+      truckProfile: profile,
+      recommendedIndex,
+      routes: routes.map((r) => ({ ...r, recommended: r.index === recommendedIndex })),
+      calculatedAt: new Date().toISOString(),
+    };
+  }
+
+  async applyTripRouteAlternative(user: any, tripId: string, body: any) {
+    const distanceKm = Number(body?.distanceKm);
+    const durationMin = Number(body?.durationMin);
+    if (!Number.isFinite(distanceKm) || distanceKm <= 0) {
+      throw new BadRequestException('A valid route distance is required');
+    }
+    if (!Number.isFinite(durationMin) || durationMin <= 0) {
+      throw new BadRequestException('A valid route duration is required');
+    }
+
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found');
+
+    const beforeState = {
+      distanceKm: trip.distanceKm,
+      tollCost: trip.tollCost,
+      tollStatus: trip.tollStatus,
+      plannedArrival: trip.plannedArrival,
+    };
+
+    trip.distanceKm = Math.round(distanceKm * 100) / 100;
+    const toll = Number(body?.tollCost);
+    if (body?.tollStatus === 'calculated' && Number.isFinite(toll) && toll >= 0) {
+      trip.tollCost = Math.round(toll * 100) / 100;
+      trip.tollStatus = 'calculated';
+    } else if (body?.tollStatus === 'unavailable') {
+      trip.tollStatus = 'unavailable';
+    }
+
+    const base = trip.plannedDeparture ? new Date(trip.plannedDeparture) : new Date();
+    if (!isNaN(base.getTime())) {
+      trip.plannedArrival = new Date(base.getTime() + durationMin * 60000);
+    }
+
+    await this.tripRepo.save(trip);
+    await this.recalculateCosts(trip);
+
+    await this.logAction(user, {
+      action: 'apply_route_alternative',
+      undoData: null,
+      beforeState,
+      afterState: {
+        distanceKm: trip.distanceKm,
+        durationMin,
+        tollCost: trip.tollCost,
+        source: body?.source || null,
+      },
+    } as any);
+
+    if (user?.companyId || user?.id) {
+      this.logTimeline('Route alternative applied', user, {
+        tripId,
+        companyId: user?.companyId,
+        message: `${Math.round(distanceKm)} km / ${Math.round(durationMin)} min selected as the planned route`,
+      }).catch(() => undefined);
+    }
+
+    return this.loadTrip(tripId);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ─── LIVE ETA (GPS + truck routing) ───────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async getTripLiveEta(user: any, tripId: string) {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found');
+
+    const truck: any = trip.truck || null;
+    const device = truck?.id
+      ? await this.telematicsDeviceRepo.findOne({ where: { truckId: truck.id } })
+      : null;
+
+    const lat = Number(device?.lastLatitude ?? truck?.currentLat);
+    const lng = Number(device?.lastLongitude ?? truck?.currentLng);
+    const lastGpsAt = device?.lastSeenAt ? new Date(device.lastSeenAt) : null;
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) {
+      return {
+        available: false,
+        reason: 'no_gps',
+        message: 'No GPS position is available for the assigned truck',
+        stops: [],
+        calculatedAt: new Date().toISOString(),
+      };
+    }
+
+    const remaining = (trip.stops || [])
+      .slice()
+      .sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0))
+      .filter((s) => {
+        const status = String(s.status || '').toLowerCase();
+        return status !== 'completed' && status !== 'cancelled' && status !== 'skipped' && !s.completedAt;
+      })
+      .filter((s) => s.latitude && s.longitude);
+
+    if (!remaining.length) {
+      return {
+        available: false,
+        reason: 'no_pending_stops',
+        message: 'All stops of this trip are already completed',
+        stops: [],
+        calculatedAt: new Date().toISOString(),
+      };
+    }
+
+    const profile = this.truckRoutingProfile(trip);
+    const now = Date.now();
+    let cursor = { lat, lng };
+    let cumulativeMin = 0;
+    let cumulativeKm = 0;
+    let providerSource = '';
+    const stopEtas: any[] = [];
+
+    for (const stop of remaining) {
+      const leg = await this.routingService.calculateRoute(
+        cursor.lat,
+        cursor.lng,
+        Number(stop.latitude),
+        Number(stop.longitude),
+        profile,
+      );
+      if (!leg) {
+        return {
+          available: false,
+          reason: 'provider_unavailable',
+          message: 'Truck routing provider is not configured or did not return a route',
+          stops: [],
+          position: { lat, lng },
+          lastGpsAt: lastGpsAt ? lastGpsAt.toISOString() : null,
+          calculatedAt: new Date().toISOString(),
+        };
+      }
+
+      providerSource = providerSource || leg.source;
+      cumulativeMin += leg.durationMin;
+      cumulativeKm += leg.distanceKm;
+      cursor = { lat: Number(stop.latitude), lng: Number(stop.longitude) };
+
+      const liveEta = new Date(now + cumulativeMin * 60000);
+      const plannedEta = stop.eta ? new Date(stop.eta) : null;
+      const deadline = stop.timeWindowMax ? new Date(stop.timeWindowMax) : plannedEta;
+      const deviationMin = deadline && !isNaN(deadline.getTime())
+        ? Math.round((liveEta.getTime() - deadline.getTime()) / 60000)
+        : null;
+
+      stopEtas.push({
+        stopId: stop.id,
+        sequence: stop.sequence,
+        city: stop.city,
+        companyName: stop.companyName,
+        plannedEta: plannedEta ? plannedEta.toISOString() : null,
+        liveEta: liveEta.toISOString(),
+        deviationMin,
+        distanceFromPreviousKm: leg.distanceKm,
+        drivingMinFromPrevious: leg.durationMin,
+        cumulativeDistanceKm: Math.round(cumulativeKm * 10) / 10,
+        cumulativeDrivingMin: cumulativeMin,
+        timeWindowMax: stop.timeWindowMax ? new Date(stop.timeWindowMax).toISOString() : null,
+        source: leg.source,
+      });
+    }
+
+    const last = stopEtas[stopEtas.length - 1];
+    const maxDeviation = stopEtas.reduce<number | null>((worst, s) => {
+      if (s.deviationMin === null) return worst;
+      return worst === null ? s.deviationMin : Math.max(worst, s.deviationMin);
+    }, null);
+    const etaStatus = maxDeviation === null ? 'unknown' : maxDeviation > 30 ? 'late' : maxDeviation > 0 ? 'at_risk' : 'on_time';
+    const etaSource = `gps+${providerSource || 'routing'}`;
+    const freshness = lastGpsAt
+      ? now - lastGpsAt.getTime() <= 15 * 60000
+        ? 'live'
+        : 'stale'
+      : 'unknown';
+
+    await this.tripRepo.update(tripId, {
+      lastLiveEta: new Date(last.liveEta),
+      etaStatus,
+      lastEtaAt: new Date(now),
+      etaSource,
+    } as any);
+
+    return {
+      available: true,
+      source: etaSource,
+      freshness,
+      lastGpsAt: lastGpsAt ? lastGpsAt.toISOString() : null,
+      position: { lat, lng },
+      totalRemainingKm: Math.round(cumulativeKm * 10) / 10,
+      totalRemainingMin: cumulativeMin,
+      etaStatus,
+      stops: stopEtas,
+      calculatedAt: new Date(now).toISOString(),
+      note: 'Live ETA uses the last GPS position and truck routing. Service time at stops is not included.',
+    };
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
