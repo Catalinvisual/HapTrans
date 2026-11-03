@@ -4,7 +4,7 @@ import { X, Download, FileSpreadsheet, FileText, Loader2, Calendar } from 'lucid
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { exportExcel, formatDateExcel } from '../../lib/exportExcel';
-import { fmtNumber } from '../../lib/format';
+import { fmtNumber, fmtMoney } from '../../lib/format';
 
 interface PlanningExportModalProps {
   isOpen: boolean;
@@ -83,7 +83,10 @@ export default function PlanningExportModal({
 
         const fleetTypeStr = tr.fleetType === 'subcontractor' ? 'Subcontractor' : tr.fleetType === 'charter' ? 'Charter' : 'Own Fleet';
         const subconStr = tr.carrierName ? `${tr.carrierName} (Ref: ${tr.carrierReference || '—'}, ${tr.carrierRate || 0} ${tr.carrierCurrency || 'EUR'})` : '—';
-        const tollStr = tr.tollAmount ? `${tr.tollAmount} ${tr.tollCurrency || 'EUR'} (${tr.tollCountries?.join(', ') || 'EU'})` : (tr.tollStatus || 'Not calculated');
+        const tollValue = tr.tollCost ?? tr.tollAmount;
+        const tollStr = (tr.tollStatus === 'calculated' || tr.tollStatus === 'estimated') && Number.isFinite(Number(tollValue))
+          ? `${fmtMoney(tollValue, tr.tollCurrency || 'EUR')}${tr.tollCountries?.length ? ` (${tr.tollCountries.join(', ')})` : ''}`
+          : (tr.tollStatus || 'Not calculated');
         const trafficStr = tr.trafficDelayMinutes ? `+${tr.trafficDelayMinutes} min (${tr.trafficStatus || 'delayed'})` : (tr.trafficStatus || 'Normal');
         const dropHookStr = trailer?.isDropped ? `Dropped @ ${trailer.dropLocation || 'Facility'}` : 'Attached/Hooked';
 

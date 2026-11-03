@@ -170,15 +170,14 @@ export class RoutingService {
     // Check cache first
     const cached = this.getFromCache(origin, dest);
     if (cached && !truckParams) {
-      const tollCost = (cached as any).tollCost !== undefined && (cached as any).tollCost > 0
-        ? (cached as any).tollCost
-        : (cached.distanceKm > 0 ? Math.round(cached.distanceKm * 0.19 * 100) / 100 : 0);
+      const tollAvailable = cached.source === 'here' || cached.source === 'google';
       return {
         distanceKm: cached.distanceKm,
         durationMin: cached.durationMin,
         durationText: `${Math.floor(cached.durationMin / 60)}h ${cached.durationMin % 60}m`,
-        tollCost,
+        tollCost: tollAvailable ? cached.tollCost : undefined,
         tollCurrency: 'EUR',
+        tollStatus: tollAvailable ? 'calculated' : 'unavailable',
         source: cached.source as any,
       };
     }
@@ -193,11 +192,17 @@ export class RoutingService {
           apiKey: this.hereKey,
           'vehicle[grossWeight]': Math.max(40000, truckParams?.weightKg || 40000),
           'vehicle[height]': truckParams?.heightCm || 400,
+          'vehicle[width]': truckParams?.widthCm || 255,
           'vehicle[length]': truckParams?.lengthCm || 1360,
+          'vehicle[axleCount]': truckParams?.axleCount || 5,
           'vehicle[tollVehicleType]': 3,
-          'vehicle[emissionType]': 6,
+          'vehicle[emissionType]': truckParams?.emissionType || 6,
           currency: 'EUR',
         };
+        const avoidFeatures: string[] = [];
+        if (truckParams?.avoidTolls) avoidFeatures.push('tollRoad');
+        if (truckParams?.avoidFerries) avoidFeatures.push('ferry');
+        if (avoidFeatures.length) params['avoid[features]'] = avoidFeatures.join(',');
 
         const res = await axios.get('https://router.hereapi.com/v8/routes', {
           params,
@@ -216,18 +221,15 @@ export class RoutingService {
           const hours = Math.floor(durationMin / 60);
           const mins = durationMin % 60;
 
-          // Compute commercial truck toll from HERE section or standard European HGV average
+          // Compute commercial truck toll strictly from HERE toll fares (no estimation)
           let tollCost = 0;
           if (section?.tolls && Array.isArray(section.tolls)) {
             for (const toll of section.tolls) {
-              tollCost += Number(toll.fares?.[0]?.price || 0);
+              const fare = Number(toll.fares?.[0]?.price);
+              if (Number.isFinite(fare)) tollCost += fare;
             }
           }
-          if (tollCost <= 0 && distanceKm > 0) {
-            tollCost = Math.round(distanceKm * 0.19 * 100) / 100;
-          } else {
-            tollCost = Math.round(tollCost * 100) / 100;
-          }
+          tollCost = Math.round(tollCost * 100) / 100;
 
           let coordinates: number[][] = [];
           if (section?.polyline) {
@@ -249,6 +251,7 @@ export class RoutingService {
             durationText: `${hours}h ${mins}m`,
             tollCost,
             tollCurrency: 'EUR',
+            tollStatus: 'calculated',
             polyline: section?.polyline || null,
             coordinates,
             source: 'here',
@@ -260,6 +263,97 @@ export class RoutingService {
     }
 
     return this.calculateRouteORS(originLat, originLng, destLat, destLng);
+  }
+
+  // ─── Route alternatives (HERE only; no fabricated alternatives) ──────────
+  async calculateRouteAlternatives(
+    originLat: number, originLng: number,
+    destLat: number, destLng: number,
+    truckParams?: RoutingOptions,
+    count = 3,
+  ): Promise<RouteSummaryResult[]> {
+    if (!this.hereKey) return [];
+
+    try {
+      const params: any = {
+        transportMode: 'truck',
+        origin: `${originLat},${originLng}`,
+        destination: `${destLat},${destLng}`,
+        return: 'summary,polyline,tolls',
+        alternatives: Math.min(6, Math.max(1, count)),
+        apiKey: this.hereKey,
+        'vehicle[grossWeight]': Math.max(40000, truckParams?.weightKg || 40000),
+        'vehicle[height]': truckParams?.heightCm || 400,
+        'vehicle[width]': truckParams?.widthCm || 255,
+        'vehicle[length]': truckParams?.lengthCm || 1360,
+        'vehicle[axleCount]': truckParams?.axleCount || 5,
+        'vehicle[tollVehicleType]': 3,
+        'vehicle[emissionType]': truckParams?.emissionType || 6,
+        currency: 'EUR',
+      };
+      const avoidFeatures: string[] = [];
+      if (truckParams?.avoidTolls) avoidFeatures.push('tollRoad');
+      if (truckParams?.avoidFerries) avoidFeatures.push('ferry');
+      if (avoidFeatures.length) params['avoid[features]'] = avoidFeatures.join(',');
+
+      const res = await axios.get('https://router.hereapi.com/v8/routes', {
+        params,
+        timeout: 15000,
+      });
+
+      const routes = Array.isArray(res.data?.routes) ? res.data.routes : [];
+      return routes.map((route: any) => {
+        const section = route.sections?.[0];
+        const summary = section?.summary;
+        const rawDistKm = (summary?.length || 0) / 1000;
+        const distanceKm = rawDistKm < 10
+          ? Math.max(0.1, Math.round(rawDistKm * 10) / 10)
+          : Math.round(rawDistKm);
+        const durationMin = Math.round((summary?.duration || 0) / 60);
+        const hours = Math.floor(durationMin / 60);
+        const mins = durationMin % 60;
+
+        let tollCost = 0;
+        let tollAvailable = false;
+        if (Array.isArray(section?.tolls)) {
+          for (const toll of section.tolls) {
+            const fare = Number(toll.fares?.[0]?.price);
+            if (Number.isFinite(fare)) {
+              tollCost += fare;
+              tollAvailable = true;
+            }
+          }
+        }
+        tollCost = Math.round(tollCost * 100) / 100;
+
+        let coordinates: number[][] = [];
+        if (section?.polyline) {
+          try {
+            const decoded = flexDecode(section.polyline);
+            if (decoded && decoded.polyline) {
+              coordinates = decoded.polyline.map((p: any) => [p[1], p[0]]);
+            }
+          } catch (err) {
+            this.logger.error('Failed to decode alternative flexpolyline: ' + err.message);
+          }
+        }
+
+        return {
+          distanceKm,
+          durationMin,
+          durationText: `${hours}h ${mins}m`,
+          tollCost: tollAvailable ? tollCost : undefined,
+          tollCurrency: 'EUR',
+          tollStatus: tollAvailable ? 'calculated' : 'unavailable',
+          polyline: section?.polyline || null,
+          coordinates,
+          source: 'here',
+        } as RouteSummaryResult;
+      }).filter((r: RouteSummaryResult) => r.distanceKm > 0);
+    } catch (e: any) {
+      this.logger.warn(`HERE alternatives failed: ${e.message}`);
+      return [];
+    }
   }
 
   // ─── Fallback: OpenRouteService ────────────────────────────────────────────
@@ -293,17 +387,16 @@ export class RoutingService {
       const hours = Math.floor(durationMin / 60);
       const mins = durationMin % 60;
 
-      // Commercial truck toll estimation for EU HGV (average 0.19 EUR/km)
-      const tollCost = distanceKm > 0 ? Math.round(distanceKm * 0.19 * 100) / 100 : 0;
-
-      this.setInCache({ lat: originLat, lng: originLng }, { lat: destLat, lng: destLng }, distanceKm, durationMin, 'ors', tollCost);
+      // ORS does not provide toll fares; report tolls as unavailable instead of estimating
+      this.setInCache({ lat: originLat, lng: originLng }, { lat: destLat, lng: destLng }, distanceKm, durationMin, 'ors', 0);
 
       return {
         distanceKm,
         durationMin,
         durationText: `${hours}h ${mins}m`,
-        tollCost,
+        tollCost: undefined,
         tollCurrency: 'EUR',
+        tollStatus: 'unavailable',
         polyline: null,
         coordinates: feature?.geometry?.coordinates || [],
         source: 'ors',

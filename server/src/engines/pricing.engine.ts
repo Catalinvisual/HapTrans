@@ -21,7 +21,7 @@ export class PricingEngine {
    */
   async calculateFinancials(trip: Trip): Promise<TripFinancials> {
     const revenue = this.calculateRevenue(trip);
-    const costBreakdown = await this.costEngine.calculateTripCosts(trip);
+    const costBreakdown = await this.costEngine.calculateTripCosts(trip, revenue);
     const profit = Math.round((revenue - costBreakdown.total) * 100) / 100;
 
     return {

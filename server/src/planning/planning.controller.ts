@@ -315,7 +315,7 @@ export class PlanningController {
     @Param('truckId') truckId: string,
     @Param('tripId') tripId: string,
   ): Promise<TruckRoutePlan> {
-    return this.planningService.createRoutePlanFromTrip(tripId, this.userCompanyId(req), truckId);
+    return this.planningService.createRoutePlanFromTrip(tripId, undefined, truckId);
   }
 
   @Post('trucks/:truckId/optimize')

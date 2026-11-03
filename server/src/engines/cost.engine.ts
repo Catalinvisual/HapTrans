@@ -9,8 +9,12 @@ export interface TripCostBreakdown {
   driverDays: number;
   manualCost: number;
   ferryCost: number;
+  maintenanceCost: number;
+  fixedCost: number;
   dieselPrice: number;
   total: number;
+  driverCostSource: 'per_km' | 'percent' | 'per_day' | 'per_hour' | 'default_estimate';
+  estimatedFields: string[];
   breakdown: { type: string; amount: number; description: string }[];
 }
 
@@ -18,22 +22,34 @@ export interface TripCostBreakdown {
 export class CostEngine {
   private readonly logger = new Logger(CostEngine.name);
 
-  private static readonly DRIVER_DAY_RATE_EUR = 200;
+  private static readonly DEFAULT_DRIVER_DAY_RATE_EUR = 200;
   private static readonly FUEL_CONSUMPTION_DEFAULT = 32; // l / 100km
 
   constructor(private readonly routingService: RoutingService) {}
 
   /**
-   * Recalculates the full cost of a trip: fuel + tolls + driver days + ferry + manual costs.
-   * Fuel uses the truck's configured consumption and the live diesel price of the origin country.
+   * Recalculates the full cost of a trip: fuel + tolls + driver + maintenance +
+   * fixed vehicle costs + manual costs. All rates come from the assigned
+   * truck/driver profile when available; market/default values are only used as
+   * clearly flagged estimates.
    */
-  async calculateTripCosts(trip: Trip): Promise<TripCostBreakdown> {
+  async calculateTripCosts(trip: Trip, revenue?: number): Promise<TripCostBreakdown> {
     const distanceKm = Number(trip.distanceKm || 0);
     const truck = trip.truck as any;
-    const fuelConsumption = Number(truck?.fuelConsumption) || CostEngine.FUEL_CONSUMPTION_DEFAULT;
+    const driver = trip.driver as any;
+    const estimatedFields: string[] = [];
+
+    const configuredConsumption = Number(truck?.fuelConsumption);
+    const fuelConsumption = configuredConsumption > 0
+      ? configuredConsumption
+      : CostEngine.FUEL_CONSUMPTION_DEFAULT;
+    if (!(configuredConsumption > 0)) estimatedFields.push('fuelConsumption');
 
     const originCountry = this.getOriginCountry(trip);
-    const dieselPrice = await this.getDieselPrice(originCountry);
+    const configuredFuelPrice = Number(truck?.fuelPricePerLiter);
+    const marketDieselPrice = await this.getDieselPrice(originCountry);
+    const dieselPrice = configuredFuelPrice > 0 ? configuredFuelPrice : marketDieselPrice;
+    if (!(configuredFuelPrice > 0)) estimatedFields.push('fuelPrice');
 
     // Fuel: (distance / 100) * consumption(l/100km) * price/l
     const fuelCost = distanceKm > 0 ? (distanceKm / 100) * fuelConsumption * dieselPrice : 0;
@@ -41,9 +57,18 @@ export class CostEngine {
     // Tolls: accumulated from real HERE routing at trip-metric-recalc time
     const tollCost = Number((trip as any).tollCost || 0);
 
-    // Driver days: based on planned duration, min 1 day
     const driverDays = this.estimateDriverDays(trip);
-    const driverCost = driverDays * CostEngine.DRIVER_DAY_RATE_EUR;
+    const driverResult = this.calculateDriverCost(trip, distanceKm, driverDays, revenue);
+    if (driverResult.source === 'default_estimate') estimatedFields.push('driverCost');
+
+    // Maintenance and fixed ownership costs from the truck profile
+    const maintenancePerKm = Number(truck?.maintenanceCostPerKm);
+    const maintenanceCost = maintenancePerKm > 0 ? distanceKm * maintenancePerKm : 0;
+    if (!(maintenancePerKm > 0)) estimatedFields.push('maintenanceCost');
+
+    const fixedCostPerDay = Number(truck?.fixedCostPerDay);
+    const fixedCost = fixedCostPerDay > 0 ? driverDays * fixedCostPerDay : 0;
+    if (!(fixedCostPerDay > 0)) estimatedFields.push('fixedCost');
 
     // Ferry / other auto items are recorded as manual TripCosts for now
     let manualCost = 0;
@@ -56,25 +81,83 @@ export class CostEngine {
       }
     }
 
-    const total = fuelCost + tollCost + driverCost + manualCost;
+    const total = fuelCost + tollCost + driverResult.cost + maintenanceCost + fixedCost + manualCost;
 
     const breakdown: { type: string; amount: number; description: string }[] = [
       { type: 'fuel', amount: Math.round(fuelCost * 100) / 100, description: `${Math.round(distanceKm)} km × ${fuelConsumption} l/100km × ${dieselPrice} €/l` },
       { type: 'toll', amount: Math.round(tollCost * 100) / 100, description: 'Toll costs (HERE routing)' },
-      { type: 'driver_day', amount: Math.round(driverCost * 100) / 100, description: `${driverDays} driver day(s) × ${CostEngine.DRIVER_DAY_RATE_EUR} €/day` },
+      { type: 'driver', amount: Math.round(driverResult.cost * 100) / 100, description: driverResult.description },
+      ...(maintenanceCost > 0 ? [{ type: 'maintenance', amount: Math.round(maintenanceCost * 100) / 100, description: `${Math.round(distanceKm)} km × ${maintenancePerKm} €/km` }] : []),
+      ...(fixedCost > 0 ? [{ type: 'fixed', amount: Math.round(fixedCost * 100) / 100, description: `${driverDays} day(s) × ${fixedCostPerDay} €/day` }] : []),
       ...manualItems,
     ];
 
     return {
       fuelCost: Math.round(fuelCost * 100) / 100,
       tollCost: Math.round(tollCost * 100) / 100,
-      driverCost: Math.round(driverCost * 100) / 100,
+      driverCost: Math.round(driverResult.cost * 100) / 100,
       driverDays,
       manualCost: Math.round(manualCost * 100) / 100,
       ferryCost: 0,
+      maintenanceCost: Math.round(maintenanceCost * 100) / 100,
+      fixedCost: Math.round(fixedCost * 100) / 100,
       dieselPrice: Math.round(dieselPrice * 1000) / 1000,
       total: Math.round(total * 100) / 100,
+      driverCostSource: driverResult.source,
+      estimatedFields,
       breakdown,
+    };
+  }
+
+  private calculateDriverCost(
+    trip: Trip,
+    distanceKm: number,
+    driverDays: number,
+    revenue?: number,
+  ): { cost: number; source: TripCostBreakdown['driverCostSource']; description: string } {
+    const driver = trip.driver as any;
+    const payMode = String(driver?.payMode || '').toLowerCase();
+    const payRate = Number(driver?.payRate);
+
+    if (payMode === 'per_km' && payRate > 0 && distanceKm > 0) {
+      return {
+        cost: distanceKm * payRate,
+        source: 'per_km',
+        description: `${Math.round(distanceKm)} km × ${payRate} €/km (driver profile)`,
+      };
+    }
+
+    if (payMode === 'percent' && payRate > 0 && Number(revenue) > 0) {
+      return {
+        cost: Number(revenue) * (payRate / 100),
+        source: 'percent',
+        description: `${payRate}% of ${Math.round(Number(revenue))} € revenue (driver profile)`,
+      };
+    }
+
+    const costPerDay = Number(driver?.costPerDay);
+    if (costPerDay > 0) {
+      return {
+        cost: driverDays * costPerDay,
+        source: 'per_day',
+        description: `${driverDays} driver day(s) × ${costPerDay} €/day (driver profile)`,
+      };
+    }
+
+    const costPerHour = Number(driver?.costPerHour);
+    if (costPerHour > 0) {
+      const hours = this.estimateDriverHours(trip, distanceKm);
+      return {
+        cost: hours * costPerHour,
+        source: 'per_hour',
+        description: `${Math.round(hours * 10) / 10} h × ${costPerHour} €/h (driver profile)`,
+      };
+    }
+
+    return {
+      cost: driverDays * CostEngine.DEFAULT_DRIVER_DAY_RATE_EUR,
+      source: 'default_estimate',
+      description: `${driverDays} driver day(s) × ${CostEngine.DEFAULT_DRIVER_DAY_RATE_EUR} €/day (default estimate — set driver cost profile)`,
     };
   }
 
@@ -116,5 +199,14 @@ export class CostEngine {
       return Math.max(1, Math.ceil(Number(trip.distanceKm) / 750));
     }
     return 1;
+  }
+
+  private estimateDriverHours(trip: Trip, distanceKm: number): number {
+    if (trip.plannedDeparture && trip.plannedArrival) {
+      const ms = new Date(trip.plannedArrival).getTime() - new Date(trip.plannedDeparture).getTime();
+      if (!isNaN(ms) && ms > 0) return ms / (1000 * 60 * 60);
+    }
+    if (distanceKm > 0) return distanceKm / 65;
+    return 8;
   }
 }

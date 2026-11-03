@@ -60,6 +60,12 @@ export class Driver {
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
   payRate: number; // EUR/km or % of trip revenue
 
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  costPerDay: number; // fully loaded driver cost per trip day (EUR)
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  costPerHour: number; // optional hourly rate (EUR)
+
   @Column({ type: 'enum', enum: DriverStatus, default: DriverStatus.AVAILABLE })
   status: DriverStatus;
 

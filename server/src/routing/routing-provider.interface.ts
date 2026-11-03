@@ -9,6 +9,7 @@ export interface RouteSummaryResult {
   durationText: string;
   tollCost?: number;
   tollCurrency?: string;
+  tollStatus?: 'calculated' | 'unavailable';
   polyline?: string | null;
   coordinates?: number[][];
   source: 'google' | 'here' | 'ors' | 'osm' | 'haversine_fallback';
@@ -38,8 +39,12 @@ export interface AutocompleteItem {
 export interface RoutingOptions {
   weightKg?: number;
   heightCm?: number;
+  widthCm?: number;
   lengthCm?: number;
+  axleCount?: number;
+  emissionType?: number;
   avoidTolls?: boolean;
+  avoidFerries?: boolean;
 }
 
 export interface IRoutingProvider {

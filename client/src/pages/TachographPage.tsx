@@ -109,37 +109,49 @@ export default function TachographPage() {
     { value: 'AVAILABILITY', label: t('act_availability', 'Availability'), color: 'bg-slate-500' },
   ];
 
-  const metrics = (item: any) => {
-    const breakSeconds =
-      item.compliance?.breakRequiredIn ??
-      item.compliance?.breakRequiredInSeconds ??
-      item.breakRequiredIn ??
-      item.breakRequiredInSeconds ??
-      9000;
-    const breakMins = Math.round(breakSeconds / 60);
-    const drivingTodaySeconds = item.compliance?.drivingTimeToday ?? item.drivingTimeToday ?? item.drivingTimeTodaySeconds ?? 7200;
-    const weeklyDrivingSeconds = item.compliance?.weeklyDrivingTime ?? item.weeklyDrivingTime ?? item.weeklyDrivingSeconds ?? 90000;
-    const dailyRestSeconds = item.compliance?.dailyRestRemaining ?? item.dailyRestRemaining ?? item.dailyRestRemainingSeconds ?? 39600;
+  const firstNumber = (...values: any[]): number | null => {
+    for (const v of values) {
+      if (v === null || v === undefined || v === '') continue;
+      const n = Number(v);
+      if (Number.isFinite(n)) return n;
+    }
+    return null;
+  };
 
-    const driveH = drivingTodaySeconds / 3600;
-    const weekH = weeklyDrivingSeconds / 3600;
-    const restH = dailyRestSeconds / 3600;
+  const metrics = (item: any) => {
+    const breakSeconds = firstNumber(
+      item.compliance?.breakRequiredIn,
+      item.compliance?.breakRequiredInSeconds,
+      item.breakRequiredIn,
+      item.breakRequiredInSeconds,
+    );
+    const drivingTodaySeconds = firstNumber(item.compliance?.drivingTimeToday, item.drivingTimeToday, item.drivingTimeTodaySeconds);
+    const weeklyDrivingSeconds = firstNumber(item.compliance?.weeklyDrivingTime, item.weeklyDrivingTime, item.weeklyDrivingSeconds);
+    const dailyRestSeconds = firstNumber(item.compliance?.dailyRestRemaining, item.dailyRestRemaining, item.dailyRestRemainingSeconds);
+
+    const breakMins = breakSeconds === null ? null : Math.round(breakSeconds / 60);
+    const driveH = drivingTodaySeconds === null ? null : drivingTodaySeconds / 3600;
+    const weekH = weeklyDrivingSeconds === null ? null : weeklyDrivingSeconds / 3600;
+    const restH = dailyRestSeconds === null ? null : dailyRestSeconds / 3600;
 
     return {
       breakMins,
       drivingTodaySeconds,
       weeklyDrivingSeconds,
       dailyRestSeconds,
-      driveColor: driveH >= 8.5 ? 'bg-red-500' : driveH >= 7 ? 'bg-amber-500' : 'bg-emerald-500',
-      drivePct: (drivingTodaySeconds / MAX_DAILY_DRIVE) * 100,
-      breakColor: breakMins <= 15 ? 'bg-red-500 animate-pulse' : breakMins <= 60 ? 'bg-amber-500' : 'bg-emerald-500',
-      breakPct: Math.min(100, (breakMins / 60) * 100),
-      weekColor: weekH >= 49 ? 'bg-red-500' : weekH >= 42 ? 'bg-amber-500' : 'bg-emerald-500',
-      weekPct: (weeklyDrivingSeconds / MAX_WEEKLY_DRIVE) * 100,
-      restColor: restH >= 11 ? 'bg-emerald-500' : restH >= 9 ? 'bg-amber-500' : 'bg-red-500',
-      restPct: Math.min(100, (dailyRestSeconds / MIN_DAILY_REST) * 100),
+      driveColor: driveH === null ? 'bg-slate-300' : driveH >= 8.5 ? 'bg-red-500' : driveH >= 7 ? 'bg-amber-500' : 'bg-emerald-500',
+      drivePct: drivingTodaySeconds === null ? 0 : (drivingTodaySeconds / MAX_DAILY_DRIVE) * 100,
+      breakColor: breakMins === null ? 'bg-slate-300' : breakMins <= 15 ? 'bg-red-500 animate-pulse' : breakMins <= 60 ? 'bg-amber-500' : 'bg-emerald-500',
+      breakPct: breakMins === null ? 0 : Math.min(100, (breakMins / 60) * 100),
+      weekColor: weekH === null ? 'bg-slate-300' : weekH >= 49 ? 'bg-red-500' : weekH >= 42 ? 'bg-amber-500' : 'bg-emerald-500',
+      weekPct: weeklyDrivingSeconds === null ? 0 : (weeklyDrivingSeconds / MAX_WEEKLY_DRIVE) * 100,
+      restColor: restH === null ? 'bg-slate-300' : restH >= 11 ? 'bg-emerald-500' : restH >= 9 ? 'bg-amber-500' : 'bg-red-500',
+      restPct: dailyRestSeconds === null ? 0 : Math.min(100, (dailyRestSeconds / MIN_DAILY_REST) * 100),
     };
   };
+
+  const fmtMetric = (seconds: number | null, limit: string) =>
+    seconds === null ? '—' : `${formatHoursMins(seconds)} / ${limit}`;
 
   const columns: Column<any>[] = [
     {
@@ -170,7 +182,7 @@ export default function TachographPage() {
         return (
           <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
             <div className="w-10 bg-surface h-[3px] rounded-full overflow-hidden"><div className={`h-full ${m.driveColor}`} style={{ width: `${Math.min(100, m.drivePct)}%` }} /></div>
-            <span className="text-[11px] font-semibold text-text-primary">{formatHoursMins(m.drivingTodaySeconds)} / 9h</span>
+            <span className="text-[11px] font-semibold text-text-primary">{fmtMetric(m.drivingTodaySeconds, '9h')}</span>
           </div>
         );
       },
@@ -179,7 +191,7 @@ export default function TachographPage() {
       key: 'break', label: t('tacho_break_required_in', 'Pauză În'), align: 'right',
       render: (item) => {
         const m = metrics(item);
-        return <span className={`text-[11px] font-black whitespace-nowrap ${m.breakMins <= 15 ? 'text-red-600' : m.breakMins <= 60 ? 'text-amber-600' : 'text-slate-700'}`}>{m.breakMins > 0 ? `${m.breakMins} min` : t('act_break', 'Break')}</span>;
+        return <span className={`text-[11px] font-black whitespace-nowrap ${m.breakMins === null ? 'text-slate-400' : m.breakMins <= 15 ? 'text-red-600' : m.breakMins <= 60 ? 'text-amber-600' : 'text-slate-700'}`}>{m.breakMins === null ? '—' : m.breakMins > 0 ? `${m.breakMins} min` : t('act_break', 'Break')}</span>;
       },
     },
     {
@@ -189,7 +201,7 @@ export default function TachographPage() {
         return (
           <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
             <div className="w-10 bg-surface h-[3px] rounded-full overflow-hidden"><div className={`h-full ${m.weekColor}`} style={{ width: `${Math.min(100, m.weekPct)}%` }} /></div>
-            <span className="text-[11px] font-semibold text-text-primary">{formatHoursMins(m.weeklyDrivingSeconds)} / 56h</span>
+            <span className="text-[11px] font-semibold text-text-primary">{fmtMetric(m.weeklyDrivingSeconds, '56h')}</span>
           </div>
         );
       },
@@ -201,7 +213,7 @@ export default function TachographPage() {
         return (
           <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
             <div className="w-10 bg-surface h-[3px] rounded-full overflow-hidden"><div className={`h-full ${m.restColor}`} style={{ width: `${m.restPct}%` }} /></div>
-            <span className="text-[11px] font-semibold text-text-primary">{formatHoursMins(m.dailyRestSeconds)} / 11h</span>
+            <span className="text-[11px] font-semibold text-text-primary">{fmtMetric(m.dailyRestSeconds, '11h')}</span>
           </div>
         );
       },
@@ -298,28 +310,28 @@ export default function TachographPage() {
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
                   <MicroMetric
                     label={t('tacho_driving_today', 'Conducere Azi')}
-                    value={`${formatHoursMins(m.drivingTodaySeconds)} / 9h`}
+                    value={fmtMetric(m.drivingTodaySeconds, '9h')}
                     pct={m.drivePct}
                     barColor={m.driveColor}
                     hint={t('tacho_driving_today_hint', 'Timp de conducere continuă/zi. Limite legale: 9h (extensibil la 10h de 2x/săptămână).')}
                   />
                   <MicroMetric
                     label={t('tacho_break_required_in', 'Pauză În')}
-                    value={m.breakMins > 0 ? `${m.breakMins} min` : t('act_break', 'Break')}
+                    value={m.breakMins === null ? '—' : m.breakMins > 0 ? `${m.breakMins} min` : t('act_break', 'Break')}
                     pct={m.breakPct}
                     barColor={m.breakColor}
                     hint={t('tacho_break_hint', 'Timp rămas până la pauza obligatorie de 45 min. Sub 15 min devine critic.')}
                   />
                   <MicroMetric
                     label={t('tacho_weekly_driving', 'Conducere Săpt.')}
-                    value={`${formatHoursMins(m.weeklyDrivingSeconds)} / 56h`}
+                    value={fmtMetric(m.weeklyDrivingSeconds, '56h')}
                     pct={m.weekPct}
                     barColor={m.weekColor}
                     hint={t('tacho_weekly_hint', 'Timp total de conducere în săptămâna curentă. Limita legală: 56h.')}
                   />
                   <MicroMetric
                     label={restLabel}
-                    value={`${formatHoursMins(m.dailyRestSeconds)} / 11h`}
+                    value={fmtMetric(m.dailyRestSeconds, '11h')}
                     pct={m.restPct}
                     barColor={m.restColor}
                     hint={t('tacho_rest_hint', 'Odihnă zilnică acumulată. Minim legal: 11h (redus la 9h de 3x/săptămână).')}

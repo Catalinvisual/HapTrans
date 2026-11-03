@@ -52,6 +52,18 @@ export class Trailer {
   @Column({ nullable: true, type: 'int' })
   payloadCapacityPallets: number;
 
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  heightCm: number;
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  widthCm: number;
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  lengthCm: number;
+
+  @Column({ nullable: true, type: 'int' })
+  axleCount: number;
+
   @Column({ type: 'enum', enum: TrailerStatus, default: TrailerStatus.ACTIVE })
   status: TrailerStatus;
 

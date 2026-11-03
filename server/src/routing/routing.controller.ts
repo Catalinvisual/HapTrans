@@ -70,6 +70,64 @@ export class RoutingController {
     });
   }
 
+  @Post('alternatives')
+  async calculateAlternatives(@Body() body: {
+    originAddress?: string;
+    destAddress?: string;
+    originLat?: number;
+    originLng?: number;
+    destLat?: number;
+    destLng?: number;
+    weightKg?: number;
+    heightCm?: number;
+    widthCm?: number;
+    lengthCm?: number;
+    axleCount?: number;
+    emissionType?: number;
+    avoidTolls?: boolean;
+    avoidFerries?: boolean;
+    count?: number;
+  }) {
+    let oLat = body.originLat;
+    let oLng = body.originLng;
+    let dLat = body.destLat;
+    let dLng = body.destLng;
+
+    if ((!oLat || !oLng) && body.originAddress) {
+      const geo = await this.routingService.geocode(body.originAddress);
+      if (geo) { oLat = geo.lat; oLng = geo.lng; }
+    }
+    if ((!dLat || !dLng) && body.destAddress) {
+      const geo = await this.routingService.geocode(body.destAddress);
+      if (geo) { dLat = geo.lat; dLng = geo.lng; }
+    }
+
+    if (!oLat || !oLng || !dLat || !dLng) {
+      return { routes: [], provider: 'unavailable', error: 'Could not geocode addresses' };
+    }
+
+    const routes = await this.routingService.calculateRouteAlternatives(
+      oLat, oLng, dLat, dLng,
+      {
+        weightKg: body.weightKg,
+        heightCm: body.heightCm,
+        widthCm: body.widthCm,
+        lengthCm: body.lengthCm,
+        axleCount: body.axleCount,
+        emissionType: body.emissionType,
+        avoidTolls: body.avoidTolls,
+        avoidFerries: body.avoidFerries,
+      },
+      body.count || 3,
+    );
+
+    return {
+      routes,
+      provider: routes.length ? 'here' : 'unavailable',
+      calculatedAt: new Date().toISOString(),
+    };
+  }
+
   @Get('geocode')
   async geocode(@Query('address') address: string) {
     if (!address) return { error: 'Address required' };

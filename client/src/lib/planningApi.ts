@@ -190,6 +190,27 @@ export const planningApi = {
   },
 
   // ─── European Tolls ───
+  getRouteAlternatives: async (payload: {
+    originAddress?: string;
+    destAddress?: string;
+    originLat?: number;
+    originLng?: number;
+    destLat?: number;
+    destLng?: number;
+    weightKg?: number;
+    heightCm?: number;
+    widthCm?: number;
+    lengthCm?: number;
+    axleCount?: number;
+    emissionType?: number;
+    avoidTolls?: boolean;
+    avoidFerries?: boolean;
+    count?: number;
+  }) => {
+    const { data } = await api.post('/routing/alternatives', payload);
+    return data;
+  },
+
   getTripTolls: async (tripId: string) => {
     const { data } = await api.get(`/planning/trips/${tripId}/tolls`);
     return data;

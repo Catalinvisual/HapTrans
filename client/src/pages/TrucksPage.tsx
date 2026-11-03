@@ -142,6 +142,8 @@ export default function TrucksPage() {
     plateNumber: '', brand: '', model: '', year: '',
     truckType: 'tautliner', euronorm: 'Euro 6', features: [] as string[],
     maxWeightKg: '', maxPallets: '', maxLdm: '', maxVolumeCbm: '', payloadCapacity: '',
+    heightCm: '', widthCm: '', lengthCm: '', axleCount: '', fuelType: '', fuelPricePerLiter: '',
+    maintenanceCostPerKm: '', fixedCostPerDay: '',
     costPerKm: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '', driverId: '', trailerId: '', status: 'active'
   };
 
@@ -221,6 +223,14 @@ export default function TrucksPage() {
         maxLdm: form.maxLdm ? Number(form.maxLdm) : null,
         maxVolumeCbm: form.maxVolumeCbm ? Number(form.maxVolumeCbm) : null,
         payloadCapacity: form.payloadCapacity ? Number(form.payloadCapacity) : null,
+        heightCm: form.heightCm ? Number(form.heightCm) : null,
+        widthCm: form.widthCm ? Number(form.widthCm) : null,
+        lengthCm: form.lengthCm ? Number(form.lengthCm) : null,
+        axleCount: form.axleCount ? Number(form.axleCount) : null,
+        fuelType: form.fuelType || null,
+        fuelPricePerLiter: form.fuelPricePerLiter ? Number(form.fuelPricePerLiter) : null,
+        maintenanceCostPerKm: form.maintenanceCostPerKm ? Number(form.maintenanceCostPerKm) : null,
+        fixedCostPerDay: form.fixedCostPerDay ? Number(form.fixedCostPerDay) : null,
         costPerKm: form.costPerKm ? Number(form.costPerKm) : null,
         fuelConsumption: form.fuelConsumption ? Number(form.fuelConsumption) : null,
         totalMileage: form.totalMileage ? Number(form.totalMileage) : null,
@@ -325,7 +335,11 @@ export default function TrucksPage() {
       plateNumber: truck.plateNumber || '', brand: truck.brand || '', model: truck.model || '', year: truck.year || '',
       truckType: truck.truckType || 'tautliner', euronorm: truck.euronorm || 'Euro 6', features: truck.features || [],
       maxWeightKg: truck.maxWeightKg || '', maxPallets: truck.maxPallets || '', maxLdm: truck.maxLdm || '', maxVolumeCbm: truck.maxVolumeCbm || '',
-      payloadCapacity: truck.payloadCapacity || '', costPerKm: truck.costPerKm || '', fuelConsumption: truck.fuelConsumption || '',
+      payloadCapacity: truck.payloadCapacity || '',
+      heightCm: truck.heightCm || '', widthCm: truck.widthCm || '', lengthCm: truck.lengthCm || '', axleCount: truck.axleCount || '',
+      fuelType: truck.fuelType || '', fuelPricePerLiter: truck.fuelPricePerLiter || '',
+      maintenanceCostPerKm: truck.maintenanceCostPerKm || '', fixedCostPerDay: truck.fixedCostPerDay || '',
+      costPerKm: truck.costPerKm || '', fuelConsumption: truck.fuelConsumption || '',
       totalMileage: truck.totalMileage || '', nextMaintenanceMileage: truck.nextMaintenanceMileage || '', driverId: truck.driver?.id || '',
       trailerId: truck.trailer?.id || '', status: truck.status || 'active'
     });
@@ -1009,7 +1023,10 @@ export default function TrucksPage() {
             <div><label className="label font-semibold flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{t('maxPallets', 'Max Pallets')}</label><input type="number" className="input" value={form.maxPallets} onChange={e => setForm({...form, maxPallets: e.target.value})} /></div>
             <div><label className="label font-semibold">{t('maxLdm', 'Max LDM')}</label><input type="number" step="0.1" className="input" value={form.maxLdm} onChange={e => setForm({...form, maxLdm: e.target.value})} /></div>
             <div><label className="label font-semibold">{t('maxVolumeCbm', 'Max Volume (m³)')}</label><input type="number" className="input" value={form.maxVolumeCbm} onChange={e => setForm({...form, maxVolumeCbm: e.target.value})} /></div>
-            <div className="xl:col-span-3"></div>
+            <div><label className="label font-semibold">{t('heightCm', 'Height (cm)')}</label><input type="number" className="input" value={form.heightCm} onChange={e => setForm({...form, heightCm: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('widthCm', 'Width (cm)')}</label><input type="number" className="input" value={form.widthCm} onChange={e => setForm({...form, widthCm: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('lengthCm', 'Length (cm)')}</label><input type="number" className="input" value={form.lengthCm} onChange={e => setForm({...form, lengthCm: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('axleCount', 'Axles')}</label><input type="number" className="input" value={form.axleCount} onChange={e => setForm({...form, axleCount: e.target.value})} /></div>
 
             <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
               <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Fuel className="w-4 h-4"/>{t('section_costs') || '4. Costs & Maintenance'}</h4>

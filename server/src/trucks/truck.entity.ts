@@ -62,6 +62,30 @@ export class Truck {
   @Column({ nullable: true, type: 'int' })
   maxPallets: number; // e.g. 33
 
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  heightCm: number; // external height, for bridge/tunnel routing
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  widthCm: number; // external width, for width-restricted routing
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  lengthCm: number; // total combination length in cm
+
+  @Column({ nullable: true, type: 'int' })
+  axleCount: number; // used by toll and truck routing profiles
+
+  @Column({ nullable: true, type: 'varchar' })
+  fuelType: string; // diesel | petrol | lng | cng | electric | hybrid
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 3 })
+  fuelPricePerLiter: number; // optional company-negotiated price, EUR/l
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  maintenanceCostPerKm: number; // EUR/km
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  fixedCostPerDay: number; // leasing/insurance/road tax, EUR/day
+
   @Column({ type: 'enum', enum: LoadingAccess, nullable: true })
   loadingAccess: LoadingAccess; // how the trailer is loaded/unloaded (rear, side, …)
 

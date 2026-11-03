@@ -28,6 +28,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import PalletIcon from '../components/icons/PalletIcon';
 import WeightKgIcon from '../components/icons/WeightKgIcon';
 import { useConfirm } from '../components/SaveConfirmProvider';
+import PlanningResultsPanel from '../components/planning/PlanningResultsPanel';
 import { generateTripPdf } from '../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { planningApi } from '../lib/planningApi';
@@ -1001,6 +1002,11 @@ function TripDetailDrawer({
   const col = TRIP_COLORS[st] || TRIP_COLORS.planning;
   const tripId = trip.id || tripSummary.id;
   const { origin, dest } = tripOriginDestination(trip);
+  const trafficDelay = Number(trafficInfo?.currentDelayMinutes ?? trafficInfo?.delayMinutes ?? trip.trafficDelayMinutes ?? 0) || 0;
+  const trafficLevel = trafficInfo?.congestionLevel || trafficInfo?.status || trip.trafficStatus || '';
+  const tollAmount = tollInfo?.totalCost ?? tollInfo?.totalAmount;
+  const storedTollAmount = Number(trip.tollCost ?? trip.tollAmount);
+  const hasStoredToll = (trip.tollStatus === 'calculated' || trip.tollStatus === 'estimated') && Number.isFinite(storedTollAmount);
 
   const handleCheckTraffic = async () => {
     setCheckingTraffic(true);
@@ -1008,7 +1014,8 @@ function TripDetailDrawer({
       const res = await planningApi.checkTripTraffic(tripId);
       setTrafficInfo(res);
       if (res.available) {
-        toast.success(res.delayMinutes > 0 ? `Traffic delay: +${res.delayMinutes}m` : 'Normal traffic on route');
+        const delay = Number(res.currentDelayMinutes ?? res.delayMinutes ?? 0);
+        toast.success(delay > 0 ? `Traffic delay: +${delay}m` : 'Normal traffic on route');
       } else {
         toast(res.message || t('traffic_unavailable', 'Live traffic unavailable — provider not configured'), { icon: 'ℹ️' });
       }
@@ -1025,7 +1032,8 @@ function TripDetailDrawer({
       const res = await planningApi.calculateTripTolls(tripId);
       setTollInfo(res);
       if (res.available) {
-        toast.success(`Tolls estimated: ${res.totalAmount} ${res.currency || 'EUR'}`);
+        const amount = res.totalCost ?? res.totalAmount ?? 0;
+        toast.success(`Tolls estimated: ${fmtMoney(amount, res.currency || 'EUR')}`);
       } else {
         toast(res.message || t('toll_unavailable', 'Toll calculation unavailable — provider not configured'), { icon: 'ℹ️' });
       }
@@ -1360,8 +1368,8 @@ function TripDetailDrawer({
                 <p className="text-[9px] text-text-muted font-bold uppercase">{t('live_traffic', 'Live Traffic')}</p>
                 <p className="text-xs font-bold text-text-primary truncate">
                   {trafficInfo?.available
-                    ? (trafficInfo.delayMinutes > 0 ? `+${trafficInfo.delayMinutes}m delay (${trafficInfo.status})` : 'Normal Traffic')
-                    : (trip.trafficDelayMinutes ? `+${trip.trafficDelayMinutes}m delay` : t('traffic_unavailable', 'Live traffic unavailable — provider not configured'))
+                    ? (trafficDelay > 0 ? `+${trafficDelay}m delay${trafficLevel ? ` (${trafficLevel.replace(/_/g, ' ')})` : ''}` : t('normal_traffic', 'Normal traffic'))
+                    : (trafficDelay > 0 ? `+${trafficDelay}m delay` : t('traffic_unavailable', 'Live traffic unavailable — provider not configured'))
                   }
                 </p>
               </div>
@@ -1383,8 +1391,8 @@ function TripDetailDrawer({
                 <p className="text-[9px] text-text-muted font-bold uppercase">{t('toll_calculation', 'European Tolls')}</p>
                 <p className="text-xs font-bold text-emerald-600 truncate">
                   {tollInfo?.available
-                    ? `${tollInfo.totalAmount} ${tollInfo.currency || 'EUR'} (${(tollInfo.countries || []).join(', ')})`
-                    : ((trip.tollCost || trip.tollAmount) ? `${trip.tollCost || trip.tollAmount} ${trip.tollCurrency || 'EUR'}` : t('toll_unavailable', 'Toll calculation unavailable — provider not configured'))
+                    ? `${fmtMoney(tollAmount, tollInfo.currency || 'EUR')}${(tollInfo.countries || []).length ? ` (${tollInfo.countries.join(', ')})` : ''}`
+                    : (hasStoredToll ? fmtMoney(storedTollAmount, trip.tollCurrency || 'EUR') : t('toll_unavailable', 'Toll calculation unavailable — provider not configured'))
                   }
                 </p>
               </div>

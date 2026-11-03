@@ -3636,15 +3636,17 @@ export class PlanningService {
     }
 
     if (routePlan) {
-      routePlan.truck = { ...truck, ...(routePlan.truck || {}) };
+      routePlan.truck = { ...(routePlan.truck || {}), ...truck };
       if (truck.driver) routePlan.truck.driver = truck.driver;
       if (truck.trailer) routePlan.truck.trailer = truck.trailer;
 
-      if (truck.driver && (!routePlan.driver || !routePlan.driver.user)) {
-        routePlan.driver = truck.driver;
+      const preferredDriver = (routePlan as any).trip?.driver || truck.driver;
+      if (preferredDriver && (!routePlan.driver || !routePlan.driver.user)) {
+        routePlan.driver = preferredDriver;
       }
-      if (truck.trailer && !(routePlan as any).trailer) {
-        (routePlan as any).trailer = truck.trailer;
+      const preferredTrailer = (routePlan as any).trip?.trailer || truck.trailer;
+      if (preferredTrailer) {
+        (routePlan as any).trailer = preferredTrailer;
       }
     }
 
@@ -3679,8 +3681,10 @@ export class PlanningService {
     const routePlan = new TruckRoutePlan();
     routePlan.truck = { id: truckId } as any;
     routePlan.truckId = truckId;
-    routePlan.driver = trip.driver ? { id: trip.driver.id } as any : (truck?.driver ? { id: truck.driver.id } as any : null);
-    routePlan.driverId = routePlan.driver?.id ?? null;
+    routePlan.company = (truck as any)?.companyId ? { id: (truck as any).companyId } as any : ((trip as any).companyId ? { id: (trip as any).companyId } as any : null);
+    const planDriver = trip.driver || truck?.driver || null;
+    routePlan.driver = planDriver ? { id: planDriver.id } as any : null;
+    routePlan.driverId = planDriver?.id ?? null;
     routePlan.trip = { id: trip.id } as any;
     routePlan.tripId = trip.id;
     routePlan.planningDate = planningDate;
@@ -3843,7 +3847,7 @@ export class PlanningService {
     }
 
     await this.routePlanRepo.save(savedPlan);
-    return (await this.getRoutePlan(trip.truck.id, planningDate, (trip.company as any)?.id))!;
+    return (await this.getRoutePlan(truckId, planningDate, (truck as any)?.companyId || (trip as any).companyId || null))!;
   }
 
   async getRoutePlan(truckId: string, planningDate: string, userCompanyId?: string | null): Promise<TruckRoutePlan | null> {
@@ -3921,15 +3925,17 @@ export class PlanningService {
     }
 
     if (routePlan) {
-      routePlan.truck = { ...truck, ...(routePlan.truck || {}) };
+      routePlan.truck = { ...(routePlan.truck || {}), ...truck };
       if (truck.driver) routePlan.truck.driver = truck.driver;
       if (truck.trailer) routePlan.truck.trailer = truck.trailer;
 
-      if (truck.driver && (!routePlan.driver || !routePlan.driver.user)) {
-        routePlan.driver = truck.driver;
+      const preferredDriver = (routePlan as any).trip?.driver || truck.driver;
+      if (preferredDriver && (!routePlan.driver || !routePlan.driver.user)) {
+        routePlan.driver = preferredDriver;
       }
-      if (truck.trailer && !(routePlan as any).trailer) {
-        (routePlan as any).trailer = truck.trailer;
+      const preferredTrailer = (routePlan as any).trip?.trailer || truck.trailer;
+      if (preferredTrailer) {
+        (routePlan as any).trailer = preferredTrailer;
       }
       if (routePlan.truck) {
         const caps = this.resolveTruckCapacity(routePlan.truck);
