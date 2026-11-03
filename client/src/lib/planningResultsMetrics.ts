@@ -13,6 +13,9 @@ export const FUEL_FACTORS: Record<string, number> = {
   hybrid: 2.68,
 };
 
+export type CostBasis = 'recorded' | 'estimated' | 'none';
+export type AssignmentSource = 'assigned' | 'truck' | 'carrier' | 'none';
+
 export function toNum(value: any): number | null {
   if (value === null || value === undefined || value === '') return null;
   const n = Number(value);
@@ -81,20 +84,35 @@ export function costBucket(cost: any): 'fuel' | 'toll' | 'driver' | 'other' {
   return 'other';
 }
 
+function resolvedDriver(trip: any): { entity: any | null; source: AssignmentSource; name: string } {
+  const assignment = trip?.assignment;
+  const source: AssignmentSource = assignment?.driverSource || (trip?.driver?.id ? 'assigned' : trip?.truck?.driver?.id ? 'truck' : trip?.carrierDriverName ? 'carrier' : 'none');
+  const entity = trip?.driver || trip?.truck?.driver || null;
+  const name = assignment?.driverName || nameOfDriver(entity) || String(trip?.carrierDriverName || '').trim();
+  return { entity, source, name };
+}
+
+function resolvedTrailer(trip: any): { entity: any | null; source: AssignmentSource; plate: string } {
+  const assignment = trip?.assignment;
+  const source: AssignmentSource = assignment?.trailerSource || (trip?.trailer?.id ? 'assigned' : trip?.truck?.trailer?.id ? 'truck' : trip?.carrierTrailerPlate ? 'carrier' : 'none');
+  const plate =
+    assignment?.trailerPlate ||
+    trip?.trailer?.plateNumber ||
+    trip?.trailerPlate ||
+    trip?.carrierTrailerPlate ||
+    trip?.truck?.trailer?.plateNumber ||
+    '';
+  return { entity: trip?.trailer || trip?.truck?.trailer || null, source, plate };
+}
+
 export function buildTripMetrics(trip: any) {
   const orders = trip?.orders || [];
   const costs = trip?.costs || [];
   const truck = trip?.truck || null;
-  const driverEntity = trip?.driver || trip?.truck?.driver || null;
-  const driverName = nameOfDriver(driverEntity) || trip?.carrierDriverName || '';
+  const driverAssignment = resolvedDriver(trip);
+  const trailerAssignment = resolvedTrailer(trip);
 
   const truckPlate = truck?.plateNumber || trip?.carrierTruckPlate || '';
-  const trailerPlate =
-    trip?.trailer?.plateNumber ||
-    trip?.trailerPlate ||
-    trip?.carrierTrailerPlate ||
-    truck?.trailer?.plateNumber ||
-    '';
 
   const priceValues: number[] = [];
   for (const order of orders) {
@@ -119,8 +137,29 @@ export function buildTripMetrics(trip: any) {
       : null;
   const estimatedCost = toNum(trip?.estimatedCost);
   const estimatedProfit = toNum(trip?.estimatedProfit);
-  const totalCost = recordedTotal !== null ? recordedTotal : estimatedCost;
-  const profit = revenue !== null && totalCost !== null ? revenue - totalCost : estimatedProfit;
+
+  const rawBreakdown = trip?.estimatedCostBreakdown;
+  const estimatedBreakdown =
+    rawBreakdown && typeof rawBreakdown === 'object'
+      ? {
+          fuel: toNum(rawBreakdown.fuelCost),
+          toll: toNum(rawBreakdown.tollCost),
+          driver: toNum(rawBreakdown.driverCost),
+          maintenance: toNum(rawBreakdown.maintenanceCost),
+          fixed: toNum(rawBreakdown.fixedCost),
+          manual: toNum(rawBreakdown.manualCost),
+          total: toNum(rawBreakdown.total),
+          driverCostSource: rawBreakdown.driverCostSource || null,
+          estimatedFields: Array.isArray(rawBreakdown.estimatedFields) ? rawBreakdown.estimatedFields : [],
+        }
+      : null;
+
+  const costBasis: CostBasis = recordedTotal !== null ? 'recorded' : estimatedCost !== null ? 'estimated' : 'none';
+  const totalCost = costBasis === 'recorded' ? recordedTotal : costBasis === 'estimated' ? estimatedCost : null;
+  const profit =
+    revenue !== null && totalCost !== null
+      ? Math.round((revenue - totalCost) * 100) / 100
+      : estimatedProfit;
 
   const tollStatus = String(trip?.tollStatus || '').toLowerCase();
   const tollDisabled = ['not_calculated', 'unavailable', 'failed', 'error'].includes(tollStatus);
@@ -196,16 +235,22 @@ export function buildTripMetrics(trip: any) {
 
   const consumption = toNum(truck?.fuelConsumption);
   const distanceKm = toNum(trip?.distanceKm);
-  const fuelTypeRaw = String(truck?.fuelType || '').toLowerCase();
+  const fuelTypeRaw = String(truck?.fuelType || '').trim().toLowerCase();
   const isElectric = fuelTypeRaw.includes('electric');
-  const knownFactor = Boolean(fuelTypeRaw && FUEL_FACTORS[fuelTypeRaw]);
-  const emissionAssumed = !isElectric && !knownFactor;
-  const emissionFactor = isElectric ? null : FUEL_FACTORS[knownFactor ? fuelTypeRaw : 'diesel'] ?? null;
+  const emissionFactor = fuelTypeRaw ? FUEL_FACTORS[fuelTypeRaw] ?? null : null;
+  // Fuel volume is distance × configured consumption. It never assumes a fuel type.
   const fuelLiters =
-    !isElectric && distanceKm !== null && consumption !== null && consumption > 0
+    !isElectric && distanceKm !== null && distanceKm > 0 && consumption !== null && consumption > 0
       ? (distanceKm * consumption) / 100
       : null;
   const co2Kg = fuelLiters !== null && emissionFactor !== null ? fuelLiters * emissionFactor : null;
+
+  let emissionMissing: 'fuel_type' | 'consumption' | 'distance' | 'electric' | 'factor' | null = null;
+  if (isElectric) emissionMissing = 'electric';
+  else if (!fuelTypeRaw) emissionMissing = 'fuel_type';
+  else if (consumption === null || consumption <= 0) emissionMissing = 'consumption';
+  else if (distanceKm === null || distanceKm <= 0) emissionMissing = 'distance';
+  else if (emissionFactor === null) emissionMissing = 'factor';
 
   return {
     id: String(trip?.id || ''),
@@ -213,11 +258,13 @@ export function buildTripMetrics(trip: any) {
     tripNumber: trip?.tripNumber || '',
     status: String(trip?.status || ''),
     truckId: truck?.id || '',
-    driverId: driverEntity?.id || '',
+    driverId: driverAssignment.entity?.id || '',
     truckPlate,
-    trailerPlate,
-    driverName,
-    driverEntity,
+    trailerPlate: trailerAssignment.plate,
+    trailerSource: trailerAssignment.source,
+    driverName: driverAssignment.name,
+    driverSource: driverAssignment.source,
+    driverEntity: driverAssignment.entity,
     distanceKm,
     emptyKm:
       toNum(trip?.emptyKm) ??
@@ -236,19 +283,24 @@ export function buildTripMetrics(trip: any) {
     otherCost: present.other ? buckets.other : null,
     recordedTotal,
     estimatedCost,
+    estimatedBreakdown,
+    estimatedCalculatedAt: trip?.costCalculatedAt || null,
     totalCost,
+    costBasis,
     revenue,
     profit,
     utilizationPct,
     currency,
     fuelTypeRaw,
     isElectric,
-    emissionAssumed,
     consumption,
     emissionFactor,
     fuelLiters,
     co2Kg,
+    emissionMissing,
     stops,
     costs,
   };
 }
+
+export type TripMetrics = ReturnType<typeof buildTripMetrics>;

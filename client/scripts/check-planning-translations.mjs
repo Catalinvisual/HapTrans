@@ -4,22 +4,31 @@ import { dirname, resolve } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
-const source = readFileSync(resolve(root, 'src/lib/planningUpgradeI18n.ts'), 'utf8');
+const sources = [
+  readFileSync(resolve(root, 'src/lib/planningUpgradeI18n.ts'), 'utf8'),
+  readFileSync(resolve(root, 'src/lib/planningDataQualityI18n.ts'), 'utf8'),
+];
 const languages = ['en', 'ro', 'nl', 'de', 'fr', 'es', 'pl'];
 const sets = {};
+const baseKeys = new Set();
+let failures = 0;
 
-for (const language of languages) {
-  const match = source.match(new RegExp(`const ${language} = \\{([\\s\\S]*?)\\n\\};`));
-  if (!match) {
-    console.error(`Missing language block: ${language}`);
-    process.exit(1);
+for (const [index, source] of sources.entries()) {
+  for (const language of languages) {
+    const match = source.match(new RegExp(`const ${language} = \\{([\\s\\S]*?)\\n\\};`));
+    if (!match) {
+      console.error(`Missing language block: ${language} in source ${index + 1}`);
+      process.exit(1);
+    }
+    const keys = [...match[1].matchAll(/^ {2}(up_[a-z0-9_]+):/gm)].map((entry) => entry[1]);
+    if (!sets[language]) sets[language] = [];
+    sets[language].push(...keys);
+    if (language === 'en') keys.forEach((key) => baseKeys.add(key));
   }
-  sets[language] = [...match[1].matchAll(/^ {2}(up_[a-z0-9_]+):/gm)].map((entry) => entry[1]);
 }
 
-const base = sets.en;
+const base = [...baseKeys];
 console.log(`en keys: ${base.length}`);
-let failures = 0;
 for (const language of languages) {
   const missing = base.filter((key) => !sets[language].includes(key));
   const extra = sets[language].filter((key) => !base.includes(key));

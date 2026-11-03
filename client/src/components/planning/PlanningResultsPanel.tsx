@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   List as ListIcon,
   Map as MapIcon,
-  DollarSign,
+  Euro,
   Clock,
   AlertTriangle,
   Leaf,
@@ -18,6 +18,7 @@ import {
 import CustomSelect from '../CustomSelect';
 import { appLocale, fmtMoney, fmtNumber } from '../../lib/format';
 import { buildTripMetrics, costBucket, minutesBetween, nameOfDriver, toMs, toNum } from '../../lib/planningResultsMetrics';
+import { planningApi } from '../../lib/planningApi';
 
 type ViewKey = 'results' | 'route' | 'costs' | 'driver' | 'conflicts' | 'emissions';
 type ExportFormat = 'xlsx' | 'csv' | 'pdf';
@@ -162,6 +163,8 @@ export default function PlanningResultsPanel({
   });
   const [compareMode, setCompareMode] = useState(false);
   const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [tachoByDriver, setTachoByDriver] = useState<Record<string, any>>({});
+  const [tachoLoading, setTachoLoading] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -194,6 +197,50 @@ export default function PlanningResultsPanel({
     setView('results');
     panelRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [focusSignal]);
+
+  // Driver hours must come from recorded tachograph activity, never from the
+  // manual HOS rows (which are all zero when nobody filled them in).
+  useEffect(() => {
+    if (view !== 'driver') return;
+    const ids = Array.from(
+      new Set<string>(
+        (boardData?.trips || []).flatMap((trip: any) => {
+          const id = trip?.assignment?.driverId || trip?.driver?.id || trip?.truck?.driver?.id;
+          return id ? [id as string] : [];
+        }),
+      ),
+    );
+    if (!ids.length) {
+      setTachoByDriver({});
+      return;
+    }
+    let cancelled = false;
+    setTachoLoading(true);
+    const to = new Date();
+    const from = new Date(to.getTime() - 7 * 86400000);
+    Promise.all(
+      ids.map(async (id) => {
+        try {
+          const data = await planningApi.getDriverActivity(id, {
+            from: from.toISOString(),
+            to: to.toISOString(),
+          });
+          return [id, data] as const;
+        } catch {
+          return [id, { available: false, reason: 'request_failed' }] as const;
+        }
+      }),
+    )
+      .then((entries) => {
+        if (!cancelled) setTachoByDriver(Object.fromEntries(entries));
+      })
+      .finally(() => {
+        if (!cancelled) setTachoLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [view, boardData]);
 
   const startResize = (event: any) => {
     if (collapsed) return;
@@ -326,6 +373,7 @@ export default function PlanningResultsPanel({
   }, [metrics, selectedTripId]);
 
   const totals = useMemo(() => {
+    const counts: Record<string, number> = {};
     const sum = (key: keyof (typeof metrics)[number]) => {
       let total = 0;
       let any = false;
@@ -334,6 +382,7 @@ export default function PlanningResultsPanel({
         if (typeof value === 'number' && Number.isFinite(value)) {
           total += value;
           any = true;
+          counts[key as string] = (counts[key as string] || 0) + 1;
         }
       }
       return any ? total : null;
@@ -342,6 +391,19 @@ export default function PlanningResultsPanel({
       .map((m) => m.utilizationPct)
       .filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
     const currencies = Array.from(new Set(metrics.map((m) => m.currency).filter(Boolean)));
+
+    const components: Record<string, number> = { fuel: 0, toll: 0, driver: 0, maintenance: 0, fixed: 0, manual: 0 };
+    let estimatedComponentTrips = 0;
+    for (const metric of metrics) {
+      const breakdown = metric.estimatedBreakdown;
+      if (!breakdown) continue;
+      estimatedComponentTrips += 1;
+      for (const key of Object.keys(components)) {
+        const value = (breakdown as any)[key];
+        if (typeof value === 'number' && Number.isFinite(value)) components[key] += value;
+      }
+    }
+
     return {
       distance: sum('distanceKm'),
       emptyKm: sum('emptyKm'),
@@ -362,8 +424,22 @@ export default function PlanningResultsPanel({
       utilization:
         utilValues.length > 0 ? utilValues.reduce((a, b) => a + b, 0) / utilValues.length : null,
       currency: currencies.length === 1 ? currencies[0] : currencies.length === 0 ? 'EUR' : null,
+      counts,
+      estimatedComponentTrips,
+      estimatedComponents: estimatedComponentTrips
+        ? Object.fromEntries(Object.entries(components).map(([key, value]) => [key, Math.round(value * 100) / 100]))
+        : null,
     };
   }, [metrics]);
+
+  const partialAggregate = useMemo(
+    () =>
+      ['totalCost', 'revenue', 'profit'].some((key) => {
+        const count = totals.counts[key] || 0;
+        return count > 0 && count < metrics.length;
+      }),
+    [totals.counts, metrics.length],
+  );
 
   const driverRows = useMemo(() => {
     const grouped = new Map<
@@ -488,6 +564,23 @@ export default function PlanningResultsPanel({
   };
 
   const np = () => <span className="italic text-text-muted/70">{t('pr.not_provided', 'Not provided')}</span>;
+
+  const basisLabel = (basis: string) =>
+    basis === 'recorded'
+      ? t('up_res_basis_recorded', 'Recorded')
+      : basis === 'estimated'
+      ? t('up_res_basis_estimated', 'Estimated')
+      : t('up_res_basis_none', 'No cost basis');
+
+  const assignmentBadge = (source: string) => {
+    if (source === 'truck') {
+      return <span className="ml-1 rounded bg-sky-500/10 px-1 py-0.5 text-[8px] font-bold uppercase tracking-wide text-sky-600">{t('up_res_from_truck', 'truck default')}</span>;
+    }
+    if (source === 'carrier') {
+      return <span className="ml-1 rounded bg-slate-500/10 px-1 py-0.5 text-[8px] font-bold uppercase tracking-wide text-slate-500">{t('up_res_from_carrier', 'carrier')}</span>;
+    }
+    return null;
+  };
   const nc = () => <span className="italic text-text-muted/70">{t('pr.not_calculated', 'Not calculated')}</span>;
   const na = () => <span className="italic text-text-muted/70">{t('pr.unavailable', 'Unavailable')}</span>;
 
@@ -536,6 +629,7 @@ export default function PlanningResultsPanel({
           { key: 'totalCost', label: t('pr.total_cost', 'Total cost'), align: 'right' },
           { key: 'revenue', label: t('pr.revenue', 'Revenue'), align: 'right' },
           { key: 'profit', label: t('pr.profit', 'Profit'), align: 'right' },
+          { key: 'costBasis', label: t('up_res_cost_basis', 'Cost basis') },
           { key: 'emptyKm', label: t('pr.empty_km', 'Empty km'), align: 'right' },
           { key: 'utilization', label: `${t('pr.utilization', 'Utilization')} (%)`, align: 'right' },
           { key: 'currency', label: t('pr.currency', 'Currency') },
@@ -561,7 +655,8 @@ export default function PlanningResultsPanel({
           totalCost: m.totalCost ?? '',
           revenue: m.revenue ?? '',
           profit: m.profit ?? '',
-          emptyKm: '',
+          costBasis: m.costBasis,
+          emptyKm: m.emptyKm ?? '',
           utilization: m.utilizationPct ?? '',
           currency: m.currency,
           status: t(`status_${String(m.status || '').toLowerCase()}`, m.status || ''),
@@ -639,16 +734,20 @@ export default function PlanningResultsPanel({
           }
           return { fileBase: `planning-costs-${dateTag}`, headers, rows };
         }
-        const totalRecorded =
-          (totals.fuel ?? 0) + (totals.toll ?? 0) + (totals.driver ?? 0) + (totals.other ?? 0);
         const currency = totals.currency || 'MIXED';
         const rows = [
-          { category: t('pr.cat_fuel', 'Fuel'), amount: totals.fuel ?? '', currency },
-          { category: t('pr.cat_toll', 'Toll'), amount: totals.toll ?? '', currency },
-          { category: t('pr.cat_driver', 'Driver salaries'), amount: totals.driver ?? '', currency },
-          { category: t('pr.cat_other', 'Other costs'), amount: totals.other ?? '', currency },
-          { category: t('pr.total', 'Total'), amount: totalRecorded, currency },
-        ].map((row) => ({ ...row, type: '', description: '', source: t('pr.recorded', 'Recorded') }));
+          { category: t('pr.cat_fuel', 'Fuel'), amount: totals.fuel ?? '', source: t('pr.recorded', 'Recorded') },
+          { category: t('pr.cat_toll', 'Toll'), amount: totals.toll ?? '', source: t('pr.recorded', 'Recorded') },
+          { category: t('pr.cat_driver', 'Driver salaries'), amount: totals.driver ?? '', source: t('pr.recorded', 'Recorded') },
+          { category: t('pr.cat_other', 'Other costs'), amount: totals.other ?? '', source: t('pr.recorded', 'Recorded') },
+          {
+            category: t('pr.total_cost', 'Total cost'),
+            amount: totals.totalCost ?? '',
+            source: partialAggregate
+              ? t('up_res_aggregate_partial', 'Totals include only trips with a value')
+              : t('pr.total', 'Total'),
+          },
+        ].map((row) => ({ ...row, currency, type: '', description: '' }));
         return { fileBase: `planning-costs-${dateTag}`, headers, rows };
       }
 
@@ -656,25 +755,42 @@ export default function PlanningResultsPanel({
         const headers: Header[] = [
           { key: 'driver', label: t('pr.driver', 'Driver') },
           { key: 'trips', label: t('pr.trips_assigned', 'Assigned trips'), align: 'right' },
-          { key: 'weekly', label: `${t('pr.weekly_driving', 'Weekly driving')} (h)`, align: 'right' },
-          { key: 'remaining', label: `${t('pr.remaining_driving', 'Remaining driving')} (h)`, align: 'right' },
+          { key: 'daily', label: `${t('up_res_tacho_daily', "Today's driving (recorded)")} (h)`, align: 'right' },
+          { key: 'weekly', label: `${t('up_res_tacho_weekly', 'Weekly driving (recorded)')} (h)`, align: 'right' },
+          { key: 'remaining', label: `${t('up_res_tacho_remaining', 'Weekly remaining (recorded)')} (h)`, align: 'right' },
           { key: 'status', label: t('pr.hos_status', 'HOS status') },
+          { key: 'source', label: t('up_res_tacho_source', 'Source / last record') },
           { key: 'payMode', label: t('pr.pay_mode', 'Pay mode') },
           { key: 'payRate', label: t('pr.pay_rate', 'Rate'), align: 'right' },
         ];
-        const rows = driverRows.map((row) => ({
-          driver: row.name,
-          trips: row.tripCount,
-          weekly: row.weekly ?? '',
-          remaining: row.remaining ?? '',
-          status: !row.hos
-            ? t('pr.unavailable', 'Unavailable')
-            : row.over
-            ? t('pr.over_limit', 'Over limit')
-            : t('pr.within_limit', 'Within limit'),
-          payMode: row.payMode,
-          payRate: row.payRate ?? '',
-        }));
+        const rows = driverRows.map((row) => {
+          const data = row.driver?.id ? tachoByDriver[row.driver.id] : null;
+          const summary = data?.summary || {};
+          const available = data?.available === true;
+          const daily = available ? toNum(summary.dailyDrivingSeconds) : null;
+          const weekly = available ? toNum(summary.weeklyDrivingSeconds) : null;
+          const remaining = available ? toNum(summary.weeklyDrivingRemainingSeconds) : null;
+          const over =
+            available &&
+            ((weekly !== null && weekly >= 56 * 3600) || (daily !== null && daily >= 9 * 3600));
+          return {
+            driver: row.name,
+            trips: row.tripCount,
+            daily: daily === null ? '' : Math.round((daily / 3600) * 10) / 10,
+            weekly: weekly === null ? '' : Math.round((weekly / 3600) * 10) / 10,
+            remaining: remaining === null ? '' : Math.round((remaining / 3600) * 10) / 10,
+            status: !available
+              ? t('up_res_tacho_none', 'No tachograph records')
+              : over
+              ? t('up_res_tacho_over', 'Limit exceeded in recorded data')
+              : t('up_res_tacho_within', 'No violations in recorded data'),
+            source: available
+              ? `${data?.source || 'tachograph'}${data?.lastRecordAt ? ` · ${fmtDateTime(data.lastRecordAt)}` : ''}`
+              : '',
+            payMode: row.payMode,
+            payRate: row.payRate ?? '',
+          };
+        });
         return { fileBase: `planning-driver-hours-${dateTag}`, headers, rows };
       }
 
@@ -710,17 +826,24 @@ export default function PlanningResultsPanel({
       const rows = metrics.map((m) => ({
         trip: m.tripNumber,
         truck: m.truckPlate,
-        fuelType: m.fuelTypeRaw || (m.emissionAssumed ? 'diesel' : ''),
+        fuelType: m.fuelTypeRaw || '',
         distance: m.distanceKm ?? '',
         consumption: m.consumption ?? '',
         liters: m.fuelLiters ?? '',
         factor: m.emissionFactor ?? '',
         co2: m.co2Kg ?? '',
-        status: m.isElectric
-          ? t('pr.electric_unavailable', 'CO₂ estimate is not available for electric vehicles.')
-          : m.co2Kg === null
-          ? t('pr.not_calculated', 'Not calculated')
-          : t('pr.estimated', 'Estimated'),
+        status:
+          m.co2Kg !== null
+            ? t('pr.estimated', 'Estimated')
+            : m.emissionMissing === 'electric'
+            ? t('pr.electric_unavailable', 'CO₂ estimate is not available for electric vehicles.')
+            : m.emissionMissing === 'fuel_type'
+            ? t('up_res_fuel_type_missing', 'Fuel type not configured')
+            : m.emissionMissing === 'consumption'
+            ? t('up_res_consumption_missing', 'Consumption not configured')
+            : m.emissionMissing === 'distance'
+            ? t('up_res_distance_missing', 'Distance not calculated')
+            : t('up_res_no_co2_factor', 'No emission factor for this fuel type'),
       }));
       return { fileBase: `planning-emissions-${dateTag}`, headers, rows };
     },
@@ -737,6 +860,9 @@ export default function PlanningResultsPanel({
       totals.other,
       totals.toll,
       tripNumberById,
+      tachoByDriver,
+      partialAggregate,
+      totals.totalCost,
     ],
   );
 
@@ -833,7 +959,7 @@ export default function PlanningResultsPanel({
       value: 'costs',
       label: (
         <span className="flex items-center gap-1.5">
-          <DollarSign className="w-3.5 h-3.5" />
+          <Euro className="w-3.5 h-3.5" />
           {t('pr.costs', 'Costs & Revenue')}
         </span>
       ),
@@ -938,31 +1064,25 @@ export default function PlanningResultsPanel({
             className="input h-7 w-44 text-[10px]"
             aria-label={t('up_res_filter', 'Filter trips…')}
           />
-          <select
-            value={statusFilterValue}
-            onChange={(event) => setStatusFilterValue(event.target.value)}
-            className="input h-7 w-32 text-[10px]"
-            aria-label={t('up_res_status', 'Status')}
-          >
-            <option value="">{t('up_res_all_statuses', 'All statuses')}</option>
-            {statusOptions.map((status) => (
-              <option key={status} value={status}>
-                {t(`status_${status}`, status)}
-              </option>
-            ))}
-          </select>
-          <select
+          <CustomSelect
+            size="sm"
+            className="w-36"
+            value={statusFilterValue || '__all'}
+            onChange={(value) => setStatusFilterValue(value === '__all' ? '' : value)}
+            options={[
+              { value: '__all', label: t('up_res_all_statuses', 'All statuses') },
+              ...statusOptions.map((status) => ({ value: status, label: t(`status_${status}`, status) })),
+            ]}
+            title={t('up_res_status', 'Status')}
+          />
+          <CustomSelect
+            size="sm"
+            className="w-40"
             value={sortKey}
-            onChange={(event) => setSortKey(event.target.value)}
-            className="input h-7 w-36 text-[10px]"
-            aria-label={t('up_res_sort', 'Sort by')}
-          >
-            {sortOptions.map((option) => (
-              <option key={option.key} value={option.key}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onChange={setSortKey}
+            options={sortOptions.map((option) => ({ value: option.key, label: option.label }))}
+            title={t('up_res_sort', 'Sort by')}
+          />
           <button
             type="button"
             onClick={() => setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
@@ -1041,17 +1161,17 @@ export default function PlanningResultsPanel({
                 {[
                   { key: 'distanceKm', label: t('pr.distance_km', 'Distance (km)'), format: (value: any) => (value === null ? '—' : `${fmtNumber(value, 0)} km`) },
                   { key: 'drivingMin', label: t('pr.driving_time', 'Driving time'), format: (value: any) => (value === null ? '—' : fmtMinutes(value)) },
-                  { key: 'toll', label: t('pr.toll', 'Toll'), format: (value: any) => (value === null ? '—' : fmtMoney(value, 'EUR')) },
-                  { key: 'totalCost', label: t('pr.total_cost', 'Total cost'), format: (value: any) => (value === null ? '—' : fmtMoney(value, 'EUR')) },
-                  { key: 'revenue', label: t('pr.revenue', 'Revenue'), format: (value: any) => (value === null ? '—' : fmtMoney(value, 'EUR')) },
-                  { key: 'profit', label: t('pr.profit', 'Profit'), format: (value: any) => (value === null ? '—' : fmtMoney(value, 'EUR')) },
+                  { key: 'toll', label: t('pr.toll', 'Toll'), format: (value: any, currency: string) => (value === null ? '—' : fmtMoney(value, currency)) },
+                  { key: 'totalCost', label: t('pr.total_cost', 'Total cost'), format: (value: any, currency: string) => (value === null ? '—' : fmtMoney(value, currency)) },
+                  { key: 'revenue', label: t('pr.revenue', 'Revenue'), format: (value: any, currency: string) => (value === null ? '—' : fmtMoney(value, currency)) },
+                  { key: 'profit', label: t('pr.profit', 'Profit'), format: (value: any, currency: string) => (value === null ? '—' : fmtMoney(value, currency)) },
                   { key: 'utilizationPct', label: t('pr.utilization', 'Utilization'), format: (value: any) => (value === null ? '—' : `${fmtNumber(value, 0)}%`) },
                 ].map((row) => (
                   <tr key={row.key} className="border-t border-border/40">
                     <td className="px-2 py-1 text-[10px] font-bold text-text-secondary">{row.label}</td>
                     {compareMetrics.map((metric) => (
                       <td key={`${row.key}-${metric.id}`} className="px-2 py-1 text-right tabular-nums text-text-primary">
-                        {row.format((metric as any)[row.key])}
+                        {row.format((metric as any)[row.key], metric.currency)}
                       </td>
                     ))}
                   </tr>
@@ -1105,8 +1225,26 @@ export default function PlanningResultsPanel({
               >
                 <td className={`${td} font-bold`}>{m.tripNumber || np()}</td>
                 <td className={td}>{m.truckPlate || np()}</td>
-                <td className={td}>{m.trailerPlate || np()}</td>
-                <td className={td}>{m.driverName || np()}</td>
+                <td className={td}>
+                  {m.trailerPlate ? (
+                    <span className="inline-flex items-center">
+                      {m.trailerPlate}
+                      {assignmentBadge(m.trailerSource)}
+                    </span>
+                  ) : (
+                    np()
+                  )}
+                </td>
+                <td className={td}>
+                  {m.driverName ? (
+                    <span className="inline-flex items-center">
+                      {m.driverName}
+                      {assignmentBadge(m.driverSource)}
+                    </span>
+                  ) : (
+                    np()
+                  )}
+                </td>
                 <td className={tdR}>{m.distanceKm === null ? np() : fmtNumber(m.distanceKm, 0)}</td>
                 <td className={tdR}>{timeOr(m.travelMin)}</td>
                 <td className={tdR}>{timeOr(m.drivingMin)}</td>
@@ -1123,7 +1261,14 @@ export default function PlanningResultsPanel({
                 <td className={tdR}>{moneyOr(m.fuelCost, m.currency)}</td>
                 <td className={tdR}>{moneyOr(m.driverCost, m.currency)}</td>
                 <td className={tdR}>{moneyOr(m.otherCost, m.currency)}</td>
-                <td className={`${tdR} font-bold`}>{moneyOr(m.totalCost, m.currency)}</td>
+                <td className={`${tdR} font-bold`}>
+                  {moneyOr(m.totalCost, m.currency)}
+                  {m.totalCost !== null && (
+                    <span className="ml-1 text-[8px] font-bold uppercase tracking-wide text-text-muted">
+                      {m.costBasis === 'recorded' ? t('up_res_recorded_short', 'rec.') : t('up_res_estimated_short', 'est.')}
+                    </span>
+                  )}
+                </td>
                 <td className={tdR}>{moneyOr(m.revenue, m.currency)}</td>
                 <td
                   className={`${tdR} font-bold ${
@@ -1131,6 +1276,11 @@ export default function PlanningResultsPanel({
                   }`}
                 >
                   {moneyOr(m.profit, m.currency)}
+                  {m.profit !== null && (
+                    <span className="ml-1 text-[8px] font-bold uppercase tracking-wide text-text-muted">
+                      {m.costBasis === 'recorded' ? t('up_res_recorded_short', 'rec.') : t('up_res_estimated_short', 'est.')}
+                    </span>
+                  )}
                 </td>
                 <td className={tdR}>
                   {m.emptyKm === null || m.emptyKm === undefined ? nc() : <span className="tabular-nums">{fmtNumber(m.emptyKm, 0)}</span>}
@@ -1143,7 +1293,7 @@ export default function PlanningResultsPanel({
             ))}
             <tr className="bg-surface/80 font-bold">
               <td className={`${td} text-[10px]`}>
-                {t('pr.total', 'Total')} ({metrics.length})
+                {t('pr.total', 'Total')} ({displayMetrics.length})
               </td>
               <td className={td} />
               <td className={td} />
@@ -1172,6 +1322,15 @@ export default function PlanningResultsPanel({
           </tbody>
         </table>
         )}
+        <div className="px-2.5 py-1.5 text-[9px] leading-relaxed text-text-muted">
+          {t(
+            'up_res_basis_note',
+            '“Est.” costs come from the CostEngine; recorded costs come from actual trip expense entries.',
+          )}
+          {partialAggregate
+            ? ` · ${t('up_res_aggregate_partial', 'Totals include only trips with a value')} (${Math.max(totals.counts.totalCost || 0, totals.counts.revenue || 0, totals.counts.profit || 0)}/${metrics.length}).`
+            : ''}
+        </div>
       </div>
     );
   };
@@ -1300,7 +1459,60 @@ export default function PlanningResultsPanel({
     );
   };
 
+  const estimatedCostRows = [
+    { key: 'fuel', label: t('up_res_fuel', 'Fuel') },
+    { key: 'toll', label: t('up_res_toll', 'Toll') },
+    { key: 'driver', label: t('up_res_driver', 'Driver') },
+    { key: 'maintenance', label: t('up_res_maintenance', 'Maintenance') },
+    { key: 'fixed', label: t('up_res_fixed', 'Fixed / ownership') },
+    { key: 'manual', label: t('up_res_manual', 'Manual / other') },
+  ];
+
+  const renderEstimatedBreakdown = (breakdown: any, calculatedAt?: any) => {
+    if (!breakdown) {
+      return (
+        <p className="mb-3 rounded-xl border border-dashed border-border px-2.5 py-2 text-[10px] text-text-secondary">
+          {t('up_res_breakdown_missing', 'Estimated breakdown is not available. Recalculate the trip to generate it.')}
+        </p>
+      );
+    }
+    const currency = selected?.currency || totals.currency || 'EUR';
+    return (
+      <div className="mb-3 overflow-x-auto rounded-xl border border-border bg-card/40">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-2.5 py-1.5">
+          <span className="text-[10px] font-black text-text-primary">
+            {t('up_res_estimated_breakdown', 'Estimated cost breakdown')}
+          </span>
+          <span className="text-[9px] text-text-muted">
+            {t('up_res_cost_engine', 'CostEngine')}
+            {calculatedAt ? ` · ${t('up_res_calculated_at', 'Calculated')} ${fmtDateTime(calculatedAt)}` : ''}
+          </span>
+        </div>
+        <table className="w-full border-collapse text-[11px]">
+          <tbody>
+            {estimatedCostRows.map((row) => {
+              const value = toNum(breakdown[row.key]);
+              return (
+                <tr key={row.key} className="border-b border-border/40 last:border-0">
+                  <td className={td}>{row.label}</td>
+                  <td className={tdR}>{value === null ? nc() : fmtMoney(value, currency)}</td>
+                </tr>
+              );
+            })}
+            <tr className="bg-surface/80 font-bold">
+              <td className={td}>{t('up_res_total', 'Total')}</td>
+              <td className={tdR}>
+                {toNum(breakdown.total) === null ? '—' : fmtMoney(toNum(breakdown.total), currency)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   const renderCosts = () => {
+    if (metrics.length === 0) return renderEmpty(t('pr.no_trips', 'No trips in range'));
     if (!selected) {
       const recorded =
         (totals.fuel ?? 0) + (totals.toll ?? 0) + (totals.driver ?? 0) + (totals.other ?? 0);
@@ -1316,14 +1528,21 @@ export default function PlanningResultsPanel({
         <div className="p-3">
           <div className="flex flex-wrap gap-2 mb-3">
             {summaryCard(t('pr.revenue', 'Revenue'), totalMoney(totals.revenue), 'text-emerald-600')}
+            {summaryCard(t('up_res_cost_basis', 'Cost basis'), partialAggregate ? t('up_res_aggregate_partial', 'Totals include only trips with a value') : t('up_res_aggregate_complete', 'All trips have a value'))}
             {summaryCard(t('pr.recorded_costs', 'Recorded costs'), hasRecorded ? totalMoney(recorded) : nc())}
             {summaryCard(t('pr.estimated_cost', 'Estimated cost'), totalMoney(totals.estimated))}
+            {summaryCard(t('pr.total_cost', 'Total cost'), totalMoney(totals.totalCost))}
             {summaryCard(
               t('pr.profit', 'Profit'),
               totalMoney(totals.profit),
               totals.profit !== null && totals.profit < 0 ? 'text-rose-500' : 'text-emerald-600',
             )}
           </div>
+          {renderEstimatedBreakdown(
+            totals.estimatedComponents
+              ? { ...totals.estimatedComponents, total: totals.estimated }
+              : null,
+          )}
           {!hasRecorded ? (
             renderEmpty(t('pr.no_costs', 'No recorded costs.'))
           ) : (
@@ -1363,14 +1582,20 @@ export default function PlanningResultsPanel({
       <div className="p-3">
         <div className="flex flex-wrap gap-2 mb-3">
           {summaryCard(t('pr.revenue', 'Revenue'), moneyOr(selected.revenue, selected.currency), 'text-emerald-600')}
+          {summaryCard(t('up_res_cost_basis', 'Cost basis'), basisLabel(selected.costBasis))}
           {summaryCard(t('pr.recorded_costs', 'Recorded costs'), moneyOr(selected.recordedTotal, selected.currency))}
           {summaryCard(t('pr.estimated_cost', 'Estimated cost'), moneyOr(selected.estimatedCost, selected.currency))}
           {summaryCard(
-            t('pr.profit', 'Profit'),
+            `${t('pr.total_cost', 'Total cost')} (${basisLabel(selected.costBasis)})`,
+            moneyOr(selected.totalCost, selected.currency),
+          )}
+          {summaryCard(
+            `${t('pr.profit', 'Profit')} (${basisLabel(selected.costBasis)})`,
             moneyOr(selected.profit, selected.currency),
             selected.profit !== null && selected.profit < 0 ? 'text-rose-500' : 'text-emerald-600',
           )}
         </div>
+        {renderEstimatedBreakdown(selected.estimatedBreakdown, selected.estimatedCalculatedAt)}
         {selected.costs.length === 0 ? (
           renderEmpty(t('pr.no_costs', 'No recorded costs.'))
         ) : (
@@ -1401,56 +1626,115 @@ export default function PlanningResultsPanel({
             </tbody>
           </table>
         )}
+        <p className="mt-2 text-[10px] leading-relaxed text-text-secondary">
+          {t('up_res_recorded_note', 'Recorded costs reflect the expense entries that were actually entered and may not include every cost category.')}
+        </p>
       </div>
     );
   };
 
   const renderDriver = () => {
     if (driverRows.length === 0) return renderEmpty(t('pr.no_trips', 'No trips in range'));
+    const payModeLabel = (mode: string) => {
+      const key = String(mode || '').toLowerCase();
+      if (!key) return '';
+      return t(`up_res_pay_${key}`, key.replace(/_/g, ' '));
+    };
     return (
       <div className="p-3">
+        {tachoLoading && (
+          <div className="mb-2 flex items-center gap-1.5 text-[10px] text-text-secondary">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            {t('up_res_tacho_loading', 'Loading tachograph activity…')}
+          </div>
+        )}
         <table className="w-full border-collapse text-[11px]">
           <thead>
             <tr>
               <th className={thL}>{t('pr.driver', 'Driver')}</th>
               <th className={thR}>{t('pr.trips_assigned', 'Assigned trips')}</th>
-              <th className={thR}>{t('pr.weekly_driving', 'Weekly driving')}</th>
-              <th className={thR}>{t('pr.remaining_driving', 'Remaining driving')}</th>
+              <th className={thR}>{t('up_res_tacho_daily', "Today's driving (recorded)")}</th>
+              <th className={thR}>{t('up_res_tacho_weekly', 'Weekly driving (recorded)')}</th>
+              <th className={thR}>{t('up_res_tacho_remaining', 'Weekly remaining (recorded)')}</th>
               <th className={thL}>{t('pr.hos_status', 'HOS status')}</th>
+              <th className={thL}>{t('up_res_tacho_source', 'Source / last record')}</th>
               <th className={thL}>{t('pr.pay_mode', 'Pay mode')}</th>
-              <th className={thR}>{t('pr.pay_rate', 'Rate')}</th>
             </tr>
           </thead>
           <tbody>
-            {driverRows.map((row) => (
-              <tr key={row.key} className="hover:bg-primary/5">
-                <td className={`${td} font-bold`}>{row.name || np()}</td>
-                <td className={tdR}>{row.tripCount}</td>
-                <td className={tdR}>
-                  {row.weekly === null ? na() : `${fmtNumber(row.weekly, 1)} h`}
-                </td>
-                <td className={tdR}>
-                  {row.remaining === null ? na() : `${fmtNumber(row.remaining, 1)} h`}
-                </td>
-                <td className={td}>
-                  {!row.hos ? (
-                    <span className="italic text-text-muted/70">{t('pr.no_hos', 'No HOS data for this driver.')}</span>
-                  ) : row.over ? (
-                    <span className="inline-flex px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wide bg-rose-500/15 text-rose-600">
-                      {t('pr.over_limit', 'Over limit')}
-                    </span>
-                  ) : (
-                    <span className="inline-flex px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wide bg-emerald-500/15 text-emerald-600">
-                      {t('pr.within_limit', 'Within limit')}
-                    </span>
-                  )}
-                </td>
-                <td className={td}>{row.payMode || np()}</td>
-                <td className={tdR}>{row.payRate === null ? np() : fmtNumber(row.payRate, 2)}</td>
-              </tr>
-            ))}
+            {driverRows.map((row) => {
+              const driverId = row.driver?.id || '';
+              const data = driverId ? tachoByDriver[driverId] : null;
+              const summary = data?.summary || {};
+              const available = data?.available === true;
+              const daily = available ? toNum(summary.dailyDrivingSeconds) : null;
+              const weekly = available ? toNum(summary.weeklyDrivingSeconds) : null;
+              const remaining = available ? toNum(summary.weeklyDrivingRemainingSeconds) : null;
+              const over =
+                available &&
+                ((weekly !== null && weekly >= 56 * 3600) || (daily !== null && daily >= 9 * 3600));
+              const partial = Boolean(data?.coverage?.partial);
+              return (
+                <tr key={row.key} className="hover:bg-primary/5">
+                  <td className={`${td} font-bold`}>{row.name || np()}</td>
+                  <td className={tdR}>{row.tripCount}</td>
+                  <td className={tdR}>{daily === null ? na() : `${fmtNumber(daily / 3600, 1)} h`}</td>
+                  <td className={tdR}>{weekly === null ? na() : `${fmtNumber(weekly / 3600, 1)} h`}</td>
+                  <td className={tdR}>{remaining === null ? na() : `${fmtNumber(remaining / 3600, 1)} h`}</td>
+                  <td className={td}>
+                    {!available ? (
+                      <span className="italic text-text-muted/70">
+                        {tachoLoading
+                          ? t('up_res_tacho_loading', 'Loading tachograph activity…')
+                          : data?.reason === 'request_failed'
+                          ? t('pr.unavailable', 'Unavailable')
+                          : t('up_res_tacho_none', 'No tachograph records')}
+                      </span>
+                    ) : over ? (
+                      <span className="inline-flex px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wide bg-rose-500/15 text-rose-600">
+                        {t('up_res_tacho_over', 'Limit exceeded in recorded data')}
+                      </span>
+                    ) : (
+                      <span className="inline-flex px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wide bg-emerald-500/15 text-emerald-600">
+                        {t('up_res_tacho_within', 'No violations in recorded data')}
+                      </span>
+                    )}
+                  </td>
+                  <td className={td}>
+                    {available ? (
+                      <span className="text-[10px] text-text-secondary">
+                        {data?.source || 'tachograph'}
+                        {data?.lastRecordAt ? ` · ${fmtDateTime(data.lastRecordAt)}` : ''}
+                        {partial ? ` · ${t('up_res_tacho_partial', 'Partial tachograph coverage')}` : ''}
+                      </span>
+                    ) : (
+                      na()
+                    )}
+                  </td>
+                  <td className={td}>
+                    {row.payMode ? (
+                      <span>
+                        {payModeLabel(row.payMode)}
+                        {row.payRate === null
+                          ? ''
+                          : ` · ${
+                              String(row.payMode).toLowerCase() === 'percent'
+                                ? fmtNumber(row.payRate, 2)
+                                : fmtMoney(row.payRate, 'EUR')
+                            } ${payModeLabel(row.payMode)}`}
+                      </span>
+                    ) : (
+                      np()
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
+        <p className="mt-2 text-[10px] leading-relaxed text-text-secondary">
+          {t('up_res_tacho_note', 'HOS status uses recorded tachograph activity only. Missing records are never treated as zero driving.')}
+        </p>
       </div>
     );
   };
@@ -1493,25 +1777,26 @@ export default function PlanningResultsPanel({
 
   const renderEmissions = () => {
     if (metrics.length === 0) return renderEmpty(t('pr.no_trips', 'No trips in range'));
-    const estimatedMetrics = metrics.filter((m) => m.co2Kg !== null);
-    const totalFuel = estimatedMetrics.reduce((sum, m) => sum + (m.fuelLiters ?? 0), 0);
-    const totalCo2 = estimatedMetrics.reduce((sum, m) => sum + (m.co2Kg ?? 0), 0);
-    const usesAssumption = metrics.some((m) => m.emissionAssumed);
+    const co2Metrics = metrics.filter((m) => m.co2Kg !== null);
+    const fuelMetrics = metrics.filter((m) => m.fuelLiters !== null);
+    const totalFuel = fuelMetrics.reduce((sum, m) => sum + (m.fuelLiters ?? 0), 0);
+    const totalCo2 = co2Metrics.reduce((sum, m) => sum + (m.co2Kg ?? 0), 0);
+    const missingInputs = metrics.filter((m) => m.co2Kg === null).length;
     return (
       <div className="p-3">
         <div className="flex flex-wrap gap-2 mb-3">
           {summaryCard(
             t('pr.estimated_fuel', 'Estimated fuel (L)'),
-            estimatedMetrics.length ? fmtNumber(totalFuel, 1) : nc(),
+            fuelMetrics.length ? fmtNumber(totalFuel, 1) : nc(),
           )}
           {summaryCard(
             t('pr.estimated_co2', 'Estimated CO₂ (kg)'),
-            estimatedMetrics.length ? fmtNumber(totalCo2, 1) : nc(),
+            co2Metrics.length ? fmtNumber(totalCo2, 1) : nc(),
             'text-emerald-600',
           )}
           {summaryCard(
             `${t('pr.estimated', 'Estimated')} / ${t('pr.trips', 'Trips')}`,
-            `${estimatedMetrics.length} / ${metrics.length}`,
+            `${co2Metrics.length} / ${metrics.length}`,
           )}
         </div>
         <table className="w-full border-collapse text-[11px]">
@@ -1540,7 +1825,13 @@ export default function PlanningResultsPanel({
                 <td className={`${td} font-bold`}>{m.tripNumber || np()}</td>
                 <td className={td}>{m.truckPlate || np()}</td>
                 <td className={td}>
-                  {m.fuelTypeRaw || (m.emissionAssumed ? 'diesel*' : np())}
+                  {m.fuelTypeRaw ? (
+                    m.fuelTypeRaw
+                  ) : (
+                    <span className="italic text-amber-600">
+                      {t('up_res_fuel_type_missing', 'Fuel type not configured')}
+                    </span>
+                  )}
                 </td>
                 <td className={tdR}>{m.distanceKm === null ? np() : fmtNumber(m.distanceKm, 0)}</td>
                 <td className={tdR}>
@@ -1552,16 +1843,22 @@ export default function PlanningResultsPanel({
                 </td>
                 <td className={`${tdR} font-bold`}>{m.co2Kg === null ? nc() : fmtNumber(m.co2Kg, 1)}</td>
                 <td className={td}>
-                  {m.isElectric ? (
-                    <span className="italic text-text-muted/70">
-                      {t('pr.electric_unavailable', 'CO₂ estimate is not available for electric vehicles.')}
-                    </span>
-                  ) : m.co2Kg === null ? (
-                    nc()
-                  ) : (
+                  {m.co2Kg !== null ? (
                     <span className="inline-flex px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wide bg-emerald-500/15 text-emerald-600">
                       {t('pr.estimated', 'Estimated')}
                     </span>
+                  ) : m.emissionMissing === 'electric' ? (
+                    <span className="italic text-text-muted/70">
+                      {t('pr.electric_unavailable', 'CO₂ estimate is not available for electric vehicles.')}
+                    </span>
+                  ) : m.emissionMissing === 'fuel_type' ? (
+                    <span className="italic text-amber-600">{t('up_res_fuel_type_missing', 'Fuel type not configured')}</span>
+                  ) : m.emissionMissing === 'consumption' ? (
+                    <span className="italic text-amber-600">{t('up_res_consumption_missing', 'Consumption not configured')}</span>
+                  ) : m.emissionMissing === 'distance' ? (
+                    <span className="italic text-amber-600">{t('up_res_distance_missing', 'Distance not calculated')}</span>
+                  ) : (
+                    <span className="italic text-amber-600">{t('up_res_no_co2_factor', 'No emission factor for this fuel type')}</span>
                   )}
                 </td>
               </tr>
@@ -1572,17 +1869,20 @@ export default function PlanningResultsPanel({
               <td className={td} />
               <td className={tdR}>{totals.distance === null ? '—' : fmtNumber(totals.distance, 0)}</td>
               <td className={tdR} />
-              <td className={tdR}>{estimatedMetrics.length ? fmtNumber(totalFuel, 1) : '—'}</td>
+              <td className={tdR}>{fuelMetrics.length ? fmtNumber(totalFuel, 1) : '—'}</td>
               <td className={tdR} />
-              <td className={tdR}>{estimatedMetrics.length ? fmtNumber(totalCo2, 1) : '—'}</td>
+              <td className={tdR}>{co2Metrics.length ? fmtNumber(totalCo2, 1) : '—'}</td>
               <td className={td} />
             </tr>
           </tbody>
         </table>
         <div className="mt-2 space-y-1 text-[10px] text-text-secondary">
-          <p>{t('pr.emission_note', 'Estimates based on distance Ã— consumption Ã— emission factor. They do not replace real measurements.')}</p>
-          {usesAssumption && (
-            <p>{t('pr.emission_assumption_diesel', 'Fuel type is missing; diesel is assumed (2.68 kg CO₂/L).')}</p>
+          <p>{t('up_res_emission_note', 'Estimated from distance × configured consumption × fuel-specific factor. Not a measured value.')}</p>
+          {missingInputs > 0 && (
+            <p className="text-amber-600">
+              {t('up_res_emission_incomplete', 'CO₂ is not calculated for trips with missing inputs. Fuel volume is still shown when distance and consumption are configured.')}{' '}
+              ({metrics.length - missingInputs}/{metrics.length})
+            </p>
           )}
         </div>
       </div>
@@ -1648,15 +1948,6 @@ export default function PlanningResultsPanel({
 
         <div className="flex-1" />
 
-        <CustomSelect
-          size="sm"
-          className="w-44 sm:w-52 shrink-0"
-          value={view}
-          onChange={(value) => setView(value as ViewKey)}
-          options={viewOptions}
-          title={t('pr.reports', 'Reports')}
-        />
-
         <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
@@ -1711,6 +2002,26 @@ export default function PlanningResultsPanel({
           </button>
         </div>
       </div>
+
+      {!collapsed && (
+        <div className="h-9 shrink-0 flex items-center gap-1 px-2 border-b border-border bg-surface/50 overflow-x-auto custom-scrollbar">
+          {viewOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setView(option.value as ViewKey)}
+              aria-pressed={view === option.value}
+              className={`h-7 shrink-0 px-2.5 rounded-lg text-[10px] font-black border transition-colors ${
+                view === option.value
+                  ? 'bg-primary/10 text-primary border-primary/40'
+                  : 'bg-transparent text-text-secondary border-transparent hover:bg-surface hover:text-text-primary'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {!collapsed && (
         <div className="flex-1 min-h-0 overflow-auto custom-scrollbar">{renderContent()}</div>

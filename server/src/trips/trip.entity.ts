@@ -156,6 +156,13 @@ export class Trip {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, nullable: true })
   estimatedProfit: number;
 
+  // Authoritative CostEngine breakdown (fuel, toll, driver, maintenance, fixed, manual)
+  @Column({ type: 'jsonb', nullable: true })
+  estimatedCostBreakdown: any | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  costCalculatedAt: Date | null;
+
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, nullable: true })
   actualProfit: number;
 

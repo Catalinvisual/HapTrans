@@ -714,6 +714,8 @@ export class TripsService {
       estimatedProfit: financials.profit,
       actualProfit: financials.profit,
       tollCost: financials.costBreakdown.tollCost,
+      estimatedCostBreakdown: financials.costBreakdown as any,
+      costCalculatedAt: new Date(),
     });
 
     return financials;

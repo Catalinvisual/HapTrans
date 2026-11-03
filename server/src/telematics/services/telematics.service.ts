@@ -422,17 +422,44 @@ export class TelematicsService {
       },
     );
 
-    const hasRecords = blocks.length > 0;
-    const drivingRemaining = Math.max(0, this.complianceService.MAX_DAILY_DRIVING_NORMAL - summary.drivingSeconds);
-    const weeklyRemaining = Math.max(0, this.complianceService.MAX_WEEKLY_DRIVING - summary.drivingSeconds);
+    const recordedBlocks = blocks.filter((block) => !block.gap);
+    const hasRecords = recordedBlocks.length > 0;
+
+    // Daily driving must be today's recorded driving, never the whole range.
+    const dayStart = new Date(to);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const todayDrivingBlocks = recordedBlocks.filter(
+      (block) => block.activity === 'DRIVING' && new Date(block.start).getTime() >= dayStart.getTime(),
+    );
+    const dailyDrivingSeconds = todayDrivingBlocks.length
+      ? todayDrivingBlocks.reduce((sum, block) => sum + (Number(block.durationSeconds) || 0), 0)
+      : null;
+    const weeklyDrivingSeconds = hasRecords ? summary.drivingSeconds : null;
+    const drivingRemaining =
+      dailyDrivingSeconds === null
+        ? null
+        : Math.max(0, this.complianceService.MAX_DAILY_DRIVING_NORMAL - dailyDrivingSeconds);
+    const weeklyRemaining =
+      weeklyDrivingSeconds === null
+        ? null
+        : Math.max(0, this.complianceService.MAX_WEEKLY_DRIVING - weeklyDrivingSeconds);
+
+    const lastRecord = recordedBlocks
+      .filter((block) => block.end)
+      .sort((a, b) => new Date(b.end).getTime() - new Date(a.end).getTime())[0];
 
     const warnings: string[] = [];
-    if (summary.unknownSeconds > 0) {
+    if (summary.unknownSeconds > 0 || blocks.some((block) => block.gap)) {
       warnings.push('unknown_gaps');
     }
-    if (summary.drivingSeconds >= this.complianceService.MAX_DAILY_DRIVING_NORMAL) {
+    if (dailyDrivingSeconds !== null && dailyDrivingSeconds >= this.complianceService.MAX_DAILY_DRIVING_NORMAL) {
       warnings.push('daily_limit_reached');
     }
+    if (weeklyDrivingSeconds !== null && weeklyDrivingSeconds >= this.complianceService.MAX_WEEKLY_DRIVING) {
+      warnings.push('weekly_limit_reached');
+    }
+    const coverageDays = Math.max(1, Math.round(((to.getTime() - from.getTime()) / 86400000) * 10) / 10);
+    if (coverageDays < 7) warnings.push('partial_coverage');
 
     return {
       available: hasRecords,
@@ -444,9 +471,13 @@ export class TelematicsService {
       blocks,
       summary: {
         ...summary,
+        dailyDrivingSeconds,
+        weeklyDrivingSeconds,
         drivingRemainingSeconds: drivingRemaining,
         weeklyDrivingRemainingSeconds: weeklyRemaining,
       },
+      lastRecordAt: lastRecord?.end || null,
+      coverage: { days: coverageDays, partial: coverageDays < 7 },
       warnings,
       source: 'tachograph',
       note: 'Activities come from stored tachograph/telematics records only. Planned trip schedules are never converted into activity records. Legal compliance cannot be confirmed from incomplete data.',

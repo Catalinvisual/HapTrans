@@ -993,7 +993,7 @@ function TripDetailDrawer({
   const trip = tripDetail || tripSummary;
   const truck = trip.truck || tripSummary.truck || resources.find((r: any) => r.id === (trip.truckId || tripSummary.truckId)) || null;
   const driver = trip.driver || truck?.driver || drivers.find((d: any) => d.id === (trip.driverId || tripSummary.driverId)) || null;
-  const trailer = trip.trailer || tripSummary.trailer || trailers.find((trl: any) => trl.id === (trip.trailerId || tripSummary.trailerId)) || null;
+  const trailer = trip.trailer || tripSummary.trailer || truck?.trailer || trailers.find((trl: any) => trl.id === (trip.trailerId || tripSummary.trailerId)) || null;
   const stops = (trip.stops?.length ? trip.stops : (tripSummary.stops?.length ? tripSummary.stops : [])).slice().sort((a: any, b: any) => (a.sequence || a.stopOrder || 0) - (b.sequence || b.stopOrder || 0));
   const orders = (trip.orders?.length ? trip.orders : (tripSummary.orders?.length ? tripSummary.orders : [])).map((o: any) => o?.order || o).filter((o: any) => o?.id);
   const revenue = orders.reduce((s: number, o: any) => s + (Number(o.price) || 0), 0);
@@ -1329,7 +1329,14 @@ function TripDetailDrawer({
                 </span>
               )}
             </div>
-            <p className="font-black text-text-primary text-sm truncate mt-0.5">{(driver && driverEntityDisplayName(driver) !== '—') ? driverEntityDisplayName(driver) : trip.carrierDriverName || '—'}</p>
+            <p className="font-black text-text-primary text-sm truncate mt-0.5">
+              {(driver && driverEntityDisplayName(driver) !== '—') ? driverEntityDisplayName(driver) : trip.carrierDriverName || '—'}
+              {driver && !trip.driver?.id && trip.truck?.driver?.id ? (
+                <span className="ml-1 align-middle rounded bg-sky-500/10 px-1 py-0.5 text-[8px] font-bold uppercase tracking-wide text-sky-600">
+                  {t('up_res_from_truck', 'truck default')}
+                </span>
+              ) : null}
+            </p>
             {driver?.id && hosSummary[driver.id] ? (
               <p className="text-[9px] text-text-muted mt-0.5 truncate flex items-center gap-1" title={`${hosSummary[driver.id].weeklyDriving}h used / 56h limit`}>
                 <Clock3 className="w-2.5 h-2.5 shrink-0" />

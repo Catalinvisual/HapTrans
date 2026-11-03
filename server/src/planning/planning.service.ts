@@ -27,6 +27,7 @@ import { OptimizationService } from './optimization.service';
 import { RoutingService } from '../routing/routing.service';
 import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
 import { TelematicsDevice } from '../telematics/entities/telematics-device.entity';
+import { resolveDriverForCompliance, resolveTripDriver, resolveTripTrailer } from './trip-assignment';
 
 
 export const ACTIVE_TRIP_STATUSES = [
@@ -236,7 +237,7 @@ export class PlanningService {
   private loadTrip(id: string) {
     return this.tripRepo.findOne({
       where: { id },
-      relations: ['company', 'truck', 'truck.driver', 'truck.driver.user', 'truck.driver.documents', 'trailer', 'driver', 'driver.user', 'driver.documents',
+      relations: ['company', 'truck', 'truck.driver', 'truck.driver.user', 'truck.driver.documents', 'truck.trailer', 'trailer', 'driver', 'driver.user', 'driver.documents',
         'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.client', 'orders.cargoItems',
         'orders.stops', 'costs', 'dispatcher'],
     });
@@ -490,9 +491,11 @@ export class PlanningService {
     });
 
     const allDrivers = await this.driverRepo.find({ relations: ['user', 'user.company', 'documents'] });
-    const drivers = allDrivers.filter(
-      (d) => !d.user || !d.user.company || (companyId && d.user.company.id === companyId),
-    );
+    // A global/admin user (no company scope) must see every driver; a company
+    // user sees its own drivers plus drivers without a company link.
+    const drivers = companyId
+      ? allDrivers.filter((d) => !d.user || !d.user.company || d.user.company.id === companyId)
+      : allDrivers;
 
     const maintenance = truckIds.length
       ? await this.maintRepo.find({ where: { truck: In(truckIds) }, order: { scheduledDate: 'ASC' } })
@@ -537,6 +540,9 @@ export class PlanningService {
     const tripsQb = this.tripRepo
       .createQueryBuilder('trip')
       .leftJoinAndSelect('trip.truck', 'truck')
+      .leftJoinAndSelect('truck.driver', 'truckDriver')
+      .leftJoinAndSelect('truckDriver.user', 'truckDriverUser')
+      .leftJoinAndSelect('truck.trailer', 'truckTrailer')
       .leftJoinAndSelect('trip.trailer', 'trailer')
       .leftJoinAndSelect('trip.driver', 'driver')
       .leftJoinAndSelect('driver.user', 'driverUser')
@@ -563,6 +569,20 @@ export class PlanningService {
     if (q.driverId) tripsQb.andWhere('trip.driverId IN (:...dids)', { dids: String(q.driverId).split(',') });
     if (q.trailerId) tripsQb.andWhere('trip.trailerId IN (:...tids)', { tids: String(q.trailerId).split(',') });
     const trips = await tripsQb.orderBy('trip.plannedDeparture', 'ASC').getMany();
+
+    // Resolve resources once, with the same rules used by validation and the UI.
+    for (const trip of trips) {
+      const driverAssignment = resolveTripDriver(trip);
+      const trailerAssignment = resolveTripTrailer(trip);
+      (trip as any).assignment = {
+        driverId: driverAssignment.entity?.id || null,
+        driverName: driverAssignment.name,
+        driverSource: driverAssignment.source,
+        trailerId: trailerAssignment.entity?.id || null,
+        trailerPlate: trailerAssignment.plate,
+        trailerSource: trailerAssignment.source,
+      };
+    }
 
     const orderQb = this.orderRepo
       .createQueryBuilder('order')
@@ -763,6 +783,8 @@ export class PlanningService {
       const truckFromRelation = t.truck || null;
       const truck = resourcesById[t.truckId] || resourcesById[truckFromRelation?.id] || truckFromRelation || null;
       const tripCargo = this.sumCargo(t.orders || []);
+      const driverAssignment = resolveTripDriver(t);
+      const trailerAssignment = resolveTripTrailer(t);
 
       if (!truck && !truckFromRelation) {
         add({ level: 'blocking', code: 'NO_VEHICLE', tripId: t.id, message: `Trip ${t.tripNumber || t.id} has no vehicle assigned.` });
@@ -794,13 +816,13 @@ export class PlanningService {
           add({ level: 'warning', code: 'TRUCK_TYPE_MISMATCH', tripId: t.id, resourceId: truck.id, message: `Trip requires ${t.truckType}, got ${truck.truckType}.` });
         }
         for (const req of t.equipmentRequirements || []) {
-          if (!vehicleHasEquipment(truck, t.trailer, req)) {
+          if (!vehicleHasEquipment(truck, trailerAssignment.entity || t.trailer, req)) {
             add({ level: 'warning', code: 'EQUIPMENT_MISSING', tripId: t.id, resourceId: truck.id, params: { req }, message: `Vehicle lacks required equipment: ${req}.` });
           }
         }
         for (const o of t.orders || []) {
           for (const req of o.equipmentRequirements || []) {
-            if (!vehicleHasEquipment(truck, t.trailer, req)) {
+            if (!vehicleHasEquipment(truck, trailerAssignment.entity || t.trailer, req)) {
               add({ level: 'warning', code: 'ORDER_EQUIPMENT_MISSING', tripId: t.id, orderId: o.id, resourceId: truck.id, params: { req }, message: `Order ${o.orderNumber} requires equipment: ${req}.` });
             }
           }
@@ -821,20 +843,19 @@ export class PlanningService {
         }
       }
 
-      // Check for NO_DRIVER using either the raw FK, or the populated driver relation.
-      const hasDriver = !!(t.driverId || t.driver?.id || t.truck?.driver?.id);
-      if (!hasDriver && status !== 'completed') {
-        add({ level: 'blocking', code: 'NO_DRIVER', tripId: t.id, message: `Trip ${t.tripNumber || t.id} has no driver assigned.` });
+      // One resolution rule for explicit, truck-default and carrier drivers.
+      if (driverAssignment.source === 'none' && status !== 'completed') {
+        add({
+          level: 'blocking',
+          code: 'NO_DRIVER',
+          tripId: t.id,
+          params: { source: 'none' },
+          message: `Trip ${t.tripNumber || t.id} has no driver assigned.`,
+        });
       }
 
       // Phase 2: Driver Document Compliance Verification
-      const assignedDriver =
-        driversById[t.driverId] ||
-        driversById[t.driver?.id] ||
-        (t.driver && (t.driver.licenseExpiry || t.driver.documents) ? t.driver : null) ||
-        (truck?.driver && (truck.driver.licenseExpiry || truck.driver.documents) ? truck.driver : null) ||
-        driversById[truck?.driver?.id] ||
-        null;
+      const assignedDriver = resolveDriverForCompliance(t, driversById);
 
       const tripStart = t.plannedDeparture ? new Date(t.plannedDeparture) : null;
       let tripEnd: Date | null = t.plannedArrival ? new Date(t.plannedArrival) : null;
@@ -1781,6 +1802,8 @@ export class PlanningService {
         estimatedProfit: financials.profit,
         actualProfit: financials.profit,
         tollCost: financials.costBreakdown.tollCost,
+        estimatedCostBreakdown: financials.costBreakdown as any,
+        costCalculatedAt: new Date(),
       });
     } catch (e) {
       this.logger.warn(`Cost recalculation failed for trip ${trip.id}: ${(e as Error).message}`);
@@ -5728,6 +5751,23 @@ export class PlanningService {
           order.trip = savedTrip;
           order.status = OrderStatus.PLANNED;
           await this.orderRepo.save(order);
+        }
+      }
+
+      // Replace the rough optimization estimate with the authoritative CostEngine
+      // result once the orders are attached, and persist its breakdown.
+      const fullTrip = await this.loadTrip(savedTrip.id);
+      if (fullTrip) {
+        try {
+          const financials = await this.pricingEngine.calculateFinancials(fullTrip);
+          await this.tripRepo.update(savedTrip.id, {
+            estimatedCost: financials.cost,
+            estimatedProfit: financials.profit,
+            estimatedCostBreakdown: financials.costBreakdown as any,
+            costCalculatedAt: new Date(),
+          });
+        } catch (e) {
+          this.logger.warn(`Cost recalculation failed after optimization for trip ${savedTrip.id}: ${(e as Error).message}`);
         }
       }
 
