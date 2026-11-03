@@ -1300,7 +1300,8 @@ function TripDetailDrawer({
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 hover:bg-red-500/10 hover:text-red-600 rounded-xl text-text-secondary transition-colors border border-border/40 hover:border-red-500/30"
+              aria-label={t('close', 'Close')}
+              className="p-1.5 shrink-0 hover:bg-red-500/10 hover:text-red-600 rounded-xl text-text-secondary transition-colors border border-border/40 hover:border-red-500/30"
               title={t('close', 'Close')}
             >
               <X className="w-5 h-5" />
@@ -2008,15 +2009,22 @@ export default function PlanningPage() {
   } | null>(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const handledOpenTripRef = useRef<string | null>(null);
   useEffect(() => {
     const openTripParam = searchParams.get('openTrip') || searchParams.get('tripId');
-    if (openTripParam) {
-      setSelectedTripId(openTripParam);
-      const nextParams = new URLSearchParams(searchParams);
-      nextParams.delete('openTrip');
-      nextParams.delete('tripId');
-      setSearchParams(nextParams, { replace: true });
+    if (!openTripParam) {
+      handledOpenTripRef.current = null;
+      return;
     }
+    // Never reopen a trip that was just closed while the query string is still
+    // being cleaned up by the router.
+    if (handledOpenTripRef.current === openTripParam) return;
+    handledOpenTripRef.current = openTripParam;
+    setSelectedTripId(openTripParam);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('openTrip');
+    nextParams.delete('tripId');
+    setSearchParams(nextParams, { replace: true });
   }, [searchParams, setSearchParams]);
 
   const [poolCollapsed, setPoolCollapsed] = useState(false);
@@ -3179,8 +3187,10 @@ export default function PlanningPage() {
           conflicts={boardData?.conflicts || []}
           hosSummary={boardData?.hosSummary || {}}
           onClose={() => {
+            const openParam = searchParams.get('openTrip') || searchParams.get('tripId');
+            if (openParam) handledOpenTripRef.current = openParam;
             setSelectedTripId(null);
-            if (searchParams.get('openTrip') || searchParams.get('tripId')) {
+            if (openParam) {
               const nextParams = new URLSearchParams(searchParams);
               nextParams.delete('openTrip');
               nextParams.delete('tripId');

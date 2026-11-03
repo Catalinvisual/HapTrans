@@ -383,10 +383,18 @@ export default function PlanningResultsPanel({
   }, [metrics, selectedTripId]);
 
   // Opening Route & Stops without a selection opens the first trip's existing
-  // Route Workspace instead of leaving an empty placeholder.
+  // Route Workspace instead of leaving an empty placeholder. This must happen
+  // once per tab entry: reacting to every cleared selection would immediately
+  // reopen the drawer after the user closes it.
+  const routeAutoSelectRef = useRef(false);
   useEffect(() => {
-    if (view !== 'route' || selected || !onSelectTrip || metrics.length === 0) return;
-    onSelectTrip(metrics[0].id);
+    if (view !== 'route') {
+      routeAutoSelectRef.current = false;
+      return;
+    }
+    if (routeAutoSelectRef.current || metrics.length === 0) return;
+    routeAutoSelectRef.current = true;
+    if (!selected && onSelectTrip) onSelectTrip(metrics[0].id);
   }, [view, selected, metrics, onSelectTrip]);
 
   const routeFilteredMetrics = useMemo(() => {
