@@ -1,10 +1,12 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { boardSelector } from '../lib/planningStore';
-import { fmtMoney, fmtNumber, fmtMetric } from '../lib/format';
+import { fmtMoney, fmtNumber } from '../lib/format';
 import { useConfirm } from '../components/SaveConfirmProvider';
-import ExcelExport from '../lib/exportExcel';
+import { exportExcel } from '../lib/exportExcel';
 import { statusBadgeClass as statusBadgeFromLib } from '../lib/statusColors';
+
+const fmtMetric = (value: number | null) => (value !== null ? `${Math.round(value / 60)} min` : '—');
 
 interface TripResult {
   tripId: string;
@@ -141,7 +143,7 @@ export default function PlanningResultsPanel() {
     })) : [];
     const filename = format === 'excel' ? 'planning-results' : 'planning-results';
     const sheetName = 'Results';
-    ExcelExport.exportExcel({ filename, sheetName, title: t('planning_results', 'Planning Calculation Results'), headers: [
+    exportExcel({ filename, sheetName, title: t('planning_results', 'Planning Calculation Results'), headers: [
       { key: 'Trip', label: t('trip', 'Trip') },
       { key: 'Truck', label: t('truck', 'Truck') },
       { key: 'Driver', label: t('driver', 'Driver') },
