@@ -88,7 +88,15 @@ function resolvedDriver(trip: any): { entity: any | null; source: AssignmentSour
   const assignment = trip?.assignment;
   const source: AssignmentSource = assignment?.driverSource || (trip?.driver?.id ? 'assigned' : trip?.truck?.driver?.id ? 'truck' : trip?.carrierDriverName ? 'carrier' : 'none');
   const entity = trip?.driver || trip?.truck?.driver || null;
-  const name = assignment?.driverName || nameOfDriver(entity) || String(trip?.carrierDriverName || '').trim();
+  const rawAssignmentName = String(assignment?.driverName || '').trim();
+  const name =
+    nameOfDriver(entity) ||
+    (rawAssignmentName
+      ? rawAssignmentName.includes('@')
+        ? humanName(rawAssignmentName)
+        : rawAssignmentName
+      : '') ||
+    String(trip?.carrierDriverName || '').trim();
   return { entity, source, name };
 }
 
@@ -170,11 +178,11 @@ export function buildTripMetrics(trip: any) {
 
   const departure = trip?.actualDeparture || trip?.plannedDeparture || null;
   const arrival = trip?.actualArrival || trip?.plannedArrival || null;
-  const travelMin = minutesBetween(departure, arrival);
-  const hasActualTravel = Boolean(trip?.actualDeparture && trip?.actualArrival);
-  const actualTravelMin = hasActualTravel
-    ? minutesBetween(trip?.actualDeparture, trip?.actualArrival)
-    : null;
+  const plannedElapsedMin = minutesBetween(trip?.plannedDeparture, trip?.plannedArrival);
+  const actualElapsedMin = minutesBetween(trip?.actualDeparture, trip?.actualArrival);
+  const elapsedMin = actualElapsedMin ?? plannedElapsedMin;
+  const elapsedBasis: 'actual' | 'planned' | 'none' =
+    actualElapsedMin !== null ? 'actual' : plannedElapsedMin !== null ? 'planned' : 'none';
 
   let waitingSum = 0;
   let loadingSum = 0;
@@ -216,10 +224,13 @@ export function buildTripMetrics(trip: any) {
   const waitingMin = noStops ? 0 : waitingKnown ? waitingSum : null;
   const loadingMin = noStops ? 0 : loadingKnown ? loadingSum : null;
   const unloadingMin = noStops ? 0 : unloadingKnown ? unloadingSum : null;
+  // Driving time is never inferred from elapsed time. Only an authoritative
+  // routing/recording field may populate it; otherwise it stays unavailable.
   const drivingMin =
-    actualTravelMin !== null && waitingMin !== null && loadingMin !== null && unloadingMin !== null
-      ? Math.max(0, actualTravelMin - waitingMin - loadingMin - unloadingMin)
-      : null;
+    toNum(trip?.actualDrivingMin) ??
+    toNum(trip?.drivingTimeMin) ??
+    toNum(trip?.recordedDrivingMin) ??
+    null;
 
   const cargo = sumCargo(orders);
   const capacityWeight = toNum(truck?.maxWeightKg) ?? toNum(truck?.payloadCapacity);
@@ -270,7 +281,11 @@ export function buildTripMetrics(trip: any) {
       toNum(trip?.emptyKm) ??
       toNum(trip?.deadheadKm) ??
       toNum(trip?.emptyKilometers),
-    travelMin,
+    elapsedMin,
+    elapsedBasis,
+    plannedElapsedMin,
+    actualElapsedMin,
+    travelMin: elapsedMin,
     drivingMin,
     waitingMin,
     loadingMin,

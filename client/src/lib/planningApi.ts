@@ -229,6 +229,10 @@ export const planningApi = {
     const { data } = await api.get(`/planning/trips/${tripId}/live-eta`);
     return data;
   },
+  recalculateTripCosts: async (tripId: string) => {
+    const { data } = await api.post(`/planning/trips/${tripId}/costs/recalculate`);
+    return data;
+  },
   getDriverActivity: async (driverId: string, params?: { from?: string; to?: string }) => {
     const { data } = await api.get(`/telematics/drivers/${driverId}/activity`, { params });
     return data;

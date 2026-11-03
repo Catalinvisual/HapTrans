@@ -1329,13 +1329,15 @@ function TripDetailDrawer({
                 </span>
               )}
             </div>
-            <p className="font-black text-text-primary text-sm truncate mt-0.5">
+            <p
+              className="font-black text-text-primary text-sm truncate mt-0.5"
+              title={
+                driver && !trip.driver?.id && trip.truck?.driver?.id
+                  ? t('up_res_inherited_from_truck', 'Inherited from the truck’s default assignment')
+                  : undefined
+              }
+            >
               {(driver && driverEntityDisplayName(driver) !== '—') ? driverEntityDisplayName(driver) : trip.carrierDriverName || '—'}
-              {driver && !trip.driver?.id && trip.truck?.driver?.id ? (
-                <span className="ml-1 align-middle rounded bg-sky-500/10 px-1 py-0.5 text-[8px] font-bold uppercase tracking-wide text-sky-600">
-                  {t('up_res_from_truck', 'truck default')}
-                </span>
-              ) : null}
             </p>
             {driver?.id && hosSummary[driver.id] ? (
               <p className="text-[9px] text-text-muted mt-0.5 truncate flex items-center gap-1" title={`${hosSummary[driver.id].weeklyDriving}h used / 56h limit`}>
@@ -3151,6 +3153,7 @@ export default function PlanningPage() {
         from={from}
         to={to}
         onSelectTrip={setSelectedTripId}
+        onRefresh={loadData}
         focusSignal={resultsSignal}
       />
     ) : null}

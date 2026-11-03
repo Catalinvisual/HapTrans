@@ -1794,6 +1794,41 @@ export class PlanningService {
     return 2 * R * Math.asin(Math.sqrt(a));
   }
 
+  /**
+   * Recalculates one trip with the authoritative CostEngine and persists its
+   * breakdown. Used by the safe, per-trip backfill action; never runs on read.
+   */
+  async recalculateTripCosts(user: any, tripId: string) {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+
+    const companyId = user?.companyId || null;
+    const tripCompanyId = (trip as any).companyId || trip.company?.id || null;
+    if (companyId && tripCompanyId && companyId !== tripCompanyId) {
+      throw new ForbiddenException('Trip does not belong to your company.');
+    }
+
+    const financials = await this.pricingEngine.calculateFinancials(trip);
+    const calculatedAt = new Date();
+    await this.tripRepo.update(tripId, {
+      estimatedCost: financials.cost,
+      estimatedProfit: financials.profit,
+      estimatedCostBreakdown: financials.costBreakdown as any,
+      costCalculatedAt: calculatedAt,
+      tollCost: financials.costBreakdown.tollCost,
+    });
+
+    return {
+      tripId,
+      revenue: financials.revenue,
+      estimatedCost: financials.cost,
+      estimatedProfit: financials.profit,
+      breakdown: financials.costBreakdown,
+      costCalculatedAt: calculatedAt,
+      missingInputs: financials.costBreakdown.estimatedFields,
+    };
+  }
+
   async recalculateCosts(trip: Trip) {
     try {
       const financials = await this.pricingEngine.calculateFinancials(trip);

@@ -14,6 +14,11 @@ import {
   FileText,
   Download,
   Loader2,
+  Truck,
+  User,
+  Box,
+  Search,
+  RefreshCw,
 } from 'lucide-react';
 import CustomSelect from '../CustomSelect';
 import { appLocale, fmtMoney, fmtNumber } from '../../lib/format';
@@ -126,6 +131,7 @@ export default function PlanningResultsPanel({
   from,
   to,
   onSelectTrip,
+  onRefresh,
   focusSignal,
 }: {
   boardData: any;
@@ -138,6 +144,7 @@ export default function PlanningResultsPanel({
   from?: string;
   to?: string;
   onSelectTrip?: (id: string) => void;
+  onRefresh?: () => void | Promise<void>;
   focusSignal?: number;
 }) {
   const { t } = useTranslation();
@@ -165,6 +172,9 @@ export default function PlanningResultsPanel({
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [tachoByDriver, setTachoByDriver] = useState<Record<string, any>>({});
   const [tachoLoading, setTachoLoading] = useState(false);
+  const [routeSearch, setRouteSearch] = useState('');
+  const [costRecalculating, setCostRecalculating] = useState(false);
+  const [costNotice, setCostNotice] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -330,7 +340,7 @@ export default function PlanningResultsPanel({
     { key: 'driverName', label: t('pr.driver', 'Driver') },
     { key: 'distanceKm', label: t('pr.distance_km', 'Distance (km)') },
     { key: 'drivingMin', label: t('pr.driving_time', 'Driving time') },
-    { key: 'travelMin', label: t('pr.travel_time', 'Travel time') },
+    { key: 'elapsedMin', label: t('up_elapsed_time', 'Elapsed time') },
     { key: 'toll', label: t('pr.toll', 'Toll') },
     { key: 'totalCost', label: t('pr.total_cost', 'Total cost') },
     { key: 'revenue', label: t('pr.revenue', 'Revenue') },
@@ -372,6 +382,23 @@ export default function PlanningResultsPanel({
     );
   }, [metrics, selectedTripId]);
 
+  // Opening Route & Stops without a selection opens the first trip's existing
+  // Route Workspace instead of leaving an empty placeholder.
+  useEffect(() => {
+    if (view !== 'route' || selected || !onSelectTrip || metrics.length === 0) return;
+    onSelectTrip(metrics[0].id);
+  }, [view, selected, metrics, onSelectTrip]);
+
+  const routeFilteredMetrics = useMemo(() => {
+    const query = routeSearch.trim().toLowerCase();
+    if (!query) return metrics;
+    return metrics.filter((metric) =>
+      [metric.tripNumber, metric.truckPlate, metric.driverName, metric.trailerPlate, metric.status].some((value) =>
+        String(value || '').toLowerCase().includes(query),
+      ),
+    );
+  }, [metrics, routeSearch]);
+
   const totals = useMemo(() => {
     const counts: Record<string, number> = {};
     const sum = (key: keyof (typeof metrics)[number]) => {
@@ -407,7 +434,7 @@ export default function PlanningResultsPanel({
     return {
       distance: sum('distanceKm'),
       emptyKm: sum('emptyKm'),
-      travel: sum('travelMin'),
+      elapsed: sum('elapsedMin'),
       driving: sum('drivingMin'),
       waiting: sum('waitingMin'),
       loading: sum('loadingMin'),
@@ -572,15 +599,14 @@ export default function PlanningResultsPanel({
       ? t('up_res_basis_estimated', 'Estimated')
       : t('up_res_basis_none', 'No cost basis');
 
-  const assignmentBadge = (source: string) => {
-    if (source === 'truck') {
-      return <span className="ml-1 rounded bg-sky-500/10 px-1 py-0.5 text-[8px] font-bold uppercase tracking-wide text-sky-600">{t('up_res_from_truck', 'truck default')}</span>;
-    }
-    if (source === 'carrier') {
-      return <span className="ml-1 rounded bg-slate-500/10 px-1 py-0.5 text-[8px] font-bold uppercase tracking-wide text-slate-500">{t('up_res_from_carrier', 'carrier')}</span>;
-    }
-    return null;
-  };
+  // Assignment source is kept for validation/auditing but is never rendered as
+  // a visible technical label; it is available as a subtle tooltip only.
+  const assignmentTitle = (source: string) =>
+    source === 'truck'
+      ? t('up_res_inherited_from_truck', 'Inherited from the truck’s default assignment')
+      : source === 'carrier'
+      ? t('up_res_from_carrier', 'Carrier resource')
+      : undefined;
   const nc = () => <span className="italic text-text-muted/70">{t('pr.not_calculated', 'Not calculated')}</span>;
   const na = () => <span className="italic text-text-muted/70">{t('pr.unavailable', 'Unavailable')}</span>;
 
@@ -615,7 +641,8 @@ export default function PlanningResultsPanel({
           { key: 'trailer', label: t('pr.trailer', 'Trailer') },
           { key: 'driver', label: t('pr.driver', 'Driver') },
           { key: 'distance', label: t('pr.distance_km', 'Distance (km)'), align: 'right' },
-          { key: 'travel', label: `${t('pr.travel_time', 'Travel time')} (min)`, align: 'right' },
+          { key: 'elapsed', label: `${t('up_elapsed_time', 'Elapsed time')} (min)`, align: 'right' },
+          { key: 'elapsedBasis', label: t('up_elapsed_basis', 'Time basis') },
           { key: 'driving', label: `${t('pr.driving_time', 'Driving time')} (min)`, align: 'right' },
           { key: 'waiting', label: `${t('pr.waiting', 'Waiting')} (min)`, align: 'right' },
           { key: 'loading', label: `${t('pr.loading', 'Loading')} (min)`, align: 'right' },
@@ -641,7 +668,8 @@ export default function PlanningResultsPanel({
           trailer: m.trailerPlate,
           driver: m.driverName,
           distance: m.distanceKm ?? '',
-          travel: m.travelMin ?? '',
+          elapsed: m.elapsedMin ?? '',
+          elapsedBasis: m.elapsedBasis === 'actual' ? t('up_time_actual', 'actual') : m.elapsedBasis === 'planned' ? t('up_time_planned', 'planned') : '',
           driving: m.drivingMin ?? '',
           waiting: m.waitingMin ?? '',
           loading: m.loadingMin ?? '',
@@ -936,6 +964,21 @@ export default function PlanningResultsPanel({
     [currentExport, reportSubtitle, t],
   );
 
+  const handleRecalculateCosts = useCallback(async () => {
+    if (!selected || costRecalculating) return;
+    setCostRecalculating(true);
+    setCostNotice(null);
+    try {
+      await planningApi.recalculateTripCosts(selected.id);
+      await onRefresh?.();
+      setCostNotice(t('up_res_recalc_success', 'Costs recalculated with the CostEngine.'));
+    } catch {
+      setCostNotice(t('up_res_recalc_failed', 'Could not recalculate costs. Please try again.'));
+    } finally {
+      setCostRecalculating(false);
+    }
+  }, [selected, costRecalculating, onRefresh, t]);
+
   const viewOptions = [
     {
       value: 'results',
@@ -1013,7 +1056,7 @@ export default function PlanningResultsPanel({
     { key: 'trailerPlate', index: 3, label: t('pr.trailer', 'Trailer') },
     { key: 'driverName', index: 4, label: t('pr.driver', 'Driver') },
     { key: 'distanceKm', index: 5, label: t('pr.distance_km', 'Distance (km)') },
-    { key: 'travelMin', index: 6, label: t('pr.travel_time', 'Travel time') },
+    { key: 'elapsedMin', index: 6, label: t('up_elapsed_time', 'Elapsed time') },
     { key: 'drivingMin', index: 7, label: t('pr.driving_time', 'Driving time') },
     { key: 'waitingMin', index: 8, label: t('pr.waiting', 'Waiting') },
     { key: 'loadingMin', index: 9, label: t('pr.loading', 'Loading') },
@@ -1160,6 +1203,7 @@ export default function PlanningResultsPanel({
               <tbody>
                 {[
                   { key: 'distanceKm', label: t('pr.distance_km', 'Distance (km)'), format: (value: any) => (value === null ? '—' : `${fmtNumber(value, 0)} km`) },
+                  { key: 'elapsedMin', label: t('up_elapsed_time', 'Elapsed time'), format: (value: any) => (value === null ? '—' : fmtMinutes(value)) },
                   { key: 'drivingMin', label: t('pr.driving_time', 'Driving time'), format: (value: any) => (value === null ? '—' : fmtMinutes(value)) },
                   { key: 'toll', label: t('pr.toll', 'Toll'), format: (value: any, currency: string) => (value === null ? '—' : fmtMoney(value, currency)) },
                   { key: 'totalCost', label: t('pr.total_cost', 'Total cost'), format: (value: any, currency: string) => (value === null ? '—' : fmtMoney(value, currency)) },
@@ -1191,7 +1235,7 @@ export default function PlanningResultsPanel({
               <th className={thL}>{t('pr.trailer', 'Trailer')}</th>
               <th className={thL}>{t('pr.driver', 'Driver')}</th>
               <th className={thR}>{t('pr.distance_km', 'Distance (km)')}</th>
-              <th className={thR}>{t('pr.travel_time', 'Travel time')}</th>
+              <th className={thR} title={t('up_elapsed_hint', 'Departure to arrival, including waiting, service and overnight periods.')}>{t('up_elapsed_time', 'Elapsed time')}</th>
               <th className={thR}>{t('pr.driving_time', 'Driving time')}</th>
               <th className={thR}>{t('pr.waiting', 'Waiting')}</th>
               <th className={thR}>{t('pr.loading', 'Loading')}</th>
@@ -1227,26 +1271,23 @@ export default function PlanningResultsPanel({
                 <td className={td}>{m.truckPlate || np()}</td>
                 <td className={td}>
                   {m.trailerPlate ? (
-                    <span className="inline-flex items-center">
-                      {m.trailerPlate}
-                      {assignmentBadge(m.trailerSource)}
-                    </span>
+                    <span title={assignmentTitle(m.trailerSource)}>{m.trailerPlate}</span>
                   ) : (
                     np()
                   )}
                 </td>
-                <td className={td}>
-                  {m.driverName ? (
-                    <span className="inline-flex items-center">
-                      {m.driverName}
-                      {assignmentBadge(m.driverSource)}
-                    </span>
-                  ) : (
-                    np()
-                  )}
+                <td className={td} title={assignmentTitle(m.driverSource)}>
+                  {m.driverName || np()}
                 </td>
                 <td className={tdR}>{m.distanceKm === null ? np() : fmtNumber(m.distanceKm, 0)}</td>
-                <td className={tdR}>{timeOr(m.travelMin)}</td>
+                <td className={tdR} title={t('up_elapsed_hint', 'Departure to arrival, including waiting, service and overnight periods.')}>
+                  {timeOr(m.elapsedMin)}
+                  {m.elapsedMin !== null && (
+                    <span className="ml-1 text-[8px] font-bold uppercase tracking-wide text-text-muted">
+                      {m.elapsedBasis === 'actual' ? t('up_time_actual', 'actual') : t('up_time_planned', 'planned')}
+                    </span>
+                  )}
+                </td>
                 <td className={tdR}>{timeOr(m.drivingMin)}</td>
                 <td className={tdR}>{timeOr(m.waitingMin)}</td>
                 <td className={tdR}>{timeOr(m.loadingMin)}</td>
@@ -1299,7 +1340,7 @@ export default function PlanningResultsPanel({
               <td className={td} />
               <td className={td} />
               <td className={tdR}>{totals.distance === null ? '—' : fmtNumber(totals.distance, 0)}</td>
-              <td className={tdR}>{totals.travel === null ? '—' : fmtMinutes(totals.travel)}</td>
+              <td className={tdR}>{totals.elapsed === null ? '—' : fmtMinutes(totals.elapsed)}</td>
               <td className={tdR}>{totals.driving === null ? '—' : fmtMinutes(totals.driving)}</td>
               <td className={tdR}>{totals.waiting === null ? '—' : fmtMinutes(totals.waiting)}</td>
               <td className={tdR}>{totals.loading === null ? '—' : fmtMinutes(totals.loading)}</td>
@@ -1337,23 +1378,83 @@ export default function PlanningResultsPanel({
 
   const renderRoute = () => {
     if (!selected) {
+      if (metrics.length === 0) {
+        return (
+          <div className="flex h-full min-h-[150px] flex-col items-center justify-center gap-2 p-6 text-center">
+            <MapIcon className="h-7 w-7 text-text-muted" />
+            <p className="text-xs font-black text-text-primary">{t('up_route_no_trips_title', 'No trips available')}</p>
+            <p className="max-w-sm text-[10px] text-text-secondary">
+              {t('up_route_no_trips_subtitle', 'Change the date range or filters to see trips.')}
+            </p>
+          </div>
+        );
+      }
       return (
-        <div className="h-full min-h-[140px] flex flex-col items-center justify-center gap-3 p-6 text-center">
-          <MapIcon className="w-7 h-7 text-text-muted" />
-          <p className="text-xs text-text-secondary">{t('pr.select_trip_prompt', 'Select a trip to see its details.')}</p>
-          {metrics.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 justify-center max-w-2xl max-h-24 overflow-auto">
-              {metrics.slice(0, 24).map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => onSelectTrip?.(m.id)}
-                  className="px-2 py-1 rounded-lg border border-border bg-surface hover:border-primary/60 text-[10px] font-semibold text-text-primary"
-                >
-                  {m.tripNumber || m.id.slice(0, 8)}
-                </button>
-              ))}
+        <div className="p-3">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h4 className="text-[12px] font-black text-text-primary">{t('up_route_select_title', 'Select a trip')}</h4>
+              <p className="mt-0.5 text-[10px] text-text-secondary">
+                {t('up_route_select_subtitle', 'Choose a transport to open its route, stops and timings.')}
+              </p>
             </div>
+            <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-black text-primary">
+              {metrics.length} {t('pr.trips', 'Trips')}
+            </span>
+          </div>
+
+          {metrics.length > 6 && (
+            <div className="relative mt-2">
+              <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-text-muted" />
+              <input
+                value={routeSearch}
+                onChange={(event) => setRouteSearch(event.target.value)}
+                placeholder={t('up_route_search', 'Search trip, truck, driver or trailer…')}
+                aria-label={t('up_route_search', 'Search trip, truck, driver or trailer…')}
+                className="input h-7 w-full pl-7 text-[10px]"
+              />
+            </div>
+          )}
+
+          <div className="mt-2 grid max-h-[190px] grid-cols-1 gap-1.5 overflow-y-auto pr-0.5 custom-scrollbar md:grid-cols-2 xl:grid-cols-3">
+            {routeFilteredMetrics.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => onSelectTrip?.(m.id)}
+                className="group min-w-0 rounded-lg border border-border bg-surface/60 px-2.5 py-2 text-left transition-colors hover:border-primary/60 hover:bg-primary/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-[11px] font-black text-text-primary">
+                    {m.tripNumber || m.id.slice(0, 8)}
+                  </span>
+                  {statusBadge(m.status)}
+                </div>
+                <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[9px] text-text-secondary">
+                  <span className="flex min-w-0 items-center gap-1" title={m.truckPlate || undefined}>
+                    <Truck className="h-2.5 w-2.5 shrink-0" />
+                    <span className="truncate">{m.truckPlate || np()}</span>
+                  </span>
+                  <span className="flex min-w-0 items-center gap-1" title={m.driverName || undefined}>
+                    <User className="h-2.5 w-2.5 shrink-0" />
+                    <span className="truncate">{m.driverName || np()}</span>
+                  </span>
+                  <span className="flex min-w-0 items-center gap-1" title={m.trailerPlate || undefined}>
+                    <Box className="h-2.5 w-2.5 shrink-0" />
+                    <span className="truncate">{m.trailerPlate || np()}</span>
+                  </span>
+                  <span className="flex items-center justify-end gap-1 tabular-nums">
+                    {m.distanceKm === null ? nc() : `${fmtNumber(m.distanceKm, 0)} km`}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {routeFilteredMetrics.length === 0 && (
+            <p className="mt-2 text-center text-[10px] text-text-secondary">
+              {t('up_route_no_match', 'No trips match this search.')}
+            </p>
           )}
         </div>
       );
@@ -1376,8 +1477,13 @@ export default function PlanningResultsPanel({
             {selected.distanceKm === null ? nc() : fmtNumber(selected.distanceKm, 0)}
           </span>
           <span>
-            <span className="text-text-secondary">{t('pr.travel_time', 'Travel time')}:</span>{' '}
-            {timeOr(selected.travelMin)}
+            <span className="text-text-secondary">{t('up_elapsed_time', 'Elapsed time')}:</span>{' '}
+            {timeOr(selected.elapsedMin)}
+            {selected.elapsedMin !== null && (
+              <span className="ml-1 text-[9px] font-bold uppercase text-text-muted">
+                {selected.elapsedBasis === 'actual' ? t('up_time_actual', 'actual') : t('up_time_planned', 'planned')}
+              </span>
+            )}
           </span>
           {statusBadge(selected.status)}
         </div>
@@ -1507,6 +1613,12 @@ export default function PlanningResultsPanel({
             </tr>
           </tbody>
         </table>
+        {Array.isArray(breakdown.estimatedFields) && breakdown.estimatedFields.length > 0 && (
+          <p className="border-t border-border px-2.5 py-1.5 text-[9px] leading-relaxed text-amber-600">
+            {t('up_res_estimated_fields', 'Calculated with default values for')}:{' '}
+            {breakdown.estimatedFields.join(', ')}
+          </p>
+        )}
       </div>
     );
   };
@@ -1595,7 +1707,29 @@ export default function PlanningResultsPanel({
             selected.profit !== null && selected.profit < 0 ? 'text-rose-500' : 'text-emerald-600',
           )}
         </div>
-        {renderEstimatedBreakdown(selected.estimatedBreakdown, selected.estimatedCalculatedAt)}
+        {selected.estimatedBreakdown ? (
+          renderEstimatedBreakdown(selected.estimatedBreakdown, selected.estimatedCalculatedAt)
+        ) : (
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-dashed border-border px-2.5 py-2">
+            <p className="max-w-xl text-[10px] text-text-secondary">
+              {t('up_res_breakdown_missing', 'Estimated breakdown is not available. Recalculate the trip to generate it.')}
+            </p>
+            <button
+              type="button"
+              onClick={handleRecalculateCosts}
+              disabled={costRecalculating}
+              className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg border border-primary/40 bg-primary/10 px-2 text-[10px] font-black text-primary disabled:opacity-50"
+            >
+              {costRecalculating ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+              {costRecalculating
+                ? t('up_res_recalculating', 'Recalculating…')
+                : t('up_res_recalculate', 'Recalculate')}
+            </button>
+          </div>
+        )}
+        {costNotice && (
+          <p className="mb-3 text-[10px] font-semibold text-text-secondary">{costNotice}</p>
+        )}
         {selected.costs.length === 0 ? (
           renderEmpty(t('pr.no_costs', 'No recorded costs.'))
         ) : (
