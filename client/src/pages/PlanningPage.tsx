@@ -1921,6 +1921,30 @@ export default function PlanningPage() {
     }
   }, [searchParams, setSearchParams]);
 
+  useEffect(() => {
+    let mounted = true;
+    async function fetchBoard() {
+      setIsLoading(true);
+      setFetchError(null);
+      try {
+        const { data } = await api.get('/planning/board');
+        if (mounted) {
+          setBoardData(data);
+        }
+      } catch (e: any) {
+        if (mounted) {
+          setFetchError(e?.message || 'Failed to load board');
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+    fetchBoard();
+    return () => { mounted = false; };
+  }, []);
+
   const [poolCollapsed, setPoolCollapsed] = useState(false);
   const [showOptimizeModal, setShowOptimizeModal] = useState(false);
   const [dispatchModalTrip, setDispatchModalTrip] = useState<any>(null);
@@ -2980,7 +3004,15 @@ export default function PlanningPage() {
                 )}
 </div>
 
-    <PlanningResultsPanel />
+    <PlanningResultsPanel
+      boardData={boardData}
+      selectedTripId={selectedTripId}
+      grouping={grouping}
+      truckFilter={truckFilter}
+      driverFilter={driverFilter}
+      priorityFilter={priorityFilter}
+      searchFilter={searchFilter}
+/>
 
     {/* Status bar footer */}
               <div className="flex items-center justify-between px-4 py-2 border-t border-border bg-surface/30 text-[10px] text-text-secondary shrink-0 print:hidden">
