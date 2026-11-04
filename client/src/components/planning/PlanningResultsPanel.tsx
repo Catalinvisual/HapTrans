@@ -429,6 +429,7 @@ export default function PlanningResultsPanel({
 
     const components: Record<string, number> = { fuel: 0, toll: 0, driver: 0, maintenance: 0, fixed: 0, manual: 0 };
     let estimatedComponentTrips = 0;
+    let estimatedComponentsTotal = 0;
     for (const metric of metrics) {
       const breakdown = metric.estimatedBreakdown;
       if (!breakdown) continue;
@@ -437,6 +438,7 @@ export default function PlanningResultsPanel({
         const value = (breakdown as any)[key];
         if (typeof value === 'number' && Number.isFinite(value)) components[key] += value;
       }
+      estimatedComponentsTotal = Object.values(components).reduce((sum, value) => sum + value, 0);
     }
 
     return {
@@ -461,6 +463,7 @@ export default function PlanningResultsPanel({
       currency: currencies.length === 1 ? currencies[0] : currencies.length === 0 ? 'EUR' : null,
       counts,
       estimatedComponentTrips,
+      estimatedComponentsTotal: estimatedComponentTrips ? Math.round(estimatedComponentsTotal * 100) / 100 : null,
       estimatedComponents: estimatedComponentTrips
         ? Object.fromEntries(Object.entries(components).map(([key, value]) => [key, Math.round(value * 100) / 100]))
         : null,
@@ -603,9 +606,18 @@ export default function PlanningResultsPanel({
   const basisLabel = (basis: string) =>
     basis === 'recorded'
       ? t('up_res_basis_recorded', 'Recorded')
+      : basis === 'mixed'
+      ? t('up_res_basis_mixed', 'Mixed (recorded + estimated)')
       : basis === 'estimated'
       ? t('up_res_basis_estimated', 'Estimated')
       : t('up_res_basis_none', 'No cost basis');
+
+  const basisShort = (basis: string) =>
+    basis === 'recorded'
+      ? t('up_res_recorded_short', 'rec.')
+      : basis === 'mixed'
+      ? t('up_res_mixed_short', 'mix.')
+      : t('up_res_estimated_short', 'est.');
 
   // Assignment source is kept for validation/auditing but is never rendered as
   // a visible technical label; it is available as a subtle tooltip only.
@@ -621,6 +633,25 @@ export default function PlanningResultsPanel({
   const moneyOr = (value: number | null, currency: string) =>
     value === null ? nc() : <span className="tabular-nums">{fmtMoney(value, currency)}</span>;
 
+  const componentMoney = (
+    value: number | null,
+    basis: string,
+    currency: string,
+    title?: string,
+  ) =>
+    value === null ? (
+      nc()
+    ) : (
+      <span className="tabular-nums" title={title}>
+        {fmtMoney(value, currency)}
+        {basis === 'estimated' || basis === 'mixed' ? (
+          <span className="ml-1 text-[8px] font-bold uppercase tracking-wide text-text-muted">
+            {basisShort(basis)}
+          </span>
+        ) : null}
+      </span>
+    );
+
   const totalMoney = (value: number | null) => {
     if (value === null) return <span className="text-text-muted">—</span>;
     if (totals.currency === null) {
@@ -629,8 +660,8 @@ export default function PlanningResultsPanel({
     return <span className="tabular-nums">{fmtMoney(value, totals.currency)}</span>;
   };
 
-  const timeOr = (value: number | null) =>
-    value === null ? nc() : <span className="tabular-nums">{fmtMinutes(value)}</span>;
+  const timeOr = (value: number | null, title?: string) =>
+    value === null ? nc() : <span className="tabular-nums" title={title}>{fmtMinutes(value)}</span>;
 
   const renderEmpty = (message: string) => (
     <div className="h-full min-h-[120px] flex flex-col items-center justify-center gap-2 p-6 text-center text-text-secondary">
@@ -750,7 +781,7 @@ export default function PlanningResultsPanel({
           { key: 'source', label: t('pr.source', 'Source') },
         ];
         if (selected) {
-          const rows = selected.costs.map((cost: any) => ({
+          const rows: Record<string, any>[] = selected.costs.map((cost: any) => ({
             category: t(`pr.cat_${costBucket(cost)}`, costBucket(cost)),
             type: cost?.type || '',
             description: cost?.description || '',
@@ -758,24 +789,59 @@ export default function PlanningResultsPanel({
             currency: selected.currency,
             source: t('pr.recorded', 'Recorded'),
           }));
+          if (selected.estimatedBreakdown) {
+            const breakdown = selected.estimatedBreakdown;
+            const componentRows: Array<
+              [string, string, 'fuel' | 'toll' | 'driver' | 'maintenance' | 'fixed' | 'manual']
+            > = [
+              ['up_res_fuel', 'Fuel', 'fuel'],
+              ['up_res_toll', 'Toll', 'toll'],
+              ['up_res_driver', 'Driver', 'driver'],
+              ['up_res_maintenance', 'Maintenance', 'maintenance'],
+              ['up_res_fixed', 'Fixed / ownership', 'fixed'],
+              ['up_res_manual', 'Manual / other', 'manual'],
+            ];
+            for (const [key, fallback, field] of componentRows) {
+              rows.push({
+                category: t(key, fallback),
+                type: '',
+                description: '',
+                amount:
+                  field === 'driver' && breakdown.driverCostSource === 'unavailable'
+                    ? ''
+                    : breakdown[field] ?? '',
+                currency: selected.currency,
+                source: t('up_res_cost_engine', 'CostEngine'),
+              });
+            }
+          }
           if (selected.recordedTotal !== null) {
             rows.push({
-              category: t('pr.total', 'Total'),
+              category: t('pr.recorded_costs', 'Recorded costs'),
               type: '',
               description: '',
               amount: selected.recordedTotal,
               currency: selected.currency,
-              source: '',
+              source: t('pr.recorded', 'Recorded'),
             });
           }
+          rows.push({
+            category: t('pr.total_cost', 'Total cost'),
+            type: '',
+            description: '',
+            amount: selected.totalCost ?? '',
+            currency: selected.currency,
+            source: basisLabel(selected.costBasis),
+          });
           return { fileBase: `planning-costs-${dateTag}`, headers, rows };
         }
         const currency = totals.currency || 'MIXED';
+        const componentSource = t('up_res_basis_mixed', 'Mixed (recorded + estimated)');
         const rows = [
-          { category: t('pr.cat_fuel', 'Fuel'), amount: totals.fuel ?? '', source: t('pr.recorded', 'Recorded') },
-          { category: t('pr.cat_toll', 'Toll'), amount: totals.toll ?? '', source: t('pr.recorded', 'Recorded') },
-          { category: t('pr.cat_driver', 'Driver salaries'), amount: totals.driver ?? '', source: t('pr.recorded', 'Recorded') },
-          { category: t('pr.cat_other', 'Other costs'), amount: totals.other ?? '', source: t('pr.recorded', 'Recorded') },
+          { category: t('pr.cat_fuel', 'Fuel'), amount: totals.fuel ?? '', source: componentSource },
+          { category: t('pr.cat_toll', 'Toll'), amount: totals.toll ?? '', source: componentSource },
+          { category: t('pr.cat_driver', 'Driver salaries'), amount: totals.driver ?? '', source: componentSource },
+          { category: t('pr.cat_other', 'Other costs'), amount: totals.other ?? '', source: componentSource },
           {
             category: t('pr.total_cost', 'Total cost'),
             amount: totals.totalCost ?? '',
@@ -1244,10 +1310,10 @@ export default function PlanningResultsPanel({
               <th className={thL}>{t('pr.driver', 'Driver')}</th>
               <th className={thR}>{t('pr.distance_km', 'Distance (km)')}</th>
               <th className={thR} title={t('up_elapsed_hint', 'Departure to arrival, including waiting, service and overnight periods.')}>{t('up_elapsed_time', 'Elapsed time')}</th>
-              <th className={thR}>{t('pr.driving_time', 'Driving time')}</th>
-              <th className={thR}>{t('pr.waiting', 'Waiting')}</th>
-              <th className={thR}>{t('pr.loading', 'Loading')}</th>
-              <th className={thR}>{t('pr.unloading', 'Unloading')}</th>
+              <th className={thR} title={t('up_res_driving_estimated_hint', 'Estimated from the planned route; not recorded tachograph driving time.')}>{t('pr.driving_time', 'Driving time')}</th>
+              <th className={thR} title={t('up_res_waiting_estimated_hint', 'Planned waiting time from the route plan; not recorded waiting.')}>{t('pr.waiting', 'Waiting')}</th>
+              <th className={thR} title={t('up_res_service_estimated_hint', 'Planned loading/unloading service time from the route plan; not recorded service.')}>{t('pr.loading', 'Loading')}</th>
+              <th className={thR} title={t('up_res_service_estimated_hint', 'Planned loading/unloading service time from the route plan; not recorded service.')}>{t('pr.unloading', 'Unloading')}</th>
               <th className={thL}>{t('pr.departure', 'Departure')}</th>
               <th className={thL}>{t('pr.arrival', 'Arrival')}</th>
               <th className={thR}>{t('pr.toll', 'Toll')}</th>
@@ -1288,33 +1354,50 @@ export default function PlanningResultsPanel({
                   {m.driverName || np()}
                 </td>
                 <td className={tdR}>{m.distanceKm === null ? np() : fmtNumber(m.distanceKm, 0)}</td>
-                <td className={tdR} title={t('up_elapsed_hint', 'Departure to arrival, including waiting, service and overnight periods.')}>
+                <td
+                  className={tdR}
+                  title={`${t('up_elapsed_hint', 'Departure to arrival, including waiting, service and overnight periods.')} · ${m.elapsedBasis === 'actual' ? t('up_time_actual', 'actual') : t('up_time_planned', 'planned')}`}
+                >
                   {timeOr(m.elapsedMin)}
-                  {m.elapsedMin !== null && (
-                    <span className="ml-1 text-[8px] font-bold uppercase tracking-wide text-text-muted">
-                      {m.elapsedBasis === 'actual' ? t('up_time_actual', 'actual') : t('up_time_planned', 'planned')}
-                    </span>
-                  )}
                 </td>
-                <td className={tdR}>{timeOr(m.drivingMin)}</td>
-                <td className={tdR}>{timeOr(m.waitingMin)}</td>
-                <td className={tdR}>{timeOr(m.loadingMin)}</td>
-                <td className={tdR}>{timeOr(m.unloadingMin)}</td>
+                <td className={tdR} title={m.drivingBasis === 'estimated' ? t('up_res_driving_estimated_hint', 'Estimated from the planned route; not recorded tachograph driving time.') : undefined}>
+                  {timeOr(m.drivingMin)}
+                </td>
+                <td className={tdR} title={m.waitingBasis === 'estimated' ? t('up_res_waiting_estimated_hint', 'Planned waiting time from the route plan; not recorded waiting.') : undefined}>
+                  {timeOr(m.waitingMin)}
+                </td>
+                <td className={tdR} title={m.loadingBasis === 'estimated' ? t('up_res_service_estimated_hint', 'Planned loading/unloading service time from the route plan; not recorded service.') : undefined}>
+                  {timeOr(m.loadingMin)}
+                </td>
+                <td className={tdR} title={m.unloadingBasis === 'estimated' ? t('up_res_service_estimated_hint', 'Planned loading/unloading service time from the route plan; not recorded service.') : undefined}>
+                  {timeOr(m.unloadingMin)}
+                </td>
                 <td className={td}>
                   {m.departure ? <span className="tabular-nums">{fmtDateTime(m.departure)}</span> : np()}
                 </td>
                 <td className={td}>
                   {m.arrival ? <span className="tabular-nums">{fmtDateTime(m.arrival)}</span> : np()}
                 </td>
-                <td className={tdR}>{moneyOr(m.toll, m.currency)}</td>
-                <td className={tdR}>{moneyOr(m.fuelCost, m.currency)}</td>
-                <td className={tdR}>{moneyOr(m.driverCost, m.currency)}</td>
-                <td className={tdR}>{moneyOr(m.otherCost, m.currency)}</td>
+                <td className={tdR}>{componentMoney(m.toll, m.componentBasis.toll, m.currency)}</td>
+                <td className={tdR}>{componentMoney(m.fuelCost, m.componentBasis.fuel, m.currency)}</td>
+                <td
+                  className={tdR}
+                  title={
+                    m.driverCostSource === 'unavailable'
+                      ? t('up_res_driver_unavailable', 'No valid driver compensation profile')
+                      : m.driverCostSource
+                        ? `${t('up_res_cost_engine', 'CostEngine')} · ${m.driverCostSource}`
+                        : undefined
+                  }
+                >
+                  {componentMoney(m.driverCost, m.componentBasis.driver, m.currency)}
+                </td>
+                <td className={tdR}>{componentMoney(m.otherCost, m.componentBasis.other, m.currency)}</td>
                 <td className={`${tdR} font-bold`}>
                   {moneyOr(m.totalCost, m.currency)}
                   {m.totalCost !== null && (
                     <span className="ml-1 text-[8px] font-bold uppercase tracking-wide text-text-muted">
-                      {m.costBasis === 'recorded' ? t('up_res_recorded_short', 'rec.') : t('up_res_estimated_short', 'est.')}
+                      {basisShort(m.costBasis)}
                     </span>
                   )}
                 </td>
@@ -1327,7 +1410,7 @@ export default function PlanningResultsPanel({
                   {moneyOr(m.profit, m.currency)}
                   {m.profit !== null && (
                     <span className="ml-1 text-[8px] font-bold uppercase tracking-wide text-text-muted">
-                      {m.costBasis === 'recorded' ? t('up_res_recorded_short', 'rec.') : t('up_res_estimated_short', 'est.')}
+                      {basisShort(m.costBasis)}
                     </span>
                   )}
                 </td>
@@ -1486,11 +1569,11 @@ export default function PlanningResultsPanel({
           </span>
           <span>
             <span className="text-text-secondary">{t('up_elapsed_time', 'Elapsed time')}:</span>{' '}
-            {timeOr(selected.elapsedMin)}
-            {selected.elapsedMin !== null && (
-              <span className="ml-1 text-[9px] font-bold uppercase text-text-muted">
-                {selected.elapsedBasis === 'actual' ? t('up_time_actual', 'actual') : t('up_time_planned', 'planned')}
-              </span>
+            {timeOr(
+              selected.elapsedMin,
+              selected.elapsedBasis === 'actual'
+                ? t('up_time_actual', 'actual')
+                : t('up_time_planned', 'planned'),
             )}
           </span>
           {statusBadge(selected.status)}
@@ -1609,7 +1692,13 @@ export default function PlanningResultsPanel({
               return (
                 <tr key={row.key} className="border-b border-border/40 last:border-0">
                   <td className={td}>{row.label}</td>
-                  <td className={tdR}>{value === null ? nc() : fmtMoney(value, currency)}</td>
+                  <td className={tdR}>
+                    {row.key === 'driver' && breakdown.driverCostSource === 'unavailable'
+                      ? t('up_res_driver_unavailable', 'No valid driver compensation profile')
+                      : value === null
+                        ? nc()
+                        : fmtMoney(value, currency)}
+                  </td>
                 </tr>
               );
             })}
@@ -1660,7 +1749,7 @@ export default function PlanningResultsPanel({
           </div>
           {renderEstimatedBreakdown(
             totals.estimatedComponents
-              ? { ...totals.estimatedComponents, total: totals.estimated }
+              ? { ...totals.estimatedComponents, total: totals.estimatedComponentsTotal }
               : null,
           )}
           {!hasRecorded ? (

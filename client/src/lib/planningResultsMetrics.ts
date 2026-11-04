@@ -13,7 +13,8 @@ export const FUEL_FACTORS: Record<string, number> = {
   hybrid: 2.68,
 };
 
-export type CostBasis = 'recorded' | 'estimated' | 'none';
+export type CostBasis = 'recorded' | 'estimated' | 'mixed' | 'none';
+export type TimeBasis = 'recorded' | 'estimated' | 'none';
 export type AssignmentSource = 'assigned' | 'truck' | 'carrier' | 'none';
 
 export function toNum(value: any): number | null {
@@ -86,7 +87,9 @@ export function costBucket(cost: any): 'fuel' | 'toll' | 'driver' | 'other' {
 
 function resolvedDriver(trip: any): { entity: any | null; source: AssignmentSource; name: string } {
   const assignment = trip?.assignment;
-  const source: AssignmentSource = assignment?.driverSource || (trip?.driver?.id ? 'assigned' : trip?.truck?.driver?.id ? 'truck' : trip?.carrierDriverName ? 'carrier' : 'none');
+  const source: AssignmentSource =
+    assignment?.driverSource ||
+    (trip?.driver?.id ? 'assigned' : trip?.truck?.driver?.id ? 'truck' : trip?.carrierDriverName ? 'carrier' : 'none');
   const entity = trip?.driver || trip?.truck?.driver || null;
   const rawAssignmentName = String(assignment?.driverName || '').trim();
   const name =
@@ -102,7 +105,9 @@ function resolvedDriver(trip: any): { entity: any | null; source: AssignmentSour
 
 function resolvedTrailer(trip: any): { entity: any | null; source: AssignmentSource; plate: string } {
   const assignment = trip?.assignment;
-  const source: AssignmentSource = assignment?.trailerSource || (trip?.trailer?.id ? 'assigned' : trip?.truck?.trailer?.id ? 'truck' : trip?.carrierTrailerPlate ? 'carrier' : 'none');
+  const source: AssignmentSource =
+    assignment?.trailerSource ||
+    (trip?.trailer?.id ? 'assigned' : trip?.truck?.trailer?.id ? 'truck' : trip?.carrierTrailerPlate ? 'carrier' : 'none');
   const plate =
     assignment?.trailerPlate ||
     trip?.trailer?.plateNumber ||
@@ -113,10 +118,23 @@ function resolvedTrailer(trip: any): { entity: any | null; source: AssignmentSou
   return { entity: trip?.trailer || trip?.truck?.trailer || null, source, plate };
 }
 
+function money(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function firstPositive(...values: any[]): number | null {
+  for (const value of values) {
+    const numeric = toNum(value);
+    if (numeric !== null && numeric > 0) return numeric;
+  }
+  return null;
+}
+
 export function buildTripMetrics(trip: any) {
   const orders = trip?.orders || [];
   const costs = trip?.costs || [];
   const truck = trip?.truck || null;
+  const routePlan = trip?.routePlan || null;
   const driverAssignment = resolvedDriver(trip);
   const trailerAssignment = resolvedTrailer(trip);
 
@@ -158,21 +176,93 @@ export function buildTripMetrics(trip: any) {
           manual: toNum(rawBreakdown.manualCost),
           total: toNum(rawBreakdown.total),
           driverCostSource: rawBreakdown.driverCostSource || null,
+          driverDistanceKm: toNum(rawBreakdown.driverDistanceKm),
+          driverPayMode: rawBreakdown.driverPayMode || null,
+          driverPayRate: toNum(rawBreakdown.driverPayRate),
           estimatedFields: Array.isArray(rawBreakdown.estimatedFields) ? rawBreakdown.estimatedFields : [],
         }
       : null;
 
-  const costBasis: CostBasis = recordedTotal !== null ? 'recorded' : estimatedCost !== null ? 'estimated' : 'none';
-  const totalCost = costBasis === 'recorded' ? recordedTotal : costBasis === 'estimated' ? estimatedCost : null;
-  const profit =
-    revenue !== null && totalCost !== null
-      ? Math.round((revenue - totalCost) * 100) / 100
-      : estimatedProfit;
+  const recordedFuel = present.fuel ? buckets.fuel : null;
+  const recordedToll = present.toll ? buckets.toll : null;
+  const recordedDriver = present.driver ? buckets.driver : null;
+  const recordedOther = present.other ? buckets.other : null;
 
   const tollStatus = String(trip?.tollStatus || '').toLowerCase();
   const tollDisabled = ['not_calculated', 'unavailable', 'failed', 'error'].includes(tollStatus);
-  const recordedToll = present.toll ? buckets.toll : null;
-  const toll = tollDisabled ? recordedToll : toNum(trip?.tollCost) ?? recordedToll;
+  const routingToll = tollDisabled ? null : toNum(trip?.tollCost);
+  // A CostEngine breakdown contains tollCost=0 when HERE did not return a
+  // toll. Do not turn that into a verified €0 toll.
+  const estimatedToll =
+    tollDisabled || !estimatedBreakdown?.toll || estimatedBreakdown.toll <= 0
+      ? null
+      : estimatedBreakdown.toll;
+  const estimatedDriver =
+    estimatedBreakdown && estimatedBreakdown.driverCostSource !== 'unavailable'
+      ? estimatedBreakdown.driver
+      : null;
+
+  const pick = (recorded: number | null, estimated: number | null): { value: number | null; basis: CostBasis } =>
+    recorded !== null
+      ? { value: recorded, basis: 'recorded' }
+      : estimated !== null
+        ? { value: estimated, basis: 'estimated' }
+        : { value: null, basis: 'none' };
+
+  const fuelComp = pick(recordedFuel, estimatedBreakdown?.fuel ?? null);
+  const tollComp = pick(recordedToll, routingToll ?? estimatedToll);
+  const driverComp = pick(recordedDriver, estimatedDriver);
+
+  // Other costs includes maintenance and fixed ownership costs from the
+  // CostEngine. Manual TripCosts are already represented by the recorded
+  // buckets, so only use the estimated manual amount when no recorded costs
+  // were loaded at all (avoids double counting).
+  const estimatedStructuralOther =
+    estimatedBreakdown ? (estimatedBreakdown.maintenance ?? 0) + (estimatedBreakdown.fixed ?? 0) : null;
+  const estimatedManual = recordedTotal === null ? estimatedBreakdown?.manual ?? null : null;
+  const otherValue =
+    recordedOther !== null || estimatedBreakdown
+      ? (recordedOther ?? 0) + (estimatedStructuralOther ?? 0) + (estimatedManual ?? 0)
+      : null;
+  const otherComp: { value: number | null; basis: CostBasis } = {
+    value: otherValue,
+    basis:
+      recordedOther !== null
+        ? (estimatedStructuralOther ?? 0) > 0
+          ? 'mixed'
+          : 'recorded'
+        : estimatedBreakdown
+          ? 'estimated'
+          : 'none',
+  };
+
+  const componentBases = [fuelComp.basis, tollComp.basis, driverComp.basis, otherComp.basis];
+  const meaningfulBases = componentBases.filter((basis) => basis !== 'none');
+  let costBasis: CostBasis = 'none';
+  let totalCost: number | null = null;
+  if (estimatedBreakdown) {
+    totalCost = money(
+      (fuelComp.value ?? 0) +
+        (tollComp.value ?? 0) +
+        (driverComp.value ?? 0) +
+        (otherComp.value ?? 0),
+    );
+    costBasis = meaningfulBases.includes('mixed') ||
+      (meaningfulBases.includes('recorded') && meaningfulBases.includes('estimated'))
+      ? 'mixed'
+      : meaningfulBases.length > 0 && meaningfulBases.every((basis) => basis === 'recorded')
+        ? 'recorded'
+        : meaningfulBases.length > 0
+          ? 'estimated'
+          : 'none';
+  } else if (recordedTotal !== null) {
+    totalCost = recordedTotal;
+    costBasis = 'recorded';
+  } else if (estimatedCost !== null) {
+    totalCost = estimatedCost;
+    costBasis = 'estimated';
+  }
+  const profit = revenue !== null && totalCost !== null ? money(revenue - totalCost) : estimatedProfit;
 
   const stops = (trip?.stops || []).slice().sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
 
@@ -221,16 +311,56 @@ export function buildTripMetrics(trip: any) {
   }
 
   const noStops = stops.length === 0;
-  const waitingMin = noStops ? 0 : waitingKnown ? waitingSum : null;
-  const loadingMin = noStops ? 0 : loadingKnown ? loadingSum : null;
-  const unloadingMin = noStops ? 0 : unloadingKnown ? unloadingSum : null;
-  // Driving time is never inferred from elapsed time. Only an authoritative
-  // routing/recording field may populate it; otherwise it stays unavailable.
-  const drivingMin =
-    toNum(trip?.actualDrivingMin) ??
-    toNum(trip?.drivingTimeMin) ??
-    toNum(trip?.recordedDrivingMin) ??
-    null;
+  let waitingMin = noStops ? 0 : waitingKnown ? waitingSum : null;
+  let waitingBasis: TimeBasis = noStops ? 'none' : waitingKnown ? 'recorded' : 'none';
+  if (!noStops && waitingMin === null) {
+    const plannedWaiting = toNum(routePlan?.totalWaitingTimeMinutes);
+    if (plannedWaiting !== null) {
+      waitingMin = plannedWaiting;
+      waitingBasis = 'estimated';
+    }
+  }
+
+  const routeStops = Array.isArray(routePlan?.stops) ? routePlan.stops : [];
+  const plannedService = (types: string[]): number | null => {
+    const matching = routeStops.filter((stop: any) =>
+      types.includes(String(stop?.type || '').toLowerCase()),
+    );
+    if (matching.length === 0) return null;
+    return matching.reduce((sum: number, stop: any) => sum + (Number(stop.serviceDurationMinutes) || 0), 0);
+  };
+
+  let loadingMin = noStops ? 0 : loadingKnown ? loadingSum : null;
+  let loadingBasis: TimeBasis = noStops ? 'none' : loadingKnown ? 'recorded' : 'none';
+  if (!noStops && loadingMin === null) {
+    const plannedLoading = plannedService(['pickup', 'load']);
+    if (plannedLoading !== null) {
+      loadingMin = plannedLoading;
+      loadingBasis = 'estimated';
+    }
+  }
+
+  let unloadingMin = noStops ? 0 : unloadingKnown ? unloadingSum : null;
+  let unloadingBasis: TimeBasis = noStops ? 'none' : unloadingKnown ? 'recorded' : 'none';
+  if (!noStops && unloadingMin === null) {
+    const plannedUnloading = plannedService(['delivery', 'unload']);
+    if (plannedUnloading !== null) {
+      unloadingMin = plannedUnloading;
+      unloadingBasis = 'estimated';
+    }
+  }
+
+  // Driving time is never inferred from elapsed time. Prefer recorded
+  // tachograph values, then the route plan's authoritative HERE/ORS duration.
+  // A persisted zero means no usable record, not a zero-length drive.
+  const recordedDriving = firstPositive(
+    trip?.actualDrivingMin,
+    trip?.drivingTimeMin,
+    trip?.recordedDrivingMin,
+  );
+  const routeDrivingMin = firstPositive(routePlan?.totalDrivingTimeMinutes);
+  const drivingMin = recordedDriving ?? routeDrivingMin;
+  const drivingBasis: TimeBasis = recordedDriving !== null ? 'recorded' : routeDrivingMin !== null ? 'estimated' : 'none';
 
   const cargo = sumCargo(orders);
   const capacityWeight = toNum(truck?.maxWeightKg) ?? toNum(truck?.payloadCapacity);
@@ -280,26 +410,41 @@ export function buildTripMetrics(trip: any) {
     emptyKm:
       toNum(trip?.emptyKm) ??
       toNum(trip?.deadheadKm) ??
-      toNum(trip?.emptyKilometers),
+      toNum(trip?.emptyKilometers) ??
+      toNum(routePlan?.emptyKilometers),
     elapsedMin,
     elapsedBasis,
     plannedElapsedMin,
     actualElapsedMin,
     travelMin: elapsedMin,
     drivingMin,
+    drivingBasis,
     waitingMin,
+    waitingBasis,
     loadingMin,
+    loadingBasis,
     unloadingMin,
+    unloadingBasis,
     departure,
     arrival,
-    toll,
-    fuelCost: present.fuel ? buckets.fuel : null,
-    driverCost: present.driver ? buckets.driver : null,
-    otherCost: present.other ? buckets.other : null,
+    toll: tollComp.value,
+    fuelCost: fuelComp.value,
+    driverCost: driverComp.value,
+    otherCost: otherComp.value,
+    componentBasis: {
+      fuel: fuelComp.basis,
+      toll: tollComp.basis,
+      driver: driverComp.basis,
+      other: otherComp.basis,
+    },
+    driverCostSource: estimatedBreakdown?.driverCostSource ?? null,
+    driverDistanceKm: estimatedBreakdown?.driverDistanceKm ?? null,
+    driverPayMode: estimatedBreakdown?.driverPayMode ?? null,
+    driverPayRate: estimatedBreakdown?.driverPayRate ?? null,
     recordedTotal,
     estimatedCost,
     estimatedBreakdown,
-    estimatedCalculatedAt: trip?.costCalculatedAt || null,
+    estimatedCalculatedAt: trip?.costCalculatedAt || (estimatedBreakdown ? trip?.updatedAt : null),
     totalCost,
     costBasis,
     revenue,
@@ -315,6 +460,7 @@ export function buildTripMetrics(trip: any) {
     emissionMissing,
     stops,
     costs,
+    routePlan,
   };
 }
 

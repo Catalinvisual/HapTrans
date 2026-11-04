@@ -11141,7 +11141,7 @@ for (const lng of Object.keys(planningUpgradeResources)) {
 
 for (const lng of Object.keys(planningDataQualityResources)) {
   if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
-  Object.assign((resources as any)[lng].translation, (planningDataQualityResources as any)[lng].translation);
+  Object.assign((resources as any)[lng].translation, (planningDataQualityResources as any)[lng]);
 }
 
 

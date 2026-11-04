@@ -570,6 +570,25 @@ export class PlanningService {
     if (q.trailerId) tripsQb.andWhere('trip.trailerId IN (:...tids)', { tids: String(q.trailerId).split(',') });
     const trips = await tripsQb.orderBy('trip.plannedDeparture', 'ASC').getMany();
 
+    // Attach the latest route plan so the Results table can use authoritative
+    // route driving/waiting/service totals and empty kilometres instead of
+    // inventing them from elapsed time.
+    const tripIds = trips.map((trip) => trip.id).filter(Boolean);
+    if (tripIds.length > 0) {
+      const routePlans = await this.routePlanRepo.find({
+        where: { tripId: In(tripIds) },
+        order: { version: 'DESC' },
+      });
+      const latestPlanByTrip = new Map<string, TruckRoutePlan>();
+      for (const plan of routePlans) {
+        if (plan.tripId && !latestPlanByTrip.has(plan.tripId)) latestPlanByTrip.set(plan.tripId, plan);
+      }
+      for (const trip of trips) {
+        const plan = latestPlanByTrip.get(trip.id);
+        if (plan) (trip as any).routePlan = plan;
+      }
+    }
+
     // Resolve resources once, with the same rules used by validation and the UI.
     for (const trip of trips) {
       const driverAssignment = resolveTripDriver(trip);
@@ -1801,6 +1820,11 @@ export class PlanningService {
   async recalculateTripCosts(user: any, tripId: string) {
     const trip = await this.loadTrip(tripId);
     if (!trip) throw new NotFoundException('Trip not found.');
+    const routePlan = await this.routePlanRepo.findOne({
+      where: { tripId },
+      order: { version: 'DESC' },
+    });
+    if (routePlan) (trip as any).routePlan = routePlan;
 
     const companyId = user?.companyId || null;
     const tripCompanyId = (trip as any).companyId || trip.company?.id || null;

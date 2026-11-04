@@ -149,7 +149,30 @@ export class TripsService {
   }
 
   findOne(id: string) {
-    return this.repo.findOne({ where: { id }, relations: ['truck', 'driver', 'driver.user', 'trailer', 'costs', 'documents', 'invoices', 'messages', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.client', 'orders.cargoItems', 'orders.stops', 'dispatcher'] });
+    return this.repo.findOne({
+      where: { id },
+      relations: [
+        'truck',
+        'truck.driver',
+        'truck.driver.user',
+        'truck.trailer',
+        'driver',
+        'driver.user',
+        'trailer',
+        'costs',
+        'documents',
+        'invoices',
+        'messages',
+        'stops',
+        'stops.tasks',
+        'stops.tasks.order',
+        'orders',
+        'orders.client',
+        'orders.cargoItems',
+        'orders.stops',
+        'dispatcher',
+      ],
+    });
   }
 
   async findByTrackingToken(trackingToken: string): Promise<Trip | null> {

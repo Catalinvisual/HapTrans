@@ -166,6 +166,7 @@ mockOrderRepo = {
       {} as any,
       mockDropHookRepo,
       mockCrossDockRepo,
+      {} as any, // telematicsDeviceRepo
       {} as any, // planningEngine
       {} as any, // optimizationEngine
       {} as any, // pricingEngine

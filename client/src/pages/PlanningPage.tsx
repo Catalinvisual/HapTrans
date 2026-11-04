@@ -991,9 +991,58 @@ function TripDetailDrawer({
 
   if (!tripSummary) return null;
   const trip = tripDetail || tripSummary;
-  const truck = trip.truck || tripSummary.truck || resources.find((r: any) => r.id === (trip.truckId || tripSummary.truckId)) || null;
-  const driver = trip.driver || truck?.driver || drivers.find((d: any) => d.id === (trip.driverId || tripSummary.driverId)) || null;
-  const trailer = trip.trailer || tripSummary.trailer || truck?.trailer || trailers.find((trl: any) => trl.id === (trip.trailerId || tripSummary.trailerId)) || null;
+  const assignment = tripSummary.assignment || trip.assignment || null;
+  const summaryTruck = tripSummary.truck || null;
+  const detailTruck = trip.truck || null;
+  const truck =
+    detailTruck ||
+    summaryTruck ||
+    resources.find((r: any) => r.id === (trip.truckId || tripSummary.truckId)) ||
+    null;
+  const driverId =
+    assignment?.driverId ||
+    trip.driverId ||
+    tripSummary.driverId ||
+    detailTruck?.driver?.id ||
+    summaryTruck?.driver?.id ||
+    null;
+  // Explicit trip assignment wins; then the truck's attached driver. The detail
+  // endpoint can load the truck without its driver, so keep the summary fallback.
+  const driver =
+    trip.driver ||
+    tripSummary.driver ||
+    detailTruck?.driver ||
+    summaryTruck?.driver ||
+    drivers.find((d: any) => d.id === driverId) ||
+    null;
+  const trailerId =
+    assignment?.trailerId ||
+    trip.trailerId ||
+    tripSummary.trailerId ||
+    detailTruck?.trailer?.id ||
+    summaryTruck?.trailer?.id ||
+    null;
+  const trailer =
+    trip.trailer ||
+    tripSummary.trailer ||
+    detailTruck?.trailer ||
+    summaryTruck?.trailer ||
+    trailers.find((trl: any) => trl.id === trailerId) ||
+    null;
+  const driverSource =
+    assignment?.driverSource ||
+    (trip.driver?.id || tripSummary.driver?.id
+      ? 'assigned'
+      : summaryTruck?.driver?.id || detailTruck?.driver?.id
+        ? 'truck'
+        : trip.carrierDriverName || tripSummary.carrierDriverName
+          ? 'carrier'
+          : 'none');
+  // The board assignment is authoritative and carries the resolved name/plate
+  // even when the detail endpoint has not loaded that relation yet.
+  const assignedDriverName = String(assignment?.driverName || '').trim();
+  const assignedTrailerPlate = String(assignment?.trailerPlate || '').trim();
+  const notAssigned = t('not_assigned', 'Not assigned');
   const stops = (trip.stops?.length ? trip.stops : (tripSummary.stops?.length ? tripSummary.stops : [])).slice().sort((a: any, b: any) => (a.sequence || a.stopOrder || 0) - (b.sequence || b.stopOrder || 0));
   const orders = (trip.orders?.length ? trip.orders : (tripSummary.orders?.length ? tripSummary.orders : [])).map((o: any) => o?.order || o).filter((o: any) => o?.id);
   const revenue = orders.reduce((s: number, o: any) => s + (Number(o.price) || 0), 0);
@@ -1011,6 +1060,7 @@ function TripDetailDrawer({
   const trafficDelay = Number(trafficInfo?.currentDelayMinutes ?? trafficInfo?.delayMinutes ?? trip.trafficDelayMinutes ?? 0) || 0;
   const trafficLevel = trafficInfo?.congestionLevel || trafficInfo?.status || trip.trafficStatus || '';
   const tollAmount = tollInfo?.totalCost ?? tollInfo?.totalAmount;
+  const costBreakdown = (trip as any).estimatedCostBreakdown || null;
   const storedTollAmount = Number(trip.tollCost ?? trip.tollAmount);
   const hasStoredToll = (trip.tollStatus === 'calculated' || trip.tollStatus === 'estimated') && Number.isFinite(storedTollAmount);
 
@@ -1211,11 +1261,11 @@ function TripDetailDrawer({
       onClick={onClose}
     >
       <div
-        className={`relative w-full ${isExpanded ? 'max-w-6xl' : 'max-w-3xl lg:max-w-4xl'} max-h-[92vh] bg-card shadow-2xl flex flex-col rounded-3xl border border-border overflow-hidden animate-in zoom-in-95 duration-200 transition-all`}
+        className={`relative w-[96vw] ${isExpanded ? 'max-w-[1800px]' : 'max-w-[1600px]'} max-h-[94vh] bg-card shadow-2xl flex flex-col rounded-3xl border border-border overflow-y-auto overscroll-contain custom-scrollbar animate-in zoom-in-95 duration-200 transition-all`}
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-border bg-surface/50 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        {/* Header: identity zone + actions zone */}
+        <div className="p-4 sm:p-5 border-b border-border bg-surface/50 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h2 className="text-xl font-black text-text-primary">{trip.tripNumber || tripSummary.tripNumber || 'Trip'}</h2>
@@ -1243,7 +1293,7 @@ function TripDetailDrawer({
               {(trip.distanceKm || tripSummary.distanceKm) && <><span>·</span><span className="font-semibold text-primary">{trip.distanceKm || tripSummary.distanceKm} km</span></>}
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
             {/* Subcontractor / Charter allocation action */}
             <button
               onClick={() => onSubcontractor?.(trip)}
@@ -1310,10 +1360,10 @@ function TripDetailDrawer({
         </div>
 
         {/* Resources summary */}
-        <div className="px-5 py-3 border-b border-border bg-surface/20 grid grid-cols-3 gap-3 text-xs shrink-0">
+        <div className="px-5 py-3 border-b border-border bg-surface/20 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div className="bg-card rounded-xl p-2.5 border border-border/60">
             <p className="text-text-secondary text-[10px]">{t('export_col_truck', 'Truck')}</p>
-            <p className="font-black text-text-primary text-sm truncate mt-0.5">{truck?.plateNumber || trip.carrierTruckPlate || '—'}</p>
+            <p className="font-black text-text-primary text-sm truncate mt-0.5">{truck?.plateNumber || trip.carrierTruckPlate || notAssigned}</p>
             {`${truck?.brand || ''} ${truck?.model || ''}`.trim() ? (
               <p className="text-[9px] text-text-muted mt-0.5 truncate">{`${truck?.brand || ''} ${truck?.model || ''}`.trim()}</p>
             ) : null}
@@ -1333,12 +1383,16 @@ function TripDetailDrawer({
             <p
               className="font-black text-text-primary text-sm truncate mt-0.5"
               title={
-                driver && !trip.driver?.id && trip.truck?.driver?.id
+                driverSource === 'truck'
                   ? t('up_res_inherited_from_truck', 'Inherited from the truck’s default assignment')
-                  : undefined
+                  : driverSource === 'carrier'
+                    ? t('up_res_from_carrier', 'carrier')
+                    : undefined
               }
             >
-              {(driver && driverEntityDisplayName(driver) !== '—') ? driverEntityDisplayName(driver) : trip.carrierDriverName || '—'}
+              {(driver && driverEntityDisplayName(driver) !== '—')
+                ? driverEntityDisplayName(driver)
+                : assignedDriverName || trip.carrierDriverName || tripSummary.carrierDriverName || notAssigned}
             </p>
             {driver?.id && hosSummary[driver.id] ? (
               <p className="text-[9px] text-text-muted mt-0.5 truncate flex items-center gap-1" title={`${hosSummary[driver.id].weeklyDriving}h used / 56h limit`}>
@@ -1353,7 +1407,18 @@ function TripDetailDrawer({
           <div className="bg-card rounded-xl p-2.5 border border-border/60 flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-text-secondary text-[10px]">{t('export_col_trailer', 'Trailer')}</p>
-              <p className="font-black text-text-primary text-sm truncate mt-0.5">{trailer?.plateNumber || trip.carrierTrailerPlate || '—'}</p>
+              <p
+                className="font-black text-text-primary text-sm truncate mt-0.5"
+                title={
+                  assignment?.trailerSource === 'truck'
+                    ? t('up_res_inherited_from_truck', 'Inherited from the truck’s default assignment')
+                    : assignment?.trailerSource === 'carrier'
+                      ? t('up_res_from_carrier', 'carrier')
+                      : undefined
+                }
+              >
+                {trailer?.plateNumber || assignedTrailerPlate || trip.carrierTrailerPlate || tripSummary.carrierTrailerPlate || notAssigned}
+              </p>
               {trailer?.isDropped ? (
                 <span className="text-[9px] font-bold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded truncate inline-block mt-0.5">
                   DROPPED @ {trailer.dropLocation || 'Yard'}
@@ -1521,7 +1586,7 @@ function TripDetailDrawer({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        <div className="p-5 space-y-4">
           {detailLoading && (
             <div className="flex items-center justify-center gap-2 py-4">
               <Loader2 className="w-5 h-5 animate-spin text-primary" />
@@ -1777,17 +1842,66 @@ function TripDetailDrawer({
           )}
 
           {activeTab === 'financial' && (
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                [t('revenue','Revenue'), fmtMoney(revenue, 'EUR'), 'text-primary'],
-                [t('cost','Est. Cost'), fmtMoney(Number(trip.estimatedCost || 0), 'EUR'), 'text-text-secondary'],
-                [t('margin','Margin'), fmtMoney(revenue - Number(trip.estimatedCost || 0), 'EUR'), revenue >= Number(trip.estimatedCost || 0) ? 'text-emerald-500' : 'text-red-500'],
-              ].map(([label, val, cls]) => (
-                <div key={label as string} className="bg-surface/60 rounded-xl p-3 border border-border">
-                  <p className="text-xs text-text-secondary">{label}</p>
-                  <p className={`font-black text-lg mt-0.5 ${cls}`}>{val}</p>
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                  [t('revenue','Revenue'), fmtMoney(revenue, 'EUR'), 'text-primary'],
+                  [t('cost','Est. Cost'), fmtMoney(Number(trip.estimatedCost || 0), 'EUR'), 'text-text-secondary'],
+                  [t('margin','Margin'), fmtMoney(revenue - Number(trip.estimatedCost || 0), 'EUR'), revenue >= Number(trip.estimatedCost || 0) ? 'text-emerald-500' : 'text-red-500'],
+                ].map(([label, val, cls]) => (
+                  <div key={label as string} className="bg-surface/60 rounded-xl p-3 border border-border">
+                    <p className="text-xs text-text-secondary">{label}</p>
+                    <p className={`font-black text-lg mt-0.5 ${cls}`}>{val}</p>
+                  </div>
+                ))}
+              </div>
+
+              {costBreakdown ? (
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <div className="flex flex-wrap items-center justify-between gap-2 bg-surface/70 px-3 py-2 border-b border-border">
+                    <span className="text-xs font-black text-text-primary">
+                      {t('up_res_estimated_breakdown', 'Estimated cost breakdown')}
+                    </span>
+                    <span className="text-[9px] text-text-muted">
+                      {t('up_res_cost_engine', 'CostEngine')}
+                      {trip.costCalculatedAt ? ` · ${new Date(trip.costCalculatedAt).toLocaleString()}` : ''}
+                    </span>
+                  </div>
+                  <div className="divide-y divide-border/50">
+                    {[
+                      ['up_res_fuel', 'Fuel', 'fuelCost'],
+                      ['up_res_toll', 'Toll', 'tollCost'],
+                      ['up_res_driver', 'Driver', 'driverCost'],
+                      ['up_res_maintenance', 'Maintenance', 'maintenanceCost'],
+                      ['up_res_fixed', 'Fixed / ownership', 'fixedCost'],
+                      ['up_res_manual', 'Manual / other', 'manualCost'],
+                    ].map(([key, fallback, field]) => (
+                      <div key={key} className="flex items-center justify-between gap-3 px-3 py-1.5 text-xs">
+                        <span className="text-text-secondary">{t(key, fallback)}</span>
+                        <span className="font-bold tabular-nums text-text-primary">
+                          {field === 'driverCost' && costBreakdown.driverCostSource === 'unavailable'
+                            ? t('up_res_driver_unavailable', 'No valid driver compensation profile')
+                            : costBreakdown[field] === null || costBreakdown[field] === undefined
+                              ? t('pr.not_calculated', 'Not calculated')
+                              : fmtMoney(Number(costBreakdown[field]), 'EUR')}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between gap-3 bg-surface/70 px-3 py-2 text-xs font-black">
+                      <span>{t('up_res_total', 'Total')}</span>
+                      <span className="tabular-nums">
+                        {costBreakdown.total === null || costBreakdown.total === undefined
+                          ? t('pr.not_calculated', 'Not calculated')
+                          : fmtMoney(Number(costBreakdown.total), 'EUR')}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              ))}
+              ) : (
+                <p className="rounded-xl border border-dashed border-border px-3 py-2 text-xs text-text-secondary">
+                  {t('up_res_breakdown_missing', 'Estimated breakdown is not available. Recalculate the trip to generate it.')}
+                </p>
+              )}
             </div>
           )}
 
@@ -1810,7 +1924,7 @@ function TripDetailDrawer({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border bg-surface/50 flex flex-col gap-2.5 shrink-0">
+        <div className="p-4 border-t border-border bg-surface/50 flex flex-col gap-2.5">
           {/* Blocking conflict alert */}
           {blockingConflicts.length > 0 && (
             <div
@@ -1962,6 +2076,15 @@ function TripDetailDrawer({
                 <span>{t('action_unplan_trip', 'Unplan Trip')}</span>
               </button>
             )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold"
+              aria-label={t('close', 'Close')}
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>{t('close', 'Close')}</span>
+            </button>
           </div>
         </div>
       </div>
