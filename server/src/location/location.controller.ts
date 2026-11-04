@@ -8,12 +8,13 @@ export class LocationController {
   constructor(private gateway: LocationGateway) {}
 
   @Post()
-  async updateLocation(@Body() data: { driverId: string; truckId?: string; lat: number; lng: number }) {
+  async updateLocation(@Body() data: { driverId: string; truckId?: string; lat: number; lng: number; recordedAt?: string }) {
     await this.gateway.handleLocation(null as any, {
       driverId: data.driverId,
       truckId: data.truckId || '',
       lat: data.lat,
       lng: data.lng,
+      recordedAt: data.recordedAt,
     });
     return { success: true };
   }

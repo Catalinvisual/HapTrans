@@ -5623,19 +5623,71 @@ export class PlanningService {
       ? await this.telematicsDeviceRepo.findOne({ where: { truckId: truck.id } })
       : null;
 
-    const lat = Number(device?.lastLatitude ?? truck?.currentLat);
-    const lng = Number(device?.lastLongitude ?? truck?.currentLng);
-    const lastGpsAt = device?.lastSeenAt ? new Date(device.lastSeenAt) : null;
+    const now = Date.now();
+    const hasCoords = (lat: any, lng: any) => {
+      const nLat = Number(lat);
+      const nLng = Number(lng);
+      return Number.isFinite(nLat) && Number.isFinite(nLng) && !(nLat === 0 && nLng === 0);
+    };
+    const positionTime = (value: any): Date | null => {
+      if (!value) return null;
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime()) || date.getTime() > now + 5 * 60000) return null;
+      return date;
+    };
 
-    if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) {
+    // A position is "live GPS" only when it has an authoritative source
+    // timestamp. trucks.currentLat/currentLng is a last-known position; its
+    // updatedAt is a record-level timestamp, not a GPS timestamp.
+    const deviceCandidate = device && device.provider !== 'test_simulator' && hasCoords(device.lastLatitude, device.lastLongitude)
+      ? {
+          lat: Number(device.lastLatitude),
+          lng: Number(device.lastLongitude),
+          source: 'telematics_device' as const,
+          timestamp: positionTime(device.lastSeenAt),
+          timestampSource: 'telematics_device.lastSeenAt',
+        }
+      : null;
+    const truckCandidate = hasCoords(truck?.currentLat, truck?.currentLng)
+      ? {
+          lat: Number(truck.currentLat),
+          lng: Number(truck.currentLng),
+          source: 'truck_record' as const,
+          timestamp: positionTime(truck.currentPositionAt),
+          timestampSource: 'trucks.currentPositionAt',
+        }
+      : null;
+    const position = (() => {
+      if (!deviceCandidate) return truckCandidate;
+      if (!truckCandidate) return deviceCandidate;
+      if (deviceCandidate.timestamp && truckCandidate.timestamp) {
+        return deviceCandidate.timestamp >= truckCandidate.timestamp ? deviceCandidate : truckCandidate;
+      }
+      if (deviceCandidate.timestamp) return deviceCandidate;
+      if (truckCandidate.timestamp) return truckCandidate;
+      return deviceCandidate;
+    })();
+
+    if (!position) {
       return {
         available: false,
         reason: 'no_gps',
+        etaType: 'unavailable',
+        source: 'none',
+        freshness: 'unknown',
+        positionSource: 'none',
+        position: null,
+        lastGpsAt: null,
         message: 'No GPS position is available for the assigned truck',
         stops: [],
-        calculatedAt: new Date().toISOString(),
+        calculatedAt: new Date(now).toISOString(),
       };
     }
+
+    const lat = position.lat;
+    const lng = position.lng;
+    const lastGpsAt = position.timestamp;
+    const positionAgeMinutes = lastGpsAt ? Math.max(0, Math.round((now - lastGpsAt.getTime()) / 60000)) : null;
 
     const remaining = (trip.stops || [])
       .slice()
@@ -5650,14 +5702,19 @@ export class PlanningService {
       return {
         available: false,
         reason: 'no_pending_stops',
+        etaType: 'unavailable',
+        source: 'none',
+        freshness: 'unknown',
+        positionSource: position.source,
+        position: { lat, lng },
+        lastGpsAt: lastGpsAt ? lastGpsAt.toISOString() : null,
         message: 'All stops of this trip are already completed',
         stops: [],
-        calculatedAt: new Date().toISOString(),
+        calculatedAt: new Date(now).toISOString(),
       };
     }
 
     const profile = this.truckRoutingProfile(trip);
-    const now = Date.now();
     let cursor = { lat, lng };
     let cumulativeMin = 0;
     let cumulativeKm = 0;
@@ -5677,13 +5734,17 @@ export class PlanningService {
         return {
           available: false,
           reason: 'provider_unavailable',
+          etaType: 'unavailable',
           code: failure?.code || 'provider_no_route',
           provider: failure?.provider || 'none',
+          source: 'none',
+          freshness: 'unknown',
+          positionSource: position.source,
           message: 'No truck route was returned by the routing provider',
           stops: [],
           position: { lat, lng },
           lastGpsAt: lastGpsAt ? lastGpsAt.toISOString() : null,
-          calculatedAt: new Date().toISOString(),
+          calculatedAt: new Date(now).toISOString(),
         };
       }
 
@@ -5722,12 +5783,22 @@ export class PlanningService {
       return worst === null ? s.deviationMin : Math.max(worst, s.deviationMin);
     }, null);
     const etaStatus = maxDeviation === null ? 'unknown' : maxDeviation > 30 ? 'late' : maxDeviation > 0 ? 'at_risk' : 'on_time';
-    const etaSource = `gps+${providerSource || 'routing'}`;
-    const freshness = lastGpsAt
-      ? now - lastGpsAt.getTime() <= 15 * 60000
+    const freshness = !lastGpsAt
+      ? 'unknown'
+      : now - lastGpsAt.getTime() <= 15 * 60000
         ? 'live'
-        : 'stale'
-      : 'unknown';
+        : 'stale';
+    const etaType = freshness === 'live'
+      ? 'live_gps'
+      : freshness === 'stale'
+        ? 'stale_gps'
+        : 'last_known_position';
+    const etaSource = `${lastGpsAt ? 'gps' : 'last_known_position'}+${providerSource || 'routing'}`;
+    const note = etaType === 'last_known_position'
+      ? 'ETA is calculated from the last saved truck position. No authoritative GPS timestamp is stored, so this is not a live GPS ETA.'
+      : etaType === 'stale_gps'
+        ? 'ETA is calculated from the last GPS position, but that position is older than 15 minutes.'
+        : 'Live ETA uses the latest GPS position and truck routing. Service time at stops is not included.';
 
     await this.tripRepo.update(tripId, {
       lastLiveEta: new Date(last.liveEta),
@@ -5739,15 +5810,19 @@ export class PlanningService {
     return {
       available: true,
       source: etaSource,
+      etaType,
       freshness,
+      positionSource: position.source,
+      positionTimestampSource: lastGpsAt ? position.timestampSource : null,
       lastGpsAt: lastGpsAt ? lastGpsAt.toISOString() : null,
+      positionAgeMinutes,
       position: { lat, lng },
       totalRemainingKm: Math.round(cumulativeKm * 10) / 10,
       totalRemainingMin: cumulativeMin,
       etaStatus,
       stops: stopEtas,
       calculatedAt: new Date(now).toISOString(),
-      note: 'Live ETA uses the last GPS position and truck routing. Service time at stops is not included.',
+      note,
     };
   }
 

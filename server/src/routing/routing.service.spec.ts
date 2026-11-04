@@ -23,7 +23,16 @@ describe('RoutingService provider contracts', () => {
         routes: [{
           sections: [{
             summary: { baseDuration: 3600, duration: 4500 },
-            incidents: [{ id: 'inc-1', type: 'accident', summary: { time: 300 } }],
+            spans: [{
+              incidents: [{
+                id: 'inc-1',
+                incidentDetails: {
+                  type: 'traffic',
+                  criticality: 'minor',
+                  summary: { text: 'Slow traffic', time: 300 },
+                },
+              }],
+            }],
           }],
         }],
       },
@@ -35,15 +44,19 @@ describe('RoutingService provider contracts', () => {
       'https://router.hereapi.com/v8/routes',
       expect.objectContaining({
         params: expect.objectContaining({
-          return: 'summary,incidents',
+          return: 'polyline,summary,incidents',
           spans: 'incidents',
           apiKey: 'test-key',
         }),
       }),
     );
+    const requestParams = mockedGet.mock.calls[0][1].params;
+    expect(requestParams).not.toHaveProperty('departureTime');
     expect(result.available).toBe(true);
     expect(result.currentDelayMinutes).toBe(15);
     expect(result.incidents[0].delayMinutes).toBe(5);
+    expect(result.incidents[0].type).toBe('congestion');
+    expect(result.incidents[0].severity).toBe('low');
   });
 
   it('sends the actual truck toll profile and reads real HERE fares', async () => {

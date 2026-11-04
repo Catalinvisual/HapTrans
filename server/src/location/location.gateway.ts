@@ -15,8 +15,8 @@ export class LocationGateway {
   ) {}
 
   @SubscribeMessage('driverLocation')
-  async handleLocation(@ConnectedSocket() client: Socket, @MessageBody() data: { driverId: string; truckId: string; lat: number; lng: number }) {
-    const driver = await this.driversService.updateLocation(data.driverId, data.lat, data.lng);
+  async handleLocation(@ConnectedSocket() client: Socket, @MessageBody() data: { driverId: string; truckId: string; lat: number; lng: number; recordedAt?: string }) {
+    const driver = await this.driversService.updateLocation(data.driverId, data.lat, data.lng, data.recordedAt);
     const resolvedDriverId = driver ? driver.id : data.driverId;
 
     let resolvedTruckId: string | null = data.truckId;
@@ -25,7 +25,7 @@ export class LocationGateway {
     }
 
     if (resolvedTruckId) {
-      await this.trucksService.updateLocation(resolvedTruckId, data.lat, data.lng);
+      await this.trucksService.updateLocation(resolvedTruckId, data.lat, data.lng, data.recordedAt);
     }
     
     this.server.emit('locationUpdate', {

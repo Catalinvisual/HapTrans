@@ -1010,14 +1010,16 @@ export class RoutingService implements OnModuleInit {
 
     try {
       if (this.hereKey) {
-        // HERE live traffic requires `spans=incidents`; returning `incidents`
-        // alone yields no span-level traffic data.
+        // HERE requires polyline when span attributes are requested. A request
+        // with return=summary,incidents is rejected with E605013; the documented
+        // live-traffic form is return=polyline,incidents + spans=incidents.
+        // Omitting departureTime keeps the request on current traffic rather
+        // than departureTime=any (long-term incidents only).
         const params: any = {
           transportMode: 'truck',
           origin: `${origin.lat},${origin.lng}`,
           destination: `${destination.lat},${destination.lng}`,
-          departureTime: 'any',
-          return: 'summary,incidents',
+          return: 'polyline,summary,incidents',
           spans: 'incidents',
           apiKey: this.hereKey,
         };
@@ -1041,23 +1043,79 @@ export class RoutingService implements OnModuleInit {
 
         const route = res.data?.routes?.[0];
         if (route) {
-          const section = route.sections?.[0];
-          const summary = section?.summary;
-          const baseDurationMin = Math.round((summary?.baseDuration || summary?.duration || 0) / 60);
-          const trafficDurationMin = Math.round((summary?.duration || 0) / 60);
+          const sections = Array.isArray(route.sections) ? route.sections : [];
+          const baseDurationSec = sections.reduce(
+            (total: number, section: any) => total + Number(section?.summary?.baseDuration || section?.summary?.duration || 0),
+            0,
+          );
+          const trafficDurationSec = sections.reduce(
+            (total: number, section: any) => total + Number(section?.summary?.duration || 0),
+            0,
+          );
+          const baseDurationMin = Math.round(baseDurationSec / 60);
+          const trafficDurationMin = Math.round(trafficDurationSec / 60);
           const delayMin = Math.max(0, trafficDurationMin - baseDurationMin);
 
-          const incidents: TrafficIncident[] = (section?.incidents || []).map((inc: any, i: number) => {
-            const incidentDelaySec = Number(inc.summary?.time);
-            return {
-              id: inc.id || `inc-${i}`,
-              type: (inc.type || 'other').toLowerCase(),
-              severity: inc.severity || (delayMin > 30 ? 'major' : delayMin > 10 ? 'moderate' : 'low'),
-              description: inc.description?.value || inc.summary?.text || inc.type || 'Traffic incident',
+          // HERE returns incidents inside sections[].spans[] when spans=incidents
+          // is requested. Keep section-level incidents as a compatibility path.
+          const rawIncidents: any[] = [];
+          for (const section of sections) {
+            if (Array.isArray(section?.incidents)) rawIncidents.push(...section.incidents);
+            if (Array.isArray(section?.spans)) {
+              for (const span of section.spans) {
+                if (Array.isArray(span?.incidents)) rawIncidents.push(...span.incidents);
+              }
+            }
+          }
+
+          const seenIncidentIds = new Set<string>();
+          const incidents: TrafficIncident[] = [];
+          rawIncidents.forEach((inc: any, i: number) => {
+            if (!inc || typeof inc !== 'object') return;
+            const details = inc.incidentDetails || inc.details || inc;
+            const id = String(details.id || inc.id || `inc-${i}`);
+            if (seenIncidentIds.has(id)) return;
+            seenIncidentIds.add(id);
+
+            const rawType = String(details.type || details.incidentType || inc.type || '').toLowerCase();
+            const type: TrafficIncident['type'] = /accident|collision/.test(rawType)
+              ? 'accident'
+              : /construction|roadwork|maintenance/.test(rawType)
+                ? 'roadwork'
+                : /closure|closed/.test(rawType)
+                  ? 'closure'
+                  : /weather|fog|snow|ice|rain|wind/.test(rawType)
+                    ? 'weather'
+                    : /congestion|traffic|slow/.test(rawType)
+                      ? 'congestion'
+                      : 'other';
+
+            const rawSeverity = String(details.criticality || details.severity || inc.criticality || inc.severity || '').toLowerCase();
+            const severity: TrafficIncident['severity'] = /critical|blocking/.test(rawSeverity)
+              ? 'critical'
+              : /major|high/.test(rawSeverity)
+                ? 'major'
+                : /moderate|medium/.test(rawSeverity)
+                  ? 'moderate'
+                  : /low|minor/.test(rawSeverity)
+                    ? 'low'
+                    : delayMin > 30 ? 'major' : delayMin > 10 ? 'moderate' : 'low';
+
+            const incidentDelaySec = Number(
+              details.summary?.time ?? details.impact?.delay ?? details.delay?.value ?? inc.summary?.time ?? 0,
+            );
+            const description = details.description?.value || details.description || details.summary?.text
+              || inc.description?.value || inc.summary?.text || details.type || 'Traffic incident';
+
+            incidents.push({
+              id,
+              type,
+              severity,
+              description,
               delayMinutes: Number.isFinite(incidentDelaySec) && incidentDelaySec > 0
                 ? Math.round(incidentDelaySec / 60)
                 : 0,
-            };
+            });
           });
           this.recordProviderSuccess('here');
 

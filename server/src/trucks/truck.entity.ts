@@ -114,6 +114,12 @@ export class Truck {
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 6 })
   currentLng: number;
 
+  // Timestamp of the location report that produced currentLat/currentLng.
+  // Nullable because legacy rows have coordinates without an authoritative
+  // GPS time; do not backfill this with updatedAt or now().
+  @Column({ name: 'currentPositionAt', type: 'timestamptz', nullable: true })
+  currentPositionAt: Date | null;
+
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2, default: 0 })
   totalMileage: number;
 

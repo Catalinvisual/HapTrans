@@ -148,13 +148,17 @@ export class DriversService {
     return activeTrip && activeTrip.truck ? activeTrip.truck.id : null;
   }
 
-  async updateLocation(id: string, lat: number, lng: number) {
+  async updateLocation(id: string, lat: number, lng: number, recordedAt?: string | Date) {
     let driver = await this.repo.findOne({ where: { id } });
     if (!driver) {
       driver = await this.repo.findOne({ where: { user: { id } } });
     }
     if (driver) {
-      await this.repo.update(driver.id, { currentLat: lat, currentLng: lng, lastSeen: new Date() });
+      const parsed = recordedAt ? new Date(recordedAt) : new Date();
+      const seenAt = Number.isNaN(parsed.getTime()) || parsed.getTime() > Date.now() + 5 * 60000
+        ? new Date()
+        : parsed;
+      await this.repo.update(driver.id, { currentLat: lat, currentLng: lng, lastSeen: seenAt });
       return driver;
     }
     return null;

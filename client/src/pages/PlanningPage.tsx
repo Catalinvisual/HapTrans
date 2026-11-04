@@ -1519,11 +1519,17 @@ function TripDetailDrawer({
               <div className="flex items-center gap-1.5 min-w-0">
                 <Navigation className="w-3.5 h-3.5 text-primary shrink-0" />
                 <span className="text-[10px] font-black uppercase tracking-wide text-text-secondary truncate">
-                  {t('up_eta_title', 'Live ETA')}
+                  {etaInfo?.available && etaInfo?.etaType !== 'live_gps'
+                    ? t('up_eta_calculated', 'Calculated ETA')
+                    : t('up_eta_title', 'Live ETA')}
                 </span>
                 {etaInfo?.freshness && (
-                  <span className={`px-1 py-0.5 rounded text-[8px] font-black uppercase ${etaInfo.freshness === 'live' ? 'bg-emerald-500/15 text-emerald-600' : 'bg-amber-500/15 text-amber-600'}`}>
-                    {etaInfo.freshness === 'live' ? t('up_eta_fresh', 'Live') : t('up_eta_stale_label', 'Stale')}
+                  <span className={`px-1 py-0.5 rounded text-[8px] font-black uppercase ${etaInfo.etaType === 'live_gps' ? 'bg-emerald-500/15 text-emerald-600' : 'bg-amber-500/15 text-amber-600'}`}>
+                    {etaInfo.etaType === 'live_gps'
+                      ? t('up_eta_fresh', 'Live GPS')
+                      : etaInfo.etaType === 'stale_gps'
+                        ? t('up_eta_stale_label', 'Stale GPS')
+                        : t('up_eta_untimed_label', 'No GPS timestamp')}
                   </span>
                 )}
               </div>
@@ -1560,7 +1566,17 @@ function TripDetailDrawer({
                 <div className="mt-1 space-y-1">
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-text-secondary">
                     <span>{t('up_eta_remaining', 'Remaining distance')}: <b className="text-text-primary">{fmtNumber(etaInfo.totalRemainingKm, 0)} km</b></span>
-                    <span>{t('up_eta_last_update', 'Last GPS update')}: <b className="text-text-primary">{etaInfo.lastGpsAt ? new Date(etaInfo.lastGpsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</b></span>
+                    <span>{etaInfo.lastGpsAt ? t('up_eta_last_update', 'Last GPS update') : t('up_eta_last_position', 'Last known position')}: <b className="text-text-primary">{etaInfo.lastGpsAt ? new Date(etaInfo.lastGpsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : t('up_eta_no_timestamp', 'no timestamp')}</b></span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-text-secondary">
+                    <span>{t('up_eta_source', 'Data source')}: <b className="text-text-primary">{etaInfo.source || '—'}</b></span>
+                    <span>{t('up_eta_position_source', 'Position')}: <b className="text-text-primary">
+                      {etaInfo.positionSource === 'telematics_device'
+                        ? t('up_eta_source_telematics', 'Telematics device')
+                        : etaInfo.positionSource === 'truck_record'
+                          ? t('up_eta_source_truck', 'Truck position')
+                          : '—'}
+                    </b></span>
                   </div>
                   {(etaInfo.stops || []).slice(0, 3).map((stop: any) => (
                     <div key={stop.stopId} className="flex items-center justify-between gap-2 text-[10px]">
@@ -1575,6 +1591,9 @@ function TripDetailDrawer({
                       </span>
                     </div>
                   ))}
+                  {etaInfo.etaType === 'last_known_position' && (
+                    <p className="text-[9px] text-amber-600">{t('up_eta_untimed_note', 'Calculated from the last saved truck position. No GPS timestamp is stored, so this is not a live GPS ETA.')}</p>
+                  )}
                   {etaInfo.freshness === 'stale' && (
                     <p className="text-[9px] text-amber-600">{t('up_eta_stale', 'GPS position is older than 15 minutes — treat this ETA as stale.')}</p>
                   )}
@@ -1583,11 +1602,13 @@ function TripDetailDrawer({
                 <p className="mt-1 text-[10px] text-text-muted">
                   {etaInfo.reason === 'provider_unavailable'
                     ? providerStatusMessage(t, etaInfo.code, etaInfo.message || t('up_eta_unavailable', 'Live ETA unavailable — routing provider request failed.'))
-                    : (etaInfo.message || t('up_eta_no_gps', 'No GPS position available for the assigned truck. Live ETA cannot be calculated.'))}
+                    : (etaInfo.reason === 'no_gps'
+                      ? t('up_eta_no_gps_fallback', 'Live GPS ETA is unavailable. Planned ETA remains available in the stop table.')
+                      : (etaInfo.message || t('up_eta_no_gps', 'No GPS position available for the assigned truck. Live ETA cannot be calculated.')))}
                 </p>
               )
             ) : (
-              <p className="mt-1 text-[10px] text-text-muted">{t('up_eta_note', 'Live ETA uses the last GPS position and truck routing. Service time at stops is not included.')}</p>
+              <p className="mt-1 text-[10px] text-text-muted">{t('up_eta_note', 'ETA uses the latest timestamped truck position and truck routing. Service time at stops is not included.')}</p>
             )}
           </div>
           {driver?.id ? (

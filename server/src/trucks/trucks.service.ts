@@ -139,7 +139,15 @@ export class TrucksService {
     });
   }
 
-  updateLocation(id: string, lat: number, lng: number) {
-    return this.repo.update(id, { currentLat: lat, currentLng: lng });
+  updateLocation(id: string, lat: number, lng: number, recordedAt?: string | Date) {
+    const parsed = recordedAt ? new Date(recordedAt) : new Date();
+    const positionAt = Number.isNaN(parsed.getTime()) || parsed.getTime() > Date.now() + 5 * 60000
+      ? new Date()
+      : parsed;
+    return this.repo.update(id, {
+      currentLat: lat,
+      currentLng: lng,
+      currentPositionAt: positionAt,
+    });
   }
 }
