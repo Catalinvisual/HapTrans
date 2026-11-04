@@ -555,7 +555,7 @@ export class RoutingService implements OnModuleInit {
           // missing toll block is reported as unavailable, never as a fake 0.
           const toll = this.parseHereTollSections(section ? [section] : []);
           const tollCost = toll.totalCost;
-          const tollAvailable = toll.tollAvailable;
+          const tollAvailable = toll.tollAvailable && !toll.currencyMismatch;
 
           let coordinates: number[][] = [];
           if (section?.polyline) {
@@ -677,7 +677,7 @@ export class RoutingService implements OnModuleInit {
 
         const toll = this.parseHereTollSections(section ? [section] : []);
         const tollCost = toll.totalCost;
-        const tollAvailable = toll.tollAvailable;
+        const tollAvailable = toll.tollAvailable && !toll.currencyMismatch;
 
         let coordinates: number[][] = [];
         if (section?.polyline) {
@@ -1136,6 +1136,7 @@ export class RoutingService implements OnModuleInit {
     totalCost: number;
     tollAvailable: boolean;
     sawTollEntry: boolean;
+    currencyMismatch: boolean;
     currency: string;
     countries: string[];
     sections: TollSection[];
@@ -1143,7 +1144,8 @@ export class RoutingService implements OnModuleInit {
     let totalCost = 0;
     let tollAvailable = false;
     let sawTollEntry = false;
-    let currency = 'EUR';
+    let currencyMismatch = false;
+    const expectedCurrency = 'EUR';
     const countries = new Set<string>();
     const parsedSections: TollSection[] = [];
 
@@ -1153,20 +1155,22 @@ export class RoutingService implements OnModuleInit {
         const fares = Array.isArray(toll?.fares) ? toll.fares : [];
         let money: { amount: number; currency: string | null } | null = null;
         for (const fare of fares) {
-          money = this.parseHereMoney(fare?.price ?? fare);
+          // currency=EUR is sent, so HERE returns a convertedPrice for local
+          // toll systems (e.g. Polish PLN). Never sum local nominal values.
+          money = this.parseHereMoney(fare?.convertedPrice ?? fare?.price ?? fare);
           if (money) break;
         }
         if (!money) continue;
 
         tollAvailable = true;
         totalCost += money.amount;
-        currency = money.currency || currency;
+        if (money.currency && money.currency !== expectedCurrency) currencyMismatch = true;
         if (toll.countryCode) countries.add(String(toll.countryCode));
         parsedSections.push({
           countryCode: toll.countryCode || 'EU',
           tollRoadName: toll.tollSystem?.name || toll.name || 'Toll Section',
           cost: money.amount,
-          currency: money.currency || 'EUR',
+          currency: money.currency || expectedCurrency,
           distanceKm: Math.round((Number(toll.length) || 0) / 1000),
         });
       }
@@ -1176,7 +1180,8 @@ export class RoutingService implements OnModuleInit {
       totalCost: Math.round(totalCost * 100) / 100,
       tollAvailable,
       sawTollEntry,
-      currency,
+      currencyMismatch,
+      currency: expectedCurrency,
       countries: Array.from(countries),
       sections: parsedSections,
     };
@@ -1421,7 +1426,7 @@ export class RoutingService implements OnModuleInit {
         const notices = this.collectHereNotices(res.data);
         this.recordProviderSuccess('here');
 
-        if (parsed.tollAvailable) {
+        if (parsed.tollAvailable && !parsed.currencyMismatch) {
           return {
             available: true,
             provider: 'here',
@@ -1434,13 +1439,15 @@ export class RoutingService implements OnModuleInit {
           };
         }
 
-        if (parsed.sawTollEntry || this.hasTollDataUnavailableNotice(notices)) {
+        if (parsed.sawTollEntry || parsed.currencyMismatch || this.hasTollDataUnavailableNotice(notices)) {
           return {
             available: false,
             provider: 'here',
             status: 'unavailable',
             code: 'provider_toll_data_unavailable',
-            message: 'HERE returned toll entries but no usable fare for this route',
+            message: parsed.currencyMismatch
+              ? 'HERE returned tolls in a non-EUR currency without a converted price'
+              : 'HERE returned toll entries but no usable fare for this route',
             totalCost: null,
             currency: 'EUR',
             countries: [],

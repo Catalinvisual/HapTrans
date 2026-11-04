@@ -153,6 +153,49 @@ describe('RoutingService provider contracts', () => {
     expect(result.totalCost).toBeNull();
   });
 
+  it('uses HERE convertedPrice instead of summing local PLN and EUR amounts', async () => {
+    mockedGet.mockResolvedValueOnce({
+      data: {
+        routes: [{
+          sections: [{
+            summary: { length: 500000, duration: 18000 },
+            tolls: [
+              { countryCode: 'POL', fares: [{ price: { type: 'value', currency: 'PLN', value: 111 }, convertedPrice: { type: 'value', currency: 'EUR', value: 25.77 } }] },
+              { countryCode: 'DEU', fares: [{ price: { type: 'value', currency: 'EUR', value: 17.131 }, convertedPrice: { type: 'value', currency: 'EUR', value: 17.131 } }] },
+            ],
+          }],
+        }],
+      },
+    });
+    const service = serviceWith({ HERE_API_KEY: 'test-key' });
+    const result = await service.calculateTolls({ lat: 52.4, lng: 16.9 }, { lat: 52.5, lng: 13.4 });
+    expect(result.available).toBe(true);
+    expect(result.totalCost).toBe(42.9);
+    expect(result.currency).toBe('EUR');
+    expect(result.sections.map((s) => s.currency)).toEqual(['EUR', 'EUR']);
+  });
+
+  it('refuses a mixed-currency total when HERE omits convertedPrice', async () => {
+    mockedGet.mockResolvedValueOnce({
+      data: {
+        routes: [{
+          sections: [{
+            summary: { length: 500000, duration: 18000 },
+            tolls: [
+              { countryCode: 'POL', fares: [{ price: { type: 'value', currency: 'PLN', value: 111 } }] },
+              { countryCode: 'DEU', fares: [{ price: { type: 'value', currency: 'EUR', value: 17.131 } }] },
+            ],
+          }],
+        }],
+      },
+    });
+    const service = serviceWith({ HERE_API_KEY: 'test-key' });
+    const result = await service.calculateTolls({ lat: 52.4, lng: 16.9 }, { lat: 52.5, lng: 13.4 });
+    expect(result.available).toBe(false);
+    expect(result.code).toBe('provider_toll_data_unavailable');
+    expect(result.totalCost).toBeNull();
+  });
+
   it('returns unavailable instead of zero when HERE returns toll entries without usable fares', async () => {
     mockedGet.mockResolvedValueOnce({
       data: { routes: [{ sections: [{ summary: { length: 1000, duration: 60 }, tolls: [{ countryCode: 'NLD' }] }] }] },
