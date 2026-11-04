@@ -84,6 +84,28 @@ describe('RoutingService provider contracts', () => {
     expect(result.countries).toEqual(['DE']);
   });
 
+  it('classifies HERE 400 as invalid request parameters, not a generic provider failure', async () => {
+    mockedGet.mockRejectedValueOnce({
+      response: { status: 400, data: { title: 'Bad Request', code: 'invalidParameter' } },
+    });
+    const service = serviceWith({ HERE_API_KEY: 'test-key' });
+    const result = await service.calculateTolls({ lat: 44.4, lng: 26.1 }, { lat: 52.5, lng: 13.4 });
+    expect(result.available).toBe(false);
+    expect(result.status).toBe('failed');
+    expect(result.code).toBe('provider_invalid_request');
+    expect(result.message).toBe('HERE rejected the truck toll request parameters');
+  });
+
+  it('classifies HERE 5xx as a provider failure, not a generic request failure', async () => {
+    mockedGet.mockRejectedValueOnce({
+      response: { status: 503, data: { title: 'Service Unavailable' } },
+    });
+    const service = serviceWith({ HERE_API_KEY: 'test-key' });
+    const result = await service.getLiveTraffic({ lat: 44.4, lng: 26.1 }, { lat: 52.5, lng: 13.4 });
+    expect(result.available).toBe(false);
+    expect(result.code).toBe('provider_server_error');
+  });
+
   it('classifies a HERE product/authorization rejection without exposing keys', async () => {
     mockedGet.mockRejectedValueOnce({
       response: { status: 403, data: { title: 'Forbidden' } },

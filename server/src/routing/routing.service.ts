@@ -128,10 +128,12 @@ export class RoutingService implements OnModuleInit {
 
   private classifyProviderError(err: any): string {
     const status = Number(err?.response?.status);
+    if (status === 400) return 'provider_invalid_request';
     if (status === 401) return 'provider_invalid_credentials';
     if (status === 403) return 'provider_product_not_enabled';
     if (status === 404) return 'provider_no_route';
     if (status === 429) return 'provider_rate_limited';
+    if (status >= 500) return 'provider_server_error';
     if (err?.code === 'ECONNABORTED' || /timeout/i.test(String(err?.code || ''))) return 'provider_timeout';
     if (!err?.response) return 'provider_network_error';
     return 'provider_request_failed';
