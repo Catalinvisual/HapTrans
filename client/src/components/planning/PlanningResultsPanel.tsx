@@ -24,6 +24,7 @@ import CustomSelect from '../CustomSelect';
 import { appLocale, fmtMoney, fmtNumber } from '../../lib/format';
 import { buildTripMetrics, costBucket, minutesBetween, nameOfDriver, toMs, toNum } from '../../lib/planningResultsMetrics';
 import { planningApi } from '../../lib/planningApi';
+import { emissionUnavailableKey, fuelTypeLabel } from '../../lib/truckFuel';
 
 type ViewKey = 'results' | 'route' | 'costs' | 'driver' | 'conflicts' | 'emissions';
 type ExportFormat = 'xlsx' | 'csv' | 'pdf';
@@ -920,33 +921,33 @@ export default function PlanningResultsPanel({
         { key: 'truck', label: t('pr.truck', 'Truck') },
         { key: 'fuelType', label: t('pr.fuel_type', 'Fuel type') },
         { key: 'distance', label: t('pr.distance_km', 'Distance (km)'), align: 'right' },
-        { key: 'consumption', label: t('pr.consumption', 'Consumption (L/100 km)'), align: 'right' },
-        { key: 'liters', label: t('pr.estimated_fuel', 'Estimated fuel (L)'), align: 'right' },
-        { key: 'factor', label: t('pr.co2_factor', 'CO₂ factor (kg/L)'), align: 'right' },
+        { key: 'consumption', label: t('truck_fuel_consumption', 'Consumption'), align: 'right' },
+        { key: 'energy', label: t('truck_estimated_energy', 'Estimated energy'), align: 'right' },
+        { key: 'factor', label: t('truck_co2_factor', 'CO₂ factor'), align: 'right' },
         { key: 'co2', label: t('pr.estimated_co2', 'Estimated CO₂ (kg)'), align: 'right' },
         { key: 'status', label: t('pr.status', 'Status') },
       ];
       const rows = metrics.map((m) => ({
         trip: m.tripNumber,
         truck: m.truckPlate,
-        fuelType: m.fuelTypeRaw || '',
+        fuelType: m.fuelType ? fuelTypeLabel(m.fuelType, t) : '',
         distance: m.distanceKm ?? '',
-        consumption: m.consumption ?? '',
-        liters: m.fuelLiters ?? '',
+        consumption: m.consumption === null ? '' : `${m.consumption} ${m.consumptionUnit || ''}`.trim(),
+        energy: m.energyQuantity === null ? '' : `${m.energyQuantity} ${m.consumptionUnit || ''}`.trim(),
         factor: m.emissionFactor ?? '',
         co2: m.co2Kg ?? '',
         status:
           m.co2Kg !== null
             ? t('pr.estimated', 'Estimated')
-            : m.emissionMissing === 'electric'
-            ? t('pr.electric_unavailable', 'CO₂ estimate is not available for electric vehicles.')
             : m.emissionMissing === 'fuel_type'
             ? t('up_res_fuel_type_missing', 'Fuel type not configured')
+            : m.emissionMissing === 'unit'
+            ? t('truck_energy_unavailable', 'Estimated energy is unavailable without a configured fuel type, consumption and distance.')
             : m.emissionMissing === 'consumption'
             ? t('up_res_consumption_missing', 'Consumption not configured')
             : m.emissionMissing === 'distance'
             ? t('up_res_distance_missing', 'Distance not calculated')
-            : t('up_res_no_co2_factor', 'No emission factor for this fuel type'),
+            : t(emissionUnavailableKey(m.emissionReason), 'CO₂ calculation unavailable — emission factor not configured.'),
       }));
       return { fileBase: `planning-emissions-${dateTag}`, headers, rows };
     },
@@ -1170,9 +1171,9 @@ export default function PlanningResultsPanel({
   const renderResults = () => {
     if (metrics.length === 0) return renderEmpty(t('pr.no_trips', 'No trips in range'));
     return (
-      <div className="min-w-full">
+      <div className="flex h-full min-h-0 flex-col">
         {hiddenColumnCss ? <style>{hiddenColumnCss}</style> : null}
-        <div className="flex flex-wrap items-center gap-1.5 border-b border-border bg-surface/70 px-2 py-1.5">
+        <div className="shrink-0 flex flex-wrap items-center gap-1.5 border-b border-border bg-surface/70 px-2 py-1.5">
           <input
             value={quickFilter}
             onChange={(event) => setQuickFilter(event.target.value)}
@@ -1258,9 +1259,10 @@ export default function PlanningResultsPanel({
             {displayMetrics.length} / {metrics.length}
           </span>
         </div>
+        <div className="min-h-0 flex-1 overflow-auto custom-scrollbar border-b border-border bg-card/20">
         {compareMetrics.length >= 2 && (
-          <div className="overflow-x-auto border-b border-border bg-primary/5 p-2">
-            <table className="w-full border-collapse text-[10px]">
+          <div className="border-b border-border bg-primary/5 p-2">
+            <table className="w-full min-w-max border-collapse text-[10px]">
               <thead>
                 <tr>
                   <th className="px-2 py-1 text-left text-[9px] font-black uppercase text-text-secondary">
@@ -1300,7 +1302,7 @@ export default function PlanningResultsPanel({
         {displayMetrics.length === 0 ? (
           renderEmpty(t('pr.no_trips', 'No trips in range'))
         ) : (
-        <table className="pr-results-table w-full border-collapse text-[11px]">
+        <table className="pr-results-table w-full min-w-max border-collapse text-[11px]">
           <thead>
             <tr>
               <th className={thL}>{t('pr.trip', 'Trip')}</th>
@@ -1453,7 +1455,8 @@ export default function PlanningResultsPanel({
           </tbody>
         </table>
         )}
-        <div className="px-2.5 py-1.5 text-[9px] leading-relaxed text-text-muted">
+        </div>
+        <div className="shrink-0 border-t border-border/60 px-2.5 py-1.5 text-[9px] leading-relaxed text-text-muted">
           {t(
             'up_res_basis_note',
             '“Est.” costs come from the CostEngine; recorded costs come from actual trip expense entries.',
@@ -1694,9 +1697,11 @@ export default function PlanningResultsPanel({
                   <td className={tdR}>
                     {row.key === 'driver' && breakdown.driverCostSource === 'unavailable'
                       ? t('up_res_driver_unavailable', 'No valid driver compensation profile')
-                      : value === null
-                        ? nc()
-                        : fmtMoney(value, currency)}
+                      : row.key === 'fuel' && breakdown.fuelCostAvailable === false
+                        ? t('truck_energy_unavailable', 'Fuel cost unavailable — fuel data is not configured')
+                        : value === null
+                          ? nc()
+                          : fmtMoney(value, currency)}
                   </td>
                 </tr>
               );
@@ -2008,16 +2013,29 @@ export default function PlanningResultsPanel({
   const renderEmissions = () => {
     if (metrics.length === 0) return renderEmpty(t('pr.no_trips', 'No trips in range'));
     const co2Metrics = metrics.filter((m) => m.co2Kg !== null);
-    const fuelMetrics = metrics.filter((m) => m.fuelLiters !== null);
-    const totalFuel = fuelMetrics.reduce((sum, m) => sum + (m.fuelLiters ?? 0), 0);
+    const energyByUnit = new Map<string, number>();
+    for (const metric of metrics) {
+      if (metric.energyQuantity === null || !metric.consumptionUnit) continue;
+      energyByUnit.set(
+        metric.consumptionUnit,
+        (energyByUnit.get(metric.consumptionUnit) || 0) + metric.energyQuantity,
+      );
+    }
     const totalCo2 = co2Metrics.reduce((sum, m) => sum + (m.co2Kg ?? 0), 0);
     const missingInputs = metrics.filter((m) => m.co2Kg === null).length;
+    const emissionIssue = (m: (typeof metrics)[number]) => {
+      if (m.emissionMissing === 'fuel_type') return t('up_res_fuel_type_missing', 'Fuel type not configured');
+      if (m.emissionMissing === 'unit') return t('truck_energy_unavailable', 'Consumption unit is not configured');
+      if (m.emissionMissing === 'consumption') return t('up_res_consumption_missing', 'Consumption not configured');
+      if (m.emissionMissing === 'distance') return t('up_res_distance_missing', 'Distance not calculated');
+      return t(emissionUnavailableKey(m.emissionReason), 'CO₂ calculation unavailable — emission factor not configured.');
+    };
     return (
       <div className="p-3">
         <div className="flex flex-wrap gap-2 mb-3">
-          {summaryCard(
-            t('pr.estimated_fuel', 'Estimated fuel (L)'),
-            fuelMetrics.length ? fmtNumber(totalFuel, 1) : nc(),
+          {energyByUnit.size === 0 ? summaryCard(t('truck_estimated_energy', 'Estimated energy'), nc()) : null}
+          {[...energyByUnit.entries()].map(([unit, total]) =>
+            summaryCard(`${t('truck_estimated_energy', 'Estimated energy')} (${unit})`, fmtNumber(total, 1)),
           )}
           {summaryCard(
             t('pr.estimated_co2', 'Estimated CO₂ (kg)'),
@@ -2036,9 +2054,9 @@ export default function PlanningResultsPanel({
               <th className={thL}>{t('pr.truck', 'Truck')}</th>
               <th className={thL}>{t('pr.fuel_type', 'Fuel type')}</th>
               <th className={thR}>{t('pr.distance_km', 'Distance (km)')}</th>
-              <th className={thR}>{t('pr.consumption', 'Consumption (L/100 km)')}</th>
-              <th className={thR}>{t('pr.estimated_fuel', 'Estimated fuel (L)')}</th>
-              <th className={thR}>{t('pr.co2_factor', 'CO₂ factor (kg/L)')}</th>
+              <th className={thR}>{t('truck_fuel_consumption', 'Consumption')}</th>
+              <th className={thR}>{t('truck_estimated_energy', 'Estimated energy')}</th>
+              <th className={thR}>{t('truck_co2_factor', 'CO₂ factor')}</th>
               <th className={thR}>{t('pr.estimated_co2', 'Estimated CO₂ (kg)')}</th>
               <th className={thL}>{t('pr.status', 'Status')}</th>
             </tr>
@@ -2055,8 +2073,8 @@ export default function PlanningResultsPanel({
                 <td className={`${td} font-bold`}>{m.tripNumber || np()}</td>
                 <td className={td}>{m.truckPlate || np()}</td>
                 <td className={td}>
-                  {m.fuelTypeRaw ? (
-                    m.fuelTypeRaw
+                  {m.fuelType ? (
+                    <span className="font-semibold">{fuelTypeLabel(m.fuelType, t)}</span>
                   ) : (
                     <span className="italic text-amber-600">
                       {t('up_res_fuel_type_missing', 'Fuel type not configured')}
@@ -2065,30 +2083,26 @@ export default function PlanningResultsPanel({
                 </td>
                 <td className={tdR}>{m.distanceKm === null ? np() : fmtNumber(m.distanceKm, 0)}</td>
                 <td className={tdR}>
-                  {m.consumption === null ? nc() : fmtNumber(m.consumption, 1)}
+                  {m.consumption === null || !m.consumptionUnit
+                    ? nc()
+                    : `${fmtNumber(m.consumption, 1)} ${m.consumptionUnit}`}
                 </td>
-                <td className={tdR}>{m.fuelLiters === null ? nc() : fmtNumber(m.fuelLiters, 1)}</td>
                 <td className={tdR}>
-                  {m.emissionFactor === null ? na() : fmtNumber(m.emissionFactor, 2)}
+                  {m.energyQuantity === null || !m.consumptionUnit
+                    ? nc()
+                    : `${fmtNumber(m.energyQuantity, 1)} ${m.consumptionUnit}`}
+                </td>
+                <td className={tdR}>
+                  {m.emissionFactor === null ? na() : `${fmtNumber(m.emissionFactor, 2)} kg/${m.consumptionUnit?.split('/')[0] || 'unit'}`}
                 </td>
                 <td className={`${tdR} font-bold`}>{m.co2Kg === null ? nc() : fmtNumber(m.co2Kg, 1)}</td>
-                <td className={td}>
+                <td className={`${td} whitespace-normal min-w-[240px]`}>
                   {m.co2Kg !== null ? (
                     <span className="inline-flex px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wide bg-emerald-500/15 text-emerald-600">
                       {t('pr.estimated', 'Estimated')}
                     </span>
-                  ) : m.emissionMissing === 'electric' ? (
-                    <span className="italic text-text-muted/70">
-                      {t('pr.electric_unavailable', 'CO₂ estimate is not available for electric vehicles.')}
-                    </span>
-                  ) : m.emissionMissing === 'fuel_type' ? (
-                    <span className="italic text-amber-600">{t('up_res_fuel_type_missing', 'Fuel type not configured')}</span>
-                  ) : m.emissionMissing === 'consumption' ? (
-                    <span className="italic text-amber-600">{t('up_res_consumption_missing', 'Consumption not configured')}</span>
-                  ) : m.emissionMissing === 'distance' ? (
-                    <span className="italic text-amber-600">{t('up_res_distance_missing', 'Distance not calculated')}</span>
                   ) : (
-                    <span className="italic text-amber-600">{t('up_res_no_co2_factor', 'No emission factor for this fuel type')}</span>
+                    <span className="italic text-amber-600 text-[10px]">{emissionIssue(m)}</span>
                   )}
                 </td>
               </tr>
@@ -2099,7 +2113,13 @@ export default function PlanningResultsPanel({
               <td className={td} />
               <td className={tdR}>{totals.distance === null ? '—' : fmtNumber(totals.distance, 0)}</td>
               <td className={tdR} />
-              <td className={tdR}>{fuelMetrics.length ? fmtNumber(totalFuel, 1) : '—'}</td>
+              <td className={tdR}>
+                {energyByUnit.size
+                  ? [...energyByUnit.entries()]
+                      .map(([unit, total]) => `${fmtNumber(total, 1)} ${unit}`)
+                      .join(' · ')
+                  : '—'}
+              </td>
               <td className={tdR} />
               <td className={tdR}>{co2Metrics.length ? fmtNumber(totalCo2, 1) : '—'}</td>
               <td className={td} />
@@ -2108,6 +2128,11 @@ export default function PlanningResultsPanel({
         </table>
         <div className="mt-2 space-y-1 text-[10px] text-text-secondary">
           <p>{t('up_res_emission_note', 'Estimated from distance × configured consumption × fuel-specific factor. Not a measured value.')}</p>
+          {energyByUnit.size > 1 && (
+            <p className="text-amber-600">
+              {t('truck_mixed_units', 'Different consumption units are not summed.')}
+            </p>
+          )}
           {missingInputs > 0 && (
             <p className="text-amber-600">
               {t('up_res_emission_incomplete', 'CO₂ is not calculated for trips with missing inputs. Fuel volume is still shown when distance and consumption are configured.')}{' '}
@@ -2254,7 +2279,7 @@ export default function PlanningResultsPanel({
       )}
 
       {!collapsed && (
-        <div className="flex-1 min-h-0 overflow-auto custom-scrollbar">{renderContent()}</div>
+        <div className={`flex-1 min-h-0 ${view === 'results' ? 'overflow-hidden' : 'overflow-auto custom-scrollbar'}`}>{renderContent()}</div>
       )}
     </div>
   );

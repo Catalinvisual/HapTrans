@@ -10,7 +10,7 @@ import {
   ChevronsLeft, ChevronsRight, Plus, ArrowUp, ArrowDown, Layers, Navigation,
   Printer, Maximize2, Minimize2, RotateCcw, List, FileText, Pencil,
   BookmarkPlus, Save, Trash2, GitMerge, Wand2, Clock3,
-  ZoomIn, ZoomOut, Unplug, Link as LinkIcon, ArrowRightLeft, Building2, DollarSign,
+  ZoomIn, ZoomOut, Unplug, Link as LinkIcon, ArrowRightLeft, Building2, Euro,
 } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -37,6 +37,7 @@ import OrderDetailDrawer from '../components/orders/OrderDetailDrawer';
 import AdrBadge from '../components/common/AdrBadge';
 import ExcelIcon from '../components/icons/ExcelIcon';
 import { fmtMoney, fmtNumber } from '../lib/format';
+import { providerStatusMessage } from '../lib/providerStatus';
 import SplitTripModal from '../components/planning/SplitTripModal';
 import CombineTripsModal from '../components/planning/CombineTripsModal';
 import PlanningExportModal from '../components/planning/PlanningExportModal';
@@ -1073,7 +1074,7 @@ function TripDetailDrawer({
         const delay = Number(res.currentDelayMinutes ?? res.delayMinutes ?? 0);
         toast.success(delay > 0 ? `Traffic delay: +${delay}m` : 'Normal traffic on route');
       } else {
-        toast(res.message || t('traffic_unavailable', 'Live traffic unavailable — provider not configured'), { icon: 'ℹ️' });
+        toast(providerStatusMessage(t, res.code, res.message || t('traffic_unavailable', 'Live traffic unavailable')), { icon: 'ℹ️' });
       }
     } catch {
       toast.error('Failed to query traffic');
@@ -1091,7 +1092,7 @@ function TripDetailDrawer({
         const amount = res.totalCost ?? res.totalAmount ?? 0;
         toast.success(`Tolls estimated: ${fmtMoney(amount, res.currency || 'EUR')}`);
       } else {
-        toast(res.message || t('toll_unavailable', 'Toll calculation unavailable — provider not configured'), { icon: 'ℹ️' });
+        toast(providerStatusMessage(t, res.code, res.message || t('toll_unavailable', 'Toll calculation unavailable')), { icon: 'ℹ️' });
       }
     } catch {
       toast.error('Failed to calculate tolls');
@@ -1452,7 +1453,9 @@ function TripDetailDrawer({
                 <p className="text-xs font-bold text-text-primary truncate">
                   {trafficInfo?.available
                     ? (trafficDelay > 0 ? `+${trafficDelay}m delay${trafficLevel ? ` (${trafficLevel.replace(/_/g, ' ')})` : ''}` : t('normal_traffic', 'Normal traffic'))
-                    : (trafficDelay > 0 ? `+${trafficDelay}m delay` : t('traffic_unavailable', 'Live traffic unavailable — provider not configured'))
+                    : (trafficDelay > 0
+                      ? `+${trafficDelay}m delay`
+                      : providerStatusMessage(t, trafficInfo?.code, t('traffic_unavailable', 'Live traffic unavailable')))
                   }
                 </p>
               </div>
@@ -1469,13 +1472,15 @@ function TripDetailDrawer({
 
           <div className="flex items-center justify-between p-2 rounded-xl bg-card border border-border/70">
             <div className="flex items-center gap-2 min-w-0">
-              <DollarSign className="w-4 h-4 text-emerald-600 shrink-0" />
+              <Euro className="w-4 h-4 text-emerald-600 shrink-0" />
               <div className="min-w-0">
                 <p className="text-[9px] text-text-muted font-bold uppercase">{t('toll_calculation', 'European Tolls')}</p>
                 <p className="text-xs font-bold text-emerald-600 truncate">
                   {tollInfo?.available
                     ? `${fmtMoney(tollAmount, tollInfo.currency || 'EUR')}${(tollInfo.countries || []).length ? ` (${tollInfo.countries.join(', ')})` : ''}`
-                    : (hasStoredToll ? fmtMoney(storedTollAmount, trip.tollCurrency || 'EUR') : t('toll_unavailable', 'Toll calculation unavailable — provider not configured'))
+                    : (hasStoredToll
+                      ? fmtMoney(storedTollAmount, trip.tollCurrency || 'EUR')
+                      : providerStatusMessage(t, tollInfo?.code, t('toll_unavailable', 'Toll calculation unavailable')))
                   }
                 </p>
               </div>

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Trip } from '../trips/trip.entity';
 import { RoutingService } from '../routing/routing.service';
 import { resolveTripDriver } from '../planning/trip-assignment';
+import { getTruckFuelProfile } from '../trucks/fuel-type';
 
 export interface TripCostBreakdown {
   fuelCost: number;
@@ -13,6 +14,10 @@ export interface TripCostBreakdown {
   maintenanceCost: number;
   fixedCost: number;
   dieselPrice: number;
+  energyPrice: number;
+  fuelType: string | null;
+  energyUnit: string | null;
+  fuelCostAvailable: boolean;
   total: number;
   driverCostSource:
     | 'per_km'
@@ -42,8 +47,6 @@ interface DriverCostResult {
 export class CostEngine {
   private readonly logger = new Logger(CostEngine.name);
 
-  private static readonly FUEL_CONSUMPTION_DEFAULT = 32; // l / 100km
-
   constructor(private readonly routingService: RoutingService) {}
 
   /**
@@ -63,20 +66,39 @@ export class CostEngine {
     const driver = driverAssignment.entity || (trip.driver as any) || null;
     const estimatedFields: string[] = [];
 
+    const fuelProfile = getTruckFuelProfile(truck?.fuelType);
     const configuredConsumption = Number(truck?.fuelConsumption);
-    const fuelConsumption = configuredConsumption > 0
-      ? configuredConsumption
-      : CostEngine.FUEL_CONSUMPTION_DEFAULT;
-    if (!(configuredConsumption > 0)) estimatedFields.push('fuelConsumption');
-
-    const originCountry = this.getOriginCountry(trip);
+    const fuelConsumption = configuredConsumption > 0 ? configuredConsumption : 0;
     const configuredFuelPrice = Number(truck?.fuelPricePerLiter);
-    const marketDieselPrice = await this.getDieselPrice(originCountry);
-    const dieselPrice = configuredFuelPrice > 0 ? configuredFuelPrice : marketDieselPrice;
-    if (!(configuredFuelPrice > 0)) estimatedFields.push('fuelPrice');
+    const originCountry = this.getOriginCountry(trip);
+    let energyPrice = configuredFuelPrice > 0 ? configuredFuelPrice : 0;
+    let fuelCost = 0;
+    let fuelCostAvailable = false;
+    let fuelCostDescription = 'Fuel cost unavailable — fuel type, consumption and energy price must be configured';
 
-    // Fuel: (distance / 100) * consumption(l/100km) * price/l
-    const fuelCost = distanceKm > 0 ? (distanceKm / 100) * fuelConsumption * dieselPrice : 0;
+    if (!fuelProfile) {
+      estimatedFields.push('fuelType');
+      fuelCostDescription = 'Fuel cost unavailable — fuel type not configured';
+    } else if (!(configuredConsumption > 0)) {
+      estimatedFields.push('fuelConsumption');
+      fuelCostDescription = `Fuel cost unavailable — ${fuelProfile.unit || 'energy'} consumption not configured`;
+    } else {
+      if (!(configuredFuelPrice > 0) && fuelProfile.code === 'DIESEL') {
+        energyPrice = await this.getDieselPrice(originCountry);
+        if (energyPrice > 0) estimatedFields.push('fuelPrice');
+      }
+      if (!(energyPrice > 0)) {
+        estimatedFields.push('fuelPrice');
+        fuelCostDescription = `Fuel cost unavailable — ${fuelProfile.code} energy price not configured`;
+      } else if (distanceKm > 0) {
+        // Distance × consumption × price, all in the unit of the selected fuel.
+        fuelCost = (distanceKm / 100) * fuelConsumption * energyPrice;
+        fuelCostAvailable = true;
+        const energyUnit = fuelProfile.unit?.split('/')[0] || 'unit';
+        fuelCostDescription = `${Math.round(distanceKm)} km × ${fuelConsumption} ${fuelProfile.unit} × ${energyPrice} €/${energyUnit}`;
+      }
+    }
+    const dieselPrice = energyPrice; // legacy API field; now the selected energy price
 
     // Tolls: accumulated from real HERE routing at trip-metric-recalc time
     const tollCost = Number((trip as any).tollCost || 0);
@@ -108,7 +130,7 @@ export class CostEngine {
     const total = fuelCost + tollCost + driverResult.cost + maintenanceCost + fixedCost + manualCost;
 
     const breakdown: { type: string; amount: number; description: string }[] = [
-      { type: 'fuel', amount: Math.round(fuelCost * 100) / 100, description: `${Math.round(distanceKm)} km × ${fuelConsumption} l/100km × ${dieselPrice} €/l` },
+      { type: 'fuel', amount: Math.round(fuelCost * 100) / 100, description: fuelCostDescription },
       { type: 'toll', amount: Math.round(tollCost * 100) / 100, description: 'Toll costs (HERE routing)' },
       { type: 'driver', amount: Math.round(driverResult.cost * 100) / 100, description: driverResult.description },
       ...(maintenanceCost > 0 ? [{ type: 'maintenance', amount: Math.round(maintenanceCost * 100) / 100, description: `${Math.round(distanceKm)} km × ${maintenancePerKm} €/km` }] : []),
@@ -126,6 +148,10 @@ export class CostEngine {
       maintenanceCost: Math.round(maintenanceCost * 100) / 100,
       fixedCost: Math.round(fixedCost * 100) / 100,
       dieselPrice: Math.round(dieselPrice * 1000) / 1000,
+      energyPrice: Math.round(energyPrice * 1000) / 1000,
+      fuelType: fuelProfile?.code ?? null,
+      energyUnit: fuelProfile?.unit ?? null,
+      fuelCostAvailable,
       total: Math.round(total * 100) / 100,
       driverCostSource: driverResult.source,
       driverDistanceKm: driverResult.distanceKm,

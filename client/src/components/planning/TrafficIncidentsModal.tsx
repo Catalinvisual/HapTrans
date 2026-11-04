@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Clock3, Loader2, RefreshCw, TrafficCone } from 'lucide-react';
 import { planningApi } from '../../lib/planningApi';
+import { providerStatusMessage } from '../../lib/providerStatus';
 
 const SEVERITY_STYLES: Record<string, string> = {
   low: 'bg-slate-500/15 text-slate-600',
@@ -73,9 +74,15 @@ export default function TrafficIncidentsModal({ trip, onClose }: { trip: any; on
           ) : !data?.available ? (
             <div className="rounded-xl border border-border bg-surface/60 p-4 text-center">
               <AlertTriangle className="mx-auto mb-2 h-6 w-6 text-amber-500" />
-              <p className="text-xs font-bold text-text-primary">{t('traffic_unavailable', 'Live traffic unavailable — provider not configured')}</p>
+              <p className="text-xs font-bold text-text-primary">
+                {providerStatusMessage(
+                  t,
+                  data?.code,
+                  data?.message || t('traffic_unavailable', 'Live traffic unavailable'),
+                )}
+              </p>
               <p className="mt-1 text-[10px] text-text-secondary">
-                {data?.message || t('up_eta_unavailable', 'Live ETA unavailable — routing provider not configured.')}
+                {t('up_eta_unavailable', 'Live ETA unavailable until the provider returns traffic data.')}
               </p>
             </div>
           ) : (

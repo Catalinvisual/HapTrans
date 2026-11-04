@@ -7,6 +7,7 @@ import { Not } from 'typeorm';
 import { TruckStatus } from './truck.entity';
 import { ActionLogsService } from '../action-logs/action-logs.service';
 import { computeAuditChanges } from '../action-logs/diff.util';
+import { normalizeTruckFuelType } from './fuel-type';
 
 @Injectable()
 export class TrucksService {
@@ -20,6 +21,11 @@ export class TrucksService {
   findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['documents', 'trips', 'driver', 'driver.user', 'trailer'] }); }
   async create(dto: any, user: any) { 
     const data = { ...dto };
+    const fuelType = normalizeTruckFuelType(data.fuelType);
+    if (!fuelType) {
+      throw new BadRequestException('Fuel / energy type is required for a new truck');
+    }
+    data.fuelType = fuelType;
     if (data.driverId) { data.driver = { id: data.driverId }; delete data.driverId; }
     if (data.trailerId) {
       const existingWithTrailer = await this.repo.findOne({
@@ -41,6 +47,14 @@ export class TrucksService {
   }
   async update(id: string, dto: any, user: any) { 
     const data = { ...dto };
+    if ('fuelType' in data) {
+      const rawFuelType = data.fuelType;
+      const fuelType = normalizeTruckFuelType(rawFuelType);
+      if (rawFuelType !== null && rawFuelType !== undefined && rawFuelType !== '' && !fuelType) {
+        throw new BadRequestException('Fuel / energy type is invalid');
+      }
+      data.fuelType = fuelType;
+    }
     if ('driverId' in data) { data.driver = data.driverId ? { id: data.driverId } : null; delete data.driverId; }
     if ('trailerId' in data) {
       if (data.trailerId) {

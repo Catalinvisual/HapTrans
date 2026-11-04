@@ -2,16 +2,9 @@
 // Kept free of React/DOM/Vite imports so the calculations can be unit-tested.
 
 import { humanName } from './driverName';
+import { FUEL_FACTORS, getTruckFuelProfile } from './truckFuel';
 
-export const FUEL_FACTORS: Record<string, number> = {
-  diesel: 2.68,
-  petrol: 2.31,
-  gasoline: 2.31,
-  lpg: 1.63,
-  lng: 2.75,
-  cng: 2.75,
-  hybrid: 2.68,
-};
+export { FUEL_FACTORS };
 
 export type CostBasis = 'recorded' | 'estimated' | 'mixed' | 'none';
 export type TimeBasis = 'recorded' | 'estimated' | 'none';
@@ -168,7 +161,8 @@ export function buildTripMetrics(trip: any) {
   const estimatedBreakdown =
     rawBreakdown && typeof rawBreakdown === 'object'
       ? {
-          fuel: toNum(rawBreakdown.fuelCost),
+          fuel: rawBreakdown.fuelCostAvailable === false ? null : toNum(rawBreakdown.fuelCost),
+          fuelCostAvailable: rawBreakdown.fuelCostAvailable !== false,
           toll: toNum(rawBreakdown.tollCost),
           driver: toNum(rawBreakdown.driverCost),
           maintenance: toNum(rawBreakdown.maintenanceCost),
@@ -376,19 +370,25 @@ export function buildTripMetrics(trip: any) {
 
   const consumption = toNum(truck?.fuelConsumption);
   const distanceKm = toNum(trip?.distanceKm);
-  const fuelTypeRaw = String(truck?.fuelType || '').trim().toLowerCase();
-  const isElectric = fuelTypeRaw.includes('electric');
-  const emissionFactor = fuelTypeRaw ? FUEL_FACTORS[fuelTypeRaw] ?? null : null;
-  // Fuel volume is distance × configured consumption. It never assumes a fuel type.
-  const fuelLiters =
-    !isElectric && distanceKm !== null && distanceKm > 0 && consumption !== null && consumption > 0
+  const fuelProfile = getTruckFuelProfile(truck?.fuelType);
+  const fuelType = fuelProfile?.code ?? null;
+  const fuelTypeRaw = fuelProfile?.code ?? '';
+  const fuelTypeLabelKey = fuelProfile?.labelKey ?? null;
+  const consumptionUnit = fuelProfile?.unit ?? null;
+  const isElectric = fuelType === 'ELECTRIC';
+  const emissionFactor = fuelProfile?.factorKgPerUnit ?? null;
+  // Energy quantity uses the unit defined by the canonical fuel type. It is
+  // never aggregated across different units and never assumes Diesel.
+  const energyQuantity =
+    consumptionUnit && distanceKm !== null && distanceKm > 0 && consumption !== null && consumption > 0
       ? (distanceKm * consumption) / 100
       : null;
-  const co2Kg = fuelLiters !== null && emissionFactor !== null ? fuelLiters * emissionFactor : null;
+  const fuelLiters = consumptionUnit === 'L/100 km' ? energyQuantity : null;
+  const co2Kg = energyQuantity !== null && emissionFactor !== null ? energyQuantity * emissionFactor : null;
 
-  let emissionMissing: 'fuel_type' | 'consumption' | 'distance' | 'electric' | 'factor' | null = null;
-  if (isElectric) emissionMissing = 'electric';
-  else if (!fuelTypeRaw) emissionMissing = 'fuel_type';
+  let emissionMissing: 'fuel_type' | 'unit' | 'consumption' | 'distance' | 'factor' | null = null;
+  if (!fuelType || !fuelProfile) emissionMissing = 'fuel_type';
+  else if (!consumptionUnit) emissionMissing = 'unit';
   else if (consumption === null || consumption <= 0) emissionMissing = 'consumption';
   else if (distanceKm === null || distanceKm <= 0) emissionMissing = 'distance';
   else if (emissionFactor === null) emissionMissing = 'factor';
@@ -451,10 +451,15 @@ export function buildTripMetrics(trip: any) {
     profit,
     utilizationPct,
     currency,
+    fuelType,
     fuelTypeRaw,
+    fuelTypeLabelKey,
     isElectric,
     consumption,
+    consumptionUnit,
     emissionFactor,
+    emissionReason: fuelProfile?.factorReason ?? null,
+    energyQuantity,
     fuelLiters,
     co2Kg,
     emissionMissing,

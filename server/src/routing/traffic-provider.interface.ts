@@ -15,6 +15,7 @@ export interface TrafficIncident {
 export interface TrafficStatusResult {
   available: boolean;
   provider: string; // 'here' | 'google' | 'tomtom' | 'none'
+  code?: string; // safe provider diagnostic category
   message?: string;
   currentDelayMinutes: number;
   congestionLevel: 'free_flow' | 'light' | 'moderate' | 'heavy' | 'standstill';

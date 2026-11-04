@@ -5,6 +5,7 @@ import { planningResources } from './planningI18n';
 import { planningResultsResources } from './planningResultsResources';
 import { planningUpgradeResources } from './planningUpgradeI18n';
 import { planningDataQualityResources } from './planningDataQualityI18n';
+import { truckFuelResources } from './truckFuelI18n';
 import { langOverrides } from './langOverrides';
 import { adrResources } from './adrI18n';
 
@@ -11142,6 +11143,11 @@ for (const lng of Object.keys(planningUpgradeResources)) {
 for (const lng of Object.keys(planningDataQualityResources)) {
   if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
   Object.assign((resources as any)[lng].translation, (planningDataQualityResources as any)[lng]);
+}
+
+for (const lng of Object.keys(truckFuelResources)) {
+  if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
+  Object.assign((resources as any)[lng].translation, truckFuelResources[lng].translation);
 }
 
 

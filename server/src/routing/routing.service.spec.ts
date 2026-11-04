@@ -1,0 +1,108 @@
+import axios from 'axios';
+import { RoutingService } from './routing.service';
+
+jest.mock('axios');
+const mockedGet = axios.get as jest.Mock;
+
+function serviceWith(keys: Record<string, string>) {
+  return new RoutingService({
+    get: (name: string) => keys[name] ?? '',
+  } as any);
+}
+
+describe('RoutingService provider contracts', () => {
+  beforeEach(() => {
+    mockedGet.mockReset();
+  });
+
+  it('requests HERE live traffic with span incidents and parses delay', async () => {
+    mockedGet.mockResolvedValueOnce({
+      data: {
+        routes: [{
+          sections: [{
+            summary: { baseDuration: 3600, duration: 4500 },
+            incidents: [{ id: 'inc-1', type: 'accident', summary: { time: 300 } }],
+          }],
+        }],
+      },
+    });
+    const service = serviceWith({ HERE_API_KEY: 'test-key' });
+    const result = await service.getLiveTraffic({ lat: 44.4, lng: 26.1 }, { lat: 52.5, lng: 13.4 });
+
+    expect(mockedGet).toHaveBeenCalledWith(
+      'https://router.hereapi.com/v8/routes',
+      expect.objectContaining({
+        params: expect.objectContaining({
+          return: 'summary,incidents',
+          spans: 'incidents',
+          apiKey: 'test-key',
+        }),
+      }),
+    );
+    expect(result.available).toBe(true);
+    expect(result.currentDelayMinutes).toBe(15);
+    expect(result.incidents[0].delayMinutes).toBe(5);
+  });
+
+  it('sends the actual truck toll profile and reads real HERE fares', async () => {
+    mockedGet.mockResolvedValueOnce({
+      data: {
+        routes: [{
+          sections: [{
+            summary: { length: 500000, duration: 18000 },
+            tolls: [{ countryCode: 'DE', tollSystem: { name: 'LKW-Maut' }, length: 400000, fares: [{ price: 48.5, currency: 'EUR' }] }],
+          }],
+        }],
+      },
+    });
+    const service = serviceWith({ HERE_MAPS_API_KEY: 'alias-key' });
+    const result = await service.calculateTolls(
+      { lat: 44.4, lng: 26.1 },
+      { lat: 52.5, lng: 13.4 },
+      [],
+      { grossWeightKg: 42000, axleCount: 4, heightCm: 390, widthCm: 255, lengthCm: 1650, emissionClass: 'Euro 5' },
+    );
+
+    expect(mockedGet).toHaveBeenCalledWith(
+      'https://router.hereapi.com/v8/routes',
+      expect.objectContaining({
+        params: expect.objectContaining({
+          'vehicle[grossWeight]': 42000,
+          'vehicle[axleCount]': 4,
+          'vehicle[height]': 390,
+          'vehicle[width]': 255,
+          'vehicle[length]': 1650,
+          'vehicle[emissionType]': 5,
+          apiKey: 'alias-key',
+        }),
+      }),
+    );
+    expect(result.available).toBe(true);
+    expect(result.totalCost).toBe(48.5);
+    expect(result.countries).toEqual(['DE']);
+  });
+
+  it('classifies a HERE product/authorization rejection without exposing keys', async () => {
+    mockedGet.mockRejectedValueOnce({
+      response: { status: 403, data: { title: 'Forbidden' } },
+    });
+    const service = serviceWith({ HERE_API_KEY: 'super-secret-key' });
+    const result = await service.getLiveTraffic({ lat: 44.4, lng: 26.1 }, { lat: 52.5, lng: 13.4 });
+
+    expect(result.available).toBe(false);
+    expect(result.code).toBe('provider_product_not_enabled');
+    const diagnostics = JSON.stringify(service.getProviderDiagnostics());
+    expect(diagnostics).not.toContain('super-secret-key');
+    expect(service.getProviderDiagnostics().here.reachable).toBe('no');
+  });
+
+  it('reports a missing key as missing and keeps ORS traffic/toll unsupported', () => {
+    const service = serviceWith({ ORS_API_KEY: 'ors-secret' });
+    const diagnostics = service.getProviderDiagnostics();
+    expect(diagnostics.here.configured).toBe(false);
+    expect(diagnostics.ors.configured).toBe(true);
+    expect(diagnostics.ors.capabilities.liveTraffic).toBe(false);
+    expect(diagnostics.ors.capabilities.tolls).toBe(false);
+    expect(JSON.stringify(diagnostics)).not.toContain('ors-secret');
+  });
+});

@@ -26,6 +26,14 @@ import { useSettingsStore } from '../store/settingsStore';
 import { generateTruckPdf } from '../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { matchesSearch } from '../lib/search';
+import {
+  TRUCK_FUEL_TYPES,
+  normalizeTruckFuelType,
+  getTruckFuelProfile,
+  fuelTypeLabel,
+  fuelConsumptionLabel,
+  fuelEnergyPriceLabel,
+} from '../lib/truckFuel';
 import { FileText, Calendar, Clock } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Flatpickr from 'react-flatpickr';
@@ -119,7 +127,7 @@ export default function TrucksPage() {
   const [itemsPerPage, setItemsPerPage] = useState(15);
   const [drivers, setDrivers] = useState<any[]>([]);
   const [trailers, setTrailers] = useState<any[]>([]);
-  const [filters, setFilters] = useState<any>({ status: 'all', type: 'all' });
+  const [filters, setFilters] = useState<any>({ status: 'all', type: 'all', fuel: 'all' });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [drawerTruckId, setDrawerTruckId] = useState<string | null>(null);
   const [drawerTab, setDrawerTab] = useState('overview');
@@ -214,6 +222,10 @@ export default function TrucksPage() {
 
   const handleSubmit = async (e?: any) => {
     if (e?.preventDefault) e.preventDefault();
+    if (!editId && !form.fuelType) {
+      toast.error(t('truck_fuel_type_required', 'Fuel / energy type is required.'));
+      return;
+    }
     if (!await confirmSave()) return;
     try {
       const payload = {
@@ -268,6 +280,16 @@ export default function TrucksPage() {
     ...TRUCK_STATUSES.map(s => ({ value: s.value, label: t(s.label as string, s.value.replace(/_/g, ' ')) as string })),
   ], [t]);
 
+  const fuelOptions: SelectOption[] = useMemo(() => [
+    { value: 'all', label: t('all_fuel_types', 'All fuel types') },
+    ...TRUCK_FUEL_TYPES.map(value => ({ value, label: fuelTypeLabel(value, t) })),
+  ], [t]);
+
+  const formFuelTypeOptions: SelectOption[] = useMemo(() => [
+    ...(editId ? [{ value: '', label: t('truck_fuel_not_configured', 'Fuel type not configured') }] : []),
+    ...TRUCK_FUEL_TYPES.map(value => ({ value, label: fuelTypeLabel(value, t) })),
+  ], [editId, t]);
+
   const trailerOptions: SelectOption[] = useMemo(() => [
     { value: '', label: t('no_trailer', 'No trailer') },
     ...trailers.map(tr => {
@@ -285,7 +307,8 @@ export default function TrucksPage() {
     return trucks.filter(tr => {
       if (filters.status !== 'all' && tr.status !== filters.status) return false;
       if (filters.type !== 'all' && (tr.truckType || 'tautliner') !== filters.type) return false;
-      return matchesSearch(search, tr.plateNumber, tr.brand, tr.model, tr.truckType, tr.euronorm, driverName(tr.driver));
+      if (filters.fuel !== 'all' && normalizeTruckFuelType(tr.fuelType) !== filters.fuel) return false;
+      return matchesSearch(search, tr.plateNumber, tr.brand, tr.model, tr.truckType, tr.euronorm, driverName(tr.driver), fuelTypeLabel(tr.fuelType, t));
     });
   }, [trucks, search, filters]);
 
@@ -297,12 +320,12 @@ export default function TrucksPage() {
   const maintCount = trucks.filter(tr => maintOverdue(tr) || maintWarning(tr)).length;
   const withCost = trucks.filter(tr => Number(tr.costPerKm || 0) > 0);
   const avgCost = withCost.length ? withCost.reduce((s, tr) => s + Number(tr.costPerKm), 0) / withCost.length : 0;
-  const kpiActiveKey = `${filters.status}_${filters.type}`;
+  const kpiActiveKey = `${filters.status}_${filters.type}_${filters.fuel || 'all'}`;
 
   const kpis = [
-    { key: 'total', label: t('kpi_trucks_total', 'Total trucks'), value: trucks.length, icon: TruckIcon, active: kpiActiveKey === 'all_all' && !search, onClick: () => setFilters({ status: 'all', type: 'all' }) },
-    { key: 'in_trip', label: t('kpi_trucks_in_trip', 'In trip'), value: inTripCount, color: '#6366f1', icon: CalendarDays, active: filters.status === 'in_trip', onClick: () => setFilters({ status: 'in_trip', type: 'all' }) },
-    { key: 'available', label: t('kpi_trucks_available', 'Available'), value: availCount, color: '#22c55e', icon: CheckCircle2, active: filters.status === 'active', onClick: () => setFilters({ status: 'active', type: 'all' }) },
+    { key: 'total', label: t('kpi_trucks_total', 'Total trucks'), value: trucks.length, icon: TruckIcon, active: kpiActiveKey === 'all_all_all' && !search, onClick: () => setFilters({ status: 'all', type: 'all', fuel: 'all' }) },
+    { key: 'in_trip', label: t('kpi_trucks_in_trip', 'In trip'), value: inTripCount, color: '#6366f1', icon: CalendarDays, active: filters.status === 'in_trip', onClick: () => setFilters(f => ({ ...f, status: 'in_trip', type: 'all' })) },
+    { key: 'available', label: t('kpi_trucks_available', 'Available'), value: availCount, color: '#22c55e', icon: CheckCircle2, active: filters.status === 'active', onClick: () => setFilters(f => ({ ...f, status: 'active', type: 'all' })) },
     { key: 'maintenance', label: t('kpi_trucks_maintenance', 'Service due'), value: maintCount, color: maintCount > 0 ? '#ef4444' : '#22c55e', icon: Wrench, onClick: () => setFilters(f => ({ ...f, status: 'maintenance' })) },
     { key: 'avg_cost', label: t('kpi_trucks_avg_cost', 'Avg cost/km'), value: avgCost ? fmtMoney(avgCost) : '—', color: '#f97316', icon: Coins },
   ];
@@ -337,7 +360,7 @@ export default function TrucksPage() {
       maxWeightKg: truck.maxWeightKg || '', maxPallets: truck.maxPallets || '', maxLdm: truck.maxLdm || '', maxVolumeCbm: truck.maxVolumeCbm || '',
       payloadCapacity: truck.payloadCapacity || '',
       heightCm: truck.heightCm || '', widthCm: truck.widthCm || '', lengthCm: truck.lengthCm || '', axleCount: truck.axleCount || '',
-      fuelType: truck.fuelType || '', fuelPricePerLiter: truck.fuelPricePerLiter || '',
+      fuelType: normalizeTruckFuelType(truck.fuelType) || '', fuelPricePerLiter: truck.fuelPricePerLiter || '',
       maintenanceCostPerKm: truck.maintenanceCostPerKm || '', fixedCostPerDay: truck.fixedCostPerDay || '',
       costPerKm: truck.costPerKm || '', fuelConsumption: truck.fuelConsumption || '',
       totalMileage: truck.totalMileage || '', nextMaintenanceMileage: truck.nextMaintenanceMileage || '', driverId: truck.driver?.id || '',
@@ -367,6 +390,7 @@ export default function TrucksPage() {
   };
 
   const drawerTruck = drawerTruckId ? trucks.find(tr => tr.id === drawerTruckId) : null;
+  const formFuelProfile = getTruckFuelProfile(form.fuelType);
 
   const columns: Column<any>[] = [
     {
@@ -433,8 +457,21 @@ export default function TrucksPage() {
       },
     },
     {
-      key: 'fuel', label: t('fuel_consumption', 'Fuel'), align: 'right',
-      render: tr => <span className="text-xs font-semibold">{Number(tr.fuelConsumption || 0) ? `${tr.fuelConsumption} L/100` : '—'}</span>,
+      key: 'fuel', label: t('truck_fuel_type', 'Fuel / energy type'), align: 'left',
+      render: tr => {
+        const profile = getTruckFuelProfile(tr.fuelType);
+        const unit = profile?.unit;
+        return (
+          <div className="text-left leading-tight">
+            <div className="text-[11px] font-bold text-text-primary whitespace-nowrap">
+              {tr.fuelType ? fuelTypeLabel(tr.fuelType, t) : <span className="text-amber-600 italic">{t('truck_fuel_not_configured', 'Fuel type not configured')}</span>}
+            </div>
+            <div className="text-[10px] text-text-secondary whitespace-nowrap">
+              {Number(tr.fuelConsumption || 0) ? `${fmtNumber(tr.fuelConsumption, 1)} ${unit || t('truck_fuel_unit_unknown', 'unit not configured')}` : '—'}
+            </div>
+          </div>
+        );
+      },
       hideBelow: 'lg',
     },
     {
@@ -553,6 +590,8 @@ export default function TrucksPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary">{t('truckType', 'Type')}</div><div className="text-sm font-bold mt-0.5">{truckTypeLabel(drawerTruck, t)}</div></div>
             <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary">{t('euronorm', 'Euronorm')}</div><div className="text-sm font-bold mt-0.5">{drawerTruck.euronorm || 'Euro 6'}</div></div>
+            <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary">{t('truck_fuel_type', 'Fuel / energy type')}</div><div className="text-sm font-bold mt-0.5">{drawerTruck.fuelType ? fuelTypeLabel(drawerTruck.fuelType, t) : <span className="text-amber-600 italic">{t('truck_fuel_not_configured', 'Fuel type not configured')}</span>}</div></div>
+            <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary">{t('truck_fuel_consumption', 'Consumption')}</div><div className="text-sm font-bold mt-0.5">{drawerTruck.fuelConsumption ? `${fmtNumber(drawerTruck.fuelConsumption, 1)} ${getTruckFuelProfile(drawerTruck.fuelType)?.unit || t('truck_fuel_unit_unknown', 'unit not configured')}` : '—'}</div></div>
           </div>
           <div className="flex flex-wrap gap-1.5">
             <StatusBadge type="fleet" status={drawerTruck.status || 'active'} label={t(`truck_status_${drawerTruck.status || 'active'}`, (drawerTruck.status || 'active').replace(/_/g, ' ')) as string} size="md" />
@@ -611,7 +650,7 @@ export default function TrucksPage() {
           <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{t('maxPallets', 'Pallets')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.maxPallets || '—'}</div></div>
           <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Gauge className="w-3 h-3" />{t('maxLdm', 'LDM')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.maxLdm ? `${drawerTruck.maxLdm} m` : '—'}</div></div>
           <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Boxes className="w-3 h-3" />{t('maxVolumeCbm', 'Volume')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.maxVolumeCbm ? `${drawerTruck.maxVolumeCbm} m³` : '—'}</div></div>
-          <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Fuel className="w-3 h-3" />{t('fuel_consumption', 'Fuel')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.fuelConsumption ? `${drawerTruck.fuelConsumption} L/100km` : '—'}</div></div>
+          <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Fuel className="w-3 h-3" />{t('truck_fuel_consumption', 'Consumption')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.fuelConsumption ? `${fmtNumber(drawerTruck.fuelConsumption, 1)} ${getTruckFuelProfile(drawerTruck.fuelType)?.unit || t('truck_fuel_unit_unknown', 'unit not configured')}` : '—'}</div></div>
           <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Coins className="w-3 h-3" />{t('cost_km', 'Cost/km')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.costPerKm ? fmtMoney(Number(drawerTruck.costPerKm)) : '—'}</div></div>
         </div>
       ),
@@ -667,7 +706,7 @@ export default function TrucksPage() {
             })()}
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Fuel className="w-3 h-3" />{t('fuel_consumption', 'Fuel')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.fuelConsumption ? `${drawerTruck.fuelConsumption} L` : '—'}</div></div>
+            <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Fuel className="w-3 h-3" />{t('truck_fuel_type', 'Fuel / energy type')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.fuelType ? fuelTypeLabel(drawerTruck.fuelType, t) : <span className="text-amber-600 italic text-sm">{t('truck_fuel_not_configured', 'Fuel type not configured')}</span>}</div></div>
             <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary flex items-center gap-1"><Coins className="w-3 h-3" />{t('cost_km', 'Cost/km')}</div><div className="text-lg font-black mt-0.5">{drawerTruck.costPerKm ? fmtMoney(Number(drawerTruck.costPerKm)) : '—'}</div></div>
           </div>
         </div>
@@ -810,6 +849,7 @@ export default function TrucksPage() {
             </div>
             <div className="w-[130px] shrink-0"><CustomSelect size="sm" title={t('status', 'Status')} value={filters.status} onChange={v => setFilters(f => ({ ...f, status: v }))} options={statusOptions.map((o, i) => i === 0 ? { ...o, label: t('status', 'Status') } : o)} /></div>
             <div className="w-[130px] shrink-0"><CustomSelect size="sm" title={t('truckType', 'Type')} value={filters.type} onChange={v => setFilters(f => ({ ...f, type: v }))} options={typeOptions.map((o, i) => i === 0 ? { ...o, label: t('truckType', 'Type') } : o)} /></div>
+            <div className="w-[165px] shrink-0"><CustomSelect size="sm" title={t('truck_fuel_type', 'Fuel / energy type')} value={filters.fuel || 'all'} onChange={v => setFilters(f => ({ ...f, fuel: v }))} options={fuelOptions.map((o, i) => i === 0 ? { ...o, label: t('truck_fuel_type', 'Fuel / energy type') } : o)} /></div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <span className="text-[11px] font-semibold text-text-secondary whitespace-nowrap">{filtered.length} {t('results', 'results')}</span>
@@ -1031,8 +1071,24 @@ export default function TrucksPage() {
             <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
               <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Fuel className="w-4 h-4"/>{t('section_costs') || '4. Costs & Maintenance'}</h4>
             </div>
-            <div><label className="label font-semibold">{t('costPerKm', 'Cost per km (€)')}</label><input type="number" step="0.01" className="input" value={form.costPerKm} onChange={e => setForm({...form, costPerKm: e.target.value})} /></div>
-            <div><label className="label font-semibold">{t('fuelConsumption', 'Consumption (l/100km)')}</label><input type="number" step="0.1" className="input" value={form.fuelConsumption} onChange={e => setForm({...form, fuelConsumption: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('costPerKm', 'Cost per km')} (€)</label><input type="number" step="0.01" className="input" value={form.costPerKm} onChange={e => setForm({...form, costPerKm: e.target.value})} /></div>
+            <div className="xl:col-span-2">
+              <label className="label font-semibold">{t('truck_fuel_type', 'Fuel / energy type')} {!editId || form.fuelType ? <span className="text-red-500">*</span> : null}</label>
+              <CustomSelect value={form.fuelType} onChange={v => setForm({...form, fuelType: v})} options={formFuelTypeOptions} placeholder={t('truck_fuel_type_placeholder', 'Select fuel / energy type')} />
+              {editId && !form.fuelType && (
+                <p className="mt-1 text-[11px] font-semibold text-amber-600">{t('truck_fuel_legacy_warning', 'This legacy truck has no fuel type. Select one to enable consumption, cost and emissions calculations.')}</p>
+              )}
+            </div>
+            <div>
+              <label className="label font-semibold">{fuelConsumptionLabel(form.fuelType, t)}</label>
+              <input type="number" step="0.1" min="0" className="input" value={form.fuelConsumption} onChange={e => setForm({...form, fuelConsumption: e.target.value})} disabled={!formFuelProfile} />
+              {!formFuelProfile && <p className="mt-1 text-[11px] text-text-muted">{t('truck_fuel_select_for_consumption', 'Select a fuel type to set its consumption unit.')}</p>}
+            </div>
+            <div>
+              <label className="label font-semibold">{fuelEnergyPriceLabel(form.fuelType, t)}</label>
+              <input type="number" step="0.001" min="0" className="input" value={form.fuelPricePerLiter} onChange={e => setForm({...form, fuelPricePerLiter: e.target.value})} disabled={!formFuelProfile} />
+              {formFuelProfile && <p className="mt-1 text-[11px] text-text-muted">{t('truck_fuel_energy_price_hint', 'Used by Planning for this energy unit; no cross-fuel conversion is applied.')}</p>}
+            </div>
             <div><label className="label font-semibold">{t('totalMileage', 'Total Mileage')}</label><input type="number" className="input" value={form.totalMileage} onChange={e => setForm({...form, totalMileage: e.target.value})} /></div>
             <div><label className="label font-semibold">{t('nextMaintenanceMileage', 'Next Maintenance (km)')}</label><input type="number" className="input" value={form.nextMaintenanceMileage} onChange={e => setForm({...form, nextMaintenanceMileage: e.target.value})} /></div>
           </div>
@@ -1046,6 +1102,9 @@ export default function TrucksPage() {
         { key: 'model', label: 'Model', transform: (v: any) => v || '' },
         { key: 'truckType', label: 'Type', transform: (_v: any, tr: any) => truckTypeLabel(tr, t) },
         { key: 'euronorm', label: 'Euronorm', transform: (v: any) => v || '' },
+        { key: 'fuelType', label: t('truck_fuel_type', 'Fuel / energy type'), transform: (_v: any, tr: any) => tr.fuelType ? fuelTypeLabel(tr.fuelType, t) : t('truck_fuel_not_configured', 'Fuel type not configured') },
+        { key: 'fuelConsumption', label: t('truck_fuel_consumption', 'Consumption'), transform: (v: any, tr: any) => v ? `${v} ${getTruckFuelProfile(tr.fuelType)?.unit || t('truck_fuel_unit_unknown', 'unit not configured')}` : '' },
+        { key: 'fuelPricePerLiter', label: t('truck_energy_price', 'Energy price'), transform: (v: any, tr: any) => v ? `${v} ${getTruckFuelProfile(tr.fuelType)?.priceUnit || ''}`.trim() : '' },
         { key: 'driver', label: 'Driver', transform: (_v: any, tr: any) => driverName(tr.driver) },
         { key: 'status', label: 'Status', transform: (v: any) => v || '' },
         { key: 'payload', label: 'Payload (kg)', transform: (_v: any, tr: any) => tr.payloadCapacity || tr.maxWeightKg },

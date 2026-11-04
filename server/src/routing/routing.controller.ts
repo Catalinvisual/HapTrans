@@ -148,6 +148,12 @@ export class RoutingController {
     return this.routingService.discoverPlaces(query);
   }
 
+  @Get('providers')
+  providerDiagnostics() {
+    // Safe, cached health snapshot. No provider call and no secret value.
+    return this.routingService.getProviderDiagnostics();
+  }
+
   @Get('diesel-prices')
   async getDieselPrices() {
     return this.routingService.getDieselPrices();

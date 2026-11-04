@@ -6,6 +6,7 @@ describe('CostEngine authoritative trip costs', () => {
   } as any;
 
   const truck = {
+    fuelType: 'DIESEL',
     fuelConsumption: 30,
     fuelPricePerLiter: 1.5,
     maintenanceCostPerKm: 0.1,
@@ -108,7 +109,49 @@ describe('CostEngine authoritative trip costs', () => {
       500,
     );
     expect(result.estimatedFields).toContain('fuelConsumption');
-    expect(result.fuelCost).toBeGreaterThan(0); // default estimate is explicitly flagged
+    expect(result.fuelCost).toBe(0);
+    expect(result.fuelCostAvailable).toBe(false);
+  });
+
+  it('uses the configured electric consumption and energy price without diesel assumptions', async () => {
+    const engine = new CostEngine(routing);
+    const result = await engine.calculateTripCosts(
+      {
+        ...trip,
+        truck: { ...truck, fuelType: 'ELECTRIC', fuelConsumption: 120, fuelPricePerLiter: 0.35 },
+      } as any,
+      500,
+    );
+    expect(result.fuelType).toBe('ELECTRIC');
+    expect(result.energyUnit).toBe('kWh/100 km');
+    expect(result.fuelCost).toBe(42); // 100 km × 120 kWh/100 km × 0.35 €/kWh
+    expect(result.fuelCostAvailable).toBe(true);
+  });
+
+  it('does not use the diesel market price for a non-diesel legacy price gap', async () => {
+    const engine = new CostEngine(routing);
+    const result = await engine.calculateTripCosts(
+      {
+        ...trip,
+        truck: { ...truck, fuelType: 'LNG', fuelConsumption: 25, fuelPricePerLiter: null },
+      } as any,
+      500,
+    );
+    expect(result.fuelCost).toBe(0);
+    expect(result.fuelCostAvailable).toBe(false);
+    expect(result.estimatedFields).toContain('fuelPrice');
+  });
+
+  it('never treats a legacy truck with no fuel type as Diesel', async () => {
+    const engine = new CostEngine(routing);
+    const result = await engine.calculateTripCosts(
+      { ...trip, truck: { ...truck, fuelType: null } } as any,
+      500,
+    );
+    expect(result.fuelType).toBeNull();
+    expect(result.fuelCost).toBe(0);
+    expect(result.fuelCostAvailable).toBe(false);
+    expect(result.estimatedFields).toContain('fuelType');
   });
 
   it('does not invent a driver cost when no profile is available', async () => {

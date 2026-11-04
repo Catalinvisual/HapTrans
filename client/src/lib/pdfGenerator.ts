@@ -4,6 +4,8 @@ import type { CompanySettings } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
 import { format } from 'date-fns';
 import { fmtNumber } from './format';
+import i18n from './i18n';
+import { fuelTypeLabel, getTruckFuelProfile } from './truckFuel';
 import { getCleanOrderFilename, getCleanProfileFilename, getCleanTripFilename } from './filenameUtils';
 
 // ─── Formatting Helpers ────────────────────────────────────────────────────────
@@ -344,7 +346,8 @@ export async function generateTruckPdf(truck: any, company: CompanySettings | nu
       ['Status', truck?.status?.toUpperCase() || '—'],
       ['Max Weight (kg)', truck?.maxWeightKg ? truck.maxWeightKg.toString() : '—'],
       ['Max Pallets', truck?.maxPallets ? truck.maxPallets.toString() : '—'],
-      ['Fuel Type', truck?.fuelType || '—'],
+      [i18n.t('truck_fuel_type', 'Fuel / energy type'), truck?.fuelType ? fuelTypeLabel(truck.fuelType, i18n.t.bind(i18n)) : i18n.t('truck_fuel_not_configured', 'Fuel type not configured')],
+      [i18n.t('truck_fuel_consumption', 'Consumption'), truck?.fuelConsumption ? `${fmtNumber(truck.fuelConsumption, 1)} ${getTruckFuelProfile(truck.fuelType)?.unit || ''}`.trim() : '—'],
       ['Emissions Class', truck?.emissionsClass || '—'],
       ['Current Driver', truck?.driver?.name || '—'],
       ['Odometer', truck?.currentOdometer ? `${fmtNumber(truck.currentOdometer)} km` : '—'],

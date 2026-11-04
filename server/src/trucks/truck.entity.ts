@@ -7,6 +7,7 @@ import { Trailer } from './trailer.entity';
 import { LoadingAccess, LoadingRule } from '../planning/planning-profile.entity';
 
 import { Company } from '../companies/company.entity';
+import { TruckFuelType, fuelTypeTransformer } from './fuel-type';
 
 export enum TruckStatus {
   ACTIVE = 'active',
@@ -74,8 +75,8 @@ export class Truck {
   @Column({ nullable: true, type: 'int' })
   axleCount: number; // used by toll and truck routing profiles
 
-  @Column({ nullable: true, type: 'varchar' })
-  fuelType: string; // diesel | petrol | lng | cng | electric | hybrid
+  @Column({ nullable: true, type: 'varchar', transformer: fuelTypeTransformer })
+  fuelType: TruckFuelType | null; // canonical energy type; null for legacy records
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 3 })
   fuelPricePerLiter: number; // optional company-negotiated price, EUR/l

@@ -24,11 +24,93 @@ export class RoutingService {
   // In-memory Routing Cache for pair distances and durations (§9, §31)
   private readonly matrixCache = new Map<string, CachedMatrixItem>();
   private readonly CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days TTL
+  private readonly providerHealth = {
+    here: { lastSuccessAt: null as Date | null, lastErrorCategory: null as string | null, lastErrorAt: null as Date | null },
+    ors: { lastSuccessAt: null as Date | null, lastErrorCategory: null as string | null, lastErrorAt: null as Date | null },
+  };
 
   constructor(private config: ConfigService) {
-    this.hereKey = (this.config.get('HERE_API_KEY') || '').trim();
-    this.orsKey = (this.config.get('ORS_API_KEY') || '').trim();
-    this.googleKey = (this.config.get('GOOGLE_ROUTES_API_KEY') || this.config.get('GOOGLE_MAPS_API_KEY') || '').trim();
+    // Railway has used both names for the same HERE project key. Support both
+    // without exposing either value or silently assuming a missing key exists.
+    this.hereKey = String(this.config.get('HERE_API_KEY') || this.config.get('HERE_MAPS_API_KEY') || '').trim();
+    this.orsKey = String(this.config.get('ORS_API_KEY') || this.config.get('OPENROUTESERVICE_API_KEY') || '').trim();
+    this.googleKey = String(this.config.get('GOOGLE_ROUTES_API_KEY') || this.config.get('GOOGLE_MAPS_API_KEY') || '').trim();
+  }
+
+  private redactSecrets(value: unknown): string {
+    let text = String(value ?? '').slice(0, 240);
+    for (const key of [this.hereKey, this.orsKey, this.googleKey]) {
+      if (key) text = text.split(key).join('[redacted]');
+    }
+    return text.replace(/apiKey=[^&\s]+/gi, 'apiKey=[redacted]');
+  }
+
+  private classifyProviderError(err: any): string {
+    const status = Number(err?.response?.status);
+    if (status === 401) return 'provider_invalid_credentials';
+    if (status === 403) return 'provider_product_not_enabled';
+    if (status === 429) return 'provider_rate_limited';
+    if (err?.code === 'ECONNABORTED' || /timeout/i.test(String(err?.code || ''))) return 'provider_timeout';
+    if (!err?.response) return 'provider_network_error';
+    return 'provider_request_failed';
+  }
+
+  private recordProviderSuccess(provider: 'here' | 'ors') {
+    this.providerHealth[provider].lastSuccessAt = new Date();
+    this.providerHealth[provider].lastErrorCategory = null;
+  }
+
+  private recordProviderError(provider: 'here' | 'ors', err: any): string {
+    const category = this.classifyProviderError(err);
+    const status = Number(err?.response?.status) || null;
+    const detail = err?.response?.data?.title || err?.response?.data?.error || err?.response?.data?.message || '';
+    this.providerHealth[provider].lastErrorCategory = category;
+    this.providerHealth[provider].lastErrorAt = new Date();
+    // Log only category/status/provider detail. Never log request URLs, config
+    // objects or API keys.
+    this.logger.warn(
+      `${provider.toUpperCase()} request failed category=${category} status=${status || '-'} detail=${this.redactSecrets(detail) || 'n/a'}`,
+    );
+    return category;
+  }
+
+  /** Safe health snapshot; no secret values and no provider request is made. */
+  getProviderDiagnostics() {
+    const health = (provider: 'here' | 'ors', configured: boolean) => {
+      const state = this.providerHealth[provider];
+      return {
+        configured,
+        reachable: !configured ? 'no' : state.lastSuccessAt ? 'yes' : state.lastErrorCategory ? 'no' : 'unknown',
+        lastSuccessAt: state.lastSuccessAt,
+        lastErrorCategory: state.lastErrorCategory,
+        lastErrorAt: state.lastErrorAt,
+      };
+    };
+    return {
+      here: {
+        name: 'HERE',
+        ...health('here', !!this.hereKey),
+        capabilities: {
+          routing: true,
+          liveTraffic: true,
+          tolls: true,
+          geocoding: true,
+          autocomplete: true,
+          note: 'Traffic and tolls use HERE Routing v8; the project must have Routing entitlement.',
+        },
+      },
+      ors: {
+        name: 'OpenRouteService',
+        ...health('ors', !!this.orsKey),
+        capabilities: {
+          routing: true,
+          matrix: true,
+          liveTraffic: false,
+          tolls: false,
+          note: 'ORS is used for HGV routing only; it is not a traffic or toll provider.',
+        },
+      },
+    };
   }
 
   // ─── Cache Helpers ────────────────────────────────────────────────────────
@@ -94,7 +176,7 @@ export class RoutingService {
       }
       return [];
     } catch (e) {
-      this.logger.error(`Autocomplete failed for "${query}": ${e.message}`);
+      this.logger.error(`Autocomplete failed for "${this.redactSecrets(query)}": ${this.redactSecrets(e.message)}`);
       return [];
     }
   }
@@ -119,7 +201,7 @@ export class RoutingService {
         countryName: item.address?.countryName,
       };
     } catch (e) {
-      this.logger.error(`Geocode failed for "${address}": ${e.message}`);
+      this.logger.error(`Geocode failed for "${this.redactSecrets(address)}": ${this.redactSecrets(e.message)}`);
       return null;
     }
   }
@@ -153,7 +235,7 @@ export class RoutingService {
         }))
         .filter((p: any) => p.title && p.label && p.lat && p.lng);
     } catch (e: any) {
-      this.logger.error(`Discover failed for "${query}": ${e.message}`);
+      this.logger.error(`Discover failed for "${this.redactSecrets(query)}": ${this.redactSecrets(e.message)}`);
       return [];
     }
   }
@@ -221,9 +303,12 @@ export class RoutingService {
           const hours = Math.floor(durationMin / 60);
           const mins = durationMin % 60;
 
-          // Compute commercial truck toll strictly from HERE toll fares (no estimation)
+          // Compute commercial truck toll strictly from HERE toll fares. A
+          // missing toll block is reported as unavailable, never as a fake 0.
           let tollCost = 0;
-          if (section?.tolls && Array.isArray(section.tolls)) {
+          let tollAvailable = false;
+          if (Array.isArray(section?.tolls)) {
+            tollAvailable = true;
             for (const toll of section.tolls) {
               const fare = Number(toll.fares?.[0]?.price);
               if (Number.isFinite(fare)) tollCost += fare;
@@ -243,15 +328,18 @@ export class RoutingService {
             }
           }
 
-          this.setInCache(origin, dest, distanceKm, durationMin, 'here', tollCost);
+          // A request with truck parameters has profile-specific tolls and must
+          // never poison the generic route cache used by other callers.
+          if (!truckParams) this.setInCache(origin, dest, distanceKm, durationMin, 'here', tollCost);
+          this.recordProviderSuccess('here');
 
           return {
             distanceKm,
             durationMin,
             durationText: `${hours}h ${mins}m`,
-            tollCost,
+            tollCost: tollAvailable ? tollCost : undefined,
             tollCurrency: 'EUR',
-            tollStatus: 'calculated',
+            tollStatus: tollAvailable ? 'calculated' : 'unavailable',
             polyline: section?.polyline || null,
             coordinates,
             source: 'here',
@@ -259,7 +347,7 @@ export class RoutingService {
         }
       }
     } catch (e) {
-      this.logger.warn(`HERE routing failed: ${e.message}. Falling back to ORS...`);
+      this.logger.warn(`HERE routing failed: ${this.redactSecrets(e.message)}. Falling back to ORS...`);
     }
 
     return this.calculateRouteORS(originLat, originLng, destLat, destLng);
@@ -351,7 +439,7 @@ export class RoutingService {
         } as RouteSummaryResult;
       }).filter((r: RouteSummaryResult) => r.distanceKm > 0);
     } catch (e: any) {
-      this.logger.warn(`HERE alternatives failed: ${e.message}`);
+      this.logger.warn(`HERE alternatives failed: ${this.redactSecrets(e.message)}`);
       return [];
     }
   }
@@ -387,7 +475,8 @@ export class RoutingService {
       const hours = Math.floor(durationMin / 60);
       const mins = durationMin % 60;
 
-      // ORS does not provide toll fares; report tolls as unavailable instead of estimating
+      // ORS does not provide toll fares; report tolls as unavailable instead of estimating.
+      this.recordProviderSuccess('ors');
       this.setInCache({ lat: originLat, lng: originLng }, { lat: destLat, lng: destLng }, distanceKm, durationMin, 'ors', 0);
 
       return {
@@ -402,7 +491,7 @@ export class RoutingService {
         source: 'ors',
       };
     } catch (e) {
-      this.logger.error(`ORS routing also failed: ${e.message}`);
+      this.recordProviderError('ors', e);
       return null;
     }
   }
@@ -497,7 +586,7 @@ export class RoutingService {
           providerSource = 'ors';
         }
       } catch (err) {
-        this.logger.warn(`ORS Matrix API call failed (${err.message}). Falling back to point-to-point router...`);
+        this.logger.warn(`ORS Matrix API call failed (${this.redactSecrets(err.message)}). Falling back to point-to-point router...`);
       }
     }
 
@@ -622,12 +711,14 @@ export class RoutingService {
     origin: LatLng,
     destination: LatLng,
     waypoints?: LatLng[],
+    vehicle?: TollCalculationVehicle,
   ): Promise<TrafficStatusResult> {
     // Zero-mock check: if provider is not configured, report unavailable clearly
-    if (!this.hereKey && !this.googleKey) {
+    if (!this.hereKey) {
       return {
         available: false,
-        provider: 'none',
+        provider: this.googleKey ? 'google' : 'none',
+        code: this.googleKey ? 'provider_unsupported' : 'provider_key_missing',
         message: 'Live traffic unavailable — provider not configured',
         currentDelayMinutes: 0,
         congestionLevel: 'free_flow',
@@ -640,15 +731,27 @@ export class RoutingService {
 
     try {
       if (this.hereKey) {
-        // Query HERE Routing v8 with live traffic parameters
+        // HERE live traffic requires `spans=incidents`; returning `incidents`
+        // alone yields no span-level traffic data.
         const params: any = {
           transportMode: 'truck',
           origin: `${origin.lat},${origin.lng}`,
           destination: `${destination.lat},${destination.lng}`,
           departureTime: 'any',
           return: 'summary,incidents',
+          spans: 'incidents',
           apiKey: this.hereKey,
         };
+
+        if (vehicle?.grossWeightKg) params['vehicle[grossWeight]'] = vehicle.grossWeightKg;
+        if (vehicle?.axleCount) params['vehicle[axleCount]'] = vehicle.axleCount;
+        if (vehicle?.heightCm) params['vehicle[height]'] = vehicle.heightCm;
+        if (vehicle?.widthCm) params['vehicle[width]'] = vehicle.widthCm;
+        if (vehicle?.lengthCm) params['vehicle[length]'] = vehicle.lengthCm;
+        if (vehicle?.emissionClass) {
+          const emissionType = this.hereEmissionType(vehicle.emissionClass);
+          if (emissionType) params['vehicle[emissionType]'] = emissionType;
+        }
 
         if (waypoints && waypoints.length > 0) {
           waypoints.forEach((wp, idx) => {
@@ -669,13 +772,19 @@ export class RoutingService {
           const trafficDurationMin = Math.round((summary?.duration || 0) / 60);
           const delayMin = Math.max(0, trafficDurationMin - baseDurationMin);
 
-          const incidents: TrafficIncident[] = (section?.incidents || []).map((inc: any, i: number) => ({
-            id: inc.id || `inc-${i}`,
-            type: (inc.type || 'congestion').toLowerCase(),
-            severity: inc.severity || (delayMin > 30 ? 'major' : delayMin > 10 ? 'moderate' : 'low'),
-            description: inc.description?.value || 'Traffic delay along corridor',
-            delayMinutes: Math.round((inc.summary?.length || 0) / 1000),
-          }));
+          const incidents: TrafficIncident[] = (section?.incidents || []).map((inc: any, i: number) => {
+            const incidentDelaySec = Number(inc.summary?.time);
+            return {
+              id: inc.id || `inc-${i}`,
+              type: (inc.type || 'other').toLowerCase(),
+              severity: inc.severity || (delayMin > 30 ? 'major' : delayMin > 10 ? 'moderate' : 'low'),
+              description: inc.description?.value || inc.summary?.text || inc.type || 'Traffic incident',
+              delayMinutes: Number.isFinite(incidentDelaySec) && incidentDelaySec > 0
+                ? Math.round(incidentDelaySec / 60)
+                : 0,
+            };
+          });
+          this.recordProviderSuccess('here');
 
           const congestionLevel: TrafficStatusResult['congestionLevel'] =
             delayMin > 45 ? 'standstill' : delayMin > 25 ? 'heavy' : delayMin > 10 ? 'moderate' : delayMin > 3 ? 'light' : 'free_flow';
@@ -693,12 +802,25 @@ export class RoutingService {
         }
       }
     } catch (err: any) {
-      this.logger.warn(`Live traffic query failed: ${err.message}`);
+      const code = this.recordProviderError('here', err);
+      return {
+        available: false,
+        provider: 'here',
+        code,
+        message: 'Live traffic query failed',
+        currentDelayMinutes: 0,
+        congestionLevel: 'free_flow',
+        estimatedDurationWithTrafficMin: 0,
+        normalDurationMin: 0,
+        incidents: [],
+        calculatedAt: new Date(),
+      };
     }
 
     return {
       available: false,
       provider: 'here',
+      code: 'provider_no_data',
       message: 'Live traffic query returned no real-time telemetry',
       currentDelayMinutes: 0,
       congestionLevel: 'free_flow',
@@ -707,6 +829,12 @@ export class RoutingService {
       incidents: [],
       calculatedAt: new Date(),
     };
+  }
+
+  private hereEmissionType(emissionClass?: string): number | null {
+    const normalized = String(emissionClass || '').toLowerCase().replace(/[^0-9]/g, '');
+    const value = Number(normalized);
+    return Number.isFinite(value) && value >= 0 && value <= 6 ? value : null;
   }
 
   // ─── European Toll Calculation Architecture (§7) ──────────────────────────
@@ -721,6 +849,7 @@ export class RoutingService {
       return {
         available: false,
         provider: 'none',
+        code: 'provider_key_missing',
         message: 'Toll calculation unavailable — provider not configured',
         totalCost: 0,
         currency: 'EUR',
@@ -731,22 +860,26 @@ export class RoutingService {
     }
 
     try {
-      const grossWeight = vehicle?.grossWeightKg || 40000;
-      const axles = vehicle?.axleCount || 5;
-
       const params: any = {
         transportMode: 'truck',
         origin: `${origin.lat},${origin.lng}`,
         destination: `${destination.lat},${destination.lng}`,
         return: 'summary,tolls',
         apiKey: this.hereKey,
-        'vehicle[grossWeight]': grossWeight,
-        'vehicle[axleCount]': axles,
-        'vehicle[height]': vehicle?.heightCm || 400,
         'vehicle[tollVehicleType]': 3, // Commercial truck
-        'vehicle[emissionType]': 6, // Euro 6
         currency: 'EUR',
       };
+      // Use the actual truck profile whenever it is available. Omit missing
+      // dimensions rather than presenting invented defaults as truck data.
+      if (vehicle?.grossWeightKg) params['vehicle[grossWeight]'] = vehicle.grossWeightKg;
+      if (vehicle?.axleCount) params['vehicle[axleCount]'] = vehicle.axleCount;
+      if (vehicle?.heightCm) params['vehicle[height]'] = vehicle.heightCm;
+      if (vehicle?.widthCm) params['vehicle[width]'] = vehicle.widthCm;
+      if (vehicle?.lengthCm) params['vehicle[length]'] = vehicle.lengthCm;
+      if (vehicle?.emissionClass) {
+        const emissionType = this.hereEmissionType(vehicle.emissionClass);
+        if (emissionType !== null) params['vehicle[emissionType]'] = emissionType;
+      }
 
       if (waypoints && waypoints.length > 0) {
         waypoints.forEach((wp, idx) => {
@@ -783,6 +916,7 @@ export class RoutingService {
         });
 
         const countries = Array.from(countriesSet);
+        this.recordProviderSuccess('here');
 
         return {
           available: true,
@@ -795,12 +929,24 @@ export class RoutingService {
         };
       }
     } catch (err: any) {
-      this.logger.warn(`Toll calculation request failed: ${err.message}`);
+      const code = this.recordProviderError('here', err);
+      return {
+        available: false,
+        provider: 'here',
+        code,
+        message: 'Toll calculation unavailable for this route',
+        totalCost: 0,
+        currency: 'EUR',
+        countries: [],
+        sections: [],
+        calculatedAt: new Date(),
+      };
     }
 
     return {
       available: false,
       provider: 'here',
+      code: 'provider_no_data',
       message: 'Toll calculation unavailable for this route',
       totalCost: 0,
       currency: 'EUR',

@@ -11,6 +11,7 @@ import PalletIcon from '../icons/PalletIcon';
 import WeightKgIcon from '../icons/WeightKgIcon';
 import AdrCargoSection from './AdrCargoSection';
 import { calculateLdm, calculateVolumeCbm, hasNoCapacityData } from '../../lib/cargoCalc';
+import { fmtMoney } from '../../lib/format';
 export interface OrderWizardPrefill {
   pickupAddress?: string;
   deliveryAddress?: string;
@@ -206,6 +207,7 @@ export default function OrderWizard({
     contactPhone: '',
     equipmentRequirements: [] as string[]
   });
+  const currencySymbol = form.currency === 'EUR' ? '€' : form.currency === 'USD' ? '$' : form.currency;
   const emptyStop = {
     companyName: '',
     address: '',
@@ -465,7 +467,7 @@ export default function OrderWizard({
     setCostEstimate((prev: any) => {
       if (!prev) return prev;
       const fuelCost = ((prev.distanceKm / 100) * fuelConsumption * fuelPrice);
-      const totalCost = fuelCost + prev.tollCost;
+      const totalCost = fuelCost + (prev.tollAvailable ? prev.tollCost : 0);
       const agreedPrice = parseFloat(form.price) || 0;
       const profit = agreedPrice - totalCost;
       // Prevent unnecessary updates if values haven't changed
@@ -493,10 +495,9 @@ export default function OrderWizard({
           weightKg: totalWeightKg || undefined,
         }
       });
-      const { distanceKm, durationMin, durationText, tollCost } = res.data;
-      const parsedToll = typeof tollCost === 'number' && tollCost > 0
-        ? tollCost
-        : (distanceKm > 0 ? Math.round(distanceKm * 0.19 * 100) / 100 : 0);
+      const { distanceKm, durationMin, durationText, tollCost, tollStatus } = res.data;
+      const tollAvailable = tollStatus === 'calculated' && Number.isFinite(Number(tollCost));
+      const parsedToll = tollAvailable ? Number(tollCost) : 0;
       const fuelCost = ((distanceKm / 100) * fuelConsumption * fuelPrice);
       const totalCost = fuelCost + parsedToll;
       const agreedPrice = parseFloat(form.price) || 0;
@@ -506,6 +507,7 @@ export default function OrderWizard({
         durationMin,
         durationText,
         tollCost: parsedToll,
+        tollAvailable,
         fuelCost,
         totalCost,
         agreedPrice,
@@ -1118,7 +1120,7 @@ export default function OrderWizard({
                   <div>
                     <label className="block text-sm font-medium mb-1.5">{t("jsx_agreedPrice")}</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary font-medium">€</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary font-medium">{currencySymbol}</span>
                       <input type="number" step="0.01" value={form.price} onChange={e => setForm({
                     ...form,
                     price: e.target.value
@@ -1862,18 +1864,22 @@ export default function OrderWizard({
                           <Fuel className="w-3.5 h-3.5 text-orange-500" />
                           {t('cost_fuel_cost', 'Fuel Cost')}
                         </span>
-                        <span className="font-semibold">€{costEstimate.fuelCost.toFixed(2)}</span>
+                        <span className="font-semibold">{fmtMoney(costEstimate.fuelCost, form.currency || 'EUR')}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-text-secondary flex items-center gap-1.5">
                           <span className="text-base">🛣</span>
                           {t('cost_toll', 'Road Toll')}
                         </span>
-                        <span className="font-semibold">€{costEstimate.tollCost.toFixed(2)}</span>
+                        <span className={`font-semibold ${costEstimate.tollAvailable === false ? 'text-xs italic text-amber-600' : ''}`}>
+                          {costEstimate.tollAvailable === false
+                            ? t('toll_unavailable', 'Toll calculation unavailable')
+                            : fmtMoney(costEstimate.tollCost, form.currency || 'EUR')}
+                        </span>
                       </div>
                       <div className="flex justify-between text-sm pt-2 border-t border-border/50 font-bold">
                         <span className="text-text-primary">{t('cost_total_cost', 'Total Estimated Cost')}</span>
-                        <span className="text-red-500">€{costEstimate.totalCost.toFixed(2)}</span>
+                        <span className="text-red-500">{fmtMoney(costEstimate.totalCost, form.currency || 'EUR')}</span>
                       </div>
                     </div>
 
@@ -1881,7 +1887,7 @@ export default function OrderWizard({
                     <div className={`rounded-xl p-4 border-2 ${costEstimate.agreedPrice <= 0 ? 'bg-amber-500/10 border-amber-500/30' : costEstimate.profit >= 0 ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/40'}`}>
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-sm font-semibold text-text-secondary">{t('cost_agreed_price', 'Agreed Price')}</span>
-                        <span className="font-bold">€{costEstimate.agreedPrice.toFixed(2)}</span>
+                        <span className="font-bold">{fmtMoney(costEstimate.agreedPrice, form.currency || 'EUR')}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className={`text-sm font-bold flex items-center gap-1.5 ${costEstimate.agreedPrice <= 0 ? 'text-amber-600' : costEstimate.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -1889,7 +1895,7 @@ export default function OrderWizard({
                           {t('cost_estimated_profit', 'Estimated Profit')}
                         </span>
                         <span className={`font-black text-lg ${costEstimate.agreedPrice <= 0 ? 'text-amber-600' : costEstimate.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {costEstimate.agreedPrice > 0 && costEstimate.profit >= 0 ? '+' : ''}€{costEstimate.profit.toFixed(2)}
+                          {costEstimate.agreedPrice > 0 && costEstimate.profit >= 0 ? '+' : ''}{fmtMoney(costEstimate.profit, form.currency || 'EUR')}
                         </span>
                       </div>
                       {costEstimate.agreedPrice <= 0 ? (

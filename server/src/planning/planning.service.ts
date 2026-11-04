@@ -2264,7 +2264,11 @@ export class PlanningService {
 
         const driverCost = driver ? (Number(dto.pricePerStop) || 25) : 0;
         const fuelCost = dist * (Number(dto.fuelPricePerL) || 1.6) * ((Number(truck.fuelConsumption) || 30) / 100);
-        const tollCost = dist * (Number(dto.tollCostFactor) || 0.1);
+        // Only use a toll factor explicitly supplied by the caller. Do not
+        // invent a per-kilometre toll price when none is configured.
+        const tollCost = dto.tollCostFactor !== undefined && dto.tollCostFactor !== null
+          ? dist * (Number(dto.tollCostFactor) || 0)
+          : 0;
         const kmCost = dist * (Number(dto.pricePerKm) || 1.2);
         const estimatedRevenue = group.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
 
@@ -5287,7 +5291,7 @@ export class PlanningService {
   async checkLiveTraffic(user: any, tripId: string) {
     const trip = await this.tripRepo.findOne({
       where: { id: tripId },
-      relations: ['stops'],
+      relations: ['stops', 'truck', 'trailer'],
     });
     if (!trip) throw new NotFoundException('Trip not found');
 
@@ -5308,7 +5312,12 @@ export class PlanningService {
     const destination = { lat: Number(validStops[validStops.length - 1].latitude), lng: Number(validStops[validStops.length - 1].longitude) };
     const waypoints = validStops.slice(1, -1).map((s) => ({ lat: Number(s.latitude), lng: Number(s.longitude) }));
 
-    const trafficResult = await this.routingService.getLiveTraffic(origin, destination, waypoints);
+    const trafficResult = await this.routingService.getLiveTraffic(
+      origin,
+      destination,
+      waypoints,
+      this.truckRoutingProfile(trip),
+    );
 
     if (trafficResult.available) {
       trip.trafficDelayMinutes = trafficResult.currentDelayMinutes;
@@ -5351,11 +5360,10 @@ export class PlanningService {
     const destination = { lat: Number(validStops[validStops.length - 1].latitude), lng: Number(validStops[validStops.length - 1].longitude) };
     const waypoints = validStops.slice(1, -1).map((s) => ({ lat: Number(s.latitude), lng: Number(s.longitude) }));
 
+    const profile = this.truckRoutingProfile(trip);
     const tollResult = await this.routingService.calculateTolls(origin, destination, waypoints, {
-      grossWeightKg: Number(trip.truck?.maxWeightKg) || 40000,
-      axleCount: 5,
-      heightCm: 400,
-      emissionClass: trip.truck?.euronorm || 'Euro 6',
+      ...profile,
+      emissionClass: trip.truck?.euronorm || undefined,
       hasTrailer: !!trip.trailer,
     });
 
@@ -5390,6 +5398,7 @@ export class PlanningService {
       lengthCm: Number(truck.lengthCm) || undefined,
       axleCount: Number(truck.axleCount) || undefined,
       emissionType: emissionMap[euronorm] || undefined,
+      emissionClass: truck.euronorm || undefined,
     };
   }
 

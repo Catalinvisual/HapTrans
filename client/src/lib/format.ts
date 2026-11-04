@@ -15,6 +15,8 @@ export function appLocale(): string {
   if (lng.startsWith('nl')) return 'nl-NL';
   if (lng.startsWith('de')) return 'de-DE';
   if (lng.startsWith('fr')) return 'fr-FR';
+  if (lng.startsWith('es')) return 'es-ES';
+  if (lng.startsWith('pl')) return 'pl-PL';
   return 'en-GB';
 }
 

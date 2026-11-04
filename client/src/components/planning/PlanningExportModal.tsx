@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { exportExcel, formatDateExcel } from '../../lib/exportExcel';
 import { fmtNumber, fmtMoney } from '../../lib/format';
+import { fuelTypeLabel, getTruckFuelProfile } from '../../lib/truckFuel';
 
 interface PlanningExportModalProps {
   isOpen: boolean;
@@ -99,6 +100,10 @@ export default function PlanningExportModal({
           truck: truck?.plateNumber || tr.carrierTruckPlate || '—',
           trailer: trailer?.plateNumber || tr.carrierTrailerPlate || '—',
           driver: driver?.name || driver?.user?.name || tr.carrierDriverName || '—',
+          fuelType: truck?.fuelType ? fuelTypeLabel(truck.fuelType, t) : t('truck_fuel_not_configured', 'Fuel type not configured'),
+          fuelConsumption: truck?.fuelConsumption
+            ? `${fmtNumber(truck.fuelConsumption, 1)} ${getTruckFuelProfile(truck.fuelType)?.unit || ''}`.trim()
+            : '—',
           trailerDropState: dropHookStr,
           departure: tr.plannedDeparture ? new Date(tr.plannedDeparture).toISOString().replace('T', ' ').slice(0, 16) : '—',
           arrival: tr.plannedArrival ? new Date(tr.plannedArrival).toISOString().replace('T', ' ').slice(0, 16) : '—',
@@ -125,6 +130,8 @@ export default function PlanningExportModal({
         { key: 'trailer', label: 'Trailer Plate' },
         { key: 'trailerDropState', label: 'Drop / Hook State' },
         { key: 'driver', label: 'Driver' },
+        { key: 'fuelType', label: t('truck_fuel_type', 'Fuel / energy type') },
+        { key: 'fuelConsumption', label: t('truck_fuel_consumption', 'Consumption') },
         { key: 'departure', label: 'Departure' },
         { key: 'arrival', label: 'Arrival' },
         { key: 'route', label: 'Route' },

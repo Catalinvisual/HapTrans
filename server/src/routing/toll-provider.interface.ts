@@ -12,6 +12,8 @@ export interface TollCalculationVehicle {
   grossWeightKg?: number;
   axleCount?: number;
   heightCm?: number;
+  widthCm?: number;
+  lengthCm?: number;
   emissionClass?: string; // 'Euro 6', 'Euro 5', etc.
   hasTrailer?: boolean;
 }
@@ -19,6 +21,7 @@ export interface TollCalculationVehicle {
 export interface TollCalculationResult {
   available: boolean;
   provider: string; // 'here' | 'european_toll_matrix' | 'none'
+  code?: string; // safe provider diagnostic category
   message?: string;
   totalCost: number;
   currency: string;
