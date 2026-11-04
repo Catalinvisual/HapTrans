@@ -736,7 +736,7 @@ export class TripsService {
       estimatedCost: financials.cost,
       estimatedProfit: financials.profit,
       actualProfit: financials.profit,
-      tollCost: financials.costBreakdown.tollCost,
+      ...(financials.costBreakdown.tollCostAvailable ? { tollCost: financials.costBreakdown.tollCost } : {}),
       estimatedCostBreakdown: financials.costBreakdown as any,
       costCalculatedAt: new Date(),
     });

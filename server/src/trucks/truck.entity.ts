@@ -39,6 +39,12 @@ export class Truck {
   @Column({ nullable: true })
   year: number;
 
+  @Column({ nullable: true, length: 17 })
+  vin: string | null;
+
+  @Column({ nullable: true, length: 2 })
+  registrationCountry: string | null;
+
   @Column({ nullable: true })
   truckType: string; // e.g. Tautliner, Frigo, Box, Mega
 

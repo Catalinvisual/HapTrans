@@ -18,12 +18,20 @@ export interface TollCalculationVehicle {
   hasTrailer?: boolean;
 }
 
+export type TollCalculationStatus =
+  | 'calculated'
+  | 'calculated_zero'
+  | 'unavailable'
+  | 'failed'
+  | 'incomplete';
+
 export interface TollCalculationResult {
   available: boolean;
   provider: string; // 'here' | 'european_toll_matrix' | 'none'
   code?: string; // safe provider diagnostic category
   message?: string;
-  totalCost: number;
+  status: TollCalculationStatus;
+  totalCost: number | null;
   currency: string;
   countries: string[];
   sections: TollSection[];

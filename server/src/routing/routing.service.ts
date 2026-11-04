@@ -849,9 +849,10 @@ export class RoutingService {
       return {
         available: false,
         provider: 'none',
+        status: 'unavailable',
         code: 'provider_key_missing',
         message: 'Toll calculation unavailable — provider not configured',
-        totalCost: 0,
+        totalCost: null,
         currency: 'EUR',
         countries: [],
         sections: [],
@@ -918,10 +919,12 @@ export class RoutingService {
         const countries = Array.from(countriesSet);
         this.recordProviderSuccess('here');
 
+        const roundedTotal = Math.round(totalCost * 100) / 100;
         return {
           available: true,
           provider: 'here',
-          totalCost: Math.round(totalCost * 100) / 100,
+          status: sections.length === 0 ? 'calculated_zero' : 'calculated',
+          totalCost: roundedTotal,
           currency: 'EUR',
           countries,
           sections,
@@ -933,9 +936,10 @@ export class RoutingService {
       return {
         available: false,
         provider: 'here',
+        status: 'failed',
         code,
         message: 'Toll calculation unavailable for this route',
-        totalCost: 0,
+        totalCost: null,
         currency: 'EUR',
         countries: [],
         sections: [],
@@ -946,9 +950,10 @@ export class RoutingService {
     return {
       available: false,
       provider: 'here',
-      code: 'provider_no_data',
+      status: 'failed',
+      code: 'provider_no_route',
       message: 'Toll calculation unavailable for this route',
-      totalCost: 0,
+      totalCost: null,
       currency: 'EUR',
       countries: [],
       sections: [],

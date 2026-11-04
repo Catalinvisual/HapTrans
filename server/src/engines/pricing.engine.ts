@@ -5,7 +5,8 @@ import { CostEngine, TripCostBreakdown } from './cost.engine';
 export interface TripFinancials {
   revenue: number;
   cost: number;
-  profit: number;
+  profit: number | null;
+  costComplete: boolean;
   costBreakdown: TripCostBreakdown;
 }
 
@@ -22,12 +23,17 @@ export class PricingEngine {
   async calculateFinancials(trip: Trip): Promise<TripFinancials> {
     const revenue = this.calculateRevenue(trip);
     const costBreakdown = await this.costEngine.calculateTripCosts(trip, revenue);
-    const profit = Math.round((revenue - costBreakdown.total) * 100) / 100;
+    // Do not report profit when a required cost component (notably tolls) is
+    // unavailable; otherwise the missing cost artificially inflates profit.
+    const profit = costBreakdown.costComplete
+      ? Math.round((revenue - costBreakdown.total) * 100) / 100
+      : null;
 
     return {
       revenue: Math.round(revenue * 100) / 100,
       cost: costBreakdown.total,
       profit,
+      costComplete: costBreakdown.costComplete,
       costBreakdown,
     };
   }

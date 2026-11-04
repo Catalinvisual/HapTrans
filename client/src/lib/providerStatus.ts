@@ -10,6 +10,8 @@ const PROVIDER_MESSAGE_KEYS: Record<string, string> = {
   provider_timeout: 'provider_timeout',
   provider_network_error: 'provider_network_error',
   provider_no_data: 'provider_no_data',
+  provider_no_route: 'provider_no_route',
+  provider_route_geometry_incomplete: 'provider_route_geometry_incomplete',
   provider_unsupported: 'provider_unsupported',
   provider_request_failed: 'provider_request_failed',
 };

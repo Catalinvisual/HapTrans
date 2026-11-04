@@ -163,7 +163,8 @@ export function buildTripMetrics(trip: any) {
       ? {
           fuel: rawBreakdown.fuelCostAvailable === false ? null : toNum(rawBreakdown.fuelCost),
           fuelCostAvailable: rawBreakdown.fuelCostAvailable !== false,
-          toll: toNum(rawBreakdown.tollCost),
+          toll: rawBreakdown.tollCostAvailable === false ? null : toNum(rawBreakdown.tollCost),
+          tollCostAvailable: rawBreakdown.tollCostAvailable !== false,
           driver: toNum(rawBreakdown.driverCost),
           maintenance: toNum(rawBreakdown.maintenanceCost),
           fixed: toNum(rawBreakdown.fixedCost),
@@ -188,7 +189,7 @@ export function buildTripMetrics(trip: any) {
   // A CostEngine breakdown contains tollCost=0 when HERE did not return a
   // toll. Do not turn that into a verified €0 toll.
   const estimatedToll =
-    tollDisabled || !estimatedBreakdown?.toll || estimatedBreakdown.toll <= 0
+    tollDisabled || estimatedBreakdown?.tollCostAvailable === false || !estimatedBreakdown?.toll || estimatedBreakdown.toll <= 0
       ? null
       : estimatedBreakdown.toll;
   const estimatedDriver =
@@ -256,7 +257,14 @@ export function buildTripMetrics(trip: any) {
     totalCost = estimatedCost;
     costBasis = 'estimated';
   }
-  const profit = revenue !== null && totalCost !== null ? money(revenue - totalCost) : estimatedProfit;
+  // A missing toll estimate makes total cost and profit incomplete. Do not
+  // present a profit that silently excludes an unavailable toll.
+  const tollMissing =
+    recordedToll === null &&
+    (tollDisabled || (estimatedBreakdown !== null && estimatedBreakdown.tollCostAvailable === false));
+  const profit = revenue !== null && totalCost !== null && !tollMissing
+    ? money(revenue - totalCost)
+    : (tollMissing ? null : estimatedProfit);
 
   const stops = (trip?.stops || []).slice().sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
 

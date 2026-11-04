@@ -121,7 +121,7 @@ export class Trip {
 
   // Tolls accumulated from real routing / toll providers
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2, default: 0 })
-  tollCost: number;
+  tollCost: number | null;
 
   @Column({ type: 'varchar', default: 'not_calculated' })
   tollStatus: string; // 'not_calculated' | 'calculated' | 'unavailable'
@@ -154,7 +154,7 @@ export class Trip {
 
   // Financials (Managed by Pricing Engine)
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, nullable: true })
-  estimatedProfit: number;
+  estimatedProfit: number | null;
 
   // Authoritative CostEngine breakdown (fuel, toll, driver, maintenance, fixed, manual)
   @Column({ type: 'jsonb', nullable: true })
@@ -164,7 +164,7 @@ export class Trip {
   costCalculatedAt: Date | null;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, nullable: true })
-  actualProfit: number;
+  actualProfit: number | null;
 
   // Lifecycle & Validation
   @Column({ type: 'varchar', default: 'not_validated' })

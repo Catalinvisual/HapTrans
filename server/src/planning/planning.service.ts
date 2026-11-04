@@ -1840,7 +1840,7 @@ export class PlanningService {
       estimatedProfit: financials.profit,
       estimatedCostBreakdown: financials.costBreakdown as any,
       costCalculatedAt: calculatedAt,
-      tollCost: financials.costBreakdown.tollCost,
+      ...(financials.costBreakdown.tollCostAvailable ? { tollCost: financials.costBreakdown.tollCost } : {}),
     });
 
     return {
@@ -1861,7 +1861,7 @@ export class PlanningService {
         estimatedCost: financials.cost,
         estimatedProfit: financials.profit,
         actualProfit: financials.profit,
-        tollCost: financials.costBreakdown.tollCost,
+        ...(financials.costBreakdown.tollCostAvailable ? { tollCost: financials.costBreakdown.tollCost } : {}),
         estimatedCostBreakdown: financials.costBreakdown as any,
         costCalculatedAt: new Date(),
       });
@@ -5358,11 +5358,15 @@ export class PlanningService {
     if (validStops.length < 2) {
       return {
         available: false,
+        provider: 'none',
+        status: 'incomplete',
+        code: 'provider_route_geometry_incomplete',
         message: 'Trip requires at least 2 stops with geographic coordinates for toll calculation',
-        totalCost: 0,
+        totalCost: null,
         currency: 'EUR',
         countries: [],
         sections: [],
+        calculatedAt: new Date(),
       };
     }
 
@@ -5377,13 +5381,18 @@ export class PlanningService {
       hasTrailer: !!trip.trailer,
     });
 
-    if (tollResult.available) {
+    if (tollResult.available && tollResult.totalCost !== null) {
       trip.tollCost = tollResult.totalCost;
-      trip.tollStatus = 'calculated';
+      trip.tollStatus = tollResult.status === 'calculated_zero' ? 'calculated_zero' : 'calculated';
       trip.tollCountries = tollResult.countries;
       await this.tripRepo.save(trip);
     } else {
-      trip.tollStatus = 'unavailable';
+      // Never overwrite an existing toll value with zero on a failed request.
+      trip.tollStatus = tollResult.status === 'failed'
+        ? 'failed'
+        : tollResult.status === 'incomplete'
+          ? 'incomplete'
+          : 'unavailable';
       await this.tripRepo.save(trip);
     }
 

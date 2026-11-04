@@ -9,6 +9,27 @@ import { ActionLogsService } from '../action-logs/action-logs.service';
 import { computeAuditChanges } from '../action-logs/diff.util';
 import { normalizeTruckFuelType } from './fuel-type';
 
+function normalizeVehicleIdentity(data: any) {
+  if ('vin' in data) {
+    const vin = data.vin === null || data.vin === undefined || data.vin === ''
+      ? null
+      : String(data.vin).trim().toUpperCase();
+    if (vin && !/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) {
+      throw new BadRequestException('VIN must contain exactly 17 valid characters');
+    }
+    data.vin = vin;
+  }
+  if ('registrationCountry' in data) {
+    const country = data.registrationCountry === null || data.registrationCountry === undefined || data.registrationCountry === ''
+      ? null
+      : String(data.registrationCountry).trim().toUpperCase();
+    if (country && !/^[A-Z]{2}$/.test(country)) {
+      throw new BadRequestException('Registration country must be a two-letter ISO country code');
+    }
+    data.registrationCountry = country;
+  }
+}
+
 @Injectable()
 export class TrucksService {
   constructor(
@@ -21,6 +42,7 @@ export class TrucksService {
   findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['documents', 'trips', 'driver', 'driver.user', 'trailer'] }); }
   async create(dto: any, user: any) { 
     const data = { ...dto };
+    normalizeVehicleIdentity(data);
     const fuelType = normalizeTruckFuelType(data.fuelType);
     if (!fuelType) {
       throw new BadRequestException('Fuel / energy type is required for a new truck');
@@ -47,6 +69,7 @@ export class TrucksService {
   }
   async update(id: string, dto: any, user: any) { 
     const data = { ...dto };
+    normalizeVehicleIdentity(data);
     if ('fuelType' in data) {
       const rawFuelType = data.fuelType;
       const fuelType = normalizeTruckFuelType(rawFuelType);

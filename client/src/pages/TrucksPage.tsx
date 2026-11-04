@@ -26,6 +26,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import { generateTruckPdf } from '../lib/pdfGenerator';
 import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import { matchesSearch } from '../lib/search';
+import { countryNames, countryName } from '../lib/countries';
 import {
   TRUCK_FUEL_TYPES,
   normalizeTruckFuelType,
@@ -55,8 +56,8 @@ const FEATURES = [
   { id: 'adr', label: 'feat_adr', default: 'ADR', icon: AlertTriangle },
   { id: 'lift', label: 'feat_lift', default: 'Lift Hidraulic', icon: Info },
   { id: 'gps', label: 'feat_gps', default: 'GPS Track', icon: Gauge },
-  { id: 'mega', label: 'truck_type_mega', default: 'Mega', icon: Boxes },
-  { id: 'frigo', label: 'truck_type_frigo', default: 'Frigo', icon: Battery }
+  // Mega and Frigo are truck types; they are intentionally not duplicated as
+  // selectable features. Existing stored feature values are preserved.
 ];
 const TRUCK_DOC_TYPES = [
   { value: 'apk', label: 'doc_apk', default: 'APK / ITP' },
@@ -147,7 +148,7 @@ export default function TrucksPage() {
   }), []);
 
   const initialForm = {
-    plateNumber: '', brand: '', model: '', year: '',
+    plateNumber: '', brand: '', model: '', year: '', vin: '', registrationCountry: '',
     truckType: 'tautliner', euronorm: 'Euro 6', features: [] as string[],
     maxWeightKg: '', maxPallets: '', maxLdm: '', maxVolumeCbm: '', payloadCapacity: '',
     heightCm: '', widthCm: '', lengthCm: '', axleCount: '', fuelType: '', fuelPricePerLiter: '',
@@ -248,6 +249,8 @@ export default function TrucksPage() {
         totalMileage: form.totalMileage ? Number(form.totalMileage) : null,
         nextMaintenanceMileage: form.nextMaintenanceMileage ? Number(form.nextMaintenanceMileage) : null,
         year: form.year ? Number(form.year) : null,
+        vin: form.vin?.trim().toUpperCase() || null,
+        registrationCountry: form.registrationCountry?.trim().toUpperCase() || null,
         trailerId: form.trailerId || null,
       };
 
@@ -308,7 +311,7 @@ export default function TrucksPage() {
       if (filters.status !== 'all' && tr.status !== filters.status) return false;
       if (filters.type !== 'all' && (tr.truckType || 'tautliner') !== filters.type) return false;
       if (filters.fuel !== 'all' && normalizeTruckFuelType(tr.fuelType) !== filters.fuel) return false;
-      return matchesSearch(search, tr.plateNumber, tr.brand, tr.model, tr.truckType, tr.euronorm, driverName(tr.driver), fuelTypeLabel(tr.fuelType, t));
+      return matchesSearch(search, tr.plateNumber, tr.brand, tr.model, tr.vin, tr.registrationCountry, tr.truckType, tr.euronorm, driverName(tr.driver), fuelTypeLabel(tr.fuelType, t));
     });
   }, [trucks, search, filters]);
 
@@ -356,6 +359,7 @@ export default function TrucksPage() {
   const openEdit = (truck: any) => {
     setForm({
       plateNumber: truck.plateNumber || '', brand: truck.brand || '', model: truck.model || '', year: truck.year || '',
+      vin: truck.vin || '', registrationCountry: truck.registrationCountry || '',
       truckType: truck.truckType || 'tautliner', euronorm: truck.euronorm || 'Euro 6', features: truck.features || [],
       maxWeightKg: truck.maxWeightKg || '', maxPallets: truck.maxPallets || '', maxLdm: truck.maxLdm || '', maxVolumeCbm: truck.maxVolumeCbm || '',
       payloadCapacity: truck.payloadCapacity || '',
@@ -391,6 +395,17 @@ export default function TrucksPage() {
 
   const drawerTruck = drawerTruckId ? trucks.find(tr => tr.id === drawerTruckId) : null;
   const formFuelProfile = getTruckFuelProfile(form.fuelType);
+  const registrationCountryOptions: SelectOption[] = useMemo(() => {
+    let display: any = null;
+    try {
+      display = new (Intl as any).DisplayNames([i18n.language || 'en'], { type: 'region' });
+    } catch {}
+    return Object.keys(countryNames)
+      .map((code) => ({ value: code, label: display?.of(code) || countryName(code, 'en') }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [i18n.language]);
+  const countryLabel = (code?: string | null) =>
+    code ? (registrationCountryOptions.find((option) => option.value === code)?.label || code) : '—';
 
   const columns: Column<any>[] = [
     {
@@ -592,6 +607,8 @@ export default function TrucksPage() {
             <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary">{t('euronorm', 'Euronorm')}</div><div className="text-sm font-bold mt-0.5">{drawerTruck.euronorm || 'Euro 6'}</div></div>
             <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary">{t('truck_fuel_type', 'Fuel / energy type')}</div><div className="text-sm font-bold mt-0.5">{drawerTruck.fuelType ? fuelTypeLabel(drawerTruck.fuelType, t) : <span className="text-amber-600 italic">{t('truck_fuel_not_configured', 'Fuel type not configured')}</span>}</div></div>
             <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary">{t('truck_fuel_consumption', 'Consumption')}</div><div className="text-sm font-bold mt-0.5">{drawerTruck.fuelConsumption ? `${fmtNumber(drawerTruck.fuelConsumption, 1)} ${getTruckFuelProfile(drawerTruck.fuelType)?.unit || t('truck_fuel_unit_unknown', 'unit not configured')}` : '—'}</div></div>
+            <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary">{t('vin', 'VIN')}</div><div className="text-sm font-bold mt-0.5 font-mono">{drawerTruck.vin || '—'}</div></div>
+            <div className="bg-surface/50 rounded-xl p-3 border border-border"><div className="text-[10px] font-bold uppercase text-text-secondary">{t('registration_country', 'Registration country')}</div><div className="text-sm font-bold mt-0.5">{countryLabel(drawerTruck.registrationCountry)}</div></div>
           </div>
           <div className="flex flex-wrap gap-1.5">
             <StatusBadge type="fleet" status={drawerTruck.status || 'active'} label={t(`truck_status_${drawerTruck.status || 'active'}`, (drawerTruck.status || 'active').replace(/_/g, ' ')) as string} size="md" />
@@ -999,7 +1016,7 @@ export default function TrucksPage() {
         <form onSubmit={handleSubmit} className="p-2">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-5">
             <div className="xl:col-span-4 pb-2 mb-2 border-b border-border/50">
-              <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Info className="w-4 h-4"/>{t('section_identification') || '1. Identification & Allocation'}</h4>
+              <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Info className="w-4 h-4"/>{t('section_identification_registration', '1. Identification & Registration')}</h4>
             </div>
             <div>
               <label className="label font-semibold">{t('plateNumber', 'License Plate')} <span className="text-red-500">*</span></label>
@@ -1007,15 +1024,15 @@ export default function TrucksPage() {
             </div>
             <div><label className="label font-semibold">{t('brand', 'Brand')} <span className="text-red-500">*</span></label><input type="text" className="input" value={form.brand} onChange={e => setForm({...form, brand: e.target.value})} required /></div>
             <div><label className="label font-semibold">{t('model', 'Model')} <span className="text-red-500">*</span></label><input type="text" className="input" value={form.model} onChange={e => setForm({...form, model: e.target.value})} required /></div>
-            <div><label className="label font-semibold">{t('year', 'Year')} </label><input type="number" className="input" value={form.year} onChange={e => setForm({...form, year: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('year', 'Year')}</label><input type="number" className="input" value={form.year} onChange={e => setForm({...form, year: e.target.value})} /></div>
             <div className="xl:col-span-2">
-                <label className="label">{t('driver', 'Driver')}</label>
-                <CustomSelect value={form.driverId} onChange={val => setForm({ ...form, driverId: val })} options={[{ value: '', label: t('no_driver', 'No driver') }, ...drivers.map(dr => ({ value: dr.id, label: driverName(dr) }))]} />
+              <label className="label font-semibold">{t('vin', 'VIN')}</label>
+              <input type="text" className="input uppercase font-mono tracking-wider" maxLength={17} value={form.vin || ''} onChange={e => setForm({...form, vin: e.target.value.toUpperCase()})} placeholder={t('vin', 'VIN')} />
+              <p className="mt-1 text-[11px] text-text-muted">{t('vin_hint', '17-character Vehicle Identification Number. Optional for legacy records.')}</p>
             </div>
-              
-            <div className="xl:col-span-2">
-                <label className="label">{t('trailer', 'Trailer')}</label>
-                <CustomSelect value={form.trailerId} onChange={val => setForm({ ...form, trailerId: val })} options={trailerOptions} />
+            <div>
+              <label className="label font-semibold">{t('registration_country', 'Registration country')}</label>
+              <CustomSelect value={form.registrationCountry || ''} onChange={v => setForm({...form, registrationCountry: v})} options={registrationCountryOptions} placeholder={t('registration_country_placeholder', 'Select country')} />
             </div>
             <div className={`transition-all ${highlightParam === 'status' ? 'p-3 rounded-2xl bg-orange-500/10 border-2 border-orange-500 ring-4 ring-orange-500/30 animate-pulse shadow-lg shadow-orange-500/20' : ''}`}>
               <div className="flex items-center justify-between mb-1">
@@ -1030,18 +1047,35 @@ export default function TrucksPage() {
             </div>
 
             <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
-              <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Settings2 className="w-4 h-4"/>{t('section_tech_specs') || '2. Technical Specs'}</h4>
+              <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Users className="w-4 h-4"/>{t('section_driver_equipment', '2. Driver & Equipment Allocation')}</h4>
+            </div>
+            <div className="xl:col-span-2">
+              <label className="label font-semibold">{t('driver', 'Driver')}</label>
+              <CustomSelect value={form.driverId} onChange={val => setForm({ ...form, driverId: val })} options={[{ value: '', label: t('no_driver', 'No driver') }, ...drivers.map(dr => ({ value: dr.id, label: driverName(dr) }))]} />
+            </div>
+            <div className="xl:col-span-2">
+              <label className="label font-semibold">{t('trailer', 'Trailer')}</label>
+              <CustomSelect value={form.trailerId} onChange={val => setForm({ ...form, trailerId: val })} options={trailerOptions} />
+            </div>
+            <p className="xl:col-span-4 text-[11px] text-text-muted">{t('permanent_assignment_hint', 'Permanent vehicle allocation. Temporary trip assignments are managed separately in Planning.')}</p>
+
+            <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
+              <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Settings2 className="w-4 h-4"/>{t('section_technical_specs', '3. Technical Specifications')}</h4>
             </div>
             <div>
               <label className="label font-semibold">{t('truckType', 'Truck Type')}</label>
               <CustomSelect value={form.truckType} onChange={v => setForm({...form, truckType: v})} options={TRUCK_TYPES.map(tOption => ({ value: tOption.value, label: t(tOption.label) || tOption.default }))} />
             </div>
             <div>
-              <label className="label font-semibold">{t('euronorm', 'Euronorm')}</label>
+              <label className="label font-semibold">{t('euronorm', 'Emission Standard / Euronorm')}</label>
               <CustomSelect value={form.euronorm} onChange={v => setForm({...form, euronorm: v})} options={EURONORMS.map(en => ({ value: en, label: en }))} />
             </div>
-            <div className="xl:col-span-2">
-              <label className="label font-semibold">{t('features', 'Features')}</label>
+            <div>
+              <label className="label font-semibold">{t('axleCount', 'Axles')}</label>
+              <input type="number" min="0" className="input" value={form.axleCount} onChange={e => setForm({...form, axleCount: e.target.value})} />
+            </div>
+            <div>
+              <label className="label font-semibold">{t('features', 'Features / Equipment')}</label>
               <div className="flex flex-wrap gap-2 mt-1">
                 {FEATURES.map(feat => {
                   const active = form.features?.includes(feat.id);
@@ -1056,22 +1090,28 @@ export default function TrucksPage() {
             </div>
 
             <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
-              <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Boxes className="w-4 h-4"/>{t('section_capacity') || '3. Load Capacity'}</h4>
+              <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Boxes className="w-4 h-4"/>{t('section_load_capacity', '4. Load Capacity & Dimensions')}</h4>
             </div>
-            <div><label className="label font-semibold flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{t('maxWeightKg', 'Max Weight (kg)')}</label><input type="number" className="input" value={form.maxWeightKg} onChange={e => setForm({...form, maxWeightKg: e.target.value})} /></div>
-            <div><label className="label font-semibold flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{t('payloadCapacity', 'Payload Capacity (kg)')}</label><input type="number" className="input" value={form.payloadCapacity} onChange={e => setForm({...form, payloadCapacity: e.target.value})} /></div>
-            <div><label className="label font-semibold flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{t('maxPallets', 'Max Pallets')}</label><input type="number" className="input" value={form.maxPallets} onChange={e => setForm({...form, maxPallets: e.target.value})} /></div>
-            <div><label className="label font-semibold">{t('maxLdm', 'Max LDM')}</label><input type="number" step="0.1" className="input" value={form.maxLdm} onChange={e => setForm({...form, maxLdm: e.target.value})} /></div>
-            <div><label className="label font-semibold">{t('maxVolumeCbm', 'Max Volume (m³)')}</label><input type="number" className="input" value={form.maxVolumeCbm} onChange={e => setForm({...form, maxVolumeCbm: e.target.value})} /></div>
-            <div><label className="label font-semibold">{t('heightCm', 'Height (cm)')}</label><input type="number" className="input" value={form.heightCm} onChange={e => setForm({...form, heightCm: e.target.value})} /></div>
-            <div><label className="label font-semibold">{t('widthCm', 'Width (cm)')}</label><input type="number" className="input" value={form.widthCm} onChange={e => setForm({...form, widthCm: e.target.value})} /></div>
-            <div><label className="label font-semibold">{t('lengthCm', 'Length (cm)')}</label><input type="number" className="input" value={form.lengthCm} onChange={e => setForm({...form, lengthCm: e.target.value})} /></div>
-            <div><label className="label font-semibold">{t('axleCount', 'Axles')}</label><input type="number" className="input" value={form.axleCount} onChange={e => setForm({...form, axleCount: e.target.value})} /></div>
+            <div>
+              <label className="label font-semibold flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{t('maxWeightKg', 'Max Gross Weight (kg)')}</label>
+              <input type="number" min="0" className="input" value={form.maxWeightKg} onChange={e => setForm({...form, maxWeightKg: e.target.value})} />
+              <p className="mt-1 text-[11px] text-text-muted">{t('max_gross_weight_hint', 'Maximum permissible gross vehicle weight, not payload.')}</p>
+            </div>
+            <div>
+              <label className="label font-semibold flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{t('payloadCapacity', 'Payload Capacity (kg)')}</label>
+              <input type="number" min="0" className="input" value={form.payloadCapacity} onChange={e => setForm({...form, payloadCapacity: e.target.value})} />
+              <p className="mt-1 text-[11px] text-text-muted">{t('payload_capacity_hint', 'Maximum cargo mass the vehicle may carry.')}</p>
+            </div>
+            <div><label className="label font-semibold flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{t('maxPallets', 'Max Pallets')}</label><input type="number" min="0" className="input" value={form.maxPallets} onChange={e => setForm({...form, maxPallets: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('maxLdm', 'Max Loading Metres (LDM)')}</label><input type="number" step="0.1" min="0" className="input" value={form.maxLdm} onChange={e => setForm({...form, maxLdm: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('maxVolumeCbm', 'Max Volume (m³)')}</label><input type="number" step="0.1" min="0" className="input" value={form.maxVolumeCbm} onChange={e => setForm({...form, maxVolumeCbm: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('heightCm', 'Height (cm)')}</label><input type="number" step="0.1" min="0" className="input" value={form.heightCm} onChange={e => setForm({...form, heightCm: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('widthCm', 'Width (cm)')}</label><input type="number" step="0.1" min="0" className="input" value={form.widthCm} onChange={e => setForm({...form, widthCm: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('lengthCm', 'Length (cm)')}</label><input type="number" step="0.1" min="0" className="input" value={form.lengthCm} onChange={e => setForm({...form, lengthCm: e.target.value})} /></div>
 
             <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
-              <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Fuel className="w-4 h-4"/>{t('section_costs') || '4. Costs & Maintenance'}</h4>
+              <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Fuel className="w-4 h-4"/>{t('section_fuel_energy', '5. Fuel & Energy')}</h4>
             </div>
-            <div><label className="label font-semibold">{t('costPerKm', 'Cost per km')} (€)</label><input type="number" step="0.01" className="input" value={form.costPerKm} onChange={e => setForm({...form, costPerKm: e.target.value})} /></div>
             <div className="xl:col-span-2">
               <label className="label font-semibold">{t('truck_fuel_type', 'Fuel / energy type')} {!editId || form.fuelType ? <span className="text-red-500">*</span> : null}</label>
               <CustomSelect value={form.fuelType} onChange={v => setForm({...form, fuelType: v})} options={formFuelTypeOptions} placeholder={t('truck_fuel_type_placeholder', 'Select fuel / energy type')} />
@@ -1080,17 +1120,30 @@ export default function TrucksPage() {
               )}
             </div>
             <div>
-              <label className="label font-semibold">{fuelConsumptionLabel(form.fuelType, t)}</label>
+              <label className="label font-semibold">{t('average_consumption', 'Average consumption')}</label>
               <input type="number" step="0.1" min="0" className="input" value={form.fuelConsumption} onChange={e => setForm({...form, fuelConsumption: e.target.value})} disabled={!formFuelProfile} />
-              {!formFuelProfile && <p className="mt-1 text-[11px] text-text-muted">{t('truck_fuel_select_for_consumption', 'Select a fuel type to set its consumption unit.')}</p>}
             </div>
             <div>
-              <label className="label font-semibold">{fuelEnergyPriceLabel(form.fuelType, t)}</label>
-              <input type="number" step="0.001" min="0" className="input" value={form.fuelPricePerLiter} onChange={e => setForm({...form, fuelPricePerLiter: e.target.value})} disabled={!formFuelProfile} />
-              {formFuelProfile && <p className="mt-1 text-[11px] text-text-muted">{t('truck_fuel_energy_price_hint', 'Used by Planning for this energy unit; no cross-fuel conversion is applied.')}</p>}
+              <label className="label font-semibold">{t('consumption_unit', 'Consumption unit')}</label>
+              <input type="text" className="input bg-surface/50" value={formFuelProfile?.unit || '—'} readOnly aria-readonly="true" />
             </div>
-            <div><label className="label font-semibold">{t('totalMileage', 'Total Mileage')}</label><input type="number" className="input" value={form.totalMileage} onChange={e => setForm({...form, totalMileage: e.target.value})} /></div>
-            <div><label className="label font-semibold">{t('nextMaintenanceMileage', 'Next Maintenance (km)')}</label><input type="number" className="input" value={form.nextMaintenanceMileage} onChange={e => setForm({...form, nextMaintenanceMileage: e.target.value})} /></div>
+            <div>
+              <label className="label font-semibold">{t('truck_energy_price', 'Energy price')}</label>
+              <input type="number" step="0.001" min="0" className="input" value={form.fuelPricePerLiter} onChange={e => setForm({...form, fuelPricePerLiter: e.target.value})} disabled={!formFuelProfile} />
+            </div>
+            <div>
+              <label className="label font-semibold">{t('energy_price_unit', 'Energy price unit')}</label>
+              <input type="text" className="input bg-surface/50" value={formFuelProfile ? `€/${formFuelProfile.unit?.split('/')[0] || ''}` : '—'} readOnly aria-readonly="true" />
+            </div>
+            <p className="xl:col-span-4 text-[11px] text-text-muted">{t('fuel_energy_section_hint', 'Consumption and price are stored in the unit of the selected energy type; values are never converted between fuel types.')}</p>
+            {!formFuelProfile && <p className="xl:col-span-4 text-[11px] text-text-muted">{t('truck_fuel_select_for_consumption', 'Select a fuel type to set its consumption unit.')}</p>}
+
+            <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
+              <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Coins className="w-4 h-4"/>{t('section_costs_maintenance', '6. Costs & Maintenance')}</h4>
+            </div>
+            <div><label className="label font-semibold">{t('costPerKm', 'Average cost / km')} (€)</label><input type="number" step="0.01" min="0" className="input" value={form.costPerKm} onChange={e => setForm({...form, costPerKm: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('totalMileage', 'Total Mileage (km)')}</label><input type="number" min="0" className="input" value={form.totalMileage} onChange={e => setForm({...form, totalMileage: e.target.value})} /></div>
+            <div><label className="label font-semibold">{t('nextMaintenanceMileage', 'Next Maintenance (km)')}</label><input type="number" min="0" className="input" value={form.nextMaintenanceMileage} onChange={e => setForm({...form, nextMaintenanceMileage: e.target.value})} /></div>
           </div>
         </form>
       </DetailDrawer>
@@ -1100,6 +1153,8 @@ export default function TrucksPage() {
         { key: 'plateNumber', label: 'Plate Number', transform: (v: any) => v || '' },
         { key: 'brand', label: 'Brand', transform: (v: any) => v || '' },
         { key: 'model', label: 'Model', transform: (v: any) => v || '' },
+        { key: 'vin', label: t('vin', 'VIN'), transform: (v: any) => v || '' },
+        { key: 'registrationCountry', label: t('registration_country', 'Registration country'), transform: (v: any) => countryLabel(v) },
         { key: 'truckType', label: 'Type', transform: (_v: any, tr: any) => truckTypeLabel(tr, t) },
         { key: 'euronorm', label: 'Euronorm', transform: (v: any) => v || '' },
         { key: 'fuelType', label: t('truck_fuel_type', 'Fuel / energy type'), transform: (_v: any, tr: any) => tr.fuelType ? fuelTypeLabel(tr.fuelType, t) : t('truck_fuel_not_configured', 'Fuel type not configured') },

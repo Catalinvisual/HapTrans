@@ -6,7 +6,10 @@ import { getTruckFuelProfile } from '../trucks/fuel-type';
 
 export interface TripCostBreakdown {
   fuelCost: number;
-  tollCost: number;
+  tollCost: number | null;
+  tollCostAvailable: boolean;
+  tollStatus: string;
+  costComplete: boolean;
   driverCost: number;
   driverDays: number;
   manualCost: number;
@@ -100,8 +103,16 @@ export class CostEngine {
     }
     const dieselPrice = energyPrice; // legacy API field; now the selected energy price
 
-    // Tolls: accumulated from real HERE routing at trip-metric-recalc time
-    const tollCost = Number((trip as any).tollCost || 0);
+    // Tolls: only a provider-confirmed or explicitly estimated toll is usable.
+    // A missing/failed/unavailable estimate must never become a valid €0.
+    const tollStatus = String((trip as any).tollStatus || 'not_calculated').toLowerCase();
+    const tollCostAvailable =
+      ['calculated', 'calculated_zero', 'estimated'].includes(tollStatus) &&
+      (trip as any).tollCost !== null &&
+      (trip as any).tollCost !== undefined &&
+      Number.isFinite(Number((trip as any).tollCost));
+    const tollCost = tollCostAvailable ? Number((trip as any).tollCost) : null;
+    if (!tollCostAvailable) estimatedFields.push('tollCost');
 
     const driverDays = this.estimateDriverDays(trip, routePlan);
     const driverResult = this.calculateDriverCost(trip, driver, distanceKm, driverDays, revenue, routePlan);
@@ -127,11 +138,12 @@ export class CostEngine {
       }
     }
 
-    const total = fuelCost + tollCost + driverResult.cost + maintenanceCost + fixedCost + manualCost;
+    const total = fuelCost + (tollCost ?? 0) + driverResult.cost + maintenanceCost + fixedCost + manualCost;
+    const costComplete = fuelCostAvailable && tollCostAvailable && driverResult.source !== 'unavailable';
 
     const breakdown: { type: string; amount: number; description: string }[] = [
       { type: 'fuel', amount: Math.round(fuelCost * 100) / 100, description: fuelCostDescription },
-      { type: 'toll', amount: Math.round(tollCost * 100) / 100, description: 'Toll costs (HERE routing)' },
+      { type: 'toll', amount: Math.round((tollCost ?? 0) * 100) / 100, description: tollCostAvailable ? (tollStatus === 'calculated_zero' ? 'Toll confirmed at €0 by HERE routing' : 'Toll costs (HERE routing)') : 'Toll cost unavailable — excluded from total' },
       { type: 'driver', amount: Math.round(driverResult.cost * 100) / 100, description: driverResult.description },
       ...(maintenanceCost > 0 ? [{ type: 'maintenance', amount: Math.round(maintenanceCost * 100) / 100, description: `${Math.round(distanceKm)} km × ${maintenancePerKm} €/km` }] : []),
       ...(fixedCost > 0 ? [{ type: 'fixed', amount: Math.round(fixedCost * 100) / 100, description: `${driverDays} day(s) × ${fixedCostPerDay} €/day` }] : []),
@@ -140,7 +152,10 @@ export class CostEngine {
 
     return {
       fuelCost: Math.round(fuelCost * 100) / 100,
-      tollCost: Math.round(tollCost * 100) / 100,
+      tollCost: tollCost === null ? null : Math.round(tollCost * 100) / 100,
+      tollCostAvailable,
+      tollStatus,
+      costComplete,
       driverCost: Math.round(driverResult.cost * 100) / 100,
       driverDays,
       manualCost: Math.round(manualCost * 100) / 100,

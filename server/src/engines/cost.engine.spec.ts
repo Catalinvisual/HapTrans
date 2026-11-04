@@ -16,6 +16,7 @@ describe('CostEngine authoritative trip costs', () => {
   const trip = {
     distanceKm: 100,
     tollCost: 20,
+    tollStatus: 'calculated',
     plannedDeparture: new Date('2026-11-03T08:00:00Z'),
     plannedArrival: new Date('2026-11-03T18:00:00Z'),
     truck,
@@ -152,6 +153,31 @@ describe('CostEngine authoritative trip costs', () => {
     expect(result.fuelCost).toBe(0);
     expect(result.fuelCostAvailable).toBe(false);
     expect(result.estimatedFields).toContain('fuelType');
+  });
+
+  it('does not treat an unavailable toll as a confirmed zero', async () => {
+    const engine = new CostEngine(routing);
+    const result = await engine.calculateTripCosts(
+      { ...trip, tollStatus: 'unavailable', tollCost: 0 } as any,
+      500,
+    );
+    expect(result.tollCost).toBeNull();
+    expect(result.tollCostAvailable).toBe(false);
+    expect(result.costComplete).toBe(false);
+    expect(result.estimatedFields).toContain('tollCost');
+    expect(result.breakdown.find((item) => item.type === 'toll')?.description).toContain('unavailable');
+  });
+
+  it('accepts a provider-confirmed zero toll without inventing a cost', async () => {
+    const engine = new CostEngine(routing);
+    const result = await engine.calculateTripCosts(
+      { ...trip, tollStatus: 'calculated_zero', tollCost: 0 } as any,
+      500,
+    );
+    expect(result.tollCost).toBe(0);
+    expect(result.tollCostAvailable).toBe(true);
+    expect(result.costComplete).toBe(true);
+    expect(result.estimatedFields).not.toContain('tollCost');
   });
 
   it('does not invent a driver cost when no profile is available', async () => {

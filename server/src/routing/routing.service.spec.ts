@@ -96,6 +96,24 @@ describe('RoutingService provider contracts', () => {
     expect(service.getProviderDiagnostics().here.reachable).toBe('no');
   });
 
+  it('returns unavailable, not zero, when no toll provider is configured', async () => {
+    const service = serviceWith({});
+    const result = await service.calculateTolls({ lat: 44.4, lng: 26.1 }, { lat: 52.5, lng: 13.4 });
+    expect(result.available).toBe(false);
+    expect(result.status).toBe('unavailable');
+    expect(result.totalCost).toBeNull();
+    expect(result.code).toBe('provider_key_missing');
+  });
+
+  it('marks a successful no-toll route as calculated zero', async () => {
+    mockedGet.mockResolvedValueOnce({ data: { routes: [{ sections: [{ summary: { length: 1000, duration: 60 } }] }] } });
+    const service = serviceWith({ HERE_API_KEY: 'test-key' });
+    const result = await service.calculateTolls({ lat: 44.4, lng: 26.1 }, { lat: 44.5, lng: 26.2 });
+    expect(result.available).toBe(true);
+    expect(result.status).toBe('calculated_zero');
+    expect(result.totalCost).toBe(0);
+  });
+
   it('reports a missing key as missing and keeps ORS traffic/toll unsupported', () => {
     const service = serviceWith({ ORS_API_KEY: 'ors-secret' });
     const diagnostics = service.getProviderDiagnostics();
