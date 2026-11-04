@@ -68,6 +68,7 @@ const WebsiteHubPage   = lazy(() => import('./pages/WebsiteHubPage'));
 const SharedDocumentPage = lazy(() => import('./pages/SharedDocumentPage'));
 const TrackingPage     = lazy(() => import('./pages/TrackingPage'));
 const TachographPage   = lazy(() => import('./pages/TachographPage'));
+const TelematicsPage   = lazy(() => import('./pages/TelematicsPage'));
 const TelematicsSimulatorPage = lazy(() => import('./pages/TelematicsSimulatorPage'));
 
 // ─── Portal Pages (Lazy) ──────────────────────────────────────────────────
@@ -201,9 +202,9 @@ export default function App() {
             <Route path="chat" element={<Suspense fallback={<PageLoader />}><ChatPage /></Suspense>} />
             <Route path="planning" element={<Suspense fallback={<PageLoader />}><PlanningPage /></Suspense>} />
             <Route path="planning/planner/:truckId" element={<Suspense fallback={<PageLoader />}><TruckRoutePlannerPage /></Suspense>} />
-            {/* Telematics device configuration moved to Settings → Telematics & Integrations.
-                Keep legacy URLs (and the old simulator deep link) working; simulator is admin-gated. */}
-            <Route path="telematics" element={<LegacyRedirect toBase="/settings" tab="telematics" />} />
+            {/* Telematics and Tachograph are first-class operational modules.
+                Settings → Telematics & Integrations remains available for device setup. */}
+            <Route path="telematics" element={<Suspense fallback={<PageLoader />}><TelematicsPage /></Suspense>} />
             <Route path="tachograph" element={<Suspense fallback={<PageLoader />}><TachographPage /></Suspense>} />
             <Route path="telematics/simulator" element={<Suspense fallback={<PageLoader />}><TelematicsSimulatorPage /></Suspense>} />
           </Route>

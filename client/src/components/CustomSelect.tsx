@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, Check } from 'lucide-react';
@@ -24,6 +24,16 @@ interface CustomSelectProps {
   icon?: React.ReactNode | React.ElementType;
   /** Optional tooltip for the trigger button. */
   title?: string;
+}
+
+interface DropdownPosition {
+  left: number;
+  top: number | null;
+  bottom: number | null;
+  width: number;
+  maxHeight: number;
+  placement: 'top' | 'bottom';
+  ready: boolean;
 }
 
 const COLOR_MAP: Record<string, string> = {
@@ -127,12 +137,55 @@ export default function CustomSelect({
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [coords, setCoords] = useState({
+  const [coords, setCoords] = useState<DropdownPosition>({
     left: 0,
-    top: 0,
+    top: null,
+    bottom: null,
     width: 0,
+    maxHeight: 288,
+    placement: 'bottom',
+    ready: false,
   });
   const [focusedIndex, setFocusedIndex] = useState(-1);
+
+  // Measure the trigger in viewport coordinates on every open/reflow. The menu
+  // is portalled to <body>, so it cannot inherit a transformed/overflow-hidden
+  // ancestor's positioning context and must be clamped to the visual viewport.
+  const updatePosition = useCallback(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper || typeof window === 'undefined') return;
+
+    const rect = wrapper.getBoundingClientRect();
+    const margin = 10;
+    const gap = 4;
+    const minWidth = 190;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const width = Math.min(
+      Math.max(rect.width, minWidth),
+      Math.max(minWidth, viewportWidth - margin * 2),
+    );
+    const left = Math.max(margin, Math.min(rect.left, viewportWidth - width - margin));
+    const spaceBelow = Math.max(0, viewportHeight - rect.bottom - gap - margin);
+    const spaceAbove = Math.max(0, rect.top - gap - margin);
+    // Prefer opening below, but flip above when the lower half of the viewport
+    // cannot comfortably contain the menu.
+    const placement: 'top' | 'bottom' = spaceBelow >= 240 || spaceBelow >= spaceAbove ? 'bottom' : 'top';
+    const available = placement === 'bottom' ? spaceBelow : spaceAbove;
+    const maxHeight = Math.max(96, Math.min(288, available));
+
+    setCoords({
+      left,
+      top: placement === 'bottom' ? rect.bottom + gap : null,
+      // Anchor an above-menu by its bottom edge so it stays next to the trigger
+      // even when it contains fewer options than maxHeight.
+      bottom: placement === 'top' ? Math.max(margin, viewportHeight - rect.top + gap) : null,
+      width,
+      maxHeight,
+      placement,
+      ready: true,
+    });
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -149,20 +202,25 @@ export default function CustomSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    const handleScroll = (e: Event) => {
-      if (isOpen && dropdownRef.current && dropdownRef.current.contains(e.target as Node)) return;
-      if (isOpen && dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    updatePosition();
+
+    const handleReflow = (event: Event) => {
+      const target = event.target as Node | null;
+      // Internal menu scrolling must not move the menu; page/panel scrolling
+      // re-anchors it to its trigger instead of leaving it floating.
+      if (event.type === 'scroll' && target && dropdownRef.current?.contains(target)) return;
+      updatePosition();
     };
-    window.addEventListener('scroll', handleScroll, true);
-    window.addEventListener('resize', handleScroll);
+
+    window.addEventListener('resize', handleReflow);
+    window.addEventListener('scroll', handleReflow, true);
     return () => {
-      window.removeEventListener('scroll', handleScroll, true);
-      window.removeEventListener('resize', handleScroll);
+      window.removeEventListener('resize', handleReflow);
+      window.removeEventListener('scroll', handleReflow, true);
     };
-  }, [isOpen]);
+  }, [isOpen, updatePosition]);
 
   // Global keyboard trap
   useEffect(() => {
@@ -221,21 +279,15 @@ export default function CustomSelect({
   };
 
   const toggleDropdown = () => {
-    const nextOpen = !isOpen;
-    if (!nextOpen) {
+    if (isOpen) {
       setFocusedIndex(-1);
-    } else if (wrapperRef.current) {
-      const rect = wrapperRef.current.getBoundingClientRect();
-      const fitsBelow = rect.bottom + 260 <= window.innerHeight;
-      const topPos = fitsBelow ? rect.bottom + 4 : Math.max(10, rect.top - 264);
-      setCoords({
-        left: Math.max(10, Math.min(rect.left, window.innerWidth - Math.max(rect.width, 190) - 10)),
-        top: topPos,
-        width: Math.max(rect.width, 190),
-      });
-      setFocusedIndex(options.findIndex((o) => o.value === value));
+      setIsOpen(false);
+      return;
     }
-    setIsOpen(nextOpen);
+    setCoords((prev) => ({ ...prev, ready: false }));
+    updatePosition();
+    setFocusedIndex(options.findIndex((o) => o.value === value));
+    setIsOpen(true);
   };
 
   const selectedOption = options.find((o) => o.value === value);
@@ -260,6 +312,8 @@ export default function CustomSelect({
         } transition-all shadow-sm`}
         onClick={toggleDropdown}
         onKeyDown={handleKeyDown}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
       >
         <div className={`flex items-center ${isSm ? 'gap-1.5' : 'gap-2'} truncate`}>
           {icon && <span className="shrink-0 flex items-center text-slate-400">{renderIcon(icon)}</span>}
@@ -286,20 +340,22 @@ export default function CustomSelect({
         />
       </button>
 
-      {isOpen &&
+      {isOpen && coords.ready &&
         typeof document !== 'undefined' &&
         createPortal(
           <div
             className="fixed z-[99999] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 overflow-hidden animate-fade-in-up"
+            data-placement={coords.placement}
             style={{
               left: coords.left,
-              top: coords.top,
+              ...(coords.top !== null ? { top: coords.top } : { bottom: coords.bottom ?? 0 }),
               width: coords.width,
             }}
           >
             <div
               ref={dropdownRef}
-              className="overflow-y-auto overscroll-contain custom-scrollbar max-h-72"
+              className="overflow-y-auto overscroll-contain custom-scrollbar"
+              style={{ maxHeight: coords.maxHeight }}
             >
             {options.length === 0 ? (
               <div className="px-4 py-3 text-sm text-slate-400">{t('jsx_noOptions', 'No options')}</div>

@@ -1261,11 +1261,11 @@ function TripDetailDrawer({
       onClick={onClose}
     >
       <div
-        className={`relative w-[96vw] ${isExpanded ? 'max-w-[1800px]' : 'max-w-[1600px]'} max-h-[94vh] bg-card shadow-2xl flex flex-col rounded-3xl border border-border overflow-y-auto overscroll-contain custom-scrollbar animate-in zoom-in-95 duration-200 transition-all`}
+        className={`relative w-[96vw] ${isExpanded ? 'max-w-[1800px]' : 'max-w-[1600px]'} max-h-[94vh] bg-card shadow-2xl flex flex-col rounded-3xl border border-border overflow-hidden animate-in zoom-in-95 duration-200 transition-all`}
         onClick={e => e.stopPropagation()}
       >
         {/* Header: identity zone + actions zone */}
-        <div className="p-4 sm:p-5 border-b border-border bg-surface/50 flex flex-wrap items-start justify-between gap-3">
+        <div className="p-4 sm:p-5 border-b border-border bg-surface/50 flex flex-wrap items-start justify-between gap-3 shrink-0">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h2 className="text-xl font-black text-text-primary">{trip.tripNumber || tripSummary.tripNumber || 'Trip'}</h2>
@@ -1359,6 +1359,8 @@ function TripDetailDrawer({
           </div>
         </div>
 
+        {/* Single scrollable content pane: header and footer stay fixed inside the rounded shell */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain custom-scrollbar">
         {/* Resources summary */}
         <div className="px-5 py-3 border-b border-border bg-surface/20 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div className="bg-card rounded-xl p-2.5 border border-border/60">
@@ -1922,9 +1924,10 @@ function TripDetailDrawer({
             </div>
           )}
         </div>
+        </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border bg-surface/50 flex flex-col gap-2.5">
+        <div className="p-4 border-t border-border bg-surface/50 flex flex-col gap-2.5 shrink-0">
           {/* Blocking conflict alert */}
           {blockingConflicts.length > 0 && (
             <div

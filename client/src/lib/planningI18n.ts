@@ -1,4 +1,4 @@
-// Planning / Dispatch Center — translation bundles for all 5 supported languages.
+// Planning / Dispatch Center — translation bundles for all 7 supported languages.
 // Registered into i18next via addResourceBundle-style merge in i18n.ts (before init).
 
 const en: Record<string, string> = {
@@ -3483,8 +3483,8 @@ const es: Record<string, string> = {
   pln_blocking_issues: 'Blocking Issues',
   pln_blocking_hint: 'These issues must be resolved before confirming the transport plan.',
   pln_confirmed_locked: 'Plan is confirmed and locked. Click Reopen Planning to make edits.',
-  telematics: 'Telematics',
-  tachograph: 'Tachograph',
+  telematics: 'Telemetría',
+  tachograph: 'Tacógrafo',
   telematics_hub_title: 'Telematics & Digital Tachograph Hub',
   telematics_hub_subtitle: 'Real-time CAN-bus, GPS tracking, Smart 2 tachograph and driver compliance',
   add_telematics_connection: '+ Add Telematics Connection',
@@ -4175,8 +4175,8 @@ const pl: Record<string, string> = {
   pln_blocking_issues: 'Blocking Issues',
   pln_blocking_hint: 'These issues must be resolved before confirming the transport plan.',
   pln_confirmed_locked: 'Plan is confirmed and locked. Click Reopen Planning to make edits.',
-  telematics: 'Telematics',
-  tachograph: 'Tachograph',
+  telematics: 'Telematyka',
+  tachograph: 'Tachograf',
   telematics_hub_title: 'Telematics & Digital Tachograph Hub',
   telematics_hub_subtitle: 'Real-time CAN-bus, GPS tracking, Smart 2 tachograph and driver compliance',
   add_telematics_connection: '+ Add Telematics Connection',

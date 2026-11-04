@@ -47,6 +47,22 @@ const VIEW_KEY = 'hapcargo:planningResultsView';
 const MIN_HEIGHT = 260;
 const MAX_HEIGHT = 800;
 const DEFAULT_HEIGHT = 360;
+// The persisted TripStatus enum. Transition aliases (in_transit, confirmed, etc.)
+// are workflow inputs, not stored statuses, so they must not appear as filters.
+const TRIP_STATUS_VALUES = [
+  'planning',
+  'planned',
+  'assigned',
+  'dispatched',
+  'driver_accepted',
+  'started',
+  'loading',
+  'driving',
+  'partially_delivered',
+  'completed',
+  'closed',
+  'cancelled',
+] as const;
 
 function fmtMinutes(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return '';
@@ -326,7 +342,7 @@ export default function PlanningResultsPanel({
   const quickFilteredMetrics = useMemo(() => {
     const query = quickFilter.trim().toLowerCase();
     return metrics.filter((metric) => {
-      if (statusFilterValue && metric.status !== statusFilterValue) return false;
+      if (statusFilterValue && String(metric.status || '').toLowerCase() !== statusFilterValue.toLowerCase()) return false;
       if (!query) return true;
       return [metric.tripNumber, metric.truckPlate, metric.trailerPlate, metric.driverName, metric.status].some(
         (value) => String(value || '').toLowerCase().includes(query),
@@ -381,21 +397,6 @@ export default function PlanningResultsPanel({
       metrics.find((m) => m.id === selectedTripId || (m.tripNumber && m.tripNumber === selectedTripId)) || null
     );
   }, [metrics, selectedTripId]);
-
-  // Opening Route & Stops without a selection opens the first trip's existing
-  // Route Workspace instead of leaving an empty placeholder. This must happen
-  // once per tab entry: reacting to every cleared selection would immediately
-  // reopen the drawer after the user closes it.
-  const routeAutoSelectRef = useRef(false);
-  useEffect(() => {
-    if (view !== 'route') {
-      routeAutoSelectRef.current = false;
-      return;
-    }
-    if (routeAutoSelectRef.current || metrics.length === 0) return;
-    routeAutoSelectRef.current = true;
-    if (!selected && onSelectTrip) onSelectTrip(metrics[0].id);
-  }, [view, selected, metrics, onSelectTrip]);
 
   const routeFilteredMetrics = useMemo(() => {
     const query = routeSearch.trim().toLowerCase();
@@ -1166,8 +1167,6 @@ export default function PlanningResultsPanel({
     });
   };
 
-  const statusOptions = Array.from(new Set(metrics.map((metric) => metric.status).filter(Boolean)));
-
   const renderResults = () => {
     if (metrics.length === 0) return renderEmpty(t('pr.no_trips', 'No trips in range'));
     return (
@@ -1188,7 +1187,7 @@ export default function PlanningResultsPanel({
             onChange={(value) => setStatusFilterValue(value === '__all' ? '' : value)}
             options={[
               { value: '__all', label: t('up_res_all_statuses', 'All statuses') },
-              ...statusOptions.map((status) => ({ value: status, label: t(`status_${status}`, status) })),
+              ...TRIP_STATUS_VALUES.map((status) => ({ value: status, label: t(`status_${status}`, status) })),
             ]}
             title={t('up_res_status', 'Status')}
           />

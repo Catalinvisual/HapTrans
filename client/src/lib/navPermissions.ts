@@ -7,12 +7,15 @@
 //   orders   <- websiteQuotes (Quote Requests tab)
 //   payroll  <- payroll, settlements
 //   settings <- telematics (Telematics & Integrations tab)
+//   telematics <- telematics, settings (dedicated operational module)
 //   liveMap  <- tachograph
+//   tachograph <- tachograph, liveMap (dedicated operational module)
 //   euTransit<- ifta
 
 import {
   LayoutDashboard, Route, Truck, Users, UserCheck, Map, MessageSquare, FileText,
-  Receipt, BarChart3, Wrench, Settings, UserCog, Banknote, Wallet, CalendarDays, Globe, Box, FileBarChart2
+  Receipt, BarChart3, Wrench, Settings, UserCog, Banknote, Wallet, CalendarDays, Globe, Box, FileBarChart2,
+  Wifi, Activity
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -28,12 +31,14 @@ export interface NavItem {
 
 // Canonical sidebar structure (re-organized single-entry modules):
 // Orders(+Quote Requests), Fleet & Equipment(Trucks/Trailers), Payroll hub(payroll/settlements).
-// Telematics config moved to Settings; Tachograph stays reachable from Live Map / Drivers.
+// Telematics and Tachograph remain first-class operational modules with direct access.
 export const navItems: NavItem[] = [
   { to: '/dashboard', icon: LayoutDashboard, key: 'dashboard' },
   { to: '/trips', icon: Route, key: 'trips' },
   { to: '/orders', icon: Box, key: 'orders' },
   { to: '/map', icon: Map, key: 'liveMap' },
+  { to: '/telematics', icon: Wifi, key: 'telematics' },
+  { to: '/tachograph', icon: Activity, key: 'tachograph' },
   { to: '/fleet', icon: Truck, key: 'fleet' },
   { to: '/planning', icon: CalendarDays, key: 'planning' },
   { to: '/drivers', icon: UserCheck, key: 'drivers' },
@@ -58,11 +63,13 @@ export const MODULE_LEGACY_KEYS: Record<string, string[]> = {
   payroll: ['payroll', 'settlements'],
   orders: ['orders', 'websiteQuotes'],
   settings: ['settings', 'telematics'],
+  telematics: ['telematics', 'settings'],
   liveMap: ['liveMap', 'tachograph'],
+  tachograph: ['tachograph', 'liveMap'],
   euTransit: ['euTransit', 'ifta'],
 };
 
-const RESTRICTED_FOR_DISPATCHER = ['financial', 'payroll', 'expenses', 'websiteCms', 'users', 'settings'];
+const RESTRICTED_FOR_DISPATCHER = ['financial', 'payroll', 'expenses', 'websiteCms', 'users', 'settings', 'telematics'];
 
 // Grants/keeps a section (tab) inside an integrated module visible.
 // legacyKey is the pre-refactor sidebar key that used to control that page.
