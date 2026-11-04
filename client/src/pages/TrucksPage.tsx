@@ -400,10 +400,13 @@ export default function TrucksPage() {
     try {
       display = new (Intl as any).DisplayNames([i18n.language || 'en'], { type: 'region' });
     } catch {}
-    return Object.keys(countryNames)
-      .map((code) => ({ value: code, label: display?.of(code) || countryName(code, 'en') }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [i18n.language]);
+    return [
+      { value: '', label: t('not_assigned', '—') },
+      ...Object.keys(countryNames)
+        .map((code) => ({ value: code, label: display?.of(code) || countryName(code, 'en') }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    ];
+  }, [i18n.language, t]);
   const countryLabel = (code?: string | null) =>
     code ? (registrationCountryOptions.find((option) => option.value === code)?.label || code) : '—';
 
