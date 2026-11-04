@@ -261,9 +261,16 @@ export class RoutingService implements OnModuleInit {
           transportMode: 'truck',
           origin: '52.5200,13.4050',
           destination: '52.4900,13.4500',
-          return: 'summary',
+          return: 'summary,tolls',
           apiKey: this.hereKey,
           'vehicle[grossWeight]': 40000,
+          'vehicle[height]': 400,
+          'vehicle[width]': 255,
+          'vehicle[length]': 1360,
+          'vehicle[axleCount]': 5,
+          'vehicle[tollVehicleType]': 3,
+          'vehicle[emissionType]': 6,
+          currency: 'EUR',
         },
         timeout: 12000,
       });
@@ -281,11 +288,11 @@ export class RoutingService implements OnModuleInit {
     }
     try {
       const res = await axios.post(
-        'https://api.openrouteservice.org/v2/directions/driving-hgv',
-        { coordinates: [[13.405, 52.52], [13.45, 52.49]], format: 'geojson', instructions: false },
+        'https://api.openrouteservice.org/v2/directions/driving-hgv/geojson',
+        { coordinates: [[13.405, 52.52], [13.45, 52.49]], instructions: false },
         { headers: { Authorization: this.orsKey, 'Content-Type': 'application/json' }, timeout: 12000 },
       );
-      if (!res.data?.features?.[0]?.properties?.summary) {
+      if (!this.extractOrsRoute(res.data)?.summary) {
         const category = this.recordSyntheticFailure('ors', 'provider_no_data', 200, 'probe');
         return { configured: true, status: 200, reachable: false, category };
       }
@@ -295,6 +302,19 @@ export class RoutingService implements OnModuleInit {
       const category = this.recordProviderError('ors', err, 'probe');
       return { configured: true, status: Number(err?.response?.status) || null, reachable: false, category };
     }
+  }
+
+  /**
+   * ORS can return GeoJSON (`features[0].properties.summary`) or its standard
+   * JSON shape (`routes[0].summary`). The old parser only handled the former,
+   * so an HTTP-200 ORS fallback was discarded as “no data”.
+   */
+  private extractOrsRoute(data: any): { summary: any; coordinates: number[][] } | null {
+    const feature = data?.features?.[0];
+    const route = data?.routes?.[0];
+    const summary = feature?.properties?.summary || route?.summary || null;
+    const coordinates = feature?.geometry?.coordinates || route?.geometry?.coordinates || [];
+    return summary ? { summary, coordinates } : null;
   }
 
   // ─── Cache Helpers ────────────────────────────────────────────────────────
@@ -689,10 +709,9 @@ export class RoutingService implements OnModuleInit {
         return null;
       }
       const res = await axios.post(
-        'https://api.openrouteservice.org/v2/directions/driving-hgv',
+        'https://api.openrouteservice.org/v2/directions/driving-hgv/geojson',
         {
           coordinates: [[originLng, originLat], [destLng, destLat]],
-          format: 'geojson',
           instructions: false,
         },
         {
@@ -701,8 +720,8 @@ export class RoutingService implements OnModuleInit {
         }
       );
 
-      const feature = res.data.features?.[0];
-      const summary = feature?.properties?.summary;
+      const parsed = this.extractOrsRoute(res.data);
+      const summary = parsed?.summary;
       if (!summary) {
         this.recordSyntheticFailure('ors', 'provider_no_data', 200, 'route');
         return null;
@@ -727,7 +746,7 @@ export class RoutingService implements OnModuleInit {
         tollCurrency: 'EUR',
         tollStatus: 'unavailable',
         polyline: null,
-        coordinates: feature?.geometry?.coordinates || [],
+        coordinates: parsed?.coordinates || [],
         source: 'ors',
       };
     } catch (e) {

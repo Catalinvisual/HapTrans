@@ -167,8 +167,29 @@ describe('RoutingService provider contracts', () => {
     expect(routes).toHaveLength(1);
     expect(routes[0].source).toBe('ors');
     expect(routes[0].distanceKm).toBe(584);
+    expect(mockedPost).toHaveBeenCalledWith(
+      'https://api.openrouteservice.org/v2/directions/driving-hgv/geojson',
+      expect.objectContaining({ instructions: false }),
+      expect.any(Object),
+    );
     expect(service.getProviderDiagnostics().ors.reachable).toBe('yes');
     expect(service.getProviderDiagnostics().here.lastErrorCategory).toBe('provider_product_not_enabled');
+  });
+
+  it('accepts ORS standard JSON responses instead of discarding an HTTP-200 route', async () => {
+    mockedGet.mockRejectedValueOnce({ response: { status: 403, data: { title: 'Forbidden' } } });
+    mockedPost.mockResolvedValueOnce({
+      data: {
+        routes: [{ summary: { distance: 584000, duration: 25200 }, geometry: { coordinates: [[13.4, 52.5], [11.5, 48.1]] } }],
+      },
+    });
+    const service = serviceWith({ HERE_API_KEY: 'here-secret', ORS_API_KEY: 'ors-secret' });
+    const routes = await service.calculateRouteAlternatives(52.5, 13.4, 48.1, 11.5, undefined, 3);
+
+    expect(routes).toHaveLength(1);
+    expect(routes[0].source).toBe('ors');
+    expect(routes[0].distanceKm).toBe(584);
+    expect(service.getProviderDiagnostics().ors.reachable).toBe('yes');
   });
 
   it('probes both providers once and returns only safe status fields', async () => {
