@@ -39,10 +39,10 @@ export class Truck {
   @Column({ nullable: true })
   year: number;
 
-  @Column({ nullable: true, length: 17 })
+  @Column({ type: 'varchar', nullable: true, length: 17 })
   vin: string | null;
 
-  @Column({ nullable: true, length: 2 })
+  @Column({ type: 'varchar', nullable: true, length: 2 })
   registrationCountry: string | null;
 
   @Column({ nullable: true })
