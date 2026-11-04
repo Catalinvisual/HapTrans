@@ -1532,9 +1532,14 @@ function TripDetailDrawer({
                   try {
                     const res = await planningApi.getTripLiveEta(tripId);
                     setEtaInfo(res);
-                    if (!res.available) toast(res.message || t('up_eta_no_gps', 'No GPS position available for the assigned truck. Live ETA cannot be calculated.'), { icon: 'i' });
-                  } catch {
-                    toast.error(t('up_eta_unavailable', 'Live ETA unavailable — routing provider not configured.'));
+                    if (!res.available) {
+                      const fallback = res.message || t('up_eta_no_gps', 'No GPS position available for the assigned truck. Live ETA cannot be calculated.');
+                      if (res.reason === 'provider_unavailable') toast.error(providerStatusMessage(t, res.code, fallback));
+                      else toast(fallback, { icon: 'i' });
+                    }
+                  } catch (err: any) {
+                    const fallback = err?.response?.data?.message || t('up_eta_unavailable', 'Live ETA unavailable — routing provider request failed.');
+                    toast.error(providerStatusMessage(t, err?.response?.data?.code, fallback));
                   } finally {
                     setLoadingEta(false);
                   }
@@ -1573,7 +1578,11 @@ function TripDetailDrawer({
                   )}
                 </div>
               ) : (
-                <p className="mt-1 text-[10px] text-text-muted">{etaInfo.message || t('up_eta_no_gps', 'No GPS position available for the assigned truck. Live ETA cannot be calculated.')}</p>
+                <p className="mt-1 text-[10px] text-text-muted">
+                  {etaInfo.reason === 'provider_unavailable'
+                    ? providerStatusMessage(t, etaInfo.code, etaInfo.message || t('up_eta_unavailable', 'Live ETA unavailable — routing provider request failed.'))
+                    : (etaInfo.message || t('up_eta_no_gps', 'No GPS position available for the assigned truck. Live ETA cannot be calculated.'))}
+                </p>
               )
             ) : (
               <p className="mt-1 text-[10px] text-text-muted">{t('up_eta_note', 'Live ETA uses the last GPS position and truck routing. Service time at stops is not included.')}</p>

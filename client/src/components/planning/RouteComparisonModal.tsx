@@ -6,6 +6,7 @@ import { AlertTriangle, Check, Loader2, Map as MapIcon, RefreshCw, Route } from 
 import toast from 'react-hot-toast';
 import { planningApi } from '../../lib/planningApi';
 import { fmtMoney, fmtNumber } from '../../lib/format';
+import { providerStatusMessage } from '../../lib/providerStatus';
 
 const ROUTE_COLORS = ['#f97316', '#1e3a8a', '#059669'];
 
@@ -16,10 +17,11 @@ function fmtDuration(minutes: number | null) {
   return h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
 }
 
-function reasonLabel(reason: string | undefined, t: any) {
+function reasonLabel(reason: string | undefined, t: any, code?: string, message?: string) {
   if (reason === 'missing_coordinates') return t('up_cmp_no_coords', 'This trip needs at least two geocoded stops to compare truck routes.');
-  if (reason === 'provider_unavailable') return t('up_cmp_unavailable', 'Truck routing provider is not configured or returned no alternatives. Configure HERE or OpenRouteService credentials.');
-  return t('up_cmp_unavailable', 'Truck routing provider is not configured or returned no alternatives. Configure HERE or OpenRouteService credentials.');
+  const fallback = message || t('up_cmp_unavailable', 'No truck route was returned by the routing provider.');
+  if (reason === 'provider_unavailable') return providerStatusMessage(t, code, fallback);
+  return fallback;
 }
 
 export default function RouteComparisonModal({
@@ -224,7 +226,7 @@ export default function RouteComparisonModal({
             ) : !data?.available || routes.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-surface/50 p-6 text-center">
                 <AlertTriangle className="h-6 w-6 text-amber-500" />
-                <p className="text-xs font-bold text-text-primary">{reasonLabel(data?.reason, t)}</p>
+                <p className="text-xs font-bold text-text-primary">{reasonLabel(data?.reason, t, data?.code, data?.message)}</p>
                 <p className="text-[10px] text-text-secondary">
                   {t('up_cmp_no_routes', 'No alternative routes were returned. Nothing was fabricated or estimated.')}
                 </p>

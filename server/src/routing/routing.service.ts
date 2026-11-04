@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { decode as flexDecode } from '@here/flexpolyline';
@@ -14,27 +14,92 @@ interface CachedMatrixItem {
   source: string;
 }
 
+type RoutingProviderName = 'here' | 'ors';
+
+export interface RouteFailure {
+  provider: RoutingProviderName | 'none';
+  operation: 'route' | 'alternatives';
+  code: string;
+  httpStatus: number | null;
+  at: Date;
+}
+
 @Injectable()
-export class RoutingService {
+export class RoutingService implements OnModuleInit {
   private readonly logger = new Logger(RoutingService.name);
   private readonly hereKey: string;
   private readonly orsKey: string;
   private readonly googleKey: string;
+  private readonly hereKeySource: string | null;
+  private readonly orsKeySource: string | null;
+  private lastRouteFailure: RouteFailure | null = null;
+  private probeInFlight: Promise<any> | null = null;
+  private lastProbe: any = null;
 
   // In-memory Routing Cache for pair distances and durations (§9, §31)
   private readonly matrixCache = new Map<string, CachedMatrixItem>();
   private readonly CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days TTL
   private readonly providerHealth = {
-    here: { lastSuccessAt: null as Date | null, lastErrorCategory: null as string | null, lastErrorAt: null as Date | null },
-    ors: { lastSuccessAt: null as Date | null, lastErrorCategory: null as string | null, lastErrorAt: null as Date | null },
+    here: { lastSuccessAt: null as Date | null, lastErrorCategory: null as string | null, lastErrorAt: null as Date | null, lastHttpStatus: null as number | null },
+    ors: { lastSuccessAt: null as Date | null, lastErrorCategory: null as string | null, lastErrorAt: null as Date | null, lastHttpStatus: null as number | null },
   };
 
   constructor(private config: ConfigService) {
     // Railway has used both names for the same HERE project key. Support both
     // without exposing either value or silently assuming a missing key exists.
-    this.hereKey = String(this.config.get('HERE_API_KEY') || this.config.get('HERE_MAPS_API_KEY') || '').trim();
-    this.orsKey = String(this.config.get('ORS_API_KEY') || this.config.get('OPENROUTESERVICE_API_KEY') || '').trim();
-    this.googleKey = String(this.config.get('GOOGLE_ROUTES_API_KEY') || this.config.get('GOOGLE_MAPS_API_KEY') || '').trim();
+    const here = this.resolveProviderKey('HERE_API_KEY', 'HERE_MAPS_API_KEY');
+    const ors = this.resolveProviderKey('ORS_API_KEY', 'OPENROUTESERVICE_API_KEY');
+    const google = this.resolveProviderKey('GOOGLE_ROUTES_API_KEY', 'GOOGLE_MAPS_API_KEY');
+    this.hereKey = here.value;
+    this.orsKey = ors.value;
+    this.googleKey = google.value;
+    this.hereKeySource = here.source;
+    this.orsKeySource = ors.source;
+
+    const selected = this.selectedRoutingProvider();
+    this.logger.log(
+      `Provider configuration HERE_API_KEY configured=${!!this.hereKey} source=${this.hereKeySource || 'none'} ORS_API_KEY configured=${!!this.orsKey} source=${this.orsKeySource || 'none'} selected=${selected} fallback=${this.fallbackRoutingProvider() || 'none'} initialization=${selected === 'none' ? 'unavailable' : 'ready'}${selected === 'none' ? ' reason=provider_key_missing' : ''}`,
+    );
+  }
+
+  onModuleInit() {
+    // A single real provider probe makes Railway runtime visibility observable
+    // without exposing key values. It is skipped in tests and can be disabled
+    // deployment-side with ROUTING_PROBE_ON_START=false.
+    if (process.env.NODE_ENV === 'test' || process.env.ROUTING_PROBE_ON_START === 'false') return;
+    const timer = setTimeout(() => {
+      void this.probeProviders().catch((err) =>
+        this.logger.warn(`Provider probe failed to run category=${this.classifyProviderError(err)}`),
+      );
+    }, 2500);
+    timer.unref?.();
+  }
+
+  private resolveProviderKey(...names: string[]): { value: string; source: string | null } {
+    for (const name of names) {
+      // ConfigService is the normal path. process.env is a deliberate fallback
+      // for runtimes where a provider was constructed before config hydration.
+      const values = [this.config.get<string>(name), process.env[name]];
+      for (const value of values) {
+        const normalized = String(value || '').trim();
+        if (normalized) return { value: normalized, source: name };
+      }
+    }
+    return { value: '', source: null };
+  }
+
+  private selectedRoutingProvider(): RoutingProviderName | 'none' {
+    if (this.hereKey) return 'here';
+    if (this.orsKey) return 'ors';
+    return 'none';
+  }
+
+  private fallbackRoutingProvider(): RoutingProviderName | null {
+    return this.hereKey && this.orsKey ? 'ors' : null;
+  }
+
+  getLastRouteFailure(): RouteFailure | null {
+    return this.lastRouteFailure ? { ...this.lastRouteFailure } : null;
   }
 
   private redactSecrets(value: unknown): string {
@@ -49,47 +114,91 @@ export class RoutingService {
     const status = Number(err?.response?.status);
     if (status === 401) return 'provider_invalid_credentials';
     if (status === 403) return 'provider_product_not_enabled';
+    if (status === 404) return 'provider_no_route';
     if (status === 429) return 'provider_rate_limited';
     if (err?.code === 'ECONNABORTED' || /timeout/i.test(String(err?.code || ''))) return 'provider_timeout';
     if (!err?.response) return 'provider_network_error';
     return 'provider_request_failed';
   }
 
-  private recordProviderSuccess(provider: 'here' | 'ors') {
+  private recordProviderSuccess(provider: RoutingProviderName) {
     this.providerHealth[provider].lastSuccessAt = new Date();
     this.providerHealth[provider].lastErrorCategory = null;
+    this.providerHealth[provider].lastHttpStatus = 200;
   }
 
-  private recordProviderError(provider: 'here' | 'ors', err: any): string {
+  private recordProviderError(
+    provider: RoutingProviderName,
+    err: any,
+    operation: 'route' | 'alternatives' | 'probe' | 'tolls' | 'traffic' = 'probe',
+  ): string {
     const category = this.classifyProviderError(err);
     const status = Number(err?.response?.status) || null;
-    const detail = err?.response?.data?.title || err?.response?.data?.error || err?.response?.data?.message || '';
-    this.providerHealth[provider].lastErrorCategory = category;
-    this.providerHealth[provider].lastErrorAt = new Date();
-    // Log only category/status/provider detail. Never log request URLs, config
-    // objects or API keys.
-    this.logger.warn(
-      `${provider.toUpperCase()} request failed category=${category} status=${status || '-'} detail=${this.redactSecrets(detail) || 'n/a'}`,
-    );
+    this.recordProviderFailure(provider, category, status, err, operation);
     return category;
   }
 
-  /** Safe health snapshot; no secret values and no provider request is made. */
+  private recordSyntheticFailure(
+    provider: RoutingProviderName,
+    category: string,
+    status: number | null,
+    operation: 'route' | 'alternatives' | 'probe' | 'tolls' | 'traffic' = 'probe',
+  ): string {
+    this.recordProviderFailure(provider, category, status, null, operation);
+    return category;
+  }
+
+  private recordProviderFailure(
+    provider: RoutingProviderName,
+    category: string,
+    status: number | null,
+    err: any,
+    operation: 'route' | 'alternatives' | 'probe' | 'tolls' | 'traffic',
+  ) {
+    const detail = err?.response?.data?.title || err?.response?.data?.error || err?.response?.data?.message || '';
+    this.providerHealth[provider].lastErrorCategory = category;
+    this.providerHealth[provider].lastErrorAt = new Date();
+    this.providerHealth[provider].lastHttpStatus = status;
+    if (operation === 'route' || operation === 'alternatives') {
+      this.lastRouteFailure = { provider, operation, code: category, httpStatus: status, at: new Date() };
+    }
+    // Log only category/status/provider detail. Never log request URLs, config
+    // objects or API keys.
+    this.logger.warn(
+      `${provider.toUpperCase()} request failed operation=${operation} category=${category} status=${status || '-'} detail=${this.redactSecrets(detail) || 'n/a'}`,
+    );
+  }
+
+  /**
+   * Safe health snapshot. No secret values and no provider request is made.
+   * The optional probe result contains only booleans, HTTP statuses and error
+   * categories from a fixed, keyless-safe test route.
+   */
   getProviderDiagnostics() {
-    const health = (provider: 'here' | 'ors', configured: boolean) => {
+    const health = (provider: RoutingProviderName, configured: boolean, source: string | null) => {
       const state = this.providerHealth[provider];
       return {
         configured,
-        reachable: !configured ? 'no' : state.lastSuccessAt ? 'yes' : state.lastErrorCategory ? 'no' : 'unknown',
+        configuredVia: source,
+        reachable: !configured ? 'no' : state.lastErrorCategory ? 'no' : state.lastSuccessAt ? 'yes' : 'unknown',
         lastSuccessAt: state.lastSuccessAt,
         lastErrorCategory: state.lastErrorCategory,
         lastErrorAt: state.lastErrorAt,
+        lastHttpStatus: state.lastHttpStatus,
       };
     };
+    const selected = this.selectedRoutingProvider();
     return {
+      routing: {
+        selectedProvider: selected,
+        fallbackProvider: this.fallbackRoutingProvider(),
+        initializationStatus: selected === 'none' ? 'unavailable' : 'ready',
+        unavailableReason: selected === 'none' ? 'provider_key_missing' : null,
+        lastRequestFailure: this.getLastRouteFailure(),
+      },
       here: {
         name: 'HERE',
-        ...health('here', !!this.hereKey),
+        ...health('here', !!this.hereKey, this.hereKeySource),
         capabilities: {
           routing: true,
           liveTraffic: true,
@@ -101,7 +210,7 @@ export class RoutingService {
       },
       ors: {
         name: 'OpenRouteService',
-        ...health('ors', !!this.orsKey),
+        ...health('ors', !!this.orsKey, this.orsKeySource),
         capabilities: {
           routing: true,
           matrix: true,
@@ -110,7 +219,82 @@ export class RoutingService {
           note: 'ORS is used for HGV routing only; it is not a traffic or toll provider.',
         },
       },
+      probe: this.lastProbe,
     };
+  }
+
+  /**
+   * Run one real, minimal HERE and ORS request. Results are cached in memory
+   * and contain only configuration booleans, HTTP statuses and categories.
+   */
+  async probeProviders(): Promise<any> {
+    if (this.probeInFlight) return this.probeInFlight;
+    this.probeInFlight = this.runProviderProbe().finally(() => {
+      this.probeInFlight = null;
+    });
+    return this.probeInFlight;
+  }
+
+  private async runProviderProbe() {
+    const startedAt = new Date();
+    const here = await this.probeHereRouting();
+    const ors = await this.probeOrsRouting();
+    const result = {
+      startedAt: startedAt.toISOString(),
+      completedAt: new Date().toISOString(),
+      providers: { here, ors },
+    };
+    this.lastProbe = result;
+    this.logger.log(
+      `Provider probe HERE configured=${here.configured} status=${here.status ?? '-'} reachable=${here.reachable ? 'yes' : 'no'}${here.category ? ` category=${here.category}` : ''} ORS configured=${ors.configured} status=${ors.status ?? '-'} reachable=${ors.reachable ? 'yes' : 'no'}${ors.category ? ` category=${ors.category}` : ''}`,
+    );
+    return result;
+  }
+
+  private async probeHereRouting() {
+    if (!this.hereKey) {
+      return { configured: false, status: null, reachable: false, category: 'provider_key_missing' };
+    }
+    try {
+      await axios.get('https://router.hereapi.com/v8/routes', {
+        params: {
+          transportMode: 'truck',
+          origin: '52.5200,13.4050',
+          destination: '52.4900,13.4500',
+          return: 'summary',
+          apiKey: this.hereKey,
+          'vehicle[grossWeight]': 40000,
+        },
+        timeout: 12000,
+      });
+      this.recordProviderSuccess('here');
+      return { configured: true, status: 200, reachable: true, category: null };
+    } catch (err: any) {
+      const category = this.recordProviderError('here', err, 'probe');
+      return { configured: true, status: Number(err?.response?.status) || null, reachable: false, category };
+    }
+  }
+
+  private async probeOrsRouting() {
+    if (!this.orsKey) {
+      return { configured: false, status: null, reachable: false, category: 'provider_key_missing' };
+    }
+    try {
+      const res = await axios.post(
+        'https://api.openrouteservice.org/v2/directions/driving-hgv',
+        { coordinates: [[13.405, 52.52], [13.45, 52.49]], format: 'geojson', instructions: false },
+        { headers: { Authorization: this.orsKey, 'Content-Type': 'application/json' }, timeout: 12000 },
+      );
+      if (!res.data?.features?.[0]?.properties?.summary) {
+        const category = this.recordSyntheticFailure('ors', 'provider_no_data', 200, 'probe');
+        return { configured: true, status: 200, reachable: false, category };
+      }
+      this.recordProviderSuccess('ors');
+      return { configured: true, status: 200, reachable: true, category: null };
+    } catch (err: any) {
+      const category = this.recordProviderError('ors', err, 'probe');
+      return { configured: true, status: Number(err?.response?.status) || null, reachable: false, category };
+    }
   }
 
   // ─── Cache Helpers ────────────────────────────────────────────────────────
@@ -248,6 +432,7 @@ export class RoutingService {
   ): Promise<RouteSummaryResult | null> {
     const origin = { lat: originLat, lng: originLng };
     const dest = { lat: destLat, lng: destLng };
+    this.lastRouteFailure = null;
 
     // Check cache first
     const cached = this.getFromCache(origin, dest);
@@ -264,6 +449,7 @@ export class RoutingService {
       };
     }
 
+    let hereFailure: RouteFailure | null = null;
     try {
       if (this.hereKey) {
         const params: any = {
@@ -295,6 +481,11 @@ export class RoutingService {
         if (route) {
           const section = route.sections?.[0];
           const summary = section?.summary;
+          if (!summary) {
+            this.recordSyntheticFailure('here', 'provider_no_data', 200, 'route');
+            hereFailure = this.getLastRouteFailure();
+            throw new Error('HERE returned a route without a summary');
+          }
 
           const rawDistKm = (summary?.length || 0) / 1000;
           const distanceKm = rawDistKm < 10 ? Math.max(0.1, Math.round(rawDistKm * 10) / 10) : Math.round(rawDistKm);
@@ -345,22 +536,51 @@ export class RoutingService {
             source: 'here',
           };
         }
+        this.recordSyntheticFailure('here', 'provider_no_route', 200, 'route');
+        hereFailure = this.getLastRouteFailure();
       }
-    } catch (e) {
-      this.logger.warn(`HERE routing failed: ${this.redactSecrets(e.message)}. Falling back to ORS...`);
+    } catch (e: any) {
+      if (!hereFailure) {
+        this.recordProviderError('here', e, 'route');
+        hereFailure = this.getLastRouteFailure();
+      }
+      this.logger.warn(`HERE routing failed category=${hereFailure?.code || 'provider_request_failed'}. Falling back to ${this.orsKey ? 'ORS' : 'no configured fallback'}...`);
     }
 
-    return this.calculateRouteORS(originLat, originLng, destLat, destLng);
+    const fallback = await this.calculateRouteORS(originLat, originLng, destLat, destLng);
+    if (fallback) return fallback;
+
+    // Preserve the primary provider's failure when no fallback provider exists;
+    // otherwise the ORS failure is the most relevant reason no route was returned.
+    if (hereFailure && !this.orsKey) this.lastRouteFailure = hereFailure;
+    if (!this.lastRouteFailure) {
+      this.lastRouteFailure = {
+        provider: this.orsKey ? 'ors' : 'none',
+        operation: 'route',
+        code: this.orsKey ? 'provider_request_failed' : 'provider_key_missing',
+        httpStatus: null,
+        at: new Date(),
+      };
+    }
+    return null;
   }
 
-  // ─── Route alternatives (HERE only; no fabricated alternatives) ──────────
+  // ─── Route alternatives (HERE first, ORS single-route fallback) ──────────
   async calculateRouteAlternatives(
     originLat: number, originLng: number,
     destLat: number, destLng: number,
     truckParams?: RoutingOptions,
     count = 3,
   ): Promise<RouteSummaryResult[]> {
-    if (!this.hereKey) return [];
+    this.lastRouteFailure = null;
+    if (!this.hereKey) {
+      if (!this.orsKey) {
+        this.lastRouteFailure = { provider: 'none', operation: 'alternatives', code: 'provider_key_missing', httpStatus: null, at: new Date() };
+        return [];
+      }
+      const fallback = await this.calculateRouteORS(originLat, originLng, destLat, destLng);
+      return fallback ? [fallback] : [];
+    }
 
     try {
       const params: any = {
@@ -390,7 +610,12 @@ export class RoutingService {
       });
 
       const routes = Array.isArray(res.data?.routes) ? res.data.routes : [];
-      return routes.map((route: any) => {
+      if (routes.length === 0) {
+        this.recordSyntheticFailure('here', 'provider_no_route', 200, 'alternatives');
+        const fallback = await this.calculateRouteORS(originLat, originLng, destLat, destLng);
+        return fallback ? [fallback] : [];
+      }
+      const mapped = routes.map((route: any) => {
         const section = route.sections?.[0];
         const summary = section?.summary;
         const rawDistKm = (summary?.length || 0) / 1000;
@@ -438,9 +663,18 @@ export class RoutingService {
           source: 'here',
         } as RouteSummaryResult;
       }).filter((r: RouteSummaryResult) => r.distanceKm > 0);
+      if (mapped.length === 0) {
+        this.recordSyntheticFailure('here', 'provider_no_route', 200, 'alternatives');
+        const fallback = await this.calculateRouteORS(originLat, originLng, destLat, destLng);
+        return fallback ? [fallback] : [];
+      }
+      this.recordProviderSuccess('here');
+      this.lastRouteFailure = null;
+      return mapped;
     } catch (e: any) {
-      this.logger.warn(`HERE alternatives failed: ${this.redactSecrets(e.message)}`);
-      return [];
+      this.recordProviderError('here', e, 'alternatives');
+      const fallback = await this.calculateRouteORS(originLat, originLng, destLat, destLng);
+      return fallback ? [fallback] : [];
     }
   }
 
@@ -450,7 +684,10 @@ export class RoutingService {
     destLat: number, destLng: number
   ): Promise<RouteSummaryResult | null> {
     try {
-      if (!this.orsKey) return null;
+      if (!this.orsKey) {
+        this.recordSyntheticFailure('ors', 'provider_key_missing', null, 'route');
+        return null;
+      }
       const res = await axios.post(
         'https://api.openrouteservice.org/v2/directions/driving-hgv',
         {
@@ -466,7 +703,10 @@ export class RoutingService {
 
       const feature = res.data.features?.[0];
       const summary = feature?.properties?.summary;
-      if (!summary) return null;
+      if (!summary) {
+        this.recordSyntheticFailure('ors', 'provider_no_data', 200, 'route');
+        return null;
+      }
 
       const rawDistKm = (summary.distance || 0) / 1000;
       const distanceKm = rawDistKm < 10 ? Math.max(0.1, Math.round(rawDistKm * 10) / 10) : Math.round(rawDistKm);
@@ -491,7 +731,7 @@ export class RoutingService {
         source: 'ors',
       };
     } catch (e) {
-      this.recordProviderError('ors', e);
+      this.recordProviderError('ors', e, 'route');
       return null;
     }
   }
@@ -719,7 +959,7 @@ export class RoutingService {
         available: false,
         provider: this.googleKey ? 'google' : 'none',
         code: this.googleKey ? 'provider_unsupported' : 'provider_key_missing',
-        message: 'Live traffic unavailable — provider not configured',
+        message: 'Live traffic unavailable — HERE key is not configured',
         currentDelayMinutes: 0,
         congestionLevel: 'free_flow',
         estimatedDurationWithTrafficMin: 0,
@@ -802,7 +1042,7 @@ export class RoutingService {
         }
       }
     } catch (err: any) {
-      const code = this.recordProviderError('here', err);
+      const code = this.recordProviderError('here', err, 'traffic');
       return {
         available: false,
         provider: 'here',
@@ -851,7 +1091,7 @@ export class RoutingService {
         provider: 'none',
         status: 'unavailable',
         code: 'provider_key_missing',
-        message: 'Toll calculation unavailable — provider not configured',
+        message: 'Toll calculation unavailable — HERE key is not configured',
         totalCost: null,
         currency: 'EUR',
         countries: [],
@@ -932,7 +1172,7 @@ export class RoutingService {
         };
       }
     } catch (err: any) {
-      const code = this.recordProviderError('here', err);
+      const code = this.recordProviderError('here', err, 'tolls');
       return {
         available: false,
         provider: 'here',

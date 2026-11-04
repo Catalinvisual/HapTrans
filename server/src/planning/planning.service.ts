@@ -1021,7 +1021,7 @@ export class PlanningService {
           level: 'info',
           code: 'TOLL_DATA_UNAVAILABLE',
           tripId: t.id,
-          message: `Toll calculation unavailable — provider not configured.`,
+          message: `Toll data unavailable — provider key missing or provider request failed.`,
         });
       }
 
@@ -5453,7 +5453,15 @@ export class PlanningService {
     );
 
     if (!raw.length) {
-      return { available: false, reason: 'provider_unavailable', routes: [] };
+      const failure = this.routingService.getLastRouteFailure();
+      return {
+        available: false,
+        reason: 'provider_unavailable',
+        code: failure?.code || 'provider_no_route',
+        provider: failure?.provider || 'none',
+        message: 'No truck route was returned by the routing provider',
+        routes: [],
+      };
     }
 
     const revenue = (trip.orders || []).reduce((sum, order: any) => sum + (Number(order.price) || 0), 0);
@@ -5657,10 +5665,13 @@ export class PlanningService {
         profile,
       );
       if (!leg) {
+        const failure = this.routingService.getLastRouteFailure();
         return {
           available: false,
           reason: 'provider_unavailable',
-          message: 'Truck routing provider is not configured or did not return a route',
+          code: failure?.code || 'provider_no_route',
+          provider: failure?.provider || 'none',
+          message: 'No truck route was returned by the routing provider',
           stops: [],
           position: { lat, lng },
           lastGpsAt: lastGpsAt ? lastGpsAt.toISOString() : null,

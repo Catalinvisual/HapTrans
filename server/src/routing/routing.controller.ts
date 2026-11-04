@@ -154,6 +154,12 @@ export class RoutingController {
     return this.routingService.getProviderDiagnostics();
   }
 
+  @Get('providers/probe')
+  async probeProviders() {
+    // Real, minimal HERE + ORS calls. Returns only booleans/status/categories.
+    return this.routingService.probeProviders();
+  }
+
   @Get('diesel-prices')
   async getDieselPrices() {
     return this.routingService.getDieselPrices();
@@ -168,5 +174,12 @@ export class PublicRoutingController {
   async autocomplete(@Query('q') query: string) {
     if (!query) return [];
     return this.routingService.autocompleteAddress(query);
+  }
+
+  @Get('providers')
+  async providers() {
+    // Runtime-safe configuration/health snapshot for deployment verification.
+    // No API keys, request URLs or request bodies are returned.
+    return this.routingService.getProviderDiagnostics();
   }
 }

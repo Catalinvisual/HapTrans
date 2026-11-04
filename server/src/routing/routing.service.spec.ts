@@ -3,6 +3,7 @@ import { RoutingService } from './routing.service';
 
 jest.mock('axios');
 const mockedGet = axios.get as jest.Mock;
+const mockedPost = axios.post as jest.Mock;
 
 function serviceWith(keys: Record<string, string>) {
   return new RoutingService({
@@ -13,6 +14,7 @@ function serviceWith(keys: Record<string, string>) {
 describe('RoutingService provider contracts', () => {
   beforeEach(() => {
     mockedGet.mockReset();
+    mockedPost.mockReset();
   });
 
   it('requests HERE live traffic with span incidents and parses delay', async () => {
@@ -122,5 +124,65 @@ describe('RoutingService provider contracts', () => {
     expect(diagnostics.ors.capabilities.liveTraffic).toBe(false);
     expect(diagnostics.ors.capabilities.tolls).toBe(false);
     expect(JSON.stringify(diagnostics)).not.toContain('ors-secret');
+  });
+
+  it('reports the selected provider and safe key-source diagnostics', () => {
+    const service = serviceWith({ HERE_API_KEY: 'here-secret', ORS_API_KEY: 'ors-secret' });
+    const diagnostics = service.getProviderDiagnostics();
+    expect(diagnostics.routing.selectedProvider).toBe('here');
+    expect(diagnostics.routing.fallbackProvider).toBe('ors');
+    expect(diagnostics.routing.initializationStatus).toBe('ready');
+    expect(diagnostics.here.configuredVia).toBe('HERE_API_KEY');
+    expect(diagnostics.ors.configuredVia).toBe('ORS_API_KEY');
+    expect(JSON.stringify(diagnostics)).not.toContain('here-secret');
+    expect(JSON.stringify(diagnostics)).not.toContain('ors-secret');
+  });
+
+  it('preserves the HERE failure category when no ORS fallback is configured', async () => {
+    mockedGet.mockRejectedValueOnce({ response: { status: 403, data: { title: 'Forbidden' } } });
+    const service = serviceWith({ HERE_API_KEY: 'here-secret' });
+    const route = await service.calculateRoute(44.4, 26.1, 52.5, 13.4);
+
+    expect(route).toBeNull();
+    expect(service.getLastRouteFailure()).toEqual(expect.objectContaining({
+      provider: 'here',
+      code: 'provider_product_not_enabled',
+      httpStatus: 403,
+    }));
+  });
+
+  it('falls back to a real ORS route when HERE alternatives fail', async () => {
+    mockedGet.mockRejectedValueOnce({ response: { status: 403, data: { title: 'Forbidden' } } });
+    mockedPost.mockResolvedValueOnce({
+      data: {
+        features: [{
+          properties: { summary: { distance: 584000, duration: 25200 } },
+          geometry: { coordinates: [[13.4, 52.5], [11.5, 48.1]] },
+        }],
+      },
+    });
+    const service = serviceWith({ HERE_API_KEY: 'here-secret', ORS_API_KEY: 'ors-secret' });
+    const routes = await service.calculateRouteAlternatives(52.5, 13.4, 48.1, 11.5, undefined, 3);
+
+    expect(routes).toHaveLength(1);
+    expect(routes[0].source).toBe('ors');
+    expect(routes[0].distanceKm).toBe(584);
+    expect(service.getProviderDiagnostics().ors.reachable).toBe('yes');
+    expect(service.getProviderDiagnostics().here.lastErrorCategory).toBe('provider_product_not_enabled');
+  });
+
+  it('probes both providers once and returns only safe status fields', async () => {
+    mockedGet.mockResolvedValueOnce({ data: { routes: [{ sections: [{ summary: { length: 1000, duration: 60 } }] }] } });
+    mockedPost.mockResolvedValueOnce({
+      data: { features: [{ properties: { summary: { distance: 1000, duration: 60 } } }] },
+    });
+    const service = serviceWith({ HERE_API_KEY: 'here-secret', ORS_API_KEY: 'ors-secret' });
+    const result = await service.probeProviders();
+
+    expect(result.providers.here).toMatchObject({ configured: true, status: 200, reachable: true });
+    expect(result.providers.ors).toMatchObject({ configured: true, status: 200, reachable: true });
+    expect(service.getProviderDiagnostics().probe).toEqual(result);
+    expect(JSON.stringify(service.getProviderDiagnostics())).not.toContain('here-secret');
+    expect(JSON.stringify(service.getProviderDiagnostics())).not.toContain('ors-secret');
   });
 });
