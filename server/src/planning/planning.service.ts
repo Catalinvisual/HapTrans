@@ -8,6 +8,7 @@ import { StopTask, TaskType } from '../trips/stop-task.entity';
 import { OrderStop, OrderStopType } from '../orders/order-stop.entity';
 import { Truck } from '../trucks/truck.entity';
 import { Trailer } from '../trucks/trailer.entity';
+import { getTruckFuelProfile } from '../trucks/fuel-type';
 import { Driver, DriverStatus } from '../drivers/driver.entity';
 import { DriverHos } from '../drivers/driver-hos.entity';
 import { Maintenance } from '../maintenance/maintenance.entity';
@@ -2263,7 +2264,13 @@ export class PlanningService {
         const driverHosOk = this.driverWeeklyOk(truck.driver?.id, Number(dto.driverMaxWeeklyHours) || 56);
 
         const driverCost = driver ? (Number(dto.pricePerStop) || 25) : 0;
-        const fuelCost = dist * (Number(dto.fuelPricePerL) || 1.6) * ((Number(truck.fuelConsumption) || 30) / 100);
+        const fuelProfile = getTruckFuelProfile(truck.fuelType);
+        const fuelConsumption = Number(truck.fuelConsumption);
+        const configuredTruckPrice = Number(truck.fuelPricePerLiter);
+        const liquidEstimatePrice = fuelProfile?.unit === 'L/100 km' ? Number(dto.fuelPricePerL) : 0;
+        const fuelPrice = configuredTruckPrice > 0 ? configuredTruckPrice : (liquidEstimatePrice > 0 ? liquidEstimatePrice : 0);
+        const fuelCostAvailable = !!fuelProfile && fuelConsumption > 0 && fuelPrice > 0;
+        const fuelCost = fuelCostAvailable ? (dist / 100) * fuelConsumption * fuelPrice : 0;
         // Only use a toll factor explicitly supplied by the caller. Do not
         // invent a per-kilometre toll price when none is configured.
         const tollCost = dto.tollCostFactor !== undefined && dto.tollCostFactor !== null
@@ -2285,6 +2292,9 @@ export class PlanningService {
           orders: group.map((o) => ({ id: o.id, orderNumber: o.orderNumber, clientName: o.client?.name || null })),
           cargo: tripCargo,
           distanceKm: Math.round(dist),
+          fuelType: fuelProfile?.code ?? null,
+          fuelConsumptionUnit: fuelProfile?.unit ?? null,
+          fuelCostAvailable,
           estimatedRevenue: Math.round(estimatedRevenue * 100) / 100,
           estimatedCost: Math.round((fuelCost + tollCost + kmCost + driverCost) * 100) / 100,
           estimatedProfit: Math.round((estimatedRevenue - fuelCost - tollCost - kmCost - driverCost) * 100) / 100,
