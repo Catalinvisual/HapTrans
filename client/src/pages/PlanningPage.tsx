@@ -1061,6 +1061,7 @@ function TripDetailDrawer({
   const trafficDelay = Number(trafficInfo?.currentDelayMinutes ?? trafficInfo?.delayMinutes ?? trip.trafficDelayMinutes ?? 0) || 0;
   const trafficLevel = trafficInfo?.congestionLevel || trafficInfo?.status || trip.trafficStatus || '';
   const tollAmount = tollInfo?.totalCost ?? tollInfo?.totalAmount ?? null;
+  const hasTollAmount = tollAmount !== null && tollAmount !== undefined && Number.isFinite(Number(tollAmount));
   const costBreakdown = (trip as any).estimatedCostBreakdown || null;
   const storedTollAmount = Number(trip.tollCost ?? trip.tollAmount);
   const hasStoredToll = ['calculated', 'calculated_zero', 'estimated'].includes(String(trip.tollStatus || '')) && Number.isFinite(storedTollAmount);
@@ -1094,8 +1095,9 @@ function TripDetailDrawer({
     try {
       const res = await planningApi.calculateTripTolls(tripId);
       setTollInfo(res);
-      if (res.available && res.totalCost !== null && res.totalCost !== undefined) {
-        const amount = fmtMoney(Number(res.totalCost), res.currency || 'EUR');
+      const totalCost = Number(res.totalCost);
+      if (res.available && res.totalCost !== null && res.totalCost !== undefined && Number.isFinite(totalCost)) {
+        const amount = fmtMoney(totalCost, res.currency || 'EUR');
         if (res.status === 'calculated_zero' || Number(res.totalCost) === 0) {
           toast.success(t('toll_confirmed_zero', { amount, defaultValue: 'Tolls confirmed: {{amount}} (provider returned zero)' }));
         } else {
@@ -1486,8 +1488,8 @@ function TripDetailDrawer({
               <div className="min-w-0">
                 <p className="text-[9px] text-text-muted font-bold uppercase">{t('toll_calculation', 'European Tolls')}</p>
                 <p className="text-xs font-bold text-emerald-600 truncate">
-                  {tollInfo?.available && tollAmount !== null
-                    ? `${fmtMoney(tollAmount, tollInfo.currency || 'EUR')}${tollInfo.status === 'calculated_zero' ? ` · ${tollStatusLabel('calculated_zero')}` : ''}${(tollInfo.countries || []).length ? ` (${tollInfo.countries.join(', ')})` : ''}`
+                  {tollInfo?.available && hasTollAmount
+                    ? `${fmtMoney(Number(tollAmount), tollInfo.currency || 'EUR')}${tollInfo.status === 'calculated_zero' ? ` · ${tollStatusLabel('calculated_zero')}` : ''}${(tollInfo.countries || []).length ? ` (${tollInfo.countries.join(', ')})` : ''}`
                     : (hasStoredToll
                       ? `${fmtMoney(storedTollAmount, trip.tollCurrency || 'EUR')}${String(trip.tollStatus) === 'calculated_zero' ? ` · ${tollStatusLabel('calculated_zero')}` : ''}`
                       : (tollInfo?.code ? providerStatusMessage(t, tollInfo.code, t('toll_unavailable', 'Toll calculation unavailable')) : tollStatusLabel(tollInfo?.status || trip.tollStatus)))

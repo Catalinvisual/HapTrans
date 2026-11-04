@@ -52,7 +52,7 @@ describe('RoutingService provider contracts', () => {
         routes: [{
           sections: [{
             summary: { length: 500000, duration: 18000 },
-            tolls: [{ countryCode: 'DE', tollSystem: { name: 'LKW-Maut' }, length: 400000, fares: [{ price: 48.5, currency: 'EUR' }] }],
+            tolls: [{ countryCode: 'DE', tollSystem: { name: 'LKW-Maut' }, length: 400000, fares: [{ price: { type: 'value', currency: 'EUR', value: 48.5 } }] }],
           }],
         }],
       },
@@ -74,7 +74,7 @@ describe('RoutingService provider contracts', () => {
           'vehicle[height]': 390,
           'vehicle[width]': 255,
           'vehicle[length]': 1650,
-          'vehicle[emissionType]': 5,
+          'vehicle[emissionType]': 'euro5',
           apiKey: 'alias-key',
         }),
       }),
@@ -114,6 +114,46 @@ describe('RoutingService provider contracts', () => {
     expect(result.available).toBe(true);
     expect(result.status).toBe('calculated_zero');
     expect(result.totalCost).toBe(0);
+  });
+
+  it('never turns HERE tollDataUnavailable into a zero toll', async () => {
+    mockedGet.mockResolvedValueOnce({
+      data: {
+        routes: [{ sections: [{ summary: { length: 1000, duration: 60 } }] }],
+        notices: [{ code: 'tollDataUnavailable', title: 'Toll data unavailable', severity: 'info' }],
+      },
+    });
+    const service = serviceWith({ HERE_API_KEY: 'test-key' });
+    const result = await service.calculateTolls({ lat: 44.4, lng: 26.1 }, { lat: 44.5, lng: 26.2 });
+    expect(result.available).toBe(false);
+    expect(result.status).toBe('unavailable');
+    expect(result.code).toBe('provider_toll_data_unavailable');
+    expect(result.totalCost).toBeNull();
+  });
+
+  it('returns unavailable instead of zero when HERE returns toll entries without usable fares', async () => {
+    mockedGet.mockResolvedValueOnce({
+      data: { routes: [{ sections: [{ summary: { length: 1000, duration: 60 }, tolls: [{ countryCode: 'NLD' }] }] }] },
+    });
+    const service = serviceWith({ HERE_API_KEY: 'test-key' });
+    const result = await service.calculateTolls({ lat: 44.4, lng: 26.1 }, { lat: 44.5, lng: 26.2 });
+    expect(result.available).toBe(false);
+    expect(result.code).toBe('provider_toll_data_unavailable');
+    expect(result.totalCost).toBeNull();
+  });
+
+  it('does not send HERE parameters that Routing v8 reports as unknown', async () => {
+    mockedGet.mockResolvedValueOnce({ data: { routes: [{ sections: [{ summary: { length: 1000, duration: 60 } }] }] } });
+    const service = serviceWith({ HERE_API_KEY: 'test-key' });
+    await service.calculateTolls(
+      { lat: 44.4, lng: 26.1 },
+      { lat: 52.5, lng: 13.4 },
+      [],
+      { grossWeightKg: 42000, axleCount: 5, heightCm: 400, widthCm: 255, lengthCm: 1650, emissionClass: 'Euro 6' },
+    );
+    const params = mockedGet.mock.calls[0][1].params;
+    expect(params).not.toHaveProperty('vehicle[tollVehicleType]');
+    expect(params['vehicle[emissionType]']).toBe('euro6');
   });
 
   it('reports a missing key as missing and keeps ORS traffic/toll unsupported', () => {

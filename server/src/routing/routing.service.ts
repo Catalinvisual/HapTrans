@@ -110,6 +110,22 @@ export class RoutingService implements OnModuleInit {
     return text.replace(/apiKey=[^&\s]+/gi, 'apiKey=[redacted]');
   }
 
+  private redactProviderJson(value: unknown, maxLength = 12000): string | null {
+    if (value === null || value === undefined) return null;
+    let text: string;
+    try {
+      text = JSON.stringify(value);
+    } catch {
+      text = String(value);
+    }
+    for (const key of [this.hereKey, this.orsKey, this.googleKey]) {
+      if (key) text = text.split(key).join('[redacted]');
+    }
+    return text.replace(/apiKey=[^&\s]+/gi, 'apiKey=[redacted]').slice(0, maxLength);
+  }
+
+  private lastProviderFailure: any = null;
+
   private classifyProviderError(err: any): string {
     const status = Number(err?.response?.status);
     if (status === 401) return 'provider_invalid_credentials';
@@ -155,17 +171,36 @@ export class RoutingService implements OnModuleInit {
     err: any,
     operation: 'route' | 'alternatives' | 'probe' | 'tolls' | 'traffic',
   ) {
-    const detail = err?.response?.data?.title || err?.response?.data?.error || err?.response?.data?.message || '';
+    const response = err?.response?.data;
+    const detail = response?.title || response?.error || response?.message || '';
+    const providerCode = response?.code || response?.errorCode || response?.error?.code || null;
+    const correlationId = err?.response?.headers?.['x-correlation-id'] || response?.correlationId || response?.requestId || null;
+    const endpoint = typeof err?.config?.url === 'string'
+      ? err.config.url.replace(/^https?:\/\/[^/]+/, '').split('?')[0]
+      : null;
+    const timeoutMs = err?.config?.timeout ?? null;
     this.providerHealth[provider].lastErrorCategory = category;
     this.providerHealth[provider].lastErrorAt = new Date();
     this.providerHealth[provider].lastHttpStatus = status;
     if (operation === 'route' || operation === 'alternatives') {
       this.lastRouteFailure = { provider, operation, code: category, httpStatus: status, at: new Date() };
     }
-    // Log only category/status/provider detail. Never log request URLs, config
-    // objects or API keys.
+    this.lastProviderFailure = {
+      provider,
+      operation,
+      endpoint,
+      status,
+      category,
+      providerCode,
+      correlationId,
+      timeoutMs,
+      detail: detail || null,
+      at: new Date(),
+    };
+    // Log only provider/endpoint/category/status/code/correlation metadata.
+    // Never log URLs with query strings, request bodies, customer data or keys.
     this.logger.warn(
-      `${provider.toUpperCase()} request failed operation=${operation} category=${category} status=${status || '-'} detail=${this.redactSecrets(detail) || 'n/a'}`,
+      `${provider.toUpperCase()} request failed operation=${operation} endpoint=${endpoint || '-'} category=${category} status=${status || '-'} providerCode=${providerCode || '-'} correlationId=${correlationId || '-'} timeoutMs=${timeoutMs ?? '-'} detail=${this.redactSecrets(detail) || 'n/a'}`,
     );
   }
 
@@ -196,6 +231,7 @@ export class RoutingService implements OnModuleInit {
         unavailableReason: selected === 'none' ? 'provider_key_missing' : null,
         lastRequestFailure: this.getLastRouteFailure(),
       },
+      lastProviderFailure: this.lastProviderFailure,
       tollsProbe: this.lastTollProbe,
       here: {
         name: 'HERE',
@@ -269,8 +305,7 @@ export class RoutingService implements OnModuleInit {
           'vehicle[width]': 255,
           'vehicle[length]': 1360,
           'vehicle[axleCount]': 5,
-          'vehicle[tollVehicleType]': 3,
-          'vehicle[emissionType]': 6,
+          'vehicle[emissionType]': 'euro6',
           currency: 'EUR',
         },
         timeout: 12000,
@@ -484,8 +519,7 @@ export class RoutingService implements OnModuleInit {
           'vehicle[width]': truckParams?.widthCm || 255,
           'vehicle[length]': truckParams?.lengthCm || 1360,
           'vehicle[axleCount]': truckParams?.axleCount || 5,
-          'vehicle[tollVehicleType]': 3,
-          'vehicle[emissionType]': truckParams?.emissionType || 6,
+          'vehicle[emissionType]': this.hereEmissionValue(truckParams?.emissionType),
           currency: 'EUR',
         };
         const avoidFeatures: string[] = [];
@@ -517,16 +551,9 @@ export class RoutingService implements OnModuleInit {
 
           // Compute commercial truck toll strictly from HERE toll fares. A
           // missing toll block is reported as unavailable, never as a fake 0.
-          let tollCost = 0;
-          let tollAvailable = false;
-          if (Array.isArray(section?.tolls)) {
-            tollAvailable = true;
-            for (const toll of section.tolls) {
-              const fare = Number(toll.fares?.[0]?.price);
-              if (Number.isFinite(fare)) tollCost += fare;
-            }
-          }
-          tollCost = Math.round(tollCost * 100) / 100;
+          const toll = this.parseHereTollSections(section ? [section] : []);
+          const tollCost = toll.totalCost;
+          const tollAvailable = toll.tollAvailable;
 
           let coordinates: number[][] = [];
           if (section?.polyline) {
@@ -550,7 +577,7 @@ export class RoutingService implements OnModuleInit {
             durationMin,
             durationText: `${hours}h ${mins}m`,
             tollCost: tollAvailable ? tollCost : undefined,
-            tollCurrency: 'EUR',
+            tollCurrency: toll.currency,
             tollStatus: tollAvailable ? 'calculated' : 'unavailable',
             polyline: section?.polyline || null,
             coordinates,
@@ -616,8 +643,7 @@ export class RoutingService implements OnModuleInit {
         'vehicle[width]': truckParams?.widthCm || 255,
         'vehicle[length]': truckParams?.lengthCm || 1360,
         'vehicle[axleCount]': truckParams?.axleCount || 5,
-        'vehicle[tollVehicleType]': 3,
-        'vehicle[emissionType]': truckParams?.emissionType || 6,
+        'vehicle[emissionType]': this.hereEmissionValue(truckParams?.emissionType),
         currency: 'EUR',
       };
       const avoidFeatures: string[] = [];
@@ -647,18 +673,9 @@ export class RoutingService implements OnModuleInit {
         const hours = Math.floor(durationMin / 60);
         const mins = durationMin % 60;
 
-        let tollCost = 0;
-        let tollAvailable = false;
-        if (Array.isArray(section?.tolls)) {
-          for (const toll of section.tolls) {
-            const fare = Number(toll.fares?.[0]?.price);
-            if (Number.isFinite(fare)) {
-              tollCost += fare;
-              tollAvailable = true;
-            }
-          }
-        }
-        tollCost = Math.round(tollCost * 100) / 100;
+        const toll = this.parseHereTollSections(section ? [section] : []);
+        const tollCost = toll.totalCost;
+        const tollAvailable = toll.tollAvailable;
 
         let coordinates: number[][] = [];
         if (section?.polyline) {
@@ -677,7 +694,7 @@ export class RoutingService implements OnModuleInit {
           durationMin,
           durationText: `${hours}h ${mins}m`,
           tollCost: tollAvailable ? tollCost : undefined,
-          tollCurrency: 'EUR',
+          tollCurrency: toll.currency,
           tollStatus: tollAvailable ? 'calculated' : 'unavailable',
           polyline: section?.polyline || null,
           coordinates,
@@ -1091,10 +1108,86 @@ export class RoutingService implements OnModuleInit {
     };
   }
 
-  private hereEmissionType(emissionClass?: string): number | null {
-    const normalized = String(emissionClass || '').toLowerCase().replace(/[^0-9]/g, '');
-    const value = Number(normalized);
-    return Number.isFinite(value) && value >= 0 && value <= 6 ? value : null;
+  private hereEmissionType(emissionClass?: string): string | null {
+    const normalized = String(emissionClass || '').toLowerCase().match(/[0-6]/)?.[0];
+    return normalized !== undefined ? `euro${normalized}` : null;
+  }
+
+  private hereEmissionValue(value?: number | string | null): string {
+    const number = typeof value === 'number' ? value : Number(String(value ?? '').match(/[0-6]/)?.[0]);
+    return Number.isFinite(number) && number >= 0 && number <= 6 ? `euro${number}` : 'euro6';
+  }
+
+  /**
+   * HERE v8 returns a fare price as an object, for example:
+   * { type: 'value', currency: 'EUR', value: 30.293 }.
+   * Accept scalar values too for older/cached provider responses.
+   */
+  private parseHereMoney(value: any): { amount: number; currency: string | null } | null {
+    let raw = value;
+    let currency: string | null = null;
+    if (raw && typeof raw === 'object') {
+      currency = typeof raw.currency === 'string' ? raw.currency : null;
+      raw = raw.value ?? raw.amount ?? raw.price?.value ?? raw.price ?? null;
+    }
+    const amount = Number(raw);
+    return Number.isFinite(amount) ? { amount, currency } : null;
+  }
+
+  private parseHereTollSections(sections: any[]): {
+    totalCost: number;
+    tollAvailable: boolean;
+    sawTollEntry: boolean;
+    currency: string;
+    countries: string[];
+    sections: TollSection[];
+  } {
+    let totalCost = 0;
+    let tollAvailable = false;
+    let sawTollEntry = false;
+    let currency = 'EUR';
+    const countries = new Set<string>();
+    const parsedSections: TollSection[] = [];
+
+    for (const section of sections) {
+      for (const toll of Array.isArray(section?.tolls) ? section.tolls : []) {
+        sawTollEntry = true;
+        const fares = Array.isArray(toll?.fares) ? toll.fares : [];
+        let money: { amount: number; currency: string | null } | null = null;
+        for (const fare of fares) {
+          money = this.parseHereMoney(fare?.price ?? fare);
+          if (money) break;
+        }
+        if (!money) continue;
+
+        tollAvailable = true;
+        totalCost += money.amount;
+        currency = money.currency || currency;
+        if (toll.countryCode) countries.add(String(toll.countryCode));
+        parsedSections.push({
+          countryCode: toll.countryCode || 'EU',
+          tollRoadName: toll.tollSystem?.name || toll.name || 'Toll Section',
+          cost: money.amount,
+          currency: money.currency || 'EUR',
+          distanceKm: Math.round((Number(toll.length) || 0) / 1000),
+        });
+      }
+    }
+
+    return {
+      totalCost: Math.round(totalCost * 100) / 100,
+      tollAvailable,
+      sawTollEntry,
+      currency,
+      countries: Array.from(countries),
+      sections: parsedSections,
+    };
+  }
+
+  private hasTollDataUnavailableNotice(notices: any[]): boolean {
+    return notices.some((notice) =>
+      /toll.*(unavailable|temporar|not available)|tollData/i.test(`${notice?.code || ''} ${notice?.title || ''}`),
+    );
   }
 
   // ─── European Toll Calculation Architecture (§7) ──────────────────────────
@@ -1110,7 +1203,6 @@ export class RoutingService implements OnModuleInit {
       destination: `${destination.lat},${destination.lng}`,
       return: 'summary,tolls',
       apiKey: this.hereKey,
-      'vehicle[tollVehicleType]': 3, // Commercial truck
       currency: 'EUR',
     };
     // Use the actual truck profile whenever it is available. Omit missing
@@ -1202,11 +1294,9 @@ export class RoutingService implements OnModuleInit {
       })),
     );
     const notices = this.collectHereNotices(body).slice(0, 20);
-    const parsed = tolls.reduce((sum: number, toll: any) => {
-      const price = Number(toll.farePrice);
-      return Number.isFinite(price) ? sum + price : sum;
-    }, 0);
+    const parsed = this.parseHereTollSections(sections);
 
+    const calculation = await this.calculateTolls(origin, destination, [], vehicle);
     this.lastTollProbe = {
       configured: true,
       endpoint: 'https://router.hereapi.com/v8/routes',
@@ -1234,15 +1324,26 @@ export class RoutingService implements OnModuleInit {
         routeCount: Array.isArray(body?.routes) ? body.routes.length : 0,
         sectionCount: sections.length,
         tollCount: tolls.length,
-        parsedTotal: parsed,
+        parsedTotal: parsed.totalCost,
+        parsedTolls: parsed.sections,
+        tollDataAvailable: parsed.tollAvailable,
+        calculation: {
+          available: calculation.available,
+          status: calculation.status,
+          totalCost: calculation.totalCost,
+          currency: calculation.currency,
+          countries: calculation.countries,
+          code: calculation.code || null,
+          message: calculation.message || null,
+        },
         tolls: tolls.slice(0, 20),
         notices,
-        sanitizedBody: body ? this.redactSecrets(JSON.stringify(body)).slice(0, 12000) : null,
+        sanitizedBody: body ? this.redactProviderJson(body) : null,
       },
     };
     this.lastTollProbeAt = now;
     this.logger.log(
-      `Toll probe status=${status ?? '-'} routeCount=${this.lastTollProbe.response.routeCount} tollCount=${tolls.length} total=${parsed} elapsedMs=${this.lastTollProbe.elapsedMs}${this.lastTollProbe.category ? ` category=${this.lastTollProbe.category}` : ''}`,
+      `Toll probe status=${status ?? '-'} routeCount=${this.lastTollProbe.response.routeCount} tollCount=${tolls.length} total=${parsed.totalCost} elapsedMs=${this.lastTollProbe.elapsedMs}${this.lastTollProbe.category ? ` category=${this.lastTollProbe.category}` : ''}`,
     );
     return this.lastTollProbe;
   }
@@ -1317,39 +1418,46 @@ export class RoutingService implements OnModuleInit {
 
       const route = res.data?.routes?.[0];
       if (route) {
-        let totalCost = 0;
-        const countriesSet = new Set<string>();
-        const sections: TollSection[] = [];
-
-        (route.sections || []).forEach((sec: any) => {
-          if (sec.tolls) {
-            for (const toll of sec.tolls) {
-              const tollCost = toll.fares?.[0]?.price || 0;
-              totalCost += tollCost;
-              if (toll.countryCode) countriesSet.add(toll.countryCode);
-              sections.push({
-                countryCode: toll.countryCode || 'EU',
-                tollRoadName: toll.tollSystem?.name || toll.name || 'Toll Section',
-                cost: tollCost,
-                currency: toll.fares?.[0]?.currency || 'EUR',
-                distanceKm: Math.round((toll.length || 0) / 1000),
-              });
-            }
-          }
-        });
-
-        const countries = Array.from(countriesSet);
+        const parsed = this.parseHereTollSections(route.sections || []);
+        const notices = this.collectHereNotices(res.data);
         this.recordProviderSuccess('here');
 
-        const roundedTotal = Math.round(totalCost * 100) / 100;
+        if (parsed.tollAvailable) {
+          return {
+            available: true,
+            provider: 'here',
+            status: parsed.totalCost === 0 ? 'calculated_zero' : 'calculated',
+            totalCost: parsed.totalCost,
+            currency: parsed.currency,
+            countries: parsed.countries,
+            sections: parsed.sections,
+            calculatedAt: new Date(),
+          };
+        }
+
+        if (parsed.sawTollEntry || this.hasTollDataUnavailableNotice(notices)) {
+          return {
+            available: false,
+            provider: 'here',
+            status: 'unavailable',
+            code: 'provider_toll_data_unavailable',
+            message: 'HERE returned toll entries but no usable fare for this route',
+            totalCost: null,
+            currency: 'EUR',
+            countries: [],
+            sections: [],
+            calculatedAt: new Date(),
+          };
+        }
+
         return {
           available: true,
           provider: 'here',
-          status: sections.length === 0 ? 'calculated_zero' : 'calculated',
-          totalCost: roundedTotal,
+          status: 'calculated_zero',
+          totalCost: 0,
           currency: 'EUR',
-          countries,
-          sections,
+          countries: [],
+          sections: [],
           calculatedAt: new Date(),
         };
       }
@@ -1360,7 +1468,9 @@ export class RoutingService implements OnModuleInit {
         provider: 'here',
         status: 'failed',
         code,
-        message: 'Toll calculation unavailable for this route',
+        message: code === 'provider_invalid_request'
+          ? 'HERE rejected the truck toll request parameters'
+          : 'HERE toll request failed',
         totalCost: null,
         currency: 'EUR',
         countries: [],
@@ -1374,7 +1484,7 @@ export class RoutingService implements OnModuleInit {
       provider: 'here',
       status: 'failed',
       code: 'provider_no_route',
-      message: 'Toll calculation unavailable for this route',
+      message: 'HERE returned no route for toll calculation',
       totalCost: null,
       currency: 'EUR',
       countries: [],

@@ -70,6 +70,9 @@ const en = {
   provider_no_data: 'The provider returned no data for this route.',
   provider_unsupported: 'This provider does not support the requested feature.',
   provider_request_failed: 'The provider request failed.',
+  provider_invalid_request: 'The provider rejected the request parameters.',
+  provider_server_error: 'The provider service failed.',
+  provider_toll_data_unavailable: 'Toll data is unavailable for this route.',
 };
 
 const ro = {

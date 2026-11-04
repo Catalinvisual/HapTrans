@@ -5381,8 +5381,9 @@ export class PlanningService {
       hasTrailer: !!trip.trailer,
     });
 
-    if (tollResult.available && tollResult.totalCost !== null) {
-      trip.tollCost = tollResult.totalCost;
+    const tollTotal = Number(tollResult.totalCost);
+    if (tollResult.available && tollResult.totalCost !== null && Number.isFinite(tollTotal)) {
+      trip.tollCost = tollTotal;
       trip.tollStatus = tollResult.status === 'calculated_zero' ? 'calculated_zero' : 'calculated';
       trip.tollCountries = tollResult.countries;
       await this.tripRepo.save(trip);
@@ -5406,16 +5407,23 @@ export class PlanningService {
   /** Truck technical profile used by routing and toll providers. */
   private truckRoutingProfile(trip: any) {
     const truck = trip?.truck || {};
+    const trailer = trip?.trailer || {};
     const emissionMap: Record<string, number> = {
       'euro 6': 6, 'euro 5': 5, 'euro 4': 4, 'euro 3': 3, 'euro 2': 2, 'euro 1': 1,
     };
     const euronorm = String(truck.euronorm || '').toLowerCase().trim();
+    const maxDimension = (truckValue: any, trailerValue: any) => {
+      const values = [Number(truckValue) || 0, Number(trailerValue) || 0];
+      return Math.max(...values) || undefined;
+    };
+    const truckAxles = Number(truck.axleCount) || 0;
+    const trailerAxles = Number(trailer.axleCount) || 0;
     return {
       weightKg: Number(truck.maxWeightKg) || undefined,
-      heightCm: Number(truck.heightCm) || undefined,
-      widthCm: Number(truck.widthCm) || undefined,
-      lengthCm: Number(truck.lengthCm) || undefined,
-      axleCount: Number(truck.axleCount) || undefined,
+      heightCm: maxDimension(truck.heightCm, trailer.heightCm),
+      widthCm: maxDimension(truck.widthCm, trailer.widthCm),
+      lengthCm: maxDimension(truck.lengthCm, trailer.lengthCm),
+      axleCount: truckAxles + trailerAxles || undefined,
       emissionType: emissionMap[euronorm] || undefined,
       emissionClass: truck.euronorm || undefined,
     };
