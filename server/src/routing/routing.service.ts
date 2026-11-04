@@ -305,7 +305,7 @@ export class RoutingService implements OnModuleInit {
           'vehicle[width]': 255,
           'vehicle[length]': 1360,
           'vehicle[axleCount]': 5,
-          'vehicle[emissionType]': 'euro6',
+          'tolls[emissionType]': 'euro6',
           currency: 'EUR',
         },
         timeout: 12000,
@@ -519,7 +519,7 @@ export class RoutingService implements OnModuleInit {
           'vehicle[width]': truckParams?.widthCm || 255,
           'vehicle[length]': truckParams?.lengthCm || 1360,
           'vehicle[axleCount]': truckParams?.axleCount || 5,
-          'vehicle[emissionType]': this.hereEmissionValue(truckParams?.emissionType),
+          'tolls[emissionType]': this.hereEmissionValue(truckParams?.emissionType),
           currency: 'EUR',
         };
         const avoidFeatures: string[] = [];
@@ -643,7 +643,7 @@ export class RoutingService implements OnModuleInit {
         'vehicle[width]': truckParams?.widthCm || 255,
         'vehicle[length]': truckParams?.lengthCm || 1360,
         'vehicle[axleCount]': truckParams?.axleCount || 5,
-        'vehicle[emissionType]': this.hereEmissionValue(truckParams?.emissionType),
+        'tolls[emissionType]': this.hereEmissionValue(truckParams?.emissionType),
         currency: 'EUR',
       };
       const avoidFeatures: string[] = [];
@@ -1025,10 +1025,6 @@ export class RoutingService implements OnModuleInit {
         if (vehicle?.heightCm) params['vehicle[height]'] = vehicle.heightCm;
         if (vehicle?.widthCm) params['vehicle[width]'] = vehicle.widthCm;
         if (vehicle?.lengthCm) params['vehicle[length]'] = vehicle.lengthCm;
-        if (vehicle?.emissionClass) {
-          const emissionType = this.hereEmissionType(vehicle.emissionClass);
-          if (emissionType) params['vehicle[emissionType]'] = emissionType;
-        }
 
         if (waypoints && waypoints.length > 0) {
           waypoints.forEach((wp, idx) => {
@@ -1214,7 +1210,7 @@ export class RoutingService implements OnModuleInit {
     if (vehicle?.lengthCm) params['vehicle[length]'] = vehicle.lengthCm;
     if (vehicle?.emissionClass) {
       const emissionType = this.hereEmissionType(vehicle.emissionClass);
-      if (emissionType !== null) params['vehicle[emissionType]'] = emissionType;
+      if (emissionType !== null) params['tolls[emissionType]'] = emissionType;
     }
 
     if (waypoints && waypoints.length > 0) {
@@ -1317,6 +1313,7 @@ export class RoutingService implements OnModuleInit {
           widthCm: vehicle.widthCm,
           lengthCm: vehicle.lengthCm,
           emissionClass: vehicle.emissionClass,
+          emissionParameter: 'tolls[emissionType]',
           hasTrailer: vehicle.hasTrailer,
         },
       },

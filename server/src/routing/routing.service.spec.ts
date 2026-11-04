@@ -74,7 +74,7 @@ describe('RoutingService provider contracts', () => {
           'vehicle[height]': 390,
           'vehicle[width]': 255,
           'vehicle[length]': 1650,
-          'vehicle[emissionType]': 'euro5',
+          'tolls[emissionType]': 'euro5',
           apiKey: 'alias-key',
         }),
       }),
@@ -153,7 +153,8 @@ describe('RoutingService provider contracts', () => {
     );
     const params = mockedGet.mock.calls[0][1].params;
     expect(params).not.toHaveProperty('vehicle[tollVehicleType]');
-    expect(params['vehicle[emissionType]']).toBe('euro6');
+    expect(params).not.toHaveProperty('vehicle[emissionType]');
+    expect(params['tolls[emissionType]']).toBe('euro6');
   });
 
   it('reports a missing key as missing and keeps ORS traffic/toll unsupported', () => {
