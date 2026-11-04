@@ -182,4 +182,10 @@ export class PublicRoutingController {
     // No API keys, request URLs or request bodies are returned.
     return this.routingService.getProviderDiagnostics();
   }
+
+  @Get('tolls/probe')
+  async probeTolls() {
+    // Cached fixed Amsterdam -> Berlin toll request. No user/customer data.
+    return this.routingService.probeTollCalculation();
+  }
 }

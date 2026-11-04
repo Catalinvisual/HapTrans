@@ -196,6 +196,7 @@ export class RoutingService implements OnModuleInit {
         unavailableReason: selected === 'none' ? 'provider_key_missing' : null,
         lastRequestFailure: this.getLastRouteFailure(),
       },
+      tollsProbe: this.lastTollProbe,
       here: {
         name: 'HERE',
         ...health('here', !!this.hereKey, this.hereKeySource),
@@ -1097,6 +1098,193 @@ export class RoutingService implements OnModuleInit {
   }
 
   // ─── European Toll Calculation Architecture (§7) ──────────────────────────
+  private buildHereTollParams(
+    origin: LatLng,
+    destination: LatLng,
+    waypoints?: LatLng[],
+    vehicle?: TollCalculationVehicle,
+  ): Record<string, any> {
+    const params: Record<string, any> = {
+      transportMode: 'truck',
+      origin: `${origin.lat},${origin.lng}`,
+      destination: `${destination.lat},${destination.lng}`,
+      return: 'summary,tolls',
+      apiKey: this.hereKey,
+      'vehicle[tollVehicleType]': 3, // Commercial truck
+      currency: 'EUR',
+    };
+    // Use the actual truck profile whenever it is available. Omit missing
+    // dimensions rather than presenting invented defaults as truck data.
+    if (vehicle?.grossWeightKg) params['vehicle[grossWeight]'] = vehicle.grossWeightKg;
+    if (vehicle?.axleCount) params['vehicle[axleCount]'] = vehicle.axleCount;
+    if (vehicle?.heightCm) params['vehicle[height]'] = vehicle.heightCm;
+    if (vehicle?.widthCm) params['vehicle[width]'] = vehicle.widthCm;
+    if (vehicle?.lengthCm) params['vehicle[length]'] = vehicle.lengthCm;
+    if (vehicle?.emissionClass) {
+      const emissionType = this.hereEmissionType(vehicle.emissionClass);
+      if (emissionType !== null) params['vehicle[emissionType]'] = emissionType;
+    }
+
+    if (waypoints && waypoints.length > 0) {
+      waypoints.forEach((wp, idx) => {
+        params[`via[${idx}]`] = `${wp.lat},${wp.lng}`;
+      });
+    }
+    return params;
+  }
+
+  private lastTollProbe: any = null;
+  private lastTollProbeAt = 0;
+
+  /**
+   * Fixed-route, cached production probe for the real HERE toll request. It
+   * returns only the fixed test route, HTTP status and sanitized provider
+   * response; it cannot be used as a general routing proxy.
+   */
+  async probeTollCalculation(force = false): Promise<any> {
+    const now = Date.now();
+    if (!force && this.lastTollProbe && now - this.lastTollProbeAt < 10 * 60 * 1000) {
+      return this.lastTollProbe;
+    }
+    if (!this.hereKey) {
+      this.lastTollProbe = {
+        configured: false,
+        endpoint: 'https://router.hereapi.com/v8/routes',
+        status: null,
+        category: 'provider_key_missing',
+        elapsedMs: 0,
+      };
+      this.lastTollProbeAt = now;
+      return this.lastTollProbe;
+    }
+
+    const origin = { lat: 52.3676, lng: 4.9041 }; // Amsterdam
+    const destination = { lat: 52.5200, lng: 13.4050 }; // Berlin
+    const vehicle: TollCalculationVehicle = {
+      grossWeightKg: 42000,
+      axleCount: 5,
+      heightCm: 400,
+      widthCm: 255,
+      lengthCm: 1650,
+      emissionClass: 'Euro 6',
+      hasTrailer: true,
+    };
+    const params = this.buildHereTollParams(origin, destination, [], vehicle);
+    const started = Date.now();
+    let status: number | null = null;
+    let body: any = null;
+    let networkError: string | null = null;
+    try {
+      const res = await axios.get('https://router.hereapi.com/v8/routes', {
+        params,
+        timeout: 15000,
+        validateStatus: () => true,
+      });
+      status = Number(res.status);
+      body = res.data;
+    } catch (err: any) {
+      status = Number(err?.response?.status) || null;
+      body = err?.response?.data || null;
+      networkError = this.classifyProviderError(err);
+    }
+
+    const route = body?.routes?.[0];
+    const sections = Array.isArray(route?.sections) ? route.sections : [];
+    const tolls = sections.flatMap((section: any, sectionIndex: number) =>
+      (Array.isArray(section?.tolls) ? section.tolls : []).map((toll: any, tollIndex: number) => ({
+        sectionIndex,
+        tollIndex,
+        countryCode: toll.countryCode || null,
+        name: toll.tollSystem?.name || toll.name || null,
+        farePrice: toll.fares?.[0]?.price ?? null,
+        fareCurrency: toll.fares?.[0]?.currency ?? null,
+        lengthMeters: toll.length ?? null,
+      })),
+    );
+    const notices = this.collectHereNotices(body).slice(0, 20);
+    const parsed = tolls.reduce((sum: number, toll: any) => {
+      const price = Number(toll.farePrice);
+      return Number.isFinite(price) ? sum + price : sum;
+    }, 0);
+
+    this.lastTollProbe = {
+      configured: true,
+      endpoint: 'https://router.hereapi.com/v8/routes',
+      status,
+      ok: status !== null && status >= 200 && status < 300,
+      elapsedMs: Date.now() - started,
+      category: networkError || (status !== null && status >= 400 ? this.classifyProviderStatus(status) : null),
+      request: {
+        transportMode: 'truck',
+        return: params.return,
+        origin: '52.3676,4.9041 (Amsterdam) fixed probe',
+        destination: '52.52,13.405 (Berlin) fixed probe',
+        viaCount: 0,
+        vehicle: {
+          grossWeightKg: vehicle.grossWeightKg,
+          axleCount: vehicle.axleCount,
+          heightCm: vehicle.heightCm,
+          widthCm: vehicle.widthCm,
+          lengthCm: vehicle.lengthCm,
+          emissionClass: vehicle.emissionClass,
+          hasTrailer: vehicle.hasTrailer,
+        },
+      },
+      response: {
+        routeCount: Array.isArray(body?.routes) ? body.routes.length : 0,
+        sectionCount: sections.length,
+        tollCount: tolls.length,
+        parsedTotal: parsed,
+        tolls: tolls.slice(0, 20),
+        notices,
+        sanitizedBody: body ? this.redactSecrets(JSON.stringify(body)).slice(0, 12000) : null,
+      },
+    };
+    this.lastTollProbeAt = now;
+    this.logger.log(
+      `Toll probe status=${status ?? '-'} routeCount=${this.lastTollProbe.response.routeCount} tollCount=${tolls.length} total=${parsed} elapsedMs=${this.lastTollProbe.elapsedMs}${this.lastTollProbe.category ? ` category=${this.lastTollProbe.category}` : ''}`,
+    );
+    return this.lastTollProbe;
+  }
+
+  private classifyProviderStatus(status: number): string {
+    if (status === 400) return 'provider_invalid_request';
+    if (status === 401) return 'provider_invalid_credentials';
+    if (status === 403) return 'provider_product_not_enabled';
+    if (status === 404) return 'provider_no_route';
+    if (status === 429) return 'provider_rate_limited';
+    if (status >= 500) return 'provider_server_error';
+    return 'provider_request_failed';
+  }
+
+  private collectHereNotices(value: any): any[] {
+    const found: any[] = [];
+    const seen = new Set<any>();
+    const walk = (node: any) => {
+      if (!node || typeof node !== 'object' || seen.has(node) || found.length >= 20) return;
+      seen.add(node);
+      if (Array.isArray(node)) {
+        node.forEach(walk);
+        return;
+      }
+      if (node.code || node.title || node.severity) {
+        const code = String(node.code || '');
+        const title = String(node.title || '');
+        if (/toll/i.test(code) || /toll/i.test(title) || node.severity) {
+          found.push({
+            code: code || null,
+            title: title || null,
+            severity: node.severity || null,
+            details: node.details || node.description || null,
+          });
+        }
+      }
+      Object.values(node).forEach(walk);
+    };
+    walk(value);
+    return found;
+  }
+
   async calculateTolls(
     origin: LatLng,
     destination: LatLng,
@@ -1120,32 +1308,7 @@ export class RoutingService implements OnModuleInit {
     }
 
     try {
-      const params: any = {
-        transportMode: 'truck',
-        origin: `${origin.lat},${origin.lng}`,
-        destination: `${destination.lat},${destination.lng}`,
-        return: 'summary,tolls',
-        apiKey: this.hereKey,
-        'vehicle[tollVehicleType]': 3, // Commercial truck
-        currency: 'EUR',
-      };
-      // Use the actual truck profile whenever it is available. Omit missing
-      // dimensions rather than presenting invented defaults as truck data.
-      if (vehicle?.grossWeightKg) params['vehicle[grossWeight]'] = vehicle.grossWeightKg;
-      if (vehicle?.axleCount) params['vehicle[axleCount]'] = vehicle.axleCount;
-      if (vehicle?.heightCm) params['vehicle[height]'] = vehicle.heightCm;
-      if (vehicle?.widthCm) params['vehicle[width]'] = vehicle.widthCm;
-      if (vehicle?.lengthCm) params['vehicle[length]'] = vehicle.lengthCm;
-      if (vehicle?.emissionClass) {
-        const emissionType = this.hereEmissionType(vehicle.emissionClass);
-        if (emissionType !== null) params['vehicle[emissionType]'] = emissionType;
-      }
-
-      if (waypoints && waypoints.length > 0) {
-        waypoints.forEach((wp, idx) => {
-          params[`via[${idx}]`] = `${wp.lat},${wp.lng}`;
-        });
-      }
+      const params = this.buildHereTollParams(origin, destination, waypoints, vehicle);
 
       const res = await axios.get('https://router.hereapi.com/v8/routes', {
         params,
