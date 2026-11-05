@@ -91,6 +91,13 @@ export class TruckRoutePlan {
   @Column({ type: 'jsonb', nullable: true })
   routeWarnings: any[] | null;
 
+  // Fingerprint of the HGV restrictions (height/width/length/axles/gross
+  // weight) that were used the last time this plan's road route was
+  // calculated. It is what tells the planner whether a recalculation is still
+  // required after the truck or trailer data changed.
+  @Column({ type: 'varchar', nullable: true })
+  vehicleRestrictionsSignature: string | null;
+
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   optimizationScore: number;
 

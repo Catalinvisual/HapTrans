@@ -148,7 +148,8 @@ export default function TruckRoutePlannerPage() {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [activeStopId, setActiveStopId] = useState<string | null>(null);
   const [fallbackTruck, setFallbackTruck] = useState<any>(null);
-  const [vehicleUpdateNotice, setVehicleUpdateNotice] = useState<string | null>(null);
+  const [vehicleUpdatePending, setVehicleUpdatePending] = useState(false);
+  const [recalcError, setRecalcError] = useState<string | null>(null);
   const vehicleUpdateHandledRef = useRef<string | null>(null);
   const [selectedWizardOrderId, setSelectedWizardOrderId] = useState<string | null>(null);
   const [truckTrips, setTruckTrips] = useState<any[]>([]);
@@ -261,7 +262,10 @@ export default function TruckRoutePlannerPage() {
   useEffect(() => {
     if (!vehicleUpdatedParam || vehicleUpdateHandledRef.current === vehicleUpdatedParam) return;
     vehicleUpdateHandledRef.current = vehicleUpdatedParam;
-    setVehicleUpdateNotice(vehicleUpdatedParam);
+    // The truck editor just saved vehicle data. The planner reloads the plan
+    // on mount, so the confirmation waits for that refreshed data.
+    setVehicleUpdatePending(true);
+    setRecalcError(null);
     const next = new URLSearchParams(searchParams);
     next.delete('vehicleUpdated');
     navigate({ pathname: location.pathname, search: next.toString() ? `?${next.toString()}` : '' }, { replace: true });
@@ -463,29 +467,54 @@ export default function TruckRoutePlannerPage() {
   const routeWarnings = asArray(routePlan?.routeWarnings);
   const reportedMissingRestrictions: string[] = routeWarnings
     .filter((warning: any) => warning?.code === 'vehicle_restrictions_incomplete')
-    .flatMap((warning: any) => Array.isArray(warning.missingFields) ? warning.missingFields : []);
+    .flatMap((warning: any) => (Array.isArray(warning.missingFields) ? warning.missingFields : []));
   const routeTruck = routePlan?.truck || null;
-  const routeTrailer = routePlan?.trailer || routeTruck?.trailer || null;
+  const routeTrailer = routePlan?.trailer || routeTruck?.trailer || routePlan?.trip?.trailer || null;
   const restrictionValues: Record<string, number> = routePlan ? {
     height: Math.max(Number(routeTruck?.heightCm) || 0, Number(routeTrailer?.heightCm) || 0),
     width: Math.max(Number(routeTruck?.widthCm) || 0, Number(routeTrailer?.widthCm) || 0),
     length: Math.max(Number(routeTruck?.lengthCm) || 0, Number(routeTrailer?.lengthCm) || 0),
     axles: (Number(routeTruck?.axleCount) || 0) + (Number(routeTrailer?.axleCount) || 0),
-    grossWeight: Number(routeTruck?.maxWeightKg) || Number(routePlan?.maxWeightKg) || 0,
+    grossWeight: Math.max(Number(routeTruck?.maxWeightKg) || 0, Number(routePlan?.maxWeightKg) || 0),
   } : {};
   const computedMissingRestrictions: string[] = Object.entries(restrictionValues)
     .filter(([, value]) => value <= 0)
     .map(([field]) => field);
-  const missingRestrictions: string[] = routeTruck
-    ? computedMissingRestrictions
-    : reportedMissingRestrictions.length
-      ? reportedMissingRestrictions
-      : computedMissingRestrictions;
-  const verifiedRestrictions: string[] = Object.entries(restrictionValues)
-    .filter(([, value]) => value > 0)
-    .map(([field]) => field);
-  const verifiedRestrictionLabels = verifiedRestrictions.map((field) => t(`pln_field_${field}`, field)).join(', ');
+  // The backend derives this list from the persisted truck/trailer data, so a
+  // completed field can never leave a stale warning behind. The local list is
+  // only a fallback for plans that predate the persisted status.
+  const missingRestrictions: string[] = Array.isArray(routePlan?.vehicleRestrictionsMissingFields)
+    ? (routePlan.vehicleRestrictionsMissingFields as string[])
+    : routeTruck
+      ? computedMissingRestrictions
+      : reportedMissingRestrictions.length
+        ? reportedMissingRestrictions
+        : computedMissingRestrictions;
   const missingRestrictionLabels = missingRestrictions.map((field) => t(`pln_field_${field}`, field)).join(', ');
+  const routeRestrictionsState = String(routePlan?.routeRestrictionsState || '');
+  // Recalculation is a separate follow-up: never shown while fields are still
+  // missing, because that is the missing-data warning's job.
+  const needsRouteRecalculation = routeRestrictionsState === 'route_recalculation_required' && missingRestrictions.length === 0;
+
+  // Consume the "vehicle saved" hand-off exactly once, after the refreshed
+  // plan (and therefore the refreshed truck/trailer data) has been applied.
+  useEffect(() => {
+    if (!vehicleUpdatePending || loading || !routePlan) return;
+    setVehicleUpdatePending(false);
+    if (missingRestrictions.length > 0) {
+      toast.error(
+        t('pln_vehicle_saved_missing', 'Vehicle data saved. Still missing: {{fields}}.', {
+          fields: missingRestrictionLabels,
+        }),
+        { duration: 6000 },
+      );
+      return;
+    }
+    toast.success(
+      t('pln_vehicle_saved_ok', 'Vehicle data updated successfully. All required vehicle restrictions are now verified.'),
+      { duration: 4500 },
+    );
+  }, [vehicleUpdatePending, loading, routePlan, missingRestrictions, t]);
 
   const openVehicleDataEditor = () => {
     const linkedTruckId = routeTruck?.id || routePlan?.truckId || effectiveTruckId;
@@ -656,13 +685,23 @@ export default function TruckRoutePlannerPage() {
 
   const handleRecalculate = async () => {
     setActionLoading('recalculate');
+    setRecalcError(null);
     try {
       const plan = await planningApi.recalculateRoutePlan(truckId, effectivePlanningDate);
       setRoutePlan(plan);
       setDirty(false);
-      toast.success(t('pln_recalculated_ok', 'Loads recalculated'));
+      if (String(plan?.routeRestrictionsState || '') === 'route_recalculation_failed' || String(plan?.routeStatus || '').toLowerCase() === 'failed') {
+        // A provider failure is already reported by the routed-status strip
+        // with its own retry action; keep this notice informational.
+        toast.error(t('pln_recalc_failed', 'Route recalculation failed. The saved vehicle data is unchanged; retry the recalculation.'));
+        return;
+      }
+      toast.success(t('pln_recalculated_route', 'Route recalculated with the current vehicle restrictions.'));
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || t('pln_recalculate_error', 'Recalculation failed'));
+      const message = String(err?.response?.data?.message || err?.message || t('pln_recalculate_error', 'Recalculation failed'));
+      // Persisted in component state so the error and its retry stay visible.
+      setRecalcError(message);
+      toast.error(message);
     } finally {
       setActionLoading(null);
     }
@@ -1231,24 +1270,44 @@ export default function TruckRoutePlannerPage() {
         </div>
       )}
 
-      {vehicleUpdateNotice && routePlan && (
+      {routePlan && needsRouteRecalculation && (
         <div
           role="status"
-          className={`shrink-0 px-4 py-2 border-b text-[11px] flex flex-wrap items-center gap-x-2 gap-y-1 ${
-            missingRestrictions.length > 0
-              ? 'border-amber-500/25 bg-amber-500/5 text-amber-800 dark:text-amber-300'
-              : 'border-emerald-500/25 bg-emerald-500/5 text-emerald-800 dark:text-emerald-300'
-          }`}
+          className="shrink-0 px-4 py-2 border-b border-sky-500/25 bg-sky-500/5 text-[11px] text-sky-800 dark:text-sky-300 flex flex-wrap items-center gap-x-2 gap-y-1"
         >
-          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-          <span className="font-bold">{t('pln_vehicle_updated', 'Vehicle data updated.')}</span>
-          <span>
-            {t('pln_vehicle_updated_summary', 'Verified: {{verified}}. Still missing: {{missing}}.', {
-              verified: verifiedRestrictionLabels || t('pln_none', 'none'),
-              missing: missingRestrictionLabels || t('pln_none', 'none'),
-            })}
+          <Info className="w-3.5 h-3.5 shrink-0" />
+          <span className="font-bold">
+            {t('pln_recalc_required', 'Vehicle restrictions updated. Recalculate the route to apply the updated HGV restrictions.')}
           </span>
-          <span className="opacity-80">{t('pln_vehicle_updated_no_recalc', 'The route was not recalculated automatically. Use Recalculate if the updated HGV restrictions should be applied.')}</span>
+          <button
+            type="button"
+            onClick={handleRecalculate}
+            disabled={!!actionLoading}
+            className="ml-auto btn-secondary text-[10px] py-1 px-2.5 inline-flex items-center gap-1 font-bold disabled:opacity-40"
+          >
+            {actionLoading === 'recalculate' ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+            {t('pln_recalculate_now', 'Recalculate route')}
+          </button>
+        </div>
+      )}
+
+      {routePlan && recalcError && (
+        <div
+          role="alert"
+          className="shrink-0 px-4 py-2 border-b border-red-500/25 bg-red-500/5 text-[11px] text-red-700 dark:text-red-300 flex flex-wrap items-center gap-x-2 gap-y-1"
+        >
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+          <span className="font-bold">{t('pln_recalc_failed', 'Route recalculation failed. The saved vehicle data is unchanged; retry the recalculation.')}</span>
+          <span className="opacity-80">{recalcError}</span>
+          <button
+            type="button"
+            onClick={handleRecalculate}
+            disabled={!!actionLoading}
+            className="ml-auto btn-secondary text-[10px] py-1 px-2.5 inline-flex items-center gap-1 font-bold disabled:opacity-40"
+          >
+            {actionLoading === 'recalculate' ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+            {t('pln_recalculate_now', 'Recalculate route')}
+          </button>
         </div>
       )}
 

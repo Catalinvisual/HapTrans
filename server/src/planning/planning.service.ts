@@ -31,6 +31,13 @@ import { TelematicsDevice } from '../telematics/entities/telematics-device.entit
 import { resolveDriverForCompliance, resolveTripDriver, resolveTripTrailer } from './trip-assignment';
 import { withRoutePlanInitLock } from './route-plan-init-lock';
 import { asJsonArray } from './route-plan-json';
+import {
+  missingVehicleRestrictions,
+  resolveRouteRestrictionsState,
+  vehicleRestrictionValues,
+  vehicleRestrictionsSignature,
+  vehicleRestrictionsState,
+} from './vehicle-restriction-status';
 
 
 export const ACTIVE_TRIP_STATUSES = [
@@ -3127,20 +3134,14 @@ export class PlanningService {
 
     // Only report restrictions that are genuinely absent or zero. These are
     // warnings, not substitutes: no generic dimensions are sent to a provider.
-    const positive = (...values: any[]) => Math.max(0, ...values.map((v) => Number(v) || 0));
-    const availableRestrictions: Record<string, number> = {
-      height: positive(truck?.heightCm, trailer?.heightCm),
-      width: positive(truck?.widthCm, trailer?.widthCm),
-      length: positive(truck?.lengthCm, trailer?.lengthCm),
-      axles: positive(truck?.axleCount) + positive(trailer?.axleCount),
-      grossWeight: positive(truck?.maxWeightKg, routePlan.maxWeightKg),
-    };
-    const missingRestrictions = Object.entries(availableRestrictions)
-      .filter(([, value]) => value <= 0)
-      .map(([field]) => field);
+    const restrictionValues = vehicleRestrictionValues(truck, trailer, routePlan.maxWeightKg);
+    const missingRestrictions = missingVehicleRestrictions(restrictionValues);
     const restrictionWarnings = missingRestrictions.length
       ? [{ code: 'vehicle_restrictions_incomplete', severity: 'warning', missingFields: missingRestrictions }]
       : [];
+    // Stored on every attempt (including failures) so a later read can tell
+    // whether the persisted route still matches the current vehicle data.
+    routePlan.vehicleRestrictionsSignature = vehicleRestrictionsSignature(restrictionValues);
 
     const points = stops
       .filter((stop) => Number(stop.latitude) !== 0 && Number(stop.longitude) !== 0 && Number.isFinite(Number(stop.latitude)) && Number.isFinite(Number(stop.longitude)))
@@ -3218,6 +3219,44 @@ export class PlanningService {
     return route;
   }
 
+  /**
+   * Attaches the persisted vehicle/route restriction status to a route plan.
+   * The planner reads these values instead of inferring the state from
+   * transient frontend state, so they survive a page refresh.
+   */
+  private async decorateVehicleRestrictionStatus(routePlan: TruckRoutePlan): Promise<TruckRoutePlan> {
+    if (!routePlan) return routePlan;
+    const plan: any = routePlan;
+    const truck = plan.truck || null;
+    const trailer = plan.trailer || truck?.trailer || plan.trip?.trailer || null;
+    const values = vehicleRestrictionValues(truck, trailer, routePlan.maxWeightKg);
+    const missingFields = missingVehicleRestrictions(values);
+    const currentSignature = vehicleRestrictionsSignature(values);
+
+    // Plans calculated before restriction signatures existed carry no
+    // fingerprint. Adopt the current one once instead of showing a false
+    // recalculation notice right after a deployment.
+    if (!plan.vehicleRestrictionsSignature && routePlan.routeStatus) {
+      plan.vehicleRestrictionsSignature = currentSignature;
+      try {
+        await this.routePlanRepo.update({ id: routePlan.id }, { vehicleRestrictionsSignature: currentSignature });
+      } catch {
+        // Best-effort backfill: the in-memory value is already correct.
+      }
+    }
+
+    plan.vehicleRestrictionsMissingFields = missingFields;
+    plan.currentVehicleRestrictionsSignature = currentSignature;
+    plan.vehicleRestrictionsState = vehicleRestrictionsState(missingFields);
+    plan.routeRestrictionsState = resolveRouteRestrictionsState({
+      missingFields,
+      currentSignature,
+      storedSignature: plan.vehicleRestrictionsSignature,
+      routeStatus: routePlan.routeStatus,
+    });
+    return routePlan;
+  }
+
   async getRoutePlanByTrip(tripId: string, user?: any): Promise<TruckRoutePlan> {
     const trip = await this.loadTrip(tripId);
     if (!trip) throw new NotFoundException('Trip not found');
@@ -3231,7 +3270,7 @@ export class PlanningService {
 
     let routePlan = await this.routePlanRepo.findOne({
       where: { tripId, isCurrent: true },
-      relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'driver', 'driver.user', 'trip', 'trip.orders'],
+      relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'driver', 'driver.user', 'trip', 'trip.orders', 'trip.trailer'],
       order: { stops: { sequence: 'ASC' }, updatedAt: 'DESC' },
     });
     // Older planners could leave the latest trip plan marked non-current.
@@ -3239,7 +3278,7 @@ export class PlanningService {
     if (!routePlan) {
       routePlan = await this.routePlanRepo.findOne({
         where: { tripId },
-        relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'driver', 'driver.user', 'trip', 'trip.orders'],
+        relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'driver', 'driver.user', 'trip', 'trip.orders', 'trip.trailer'],
         order: { stops: { sequence: 'ASC' }, updatedAt: 'DESC' },
       });
       if (routePlan) {
@@ -3288,7 +3327,7 @@ export class PlanningService {
       await this.routePlanRepo.save(routePlan);
     }
 
-    return routePlan;
+    return this.decorateVehicleRestrictionStatus(routePlan);
   }
 
   private generateSecureTrackingToken(): string {
@@ -4318,7 +4357,7 @@ export class PlanningService {
       }
     }
 
-    return routePlan;
+    return this.decorateVehicleRestrictionStatus(routePlan);
   }
 
   async saveRoutePlan(
@@ -4434,11 +4473,12 @@ export class PlanningService {
   }
 
   async getRoutePlanById(routePlanId: string): Promise<TruckRoutePlan | null> {
-    return this.routePlanRepo.findOne({
+    const routePlan = await this.routePlanRepo.findOne({
       where: { id: routePlanId },
       relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'driver', 'driver.user', 'trip', 'trip.orders', 'trip.trailer', 'trip.driver'],
       order: { stops: { sequence: 'ASC' } },
     });
+    return routePlan ? this.decorateVehicleRestrictionStatus(routePlan) : routePlan;
   }
 
   // Incoming JSON from the client carries dates as ISO strings — coerce to Date
@@ -4821,7 +4861,9 @@ export class PlanningService {
     await this.assertRoutePlanAccess(routePlanId, userCompanyId);
     const routePlan = await this.routePlanRepo.findOne({
       where: { id: routePlanId },
-      relations: ['stops', 'stops.order', 'truck', 'driver', 'trip'],
+      // Trailer data is part of the HGV restriction profile, so it must be
+      // loaded here exactly as the planner loads it.
+      relations: ['stops', 'stops.order', 'truck', 'truck.trailer', 'driver', 'trip', 'trip.trailer'],
       order: { stops: { sequence: 'ASC' } },
     });
 
@@ -4848,7 +4890,9 @@ export class PlanningService {
       planningDate: saved.planningDate,
     });
 
-    return saved;
+    // Re-read so the response carries the refreshed restriction status (the
+    // client updates its state from it without a second GET).
+    return (await this.getRoutePlanById(saved.id)) || saved;
   }
 
   async optimizeRoutePlan(routePlanId: string, profileId?: string, userCompanyId?: string | null): Promise<TruckRoutePlan> {
