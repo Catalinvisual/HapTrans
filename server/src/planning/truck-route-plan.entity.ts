@@ -79,10 +79,10 @@ export class TruckRoutePlan {
   @Column({ type: 'jsonb', nullable: true })
   routeGeometry: { type: 'LineString'; coordinates: number[][] } | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   routeProvider: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   routeStatus: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
