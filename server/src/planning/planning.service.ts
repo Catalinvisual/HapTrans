@@ -3169,7 +3169,8 @@ export class PlanningService {
     routePlan.totalDurationMinutes = routePlan.totalDrivingTimeMinutes + routePlan.totalServiceTimeMinutes;
 
     stops.forEach((stop, index) => {
-      const leg = route.legs[index];
+      // Leg 0 connects stop 0 to stop 1 and therefore belongs to stop 1.
+      const leg = index > 0 ? route.legs[index - 1] : null;
       stop.distanceFromPreviousKm = leg?.distanceKm ?? null as any;
       stop.durationFromPreviousMin = leg?.durationMin ?? null as any;
     });
@@ -3192,6 +3193,19 @@ export class PlanningService {
       relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'driver', 'driver.user', 'trip', 'trip.orders'],
       order: { stops: { sequence: 'ASC' }, updatedAt: 'DESC' },
     });
+    // Older planners could leave the latest trip plan marked non-current.
+    // Reuse it instead of creating a second plan for the same trip.
+    if (!routePlan) {
+      routePlan = await this.routePlanRepo.findOne({
+        where: { tripId },
+        relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'driver', 'driver.user', 'trip', 'trip.orders'],
+        order: { stops: { sequence: 'ASC' }, updatedAt: 'DESC' },
+      });
+      if (routePlan) {
+        routePlan.isCurrent = true;
+        await this.routePlanRepo.update({ id: routePlan.id }, { isCurrent: true });
+      }
+    }
 
     if (!routePlan || !routePlan.stops || routePlan.stops.length === 0) {
       routePlan = await this.createRoutePlanFromTrip(tripId);
@@ -3943,12 +3957,20 @@ export class PlanningService {
 
     // Opening the planner is a read-or-create operation. Reuse the current plan
     // for this trip when one exists so repeated opens never create duplicates.
-    const existingPlan = await this.routePlanRepo.findOne({
+    let existingPlan = await this.routePlanRepo.findOne({
       where: { tripId, isCurrent: true },
       relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'driver', 'driver.user', 'trip', 'trip.orders', 'trip.trailer'],
       order: { stops: { sequence: 'ASC' } },
     });
+    if (!existingPlan) {
+      existingPlan = await this.routePlanRepo.findOne({
+        where: { tripId },
+        relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'driver', 'driver.user', 'trip', 'trip.orders', 'trip.trailer'],
+        order: { stops: { sequence: 'ASC' }, updatedAt: 'DESC' },
+      });
+    }
     if (existingPlan?.stops?.length && !forceRebuild) {
+      existingPlan.isCurrent = true;
       if (!existingPlan.routeGeometry && existingPlan.routeStatus !== 'failed') {
         await this.applyRoadRoute(existingPlan, existingPlan.stops);
         for (const stop of existingPlan.stops) await this.routePlanStopRepo.save(stop);
