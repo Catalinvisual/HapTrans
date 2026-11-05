@@ -151,8 +151,8 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
         final dropoffCity = tripDropoff(trip);
         final stops = sortedStops(trip);
         final orders = trip['orders'] as List? ?? [];
-        final truckPlate = trip['truck']?['plateNumber'] ?? '—';
-        final trailerPlate = trip['trailer']?['plateNumber'] ?? '—';
+        final truckPlate = tripTruckPlate(trip);
+        final trailerPlate = tripTrailerPlate(trip);
 
         return Card(
           elevation: 0,

@@ -18,24 +18,24 @@ class TripProvider extends ChangeNotifier {
     receiveTimeout: const Duration(seconds: 15),
   ));
 
+  // The driver endpoint is the only source of assigned jobs. It is scoped to
+  // the authenticated account on the server, so there is deliberately no
+  // fallback to the fleet-wide /trips list: a failure must surface as an
+  // error, never as a silently different (and less restricted) result set.
   Future<void> loadTrips(String token) async {
     _loading = true;
     notifyListeners();
     try {
-      Response res;
-      try {
-        res = await _dio(token).get('/trips/driver/trips');
-      } catch (_) {
-        res = await _dio(token).get('/trips');
-      }
-      if (res.data != null) {
-        _trips = List<Map<String, dynamic>>.from(res.data);
-      }
+      final res = await _dio(token).get('/trips/driver/trips');
+      _trips = res.data is List
+          ? List<Map<String, dynamic>>.from(res.data)
+          : <Map<String, dynamic>>[];
       _error = null;
     } catch (e) {
       if (e is DioException && e.response?.statusCode == 401) {
         _error = '401';
       } else {
+        // Keep the last known assignment visible instead of emptying the app.
         _error = e.toString();
       }
     }
@@ -45,15 +45,10 @@ class TripProvider extends ChangeNotifier {
 
   Future<void> silentReloadTrips(String token) async {
     try {
-      Response res;
-      try {
-        res = await _dio(token).get('/trips/driver/trips');
-      } catch (_) {
-        res = await _dio(token).get('/trips');
-      }
-      if (res.data != null) {
-        _trips = List<Map<String, dynamic>>.from(res.data);
-      }
+      final res = await _dio(token).get('/trips/driver/trips');
+      _trips = res.data is List
+          ? List<Map<String, dynamic>>.from(res.data)
+          : <Map<String, dynamic>>[];
       _error = null;
       notifyListeners();
     } catch (e) {

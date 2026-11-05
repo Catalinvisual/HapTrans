@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Trip } from '../trips/trip.entity';
@@ -21,42 +21,42 @@ export class DriverTripsService {
     return this.driversRepo.findOne({ where: { user: { id: userId } }, relations: ['user'] });
   }
 
+  /**
+   * Trips owned by the authenticated user: either the trip's own driver is
+   * that user, or the trip runs on a truck whose driver is that user. The
+   * caller id always comes from the JWT, never from the request body.
+   */
+  private ownedTripsQuery(userId: string) {
+    return this.tripsRepo.createQueryBuilder('trip')
+      .leftJoinAndSelect('trip.driver', 'driver')
+      .leftJoinAndSelect('driver.user', 'driverUser')
+      .leftJoinAndSelect('trip.truck', 'truck')
+      .leftJoinAndSelect('truck.driver', 'truckDriver')
+      .leftJoinAndSelect('truckDriver.user', 'truckDriverUser')
+      .leftJoinAndSelect('truck.trailer', 'truckTrailer')
+      .leftJoinAndSelect('trip.trailer', 'trailer')
+      .leftJoinAndSelect('trip.stops', 'stops')
+      .leftJoinAndSelect('stops.tasks', 'stopsTasks')
+      .leftJoinAndSelect('trip.orders', 'orders')
+      .leftJoinAndSelect('orders.client', 'ordersClient')
+      .leftJoinAndSelect('orders.cargoItems', 'ordersCargoItems')
+      .leftJoinAndSelect('trip.documents', 'documents')
+      .where('driverUser.id = :userId OR truckDriverUser.id = :userId', { userId });
+  }
+
   private async findOwnedTrip(userId: string, id: string) {
-    const driver = await this.getDriver(userId);
-    if (!driver) throw new ForbiddenException('Accountul nu este legat de un șofer');
-    const trip = await this.tripsRepo.findOne({
-      where: { id, driver: { id: driver.id } },
-      relations: this.tripRelations(),
-    });
+    const trip = await this.ownedTripsQuery(userId)
+      .andWhere('trip.id = :id', { id })
+      .getOne();
+    // Not found and not-yours are the same answer: no cross-driver probing.
     if (!trip) throw new NotFoundException('Cursa nu a fost găsită');
     return trip;
   }
 
-  private tripRelations() {
-    return [
-      'truck',
-      'trailer',
-      'driver',
-      'driver.user',
-      'stops',
-      'stops.tasks',
-      'orders',
-      'orders.client',
-      'orders.cargoItems',
-      'costs',
-      'documents',
-      'documents.uploadedBy',
-    ];
-  }
-
   async findMyTrips(userId: string) {
-    const driver = await this.getDriver(userId);
-    if (!driver) throw new ForbiddenException('Accountul nu este legat de un șofer');
-    return this.tripsRepo.find({
-      where: { driver: { id: driver.id } },
-      relations: this.tripRelations(),
-      order: { createdAt: 'DESC' },
-    });
+    return this.ownedTripsQuery(userId)
+      .orderBy('trip.createdAt', 'DESC')
+      .getMany();
   }
 
   async findMyTrip(userId: string, id: string) {
@@ -65,7 +65,8 @@ export class DriverTripsService {
 
   async updateStatus(userId: string, id: string, status: string) {
     const trip = await this.findOwnedTrip(userId, id);
-    if (!ALLOWED_STATUSES.includes(status)) throw new ForbiddenException('Status nepermis');
+    if (!ALLOWED_STATUSES.includes(status)) throw new NotFoundException('Status nepermis');
+    if (String(trip.status) === status) return trip; // idempotent
     const patch: any = { status };
     if (status === 'loading' && !trip.actualDeparture) patch.actualDeparture = new Date();
     if (status === 'completed') patch.actualArrival = new Date();

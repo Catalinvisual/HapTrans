@@ -135,13 +135,13 @@ export class PlanningController {
   }
 
   @Post('trips/:tripId/driver-received')
-  driverReceived(@Param('tripId') tripId: string) {
-    return this.planningService.driverReceived(tripId);
+  driverReceived(@Request() req: any, @Param('tripId') tripId: string) {
+    return this.planningService.driverReceived(req.user, tripId);
   }
 
   @Post('trips/:tripId/driver-accepted')
-  driverAccepted(@Param('tripId') tripId: string) {
-    return this.planningService.driverAccepted(tripId);
+  driverAccepted(@Request() req: any, @Param('tripId') tripId: string) {
+    return this.planningService.driverAccepted(req.user, tripId);
   }
 
   @Get('trips/:tripId/route')

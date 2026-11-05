@@ -15,7 +15,15 @@ export class TripsController {
     private scanner: TripScannerService,
   ) {}
 
-  @Get() findAll(@Query("status") status?: string, @Query("truckId") truckId?: string) { return this.service.findAll(status, truckId); }
+  @Get()
+  findAll(@Request() req: any, @Query("status") status?: string, @Query("truckId") truckId?: string) {
+    // Drivers must never receive the fleet-wide list; they only ever see the
+    // trips scoped to their own authenticated account.
+    if (String(req?.user?.role || '').toLowerCase() === 'driver') {
+      return this.service.findForDriver(req.user);
+    }
+    return this.service.findAll(status, truckId);
+  }
 
   @Get("driver/trips")
   findDriverTrips(@Request() req: any) {

@@ -55,6 +55,21 @@ double totalWeightKg(Map<String, dynamic> trip) {
   return w;
 }
 
+String tripTruckPlate(Map<String, dynamic> trip) {
+  final plate = trip['truck']?['plateNumber']?.toString();
+  return (plate == null || plate.isEmpty) ? '—' : plate;
+}
+
+/// A trip may not carry its own trailer while its truck does; show the trailer
+/// actually used by the combination.
+String tripTrailerPlate(Map<String, dynamic> trip) {
+  final own = trip['trailer']?['plateNumber']?.toString();
+  if (own != null && own.isNotEmpty) return own;
+  final truckTrailer = trip['truck']?['trailer']?['plateNumber']?.toString();
+  if (truckTrailer != null && truckTrailer.isNotEmpty) return truckTrailer;
+  return '—';
+}
+
 String tripClientName(Map<String, dynamic> trip) {
   final orders = trip['orders'] as List? ?? [];
   if (orders.isNotEmpty) {

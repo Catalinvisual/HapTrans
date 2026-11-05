@@ -18,6 +18,7 @@ import { CostEngine } from '../engines/cost.engine';
 import { ActionLogsService } from '../action-logs/action-logs.service';
 import { computeAuditChanges } from '../action-logs/diff.util';
 import { randomUUID } from 'crypto';
+import { resolveTripDriver, resolveTripTrailer } from './driver-assignment';
 
 const TRIP_STATUS_FLOW: Record<string, string[]> = {
   [TripStatus.PLANNING]: [TripStatus.PLANNED, TripStatus.ASSIGNED, TripStatus.DISPATCHED, TripStatus.CANCELLED],
@@ -81,8 +82,14 @@ export class TripsService {
     if (user.role === 'admin' || user.role === 'dispatcher') {
       return this.findAll();
     }
+    // A trip can be assigned through its own driver record or through the
+    // driver of the truck it runs on. Both must reach the phone; scoping by the
+    // authenticated user id keeps other drivers' trips out of the response.
     return this.repo.createQueryBuilder('trip')
       .leftJoinAndSelect('trip.truck', 'truck')
+      .leftJoinAndSelect('truck.trailer', 'truckTrailer')
+      .leftJoinAndSelect('truck.driver', 'truckDriver')
+      .leftJoinAndSelect('truckDriver.user', 'truckDriverUser')
       .leftJoinAndSelect('trip.trailer', 'trailer')
       .leftJoinAndSelect('trip.driver', 'driver')
       .leftJoinAndSelect('driver.user', 'driverUser')
@@ -94,7 +101,7 @@ export class TripsService {
       .leftJoinAndSelect('orders.stops', 'orderStops')
       .leftJoinAndSelect('orders.client', 'orderClient')
       .leftJoinAndSelect('trip.costs', 'costs')
-      .where('driverUser.id = :userId OR driver.id = :userId', { userId })
+      .where('driverUser.id = :userId OR driver.id = :userId OR truckDriverUser.id = :userId', { userId })
       .orderBy('trip.createdAt', 'DESC')
       .getMany();
   }
@@ -364,6 +371,12 @@ export class TripsService {
       if (user?.id) {
         updateData.dispatchedBy = { id: user.id } as any;
       }
+      // Persist the effective assignment so the driver app can resolve the
+      // trip from its own account instead of relying on the truck relation.
+      const dispatchDriver = resolveTripDriver(existing);
+      if (dispatchDriver && !existing.driver) updateData.driver = dispatchDriver;
+      const dispatchTrailer = resolveTripTrailer(existing);
+      if (dispatchTrailer && !existing.trailer) updateData.trailer = dispatchTrailer;
     }
 
     await this.repo.update(id, updateData);
@@ -377,9 +390,11 @@ export class TripsService {
 
     // 3. Status change notifications & Email Send on Dispatch
     if (dto.status === 'dispatched' && updated) {
-      if (updated.driver?.user?.id) {
+      // The push token is the FCM registration token, never the user id.
+      const driverFcmToken = updated.driver?.user?.fcmToken;
+      if (driverFcmToken) {
         await this.firebaseService.sendPushNotification(
-          updated.driver.user.id,
+          driverFcmToken,
           'Cursă Nouă Asignată',
           `Ți-a fost asignată cursa ${updated.tripNumber}. Te rugăm să verifici detaliile în aplicație.`,
           { tripId: updated.id }

@@ -102,8 +102,8 @@ class HomeScreen extends StatelessWidget {
     final tripId = trip['id']?.toString() ?? '';
     final trpNumber = trip['tripNumber'] ?? 'TRP-${tripId.substring(0, 4)}';
     final status = trip['status']?.toString() ?? 'planning';
-    final truckPlate = trip['truck']?['plateNumber'] ?? '—';
-    final trailerPlate = trip['trailer']?['plateNumber'] ?? '—';
+    final truckPlate = tripTruckPlate(trip);
+    final trailerPlate = tripTrailerPlate(trip);
     final ordersCount = (trip['orders'] as List? ?? []).length;
     final stops = sortedStops(trip);
     final stopsCount = stops.length;

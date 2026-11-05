@@ -565,8 +565,6 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
   }
 
   Widget _buildDetailsTab(AppLocalizations l) {
-    final truck = tripData['truck'] ?? {};
-    final trailer = tripData['trailer'] ?? {};
     final driver = tripData['driver'] ?? {};
     final orders = tripData['orders'] as List? ?? [];
 
@@ -588,9 +586,13 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> with SingleTi
               children: [
                 const Text('VEHICUL & ȘOFER / FLEET & DRIVER', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: kTextSecondary)),
                 const SizedBox(height: 12),
-                _buildDetailRow(Icons.local_shipping, 'Camion / Truck', truck['plateNumber'] ?? '—'),
-                _buildDetailRow(Icons.rv_hookup, 'Remorcă / Trailer', trailer['plateNumber'] ?? '—'),
-                _buildDetailRow(Icons.person, 'Șofer / Driver', driver['name'] ?? '—'),
+                _buildDetailRow(Icons.local_shipping, 'Camion / Truck', tripTruckPlate(tripData)),
+                _buildDetailRow(Icons.rv_hookup, 'Remorcă / Trailer', tripTrailerPlate(tripData)),
+                _buildDetailRow(
+                  Icons.person,
+                  'Șofer / Driver',
+                  driver['user']?['name'] ?? driver['name'] ?? '—',
+                ),
               ],
             ),
           ),

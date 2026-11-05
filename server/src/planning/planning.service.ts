@@ -31,6 +31,7 @@ import { TelematicsDevice } from '../telematics/entities/telematics-device.entit
 import { resolveDriverForCompliance, resolveTripDriver, resolveTripTrailer } from './trip-assignment';
 import { withRoutePlanInitLock } from './route-plan-init-lock';
 import { asJsonArray } from './route-plan-json';
+import { resolveTripDriver as resolveAssignedDriver, resolveTripTrailer as resolveAssignedTrailer } from '../trips/driver-assignment';
 import {
   missingVehicleRestrictions,
   resolveRouteRestrictionsState,
@@ -2839,6 +2840,14 @@ export class PlanningService {
       throw new BadRequestException(`Cannot confirm plan: ${validation.blockingIssues.length} blocking issue(s) detected. ${msgs}`);
     }
 
+    // Persist the effective assignment. A trip is often planned on a truck
+    // that already has a driver; without this the trip has no driver of its
+    // own and the driver app (which scopes trips by trip.driver) never sees it.
+    const assignedDriver = resolveAssignedDriver(trip);
+    if (assignedDriver) trip.driver = assignedDriver;
+    const assignedTrailer = resolveAssignedTrailer(trip);
+    if (assignedTrailer) trip.trailer = assignedTrailer;
+
     trip.status = 'confirmed';
     trip.confirmedAt = new Date();
     trip.confirmedBy = user?.id ? ({ id: user.id } as any) : null;
@@ -2905,15 +2914,23 @@ export class PlanningService {
     const isRedispatch = from === 'dispatched';
     const newVersion = isRedispatch ? ((trip.dispatchVersion || 1) + 1) : 1;
 
+    // Dispatch is the point where the driver assignment becomes authoritative
+    // for the mobile app. Persist the truck's driver/trailer onto the trip so
+    // the phone can resolve it without client-supplied identifiers.
+    const dispatchedDriver = resolveAssignedDriver(trip);
+    if (dispatchedDriver) trip.driver = dispatchedDriver;
+    const dispatchedTrailer = resolveAssignedTrailer(trip);
+    if (dispatchedTrailer) trip.trailer = dispatchedTrailer;
+
     trip.status = 'dispatched';
     trip.dispatchVersion = newVersion;
     trip.dispatchedAt = new Date();
     trip.dispatchedBy = user?.id ? ({ id: user.id } as any) : null;
     trip.dispatchPayload = {
-      driverId: trip.driver?.id || null,
-      driverName: trip.driver?.user?.name || null,
+      driverId: dispatchedDriver?.id || null,
+      driverName: dispatchedDriver?.user?.name || null,
       truckPlate: trip.truck?.plateNumber || null,
-      trailerPlate: trip.trailer?.plateNumber || null,
+      trailerPlate: dispatchedTrailer?.plateNumber || null,
       stopCount: (trip.stops || []).length,
       ordersCount: (trip.orders || []).length,
       departure: trip.plannedDeparture,
@@ -2938,7 +2955,7 @@ export class PlanningService {
       }
     }
 
-    const driver = trip.driver || trip.truck?.driver || null;
+    const driver = dispatchedDriver;
     await this.logTimeline(isRedispatch ? 'trip_dispatch_updated' : 'trip_dispatched', user, {
       tripId,
       message: `TRP ${trip.tripNumber} (Dispatch v${newVersion}) sent to driver ${driver?.user?.name || driver?.user?.email || '—'}.`,
@@ -3024,18 +3041,35 @@ export class PlanningService {
     return { success: true, tripId, unassignedOrdersCount: ordersCount };
   }
 
-  async driverReceived(tripId: string) {
+  /**
+   * Driver actions must be authorised against the assignment, never against an
+   * id supplied by the client. Dispatchers/admins keep their fleet-wide access.
+   */
+  private assertDriverOwnsTrip(trip: any, user: any) {
+    const role = String(user?.role || '').toLowerCase();
+    if (role === 'admin' || role === 'dispatcher') return;
+    const assignedUserId = resolveAssignedDriver(trip)?.user?.id || null;
+    if (!user?.id || assignedUserId !== user.id) {
+      throw new ForbiddenException('Trip is not assigned to this driver.');
+    }
+  }
+
+  async driverReceived(user: any, tripId: string) {
     const trip = await this.loadTrip(tripId);
     if (!trip) throw new NotFoundException('Trip not found.');
+    this.assertDriverOwnsTrip(trip, user);
+    if (trip.status === 'driver_received') return trip; // idempotent
     trip.status = 'driver_received';
     trip.driverAcknowledgedAt = new Date();
     await this.tripRepo.save(trip);
     return this.loadTrip(tripId);
   }
 
-  async driverAccepted(tripId: string) {
+  async driverAccepted(user: any, tripId: string) {
     const trip = await this.loadTrip(tripId);
     if (!trip) throw new NotFoundException('Trip not found.');
+    this.assertDriverOwnsTrip(trip, user);
+    if (trip.status === 'driver_accepted') return trip; // idempotent
     trip.status = 'driver_accepted';
     trip.driverAcceptedAt = new Date();
     await this.tripRepo.save(trip);
