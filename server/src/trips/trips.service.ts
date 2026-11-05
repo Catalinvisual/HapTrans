@@ -135,7 +135,7 @@ export class TripsService {
                 u."name" AS "actorName"
            FROM "action_logs" l LEFT JOIN "users" u ON u."id" = l."userId"
           WHERE l."entityType" = 'Trip' AND l."action" = 'STATUS_CHANGED'
-            AND l."entityId" = ANY($1)
+            AND l."entityId" = ANY($1::uuid[])
           ORDER BY l."entityId", l."createdAt" DESC`,
         [ids],
       );
@@ -503,7 +503,9 @@ export class TripsService {
     }
 
     // 2. Real financial recalculation (CostEngine + PricingEngine)
-    if (updateData.distanceKm !== undefined || updateData.status !== undefined) {
+    // Financial recalculation is a TMS concern; a driver changing an
+    // operational stage must never fail because cost data is incomplete.
+    if (!isDriverActor(user) && (updateData.distanceKm !== undefined || updateData.status !== undefined)) {
       await this.recalculateFinancials(id);
     }
 
