@@ -978,6 +978,7 @@ function TripDetailDrawer({
     setTripDetail(null);
     setTrafficInfo(null);
     setTollInfo(null);
+    setEtaInfo(null);
     if (tripSummary?.id) {
       setDetailLoading(true);
       api.get(`/trips/${tripSummary.id}`)
@@ -988,6 +989,17 @@ function TripDetailDrawer({
         .then(r => setAuditEvents(r.data?.events || []))
         .catch(() => setAuditEvents([]));
     }
+  }, [tripSummary?.id, refreshKey]);
+
+  // Load the ETA automatically so the stop schedule is visible without an
+  // extra click. The response still labels untimestamped positions honestly.
+  useEffect(() => {
+    if (!tripSummary?.id) return;
+    let cancelled = false;
+    planningApi.getTripLiveEta(tripSummary.id)
+      .then((res) => { if (!cancelled) setEtaInfo(res); })
+      .catch(() => { if (!cancelled) setEtaInfo(null); });
+    return () => { cancelled = true; };
   }, [tripSummary?.id, refreshKey]);
 
   if (!tripSummary) return null;
@@ -1045,6 +1057,17 @@ function TripDetailDrawer({
   const assignedTrailerPlate = String(assignment?.trailerPlate || '').trim();
   const notAssigned = t('not_assigned', 'Not assigned');
   const stops = (trip.stops?.length ? trip.stops : (tripSummary.stops?.length ? tripSummary.stops : [])).slice().sort((a: any, b: any) => (a.sequence || a.stopOrder || 0) - (b.sequence || b.stopOrder || 0));
+  const etaStopFor = (stop: any) => (etaInfo?.stops || []).find(
+    (etaStop: any) => etaStop.stopId === stop?.id || etaStop.sequence === stop?.sequence,
+  ) || null;
+  const etaDifferenceLabel = (value: any) => {
+    if (value === null || value === undefined) return '—';
+    const minutes = Number(value);
+    if (!Number.isFinite(minutes)) return '—';
+    const rounded = Math.round(minutes);
+    if (rounded === 0) return t('up_eta_on_time', 'On time');
+    return `${rounded > 0 ? '+' : '-'}${Math.abs(rounded)} ${t('up_eta_minutes', 'min')}`;
+  };
   const orders = (trip.orders?.length ? trip.orders : (tripSummary.orders?.length ? tripSummary.orders : [])).map((o: any) => o?.order || o).filter((o: any) => o?.id);
   const revenue = orders.reduce((s: number, o: any) => s + (Number(o.price) || 0), 0);
   const tripConflicts = (conflicts || []).filter((c: any) => c.tripId === (trip.id || tripSummary.id));
@@ -1579,16 +1602,19 @@ function TripDetailDrawer({
                     </b></span>
                   </div>
                   {(etaInfo.stops || []).slice(0, 3).map((stop: any) => (
-                    <div key={stop.stopId} className="flex items-center justify-between gap-2 text-[10px]">
-                      <span className="truncate text-text-secondary">#{stop.sequence} {stop.city || stop.companyName || t('up_eta_stop', 'Stop')}</span>
-                      <span className="flex items-center gap-1.5 shrink-0">
-                        <span className="tabular-nums font-bold text-text-primary">{new Date(stop.liveEta).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        {stop.deviationMin !== null && (
-                          <span className={`text-[9px] font-black ${stop.deviationMin > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                            {stop.deviationMin > 0 ? '+' : ''}{stop.deviationMin}m
-                          </span>
-                        )}
-                      </span>
+                    <div key={stop.stopId} className="rounded-lg border border-border/50 bg-surface/40 px-2 py-1">
+                      <div className="flex items-center justify-between gap-2 text-[10px]">
+                        <span className="truncate text-text-secondary">#{stop.sequence} {stop.city || stop.companyName || t('up_eta_stop', 'Stop')}</span>
+                        <span className="tabular-nums font-black text-text-primary">{fmtTime(stop.liveEta)}</span>
+                      </div>
+                      <div className="mt-0.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-[9px]">
+                        <span className="text-text-muted">
+                          {t('up_eta_planned', 'Planned ETA')}: <b className="tabular-nums text-text-secondary">{stop.plannedEta ? fmtTime(stop.plannedEta) : t('up_eta_not_planned', 'Not planned')}</b>
+                        </span>
+                        <span className={`font-black tabular-nums ${Number(stop.deviationMin) > 0 ? 'text-rose-600' : Number(stop.deviationMin) === 0 ? 'text-emerald-600' : 'text-text-muted'}`}>
+                          {etaDifferenceLabel(stop.deviationMin)}
+                        </span>
+                      </div>
                     </div>
                   ))}
                   {etaInfo.etaType === 'last_known_position' && (
@@ -1742,6 +1768,9 @@ function TripDetailDrawer({
               {stops.map((s: any, idx: number) => {
                 const isPu = s.type === 'pickup';
                 const hasTimeWindow = s.dateFrom || s.timeFrom;
+                const etaStop = etaStopFor(s);
+                const plannedStopEta = etaStop?.plannedEta || s.eta || null;
+                const etaDeviation = etaStop?.deviationMin;
                 return (
                   <div key={s.id || idx} className={`bg-card border rounded-xl overflow-hidden ${isPu ? 'border-blue-500/25' : 'border-emerald-500/25'}`}>
                     {/* Stop header */}
@@ -1777,13 +1806,23 @@ function TripDetailDrawer({
                           <span className="text-text-muted">time window</span>
                         </div>
                       )}
-                      {s.eta && (
-                        <div className="flex items-center gap-1.5 text-[10px]">
-                          <Navigation className="w-3 h-3 text-amber-500 shrink-0" />
-                          <span className="text-text-muted">ETA:</span>
-                          <span className="font-semibold text-amber-600">{fmtTime(s.eta)} {fmtShort(s.eta)}</span>
+                      <div className="grid grid-cols-3 gap-1.5 rounded-lg border border-border/60 bg-surface/50 px-2 py-1.5">
+                        <div className="min-w-0">
+                          <p className="text-[8px] font-bold uppercase tracking-wide text-text-muted">{t('up_eta_calculated', 'Calculated ETA')}</p>
+                          <p className="text-sm font-black tabular-nums text-text-primary">{etaStop?.liveEta ? fmtTime(etaStop.liveEta) : '—'}</p>
+                          <p className="truncate text-[8px] text-text-muted">{etaStop?.liveEta ? fmtShort(etaStop.liveEta) : t('up_eta_no_estimate', 'No estimate')}</p>
                         </div>
-                      )}
+                        <div className="min-w-0">
+                          <p className="text-[8px] font-bold uppercase tracking-wide text-text-muted">{t('up_eta_planned', 'Planned ETA')}</p>
+                          <p className={`text-sm font-black tabular-nums ${plannedStopEta ? 'text-text-primary' : 'text-text-muted'}`}>{plannedStopEta ? fmtTime(plannedStopEta) : t('up_eta_not_planned', 'Not planned')}</p>
+                          <p className="truncate text-[8px] text-text-muted">{plannedStopEta ? fmtShort(plannedStopEta) : '—'}</p>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[8px] font-bold uppercase tracking-wide text-text-muted">{t('up_eta_difference', 'Difference')}</p>
+                          <p className={`text-sm font-black tabular-nums ${Number(etaDeviation) > 0 ? 'text-rose-600' : Number(etaDeviation) === 0 ? 'text-emerald-600' : etaDeviation === null || etaDeviation === undefined ? 'text-text-muted' : 'text-emerald-600'}`}>{etaDifferenceLabel(etaDeviation)}</p>
+                          <p className="truncate text-[8px] text-text-muted">{t('up_eta_schedule', 'vs schedule')}</p>
+                        </div>
+                      </div>
                       {s.reference && (
                         <div className="flex items-center gap-1.5 text-[10px]">
                           <FileText className="w-3 h-3 text-text-muted shrink-0" />

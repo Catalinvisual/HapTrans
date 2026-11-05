@@ -85,6 +85,20 @@ function fmtDateTime(value: any): string {
   });
 }
 
+function fmtClock(value: any): string {
+  const ms = toMs(value);
+  if (ms === null) return '';
+  return new Date(ms).toLocaleTimeString(appLocale(), { hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtEtaDifference(value: any, onTime: string, unit: string): string {
+  const minutes = toNum(value);
+  if (minutes === null) return '';
+  const rounded = Math.round(minutes);
+  if (rounded === 0) return onTime;
+  return `${rounded > 0 ? '+' : '-'}${Math.abs(rounded)} ${unit}`;
+}
+
 function fmtDateShort(value: any): string {
   const ms = toMs(value);
   if (ms === null) return '';
@@ -190,6 +204,7 @@ export default function PlanningResultsPanel({
   const [tachoByDriver, setTachoByDriver] = useState<Record<string, any>>({});
   const [tachoLoading, setTachoLoading] = useState(false);
   const [routeSearch, setRouteSearch] = useState('');
+  const [liveEtaByTrip, setLiveEtaByTrip] = useState<Record<string, any>>({});
   const [costRecalculating, setCostRecalculating] = useState(false);
   const [costNotice, setCostNotice] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -398,6 +413,34 @@ export default function PlanningResultsPanel({
       metrics.find((m) => m.id === selectedTripId || (m.tripNumber && m.tripNumber === selectedTripId)) || null
     );
   }, [metrics, selectedTripId]);
+
+  useEffect(() => {
+    const id = selected?.id;
+    if (view !== 'route' || !id || liveEtaByTrip[id]) return;
+    let cancelled = false;
+    planningApi.getTripLiveEta(id)
+      .then((data) => {
+        if (!cancelled) setLiveEtaByTrip((prev) => ({ ...prev, [id]: data }));
+      })
+      .catch(() => {
+        if (!cancelled) setLiveEtaByTrip((prev) => ({ ...prev, [id]: { available: false } }));
+      });
+    return () => { cancelled = true; };
+  }, [view, selected?.id, liveEtaByTrip]);
+
+  const selectedLiveEta = selected ? liveEtaByTrip[selected.id] : null;
+  const selectedEtaStops = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const etaStop of selectedLiveEta?.stops || []) {
+      if (etaStop?.stopId) map.set(`id:${etaStop.stopId}`, etaStop);
+      if (etaStop?.sequence !== null && etaStop?.sequence !== undefined) {
+        map.set(`seq:${etaStop.sequence}`, etaStop);
+      }
+    }
+    return map;
+  }, [selectedLiveEta]);
+  const etaStopFor = (stop: any) =>
+    selectedEtaStops.get(`id:${stop?.id}`) || selectedEtaStops.get(`seq:${stop?.sequence}`) || null;
 
   const routeFilteredMetrics = useMemo(() => {
     const query = routeSearch.trim().toLowerCase();
@@ -740,7 +783,9 @@ export default function PlanningResultsPanel({
           { key: 'location', label: t('pr.location', 'Location') },
           { key: 'company', label: t('pr.company', 'Company') },
           { key: 'timeWindow', label: t('pr.time_window', 'Time window') },
-          { key: 'eta', label: t('pr.eta', 'ETA') },
+          { key: 'calculatedEta', label: t('up_eta_calculated', 'Calculated ETA') },
+          { key: 'plannedEta', label: t('up_eta_planned', 'Planned ETA') },
+          { key: 'difference', label: t('up_eta_difference', 'Difference') },
           { key: 'ata', label: t('pr.ata', 'ATA') },
           { key: 'service', label: `${t('pr.service_time', 'Service time')} (min)`, align: 'right' },
           { key: 'distance', label: `${t('pr.distance_from_prev', 'Distance from previous stop')} (km)`, align: 'right' },
@@ -750,6 +795,8 @@ export default function PlanningResultsPanel({
         const rows = selected.stops.map((stop: any, index: number) => {
           const type = String(stop?.type || '').toLowerCase();
           const service = minutesBetween(stop?.ata, stop?.completedAt);
+          const etaStop = etaStopFor(stop);
+          const planned = etaStop?.plannedEta || stop?.eta || null;
           return {
             num: index + 1,
             type:
@@ -763,7 +810,13 @@ export default function PlanningResultsPanel({
             timeWindow: [fmtDateTime(stop?.timeWindowMin), fmtDateTime(stop?.timeWindowMax)]
               .filter(Boolean)
               .join(' – '),
-            eta: fmtDateTime(stop?.eta),
+            calculatedEta: fmtDateTime(etaStop?.liveEta),
+            plannedEta: fmtDateTime(planned),
+            difference: fmtEtaDifference(
+              etaStop?.deviationMin,
+              t('up_eta_on_time', 'On time'),
+              t('up_eta_minutes', 'min'),
+            ),
             ata: fmtDateTime(stop?.ata),
             service: service ?? '',
             distance: toNum(stop?.distanceToStopKm) ?? '',
@@ -1583,6 +1636,26 @@ export default function PlanningResultsPanel({
         {stops.length === 0 ? (
           renderEmpty(t('pr.no_stops', 'No stops for this trip.'))
         ) : (
+          <>
+            {selectedLiveEta?.available && (
+              <div className="mb-2 flex flex-wrap items-center gap-2 text-[10px]">
+                <span className={`rounded px-1.5 py-0.5 font-black uppercase ${selectedLiveEta.etaType === 'live_gps' ? 'bg-emerald-500/15 text-emerald-600' : 'bg-amber-500/15 text-amber-600'}`}>
+                  {selectedLiveEta.etaType === 'live_gps'
+                    ? t('up_eta_fresh', 'Live GPS')
+                    : selectedLiveEta.etaType === 'stale_gps'
+                      ? t('up_eta_stale_label', 'Stale GPS')
+                      : t('up_eta_untimed_label', 'No GPS timestamp')}
+                </span>
+                <span className="text-text-secondary">
+                  {selectedLiveEta.etaType === 'live_gps'
+                    ? t('up_eta_live', 'Live ETA')
+                    : selectedLiveEta.etaType === 'stale_gps'
+                      ? t('up_eta_stale', 'GPS position is older than 15 minutes — treat this ETA as stale.')
+                      : t('up_eta_untimed_note', 'Calculated from the last saved truck position. No GPS timestamp is stored, so this is not a live GPS ETA.')}
+                </span>
+              </div>
+            )}
+            <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[11px]">
             <thead>
               <tr>
@@ -1591,7 +1664,9 @@ export default function PlanningResultsPanel({
                 <th className={thL}>{t('pr.location', 'Location')}</th>
                 <th className={thL}>{t('pr.stop', 'Stop')}</th>
                 <th className={thL}>{t('pr.time_window', 'Time window')}</th>
-                <th className={thL}>{t('pr.eta', 'ETA')}</th>
+                <th className={thL}>{t('up_eta_calculated', 'Calculated ETA')}</th>
+                <th className={thL}>{t('up_eta_planned', 'Planned ETA')}</th>
+                <th className={thL}>{t('up_eta_difference', 'Difference')}</th>
                 <th className={thL}>{t('pr.ata', 'ATA')}</th>
                 <th className={thR}>{t('pr.service_time', 'Service time')}</th>
                 <th className={thR}>{t('pr.distance_from_prev', 'Distance from previous stop')}</th>
@@ -1602,6 +1677,13 @@ export default function PlanningResultsPanel({
               {stops.map((stop: any, index: number) => {
                 const type = String(stop?.type || '').toLowerCase();
                 const service = minutesBetween(stop?.ata, stop?.completedAt);
+                const etaStop = etaStopFor(stop);
+                const planned = etaStop?.plannedEta || stop?.eta || null;
+                const difference = fmtEtaDifference(
+                  etaStop?.deviationMin,
+                  t('up_eta_on_time', 'On time'),
+                  t('up_eta_minutes', 'min'),
+                );
                 const windowValue = [fmtDateTime(stop?.timeWindowMin), fmtDateTime(stop?.timeWindowMax)]
                   .filter(Boolean)
                   .join(' – ');
@@ -1628,11 +1710,21 @@ export default function PlanningResultsPanel({
                     <td className={td}>{stop?.companyName || np()}</td>
                     <td className={td}>{windowValue || np()}</td>
                     <td className={td}>
-                      {fmtDateTime(stop?.eta) ? (
-                        <span className="tabular-nums">{fmtDateTime(stop?.eta)}</span>
+                      {fmtClock(etaStop?.liveEta) ? (
+                        <span className="tabular-nums font-black text-text-primary" title={fmtDateTime(etaStop?.liveEta)}>{fmtClock(etaStop?.liveEta)}</span>
                       ) : (
-                        np()
+                        t('up_eta_no_estimate', 'No estimate')
                       )}
+                    </td>
+                    <td className={td}>
+                      {fmtClock(planned) ? (
+                        <span className="tabular-nums" title={fmtDateTime(planned)}>{fmtClock(planned)}</span>
+                      ) : (
+                        t('up_eta_not_planned', 'Not planned')
+                      )}
+                    </td>
+                    <td className={`${td} font-bold ${Number(etaStop?.deviationMin) > 0 ? 'text-rose-600' : Number(etaStop?.deviationMin) === 0 ? 'text-emerald-600' : ''}`}>
+                      {difference || np()}
                     </td>
                     <td className={td}>
                       {fmtDateTime(stop?.ata) ? (
@@ -1653,6 +1745,8 @@ export default function PlanningResultsPanel({
               })}
             </tbody>
           </table>
+            </div>
+          </>
         )}
       </div>
     );
