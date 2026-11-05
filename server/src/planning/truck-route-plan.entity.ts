@@ -73,6 +73,24 @@ export class TruckRoutePlan {
   @Column({ type: 'int', default: 0 })
   totalDurationMinutes: number;
 
+  // Actual road geometry returned by the routing provider. Stored as GeoJSON
+  // LineString coordinates ([lng, lat]) so the planner never reconstructs a
+  // route by drawing straight lines between stops.
+  @Column({ type: 'jsonb', nullable: true })
+  routeGeometry: { type: 'LineString'; coordinates: number[][] } | null;
+
+  @Column({ nullable: true })
+  routeProvider: string | null;
+
+  @Column({ nullable: true })
+  routeStatus: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  routeCalculatedAt: Date | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  routeWarnings: any[] | null;
+
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   optimizationScore: number;
 

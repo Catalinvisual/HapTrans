@@ -4,6 +4,7 @@ import { initReactI18next } from 'react-i18next';
 import { planningResources } from './planningI18n';
 import { planningResultsResources } from './planningResultsResources';
 import { planningUpgradeResources } from './planningUpgradeI18n';
+import { planningRouteResources } from './planningRouteI18n';
 import { planningDataQualityResources } from './planningDataQualityI18n';
 import { truckFuelResources } from './truckFuelI18n';
 import { truckFormResources } from './truckFormI18n';
@@ -11139,6 +11140,11 @@ for (const lng of Object.keys(planningResultsResources)) {
 for (const lng of Object.keys(planningUpgradeResources)) {
   if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
   Object.assign((resources as any)[lng].translation, (planningUpgradeResources as any)[lng].translation);
+}
+
+for (const lng of Object.keys(planningRouteResources)) {
+  if (!(resources as any)[lng]) (resources as any)[lng] = { translation: {} };
+  Object.assign((resources as any)[lng].translation, (planningRouteResources as any)[lng].translation);
 }
 
 for (const lng of Object.keys(planningDataQualityResources)) {

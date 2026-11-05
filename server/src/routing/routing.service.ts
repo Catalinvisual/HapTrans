@@ -14,6 +14,25 @@ interface CachedMatrixItem {
   source: string;
 }
 
+export interface TruckRouteLeg {
+  fromIndex: number;
+  toIndex: number;
+  distanceKm: number;
+  durationMin: number;
+  coordinates: number[][];
+}
+
+export interface TruckRoadRoute {
+  distanceKm: number;
+  durationMin: number;
+  coordinates: number[][];
+  legs: TruckRouteLeg[];
+  provider: 'here' | 'ors';
+  tollCost?: number;
+  tollCurrency?: string;
+  tollStatus: 'calculated' | 'unavailable';
+}
+
 type RoutingProviderName = 'here' | 'ors';
 
 export interface RouteFailure {
@@ -611,6 +630,154 @@ export class RoutingService implements OnModuleInit {
         httpStatus: null,
         at: new Date(),
       };
+    }
+    return null;
+  }
+
+  /**
+   * Calculates the actual road geometry through every stop, in order, using
+   * the HGV profile. HERE is primary and ORS is the HGV fallback. A result is
+   * only returned when every leg produced real road coordinates; callers must
+   * never substitute a straight line for a missing provider route.
+   */
+  async calculateTruckRoadRoute(points: LatLng[], truckParams?: RoutingOptions): Promise<TruckRoadRoute | null> {
+    const stops = (points || []).filter((p) => Number.isFinite(Number(p?.lat)) && Number.isFinite(Number(p?.lng)));
+    if (stops.length < 2) {
+      this.lastRouteFailure = { provider: 'none', operation: 'route', code: 'provider_route_geometry_incomplete', httpStatus: null, at: new Date() };
+      return null;
+    }
+    this.lastRouteFailure = null;
+
+    if (this.hereKey) {
+      try {
+        const params: any = {
+          transportMode: 'truck',
+          origin: `${stops[0].lat},${stops[0].lng}`,
+          destination: `${stops[stops.length - 1].lat},${stops[stops.length - 1].lng}`,
+          return: 'summary,polyline,tolls',
+          apiKey: this.hereKey,
+          currency: 'EUR',
+        };
+        // HERE supports a bounded number of via points. For larger routes we
+        // calculate leg-by-leg below rather than silently dropping stops.
+        const via = stops.slice(1, -1);
+        if (via.length <= 8) {
+          via.forEach((point, index) => { params[`via[${index}]`] = `${point.lat},${point.lng}`; });
+        }
+        if (Number(truckParams?.weightKg) > 0) params['vehicle[grossWeight]'] = Math.round(Number(truckParams?.weightKg));
+        if (Number(truckParams?.heightCm) > 0) params['vehicle[height]'] = Math.round(Number(truckParams?.heightCm));
+        if (Number(truckParams?.widthCm) > 0) params['vehicle[width]'] = Math.round(Number(truckParams?.widthCm));
+        if (Number(truckParams?.lengthCm) > 0) params['vehicle[length]'] = Math.round(Number(truckParams?.lengthCm));
+        if (Number(truckParams?.axleCount) > 0) params['vehicle[axleCount]'] = Math.round(Number(truckParams?.axleCount));
+        if (truckParams?.emissionType !== undefined && truckParams?.emissionType !== null) {
+          params['tolls[emissionType]'] = this.hereEmissionValue(truckParams.emissionType);
+        }
+
+        if (via.length <= 8) {
+          const res = await axios.get('https://router.hereapi.com/v8/routes', { params, timeout: 20000 });
+          const route = res.data?.routes?.[0];
+          if (!route) {
+            this.recordSyntheticFailure('here', 'provider_no_route', 200, 'route');
+            return null;
+          }
+          const sections = Array.isArray(route.sections) ? route.sections : [];
+          if (sections.length === 0) {
+            this.recordSyntheticFailure('here', 'provider_no_geometry', 200, 'route');
+            return null;
+          }
+
+          const legs: TruckRouteLeg[] = [];
+          const allCoordinates: number[][] = [];
+          let distanceMeters = 0;
+          let durationSeconds = 0;
+          for (let index = 0; index < stops.length - 1; index++) {
+            const section = sections[index];
+            const summary = section?.summary;
+            if (!summary || !section?.polyline) {
+              this.recordSyntheticFailure('here', 'provider_no_geometry', 200, 'route');
+              return null;
+            }
+            let legCoordinates: number[][] = [];
+            try {
+              const decoded = flexDecode(section.polyline);
+              legCoordinates = (decoded?.polyline || []).map((p: any) => [Number(p[1]), Number(p[0])]).filter((c: number[]) => Number.isFinite(c[0]) && Number.isFinite(c[1]));
+            } catch (err: any) {
+              this.logger.error('Failed to decode HERE truck route polyline: ' + this.redactSecrets(err?.message));
+              legCoordinates = [];
+            }
+            if (legCoordinates.length < 2) {
+              this.recordSyntheticFailure('here', 'provider_no_geometry', 200, 'route');
+              return null;
+            }
+            const append = allCoordinates.length > 0 ? legCoordinates.slice(1) : legCoordinates;
+            allCoordinates.push(...append);
+            const legDistanceKm = Math.round((Number(summary.length) || 0) / 10) / 100;
+            const legDurationMin = Math.round((Number(summary.duration) || 0) / 60);
+            distanceMeters += Number(summary.length) || 0;
+            durationSeconds += Number(summary.duration) || 0;
+            legs.push({
+              fromIndex: index,
+              toIndex: index + 1,
+              distanceKm: legDistanceKm,
+              durationMin: legDurationMin,
+              coordinates: legCoordinates,
+            });
+          }
+
+          const toll = this.parseHereTollSections(sections);
+          this.recordProviderSuccess('here');
+          return {
+            distanceKm: Math.round((distanceMeters / 1000) * 100) / 100,
+            durationMin: Math.round(durationSeconds / 60),
+            coordinates: allCoordinates,
+            legs,
+            provider: 'here',
+            tollCost: toll.tollAvailable && !toll.currencyMismatch ? toll.totalCost : undefined,
+            tollCurrency: toll.currency,
+            tollStatus: toll.tollAvailable && !toll.currencyMismatch ? 'calculated' : 'unavailable',
+          };
+        }
+      } catch (err: any) {
+        this.recordProviderError('here', err, 'route');
+        this.logger.warn(`HERE multi-stop truck routing failed category=${this.getLastRouteFailure()?.code || 'provider_request_failed'}. Falling back to ORS...`);
+      }
+    }
+
+    // ORS fallback: build each leg separately so every leg has real geometry
+    // and the displayed route still passes through every stop in sequence.
+    if (this.orsKey) {
+      const legs: TruckRouteLeg[] = [];
+      const allCoordinates: number[][] = [];
+      let distanceKm = 0;
+      let durationMin = 0;
+      for (let index = 0; index < stops.length - 1; index++) {
+        const from = stops[index];
+        const to = stops[index + 1];
+        const leg = await this.calculateRouteORS(from.lat, from.lng, to.lat, to.lng);
+        const coordinates = (leg?.coordinates || []).filter((c: number[]) => Array.isArray(c) && c.length >= 2);
+        if (!leg || coordinates.length < 2) return null;
+        const append = allCoordinates.length > 0 ? coordinates.slice(1) : coordinates;
+        allCoordinates.push(...append);
+        distanceKm += Number(leg.distanceKm) || 0;
+        durationMin += Number(leg.durationMin) || 0;
+        legs.push({ fromIndex: index, toIndex: index + 1, distanceKm: leg.distanceKm, durationMin: leg.durationMin, coordinates });
+      }
+      if (allCoordinates.length >= 2) {
+        this.lastRouteFailure = null;
+        return {
+          distanceKm: Math.round(distanceKm * 100) / 100,
+          durationMin,
+          coordinates: allCoordinates,
+          legs,
+          provider: 'ors',
+          tollStatus: 'unavailable',
+          tollCurrency: 'EUR',
+        };
+      }
+    }
+
+    if (!this.lastRouteFailure) {
+      this.lastRouteFailure = { provider: this.orsKey ? 'ors' : 'none', operation: 'route', code: this.orsKey ? 'provider_request_failed' : 'provider_key_missing', httpStatus: null, at: new Date() };
     }
     return null;
   }

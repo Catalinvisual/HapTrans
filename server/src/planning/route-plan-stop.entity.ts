@@ -88,6 +88,20 @@ export class RoutePlanStop {
   @Column({ type: 'timestamp', nullable: true })
   etd: Date;
 
+  // Planned arrival is retained independently from the road-calculated ETA.
+  @Column({ type: 'timestamp', nullable: true })
+  plannedEta: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  calculatedEta: Date;
+
+  // Leg metrics from the actual HGV road route, in route sequence.
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  distanceFromPreviousKm: number;
+
+  @Column({ type: 'int', nullable: true })
+  durationFromPreviousMin: number;
+
   @Column({ type: 'int', default: 0 })
   serviceDurationMinutes: number;
 

@@ -28,6 +28,34 @@ function fmtDate(d: string | Date | null | undefined) {
   });
 }
 
+function fmtTime(d: string | Date | null | undefined) {
+  if (!d) return '—';
+  const date = typeof d === 'string' ? new Date(d) : d;
+  if (isNaN(date.getTime())) return '—';
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtDay(d: string | Date | null | undefined) {
+  if (!d) return '—';
+  const date = typeof d === 'string' ? new Date(d) : d;
+  if (isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function formatStopWindow(start: string | Date | null | undefined, end: string | Date | null | undefined) {
+  if (!start && !end) return '—';
+  const startDate = start ? new Date(start) : null;
+  const endDate = end ? new Date(end) : null;
+  if (startDate && isNaN(startDate.getTime())) return '—';
+  if (endDate && isNaN(endDate.getTime())) return '—';
+  if (!startDate) return fmtTime(endDate);
+  if (!endDate) return fmtTime(startDate);
+  const sameDay = startDate.toDateString() === endDate.toDateString();
+  return sameDay
+    ? `${fmtTime(startDate)} – ${fmtTime(endDate)}`
+    : `${fmtDay(startDate)} ${fmtTime(startDate)} – ${fmtDay(endDate)} ${fmtTime(endDate)}`;
+}
+
 function formatDriverDisplayName(driver: any): string {
   if (!driver) return '—';
 
@@ -115,6 +143,10 @@ export default function TruckRoutePlannerPage() {
   const effectiveTripId = useMemo(() => {
     return queryTrip || routePlan?.tripId || routePlan?.trip?.id || null;
   }, [queryTrip, routePlan]);
+
+  // The trip's planning date can differ from the board date in the URL.
+  // Always address the loaded plan by its own planningDate.
+  const effectivePlanningDate = routePlan?.planningDate || date;
 
   const tripStatus = useMemo(() => {
     return String(routePlan?.tripStatus || routePlan?.trip?.status || 'planning').toLowerCase();
@@ -366,6 +398,12 @@ export default function TruckRoutePlannerPage() {
     };
   }, [sortedStops, routePlan]);
 
+  const routeStatus = String(routePlan?.routeStatus || '').toLowerCase();
+  const routeGeometry = routePlan?.routeGeometry?.coordinates;
+  const hasRoadGeometry = Array.isArray(routeGeometry) && routeGeometry.length >= 2;
+  const routeProviderLabel = routePlan?.routeProvider ? String(routePlan.routeProvider).toUpperCase() : '—';
+  const routeDrivingMinutes = Number(routePlan?.totalDrivingTimeMinutes || 0);
+
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return;
     const map = new maplibregl.Map({
@@ -406,16 +444,28 @@ export default function TruckRoutePlannerPage() {
     const bounds = new maplibregl.LngLatBounds();
 
     if (stopsWithCoords.length >= 2) {
-      const coords = stopsWithCoords.map((s: any) => [Number(s.longitude), Number(s.latitude)]);
+      const stopCoords = stopsWithCoords.map((s: any) => [Number(s.longitude), Number(s.latitude)]);
+      stopCoords.forEach((c: any) => bounds.extend(c));
+      const roadCoords = Array.isArray(routeGeometry)
+        ? routeGeometry.filter((c: any) => Array.isArray(c) && c.length >= 2).map((c: any) => [Number(c[0]), Number(c[1])])
+        : [];
+      const hasRoad = roadCoords.length >= 2;
+      const coords = hasRoad ? roadCoords : stopCoords;
       coords.forEach((c: any) => bounds.extend(c));
       map.addSource('plan-routes', {
         type: 'geojson',
-        data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } },
+        data: { type: 'Feature', properties: { approximate: !hasRoad }, geometry: { type: 'LineString', coordinates: coords } },
       });
+      const routePaint: any = {
+        'line-color': hasRoad ? '#f97316' : '#f59e0b',
+        'line-width': hasRoad ? 4 : 3,
+        'line-opacity': 0.9,
+      };
+      if (!hasRoad) routePaint['line-dasharray'] = [2, 2];
       map.addLayer({
         id: 'plan-routes', type: 'line', source: 'plan-routes',
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#f97316', 'line-width': 4, 'line-opacity': 0.9 },
+        paint: routePaint,
       });
     }
 
@@ -454,15 +504,20 @@ export default function TruckRoutePlannerPage() {
     if (stopsWithCoords.length > 0) {
       map.fitBounds(bounds, { padding: 50, maxZoom: 13, duration: 600 });
     }
-  }, [sortedStops, mapReady]);
+  }, [sortedStops, mapReady, routeGeometry]);
 
   const fitRouteBounds = () => {
     const map = mapInstance.current;
     if (!map) return;
-    const stopsWithCoords = sortedStops.filter((s: any) => s.latitude && s.longitude);
-    if (!stopsWithCoords.length) return;
     const bounds = new maplibregl.LngLatBounds();
-    stopsWithCoords.forEach((s: any) => bounds.extend([Number(s.longitude), Number(s.latitude)]));
+    const roadCoords = Array.isArray(routeGeometry) ? routeGeometry : [];
+    if (roadCoords.length >= 2) {
+      roadCoords.forEach((c: any) => bounds.extend([Number(c[0]), Number(c[1])]));
+    } else {
+      const stopsWithCoords = sortedStops.filter((s: any) => s.latitude && s.longitude);
+      if (!stopsWithCoords.length) return;
+      stopsWithCoords.forEach((s: any) => bounds.extend([Number(s.longitude), Number(s.latitude)]));
+    }
     map.fitBounds(bounds, { padding: 80, maxZoom: 13 });
   };
 
@@ -479,7 +534,7 @@ export default function TruckRoutePlannerPage() {
   const handleOptimize = async () => {
     setActionLoading('optimize');
     try {
-      const plan = await planningApi.optimizeRoutePlan(truckId, date, selectedProfile || undefined);
+      const plan = await planningApi.optimizeRoutePlan(truckId, effectivePlanningDate, selectedProfile || undefined);
       setProposedPlan(plan);
       setShowProposal(true);
     } catch (err: any) {
@@ -509,7 +564,7 @@ export default function TruckRoutePlannerPage() {
   const handleRecalculate = async () => {
     setActionLoading('recalculate');
     try {
-      const plan = await planningApi.recalculateRoutePlan(truckId, date);
+      const plan = await planningApi.recalculateRoutePlan(truckId, effectivePlanningDate);
       setRoutePlan(plan);
       setDirty(false);
       toast.success(t('pln_recalculated_ok', 'Loads recalculated'));
@@ -531,7 +586,7 @@ export default function TruckRoutePlannerPage() {
     if (!ok) return;
     setActionLoading('reset');
     try {
-      const plan = await planningApi.resetRoutePlan(truckId, date);
+      const plan = await planningApi.resetRoutePlan(truckId, effectivePlanningDate);
       setRoutePlan(plan);
       setProposedPlan(null);
       setShowProposal(false);
@@ -727,7 +782,7 @@ export default function TruckRoutePlannerPage() {
       stops: ordered.map((s: any, i: number) => ({ ...s, sequence: i + 1 })),
     }));
     try {
-      const plan = await planningApi.reorderStops(truckId, date, ordered.map((s: any) => s.id));
+      const plan = await planningApi.reorderStops(truckId, effectivePlanningDate, ordered.map((s: any) => s.id));
       setRoutePlan(plan);
       setDirty(true);
     } catch (err: any) {
@@ -1040,10 +1095,50 @@ export default function TruckRoutePlannerPage() {
         </div>
       </header>
 
+      {routePlan && hasStops && (
+        <div className={`shrink-0 px-4 py-2 border-b flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] ${hasRoadGeometry ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-amber-500/10 border-amber-500/30'}`}>
+          {hasRoadGeometry ? (
+            <>
+              <span className="inline-flex items-center gap-1.5 font-black text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                {t('pln_route_calculated', 'Calculated truck route')}
+              </span>
+              <span className="text-text-secondary">{t('pln_route_provider', 'Provider')}: <strong className="text-text-primary">{routeProviderLabel}</strong></span>
+              <span className="text-text-secondary">{t('pln_distance', 'Distance')}: <strong className="text-text-primary">{Number(routePlan.totalDistanceKm || 0).toFixed(0)} km</strong></span>
+              <span className="text-text-secondary">{t('pln_driving', 'Driving')}: <strong className="text-text-primary">{Math.floor(routeDrivingMinutes / 60)}h {routeDrivingMinutes % 60}m</strong></span>
+              {routePlan.routeCalculatedAt && <span className="text-text-muted">{t('pln_route_updated', 'Updated')}: {fmtDate(routePlan.routeCalculatedAt)}</span>}
+            </>
+          ) : (
+            <>
+              <span className="inline-flex items-center gap-1.5 font-black text-amber-700 dark:text-amber-400">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                {t('pln_route_unavailable_connector', 'Approximate connection — road route unavailable')}
+              </span>
+              <span className="text-amber-700/80 dark:text-amber-300/80">
+                {routeStatus === 'failed'
+                  ? t('pln_route_failed_hint', 'The routing provider did not return a truck route. The trip data is unchanged; retry the road calculation.')
+                  : t('pln_route_incomplete_hint', 'At least two geocoded stops are required for a truck route.')}
+              </span>
+              {routeStatus === 'failed' && (
+                <button
+                  onClick={handleRecalculate}
+                  disabled={!!actionLoading || !hasStops}
+                  className="btn-secondary text-[10px] py-1 px-2.5 inline-flex items-center gap-1 font-bold disabled:opacity-40"
+                >
+                  {actionLoading === 'recalculate' ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+                  {t('pln_retry_route', 'Retry route')}
+                </button>
+              )}
+              <span className="text-text-muted">{t('pln_distance', 'Distance')}: — · {t('pln_driving', 'Driving')}: —</span>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Main split view: Stops sequence on left, Map on right */}
-      <div className="flex-1 flex overflow-hidden min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden min-h-0">
         {/* Sequence List on Left */}
-        <section className="w-96 lg:w-[420px] shrink-0 border-r border-border bg-card flex flex-col min-h-0">
+        <section className="w-full lg:w-[420px] shrink-0 border-b lg:border-b-0 lg:border-r border-border bg-card flex flex-col min-h-0 max-h-[52vh] lg:max-h-none">
           <div className="p-3 border-b border-border/70 flex items-center justify-between text-xs bg-surface/30">
             <span className="font-bold text-text-primary">{t('pln_stop_sequence', 'Stop Sequence')} ({sortedStops.length})</span>
             <span className="text-[11px] text-text-muted">{t('pln_drag_to_reorder', 'Drag to reorder')}</span>
@@ -1100,10 +1195,11 @@ export default function TruckRoutePlannerPage() {
               const stopDateStr = stop.scheduledDate || (stop.eta ? new Date(stop.eta).toISOString().split('T')[0] : null);
               const prevStop = idx > 0 ? sortedStops[idx - 1] : null;
               const prevDateStr = prevStop ? (prevStop.scheduledDate || (prevStop.eta ? new Date(prevStop.eta).toISOString().split('T')[0] : null)) : null;
-              const isDateChange = stopDateStr && prevDateStr && stopDateStr !== prevDateStr;
-              const dayLabel = stopDateStr ? new Date(stopDateStr + 'T12:00:00').toLocaleDateString(undefined, {
-                weekday: 'short', month: 'short', day: 'numeric'
-              }) : null;
+              const isDateChange = !!stopDateStr && (!prevDateStr || stopDateStr !== prevDateStr);
+              const dayLabel = stopDateStr ? fmtDay(stopDateStr + 'T12:00:00') : null;
+              const plannedEta = stop.plannedEta || stop.eta || null;
+              const calculatedEta = stop.calculatedEta || null;
+              const actualEta = stop.actualArrivalAt || stop.arrivedAt || stop.actualArrival || null;
 
               return (
                 <div key={stop.id} className="space-y-1.5">
@@ -1215,26 +1311,43 @@ export default function TruckRoutePlannerPage() {
                     </div>
                   </div>
 
-                  <div className="mt-2 grid grid-cols-3 gap-1.5 text-[10px]">
-                    <div className="rounded-lg bg-surface px-2 py-1">
-                      <p className="text-text-muted uppercase font-bold text-[8px]">{t('pln_eta', 'ETA')}</p>
-                      <p className="font-bold text-text-primary truncate">{fmtDate(stop.eta)}</p>
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
+                    <div className="rounded-lg bg-surface px-2 py-1.5 min-w-0">
+                      <p className="text-text-muted uppercase font-bold text-[8px]">{t('up_eta_planned', 'Planned ETA')}</p>
+                      <p className="font-bold text-text-primary break-words">{fmtDate(plannedEta)}</p>
                     </div>
-                    <div className="rounded-lg bg-surface px-2 py-1">
-                      <p className="text-text-muted uppercase font-bold text-[8px]">{t('pln_window', 'Window')}</p>
-                      <p className="font-bold text-text-primary truncate">
-                        {stop.timeWindowStart ? fmtDate(stop.timeWindowStart).split(',')[1] : '—'}
-                        {stop.timeWindowEnd ? ` – ${fmtDate(stop.timeWindowEnd).split(',')[1]}` : ''}
+                    <div className="rounded-lg bg-surface px-2 py-1.5 min-w-0">
+                      <p className="text-text-muted uppercase font-bold text-[8px]">{t('up_eta_calculated', 'Calculated ETA')}</p>
+                      <p className={`font-bold break-words ${calculatedEta ? 'text-primary' : 'text-text-muted'}`}>
+                        {calculatedEta ? fmtDate(calculatedEta) : t('up_eta_not_planned', 'Not planned')}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-surface px-2 py-1">
+                    <div className="rounded-lg bg-surface px-2 py-1.5 min-w-0">
+                      <p className="text-text-muted uppercase font-bold text-[8px]">{t('pln_window', 'Window')}</p>
+                      <p className="font-bold text-text-primary break-words">{formatStopWindow(stop.timeWindowStart, stop.timeWindowEnd)}</p>
+                    </div>
+                    <div className="rounded-lg bg-surface px-2 py-1.5 min-w-0">
                       <p className="text-text-muted uppercase font-bold text-[8px]">
                         {isPickup ? t('pln_to_load', 'To load') : t('pln_to_unload', 'To unload')}
                       </p>
-                      <p className={`font-bold truncate flex items-center gap-1 ${isPickup ? 'text-blue-600' : 'text-emerald-600'}`}>
-                        <PalletIcon className="w-3.5 h-3.5" />{Math.round(stop.pallets || 0)} {t('unit_pallets', 'pal')} · <WeightKgIcon className="w-3.5 h-3.5" />{Math.round(stop.weightKg || 0)} kg
+                      <p className={`font-bold flex flex-wrap items-center gap-x-1.5 gap-y-0.5 ${isPickup ? 'text-blue-600' : 'text-emerald-600'}`}>
+                        <span className="inline-flex items-center gap-1 whitespace-nowrap"><PalletIcon className="w-3.5 h-3.5" />{Math.round(stop.pallets || 0)} {t('unit_pallets', 'pal')}</span>
+                        <span className="inline-flex items-center gap-1 whitespace-nowrap"><WeightKgIcon className="w-3.5 h-3.5" />{Math.round(stop.weightKg || 0)} kg</span>
+                        {(Number(stop.loadingMeters) > 0 || Number(stop.volumeCbm) > 0) && (
+                          <span className="text-text-secondary whitespace-nowrap">
+                            {Number(stop.loadingMeters) > 0 ? `${Number(stop.loadingMeters).toFixed(1)} LDM` : ''}
+                            {Number(stop.loadingMeters) > 0 && Number(stop.volumeCbm) > 0 ? ' · ' : ''}
+                            {Number(stop.volumeCbm) > 0 ? `${Number(stop.volumeCbm).toFixed(1)} m³` : ''}
+                          </span>
+                        )}
                       </p>
                     </div>
+                    {actualEta && (
+                      <div className="rounded-lg bg-surface px-2 py-1.5 min-w-0 sm:col-span-2">
+                        <p className="text-text-muted uppercase font-bold text-[8px]">{t('up_eta_actual', 'Actual arrival')}</p>
+                        <p className="font-bold text-text-primary break-words">{fmtDate(actualEta)}</p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
@@ -1269,7 +1382,7 @@ export default function TruckRoutePlannerPage() {
         </section>
 
         {/* Interactive Map on Right Side */}
-        <div className="flex-1 min-w-0 flex flex-col relative">
+        <div className="flex-1 min-w-0 min-h-[48vh] lg:min-h-0 flex flex-col relative">
           <div className="flex-1 w-full h-full relative min-h-0">
             <div ref={mapRef} className="absolute inset-0 w-full h-full" />
             {!mapReady && (

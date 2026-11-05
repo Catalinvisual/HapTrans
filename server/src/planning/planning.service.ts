@@ -25,7 +25,7 @@ import { OptimizationEngine } from '../engines/optimization.engine';
 import { PricingEngine } from '../engines/pricing.engine';
 import { TimelineService } from '../timeline/timeline.service';
 import { OptimizationService } from './optimization.service';
-import { RoutingService } from '../routing/routing.service';
+import { RoutingService, TruckRoadRoute } from '../routing/routing.service';
 import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
 import { TelematicsDevice } from '../telematics/entities/telematics-device.entity';
 import { resolveDriverForCompliance, resolveTripDriver, resolveTripTrailer } from './trip-assignment';
@@ -3028,14 +3028,169 @@ export class PlanningService {
     return this.loadTrip(tripId);
   }
 
+  /** HGV dimensions and weight sent to the routing provider. */
+  private routeVehicleProfile(routePlan: TruckRoutePlan, truck: any, trailer: any) {
+    const maxNumber = (...values: any[]) => {
+      const numbers = values.map(Number).filter((n) => Number.isFinite(n) && n > 0);
+      return numbers.length ? Math.max(...numbers) : undefined;
+    };
+    const emissionMap: Record<string, number> = {
+      'euro 6': 6, 'euro 5': 5, 'euro 4': 4, 'euro 3': 3, 'euro 2': 2, 'euro 1': 1,
+    };
+    const euronorm = String(truck?.euronorm || '').toLowerCase().trim();
+    const truckAxles = Number(truck?.axleCount) || 0;
+    const trailerAxles = Number(trailer?.axleCount) || 0;
+    return {
+      weightKg: maxNumber(truck?.maxWeightKg, truck?.payloadCapacity, routePlan.maxWeightKg),
+      heightCm: maxNumber(truck?.heightCm, trailer?.heightCm),
+      widthCm: maxNumber(truck?.widthCm, trailer?.widthCm),
+      lengthCm: maxNumber(truck?.lengthCm, trailer?.lengthCm),
+      axleCount: truckAxles + trailerAxles || undefined,
+      emissionType: emissionMap[euronorm] || undefined,
+    };
+  }
+
+  private parseLocalDateTime(date: string | null | undefined, time: string | null | undefined): Date | null {
+    if (!date) return null;
+    const day = String(date).slice(0, 10);
+    const clock = String(time || '00:00').slice(0, 5);
+    const parsed = new Date(`${day}T${clock}:00`);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  /**
+   * Builds a stop's planned window without UTC date-shifting. If the end clock
+   * is before the start clock, the window is treated as crossing midnight.
+   */
+  private resolveStopWindow(stop: any, fallbackDate: string) {
+    const scheduledDate = stop.dateFrom ? String(stop.dateFrom).slice(0, 10) : fallbackDate;
+    let start = stop.timeWindowMin ? new Date(stop.timeWindowMin) : this.parseLocalDateTime(scheduledDate, stop.timeFrom);
+    let end = stop.timeWindowMax ? new Date(stop.timeWindowMax) : this.parseLocalDateTime(scheduledDate, stop.timeUntil || '23:59');
+    if (start && isNaN(start.getTime())) start = null;
+    if (end && isNaN(end.getTime())) end = null;
+    if (start && end && end.getTime() <= start.getTime()) {
+      end = new Date(end.getTime() + 24 * 60 * 60000);
+    }
+    return { scheduledDate, start, end };
+  }
+
+  private applyRouteSchedule(routePlan: TruckRoutePlan, stops: RoutePlanStop[]) {
+    if (!stops.length) return;
+    const tripDeparture = routePlan.trip?.plannedDeparture ? new Date(routePlan.trip.plannedDeparture) : null;
+    let cursor = tripDeparture && !isNaN(tripDeparture.getTime())
+      ? tripDeparture.getTime()
+      : (stops[0].timeWindowStart ? new Date(stops[0].timeWindowStart).getTime() : Date.now());
+
+    for (let index = 0; index < stops.length; index++) {
+      const stop = stops[index];
+      if (index > 0) cursor += (Number(stop.durationFromPreviousMin) || 0) * 60000;
+      if (!stop.plannedEta) {
+        stop.plannedEta = stop.eta ? new Date(stop.eta) : (stop.timeWindowStart ? new Date(stop.timeWindowStart) : null as any);
+      }
+      const windowStart = stop.timeWindowStart ? new Date(stop.timeWindowStart).getTime() : null;
+      if (windowStart && Number.isFinite(windowStart) && cursor < windowStart) {
+        routePlan.totalWaitingTimeMinutes = Number(routePlan.totalWaitingTimeMinutes || 0) + Math.round((windowStart - cursor) / 60000);
+        cursor = windowStart;
+      }
+      // Arrival is after any wait for the window; service starts on arrival.
+      stop.calculatedEta = new Date(cursor);
+      cursor += (Number(stop.serviceDurationMinutes) || 30) * 60000;
+      stop.etd = new Date(cursor);
+    }
+  }
+
+  /**
+   * Calculates and stores the actual HGV road route. A provider failure is
+   * surfaced as a warning and leaves geometry empty; it never falls back to a
+   * misleading straight line or a fabricated distance.
+   */
+  private async applyRoadRoute(routePlan: TruckRoutePlan, stops: RoutePlanStop[]): Promise<TruckRoadRoute | null> {
+    let truck: any = (routePlan as any).truck || null;
+    if ((!truck || !truck.plateNumber) && routePlan.truckId) {
+      truck = await this.truckRepo.findOne({ where: { id: routePlan.truckId }, relations: ['driver', 'driver.user', 'trailer'] });
+    }
+    let trip: any = (routePlan as any).trip || null;
+    if ((!trip || !trip.plannedDeparture) && routePlan.tripId) {
+      trip = await this.tripRepo.findOne({ where: { id: routePlan.tripId }, relations: ['trailer', 'driver', 'driver.user', 'truck', 'truck.trailer'] });
+    }
+    const trailer = (routePlan as any).trailer || trip?.trailer || truck?.trailer || null;
+    if (truck) (routePlan as any).truck = truck;
+    if (trip) (routePlan as any).trip = trip;
+    if (trailer) (routePlan as any).trailer = trailer;
+
+    const points = stops
+      .filter((stop) => Number(stop.latitude) !== 0 && Number(stop.longitude) !== 0 && Number.isFinite(Number(stop.latitude)) && Number.isFinite(Number(stop.longitude)))
+      .map((stop) => ({ lat: Number(stop.latitude), lng: Number(stop.longitude) }));
+
+    routePlan.totalWaitingTimeMinutes = 0;
+    routePlan.routeWarnings = [];
+    routePlan.routeCalculatedAt = new Date();
+
+    if (points.length < 2) {
+      routePlan.routeGeometry = null;
+      routePlan.routeProvider = null;
+      routePlan.routeStatus = 'incomplete';
+      routePlan.routeWarnings = [{ code: 'provider_route_geometry_incomplete', severity: 'error' }];
+      routePlan.totalDistanceKm = 0;
+      routePlan.totalDrivingTimeMinutes = 0;
+      routePlan.totalDurationMinutes = 0;
+      for (const stop of stops) {
+        stop.distanceFromPreviousKm = null as any;
+        stop.durationFromPreviousMin = null as any;
+        stop.calculatedEta = null as any;
+      }
+      return null;
+    }
+
+    const route = await this.routingService.calculateTruckRoadRoute(points, this.routeVehicleProfile(routePlan, truck, trailer));
+    if (!route) {
+      const failure = this.routingService.getLastRouteFailure();
+      routePlan.routeGeometry = null;
+      routePlan.routeProvider = failure?.provider && failure.provider !== 'none' ? failure.provider : null;
+      routePlan.routeStatus = 'failed';
+      routePlan.routeWarnings = [{ code: failure?.code || 'provider_unavailable', severity: 'error', provider: routePlan.routeProvider }];
+      routePlan.totalDistanceKm = 0;
+      routePlan.totalDrivingTimeMinutes = 0;
+      routePlan.totalDurationMinutes = 0;
+      for (const stop of stops) {
+        stop.distanceFromPreviousKm = null as any;
+        stop.durationFromPreviousMin = null as any;
+        stop.calculatedEta = null as any;
+      }
+      return null;
+    }
+
+    routePlan.routeGeometry = { type: 'LineString', coordinates: route.coordinates };
+    routePlan.routeProvider = route.provider;
+    routePlan.routeStatus = 'calculated';
+    routePlan.totalDistanceKm = route.distanceKm;
+    routePlan.totalDrivingTimeMinutes = route.durationMin;
+    routePlan.totalServiceTimeMinutes = stops.reduce((sum, stop) => sum + (Number(stop.serviceDurationMinutes) || 30), 0);
+    routePlan.totalDurationMinutes = routePlan.totalDrivingTimeMinutes + routePlan.totalServiceTimeMinutes;
+
+    stops.forEach((stop, index) => {
+      const leg = route.legs[index];
+      stop.distanceFromPreviousKm = leg?.distanceKm ?? null as any;
+      stop.durationFromPreviousMin = leg?.durationMin ?? null as any;
+    });
+    this.applyRouteSchedule(routePlan, stops);
+    routePlan.totalDurationMinutes += Number(routePlan.totalWaitingTimeMinutes) || 0;
+    if (route.tollCost !== undefined) routePlan.optimizationMetadata = { ...(routePlan.optimizationMetadata || {}), tollEstimate: route.tollCost, tollCurrency: route.tollCurrency || 'EUR', tollStatus: route.tollStatus };
+    return route;
+  }
+
   async getRoutePlanByTrip(tripId: string, user?: any): Promise<TruckRoutePlan> {
     const trip = await this.loadTrip(tripId);
     if (!trip) throw new NotFoundException('Trip not found');
+    const tripCompanyId = trip.company?.id || (trip as any).companyId || null;
+    if (user?.companyId && tripCompanyId && String(tripCompanyId) !== String(user.companyId)) {
+      throw new ForbiddenException('Trip does not belong to your company.');
+    }
 
     let routePlan = await this.routePlanRepo.findOne({
-      where: { tripId },
+      where: { tripId, isCurrent: true },
       relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'driver', 'driver.user', 'trip', 'trip.orders'],
-      order: { stops: { sequence: 'ASC' } },
+      order: { stops: { sequence: 'ASC' }, updatedAt: 'DESC' },
     });
 
     if (!routePlan || !routePlan.stops || routePlan.stops.length === 0) {
@@ -3061,6 +3216,15 @@ export class PlanningService {
     (routePlan as any).tripNumber = trip.tripNumber;
     (routePlan as any).validationStatus = trip.validationStatus;
     (routePlan as any).validationIssues = trip.validationIssues;
+
+    // Existing plans created before road routing was introduced have no
+    // geometry. Calculate it once on first open rather than leaving a fake
+    // Haversine distance or a straight line in the planner.
+    if (routePlan.stops?.length && !routePlan.routeGeometry && routePlan.routeStatus !== 'failed') {
+      await this.applyRoadRoute(routePlan, routePlan.stops);
+      for (const stop of routePlan.stops) await this.routePlanStopRepo.save(stop);
+      await this.routePlanRepo.save(routePlan);
+    }
 
     return routePlan;
   }
@@ -3754,13 +3918,17 @@ export class PlanningService {
     return routePlan;
   }
 
-  async createRoutePlanFromTrip(tripId: string, customPlanningDate?: string, targetTruckId?: string): Promise<TruckRoutePlan> {
+  async createRoutePlanFromTrip(tripId: string, customPlanningDate?: string, targetTruckId?: string, userCompanyId?: string | null, forceRebuild = false): Promise<TruckRoutePlan> {
     const trip = await this.tripRepo.findOne({
       where: { id: tripId },
-      relations: ['truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'driver', 'driver.user', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.cargoItems', 'orders.stops'],
+      relations: ['company', 'truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'trailer', 'driver', 'driver.user', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.cargoItems', 'orders.stops'],
     });
 
     if (!trip) throw new NotFoundException('Trip not found');
+    const tripCompanyId = trip.company?.id || (trip as any).companyId || null;
+    if (userCompanyId && tripCompanyId && String(tripCompanyId) !== String(userCompanyId)) {
+      throw new ForbiddenException('Trip does not belong to your company.');
+    }
 
     let truck: Truck | null = trip.truck || null;
     if (!truck && targetTruckId) {
@@ -3773,13 +3941,34 @@ export class PlanningService {
 
     const planningDate = customPlanningDate || (trip.plannedDeparture ? new Date(trip.plannedDeparture).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
 
-    // Deactivate existing current plan for this truck/date
+    // Opening the planner is a read-or-create operation. Reuse the current plan
+    // for this trip when one exists so repeated opens never create duplicates.
+    const existingPlan = await this.routePlanRepo.findOne({
+      where: { tripId, isCurrent: true },
+      relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'driver', 'driver.user', 'trip', 'trip.orders', 'trip.trailer'],
+      order: { stops: { sequence: 'ASC' } },
+    });
+    if (existingPlan?.stops?.length && !forceRebuild) {
+      if (!existingPlan.routeGeometry && existingPlan.routeStatus !== 'failed') {
+        await this.applyRoadRoute(existingPlan, existingPlan.stops);
+        for (const stop of existingPlan.stops) await this.routePlanStopRepo.save(stop);
+        await this.routePlanRepo.save(existingPlan);
+      }
+      return (await this.getRoutePlanById(existingPlan.id)) || existingPlan;
+    }
+    if (forceRebuild && existingPlan?.id) {
+      await this.routePlanStopRepo.delete({ routePlanId: existingPlan.id });
+      existingPlan.stops = [];
+    }
+
+    // Deactivate any other current plan for this truck/date, but keep this
+    // trip's empty plan for reuse.
     await this.routePlanRepo.update(
       { truckId, planningDate, isCurrent: true },
       { isCurrent: false }
     );
 
-    const routePlan = new TruckRoutePlan();
+    const routePlan = existingPlan || new TruckRoutePlan();
     routePlan.truck = { id: truckId } as any;
     routePlan.truckId = truckId;
     routePlan.company = (truck as any)?.companyId ? { id: (truck as any).companyId } as any : ((trip as any).companyId ? { id: (trip as any).companyId } as any : null);
@@ -3828,6 +4017,7 @@ export class PlanningService {
     let cumulativeVolume = 0;
     let pickupCount = 0;
     let deliveryCount = 0;
+    const savedStops: RoutePlanStop[] = [];
 
     for (let i = 0; i < stopList.length; i++) {
       const stop = stopList[i];
@@ -3892,11 +4082,14 @@ export class PlanningService {
       routePlanStop.postalCode = stop.postalCode || '';
       routePlanStop.latitude = stop.latitude ? Number(stop.latitude) : (undefined as any);
       routePlanStop.longitude = stop.longitude ? Number(stop.longitude) : (undefined as any);
-      routePlanStop.scheduledDate = stop.timeWindowMin ? new Date(stop.timeWindowMin).toISOString().split('T')[0] : (stop.dateFrom || planningDate);
-      routePlanStop.timeWindowStart = stop.timeWindowMin || (stop.dateFrom ? new Date(stop.dateFrom + 'T' + (stop.timeFrom || '00:00') + ':00') : null);
-      routePlanStop.timeWindowEnd = stop.timeWindowMax || (stop.dateFrom ? new Date(stop.dateFrom + 'T' + (stop.timeUntil || '23:59') + ':00') : null);
+      const stopWindow = this.resolveStopWindow(stop, planningDate);
+      routePlanStop.scheduledDate = stopWindow.scheduledDate;
+      routePlanStop.timeWindowStart = stopWindow.start as any;
+      routePlanStop.timeWindowEnd = stopWindow.end as any;
       routePlanStop.timeWindowSoft = false;
-      routePlanStop.eta = stop.eta;
+      routePlanStop.eta = stop.eta ? new Date(stop.eta) : (stopWindow.start as any);
+      routePlanStop.plannedEta = stop.eta ? new Date(stop.eta) : (stopWindow.start as any);
+      routePlanStop.calculatedEta = null as any;
       routePlanStop.serviceDurationMinutes = 30;
       routePlanStop.pallets = stopPallets;
       routePlanStop.weightKg = stopWeight;
@@ -3909,30 +4102,18 @@ export class PlanningService {
       routePlanStop.cumulativeLdm = cumulativeLdm;
       routePlanStop.cumulativeVolumeCbm = cumulativeVolume;
 
-      await this.routePlanStopRepo.save(routePlanStop);
+      savedStops.push(await this.routePlanStopRepo.save(routePlanStop));
     }
 
-    // Calculate real road distance & duration
-    let totalDistKm = 0;
-    for (let i = 0; i < stopList.length - 1; i++) {
-      const s1 = stopList[i];
-      const s2 = stopList[i + 1];
-      if (s1.latitude && s1.longitude && s2.latitude && s2.longitude) {
-        const d = this.haversineDistance(Number(s1.latitude), Number(s1.longitude), Number(s2.latitude), Number(s2.longitude)) * 1.25;
-        totalDistKm += d;
-      }
-    }
-    const totalDurationMin = Math.round((totalDistKm / 65) * 60 + stopList.length * 30);
+    // Recompute the authoritative cargo profile, then request the real HGV
+    // road route for the complete stop sequence.
+    this.recomputeCumulativeLoads(savedStops, savedPlan);
+    await this.applyRoadRoute(savedPlan, savedStops);
+    for (const stop of savedStops) await this.routePlanStopRepo.save(stop);
 
-    // Update route plan totals
     savedPlan.stopCount = stopList.length;
     savedPlan.pickupCount = pickupCount;
     savedPlan.deliveryCount = deliveryCount;
-    savedPlan.peakPallets = cumulativePallets;
-    savedPlan.peakWeightKg = cumulativeWeight;
-    savedPlan.totalDistanceKm = Math.round(totalDistKm);
-    savedPlan.totalDurationMinutes = totalDurationMin;
-    savedPlan.totalDrivingTimeMinutes = Math.round((totalDistKm / 65) * 60);
 
     // Assign loading sequence based on the truck's loading rule
     try {
@@ -3948,7 +4129,7 @@ export class PlanningService {
     }
 
     await this.routePlanRepo.save(savedPlan);
-    return (await this.getRoutePlan(truckId, planningDate, (truck as any)?.companyId || (trip as any).companyId || null))!;
+    return (await this.getRoutePlanById(savedPlan.id)) || savedPlan;
   }
 
   async getRoutePlan(truckId: string, planningDate: string, userCompanyId?: string | null): Promise<TruckRoutePlan | null> {
@@ -4047,6 +4228,11 @@ export class PlanningService {
       }
       if (routePlan.stops && routePlan.stops.length > 0) {
         this.recomputeCumulativeLoads(routePlan.stops, routePlan);
+        if (!routePlan.routeGeometry && routePlan.routeStatus !== 'failed') {
+          await this.applyRoadRoute(routePlan, routePlan.stops);
+          for (const stop of routePlan.stops) await this.routePlanStopRepo.save(stop);
+          await this.routePlanRepo.save(routePlan);
+        }
       }
     }
 
@@ -4084,6 +4270,9 @@ export class PlanningService {
     const loadingRule = await this.resolveLoadingRule(routePlan);
     this.recomputeCumulativeLoads(stops, routePlan);
     this.computeLoadingSequence(stops, loadingRule);
+    await this.applyRoadRoute(routePlan, stops);
+    routePlan.totalServiceTimeMinutes = stops.reduce((sum, stop) => sum + (Number(stop.serviceDurationMinutes) || 30), 0);
+    routePlan.totalDurationMinutes = Number(routePlan.totalDrivingTimeMinutes || 0) + routePlan.totalServiceTimeMinutes + Number(routePlan.totalWaitingTimeMinutes || 0);
 
     // Validate hard constraints (capacity, pickup-before-delivery)
     const validation = this.validateRoutePlan(stops, routePlan, loadingRule);
@@ -4165,7 +4354,7 @@ export class PlanningService {
   async getRoutePlanById(routePlanId: string): Promise<TruckRoutePlan | null> {
     return this.routePlanRepo.findOne({
       where: { id: routePlanId },
-      relations: ['stops', 'stops.order', 'truck', 'driver', 'trip'],
+      relations: ['stops', 'stops.order', 'truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'driver', 'driver.user', 'trip', 'trip.orders', 'trip.trailer', 'trip.driver'],
       order: { stops: { sequence: 'ASC' } },
     });
   }
@@ -4173,7 +4362,7 @@ export class PlanningService {
   // Incoming JSON from the client carries dates as ISO strings — coerce to Date
   private normalizeStopDates(stops: RoutePlanStop[]) {
     for (const s of stops) {
-      for (const key of ['timeWindowStart', 'timeWindowEnd', 'eta', 'etd'] as const) {
+      for (const key of ['timeWindowStart', 'timeWindowEnd', 'eta', 'etd', 'plannedEta', 'calculatedEta'] as const) {
         const v = (s as any)[key];
         if (typeof v === 'string' && v) {
           const d = new Date(v);
@@ -4559,6 +4748,7 @@ export class PlanningService {
     const loadingRule = await this.resolveLoadingRule(routePlan);
     this.recomputeCumulativeLoads(routePlan.stops, routePlan);
     this.computeLoadingSequence(routePlan.stops, loadingRule);
+    await this.applyRoadRoute(routePlan, routePlan.stops);
 
     for (const stop of routePlan.stops) {
       await this.routePlanStopRepo.save(stop);
@@ -4647,7 +4837,7 @@ export class PlanningService {
     await this.assertRoutePlanAccess(routePlanId, userCompanyId);
     const routePlan = await this.routePlanRepo.findOne({
       where: { id: routePlanId },
-      relations: ['stops', 'truck'],
+      relations: ['stops', 'truck', 'truck.trailer', 'trailer', 'trip', 'trip.trailer'],
     });
 
     if (!routePlan) throw new NotFoundException('Route plan not found');
@@ -4667,20 +4857,7 @@ export class PlanningService {
     const loadingRule = await this.resolveLoadingRule(routePlan);
     this.recomputeCumulativeLoads(ordered, routePlan);
     this.computeLoadingSequence(ordered, loadingRule);
-
-    let totalDistKm = 0;
-    for (let i = 0; i < ordered.length - 1; i++) {
-      const s1 = ordered[i];
-      const s2 = ordered[i + 1];
-      if (s1.latitude && s1.longitude && s2.latitude && s2.longitude) {
-        const d = this.haversineDistance(Number(s1.latitude), Number(s1.longitude), Number(s2.latitude), Number(s2.longitude)) * 1.25;
-        totalDistKm += d;
-      }
-    }
-    const totalDurationMin = Math.round((totalDistKm / 65) * 60 + ordered.length * 30);
-    routePlan.totalDistanceKm = Math.round(totalDistKm);
-    routePlan.totalDurationMinutes = totalDurationMin;
-    routePlan.totalDrivingTimeMinutes = Math.round((totalDistKm / 65) * 60);
+    await this.applyRoadRoute(routePlan, ordered);
 
     const validation = this.validateRoutePlan(ordered, routePlan, loadingRule);
     routePlan.conflicts = validation.conflicts;
@@ -4764,7 +4941,7 @@ export class PlanningService {
 
     // If there's a linked trip, restore from trip
     if (routePlan.tripId) {
-      return this.createRoutePlanFromTrip(routePlan.tripId);
+      return this.createRoutePlanFromTrip(routePlan.tripId, undefined, undefined, userCompanyId, true);
     }
 
     // Otherwise, create new version
