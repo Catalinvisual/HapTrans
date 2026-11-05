@@ -29,6 +29,7 @@ import { RoutingService, TruckRoadRoute } from '../routing/routing.service';
 import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
 import { TelematicsDevice } from '../telematics/entities/telematics-device.entity';
 import { resolveDriverForCompliance, resolveTripDriver, resolveTripTrailer } from './trip-assignment';
+import { withRoutePlanInitLock } from './route-plan-init-lock';
 
 
 export const ACTIVE_TRIP_STATUSES = [
@@ -155,6 +156,11 @@ export class PlanningService {
   }
 
   private readonly actionRepo: Repository<PlanningAction>;
+
+  /** Route-plan initialization is a read-or-create operation. */
+  private withRoutePlanInitLock<T>(key: string, work: () => Promise<T>): Promise<T> {
+    return withRoutePlanInitLock(key, this.routePlanRepo, work);
+  }
 
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -3118,19 +3124,36 @@ export class PlanningService {
     if (trip) (routePlan as any).trip = trip;
     if (trailer) (routePlan as any).trailer = trailer;
 
+    // Only report restrictions that are genuinely absent or zero. These are
+    // warnings, not substitutes: no generic dimensions are sent to a provider.
+    const positive = (...values: any[]) => Math.max(0, ...values.map((v) => Number(v) || 0));
+    const availableRestrictions: Record<string, number> = {
+      height: positive(truck?.heightCm, trailer?.heightCm),
+      width: positive(truck?.widthCm, trailer?.widthCm),
+      length: positive(truck?.lengthCm, trailer?.lengthCm),
+      axles: positive(truck?.axleCount) + positive(trailer?.axleCount),
+      grossWeight: positive(truck?.maxWeightKg, routePlan.maxWeightKg),
+    };
+    const missingRestrictions = Object.entries(availableRestrictions)
+      .filter(([, value]) => value <= 0)
+      .map(([field]) => field);
+    const restrictionWarnings = missingRestrictions.length
+      ? [{ code: 'vehicle_restrictions_incomplete', severity: 'warning', missingFields: missingRestrictions }]
+      : [];
+
     const points = stops
       .filter((stop) => Number(stop.latitude) !== 0 && Number(stop.longitude) !== 0 && Number.isFinite(Number(stop.latitude)) && Number.isFinite(Number(stop.longitude)))
       .map((stop) => ({ lat: Number(stop.latitude), lng: Number(stop.longitude) }));
 
     routePlan.totalWaitingTimeMinutes = 0;
-    routePlan.routeWarnings = [];
+    routePlan.routeWarnings = [...restrictionWarnings];
     routePlan.routeCalculatedAt = new Date();
 
     if (points.length < 2) {
       routePlan.routeGeometry = null;
       routePlan.routeProvider = null;
       routePlan.routeStatus = 'incomplete';
-      routePlan.routeWarnings = [{ code: 'provider_route_geometry_incomplete', severity: 'error' }];
+      routePlan.routeWarnings = [...restrictionWarnings, { code: 'provider_route_geometry_incomplete', severity: 'error' }];
       routePlan.totalDistanceKm = 0;
       routePlan.totalDrivingTimeMinutes = 0;
       routePlan.totalDurationMinutes = 0;
@@ -3148,7 +3171,7 @@ export class PlanningService {
       routePlan.routeGeometry = null;
       routePlan.routeProvider = failure?.provider && failure.provider !== 'none' ? failure.provider : null;
       routePlan.routeStatus = 'failed';
-      routePlan.routeWarnings = [{ code: failure?.code || 'provider_unavailable', severity: 'error', provider: routePlan.routeProvider }];
+      routePlan.routeWarnings = [...restrictionWarnings, { code: failure?.code || 'provider_unavailable', severity: 'error', provider: routePlan.routeProvider }];
       routePlan.totalDistanceKm = 0;
       routePlan.totalDrivingTimeMinutes = 0;
       routePlan.totalDurationMinutes = 0;
@@ -3176,7 +3199,21 @@ export class PlanningService {
     });
     this.applyRouteSchedule(routePlan, stops);
     routePlan.totalDurationMinutes += Number(routePlan.totalWaitingTimeMinutes) || 0;
-    if (route.tollCost !== undefined) routePlan.optimizationMetadata = { ...(routePlan.optimizationMetadata || {}), tollEstimate: route.tollCost, tollCurrency: route.tollCurrency || 'EUR', tollStatus: route.tollStatus };
+    const routeMetadata: any = {
+      ...(routePlan.optimizationMetadata || {}),
+      routeRestrictionsMissing: missingRestrictions,
+    };
+    if (route.provider === 'ors' && route.fallbackReason) {
+      routeMetadata.routeFallbackReason = route.fallbackReason;
+      routePlan.routeWarnings = [
+        ...(routePlan.routeWarnings || []),
+        { code: 'provider_fallback', severity: 'warning', provider: 'ors', fallbackFrom: 'here', reason: route.fallbackReason },
+      ];
+    } else {
+      delete routeMetadata.routeFallbackReason;
+    }
+    routePlan.optimizationMetadata = routeMetadata;
+    if (route.tollCost !== undefined) routePlan.optimizationMetadata = { ...routePlan.optimizationMetadata, tollEstimate: route.tollCost, tollCurrency: route.tollCurrency || 'EUR', tollStatus: route.tollStatus };
     return route;
   }
 
@@ -3869,6 +3906,12 @@ export class PlanningService {
   }
 
   async getOrCreateRoutePlan(truckId: string, planningDate: string, tripId?: string, userCompanyId?: string | null): Promise<TruckRoutePlan> {
+    return this.withRoutePlanInitLock(`truck:${truckId}:${planningDate}`, () =>
+      this.getOrCreateRoutePlanLocked(truckId, planningDate, tripId, userCompanyId),
+    );
+  }
+
+  private async getOrCreateRoutePlanLocked(truckId: string, planningDate: string, tripId?: string, userCompanyId?: string | null): Promise<TruckRoutePlan> {
     const truck = await this.assertTruckAccess(truckId, userCompanyId);
 
     let routePlan = await this.routePlanRepo.findOne({
@@ -3933,6 +3976,12 @@ export class PlanningService {
   }
 
   async createRoutePlanFromTrip(tripId: string, customPlanningDate?: string, targetTruckId?: string, userCompanyId?: string | null, forceRebuild = false): Promise<TruckRoutePlan> {
+    return this.withRoutePlanInitLock(`trip:${tripId}`, () =>
+      this.createRoutePlanFromTripLocked(tripId, customPlanningDate, targetTruckId, userCompanyId, forceRebuild),
+    );
+  }
+
+  private async createRoutePlanFromTripLocked(tripId: string, customPlanningDate?: string, targetTruckId?: string, userCompanyId?: string | null, forceRebuild = false): Promise<TruckRoutePlan> {
     const trip = await this.tripRepo.findOne({
       where: { id: tripId },
       relations: ['company', 'truck', 'truck.driver', 'truck.driver.user', 'truck.trailer', 'trailer', 'driver', 'driver.user', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.cargoItems', 'orders.stops'],

@@ -311,6 +311,50 @@ describe('RoutingService provider contracts', () => {
     expect(service.getProviderDiagnostics().ors.reachable).toBe('yes');
   });
 
+  it('falls back to ORS HGV geometry and reports why the primary failed', async () => {
+    mockedGet.mockResolvedValueOnce({ data: { routes: [] } });
+    mockedPost.mockResolvedValueOnce({
+      data: {
+        features: [{
+          properties: { summary: { distance: 10000, duration: 600 } },
+          geometry: { coordinates: [[13.405, 52.52], [13.45, 52.49]] },
+        }],
+      },
+    });
+    const service = serviceWith({ HERE_API_KEY: 'here-secret', ORS_API_KEY: 'ors-secret' });
+    const route = await service.calculateTruckRoadRoute(
+      [{ lat: 52.52, lng: 13.405 }, { lat: 52.49, lng: 13.45 }],
+      { weightKg: 40000, heightCm: 400, widthCm: 255, lengthCm: 1360, axleCount: 5 },
+    );
+
+    expect(route).toMatchObject({ provider: 'ors', fallbackReason: 'provider_no_route', distanceKm: 10, durationMin: 10 });
+    expect(route?.coordinates.length).toBeGreaterThanOrEqual(2);
+    expect(mockedPost).toHaveBeenCalledWith(
+      'https://api.openrouteservice.org/v2/directions/driving-hgv/geojson',
+      expect.objectContaining({
+        profile_params: { restrictions: { height: 400, width: 255, length: 1360, weight: 40000 } },
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it('probes the real ORS HGV route without exposing the key', async () => {
+    mockedPost.mockResolvedValueOnce({
+      data: {
+        features: [{
+          properties: { summary: { distance: 255000, duration: 9000 } },
+          geometry: { coordinates: [[13.405, 52.52], [9.9937, 53.5511]] },
+        }],
+      },
+    });
+    const service = serviceWith({ ORS_API_KEY: 'ors-secret' });
+    const result = await service.probeOrsHgvRoute();
+
+    expect(result).toMatchObject({ configured: true, reachable: true, status: 200, provider: 'ors', profile: 'driving-hgv' });
+    expect(result.geometryPoints).toBe(2);
+    expect(JSON.stringify(result)).not.toContain('ors-secret');
+  });
+
   it('probes both providers once and returns only safe status fields', async () => {
     mockedGet.mockResolvedValueOnce({ data: { routes: [{ sections: [{ summary: { length: 1000, duration: 60 } }] }] } });
     mockedPost.mockResolvedValueOnce({

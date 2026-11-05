@@ -74,7 +74,8 @@ export default function TrailersPage() {
 
   const initialForm = {
     plateNumber: "", type: "standard", brand: "", year: "",
-    payloadCapacityWeight: "", maxLdm: "", maxVolumeCbm: "", payloadCapacityPallets: "", status: "active",
+    payloadCapacityWeight: "", maxWeightKg: "", maxLdm: "", maxVolumeCbm: "", payloadCapacityPallets: "",
+    heightCm: "", widthCm: "", lengthCm: "", axleCount: "", status: "active",
     apkExpiry: "",
   };
 
@@ -121,9 +122,14 @@ export default function TrailersPage() {
       const payload = {
         ...form,
         payloadCapacityWeight: form.payloadCapacityWeight ? Number(form.payloadCapacityWeight) : null,
+        maxWeightKg: form.maxWeightKg ? Number(form.maxWeightKg) : null,
         maxLdm: form.maxLdm ? Number(form.maxLdm) : null,
         maxVolumeCbm: form.maxVolumeCbm ? Number(form.maxVolumeCbm) : null,
         payloadCapacityPallets: form.payloadCapacityPallets ? Number(form.payloadCapacityPallets) : null,
+        heightCm: form.heightCm ? Number(form.heightCm) : null,
+        widthCm: form.widthCm ? Number(form.widthCm) : null,
+        lengthCm: form.lengthCm ? Number(form.lengthCm) : null,
+        axleCount: form.axleCount ? Number(form.axleCount) : null,
         year: form.year ? Number(form.year) : null,
         apkExpiry: form.apkExpiry || null,
       };
@@ -169,8 +175,9 @@ export default function TrailersPage() {
   const openEdit = (tr: any) => {
     setForm({
       plateNumber: tr.plateNumber || "", type: tr.type || "standard", brand: tr.brand || "", year: tr.year || "",
-      payloadCapacityWeight: tr.payloadCapacityWeight ?? "", maxLdm: tr.maxLdm ?? "", maxVolumeCbm: tr.maxVolumeCbm ?? "",
-      payloadCapacityPallets: tr.payloadCapacityPallets ?? "", status: tr.status || "active",
+      payloadCapacityWeight: tr.payloadCapacityWeight ?? "", maxWeightKg: tr.maxWeightKg ?? "", maxLdm: tr.maxLdm ?? "", maxVolumeCbm: tr.maxVolumeCbm ?? "",
+      payloadCapacityPallets: tr.payloadCapacityPallets ?? "", heightCm: tr.heightCm ?? "", widthCm: tr.widthCm ?? "",
+      lengthCm: tr.lengthCm ?? "", axleCount: tr.axleCount ?? "", status: tr.status || "active",
       apkExpiry: tr.apkExpiry ? tr.apkExpiry.slice(0, 10) : "",
     });
     setEditId(tr.id);
@@ -305,9 +312,12 @@ export default function TrailersPage() {
           <div><div className="text-xs text-text-secondary">{t("brand", "Brand")}</div><div className="font-semibold">{drawerTrailer.brand || "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("year", "An")}</div><div className="font-semibold">{drawerTrailer.year || "—"}</div></div>
           <div><div className="text-xs text-text-secondary flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{t("payloadCapacity", "Capacitate greutate (kg)")}</div><div className="font-semibold">{drawerTrailer.payloadCapacityWeight ? Number(drawerTrailer.payloadCapacityWeight) + " kg" : "—"}</div></div>
+          <div><div className="text-xs text-text-secondary">{t("trailer_max_weight", "Maximum gross weight (kg)")}</div><div className="font-semibold">{drawerTrailer.maxWeightKg ? Number(drawerTrailer.maxWeightKg) + " kg" : "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("maxLdm", "Max LDM")}</div><div className="font-semibold">{drawerTrailer.maxLdm ? Number(drawerTrailer.maxLdm) : "—"}</div></div>
           <div><div className="text-xs text-text-secondary flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{t("maxPallets", "Paleți")}</div><div className="font-semibold">{drawerTrailer.payloadCapacityPallets || "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("maxVolumeCbm", "Volum m³")}</div><div className="font-semibold">{drawerTrailer.maxVolumeCbm ? Number(drawerTrailer.maxVolumeCbm) + " m³" : "—"}</div></div>
+          <div><div className="text-xs text-text-secondary">{t("trailer_dimensions", "Dimensions L × W × H")}</div><div className="font-semibold">{drawerTrailer.lengthCm || drawerTrailer.widthCm || drawerTrailer.heightCm ? `${drawerTrailer.lengthCm || '—'} × ${drawerTrailer.widthCm || '—'} × ${drawerTrailer.heightCm || '—'} cm` : "—"}</div></div>
+          <div><div className="text-xs text-text-secondary">{t("trailer_axles", "Axles")}</div><div className="font-semibold">{drawerTrailer.axleCount || "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("next_service", "Următoarea revizie")}</div><div className="font-semibold">{drawerTrailer.apkExpiry ? new Date(drawerTrailer.apkExpiry).toLocaleDateString(i18n.language || 'en-GB') : "—"}</div></div>
           <div><div className="text-xs text-text-secondary">{t("status", "Status")}</div><div><StatusBadge type="fleet" status={drawerTrailer.status} label={t((TRAILER_STATUSES.find(o => o.value === drawerTrailer.status)?.label as string) || drawerTrailer.status)} /></div></div>
           <div className="mt-6 pt-4 border-t border-border/60 grid grid-cols-2 gap-3 text-xs text-text-secondary col-span-1 sm:col-span-2">
@@ -482,9 +492,18 @@ export default function TrailersPage() {
             <div><label className="label font-semibold">{t("brand", "Brand")}</label><input type="text" className="input" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} /></div>
             <div><label className="label font-semibold">{t("year", "An")}</label><input type="number" className="input" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} /></div>
             <div><label className="label font-semibold flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{t("payloadCapacity", "Capacitate greutate (kg)")}</label><input type="number" className="input" value={form.payloadCapacityWeight} onChange={(e) => setForm({ ...form, payloadCapacityWeight: e.target.value })} min="0" /></div>
+            <div><label className="label font-semibold flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{t("trailer_max_weight", "Maximum gross weight (kg)")}</label><input type="number" className="input" value={form.maxWeightKg} onChange={(e) => setForm({ ...form, maxWeightKg: e.target.value })} min="0" /></div>
             <div><label className="label font-semibold flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{t("maxPallets", "Paleți")}</label><input type="number" className="input" value={form.payloadCapacityPallets} onChange={(e) => setForm({ ...form, payloadCapacityPallets: e.target.value })} min="0" /></div>
             <div><label className="label font-semibold">{t("maxLdm", "Max LDM")}</label><input type="number" step="0.1" className="input" value={form.maxLdm} onChange={(e) => setForm({ ...form, maxLdm: e.target.value })} min="0" /></div>
             <div><label className="label font-semibold">{t("maxVolumeCbm", "Volum (m³)")}</label><input type="number" step="0.1" className="input" value={form.maxVolumeCbm} onChange={(e) => setForm({ ...form, maxVolumeCbm: e.target.value })} min="0" /></div>
+            <div className="sm:col-span-2 pt-2 mt-1 border-t border-border/50">
+              <p className="text-xs font-bold text-text-secondary">{t("trailer_dimensions", "Dimensions L × W × H")}</p>
+              <p className="text-[10px] text-text-muted mt-0.5">{t("trailer_dimensions_hint", "Used for bridge, tunnel and width-restricted HGV routing. Leave blank if unknown; no generic dimensions are assumed.")}</p>
+            </div>
+            <div><label className="label font-semibold">{t("trailer_length", "Length (cm)")}</label><input type="number" step="0.1" className="input" value={form.lengthCm} onChange={(e) => setForm({ ...form, lengthCm: e.target.value })} min="0" /></div>
+            <div><label className="label font-semibold">{t("trailer_width", "Width (cm)")}</label><input type="number" step="0.1" className="input" value={form.widthCm} onChange={(e) => setForm({ ...form, widthCm: e.target.value })} min="0" /></div>
+            <div><label className="label font-semibold">{t("trailer_height", "Height (cm)")}</label><input type="number" step="0.1" className="input" value={form.heightCm} onChange={(e) => setForm({ ...form, heightCm: e.target.value })} min="0" /></div>
+            <div><label className="label font-semibold">{t("trailer_axles", "Axles")}</label><input type="number" className="input" value={form.axleCount} onChange={(e) => setForm({ ...form, axleCount: e.target.value })} min="0" /></div>
             <div>
               <label className="label font-semibold">{t("next_service", "Următoarea revizie (APK)")}</label>
               <div className="relative">

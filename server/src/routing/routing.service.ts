@@ -28,6 +28,8 @@ export interface TruckRoadRoute {
   coordinates: number[][];
   legs: TruckRouteLeg[];
   provider: 'here' | 'ors';
+  /** Present only when the secondary provider supplied a route after the primary failed. */
+  fallbackReason?: string;
   tollCost?: number;
   tollCurrency?: string;
   tollStatus: 'calculated' | 'unavailable';
@@ -293,6 +295,35 @@ export class RoutingService implements OnModuleInit {
     return this.probeInFlight;
   }
 
+  /**
+   * Real HGV route request on a fixed non-customer route. This verifies that
+   * the configured ORS key is accepted by the driving-hgv endpoint and that
+   * distance, duration and geometry parse correctly. Secrets are never returned.
+   */
+  async probeOrsHgvRoute(): Promise<any> {
+    const startedAt = new Date();
+    const route = await this.calculateRouteORS(
+      52.5200, 13.4050,
+      53.5511, 9.9937,
+      { weightKg: 40000, heightCm: 400, widthCm: 255, lengthCm: 1360, axleCount: 5, emissionType: 6 },
+    );
+    const failure = this.getLastRouteFailure();
+    return {
+      startedAt: startedAt.toISOString(),
+      completedAt: new Date().toISOString(),
+      provider: 'ors',
+      profile: 'driving-hgv',
+      configured: !!this.orsKey,
+      configuredVia: this.orsKeySource,
+      reachable: !!route,
+      status: route ? 200 : failure?.httpStatus ?? null,
+      category: route ? null : failure?.code || 'provider_unavailable',
+      distanceKm: route?.distanceKm ?? null,
+      durationMin: route?.durationMin ?? null,
+      geometryPoints: route?.coordinates?.length ?? 0,
+    };
+  }
+
   private async runProviderProbe() {
     const startedAt = new Date();
     const here = await this.probeHereRouting();
@@ -535,14 +566,18 @@ export class RoutingService implements OnModuleInit {
           destination: `${destLat},${destLng}`,
           return: 'summary,polyline,tolls',
           apiKey: this.hereKey,
-          'vehicle[grossWeight]': Math.max(40000, truckParams?.weightKg || 40000),
-          'vehicle[height]': truckParams?.heightCm || 400,
-          'vehicle[width]': truckParams?.widthCm || 255,
-          'vehicle[length]': truckParams?.lengthCm || 1360,
-          'vehicle[axleCount]': truckParams?.axleCount || 5,
-          'tolls[emissionType]': this.hereEmissionValue(truckParams?.emissionType),
           currency: 'EUR',
         };
+        // Never invent vehicle dimensions. Only restrictions supplied by the
+        // authoritative fleet record are sent to the provider.
+        if (Number(truckParams?.weightKg) > 0) params['vehicle[grossWeight]'] = Math.round(Number(truckParams?.weightKg));
+        if (Number(truckParams?.heightCm) > 0) params['vehicle[height]'] = Math.round(Number(truckParams?.heightCm));
+        if (Number(truckParams?.widthCm) > 0) params['vehicle[width]'] = Math.round(Number(truckParams?.widthCm));
+        if (Number(truckParams?.lengthCm) > 0) params['vehicle[length]'] = Math.round(Number(truckParams?.lengthCm));
+        if (Number(truckParams?.axleCount) > 0) params['vehicle[axleCount]'] = Math.round(Number(truckParams?.axleCount));
+        if (truckParams?.emissionType !== undefined && truckParams?.emissionType !== null) {
+          params['tolls[emissionType]'] = this.hereEmissionValue(truckParams.emissionType);
+        }
         const avoidFeatures: string[] = [];
         if (truckParams?.avoidTolls) avoidFeatures.push('tollRoad');
         if (truckParams?.avoidFerries) avoidFeatures.push('ferry');
@@ -616,7 +651,7 @@ export class RoutingService implements OnModuleInit {
       this.logger.warn(`HERE routing failed category=${hereFailure?.code || 'provider_request_failed'}. Falling back to ${this.orsKey ? 'ORS' : 'no configured fallback'}...`);
     }
 
-    const fallback = await this.calculateRouteORS(originLat, originLng, destLat, destLng);
+    const fallback = await this.calculateRouteORS(originLat, originLng, destLat, destLng, truckParams);
     if (fallback) return fallback;
 
     // Preserve the primary provider's failure when no fallback provider exists;
@@ -647,6 +682,7 @@ export class RoutingService implements OnModuleInit {
       return null;
     }
     this.lastRouteFailure = null;
+    let primaryFailureCode: string | null = null;
 
     if (this.hereKey) {
       try {
@@ -678,12 +714,14 @@ export class RoutingService implements OnModuleInit {
           const route = res.data?.routes?.[0];
           if (!route) {
             this.recordSyntheticFailure('here', 'provider_no_route', 200, 'route');
-            return null;
+            primaryFailureCode = 'provider_no_route';
+            throw new Error('HERE returned no route');
           }
           const sections = Array.isArray(route.sections) ? route.sections : [];
           if (sections.length === 0) {
             this.recordSyntheticFailure('here', 'provider_no_geometry', 200, 'route');
-            return null;
+            primaryFailureCode = 'provider_no_geometry';
+            throw new Error('HERE returned no route geometry');
           }
 
           const legs: TruckRouteLeg[] = [];
@@ -695,7 +733,8 @@ export class RoutingService implements OnModuleInit {
             const summary = section?.summary;
             if (!summary || !section?.polyline) {
               this.recordSyntheticFailure('here', 'provider_no_geometry', 200, 'route');
-              return null;
+              primaryFailureCode = 'provider_no_geometry';
+              throw new Error('HERE returned a section without geometry');
             }
             let legCoordinates: number[][] = [];
             try {
@@ -707,7 +746,8 @@ export class RoutingService implements OnModuleInit {
             }
             if (legCoordinates.length < 2) {
               this.recordSyntheticFailure('here', 'provider_no_geometry', 200, 'route');
-              return null;
+              primaryFailureCode = 'provider_no_geometry';
+              throw new Error('HERE returned incomplete route geometry');
             }
             const append = allCoordinates.length > 0 ? legCoordinates.slice(1) : legCoordinates;
             allCoordinates.push(...append);
@@ -738,8 +778,13 @@ export class RoutingService implements OnModuleInit {
           };
         }
       } catch (err: any) {
-        this.recordProviderError('here', err, 'route');
-        this.logger.warn(`HERE multi-stop truck routing failed category=${this.getLastRouteFailure()?.code || 'provider_request_failed'}. Falling back to ORS...`);
+        // Synthetic failures have already set the precise category. Do not
+        // replace them with a generic request error in the catch path.
+        if (!primaryFailureCode) {
+          this.recordProviderError('here', err, 'route');
+          primaryFailureCode = this.getLastRouteFailure()?.code || 'provider_request_failed';
+        }
+        this.logger.warn(`HERE multi-stop truck routing failed category=${primaryFailureCode || 'provider_request_failed'}. Falling back to ${this.orsKey ? 'ORS' : 'no configured fallback'}...`);
       }
     }
 
@@ -753,7 +798,7 @@ export class RoutingService implements OnModuleInit {
       for (let index = 0; index < stops.length - 1; index++) {
         const from = stops[index];
         const to = stops[index + 1];
-        const leg = await this.calculateRouteORS(from.lat, from.lng, to.lat, to.lng);
+        const leg = await this.calculateRouteORS(from.lat, from.lng, to.lat, to.lng, truckParams);
         const coordinates = (leg?.coordinates || []).filter((c: number[]) => Array.isArray(c) && c.length >= 2);
         if (!leg || coordinates.length < 2) return null;
         const append = allCoordinates.length > 0 ? coordinates.slice(1) : coordinates;
@@ -770,6 +815,7 @@ export class RoutingService implements OnModuleInit {
           coordinates: allCoordinates,
           legs,
           provider: 'ors',
+          ...(primaryFailureCode ? { fallbackReason: primaryFailureCode } : {}),
           tollStatus: 'unavailable',
           tollCurrency: 'EUR',
         };
@@ -888,19 +934,29 @@ export class RoutingService implements OnModuleInit {
   // ─── Fallback: OpenRouteService ────────────────────────────────────────────
   async calculateRouteORS(
     originLat: number, originLng: number,
-    destLat: number, destLng: number
+    destLat: number, destLng: number,
+    truckParams?: RoutingOptions,
   ): Promise<RouteSummaryResult | null> {
     try {
       if (!this.orsKey) {
         this.recordSyntheticFailure('ors', 'provider_key_missing', null, 'route');
         return null;
       }
+      const restrictions: Record<string, number> = {};
+      if (Number(truckParams?.heightCm) > 0) restrictions.height = Number(truckParams?.heightCm);
+      if (Number(truckParams?.widthCm) > 0) restrictions.width = Number(truckParams?.widthCm);
+      if (Number(truckParams?.lengthCm) > 0) restrictions.length = Number(truckParams?.lengthCm);
+      if (Number(truckParams?.weightKg) > 0) restrictions.weight = Number(truckParams?.weightKg);
+      const requestBody: any = {
+        coordinates: [[originLng, originLat], [destLng, destLat]],
+        instructions: false,
+      };
+      if (Object.keys(restrictions).length > 0) {
+        requestBody.profile_params = { restrictions };
+      }
       const res = await axios.post(
         'https://api.openrouteservice.org/v2/directions/driving-hgv/geojson',
-        {
-          coordinates: [[originLng, originLat], [destLng, destLat]],
-          instructions: false,
-        },
+        requestBody,
         {
           headers: { Authorization: this.orsKey, 'Content-Type': 'application/json' },
           timeout: 12000,

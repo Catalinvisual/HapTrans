@@ -44,6 +44,9 @@ export class Trailer {
   payloadCapacityWeight: number;
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  maxWeightKg: number; // maximum permissible gross trailer weight
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
   maxLdm: number; // e.g. 13.6
 
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })

@@ -160,6 +160,12 @@ export class RoutingController {
     return this.routingService.probeProviders();
   }
 
+  @Get('providers/ors-hgv')
+  async probeOrsHgv() {
+    // Real HGV route test on a fixed non-customer route. No key is returned.
+    return this.routingService.probeOrsHgvRoute();
+  }
+
   @Get('diesel-prices')
   async getDieselPrices() {
     return this.routingService.getDieselPrices();

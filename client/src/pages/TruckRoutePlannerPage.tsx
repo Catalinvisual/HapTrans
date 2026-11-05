@@ -119,6 +119,7 @@ export default function TruckRoutePlannerPage() {
   const [routePlan, setRoutePlan] = useState<any>(null);
   const [selectedProfile, setSelectedProfile] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showLoadPanel, setShowLoadPanel] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -158,15 +159,16 @@ export default function TruckRoutePlannerPage() {
 
   const loadPlan = async (d: string, silent = false) => {
     if (!truckId) return;
-    if (!silent) setLoading(true);
+    if (!silent) {
+      setLoading(true);
+      setLoadError(null);
+    }
     try {
       let plan: any = null;
+      // The backend GET is already read-or-create and concurrency-safe. A read
+      // failure must never be converted into a second write request.
       if (queryTrip) {
-        try {
-          plan = await planningApi.getRoutePlanByTrip(queryTrip);
-        } catch {
-          plan = await planningApi.createRoutePlanFromTrip(truckId, queryTrip);
-        }
+        plan = await planningApi.getRoutePlanByTrip(queryTrip);
       }
       if (!plan) {
         plan = await planningApi.getRoutePlan(truckId, d);
@@ -179,6 +181,7 @@ export default function TruckRoutePlannerPage() {
         }
       }
       setRoutePlan(plan);
+      setLoadError(null);
       setDirty(false);
       setProposedPlan(null);
       setShowProposal(false);
@@ -193,10 +196,19 @@ export default function TruckRoutePlannerPage() {
         setSelectedProfile(plan.optimizationMetadata.profileId);
       }
     } catch (err: any) {
-      if (err?.response?.status === 404) {
+      const status = Number(err?.response?.status) || null;
+      if (status === 404) {
         setRoutePlan(null);
+        setLoadError(null);
       } else {
-        toast.error(err?.response?.data?.message || t('pln_load_error', 'Failed to load route plan'));
+        const message = err?.response?.data?.message || err?.message || t('pln_load_error', 'Failed to load route plan');
+        const context = status ? `${status} — ${message}` : String(message);
+        setRoutePlan(null);
+        setLoadError(context);
+        if (import.meta.env.DEV) {
+          console.error('[RoutePlanner] load failed', { status, message, url: err?.config?.url });
+        }
+        toast.error(t('pln_load_error', 'Failed to load route plan'));
       }
     } finally {
       setLoading(false);
@@ -403,6 +415,25 @@ export default function TruckRoutePlannerPage() {
   const hasRoadGeometry = Array.isArray(routeGeometry) && routeGeometry.length >= 2;
   const routeProviderLabel = routePlan?.routeProvider ? String(routePlan.routeProvider).toUpperCase() : '—';
   const routeDrivingMinutes = Number(routePlan?.totalDrivingTimeMinutes || 0);
+  const routeWaitingMinutes = Number(routePlan?.totalWaitingTimeMinutes || 0);
+  const routeTotalMinutes = Number(routePlan?.totalDurationMinutes || 0);
+  const routeFallbackReason = routePlan?.optimizationMetadata?.routeFallbackReason || null;
+  const routeWarnings = Array.isArray(routePlan?.routeWarnings) ? routePlan.routeWarnings : [];
+  const reportedMissingRestrictions: string[] = routeWarnings
+    .filter((warning: any) => warning?.code === 'vehicle_restrictions_incomplete')
+    .flatMap((warning: any) => Array.isArray(warning.missingFields) ? warning.missingFields : []);
+  const routeTruck = routePlan?.truck || null;
+  const routeTrailer = routePlan?.trailer || routeTruck?.trailer || null;
+  const restrictionValues: Record<string, number> = routePlan ? {
+    height: Math.max(Number(routeTruck?.heightCm) || 0, Number(routeTrailer?.heightCm) || 0),
+    width: Math.max(Number(routeTruck?.widthCm) || 0, Number(routeTrailer?.widthCm) || 0),
+    length: Math.max(Number(routeTruck?.lengthCm) || 0, Number(routeTrailer?.lengthCm) || 0),
+    axles: (Number(routeTruck?.axleCount) || 0) + (Number(routeTrailer?.axleCount) || 0),
+    grossWeight: Number(routeTruck?.maxWeightKg) || Number(routePlan?.maxWeightKg) || 0,
+  } : {};
+  const missingRestrictions: string[] = reportedMissingRestrictions.length
+    ? reportedMissingRestrictions
+    : Object.entries(restrictionValues).filter(([, value]) => value <= 0).map(([field]) => field);
 
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return;
@@ -1106,6 +1137,9 @@ export default function TruckRoutePlannerPage() {
               <span className="text-text-secondary">{t('pln_route_provider', 'Provider')}: <strong className="text-text-primary">{routeProviderLabel}</strong></span>
               <span className="text-text-secondary">{t('pln_distance', 'Distance')}: <strong className="text-text-primary">{Number(routePlan.totalDistanceKm || 0).toFixed(0)} km</strong></span>
               <span className="text-text-secondary">{t('pln_driving', 'Driving')}: <strong className="text-text-primary">{Math.floor(routeDrivingMinutes / 60)}h {routeDrivingMinutes % 60}m</strong></span>
+              <span className="text-text-secondary">{t('pln_waiting', 'Scheduled waiting')}: <strong className="text-text-primary">{Math.floor(routeWaitingMinutes / 60)}h {routeWaitingMinutes % 60}m</strong></span>
+              <span className="text-text-secondary">{t('pln_total_elapsed', 'Total elapsed')}: <strong className="text-text-primary">{Math.floor(routeTotalMinutes / 60)}h {routeTotalMinutes % 60}m</strong></span>
+              {routeFallbackReason && <span className="text-amber-700 dark:text-amber-300">{t('pln_route_fallback_reason', 'Fallback reason: {{reason}}', { reason: routeFallbackReason })}</span>}
               {routePlan.routeCalculatedAt && <span className="text-text-muted">{t('pln_route_updated', 'Updated')}: {fmtDate(routePlan.routeCalculatedAt)}</span>}
             </>
           ) : (
@@ -1132,6 +1166,25 @@ export default function TruckRoutePlannerPage() {
               <span className="text-text-muted">{t('pln_distance', 'Distance')}: — · {t('pln_driving', 'Driving')}: —</span>
             </>
           )}
+        </div>
+      )}
+
+      {routePlan && missingRestrictions.length > 0 && (
+        <div className="shrink-0 px-4 py-2 border-b border-amber-500/25 bg-amber-500/5 text-[11px] text-amber-800 dark:text-amber-300 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+          <span className="font-bold">
+            {t('pln_restrictions_missing', 'Restrictions not verified: {{fields}}. No generic vehicle dimensions were used.', {
+              fields: missingRestrictions.map((field) => t(`pln_field_${field}`, field)).join(', '),
+            })}
+          </span>
+          <span className="text-amber-700/80 dark:text-amber-300/80">{t('pln_restrictions_missing_hint', 'Complete the vehicle dimensions in Fleet & Equipment to enable full HGV restriction routing.')}</span>
+          <button
+            type="button"
+            onClick={() => navigate('/trucks')}
+            className="ml-auto inline-flex items-center gap-1 font-black text-primary hover:underline"
+          >
+            {t('pln_complete_vehicle_data', 'Open Fleet & Equipment')} <ExternalLink className="w-3 h-3" />
+          </button>
         </div>
       )}
 
@@ -1166,7 +1219,32 @@ export default function TruckRoutePlannerPage() {
               </div>
             )}
 
-            {!loading && !routePlan && (
+            {loading && !routePlan && (
+              <div className="text-center py-16 px-4">
+                <Loader2 className="w-8 h-8 text-primary mx-auto mb-3 animate-spin" />
+                <p className="font-bold text-text-primary text-sm">{t('pln_loading_plan', 'Loading route plan…')}</p>
+              </div>
+            )}
+
+            {!loading && loadError && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 space-y-2">
+                <div className="flex items-center gap-2 text-red-600 font-bold text-xs">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{t('pln_load_error', 'Failed to load route plan')}</span>
+                </div>
+                <p className="text-[11px] text-red-600/90 leading-snug">{t('pln_load_error_hint', 'The planner could not load the persisted route plan. No route or fallback is being shown.')}</p>
+                {import.meta.env.DEV && <p className="text-[10px] font-mono text-red-500/80 break-words">{loadError}</p>}
+                <button
+                  type="button"
+                  onClick={() => loadPlan(date)}
+                  className="btn-secondary text-[11px] py-1.5 px-3 inline-flex items-center gap-1 font-bold"
+                >
+                  <RotateCcw className="w-3 h-3" /> {t('pln_retry_load', 'Retry loading')}
+                </button>
+              </div>
+            )}
+
+            {!loading && !loadError && !routePlan && (
               <div className="text-center py-16 px-4">
                 <RouteIcon className="w-10 h-10 text-text-muted mx-auto mb-3 opacity-30" />
                 <p className="font-bold text-text-primary text-sm">{t('pln_no_plan', 'No route plan yet')}</p>
@@ -1200,6 +1278,9 @@ export default function TruckRoutePlannerPage() {
               const plannedEta = stop.plannedEta || stop.eta || null;
               const calculatedEta = stop.calculatedEta || null;
               const actualEta = stop.actualArrivalAt || stop.arrivedAt || stop.actualArrival || null;
+              const etaDeviationMin = plannedEta && calculatedEta
+                ? Math.round((new Date(calculatedEta).getTime() - new Date(plannedEta).getTime()) / 60000)
+                : null;
 
               return (
                 <div key={stop.id} className="space-y-1.5">
@@ -1321,6 +1402,11 @@ export default function TruckRoutePlannerPage() {
                       <p className={`font-bold break-words ${calculatedEta ? 'text-primary' : 'text-text-muted'}`}>
                         {calculatedEta ? fmtDate(calculatedEta) : t('up_eta_not_planned', 'Not planned')}
                       </p>
+                      {etaDeviationMin !== null && Math.abs(etaDeviationMin) >= 1 && (
+                        <p className={`text-[9px] font-bold ${etaDeviationMin > 0 ? 'text-red-500' : 'text-amber-600'}`}>
+                          {t('up_eta_deviation', 'Deviation')}: {etaDeviationMin > 0 ? '+' : ''}{etaDeviationMin} {t('up_eta_minutes', 'min')}
+                        </p>
+                      )}
                     </div>
                     <div className="rounded-lg bg-surface px-2 py-1.5 min-w-0">
                       <p className="text-text-muted uppercase font-bold text-[8px]">{t('pln_window', 'Window')}</p>
