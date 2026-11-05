@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import {
@@ -14,6 +14,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import api from '../lib/api';
 import { statusBadgeClass as statusBadgeFromLib } from '../lib/statusColors';
 import { planningApi } from '../lib/planningApi';
+import { buildTruckDimensionsEditUrl } from '../lib/fleetTruckDeepLink';
 import { useConfirm } from '../components/SaveConfirmProvider';
 import OrderWizard from '../components/orders/OrderWizard';
 import PalletIcon from '../components/icons/PalletIcon';
@@ -122,11 +123,13 @@ function formatDriverDisplayName(driver: any): string {
 export default function TruckRoutePlannerPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const confirm = useConfirm();
   const { truckId = '' } = useParams<{ truckId: string }>();
   const [searchParams] = useSearchParams();
   const queryDate = searchParams.get('date');
   const queryTrip = searchParams.get('trip');
+  const vehicleUpdatedParam = searchParams.get('vehicleUpdated');
   const [date] = useState<string>(queryDate || new Date().toISOString().split('T')[0]);
 
   const [routePlan, setRoutePlan] = useState<any>(null);
@@ -145,6 +148,8 @@ export default function TruckRoutePlannerPage() {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [activeStopId, setActiveStopId] = useState<string | null>(null);
   const [fallbackTruck, setFallbackTruck] = useState<any>(null);
+  const [vehicleUpdateNotice, setVehicleUpdateNotice] = useState<string | null>(null);
+  const vehicleUpdateHandledRef = useRef<string | null>(null);
   const [selectedWizardOrderId, setSelectedWizardOrderId] = useState<string | null>(null);
   const [truckTrips, setTruckTrips] = useState<any[]>([]);
   const [showTripMenu, setShowTripMenu] = useState(false);
@@ -252,6 +257,16 @@ export default function TruckRoutePlannerPage() {
 
   useEffect(() => { loadProfiles(); }, [loadProfiles]);
   useEffect(() => { loadPlan(date); }, [truckId, date, queryTrip]);
+
+  useEffect(() => {
+    if (!vehicleUpdatedParam || vehicleUpdateHandledRef.current === vehicleUpdatedParam) return;
+    vehicleUpdateHandledRef.current = vehicleUpdatedParam;
+    setVehicleUpdateNotice(vehicleUpdatedParam);
+    const next = new URLSearchParams(searchParams);
+    next.delete('vehicleUpdated');
+    navigate({ pathname: location.pathname, search: next.toString() ? `?${next.toString()}` : '' }, { replace: true });
+  }, [vehicleUpdatedParam, searchParams, navigate, location.pathname]);
+
   const effectiveTruckId = truckId || routePlan?.truckId || routePlan?.truck?.id || '';
   useEffect(() => {
     if (effectiveTruckId && !fallbackTruck) {
@@ -458,9 +473,29 @@ export default function TruckRoutePlannerPage() {
     axles: (Number(routeTruck?.axleCount) || 0) + (Number(routeTrailer?.axleCount) || 0),
     grossWeight: Number(routeTruck?.maxWeightKg) || Number(routePlan?.maxWeightKg) || 0,
   } : {};
-  const missingRestrictions: string[] = reportedMissingRestrictions.length
-    ? reportedMissingRestrictions
-    : Object.entries(restrictionValues).filter(([, value]) => value <= 0).map(([field]) => field);
+  const computedMissingRestrictions: string[] = Object.entries(restrictionValues)
+    .filter(([, value]) => value <= 0)
+    .map(([field]) => field);
+  const missingRestrictions: string[] = routeTruck
+    ? computedMissingRestrictions
+    : reportedMissingRestrictions.length
+      ? reportedMissingRestrictions
+      : computedMissingRestrictions;
+  const verifiedRestrictions: string[] = Object.entries(restrictionValues)
+    .filter(([, value]) => value > 0)
+    .map(([field]) => field);
+  const verifiedRestrictionLabels = verifiedRestrictions.map((field) => t(`pln_field_${field}`, field)).join(', ');
+  const missingRestrictionLabels = missingRestrictions.map((field) => t(`pln_field_${field}`, field)).join(', ');
+
+  const openVehicleDataEditor = () => {
+    const linkedTruckId = routeTruck?.id || routePlan?.truckId || effectiveTruckId;
+    if (!linkedTruckId) {
+      toast.error(t('pln_truck_missing', 'No truck is linked to this route plan.'));
+      return;
+    }
+    const returnTo = `${location.pathname}${location.search}`;
+    navigate(buildTruckDimensionsEditUrl(linkedTruckId, returnTo));
+  };
 
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return;
@@ -1196,6 +1231,27 @@ export default function TruckRoutePlannerPage() {
         </div>
       )}
 
+      {vehicleUpdateNotice && routePlan && (
+        <div
+          role="status"
+          className={`shrink-0 px-4 py-2 border-b text-[11px] flex flex-wrap items-center gap-x-2 gap-y-1 ${
+            missingRestrictions.length > 0
+              ? 'border-amber-500/25 bg-amber-500/5 text-amber-800 dark:text-amber-300'
+              : 'border-emerald-500/25 bg-emerald-500/5 text-emerald-800 dark:text-emerald-300'
+          }`}
+        >
+          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+          <span className="font-bold">{t('pln_vehicle_updated', 'Vehicle data updated.')}</span>
+          <span>
+            {t('pln_vehicle_updated_summary', 'Verified: {{verified}}. Still missing: {{missing}}.', {
+              verified: verifiedRestrictionLabels || t('pln_none', 'none'),
+              missing: missingRestrictionLabels || t('pln_none', 'none'),
+            })}
+          </span>
+          <span className="opacity-80">{t('pln_vehicle_updated_no_recalc', 'The route was not recalculated automatically. Use Recalculate if the updated HGV restrictions should be applied.')}</span>
+        </div>
+      )}
+
       {routePlan && missingRestrictions.length > 0 && (
         <div className="shrink-0 px-4 py-2 border-b border-amber-500/25 bg-amber-500/5 text-[11px] text-amber-800 dark:text-amber-300 flex flex-wrap items-center gap-x-2 gap-y-1">
           <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
@@ -1207,7 +1263,7 @@ export default function TruckRoutePlannerPage() {
           <span className="text-amber-700/80 dark:text-amber-300/80">{t('pln_restrictions_missing_hint', 'Complete the vehicle dimensions in Fleet & Equipment to enable full HGV restriction routing.')}</span>
           <button
             type="button"
-            onClick={() => navigate('/trucks')}
+            onClick={openVehicleDataEditor}
             className="ml-auto inline-flex items-center gap-1 font-black text-primary hover:underline"
           >
             {t('pln_complete_vehicle_data', 'Open Fleet & Equipment')} <ExternalLink className="w-3 h-3" />

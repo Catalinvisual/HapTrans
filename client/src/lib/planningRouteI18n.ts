@@ -26,6 +26,11 @@ const en: RouteBundle = {
   pln_field_length: 'length',
   pln_field_axles: 'axles',
   pln_field_grossWeight: 'gross weight',
+  pln_vehicle_updated: 'Vehicle data updated.',
+  pln_vehicle_updated_summary: 'Verified: {{verified}}. Still missing: {{missing}}.',
+  pln_vehicle_updated_no_recalc: 'The route was not recalculated automatically. Use Recalculate if the updated HGV restrictions should be applied.',
+  pln_none: 'none',
+  pln_truck_missing: 'No truck is linked to this route plan.',
 };
 
 const ro: RouteBundle = {
@@ -50,6 +55,11 @@ const ro: RouteBundle = {
   pln_field_length: 'lungime',
   pln_field_axles: 'axe',
   pln_field_grossWeight: 'masă totală',
+  pln_vehicle_updated: 'Datele vehiculului au fost actualizate.',
+  pln_vehicle_updated_summary: 'Verificate: {{verified}}. Încă lipsesc: {{missing}}.',
+  pln_vehicle_updated_no_recalc: 'Ruta nu a fost recalculată automat. Folosiți Recalculează dacă restricțiile HGV actualizate trebuie aplicate.',
+  pln_none: 'niciuna',
+  pln_truck_missing: 'Nu există un camion asociat acestui plan de rută.',
 };
 
 const nl: RouteBundle = {
@@ -74,6 +84,11 @@ const nl: RouteBundle = {
   pln_field_length: 'lengte',
   pln_field_axles: 'assen',
   pln_field_grossWeight: 'totaalgewicht',
+  pln_vehicle_updated: 'Voertuiggegevens bijgewerkt.',
+  pln_vehicle_updated_summary: 'Geverifieerd: {{verified}}. Nog ontbrekend: {{missing}}.',
+  pln_vehicle_updated_no_recalc: 'De route is niet automatisch opnieuw berekend. Gebruik Opnieuw berekenen als de bijgewerkte HGV-beperkingen moeten worden toegepast.',
+  pln_none: 'geen',
+  pln_truck_missing: 'Er is geen vrachtwagen aan dit routeplan gekoppeld.',
 };
 
 const de: RouteBundle = {
@@ -98,6 +113,11 @@ const de: RouteBundle = {
   pln_field_length: 'Länge',
   pln_field_axles: 'Achsen',
   pln_field_grossWeight: 'Gesamtgewicht',
+  pln_vehicle_updated: 'Fahrzeugdaten aktualisiert.',
+  pln_vehicle_updated_summary: 'Verifiziert: {{verified}}. Noch fehlend: {{missing}}.',
+  pln_vehicle_updated_no_recalc: 'Die Route wurde nicht automatisch neu berechnet. Verwenden Sie Neu berechnen, wenn die aktualisierten HGV-Beschränkungen angewendet werden sollen.',
+  pln_none: 'keine',
+  pln_truck_missing: 'Mit diesem Routenplan ist kein Lkw verknüpft.',
 };
 
 const fr: RouteBundle = {
@@ -122,6 +142,11 @@ const fr: RouteBundle = {
   pln_field_length: 'longueur',
   pln_field_axles: 'essieux',
   pln_field_grossWeight: 'poids total',
+  pln_vehicle_updated: 'Données du véhicule mises à jour.',
+  pln_vehicle_updated_summary: 'Vérifiées : {{verified}}. Toujours manquantes : {{missing}}.',
+  pln_vehicle_updated_no_recalc: 'L’itinéraire n’a pas été recalculé automatiquement. Utilisez Recalculer si les restrictions HGV mises à jour doivent être appliquées.',
+  pln_none: 'aucune',
+  pln_truck_missing: 'Aucun camion n’est associé à ce plan d’itinéraire.',
 };
 
 const es: RouteBundle = {
@@ -146,6 +171,11 @@ const es: RouteBundle = {
   pln_field_length: 'longitud',
   pln_field_axles: 'ejes',
   pln_field_grossWeight: 'peso total',
+  pln_vehicle_updated: 'Datos del vehículo actualizados.',
+  pln_vehicle_updated_summary: 'Verificadas: {{verified}}. Aún faltan: {{missing}}.',
+  pln_vehicle_updated_no_recalc: 'La ruta no se recalculó automáticamente. Use Recalcular si deben aplicarse las restricciones HGV actualizadas.',
+  pln_none: 'ninguna',
+  pln_truck_missing: 'No hay ningún camión vinculado a este plan de ruta.',
 };
 
 const pl: RouteBundle = {
@@ -170,6 +200,11 @@ const pl: RouteBundle = {
   pln_field_length: 'długość',
   pln_field_axles: 'osie',
   pln_field_grossWeight: 'masa całkowita',
+  pln_vehicle_updated: 'Dane pojazdu zostały zaktualizowane.',
+  pln_vehicle_updated_summary: 'Zweryfikowane: {{verified}}. Nadal brakuje: {{missing}}.',
+  pln_vehicle_updated_no_recalc: 'Trasa nie została przeliczona automatycznie. Użyj Przelicz ponownie, jeśli zaktualizowane ograniczenia HGV mają zostać zastosowane.',
+  pln_none: 'brak',
+  pln_truck_missing: 'Do tego planu trasy nie jest przypisana żadna ciężarówka.',
 };
 
 export const planningRouteResources: Record<string, { translation: RouteBundle }> = {

@@ -1,5 +1,5 @@
 import { useSaveConfirm } from "../components/SaveConfirmProvider";
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Pencil, Trash2, Search, Truck as TruckIcon, Info, Users, Wrench, Fuel, Battery, Gauge, Boxes, Coins, CalendarDays, CheckCircle2, Settings2, AlertTriangle, User, Mail, Eye } from 'lucide-react';
 import api from '../lib/api';
@@ -8,6 +8,16 @@ import ConfirmModal from '../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
 import { useFormStore } from '../store/formStore';
+import {
+  TRUCK_DIMENSION_FIELDS,
+  missingTruckDimensions,
+  validateTruckDimensions,
+  isMissingTruckDimension,
+  truckDimensionInputId,
+  safeInternalReturnTo,
+  withVehicleUpdated,
+  type TruckDimensionKey,
+} from '../lib/fleetTruckDeepLink';
 import Pagination from '../components/Pagination';
 import DataTable from '../components/ui/DataTable';
 import type { Column } from '../components/ui/DataTable';
@@ -113,16 +123,23 @@ const driverName = (d: any) => {
 
 export default function TrucksPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const confirmSave = useSaveConfirm();
   const formStore = useFormStore();
   const { t, i18n } = useTranslation();
   const company = useSettingsStore(s => s.company);
 
+  const editTruckParam = searchParams.get('editTruck');
+  const focusDimensions = searchParams.get('focus') === 'dimensions';
+  const returnTo = safeInternalReturnTo(searchParams.get('returnTo'));
+  const highlightParam = searchParams.get('highlight');
+  const returnToTrip = searchParams.get('returnToTrip');
+
   const [trucks, setTrucks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
-  const [showForm, setShowForm] = useState(formStore.trucksShowForm);
+  const [showForm, setShowForm] = useState(editTruckParam ? false : formStore.trucksShowForm);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(15);
@@ -134,10 +151,12 @@ export default function TrucksPage() {
   const [drawerTab, setDrawerTab] = useState('overview');
   const [showExport, setShowExport] = useState(false);
   const [docForm, setDocForm] = useState({ type: 'apk', documentNumber: '', expiryDate: '' });
-
-  const [searchParams] = useSearchParams();
-  const highlightParam = searchParams.get('highlight');
-  const returnToTrip = searchParams.get('returnToTrip');
+  const [formErrors, setFormErrors] = useState<Partial<Record<TruckDimensionKey, { min: number; max: number }>>>({});
+  const [deepLinkError, setDeepLinkError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<{ status: number | null } | null>(null);
+  const autoOpenedTruckRef = useRef<string | null>(null);
+  const dimensionsHeadingRef = useRef<HTMLHeadingElement | null>(null);
+  const heightInputRef = useRef<HTMLInputElement | null>(null);
 
   const fpOptions = useMemo(() => ({
     altInput: true,
@@ -156,8 +175,10 @@ export default function TrucksPage() {
     costPerKm: '', fuelConsumption: '', totalMileage: '', nextMaintenanceMileage: '', driverId: '', trailerId: '', status: 'active'
   };
 
-  const [form, setForm] = useState(formStore.trucksForm || initialForm);
-  const [editId, setEditId] = useState<string | null>(formStore.trucksEditId);
+  const [form, setForm] = useState(editTruckParam ? initialForm : formStore.trucksForm || initialForm);
+  const [editId, setEditId] = useState<string | null>(editTruckParam ? null : formStore.trucksEditId);
+  const missingDimensionFields = missingTruckDimensions(form);
+  const dimensionAttention = !!editId && missingDimensionFields.length > 0;
 
   useEffect(() => {
     formStore.setFormState('trucks', { showForm, editId, form });
@@ -210,16 +231,60 @@ export default function TrucksPage() {
 
   const load = useCallback(() => {
     setLoading(true);
+    setLoadError(null);
     Promise.all([api.get('/trucks'), api.get('/drivers'), api.get('/trailers')])
       .then(([trucksRes, driversRes, trailersRes]) => {
         setTrucks(trucksRes.data);
         setDrivers(driversRes.data);
         setTrailers(trailersRes.data);
       })
+      .catch((err: any) => {
+        setLoadError({ status: err?.response?.status ?? null });
+      })
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const leaveEditor = (savedTruckId?: string): boolean => {
+    setShowForm(false);
+    setEditId(null);
+    setFormErrors({});
+    if (returnTo) {
+      navigate((savedTruckId && withVehicleUpdated(returnTo, savedTruckId)) || returnTo);
+      return true;
+    }
+    if (returnToTrip) {
+      navigate(`/planning?openTrip=${encodeURIComponent(returnToTrip)}`);
+      return true;
+    }
+    if (editTruckParam) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('editTruck');
+      next.delete('focus');
+      next.delete('returnTo');
+      setSearchParams(next, { replace: true });
+    }
+    return false;
+  };
+
+  const updateDimension = (key: TruckDimensionKey, value: string) => {
+    setForm((current: any) => ({ ...current, [key]: value }));
+    setFormErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const dimensionInputClass = (key: TruckDimensionKey) => {
+    if (formErrors[key]) return 'input border-red-500 ring-2 ring-red-400/30';
+    if (dimensionAttention && missingDimensionFields.includes(key)) {
+      return 'input border-amber-500 bg-amber-50/60 ring-2 ring-amber-400/30 dark:bg-amber-950/20';
+    }
+    return 'input';
+  };
 
   const handleSubmit = async (e?: any) => {
     if (e?.preventDefault) e.preventDefault();
@@ -227,6 +292,17 @@ export default function TrucksPage() {
       toast.error(t('truck_fuel_type_required', 'Fuel / energy type is required.'));
       return;
     }
+    const dimensionErrors = validateTruckDimensions(form);
+    if (Object.keys(dimensionErrors).length > 0) {
+      setFormErrors(dimensionErrors);
+      toast.error(t('truck_dimension_invalid_title', 'Check the highlighted dimension values.'));
+      const firstInvalid = TRUCK_DIMENSION_FIELDS.find(field => dimensionErrors[field.key]);
+      if (firstInvalid) {
+        window.setTimeout(() => document.getElementById(truckDimensionInputId(firstInvalid.key))?.focus(), 0);
+      }
+      return;
+    }
+    setFormErrors({});
     if (!await confirmSave()) return;
     try {
       const payload = {
@@ -254,22 +330,24 @@ export default function TrucksPage() {
         trailerId: form.trailerId || null,
       };
 
-      if (editId) {
-        await api.patch(`/trucks/${editId}`, payload);
+      const savedTruckId = editId;
+      if (savedTruckId) {
+        await api.patch(`/trucks/${savedTruckId}`, payload);
         toast.success(t('truckUpdated', 'Camion actualizat'));
       } else {
         await api.post('/trucks', payload);
         toast.success(t('truckAdded', 'Camion adăugat'));
       }
-      setShowForm(false);
-      setEditId(null);
       setForm(initialForm);
+      setFormErrors({});
+      if (leaveEditor(savedTruckId || undefined)) return;
       load();
-      if (returnToTrip) {
-        navigate(`/planning?openTrip=${encodeURIComponent(returnToTrip)}`);
-      }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || t('saveError', 'Eroare la salvare'));
+      if (err.response?.status === 403) {
+        toast.error(t('fleet_no_permission', 'You do not have permission to edit this truck.'));
+      } else {
+        toast.error(err.response?.data?.message || t('saveError', 'Eroare la salvare'));
+      }
     }
   };
 
@@ -371,10 +449,32 @@ export default function TrucksPage() {
       trailerId: truck.trailer?.id || '', status: truck.status || 'active'
     });
     setEditId(truck.id);
+    setFormErrors({});
+    setDeepLinkError(null);
     setShowForm(true);
   };
 
   useEffect(() => {
+    if (!editTruckParam || loading) return;
+    if (autoOpenedTruckRef.current === editTruckParam) return;
+    if (loadError) {
+      setShowForm(false);
+      setEditId(null);
+      return;
+    }
+    autoOpenedTruckRef.current = editTruckParam;
+    const tr = trucks.find(item => item.id === editTruckParam);
+    if (!tr) {
+      setShowForm(false);
+      setEditId(null);
+      setDeepLinkError(t('truck_not_found', 'The selected truck could not be found or you do not have access to edit it.'));
+      return;
+    }
+    openEdit(tr);
+  }, [editTruckParam, loading, trucks, loadError, openEdit, t]);
+
+  useEffect(() => {
+    if (editTruckParam) return;
     const editIdParam = searchParams.get('editId') || searchParams.get('edit');
     const searchParam = searchParams.get('search');
     if (searchParam && !search) {
@@ -386,7 +486,16 @@ export default function TrucksPage() {
         openEdit(tr);
       }
     }
-  }, [trucks, searchParams]);
+  }, [trucks, searchParams, editTruckParam]);
+
+  useEffect(() => {
+    if (!showForm || !editTruckParam || !focusDimensions) return;
+    const timer = window.setTimeout(() => {
+      dimensionsHeadingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      heightInputRef.current?.focus({ preventScroll: true });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [showForm, editTruckParam, focusDimensions, editId]);
 
   const toggleFeature = (id: string) => {
     const feats = form.features || [];
@@ -860,6 +969,25 @@ export default function TrucksPage() {
     <div className="space-y-4 animate-fade-in max-w-[1600px] mx-auto pb-10">
       <KpiStrip items={kpis} dense />
 
+      {loadError && (
+        <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300 flex flex-wrap items-center gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span className="font-semibold flex-1">
+            {loadError.status === 403
+              ? t('fleet_no_permission', 'You do not have permission to edit this truck.')
+              : t('fleet_load_error', 'Fleet & Equipment could not be loaded. Try again.')}
+          </span>
+          <button type="button" onClick={load} className="font-bold underline">{t('retry', 'Retry')}</button>
+        </div>
+      )}
+
+      {deepLinkError && (
+        <div role="alert" className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-300 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span className="font-semibold">{deepLinkError}</span>
+        </div>
+      )}
+
       <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
         <div className="px-2.5 py-2 border-b border-border flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 flex-1 min-w-[260px]">
@@ -876,7 +1004,7 @@ export default function TrucksPage() {
             <button type="button" onClick={() => setShowExport(true)} className="p-1 hover:opacity-85 hover:scale-110 active:scale-95 transition-transform duration-150 shrink-0 cursor-pointer flex items-center justify-center" title={t('export', 'Export')}>
               <ExcelIcon className="w-8 h-8" />
             </button>
-            <button onClick={() => { setForm(initialForm); setShowForm(true); setEditId(null); }} className="btn-primary py-1.5 px-2.5 flex items-center gap-1.5 text-xs font-semibold whitespace-nowrap shadow-md shadow-primary/20">
+            <button onClick={() => { setForm(initialForm); setShowForm(true); setEditId(null); setFormErrors({}); }} className="btn-primary py-1.5 px-2.5 flex items-center gap-1.5 text-xs font-semibold whitespace-nowrap shadow-md shadow-primary/20">
               <Plus className="w-3.5 h-3.5" /> {t('addTruck', 'Add Truck')}
             </button>
           </div>
@@ -984,13 +1112,7 @@ export default function TrucksPage() {
 
       <DetailDrawer
         open={showForm}
-        onClose={() => {
-          setShowForm(false);
-          setEditId(null);
-          if (returnToTrip) {
-            navigate(`/planning?openTrip=${encodeURIComponent(returnToTrip)}`);
-          }
-        }}
+        onClose={() => { leaveEditor(); }}
         title={
           <span className="flex items-center gap-2">
             <TruckIcon className="w-5 h-5 text-primary" />
@@ -1001,13 +1123,7 @@ export default function TrucksPage() {
           <div className="flex gap-3 justify-end w-full">
             <button
               type="button"
-              onClick={() => {
-                setShowForm(false);
-                setEditId(null);
-                if (returnToTrip) {
-                  navigate(`/planning?openTrip=${encodeURIComponent(returnToTrip)}`);
-                }
-              }}
+              onClick={() => { leaveEditor(); }}
               className="btn-secondary !px-4 !py-1.5 text-sm font-bold"
             >
               {t('cancel', 'Cancel')}
@@ -1074,10 +1190,6 @@ export default function TrucksPage() {
               <CustomSelect value={form.euronorm} onChange={v => setForm({...form, euronorm: v})} options={EURONORMS.map(en => ({ value: en, label: en }))} />
             </div>
             <div>
-              <label className="label font-semibold">{t('axleCount', 'Axles')}</label>
-              <input type="number" min="0" className="input" value={form.axleCount} onChange={e => setForm({...form, axleCount: e.target.value})} />
-            </div>
-            <div>
               <label className="label font-semibold">{t('features', 'Features / Equipment')}</label>
               <div className="flex flex-wrap gap-2 mt-1">
                 {FEATURES.map(feat => {
@@ -1093,8 +1205,24 @@ export default function TrucksPage() {
             </div>
 
             <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
-              <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Boxes className="w-4 h-4"/>{t('section_load_capacity', '4. Load Capacity & Dimensions')}</h4>
+              <h4 ref={dimensionsHeadingRef} className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Boxes className="w-4 h-4"/>{t('section_load_capacity', '4. Load Capacity & Dimensions')}</h4>
             </div>
+            {editId && missingDimensionFields.length > 0 && (
+              <div className="xl:col-span-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-3 text-amber-900 dark:text-amber-200" role="status">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold">{t('truck_dimensions_missing_title', 'HGV restriction data incomplete')}</p>
+                    <p className="text-[11px] leading-relaxed">{t('truck_dimensions_missing_hint', 'Height, width, length and axle count are used for bridge, tunnel and width-restricted HGV routing. Enter the real values; no defaults are assumed.')}</p>
+                    <p className="text-[11px] font-semibold">
+                      {t('truck_dimensions_missing_fields', 'Missing: {{fields}}', {
+                        fields: missingDimensionFields.map(key => t(key, key)).join(', '),
+                      })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             <div>
               <label className="label font-semibold flex items-center gap-1"><WeightKgIcon className="w-3.5 h-3.5" />{t('maxWeightKg', 'Max Gross Weight (kg)')}</label>
               <input type="number" min="0" className="input" value={form.maxWeightKg} onChange={e => setForm({...form, maxWeightKg: e.target.value})} />
@@ -1108,9 +1236,99 @@ export default function TrucksPage() {
             <div><label className="label font-semibold flex items-center gap-1"><PalletIcon className="w-3.5 h-3.5" />{t('maxPallets', 'Max Pallets')}</label><input type="number" min="0" className="input" value={form.maxPallets} onChange={e => setForm({...form, maxPallets: e.target.value})} /></div>
             <div><label className="label font-semibold">{t('maxLdm', 'Max Loading Metres (LDM)')}</label><input type="number" step="0.1" min="0" className="input" value={form.maxLdm} onChange={e => setForm({...form, maxLdm: e.target.value})} /></div>
             <div><label className="label font-semibold">{t('maxVolumeCbm', 'Max Volume (m³)')}</label><input type="number" step="0.1" min="0" className="input" value={form.maxVolumeCbm} onChange={e => setForm({...form, maxVolumeCbm: e.target.value})} /></div>
-            <div><label className="label font-semibold">{t('heightCm', 'Height (cm)')}</label><input type="number" step="0.1" min="0" className="input" value={form.heightCm} onChange={e => setForm({...form, heightCm: e.target.value})} /></div>
-            <div><label className="label font-semibold">{t('widthCm', 'Width (cm)')}</label><input type="number" step="0.1" min="0" className="input" value={form.widthCm} onChange={e => setForm({...form, widthCm: e.target.value})} /></div>
-            <div><label className="label font-semibold">{t('lengthCm', 'Length (cm)')}</label><input type="number" step="0.1" min="0" className="input" value={form.lengthCm} onChange={e => setForm({...form, lengthCm: e.target.value})} /></div>
+            <div>
+              <label className="label font-semibold flex items-center gap-1">
+                {t('heightCm', 'Height (cm)')}
+                {dimensionAttention && isMissingTruckDimension(form.heightCm) && <span className="text-amber-600" aria-hidden="true">*</span>}
+              </label>
+              <input
+                id={truckDimensionInputId('heightCm')}
+                ref={heightInputRef}
+                type="number"
+                step="0.1"
+                min={100}
+                max={500}
+                className={dimensionInputClass('heightCm')}
+                value={form.heightCm}
+                onChange={e => updateDimension('heightCm', e.target.value)}
+                aria-invalid={!!formErrors.heightCm}
+                aria-describedby={formErrors.heightCm ? `${truckDimensionInputId('heightCm')}-error` : undefined}
+              />
+              {formErrors.heightCm && (
+                <p id={`${truckDimensionInputId('heightCm')}-error`} role="alert" className="mt-1 text-[11px] font-semibold text-red-600 dark:text-red-400">
+                  {t('truck_dimension_invalid', '{{field}} must be between {{min}} and {{max}}.', { field: t('heightCm', 'Height (cm)'), min: formErrors.heightCm.min, max: formErrors.heightCm.max })}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="label font-semibold flex items-center gap-1">
+                {t('widthCm', 'Width (cm)')}
+                {dimensionAttention && isMissingTruckDimension(form.widthCm) && <span className="text-amber-600" aria-hidden="true">*</span>}
+              </label>
+              <input
+                id={truckDimensionInputId('widthCm')}
+                type="number"
+                step="0.1"
+                min={100}
+                max={400}
+                className={dimensionInputClass('widthCm')}
+                value={form.widthCm}
+                onChange={e => updateDimension('widthCm', e.target.value)}
+                aria-invalid={!!formErrors.widthCm}
+                aria-describedby={formErrors.widthCm ? `${truckDimensionInputId('widthCm')}-error` : undefined}
+              />
+              {formErrors.widthCm && (
+                <p id={`${truckDimensionInputId('widthCm')}-error`} role="alert" className="mt-1 text-[11px] font-semibold text-red-600 dark:text-red-400">
+                  {t('truck_dimension_invalid', '{{field}} must be between {{min}} and {{max}}.', { field: t('widthCm', 'Width (cm)'), min: formErrors.widthCm.min, max: formErrors.widthCm.max })}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="label font-semibold flex items-center gap-1">
+                {t('lengthCm', 'Length (cm)')}
+                {dimensionAttention && isMissingTruckDimension(form.lengthCm) && <span className="text-amber-600" aria-hidden="true">*</span>}
+              </label>
+              <input
+                id={truckDimensionInputId('lengthCm')}
+                type="number"
+                step="0.1"
+                min={300}
+                max={3000}
+                className={dimensionInputClass('lengthCm')}
+                value={form.lengthCm}
+                onChange={e => updateDimension('lengthCm', e.target.value)}
+                aria-invalid={!!formErrors.lengthCm}
+                aria-describedby={formErrors.lengthCm ? `${truckDimensionInputId('lengthCm')}-error` : undefined}
+              />
+              {formErrors.lengthCm && (
+                <p id={`${truckDimensionInputId('lengthCm')}-error`} role="alert" className="mt-1 text-[11px] font-semibold text-red-600 dark:text-red-400">
+                  {t('truck_dimension_invalid', '{{field}} must be between {{min}} and {{max}}.', { field: t('lengthCm', 'Length (cm)'), min: formErrors.lengthCm.min, max: formErrors.lengthCm.max })}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="label font-semibold flex items-center gap-1">
+                {t('axleCount', 'Axles')}
+                {dimensionAttention && isMissingTruckDimension(form.axleCount) && <span className="text-amber-600" aria-hidden="true">*</span>}
+              </label>
+              <input
+                id={truckDimensionInputId('axleCount')}
+                type="number"
+                step="1"
+                min={1}
+                max={12}
+                className={dimensionInputClass('axleCount')}
+                value={form.axleCount}
+                onChange={e => updateDimension('axleCount', e.target.value)}
+                aria-invalid={!!formErrors.axleCount}
+                aria-describedby={formErrors.axleCount ? `${truckDimensionInputId('axleCount')}-error` : undefined}
+              />
+              {formErrors.axleCount && (
+                <p id={`${truckDimensionInputId('axleCount')}-error`} role="alert" className="mt-1 text-[11px] font-semibold text-red-600 dark:text-red-400">
+                  {t('truck_dimension_invalid', '{{field}} must be between {{min}} and {{max}}.', { field: t('axleCount', 'Axles'), min: formErrors.axleCount.min, max: formErrors.axleCount.max })}
+                </p>
+              )}
+            </div>
 
             <div className="xl:col-span-4 pb-2 mb-2 mt-4 border-b border-border/50">
               <h4 className="text-sm font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5"><Fuel className="w-4 h-4"/>{t('section_fuel_energy', '5. Fuel & Energy')}</h4>
