@@ -17,6 +17,8 @@ export class ActionLogsService implements OnModuleInit {
       await this.repo.query(`
         ALTER TABLE "action_logs" ADD COLUMN IF NOT EXISTS "userId" uuid REFERENCES "users"("id") ON DELETE SET NULL;
         ALTER TABLE "action_logs" ADD COLUMN IF NOT EXISTS "companyId" uuid;
+        ALTER TABLE "action_logs" ADD COLUMN IF NOT EXISTS "source" varchar DEFAULT 'tms';
+        UPDATE "action_logs" SET "source" = 'tms' WHERE "source" IS NULL;
       `);
     } catch (e: any) {
       this.logger.warn(`Failed to auto-migrate action_logs: ${e?.message}`);
@@ -30,6 +32,7 @@ export class ActionLogsService implements OnModuleInit {
     user: any,
     details?: any,
     companyId?: string,
+    source: 'mobile' | 'tms' | 'system' = 'tms',
   ) {
     const log = this.repo.create({
       entityType,
@@ -37,6 +40,7 @@ export class ActionLogsService implements OnModuleInit {
       action,
       user: user?.id ? { id: user.id } : undefined,
       details,
+      source,
       companyId: companyId || user?.companyId || user?.company?.id || null,
     });
     return this.repo.save(log);

@@ -82,13 +82,18 @@ export class TripsController {
   }
 
   @Patch("stops/:stopId/status")
-  updateStopStatus(@Param("stopId") stopId: string, @Body() body: any) {
-    return this.service.updateStopStatus(stopId, body.status);
+  updateStopStatus(@Param("stopId") stopId: string, @Body() body: any, @Request() req: any) {
+    return this.service.updateStopStatus(stopId, body.status, req.user);
   }
 
   @Patch("tasks/:taskId/status")
-  updateTaskStatus(@Param("taskId") taskId: string, @Body() body: any) {
-    return this.service.updateTaskStatus(taskId, body.status);
+  updateTaskStatus(@Param("taskId") taskId: string, @Body() body: any, @Request() req: any) {
+    return this.service.updateTaskStatus(taskId, body.status, req.user);
+  }
+
+  @Get(":id/status-history")
+  statusHistory(@Param("id") id: string) {
+    return this.service.getStatusHistory(id);
   }
 
   @Post(":id/stops")

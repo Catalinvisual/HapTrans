@@ -311,13 +311,13 @@ mockOrderRepo = {
       trip.trackingToken = dispatched.trackingToken;
 
       // Stage 4: Driver Received
-      const received = await service.driverReceived('trip-e2e');
+      const received = await service.driverReceived(mockUser, 'trip-e2e');
       expect(received?.status).toBe('driver_received');
       expect(received?.driverAcknowledgedAt).toBeDefined();
       trip.status = 'driver_received';
 
       // Stage 5: Driver Accepted
-      const accepted = await service.driverAccepted('trip-e2e');
+      const accepted = await service.driverAccepted(mockUser, 'trip-e2e');
       expect(accepted?.status).toBe('driver_accepted');
       expect(accepted?.driverAcceptedAt).toBeDefined();
       trip.status = 'driver_accepted';

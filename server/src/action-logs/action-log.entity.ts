@@ -25,6 +25,11 @@ export class ActionLog {
   @Column({ type: 'jsonb', nullable: true })
   details: Record<string, any>;
 
+  // Trusted origin of the change: 'mobile' | 'tms' | 'system'. Derived on the
+  // server from the authenticated actor, never from a client-supplied value.
+  @Column({ type: 'varchar', default: 'tms' })
+  source: string;
+
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL', eager: true })
   @JoinColumn()
   user: User;

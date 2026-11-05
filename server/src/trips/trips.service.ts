@@ -1,4 +1,4 @@
-import { Injectable, Inject, forwardRef, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, ConflictException, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, Between } from 'typeorm';
@@ -19,6 +19,17 @@ import { ActionLogsService } from '../action-logs/action-logs.service';
 import { computeAuditChanges } from '../action-logs/diff.util';
 import { randomUUID } from 'crypto';
 import { resolveTripDriver, resolveTripTrailer } from './driver-assignment';
+import {
+  STOP_STATUSES,
+  assertActorMayOperateTrip,
+  assertStopTransition,
+  deriveOrderStatusForStop,
+  deriveTripStatus,
+  isDriverActor,
+  isStopStatus,
+  resolveStatusSource,
+  timestampsForStop,
+} from './trip-progress';
 
 const TRIP_STATUS_FLOW: Record<string, string[]> = {
   [TripStatus.PLANNING]: [TripStatus.PLANNED, TripStatus.ASSIGNED, TripStatus.DISPATCHED, TripStatus.CANCELLED],
@@ -85,7 +96,7 @@ export class TripsService {
     // A trip can be assigned through its own driver record or through the
     // driver of the truck it runs on. Both must reach the phone; scoping by the
     // authenticated user id keeps other drivers' trips out of the response.
-    return this.repo.createQueryBuilder('trip')
+    const trips = await this.repo.createQueryBuilder('trip')
       .leftJoinAndSelect('trip.truck', 'truck')
       .leftJoinAndSelect('truck.trailer', 'truckTrailer')
       .leftJoinAndSelect('truck.driver', 'truckDriver')
@@ -100,10 +111,59 @@ export class TripsService {
       .leftJoinAndSelect('orders.cargoItems', 'cargoItems')
       .leftJoinAndSelect('orders.stops', 'orderStops')
       .leftJoinAndSelect('orders.client', 'orderClient')
+      .leftJoinAndSelect('trip.documents', 'documents')
       .leftJoinAndSelect('trip.costs', 'costs')
       .where('driverUser.id = :userId OR driver.id = :userId OR truckDriverUser.id = :userId', { userId })
       .orderBy('trip.createdAt', 'DESC')
       .getMany();
+    return this.attachLastStatusEvents(trips);
+  }
+
+  /**
+   * Adds the most recent status event (and who produced it) to each trip so the
+   * driver app can show "updated from the driver app at 14:32" without a second
+   * request per trip. Audit enrichment must never break job retrieval.
+   */
+  private async attachLastStatusEvents(trips: Trip[]) {
+    const ids = (trips || []).map((t) => t.id).filter(Boolean);
+    if (ids.length === 0) return trips;
+    try {
+      const rows = await this.repo.manager.query(
+        `SELECT DISTINCT ON (l."entityId") l."entityId" AS "tripId", l."createdAt" AS "at",
+                COALESCE(l."source", 'tms') AS "source",
+                l."details"->>'newStatus' AS "status",
+                u."name" AS "actorName"
+           FROM "action_logs" l LEFT JOIN "users" u ON u."id" = l."userId"
+          WHERE l."entityType" = 'Trip' AND l."action" = 'STATUS_CHANGED'
+            AND l."entityId" = ANY($1)
+          ORDER BY l."entityId", l."createdAt" DESC`,
+        [ids],
+      );
+      const map = new Map<string, any>(rows.map((r: any) => [String(r.tripId), r]));
+      for (const trip of trips) (trip as any).lastStatusEvent = map.get(String(trip.id)) || null;
+    } catch (e: any) {
+      console.warn(`Status event enrichment skipped: ${e?.message}`);
+    }
+    return trips;
+  }
+
+  async getStatusHistory(tripId: string) {
+    const logs = await this.actionLogs.getLogsForEntity('Trip', tripId);
+    return logs
+      .filter((l: any) => ['STATUS_CHANGED', 'POD_SAVED', 'ISSUE_REPORTED', 'DELAY_REPORTED'].includes(l.action))
+      .map((l: any) => ({
+        id: l.id,
+        action: l.action,
+        status: l.details?.newStatus ?? null,
+        previousStatus: l.details?.previousStatus ?? null,
+        source: l.source || l.details?.source || 'tms',
+        at: l.createdAt,
+        actorName: l.user?.name || l.user?.email || null,
+        scope: l.details?.scope ?? null,
+        stopId: l.details?.stopId ?? null,
+        orderId: l.details?.orderId ?? null,
+        notes: l.details?.notes ?? l.details?.description ?? null,
+      }));
   }
 
   async reportIssue(tripId: string, user: any, data: { category: string; description: string; stopId?: string; photoUrls?: string[] }) {
@@ -132,19 +192,53 @@ export class TripsService {
   async savePod(tripId: string, user: any, data: { orderId?: string; stopId?: string; recipientName: string; signatureBase64?: string; photoUrls?: string[]; notes?: string }) {
     const trip = await this.findOne(tripId);
     if (!trip) throw new NotFoundException('Trip not found');
+    assertActorMayOperateTrip(trip, user);
+    const at = new Date();
+
     if (data.orderId) {
       await this.repo.manager.update('Order', { id: data.orderId }, { status: 'delivered' });
     }
-    if (data.stopId) {
-      await this.repo.manager.update('Stop', { id: data.stopId }, { status: 'completed' });
+
+    const stops = (await this.repo.manager.find('Stop', {
+      where: { trip: { id: tripId } },
+    })) as any[];
+    const target = data.stopId
+      ? stops.find((s) => s.id === data.stopId)
+      : stops.find((s) => s.type === 'delivery' && s.status !== 'completed');
+
+    if (target && target.status !== 'completed') {
+      await this.repo.manager.update('Stop', { id: target.id }, { status: 'completed', completedAt: at });
+      const refreshed = stops.map((s) => (s.id === target.id ? { ...s, status: 'completed' } : s));
+      const derived = deriveTripStatus(refreshed);
+      await this.repo.update(
+        tripId,
+        derived === 'completed' ? { status: derived, actualArrival: at } : { status: derived },
+      );
     }
+
+    const source = resolveStatusSource(user);
     await this.actionLogs.logAction('Trip', tripId, 'POD_SAVED', user, {
       recipientName: data.recipientName,
       orderId: data.orderId,
-      stopId: data.stopId,
+      stopId: target?.id || data.stopId,
       notes: data.notes,
-    });
+      previousStatus: target?.status ?? null,
+      newStatus: target ? 'completed' : null,
+      source,
+      scope: 'stop',
+    }, undefined, source);
     return { success: true, message: 'POD saved successfully' };
+  }
+
+  async onModuleInit() {
+    try {
+      await this.repo.query(`
+        ALTER TABLE "stops" ADD COLUMN IF NOT EXISTS "loadingStartedAt" timestamp;
+        ALTER TABLE "stops" ADD COLUMN IF NOT EXISTS "unloadingStartedAt" timestamp;
+      `);
+    } catch (e: any) {
+      console.warn(`Failed to auto-migrate stop milestones: ${e?.message}`);
+    }
   }
 
   findAllForDashboard() {
@@ -340,6 +434,19 @@ export class TripsService {
     const existing = await this.findOne(id);
     if (!existing) throw new NotFoundException('Trip not found');
 
+    // A driver may only touch the operational state of their own trip, and may
+    // never reassign vehicles, drivers or prices through this route.
+    if (isDriverActor(user)) {
+      assertActorMayOperateTrip(existing, user);
+      const driverStatuses = ['driver_received', 'driver_accepted', 'started', 'in_transit'];
+      if (updateData.status && !driverStatuses.includes(String(updateData.status))) {
+        throw new ForbiddenException('Șoferul poate actualiza doar starea operațională a cursei proprii');
+      }
+      for (const field of ['driverId', 'driver', 'truckId', 'truck', 'trailerId', 'trailer', 'price', 'companyId', 'dispatcherId', 'locked', 'validationStatus']) {
+        delete updateData[field];
+      }
+    }
+
     // 0. Enforce the status state machine
     if (updateData.status && updateData.status !== existing.status) {
       const allowed = TRIP_STATUS_FLOW[existing.status] || [
@@ -380,6 +487,20 @@ export class TripsService {
     }
 
     await this.repo.update(id, updateData);
+
+    // Every status change is attributable: who did it, from where and when.
+    if (updateData.status && updateData.status !== existing.status) {
+      const source = resolveStatusSource(user);
+      if (['started', 'in_transit'].includes(String(updateData.status)) && !existing.actualDeparture) {
+        await this.repo.update(id, { actualDeparture: new Date() });
+      }
+      await this.actionLogs.logAction('Trip', id, 'STATUS_CHANGED', user, {
+        previousStatus: existing.status,
+        newStatus: updateData.status,
+        source,
+        scope: 'trip',
+      }, undefined, source);
+    }
 
     // 2. Real financial recalculation (CostEngine + PricingEngine)
     if (updateData.distanceKm !== undefined || updateData.status !== undefined) {
@@ -533,23 +654,108 @@ export class TripsService {
     return results;
   }
 
-  async updateStopStatus(stopId: string, status: string) {
-    const stop = await this.repo.manager.findOne('Stop', { 
-      where: { id: stopId }, 
-      relations: ['trip'] 
-    });
-    if (!stop) return null;
-    (stop as any).status = status;
-    return this.repo.manager.save('Stop', stop);
+  /**
+   * A driver action on a stop updates the stop, the trip stage and the orders
+   * carried by that stop together, with server timestamps and an audit event.
+   * The TMS reads the same records, so no separate sync step is required.
+   */
+  async updateStopStatus(stopId: string, status: string, user?: any) {
+    const stop = (await this.repo.manager.findOne('Stop', {
+      where: { id: stopId },
+      relations: [
+        'trip',
+        'trip.driver',
+        'trip.driver.user',
+        'trip.truck',
+        'trip.truck.driver',
+        'trip.truck.driver.user',
+        'tasks',
+        'tasks.order',
+      ],
+    })) as any;
+    if (!stop) throw new NotFoundException('Stop not found');
+    const trip = stop.trip;
+    if (!trip) throw new NotFoundException('Trip not found');
+    assertActorMayOperateTrip(trip, user);
+
+    const next = String(status || '').toLowerCase();
+    if (!isStopStatus(next)) {
+      throw new BadRequestException(`Stare de oprire necunoscută: ${status} (acceptate: ${STOP_STATUSES.join(', ')})`);
+    }
+
+    const previous = String(stop.status || 'pending');
+    // Repeated taps are absorbed instead of creating a second event.
+    if (previous === next) return this.findOne(trip.id);
+    assertStopTransition(stop.type || 'pickup', previous, next);
+
+    const at = new Date();
+    Object.assign(stop, { status: next }, timestampsForStop(next, at));
+    await this.repo.manager.save('Stop', stop);
+
+    const orderStatus = deriveOrderStatusForStop(stop.type || 'pickup', next);
+    if (orderStatus) {
+      const orderIds = new Set<string>(
+        (stop.tasks || []).map((t: any) => t?.order?.id).filter(Boolean),
+      );
+      for (const orderId of orderIds) {
+        await this.repo.manager.update('Order', { id: orderId }, { status: orderStatus });
+      }
+    }
+
+    const stops = (await this.repo.manager.find('Stop', {
+      where: { trip: { id: trip.id } },
+    })) as any[];
+    const derived = deriveTripStatus(stops);
+    const tripPatch: any = {};
+    if (derived && derived !== trip.status) tripPatch.status = derived;
+    if (stop.type === 'pickup' && next === 'completed' && !trip.actualDeparture) {
+      tripPatch.actualDeparture = at;
+    }
+    if (derived === 'completed' && !trip.actualArrival) tripPatch.actualArrival = at;
+    if (Object.keys(tripPatch).length > 0) await this.repo.update(trip.id, tripPatch);
+
+    const source = resolveStatusSource(user);
+    await this.actionLogs.logAction('Trip', trip.id, 'STATUS_CHANGED', user, {
+      scope: 'stop',
+      stopId: stop.id,
+      stopType: stop.type || 'pickup',
+      previousStatus: previous,
+      newStatus: next,
+      tripStatus: derived,
+      orderStatus,
+      source,
+    }, undefined, source);
+
+    return this.findOne(trip.id);
   }
 
-  async updateTaskStatus(taskId: string, status: string) {
-    const task = await this.repo.manager.findOne('StopTask', { 
-      where: { id: taskId } 
-    });
-    if (!task) return null;
+  async updateTaskStatus(taskId: string, status: string, user?: any) {
+    const task = (await this.repo.manager.findOne('StopTask', {
+      where: { id: taskId },
+      relations: ['stop', 'stop.trip', 'stop.trip.driver', 'stop.trip.driver.user', 'stop.trip.truck', 'stop.trip.truck.driver', 'stop.trip.truck.driver.user'],
+    })) as any;
+    if (!task) throw new NotFoundException('Task not found');
+    const trip = task.stop?.trip;
+    if (trip) assertActorMayOperateTrip(trip, user);
+    if (task.status === status) return trip ? this.findOne(trip.id) : task;
     (task as any).status = status;
-    return this.repo.manager.save('StopTask', task);
+    if (status === 'completed') {
+      (task as any).completedAt = new Date();
+      if (user?.id) (task as any).completedBy = { id: user.id };
+    }
+    const saved = await this.repo.manager.save('StopTask', task);
+    if (trip) {
+      const source = resolveStatusSource(user);
+      await this.actionLogs.logAction('Trip', trip.id, 'STATUS_CHANGED', user, {
+        scope: 'task',
+        taskId: task.id,
+        stopId: task.stop?.id,
+        previousStatus: task.status,
+        newStatus: status,
+        source,
+      }, undefined, source);
+    }
+    return trip ? this.findOne(trip.id) : saved;
   }
 
 

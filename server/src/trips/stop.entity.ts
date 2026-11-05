@@ -89,6 +89,14 @@ export class Stop {
   @Column({ type: 'timestamp', nullable: true })
   completedAt: Date;
 
+  // Operational milestones reported by the driver, kept next to the arrival and
+  // completion timestamps so the TMS shows when work actually happened.
+  @Column({ type: 'timestamp', nullable: true })
+  loadingStartedAt: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  unloadingStartedAt: Date;
+
   @OneToMany(() => StopTask, (task) => task.stop, { eager: true, cascade: true })
   tasks: StopTask[];
 

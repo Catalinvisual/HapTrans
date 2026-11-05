@@ -11,6 +11,16 @@ String formatAppDate(String? isoDate) {
   }
 }
 
+String formatAppTime(String? isoDate) {
+  if (isoDate == null || isoDate.isEmpty) return '—';
+  try {
+    final DateTime dt = DateTime.parse(isoDate).toLocal();
+    return DateFormat('HH:mm').format(dt);
+  } catch (e) {
+    return '—';
+  }
+}
+
 String formatAppDateTime(String? isoDate) {
   if (isoDate == null || isoDate.isEmpty) return '—';
   try {

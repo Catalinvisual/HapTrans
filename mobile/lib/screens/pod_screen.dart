@@ -100,7 +100,7 @@ class _PodScreenState extends State<PodScreen> {
         await tripProv.uploadDocument(widget.token, tripId, photo.path, 'pod');
       }
 
-      final success = await tripProv.savePod(
+      final error = await tripProv.savePod(
         widget.token,
         tripId,
         recipientName: recipient,
@@ -110,7 +110,15 @@ class _PodScreenState extends State<PodScreen> {
         stopId: stopId,
       );
 
-      if (success && mounted) {
+      if (!mounted) return;
+      if (error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error), backgroundColor: kError),
+        );
+        return;
+      }
+
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(l.translate('pod_saved_success')),

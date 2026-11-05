@@ -26,12 +26,20 @@ export default function ActivityTimeline({
 
   useEffect(() => {
     if (!entityId || !entityType) return;
-    setLoading(true);
+    let cancelled = false;
+    const load = (initial: boolean) => {
+      if (initial) setLoading(true);
+      api.get(`/action-logs/${entityType}/${entityId}`)
+        .then(res => { if (!cancelled) setLogs(res.data); })
+        .catch(() => { if (initial && !cancelled) setError(true); })
+        .finally(() => { if (initial && !cancelled) setLoading(false); });
+    };
     setError(false);
-    api.get(`/action-logs/${entityType}/${entityId}`)
-      .then(res => setLogs(res.data))
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+    load(true);
+    // Driver actions arrive continuously; refresh so the timeline does not
+    // keep showing an outdated stage until the page is reloaded.
+    const timer = setInterval(() => load(false), 20000);
+    return () => { cancelled = true; clearInterval(timer); };
   }, [entityId, entityType]);
 
   const fieldLabels: Record<string, string> = {
@@ -276,13 +284,47 @@ export default function ActivityTimeline({
                     {idx < displayLogs.length - 1 && <div className="w-px h-full bg-border mt-1" />}
                   </div>
                   <div className="flex-1 min-w-0 pb-1">
-                    <div className="text-xs font-bold text-text-primary">
-                      {isCreated ? t('action_created', 'Created') : log.action === 'UPDATED' ? t('action_updated', 'Updated') : log.action}
+                    <div className="text-xs font-bold text-text-primary flex items-center gap-2 flex-wrap">
+                      {isCreated
+                        ? t('action_created', 'Created')
+                        : log.action === 'UPDATED'
+                          ? t('action_updated', 'Updated')
+                          : log.action === 'STATUS_CHANGED'
+                            ? t('action_status_changed', 'Status changed')
+                            : log.action}
+                      {log.action === 'STATUS_CHANGED' && (
+                        <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border border-border bg-surface text-text-secondary">
+                          {log.source === 'mobile'
+                            ? t('source_mobile', 'Driver app')
+                            : log.source === 'system'
+                              ? t('source_system', 'System')
+                              : t('source_tms', 'TMS')}
+                        </span>
+                      )}
                     </div>
                     <div className="text-[11px] text-text-secondary mt-0.5">
                       {t('by', 'by')}{' '}
                       <span className="font-semibold text-text-primary">{userName}</span> · {new Date(log.createdAt).toLocaleString()}
                     </div>
+
+                    {log.action === 'STATUS_CHANGED' && (log.details?.newStatus || log.details?.tripStatus) && (
+                      <div className="mt-1 text-[11px] text-text-secondary flex items-center gap-1.5 flex-wrap">
+                        {log.details?.previousStatus && (
+                          <>
+                            <span className="bg-surface px-2 py-0.5 rounded border border-border/70">
+                              {t(`status_${log.details.previousStatus}`, log.details.previousStatus)}
+                            </span>
+                            <ArrowRight className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                          </>
+                        )}
+                        <span className="font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded">
+                          {t(`status_${log.details?.newStatus}`, log.details?.newStatus)}
+                        </span>
+                        {log.details?.scope === 'stop' && (
+                          <span className="text-[10px] uppercase tracking-wide text-text-muted">{t('jsx_stops', 'Stops')}</span>
+                        )}
+                      </div>
+                    )}
 
                     {log.action === 'UPDATED' && log.details?.changes && Object.keys(log.details.changes).length > 0 ? (() => {
                       const validChanges = Object.entries(log.details.changes).filter(([field, change]: [string, any]) => {
