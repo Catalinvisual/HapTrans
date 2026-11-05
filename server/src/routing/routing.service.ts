@@ -942,17 +942,25 @@ export class RoutingService implements OnModuleInit {
         this.recordSyntheticFailure('ors', 'provider_key_missing', null, 'route');
         return null;
       }
+      // ORS expresses dimensions in metres and weight in tons, while HapCargo
+      // stores centimetres and kilograms. Its current API requires restrictions
+      // under options.profile_params and vehicle_type to apply HGV access tags.
+      const centimetresToMetres = (value: any) => Math.round((Number(value) / 100) * 100) / 100;
+      const kilogramsToTons = (value: any) => Math.round((Number(value) / 1000) * 100) / 100;
       const restrictions: Record<string, number> = {};
-      if (Number(truckParams?.heightCm) > 0) restrictions.height = Number(truckParams?.heightCm);
-      if (Number(truckParams?.widthCm) > 0) restrictions.width = Number(truckParams?.widthCm);
-      if (Number(truckParams?.lengthCm) > 0) restrictions.length = Number(truckParams?.lengthCm);
-      if (Number(truckParams?.weightKg) > 0) restrictions.weight = Number(truckParams?.weightKg);
+      if (Number(truckParams?.heightCm) > 0) restrictions.height = centimetresToMetres(truckParams?.heightCm);
+      if (Number(truckParams?.widthCm) > 0) restrictions.width = centimetresToMetres(truckParams?.widthCm);
+      if (Number(truckParams?.lengthCm) > 0) restrictions.length = centimetresToMetres(truckParams?.lengthCm);
+      if (Number(truckParams?.weightKg) > 0) restrictions.weight = kilogramsToTons(truckParams?.weightKg);
       const requestBody: any = {
         coordinates: [[originLng, originLat], [destLng, destLat]],
         instructions: false,
       };
       if (Object.keys(restrictions).length > 0) {
-        requestBody.profile_params = { restrictions };
+        requestBody.options = {
+          vehicle_type: 'hgv',
+          profile_params: { restrictions },
+        };
       }
       const res = await axios.post(
         'https://api.openrouteservice.org/v2/directions/driving-hgv/geojson',

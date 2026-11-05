@@ -329,13 +329,14 @@ describe('RoutingService provider contracts', () => {
 
     expect(route).toMatchObject({ provider: 'ors', fallbackReason: 'provider_no_route', distanceKm: 10, durationMin: 10 });
     expect(route?.coordinates.length).toBeGreaterThanOrEqual(2);
-    expect(mockedPost).toHaveBeenCalledWith(
-      'https://api.openrouteservice.org/v2/directions/driving-hgv/geojson',
-      expect.objectContaining({
-        profile_params: { restrictions: { height: 400, width: 255, length: 1360, weight: 40000 } },
-      }),
-      expect.any(Object),
-    );
+    const requestBody = mockedPost.mock.calls[0][1];
+    expect(requestBody).not.toHaveProperty('profile_params');
+    expect(requestBody).toMatchObject({
+      options: {
+        vehicle_type: 'hgv',
+        profile_params: { restrictions: { height: 4, width: 2.55, length: 13.6, weight: 40 } },
+      },
+    });
   });
 
   it('probes the real ORS HGV route without exposing the key', async () => {
@@ -353,6 +354,12 @@ describe('RoutingService provider contracts', () => {
     expect(result).toMatchObject({ configured: true, reachable: true, status: 200, provider: 'ors', profile: 'driving-hgv' });
     expect(result.geometryPoints).toBe(2);
     expect(JSON.stringify(result)).not.toContain('ors-secret');
+    expect(mockedPost.mock.calls[0][1]).toMatchObject({
+      options: {
+        vehicle_type: 'hgv',
+        profile_params: { restrictions: { height: 4, width: 2.55, length: 13.6, weight: 40 } },
+      },
+    });
   });
 
   it('probes both providers once and returns only safe status fields', async () => {

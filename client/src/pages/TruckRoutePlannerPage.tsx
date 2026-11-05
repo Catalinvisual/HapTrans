@@ -56,6 +56,19 @@ function formatStopWindow(start: string | Date | null | undefined, end: string |
     : `${fmtDay(startDate)} ${fmtTime(startDate)} – ${fmtDay(endDate)} ${fmtTime(endDate)}`;
 }
 
+function asArray(value: any): any[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 function formatDriverDisplayName(driver: any): string {
   if (!driver) return '—';
 
@@ -157,8 +170,11 @@ export default function TruckRoutePlannerPage() {
   const isDispatched = ['dispatched', 'driver_received', 'driver_accepted', 'started', 'loading', 'driving', 'in_transit', 'partially_delivered', 'completed', 'closed'].includes(tripStatus);
   const isPlanningLocked = isConfirmed || isDispatched;
 
+  const loadRequestSeq = useRef(0);
   const loadPlan = async (d: string, silent = false) => {
     if (!truckId) return;
+    const requestSeq = ++loadRequestSeq.current;
+    const isLatestRequest = () => requestSeq === loadRequestSeq.current;
     if (!silent) {
       setLoading(true);
       setLoadError(null);
@@ -180,14 +196,24 @@ export default function TruckRoutePlannerPage() {
           plan = { ...plan, stops: [], trip: null, tripId: null, tripStatus: null };
         }
       }
+      if (!isLatestRequest()) return;
+      if (plan) {
+        plan = {
+          ...plan,
+          validationIssues: asArray(plan.validationIssues),
+          conflicts: asArray(plan.conflicts),
+          warnings: asArray(plan.warnings),
+          routeWarnings: asArray(plan.routeWarnings),
+        };
+      }
       setRoutePlan(plan);
       setLoadError(null);
       setDirty(false);
       setProposedPlan(null);
       setShowProposal(false);
-      if (plan?.validationIssues?.length || plan?.conflicts?.length) {
-        const blocking = (plan.validationIssues || plan.conflicts || []).filter((c: any) => c.blocking || c.hard || c.severity === 'error');
-        const warns = (plan.validationIssues || plan.warnings || []).filter((c: any) => !c.blocking && !c.hard && c.severity !== 'error');
+      if (plan?.validationIssues.length || plan?.conflicts.length) {
+        const blocking = (plan.validationIssues.length ? plan.validationIssues : plan.conflicts).filter((c: any) => c.blocking || c.hard || c.severity === 'error');
+        const warns = (plan.validationIssues.length ? plan.validationIssues : plan.warnings).filter((c: any) => !c.blocking && !c.hard && c.severity !== 'error');
         setValidationResult({ conflicts: blocking, warnings: warns, completeness: [] });
       } else {
         setValidationResult(null);
@@ -196,6 +222,7 @@ export default function TruckRoutePlannerPage() {
         setSelectedProfile(plan.optimizationMetadata.profileId);
       }
     } catch (err: any) {
+      if (!isLatestRequest()) return;
       const status = Number(err?.response?.status) || null;
       if (status === 404) {
         setRoutePlan(null);
@@ -211,7 +238,7 @@ export default function TruckRoutePlannerPage() {
         toast.error(t('pln_load_error', 'Failed to load route plan'));
       }
     } finally {
-      setLoading(false);
+      if (isLatestRequest()) setLoading(false);
     }
   };
 
@@ -418,7 +445,7 @@ export default function TruckRoutePlannerPage() {
   const routeWaitingMinutes = Number(routePlan?.totalWaitingTimeMinutes || 0);
   const routeTotalMinutes = Number(routePlan?.totalDurationMinutes || 0);
   const routeFallbackReason = routePlan?.optimizationMetadata?.routeFallbackReason || null;
-  const routeWarnings = Array.isArray(routePlan?.routeWarnings) ? routePlan.routeWarnings : [];
+  const routeWarnings = asArray(routePlan?.routeWarnings);
   const reportedMissingRestrictions: string[] = routeWarnings
     .filter((warning: any) => warning?.code === 'vehicle_restrictions_incomplete')
     .flatMap((warning: any) => Array.isArray(warning.missingFields) ? warning.missingFields : []);

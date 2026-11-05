@@ -1,9 +1,30 @@
 import { withRoutePlanInitLock } from './route-plan-init-lock';
+import { asJsonArray } from './route-plan-json';
 
 /**
  * Regression coverage for the planner's first-open initialization. Before the
  * lock, concurrent reads could both create a plan and one request failed.
  */
+describe('route plan JSON normalization', () => {
+  it('turns a double-encoded empty JSON array into an array', () => {
+    const value = asJsonArray('[]');
+    expect(Array.isArray(value)).toBe(true);
+    expect(value).toHaveLength(0);
+  });
+
+  it('parses a persisted JSON array without changing valid arrays', () => {
+    const issues = [{ code: 'warning', message: 'Check dimensions' }];
+    expect(asJsonArray(JSON.stringify(issues))).toEqual(issues);
+    expect(asJsonArray(issues)).toBe(issues);
+  });
+
+  it('returns an empty array for null and malformed values', () => {
+    expect(asJsonArray(null)).toEqual([]);
+    expect(asJsonArray('not-json')).toEqual([]);
+    expect(asJsonArray({ code: 'warning' })).toEqual([]);
+  });
+});
+
 describe('route plan initialization lock', () => {
   const repo = { manager: { connection: { options: { type: 'sqlite' } } } };
 

@@ -30,6 +30,7 @@ import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
 import { TelematicsDevice } from '../telematics/entities/telematics-device.entity';
 import { resolveDriverForCompliance, resolveTripDriver, resolveTripTrailer } from './trip-assignment';
 import { withRoutePlanInitLock } from './route-plan-init-lock';
+import { asJsonArray } from './route-plan-json';
 
 
 export const ACTIVE_TRIP_STATUSES = [
@@ -3220,6 +3221,9 @@ export class PlanningService {
   async getRoutePlanByTrip(tripId: string, user?: any): Promise<TruckRoutePlan> {
     const trip = await this.loadTrip(tripId);
     if (!trip) throw new NotFoundException('Trip not found');
+    // Legacy rows may store JSONB values as JSON strings. Normalize once before
+    // any route-plan processing or response serialization.
+    const tripValidationIssues = asJsonArray(trip.validationIssues);
     const tripCompanyId = trip.company?.id || (trip as any).companyId || null;
     if (user?.companyId && tripCompanyId && String(tripCompanyId) !== String(user.companyId)) {
       throw new ForbiddenException('Trip does not belong to your company.');
@@ -3248,6 +3252,13 @@ export class PlanningService {
       routePlan = await this.createRoutePlanFromTrip(tripId);
     }
 
+    // Normalize every persisted array before callers spread or filter it. A
+    // string value here used to throw after the plan had loaded successfully.
+    trip.validationIssues = tripValidationIssues;
+    routePlan.routeWarnings = asJsonArray(routePlan.routeWarnings);
+    routePlan.warnings = asJsonArray(routePlan.warnings);
+    routePlan.conflicts = asJsonArray(routePlan.conflicts);
+
     // Always guarantee single source of truth from Trip, falling back to the truck's
     // assigned driver/trailer when the trip itself has no explicit assignment.
     const resolvedDriver = trip.driver || (trip as any).truck?.driver || null;
@@ -3266,7 +3277,7 @@ export class PlanningService {
     (routePlan as any).tripStatus = trip.status;
     (routePlan as any).tripNumber = trip.tripNumber;
     (routePlan as any).validationStatus = trip.validationStatus;
-    (routePlan as any).validationIssues = trip.validationIssues;
+    (routePlan as any).validationIssues = tripValidationIssues;
 
     // Existing plans created before road routing was introduced have no
     // geometry. Calculate it once on first open rather than leaving a fake
