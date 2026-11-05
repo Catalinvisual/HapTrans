@@ -383,15 +383,24 @@ class _HomeScreenState extends State<HomeScreen> {
     if (status == 'driver_accepted') {
       return button(l.translate('btn_start_trip'), Icons.play_arrow, kPrimary, () => prov.startTrip(token, tripId));
     }
-    // Already on the road (or nothing left to start): open the current stage.
-    return button(
-      l.translate('next_action'),
-      Icons.open_in_new,
-      kPrimary,
-      () async {
-        _openTrip(trip);
-        return null;
-      },
+    // Already on the road: opening the current stage is navigation, not a
+    // change, so it must never report a success action.
+    return SizedBox(
+      height: 52,
+      child: ElevatedButton.icon(
+        onPressed: () => _openTrip(trip),
+        icon: const Icon(Icons.open_in_new, color: Colors.white, size: 20),
+        label: Text(
+          l.translate('next_action'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.3),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: kPrimary,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
     );
   }
 
