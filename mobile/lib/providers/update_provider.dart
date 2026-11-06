@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:open_filex/open_filex.dart';
@@ -9,6 +10,7 @@ class UpdateProvider extends ChangeNotifier {
   bool _hasUpdate = false;
   int? _serverVersionCode;
   String? _downloadUrl;
+  String? _expectedSha256;
   Map<String, dynamic>? _messages;
   bool _isMandatory = false;
   bool _isChecking = false;
@@ -44,6 +46,8 @@ class UpdateProvider extends ChangeNotifier {
       final data = res.data;
       final serverCode = (data['versionCode'] ?? 0) as int;
       _downloadUrl = data['url']?.toString();
+      final sha = data['sha256']?.toString().trim().toLowerCase();
+      _expectedSha256 = (sha != null && sha.length == 64) ? sha : null;
       _messages = data['message'] is Map ? Map<String, dynamic>.from(data['message']) : null;
       _isMandatory = data['mandatory'] == true;
       _serverVersionCode = serverCode;
@@ -259,6 +263,9 @@ class UpdateProvider extends ChangeNotifier {
       final dir = await getExternalStorageDirectory();
       if (dir == null) throw Exception('Storage directory unavailable');
       final filePath = '${dir.path}/HapTrans_update.apk';
+      final file = File(filePath);
+      // Never install a stale file left by an interrupted download.
+      if (await file.exists()) await file.delete();
 
       final dio = Dio();
       await dio.download(
@@ -274,10 +281,33 @@ class UpdateProvider extends ChangeNotifier {
         },
       );
 
+      // Android re-checks the signature at install time; the checksum proves
+      // the bytes came from our server and were not truncated in transit.
+      if (_expectedSha256 != null) {
+        final digest = await sha256.bind(file.openRead()).first;
+        if (digest.toString().toLowerCase() != _expectedSha256) {
+          await file.delete();
+          throw Exception({
+            'ro': 'Fișierul descărcat este incomplet. Reîncercați.',
+            'en': 'The downloaded file is incomplete. Please try again.',
+            'nl': 'Het gedownloade bestand is onvolledig. Probeer het opnieuw.',
+            'de': 'Die heruntergeladene Datei ist unvollständig. Bitte erneut versuchen.',
+            'fr': 'Le fichier téléchargé est incomplet. Veuillez réessayer.',
+            'es': 'El archivo descargado está incompleto. Inténtelo de nuevo.',
+            'pl': 'Pobrany plik jest niekompletny. Spróbuj ponownie.',
+          }[locale] ?? 'The downloaded file is incomplete. Please try again.');
+        }
+      }
+
       if (context.mounted && Navigator.canPop(context)) {
         Navigator.pop(context); // Close progress dialog
       }
-      await OpenFilex.open(filePath);
+      // Hand the APK to Android's package installer explicitly; Android then
+      // verifies its signature and (for sideloaded apps) Play Protect scans it.
+      await OpenFilex.open(
+        filePath,
+        type: 'application/vnd.android.package-archive',
+      );
     } catch (e) {
       if (context.mounted && Navigator.canPop(context)) {
         Navigator.pop(context);

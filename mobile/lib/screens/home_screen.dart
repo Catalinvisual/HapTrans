@@ -97,8 +97,6 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 10),
               _reportRow(l, current),
               const SizedBox(height: 18),
-              _activeStopCard(current, locale, l),
-              const SizedBox(height: 16),
               _primaryAction(current, token, l),
             ],
             if (upcoming.isNotEmpty) ...[
@@ -199,16 +197,24 @@ class _HomeScreenState extends State<HomeScreen> {
     final updatedAt = event is Map ? event['at']?.toString() : null;
 
     return Container(
-      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: kBorder),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
-      child: Column(
+      child: Material(
+        color: Colors.white,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: kBorder),
+        ),
+        child: InkWell(
+          onTap: () => _openTrip(trip),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -249,13 +255,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: kText),
                 ),
               ),
-              IconButton(
-                tooltip: l.translate('open_trip'),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                icon: const Icon(Icons.chevron_right, color: kTextSecondary, size: 22),
-                onPressed: () => _openTrip(trip),
-              ),
+              const Icon(Icons.chevron_right, color: kTextSecondary, size: 22),
             ],
           ),
           const SizedBox(height: 10),
@@ -285,7 +285,10 @@ class _HomeScreenState extends State<HomeScreen> {
               style: const TextStyle(fontSize: 10.5, color: kTextSecondary),
             ),
           ],
-        ],
+            ],
+          ),
+        ),
+        ),
       ),
     );
   }
@@ -328,147 +331,6 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(width: 8),
         Expanded(child: delay),
       ],
-    );
-  }
-
-  /// The stop the driver is actually servicing, with the references that belong
-  /// to its own direction: loading references on a pickup, unloading references
-  /// on a delivery. A reference is never borrowed from the other side.
-  Widget _activeStopCard(Map<String, dynamic> trip, String locale, AppLocalizations l) {
-    final stop = activeStopOf(trip);
-    if (stop == null) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: kBorder),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.check_circle, color: kSuccess, size: 20),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                l.translate('all_stops_done'),
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kSuccess),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final isPickup = stopIsPickup(stop);
-    final color = isPickup ? const Color(0xFF2563EB) : const Color(0xFF0F766E);
-    final ids = stopIdentifiers(trip, stop);
-    final cargo = cargoForStop(trip, stop);
-    final stops = sortedStops(trip);
-    final index = stops.indexWhere((s) => s['id']?.toString() == stop['id']?.toString()) + 1;
-    final total = stops.length;
-    final status = stopStatus(stop);
-    final notes = (stop['notes'] ?? '').toString().trim();
-    final contact = (stop['contactPerson'] ?? '').toString().trim();
-    final phone = (stop['phone'] ?? '').toString().trim();
-    final windows = stopWindow(stop);
-    final started = isPickup ? stop['loadingStartedAt'] : stop['unloadingStartedAt'];
-    final active = status != 'pending';
-    final hasCargo = cargo['pallets']! > 0 || cargo['weightKg']! > 0 || cargo['ldm']! > 0 || cargo['volumeCbm']! > 0;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.55), width: 1.4),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(6)),
-                child: Text(
-                  total > 1
-                      ? '${l.translate(isPickup ? 'stop_pickup' : 'stop_delivery')} $index/$total'
-                      : l.translate(isPickup ? 'stop_pickup' : 'stop_delivery'),
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.3),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  active ? l.translate('active_stop') : l.translate('next_stop'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: kTextSecondary),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            stopLocation(stop),
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: kText),
-          ),
-          const SizedBox(height: 3),
-          Text(stopFullAddress(stop), style: const TextStyle(fontSize: 12, height: 1.35, color: kTextSecondary)),
-          if (contact.isNotEmpty) _metaRow(Icons.person_outline, contact),
-          if (phone.isNotEmpty) _metaRow(Icons.phone_outlined, phone),
-          if (hasCargo) ...[
-            const Divider(height: 22, color: kBorder),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (cargo['pallets']! > 0)
-                  _chip(Icons.grid_view, '${fmtNum(cargo['pallets']!, locale)} ${l.translate('cargo_pallets')}'),
-                if (cargo['weightKg']! > 0)
-                  _chip(Icons.scale_outlined, '${fmtNum(cargo['weightKg']!, locale)} kg'),
-                if (cargo['ldm']! > 0) _chip(Icons.straighten, '${cargo['ldm']!.toStringAsFixed(1)} LDM'),
-              ],
-            ),
-          ],
-          const Divider(height: 22, color: kBorder),
-          _kv(l.translate('hapcargo_order'), ids['order']!.isEmpty ? '—' : ids['order']!.join(', ')),
-          if (ids['customer']!.isNotEmpty) _kv(l.translate('ref_customer'), ids['customer']!.join(', ')),
-          if (isPickup && ids['loading']!.isNotEmpty) _kv(l.translate('ref_loading'), ids['loading']!.join(', ')),
-          if (!isPickup && ids['unloading']!.isNotEmpty) _kv(l.translate('ref_unloading'), ids['unloading']!.join(', ')),
-          _kv(l.translate('planned_window'), windows ?? '—'),
-          if (stop['ata'] != null) _kv(l.translate('actual_arrival'), formatAppDateTime(stop['ata']?.toString())),
-          if (started != null)
-            _kv(
-              l.translate(isPickup ? 'loading_started' : 'unloading_started'),
-              formatAppDateTime(started.toString()),
-            ),
-          if (notes.isNotEmpty) ...[
-            const Divider(height: 22, color: kBorder),
-            _kv(l.translate('instructions'), notes),
-          ],
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: () => NavigationDialog.launchNavigation(
-                context: context,
-                address: stop['address']?.toString() ?? '',
-                lat: stopLat(stop),
-                lng: stopLng(stop),
-                companyName: stop['companyName']?.toString(),
-              ),
-              icon: Icon(Icons.navigation, size: 16, color: color),
-              label: Text(l.translate('btn_navigate'), style: TextStyle(fontSize: 12, color: color)),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: color.withOpacity(0.6)),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                minimumSize: const Size(0, 36),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -598,42 +460,6 @@ class _HomeScreenState extends State<HomeScreen> {
           Icon(icon, size: 12, color: kTextSecondary),
           const SizedBox(width: 4),
           Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kText)),
-        ],
-      ),
-    );
-  }
-
-  Widget _metaRow(IconData icon, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: Row(
-        children: [
-          Icon(icon, size: 14, color: kTextSecondary),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: kText)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _kv(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(flex: 5, child: Text(label, style: const TextStyle(fontSize: 11.5, color: kTextSecondary))),
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 6,
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, height: 1.3, color: kText),
-            ),
-          ),
         ],
       ),
     );

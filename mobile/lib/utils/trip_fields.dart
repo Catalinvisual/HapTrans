@@ -261,6 +261,8 @@ Map<String, List<String>> stopIdentifiers(Map<String, dynamic> trip, Map<String,
     }
 
     add('order', order['orderNumber']);
+    // Customer reference is the customer's own number and stays separate from
+    // both loading and unloading references.
     add('customer', order['customerReference']);
     add('loading', isPickup ? order['loadingReference'] : null);
     add('unloading', isPickup ? null : order['unloadingReference']);
@@ -268,6 +270,32 @@ Map<String, List<String>> stopIdentifiers(Map<String, dynamic> trip, Map<String,
   final ref = stop['reference']?.toString().trim() ?? '';
   if (ref.isNotEmpty) result['stop']!.add(ref);
   return result;
+}
+
+/// The reference rows of one stop card, in display order. A pickup reads the
+/// loading reference and a delivery reads the unloading reference; an empty
+/// side stays explicitly empty and never falls back to the other reference.
+List<MapEntry<String, String>> stopReferenceRows(
+  Map<String, dynamic> trip,
+  Map<String, dynamic> stop,
+) {
+  final isPickup = stopIsPickup(stop);
+  final ids = stopIdentifiers(trip, stop);
+  final rows = <MapEntry<String, String>>[];
+  for (final ref in ids['order']!) {
+    rows.add(MapEntry('hapcargo_order', ref));
+  }
+  for (final ref in ids['customer']!) {
+    rows.add(MapEntry('ref_customer', ref));
+  }
+  final ownKey = isPickup ? 'ref_loading' : 'ref_unloading';
+  final own = isPickup ? ids['loading']! : ids['unloading']!;
+  if (own.isEmpty) {
+    rows.add(MapEntry(ownKey, '—'));
+  } else {
+    for (final ref in own) rows.add(MapEntry(ownKey, ref));
+  }
+  return rows;
 }
 
 /// Package, ADR and temperature details per cargo line, kept as label/value

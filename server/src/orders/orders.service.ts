@@ -14,6 +14,21 @@ import { ActionLogsService } from '../action-logs/action-logs.service';
 import { computeAuditChanges } from '../action-logs/diff.util';
 import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
 
+/**
+ * The reference stored on a stop belongs to that stop's own direction.
+ * A loading reference is never reused as a delivery reference, including for
+ * legacy clients that put the loading reference in the shared reference field.
+ */
+export function stopReferenceFor(stopDto: any, type: string): string | null {
+  const isPickup = String(type || '').toLowerCase() === 'pickup';
+  const loading = String(stopDto?.loadingReference ?? '').trim();
+  const unloading = String(stopDto?.unloadingReference ?? '').trim();
+  const shared = String(stopDto?.reference ?? '').trim();
+  if (isPickup) return loading || shared || null;
+  if (unloading) return unloading;
+  return shared && shared !== loading ? shared : null;
+}
+
 @Injectable()
 export class OrdersService implements OnModuleInit {
   private readonly logger = new Logger(OrdersService.name);
@@ -261,7 +276,7 @@ export class OrdersService implements OnModuleInit {
             timeFrom: stopDto.scheduledTime || stopDto.timeFrom || null,
             timeUntil: stopDto.timeUntil || null,
             clientLocation: stopDto.clientLocationId ? { id: stopDto.clientLocationId } as any : null,
-            reference: stopDto.loadingReference || stopDto.reference || null,
+            reference: stopReferenceFor(stopDto, stopDto.type || (i === 0 ? 'pickup' : 'dropoff')),
             notes: stopDto.notes || null
           } as any);
           await stopRepo.save(stop);
@@ -494,7 +509,7 @@ export class OrdersService implements OnModuleInit {
             timeFrom: stopDto.scheduledTime || stopDto.timeFrom || null,
             timeUntil: stopDto.timeUntil || null,
             clientLocation: stopDto.clientLocationId ? { id: stopDto.clientLocationId } as any : null,
-            reference: stopDto.loadingReference || stopDto.reference || null,
+            reference: stopReferenceFor(stopDto, stopDto.type || (i === 0 ? 'pickup' : 'dropoff')),
             notes: stopDto.notes || null,
           } as any);
           await this.stopRepo.save(stop);
@@ -1065,7 +1080,9 @@ export class OrdersService implements OnModuleInit {
       distanceKm: safeNum(dto.distanceKm),
       loadingReference: dto.loadingReference || null,
       unloadingReference: dto.unloadingReference || null,
-      customerReference: dto.customerReference || dto.loadingReference || null,
+      // A customer reference is the customer's own PO/number. The loading
+      // reference must never be copied into it.
+      customerReference: dto.customerReference || null,
       contactPerson: dto.contactPerson || null,
       contactPhone: dto.contactPhone || null,
       notes: dto.notes || null,

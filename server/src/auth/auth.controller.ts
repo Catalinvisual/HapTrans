@@ -1,4 +1,7 @@
 import { Controller, Post, Body, Get, UseGuards, Request, Response, Logger } from '@nestjs/common';
+import { createHash } from 'crypto';
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { IsEmail, IsString, MinLength, IsOptional, IsEnum } from 'class-validator';
@@ -23,6 +26,18 @@ class RegisterDto {
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
+
+  /** SHA-256 of the APK actually served, so the driver app can reject a
+   * corrupted or tampered download before offering installation. */
+  private apkSha256(file: string): string | null {
+    try {
+      const path = join(process.cwd(), 'uploads', file);
+      if (!existsSync(path)) return null;
+      return createHash('sha256').update(readFileSync(path)).digest('hex');
+    } catch {
+      return null;
+    }
+  }
 
   @Post('login')
   async login(@Body() dto: LoginDto, @Request() req: any, @Response() res: any) {
@@ -127,9 +142,11 @@ export class AuthController {
 
   @Get('app-version')
   getAppVersion() {
+    const apk = 'HapTrans-v17.apk';
     return {
-      versionCode: 16,
-      url: 'https://haptrans-production.up.railway.app/uploads/HapTrans-v16.apk',
+      versionCode: 17,
+      url: `https://haptrans-production.up.railway.app/uploads/${apk}`,
+      sha256: this.apkSha256(apk),
       mandatory: false,
       message: {
         ro: 'O nouă versiune a aplicației este disponibilă! Vă rugăm să actualizați.',

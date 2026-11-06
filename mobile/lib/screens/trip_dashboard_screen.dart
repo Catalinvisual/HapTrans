@@ -542,10 +542,8 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
     final status = stopStatus(stop);
     final isActive = activeStopOf(tripData)?['id']?.toString() == stop['id']?.toString();
     final color = isPickup ? const Color(0xFF2563EB) : const Color(0xFF0F766E);
-    final ids = stopIdentifiers(tripData, stop);
     final cargo = cargoForStop(tripData, stop);
     final details = cargoDetailsForStop(tripData, stop);
-    final docs = documentsForStop(tripData, stop);
     final typeLabel = l.translate(isPickup ? 'loading_label' : 'unloading_label');
     final notes = (stop['notes'] ?? '').toString().trim();
     final contact = (stop['contactPerson'] ?? '').toString().trim();
@@ -624,25 +622,12 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
             ),
           ),
 
-          // References — the five identifiers stay distinct on purpose.
-          if (ids['order']!.isNotEmpty ||
-              ids['customer']!.isNotEmpty ||
-              ids['loading']!.isNotEmpty ||
-              ids['unloading']!.isNotEmpty ||
-              ids['stop']!.isNotEmpty) ...[
-            const Divider(height: 24, color: kBorder),
-            _blockTitle(l.translate('hapcargo_order')),
-            for (final ref in ids['order']!)
-              _kv(l.translate('hapcargo_order'), ref),
-            for (final ref in ids['customer']!)
-              _kv(l.translate('ref_customer'), ref),
-            for (final ref in ids['loading']!)
-              _kv(l.translate('ref_loading'), ref),
-            for (final ref in ids['unloading']!)
-              _kv(l.translate('ref_unloading'), ref),
-            for (final ref in ids['stop']!)
-              _kv(l.translate('ref_stop'), ref),
-          ],
+          // Each stop shows only its own reference: the pickup its loading
+          // reference, the delivery its unloading reference. An empty side
+          // stays empty instead of borrowing the other one.
+          const Divider(height: 24, color: kBorder),
+          for (final row in stopReferenceRows(tripData, stop))
+            _kv(l.translate(row.key), row.value),
 
           const Divider(height: 24, color: kBorder),
           _blockTitle(l.translate('planned_schedule')),
@@ -704,12 +689,6 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
             const Divider(height: 24, color: kBorder),
             _blockTitle(l.translate('instructions')),
             Text(notes, style: const TextStyle(fontSize: 12, height: 1.35, color: kText)),
-          ],
-
-          if (docs.isNotEmpty) ...[
-            const Divider(height: 24, color: kBorder),
-            _blockTitle(l.translate('documents_available')),
-            for (final d in docs) _documentRow(d, l),
           ],
 
 
@@ -878,7 +857,16 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
     final name = (doc['fileName'] ?? doc['originalFilename'] ?? doc['documentType'] ?? '—').toString();
     final type = (doc['documentType'] ?? doc['type'] ?? '').toString().toUpperCase();
     final date = doc['uploadedAt'] != null ? formatAppDate(doc['uploadedAt'].toString()) : '';
-    final subtitle = [if (type.isNotEmpty) type, if (date.isNotEmpty) date].join(' · ');
+    // The documents live in one central section, so each row names the order
+    // it belongs to instead of repeating the list inside every stop card.
+    final orderNumber = doc['order'] is Map
+        ? (doc['order']['orderNumber'] ?? '').toString()
+        : (doc['orderNumber'] ?? '').toString();
+    final subtitle = [
+      if (type.isNotEmpty) type,
+      if (orderNumber.isNotEmpty) orderNumber,
+      if (date.isNotEmpty) date,
+    ].join(' · ');
 
     return Material(
       color: Colors.transparent,

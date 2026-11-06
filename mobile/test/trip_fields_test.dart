@@ -67,6 +67,52 @@ void main() {
     expect(stopIdentifiers(multi, multiDelivery)['loading'], isEmpty);
   });
 
+  test('four distinct values stay on their own rows', () {
+    final order = <String, dynamic>{
+      'id': 'o-1',
+      'orderNumber': 'HC-ORD-1001',
+      'customerReference': 'CUSTOMER-REF-2001',
+      'loadingReference': 'LOAD-3001',
+      'unloadingReference': 'UNLOAD-4001',
+    };
+    final trip = <String, dynamic>{'orders': [order], 'stops': []};
+    final pickup = <String, dynamic>{'id': 's-1', 'sequence': 1, 'type': 'pickup'};
+    final delivery = <String, dynamic>{'id': 's-2', 'sequence': 2, 'type': 'dropoff'};
+
+    final pickupRows = stopReferenceRows(trip, pickup);
+    final deliveryRows = stopReferenceRows(trip, delivery);
+
+    expect(pickupRows.where((r) => r.key == 'ref_loading').single.value, 'LOAD-3001');
+    expect(pickupRows.where((r) => r.key == 'ref_unloading'), isEmpty);
+    expect(deliveryRows.where((r) => r.key == 'ref_unloading').single.value, 'UNLOAD-4001');
+    expect(deliveryRows.where((r) => r.key == 'ref_loading'), isEmpty);
+    expect(pickupRows.where((r) => r.key == 'ref_customer').single.value, 'CUSTOMER-REF-2001');
+    expect(deliveryRows.where((r) => r.key == 'ref_customer').single.value, 'CUSTOMER-REF-2001');
+    expect(pickupRows.where((r) => r.key == 'hapcargo_order').single.value, 'HC-ORD-1001');
+  });
+
+  test('a delivery never shows the loading reference, even when the stop carries it', () {
+    final order = <String, dynamic>{
+      'id': 'o-1',
+      'orderNumber': 'HC-ORD-1001',
+      'loadingReference': 'LOAD-3001',
+      'unloadingReference': null,
+    };
+    final trip = <String, dynamic>{'orders': [order], 'stops': []};
+    // A legacy TMS stop stamped the loading reference onto the delivery stop.
+    final delivery = <String, dynamic>{
+      'id': 's-2',
+      'sequence': 2,
+      'type': 'dropoff',
+      'reference': 'LOAD-3001',
+    };
+
+    final rows = stopReferenceRows(trip, delivery);
+
+    expect(rows.where((r) => r.key == 'ref_unloading').single.value, '—');
+    expect(rows.map((r) => r.value), isNot(contains('LOAD-3001')));
+  });
+
   test('empty references stay empty instead of borrowing the other side', () {
     final empty = <String, dynamic>{
       ...order,
