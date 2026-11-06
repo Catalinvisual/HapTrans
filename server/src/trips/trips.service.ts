@@ -133,7 +133,7 @@ export class TripsService {
    * validating the same rule on PATCH) is what stops "Start loading" from
    * appearing at a delivery address.
    */
-  private decorateDriverTrips(trips: Trip[]) {
+  private async decorateDriverTrips(trips: Trip[]) {
     for (const trip of trips || []) {
       const orders = ((trip as any).orders || []) as any[];
 
@@ -145,7 +145,23 @@ export class TripsService {
       for (const doc of [...(((trip as any).documents || []) as any[]), ...orderDocuments]) {
         if (doc?.id) byId.set(String(doc.id), doc);
       }
-      const documents = [...byId.values()];
+      let documents = [...byId.values()];
+
+      // The TMS list does not join documents, so load them here when the caller
+      // arrived without them. A CMR on the order must still reach the driver.
+      if (documents.length === 0) {
+        try {
+          const orderIds = orders.map((o) => o.id).filter(Boolean);
+          const where: any[] = [{ trip: { id: trip.id } }];
+          if (orderIds.length > 0) where.push({ order: { id: In(orderIds) } });
+          documents = (await this.repo.manager.find('Document', {
+            where,
+            relations: ['order', 'trip'],
+          })) as any[];
+        } catch (e: any) {
+          console.warn(`Document enrichment skipped: ${e?.message}`);
+        }
+      }
       (trip as any).documents = documents;
 
       // A trip stage must never contradict the stops the driver already worked
@@ -177,9 +193,10 @@ export class TripsService {
         stop.allowedActions = action ? [action] : [];
 
         const orderIds = new Set(stopOrders.map((o) => String(o.id)));
-        stop.documents = documents.filter(
-          (d) => d?.order && orderIds.has(String(d.order.id)),
-        );
+        stop.documents = documents.filter((d) => {
+          if (d?.order && orderIds.has(String(d.order.id))) return true;
+          return !d?.order && orderIds.size === 1; // trip-level CMR on a single-order trip
+        });
       }
     }
     return trips;
