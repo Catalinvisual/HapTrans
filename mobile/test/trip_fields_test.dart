@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import '../lib/utils/trip_fields.dart';
+import '../lib/utils/trip_status.dart';
 
 /// Loading and unloading references are different operational numbers. A pickup
 /// card may only show the loading reference and a delivery card only the
-/// unloading reference, for each order separately.
+/// unloading reference; the customer reference belongs to order management and
+/// is never shown on a stop card.
 void main() {
   final order = <String, dynamic>{
     'id': 'o1',
@@ -65,6 +67,8 @@ void main() {
     expect(stopIdentifiers(multi, multiPickup)['loading'], ['LOAD-1']);
     expect(stopIdentifiers(multi, multiDelivery)['unloading'], ['UNLOAD-2']);
     expect(stopIdentifiers(multi, multiDelivery)['loading'], isEmpty);
+    expect(stopReferenceRows(multi, multiPickup).where((r) => r.key == 'ref_loading').single.value, 'LOAD-1');
+    expect(stopReferenceRows(multi, multiDelivery).where((r) => r.key == 'ref_unloading').single.value, 'UNLOAD-2');
   });
 
   test('four distinct values stay on their own rows', () {
@@ -86,9 +90,54 @@ void main() {
     expect(pickupRows.where((r) => r.key == 'ref_unloading'), isEmpty);
     expect(deliveryRows.where((r) => r.key == 'ref_unloading').single.value, 'UNLOAD-4001');
     expect(deliveryRows.where((r) => r.key == 'ref_loading'), isEmpty);
-    expect(pickupRows.where((r) => r.key == 'ref_customer').single.value, 'CUSTOMER-REF-2001');
-    expect(deliveryRows.where((r) => r.key == 'ref_customer').single.value, 'CUSTOMER-REF-2001');
     expect(pickupRows.where((r) => r.key == 'hapcargo_order').single.value, 'HC-ORD-1001');
+    // Customer reference is not part of a stop card at all.
+    expect(pickupRows.where((r) => r.key == 'ref_customer'), isEmpty);
+    expect(deliveryRows.where((r) => r.key == 'ref_customer'), isEmpty);
+    expect([...pickupRows, ...deliveryRows].map((r) => r.value), isNot(contains('CUSTOMER-REF-2001')));
+  });
+
+  test('the phone order 555555 / abcdefg shows each stop reference once', () {
+    // Production order ORD-2026-000033: the order-level references are empty,
+    // customerReference holds 555555, and the TMS wrote the real references onto
+    // the stops (555555 pickup, abcdefg dropoff).
+    final order = <String, dynamic>{
+      'id': 'o-33',
+      'orderNumber': 'ORD-2026-000033',
+      'customerReference': 'CUSTOMER-999',
+      'loadingReference': null,
+      'unloadingReference': null,
+    };
+    final pickup = <String, dynamic>{
+      'id': 's-1',
+      'sequence': 1,
+      'type': 'pickup',
+      'reference': '555555',
+      'orders': [order],
+    };
+    final delivery = <String, dynamic>{
+      'id': 's-2',
+      'sequence': 2,
+      'type': 'dropoff',
+      'reference': 'abcdefg',
+      'orders': [order],
+    };
+    final trip = <String, dynamic>{
+      'id': 't-33',
+      'orders': [order],
+      'stops': [pickup, delivery],
+    };
+
+    final pickupRows = stopReferenceRows(trip, pickup);
+    final deliveryRows = stopReferenceRows(trip, delivery);
+
+    expect(pickupRows.where((r) => r.key == 'ref_loading').single.value, '555555');
+    expect(pickupRows.where((r) => r.key == 'ref_unloading'), isEmpty);
+    expect(deliveryRows.where((r) => r.key == 'ref_unloading').single.value, 'abcdefg');
+    expect(deliveryRows.where((r) => r.key == 'ref_loading'), isEmpty);
+    expect(pickupRows.where((r) => r.key == 'ref_customer'), isEmpty);
+    expect(deliveryRows.where((r) => r.key == 'ref_customer'), isEmpty);
+    expect([...pickupRows, ...deliveryRows].map((r) => r.value), isNot(contains('CUSTOMER-999')));
   });
 
   test('a delivery never shows the loading reference, even when the stop carries it', () {
@@ -130,5 +179,19 @@ void main() {
     expect(stopIdentifiers(t, pickup)['loading'], isEmpty);
     expect(stopIdentifiers(t, pickup)['unloading'], isEmpty);
     expect(stopIdentifiers(t, delivery)['unloading'], isEmpty);
+    expect(stopReferenceRows(t, pickup).where((r) => r.key == 'ref_loading').single.value, '—');
+    expect(stopReferenceRows(t, delivery).where((r) => r.key == 'ref_unloading').single.value, '—');
+  });
+
+  test('trip status labels are canonical and never raw enum values', () {
+    expect(tripStatusLabel('planning', 'ro'), 'În planificare');
+    expect(tripStatusLabel('driving', 'ro'), 'În drum spre descărcare');
+    expect(tripStatusLabel('planning', 'en'), 'Planning');
+    expect(tripStatusLabel('driving', 'en'), 'Driving to delivery');
+    expect(tripStatusLabel('delayed', 'ro'), 'Întârziată');
+    expect(tripStatusLabel('delayed', 'pl'), 'Opóźniona');
+    // Unknown legacy values are humanised, not printed as raw enums.
+    expect(tripStatusLabel('some_legacy_state', 'en'), 'Some legacy state');
+    expect(tripStatusLabel('some_legacy_state', 'en'), isNot('some_legacy_state'));
   });
 }

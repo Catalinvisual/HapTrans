@@ -8,6 +8,7 @@ import '../utils/constants.dart';
 import '../utils/number_format.dart';
 import '../utils/trip_fields.dart';
 import '../utils/trip_status.dart';
+import '../widgets/status_badge.dart';
 import 'trip_dashboard_screen.dart';
 
 class TripsScreen extends StatefulWidget {
@@ -188,21 +189,10 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                         trpNumber,
                         style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: kText),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: tripStatusColor(status).withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: tripStatusColor(status).withOpacity(0.3)),
-                        ),
-                        child: Text(
-                          tripStatusLabel(status, locale).toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: tripStatusColor(status),
-                          ),
-                        ),
+                      StatusBadge(
+                        label: tripStatusLabel(status, locale),
+                        color: tripStatusColor(status),
+                        compact: true,
                       ),
                     ],
                   ),

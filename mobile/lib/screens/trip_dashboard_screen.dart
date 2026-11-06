@@ -10,6 +10,7 @@ import '../utils/trip_actions.dart';
 import '../utils/trip_fields.dart';
 import '../utils/trip_status.dart';
 import '../widgets/navigation_dialog.dart';
+import '../widgets/report_flow.dart';
 import '../widgets/status_badge.dart';
 import 'pod_screen.dart';
 
@@ -108,155 +109,11 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
   // ─── Reporting (unchanged workflows, kept available) ───────────────────────
 
   void _showReportIssueDialog() {
-    final l = AppLocalizations.of(context);
-    final categories = [
-      'Problemă vehicul / Vehicle issue',
-      'Trafic / Traffic delay',
-      'Client indisponibil / Customer unavailable',
-      'Problemă încărcare / Loading issue',
-      'Problemă descărcare / Delivery issue',
-      'Marfă deteriorată / Damaged goods',
-      'Accident',
-      'Altul / Other',
-    ];
-    String selectedCat = categories.first;
-    final descCtrl = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(l.translate('report_issue'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(l.translate('issue_category'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: kTextSecondary)),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  value: selectedCat,
-                  items: categories
-                      .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis)))
-                      .toList(),
-                  onChanged: (v) => setDialogState(() => selectedCat = v ?? selectedCat),
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text(l.translate('issue_desc'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: kTextSecondary)),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: descCtrl,
-                  maxLines: 3,
-                  decoration: const InputDecoration(contentPadding: EdgeInsets.all(10)),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.translate('cancel'))),
-            ElevatedButton(
-              onPressed: () async {
-                final error = await context.read<TripProvider>().reportIssue(
-                      widget.token,
-                      tripData['id'].toString(),
-                      category: selectedCat,
-                      description: descCtrl.text.trim(),
-                      stopId: activeStopOf(tripData)?['id']?.toString(),
-                    );
-                if (!ctx.mounted) return;
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(error == null ? l.translate('issue_submitted') : error),
-                  backgroundColor: error == null ? kSuccess : kError,
-                ));
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: kError),
-              child: Text(l.translate('btn_report'), style: const TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      ),
-    );
+    showProblemReport(context, token: widget.token, trip: tripData);
   }
 
   void _showReportDelayDialog() {
-    final l = AppLocalizations.of(context);
-    final reasons = [
-      'Trafic aglomerat / Heavy traffic',
-      'Așteptare încărcare / Loading queue',
-      'Vreme nefavorabilă / Bad weather',
-      'Defecțiune mecanică / Mechanical',
-      'Pauză tahograf / Tachograph break',
-      'Alt motiv / Other',
-    ];
-    String selectedReason = reasons.first;
-    final minCtrl = TextEditingController(text: '30');
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(l.translate('report_delay'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(l.translate('delay_reason'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: kTextSecondary)),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  value: selectedReason,
-                  items: reasons
-                      .map((r) => DropdownMenuItem(value: r, child: Text(r, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis)))
-                      .toList(),
-                  onChanged: (v) => setDialogState(() => selectedReason = v ?? selectedReason),
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text(l.translate('est_delay_min'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: kTextSecondary)),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: minCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(contentPadding: EdgeInsets.all(10)),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.translate('cancel'))),
-            ElevatedButton(
-              onPressed: () async {
-                final error = await context.read<TripProvider>().reportDelay(
-                      widget.token,
-                      tripData['id'].toString(),
-                      reason: selectedReason,
-                      estimatedDelayMinutes: int.tryParse(minCtrl.text.trim()) ?? 30,
-                      stopId: activeStopOf(tripData)?['id']?.toString(),
-                    );
-                if (!ctx.mounted) return;
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(error == null ? l.translate('issue_submitted') : error),
-                  backgroundColor: error == null ? kWarning : kError,
-                ));
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: kWarning),
-              child: Text(l.translate('btn_report'), style: const TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      ),
-    );
+    showDelayReport(context, token: widget.token, trip: tripData);
   }
 
   // ─── Build ─────────────────────────────────────────────────────────────────

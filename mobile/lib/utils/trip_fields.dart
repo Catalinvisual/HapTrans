@@ -272,9 +272,40 @@ Map<String, List<String>> stopIdentifiers(Map<String, dynamic> trip, Map<String,
   return result;
 }
 
-/// The reference rows of one stop card, in display order. A pickup reads the
-/// loading reference and a delivery reads the unloading reference; an empty
-/// side stays explicitly empty and never falls back to the other reference.
+/// The direction reference of one stop: the loading reference on a pickup and
+/// the unloading reference on a delivery.
+///
+/// The TMS stores this number in two places: the order-level
+/// `loadingReference` / `unloadingReference`, and the stop-level `reference`
+/// written by the order form and the Excel import. The stop reference is the
+/// value the TMS itself displays, so it is used when the order-level field is
+/// empty. A delivery never accepts a stop reference that equals the loading
+/// reference — old TMS rows stamped the loading number onto both stops — and
+/// `customerReference` is never used as a substitute for either direction.
+String stopDirectionReference(Map<String, dynamic> trip, Map<String, dynamic> stop) {
+  final isPickup = stopIsPickup(stop);
+  final own = <String>[];
+  final loadingRefs = <String>[];
+  for (final order in ordersForStop(trip, stop)) {
+    final loading = order['loadingReference']?.toString().trim() ?? '';
+    if (loading.isNotEmpty) loadingRefs.add(loading);
+    final value = (isPickup ? order['loadingReference'] : order['unloadingReference'])
+            ?.toString()
+            .trim() ??
+        '';
+    if (value.isNotEmpty && !own.contains(value)) own.add(value);
+  }
+  if (own.isNotEmpty) return own.join(' · ');
+
+  final stopRef = stop['reference']?.toString().trim() ?? '';
+  if (stopRef.isEmpty) return '';
+  if (!isPickup && loadingRefs.contains(stopRef)) return '';
+  return stopRef;
+}
+
+/// The reference rows of one stop card, in display order: the order number and
+/// the reference of the card's own direction. The customer reference belongs to
+/// order management and is deliberately absent from both stop cards.
 List<MapEntry<String, String>> stopReferenceRows(
   Map<String, dynamic> trip,
   Map<String, dynamic> stop,
@@ -285,16 +316,8 @@ List<MapEntry<String, String>> stopReferenceRows(
   for (final ref in ids['order']!) {
     rows.add(MapEntry('hapcargo_order', ref));
   }
-  for (final ref in ids['customer']!) {
-    rows.add(MapEntry('ref_customer', ref));
-  }
-  final ownKey = isPickup ? 'ref_loading' : 'ref_unloading';
-  final own = isPickup ? ids['loading']! : ids['unloading']!;
-  if (own.isEmpty) {
-    rows.add(MapEntry(ownKey, '—'));
-  } else {
-    for (final ref in own) rows.add(MapEntry(ownKey, ref));
-  }
+  final own = stopDirectionReference(trip, stop);
+  rows.add(MapEntry(isPickup ? 'ref_loading' : 'ref_unloading', own.isEmpty ? '—' : own));
   return rows;
 }
 

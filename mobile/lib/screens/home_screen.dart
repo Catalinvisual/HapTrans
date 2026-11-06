@@ -9,7 +9,7 @@ import '../utils/number_format.dart';
 import '../utils/trip_actions.dart';
 import '../utils/trip_fields.dart';
 import '../utils/trip_status.dart';
-import '../widgets/navigation_dialog.dart';
+import '../widgets/report_flow.dart';
 import '../widgets/status_badge.dart';
 import 'trip_dashboard_screen.dart';
 
@@ -95,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
             else ...[
               _tripCard(current, locale, l),
               const SizedBox(height: 10),
-              _reportRow(l, current),
+              _reportRow(l, current, token),
               const SizedBox(height: 18),
               _primaryAction(current, token, l),
             ],
@@ -293,10 +293,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Reporting stays available but compact, directly under the trip card.
-  Widget _reportRow(AppLocalizations l, Map<String, dynamic> trip) {
+  /// Reporting opens its own sheet straight from Home, always bound to the
+  /// current trip; the driver never has to pass through trip details first.
+  Widget _reportRow(AppLocalizations l, Map<String, dynamic> trip, String token) {
     final issue = OutlinedButton.icon(
-      onPressed: () => _openTrip(trip),
+      onPressed: () => showProblemReport(context, token: token, trip: trip),
       icon: const Icon(Icons.report_problem_outlined, size: 15, color: kError),
       label: Text(
         l.translate('report_issue'),
@@ -311,7 +312,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
     final delay = OutlinedButton.icon(
-      onPressed: () => _openTrip(trip),
+      onPressed: () => showDelayReport(context, token: token, trip: trip),
       icon: const Icon(Icons.access_time, size: 15, color: kWarning),
       label: Text(
         l.translate('report_delay'),

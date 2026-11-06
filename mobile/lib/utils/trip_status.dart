@@ -55,6 +55,7 @@ const Map<String, Map<String, String>> _statusLabels = {
     'loading': 'În încărcare', 'driving': 'În drum spre descărcare',
     'partially_delivered': 'Livrat parțial', 'completed': 'Finalizat',
     'closed': 'Închis', 'cancelled': 'Anulat', 'delivered': 'Livrat',
+    'delayed': 'Întârziată', 'exception': 'Problemă', 'pod_received': 'POD primit', 'ready': 'Pregătită',
   },
   'en': {
     'planning': 'Planning', 'planned': 'Planned', 'confirmed': 'Confirmed',
@@ -63,6 +64,7 @@ const Map<String, Map<String, String>> _statusLabels = {
     'loading': 'Loading', 'driving': 'Driving to delivery',
     'partially_delivered': 'Partially delivered', 'completed': 'Completed',
     'closed': 'Closed', 'cancelled': 'Cancelled', 'delivered': 'Delivered',
+    'delayed': 'Delayed', 'exception': 'Exception', 'pod_received': 'POD received', 'ready': 'Ready',
   },
   'nl': {
     'planning': 'Planning', 'planned': 'Gepland', 'confirmed': 'Bevestigd',
@@ -71,6 +73,7 @@ const Map<String, Map<String, String>> _statusLabels = {
     'loading': 'Laden', 'driving': 'Onderweg naar lossen',
     'partially_delivered': 'Gedeeltelijk geleverd', 'completed': 'Voltooid',
     'closed': 'Gesloten', 'cancelled': 'Geannuleerd', 'delivered': 'Geleverd',
+    'delayed': 'Vertraagd', 'exception': 'Probleem', 'pod_received': 'POD ontvangen', 'ready': 'Gereed',
   },
   'de': {
     'planning': 'Planung', 'planned': 'Geplant', 'confirmed': 'Bestätigt',
@@ -79,6 +82,7 @@ const Map<String, Map<String, String>> _statusLabels = {
     'loading': 'Beladung läuft', 'driving': 'Unterwegs zur Entladung',
     'partially_delivered': 'Teilweise geliefert', 'completed': 'Abgeschlossen',
     'closed': 'Geschlossen', 'cancelled': 'Storniert', 'delivered': 'Geliefert',
+    'delayed': 'Verspätet', 'exception': 'Problem', 'pod_received': 'POD erhalten', 'ready': 'Bereit',
   },
   'fr': {
     'planning': 'En planification', 'planned': 'Planifiée', 'confirmed': 'Confirmée',
@@ -87,6 +91,7 @@ const Map<String, Map<String, String>> _statusLabels = {
     'loading': 'Chargement', 'driving': 'En route vers la livraison',
     'partially_delivered': 'Livraison partielle', 'completed': 'Terminée',
     'closed': 'Clôturée', 'cancelled': 'Annulée', 'delivered': 'Livrée',
+    'delayed': 'Retardée', 'exception': 'Problème', 'pod_received': 'POD reçu', 'ready': 'Prête',
   },
   'es': {
     'planning': 'En planificación', 'planned': 'Planificada', 'confirmed': 'Confirmada',
@@ -95,6 +100,7 @@ const Map<String, Map<String, String>> _statusLabels = {
     'loading': 'Cargando', 'driving': 'En ruta a la descarga',
     'partially_delivered': 'Entrega parcial', 'completed': 'Finalizada',
     'closed': 'Cerrada', 'cancelled': 'Cancelada', 'delivered': 'Entregada',
+    'delayed': 'Retrasada', 'exception': 'Incidencia', 'pod_received': 'POD recibido', 'ready': 'Lista',
   },
   'pl': {
     'planning': 'W planowaniu', 'planned': 'Zaplanowana', 'confirmed': 'Potwierdzona',
@@ -103,12 +109,14 @@ const Map<String, Map<String, String>> _statusLabels = {
     'loading': 'Załadunek', 'driving': 'W drodze do rozładunku',
     'partially_delivered': 'Częściowa dostawa', 'completed': 'Zakończona',
     'closed': 'Zamknięta', 'cancelled': 'Anulowana', 'delivered': 'Dostarczona',
+    'delayed': 'Opóźniona', 'exception': 'Problem', 'pod_received': 'POD odebrany', 'ready': 'Gotowa',
   },
 };
 
 const Map<String, Map<String, String>> _stageLabels = {
   'ro': {
     'pending': 'În așteptare', 'arrived': 'Sosit', 'assigned': 'Alocat', 'accepted': 'Acceptat', 'rejected': 'Refuzat',
+    'planned': 'În planificare',
     'driving_to_pickup': 'În drum spre încărcare', 'at_pickup': 'Sosire la încărcare',
     'loading': 'În curs de încărcare', 'loaded': 'Încărcat',
     'driving_to_delivery': 'În drum spre descărcare', 'at_delivery': 'Sosire la descărcare',
@@ -117,6 +125,7 @@ const Map<String, Map<String, String>> _stageLabels = {
   },
   'en': {
     'pending': 'Pending', 'arrived': 'Arrived', 'assigned': 'Assigned', 'accepted': 'Accepted', 'rejected': 'Rejected',
+    'planned': 'Planned',
     'driving_to_pickup': 'Driving to pickup', 'at_pickup': 'At pickup',
     'loading': 'Loading', 'loaded': 'Loaded',
     'driving_to_delivery': 'Driving to delivery', 'at_delivery': 'At delivery',
@@ -125,6 +134,7 @@ const Map<String, Map<String, String>> _stageLabels = {
   },
   'nl': {
     'pending': 'In afwachting', 'arrived': 'Aangekomen', 'assigned': 'Toegewezen', 'accepted': 'Geaccepteerd', 'rejected': 'Geweigerd',
+    'planned': 'Gepland',
     'driving_to_pickup': 'Onderweg naar laden', 'at_pickup': 'Bij laadadres',
     'loading': 'Laden', 'loaded': 'Geladen',
     'driving_to_delivery': 'Onderweg naar lossen', 'at_delivery': 'Bij losadres',
@@ -133,6 +143,7 @@ const Map<String, Map<String, String>> _stageLabels = {
   },
   'de': {
     'pending': 'Ausstehend', 'arrived': 'Angekommen', 'assigned': 'Zugewiesen', 'accepted': 'Akzeptiert', 'rejected': 'Abgelehnt',
+    'planned': 'Geplant',
     'driving_to_pickup': 'Unterwegs zur Beladung', 'at_pickup': 'Bei Beladung',
     'loading': 'Beladung läuft', 'loaded': 'Beladen',
     'driving_to_delivery': 'Unterwegs zur Entladung', 'at_delivery': 'Bei Entladung',
@@ -141,6 +152,7 @@ const Map<String, Map<String, String>> _stageLabels = {
   },
   'fr': {
     'pending': 'En attente', 'arrived': 'Arrivé', 'assigned': 'Assignée', 'accepted': 'Acceptée', 'rejected': 'Refusée',
+    'planned': 'Planifiée',
     'driving_to_pickup': 'En route vers le chargement', 'at_pickup': 'Au chargement',
     'loading': 'Chargement en cours', 'loaded': 'Chargée',
     'driving_to_delivery': 'En route vers la livraison', 'at_delivery': 'À la livraison',
@@ -149,6 +161,7 @@ const Map<String, Map<String, String>> _stageLabels = {
   },
   'es': {
     'pending': 'Pendiente', 'arrived': 'Llegado', 'assigned': 'Asignada', 'accepted': 'Aceptada', 'rejected': 'Rechazada',
+    'planned': 'Planificada',
     'driving_to_pickup': 'En ruta a la carga', 'at_pickup': 'En carga',
     'loading': 'Cargando', 'loaded': 'Cargada',
     'driving_to_delivery': 'En ruta a la descarga', 'at_delivery': 'En descarga',
@@ -157,6 +170,7 @@ const Map<String, Map<String, String>> _stageLabels = {
   },
   'pl': {
     'pending': 'Oczekuje', 'arrived': 'Przybycie', 'assigned': 'Przydzielona', 'accepted': 'Zaakceptowana', 'rejected': 'Odrzucona',
+    'planned': 'Zaplanowana',
     'driving_to_pickup': 'W drodze do załadunku', 'at_pickup': 'Na załadunku',
     'loading': 'Załadunek trwa', 'loaded': 'Załadowana',
     'driving_to_delivery': 'W drodze do rozładunku', 'at_delivery': 'Na rozładunku',
@@ -169,8 +183,14 @@ String _pick(Map<String, Map<String, String>> table, String key, String lang) {
   return table[lang]?[key] ?? table['en']?[key] ?? key;
 }
 
-String tripStatusLabel(String status, String lang) =>
-    _pick(_statusLabels, status, lang);
+String tripStatusLabel(String status, String lang) {
+  final key = status.toString().trim().toLowerCase();
+  final direct = _statusLabels[lang]?[key] ?? _statusLabels['en']?[key];
+  if (direct != null && direct.isNotEmpty) return direct;
+  final human = key.replaceAll('_', ' ').replaceAll('-', ' ').trim();
+  if (human.isEmpty) return '';
+  return human[0].toUpperCase() + human.substring(1);
+}
 
 /// Stop status labels (pending / arrived / loading / unloading / completed).
 /// Unknown legacy values are humanised instead of leaking a raw enum such as

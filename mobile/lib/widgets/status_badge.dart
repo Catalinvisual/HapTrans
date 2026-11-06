@@ -18,16 +18,19 @@ class StatusBadge extends StatelessWidget {
     this.compact = false,
   });
 
+  /// The trip badge is built from the trip's own lifecycle status, which is the
+  /// same value the TMS, Planning and Dispatch display. Stop-level progress is
+  /// presented by the stop badges, never by relabelling the trip.
   factory StatusBadge.forTrip(
     Map<String, dynamic> trip,
     String locale, {
     String? audit,
     bool compact = false,
   }) {
-    final stage = tripStage(trip);
+    final status = (trip['status'] ?? 'planning').toString();
     return StatusBadge(
-      label: tripStageLabel(trip, locale),
-      color: stageColor(stage),
+      label: tripStatusLabel(status, locale),
+      color: tripStatusColor(status),
       audit: audit,
       compact: compact,
     );
