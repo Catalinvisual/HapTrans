@@ -153,7 +153,16 @@ String? tripOfferKind(Map<String, dynamic> trip) {
     return null;
   }
   if (status == 'driver_accepted') return 'start';
-  const started = ['started', 'loading', 'driving', 'in_transit', 'partially_delivered'];
+  const started = [
+    'started',
+    'loading',
+    'driving',
+    'unloading',
+    'at_pickup',
+    'at_delivery',
+    'in_transit',
+    'partially_delivered',
+  ];
   if (started.contains(status)) return null;
   // Every assigned-but-unworked trip — dispatched, assigned, planned, planning
   // or a legacy "ready" — starts with one decision: accept it.

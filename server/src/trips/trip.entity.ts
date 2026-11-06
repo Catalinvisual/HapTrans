@@ -20,6 +20,7 @@ export enum TripStatus {
   STARTED = 'started',
   LOADING = 'loading',
   DRIVING = 'driving',
+  UNLOADING = 'unloading',
   PARTIALLY_DELIVERED = 'partially_delivered',
   COMPLETED = 'completed',
   CLOSED = 'closed',

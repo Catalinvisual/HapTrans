@@ -45,7 +45,8 @@ const TRIP_STATUS_FLOW: Record<string, string[]> = {
   [TripStatus.DRIVER_ACCEPTED]: [TripStatus.DISPATCHED, TripStatus.LOADING, TripStatus.STARTED, TripStatus.DRIVING, TripStatus.CANCELLED],
   [TripStatus.LOADING]: [TripStatus.STARTED, TripStatus.DRIVING, TripStatus.CANCELLED],
   [TripStatus.STARTED]: [TripStatus.LOADING, TripStatus.DRIVING, TripStatus.PARTIALLY_DELIVERED, TripStatus.COMPLETED, TripStatus.CANCELLED],
-  [TripStatus.DRIVING]: [TripStatus.PARTIALLY_DELIVERED, TripStatus.COMPLETED, TripStatus.CANCELLED],
+  [TripStatus.DRIVING]: [TripStatus.UNLOADING, TripStatus.PARTIALLY_DELIVERED, TripStatus.COMPLETED, TripStatus.CANCELLED],
+  [TripStatus.UNLOADING]: [TripStatus.PARTIALLY_DELIVERED, TripStatus.COMPLETED, TripStatus.CANCELLED],
   [TripStatus.PARTIALLY_DELIVERED]: [TripStatus.DRIVING, TripStatus.COMPLETED, TripStatus.CANCELLED],
   [TripStatus.COMPLETED]: [TripStatus.CLOSED, TripStatus.CANCELLED],
   [TripStatus.CLOSED]: [],
@@ -335,6 +336,27 @@ export class TripsService {
       `);
     } catch (e: any) {
       console.warn(`Failed to auto-migrate stop milestones: ${e?.message}`);
+    }
+
+    // Existing trips can carry a stale operational status (for example
+    // "driving" while a delivery stop is already unloading). Re-derive it from
+    // the stops once so TMS, Planning and the phone read the same record.
+    try {
+      const stale = await this.repo.find({
+        where: { status: In(['started', 'loading', 'driving', 'partially_delivered', 'in_transit']) },
+        relations: ['stops'],
+      });
+      let repaired = 0;
+      for (const trip of stale) {
+        const derived = deriveTripStatus(((trip as any).stops || []) as any[]);
+        if (derived && derived !== trip.status) {
+          await this.repo.update(trip.id, { status: derived });
+          repaired++;
+        }
+      }
+      if (repaired > 0) console.log(`Trip statuses re-derived from stops: ${repaired}`);
+    } catch (e: any) {
+      console.warn(`Trip status reconciliation skipped: ${e?.message}`);
     }
   }
 

@@ -53,7 +53,18 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
     // Filter into 3 canonical buckets
     final currentTrips = allTrips.where((t) {
       final s = (t['status'] ?? '').toString();
-      return ['dispatched', 'driver_received', 'driver_accepted', 'in_transit', 'started', 'loading', 'driving', 'partially_delivered', 'assigned'].contains(s);
+      return [
+        'dispatched',
+        'driver_received',
+        'driver_accepted',
+        'in_transit',
+        'started',
+        'loading',
+        'driving',
+        'unloading',
+        'partially_delivered',
+        'assigned',
+      ].contains(s);
     }).toList();
 
     final upcomingTrips = allTrips.where((t) {

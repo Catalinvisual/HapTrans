@@ -19,6 +19,32 @@ import { AdrRulesEngine, AdrItemInput } from '../adr/adr-rules.engine';
  * A loading reference is never reused as a delivery reference, including for
  * legacy clients that put the loading reference in the shared reference field.
  */
+/**
+ * Operational references of an order, derived from the order's own stops.
+ * Used only to fill missing order fields; existing order values always win.
+ * A delivery reference is discarded when it is the loading reference, because
+ * legacy rows stored the loading number on both stops.
+ */
+export function referencesFromStops(stops: any[]): { loading: string | null; unloading: string | null } {
+  const list = (stops || []).filter(Boolean);
+  const typeOf = (stop: any): 'pickup' | 'delivery' => {
+    const t = String(stop?.type ?? '').trim().toLowerCase();
+    if (['delivery', 'dropoff', 'drop-off', 'unloading', 'unload', 'drop'].includes(t)) return 'delivery';
+    if (['pickup', 'pick-up', 'collection', 'loading', 'load'].includes(t)) return 'pickup';
+    return Number(stop?.sequence) >= 2 ? 'delivery' : 'pickup';
+  };
+  const firstRef = (type: 'pickup' | 'delivery', exclude?: string | null) => {
+    for (const stop of list) {
+      if (typeOf(stop) !== type) continue;
+      const ref = String(stop?.reference ?? '').trim();
+      if (ref && ref !== exclude) return ref;
+    }
+    return null;
+  };
+  const loading = firstRef('pickup');
+  return { loading, unloading: firstRef('delivery', loading) };
+}
+
 export function stopReferenceFor(stopDto: any, type: string): string | null {
   const isPickup = String(type || '').toLowerCase() === 'pickup';
   const loading = String(stopDto?.loadingReference ?? '').trim();
@@ -57,6 +83,31 @@ export class OrdersService implements OnModuleInit {
       `);
     } catch (e: any) {
       this.logger.warn(`Failed to auto-migrate orders.createdById: ${e?.message}`);
+    }
+
+    // The order record is the source of truth for the operational references.
+    // Older TMS/import rows only filled the stop references, so the missing
+    // order fields are filled once from the order's own stops. Existing values
+    // are never overwritten and the customer reference is never touched.
+    try {
+      const incomplete = await this.repo.createQueryBuilder('o')
+        .leftJoinAndSelect('o.stops', 's')
+        .where('o.loadingReference IS NULL OR o.unloadingReference IS NULL')
+        .getMany();
+      let repaired = 0;
+      for (const order of incomplete) {
+        const derived = referencesFromStops((order as any).stops || []);
+        const patch: any = {};
+        if (!order.loadingReference && derived.loading) patch.loadingReference = derived.loading;
+        if (!order.unloadingReference && derived.unloading) patch.unloadingReference = derived.unloading;
+        if (Object.keys(patch).length > 0) {
+          await this.repo.update(order.id, patch);
+          repaired++;
+        }
+      }
+      if (repaired > 0) this.logger.log(`Order references backfilled from stops: ${repaired}`);
+    } catch (e: any) {
+      this.logger.warn(`Order reference backfill skipped: ${e?.message}`);
     }
   }
 
@@ -205,6 +256,8 @@ export class OrdersService implements OnModuleInit {
         }
       }
 
+      const referenceHints = referencesFromStops(processedStops);
+
       if (dto.clientId && hasStops && hasCargo && processedStops.every(s => s.latitude && s.longitude)) {
         status = OrderStatus.NEW; // Replaced UNASSIGNED
       }
@@ -238,8 +291,8 @@ export class OrdersService implements OnModuleInit {
         updatedAt: now,
         internalReference: dto.internalReference || orderNumber,
         customerReference: dto.customerReference || null,
-          loadingReference: dto.loadingReference || null,
-          unloadingReference: dto.unloadingReference || null,
+        loadingReference: dto.loadingReference || referenceHints.loading || null,
+        unloadingReference: dto.unloadingReference || referenceHints.unloading || null,
         contactPerson: dto.contactPerson || null,
         contactPhone: dto.contactPhone || null,
         equipmentRequirements: Array.isArray(dto.equipmentRequirements) ? dto.equipmentRequirements : [],
@@ -467,6 +520,14 @@ export class OrdersService implements OnModuleInit {
           }
           processedStops.push({ ...stopDto, latitude: lat, longitude: lng });
         }
+      }
+
+      // Keep the order record authoritative for the operational references even
+      // when the TMS only sent them on the stop rows.
+      if (processedStops.length > 0) {
+        const hints = referencesFromStops(processedStops);
+        if (!('loadingReference' in updateData) && hints.loading) updateData.loadingReference = hints.loading;
+        if (!('unloadingReference' in updateData) && hints.unloading) updateData.unloadingReference = hints.unloading;
       }
 
       // Auto-status transition: draft → unassigned if now complete

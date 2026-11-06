@@ -244,11 +244,11 @@ export function deriveTripStatus(stops: any[]): string {
   const anyPickupActive = pickups.some((s) => ['arrived', 'loading'].includes(s.status));
 
   if (anyDeliveryStarted) {
-    return deliveries.every((s) => s.status === 'completed') && !allPickupsCompleted
-      ? 'partially_delivered'
-      : deliveries.some((s) => s.status === 'completed')
-        ? 'partially_delivered'
-        : 'driving';
+    if (deliveries.some((s) => s.status === 'completed')) return 'partially_delivered';
+    // The delivery operation is the trip's current stage: once unloading has
+    // started the trip is "unloading", not still "driving to delivery".
+    if (deliveries.some((s) => s.status === 'unloading')) return 'unloading';
+    return 'driving';
   }
   if (allPickupsCompleted) return 'driving';
   if (anyPickupActive) return 'loading';
