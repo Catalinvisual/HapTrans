@@ -304,6 +304,8 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             _headerCard(locale, l),
+            const SizedBox(height: 12),
+            _reportRow(l),
             const SizedBox(height: 14),
             _nextStepCard(l, locale),
             if (pickups.isNotEmpty) ...[
@@ -321,10 +323,6 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
                 _stopCard(deliveries[i], i + 1, deliveries.length, l, locale),
             ],
             const SizedBox(height: 18),
-            _reportRow(l),
-            const SizedBox(height: 14),
-            _vehicleCard(l, locale),
-            const SizedBox(height: 14),
             _documentsCard(l),
             const SizedBox(height: 14),
             _historyCard(l, locale),
@@ -383,6 +381,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
               _chip(Icons.rv_hookup, tripTrailerPlate(tripData)),
               _chip(Icons.inventory_2_outlined, '${_orders.length} ${l.translate('orders_count')}'),
               _chip(Icons.place_outlined, '${stops.length} ${l.translate('stops_count')}'),
+              _chip(Icons.person_outline, _driverName),
             ],
           ),
         ],
@@ -541,7 +540,6 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
   ) {
     final isPickup = stopIsPickup(stop);
     final status = stopStatus(stop);
-    final stage = tripStage(tripData);
     final isActive = activeStopOf(tripData)?['id']?.toString() == stop['id']?.toString();
     final color = isPickup ? const Color(0xFF2563EB) : const Color(0xFF0F766E);
     final ids = stopIdentifiers(tripData, stop);
@@ -714,23 +712,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
             for (final d in docs) _documentRow(d, l),
           ],
 
-          if (isActive && status != 'completed') ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(Icons.touch_app_outlined, size: 14, color: kTextSecondary),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    l.translate('next_step'),
-                    style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: kTextSecondary),
-                  ),
-                ),
-              ],
-            ),
-          ],
-          if (isActive && status == 'completed') const SizedBox.shrink(),
-          if (stage == 'completed' && stop['completedAt'] != null) const SizedBox.shrink(),
+
         ],
       ),
     );
@@ -834,19 +816,12 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
     );
   }
 
-  Widget _vehicleCard(AppLocalizations l, String locale) {
+  String get _driverName {
     final driver = tripData['driver'];
-    final driverName = driver is Map
-        ? ((driver['user'] is Map ? driver['user']['name'] : null) ?? driver['name'] ?? '—').toString()
-        : '—';
-    return _panel(
-      title: l.translate('vehicle_section'),
-      children: [
-        _kv(l.translate('truck'), tripTruckPlate(tripData)),
-        _kv(l.translate('trailer'), tripTrailerPlate(tripData)),
-        _kv(l.translate('driver'), driverName),
-      ],
-    );
+    if (driver is! Map) return '—';
+    final user = driver['user'];
+    final name = (user is Map ? user['name'] : null) ?? driver['name'];
+    return (name == null || name.toString().trim().isEmpty) ? '—' : name.toString();
   }
 
   Widget _reportRow(AppLocalizations l) {

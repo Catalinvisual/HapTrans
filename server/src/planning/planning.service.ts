@@ -3070,6 +3070,20 @@ export class PlanningService {
     if (!trip) throw new NotFoundException('Trip not found.');
     this.assertDriverOwnsTrip(trip, user);
     if (trip.status === 'driver_accepted') return trip; // idempotent
+    const acceptable = [
+      'planning',
+      'planned',
+      'confirmed',
+      'assigned',
+      'dispatched',
+      'driver_received',
+      'ready',
+    ];
+    if (!acceptable.includes(String(trip.status))) {
+      throw new BadRequestException(
+        `Trip ${trip.tripNumber || tripId} cannot be accepted from status "${trip.status}".`,
+      );
+    }
     trip.status = 'driver_accepted';
     trip.driverAcceptedAt = new Date();
     await this.tripRepo.save(trip);

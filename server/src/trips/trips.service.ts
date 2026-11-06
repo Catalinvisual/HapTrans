@@ -3,6 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, Between } from 'typeorm';
 import { Trip, TripStatus } from './trip.entity';
+import { Order } from '../orders/order.entity';
 import { Stop, StopStatus } from './stop.entity';
 import { Truck } from '../trucks/truck.entity';
 import { TripCost } from './trip-cost.entity';
@@ -30,6 +31,8 @@ import {
   normalizeStopStatus,
   normalizeStopType,
   driverActionForStop,
+  driverTripPriority,
+  sortDriverTrips,
   resolveStatusSource,
   timestampsForStop,
 } from './trip-progress';
@@ -199,7 +202,18 @@ export class TripsService {
         });
       }
     }
-    return trips;
+
+    // The backend decides which trip is the driver's current job. A trip that
+    // is already being unloaded always outranks a newer future assignment.
+    const ordered = sortDriverTrips(trips);
+    let currentMarked = false;
+    for (const trip of ordered) {
+      const isCurrent = !currentMarked && driverTripPriority(trip) < 3;
+      (trip as any).isCurrentTrip = isCurrent;
+      (trip as any).tripPriority = driverTripPriority(trip);
+      if (isCurrent) currentMarked = true;
+    }
+    return ordered;
   }
 
   /**
@@ -783,6 +797,21 @@ export class TripsService {
       const orderIds = new Set<string>(
         (stop.tasks || []).map((t: any) => t?.order?.id).filter(Boolean),
       );
+      // Split trips link orders to a stop through its tasks. A trip that was
+      // never split carries exactly one order on the trip itself; updating that
+      // order keeps the TMS fulfilment state honest without guessing when a
+      // multi-order trip has no task links.
+      if (orderIds.size === 0) {
+        try {
+          const tripOrders = await this.repo.manager.getRepository(Order).find({
+            where: { trip: { id: trip.id } },
+            select: ['id'],
+          });
+          if (tripOrders.length === 1) orderIds.add(String(tripOrders[0].id));
+        } catch (e: any) {
+          console.warn(`Order linkage lookup skipped: ${e?.message}`);
+        }
+      }
       for (const orderId of orderIds) {
         await this.repo.manager.update('Order', { id: orderId }, { status: orderStatus });
       }

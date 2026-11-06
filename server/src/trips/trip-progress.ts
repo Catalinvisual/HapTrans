@@ -168,6 +168,62 @@ export function deriveOrderStatusForStop(stopType: string, status: string): stri
   return null;
 }
 
+/** Priority buckets used to decide which trip is the driver's current job. */
+const DRIVER_FINISHED_STATUSES = ['completed', 'closed', 'cancelled', 'rejected'];
+const DRIVER_ACTIVE_STATUSES = [
+  'started',
+  'loading',
+  'driving',
+  'partially_delivered',
+  'in_transit',
+  'at_pickup',
+  'at_delivery',
+  'unloading',
+];
+
+/**
+ * 0 = work already under way, 1 = accepted but not started, 2 = waiting for
+ * acceptance (today before tomorrow), 3 = finished. A newer assignment can
+ * therefore never overtake a trip the driver is still unloading.
+ */
+export function driverTripPriority(trip: any): number {
+  const status = String(trip?.status ?? '').toLowerCase();
+  if (DRIVER_FINISHED_STATUSES.includes(status)) return 3;
+  if (DRIVER_ACTIVE_STATUSES.includes(status)) return 0;
+  if (status === 'driver_accepted') return 1;
+  return 2;
+}
+
+function tripTime(value: any): number {
+  const time = value ? new Date(value).getTime() : NaN;
+  return Number.isFinite(time) ? time : Number.MAX_SAFE_INTEGER;
+}
+
+/** Stable operational ordering: active first, then earliest scheduled trip. */
+export function sortDriverTrips(trips: any[]): any[] {
+  return [...(trips || [])].sort((a, b) => {
+    const pa = driverTripPriority(a);
+    const pb = driverTripPriority(b);
+    if (pa !== pb) return pa - pb;
+    if (pa === 3) {
+      // Newest finished trip first; a cancelled trip without a completion date
+      // must not jump ahead of a trip that actually delivered.
+      const finishedAt = (trip: any) => {
+        const time = trip?.completedAt ?? trip?.actualArrival ?? trip?.updatedAt ?? trip?.createdAt;
+        const parsed = time ? new Date(time).getTime() : NaN;
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+      const delta = finishedAt(b) - finishedAt(a);
+      if (delta !== 0) return delta;
+      return String(b?.tripNumber ?? '').localeCompare(String(a?.tripNumber ?? ''));
+    }
+    const ta = tripTime(a?.plannedDeparture ?? a?.createdAt);
+    const tb = tripTime(b?.plannedDeparture ?? b?.createdAt);
+    if (ta !== tb) return ta - tb;
+    return String(a?.tripNumber ?? '').localeCompare(String(b?.tripNumber ?? ''));
+  });
+}
+
 /**
  * Trip status derived from the stops that actually exist, never from the last
  * button that was pressed. Partial completion stays partial.

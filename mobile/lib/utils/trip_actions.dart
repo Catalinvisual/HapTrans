@@ -143,11 +143,19 @@ TripNextAction? nextActionForTrip(Map<String, dynamic> trip) {
 }
 
 /// Trip-level offer that has to happen before the driver can work a stop.
+///
+/// A newly assigned trip starts with **Accept trip**, not with an extra
+/// "received" acknowledgement: the driver has one decision to make and the
+/// backend records who accepted and when.
 String? tripOfferKind(Map<String, dynamic> trip) {
   final status = (trip['status'] ?? '').toString();
-  if (status == 'cancelled' || status == 'completed' || status == 'closed') return null;
-  if (status == 'dispatched') return 'receive';
-  if (status == 'driver_received') return 'accept';
+  if (status == 'cancelled' || status == 'completed' || status == 'closed' || status == 'rejected') {
+    return null;
+  }
   if (status == 'driver_accepted') return 'start';
-  return null;
+  const started = ['started', 'loading', 'driving', 'in_transit', 'partially_delivered'];
+  if (started.contains(status)) return null;
+  // Every assigned-but-unworked trip — dispatched, assigned, planned, planning
+  // or a legacy "ready" — starts with one decision: accept it.
+  return 'accept';
 }
