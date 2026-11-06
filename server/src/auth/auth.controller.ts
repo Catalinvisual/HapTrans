@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, UseGuards, Request, Response, Logger } from '@nestjs/common';
+import { Controller, Post, Body, Get, Header, UseGuards, Request, Response, Logger } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
@@ -141,10 +141,17 @@ export class AuthController {
   }
 
   @Get('app-version')
+  @Header('Cache-Control', 'no-store, no-cache, max-age=0, must-revalidate')
   getAppVersion() {
-    const apk = 'HapTrans-v21.apk';
+    const apk = 'HapTrans-v22.apk';
+    const versionCode = 22;
+    const versionName = '1.0.22';
     return {
-      versionCode: 21,
+      // Legacy fields stay for v21 clients; new clients compare latestVersionCode.
+      latestVersionCode: versionCode,
+      latestVersionName: versionName,
+      versionCode,
+      versionName,
       url: `https://haptrans-production.up.railway.app/uploads/${apk}`,
       sha256: this.apkSha256(apk),
       mandatory: false,

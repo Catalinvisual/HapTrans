@@ -14,6 +14,7 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final updateProv = context.watch<UpdateProvider>();
     final locale = auth.locale.languageCode;
     final user = auth.user;
 
@@ -169,7 +170,7 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 24),
           Center(
             child: Text(
-              '${{'ro': 'Versiunea aplicației: ', 'en': 'App Version: ', 'nl': 'App Versie: ', 'de': 'App Version: ', 'fr': 'Version de l\'application: ', 'es': 'Versión de la app: ', 'pl': 'Wersja aplikacji: ' }[locale] ?? 'App Version: '}$kAppVersionCode',
+              '${{'ro': 'Versiunea aplicației: ', 'en': 'App Version: ', 'nl': 'App Versie: ', 'de': 'App Version: ', 'fr': 'Version de l\'application: ', 'es': 'Versión de la app: ', 'pl': 'Wersja aplikacji: ' }[locale] ?? 'App Version: '}${updateProv.installedVersionName ?? '—'}${updateProv.installedVersionCode == null ? '' : ' (${updateProv.installedVersionCode})'}',
               style: const TextStyle(color: Colors.grey, fontSize: 12),
             ),
           ),

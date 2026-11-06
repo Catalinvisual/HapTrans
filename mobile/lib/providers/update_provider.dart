@@ -3,8 +3,11 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import '../services/apk_inspector.dart';
 import '../utils/constants.dart';
+import '../utils/version_check.dart';
 
 class UpdateProvider extends ChangeNotifier {
   bool _hasUpdate = false;
@@ -18,6 +21,10 @@ class UpdateProvider extends ChangeNotifier {
   double _downloadProgress = 0.0;
   DateTime? _lastDismissedAt;
   bool _dialogShowing = false;
+  int? _installedVersionCode;
+  String? _installedVersionName;
+  String? _installedPackageName;
+  String? _latestVersionName;
 
   bool get hasUpdate => _hasUpdate;
   int? get serverVersionCode => _serverVersionCode;
@@ -26,6 +33,12 @@ class UpdateProvider extends ChangeNotifier {
   bool get isChecking => _isChecking;
   bool get isDownloading => _isDownloading;
   double get downloadProgress => _downloadProgress;
+  int? get installedVersionCode => _installedVersionCode;
+  String? get installedVersionName => _installedVersionName;
+
+  String get _installedLabel => _installedVersionName == null
+      ? 'v$_installedVersionCode'
+      : 'v$_installedVersionName ($_installedVersionCode)';
 
   Future<void> checkForUpdates({
     BuildContext? context,
@@ -35,24 +48,46 @@ class UpdateProvider extends ChangeNotifier {
   }) async {
     if (_isChecking || _isDownloading) return;
     _isChecking = true;
+    // Never keep a stale offer while package metadata is being re-read.
+    _hasUpdate = false;
     notifyListeners();
 
     try {
+      // PackageInfo reads the APK that Android actually installed. buildNumber
+      // is Android's versionCode, including after the installer replaces the
+      // running application.
+      final package = await PackageInfo.fromPlatform();
+      final installedCode = parseVersionCode(package.buildNumber);
+      if (installedCode == null) {
+        throw const FormatException('Installed Android versionCode is unavailable');
+      }
+      _installedVersionCode = installedCode;
+      _installedVersionName = package.version;
+      _installedPackageName = package.packageName;
+
       final dio = Dio(BaseOptions(
         connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 10),
       ));
-      final res = await dio.get('$kApiUrl/auth/app-version');
+      final res = await dio.get(
+        '$kApiUrl/auth/app-version',
+        queryParameters: {'_': DateTime.now().millisecondsSinceEpoch},
+        options: Options(headers: {'Cache-Control': 'no-cache', 'Pragma': 'no-cache'}),
+      );
       final data = res.data;
-      final serverCode = (data['versionCode'] ?? 0) as int;
+      final serverCode = parseVersionCode(data['latestVersionCode'] ?? data['versionCode']);
+      if (serverCode == null) {
+        throw const FormatException('Published versionCode is invalid');
+      }
       _downloadUrl = data['url']?.toString();
       final sha = data['sha256']?.toString().trim().toLowerCase();
       _expectedSha256 = (sha != null && sha.length == 64) ? sha : null;
       _messages = data['message'] is Map ? Map<String, dynamic>.from(data['message']) : null;
       _isMandatory = data['mandatory'] == true;
       _serverVersionCode = serverCode;
+      _latestVersionName = (data['latestVersionName'] ?? data['versionName'])?.toString();
 
-      if (serverCode > kAppVersionCode) {
+      if (isUpdateAvailable(installedVersionCode: installedCode, latestVersionCode: serverCode)) {
         _hasUpdate = true;
         notifyListeners();
 
@@ -77,13 +112,13 @@ class UpdateProvider extends ChangeNotifier {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text({
-                'ro': 'Folosiți deja ultima versiune (v$kAppVersionCode).',
-                'en': 'You are already using the latest version (v$kAppVersionCode).',
-                'nl': 'U gebruikt al de nieuwste versie (v$kAppVersionCode).',
-                'de': 'Sie verwenden bereits die neueste Version (v$kAppVersionCode).',
-                'fr': 'Vous utilisez déjà la dernière version (v$kAppVersionCode).',
-                'es': 'Ya estás usando la última versión (v$kAppVersionCode).',
-                'pl': 'Masz już najnowszą wersję (v$kAppVersionCode).'
+                'ro': 'Folosiți deja ultima versiune ($_installedLabel).',
+                'en': 'You are already using the latest version ($_installedLabel).',
+                'nl': 'U gebruikt al de nieuwste versie ($_installedLabel).',
+                'de': 'Sie verwenden bereits die neueste Version ($_installedLabel).',
+                'fr': 'Vous utilisez déjà la dernière version ($_installedLabel).',
+                'es': 'Ya estás usando la última versión ($_installedLabel).',
+                'pl': 'Masz już najnowszą wersję ($_installedLabel).'
               }[locale] ?? 'You are already using the latest version.'),
               backgroundColor: kSuccess,
             ),
@@ -185,7 +220,7 @@ class UpdateProvider extends ChangeNotifier {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                'v$kAppVersionCode  ➔  v${_serverVersionCode ?? ''}',
+                '$_installedLabel  ➔  v${_latestVersionName ?? ''} (${_serverVersionCode ?? ''})',
                 style: const TextStyle(fontWeight: FontWeight.bold, color: kPrimaryDark, fontSize: 13),
               ),
             ),
@@ -268,7 +303,7 @@ class UpdateProvider extends ChangeNotifier {
       if (await file.exists()) await file.delete();
 
       final dio = Dio();
-      await dio.download(
+      final response = await dio.download(
         _downloadUrl!,
         filePath,
         onReceiveProgress: (received, total) {
@@ -280,6 +315,14 @@ class UpdateProvider extends ChangeNotifier {
           }
         },
       );
+      if (response.statusCode != 200) {
+        throw Exception('APK download returned HTTP ${response.statusCode}');
+      }
+      final declaredLength = int.tryParse(response.headers.value('content-length') ?? '');
+      if (declaredLength != null && declaredLength > 0 && await file.length() != declaredLength) {
+        await file.delete();
+        throw Exception('APK download length does not match the server response');
+      }
 
       // Android re-checks the signature at install time; the checksum proves
       // the bytes came from our server and were not truncated in transit.
@@ -299,15 +342,34 @@ class UpdateProvider extends ChangeNotifier {
         }
       }
 
+      // The checksum proves the bytes; Android's PackageManager proves the
+      // package identity, versionCode and signing certificate before install.
+      final apk = await ApkInspector.inspect(filePath);
+      if (_installedPackageName != null && apk.packageName != _installedPackageName) {
+        await file.delete();
+        throw Exception('Downloaded APK has a different package identity');
+      }
+      if (_serverVersionCode != null && apk.versionCode != _serverVersionCode) {
+        await file.delete();
+        throw Exception('Downloaded APK versionCode does not match the published version');
+      }
+      if (!apk.signatureMatches) {
+        await file.delete();
+        throw Exception('Downloaded APK signing certificate does not match the installed app');
+      }
+
       if (context.mounted && Navigator.canPop(context)) {
         Navigator.pop(context); // Close progress dialog
       }
       // Hand the APK to Android's package installer explicitly; Android then
       // verifies its signature and (for sideloaded apps) Play Protect scans it.
-      await OpenFilex.open(
+      final opened = await OpenFilex.open(
         filePath,
         type: 'application/vnd.android.package-archive',
       );
+      if (opened.type != ResultType.done) {
+        throw Exception(opened.message);
+      }
     } catch (e) {
       if (context.mounted && Navigator.canPop(context)) {
         Navigator.pop(context);
