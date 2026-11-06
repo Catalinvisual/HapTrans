@@ -116,6 +116,7 @@ export class TripsService {
       .leftJoinAndSelect('orders.cargoItems', 'cargoItems')
       .leftJoinAndSelect('orders.stops', 'orderStops')
       .leftJoinAndSelect('orders.client', 'orderClient')
+      .leftJoinAndSelect('orders.documents', 'orderDocuments')
       .leftJoinAndSelect('trip.documents', 'documents')
       .leftJoinAndSelect('documents.order', 'documentOrder')
       .leftJoinAndSelect('trip.costs', 'costs')
@@ -135,7 +136,25 @@ export class TripsService {
   private decorateDriverTrips(trips: Trip[]) {
     for (const trip of trips || []) {
       const orders = ((trip as any).orders || []) as any[];
-      const documents = ((trip as any).documents || []) as any[];
+
+      // Documents are attached to either the trip or one of its orders; the
+      // driver must see both, deduplicated, because a CMR usually hangs off the
+      // order while a POD hangs off the trip.
+      const orderDocuments = orders.flatMap((o) => ((o.documents || []) as any[]));
+      const byId = new Map<string, any>();
+      for (const doc of [...(((trip as any).documents || []) as any[]), ...orderDocuments]) {
+        if (doc?.id) byId.set(String(doc.id), doc);
+      }
+      const documents = [...byId.values()];
+      (trip as any).documents = documents;
+
+      // A trip stage must never contradict the stops the driver already worked
+      // (for example "loading" while the truck is at the delivery address).
+      const operational = ['started', 'loading', 'driving', 'partially_delivered', 'in_transit'];
+      const derivedStage = deriveTripStatus(((trip as any).stops || []) as any[]);
+      if (operational.includes(String((trip as any).status)) && derivedStage) {
+        (trip as any).status = derivedStage;
+      }
       for (const stop of ((trip as any).stops || []) as any[]) {
         stop.type = normalizeStopType(stop.type, stop.sequence);
         stop.status = normalizeStopStatus(stop.status);
@@ -145,10 +164,13 @@ export class TripsService {
         const taskOrderIds = new Set(
           ((stop.tasks || []) as any[]).map((t) => t?.order?.id).filter(Boolean).map(String),
         );
-        const stopOrders = orders.filter((o) => {
+        let stopOrders = orders.filter((o) => {
           if (taskOrderIds.has(String(o.id))) return true;
           return ((o.stops || []) as any[]).some((s) => String(s.id) === String(stop.id));
         });
+        // Single-order trips have no ambiguity, so the card still shows the
+        // order and its cargo even when the TMS never linked it to the stop.
+        if (stopOrders.length === 0 && orders.length === 1) stopOrders = orders;
         stop.orders = stopOrders;
 
         const action = driverActionForStop(stop);
