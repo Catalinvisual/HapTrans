@@ -27,6 +27,9 @@ import {
   deriveTripStatus,
   isDriverActor,
   isStopStatus,
+  normalizeStopStatus,
+  normalizeStopType,
+  driverActionForStop,
   resolveStatusSource,
   timestampsForStop,
 } from './trip-progress';
@@ -91,7 +94,9 @@ export class TripsService {
     if (!user) return [];
     const userId = user.id;
     if (user.role === 'admin' || user.role === 'dispatcher') {
-      return this.findAll();
+      // Same decorated shape as a driver gets, so the TMS previews and any
+      // support call see exactly the state the phone works from.
+      return this.decorateDriverTrips(await this.attachLastStatusEvents(await this.findAll()));
     }
     // A trip can be assigned through its own driver record or through the
     // driver of the truck it runs on. Both must reach the phone; scoping by the
@@ -112,11 +117,50 @@ export class TripsService {
       .leftJoinAndSelect('orders.stops', 'orderStops')
       .leftJoinAndSelect('orders.client', 'orderClient')
       .leftJoinAndSelect('trip.documents', 'documents')
+      .leftJoinAndSelect('documents.order', 'documentOrder')
       .leftJoinAndSelect('trip.costs', 'costs')
       .where('driverUser.id = :userId OR driver.id = :userId OR truckDriverUser.id = :userId', { userId })
       .orderBy('trip.createdAt', 'DESC')
       .getMany();
-    return this.attachLastStatusEvents(trips);
+    return this.decorateDriverTrips(await this.attachLastStatusEvents(trips));
+  }
+
+  /**
+   * Gives the driver app one authoritative view per stop: normalised type and
+   * status, the single action the server will accept next, the orders carried
+   * by that stop and its own documents. Planning the UI from this payload (and
+   * validating the same rule on PATCH) is what stops "Start loading" from
+   * appearing at a delivery address.
+   */
+  private decorateDriverTrips(trips: Trip[]) {
+    for (const trip of trips || []) {
+      const orders = ((trip as any).orders || []) as any[];
+      const documents = ((trip as any).documents || []) as any[];
+      for (const stop of ((trip as any).stops || []) as any[]) {
+        stop.type = normalizeStopType(stop.type, stop.sequence);
+        stop.status = normalizeStopStatus(stop.status);
+        stop.lat = stop.latitude ?? null;
+        stop.lng = stop.longitude ?? null;
+
+        const taskOrderIds = new Set(
+          ((stop.tasks || []) as any[]).map((t) => t?.order?.id).filter(Boolean).map(String),
+        );
+        const stopOrders = orders.filter((o) => {
+          if (taskOrderIds.has(String(o.id))) return true;
+          return ((o.stops || []) as any[]).some((s) => String(s.id) === String(stop.id));
+        });
+        stop.orders = stopOrders;
+
+        const action = driverActionForStop(stop);
+        stop.allowedActions = action ? [action] : [];
+
+        const orderIds = new Set(stopOrders.map((o) => String(o.id)));
+        stop.documents = documents.filter(
+          (d) => d?.order && orderIds.has(String(d.order.id)),
+        );
+      }
+    }
+    return trips;
   }
 
   /**
@@ -685,16 +729,17 @@ export class TripsService {
       throw new BadRequestException(`Stare de oprire necunoscută: ${status} (acceptate: ${STOP_STATUSES.join(', ')})`);
     }
 
-    const previous = String(stop.status || 'pending');
+    const stopType = normalizeStopType(stop.type, stop.sequence);
+    const previous = normalizeStopStatus(stop.status);
     // Repeated taps are absorbed instead of creating a second event.
     if (previous === next) return this.findOne(trip.id);
-    assertStopTransition(stop.type || 'pickup', previous, next);
+    assertStopTransition(stopType, previous, next);
 
     const at = new Date();
     Object.assign(stop, { status: next }, timestampsForStop(next, at));
     await this.repo.manager.save('Stop', stop);
 
-    const orderStatus = deriveOrderStatusForStop(stop.type || 'pickup', next);
+    const orderStatus = deriveOrderStatusForStop(stopType, next);
     if (orderStatus) {
       const orderIds = new Set<string>(
         (stop.tasks || []).map((t: any) => t?.order?.id).filter(Boolean),
@@ -710,7 +755,7 @@ export class TripsService {
     const derived = deriveTripStatus(stops);
     const tripPatch: any = {};
     if (derived && derived !== trip.status) tripPatch.status = derived;
-    if (stop.type === 'pickup' && next === 'completed' && !trip.actualDeparture) {
+    if (stopType === 'pickup' && next === 'completed' && !trip.actualDeparture) {
       tripPatch.actualDeparture = at;
     }
     if (derived === 'completed' && !trip.actualArrival) tripPatch.actualArrival = at;
@@ -720,7 +765,7 @@ export class TripsService {
     await this.actionLogs.logAction('Trip', trip.id, 'STATUS_CHANGED', user, {
       scope: 'stop',
       stopId: stop.id,
-      stopType: stop.type || 'pickup',
+      stopType,
       previousStatus: previous,
       newStatus: next,
       tripStatus: derived,

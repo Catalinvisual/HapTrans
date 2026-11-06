@@ -108,7 +108,7 @@ const Map<String, Map<String, String>> _statusLabels = {
 
 const Map<String, Map<String, String>> _stageLabels = {
   'ro': {
-    'pending': 'În așteptare', 'assigned': 'Alocat', 'accepted': 'Acceptat', 'rejected': 'Refuzat',
+    'pending': 'În așteptare', 'arrived': 'Sosit', 'assigned': 'Alocat', 'accepted': 'Acceptat', 'rejected': 'Refuzat',
     'driving_to_pickup': 'În drum spre încărcare', 'at_pickup': 'Sosire la încărcare',
     'loading': 'În curs de încărcare', 'loaded': 'Încărcat',
     'driving_to_delivery': 'În drum spre descărcare', 'at_delivery': 'Sosire la descărcare',
@@ -116,7 +116,7 @@ const Map<String, Map<String, String>> _stageLabels = {
     'delayed': 'Întârziat', 'cancelled': 'Anulat', 'exception': 'Problemă operațională',
   },
   'en': {
-    'pending': 'Pending', 'assigned': 'Assigned', 'accepted': 'Accepted', 'rejected': 'Rejected',
+    'pending': 'Pending', 'arrived': 'Arrived', 'assigned': 'Assigned', 'accepted': 'Accepted', 'rejected': 'Rejected',
     'driving_to_pickup': 'Driving to pickup', 'at_pickup': 'At pickup',
     'loading': 'Loading', 'loaded': 'Loaded',
     'driving_to_delivery': 'Driving to delivery', 'at_delivery': 'At delivery',
@@ -124,7 +124,7 @@ const Map<String, Map<String, String>> _stageLabels = {
     'delayed': 'Delayed', 'cancelled': 'Cancelled', 'exception': 'Operational issue',
   },
   'nl': {
-    'pending': 'In afwachting', 'assigned': 'Toegewezen', 'accepted': 'Geaccepteerd', 'rejected': 'Geweigerd',
+    'pending': 'In afwachting', 'arrived': 'Aangekomen', 'assigned': 'Toegewezen', 'accepted': 'Geaccepteerd', 'rejected': 'Geweigerd',
     'driving_to_pickup': 'Onderweg naar laden', 'at_pickup': 'Bij laadadres',
     'loading': 'Laden', 'loaded': 'Geladen',
     'driving_to_delivery': 'Onderweg naar lossen', 'at_delivery': 'Bij losadres',
@@ -132,7 +132,7 @@ const Map<String, Map<String, String>> _stageLabels = {
     'delayed': 'Vertraagd', 'cancelled': 'Geannuleerd', 'exception': 'Operationeel probleem',
   },
   'de': {
-    'pending': 'Ausstehend', 'assigned': 'Zugewiesen', 'accepted': 'Akzeptiert', 'rejected': 'Abgelehnt',
+    'pending': 'Ausstehend', 'arrived': 'Angekommen', 'assigned': 'Zugewiesen', 'accepted': 'Akzeptiert', 'rejected': 'Abgelehnt',
     'driving_to_pickup': 'Unterwegs zur Beladung', 'at_pickup': 'Bei Beladung',
     'loading': 'Beladung läuft', 'loaded': 'Beladen',
     'driving_to_delivery': 'Unterwegs zur Entladung', 'at_delivery': 'Bei Entladung',
@@ -140,7 +140,7 @@ const Map<String, Map<String, String>> _stageLabels = {
     'delayed': 'Verspätet', 'cancelled': 'Storniert', 'exception': 'Betriebsproblem',
   },
   'fr': {
-    'pending': 'En attente', 'assigned': 'Assignée', 'accepted': 'Acceptée', 'rejected': 'Refusée',
+    'pending': 'En attente', 'arrived': 'Arrivé', 'assigned': 'Assignée', 'accepted': 'Acceptée', 'rejected': 'Refusée',
     'driving_to_pickup': 'En route vers le chargement', 'at_pickup': 'Au chargement',
     'loading': 'Chargement en cours', 'loaded': 'Chargée',
     'driving_to_delivery': 'En route vers la livraison', 'at_delivery': 'À la livraison',
@@ -148,7 +148,7 @@ const Map<String, Map<String, String>> _stageLabels = {
     'delayed': 'Retardée', 'cancelled': 'Annulée', 'exception': 'Problème opérationnel',
   },
   'es': {
-    'pending': 'Pendiente', 'assigned': 'Asignada', 'accepted': 'Aceptada', 'rejected': 'Rechazada',
+    'pending': 'Pendiente', 'arrived': 'Llegado', 'assigned': 'Asignada', 'accepted': 'Aceptada', 'rejected': 'Rechazada',
     'driving_to_pickup': 'En ruta a la carga', 'at_pickup': 'En carga',
     'loading': 'Cargando', 'loaded': 'Cargada',
     'driving_to_delivery': 'En ruta a la descarga', 'at_delivery': 'En descarga',
@@ -156,7 +156,7 @@ const Map<String, Map<String, String>> _stageLabels = {
     'delayed': 'Retrasada', 'cancelled': 'Cancelada', 'exception': 'Incidencia operativa',
   },
   'pl': {
-    'pending': 'Oczekuje', 'assigned': 'Przydzielona', 'accepted': 'Zaakceptowana', 'rejected': 'Odrzucona',
+    'pending': 'Oczekuje', 'arrived': 'Przybycie', 'assigned': 'Przydzielona', 'accepted': 'Zaakceptowana', 'rejected': 'Odrzucona',
     'driving_to_pickup': 'W drodze do załadunku', 'at_pickup': 'Na załadunku',
     'loading': 'Załadunek trwa', 'loaded': 'Załadowana',
     'driving_to_delivery': 'W drodze do rozładunku', 'at_delivery': 'Na rozładunku',
@@ -172,8 +172,17 @@ String _pick(Map<String, Map<String, String>> table, String key, String lang) {
 String tripStatusLabel(String status, String lang) =>
     _pick(_statusLabels, status, lang);
 
-String stopStatusLabel(String? status, String lang) =>
-    _pick(_stageLabels, status ?? 'pending', lang);
+/// Stop status labels (pending / arrived / loading / unloading / completed).
+/// Unknown legacy values are humanised instead of leaking a raw enum such as
+/// "arrived" or "in_progress" into the driver UI.
+String stopStatusLabel(String? status, String lang) {
+  final key = (status ?? 'pending').toString().trim().toLowerCase();
+  final direct = _stageLabels[lang]?[key] ?? _stageLabels['en']?[key];
+  if (direct != null && direct.isNotEmpty) return direct;
+  final human = key.replaceAll('_', ' ').replaceAll('-', ' ').trim();
+  if (human.isEmpty) return '';
+  return human[0].toUpperCase() + human.substring(1);
+}
 
 List<Map<String, dynamic>> _stopsOf(Map<String, dynamic> trip) {
   final stops = List<Map<String, dynamic>>.from(trip['stops'] ?? []);
@@ -186,9 +195,9 @@ List<Map<String, dynamic>> _stopsOf(Map<String, dynamic> trip) {
 /// Prefers real stop evidence over the trip flag, so a trip marked "driving"
 /// whose next delivery stop is already reached reports "At delivery".
 String tripStage(Map<String, dynamic> trip) {
-  final status = (trip['status'] ?? '').toString();
+  final status = (trip['status'] ?? '').toString().toLowerCase();
   final stops = _stopsOf(trip);
-  final next = stops.where((s) => s['status'] != 'completed').toList();
+  final next = stops.where((s) => (s['status'] ?? 'pending').toString().toLowerCase() != 'completed').toList();
 
   if (status == 'cancelled') return 'cancelled';
   if (status == 'completed' || status == 'closed') return 'completed';
@@ -199,8 +208,8 @@ String tripStage(Map<String, dynamic> trip) {
 
   if (next.isEmpty) return 'completed';
   final current = next.first;
-  final isDelivery = current['type'] == 'delivery';
-  final stopStatus = (current['status'] ?? 'pending').toString();
+  final isDelivery = (current['type'] ?? '').toString().toLowerCase() == 'delivery';
+  final stopStatus = (current['status'] ?? 'pending').toString().toLowerCase();
 
   if (isDelivery) {
     if (stopStatus == 'arrived') return 'at_delivery';

@@ -13,6 +13,7 @@ import { UploadDocumentDto } from './dto/upload-document.dto';
 import { v2 as cloudinary } from 'cloudinary';
 import { randomBytes } from 'crypto';
 import { Readable } from 'stream';
+import { isDriverActor, actorOwnsTrip } from '../trips/trip-progress';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -41,8 +42,29 @@ export class DocumentsService implements OnModuleInit {
     }
   }
 
-  findAll() {
-    return this.repo.find({ relations: ['trip', 'order', 'uploadedBy'], order: { uploadedAt: 'DESC' } });
+  async findAll(user?: any) {
+    if (!user?.id) throw new ForbiddenException('Authentication required');
+    if (!isDriverActor(user)) {
+      return this.repo.find({ relations: ['trip', 'order', 'uploadedBy'], order: { uploadedAt: 'DESC' } });
+    }
+
+    // A driver only sees what he uploaded and what belongs to his own trips.
+    const trips = await this.tripRepo.find({
+      where: [
+        { driver: { user: { id: user.id } } },
+        { truck: { driver: { user: { id: user.id } } } },
+      ] as any,
+      relations: ['driver', 'driver.user', 'truck', 'truck.driver', 'truck.driver.user'],
+    });
+    const tripIds = trips.map((t) => t.id);
+    const where: any[] = [{ uploadedBy: { id: user.id } }];
+    if (tripIds.length > 0) where.push({ trip: { id: In(tripIds) } });
+
+    return this.repo.find({
+      where,
+      relations: ['trip', 'order', 'uploadedBy'],
+      order: { uploadedAt: 'DESC' },
+    });
   }
 
   getDebugDocs() {
@@ -57,8 +79,50 @@ export class DocumentsService implements OnModuleInit {
     return { success: true, updated: res.affected };
   }
 
-  findByTrip(tripId: string) {
+  async findByTrip(tripId: string, user?: any) {
+    await this.assertTripAccess(tripId, user);
     return this.repo.find({ where: { trip: { id: tripId } }, relations: ['uploadedBy', 'order'] });
+  }
+
+  /**
+   * Drivers may only see documents of trips they run. Dispatchers and admins keep
+   * their existing access, and an unauthenticated caller never reaches this code
+   * because the controller requires a JWT.
+   */
+  private async assertTripAccess(tripId: string, user?: any) {
+    if (!user?.id) throw new ForbiddenException('Authentication required');
+    if (!isDriverActor(user)) return;
+    const trip = await this.tripRepo.findOne({
+      where: { id: tripId },
+      relations: ['driver', 'driver.user', 'truck', 'truck.driver', 'truck.driver.user'],
+    });
+    if (!trip) throw new NotFoundException('Trip not found');
+    if (!actorOwnsTrip(trip, user)) {
+      throw new ForbiddenException('Cursa nu este alocată acestui șofer');
+    }
+  }
+
+  /** A document may be opened by the driver who uploaded it or who runs its trip. */
+  async assertDocumentAccess(documentId: string, user?: any) {
+    if (!user?.id) throw new ForbiddenException('Authentication required');
+    const document = await this.repo.findOne({
+      where: { id: documentId },
+      relations: [
+        'trip',
+        'trip.driver',
+        'trip.driver.user',
+        'trip.truck',
+        'trip.truck.driver',
+        'trip.truck.driver.user',
+        'uploadedBy',
+      ],
+    });
+    if (!document) throw new NotFoundException('Document not found');
+    if (!isDriverActor(user)) return document;
+    const uploadedByMe = document.uploadedBy && String((document.uploadedBy as any).id) === String(user.id);
+    if (document.trip && actorOwnsTrip(document.trip, user)) return document;
+    if (uploadedByMe) return document;
+    throw new ForbiddenException('Documentul nu aparține acestei curse');
   }
 
   findByOrder(orderId: string) {
@@ -496,12 +560,14 @@ export class DocumentsService implements OnModuleInit {
     return cloudinary.url(document.publicId, options);
   }
 
-  async getPreviewUrl(documentId: string) {
-    const document = await this.repo.findOne({ where: { id: documentId } });
-    if (!document) throw new NotFoundException('Document not found');
+  async getPreviewUrl(documentId: string, user?: any) {
+    const document: any = await this.assertDocumentAccess(documentId, user);
 
     return {
       url: this.generateSignedUrl(document, 60 * 60), // 1 hour
+      fileName: document.fileName || document.originalFilename || null,
+      documentType: document.documentType || document.type || null,
+      mimeType: document.mimeType || null,
     };
   }
 

@@ -6,6 +6,7 @@ import '../providers/trip_provider.dart';
 import '../utils/constants.dart';
 import '../utils/date_formatter.dart';
 import '../utils/number_format.dart';
+import '../utils/trip_actions.dart';
 import '../utils/trip_fields.dart';
 import '../utils/trip_status.dart';
 import '../widgets/navigation_dialog.dart';
@@ -158,7 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
     AppLocalizations l,
   ) {
     final trpNumber = trip['tripNumber'] ?? '—';
-    final stop = nextStopOf(trip);
+    final stop = activeStopOf(trip);
     final cargo = tripCargoTotals(trip);
 
     return Column(
@@ -267,11 +268,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: stop['type'] == 'pickup' ? Colors.blue : Colors.teal,
+                        color: stopIsPickup(stop) ? Colors.blue : Colors.teal,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        (stop['type'] == 'pickup' ? l.translate('section_pickup') : l.translate('section_delivery')),
+                        l.translate(stopIsPickup(stop) ? 'loading_label' : 'unloading_label'),
                         style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white),
                       ),
                     ),
@@ -308,10 +309,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: OutlinedButton.icon(
                         onPressed: () => NavigationDialog.launchNavigation(
                           context: context,
-                          address: stop['address'] ?? '',
-                          lat: stop['lat'] != null ? double.tryParse(stop['lat'].toString()) : null,
-                          lng: stop['lng'] != null ? double.tryParse(stop['lng'].toString()) : null,
-                          companyName: stop['companyName'],
+                          address: stop['address']?.toString() ?? '',
+                          lat: stopLat(stop),
+                          lng: stopLng(stop),
+                          companyName: stop['companyName']?.toString(),
                         ),
                         icon: const Icon(Icons.navigation, size: 16),
                         label: Text(l.translate('btn_navigate'), style: const TextStyle(fontSize: 12)),
@@ -374,14 +375,27 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    if (status == 'dispatched') {
+    final offer = tripOfferKind(trip);
+    if (offer == 'receive') {
       return button(l.translate('btn_received_trip'), Icons.mark_email_read, Colors.blue, () => prov.driverReceived(token, tripId));
     }
-    if (status == 'driver_received') {
+    if (offer == 'accept') {
       return button(l.translate('btn_accept_trip'), Icons.thumb_up, Colors.indigo, () => prov.driverAccepted(token, tripId));
     }
-    if (status == 'driver_accepted') {
+    if (offer == 'start') {
       return button(l.translate('btn_start_trip'), Icons.play_arrow, kPrimary, () => prov.startTrip(token, tripId));
+    }
+
+    // The same server-driven action as the trip page, so home can never offer an
+    // operation that does not belong to the current stop.
+    final nextAction = actionForStop(nextStop);
+    if (nextAction != null && nextAction.kind != 'complete_delivery') {
+      return button(
+        l.translate(nextAction.labelKey),
+        nextAction.icon,
+        nextAction.color,
+        () => prov.updateStopStatus(token, nextAction.stopId, nextAction.nextStatus),
+      );
     }
     // Already on the road: opening the current stage is navigation, not a
     // change, so it must never report a success action.

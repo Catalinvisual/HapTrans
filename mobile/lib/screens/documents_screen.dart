@@ -13,6 +13,7 @@ import 'package:open_filex/open_filex.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
+import '../services/document_opener.dart';
 import '../utils/constants.dart';
 import '../utils/date_formatter.dart';
 import '../utils/number_format.dart';
@@ -650,6 +651,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
           ),
           child: ListTile(
             onTap: () async {
+              // Documents are private Cloudinary assets: open them through the
+              // authenticated preview-url endpoint instead of the raw file URL.
+              final docId = doc['id']?.toString();
+              if (docId != null && docId.isNotEmpty) {
+                final authToken = context.read<AuthProvider>().token ?? '';
+                await DocumentOpener.open(context, token: authToken, doc: doc);
+                return;
+              }
               if (fileUrl.isNotEmpty) {
                 final uri = Uri.parse(fileUrl);
                 final ext = fileUrl.split('.').last.split('?').first.toLowerCase();

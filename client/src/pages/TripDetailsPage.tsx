@@ -62,12 +62,16 @@ const TASK_STATUS_CONFIG: Record<string, { labelKey: string; defaultLabel: strin
   cancelled: { labelKey: 'cancelled', defaultLabel: 'Anulat', color: 'bg-gray-500/10 text-gray-700 border-gray-300 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700' },
 };
 
+// Same operational statuses the driver app uses, including the loading and
+// unloading stages, each with a translated label instead of a Romanian default.
 const STOP_STATUS_CONFIG: Record<string, { labelKey: string; defaultLabel: string }> = {
-  pending: { labelKey: 'pending', defaultLabel: 'În așteptare' },
-  arrived: { labelKey: 'arrived', defaultLabel: 'Sosit la locație' },
-  completed: { labelKey: 'completed', defaultLabel: 'Finalizat' },
-  problem: { labelKey: 'problem', defaultLabel: 'Problemă' },
-  cancelled: { labelKey: 'cancelled', defaultLabel: 'Anulat' },
+  pending: { labelKey: 'stop_status_pending', defaultLabel: 'Pending' },
+  arrived: { labelKey: 'stop_status_arrived', defaultLabel: 'Arrived' },
+  loading: { labelKey: 'stop_status_loading', defaultLabel: 'Loading' },
+  unloading: { labelKey: 'stop_status_unloading', defaultLabel: 'Unloading' },
+  completed: { labelKey: 'stop_status_completed', defaultLabel: 'Completed' },
+  problem: { labelKey: 'stop_status_problem', defaultLabel: 'Issue' },
+  cancelled: { labelKey: 'stop_status_cancelled', defaultLabel: 'Cancelled' },
 };
 
 

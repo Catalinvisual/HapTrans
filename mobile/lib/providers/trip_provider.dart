@@ -232,6 +232,18 @@ class TripProvider extends ChangeNotifier {
     }
   }
 
+  /// Short-lived signed URL for one document, after the server has verified
+  /// that the document belongs to a trip this driver runs.
+  Future<Map<String, dynamic>> documentPreview(String token, String documentId) async {
+    try {
+      final res = await _dio(token).get('/documents/$documentId/preview-url');
+      if (res.data is Map) return Map<String, dynamic>.from(res.data as Map);
+      return {'error': 'HTTP ${res.statusCode}'};
+    } catch (e) {
+      return {'error': _errorText(e)};
+    }
+  }
+
   Future<String?> uploadDocument(String token, String tripId, String filePath, String type) async {
     try {
       final formData = FormData.fromMap({

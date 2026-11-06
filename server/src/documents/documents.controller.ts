@@ -26,19 +26,19 @@ export class DocumentsController {
 
   @UseGuards(JwtAuthGuard)
   @Get() 
-  findAll() { return this.service.findAll(); }
+  findAll(@Request() req: any) { return this.service.findAll(req.user); }
   
   @UseGuards(JwtAuthGuard)
   @Get('trip/:tripId') 
-  findByTrip(@Param('tripId') tripId: string) { return this.service.findByTrip(tripId); }
+  findByTrip(@Param('tripId') tripId: string, @Request() req: any) { return this.service.findByTrip(tripId, req.user); }
 
   @Get('order/:orderId') 
   findByOrder(@Param('orderId') orderId: string) { return this.service.findByOrder(orderId); }
 
   @UseGuards(JwtAuthGuard)
   @Get(':id/preview-url')
-  getPreviewUrl(@Param('id') id: string) {
-    return this.service.getPreviewUrl(id);
+  getPreviewUrl(@Param('id') id: string, @Request() req: any) {
+    return this.service.getPreviewUrl(id, req.user);
   }
 
   @UseGuards(JwtAuthGuard)

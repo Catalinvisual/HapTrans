@@ -78,9 +78,59 @@ export function isStopStatus(value: string): value is StopStatusValue {
   return (STOP_STATUSES as readonly string[]).includes(value);
 }
 
+/**
+ * Stop types arrive from three places (TMS form, CSV import, legacy rows), so
+ * they are compared case-insensitively. Treating 'DELIVERY' as a pickup is what
+ * made the driver app offer "Start loading" at a delivery address.
+ */
+export function normalizeStopType(type: any, sequence?: number): 'pickup' | 'delivery' {
+  const t = String(type ?? '').trim().toLowerCase();
+  if (['delivery', 'dropoff', 'drop-off', 'unloading', 'unload', 'drop'].includes(t)) return 'delivery';
+  if (['pickup', 'pick-up', 'collection', 'loading', 'load'].includes(t)) return 'pickup';
+  const seq = Number(sequence);
+  return Number.isFinite(seq) && seq >= 2 ? 'delivery' : 'pickup';
+}
+
+/** Legacy rows may store free text; the driver UI must always get a real status. */
+export function normalizeStopStatus(status: any): StopStatusValue {
+  const s = String(status ?? '').trim().toLowerCase();
+  if ((STOP_STATUSES as readonly string[]).includes(s)) return s as StopStatusValue;
+  if (['in_progress', 'at_stop', 'arrived_at_stop', 'on_site'].includes(s)) return 'arrived';
+  if (['done', 'finished', 'delivered', 'unloaded'].includes(s)) return 'completed';
+  return 'pending';
+}
+
+export type DriverStopActionKind =
+  | 'arrive_pickup'
+  | 'start_loading'
+  | 'complete_loading'
+  | 'arrive_delivery'
+  | 'start_unloading'
+  | 'complete_delivery';
+
+/** The single action the driver may perform on a stop right now. */
+export function driverActionForStop(
+  stop: any,
+): { kind: DriverStopActionKind; status: StopStatusValue } | null {
+  const type = normalizeStopType(stop?.type, stop?.sequence);
+  const status = normalizeStopStatus(stop?.status);
+  if (status === 'completed') return null;
+
+  if (type === 'pickup') {
+    if (status === 'pending') return { kind: 'arrive_pickup', status: 'arrived' };
+    if (status === 'arrived') return { kind: 'start_loading', status: 'loading' };
+    if (status === 'loading') return { kind: 'complete_loading', status: 'completed' };
+    return null;
+  }
+  if (status === 'pending') return { kind: 'arrive_delivery', status: 'arrived' };
+  if (status === 'arrived') return { kind: 'start_unloading', status: 'unloading' };
+  if (status === 'unloading') return { kind: 'complete_delivery', status: 'completed' };
+  return null;
+}
+
 /** Rejects impossible or backwards moves instead of silently overwriting state. */
 export function assertStopTransition(type: string, current: string, next: string) {
-  const stopType = type === 'delivery' ? 'delivery' : 'pickup';
+  const stopType = normalizeStopType(type);
   const allowed = STOP_TRANSITIONS[stopType][current] || [];
   if (!allowed.includes(next)) {
     throw new ConflictException(
@@ -107,7 +157,7 @@ export function timestampsForStop(status: string, at: Date): Record<string, Date
 
 /** Order status implied by the stop operation, or null when nothing changes. */
 export function deriveOrderStatusForStop(stopType: string, status: string): string | null {
-  if (stopType === 'delivery') {
+  if (normalizeStopType(stopType) === 'delivery') {
     if (status === 'unloading') return 'delivered';
     if (status === 'completed') return 'delivered';
     if (status === 'arrived') return 'in_transit';
@@ -129,8 +179,8 @@ export function deriveTripStatus(stops: any[]): string {
   const allCompleted = bySeq.every((s) => s.status === 'completed');
   if (allCompleted) return 'completed';
 
-  const pickups = bySeq.filter((s) => (s.type || 'pickup') !== 'delivery');
-  const deliveries = bySeq.filter((s) => s.type === 'delivery');
+  const pickups = bySeq.filter((s) => normalizeStopType(s.type, s.sequence) === 'pickup');
+  const deliveries = bySeq.filter((s) => normalizeStopType(s.type, s.sequence) === 'delivery');
   const anyDeliveryStarted = deliveries.some((s) =>
     ['arrived', 'unloading', 'completed'].includes(s.status),
   );
