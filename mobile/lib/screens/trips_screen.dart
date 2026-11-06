@@ -202,7 +202,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                       ),
                       StatusBadge(
                         label: tripStatusLabel(status, locale),
-                        color: tripStatusColor(status),
+                        status: status,
                         compact: true,
                       ),
                     ],

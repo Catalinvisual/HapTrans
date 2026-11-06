@@ -4,7 +4,7 @@ import { Truck, MapPin, Search } from 'lucide-react';
 import { useSearchParams, Link } from 'react-router-dom';
 import portalApi from '../../lib/portalApi';
 import Pagination from '../../components/Pagination';
-import { statusBadgeClass } from '../../lib/statusColors';
+import StatusBadge from '../../components/ui/StatusBadge';
 export default function PortalTripsPage() {
   const {
     t
@@ -52,9 +52,10 @@ export default function PortalTripsPage() {
                       <p className="text-xs text-text-secondary">{t("jsx_driver")}{trip.driver?.name || 'TBD'}</p>
                     </div>
                   </div>
-                  <span className={`px-2 py-1 rounded text-xs font-bold capitalize ${statusBadgeClass(String(trip.status || '').replace(/-/g, '_'))}`}>
-                    {trip.status}
-                  </span>
+                  <StatusBadge
+                    status={String(trip.status || '').replace(/-/g, '_')}
+                    label={t(`status_${String(trip.status || '').replace(/-/g, '_')}`, String(trip.status || '').replace(/_/g, ' '))}
+                  />
                 </div>
                 
                 <div className="space-y-2 text-sm">

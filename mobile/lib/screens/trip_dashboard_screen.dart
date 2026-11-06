@@ -238,7 +238,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
               _chip(Icons.rv_hookup, tripTrailerPlate(tripData)),
               _chip(Icons.inventory_2_outlined, '${_orders.length} ${l.translate('orders_count')}'),
               _chip(Icons.place_outlined, '${stops.length} ${l.translate('stops_count')}'),
-              _chip(Icons.person_outline, _driverName),
+              _chip(Icons.person_outline, _driverName(l)),
             ],
           ),
         ],
@@ -256,6 +256,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
     final offer = tripOfferKind(tripData);
     final action = nextActionForTrip(tripData);
     final stop = activeStopOf(tripData);
+    final awaitingAcceptance = offer == 'accept' || offer == 'receive';
 
     Widget content;
     if (offer != null) {
@@ -278,17 +279,12 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
         l: l,
       );
     } else if (action != null && stop != null) {
-      content = Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _primaryButton(
-            labelKey: action.labelKey,
-            icon: action.icon,
-            color: action.color,
-            onPressed: () => _act(action, l),
-            l: l,
-          ),
-        ],
+      content = _primaryButton(
+        labelKey: action.labelKey,
+        icon: action.icon,
+        color: action.color,
+        onPressed: () => _act(action, l),
+        l: l,
       );
     } else {
       content = Row(
@@ -305,42 +301,67 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
       );
     }
 
+    Widget? contextLine;
+    if (awaitingAcceptance) {
+      contextLine = Row(
+        children: [
+          const Icon(Icons.schedule, size: 18, color: kPrimary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              l.translate('awaiting_acceptance'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: kPrimary, height: 1.25),
+            ),
+          ),
+        ],
+      );
+    } else if (stop != null && action != null) {
+      final isPickup = stopIsPickup(stop);
+      final color = isPickup ? const Color(0xFF2563EB) : const Color(0xFF0F766E);
+      contextLine = Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+            child: Text(
+              l.translate(isPickup ? 'loading_label' : 'unloading_label'),
+              style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: color, letterSpacing: 0.3),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              stopLocation(stop),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kTextSecondary),
+            ),
+          ),
+        ],
+      );
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kPrimary.withOpacity(0.45)),
+        border: Border.all(color: kPrimary.withOpacity(0.35)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-            child: Row(
-              children: [
-                Text(
-                  l.translate('next_step').toUpperCase(),
-                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, color: kPrimary, letterSpacing: 0.7),
-                ),
-                const Spacer(),
-                if (stop != null)
-                  Flexible(
-                    child: Text(
-                      '${l.translate(stopIsPickup(stop) ? 'loading_label' : 'unloading_label')} · ${stopLocation(stop)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.right,
-                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: kTextSecondary),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            child: content,
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (contextLine != null) ...[
+              contextLine,
+              const SizedBox(height: 12),
+            ],
+            content,
+          ],
+        ),
       ),
     );
   }
@@ -396,7 +417,6 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
     String locale,
   ) {
     final isPickup = stopIsPickup(stop);
-    final status = stopStatus(stop);
     final isActive = activeStopOf(tripData)?['id']?.toString() == stop['id']?.toString();
     final color = isPickup ? const Color(0xFF2563EB) : const Color(0xFF0F766E);
     final cargo = cargoForStop(tripData, stop);
@@ -434,15 +454,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
                 ),
               ),
               const Spacer(),
-              StatusBadge(
-                label: stopStatusLabel(status, locale),
-                color: status == 'completed'
-                    ? kSuccess
-                    : status == 'pending'
-                        ? kTextSecondary
-                        : color,
-                compact: true,
-              ),
+              StatusBadge.forStop(stop, locale, compact: true),
             ],
           ),
           const SizedBox(height: 10),
@@ -652,12 +664,9 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
     );
   }
 
-  String get _driverName {
-    final driver = tripData['driver'];
-    if (driver is! Map) return '—';
-    final user = driver['user'];
-    final name = (user is Map ? user['name'] : null) ?? driver['name'];
-    return (name == null || name.toString().trim().isEmpty) ? '—' : name.toString();
+  String _driverName(AppLocalizations l) {
+    final name = tripDriverName(tripData);
+    return name.isEmpty ? l.translate('driver_unassigned') : name;
   }
 
   Widget _reportRow(AppLocalizations l) {

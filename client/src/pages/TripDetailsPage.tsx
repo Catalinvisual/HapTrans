@@ -50,16 +50,16 @@ const TRIP_STATUSES = [
   'cancelled',
 ];
 
-const TASK_STATUS_CONFIG: Record<string, { labelKey: string; defaultLabel: string; color: string }> = {
-  pending: { labelKey: 'pending', defaultLabel: 'În așteptare', color: 'bg-amber-500/10 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800' },
-  assigned: { labelKey: 'status_assigned', defaultLabel: 'Atribuit', color: 'bg-purple-500/10 text-purple-700 border-purple-300 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-800' },
-  arrived: { labelKey: 'arrived', defaultLabel: 'Sosit la rampă', color: 'bg-cyan-500/10 text-cyan-700 border-cyan-300 dark:bg-cyan-950/40 dark:text-cyan-400 dark:border-cyan-800' },
-  in_progress: { labelKey: 'inProgress', defaultLabel: 'În desfășurare', color: 'bg-indigo-500/10 text-indigo-700 border-indigo-300 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-800' },
-  loading: { labelKey: 'loading', defaultLabel: 'La Încărcare', color: 'bg-purple-500/10 text-purple-700 border-purple-300 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-800' },
-  unloading: { labelKey: 'unloading', defaultLabel: 'La Descărcare', color: 'bg-orange-500/10 text-orange-700 border-orange-300 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-800' },
-  completed: { labelKey: 'completed', defaultLabel: 'Finalizat', color: 'bg-emerald-500/10 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800' },
-  problem: { labelKey: 'problem', defaultLabel: 'Problemă / Daună', color: 'bg-rose-500/10 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800' },
-  cancelled: { labelKey: 'cancelled', defaultLabel: 'Anulat', color: 'bg-gray-500/10 text-gray-700 border-gray-300 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700' },
+const TASK_STATUS_CONFIG: Record<string, { labelKey: string; defaultLabel: string }> = {
+  pending: { labelKey: 'pending', defaultLabel: 'În așteptare' },
+  assigned: { labelKey: 'status_assigned', defaultLabel: 'Atribuit' },
+  arrived: { labelKey: 'arrived', defaultLabel: 'Sosit la rampă' },
+  in_progress: { labelKey: 'inProgress', defaultLabel: 'În desfășurare' },
+  loading: { labelKey: 'loading', defaultLabel: 'La Încărcare' },
+  unloading: { labelKey: 'unloading', defaultLabel: 'La Descărcare' },
+  completed: { labelKey: 'completed', defaultLabel: 'Finalizat' },
+  problem: { labelKey: 'problem', defaultLabel: 'Problemă / Daună' },
+  cancelled: { labelKey: 'cancelled', defaultLabel: 'Anulat' },
 };
 
 // Same operational statuses the driver app uses, including the loading and
@@ -418,7 +418,7 @@ export default function TripDetailsPage() {
                           <div className="relative inline-flex items-center">
                             <select
                               aria-label="Stop status"
-                              className="appearance-none text-[11px] font-bold pl-2 pr-6 py-0.5 rounded-lg border border-border/80 bg-card text-text hover:border-primary/50 cursor-pointer transition-colors focus:outline-none"
+                              className={`appearance-none text-[11px] font-bold pl-2 pr-6 py-0.5 rounded-lg border cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 ${statusBadgeClass(stop.status || 'pending')}`}
                               value={stop.status || 'pending'}
                               onChange={async e => {
                                 const v = e.target.value;
@@ -458,8 +458,7 @@ export default function TripDetailsPage() {
                               const loadRef = fullOrder?.loadingReference || fullOrder?.stops?.find((s: any) => s.type === 'pickup')?.reference || fullOrder?.customerReference || fullOrder?.orderNumber || '—';
                               const unloadRef = fullOrder?.unloadingReference || fullOrder?.stops?.find((s: any) => s.type === 'dropoff')?.reference || fullOrder?.customerReference || fullOrder?.orderNumber || '—';
                               const displayRef = task.type === 'unload' ? unloadRef : loadRef;
-                              const currentTaskCfg = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG.pending;
-                              
+
                               return <div key={task.id} className={`bg-card p-3 rounded-xl border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs`}>
                                 <div className="min-w-0">
                                   <div className="text-sm font-semibold text-text flex items-center gap-2 flex-wrap">
@@ -489,7 +488,7 @@ export default function TripDetailsPage() {
                                 <div className="relative inline-flex items-center shrink-0">
                                   <select
                                     aria-label={t('change_status', 'Schimbă status')}
-                                    className={`appearance-none text-xs font-bold pl-3 pr-7 py-1.5 rounded-full border shadow-2xs cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 ${currentTaskCfg.color}`}
+                                    className={`appearance-none text-xs font-bold pl-3 pr-7 py-1.5 rounded-full border shadow-2xs cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 ${statusBadgeClass(task.status || 'pending')}`}
                                     value={task.status || 'pending'}
                                     onChange={async e => {
                                       const v = e.target.value;

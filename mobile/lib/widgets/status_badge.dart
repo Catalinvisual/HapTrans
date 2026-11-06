@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
+import '../utils/status_colors.dart';
 import '../utils/trip_status.dart';
 
 /// Professional status badge: colour + explicit label (never colour alone),
 /// with an optional attributed audit line under it.
+///
+/// Colour comes from [statusTone], the same canonical status -> tone table the
+/// TMS uses, so one operational status has one colour everywhere.
 class StatusBadge extends StatelessWidget {
   final String label;
-  final Color color;
+  final String status;
   final String? audit;
   final bool compact;
 
   const StatusBadge({
     super.key,
     required this.label,
-    required this.color,
+    required this.status,
     this.audit,
     this.compact = false,
   });
@@ -30,7 +34,24 @@ class StatusBadge extends StatelessWidget {
     final status = (trip['status'] ?? 'planning').toString();
     return StatusBadge(
       label: tripStatusLabel(status, locale),
-      color: tripStatusColor(status),
+      status: status,
+      audit: audit,
+      compact: compact,
+    );
+  }
+
+  /// Stop badges use the stop lifecycle code (pending, arrived, loading,
+  /// unloading, completed, problem), not the trip status.
+  factory StatusBadge.forStop(
+    Map<String, dynamic> stop,
+    String locale, {
+    String? audit,
+    bool compact = false,
+  }) {
+    final status = (stop['status'] ?? 'pending').toString();
+    return StatusBadge(
+      label: stopStatusLabel(status, locale),
+      status: status,
       audit: audit,
       compact: compact,
     );
@@ -38,12 +59,13 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tone = statusTone(status);
     final badge = Container(
       padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10, vertical: compact ? 4 : 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: tone.background,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.35)),
+        border: Border.all(color: tone.border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -51,7 +73,7 @@ class StatusBadge extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: tone.accent, shape: BoxShape.circle),
           ),
           const SizedBox(width: 6),
           Flexible(
@@ -62,7 +84,7 @@ class StatusBadge extends StatelessWidget {
               style: TextStyle(
                 fontSize: compact ? 10 : 11,
                 fontWeight: FontWeight.w800,
-                color: color,
+                color: tone.foreground,
                 letterSpacing: 0.2,
               ),
             ),

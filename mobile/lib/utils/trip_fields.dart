@@ -70,6 +70,44 @@ String tripTrailerPlate(Map<String, dynamic> trip) {
   return '—';
 }
 
+Map<String, dynamic>? _asDriverMap(Object? value) {
+  if (value is! Map) return null;
+  return Map<String, dynamic>.from(value);
+}
+
+/// The driver the backend resolved for this trip.
+///
+/// A trip-level driver always wins. The truck driver is used only when the
+/// backend explicitly confirms that assignment (`driverAssignment.source ==
+/// 'truck'`); the app never guesses from the current session or another trip.
+Map<String, dynamic>? tripAssignedDriver(Map<String, dynamic> trip) {
+  final direct = _asDriverMap(trip['driver']);
+  if (direct != null) return direct;
+
+  final assignment = _asDriverMap(trip['driverAssignment']);
+  if (assignment == null || assignment['confirmed'] != true || assignment['source'] != 'truck') {
+    return null;
+  }
+  final truck = _asDriverMap(trip['truck']);
+  return _asDriverMap(truck?['driver']);
+}
+
+/// Display name of the assigned driver, or an empty string when genuinely
+/// unassigned. Falls back to the account email only when no display name was
+/// stored, so the trip details never show a blank driver row.
+String tripDriverName(Map<String, dynamic> trip) {
+  final driver = tripAssignedDriver(trip);
+  if (driver == null) return '';
+  final user = _asDriverMap(driver['user']);
+  final name = ((user?['name'] ?? driver['name'])?.toString() ?? '').trim();
+  if (name.isNotEmpty) return name;
+  final email = ((user?['email'] ?? driver['email'])?.toString() ?? '').trim();
+  if (email.isEmpty) return '';
+  final local = email.split('@').first.replaceAll(RegExp(r'[._-]+'), ' ').trim();
+  if (local.isEmpty) return '';
+  return local.split(' ').where((word) => word.isNotEmpty).map((word) => word[0].toUpperCase() + word.substring(1)).join(' ');
+}
+
 /// Aggregated cargo of the whole trip, taken from the order cargo items.
 Map<String, double> tripCargoTotals(Map<String, dynamic> trip) {
   var pallets = 0.0, kg = 0.0, ldm = 0.0, m3 = 0.0;

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
-import { statusBadgeClass } from '../lib/statusColors';
 import { orderIsAdr } from '../lib/adrDetect';
 import { fmtMoney } from '../lib/format';
 import { Loader2, ArrowLeft, MapPin, FileText, CheckCircle, Truck, Activity } from 'lucide-react';
@@ -11,6 +10,7 @@ import PalletIcon from '../components/icons/PalletIcon';
 import WeightKgIcon from '../components/icons/WeightKgIcon';
 import AdrBadge from '../components/common/AdrBadge';
 import ActivityTimeline from '../components/ActivityTimeline';
+import StatusBadge from '../components/ui/StatusBadge';
 export default function OrderDetailsPage() {
   const {
     id
@@ -49,9 +49,11 @@ export default function OrderDetailsPage() {
           </button>
           <div>
             <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3 flex-wrap">{order.orderNumber}
-              <span className={`px-3 py-1 text-xs font-bold uppercase rounded-full border ${statusBadgeClass(order.status)}`}>
-                {order.status === 'pod_received' ? 'Pod received' : (order.status ? order.status.replace('_', ' ') : '—')}
-              </span>
+              <StatusBadge
+                status={order.status}
+                label={order.status ? t(`status_${order.status}`, order.status.replace(/_/g, ' ')) : '—'}
+                size="md"
+              />
               {orderIsAdr(order) && (
                 <AdrBadge
                   status={order.adrStatus}

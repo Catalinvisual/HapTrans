@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import { resolveTripDriver, resolveTripTrailer } from './driver-assignment';
+import { resolveTripDriver, resolveTripDriverAssignment, resolveTripTrailer } from './driver-assignment';
 import { DriverTripsService } from '../driver/driver-trips.service';
 
 function queryRecorder(result: any) {
@@ -45,6 +45,32 @@ describe('resolveTripDriver / resolveTripTrailer', () => {
   it('returns null when nothing is assigned', () => {
     expect(resolveTripDriver({})).toBeNull();
     expect(resolveTripTrailer({ driver: null, truck: null })).toBeNull();
+  });
+
+  it('reports a direct trip driver as the confirmed trip assignment', () => {
+    const trip = { driver: { id: 'trip-driver' }, truck: { driver: { id: 'truck-driver' } } };
+    expect(resolveTripDriverAssignment(trip)).toEqual({
+      driver: trip.driver,
+      source: 'trip',
+      confirmed: true,
+    });
+  });
+
+  it('confirms the assigned truck driver when the trip has no direct driver', () => {
+    const trip = { driver: null, truck: { driver: { id: 'truck-driver' } } };
+    expect(resolveTripDriverAssignment(trip)).toEqual({
+      driver: trip.truck.driver,
+      source: 'truck',
+      confirmed: true,
+    });
+  });
+
+  it('never invents a driver when neither the trip nor its truck has one', () => {
+    expect(resolveTripDriverAssignment({ driver: null, truck: { driver: null } })).toEqual({
+      driver: null,
+      source: null,
+      confirmed: false,
+    });
   });
 });
 

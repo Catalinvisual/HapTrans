@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'constants.dart';
+import 'status_colors.dart';
 
 /// Canonical operational stages shared by the mobile app and the TMS.
 ///
@@ -25,36 +25,12 @@ bool isActiveTripStatus(String? status) {
   return planningStatuses.contains(status) || inflightStatuses.contains(status);
 }
 
-/// Colour by operational meaning, never by raw enum value alone.
-/// neutral = assigned/pending, blue = in progress, orange = waiting/loading,
-/// green = done, red = cancelled/rejected/exception.
-Color tripStatusColor(String status) {
-  return switch (status) {
-    'planning' || 'planned' || 'confirmed' => const Color(0xFF64748B),
-    'dispatched' || 'assigned' || 'driver_received' => Colors.blue,
-    'driver_accepted' => Colors.indigo,
-    'started' || 'in_transit' => kPrimary,
-    'loading' => Colors.orange,
-    'driving' => Colors.blue,
-    'partially_delivered' => Colors.deepOrange,
-    'completed' || 'delivered' || 'closed' => kSuccess,
-    'cancelled' || 'rejected' => kError,
-    _ => kTextSecondary,
-  };
-}
+/// Colour by canonical status only, through the shared semantic palette.
+/// These helpers stay for widgets that only need a single foreground colour;
+/// [StatusBadge] uses the complete background/foreground/border tone.
+Color tripStatusColor(String status) => statusForeground(status);
 
-Color stageColor(String stage) {
-  return switch (stage) {
-    'assigned' || 'pending' => const Color(0xFF64748B),
-    'accepted' => Colors.indigo,
-    'driving_to_pickup' || 'loaded' || 'driving_to_delivery' => Colors.blue,
-    'at_pickup' || 'loading' || 'at_delivery' || 'unloading' => Colors.orange,
-    'delivered' || 'completed' => kSuccess,
-    'cancelled' || 'rejected' || 'exception' => kError,
-    'delayed' => Colors.orange,
-    _ => kTextSecondary,
-  };
-}
+Color stageColor(String stage) => statusForeground(stage);
 
 const Map<String, Map<String, String>> _statusLabels = {
   'ro': {

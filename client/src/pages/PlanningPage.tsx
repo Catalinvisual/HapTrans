@@ -38,6 +38,7 @@ import AdrBadge from '../components/common/AdrBadge';
 import ExcelIcon from '../components/icons/ExcelIcon';
 import { fmtMoney, fmtNumber } from '../lib/format';
 import { providerStatusMessage } from '../lib/providerStatus';
+import { statusTone } from '../lib/statusColors';
 import SplitTripModal from '../components/planning/SplitTripModal';
 import CombineTripsModal from '../components/planning/CombineTripsModal';
 import PlanningExportModal from '../components/planning/PlanningExportModal';
@@ -189,25 +190,8 @@ function tripOriginDestination(trip: any) {
   return { origin, dest };
 }
 
-const TRIP_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  planning:           { bg: 'bg-amber-500/20',  border: 'border-amber-500',  text: 'text-amber-700 dark:text-amber-400' },
-  planned:            { bg: 'bg-blue-500/20',    border: 'border-blue-500',   text: 'text-blue-700 dark:text-blue-400' },
-  assigned:           { bg: 'bg-violet-500/20',  border: 'border-violet-500', text: 'text-violet-700 dark:text-violet-400' },
-  dispatched:         { bg: 'bg-pink-500/20',    border: 'border-pink-500',   text: 'text-pink-700 dark:text-pink-400' },
-  driver_accepted:    { bg: 'bg-teal-500/20',    border: 'border-teal-500',   text: 'text-teal-700 dark:text-teal-400' },
-  started:            { bg: 'bg-orange-500/20',  border: 'border-orange-500', text: 'text-orange-700 dark:text-orange-400' },
-  loading:            { bg: 'bg-red-500/20',     border: 'border-red-500',    text: 'text-red-700 dark:text-red-400' },
-  driving:            { bg: 'bg-amber-500/30',   border: 'border-amber-600',  text: 'text-amber-800 dark:text-amber-300' },
-  partially_delivered:{ bg: 'bg-yellow-500/20',  border: 'border-yellow-500', text: 'text-yellow-700 dark:text-yellow-400' },
-  completed:          { bg: 'bg-green-500/20',   border: 'border-green-500',  text: 'text-green-700 dark:text-green-400' },
-  closed:             { bg: 'bg-slate-500/20',   border: 'border-slate-500',  text: 'text-slate-600' },
-  cancelled:          { bg: 'bg-slate-400/20',   border: 'border-slate-400',  text: 'text-slate-500' },
-};
-const TRIP_HEX: Record<string, string> = {
-  planning:'#f59e0b', planned:'#3b82f6', assigned:'#8b5cf6', dispatched:'#ec4899',
-  driver_accepted:'#14b8a6', started:'#f97316', loading:'#ef4444', driving:'#f59e0b',
-  partially_delivered:'#eab308', completed:'#22c55e', closed:'#64748b', cancelled:'#94a3b8',
-};
+// Planning blocks use the same semantic tones as every other status surface.
+const planningTone = (status: string) => statusTone(status);
 
 // KPI pill palette: a coloured dot + a discreet chip background for each state.
 const KPI_COLORS: Record<string, { dot: string; active: string; idle: string }> = {
@@ -295,7 +279,7 @@ function PlanningMap({
     if (showRoutes && mapData?.routes?.length) {
       const features = mapData.routes.filter((r: any) => r.points?.length >= 2).map((r: any) => {
         const isDelayed = showTraffic && (r.trafficDelayMinutes > 0 || r.isDelayed);
-        const color = isDelayed ? '#ef4444' : (TRIP_HEX[r.status] || '#3b82f6');
+        const color = isDelayed ? '#ef4444' : planningTone(r.status).accent;
         return {
           type: 'Feature',
           properties: { tripId: r.tripId, color, selected: r.tripId === selectedTripId },
@@ -552,8 +536,9 @@ function TripBlock({
   if (!pos) return null;
 
   const st = String(trip.status || 'planning').toLowerCase();
-  const col = TRIP_COLORS[st] || TRIP_COLORS.planning;
-  const hex = TRIP_HEX[st] || TRIP_HEX.planning;
+  const tone = planningTone(st);
+  const col = { border: tone.border, text: tone.text, bg: tone.soft };
+  const hex = tone.accent;
   const { origin, dest } = tripOriginDestination(trip);
   const cargo = sumCargo(trip.orders || []);
   const revenue = (trip.orders || []).reduce((s: number, o: any) => s + (Number(o.price) || 0), 0);
@@ -1078,7 +1063,8 @@ function TripDetailDrawer({
   const isConfirmed = st === 'confirmed' || st === 'assigned';
   const isDispatched = ['dispatched', 'driver_accepted', 'started', 'driving', 'partially_delivered'].includes(st);
   const isCompleted = ['completed', 'closed', 'delivered'].includes(st);
-  const col = TRIP_COLORS[st] || TRIP_COLORS.planning;
+  const tone = planningTone(st);
+  const col = { border: tone.border, text: tone.text, bg: tone.soft };
   const tripId = trip.id || tripSummary.id;
   const { origin, dest } = tripOriginDestination(trip);
   const trafficDelay = Number(trafficInfo?.currentDelayMinutes ?? trafficInfo?.delayMinutes ?? trip.trafficDelayMinutes ?? 0) || 0;

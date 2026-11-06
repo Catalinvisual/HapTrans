@@ -142,9 +142,9 @@ export class AuthController {
 
   @Get('app-version')
   getAppVersion() {
-    const apk = 'HapTrans-v19.apk';
+    const apk = 'HapTrans-v20.apk';
     return {
-      versionCode: 19,
+      versionCode: 20,
       url: `https://haptrans-production.up.railway.app/uploads/${apk}`,
       sha256: this.apkSha256(apk),
       mandatory: false,

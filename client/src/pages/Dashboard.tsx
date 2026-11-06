@@ -17,6 +17,8 @@ import KpiCard from '../components/analytics/KpiCard';
 import ProgressRing from '../components/analytics/ProgressRing';
 import EmptyState from '../components/analytics/EmptyState';
 import ReportsPanel from '../components/analytics/ReportsPanel';
+import StatusBadge from '../components/ui/StatusBadge';
+import { statusAccent } from '../lib/statusColors';
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
@@ -159,9 +161,9 @@ export default function Dashboard() {
                   const statusKey = rawVal.toLowerCase().replace(/[\s-]+/g, '_');
                   return (
                     <div key={d.status || d.name} className="flex items-center gap-3">
-                      <span className="w-32 text-xs font-bold text-text capitalize truncate">{t(`status_${statusKey}`, rawVal.replace(/_/g, ' '))}</span>
+                      <div className="w-36 shrink-0"><StatusBadge status={statusKey} label={t(`status_${statusKey}`, rawVal.replace(/_/g, ' '))} /></div>
                       <div className="flex-1 h-2.5 bg-surface-hover rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${((d.count || 0) / maxDist) * 100}%`, background: 'linear-gradient(90deg,#6366F1,#3B82F6)' }} />
+                        <div className="h-full rounded-full" style={{ width: `${((d.count || 0) / maxDist) * 100}%`, background: statusAccent(statusKey) }} />
                       </div>
                       <span className="text-xs font-medium text-text-secondary w-10 text-right">{fmtNumber(d.count || 0)}</span>
                     </div>
@@ -177,14 +179,14 @@ export default function Dashboard() {
             </h3>
             {distT.length ? (
               <div className="space-y-3">
-                {distT.slice(0, 8).map((d: any, i: number) => {
+                {distT.slice(0, 8).map((d: any) => {
                   const rawVal = String(d.status || d.name || '');
                   const statusKey = rawVal.toLowerCase().replace(/[\s-]+/g, '_');
                   return (
                     <div key={d.status || d.name} className="flex items-center gap-3">
-                      <span className="w-32 text-xs font-bold text-text capitalize truncate">{t(`status_${statusKey}`, rawVal.replace(/_/g, ' '))}</span>
+                      <div className="w-36 shrink-0"><StatusBadge status={statusKey} label={t(`status_${statusKey}`, rawVal.replace(/_/g, ' '))} /></div>
                       <div className="flex-1 h-2.5 bg-surface-hover rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${((d.count || 0) / maxDist) * 100}%`, background: ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6'][i % 5] }} />
+                        <div className="h-full rounded-full" style={{ width: `${((d.count || 0) / maxDist) * 100}%`, background: statusAccent(statusKey) }} />
                       </div>
                       <span className="text-xs font-medium text-text-secondary w-10 text-right">{fmtNumber(d.count || 0)}</span>
                     </div>

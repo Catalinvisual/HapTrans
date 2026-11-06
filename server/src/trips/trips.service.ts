@@ -19,7 +19,7 @@ import { CostEngine } from '../engines/cost.engine';
 import { ActionLogsService } from '../action-logs/action-logs.service';
 import { computeAuditChanges } from '../action-logs/diff.util';
 import { randomUUID } from 'crypto';
-import { resolveTripDriver, resolveTripTrailer } from './driver-assignment';
+import { resolveTripDriver, resolveTripDriverAssignment, resolveTripTrailer } from './driver-assignment';
 import {
   STOP_STATUSES,
   assertActorMayOperateTrip,
@@ -77,7 +77,7 @@ export class TripsService {
 
   findAll(status?: string, truckId?: string) {
     const findOptions: any = { 
-      relations: ['truck', 'driver', 'driver.user', 'trailer', 'stops', 'orders', 'orders.cargoItems', 'costs', 'dispatcher'],
+      relations: ['truck', 'truck.driver', 'truck.driver.user', 'driver', 'driver.user', 'trailer', 'stops', 'orders', 'orders.cargoItems', 'costs', 'dispatcher'],
       order: { createdAt: 'DESC' }
     };
     const where: any = {};
@@ -139,6 +139,17 @@ export class TripsService {
    */
   private async decorateDriverTrips(trips: Trip[]) {
     for (const trip of trips || []) {
+      // A trip may be assigned through its own driver or through the driver of
+      // its assigned truck. Expose one effective driver and its source so the
+      // driver app never has to guess (or fall back to the logged-in driver).
+      const assignment = resolveTripDriverAssignment(trip);
+      if (!(trip as any).driver && assignment.driver) {
+        (trip as any).driver = assignment.driver;
+      }
+      (trip as any).driverAssignment = assignment.driver
+        ? { source: assignment.source, confirmed: true, driverId: assignment.driver.id }
+        : null;
+
       const orders = ((trip as any).orders || []) as any[];
 
       // Documents are attached to either the trip or one of its orders; the
