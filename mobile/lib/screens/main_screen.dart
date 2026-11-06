@@ -31,6 +31,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _selectedIndex = 0;
+  final _documentsKey = GlobalKey<DocumentsScreenState>();
   Timer? _pollingTimer;
   Timer? _updateTimer;
   StreamSubscription<Position>? _gpsSubscription;
@@ -217,12 +218,12 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     final auth = context.watch<AuthProvider>();
     final locale = auth.locale.languageCode;
 
-    final screens = const [
-      HomeScreen(),
-      TripsScreen(),
-      TachographScreen(),
-      DocumentsScreen(),
-      ProfileScreen(),
+    final screens = [
+      const HomeScreen(),
+      const TripsScreen(),
+      const TachographScreen(),
+      DocumentsScreen(key: _documentsKey),
+      const ProfileScreen(),
     ];
 
     final labels = {
@@ -240,6 +241,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         selectedIndex: _selectedIndex,
         onDestinationSelected: (i) {
           setState(() => _selectedIndex = i);
+          if (i == 3) _documentsKey.currentState?.refresh();
         },
         backgroundColor: kCard,
         indicatorColor: kPrimaryLight,

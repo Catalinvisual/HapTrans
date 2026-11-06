@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/trip_provider.dart';
@@ -56,6 +57,59 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
       if (updated != null) tripData = updated;
       _history = context.read<TripProvider>().statusHistory(widget.token, tripData['id'].toString());
     });
+  }
+
+  Future<void> _uploadTripDocument(AppLocalizations l) async {
+    var selectedType = 'pod';
+    final type = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(l.translate('upload_doc')),
+          content: DropdownButtonFormField<String>(
+            value: selectedType,
+            decoration: InputDecoration(labelText: l.translate('docs_document_type')),
+            items: const [
+              DropdownMenuItem(value: 'cmr', child: Text('CMR')),
+              DropdownMenuItem(value: 'pod', child: Text('POD')),
+              DropdownMenuItem(value: 'delivery_note', child: Text('Delivery Note')),
+              DropdownMenuItem(value: 'invoice', child: Text('Invoice')),
+              DropdownMenuItem(value: 'photo', child: Text('Photo')),
+              DropdownMenuItem(value: 'other', child: Text('Other')),
+            ],
+            onChanged: (value) => setDialogState(() => selectedType = value ?? 'other'),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l.translate('cancel'))),
+            ElevatedButton(onPressed: () => Navigator.pop(ctx, selectedType), child: Text(l.translate('docs_choose_file'))),
+          ],
+        ),
+      ),
+    );
+    if (type == null || !mounted) return;
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'heic'],
+    );
+    final path = result?.files.single.path;
+    if (path == null || !mounted) return;
+    setState(() => _busy = true);
+    final error = await context.read<TripProvider>().uploadDocument(
+      widget.token,
+      tripData['id'].toString(),
+      path,
+      type,
+    );
+    if (!mounted) return;
+    setState(() => _busy = false);
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      content: Text(error == null ? l.translate('action_done') : '${l.translate('action_failed')}: $error'),
+      backgroundColor: error == null ? kSuccess : kError,
+    ));
+    if (error == null) await _refreshTrip();
   }
 
   Future<void> _run(Future<String?> Function() action, AppLocalizations l) async {
@@ -713,9 +767,28 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
     final documents = tripDocuments(tripData);
     return _panel(
       title: l.translate('section_documents'),
-      children: documents.isEmpty
-          ? [Text(l.translate('no_documents'), style: const TextStyle(fontSize: 12, color: kTextSecondary))]
-          : [for (final d in documents) _documentRow(d, l)],
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(l.translate('no_documents'), style: const TextStyle(fontSize: 11, color: kTextSecondary)),
+            ),
+            TextButton.icon(
+              onPressed: _busy ? null : () => _uploadTripDocument(l),
+              icon: const Icon(Icons.upload_file, size: 16),
+              label: Text(l.translate('upload_doc'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+              style: TextButton.styleFrom(foregroundColor: kPrimary, padding: const EdgeInsets.symmetric(horizontal: 6)),
+            ),
+          ],
+        ),
+        if (documents.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(l.translate('no_documents'), style: const TextStyle(fontSize: 12, color: kTextSecondary)),
+          )
+        else
+          for (final d in documents) _documentRow(d, l),
+      ],
     );
   }
 

@@ -52,7 +52,13 @@ describe('DocumentsService access control', () => {
   });
 
   it('scopes the driver document list to his own trips and uploads', async () => {
-    tripRepo.find.mockResolvedValue([{ id: 'trip-1' }]);
+    tripRepo.find.mockResolvedValue([
+      {
+        id: 'trip-1',
+        orders: [{ id: 'order-1' }],
+        stops: [{ tasks: [{ id: 'task-1' }] }],
+      },
+    ]);
     repo.find.mockResolvedValue([{ id: 'doc-1' }]);
 
     await service.findAll(driver);
@@ -62,8 +68,65 @@ describe('DocumentsService access control', () => {
       expect.arrayContaining([
         { uploadedBy: { id: 'user-1' } },
         { trip: { id: expect.anything() } },
+        { order: { id: expect.anything() } },
+        { stopTask: { id: expect.anything() } },
       ]),
     );
+  });
+
+  it('opens an order-level document through the trip that carries the order', async () => {
+    const document = {
+      id: 'doc-4',
+      trip: null,
+      order: { id: 'order-1', trip: { driver: { user: { id: 'user-1' } } } },
+    };
+    repo.findOne.mockResolvedValue(document);
+
+    await expect(service.assertDocumentAccess('doc-4', driver)).resolves.toEqual(document);
+  });
+
+  it('opens a stop-task document through the task stop trip', async () => {
+    const document = {
+      id: 'doc-5',
+      trip: null,
+      stopTask: { id: 'task-1', stop: { trip: { driver: { user: { id: 'user-1' } } } } },
+    };
+    repo.findOne.mockResolvedValue(document);
+
+    await expect(service.assertDocumentAccess('doc-5', driver)).resolves.toEqual(document);
+  });
+
+  it('returns a trip only its own documents, order documents and stop-task documents', async () => {
+    const ownedTrip = { id: 'trip-1', driver: { user: { id: 'user-1' } } };
+    tripRepo.findOne
+      .mockResolvedValueOnce(ownedTrip)
+      .mockResolvedValueOnce({
+        ...ownedTrip,
+        orders: [{ id: 'order-1' }],
+        stops: [{ tasks: [{ id: 'task-1' }] }],
+      });
+    repo.find.mockResolvedValue([{ id: 'doc-1' }]);
+
+    await service.findByTrip('trip-1', driver);
+
+    const where = repo.find.mock.calls[0][0].where;
+    expect(where).toEqual(
+      expect.arrayContaining([
+        { trip: { id: 'trip-1' } },
+        { order: { id: expect.anything() } },
+        { stopTask: { id: expect.anything() } },
+      ]),
+    );
+  });
+
+  it('rejects an order-level document carried by another driver trip', async () => {
+    repo.findOne.mockResolvedValue({
+      id: 'doc-6',
+      trip: null,
+      order: { id: 'order-2', trip: { driver: { user: { id: 'user-1' } } } },
+    });
+
+    await expect(service.assertDocumentAccess('doc-6', otherDriver)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('refuses a document list request without an authenticated account', async () => {

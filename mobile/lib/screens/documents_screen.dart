@@ -4,31 +4,27 @@ import 'package:dio/dio.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:signature/signature.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:ui' as ui;
-import 'package:url_launcher/url_launcher.dart';
-import 'package:open_filex/open_filex.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
 import '../services/document_opener.dart';
 import '../utils/constants.dart';
 import '../utils/date_formatter.dart';
-import '../utils/number_format.dart';
 import '../utils/trip_fields.dart';
 
 class DocumentsScreen extends StatefulWidget {
   const DocumentsScreen({super.key});
 
   @override
-  State<DocumentsScreen> createState() => _DocumentsScreenState();
+  State<DocumentsScreen> createState() => DocumentsScreenState();
 }
 
-class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class DocumentsScreenState extends State<DocumentsScreen> {
   final _commentCtrl = TextEditingController();
+  final _searchCtrl = TextEditingController();
   final _signatureController = SignatureController(
     penStrokeWidth: 3,
     penColor: Colors.black,
@@ -40,6 +36,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
   List<Map<String, dynamic>> _documentsList = [];
   bool _loading = false;
   bool _fetching = false;
+  String? _fetchError;
+  String _scope = 'all';
+  String? _typeFilter;
 
   @override
   void initState() {
@@ -60,9 +59,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
   @override
   void dispose() {
     _commentCtrl.dispose();
+    _searchCtrl.dispose();
     _signatureController.dispose();
     super.dispose();
   }
+
+  Future<void> refresh() => _fetchDocuments();
 
   Future<void> _fetchDocuments() async {
     if (!mounted) return;
@@ -78,9 +80,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
       if (res.data != null && mounted) {
         final allDocs = List<Map<String, dynamic>>.from(res.data);
         setState(() {
-          _documentsList = allDocs
-              .where((d) => d['uploadedBy']?['id'] == auth.user?['id'] || d['tripId'] != null)
-              .toList();
+          // The backend is the authorization boundary: it already returns only
+          // this driver's uploads and documents associated with his trips,
+          // orders and stop tasks. Filtering again in the UI hid valid
+          // order-level documents.
+          _documentsList = allDocs;
+          _fetchError = null;
           _documentsList.sort((a, b) {
             final dateA = DateTime.tryParse(a['uploadedAt']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
             final dateB = DateTime.tryParse(b['uploadedAt']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -90,6 +95,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
       }
     } catch (e) {
       debugPrint('Error fetching docs: $e');
+      if (mounted) setState(() => _fetchError = e.toString());
     } finally {
       if (mounted) setState(() => _fetching = false);
     }
@@ -175,6 +181,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
         });
         Navigator.pop(context); // Close upload sheet
         _fetchDocuments();
+        context.read<TripProvider>().silentReloadTrips(auth.token!);
       }
     } catch (e) {
       debugPrint('Upload error: $e');
@@ -566,15 +573,182 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
     }
   }
 
+  List<Map<String, dynamic>> _visibleDocuments() {
+    final query = _searchCtrl.text.trim().toLowerCase();
+    return _documentsList.where((doc) {
+      final hasTrip = _documentTripNumber(doc).isNotEmpty;
+      if (_scope == 'trip' && !hasTrip) return false;
+      if (_scope == 'general' && hasTrip) return false;
+      final type = _documentType(doc);
+      if (_typeFilter != null && type != _typeFilter) return false;
+      if (query.isEmpty) return true;
+      final haystack = [
+        _documentName(doc),
+        type,
+        _documentTripNumber(doc),
+        _documentOrderNumber(doc),
+        (doc['notes'] ?? '').toString(),
+      ].join(' ').toLowerCase();
+      return haystack.contains(query);
+    }).toList();
+  }
+
+  String _documentName(Map<String, dynamic> doc) {
+    final raw = (doc['fileName'] ?? doc['originalFilename'] ?? doc['name'] ?? '').toString().trim();
+    if (raw.isNotEmpty) return raw;
+    final id = (doc['id'] ?? '').toString();
+    return id.isEmpty ? 'Document' : 'Document #${id.substring(0, id.length < 4 ? id.length : 4)}';
+  }
+
+  String _documentType(Map<String, dynamic> doc) {
+    return (doc['documentType'] ?? doc['type'] ?? '').toString().trim().toLowerCase();
+  }
+
+  String _documentTripNumber(Map<String, dynamic> doc) {
+    final direct = doc['trip'];
+    if (direct is Map) {
+      final number = (direct['tripNumber'] ?? '').toString().trim();
+      if (number.isNotEmpty) return number;
+    }
+    final order = doc['order'];
+    if (order is Map) {
+      final orderTrip = order['trip'];
+      if (orderTrip is Map) {
+        final number = (orderTrip['tripNumber'] ?? '').toString().trim();
+        if (number.isNotEmpty) return number;
+      }
+    }
+    return (doc['tripNumber'] ?? '').toString().trim();
+  }
+
+  String _documentOrderNumber(Map<String, dynamic> doc) {
+    final order = doc['order'];
+    if (order is Map) {
+      return (order['orderNumber'] ?? '').toString().trim();
+    }
+    return (doc['orderNumber'] ?? '').toString().trim();
+  }
+
+  String _documentExtension(Map<String, dynamic> doc) {
+    final format = (doc['format'] ?? '').toString().trim().toLowerCase();
+    if (format.isNotEmpty) return format;
+    final name = _documentName(doc);
+    final dot = name.lastIndexOf('.');
+    return dot >= 0 && dot < name.length - 1 ? name.substring(dot + 1).toLowerCase() : '';
+  }
+
+  Widget _scopeChip(String value, String label) {
+    final selected = _scope == value;
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: FilterChip(
+        label: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: selected ? Colors.white : kTextSecondary)),
+        selected: selected,
+        selectedColor: kPrimary,
+        backgroundColor: Colors.white,
+        checkmarkColor: Colors.white,
+        side: BorderSide(color: selected ? kPrimary : kBorder),
+        onSelected: (_) => setState(() => _scope = value),
+      ),
+    );
+  }
+
+  Widget _filterBar(AppLocalizations l) {
+    final types = _documentsList.map(_documentType).where((t) => t.isNotEmpty).toSet().toList()..sort();
+    final selectedLabel = _typeFilter == null ? l.translate('docs_all_types') : _typeFilter!.toUpperCase();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+      child: Column(
+        children: [
+          TextField(
+            controller: _searchCtrl,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: l.translate('docs_search_hint'),
+              prefixIcon: const Icon(Icons.search, size: 20),
+              suffixIcon: _searchCtrl.text.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () => setState(_searchCtrl.clear),
+                    ),
+              isDense: true,
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _scopeChip('all', l.translate('docs_filter_all')),
+                      _scopeChip('trip', l.translate('docs_filter_trip')),
+                      _scopeChip('general', l.translate('docs_filter_general')),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              PopupMenuButton<String>(
+                tooltip: l.translate('docs_all_types'),
+                onSelected: (value) => setState(() => _typeFilter = value == '__all__' ? null : value),
+                itemBuilder: (ctx) => [
+                  PopupMenuItem(value: '__all__', child: Text(l.translate('docs_all_types'))),
+                  ...types.map((type) => PopupMenuItem(value: type, child: Text(type.toUpperCase()))),
+                ],
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(color: _typeFilter == null ? kBorder : kPrimary),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.filter_list, size: 16, color: _typeFilter == null ? kTextSecondary : kPrimary),
+                      const SizedBox(width: 4),
+                      Text(selectedLabel, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: _typeFilter == null ? kTextSecondary : kPrimary)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final visible = _visibleDocuments();
 
     return Scaffold(
       backgroundColor: kSurface,
       appBar: AppBar(
-        title: Text(l.translate('docs_title')),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l.translate('docs_title')),
+            Text(
+              '${_documentsList.length} ${l.translate('documents_available')}',
+              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500, color: kTextSecondary),
+            ),
+          ],
+        ),
         elevation: 0,
+        actions: [
+          IconButton(tooltip: l.translate('btn_refresh'), onPressed: _fetchDocuments, icon: const Icon(Icons.refresh)),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showUploadSheet,
@@ -582,17 +756,82 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
         icon: const Icon(Icons.upload_file, color: Colors.white),
         label: Text(l.translate('upload_doc'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
-      body: RefreshIndicator(
-        onRefresh: _fetchDocuments,
-        color: kPrimary,
-        child: _buildDocList(_documentsList, l),
+      body: Column(
+        children: [
+          _filterBar(l),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _fetchDocuments,
+              color: kPrimary,
+              child: _buildDocList(visible, l),
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  Widget _metaChip(IconData icon, String label, {Color color = kTextSecondary}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 3),
+          Text(label, style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: color)),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _downloadDoc(Map<String, dynamic> doc, AppLocalizations l) async {
+    final docId = doc['id']?.toString();
+    final token = context.read<AuthProvider>().token ?? '';
+    if (docId == null || docId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('action_failed'))));
+      return;
+    }
+    try {
+      final data = await context.read<TripProvider>().documentPreview(token, docId);
+      final url = (data['url'] ?? data['previewUrl'] ?? '').toString();
+      if (url.isEmpty) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('download_failed'))));
+        return;
+      }
+      final safeName = _documentName(doc).replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+      await _downloadFile(url, safeName, l);
+    } catch (e) {
+      debugPrint('Download error: $e');
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('download_failed'))));
+    }
+  }
+
   Widget _buildDocList(List<Map<String, dynamic>> docs, AppLocalizations l) {
-    if (_fetching) {
+    if (_fetching && docs.isEmpty) {
       return const Center(child: CircularProgressIndicator(color: kPrimary));
+    }
+
+    if (_fetchError != null && _documentsList.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cloud_off_outlined, size: 46, color: kTextSecondary),
+              const SizedBox(height: 12),
+              Text(l.translate('action_failed'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: kText)),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(onPressed: _fetchDocuments, icon: const Icon(Icons.refresh), label: Text(l.translate('btn_refresh'))),
+            ],
+          ),
+        ),
+      );
     }
 
     if (docs.isEmpty) {
@@ -614,15 +853,17 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  l.translate('no_docs_title'),
+                  _documentsList.isEmpty ? l.translate('no_docs_title') : l.translate('docs_no_results'),
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kText),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  l.translate('no_docs_sub'),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 13, color: kTextSecondary, height: 1.4),
-                ),
+                if (_documentsList.isEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    l.translate('no_docs_sub'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 13, color: kTextSecondary, height: 1.4),
+                  ),
+                ],
               ],
             ),
           ),
@@ -631,20 +872,26 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 96),
       itemCount: docs.length,
       itemBuilder: (ctx, i) {
         final doc = docs[i];
-        final rawType = (doc['type'] ?? doc['documentType'] ?? '').toString();
+        final rawType = _documentType(doc);
         final typeLabel = rawType.isNotEmpty ? rawType.toUpperCase() : 'DOC';
-        final name = doc['fileName'] ?? doc['name'] ?? 'Document #${doc['id']?.toString().substring(0, 4)}';
+        final name = _documentName(doc);
         final dateStr = doc['uploadedAt'] != null ? formatAppDateTime(doc['uploadedAt']) : '';
-        final fileUrl = doc['fileUrl'] ?? '';
-        final l = AppLocalizations.of(context);
+        final tripRef = _documentTripNumber(doc);
+        final orderRef = _documentOrderNumber(doc);
+        final extension = _documentExtension(doc);
+        final isPdf = extension == 'pdf';
+        final isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'].contains(extension);
+        final verified = doc['verified'] == true;
+        final icon = isPdf ? Icons.picture_as_pdf_outlined : (isImage ? Icons.image_outlined : Icons.description_outlined);
+        final iconColor = isPdf ? const Color(0xFFDC2626) : (isImage ? const Color(0xFF2563EB) : kPrimary);
 
         return Card(
           elevation: 0,
-          margin: const EdgeInsets.only(bottom: 10),
+          margin: const EdgeInsets.only(bottom: 8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
             side: const BorderSide(color: kBorder),
@@ -659,80 +906,18 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
                 await DocumentOpener.open(context, token: authToken, doc: doc);
                 return;
               }
-              if (fileUrl.isNotEmpty) {
-                final uri = Uri.parse(fileUrl);
-                final ext = fileUrl.split('.').last.split('?').first.toLowerCase();
-                final isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(ext) || fileUrl.contains('image/upload');
-                
-                if (isImage) {
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => Dialog(
-                      backgroundColor: Colors.black,
-                      insetPadding: EdgeInsets.zero,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          SizedBox(
-                            width: MediaQuery.of(ctx).size.width,
-                            height: MediaQuery.of(ctx).size.height,
-                            child: InteractiveViewer(
-                              minScale: 1.0,
-                              maxScale: 4.0,
-                              child: Image.network(fileUrl, fit: BoxFit.contain, loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return const Center(child: CircularProgressIndicator(color: Colors.white));
-                              }),
-                            ),
-                          ),
-                          Positioned(
-                            top: 40, right: 10,
-                            child: IconButton(
-                              icon: const Icon(Icons.close, color: Colors.white, size: 30),
-                              onPressed: () => Navigator.pop(ctx),
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 30,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white),
-                                  onPressed: () => Share.share(fileUrl),
-                                  icon: const Icon(Icons.share),
-                                  label: const Text('Share'),
-                                ),
-                                const SizedBox(width: 15),
-                                ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kPrimary),
-                                  onPressed: () {
-                                    Navigator.pop(ctx);
-                                    _downloadFile(fileUrl, fileUrl.split('/').last.split('?').first, l);
-                                  },
-                                  icon: const Icon(Icons.download),
-                                  label: const Text('Descarcă'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                } else {
-                  _downloadFile(fileUrl, fileUrl.split('/').last.split('?').first, l);
-                }
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('action_failed'))));
               }
             },
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            contentPadding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
             leading: Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
-                color: kPrimaryLight,
+                color: iconColor.withOpacity(0.09),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.description, color: kPrimary, size: 24),
+              child: Icon(icon, color: iconColor, size: 22),
             ),
             title: Text(
               name,
@@ -744,20 +929,24 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 4),
-                Row(
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(typeLabel, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: kTextSecondary)),
+                    _metaChip(Icons.sell_outlined, typeLabel),
+                    if (tripRef.isNotEmpty) _metaChip(Icons.route_outlined, tripRef, color: kPrimary),
+                    if (orderRef.isNotEmpty) _metaChip(Icons.inventory_2_outlined, orderRef, color: const Color(0xFF0F766E)),
+                    _metaChip(
+                      verified ? Icons.verified_outlined : Icons.schedule_outlined,
+                      l.translate(verified ? 'docs_verified' : 'docs_pending'),
+                      color: verified ? const Color(0xFF15803D) : const Color(0xFFB45309),
                     ),
-                    const SizedBox(width: 8),
-                    Text(dateStr, style: const TextStyle(fontSize: 11, color: kTextSecondary)),
                   ],
                 ),
+                if (dateStr.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(dateStr, style: const TextStyle(fontSize: 10.5, color: kTextSecondary)),
+                ],
                 if (doc['notes'] != null && doc['notes'].toString().isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(doc['notes'].toString(), style: const TextStyle(fontSize: 12, color: kTextSecondary)),
@@ -765,12 +954,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> with SingleTickerProv
               ],
             ),
             trailing: IconButton(
-              icon: const Icon(Icons.share, color: kPrimary, size: 20),
-              onPressed: () {
-                if (fileUrl.isNotEmpty) {
-                  Share.share('Document $name: $fileUrl');
-                }
-              },
+              tooltip: l.translate('docs_download'),
+              icon: const Icon(Icons.download_outlined, color: kPrimary, size: 20),
+              onPressed: () => _downloadDoc(doc, l),
             ),
           ),
         );

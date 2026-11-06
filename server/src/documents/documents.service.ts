@@ -45,24 +45,37 @@ export class DocumentsService implements OnModuleInit {
   async findAll(user?: any) {
     if (!user?.id) throw new ForbiddenException('Authentication required');
     if (!isDriverActor(user)) {
-      return this.repo.find({ relations: ['trip', 'order', 'uploadedBy'], order: { uploadedAt: 'DESC' } });
+      return this.repo.find({
+        relations: ['trip', 'order', 'order.trip', 'stopTask', 'uploadedBy'],
+        order: { uploadedAt: 'DESC' },
+      });
     }
 
     // A driver only sees what he uploaded and what belongs to his own trips.
+    // Documents can be attached to the trip itself, to an order carried by the
+    // trip, or to a stop task on that trip. All three are real associations; a
+    // document must not disappear from the library because the TMS attached it
+    // at order level.
     const trips = await this.tripRepo.find({
       where: [
         { driver: { user: { id: user.id } } },
         { truck: { driver: { user: { id: user.id } } } },
       ] as any,
-      relations: ['driver', 'driver.user', 'truck', 'truck.driver', 'truck.driver.user'],
+      relations: ['driver', 'driver.user', 'truck', 'truck.driver', 'truck.driver.user', 'orders', 'stops', 'stops.tasks'],
     });
     const tripIds = trips.map((t) => t.id);
+    const orderIds = trips.flatMap((t) => ((t as any).orders || []).map((o: any) => o.id)).filter(Boolean);
+    const stopTaskIds = trips
+      .flatMap((t) => ((t as any).stops || []).flatMap((s: any) => (s.tasks || []).map((task: any) => task.id)))
+      .filter(Boolean);
     const where: any[] = [{ uploadedBy: { id: user.id } }];
     if (tripIds.length > 0) where.push({ trip: { id: In(tripIds) } });
+    if (orderIds.length > 0) where.push({ order: { id: In(orderIds) } });
+    if (stopTaskIds.length > 0) where.push({ stopTask: { id: In(stopTaskIds) } });
 
     return this.repo.find({
       where,
-      relations: ['trip', 'order', 'uploadedBy'],
+      relations: ['trip', 'order', 'order.trip', 'stopTask', 'uploadedBy'],
       order: { uploadedAt: 'DESC' },
     });
   }
@@ -81,7 +94,23 @@ export class DocumentsService implements OnModuleInit {
 
   async findByTrip(tripId: string, user?: any) {
     await this.assertTripAccess(tripId, user);
-    return this.repo.find({ where: { trip: { id: tripId } }, relations: ['uploadedBy', 'order'] });
+    const trip = await this.tripRepo.findOne({
+      where: [{ id: tripId }, { tripNumber: tripId }],
+      relations: ['orders', 'stops', 'stops.tasks'],
+    });
+    if (!trip) throw new NotFoundException('Trip not found');
+    const orderIds = ((trip as any).orders || []).map((o: any) => o.id).filter(Boolean);
+    const stopTaskIds = ((trip as any).stops || [])
+      .flatMap((s: any) => (s.tasks || []).map((task: any) => task.id))
+      .filter(Boolean);
+    const where: any[] = [{ trip: { id: trip.id } }];
+    if (orderIds.length > 0) where.push({ order: { id: In(orderIds) } });
+    if (stopTaskIds.length > 0) where.push({ stopTask: { id: In(stopTaskIds) } });
+    return this.repo.find({
+      where,
+      relations: ['uploadedBy', 'trip', 'order', 'order.trip', 'stopTask'],
+      order: { uploadedAt: 'DESC' },
+    });
   }
 
   /**
@@ -93,12 +122,32 @@ export class DocumentsService implements OnModuleInit {
     if (!user?.id) throw new ForbiddenException('Authentication required');
     if (!isDriverActor(user)) return;
     const trip = await this.tripRepo.findOne({
-      where: { id: tripId },
+      where: [{ id: tripId }, { tripNumber: tripId }],
       relations: ['driver', 'driver.user', 'truck', 'truck.driver', 'truck.driver.user'],
     });
     if (!trip) throw new NotFoundException('Trip not found');
     if (!actorOwnsTrip(trip, user)) {
       throw new ForbiddenException('Cursa nu este alocată acestui șofer');
+    }
+  }
+
+  /** An order document is reachable only through a trip the driver owns. */
+  private async assertOrderAccess(orderId: string, user?: any) {
+    if (!isDriverActor(user)) return;
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId },
+      relations: [
+        'trip',
+        'trip.driver',
+        'trip.driver.user',
+        'trip.truck',
+        'trip.truck.driver',
+        'trip.truck.driver.user',
+      ],
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    if (!order.trip || !actorOwnsTrip(order.trip, user)) {
+      throw new ForbiddenException('Comanda nu este alocată acestui șofer');
     }
   }
 
@@ -114,6 +163,21 @@ export class DocumentsService implements OnModuleInit {
         'trip.truck',
         'trip.truck.driver',
         'trip.truck.driver.user',
+        'order',
+        'order.trip',
+        'order.trip.driver',
+        'order.trip.driver.user',
+        'order.trip.truck',
+        'order.trip.truck.driver',
+        'order.trip.truck.driver.user',
+        'stopTask',
+        'stopTask.stop',
+        'stopTask.stop.trip',
+        'stopTask.stop.trip.driver',
+        'stopTask.stop.trip.driver.user',
+        'stopTask.stop.trip.truck',
+        'stopTask.stop.trip.truck.driver',
+        'stopTask.stop.trip.truck.driver.user',
         'uploadedBy',
       ],
     });
@@ -121,6 +185,8 @@ export class DocumentsService implements OnModuleInit {
     if (!isDriverActor(user)) return document;
     const uploadedByMe = document.uploadedBy && String((document.uploadedBy as any).id) === String(user.id);
     if (document.trip && actorOwnsTrip(document.trip, user)) return document;
+    if (document.order?.trip && actorOwnsTrip(document.order.trip, user)) return document;
+    if (document.stopTask?.stop?.trip && actorOwnsTrip(document.stopTask.stop.trip, user)) return document;
     if (uploadedByMe) return document;
     throw new ForbiddenException('Documentul nu aparține acestei curse');
   }
@@ -310,6 +376,17 @@ export class DocumentsService implements OnModuleInit {
   async uploadAndCreate(file: Express.Multer.File, dto: UploadDocumentDto, user?: any): Promise<Document> {
     if (!file || !file.buffer) {
       throw new BadRequestException('No file uploaded or file buffer empty');
+    }
+
+    // A driver can only attach a document to his own trip/order. Refuse before
+    // any bytes are uploaded, so a forged tripId cannot create orphan documents.
+    if (isDriverActor(user)) {
+      if (dto.tripId && dto.tripId !== 'null' && dto.tripId !== '') {
+        await this.assertTripAccess(dto.tripId, user);
+      }
+      if (dto.orderId && dto.orderId !== 'null' && dto.orderId !== '') {
+        await this.assertOrderAccess(dto.orderId, user);
+      }
     }
 
     // 1. Resolve Document Type & English Prefix
