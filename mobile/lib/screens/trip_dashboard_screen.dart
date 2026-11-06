@@ -6,6 +6,8 @@ import '../providers/trip_provider.dart';
 import '../services/document_opener.dart';
 import '../utils/constants.dart';
 import '../utils/date_formatter.dart';
+import '../utils/document_status.dart';
+import '../utils/document_types.dart';
 import '../utils/number_format.dart';
 import '../utils/trip_actions.dart';
 import '../utils/trip_fields.dart';
@@ -40,12 +42,14 @@ class TripDashboardScreen extends StatefulWidget {
 class _TripDashboardScreenState extends State<TripDashboardScreen> {
   late Map<String, dynamic> tripData;
   Future<List<Map<String, dynamic>>>? _history;
+  Future<List<Map<String, dynamic>>?>? _documents;
   bool _busy = false;
 
   @override
   void initState() {
     super.initState();
     tripData = widget.trip;
+    _documents = context.read<TripProvider>().documentsForTrip(widget.token, tripData['id'].toString());
     _history = context.read<TripProvider>().statusHistory(widget.token, tripData['id'].toString());
   }
 
@@ -55,6 +59,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
     if (!mounted) return;
     setState(() {
       if (updated != null) tripData = updated;
+      _documents = context.read<TripProvider>().documentsForTrip(widget.token, tripData['id'].toString());
       _history = context.read<TripProvider>().statusHistory(widget.token, tripData['id'].toString());
     });
   }
@@ -70,14 +75,9 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
           content: DropdownButtonFormField<String>(
             value: selectedType,
             decoration: InputDecoration(labelText: l.translate('docs_document_type')),
-            items: const [
-              DropdownMenuItem(value: 'cmr', child: Text('CMR')),
-              DropdownMenuItem(value: 'pod', child: Text('POD')),
-              DropdownMenuItem(value: 'delivery_note', child: Text('Delivery Note')),
-              DropdownMenuItem(value: 'invoice', child: Text('Invoice')),
-              DropdownMenuItem(value: 'photo', child: Text('Photo')),
-              DropdownMenuItem(value: 'other', child: Text('Other')),
-            ],
+            items: documentTypes
+                .map((type) => DropdownMenuItem(value: type.id, child: Text(l.translate(type.labelKey))))
+                .toList(),
             onChanged: (value) => setDialogState(() => selectedType = value ?? 'other'),
           ),
           actions: [
@@ -764,7 +764,6 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
   }
 
   Widget _documentsCard(AppLocalizations l) {
-    final documents = tripDocuments(tripData);
     return _panel(
       title: l.translate('section_documents'),
       children: [
@@ -781,20 +780,67 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
             ),
           ],
         ),
-        if (documents.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(l.translate('no_documents'), style: const TextStyle(fontSize: 12, color: kTextSecondary)),
-          )
-        else
-          for (final d in documents) _documentRow(d, l),
+        FutureBuilder<List<Map<String, dynamic>>?>(
+          future: _documents,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 10),
+                child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
+              );
+            }
+            if (snapshot.data == null) {
+              return Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(l.translate('action_failed'), style: const TextStyle(fontSize: 12, color: kError)),
+              );
+            }
+            final documents = snapshot.data!;
+            final missing = missingRequiredDocumentTypes(tripData, documents);
+            return Column(
+              children: [
+                for (final d in documents) _documentRow(d, l),
+                for (final type in missing) _missingDocumentRow(type, l),
+                if (documents.isEmpty && missing.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(l.translate('no_documents'), style: const TextStyle(fontSize: 12, color: kTextSecondary)),
+                  ),
+              ],
+            );
+          },
+        ),
       ],
+    );
+  }
+
+  Widget _missingDocumentRow(String type, AppLocalizations l) {
+    final definition = documentTypeById(type);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(color: kError.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
+            child: const Icon(Icons.report_gmailerrorred_outlined, size: 16, color: kError),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '${l.translate(definition?.labelKey ?? 'doc_type_other')} · ${l.translate('doc_status_missing')}',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kError),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _documentRow(Map<String, dynamic> doc, AppLocalizations l) {
     final name = (doc['fileName'] ?? doc['originalFilename'] ?? doc['documentType'] ?? '—').toString();
-    final type = (doc['documentType'] ?? doc['type'] ?? '').toString().toUpperCase();
+    final type = l.translate(documentTypeById(documentTypeOf(doc))?.labelKey ?? 'doc_type_other');
+    final reviewState = documentStatusOf(doc);
     final date = doc['uploadedAt'] != null ? formatAppDate(doc['uploadedAt'].toString()) : '';
     // The documents live in one central section, so each row names the order
     // it belongs to instead of repeating the list inside every stop card.
@@ -803,6 +849,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
         : (doc['orderNumber'] ?? '').toString();
     final subtitle = [
       if (type.isNotEmpty) type,
+      l.translate(reviewState.labelKey),
       if (orderNumber.isNotEmpty) orderNumber,
       if (date.isNotEmpty) date,
     ].join(' · ');

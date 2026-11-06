@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Delete, Param, Body, UseGuards, UseInterceptors, UploadedFile, Request, UnauthorizedException, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, UseInterceptors, UploadedFile, Request, UnauthorizedException, Req } from '@nestjs/common';
 import { DocumentsService } from './documents.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UploadDocumentDto } from './dto/upload-document.dto';
+import { ReviewDocumentDto } from './dto/review-document.dto';
 
 @Controller('documents')
 export class DocumentsController {
@@ -78,6 +79,12 @@ export class DocumentsController {
   @UseInterceptors(FileInterceptor('file'))
   async upload(@UploadedFile() file: Express.Multer.File, @Body() body: UploadDocumentDto, @Request() req: any) {
     return this.service.uploadAndCreate(file, body, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/review')
+  review(@Param('id') id: string, @Body() body: ReviewDocumentDto, @Request() req: any) {
+    return this.service.review(id, body, req.user);
   }
 
   @UseGuards(JwtAuthGuard)

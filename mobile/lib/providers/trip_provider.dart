@@ -234,6 +234,18 @@ class TripProvider extends ChangeNotifier {
 
   /// Short-lived signed URL for one document, after the server has verified
   /// that the document belongs to a trip this driver runs.
+  /// `null` means the request failed; an empty list is a successful response
+  /// with no documents, so the UI never reports files as missing after an error.
+  Future<List<Map<String, dynamic>>?> documentsForTrip(String token, String tripId) async {
+    try {
+      final res = await _dio(token).get('/documents/trip/$tripId');
+      if (res.data is List) return List<Map<String, dynamic>>.from(res.data);
+      return <Map<String, dynamic>>[];
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Map<String, dynamic>> documentPreview(String token, String documentId) async {
     try {
       final res = await _dio(token).get('/documents/$documentId/preview-url');

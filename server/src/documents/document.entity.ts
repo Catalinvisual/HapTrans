@@ -17,6 +17,12 @@ export enum DocumentType {
   OTHER = 'other',
 }
 
+export enum DocumentReviewStatus {
+  SUBMITTED = 'submitted',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+}
+
 @Entity('documents')
 export class Document {
   @PrimaryGeneratedColumn('uuid')
@@ -49,6 +55,15 @@ export class Document {
   // Verification
   @Column({ default: false })
   verified: boolean;
+
+  @Column({ type: 'varchar', length: 32, default: DocumentReviewStatus.SUBMITTED })
+  reviewStatus: DocumentReviewStatus;
+
+  @Column({ type: 'text', nullable: true })
+  rejectionReason: string;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  reviewedAt: Date;
 
   @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
   verifiedBy: User;

@@ -13,6 +13,8 @@ import '../providers/trip_provider.dart';
 import '../services/document_opener.dart';
 import '../utils/constants.dart';
 import '../utils/date_formatter.dart';
+import '../utils/document_status.dart';
+import '../utils/document_types.dart';
 import '../utils/trip_fields.dart';
 
 class DocumentsScreen extends StatefulWidget {
@@ -356,14 +358,14 @@ class DocumentsScreenState extends State<DocumentsScreen> {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: ['cmr', 'aviz', 'fuel', 'pod', 'licence', 'other'].map((type) {
-                    final isSel = _selectedTypeKey == type;
+                  children: documentTypes.map((type) {
+                    final isSel = _selectedTypeKey == type.id;
                     return ChoiceChip(
-                      label: Text(l.translate(type).toUpperCase(), style: TextStyle(color: isSel ? Colors.white : kText, fontSize: 12, fontWeight: FontWeight.bold)),
+                      label: Text(l.translate(type.labelKey), style: TextStyle(color: isSel ? Colors.white : kText, fontSize: 12, fontWeight: FontWeight.bold)),
                       selected: isSel,
                       selectedColor: kPrimary,
                       backgroundColor: Colors.white,
-                      onSelected: (_) => setSheetState(() => _selectedTypeKey = type),
+                      onSelected: (_) => setSheetState(() => _selectedTypeKey = type.id),
                     );
                   }).toList(),
                 ),
@@ -579,8 +581,8 @@ class DocumentsScreenState extends State<DocumentsScreen> {
       final hasTrip = _documentTripNumber(doc).isNotEmpty;
       if (_scope == 'trip' && !hasTrip) return false;
       if (_scope == 'general' && hasTrip) return false;
-      final type = _documentType(doc);
-      if (_typeFilter != null && type != _typeFilter) return false;
+      final type = documentTypeOf(doc);
+      if (!matchesDocumentType(doc, _typeFilter)) return false;
       if (query.isEmpty) return true;
       final haystack = [
         _documentName(doc),
@@ -601,7 +603,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
   }
 
   String _documentType(Map<String, dynamic> doc) {
-    return (doc['documentType'] ?? doc['type'] ?? '').toString().trim().toLowerCase();
+    return documentTypeOf(doc);
   }
 
   String _documentTripNumber(Map<String, dynamic> doc) {
@@ -654,8 +656,10 @@ class DocumentsScreenState extends State<DocumentsScreen> {
   }
 
   Widget _filterBar(AppLocalizations l) {
-    final types = _documentsList.map(_documentType).where((t) => t.isNotEmpty).toSet().toList()..sort();
-    final selectedLabel = _typeFilter == null ? l.translate('docs_all_types') : _typeFilter!.toUpperCase();
+    final selectedDefinition = _typeFilter == null ? null : documentTypeById(_typeFilter!);
+    final selectedLabel = _typeFilter == null
+        ? l.translate('docs_all_types')
+        : l.translate(selectedDefinition?.labelKey ?? 'doc_type_other');
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
       child: Column(
@@ -701,7 +705,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
                 onSelected: (value) => setState(() => _typeFilter = value == '__all__' ? null : value),
                 itemBuilder: (ctx) => [
                   PopupMenuItem(value: '__all__', child: Text(l.translate('docs_all_types'))),
-                  ...types.map((type) => PopupMenuItem(value: type, child: Text(type.toUpperCase()))),
+                  ...documentTypes.map((type) => PopupMenuItem(value: type.id, child: Text(l.translate(type.labelKey)))),
                 ],
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
@@ -877,7 +881,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
       itemBuilder: (ctx, i) {
         final doc = docs[i];
         final rawType = _documentType(doc);
-        final typeLabel = rawType.isNotEmpty ? rawType.toUpperCase() : 'DOC';
+        final typeLabel = l.translate(documentTypeById(rawType)?.labelKey ?? 'doc_type_other');
         final name = _documentName(doc);
         final dateStr = doc['uploadedAt'] != null ? formatAppDateTime(doc['uploadedAt']) : '';
         final tripRef = _documentTripNumber(doc);
@@ -885,7 +889,13 @@ class DocumentsScreenState extends State<DocumentsScreen> {
         final extension = _documentExtension(doc);
         final isPdf = extension == 'pdf';
         final isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'].contains(extension);
-        final verified = doc['verified'] == true;
+        final reviewState = documentStatusOf(doc);
+        final reviewColor = reviewState == DocumentReviewState.approved
+            ? const Color(0xFF15803D)
+            : (reviewState == DocumentReviewState.rejected ? kError : const Color(0xFFB45309));
+        final reviewIcon = reviewState == DocumentReviewState.approved
+            ? Icons.verified_outlined
+            : (reviewState == DocumentReviewState.rejected ? Icons.cancel_outlined : Icons.schedule_outlined);
         final icon = isPdf ? Icons.picture_as_pdf_outlined : (isImage ? Icons.image_outlined : Icons.description_outlined);
         final iconColor = isPdf ? const Color(0xFFDC2626) : (isImage ? const Color(0xFF2563EB) : kPrimary);
 
@@ -937,9 +947,9 @@ class DocumentsScreenState extends State<DocumentsScreen> {
                     if (tripRef.isNotEmpty) _metaChip(Icons.route_outlined, tripRef, color: kPrimary),
                     if (orderRef.isNotEmpty) _metaChip(Icons.inventory_2_outlined, orderRef, color: const Color(0xFF0F766E)),
                     _metaChip(
-                      verified ? Icons.verified_outlined : Icons.schedule_outlined,
-                      l.translate(verified ? 'docs_verified' : 'docs_pending'),
-                      color: verified ? const Color(0xFF15803D) : const Color(0xFFB45309),
+                      reviewIcon,
+                      l.translate(reviewState.labelKey),
+                      color: reviewColor,
                     ),
                   ],
                 ),
@@ -950,6 +960,16 @@ class DocumentsScreenState extends State<DocumentsScreen> {
                 if (doc['notes'] != null && doc['notes'].toString().isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(doc['notes'].toString(), style: const TextStyle(fontSize: 12, color: kTextSecondary)),
+                ],
+                if (reviewState == DocumentReviewState.rejected &&
+                    (doc['rejectionReason'] ?? '').toString().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    doc['rejectionReason'].toString(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11, color: kError),
+                  ),
                 ],
               ],
             ),
