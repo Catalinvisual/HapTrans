@@ -4135,6 +4135,24 @@ export class PlanningService {
       }
     }
 
+    // The provider's legs are the route truth. If a rebuild wrote the stop legs
+    // but not the plan totals, the totals are reconciled from those legs rather
+    // than serving a distance that belongs to a previous sequence.
+    if (routePlan?.stops?.length && String(routePlan.routeStatus) === 'calculated') {
+      const legSum = routePlan.stops.reduce((sum, stop) => sum + (Number(stop.distanceFromPreviousKm) || 0), 0);
+      const drivingSum = routePlan.stops.reduce((sum, stop) => sum + (Number(stop.durationFromPreviousMin) || 0), 0);
+      const breakdown = (routePlan.optimizationMetadata as any)?.scheduleBreakdown;
+      const distanceMismatch = legSum > 0 && Math.abs(legSum - Number(routePlan.totalDistanceKm || 0)) > 1;
+      const drivingMismatch = drivingSum > 0 && Math.abs(drivingSum - Number(routePlan.totalDrivingTimeMinutes || 0)) > 1;
+      if (distanceMismatch) routePlan.totalDistanceKm = Math.round(legSum * 100) / 100;
+      if (drivingMismatch) routePlan.totalDrivingTimeMinutes = drivingSum;
+      if (distanceMismatch || drivingMismatch || !breakdown) {
+        this.applyRouteSchedule(routePlan, routePlan.stops);
+        for (const stop of routePlan.stops) await this.routePlanStopRepo.save(stop);
+        await this.routePlanRepo.save(routePlan);
+      }
+    }
+
     // A rebuild interrupted mid-flight (client closed the request) can persist
     // the new stops without ever finishing the route. The stop count exposes
     // that state, so the route is recalculated instead of serving the previous
@@ -5091,6 +5109,10 @@ export class PlanningService {
     savedPlan.stopCount = stopList.length;
     savedPlan.pickupCount = pickupCount;
     savedPlan.deliveryCount = deliveryCount;
+    // Persist the calculated route and schedule before any best-effort step.
+    // Saving only at the end left a plan with new stop legs but the previous
+    // distance and waiting when the request was cut short.
+    await this.routePlanRepo.save(savedPlan);
 
     // Assign loading sequence based on the truck's loading rule
     try {
