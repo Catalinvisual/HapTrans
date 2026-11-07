@@ -1,22 +1,23 @@
 import 'document_types.dart';
 
-enum DocumentReviewState {
-  submitted('doc_status_submitted'),
+enum DocumentLifecycleState {
+  uploaded('doc_status_uploaded'),
   approved('doc_status_approved'),
   rejected('doc_status_rejected');
 
   final String labelKey;
-  const DocumentReviewState(this.labelKey);
+  const DocumentLifecycleState(this.labelKey);
 }
 
-/// Only the document's own review fields determine its status. The trip status
-/// never auto-approves a document.
-DocumentReviewState documentStatusOf(Map<String, dynamic> doc) {
+/// A normal document is uploaded and available. There is no staffed review
+/// workflow, so an unreviewed upload is never presented as awaiting validation.
+/// Explicit historical approved/rejected values are still shown accurately.
+DocumentLifecycleState documentStatusOf(Map<String, dynamic> doc) {
   final raw = (doc['reviewStatus'] ?? doc['documentStatus'] ?? '').toString().trim().toLowerCase();
-  if (raw == 'approved' || raw == 'verified') return DocumentReviewState.approved;
-  if (raw == 'rejected' || raw == 'invalid') return DocumentReviewState.rejected;
-  if (doc['verified'] == true) return DocumentReviewState.approved;
-  return DocumentReviewState.submitted;
+  if (raw == 'approved' || raw == 'verified') return DocumentLifecycleState.approved;
+  if (raw == 'rejected' || raw == 'invalid') return DocumentLifecycleState.rejected;
+  if (doc['verified'] == true) return DocumentLifecycleState.approved;
+  return DocumentLifecycleState.uploaded;
 }
 
 bool isCompletedTrip(Map<String, dynamic> trip) => const {

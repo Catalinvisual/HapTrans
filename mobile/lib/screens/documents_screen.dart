@@ -890,12 +890,12 @@ class DocumentsScreenState extends State<DocumentsScreen> {
         final isPdf = extension == 'pdf';
         final isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'].contains(extension);
         final reviewState = documentStatusOf(doc);
-        final reviewColor = reviewState == DocumentReviewState.approved
+        final reviewColor = reviewState == DocumentLifecycleState.approved
             ? const Color(0xFF15803D)
-            : (reviewState == DocumentReviewState.rejected ? kError : const Color(0xFFB45309));
-        final reviewIcon = reviewState == DocumentReviewState.approved
+            : (reviewState == DocumentLifecycleState.rejected ? kError : kPrimary);
+        final reviewIcon = reviewState == DocumentLifecycleState.approved
             ? Icons.verified_outlined
-            : (reviewState == DocumentReviewState.rejected ? Icons.cancel_outlined : Icons.schedule_outlined);
+            : (reviewState == DocumentLifecycleState.rejected ? Icons.cancel_outlined : Icons.cloud_done_outlined);
         final icon = isPdf ? Icons.picture_as_pdf_outlined : (isImage ? Icons.image_outlined : Icons.description_outlined);
         final iconColor = isPdf ? const Color(0xFFDC2626) : (isImage ? const Color(0xFF2563EB) : kPrimary);
 
@@ -961,7 +961,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
                   const SizedBox(height: 4),
                   Text(doc['notes'].toString(), style: const TextStyle(fontSize: 12, color: kTextSecondary)),
                 ],
-                if (reviewState == DocumentReviewState.rejected &&
+                if (reviewState == DocumentLifecycleState.rejected &&
                     (doc['rejectionReason'] ?? '').toString().isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(

@@ -8,7 +8,7 @@ void main() {
   const locales = ['ro', 'en', 'nl', 'de', 'fr', 'es', 'pl'];
   final keys = [
     ...documentTypes.map((type) => type.labelKey),
-    'doc_status_submitted',
+    'doc_status_uploaded',
     'doc_status_approved',
     'doc_status_rejected',
     'doc_status_missing',
@@ -25,8 +25,13 @@ void main() {
         expect(value, isNot(key), reason: '$locale/$key is missing');
       }
     }
-    expect(AppLocalizations(const Locale('en')).translate('doc_status_submitted'), 'Awaiting validation');
-    expect(AppLocalizations(const Locale('nl')).translate('doc_status_submitted'), 'Wacht op validatie');
+    expect(AppLocalizations(const Locale('en')).translate('doc_status_uploaded'), 'Uploaded');
+    expect(AppLocalizations(const Locale('nl')).translate('doc_status_uploaded'), 'Geüpload');
+    expect(AppLocalizations(const Locale('de')).translate('doc_status_uploaded'), 'Hochgeladen');
+    expect(AppLocalizations(const Locale('fr')).translate('doc_status_uploaded'), 'Téléversé');
+    expect(AppLocalizations(const Locale('es')).translate('doc_status_uploaded'), 'Subido');
+    expect(AppLocalizations(const Locale('pl')).translate('doc_status_uploaded'), 'Przesłany');
+    expect(AppLocalizations(const Locale('ro')).translate('doc_status_uploaded'), 'Încărcat');
     expect(AppLocalizations(const Locale('de')).translate('doc_type_invoice'), 'Rechnung');
     expect(AppLocalizations(const Locale('fr')).translate('doc_type_packing_list'), 'Liste de colisage');
     expect(AppLocalizations(const Locale('es')).translate('doc_type_aviz'), 'Albarán');

@@ -38,7 +38,10 @@ export class DocumentsService implements OnModuleInit {
         ALTER TABLE "documents" ADD COLUMN IF NOT EXISTS "notes" text;
       `);
       await this.repo.query(`
-        ALTER TABLE "documents" ADD COLUMN IF NOT EXISTS "reviewStatus" varchar(32) NOT NULL DEFAULT 'submitted';
+        ALTER TABLE "documents" ADD COLUMN IF NOT EXISTS "reviewStatus" varchar(32) NOT NULL DEFAULT 'uploaded';
+      `);
+      await this.repo.query(`
+        ALTER TABLE "documents" ALTER COLUMN "reviewStatus" SET DEFAULT 'uploaded';
       `);
       await this.repo.query(`
         ALTER TABLE "documents" ADD COLUMN IF NOT EXISTS "rejectionReason" text;
@@ -46,13 +49,18 @@ export class DocumentsService implements OnModuleInit {
       await this.repo.query(`
         ALTER TABLE "documents" ADD COLUMN IF NOT EXISTS "reviewedAt" timestamptz;
       `);
-      // Preserve the only historical meaning that exists: verified=true was an
-      // approval. Everything else is an uploaded document awaiting validation,
-      // never an implicit approval based on the trip status.
+      // Preserve explicit historical approvals, then convert the short-lived
+      // "submitted" value to the factual upload state. No document is presented
+      // as waiting for a review process that does not exist.
       await this.repo.query(`
         UPDATE "documents"
         SET "reviewStatus" = 'approved'
-        WHERE "verified" = true AND "reviewStatus" = 'submitted';
+        WHERE "verified" = true AND "reviewStatus" IN ('submitted', 'uploaded');
+      `);
+      await this.repo.query(`
+        UPDATE "documents"
+        SET "reviewStatus" = 'uploaded'
+        WHERE "reviewStatus" = 'submitted';
       `);
     } catch {
       // ignore
@@ -540,7 +548,7 @@ export class DocumentsService implements OnModuleInit {
       cloudinaryAssetId: uploadResult.asset_id,
       tnasDownloaded: false,
       notes: dto.notes,
-      reviewStatus: DocumentReviewStatus.SUBMITTED,
+      reviewStatus: DocumentReviewStatus.UPLOADED,
       verified: false,
       uploadedBy: user?.id ? ({ id: user.id } as any) : null,
     });
@@ -605,7 +613,7 @@ export class DocumentsService implements OnModuleInit {
       ...dto,
       type: displayType,
       documentType: normalizedType,
-      reviewStatus: dto.reviewStatus ?? DocumentReviewStatus.SUBMITTED,
+      reviewStatus: dto.reviewStatus ?? DocumentReviewStatus.UPLOADED,
       trip: hasTrip ? ({ id: dto.tripId } as any) : null,
       order: hasOrder ? ({ id: dto.orderId } as any) : null,
       uploadedBy: dto.uploadedById ? ({ id: dto.uploadedById } as any) : null,
@@ -666,36 +674,6 @@ export class DocumentsService implements OnModuleInit {
       documentType: document.documentType || document.type || null,
       mimeType: document.mimeType || null,
     };
-  }
-
-  /** Dispatchers/admins record a real review decision. Drivers never can. */
-  async review(documentId: string, dto: any, user?: any) {
-    if (!user?.id) throw new ForbiddenException('Authentication required');
-    const role = String(user.role || '').toLowerCase();
-    if (!['admin', 'dispatcher'].includes(role)) {
-      throw new ForbiddenException('Document review requires a dispatcher or admin account');
-    }
-    if (![DocumentReviewStatus.APPROVED, DocumentReviewStatus.REJECTED].includes(dto.status)) {
-      throw new BadRequestException('Review status must be approved or rejected');
-    }
-    const reason = (dto.reason ?? '').toString().trim();
-    if (dto.status === DocumentReviewStatus.REJECTED && !reason) {
-      throw new BadRequestException('A rejection reason is required');
-    }
-
-    const document = await this.repo.findOne({ where: { id: documentId } });
-    if (!document) throw new NotFoundException('Document not found');
-    document.reviewStatus = dto.status;
-    document.verified = dto.status === DocumentReviewStatus.APPROVED;
-    document.verifiedBy = { id: user.id } as any;
-    document.reviewedAt = new Date();
-    document.rejectionReason = dto.status === DocumentReviewStatus.REJECTED ? reason : null;
-    await this.repo.save(document);
-
-    return this.repo.findOne({
-      where: { id: documentId },
-      relations: ['trip', 'order', 'uploadedBy', 'verifiedBy'],
-    });
   }
 
   async shareDocument(documentId: string, createdBy: string) {

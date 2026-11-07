@@ -18,7 +18,7 @@ export enum DocumentType {
 }
 
 export enum DocumentReviewStatus {
-  SUBMITTED = 'submitted',
+  UPLOADED = 'uploaded',
   APPROVED = 'approved',
   REJECTED = 'rejected',
 }
@@ -56,7 +56,9 @@ export class Document {
   @Column({ default: false })
   verified: boolean;
 
-  @Column({ type: 'varchar', length: 32, default: DocumentReviewStatus.SUBMITTED })
+  // Unreviewed uploads are simply "uploaded". This is not a request for
+  // validation, because no document review workflow is staffed in the TMS.
+  @Column({ type: 'varchar', length: 32, default: DocumentReviewStatus.UPLOADED })
   reviewStatus: DocumentReviewStatus;
 
   @Column({ type: 'text', nullable: true })

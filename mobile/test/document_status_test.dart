@@ -11,13 +11,17 @@ void main() {
       };
 
   test('completed trip with approved CMR and POD shows both approved', () {
-    expect(documentStatusOf(doc(reviewStatus: 'approved', type: 'cmr')), DocumentReviewState.approved);
-    expect(documentStatusOf(doc(reviewStatus: 'approved', type: 'pod')), DocumentReviewState.approved);
+    expect(documentStatusOf(doc(reviewStatus: 'approved', type: 'cmr')), DocumentLifecycleState.approved);
+    expect(documentStatusOf(doc(reviewStatus: 'approved', type: 'pod')), DocumentLifecycleState.approved);
   });
 
-  test('completed trip keeps submitted and approved documents distinct', () {
-    expect(documentStatusOf(doc(reviewStatus: 'submitted')), DocumentReviewState.submitted);
-    expect(documentStatusOf(doc(reviewStatus: 'approved')), DocumentReviewState.approved);
+  test('a normal upload is shown as uploaded, never as awaiting validation', () {
+    expect(documentStatusOf(doc(reviewStatus: 'uploaded')), DocumentLifecycleState.uploaded);
+    expect(documentStatusOf(doc()), DocumentLifecycleState.uploaded);
+  });
+
+  test('legacy submitted rows from before the simplification still show uploaded', () {
+    expect(documentStatusOf(doc(reviewStatus: 'submitted')), DocumentLifecycleState.uploaded);
   });
 
   test('completed trip with missing POD reports the requirement, not a fake document', () {
@@ -31,14 +35,14 @@ void main() {
   });
 
   test('trip completion never auto-approves an unreviewed document', () {
-    expect(documentStatusOf(doc(verified: false)), DocumentReviewState.submitted);
+    expect(documentStatusOf(doc(verified: false)), DocumentLifecycleState.uploaded);
   });
 
   test('rejected document keeps rejected status and is not approved', () {
-    expect(documentStatusOf(doc(verified: false, reviewStatus: 'rejected')), DocumentReviewState.rejected);
+    expect(documentStatusOf(doc(verified: false, reviewStatus: 'rejected')), DocumentLifecycleState.rejected);
   });
 
   test('legacy verified boolean maps to approved', () {
-    expect(documentStatusOf(doc(verified: true)), DocumentReviewState.approved);
+    expect(documentStatusOf(doc(verified: true)), DocumentLifecycleState.approved);
   });
 }
