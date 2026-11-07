@@ -821,8 +821,12 @@ function ResourceRow({
     .filter((tr: any) => tr.plannedDeparture && new Date(tr.plannedDeparture).getTime() >= now)
     .sort((a: any, b: any) => new Date(a.plannedDeparture).getTime() - new Date(b.plannedDeparture).getTime())[0];
   const cargo = sumCargo(trips.filter((tr: any) => !['completed', 'closed', 'cancelled'].includes(tr.status)).flatMap((tr: any) => tr.orders || []));
-  const mw = resource.maxWeightKg || 24000;
-  const mp = resource.maxPallets || 33;
+  // Use the same capacity the server ledger and conflict engine use. Never
+  // invent 24000 kg / 33 pallets: an unknown limit must read as unknown.
+  const mwValue = resource.capacity?.maxWeightKg ?? resource.payloadCapacity ?? resource.maxWeightKg;
+  const mpValue = resource.capacity?.maxPallets ?? resource.maxPallets;
+  const mw = mwValue != null && Number(mwValue) > 0 ? Number(mwValue) : 0;
+  const mp = mpValue != null && Number(mpValue) > 0 ? Number(mpValue) : 0;
   const st = String(resource.status || 'available').toLowerCase();
   const isMaintenance = st === 'maintenance';
   const statusDot = { active:'bg-emerald-400', available:'bg-emerald-400', assigned:'bg-blue-400', driving:'bg-amber-400', maintenance:'bg-red-400', inactive:'bg-slate-400' }[st] || 'bg-slate-400';
@@ -843,8 +847,8 @@ function ResourceRow({
   const weightPct = mw > 0 ? (cargo.weight / mw) * 100 : 0;
   const palletPct = mp > 0 ? (cargo.pallets / mp) * 100 : 0;
   const driverLabel = driverDisplayName(resource.driver);
-  const weightText = `${(cargo.weight / 1000).toFixed(1)}t / ${(mw / 1000).toFixed(0)}t`;
-  const palletText = `${Math.round(cargo.pallets)} / ${mp} plt`;
+  const weightText = `${(cargo.weight / 1000).toFixed(1)}t / ${mw > 0 ? `${(mw / 1000).toFixed(1)}t` : '—'}`;
+  const palletText = `${Math.round(cargo.pallets)} / ${mp > 0 ? mp : '—'} plt`;
   const weightTooltip = `${t('capacity_weight', 'Weight')}: ${fmtNumber(cargo.weight)} kg / ${fmtNumber(mw)} kg (${Math.round(weightPct)}%), ${t('remaining', 'remaining')}: ${fmtNumber(Math.max(0, weightRemaining))} kg`;
   const palletTooltip = `${t('capacity_pallets', 'Pallets')}: ${Math.round(cargo.pallets)} / ${mp} EUROPAL (${Math.round(palletPct)}%)`;
 

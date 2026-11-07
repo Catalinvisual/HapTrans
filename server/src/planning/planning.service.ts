@@ -32,6 +32,7 @@ import { resolveDriverForCompliance, resolveTripDriver, resolveTripTrailer } fro
 import { withRoutePlanInitLock } from './route-plan-init-lock';
 import { asJsonArray } from './route-plan-json';
 import { buildCargoLedger } from './cargo-ledger';
+import { assessLoadingWindow, isLoadStopType, orderPickupWindow, stopArrival } from './loading-window';
 import {
   consolidationCapacity,
   incrementalRoute,
@@ -760,6 +761,9 @@ export class PlanningService {
         const driver = t.driver
           ? { id: t.driver.id, name: t.driver.user?.name || t.driver.user?.email || '—', status: t.driver.status }
           : null;
+        const capacityTruck: any = { ...(t as any), trailer: relevantTrip?.trailer || (t as any).trailer };
+        const capacity = knownTruckCapacity(capacityTruck);
+        const missingCapacity = missingTruckCapacity(capacity);
         return {
           id: t.id,
           plateNumber: t.plateNumber,
@@ -769,10 +773,18 @@ export class PlanningService {
           euronorm: t.euronorm,
           features: t.features || [],
           status: t.status,
-          maxWeightKg: Number(t.maxWeightKg) || 24000,
-          maxLdm: Number(t.maxLdm) || 13.6,
-          maxVolumeCbm: Number(t.maxVolumeCbm) || 90,
-          maxPallets: t.maxPallets || 33,
+          // Raw vehicle values only: inventing 24000/13.6/90/33 here made the
+          // board show a capacity that the ledger and the conflict engine could
+          // not verify, and disagreed with the trailer limits.
+          maxWeightKg: t.maxWeightKg != null ? Number(t.maxWeightKg) : null,
+          payloadCapacity: t.payloadCapacity != null ? Number(t.payloadCapacity) : null,
+          maxLdm: t.maxLdm != null ? Number(t.maxLdm) : null,
+          maxVolumeCbm: t.maxVolumeCbm != null ? Number(t.maxVolumeCbm) : null,
+          maxPallets: t.maxPallets != null ? Number(t.maxPallets) : null,
+          // The single capacity source used by the cargo ledger and conflicts,
+          // resolved from the operative trailer when the trip has one.
+          capacity,
+          capacityMissing: missingCapacity,
           costPerKm: Number(t.costPerKm) || 0,
           fuelConsumption: Number(t.fuelConsumption) || 0,
           currentLat: t.currentLat,
@@ -1141,10 +1153,40 @@ export class PlanningService {
         }
       }
 
+      // A loading window is missed only when the vehicle actually arrives after
+      // the window closes. Comparing the departure with the window start
+      // flagged normal early departures and hid late arrivals, and a missing
+      // timestamp stayed silent instead of being reported as unverified.
+      const windowStops = [...(t.stops || [])].sort(
+        (a: any, b: any) =>
+          (Number(a.sequence) || Number(a.stopOrder) || 0) -
+          (Number(b.sequence) || Number(b.stopOrder) || 0),
+      );
       for (const o of t.orders || []) {
-        const { start, end } = this.orderWindow(o);
-        if (start && t.plannedDeparture && new Date(t.plannedDeparture) > start) {
-          add({ level: 'warning', code: 'DEPARTURE_AFTER_LOADING', tripId: t.id, orderId: o.id, message: `Trip departs after order ${o.orderNumber} loading window.` });
+        const pickupWindow = orderPickupWindow(o);
+        if (!pickupWindow.end) continue;
+        const belongsToOrder = (stop: any) =>
+          (stop.tasks || []).some(
+            (task: any) => String(task.order?.id || task.orderId || '') === String(o.id),
+          );
+        const orderLoadIndex = windowStops.findIndex(
+          (stop: any) => isLoadStopType(stop.type) && belongsToOrder(stop),
+        );
+        const loadIndex = orderLoadIndex >= 0
+          ? orderLoadIndex
+          : windowStops.findIndex((stop: any) => isLoadStopType(stop.type));
+        const loadStop: any = loadIndex >= 0 ? windowStops[loadIndex] : null;
+        const arrival = stopArrival(loadStop, t.plannedDeparture, loadIndex === 0);
+        const assessment = assessLoadingWindow(arrival, pickupWindow.end);
+        if (assessment.status === 'late') {
+          add({
+            level: 'warning',
+            code: 'DEPARTURE_AFTER_LOADING',
+            tripId: t.id,
+            orderId: o.id,
+            params: { stopId: loadStop?.id, lateMinutes: assessment.lateMinutes },
+            message: `Arrival at ${loadStop?.city || loadStop?.companyName || 'pickup'} for order ${o.orderNumber} is ${assessment.lateMinutes} min after its loading window closes.`,
+          });
         }
       }
     }

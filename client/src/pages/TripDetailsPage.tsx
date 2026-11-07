@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { knownTruckCapacity } from '../lib/truckCapacity';
 import {
   ArrowLeft,
   MapPin,
@@ -195,9 +196,14 @@ export default function TripDetailsPage() {
     ? summaryText(i18n.language, 'completed_stops', { done: sortedStops.length, total: sortedStops.length })
     : `${String(currentStop.status || '').toLowerCase() === 'pending' ? summaryText(i18n.language, 'awaiting') : OPERATIONAL_STATUS_CONFIG[String(currentStop.status || '').toLowerCase()]?.defaultLabel || currentStop.status}`;
   
-  // Segment calculations
-  const truckMaxWeight = trip.truck?.maxWeightKg || 24000;
-  const truckMaxPallets = trip.truck?.maxPallets || 33;
+  // Segment calculations use the same verified capacity as the server ledger.
+  // Unknown dimensions stay null (shown as "—"), never 24000 kg / 33 pallets.
+  const truckCapacity = knownTruckCapacity({
+    ...(trip.truck || {}),
+    trailer: trip.trailer || trip.truck?.trailer || null,
+  });
+  const truckMaxWeight = truckCapacity.maxWeightKg;
+  const truckMaxPallets = truckCapacity.maxPallets;
   let runningWeight = 0;
   let runningPallets = 0;
   
@@ -666,10 +672,10 @@ export default function TripDetailsPage() {
             {segments.length > 0 ? (
               <div className="space-y-4 mb-6">
                 {segments.map((seg, i) => {
-                   const wPct = Math.min(100, (seg.weight / truckMaxWeight) * 100);
-                   const pPct = Math.min(100, (seg.pallets / truckMaxPallets) * 100);
-                   const overWeight = seg.weight > truckMaxWeight;
-                   const overPallets = seg.pallets > truckMaxPallets;
+                   const wPct = truckMaxWeight ? Math.min(100, (seg.weight / truckMaxWeight) * 100) : 0;
+                   const pPct = truckMaxPallets ? Math.min(100, (seg.pallets / truckMaxPallets) * 100) : 0;
+                   const overWeight = truckMaxWeight !== null && seg.weight > truckMaxWeight;
+                   const overPallets = truckMaxPallets !== null && seg.pallets > truckMaxPallets;
                    
                    return (
                       <div key={i} className={`p-4 rounded-xl border ${overWeight || overPallets ? 'bg-red-50/50 border-red-200' : 'bg-surface border-border'}`}>
@@ -679,7 +685,7 @@ export default function TripDetailsPage() {
                           <div>
                             <div className="flex justify-between text-xs font-bold mb-1">
                               <span className={`flex items-center gap-1 ${overWeight ? 'text-red-600' : 'text-text-secondary'}`}><WeightKgIcon className="w-3.5 h-3.5" />{t('weight', 'Greutate')}</span>
-                              <span className={overWeight ? 'text-red-600' : 'text-text'}>{seg.weight} / {truckMaxWeight} kg</span>
+                              <span className={overWeight ? 'text-red-600' : 'text-text'}>{seg.weight} / {truckMaxWeight ?? '—'} kg</span>
                             </div>
                             <div className="w-full bg-border rounded-full h-2 overflow-hidden">
                               <div className={`h-2 rounded-full ${overWeight ? 'bg-red-500' : 'bg-primary'}`} style={{ width: `${wPct}%` }}></div>
@@ -689,7 +695,7 @@ export default function TripDetailsPage() {
                           <div>
                             <div className="flex justify-between text-xs font-bold mb-1">
                               <span className={`flex items-center gap-1 ${overPallets ? 'text-red-600' : 'text-text-secondary'}`}><PalletIcon className="w-3.5 h-3.5" />{t('pallets', 'Paleți')}</span>
-                              <span className={overPallets ? 'text-red-600' : 'text-text'}>{seg.pallets} / {truckMaxPallets}</span>
+                              <span className={overPallets ? 'text-red-600' : 'text-text'}>{seg.pallets} / {truckMaxPallets ?? '—'}</span>
                             </div>
                             <div className="w-full bg-border rounded-full h-2 overflow-hidden">
                               <div className={`h-2 rounded-full ${overPallets ? 'bg-red-500' : 'bg-primary'}`} style={{ width: `${pPct}%` }}></div>

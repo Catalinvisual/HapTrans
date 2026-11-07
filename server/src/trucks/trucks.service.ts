@@ -9,6 +9,43 @@ import { ActionLogsService } from '../action-logs/action-logs.service';
 import { computeAuditChanges } from '../action-logs/diff.util';
 import { normalizeTruckFuelType } from './fuel-type';
 
+/**
+ * Every Order a truck currently carries, flattened across its Trips.
+ *
+ * A Trip can hold several Orders, so a truck view that assumes one Order per
+ * Trip hides the rest. Orders are de-duplicated by id (a legacy row can appear
+ * on more than one Trip) and annotated with the Trip they were found on.
+ */
+export function collectTruckOrders(trips: any[], options: { activeOnly?: boolean } = {}): any[] {
+  const terminal = new Set(['completed', 'closed', 'cancelled', 'canceled']);
+  const byId = new Map<string, any>();
+  for (const trip of trips || []) {
+    if (options.activeOnly && terminal.has(String(trip?.status || '').toLowerCase())) continue;
+    for (const order of trip?.orders || []) {
+      if (!order?.id) continue;
+      const key = String(order.id);
+      if (byId.has(key)) continue;
+      byId.set(key, {
+        ...order,
+        trip: trip?.id
+          ? { id: trip.id, tripNumber: trip.tripNumber || null, status: trip.status || null }
+          : null,
+      });
+    }
+  }
+  return [...byId.values()];
+}
+
+function withTruckOrders(truck: any) {
+  if (!truck) return truck;
+  const trips = Array.isArray(truck.trips) ? truck.trips : [];
+  return {
+    ...truck,
+    orders: collectTruckOrders(trips),
+    activeOrders: collectTruckOrders(trips, { activeOnly: true }),
+  };
+}
+
 function normalizeVehicleIdentity(data: any) {
   if ('vin' in data) {
     const vin = data.vin === null || data.vin === undefined || data.vin === ''
@@ -38,8 +75,39 @@ export class TrucksService {
     private actionLogs: ActionLogsService,
   ) {}
 
-  findAll() { return this.repo.find({ relations: ['documents', 'driver', 'driver.user', 'trailer'], order: { createdAt: 'DESC' } }); }
-  findOne(id: string) { return this.repo.findOne({ where: { id }, relations: ['documents', 'trips', 'driver', 'driver.user', 'trailer'] }); }
+  async findAll() {
+    const trucks = await this.repo.find({
+      relations: [
+        'documents',
+        'driver',
+        'driver.user',
+        'trailer',
+        'trips',
+        'trips.orders',
+        'trips.orders.client',
+        'trips.orders.cargoItems',
+      ],
+      order: { createdAt: 'DESC' },
+    });
+    return trucks.map(withTruckOrders);
+  }
+
+  async findOne(id: string) {
+    const truck = await this.repo.findOne({
+      where: { id },
+      relations: [
+        'documents',
+        'trips',
+        'trips.orders',
+        'trips.orders.client',
+        'trips.orders.cargoItems',
+        'driver',
+        'driver.user',
+        'trailer',
+      ],
+    });
+    return withTruckOrders(truck);
+  }
   async create(dto: any, user: any) { 
     const data = { ...dto };
     normalizeVehicleIdentity(data);
@@ -108,7 +176,12 @@ export class TrucksService {
         await this.actionLogs.logAction('Truck', id, 'UPDATED', user, { updatedFields, changes });
       }
     }
-    return this.repo.findOne({ where: { id }, relations: ['documents', 'trips', 'driver', 'driver.user', 'trailer'] });
+    return withTruckOrders(
+      await this.repo.findOne({
+        where: { id },
+        relations: ['documents', 'trips', 'trips.orders', 'driver', 'driver.user', 'trailer'],
+      }),
+    );
   }
   remove(id: string) { return this.repo.delete(id); }
 
@@ -131,12 +204,13 @@ export class TrucksService {
       .getMany();
   }
 
-  getAvailability() {
-    return this.repo.find({
+  async getAvailability() {
+    const trucks = await this.repo.find({
       where: { status: Not(TruckStatus.INACTIVE) },
       relations: ['trips', 'trips.orders', 'trips.orders.client'],
       order: { plateNumber: 'ASC' },
     });
+    return trucks.map(withTruckOrders);
   }
 
   updateLocation(id: string, lat: number, lng: number, recordedAt?: string | Date) {

@@ -785,6 +785,42 @@ export default function TrucksPage() {
       ),
     },
     {
+      // A trip can carry several orders. This tab flattens every order of the
+      // truck's trips (the API returns them per trip, not just the first one),
+      // so the fleet view shows the same orders as Trip Details and Planning.
+      key: 'orders', label: `${t('orders', 'Orders')} (${(drawerTruck.orders || []).length})`,
+      content: (
+        <div className="space-y-2">
+          {(drawerTruck.orders || []).length === 0 ? (
+            <div className="p-6 text-center text-sm text-text-muted italic bg-surface/40 rounded-xl border border-border">
+              {t('no_orders_assigned', 'No orders assigned to this truck')}
+            </div>
+          ) : (
+            (drawerTruck.orders || []).map((order: any) => (
+              <div key={order.id} className="rounded-xl border border-border bg-surface/40 p-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-sm text-text-primary truncate">{order.orderNumber || order.id}</span>
+                    <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-surface border border-border text-text-secondary">
+                      {t(`status_${String(order.status || '').toLowerCase()}`, order.status || '—')}
+                    </span>
+                  </div>
+                  <div className="text-xs text-text-secondary mt-0.5 truncate">
+                    {order.client?.name || '—'}
+                    {order.trip?.tripNumber ? ` · ${order.trip.tripNumber}` : ''}
+                  </div>
+                </div>
+                <div className="text-right shrink-0 text-xs font-bold text-text-secondary tabular-nums">
+                  <div className="inline-flex items-center gap-1 justify-end"><WeightKgIcon className="w-3.5 h-3.5" />{fmtNumber(Math.round((order.cargoItems || []).reduce((sum: number, item: any) => sum + Number(item.weightKg || 0), 0)))} kg</div>
+                  <div className="inline-flex items-center gap-1 justify-end mt-0.5"><PalletIcon className="w-3.5 h-3.5" />{(order.cargoItems || []).reduce((sum: number, item: any) => sum + (String(item.unit || 'pallet').toLowerCase() === 'pallet' ? Number(item.quantity || 0) : 0), 0)}</div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      ),
+    },
+    {
       key: 'maintenance', label: t('tab_maintenance', 'Maintenance'),
       content: (
         <div className="space-y-4">
