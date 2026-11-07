@@ -471,7 +471,7 @@ export class PlanningService {
           SELECT 1 FROM stop_tasks allocation_task
           INNER JOIN stops allocation_stop ON allocation_stop.id = allocation_task."stopId"
           INNER JOIN trips allocation_trip ON allocation_trip.id = allocation_stop."tripId"
-          WHERE allocation_task."orderId" = order.id
+          WHERE allocation_task."orderId" = "order"."id"
             AND LOWER(allocation_trip.status) NOT IN (:...terminalTripStatuses)
         )`,
         { terminalTripStatuses: ['completed', 'closed', 'cancelled', 'canceled', 'delivered', 'invoiced', 'paid'] },
@@ -687,7 +687,7 @@ export class PlanningService {
           SELECT 1 FROM stop_tasks allocation_task
           INNER JOIN stops allocation_stop ON allocation_stop.id = allocation_task."stopId"
           INNER JOIN trips allocation_trip ON allocation_trip.id = allocation_stop."tripId"
-          WHERE allocation_task."orderId" = order.id
+          WHERE allocation_task."orderId" = "order"."id"
             AND LOWER(allocation_trip.status) NOT IN (:...terminalTripStatuses)
         )`,
         { terminalTripStatuses: ['completed', 'closed', 'cancelled', 'canceled', 'delivered', 'invoiced', 'paid'] },
@@ -702,9 +702,9 @@ export class PlanningService {
       orderQb.andWhere(
         new Brackets((b) => {
           b.where(
-            'EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = order.id AND os."dateFrom" BETWEEN :f AND :t)',
+            'EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = "order"."id" AND os."dateFrom" BETWEEN :f AND :t)',
             { f: fromStr, t: toStr },
-          ).orWhere('NOT EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = order.id)');
+          ).orWhere('NOT EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = "order"."id")');
         }),
       );
     }
@@ -2525,8 +2525,8 @@ export class PlanningService {
       .andWhere(this.companyBracket(companyId, 'order.companyId'))
       .andWhere(
         new Brackets((b) => {
-          b.where('EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = order.id AND os."dateFrom" BETWEEN :f AND :t)', { f: fromStr, t: toStr })
-            .orWhere('NOT EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = order.id)');
+          b.where('EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = "order"."id" AND os."dateFrom" BETWEEN :f AND :t)', { f: fromStr, t: toStr })
+            .orWhere('NOT EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = "order"."id")');
         }),
       )
       .getMany();
@@ -2691,8 +2691,8 @@ export class PlanningService {
         .andWhere(this.companyBracket(companyId, 'order.companyId'))
         .andWhere(
           new Brackets((b) => {
-            b.where('EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = order.id AND os."dateFrom" BETWEEN :f AND :t)', { f: fromStr, t: toStr })
-              .orWhere('NOT EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = order.id)');
+            b.where('EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = "order"."id" AND os."dateFrom" BETWEEN :f AND :t)', { f: fromStr, t: toStr })
+              .orWhere('NOT EXISTS (SELECT 1 FROM order_stops os WHERE os."orderId" = "order"."id")');
           }),
         )
         .getMany();
