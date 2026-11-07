@@ -21,6 +21,7 @@ import { DocumentsService } from '../documents/documents.service';
 import { DocumentType } from '../documents/document.entity';
 import { DeliveryIncident } from './delivery-incident.entity';
 import { localizeStopEvent, localizeTripEvent, localizeScheduleChange } from './trip-notification-i18n';
+import { diffStopChanges, localizeStopChange } from './stop-change';
 import {
   deriveOperationalStatus,
   deriveOrderOperationalStatus,
@@ -1065,7 +1066,7 @@ export class TripsService {
   async findByTrackingToken(trackingToken: string): Promise<Trip | null> {
     return this.repo.findOne({
       where: { trackingToken },
-      relations: ['truck', 'driver', 'driver.user', 'trailer', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.cargoItems', 'company']
+      relations: ['truck', 'driver', 'driver.user', 'trailer', 'stops', 'stops.tasks', 'stops.tasks.order', 'orders', 'orders.cargoItems', 'orders.stops', 'company']
     });
   }
 
@@ -1731,6 +1732,65 @@ export class TripsService {
     return trip ? this.findOne(trip.id) : task;
   }
 
+  /** Dispatcher decision on the driver's submitted allocation/evidence. */
+  async reviewAllocation(taskId: string, dto: any, user?: any) {
+    if (!user?.id) throw new ForbiddenException('Authentication is required to review an allocation.');
+    if (isDriverActor(user)) throw new ForbiddenException('Only dispatch or office staff can review cargo allocations.');
+    const role = String(user?.role || '').toLowerCase();
+    if (!['admin', 'superadmin', 'dispatcher', 'manager', 'office', 'operations'].includes(role)) {
+      throw new ForbiddenException('Your role is not permitted to review cargo allocations.');
+    }
+    const status = String(dto?.status || '').trim().toLowerCase();
+    if (!['accepted', 'disputed'].includes(status)) {
+      throw new BadRequestException('Review status must be accepted or disputed.');
+    }
+    const note = String(dto?.note || '').trim();
+    if (status === 'disputed' && !note) {
+      throw new BadRequestException('A review note is required when disputing the driver evidence.');
+    }
+    const task = (await this.repo.manager.findOne('StopTask', {
+      where: { id: taskId },
+      relations: ['stop', 'stop.trip', 'order'],
+    })) as any;
+    if (!task) throw new NotFoundException('Allocation not found');
+    const trip = task.stop?.trip;
+    if (!trip) throw new BadRequestException('Allocation is not attached to a trip.');
+    const previous = {
+      status: task.allocationReviewStatus || null,
+      note: task.allocationReviewNote || null,
+      reviewedAt: task.allocationReviewedAt || null,
+    };
+    await this.repo.manager.update('StopTask', { id: taskId }, {
+      allocationReviewStatus: status,
+      allocationReviewNote: note || null,
+      allocationReviewedAt: new Date(),
+      allocationReviewedBy: { id: user.id },
+    });
+    await this.actionLogs.logAction('Trip', trip.id, 'CARGO_ALLOCATION_REVIEWED', user, {
+      scope: 'task',
+      taskId,
+      orderId: task.order?.id || null,
+      previous,
+      decision: status,
+      note: note || null,
+      driverSubmitted: {
+        loadedQuantity: task.loadedQuantity,
+        deliveredQuantity: task.deliveredQuantity,
+        rejectedQuantity: task.rejectedQuantity,
+        rejectionReason: task.rejectionReason,
+        rejectionPhotoUrls: task.rejectionPhotoUrls || [],
+      },
+    }, undefined, resolveStatusSource(user));
+    this.chatGateway?.broadcastOperationalUpdate?.({
+      tripId: trip.id,
+      operationalStatus: normalizeTripOperationalStatus(trip.operationalStatus || trip.status),
+      status: trip.status,
+      stopId: task.stop?.id,
+      event: 'CARGO_ALLOCATION_REVIEWED',
+    });
+    return this.findOne(trip.id);
+  }
+
   async updateTaskStatus(taskId: string, status: string, user?: any) {
     const task = (await this.repo.manager.findOne('StopTask', {
       where: { id: taskId },
@@ -1775,12 +1835,61 @@ export class TripsService {
     return this.findOne(tripId);
   }
 
-  async updateStop(stopId: string, data: any) {
-    const stop = await this.repo.manager.findOne("Stop", { where: { id: stopId }, relations: ["trip"] }) as any;
+  async updateStop(stopId: string, data: any, user?: any) {
+    const stop = await this.repo.manager.findOne('Stop', {
+      where: { id: stopId },
+      relations: ['trip', 'trip.driver', 'trip.driver.user', 'trip.truck', 'trip.truck.driver', 'trip.truck.driver.user'],
+    }) as any;
     if (!stop) return null;
+    const changes = diffStopChanges(stop, data || {});
     Object.assign(stop, data);
-    await this.repo.manager.save("Stop", stop);
-    return this.findOne(stop.trip?.id || "");
+    await this.repo.manager.save('Stop', stop);
+    const trip = stop.trip;
+    if (trip && changes.length > 0) {
+      await this.actionLogs.logAction('Trip', trip.id, 'STOP_UPDATED', user, {
+        scope: 'stop',
+        stopId: stop.id,
+        orderId: null,
+        changes: changes.map((change) => ({ field: change.field, from: change.oldValue, to: change.newValue })),
+        source: resolveStatusSource(user),
+      }, undefined, resolveStatusSource(user));
+      if (!isDriverActor(user)) {
+        const driverUser = trip?.driver?.user || trip?.truck?.driver?.user;
+        for (const change of changes) {
+          const label = localizeStopChange(change, driverUser?.language);
+          const eventId = this.notificationKey('tms-stop-change', trip.id, stop.id, change.field, change.oldValue, change.newValue);
+          try {
+            const delivered = await this.notificationsService.createOnce({
+              type: 'trip',
+              title: label,
+              message: `${trip.tripNumber || 'Trip'}${stop.city ? ` · ${stop.city}` : ''}: ${label}`,
+              relatedId: trip.id,
+              eventId,
+              origin: 'TMS_DISPATCH',
+              audience: 'driver',
+            });
+            if (delivered.created && driverUser?.fcmToken) {
+              await this.firebaseService.sendPushNotification(
+                driverUser.fcmToken,
+                label,
+                `${trip.tripNumber || 'Trip'}: ${label}`,
+                { tripId: trip.id, stopId: stop.id, screen: 'trip' },
+              );
+            }
+          } catch (e: any) {
+            console.warn(`Stop change notification failed: ${e?.message}`);
+          }
+        }
+        this.chatGateway?.broadcastOperationalUpdate?.({
+          tripId: trip.id,
+          operationalStatus: normalizeTripOperationalStatus(trip.operationalStatus || trip.status),
+          status: trip.status,
+          stopId: stop.id,
+          event: 'STOP_CHANGED',
+        });
+      }
+    }
+    return this.findOne(stop.trip?.id || '');
   }
 
   async deleteStop(stopId: string) {

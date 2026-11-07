@@ -71,6 +71,19 @@ export class StopTask {
   @Column({ nullable: true, type: 'jsonb' })
   rejectionPhotoUrls: string[];
 
+  /** Dispatcher review of the driver's submitted allocation evidence. */
+  @Column({ nullable: true, type: 'varchar', length: 32 })
+  allocationReviewStatus: string | null;
+
+  @ManyToOne(() => User, { nullable: true, eager: true, onDelete: 'SET NULL' })
+  allocationReviewedBy: User | null;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  allocationReviewedAt: Date | null;
+
+  @Column({ nullable: true, type: 'text' })
+  allocationReviewNote: string | null;
+
   @Column({ nullable: true, type: 'text' })
   issueNote: string; // "Driver noted 1 pallet was broken"
 

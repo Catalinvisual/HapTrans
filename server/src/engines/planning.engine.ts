@@ -32,8 +32,31 @@ export class PlanningEngine {
 
     const orders = await this.orderRepo.find({
       where: orderIds.map(id => ({ id })),
-      relations: ['company', 'stops', 'cargoItems']
+      relations: ['company', 'stops', 'cargoItems', 'trip']
     });
+
+    // A stale orders.tripId is not the only source of truth. Reject an Order
+    // that still has a live StopTask allocation on another trip as well, so a
+    // direct API call cannot create a second full allocation.
+    const activeAllocations = orderIds.length
+      ? await this.taskRepo.createQueryBuilder('task')
+        .innerJoin('task.stop', 'allocationStop')
+        .innerJoin('allocationStop.trip', 'allocationTrip')
+        .where('task.orderId IN (:...orderIds)', { orderIds })
+        .andWhere('allocationTrip.id != :tripId', { tripId })
+        .andWhere('LOWER(allocationTrip.status) NOT IN (:...terminal)', {
+          terminal: ['completed', 'closed', 'cancelled', 'canceled', 'delivered', 'invoiced', 'paid'],
+        })
+        .getMany()
+      : [];
+    if (activeAllocations.length > 0) {
+      throw new BadRequestException('Order is already allocated to another active trip');
+    }
+    for (const order of orders) {
+      if (order.trip?.id && String(order.trip.id) !== String(tripId)) {
+        throw new BadRequestException(`Order ${order.orderNumber} is already planned on another trip`);
+      }
+    }
 
     if (!force) {
       for (const order of orders) {

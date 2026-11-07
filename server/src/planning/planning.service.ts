@@ -32,6 +32,13 @@ import { resolveDriverForCompliance, resolveTripDriver, resolveTripTrailer } fro
 import { withRoutePlanInitLock } from './route-plan-init-lock';
 import { asJsonArray } from './route-plan-json';
 import { buildCargoLedger } from './cargo-ledger';
+import {
+  consolidationCapacity,
+  incrementalRoute,
+  RouteTotals,
+  stopWindowEndDate,
+  windowRisk,
+} from './consolidation-cargo';
 import { resolveTripDriver as resolveAssignedDriver, resolveTripTrailer as resolveAssignedTrailer } from '../trips/driver-assignment';
 import { normalizeTripOperationalStatus } from '../trips/operational-status';
 import {
@@ -456,14 +463,18 @@ export class PlanningService {
       .leftJoinAndSelect('order.cargoItems', 'cargoItems')
       .leftJoinAndSelect('order.stops', 'stops')
       .leftJoin('order.trip', 'orderTrip')
-      .where(
-        new Brackets((b) => {
-          b.where('orderTrip.id IS NULL')
-            .orWhere('order.tripId IS NULL')
-            .orWhere('orderTrip.status NOT IN (:...activeTripStatuses)', {
-              activeTripStatuses: ACTIVE_TRIP_STATUSES,
-            });
-        }),
+      .where('order.tripId IS NULL')
+      .andWhere('orderTrip.id IS NULL')
+      .andWhere('LOWER(order.status) NOT IN (:...terminalOrderStatuses)', { terminalOrderStatuses: TERMINAL_ORDER_STATUSES })
+      .andWhere(
+        `NOT EXISTS (
+          SELECT 1 FROM stop_tasks allocation_task
+          INNER JOIN stops allocation_stop ON allocation_stop.id = allocation_task."stopId"
+          INNER JOIN trips allocation_trip ON allocation_trip.id = allocation_stop."tripId"
+          WHERE allocation_task."orderId" = order.id
+            AND LOWER(allocation_trip.status) NOT IN (:...terminalTripStatuses)
+        )`,
+        { terminalTripStatuses: ['completed', 'closed', 'cancelled', 'canceled', 'delivered', 'invoiced', 'paid'] },
       );
 
     const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
@@ -668,14 +679,18 @@ export class PlanningService {
       .leftJoinAndSelect('order.cargoItems', 'cargoItems')
       .leftJoinAndSelect('order.stops', 'stops')
       .leftJoin('order.trip', 'orderTrip')
-      .where(
-        new Brackets((b) => {
-          b.where('orderTrip.id IS NULL')
-            .orWhere('order.tripId IS NULL')
-            .orWhere('orderTrip.status NOT IN (:...activeTripStatuses)', {
-              activeTripStatuses: ACTIVE_TRIP_STATUSES,
-            });
-        }),
+      .where('order.tripId IS NULL')
+      .andWhere('orderTrip.id IS NULL')
+      .andWhere('LOWER(order.status) NOT IN (:...terminalOrderStatuses)', { terminalOrderStatuses: TERMINAL_ORDER_STATUSES })
+      .andWhere(
+        `NOT EXISTS (
+          SELECT 1 FROM stop_tasks allocation_task
+          INNER JOIN stops allocation_stop ON allocation_stop.id = allocation_task."stopId"
+          INNER JOIN trips allocation_trip ON allocation_trip.id = allocation_stop."tripId"
+          WHERE allocation_task."orderId" = order.id
+            AND LOWER(allocation_trip.status) NOT IN (:...terminalTripStatuses)
+        )`,
+        { terminalTripStatuses: ['completed', 'closed', 'cancelled', 'canceled', 'delivered', 'invoiced', 'paid'] },
       );
 
     const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
@@ -1387,6 +1402,12 @@ export class PlanningService {
       if (String(order.status) === 'cancelled') {
         add(blockers, { level: 'blocking', code: 'ORDER_CANCELLED', orderId: order.id, message: `Order ${order.orderNumber} is cancelled.` });
       }
+      if (TERMINAL_ORDER_STATUSES.includes(String(order.status))) {
+        add(blockers, { level: 'blocking', code: 'ORDER_COMPLETED', orderId: order.id, message: `Order ${order.orderNumber} is already ${order.status} and cannot be added to a trip.` });
+      }
+      if (order.trip?.id && String(order.trip.id) === String(tripId)) {
+        add(blockers, { level: 'blocking', code: 'ORDER_ALREADY_ON_TRIP', orderId: order.id, message: `Order ${order.orderNumber} is already allocated to trip ${trip.tripNumber || tripId}.` });
+      }
       if (order.trip?.id && String(order.trip.id) !== String(tripId)) {
         add(blockers, { level: 'blocking', code: 'ALREADY_PLANNED', orderId: order.id, message: `Order ${order.orderNumber} is already on another trip.` });
       }
@@ -1395,35 +1416,70 @@ export class PlanningService {
       }
     }
 
-    const combinedOrders = [
-      ...((trip.orders || []) as any[]).filter((o) => o?.id && !orderIds.includes(o.id)),
-      ...orders,
-    ];
-    const cargo = this.sumCargo(combinedOrders);
     const truck = trip.truck || null;
     const trailer = trip.trailer || truck?.trailer || null;
-    const caps = this.resolveTruckCapacity(truck);
+    const known = knownTruckCapacity(truck);
+    const existingStops = [...((trip.stops || []) as any[])].sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0));
+    const capacityCheck = consolidationCapacity(existingStops, (trip.orders || []) as any[], orders, known);
+    const dimensions = (value: any) => ({
+      weight: Number(value?.weightKg || 0),
+      pallets: Number(value?.pallets || 0),
+      ldm: Number(value?.loadingMeters || 0),
+      volume: Number(value?.volumeCbm || 0),
+    });
     if (!truck) {
       add(blockers, { level: 'blocking', code: 'NO_VEHICLE', tripId, message: 'Trip has no vehicle assigned.' });
     } else {
-      const known = knownTruckCapacity(truck);
       const capacityMissing = missingTruckCapacity(known);
       if (capacityMissing.length) {
         add(warnings, {
           level: 'warning',
           code: 'TRUCK_CAPACITY_INCOMPLETE',
           resourceId: truck.id,
-          params: { fields: capacityMissing, defaults: caps },
-          message: `Vehicle capacity is incomplete (${capacityMissing.join(', ')}). Missing dimensions are unverified; complete the vehicle record to verify the load.`,
+          params: { fields: capacityMissing },
+          message: `Vehicle capacity is incomplete (${capacityMissing.join(', ')}). Missing dimensions are unverified; no overload can be confirmed for them.`,
         });
       }
-      for (const violation of capacityViolations(cargo, known)) {
+      const labels: Record<string, string> = {
+        maxWeightKg: 'Weight',
+        maxLdm: 'Loading meters',
+        maxVolumeCbm: 'Volume',
+        maxPallets: 'Pallet count',
+      };
+      for (const violation of capacityCheck.violations) {
         add(blockers, {
           level: 'blocking',
           code: violation.code,
           resourceId: truck.id,
           params: { field: violation.field, load: violation.actual, max: violation.expected },
-          message: `${violation.field} exceeded: ${violation.actual} > ${violation.expected}.`,
+          message: `${labels[violation.field] || violation.field} exceeds the ${truck.plateNumber || 'selected vehicle'} limit at the peak route segment: ${violation.actual} > ${violation.expected}. Remove cargo, split the load, or assign a larger vehicle.`,
+        });
+      }
+      const ledgerErrors = capacityCheck.after.issues.filter((issue) => issue.severity === 'error' && issue.code !== 'SEGMENT_CAPACITY_EXCEEDED');
+      for (const issue of ledgerErrors) {
+        add(blockers, {
+          level: 'blocking',
+          code: 'CARGO_LEDGER_INVALID',
+          resourceId: truck.id,
+          params: { field: issue.field, actual: issue.actual, expected: issue.expected },
+          message: `${issue.message} Correct the allocation before confirming.`,
+        });
+      }
+      if (capacityCheck.duplicateTaskKeys.length > 0) {
+        add(blockers, {
+          level: 'blocking',
+          code: 'DUPLICATE_ALLOCATION',
+          resourceId: truck.id,
+          params: { count: capacityCheck.duplicateTaskKeys.length },
+          message: 'The same order load/unload task is present more than once at a stop. Remove the duplicate allocation before confirming; capacity must not be double-counted.',
+        });
+      }
+      if (capacityCheck.after.status === 'unverified') {
+        add(warnings, {
+          level: 'warning',
+          code: 'CARGO_DIMENSIONS_UNVERIFIED',
+          resourceId: truck.id,
+          message: 'Some cargo volume or loading meters are missing, so those capacity dimensions remain unverified.',
         });
       }
       for (const order of orders) {
@@ -1444,7 +1500,6 @@ export class PlanningService {
       });
     }
 
-    const existingStops = [...((trip.stops || []) as any[])].sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0));
     const newStops = orders.flatMap((order) =>
       [...((order.stops || []) as any[])].sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0)),
     );
@@ -1452,41 +1507,80 @@ export class PlanningService {
       if (!stop.latitude || !stop.longitude) {
         add(warnings, { level: 'warning', code: 'STOP_COORDINATES_MISSING', orderId: stop.order?.id, params: { city: stop.city }, message: 'A stop has no coordinates, so road distance cannot be verified.' });
       }
-      const windowEnd = this.getStopDateEnd(stop);
-      if (windowEnd && trip.plannedDeparture && windowEnd.getTime() < new Date(trip.plannedDeparture).getTime()) {
-        add(warnings, { level: 'warning', code: 'TIME_WINDOW_AT_RISK', orderId: stop.order?.id, params: { city: stop.city }, message: `The window for ${stop.city || 'a stop'} ends before the planned trip departure.` });
-      }
     }
 
-    // Real provider distance for the additional stops, in sequence. A failed
-    // provider request is surfaced as unverified and never guessed.
-    let addedDistanceKm: number | null = 0;
-    let addedDurationMin: number | null = 0;
-    let routeStatus: 'verified' | 'unverified' = 'verified';
-    let routeProvider: string | null = null;
-    let cursor = existingStops.length
-      ? { lat: Number(existingStops[existingStops.length - 1].latitude), lng: Number(existingStops[existingStops.length - 1].longitude) }
-      : { lat: Number(truck?.currentLat), lng: Number(truck?.currentLng) };
-    for (const stop of newStops) {
-      const lat = Number(stop.latitude);
-      const lng = Number(stop.longitude);
-      if (!Number.isFinite(cursor.lat) || !Number.isFinite(cursor.lng) || !Number.isFinite(lat) || !Number.isFinite(lng)) {
-        routeStatus = 'unverified';
-        addedDistanceKm = null;
-        addedDurationMin = null;
-        break;
+    // Compare the complete existing route with the complete proposed route.
+    // The difference is the genuine incremental distance/time, never the whole
+    // trip distance and never a straight-line guess.
+    const routeCache = new Map<string, any>();
+    const routeForStops = async (stops: any[]): Promise<RouteTotals> => {
+      let distanceKm = 0;
+      let durationMin = 0;
+      let provider: string | null = null;
+      const legDurationsMin: number[] = [];
+      for (let index = 1; index < stops.length; index += 1) {
+        const from = stops[index - 1];
+        const to = stops[index];
+        const coordinates = [from.latitude, from.longitude, to.latitude, to.longitude].map(Number);
+        if (coordinates.some((value) => !Number.isFinite(value))) {
+          return { status: 'unverified', distanceKm: null, durationMin: null, provider, legDurationsMin: [] };
+        }
+        const key = coordinates.join(',');
+        let leg = routeCache.get(key);
+        if (leg === undefined) {
+          leg = await this.routingService.calculateRoute(coordinates[0], coordinates[1], coordinates[2], coordinates[3], this.truckRoutingProfile(trip));
+          routeCache.set(key, leg);
+        }
+        if (!leg || !Number.isFinite(Number(leg.distanceKm)) || !Number.isFinite(Number(leg.durationMin))) {
+          return { status: 'unverified', distanceKm: null, durationMin: null, provider, legDurationsMin: [] };
+        }
+        provider = leg.source || provider;
+        distanceKm += Number(leg.distanceKm);
+        durationMin += Number(leg.durationMin);
+        legDurationsMin.push(Number(leg.durationMin));
       }
-      const leg = await this.routingService.calculateRoute(cursor.lat, cursor.lng, lat, lng, this.truckRoutingProfile(trip));
-      if (!leg) {
-        routeStatus = 'unverified';
-        addedDistanceKm = null;
-        addedDurationMin = null;
-        break;
+      return { status: 'verified', distanceKm, durationMin, provider, legDurationsMin };
+    };
+
+    const baselineRoute = await routeForStops(existingStops);
+    const proposedRoute = await routeForStops(capacityCheck.proposedStops as any[]);
+    const { addedDistanceKm, addedDurationMin } = incrementalRoute(baselineRoute, proposedRoute);
+    const routeStatus: 'verified' | 'unverified' = baselineRoute.status === 'verified' && proposedRoute.status === 'verified' ? 'verified' : 'unverified';
+    const routeProvider = proposedRoute.provider || baselineRoute.provider;
+    if (routeStatus === 'unverified') {
+      add(warnings, {
+        level: 'warning',
+        code: 'ROUTE_UNVERIFIED',
+        params: { baseline: baselineRoute.status, proposed: proposedRoute.status },
+        message: 'The road route could not be verified for both the existing and proposed itinerary. No incremental distance or duration is shown; confirm the stop coordinates and routing provider before relying on this result.',
+      });
+    }
+
+    // Time windows are evaluated against the proposed arrival at each new stop.
+    const departure = trip.plannedDeparture ? new Date(trip.plannedDeparture) : null;
+    if (capacityCheck.newStopIds.size > 0) {
+      if (!departure || routeStatus !== 'verified') {
+        add(warnings, {
+          level: 'warning',
+          code: 'TIME_WINDOW_UNVERIFIED',
+          message: 'Requested time windows could not be verified because the planned departure or road duration is unavailable.',
+        });
+      } else {
+        capacityCheck.proposedStops.forEach((stop, index) => {
+          if (!capacityCheck.newStopIds.has(String(stop.id))) return;
+          const durationToStop = proposedRoute.legDurationsMin.slice(0, index).reduce((sum, minutes) => sum + minutes, 0);
+          const arrival = new Date(departure.getTime() + durationToStop * 60000);
+          const windowEnd = stopWindowEndDate(stop);
+          if (windowRisk(windowEnd, arrival)) {
+            add(warnings, {
+              level: 'warning',
+              code: 'TIME_WINDOW_AT_RISK',
+              params: { city: stop.city, arrival: arrival.toISOString(), windowEnd: windowEnd?.toISOString() },
+              message: `The requested window at ${stop.city || 'the new stop'} ends at ${windowEnd?.toISOString()}, but the proposed arrival is ${arrival.toISOString()}. Re-sequence the stop, change the window, or dispatch earlier.`,
+            });
+          }
+        });
       }
-      routeProvider = leg.source || routeProvider;
-      addedDistanceKm = (addedDistanceKm || 0) + Number(leg.distanceKm || 0);
-      addedDurationMin = (addedDurationMin || 0) + Number(leg.durationMin || 0);
-      cursor = { lat, lng };
     }
 
     const recommendation = blockers.length
@@ -1502,20 +1596,26 @@ export class PlanningService {
       blockers,
       warnings,
       cargo: {
-        before: this.sumCargo((trip.orders || []) as any[]),
-        after: cargo,
-        capacity: caps,
+        before: dimensions(capacityCheck.before.peak),
+        after: dimensions(capacityCheck.after.peak),
+        capacity: known,
+        beforeStatus: capacityCheck.before.status,
+        afterStatus: capacityCheck.after.status,
       },
       route: {
         status: routeStatus,
         provider: routeProvider,
         addedDistanceKm,
         addedDurationMin,
-        stops: [...existingStops, ...newStops].map((stop, index) => ({
+        baselineDistanceKm: baselineRoute.distanceKm,
+        proposedDistanceKm: proposedRoute.distanceKm,
+        baselineDurationMin: baselineRoute.durationMin,
+        proposedDurationMin: proposedRoute.durationMin,
+        stops: capacityCheck.proposedStops.map((stop, index) => ({
           sequence: index + 1,
           type: String(stop.type || '').toLowerCase(),
           city: stop.city || null,
-          orderId: stop.order?.id || null,
+          orderId: (stop as any).orderId || null,
         })),
       },
       driverHours: {
@@ -1637,6 +1737,20 @@ export class PlanningService {
         throw new ForbiddenException('Order does not belong to your company.');
       }
       if (o.trip?.id) throw new BadRequestException(`Order ${o.orderNumber} is already planned on trip ${o.trip.id}.`);
+      if (TERMINAL_ORDER_STATUSES.includes(String(o.status))) {
+        throw new BadRequestException(`Order ${o.orderNumber} is ${o.status} and cannot be assigned.`);
+      }
+    }
+    const activeAllocations = await this.taskRepo.createQueryBuilder('task')
+      .innerJoin('task.stop', 'allocationStop')
+      .innerJoin('allocationStop.trip', 'allocationTrip')
+      .where('task.orderId IN (:...orderIds)', { orderIds })
+      .andWhere('LOWER(allocationTrip.status) NOT IN (:...terminalTripStatuses)', {
+        terminalTripStatuses: ['completed', 'closed', 'cancelled', 'canceled', 'delivered', 'invoiced', 'paid'],
+      })
+      .getMany();
+    if (activeAllocations.length > 0) {
+      throw new BadRequestException('One or more orders still have a live trip allocation. Release the allocation before assigning again.');
     }
     const undoSnapshots = orders.map((o) => ({ id: o.id, tripId: null, status: o.status }));
 

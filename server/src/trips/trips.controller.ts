@@ -121,6 +121,11 @@ export class TripsController {
     return this.service.updateTaskQuantities(taskId, body, req.user);
   }
 
+  @Patch("tasks/:taskId/allocation-review")
+  reviewAllocation(@Param("taskId") taskId: string, @Body() body: any, @Request() req: any) {
+    return this.service.reviewAllocation(taskId, body, req.user);
+  }
+
   @Get(":id/status-history")
   statusHistory(@Param("id") id: string) {
     return this.service.getStatusHistory(id);
@@ -132,8 +137,8 @@ export class TripsController {
   }
 
   @Patch("stops/:stopId")
-  updateStop(@Param("stopId") stopId: string, @Body() dto: any) {
-    return this.service.updateStop(stopId, dto);
+  updateStop(@Param("stopId") stopId: string, @Body() dto: any, @Request() req: any) {
+    return this.service.updateStop(stopId, dto, req.user);
   }
 
   @Delete("stops/:stopId")

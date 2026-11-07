@@ -24,6 +24,7 @@ import api from '../lib/api';
 import { statusBadgeClass } from '../lib/statusColors';
 import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
 import DeliveryIncidentsPanel from '../components/DeliveryIncidentsPanel';
+import CargoAllocationsPanel from '../components/CargoAllocationsPanel';
 import { orderIsAdr } from '../lib/adrDetect';
 import { driverDisplayName } from '../lib/driverName';
 import { fmtMoney, fmtMoneySigned, fmtNumber, fmtPercent } from '../lib/format';
@@ -410,6 +411,8 @@ export default function TripDetailsPage() {
       </div>
 
       <DeliveryIncidentsPanel tripId={trip.id} />
+
+      <CargoAllocationsPanel trip={trip} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         

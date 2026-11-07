@@ -4341,10 +4341,10 @@ export default function PlanningPage() {
             onClick={() => !loadingAction && setAssignmentReview(null)}
           >
             <div
-              className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 space-y-4 animate-in zoom-in-95 duration-150"
+              className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-150"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-start justify-between border-b border-border pb-3 gap-3">
+              <div className="flex shrink-0 items-start justify-between border-b border-border px-6 pt-5 pb-3 gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
                     <TruckIcon className="w-5 h-5" />
@@ -4367,6 +4367,7 @@ export default function PlanningPage() {
                 </button>
               </div>
 
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4 space-y-4">
               {assignmentReview.tripId && (
                 <div className="grid grid-cols-2 gap-2">
                   <button
@@ -4439,6 +4440,7 @@ export default function PlanningPage() {
                       {blockers.map((c: any) => (
                         <div key={c.id || c.code} className="text-[11px] text-red-700 dark:text-red-300">
                           <div className="flex items-start gap-1.5">
+                            <span className="shrink-0 rounded bg-red-600 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-white">{t('cons_level_hard', 'Hard blocker')}</span>
                             {c.code && <code className="shrink-0 rounded bg-red-500/10 px-1 py-0.5 text-[9px] font-bold">{c.code}</code>}
                             <span>{c.message}</span>
                           </div>
@@ -4463,6 +4465,9 @@ export default function PlanningPage() {
                       <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">{t('cons_warnings', 'Warnings')}</p>
                       {warnings.map((c: any) => (
                         <p key={c.id || c.code} className="text-[11px] text-amber-800 dark:text-amber-300">
+                          <span className="mr-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide">
+                            {String(c.code || '').includes('UNVERIFIED') ? t('cons_level_unverified', 'Unverified') : t('cons_level_soft', 'Soft warning')}
+                          </span>
                           {c.code ? <code className="mr-1 rounded bg-amber-500/10 px-1 py-0.5 text-[9px] font-bold">{c.code}</code> : null}
                           {c.message}
                         </p>
@@ -4472,7 +4477,9 @@ export default function PlanningPage() {
                 </>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+              </div>
+
+              <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-6 py-3">
                 <button onClick={() => setAssignmentReview(null)} disabled={!!loadingAction} className="btn-secondary text-xs py-2 px-4 font-bold">
                   {t('cons_cancel', 'Cancel')}
                 </button>
