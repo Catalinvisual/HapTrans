@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:hapcargo_driver/utils/app_theme.dart';
 import 'package:hapcargo_driver/utils/constants.dart';
 import 'package:hapcargo_driver/widgets/status_badge.dart';
 
@@ -51,7 +52,9 @@ void main() {
 
   setUpAll(_loadRealFonts);
 
-  testWidgets('all status badges render with the semantic palette', (tester) async {
+  testWidgets('all status badges render with the semantic palette',
+      (tester) async {
+    AppTheme.activate(Brightness.light);
     tester.view.physicalSize = const Size(1080, 2100);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
@@ -59,7 +62,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(fontFamily: 'Roboto', useMaterial3: true),
+        theme: AppTheme.light,
         home: Scaffold(
           backgroundColor: kSurface,
           body: Padding(
@@ -67,12 +70,13 @@ void main() {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'HapCargo · statusuri operaționale',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: kText),
+                  style: TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w900, color: kText),
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Aceleași coduri și culori ca în TMS',
                   style: TextStyle(fontSize: 11, color: kTextSecondary),
                 ),

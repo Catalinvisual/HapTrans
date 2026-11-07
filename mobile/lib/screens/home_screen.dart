@@ -71,14 +71,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final upcoming = _upcomingTrips(trips, current);
 
     return Scaffold(
-      backgroundColor: kSurface,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(l.translate('current_trip')),
         elevation: 0,
         actions: [
           IconButton(
             tooltip: l.translate('btn_refresh'),
-            icon: const Icon(Icons.refresh, color: kPrimary),
+            icon: Icon(Icons.refresh, color: kPrimary),
             onPressed: tripProv.loading ? null : () => tripProv.loadTrips(token),
           ),
         ],
@@ -103,7 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 22),
               Text(
                 l.translate('upcoming_trips').toUpperCase(),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w900,
                   color: kTextSecondary,
@@ -153,10 +153,10 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: const BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(
+                color: kCard,
                 shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4))],
+                boxShadow: [BoxShadow(color: kShadow, blurRadius: 12, offset: Offset(0, 4))],
               ),
               child: Icon(
                 error == null ? Icons.local_shipping_outlined : Icons.cloud_off_outlined,
@@ -168,13 +168,13 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               error == null ? l.translate('no_active_trip') : l.translate('action_failed'),
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: kText),
+              style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: kText),
             ),
             const SizedBox(height: 8),
             Text(
               error == null ? l.translate('no_active_trip_sub') : error,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: kTextSecondary, height: 1.4),
+              style: TextStyle(fontSize: 13, color: kTextSecondary, height: 1.4),
             ),
             if (error != null) ...[
               const SizedBox(height: 16),
@@ -204,11 +204,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       child: Material(
-        color: Colors.white,
+        color: kCard,
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: kBorder),
+          side: BorderSide(color: kBorder),
         ),
         child: InkWell(
           onTap: () => _openTrip(trip),
@@ -226,14 +226,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Text(
                       trip['tripNumber']?.toString() ?? '—',
-                      style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900, color: kText),
+                      style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900, color: kText),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       tripClientName(trip),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12, color: kTextSecondary),
+                      style: TextStyle(fontSize: 12, color: kTextSecondary),
                     ),
                   ],
                 ),
@@ -245,21 +245,21 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 14),
           Row(
             children: [
-              const Icon(Icons.route_outlined, size: 16, color: kPrimary),
+              Icon(Icons.route_outlined, size: 16, color: kPrimary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   '${tripPickup(trip)} → ${tripDropoff(trip)}',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: kText),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: kText),
                 ),
               ),
-              const Icon(Icons.chevron_right, color: kTextSecondary, size: 22),
+              Icon(Icons.chevron_right, color: kTextSecondary, size: 22),
             ],
           ),
           const SizedBox(height: 10),
-          const Divider(color: kBorder, height: 1),
+          Divider(color: kBorder, height: 1),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
@@ -282,7 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 10),
             Text(
               '${l.translate('updated_at')} ${formatAppTime(updatedAt)}',
-              style: const TextStyle(fontSize: 10.5, color: kTextSecondary),
+              style: TextStyle(fontSize: 10.5, color: kTextSecondary),
             ),
           ],
             ],
@@ -298,30 +298,30 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _reportRow(AppLocalizations l, Map<String, dynamic> trip, String token) {
     final issue = OutlinedButton.icon(
       onPressed: () => showProblemReport(context, token: token, trip: trip),
-      icon: const Icon(Icons.report_problem_outlined, size: 15, color: kError),
+      icon: Icon(Icons.report_problem_outlined, size: 15, color: kError),
       label: Text(
         l.translate('report_issue'),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: kError),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: kError),
       ),
       style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: kError),
+        side: BorderSide(color: kError),
         padding: const EdgeInsets.symmetric(vertical: 8),
         minimumSize: const Size(0, 36),
       ),
     );
     final delay = OutlinedButton.icon(
       onPressed: () => showDelayReport(context, token: token, trip: trip),
-      icon: const Icon(Icons.access_time, size: 15, color: kWarning),
+      icon: Icon(Icons.access_time, size: 15, color: kWarning),
       label: Text(
         l.translate('report_delay'),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: kWarning),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: kWarning),
       ),
       style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: kWarning),
+        side: BorderSide(color: kWarning),
         padding: const EdgeInsets.symmetric(vertical: 8),
         minimumSize: const Size(0, 36),
       ),
@@ -385,13 +385,13 @@ class _HomeScreenState extends State<HomeScreen> {
       child: ElevatedButton.icon(
         onPressed: _busy ? null : (action != null ? () => _perform(action!, l) : onOpenTrip),
         icon: _busy
-            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : Icon(icon, color: Colors.white, size: 20),
+            ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: kOnPrimary))
+            : Icon(icon, color: kOnPrimary, size: 20),
         label: Text(
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.3),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: kOnPrimary, letterSpacing: 0.3),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
@@ -410,7 +410,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ].join(' · ');
 
     return Material(
-      color: Colors.white,
+      color: kCard,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -430,14 +430,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Text(
                       trip['tripNumber']?.toString() ?? '—',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: kText),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: kText),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 11, color: kTextSecondary),
+                      style: TextStyle(fontSize: 11, color: kTextSecondary),
                     ),
                   ],
                 ),
@@ -454,13 +454,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _chip(IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(color: kCardMuted, borderRadius: BorderRadius.circular(6)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 12, color: kTextSecondary),
           const SizedBox(width: 4),
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kText)),
+          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kText)),
         ],
       ),
     );

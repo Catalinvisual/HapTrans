@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import '../lib/l10n/app_localizations.dart';
 import '../lib/providers/trip_provider.dart';
+import '../lib/utils/app_theme.dart';
 import '../lib/utils/constants.dart';
 import '../lib/widgets/report_flow.dart';
 
@@ -38,6 +39,7 @@ Future<void> _loadRealFonts() async {
 }
 
 Future<void> _pump(WidgetTester tester, Locale locale, ReportKind kind) async {
+  AppTheme.activate(Brightness.light);
   tester.view.physicalSize = const Size(1080, 2100);
   tester.view.devicePixelRatio = 3.0;
   addTearDown(tester.view.reset);
@@ -63,7 +65,7 @@ Future<void> _pump(WidgetTester tester, Locale locale, ReportKind kind) async {
           Locale('es'),
           Locale('pl'),
         ],
-        theme: ThemeData(fontFamily: 'Roboto', useMaterial3: true),
+        theme: AppTheme.light,
         home: Scaffold(
           backgroundColor: kSurface,
           body: ReportSheet(

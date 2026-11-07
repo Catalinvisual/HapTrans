@@ -7,6 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:dio/dio.dart';
 import 'package:open_filex/open_filex.dart';
 import '../providers/update_provider.dart';
+import '../providers/theme_provider.dart';
+import 'settings_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -14,6 +16,7 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    context.watch<ThemeProvider>();
     final updateProv = context.watch<UpdateProvider>();
     final locale = auth.locale.languageCode;
     final user = auth.user;
@@ -21,29 +24,65 @@ class ProfileScreen extends StatelessWidget {
 
 
     return Scaffold(
-      appBar: AppBar(title: Text({'ro':'Profilul meu','en':'My Profile','nl':'Mijn profiel','de':'Mein Profil','fr':'Mon profil', 'es': 'Mi Perfil', 'pl': 'Mój profil' }[locale] ?? 'My Profile')),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text({'ro':'Profilul meu','en':'My Profile','nl':'Mijn profiel','de':'Mein Profil','fr':'Mon profil', 'es': 'Mi Perfil', 'pl': 'Mój profil' }[locale] ?? 'My Profile'),
+        actions: [
+          IconButton(
+            tooltip: 'Settings',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Center(child: Column(children: [
             Container(
               width: 80, height: 80,
-              decoration: const BoxDecoration(color: kPrimaryLight, shape: BoxShape.circle),
+              decoration: BoxDecoration(color: kPrimaryLight, shape: BoxShape.circle),
               child: Center(child: Text(
                 (user?['name'] ?? '?').substring(0, 1).toUpperCase(),
-                style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: kPrimary),
+                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: kPrimary),
               )),
             ),
             const SizedBox(height: 12),
-            Text(user?['name'] ?? '—', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kText)),
+            Text(user?['name'] ?? '—', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kText)),
             const SizedBox(height: 4),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(color: kPrimaryLight, borderRadius: BorderRadius.circular(20)),
-              child: Text(user?['role'] ?? '—', style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w600, fontSize: 13)),
+              child: Text(user?['role'] ?? '—', style: TextStyle(color: kPrimary, fontWeight: FontWeight.w600, fontSize: 13)),
             ),
           ])),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
+
+          OutlinedButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
+            icon: const Icon(Icons.tune_rounded, size: 18),
+            label: Text({
+              'ro': 'Setări',
+              'en': 'Settings',
+              'nl': 'Instellingen',
+              'de': 'Einstellungen',
+              'fr': 'Paramètres',
+              'es': 'Ajustes',
+              'pl': 'Ustawienia',
+            }[locale] ?? 'Settings'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+
+          const SizedBox(height: 24),
 
           // Language switcher
           Row(
@@ -51,7 +90,7 @@ class ProfileScreen extends StatelessWidget {
             children: [
               Text(
                 {'ro':'Limbă','en':'Language','nl':'Taal','de':'Sprache','fr':'Langue', 'es': 'Idioma', 'pl': 'Język' }[locale] ?? 'Language',
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: kText),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: kText),
               ),
               const LanguageDropdown(),
             ],
@@ -71,7 +110,7 @@ class ProfileScreen extends StatelessWidget {
             , 'es': 'Cambiar contraseña', 'pl': 'Zmień hasło' }[locale] ?? 'Change password'),
             style: ElevatedButton.styleFrom(
               backgroundColor: kPrimary,
-              foregroundColor: Colors.white,
+              foregroundColor: kOnPrimary,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
@@ -87,7 +126,7 @@ class ProfileScreen extends StatelessWidget {
                   children: [
                     ElevatedButton.icon(
                       onPressed: () => updateProv.promptUpdateDialog(context, locale: locale),
-                      icon: const Icon(Icons.download_rounded, color: Colors.white, size: 20),
+                      icon: Icon(Icons.download_rounded, color: kOnPrimary, size: 20),
                       label: Text(
                         {
                           'ro': 'Actualizare Disponibilă (v${updateProv.serverVersionCode ?? ''}) - Descarcă',
@@ -103,7 +142,7 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: kPrimary,
-                        foregroundColor: Colors.white,
+                        foregroundColor: kOnPrimary,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         elevation: 4,
@@ -131,7 +170,7 @@ class ProfileScreen extends StatelessWidget {
               return ElevatedButton.icon(
                 onPressed: () => updateProv.checkForUpdates(context: context, manual: true, locale: locale),
                 icon: updateProv.isChecking
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: kOnPrimary, strokeWidth: 2))
                     : const Icon(Icons.system_update),
                 label: Text(
                   {
@@ -146,7 +185,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueAccent,
-                  foregroundColor: Colors.white,
+                  foregroundColor: kOnPrimary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
@@ -163,6 +202,7 @@ class ProfileScreen extends StatelessWidget {
             label: Text({'ro':'Deconectare','en':'Logout','nl':'Uitloggen','de':'Abmelden','fr':'Déconnexion', 'es': 'Cerrar sesión', 'pl': 'Wyloguj' }[locale] ?? 'Logout'),
             style: ElevatedButton.styleFrom(
               backgroundColor: kError,
+              foregroundColor: kOnPrimary,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
@@ -171,7 +211,7 @@ class ProfileScreen extends StatelessWidget {
           Center(
             child: Text(
               '${{'ro': 'Versiunea aplicației: ', 'en': 'App Version: ', 'nl': 'App Versie: ', 'de': 'App Version: ', 'fr': 'Version de l\'application: ', 'es': 'Versión de la app: ', 'pl': 'Wersja aplikacji: ' }[locale] ?? 'App Version: '}${updateProv.installedVersionName ?? '—'}${updateProv.installedVersionCode == null ? '' : ' (${updateProv.installedVersionCode})'}',
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
+              style: TextStyle(color: kTextMuted, fontSize: 12),
             ),
           ),
           const SizedBox(height: 24),
@@ -202,7 +242,7 @@ class ProfileScreen extends StatelessWidget {
               'de': 'Passwort ändern',
               'fr': 'Changer le mot de passe'
             , 'es': 'Cambiar contraseña', 'pl': 'Zmień hasło' }[locale] ?? 'Change Password',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: kText),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: kText),
           ),
           content: Form(
             key: formKey,
@@ -303,7 +343,7 @@ class ProfileScreen extends StatelessWidget {
                   'de': 'Abbrechen',
                   'fr': 'Annuler'
                 , 'es': 'Cancelar', 'pl': 'Anuluj' }[locale] ?? 'Cancel',
-                style: const TextStyle(color: kTextSecondary),
+                style: TextStyle(color: kTextSecondary),
               ),
             ),
             ElevatedButton(
@@ -343,7 +383,7 @@ class ProfileScreen extends StatelessWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               child: loading
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: kOnPrimary, strokeWidth: 2))
                   : Text(
                       {
                         'ro': 'Schimbă',
@@ -352,7 +392,7 @@ class ProfileScreen extends StatelessWidget {
                         'de': 'Ändern',
                         'fr': 'Changer'
                       , 'es': 'Cambiar', 'pl': 'Zmień' }[locale] ?? 'Change',
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: kOnPrimary),
                     ),
             ),
           ],

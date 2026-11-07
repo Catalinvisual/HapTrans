@@ -184,9 +184,10 @@ class _ReportSheetState extends State<ReportSheet> {
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+        decoration: BoxDecoration(
+          color: kCard,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+          border: Border.all(color: kBorder),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -229,7 +230,7 @@ class _ReportSheetState extends State<ReportSheet> {
                             children: [
                               Text(
                                 l.translate(_isIssue ? 'report_issue' : 'report_delay'),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w900,
                                   color: kText,
@@ -238,7 +239,7 @@ class _ReportSheetState extends State<ReportSheet> {
                               const SizedBox(height: 2),
                               Text(
                                 widget.trip['tripNumber']?.toString() ?? '',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                   color: kTextSecondary,
@@ -250,14 +251,14 @@ class _ReportSheetState extends State<ReportSheet> {
                         IconButton(
                           onPressed: _busy ? null : () => Navigator.pop(context),
                           tooltip: l.translate('cancel'),
-                          icon: const Icon(Icons.close, color: kTextSecondary, size: 20),
+                          icon: Icon(Icons.close, color: kTextSecondary, size: 20),
                         ),
                       ],
                     ),
                     const SizedBox(height: 10),
                     Text(
                       l.translate(_isIssue ? 'report_issue_intro' : 'report_delay_intro'),
-                      style: const TextStyle(fontSize: 12.5, height: 1.4, color: kTextSecondary),
+                      style: TextStyle(fontSize: 12.5, height: 1.4, color: kTextSecondary),
                     ),
                     const SizedBox(height: 18),
                     _sectionLabel(
@@ -304,7 +305,7 @@ class _ReportSheetState extends State<ReportSheet> {
                         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         decoration: _inputDecoration('30').copyWith(
                           suffixText: 'min',
-                          prefixIcon: const Icon(Icons.timer_outlined, size: 18, color: kTextSecondary),
+                          prefixIcon: Icon(Icons.timer_outlined, size: 18, color: kTextSecondary),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -328,12 +329,12 @@ class _ReportSheetState extends State<ReportSheet> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.error_outline, size: 16, color: kError),
+                            Icon(Icons.error_outline, size: 16, color: kError),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 l.translate(_errorKey!),
-                                style: const TextStyle(fontSize: 12, color: kError, height: 1.35),
+                                style: TextStyle(fontSize: 12, color: kError, height: 1.35),
                               ),
                             ),
                           ],
@@ -347,8 +348,8 @@ class _ReportSheetState extends State<ReportSheet> {
             ),
             Container(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
-              decoration: const BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(
+                color: kCard,
                 border: Border(top: BorderSide(color: kBorder)),
               ),
               child: SizedBox(
@@ -366,22 +367,22 @@ class _ReportSheetState extends State<ReportSheet> {
                       ? Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const SizedBox(
+                            SizedBox(
                               width: 16,
                               height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: kOnPrimary),
                             ),
                             const SizedBox(width: 10),
                             Text(
                               l.translate('report_sending'),
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13.5),
+                              style: TextStyle(color: kOnPrimary, fontWeight: FontWeight.w800, fontSize: 13.5),
                             ),
                           ],
                         )
                       : Text(
                           l.translate('btn_report'),
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: kOnPrimary,
                             fontWeight: FontWeight.w800,
                             fontSize: 13.5,
                             letterSpacing: 0.2,
@@ -399,7 +400,7 @@ class _ReportSheetState extends State<ReportSheet> {
   Widget _sectionLabel(String text) {
     return Text(
       text.toUpperCase(),
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 10,
         fontWeight: FontWeight.w900,
         color: kTextSecondary,
@@ -411,21 +412,21 @@ class _ReportSheetState extends State<ReportSheet> {
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(fontSize: 12.5, color: kTextSecondary),
+      hintStyle: TextStyle(fontSize: 12.5, color: kTextSecondary),
       filled: true,
-      fillColor: const Color(0xFFF8FAFC),
+      fillColor: kCardMuted,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: kBorder),
+        borderSide: BorderSide(color: kBorder),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: kBorder),
+        borderSide: BorderSide(color: kBorder),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: kPrimary, width: 1.4),
+        borderSide: BorderSide(color: kPrimary, width: 1.4),
       ),
     );
   }
@@ -438,7 +439,7 @@ class _ReportSheetState extends State<ReportSheet> {
         duration: const Duration(milliseconds: 120),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
-          color: selected ? kPrimaryLight : const Color(0xFFF8FAFC),
+          color: selected ? kPrimaryLight : kCardMuted,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: selected ? kPrimary : kBorder),
         ),
@@ -446,7 +447,7 @@ class _ReportSheetState extends State<ReportSheet> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (selected) ...[
-              const Icon(Icons.check_circle, size: 14, color: kPrimary),
+              Icon(Icons.check_circle, size: 14, color: kPrimary),
               const SizedBox(width: 5),
             ],
             Text(
@@ -476,7 +477,7 @@ class _ReportSheetState extends State<ReportSheet> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? kPrimaryLight : Colors.white,
+          color: selected ? kPrimaryLight : kCardMuted,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: selected ? kPrimary : kBorder),
         ),

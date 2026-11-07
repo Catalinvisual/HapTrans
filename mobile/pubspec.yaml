@@ -1,7 +1,7 @@
 name: hapcargo_driver
 description: HapCargo Driver Mobile App
 publish_to: 'none'
-version: 1.0.24+24
+version: 1.0.25+25
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -53,6 +53,7 @@ dependencies:
   flutter_background_service: ^5.1.0
   signature: ^6.4.0
   open_filex: ^4.7.0
+  pdfx: 2.9.2
   crypto: ^3.0.3
   package_info_plus: ^9.0.1
 

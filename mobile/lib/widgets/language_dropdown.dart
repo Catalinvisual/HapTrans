@@ -26,18 +26,18 @@ class LanguageDropdown extends StatelessWidget {
     return PopupMenuButton<String>(
       onSelected: (code) => auth.setLocale(code),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: Colors.white,
+      color: kCardElevated,
       elevation: 4,
       offset: const Offset(0, 42),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: kCard,
           border: Border.all(color: kBorder),
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: kShadow,
               blurRadius: 4,
               offset: const Offset(0, 2),
             )
@@ -50,10 +50,10 @@ class LanguageDropdown extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               current.$3,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: kText),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: kText),
             ),
             const SizedBox(width: 4),
-            const Icon(Icons.arrow_drop_down, color: kTextSecondary, size: 20),
+            Icon(Icons.arrow_drop_down, color: kTextSecondary, size: 20),
           ],
         ),
       ),
@@ -73,7 +73,7 @@ class LanguageDropdown extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              if (isSelected) const Icon(Icons.check, color: kPrimary, size: 16),
+              if (isSelected) Icon(Icons.check, color: kPrimary, size: 16),
             ],
           ),
         );

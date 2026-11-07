@@ -210,7 +210,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
         content: Container(
           width: 300,
           height: 200,
-          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(border: Border.all(color: kBorder), borderRadius: BorderRadius.circular(8)),
           child: Signature(
             controller: _signatureController,
             backgroundColor: Colors.grey[100]!,
@@ -325,7 +325,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: kCard,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
@@ -345,7 +345,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
                   children: [
                     Text(
                       l.translate('upload_doc'),
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kText),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kText),
                     ),
                     IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
                   ],
@@ -361,10 +361,10 @@ class DocumentsScreenState extends State<DocumentsScreen> {
                   children: documentTypes.map((type) {
                     final isSel = _selectedTypeKey == type.id;
                     return ChoiceChip(
-                      label: Text(l.translate(type.labelKey), style: TextStyle(color: isSel ? Colors.white : kText, fontSize: 12, fontWeight: FontWeight.bold)),
+                      label: Text(l.translate(type.labelKey), style: TextStyle(color: isSel ? kOnPrimary : kText, fontSize: 12, fontWeight: FontWeight.bold)),
                       selected: isSel,
                       selectedColor: kPrimary,
-                      backgroundColor: Colors.white,
+                      backgroundColor: kCardMuted,
                       onSelected: (_) => setSheetState(() => _selectedTypeKey = type.id),
                     );
                   }).toList(),
@@ -419,10 +419,10 @@ class DocumentsScreenState extends State<DocumentsScreen> {
                           await _pickImage(ImageSource.camera);
                           setSheetState(() {});
                         },
-                        icon: const Icon(Icons.camera_alt, color: kPrimary, size: 18),
+                        icon: Icon(Icons.camera_alt, color: kPrimary, size: 18),
                         label: Text(
                           l.translate('upload_camera'),
-                          style: const TextStyle(color: kPrimary, fontSize: 11),
+                          style: TextStyle(color: kPrimary, fontSize: 11),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -437,10 +437,10 @@ class DocumentsScreenState extends State<DocumentsScreen> {
                           await _pickFile();
                           setSheetState(() {});
                         },
-                        icon: const Icon(Icons.folder, color: kPrimary, size: 18),
+                        icon: Icon(Icons.folder, color: kPrimary, size: 18),
                         label: Text(
                           l.translate('upload_gallery_files'),
-                          style: const TextStyle(color: kPrimary, fontSize: 11),
+                          style: TextStyle(color: kPrimary, fontSize: 11),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -454,10 +454,10 @@ class DocumentsScreenState extends State<DocumentsScreen> {
                         onPressed: () async {
                           await _captureSignature(setSheetState);
                         },
-                        icon: const Icon(Icons.draw, color: kPrimary, size: 18),
+                        icon: Icon(Icons.draw, color: kPrimary, size: 18),
                         label: Text(
                           l.locale.languageCode == 'ro' ? 'Semnătură' : 'Signature',
-                          style: const TextStyle(color: kPrimary, fontSize: 11),
+                          style: TextStyle(color: kPrimary, fontSize: 11),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -470,7 +470,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
                   const SizedBox(height: 12),
                   Text(
                     '${l.locale.languageCode == 'ro' ? 'Fișiere pregătite' : 'Selected files'} (${_selectedFiles.length}):',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: kSuccess),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: kSuccess),
                   ),
                   const SizedBox(height: 6),
                   Wrap(
@@ -519,7 +519,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
                   child: ElevatedButton(
                     onPressed: _loading ? null : () => _uploadDocument(setSheetState),
                     child: _loading
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: kOnPrimary, strokeWidth: 2))
                         : Text(l.translate('upload_doc')),
                   ),
                 ),
@@ -529,50 +529,6 @@ class DocumentsScreenState extends State<DocumentsScreen> {
         ),
       ),
     );
-  }
-
-  Future<void> _downloadFile(String url, String fileName, AppLocalizations l) async {
-    final locale = l.locale.languageCode;
-    final msgInProgress = {
-      'ro': 'Descărcare în curs...',
-      'en': 'Downloading...',
-      'nl': 'Downloaden...',
-      'de': 'Wird heruntergeladen...',
-      'fr': 'Téléchargement en cours...',
-     'es': 'Descargando...', 'pl': 'Pobieranie...' }[locale] ?? 'Downloading...';
-    final msgSuccess = {
-      'ro': 'Salvat în Descărcări (Downloads)',
-      'en': 'Saved to Downloads',
-      'nl': 'Opgeslagen in Downloads',
-      'de': 'In Downloads gespeichert',
-      'fr': 'Enregistré dans Téléchargements',
-     'es': 'Guardado en Descargas', 'pl': 'Zapisano w folderze Pobrane' }[locale] ?? 'Saved to Downloads';
-    final msgError = {
-      'ro': 'Eroare la descărcare',
-      'en': 'Download error',
-      'nl': 'Downloadfout',
-      'de': 'Downloadfehler',
-      'fr': 'Erreur de téléchargement',
-     'es': 'Error de descarga', 'pl': 'Błąd pobierania' }[locale] ?? 'Download error';
-    try {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msgInProgress)));
-      String savePath;
-      if (Platform.isAndroid) {
-        savePath = '/storage/emulated/0/Download/HapCargo_$fileName';
-      } else {
-        final dir = await getApplicationDocumentsDirectory();
-        savePath = '${dir.path}/HapCargo_$fileName';
-      }
-      await Dio().download(url, savePath);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msgSuccess), backgroundColor: kSuccess));
-      }
-    } catch (e) {
-      debugPrint('Download error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msgError)));
-      }
-    }
   }
 
   List<Map<String, dynamic>> _visibleDocuments() {
@@ -644,11 +600,11 @@ class DocumentsScreenState extends State<DocumentsScreen> {
     return Padding(
       padding: const EdgeInsets.only(right: 6),
       child: FilterChip(
-        label: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: selected ? Colors.white : kTextSecondary)),
+        label: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: selected ? kOnPrimary : kTextSecondary)),
         selected: selected,
         selectedColor: kPrimary,
-        backgroundColor: Colors.white,
-        checkmarkColor: Colors.white,
+        backgroundColor: kCardMuted,
+        checkmarkColor: kOnPrimary,
         side: BorderSide(color: selected ? kPrimary : kBorder),
         onSelected: (_) => setState(() => _scope = value),
       ),
@@ -678,7 +634,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
                     ),
               isDense: true,
               filled: true,
-              fillColor: Colors.white,
+              fillColor: kCardMuted,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
@@ -710,7 +666,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: kCard,
                     borderRadius: BorderRadius.circular(9),
                     border: Border.all(color: _typeFilter == null ? kBorder : kPrimary),
                   ),
@@ -737,7 +693,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
     final visible = _visibleDocuments();
 
     return Scaffold(
-      backgroundColor: kSurface,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -745,7 +701,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
             Text(l.translate('docs_title')),
             Text(
               '${_documentsList.length} ${l.translate('documents_available')}',
-              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500, color: kTextSecondary),
+              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500, color: kTextSecondary),
             ),
           ],
         ),
@@ -757,8 +713,8 @@ class DocumentsScreenState extends State<DocumentsScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showUploadSheet,
         backgroundColor: kPrimary,
-        icon: const Icon(Icons.upload_file, color: Colors.white),
-        label: Text(l.translate('upload_doc'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        icon: Icon(Icons.upload_file, color: kOnPrimary),
+        label: Text(l.translate('upload_doc'), style: TextStyle(color: kOnPrimary, fontWeight: FontWeight.bold)),
       ),
       body: Column(
         children: [
@@ -775,11 +731,12 @@ class DocumentsScreenState extends State<DocumentsScreen> {
     );
   }
 
-  Widget _metaChip(IconData icon, String label, {Color color = kTextSecondary}) {
+  Widget _metaChip(IconData icon, String label, {Color? color}) {
+    color ??= kTextSecondary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withOpacity(kIsDark ? 0.18 : 0.08),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
@@ -793,31 +750,14 @@ class DocumentsScreenState extends State<DocumentsScreen> {
     );
   }
 
-  Future<void> _downloadDoc(Map<String, dynamic> doc, AppLocalizations l) async {
-    final docId = doc['id']?.toString();
+  Future<void> _downloadDoc(Map<String, dynamic> doc) async {
     final token = context.read<AuthProvider>().token ?? '';
-    if (docId == null || docId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('action_failed'))));
-      return;
-    }
-    try {
-      final data = await context.read<TripProvider>().documentPreview(token, docId);
-      final url = (data['url'] ?? data['previewUrl'] ?? '').toString();
-      if (url.isEmpty) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('download_failed'))));
-        return;
-      }
-      final safeName = _documentName(doc).replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-      await _downloadFile(url, safeName, l);
-    } catch (e) {
-      debugPrint('Download error: $e');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('download_failed'))));
-    }
+    await DocumentOpener.download(context, token: token, doc: doc);
   }
 
   Widget _buildDocList(List<Map<String, dynamic>> docs, AppLocalizations l) {
     if (_fetching && docs.isEmpty) {
-      return const Center(child: CircularProgressIndicator(color: kPrimary));
+      return Center(child: CircularProgressIndicator(color: kPrimary));
     }
 
     if (_fetchError != null && _documentsList.isEmpty) {
@@ -827,9 +767,9 @@ class DocumentsScreenState extends State<DocumentsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off_outlined, size: 46, color: kTextSecondary),
+              Icon(Icons.cloud_off_outlined, size: 46, color: kTextSecondary),
               const SizedBox(height: 12),
-              Text(l.translate('action_failed'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: kText)),
+              Text(l.translate('action_failed'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: kText)),
               const SizedBox(height: 12),
               OutlinedButton.icon(onPressed: _fetchDocuments, icon: const Icon(Icons.refresh), label: Text(l.translate('btn_refresh'))),
             ],
@@ -849,23 +789,23 @@ class DocumentsScreenState extends State<DocumentsScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(20),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF1F5F9),
+                  decoration: BoxDecoration(
+                    color: kCardMuted,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.description_outlined, size: 52, color: Color(0xFF94A3B8)),
+                  child: Icon(Icons.description_outlined, size: 52, color: kTextMuted),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   _documentsList.isEmpty ? l.translate('no_docs_title') : l.translate('docs_no_results'),
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kText),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kText),
                 ),
                 if (_documentsList.isEmpty) ...[
                   const SizedBox(height: 8),
                   Text(
                     l.translate('no_docs_sub'),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 13, color: kTextSecondary, height: 1.4),
+                    style: TextStyle(fontSize: 13, color: kTextSecondary, height: 1.4),
                   ),
                 ],
               ],
@@ -891,20 +831,22 @@ class DocumentsScreenState extends State<DocumentsScreen> {
         final isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'].contains(extension);
         final reviewState = documentStatusOf(doc);
         final reviewColor = reviewState == DocumentLifecycleState.approved
-            ? const Color(0xFF15803D)
+            ? kSuccess
             : (reviewState == DocumentLifecycleState.rejected ? kError : kPrimary);
         final reviewIcon = reviewState == DocumentLifecycleState.approved
             ? Icons.verified_outlined
             : (reviewState == DocumentLifecycleState.rejected ? Icons.cancel_outlined : Icons.cloud_done_outlined);
         final icon = isPdf ? Icons.picture_as_pdf_outlined : (isImage ? Icons.image_outlined : Icons.description_outlined);
-        final iconColor = isPdf ? const Color(0xFFDC2626) : (isImage ? const Color(0xFF2563EB) : kPrimary);
+        final iconColor = isPdf ? kError : (isImage ? kInfo : kPrimary);
 
         return Card(
           elevation: 0,
+          color: kCard,
+          surfaceTintColor: Colors.transparent,
           margin: const EdgeInsets.only(bottom: 8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
-            side: const BorderSide(color: kBorder),
+            side: BorderSide(color: kBorder),
           ),
           child: ListTile(
             onTap: () async {
@@ -913,7 +855,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
               final docId = doc['id']?.toString();
               if (docId != null && docId.isNotEmpty) {
                 final authToken = context.read<AuthProvider>().token ?? '';
-                await DocumentOpener.open(context, token: authToken, doc: doc);
+                await DocumentOpener.preview(context, token: authToken, doc: doc);
                 return;
               }
               if (mounted) {
@@ -924,7 +866,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
             leading: Container(
               padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.09),
+                color: iconColor.withOpacity(kIsDark ? 0.18 : 0.09),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: iconColor, size: 22),
@@ -933,7 +875,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
               name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: kText),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: kText),
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -945,7 +887,7 @@ class DocumentsScreenState extends State<DocumentsScreen> {
                   children: [
                     _metaChip(Icons.sell_outlined, typeLabel),
                     if (tripRef.isNotEmpty) _metaChip(Icons.route_outlined, tripRef, color: kPrimary),
-                    if (orderRef.isNotEmpty) _metaChip(Icons.inventory_2_outlined, orderRef, color: const Color(0xFF0F766E)),
+                    if (orderRef.isNotEmpty) _metaChip(Icons.inventory_2_outlined, orderRef, color: kInfo),
                     _metaChip(
                       reviewIcon,
                       l.translate(reviewState.labelKey),
@@ -955,11 +897,11 @@ class DocumentsScreenState extends State<DocumentsScreen> {
                 ),
                 if (dateStr.isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  Text(dateStr, style: const TextStyle(fontSize: 10.5, color: kTextSecondary)),
+                  Text(dateStr, style: TextStyle(fontSize: 10.5, color: kTextSecondary)),
                 ],
                 if (doc['notes'] != null && doc['notes'].toString().isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  Text(doc['notes'].toString(), style: const TextStyle(fontSize: 12, color: kTextSecondary)),
+                  Text(doc['notes'].toString(), style: TextStyle(fontSize: 12, color: kTextSecondary)),
                 ],
                 if (reviewState == DocumentLifecycleState.rejected &&
                     (doc['rejectionReason'] ?? '').toString().isNotEmpty) ...[
@@ -968,15 +910,15 @@ class DocumentsScreenState extends State<DocumentsScreen> {
                     doc['rejectionReason'].toString(),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 11, color: kError),
+                    style: TextStyle(fontSize: 11, color: kError),
                   ),
                 ],
               ],
             ),
             trailing: IconButton(
               tooltip: l.translate('docs_download'),
-              icon: const Icon(Icons.download_outlined, color: kPrimary, size: 20),
-              onPressed: () => _downloadDoc(doc, l),
+              icon: Icon(Icons.download_outlined, color: kPrimary, size: 20),
+              onPressed: () => _downloadDoc(doc),
             ),
           ),
         );

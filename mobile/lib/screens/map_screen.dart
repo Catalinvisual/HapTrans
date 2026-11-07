@@ -136,6 +136,7 @@ class _MapScreenState extends State<MapScreen> {
     final bool hasActiveTrip = tripProv.trips.any((t) => isActiveTripStatus(t['status']));
 
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: Text({'ro':'Hartă Live','en':'Live Map','nl':'Live Kaart','de':'Live-Karte','fr':'Carte en direct', 'es': 'Mapa en Vivo', 'pl': 'Mapa na żywo' }[locale] ?? 'Live Map')),
       body: Stack(children: [
         FlutterMap(
@@ -158,8 +159,8 @@ class _MapScreenState extends State<MapScreen> {
         Positioned(bottom: 24, left: 16, child: FloatingActionButton(
           heroTag: 'recenter_btn',
           onPressed: () => _getLocation(forcePrompt: true),
-          backgroundColor: Colors.white,
-          child: const Icon(Icons.my_location, color: kPrimary),
+          backgroundColor: kCard,
+          child: Icon(Icons.my_location, color: kPrimary),
         )),
         // Start/Stop Tracking Button
         Positioned(bottom: 24, right: 16, child: FloatingActionButton.extended(

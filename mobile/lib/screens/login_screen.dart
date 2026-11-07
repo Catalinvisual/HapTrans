@@ -56,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final l = labels[locale] ?? labels['ro']!;
 
     return Scaffold(
-      backgroundColor: kSurface,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -74,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       errorBuilder: (c, e, s) => Container(
                         width: 80, height: 80,
                         decoration: BoxDecoration(color: kPrimary, borderRadius: BorderRadius.circular(20)),
-                        child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 44),
+                        child: Icon(Icons.local_shipping_rounded, color: kOnPrimary, size: 44),
                       ),
                     )
                   : Image.asset(
@@ -84,14 +84,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       errorBuilder: (c, e, s) => Container(
                         width: 80, height: 80,
                         decoration: BoxDecoration(color: kPrimary, borderRadius: BorderRadius.circular(20)),
-                        child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 44),
+                        child: Icon(Icons.local_shipping_rounded, color: kOnPrimary, size: 44),
                       ),
                     ),
               ),
               const SizedBox(height: 24),
-              Text(l['title']!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: kText)),
+              Text(l['title']!, textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: kText)),
               const SizedBox(height: 8),
-              Text(l['sub']!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 15, color: kTextSecondary)),
+              Text(l['sub']!, textAlign: TextAlign.center, style: TextStyle(fontSize: 15, color: kTextSecondary)),
               const SizedBox(height: 40),
 
               // Language switcher
@@ -104,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
                   labelText: l['email'],
-                  prefixIcon: const Icon(Icons.email_outlined, color: kTextSecondary),
+                  prefixIcon: Icon(Icons.email_outlined, color: kTextSecondary),
                 ),
               ),
               const SizedBox(height: 16),
@@ -115,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 obscureText: _obscure,
                 decoration: InputDecoration(
                   labelText: l['pass'],
-                  prefixIcon: const Icon(Icons.lock_outline, color: kTextSecondary),
+                  prefixIcon: Icon(Icons.lock_outline, color: kTextSecondary),
                   suffixIcon: IconButton(
                     icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: kTextSecondary),
                     onPressed: () => setState(() => _obscure = !_obscure),
@@ -127,8 +127,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(8)),
-                  child: Text(_error!, style: const TextStyle(color: kError, fontSize: 13)),
+                  decoration: BoxDecoration(color: kErrorLight, borderRadius: BorderRadius.circular(8)),
+                  child: Text(_error!, style: TextStyle(color: kError, fontSize: 13)),
                 ),
               ],
 
@@ -146,7 +146,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     }
                   },
                   child: _loading
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: kOnPrimary, strokeWidth: 2))
                     : Text(l['btn']!, style: const TextStyle(fontSize: 16)),
                 ),
               ),

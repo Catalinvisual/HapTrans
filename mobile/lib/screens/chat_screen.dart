@@ -66,6 +66,7 @@ class ChatListScreen extends StatelessWidget {
     };
 
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: Text(t['title']!)),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -73,30 +74,32 @@ class ChatListScreen extends StatelessWidget {
           // ─── GENERAL SUPPORT CARD (ALWAYS VISIBLE) ───
           Card(
             elevation: 0,
+            color: kCard,
+            surfaceTintColor: Colors.transparent,
             margin: const EdgeInsets.only(bottom: 20),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: const BorderSide(color: kPrimary, width: 1.5),
+              side: BorderSide(color: kPrimary, width: 1.5),
             ),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              leading: const CircleAvatar(
+              leading: CircleAvatar(
                 backgroundColor: kPrimaryLight,
                 radius: 24,
                 child: Icon(Icons.support_agent, color: kPrimary, size: 28),
               ),
               title: Text(
                 t['generalChat']!,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kText),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kText),
               ),
               subtitle: Text(
                 t['generalSub']!,
-                style: const TextStyle(fontSize: 12, color: kTextSecondary),
+                style: TextStyle(fontSize: 12, color: kTextSecondary),
               ),
-              trailing: const CircleAvatar(
+              trailing: CircleAvatar(
                 backgroundColor: kPrimary,
                 radius: 14,
-                child: Icon(Icons.arrow_forward_ios, color: Colors.white, size: 12),
+                child: Icon(Icons.arrow_forward_ios, color: kOnPrimary, size: 12),
               ),
               onTap: () => Navigator.push(
                 context,
@@ -114,7 +117,7 @@ class ChatListScreen extends StatelessWidget {
           // ─── ACTIVE TRIPS CHAT ───
           Text(
             t['activeTrips']!,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: kText),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: kText),
           ),
           const SizedBox(height: 10),
           
@@ -124,9 +127,9 @@ class ChatListScreen extends StatelessWidget {
               child: Center(
                 child: Column(
                   children: [
-                    const Icon(Icons.local_shipping_outlined, size: 48, color: kTextSecondary),
+                    Icon(Icons.local_shipping_outlined, size: 48, color: kTextSecondary),
                     const SizedBox(height: 8),
-                    Text(t['noActive']!, style: const TextStyle(color: kTextSecondary)),
+                    Text(t['noActive']!, style: TextStyle(color: kTextSecondary)),
                   ],
                 ),
               ),
@@ -135,13 +138,15 @@ class ChatListScreen extends StatelessWidget {
             ...trips.map((trip) {
               return Card(
                 elevation: 0,
+                color: kCard,
+                surfaceTintColor: Colors.transparent,
                 margin: const EdgeInsets.only(bottom: 10),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: const BorderSide(color: kBorder),
+                  side: BorderSide(color: kBorder),
                 ),
                 child: ListTile(
-                  leading: const CircleAvatar(
+                  leading: CircleAvatar(
                     backgroundColor: kPrimaryLight,
                     child: Icon(Icons.headset_mic, color: kPrimary),
                   ),
@@ -151,9 +156,9 @@ class ChatListScreen extends StatelessWidget {
                   ),
                   subtitle: Text(
                     '${_short(tripPickup(trip))} → ${_short(tripDropoff(trip))}',
-                    style: const TextStyle(fontSize: 12, color: kTextSecondary),
+                    style: TextStyle(fontSize: 12, color: kTextSecondary),
                   ),
-                  trailing: const Icon(Icons.chevron_right, color: kTextSecondary),
+                  trailing: Icon(Icons.chevron_right, color: kTextSecondary),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -293,21 +298,21 @@ class _ChatScreenState extends State<ChatScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 constraints: BoxConstraints(maxWidth: MediaQuery.of(ctx).size.width * 0.75),
                 decoration: BoxDecoration(
-                  color: isMe ? kPrimary : Colors.white,
+                  color: isMe ? kPrimary : kCard,
                   borderRadius: BorderRadius.only(
                     topLeft: const Radius.circular(16), topRight: const Radius.circular(16),
                     bottomLeft: Radius.circular(isMe ? 16 : 4),
                     bottomRight: Radius.circular(isMe ? 4 : 16),
                   ),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4)],
+                  boxShadow: [BoxShadow(color: kShadow, blurRadius: 4)],
                 ),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  if (!isMe) Text(msg['sender']?['name'] ?? 'Dispecer', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kPrimary)),
-                  Text(msg['content'] ?? '', style: TextStyle(color: isMe ? Colors.white : kText, fontSize: 14)),
+                  if (!isMe) Text(msg['sender']?['name'] ?? 'Dispecer', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kPrimary)),
+                  Text(msg['content'] ?? '', style: TextStyle(color: isMe ? kOnPrimary : kText, fontSize: 14)),
                   const SizedBox(height: 2),
                   Text(
                     msg['createdAt'] != null ? formatAppDateTime(msg['createdAt']) : '',
-                    style: TextStyle(fontSize: 10, color: isMe ? Colors.white70 : kTextSecondary),
+                    style: TextStyle(fontSize: 10, color: isMe ? kOnPrimary.withOpacity(0.72) : kTextSecondary),
                   ),
                 ]),
               ),
@@ -316,13 +321,13 @@ class _ChatScreenState extends State<ChatScreen> {
         )),
         Container(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-          decoration: const BoxDecoration(color: kCard, border: Border(top: BorderSide(color: kBorder))),
+          decoration: BoxDecoration(color: kCard, border: Border(top: BorderSide(color: kBorder))),
           child: SafeArea(child: Row(children: [
             Expanded(child: TextField(
               controller: _ctrl,
               decoration: InputDecoration(
                 hintText: {'ro':'Scrie un mesaj...','en':'Type a message...','nl':'Typ een bericht...','de':'Nachricht schreiben...','fr':'Écrire un message...', 'es': 'Escribe un mensaje...', 'pl': 'Napisz wiadomość...' }[widget.locale] ?? 'Type a message...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: const BorderSide(color: kBorder)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide(color: kBorder)),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               ),
               onSubmitted: (_) => _send(),
@@ -332,8 +337,8 @@ class _ChatScreenState extends State<ChatScreen> {
               onTap: _send,
               child: Container(
                 width: 44, height: 44,
-                decoration: const BoxDecoration(color: kPrimary, shape: BoxShape.circle),
-                child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                decoration: BoxDecoration(color: kPrimary, shape: BoxShape.circle),
+                child: Icon(Icons.send_rounded, color: kOnPrimary, size: 20),
               ),
             ),
           ])),

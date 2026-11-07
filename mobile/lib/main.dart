@@ -7,8 +7,10 @@ import 'providers/auth_provider.dart';
 import 'providers/trip_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/update_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
+import 'utils/app_theme.dart';
 import 'utils/constants.dart';
 import 'l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -44,15 +46,21 @@ class HapCargoApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider(prefs)),
+        ChangeNotifierProvider(create: (_) => ThemeProvider(prefs)),
         ChangeNotifierProvider(create: (_) => TripProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => UpdateProvider()),
       ],
-      child: Consumer<AuthProvider>(
-        builder: (ctx, auth, _) => MaterialApp(
+      child: Consumer2<AuthProvider, ThemeProvider>(
+        builder: (ctx, auth, theme, _) {
+          AppTheme.activate(theme.effectiveBrightness);
+          return MaterialApp(
           title: 'HapCargo Driver',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.theme,
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: theme.mode,
+          themeAnimationDuration: const Duration(milliseconds: 220),
           locale: auth.locale,
           supportedLocales: const [
             Locale('ro'),
@@ -74,7 +82,8 @@ class HapCargoApp extends StatelessWidget {
             '/login': (_) => const LoginScreen(),
             '/main': (_) => const MainScreen(),
           },
-        ),
+          );
+        },
       ),
     );
   }

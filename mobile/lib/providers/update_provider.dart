@@ -202,7 +202,7 @@ class UpdateProvider extends ChangeNotifier {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            const Icon(Icons.system_update_rounded, color: kPrimary, size: 28),
+            Icon(Icons.system_update_rounded, color: kPrimary, size: 28),
             const SizedBox(width: 10),
             Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17))),
           ],
@@ -211,7 +211,7 @@ class UpdateProvider extends ChangeNotifier {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(msg, style: const TextStyle(fontSize: 14, color: kText)),
+            Text(msg, style: TextStyle(fontSize: 14, color: kText)),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -221,7 +221,7 @@ class UpdateProvider extends ChangeNotifier {
               ),
               child: Text(
                 '$_installedLabel  ➔  v${_latestVersionName ?? ''} (${_serverVersionCode ?? ''})',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: kPrimaryDark, fontSize: 13),
+                style: TextStyle(fontWeight: FontWeight.bold, color: kPrimaryDark, fontSize: 13),
               ),
             ),
           ],

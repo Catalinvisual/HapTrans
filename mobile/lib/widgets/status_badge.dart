@@ -59,7 +59,7 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = statusTone(status);
+    final tone = statusTone(status, Theme.of(context).brightness);
     final badge = Container(
       padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10, vertical: compact ? 4 : 5),
       decoration: BoxDecoration(
@@ -106,7 +106,7 @@ class StatusBadge extends StatelessWidget {
           textAlign: TextAlign.right,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 10, color: kTextSecondary),
+          style: TextStyle(fontSize: 10, color: kTextSecondary),
         ),
       ],
     );

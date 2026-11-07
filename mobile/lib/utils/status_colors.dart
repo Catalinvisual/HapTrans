@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app_theme.dart';
+
 /// Canonical semantic status palette for the driver app.
 ///
 /// It mirrors `client/src/lib/statusColors.ts` exactly: the same lifecycle code
@@ -247,7 +249,18 @@ StatusToneName statusToneName(Object? status) {
   return statusToneAssignments[normalizeStatus(status)] ?? StatusToneName.neutral;
 }
 
-StatusTone statusTone(Object? status) => statusTones[statusToneName(status)]!;
+StatusTone statusTone(Object? status, [Brightness brightness = Brightness.light]) {
+  final light = statusTones[statusToneName(status)]!;
+  if (brightness != Brightness.dark) return light;
+  // Keep the exact semantic hue, but place it on a dark graphite surface and
+  // lift the label toward white so badges stay legible in night mode.
+  return StatusTone(
+    background: Color.alphaBlend(light.accent.withOpacity(0.18), AppPalette.dark.card),
+    foreground: Color.alphaBlend(Colors.white.withOpacity(0.58), light.foreground),
+    border: light.accent.withOpacity(0.5),
+    accent: Color.alphaBlend(Colors.white.withOpacity(0.12), light.accent),
+  );
+}
 
 /// Compatibility helpers for older widgets that only need one colour.
 Color statusForeground(Object? status) => statusTone(status).foreground;

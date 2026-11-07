@@ -139,7 +139,7 @@ class _PodScreenState extends State<PodScreen> {
     final l = AppLocalizations.of(context);
 
     return Scaffold(
-      backgroundColor: kSurface,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(l.translate('pod_title')),
         elevation: 0,
@@ -153,7 +153,7 @@ class _PodScreenState extends State<PodScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: kCard,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: kBorder),
               ),
@@ -165,7 +165,7 @@ class _PodScreenState extends State<PodScreen> {
                       color: kPrimaryLight,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.check_circle_outline, color: kPrimary, size: 24),
+                    child: Icon(Icons.check_circle_outline, color: kPrimary, size: 24),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -174,12 +174,12 @@ class _PodScreenState extends State<PodScreen> {
                       children: [
                         Text(
                           widget.stop['companyName'] ?? widget.stop['address'] ?? 'Delivery Destination',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kText),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kText),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           widget.stop['address'] ?? '',
-                          style: const TextStyle(fontSize: 13, color: kTextSecondary),
+                          style: TextStyle(fontSize: 13, color: kTextSecondary),
                         ),
                       ],
                     ),
@@ -192,14 +192,14 @@ class _PodScreenState extends State<PodScreen> {
             // 1. Recipient Name Input
             Text(
               l.translate('recipient_name') + ' *',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: kText),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: kText),
             ),
             const SizedBox(height: 6),
             TextField(
               controller: _recipientCtrl,
               decoration: InputDecoration(
                 hintText: l.translate('recipient_hint'),
-                prefixIcon: const Icon(Icons.person_outline, color: kTextSecondary),
+                prefixIcon: Icon(Icons.person_outline, color: kTextSecondary),
               ),
             ),
             const SizedBox(height: 18),
@@ -210,12 +210,12 @@ class _PodScreenState extends State<PodScreen> {
               children: [
                 Text(
                   l.translate('signature'),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: kText),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: kText),
                 ),
                 if (_points.isNotEmpty)
                   TextButton(
                     onPressed: () => setState(() => _points.clear()),
-                    child: const Text('Șterge / Clear', style: TextStyle(color: kError, fontSize: 12)),
+                    child: Text('Șterge / Clear', style: TextStyle(color: kError, fontSize: 12)),
                   ),
               ],
             ),
@@ -245,7 +245,7 @@ class _PodScreenState extends State<PodScreen> {
                         ? Center(
                             child: Text(
                               l.translate('sign_hint'),
-                              style: const TextStyle(color: kTextSecondary, fontSize: 13),
+                              style: TextStyle(color: kTextSecondary, fontSize: 13),
                             ),
                           )
                         : const SizedBox.expand(),
@@ -258,27 +258,27 @@ class _PodScreenState extends State<PodScreen> {
             // 3. Photo Attachments
             Text(
               l.translate('add_photos'),
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: kText),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: kText),
             ),
             const SizedBox(height: 8),
             Row(
               children: [
                 OutlinedButton.icon(
                   onPressed: () => _pickPhoto(ImageSource.camera),
-                  icon: const Icon(Icons.camera_alt, color: kPrimary, size: 20),
-                  label: const Text('Cameră', style: TextStyle(color: kPrimary)),
+                  icon: Icon(Icons.camera_alt, color: kPrimary, size: 20),
+                  label: Text('Cameră', style: TextStyle(color: kPrimary)),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: kPrimary),
+                    side: BorderSide(color: kPrimary),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
                 const SizedBox(width: 12),
                 OutlinedButton.icon(
                   onPressed: () => _pickPhoto(ImageSource.gallery),
-                  icon: const Icon(Icons.photo_library, color: kPrimary, size: 20),
-                  label: const Text('Galerie', style: TextStyle(color: kPrimary)),
+                  icon: Icon(Icons.photo_library, color: kPrimary, size: 20),
+                  label: Text('Galerie', style: TextStyle(color: kPrimary)),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: kPrimary),
+                    side: BorderSide(color: kPrimary),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
@@ -320,7 +320,7 @@ class _PodScreenState extends State<PodScreen> {
             // 4. Notes Input
             Text(
               l.translate('notes'),
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: kText),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: kText),
             ),
             const SizedBox(height: 6),
             TextField(
@@ -340,8 +340,8 @@ class _PodScreenState extends State<PodScreen> {
               child: ElevatedButton.icon(
                 onPressed: _submitting ? null : _submitPod,
                 icon: _submitting
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.check_circle, color: Colors.white),
+                    ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: kOnPrimary, strokeWidth: 2))
+                    : Icon(Icons.check_circle, color: kOnPrimary),
                 label: Text(
                   l.translate('btn_complete_delivery'),
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),

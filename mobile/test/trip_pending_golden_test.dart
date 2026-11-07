@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import '../lib/l10n/app_localizations.dart';
 import '../lib/providers/trip_provider.dart';
 import '../lib/screens/trip_dashboard_screen.dart';
+import '../lib/utils/app_theme.dart';
 import '../lib/utils/constants.dart';
 
 Future<void> _load(String family, List<String> paths) async {
@@ -51,12 +52,19 @@ void main() {
     'tripNumber': 'TRP-2026-0003',
     'status': 'planning',
     'driver': null,
-    'driverAssignment': {'source': 'truck', 'confirmed': true, 'driverId': 'driver-gabriel'},
+    'driverAssignment': {
+      'source': 'truck',
+      'confirmed': true,
+      'driverId': 'driver-gabriel'
+    },
     'truck': {
       'plateNumber': 'AR67XWT',
       'driver': {
         'id': 'driver-gabriel',
-        'user': {'name': 'Gabriel Constantin', 'email': 'constantin@hapcargo.ro'},
+        'user': {
+          'name': 'Gabriel Constantin',
+          'email': 'constantin@hapcargo.ro'
+        },
       },
     },
     'trailer': {'plateNumber': 'B-456-YT'},
@@ -90,7 +98,10 @@ void main() {
 
   setUpAll(_loadRealFonts);
 
-  testWidgets('unaccepted future trip shows its driver and one compact accept action', (tester) async {
+  testWidgets(
+      'unaccepted future trip shows its driver and one compact accept action',
+      (tester) async {
+    AppTheme.activate(Brightness.light);
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
@@ -108,7 +119,7 @@ void main() {
             GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: const [Locale('ro')],
-          theme: ThemeData(fontFamily: 'Roboto', useMaterial3: true, scaffoldBackgroundColor: kSurface),
+          theme: AppTheme.light,
           home: TripDashboardScreen(trip: trip, token: '', locale: 'ro'),
         ),
       ),

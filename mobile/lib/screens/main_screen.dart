@@ -236,6 +236,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     final nav = labels[locale] ?? labels['en'] ?? labels['ro']!;
 
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: IndexedStack(index: _selectedIndex, children: screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
@@ -246,11 +247,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         backgroundColor: kCard,
         indicatorColor: kPrimaryLight,
         destinations: [
-          NavigationDestination(icon: const Icon(Icons.home_outlined), selectedIcon: const Icon(Icons.home, color: kPrimary), label: nav[0]),
-          NavigationDestination(icon: const Icon(Icons.route_outlined), selectedIcon: const Icon(Icons.route, color: kPrimary), label: nav[1]),
-          NavigationDestination(icon: const Icon(Icons.timer_outlined), selectedIcon: const Icon(Icons.timer, color: kPrimary), label: nav[2]),
-          NavigationDestination(icon: const Icon(Icons.description_outlined), selectedIcon: const Icon(Icons.description, color: kPrimary), label: nav[3]),
-          NavigationDestination(icon: const Icon(Icons.person_outline), selectedIcon: const Icon(Icons.person, color: kPrimary), label: nav[4]),
+          NavigationDestination(icon: const Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home, color: kPrimary), label: nav[0]),
+          NavigationDestination(icon: const Icon(Icons.route_outlined), selectedIcon: Icon(Icons.route, color: kPrimary), label: nav[1]),
+          NavigationDestination(icon: const Icon(Icons.timer_outlined), selectedIcon: Icon(Icons.timer, color: kPrimary), label: nav[2]),
+          NavigationDestination(icon: const Icon(Icons.description_outlined), selectedIcon: Icon(Icons.description, color: kPrimary), label: nav[3]),
+          NavigationDestination(icon: const Icon(Icons.person_outline), selectedIcon: Icon(Icons.person, color: kPrimary), label: nav[4]),
         ],
       ),
     );

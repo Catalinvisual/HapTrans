@@ -192,7 +192,7 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
       case TachoActivity.unloading:
         return const Color(0xFFD946EF); // Fuchsia
       case TachoActivity.availability:
-        return const Color(0xFF64748B); // Slate
+        return kTextSecondary; // Slate
     }
   }
 
@@ -222,17 +222,17 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
     final isBreakOverdue = breakMins <= 0 && _currentActivity == TachoActivity.driving;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           l.translate('tacho_title'),
-          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Color(0xFF0F172A)),
+          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: kText),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: kCard,
         elevation: 0.5,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF64748B)),
+            icon: Icon(Icons.refresh_rounded, color: kTextSecondary),
             onPressed: () {
               _fetchLiveTelemetry();
               ScaffoldMessenger.of(context).showSnackBar(
@@ -260,7 +260,7 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF0F172A).withOpacity(0.18),
+                    color: kShadow.withOpacity(0.4),
                     blurRadius: 16,
                     offset: const Offset(0, 8),
                   ),
@@ -398,12 +398,12 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: kCard,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: kBorder),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: kShadow.withOpacity(0.25),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -413,10 +413,10 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
                 children: [
                   Text(
                     l.translate('current_activity').toUpperCase(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w900,
-                      color: Color(0xFF94A3B8),
+                      color: kTextMuted,
                       letterSpacing: 1.2,
                     ),
                   ),
@@ -439,11 +439,11 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
                   const SizedBox(height: 10),
                   Text(
                     _formatDuration(_secondsElapsed),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 40,
                       fontWeight: FontWeight.w900,
                       fontFamily: 'monospace',
-                      color: Color(0xFF0F172A),
+                      color: kText,
                       letterSpacing: 1,
                     ),
                   ),
@@ -471,10 +471,10 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
             // ─── 3. Modern Circular Gauges Grid (CE 561/2006) ───
             Text(
               l.translate('tacho_compliance'),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w900,
-                color: Color(0xFF64748B),
+                color: kTextSecondary,
                 letterSpacing: 1.1,
               ),
             ),
@@ -542,20 +542,20 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: kCard,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: kBorder),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.gavel_rounded, color: Color(0xFF64748B), size: 18),
+                      Icon(Icons.gavel_rounded, color: kTextSecondary, size: 18),
                       const SizedBox(width: 8),
                       Text(
                         l.translate('tacho_reg_title'),
-                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF0F172A)),
+                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: kText),
                       ),
                     ],
                   ),
@@ -586,10 +586,10 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: isSelected ? color : const Color(0xFFF1F5F9),
+          color: isSelected ? color : kCardMuted,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected ? color : const Color(0xFFE2E8F0),
+            color: isSelected ? color : kBorder,
             width: 1.5,
           ),
           boxShadow: isSelected
@@ -605,14 +605,14 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: isSelected ? Colors.white : const Color(0xFF64748B)),
+            Icon(icon, size: 14, color: isSelected ? Colors.white : kTextSecondary),
             const SizedBox(width: 5),
             Text(
               label,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w900,
-                color: isSelected ? Colors.white : const Color(0xFF475569),
+                color: isSelected ? Colors.white : kTextSecondary,
               ),
             ),
           ],
@@ -633,15 +633,15 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: kCard,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isAlert ? color.withOpacity(0.5) : const Color(0xFFE2E8F0),
+          color: isAlert ? color.withOpacity(0.5) : kBorder,
           width: isAlert ? 1.5 : 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: isAlert ? color.withOpacity(0.12) : Colors.black.withOpacity(0.02),
+            color: isAlert ? color.withOpacity(0.12) : kShadow.withOpacity(0.18),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -654,7 +654,7 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
             children: [
               Text(
                 title,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B)),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: kTextSecondary),
               ),
               Icon(icon, size: 14, color: color),
             ],
@@ -672,7 +672,7 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
                     value: progress,
                     strokeWidth: 7,
                     strokeCap: StrokeCap.round,
-                    backgroundColor: const Color(0xFFF1F5F9),
+                    backgroundColor: kCardMuted,
                     valueColor: AlwaysStoppedAnimation<Color>(color),
                   ),
                 ),
@@ -689,7 +689,7 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w900,
-                            color: isAlert ? color : const Color(0xFF0F172A),
+                            color: isAlert ? color : kText,
                           ),
                         ),
                       ),
@@ -702,7 +702,7 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
           const SizedBox(height: 10),
           Text(
             subText,
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: const Color(0xFF94A3B8)),
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: kTextMuted),
           ),
         ],
       ),
@@ -715,8 +715,8 @@ class _TachographScreenState extends State<TachographScreen> with SingleTickerPr
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
-          Text(value, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
+          Text(label, style: TextStyle(fontSize: 11.5, color: kTextSecondary)),
+          Text(value, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: kText)),
         ],
       ),
     );

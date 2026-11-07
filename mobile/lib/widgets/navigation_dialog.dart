@@ -21,7 +21,7 @@ class NavigationDialog {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: kCard,
       builder: (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
@@ -37,7 +37,7 @@ class NavigationDialog {
                       color: kPrimaryLight,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.navigation, color: kPrimary, size: 22),
+                    child: Icon(Icons.navigation, color: kPrimary, size: 22),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -46,14 +46,14 @@ class NavigationDialog {
                       children: [
                         Text(
                           l.translate('nav_select_app'),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kText),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: kText),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           companyName ?? address,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 13, color: kTextSecondary),
+                          style: TextStyle(fontSize: 13, color: kTextSecondary),
                         ),
                       ],
                     ),
@@ -140,10 +140,10 @@ class NavigationDialog {
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: kText),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: kText),
               ),
             ),
-            const Icon(Icons.arrow_forward_ios, size: 14, color: kTextSecondary),
+            Icon(Icons.arrow_forward_ios, size: 14, color: kTextSecondary),
           ],
         ),
       ),

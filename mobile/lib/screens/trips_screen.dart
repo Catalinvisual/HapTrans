@@ -78,13 +78,13 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
     }).toList();
 
     return Scaffold(
-      backgroundColor: kSurface,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(l.translate('nav_trips')),
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: kPrimary),
+            icon: Icon(Icons.refresh, color: kPrimary),
             onPressed: () => tripProv.loadTrips(token),
           ),
         ],
@@ -132,17 +132,17 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.route_outlined, size: 56, color: Color(0xFF94A3B8)),
+                Icon(Icons.route_outlined, size: 56, color: kTextMuted),
                 const SizedBox(height: 16),
                 Text(
                   l.translate('no_active_trip'),
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: kText),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: kText),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   l.translate('no_active_trip_sub'),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 13, color: kTextSecondary),
+                  style: TextStyle(fontSize: 13, color: kTextSecondary),
                 ),
               ],
             ),
@@ -168,10 +168,12 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
 
         return Card(
           elevation: 0,
+          color: kCard,
+          surfaceTintColor: Colors.transparent,
           margin: const EdgeInsets.only(bottom: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: kBorder),
+            side: BorderSide(color: kBorder),
           ),
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
@@ -198,7 +200,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                     children: [
                       Text(
                         trpNumber,
-                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: kText),
+                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: kText),
                       ),
                       StatusBadge(
                         label: tripStatusLabel(status, locale),
@@ -212,19 +214,19 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
                   // Route Row
                   Row(
                     children: [
-                      const Icon(Icons.trip_origin, color: kPrimary, size: 16),
+                      Icon(Icons.trip_origin, color: kPrimary, size: 16),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           '$pickupCity ➔ $dropoffCity',
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: kText),
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: kText),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  const Divider(color: kBorder, height: 1),
+                  Divider(color: kBorder, height: 1),
                   const SizedBox(height: 10),
 
                   // Footer badges: Truck, Orders, Stops
@@ -254,7 +256,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: kCardMuted,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
@@ -262,7 +264,7 @@ class _TripsScreenState extends State<TripsScreen> with SingleTickerProviderStat
         children: [
           Icon(icon, size: 12, color: kTextSecondary),
           const SizedBox(width: 4),
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kText)),
+          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kText)),
         ],
       ),
     );

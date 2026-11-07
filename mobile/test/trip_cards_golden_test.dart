@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import '../lib/l10n/app_localizations.dart';
 import '../lib/providers/trip_provider.dart';
 import '../lib/screens/trip_dashboard_screen.dart';
+import '../lib/utils/app_theme.dart';
 import '../lib/utils/constants.dart';
 
 Future<void> _load(String family, List<String> paths) async {
@@ -43,7 +44,13 @@ void main() {
     'unloadingReference': 'abcdefg',
     'client': {'name': 'HapCargo Client'},
     'cargoItems': [
-      {'quantity': 2, 'unit': 'pallet', 'weightKg': 1200, 'ldm': 2.4, 'volumeCbm': 3.2},
+      {
+        'quantity': 2,
+        'unit': 'pallet',
+        'weightKg': 1200,
+        'ldm': 2.4,
+        'volumeCbm': 3.2
+      },
     ],
   };
 
@@ -82,32 +89,35 @@ void main() {
       },
     ],
   };
+  Widget dashboard(Brightness brightness) {
+    return ChangeNotifierProvider(
+      create: (_) => TripProvider(),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        locale: const Locale('ro'),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('ro')],
+        theme: brightness == Brightness.dark ? AppTheme.dark : AppTheme.light,
+        home: TripDashboardScreen(trip: trip, token: '', locale: 'ro'),
+      ),
+    );
+  }
 
   setUpAll(_loadRealFonts);
 
-  testWidgets('trip cards render order loading and unloading references', (tester) async {
+  testWidgets('trip cards render order loading and unloading references',
+      (tester) async {
+    AppTheme.activate(Brightness.light);
     tester.view.physicalSize = const Size(1080, 4800);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(
-      ChangeNotifierProvider(
-        create: (_) => TripProvider(),
-        child: MaterialApp(
-          debugShowCheckedModeBanner: false,
-          locale: const Locale('ro'),
-          localizationsDelegates: const [
-            AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: const [Locale('ro')],
-          theme: ThemeData(fontFamily: 'Roboto', useMaterial3: true, scaffoldBackgroundColor: kSurface),
-          home: TripDashboardScreen(trip: trip, token: '', locale: 'ro'),
-        ),
-      ),
-    );
+    await tester.pumpWidget(dashboard(Brightness.light));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -121,6 +131,27 @@ void main() {
     await expectLater(
       find.byType(TripDashboardScreen),
       matchesGoldenFile('goldens/trip_cards_ro.png'),
+    );
+  });
+
+  testWidgets('trip details render with dark graphite surfaces',
+      (tester) async {
+    AppTheme.activate(Brightness.dark);
+    tester.view.physicalSize = const Size(1080, 4800);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(dashboard(Brightness.dark));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('HC-ORD-1001'), findsWidgets);
+    expect(find.text('555555'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await expectLater(
+      find.byType(TripDashboardScreen),
+      matchesGoldenFile('goldens/trip_cards_ro_dark.png'),
     );
   });
 }

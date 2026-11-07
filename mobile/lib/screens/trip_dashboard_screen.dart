@@ -181,20 +181,20 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
     final deliveries = stops.where((s) => !stopIsPickup(s)).toList();
 
     return Scaffold(
-      backgroundColor: kSurface,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               tripData['tripNumber']?.toString() ?? '—',
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: kText),
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: kText),
             ),
             Text(
               tripClientName(tripData),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: kTextSecondary),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: kTextSecondary),
             ),
           ],
         ),
@@ -202,7 +202,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
         actions: [
           IconButton(
             tooltip: l.translate('btn_refresh'),
-            icon: const Icon(Icons.refresh, color: kPrimary),
+            icon: Icon(Icons.refresh, color: kPrimary),
             onPressed: _busy ? null : _refreshTrip,
           ),
         ],
@@ -248,9 +248,10 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: kCard,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: kBorder),
+        boxShadow: [BoxShadow(color: kShadow, blurRadius: 14, offset: const Offset(0, 5))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,25 +261,25 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
               Expanded(
                 child: Text(
                   tripData['tripNumber']?.toString() ?? '—',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: kText),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: kText),
                 ),
               ),
               StatusBadge.forTrip(tripData, locale),
             ],
           ),
           const SizedBox(height: 4),
-          Text(tripClientName(tripData), style: const TextStyle(fontSize: 12.5, color: kTextSecondary)),
+          Text(tripClientName(tripData), style: TextStyle(fontSize: 12.5, color: kTextSecondary)),
           const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(Icons.route_outlined, size: 16, color: kPrimary),
+              Icon(Icons.route_outlined, size: 16, color: kPrimary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   '${tripPickup(tripData)} → ${tripDropoff(tripData)}',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: kText),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: kText),
                 ),
               ),
             ],
@@ -343,12 +344,12 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
     } else {
       content = Row(
         children: [
-          const Icon(Icons.check_circle, color: kSuccess, size: 20),
+          Icon(Icons.check_circle, color: kSuccess, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               l.translate('all_stops_done'),
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kSuccess),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kSuccess),
             ),
           ),
         ],
@@ -359,14 +360,14 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
     if (awaitingAcceptance) {
       contextLine = Row(
         children: [
-          const Icon(Icons.schedule, size: 18, color: kPrimary),
+          Icon(Icons.schedule, size: 18, color: kPrimary),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               l.translate('awaiting_acceptance'),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: kPrimary, height: 1.25),
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: kPrimary, height: 1.25),
             ),
           ),
         ],
@@ -390,7 +391,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
               stopLocation(stop),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kTextSecondary),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kTextSecondary),
             ),
           ),
         ],
@@ -399,9 +400,10 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: kCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kPrimary.withOpacity(0.35)),
+        border: Border.all(color: kPrimary.withOpacity(0.45)),
+        boxShadow: [BoxShadow(color: kShadow, blurRadius: 14, offset: const Offset(0, 5))],
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -433,13 +435,13 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
       child: ElevatedButton.icon(
         onPressed: _busy ? null : onPressed,
         icon: _busy
-            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : Icon(icon, color: Colors.white, size: 19),
+            ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: kOnPrimary))
+            : Icon(icon, color: kOnPrimary, size: 19),
         label: Text(
           l.translate(labelKey),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.2),
+          style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900, color: kOnPrimary, letterSpacing: 0.2),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
@@ -487,7 +489,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: kCard,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: isActive ? color.withOpacity(0.65) : kBorder, width: isActive ? 1.6 : 1),
         boxShadow: isActive
@@ -514,10 +516,10 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
           const SizedBox(height: 10),
           Text(
             stopLocation(stop),
-            style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w900, color: kText),
+            style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w900, color: kText),
           ),
           const SizedBox(height: 3),
-          Text(stopFullAddress(stop), style: const TextStyle(fontSize: 12, height: 1.35, color: kTextSecondary)),
+          Text(stopFullAddress(stop), style: TextStyle(fontSize: 12, height: 1.35, color: kTextSecondary)),
           if (contact.isNotEmpty || phone.isNotEmpty || email.isNotEmpty) ...[
             const SizedBox(height: 10),
             if (contact.isNotEmpty) _metaRow(Icons.person_outline, contact),
@@ -548,11 +550,11 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
           // Each stop shows only its own reference: the pickup its loading
           // reference, the delivery its unloading reference. An empty side
           // stays empty instead of borrowing the other one.
-          const Divider(height: 24, color: kBorder),
+          Divider(height: 24, color: kBorder),
           for (final row in stopReferenceRows(tripData, stop))
             _kv(l.translate(row.key), row.value),
 
-          const Divider(height: 24, color: kBorder),
+          Divider(height: 24, color: kBorder),
           _blockTitle(l.translate('planned_schedule')),
           _kv(l.translate('planned_window'), windows),
           if (stop['ata'] != null) _kv(l.translate('actual_arrival'), formatAppDateTime(stop['ata']?.toString())),
@@ -567,17 +569,17 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
               padding: const EdgeInsets.only(top: 6),
               child: Row(
                 children: [
-                  const Icon(Icons.warning_amber_rounded, size: 15, color: kWarning),
+                  Icon(Icons.warning_amber_rounded, size: 15, color: kWarning),
                   const SizedBox(width: 6),
                   Text(
                     tripStatusLabel('delayed', locale),
-                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: kWarning),
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: kWarning),
                   ),
                 ],
               ),
             ),
 
-          const Divider(height: 24, color: kBorder),
+          Divider(height: 24, color: kBorder),
           _blockTitle(l.translate('cargo_section')),
           if (hasCargo)
             Wrap(
@@ -601,17 +603,17 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
                 padding: const EdgeInsets.only(bottom: 3),
                 child: Text(
                   d.value,
-                  style: const TextStyle(fontSize: 12, height: 1.35, color: kText),
+                  style: TextStyle(fontSize: 12, height: 1.35, color: kText),
                 ),
               ),
           ],
           if (!hasCargo && details.isEmpty)
-            Text(l.translate('no_cargo'), style: const TextStyle(fontSize: 12, color: kTextSecondary)),
+            Text(l.translate('no_cargo'), style: TextStyle(fontSize: 12, color: kTextSecondary)),
 
           if (notes.isNotEmpty) ...[
-            const Divider(height: 24, color: kBorder),
+            Divider(height: 24, color: kBorder),
             _blockTitle(l.translate('instructions')),
-            Text(notes, style: const TextStyle(fontSize: 12, height: 1.35, color: kText)),
+            Text(notes, style: TextStyle(fontSize: 12, height: 1.35, color: kText)),
           ],
 
 
@@ -637,7 +639,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
       padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         text.toUpperCase(),
-        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: kTextSecondary, letterSpacing: 0.5),
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: kTextSecondary, letterSpacing: 0.5),
       ),
     );
   }
@@ -650,7 +652,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
         children: [
           Expanded(
             flex: 5,
-            child: Text(label, style: const TextStyle(fontSize: 11.5, color: kTextSecondary)),
+            child: Text(label, style: TextStyle(fontSize: 11.5, color: kTextSecondary)),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -658,7 +660,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, height: 1.3, color: kText),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, height: 1.3, color: kText),
             ),
           ),
         ],
@@ -675,7 +677,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
           Icon(icon, size: 13, color: kTextSecondary),
           const SizedBox(width: 6),
           Expanded(
-            child: Text(value, style: const TextStyle(fontSize: 11.5, color: kText)),
+            child: Text(value, style: TextStyle(fontSize: 11.5, color: kText)),
           ),
         ],
       ),
@@ -685,7 +687,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
   Widget _metric(IconData icon, String value, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(9)),
+      decoration: BoxDecoration(color: kCardMuted, borderRadius: BorderRadius.circular(9)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -694,8 +696,8 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(value, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900, color: kText)),
-              Text(label, style: const TextStyle(fontSize: 9.5, color: kTextSecondary)),
+              Text(value, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900, color: kText)),
+              Text(label, style: TextStyle(fontSize: 9.5, color: kTextSecondary)),
             ],
           ),
         ],
@@ -706,13 +708,13 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
   Widget _chip(IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(color: kCardMuted, borderRadius: BorderRadius.circular(6)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 12, color: kTextSecondary),
           const SizedBox(width: 4),
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kText)),
+          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kText)),
         ],
       ),
     );
@@ -729,15 +731,15 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
         Expanded(
           child: OutlinedButton.icon(
             onPressed: _showReportIssueDialog,
-            icon: const Icon(Icons.report_problem_outlined, size: 16, color: kError),
+            icon: Icon(Icons.report_problem_outlined, size: 16, color: kError),
             label: Text(
               l.translate('report_issue'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: kError),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: kError),
             ),
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: kError),
+              side: BorderSide(color: kError),
               padding: const EdgeInsets.symmetric(vertical: 10),
             ),
           ),
@@ -746,15 +748,15 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
         Expanded(
           child: OutlinedButton.icon(
             onPressed: _showReportDelayDialog,
-            icon: const Icon(Icons.access_time, size: 16, color: kWarning),
+            icon: Icon(Icons.access_time, size: 16, color: kWarning),
             label: Text(
               l.translate('report_delay'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: kWarning),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: kWarning),
             ),
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: kWarning),
+              side: BorderSide(color: kWarning),
               padding: const EdgeInsets.symmetric(vertical: 10),
             ),
           ),
@@ -770,7 +772,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
         Row(
           children: [
             Expanded(
-              child: Text(l.translate('no_documents'), style: const TextStyle(fontSize: 11, color: kTextSecondary)),
+              child: Text(l.translate('no_documents'), style: TextStyle(fontSize: 11, color: kTextSecondary)),
             ),
             TextButton.icon(
               onPressed: _busy ? null : () => _uploadTripDocument(l),
@@ -792,7 +794,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
             if (snapshot.data == null) {
               return Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text(l.translate('action_failed'), style: const TextStyle(fontSize: 12, color: kError)),
+                child: Text(l.translate('action_failed'), style: TextStyle(fontSize: 12, color: kError)),
               );
             }
             final documents = snapshot.data!;
@@ -804,7 +806,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
                 if (documents.isEmpty && missing.isEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: Text(l.translate('no_documents'), style: const TextStyle(fontSize: 12, color: kTextSecondary)),
+                    child: Text(l.translate('no_documents'), style: TextStyle(fontSize: 12, color: kTextSecondary)),
                   ),
               ],
             );
@@ -823,13 +825,13 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(color: kError.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
-            child: const Icon(Icons.report_gmailerrorred_outlined, size: 16, color: kError),
+            child: Icon(Icons.report_gmailerrorred_outlined, size: 16, color: kError),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               '${l.translate(definition?.labelKey ?? 'doc_type_other')} · ${l.translate('doc_status_missing')}',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kError),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kError),
             ),
           ),
         ],
@@ -858,7 +860,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
-        onTap: () => DocumentOpener.open(context, token: widget.token, doc: doc),
+        onTap: () => DocumentOpener.preview(context, token: widget.token, doc: doc),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
@@ -866,7 +868,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(color: kPrimaryLight, borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.description_outlined, size: 16, color: kPrimary),
+                child: Icon(Icons.description_outlined, size: 16, color: kPrimary),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -877,14 +879,24 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
                       name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: kText),
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: kText),
                     ),
                     if (subtitle.isNotEmpty)
-                      Text(subtitle, style: const TextStyle(fontSize: 10.5, color: kTextSecondary)),
+                      Text(subtitle, style: TextStyle(fontSize: 10.5, color: kTextSecondary)),
                   ],
                 ),
               ),
-              Icon(Icons.open_in_new, size: 16, color: kPrimary.withOpacity(0.9)),
+              Icon(Icons.chevron_right, size: 17, color: kTextMuted),
+              IconButton(
+                tooltip: l.translate('download_document'),
+                visualDensity: VisualDensity.compact,
+                icon: Icon(Icons.download_outlined, size: 18, color: kPrimary),
+                onPressed: () => DocumentOpener.download(
+                  context,
+                  token: widget.token,
+                  doc: doc,
+                ),
+              ),
             ],
           ),
         ),
@@ -907,7 +919,7 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
             }
             final events = snapshot.data ?? const <Map<String, dynamic>>[];
             if (events.isEmpty) {
-              return Text(l.translate('no_history'), style: const TextStyle(fontSize: 12, color: kTextSecondary));
+              return Text(l.translate('no_history'), style: TextStyle(fontSize: 12, color: kTextSecondary));
             }
             return Column(
               children: [
@@ -933,12 +945,12 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
                             children: [
                               Text(
                                 _eventLabel(e, locale),
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kText),
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: kText),
                               ),
                               Text(
                                 '${statusSourceLabel(e['source']?.toString(), locale)} · ${formatAppDateTime(e['at']?.toString())}'
                                 '${(e['actorName'] ?? '').toString().isNotEmpty ? ' · ${e['actorName']}' : ''}',
-                                style: const TextStyle(fontSize: 11, color: kTextSecondary),
+                                style: TextStyle(fontSize: 11, color: kTextSecondary),
                               ),
                             ],
                           ),
@@ -969,16 +981,17 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: kCard,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: kBorder),
+        boxShadow: [BoxShadow(color: kShadow, blurRadius: 12, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title.toUpperCase(),
-            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, color: kTextSecondary, letterSpacing: 0.45),
+            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, color: kTextSecondary, letterSpacing: 0.45),
           ),
           const SizedBox(height: 10),
           ...children,
