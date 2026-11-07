@@ -7,8 +7,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * - Indexes that speed up the dashboard / financial aggregations and the
  *   drill-down queries (created IF NOT EXISTS so they are safe on any DB).
  */
-export class AnalyticsAndReportsBaseline20260911 implements MigrationInterface {
-  name = 'AnalyticsAndReportsBaseline20260911';
+export class AnalyticsAndReportsBaseline1789117200000 implements MigrationInterface {
+  name = 'AnalyticsAndReportsBaseline1789117200000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
