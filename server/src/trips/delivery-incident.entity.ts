@@ -51,7 +51,7 @@ export class DeliveryIncident {
   @Column({ type: 'text', nullable: true })
   customerExplanation: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   customerName: string | null;
 
   @Column({ type: 'boolean', default: false })
