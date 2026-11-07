@@ -33,6 +33,7 @@ import { withRoutePlanInitLock } from './route-plan-init-lock';
 import { asJsonArray } from './route-plan-json';
 import { buildCargoLedger } from './cargo-ledger';
 import { assessLoadingWindow, isLoadStopType, orderPickupWindow, stopArrival } from './loading-window';
+import { etaDeviations } from './eta-deviation';
 import {
   consolidationCapacity,
   incrementalRoute,
@@ -6681,10 +6682,11 @@ export class PlanningService {
 
       const liveEta = new Date(now + cumulativeMin * 60000);
       const plannedEta = stop.eta ? new Date(stop.eta) : null;
-      const deadline = stop.timeWindowMax ? new Date(stop.timeWindowMax) : plannedEta;
-      const deviationMin = deadline && !isNaN(deadline.getTime())
-        ? Math.round((liveEta.getTime() - deadline.getTime()) / 60000)
-        : null;
+      const windowEnd = stop.timeWindowMax ? new Date(stop.timeWindowMax) : null;
+      // Two baselines, reported separately: the ETA is always shown next to the
+      // planned ETA, while the operational deadline is the window end. Mixing
+      // them produced a deviation that matched neither value on screen.
+      const deviations = etaDeviations(liveEta, plannedEta, windowEnd);
 
       stopEtas.push({
         stopId: stop.id,
@@ -6693,7 +6695,9 @@ export class PlanningService {
         companyName: stop.companyName,
         plannedEta: plannedEta ? plannedEta.toISOString() : null,
         liveEta: liveEta.toISOString(),
-        deviationMin,
+        deviationMin: deviations.deviationMin,
+        deviationVsPlannedMin: deviations.vsPlannedMin,
+        deviationVsWindowMin: deviations.vsWindowMin,
         distanceFromPreviousKm: leg.distanceKm,
         drivingMinFromPrevious: leg.durationMin,
         cumulativeDistanceKm: Math.round(cumulativeKm * 10) / 10,

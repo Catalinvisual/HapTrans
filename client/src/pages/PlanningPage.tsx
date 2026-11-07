@@ -1799,8 +1799,8 @@ function TripDetailDrawer({
                         <span className="text-text-muted">
                           {t('up_eta_planned', 'Planned ETA')}: <b className="tabular-nums text-text-secondary">{stop.plannedEta ? fmtTime(stop.plannedEta) : t('up_eta_not_planned', 'Not planned')}</b>
                         </span>
-                        <span className={`font-black tabular-nums ${Number(stop.deviationMin) > 0 ? 'text-rose-600' : Number(stop.deviationMin) === 0 ? 'text-emerald-600' : 'text-text-muted'}`}>
-                          {etaDifferenceLabel(stop.deviationMin)}
+                        <span className={`font-black tabular-nums ${Number(stop.deviationVsPlannedMin ?? stop.deviationMin) > 0 ? 'text-rose-600' : Number(stop.deviationVsPlannedMin ?? stop.deviationMin) === 0 ? 'text-emerald-600' : 'text-text-muted'}`}>
+                          {etaDifferenceLabel(stop.deviationVsPlannedMin ?? stop.deviationMin)}
                         </span>
                       </div>
                     </div>
@@ -1958,7 +1958,9 @@ function TripDetailDrawer({
                 const hasTimeWindow = s.dateFrom || s.timeFrom;
                 const etaStop = etaStopFor(s);
                 const plannedStopEta = etaStop?.plannedEta || s.eta || null;
-                const etaDeviation = etaStop?.deviationMin;
+                // Shown against the planned ETA, so it must be the deviation
+                // from the plan, not from the time-window end.
+                const etaDeviation = etaStop?.deviationVsPlannedMin ?? etaStop?.deviationMin;
                 return (
                   <div key={s.id || idx} className={`bg-card border rounded-xl overflow-hidden ${isPu ? 'border-blue-500/25' : 'border-emerald-500/25'}`}>
                     {/* Stop header */}
