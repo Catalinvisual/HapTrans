@@ -75,7 +75,7 @@ export class StopTask {
   @Column({ nullable: true, type: 'varchar', length: 32 })
   allocationReviewStatus: string | null;
 
-  @ManyToOne(() => User, { nullable: true, eager: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   allocationReviewedBy: User | null;
 
   @Column({ nullable: true, type: 'timestamp' })
