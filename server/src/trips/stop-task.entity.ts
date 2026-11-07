@@ -44,6 +44,12 @@ export class StopTask {
   @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
   weightKg: number;
 
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  volumeCbm: number;
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  loadingMeters: number;
+
   @Column({ nullable: true, type: 'integer' })
   quantity: number; // e.g. 5 boxes
 

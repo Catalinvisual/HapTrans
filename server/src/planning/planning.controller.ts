@@ -159,6 +159,11 @@ export class PlanningController {
     return this.planningService.getRoutePlanByTrip(tripId, req.user);
   }
 
+  @Get('trips/:tripId/cargo-ledger')
+  getCargoLedger(@Request() req: any, @Param('tripId') tripId: string) {
+    return this.planningService.getCargoLedger(req.user, tripId);
+  }
+
   @Post('combine')
   combineTrips(@Request() req: any, @Body() body: any) {
     return this.planningService.combineTrips(req.user, body);

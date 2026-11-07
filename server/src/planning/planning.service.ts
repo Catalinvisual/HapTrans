@@ -31,6 +31,7 @@ import { TelematicsDevice } from '../telematics/entities/telematics-device.entit
 import { resolveDriverForCompliance, resolveTripDriver, resolveTripTrailer } from './trip-assignment';
 import { withRoutePlanInitLock } from './route-plan-init-lock';
 import { asJsonArray } from './route-plan-json';
+import { buildCargoLedger } from './cargo-ledger';
 import { resolveTripDriver as resolveAssignedDriver, resolveTripTrailer as resolveAssignedTrailer } from '../trips/driver-assignment';
 import { normalizeTripOperationalStatus } from '../trips/operational-status';
 import {
@@ -814,6 +815,26 @@ export class PlanningService {
   }
 
   // ─── Conflicts ──────────────────────────────────────────────────────────────
+
+  async getCargoLedger(user: any, tripId: string) {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+    const companyId = user?.companyId || null;
+    const tripCompanyId = (trip as any).companyId || trip.company?.id || null;
+    if (companyId && tripCompanyId && String(companyId) !== String(tripCompanyId)) {
+      throw new ForbiddenException('Trip does not belong to your company.');
+    }
+
+    const stops = (trip.stops || []).slice().sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0));
+    const capacity = knownTruckCapacity(trip.truck as any);
+    const ledger = buildCargoLedger(stops as any[], capacity);
+    return {
+      tripId: trip.id,
+      tripNumber: trip.tripNumber,
+      generatedAt: new Date().toISOString(),
+      ...ledger,
+    };
+  }
 
   async computeConflicts(ctx: any): Promise<PlanningConflict[]> {
     const out: PlanningConflict[] = [];
@@ -2292,6 +2313,8 @@ export class PlanningService {
             status: 'pending',
             pallets: cargo.unit === 'pallet' ? Number(cargo.quantity) || 1 : 0,
             weightKg: Number(cargo.weightKg) || 0,
+            volumeCbm: Number(cargo.volumeCbm) || 0,
+            loadingMeters: Number(cargo.ldm) || 0,
             quantity: Number(cargo.quantity) || 1,
           } as any),
         );

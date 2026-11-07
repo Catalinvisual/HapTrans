@@ -223,7 +223,69 @@ function tripTimePosition(trip: any, from: string, totalMinutes: number) {
   return {
     left: (depClamped / totalMinutes) * 100,
     width: (width / totalMinutes) * 100,
+    startMin: depClamped,
+    endMin: arrClamped,
   };
+}
+
+// A truck may run several independent trips. Overlapping trips get separate
+// visual lanes instead of being drawn on top of each other; non-overlapping
+// trips stay in the first lane so the row remains compact.
+function layoutTimelineTrips(trips: any[], from: string, totalMinutes: number) {
+  const entries = (trips || [])
+    .map((trip, index) => {
+      const pos = tripTimePosition(trip, from, totalMinutes) || { startMin: 0, endMin: 60 };
+      return { trip, index, startMin: pos.startMin, endMin: Math.max(pos.endMin, pos.startMin + 30) };
+    })
+    .sort((a, b) => a.startMin - b.startMin || a.index - b.index);
+
+  const laneEnds: number[] = [];
+  const placed: Array<{ trip: any; startMin: number; endMin: number; lane: number }> = [];
+  for (const entry of entries) {
+    let lane = laneEnds.findIndex((end) => entry.startMin >= end - 1);
+    if (lane === -1) {
+      lane = laneEnds.length;
+      laneEnds.push(entry.endMin);
+    } else {
+      laneEnds[lane] = Math.max(laneEnds[lane], entry.endMin);
+    }
+    placed.push({ ...entry, lane });
+  }
+
+  const overlapCounts = new Map<string, number>();
+  for (let i = 0; i < placed.length; i += 1) {
+    for (let j = i + 1; j < placed.length; j += 1) {
+      if (placed[i].startMin < placed[j].endMin && placed[j].startMin < placed[i].endMin) {
+        overlapCounts.set(placed[i].trip.id, (overlapCounts.get(placed[i].trip.id) || 0) + 1);
+        overlapCounts.set(placed[j].trip.id, (overlapCounts.get(placed[j].trip.id) || 0) + 1);
+      }
+    }
+  }
+
+  const laneCount = Math.max(1, laneEnds.length);
+  const byId = new Map(placed.map((p, ordinal) => [p.trip.id, { ...p, ordinal: ordinal + 1, laneCount, overlapCount: overlapCounts.get(p.trip.id) || 0 }]));
+
+  const repositioning: Array<{ left: number; width: number; minutes: number; fromId: string; toId: string; lane: number }> = [];
+  for (let lane = 0; lane < laneCount; lane += 1) {
+    const laneTrips = placed.filter((p) => p.lane === lane);
+    for (let i = 1; i < laneTrips.length; i += 1) {
+      const previous = laneTrips[i - 1];
+      const next = laneTrips[i];
+      const gap = next.startMin - previous.endMin;
+      if (gap >= 15) {
+        repositioning.push({
+          left: (previous.endMin / totalMinutes) * 100,
+          width: (gap / totalMinutes) * 100,
+          minutes: Math.round(gap),
+          fromId: previous.trip.id,
+          toId: next.trip.id,
+          lane,
+        });
+      }
+    }
+  }
+
+  return { byId, laneCount, placed, repositioning };
 }
 
 // ─── Map Component ──────────────────────────────────────────────────────────
@@ -529,9 +591,10 @@ function PoolOrderCard({
 
 // ─── Timeline Trip Block ──────────────────────────────────────────────────────────────────────
 function TripBlock({
-  trip, isSelected, onClick, fromDate, totalMinutes,
+  trip, isSelected, onClick, fromDate, totalMinutes, lane = 0, overlapCount = 0, ordinal = 1, ordinalTotal = 1,
 }: {
   trip: any; isSelected: boolean; onClick: () => void; fromDate: string; totalMinutes: number;
+  lane?: number; overlapCount?: number; ordinal?: number; ordinalTotal?: number;
 }) {
   const { t } = useTranslation();
   const pos = tripTimePosition(trip, fromDate, totalMinutes);
@@ -552,6 +615,11 @@ function TripBlock({
   const blockWidthPct = pos.width;
   const isVeryNarrow = blockWidthPct < 4;
   const isNarrow = blockWidthPct < 10;
+  const cardHeight = 78;
+  const cardTop = 8 + lane * 86;
+  const orderRefs = (trip.orders || []).map((o: any) => o.orderNumber || o.reference || '—').filter(Boolean);
+  const stops = ((trip.stops?.length ? trip.stops : (trip.orders || []).flatMap((o: any) => o.stops || [])) || [])
+    .slice().sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0));
 
   return (
     <div
@@ -566,18 +634,24 @@ function TripBlock({
         }));
         e.dataTransfer.effectAllowed = 'move';
       }}
-      className="absolute top-1 bottom-1 cursor-pointer group/block z-[5]"
-      style={{ left: `${pos.left}%`, width: `${pos.width}%`, minWidth: '3rem' }}
+      className="absolute cursor-pointer group/block"
+      style={{
+        left: `${pos.left}%`, width: `${pos.width}%`, minWidth: '3rem',
+        top: `${cardTop}px`, height: `${cardHeight}px`,
+        zIndex: isSelected ? 20 : 5,
+      }}
+      data-trip-id={trip.id}
+      data-trip-lane={lane + 1}
       onClick={onClick}
       title={['planning', 'planned', 'assigned'].includes(legacySt) ? t('drag_trip_to_unassign', 'Trage spre Order Pool pentru a dezasocia, sau click pentru detalii') : undefined}
     >
       <div
-        className={`h-full rounded-xl border-2 overflow-hidden transition-all duration-150 flex flex-col ${
-          col.border
+        className={`relative h-full rounded-lg border-2 overflow-hidden transition-all duration-150 flex flex-col ${
+          overlapCount > 0 ? 'border-red-500/80' : col.border
         } ${
           isSelected
-            ? 'ring-2 ring-offset-1 shadow-xl scale-y-[1.06] z-10'
-            : 'hover:shadow-lg hover:scale-y-[1.04]'
+            ? 'ring-2 ring-offset-1 shadow-xl scale-y-[1.03] z-10'
+            : 'hover:shadow-lg hover:scale-y-[1.02]'
         }`}
         style={{
           background: `linear-gradient(135deg, ${hex}28 0%, ${hex}12 100%)`,
@@ -587,15 +661,31 @@ function TripBlock({
         {/* Color accent strip at top */}
         <div className="h-[3px] w-full shrink-0" style={{ background: hex }} />
 
-        <div className="px-2 py-1 flex flex-col justify-between flex-1 min-h-0 overflow-hidden gap-px">
-          {/* Row 1: Trip number + status + fleet badge */}
+        <div className="px-2 pt-1 pb-2 flex flex-col justify-between flex-1 min-h-0 overflow-hidden gap-px">
+          {/* Row 1: Trip number + sequence + status + fleet badge */}
           <div className="flex items-center gap-1 min-w-0 flex-wrap">
-            <span className={`font-black truncate ${col.text} ${isVeryNarrow ? 'text-[8px]' : 'text-[10px]'}`} style={{ maxWidth: isNarrow ? '100%' : '65%' }}>
+            <span className={`font-black truncate ${col.text} ${isVeryNarrow ? 'text-[8px]' : 'text-[10px]'}`} style={{ maxWidth: isNarrow ? '100%' : '55%' }}>
               {trip.tripNumber || '—'}
             </span>
+            {ordinalTotal > 1 && !isVeryNarrow && (
+              <span className="shrink-0 px-1 py-0 text-[7px] font-black rounded-sm bg-card/70 border border-border/70 text-text-secondary" title={t('timeline_trip_sequence', 'Trip {{current}} of {{total}} on this resource', { current: ordinal, total: ordinalTotal })}>
+                {ordinal}/{ordinalTotal}
+              </span>
+            )}
+            {ordersCount > 1 && !isVeryNarrow && (
+              <span className="shrink-0 px-1 py-0 text-[7px] font-black rounded-sm bg-primary/15 text-primary border border-primary/30" title={t('timeline_multi_order', 'Grouped trip containing multiple orders')}>
+                {ordersCount} {t('timeline_orders_short', 'ORD')}
+              </span>
+            )}
             {!isVeryNarrow && (
               <span className={`shrink-0 px-1 py-0 text-[7px] font-black rounded-sm uppercase ${col.text} opacity-80`}>
                 {opLabel}
+              </span>
+            )}
+            {overlapCount > 0 && (
+              <span className="shrink-0 inline-flex items-center gap-0.5 text-red-600" title={t('timeline_overlap', 'This trip conflicts with another trip on the same resource')}>
+                <AlertTriangle className="w-2.5 h-2.5" />
+                {!isVeryNarrow && <span className="text-[7px] font-black uppercase">{t('timeline_conflict_short', 'Conflict')}</span>}
               </span>
             )}
             {trip.fleetType === 'subcontractor' && (
@@ -650,16 +740,38 @@ function TripBlock({
             </div>
           )}
 
-          {/* Row 4: Cargo + revenue */}
-          {!isVeryNarrow && (cargo.weight > 0 || revenue > 0) && (
-            <div className="flex items-center gap-1.5">
-              {cargo.weight > 0 && <span className="text-[8px] text-text-secondary inline-flex items-center gap-0.5"><WeightKgIcon className="w-3 h-3" />{fmtNumber(cargo.weight)}kg</span>}
-              {cargo.pallets > 0 && <span className="text-[8px] text-text-secondary inline-flex items-center gap-0.5"><PalletIcon className="w-3 h-3" />{cargo.pallets}p</span>}
-              {revenue > 0 && <span className="text-[8px] font-black" style={{ color: hex }}>{fmtMoney(revenue, 'EUR')}</span>}
-              {ordersCount > 0 && <span className="text-[8px] text-text-secondary">·{ordersCount}ord</span>}
+          {/* Row 4: grouped order references + cargo */}
+          {!isVeryNarrow && (
+            <div className="flex items-center gap-1.5 min-w-0">
+              {ordersCount > 0 && (
+                <span className="text-[8px] text-text-secondary truncate max-w-[48%]" title={orderRefs.join(' · ')}>
+                  {orderRefs.slice(0, 2).join(' · ')}{orderRefs.length > 2 ? ` +${orderRefs.length - 2}` : ''}
+                </span>
+              )}
+              {cargo.weight > 0 && <span className="text-[8px] text-text-secondary inline-flex items-center gap-0.5 shrink-0"><WeightKgIcon className="w-3 h-3" />{fmtNumber(cargo.weight)}kg</span>}
+              {cargo.pallets > 0 && <span className="text-[8px] text-text-secondary inline-flex items-center gap-0.5 shrink-0"><PalletIcon className="w-3 h-3" />{cargo.pallets}p</span>}
+              {!isNarrow && revenue > 0 && <span className="text-[8px] font-black ml-auto shrink-0" style={{ color: hex }}>{fmtMoney(revenue, 'EUR')}</span>}
             </div>
           )}
         </div>
+
+        {/* Stop sequence rail: pickup / delivery order is visible directly on the card. */}
+        {!isVeryNarrow && stops.length > 0 && (
+          <div className="absolute left-1.5 right-1.5 bottom-0.5 flex items-center gap-0.5" title={t('timeline_stop_sequence', 'Stop sequence')}>
+            {stops.slice(0, 10).map((s: any, idx: number) => {
+              const kind = String(s.type || '').toLowerCase();
+              const isDelivery = kind.includes('deliver') || kind.includes('drop') || (idx === stops.length - 1 && stops.length > 1);
+              return (
+                <span
+                  key={s.id || idx}
+                  className={`h-1 rounded-full ${isDelivery ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                  style={{ width: `${100 / Math.min(stops.length, 10)}%` }}
+                  title={`${idx + 1}. ${s.city || s.address || s.type || ''}`}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -690,16 +802,24 @@ function CapacityIndicator({ icon: Icon, text, pct, tooltip }: {
 // ─── Resource Row (Gantt Row) ────────────────────────────────────────────────────────
 function ResourceRow({
   resource, trips, fromDate, totalMinutes, hoursVisible, selectedTripId, onSelectTrip, onDropOrder, draggingId, draggingOrder, onOpenPlanner,
-  hosSummary = {}, grouping = 'truck', colWidth = 52, timelineWidth,
+  hosSummary = {}, grouping = 'truck', colWidth = 52, timelineWidth, now = Date.now(),
 }: {
   resource: any; trips: any[]; fromDate: string; totalMinutes: number; hoursVisible: number; selectedTripId: string | null;
   onSelectTrip: (id: string) => void; onDropOrder: (resourceId: string, orderId?: string) => void; draggingId: string | null; draggingOrder?: any;
   onOpenPlanner: (resource: any) => void;
   hosSummary?: Record<string, any>; grouping?: 'truck' | 'driver' | 'trailer';
-  colWidth?: number; timelineWidth?: number;
+  colWidth?: number; timelineWidth?: number; now?: number;
 }) {
   const { t } = useTranslation();
   const [isDragOver, setIsDragOver] = useState(false);
+  const timelineLayout = useMemo(() => layoutTimelineTrips(trips, fromDate, totalMinutes), [trips, fromDate, totalMinutes]);
+  const laneCount = timelineLayout.laneCount;
+  const rowHeight = Math.max(104, 16 + laneCount * 86);
+  const nowMinutes = (now - parseDay(fromDate).getTime()) / 60000;
+  const showNow = nowMinutes >= 0 && nowMinutes <= totalMinutes;
+  const nextTrip = [...trips]
+    .filter((tr: any) => tr.plannedDeparture && new Date(tr.plannedDeparture).getTime() >= now)
+    .sort((a: any, b: any) => new Date(a.plannedDeparture).getTime() - new Date(b.plannedDeparture).getTime())[0];
   const cargo = sumCargo(trips.filter((tr: any) => !['completed', 'closed', 'cancelled'].includes(tr.status)).flatMap((tr: any) => tr.orders || []));
   const mw = resource.maxWeightKg || 24000;
   const mp = resource.maxPallets || 33;
@@ -708,6 +828,7 @@ function ResourceRow({
   const statusDot = { active:'bg-emerald-400', available:'bg-emerald-400', assigned:'bg-blue-400', driving:'bg-amber-400', maintenance:'bg-red-400', inactive:'bg-slate-400' }[st] || 'bg-slate-400';
   const hasTrips = trips.length > 0;
   const calcTimelineWidth = timelineWidth || (hoursVisible * colWidth);
+  const isHourScale = hoursVisible === 24;
 
   // Smart capacity feedback for drag-over
   const draggingWeight = draggingOrder ? sumCargo([draggingOrder]).weight : 0;
@@ -764,8 +885,10 @@ function ResourceRow({
 
   return (
     <div
-      className={`flex border-b-2 border-border min-h-[96px] group transition-colors ${isMaintenance ? 'bg-red-500/[0.02] hover:bg-red-500/[0.04]' : 'hover:bg-primary/[0.02]'}`}
-      style={{ minWidth: `${224 + calcTimelineWidth}px` }}
+      className={`flex border-b-2 border-border group transition-colors ${isMaintenance ? 'bg-red-500/[0.02] hover:bg-red-500/[0.04]' : 'hover:bg-primary/[0.02]'}`}
+      style={{ minWidth: `${224 + calcTimelineWidth}px`, minHeight: `${rowHeight}px` }}
+      data-resource-id={resource.id}
+      data-timeline-lanes={laneCount}
     >
       {/* Resource Column — sticky left — CLICKABLE & DROP TARGET */}
       <div
@@ -817,6 +940,16 @@ function ResourceRow({
           </div>
         </div>
 
+        <div className="flex items-center justify-between pl-6 pr-1 text-[9px] text-text-muted">
+          <span className={`font-bold ${laneCount > 1 ? 'text-red-500' : 'text-text-secondary'}`}>
+            {trips.length} {t('timeline_trips_short', 'trips')}
+            {laneCount > 1 ? ` · ${t('timeline_lane_count', '{{count}} lanes', { count: laneCount })}` : ''}
+          </span>
+          {nextTrip?.plannedDeparture && (
+            <span className="truncate" title={t('timeline_next_departure', 'Next departure')}>{t('timeline_next_short', 'next')} {fmtTime(nextTrip.plannedDeparture)}</span>
+          )}
+        </div>
+
         {/* Dynamic capacity micro-bars (weight + pallets) */}
         {grouping !== 'driver' && (
           <div className="flex items-center gap-2 pl-6 pr-1">
@@ -834,22 +967,56 @@ function ResourceRow({
         onDragLeave={handleRowDragLeave}
         onDrop={handleRowDrop}
       >
-        {/* Day / hour grid lines */}
+        {/* Day / hour grid lines. Night and weekend bands make the time axis readable. */}
         <div className="absolute inset-0 flex pointer-events-none" style={{ minWidth: `${calcTimelineWidth}px` }}>
           {Array.from({ length: hoursVisible }, (_, h) => {
             const colDate = addDays(parseDay(fromDate), h);
             const isToday = dayStr(colDate) === dayStr(new Date());
+            const isWeekendDay = !isHourScale && [0, 6].includes(colDate.getDay());
+            const isNightHour = isHourScale && (h < 6 || h >= 21);
             return (
               <div
                 key={h}
                 className={`flex-1 border-r border-border/20 last:border-0 ${
-                  isToday ? 'bg-primary/[0.04]' : ''
-                }`}
+                  isToday ? 'bg-primary/[0.05]' : isWeekendDay || isNightHour ? 'bg-slate-500/[0.055]' : ''
+                } ${isHourScale && h % 6 === 0 ? 'border-l border-l-border/50' : ''}`}
                 style={{ minWidth: `${colWidth}px`, width: `${colWidth}px` }}
               />
             );
           })}
         </div>
+
+        {/* Stacked lanes keep simultaneous trips legible instead of hiding one another. */}
+        {Array.from({ length: Math.max(0, laneCount - 1) }, (_, lane) => (
+          <div
+            key={`lane-separator-${lane}`}
+            className="absolute left-0 right-0 border-t border-dashed border-border/60 pointer-events-none"
+            style={{ top: `${8 + (lane + 1) * 86 - 4}px` }}
+          />
+        ))}
+
+        {/* Repositioning intervals between consecutive trips on the same lane. */}
+        {timelineLayout.repositioning.map((gap, index) => (
+          <div
+            key={`reposition-${gap.fromId}-${gap.toId}-${index}`}
+            className="absolute h-[2px] border-t border-dashed border-text-muted/50 pointer-events-none z-[2]"
+            style={{ left: `${gap.left}%`, width: `${gap.width}%`, top: `${8 + gap.lane * 86 + 32}px` }}
+            title={`${t('timeline_reposition', 'Repositioning')}: ${gap.minutes} min`}
+          >
+            {gap.width > 5 && (
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[7px] font-bold text-text-muted bg-card/90 px-1 rounded whitespace-nowrap">
+                {t('timeline_reposition_short', 'empty')} {gap.minutes}m
+              </span>
+            )}
+          </div>
+        ))}
+
+        {/* Current-time marker */}
+        {showNow && (
+          <div className="absolute top-0 bottom-0 z-[8] pointer-events-none" style={{ left: `${(nowMinutes / totalMinutes) * 100}%` }} data-testid="timeline-now-marker">
+            <div className="h-full border-l-2 border-primary/70" />
+          </div>
+        )}
 
         {/* Maintenance overlay */}
         {isMaintenance && (
@@ -906,17 +1073,24 @@ function ResourceRow({
           </div>
         )}
 
-        {/* Trip blocks */}
-        {trips.map(tr => (
-          <TripBlock
-            key={tr.id}
-            trip={tr}
-            isSelected={selectedTripId === tr.id}
-            onClick={() => onSelectTrip(tr.id)}
-            fromDate={fromDate}
-            totalMinutes={totalMinutes}
-          />
-        ))}
+        {/* Trip blocks: each independent trip occupies its own lane and shows grouped orders. */}
+        {trips.map(tr => {
+          const meta = timelineLayout.byId.get(tr.id);
+          return (
+            <TripBlock
+              key={tr.id}
+              trip={tr}
+              isSelected={selectedTripId === tr.id}
+              onClick={() => onSelectTrip(tr.id)}
+              fromDate={fromDate}
+              totalMinutes={totalMinutes}
+              lane={meta?.lane || 0}
+              overlapCount={meta?.overlapCount || 0}
+              ordinal={meta?.ordinal || 1}
+              ordinalTotal={trips.length}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -949,10 +1123,13 @@ function TripDetailDrawer({
   const navigate = useNavigate();
   const confirm = useConfirm();
   const [auditEvents, setAuditEvents] = useState<any[] | null>(null);
-  const [activeTab, setActiveTab] = useState<'stops' | 'orders' | 'financial' | 'audit'>('stops');
+  const [activeTab, setActiveTab] = useState<'stops' | 'orders' | 'cargo' | 'financial' | 'audit'>('stops');
   const [tripDetail, setTripDetail] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [cargoLedger, setCargoLedger] = useState<any>(null);
+  const [cargoLedgerLoading, setCargoLedgerLoading] = useState(false);
+  const [cargoLedgerError, setCargoLedgerError] = useState<string | null>(null);
 
   // Live traffic & European toll state
   const [checkingTraffic, setCheckingTraffic] = useState(false);
@@ -968,6 +1145,8 @@ function TripDetailDrawer({
     setTrafficInfo(null);
     setTollInfo(null);
     setEtaInfo(null);
+    setCargoLedger(null);
+    setCargoLedgerError(null);
     if (tripSummary?.id) {
       setDetailLoading(true);
       api.get(`/trips/${tripSummary.id}`)
@@ -979,6 +1158,20 @@ function TripDetailDrawer({
         .catch(() => setAuditEvents([]));
     }
   }, [tripSummary?.id, refreshKey]);
+
+  // The ledger is persisted as stop tasks; this endpoint returns the audited
+  // cumulative projection for every route segment.
+  useEffect(() => {
+    if (!tripSummary?.id) return;
+    let cancelled = false;
+    setCargoLedgerLoading(true);
+    setCargoLedgerError(null);
+    api.get(`/planning/trips/${tripSummary.id}/cargo-ledger`)
+      .then((response) => { if (!cancelled) setCargoLedger(response.data); })
+      .catch((error) => { if (!cancelled) setCargoLedgerError(error?.response?.data?.message || t('cargo_load_failed', 'Cargo ledger could not be loaded.')); })
+      .finally(() => { if (!cancelled) setCargoLedgerLoading(false); });
+    return () => { cancelled = true; };
+  }, [tripSummary?.id, refreshKey, t]);
 
   // Load the ETA automatically so the stop schedule is visible without an
   // extra click. The response still labels untimestamped positions honestly.
@@ -1644,7 +1837,7 @@ function TripDetailDrawer({
 
         {/* Tabs */}
         <div className="flex border-b border-border bg-surface/20 px-5 gap-5 text-xs shrink-0">
-          {[['stops',`${t('jsx_stops','Stops')} (${detailLoading ? '…' : stops.length})`,MapPin],['orders',`${t('jsx_orders','Orders')} (${detailLoading ? '…' : orders.length})`,Package],['financial',t('financial_breakdown','Financials'),Activity],['audit',t('jsx_audit','Audit'),Clock]].map(([id,label,Icon]: any) => (
+          {[['stops',`${t('jsx_stops','Stops')} (${detailLoading ? '…' : stops.length})`,MapPin],['orders',`${t('jsx_orders','Orders')} (${detailLoading ? '…' : orders.length})`,Package],['cargo',t('cargo_ledger','Cargo ledger'),WeightKgIcon],['financial',t('financial_breakdown','Financials'),Activity],['audit',t('jsx_audit','Audit'),Clock]].map(([id,label,Icon]: any) => (
             <button key={id} onClick={() => setActiveTab(id)} className={`py-3 flex items-center gap-1.5 border-b-2 transition-colors ${activeTab === id ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'}`}>
               <Icon className="w-3.5 h-3.5" /><span>{label}</span>
             </button>
@@ -1917,6 +2110,110 @@ function TripDetailDrawer({
                 );
               })}
               {orders.length === 0 && <p className="text-xs text-text-secondary text-center py-6">{t('no_orders','No orders')}</p>}
+            </div>
+          )}
+
+          {activeTab === 'cargo' && (
+            <div className="space-y-3" data-testid="cargo-ledger-tab">
+              <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-surface/50 p-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <WeightKgIcon className="w-4 h-4 text-primary" />
+                    <h3 className="text-sm font-black text-text-primary">{t('cargo_ledger', 'Cargo ledger')}</h3>
+                    {cargoLedger?.status && (
+                      <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${
+                        cargoLedger.status === 'invalid' ? 'bg-red-500/15 text-red-600' : cargoLedger.status === 'unverified' ? 'bg-amber-500/15 text-amber-600' : 'bg-emerald-500/15 text-emerald-600'
+                      }`}>
+                        {t(`cargo_${cargoLedger.status}`, cargoLedger.status)}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-[10px] text-text-secondary">{t('cargo_ledger_hint', 'Persisted projection by stop. Pending tasks are marked as projected.')}</p>
+                </div>
+                {cargoLedger && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-right">
+                    {[['cargo_loaded', cargoLedger.totals?.loaded], ['cargo_delivered', cargoLedger.totals?.delivered], ['cargo_on_board', cargoLedger.totals?.remaining], ['cargo_peak', cargoLedger.peak]].map(([label, value]: any) => (
+                      <div key={label} className="rounded-lg border border-border/60 bg-card px-2 py-1 min-w-[88px]">
+                        <p className="text-[8px] font-bold uppercase tracking-wide text-text-muted">{t(label, label)}</p>
+                        <p className="text-[11px] font-black text-text-primary">{fmtNumber(value?.pallets || 0)} <span className="text-[8px] font-bold">{t('cargo_pallets', 'plt')}</span></p>
+                        <p className="text-[8px] text-text-secondary">{fmtNumber(value?.weightKg || 0)} kg</p>
+                        <p className="text-[8px] text-text-muted">{fmtNumber(value?.volumeCbm || 0)} m³ · {fmtNumber(value?.loadingMeters || 0)} LDM</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {cargoLedgerLoading ? (
+                <div className="flex items-center justify-center gap-2 py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /><span className="text-xs text-text-secondary">{t('cargo_loading', 'Building cargo ledger…')}</span></div>
+              ) : cargoLedgerError ? (
+                <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-xs text-red-600">{cargoLedgerError}</div>
+              ) : !cargoLedger?.rows?.length ? (
+                <div className="rounded-xl border border-border bg-card p-6 text-center text-xs text-text-secondary">{t('cargo_no_rows', 'No load or unload tasks are recorded for this trip.')}</div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto rounded-xl border border-border">
+                    <table className="w-full text-[10px]">
+                      <thead className="bg-surface/60 text-text-muted">
+                        <tr>
+                          <th className="px-2 py-1.5 text-left font-black">{t('cargo_stop', 'Stop')}</th>
+                          <th className="px-2 py-1.5 text-left font-black">{t('cargo_operation', 'Operation')}</th>
+                          <th className="px-2 py-1.5 text-left font-black">{t('cargo_order', 'Order')}</th>
+                          <th className="px-2 py-1.5 text-right font-black">{t('cargo_before', 'Before')}</th>
+                          <th className="px-2 py-1.5 text-right font-black">{t('cargo_change', 'Change')}</th>
+                          <th className="px-2 py-1.5 text-right font-black">{t('cargo_after', 'After')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cargoLedger.rows.map((row: any, index: number) => {
+                          const operationLabel = row.operation === 'load' ? t('cargo_load', 'Load') : row.operation === 'unload' ? t('cargo_unload', 'Unload') : t('cargo_rejected', 'Rejected');
+                          const tone = row.operation === 'load' ? 'text-blue-600' : row.operation === 'unload' ? 'text-emerald-600' : 'text-red-600';
+                          return (
+                            <tr key={`${row.stopId || index}-${row.orderId || index}-${index}`} className="border-t border-border/60 hover:bg-surface/30">
+                              <td className="px-2 py-1.5">
+                                <div className="font-bold text-text-primary">#{row.sequence} {row.city || '—'}</div>
+                                <div className="text-[8px] text-text-muted">{row.companyName || row.stopType || ''} {row.projected ? `· ${t('cargo_projected', 'projected')}` : ''}</div>
+                              </td>
+                              <td className={`px-2 py-1.5 font-black ${tone}`}>{operationLabel}</td>
+                              <td className="px-2 py-1.5 font-semibold text-text-primary">{row.orderNumber || row.orderId || '—'}</td>
+                              <td className="px-2 py-1.5 text-right tabular-nums text-text-secondary">
+                                <div>{fmtNumber(row.cargoBefore?.pallets || 0)}p · {fmtNumber(row.cargoBefore?.weightKg || 0)}kg</div>
+                                <div className="text-[8px] text-text-muted">{fmtNumber(row.cargoBefore?.volumeCbm || 0)} m³ · {fmtNumber(row.cargoBefore?.loadingMeters || 0)} LDM</div>
+                              </td>
+                              <td className={`px-2 py-1.5 text-right tabular-nums font-black ${tone}`}>
+                                <div>{(row.change?.pallets || 0) > 0 ? '+' : ''}{fmtNumber(row.change?.pallets || 0)}p · {(row.change?.weightKg || 0) > 0 ? '+' : ''}{fmtNumber(row.change?.weightKg || 0)}kg</div>
+                                <div className="text-[8px] opacity-80">{(row.change?.volumeCbm || 0) > 0 ? '+' : ''}{fmtNumber(row.change?.volumeCbm || 0)} m³ · {(row.change?.loadingMeters || 0) > 0 ? '+' : ''}{fmtNumber(row.change?.loadingMeters || 0)} LDM</div>
+                              </td>
+                              <td className="px-2 py-1.5 text-right tabular-nums font-black text-text-primary">
+                                <div>{fmtNumber(row.cargoAfter?.pallets || 0)}p · {fmtNumber(row.cargoAfter?.weightKg || 0)}kg</div>
+                                <div className="text-[8px] text-text-secondary">{fmtNumber(row.cargoAfter?.volumeCbm || 0)} m³ · {fmtNumber(row.cargoAfter?.loadingMeters || 0)} LDM</div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-card p-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[10px] font-black uppercase tracking-wide text-text-secondary">{t('cargo_issues', 'Ledger checks')}</h4>
+                      <span className="text-[9px] text-text-muted">{cargoLedger.issues?.length || 0}</span>
+                    </div>
+                    {!cargoLedger.issues?.length ? (
+                      <p className="mt-1 text-[10px] font-semibold text-emerald-600">{t('cargo_no_issues', 'No cargo ledger issues found.')}</p>
+                    ) : (
+                      <div className="mt-1.5 space-y-1">
+                        {cargoLedger.issues.map((issue: any, index: number) => (
+                          <div key={`${issue.code}-${index}`} className={`rounded-lg border px-2 py-1 text-[10px] ${issue.severity === 'error' ? 'border-red-500/20 bg-red-500/5 text-red-600' : 'border-amber-500/20 bg-amber-500/5 text-amber-700'}`}>
+                            <b className="font-black">{issue.code}</b> · {issue.message}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -2372,8 +2669,19 @@ export default function PlanningPage() {
   const [crossDockConfig, setCrossDockConfig] = useState<{ isOpen: boolean; orderId?: string; tripId?: string }>({ isOpen: false });
   const [subcontractorTargetTrip, setSubcontractorTargetTrip] = useState<any | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(1.0);
+  const [nowTick, setNowTick] = useState<number>(() => Date.now());
   const colWidth = useMemo(() => Math.max(48, Math.round(52 * zoomLevel)), [zoomLevel]);
   const totalTimelineWidth = useMemo(() => hoursVisible * colWidth, [hoursVisible, colWidth]);
+  const rangeLabel = viewMode === 'day' || viewMode === 'timeline'
+    ? new Date(selectedDate + 'T00:00:00').toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })
+    : `${fmtShort(from)} – ${fmtShort(to)}`;
+  const nowMinutes = (nowTick - parseDay(from).getTime()) / 60000;
+  const showNow = nowMinutes >= 0 && nowMinutes <= totalMinutes;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowTick(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Continuous Timeline Zoom with Ctrl/Cmd + Mouse Wheel
   useEffect(() => {
@@ -3360,6 +3668,39 @@ export default function PlanningPage() {
             <PlanningMap mapData={mapData} selectedTripId={selectedTripId} onSelectTrip={setSelectedTripId} isLoading={isLoading} />
           ) : (
             <>
+              {/* Enterprise timeline summary: title, range, live state and legend. */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 border-b border-border bg-card shrink-0" data-testid="planning-timeline-summary">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                    <Activity className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-[11px] font-black text-text-primary truncate">{t('timeline_title', 'Fleet operations timeline')}</h2>
+                      <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase text-emerald-600"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />{t('timeline_live', 'Live')}</span>
+                    </div>
+                    <p className="text-[9px] text-text-secondary truncate">{rangeLabel} · {displayResources.length} {t('timeline_resources_short', 'resources')} · {trips.length} {t('timeline_trips_short', 'trips')}</p>
+                  </div>
+                </div>
+
+                <div className="hidden md:flex items-center gap-3 text-[9px] font-bold text-text-secondary">
+                  <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-primary" />{t('timeline_legend_planned', 'Planned / assigned')}</span>
+                  <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-500" />{t('timeline_legend_active', 'In execution')}</span>
+                  <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-red-500" />{t('timeline_legend_conflict', 'Conflict')}</span>
+                  <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-500" />{t('timeline_legend_pickup', 'Pickup')}</span>
+                  <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-500" />{t('timeline_legend_delivery', 'Delivery')}</span>
+                </div>
+
+                <div className="ml-auto flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1 rounded-lg border border-border bg-surface/60 px-1.5 py-1">
+                    <button onClick={() => setZoomLevel(z => Math.max(0.5, +(z - 0.15).toFixed(2)))} className="p-0.5 rounded hover:bg-card text-text-secondary hover:text-text-primary" title={t('zoom_out', 'Zoom out')}><ZoomOut className="w-3 h-3" /></button>
+                    <span className="text-[9px] font-mono font-bold w-8 text-center">{Math.round(zoomLevel * 100)}%</span>
+                    <button onClick={() => setZoomLevel(z => Math.min(2.5, +(z + 0.15).toFixed(2)))} className="p-0.5 rounded hover:bg-card text-text-secondary hover:text-text-primary" title={t('zoom_in', 'Zoom in')}><ZoomIn className="w-3 h-3" /></button>
+                    <button onClick={() => setZoomLevel(1)} className="p-0.5 rounded hover:bg-card text-text-secondary hover:text-text-primary" title={t('zoom_reset', 'Reset zoom (100%)')}><RotateCcw className="w-3 h-3" /></button>
+                  </div>
+                </div>
+              </div>
+
               {/* Timeline grid */}
               <div ref={timelineRef} tabIndex={0} className="flex-1 overflow-auto relative outline-none focus:ring-2 focus:ring-inset focus:ring-primary/20">
                 {isLoading ? (
@@ -3376,12 +3717,17 @@ export default function PlanningPage() {
                   </div>
                 ) : (
                   <div className="w-full" style={{ minWidth: `${224 + totalTimelineWidth}px` }}>
-                        {/* Time scale header */}
-                        <div className="flex border-b border-border bg-surface/60 sticky top-0 z-20 shadow-sm h-10" style={{ minWidth: `${224 + totalTimelineWidth}px` }}>
-                          <div className="w-56 shrink-0 border-r border-border/60 bg-surface/80 flex items-center justify-between px-2 py-1 sticky left-0 z-30">
-                            {/* Temporal navigation placed here! */}
+                        {/* Time scale header: two-level resource / time ruler. */}
+                        <div className="flex border-b border-border bg-surface/60 sticky top-0 z-20 shadow-sm h-12" style={{ minWidth: `${224 + totalTimelineWidth}px` }}>
+                          <div className="w-56 shrink-0 border-r border-border/60 bg-surface/80 flex flex-col justify-center gap-0.5 px-2 py-1 sticky left-0 z-30">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[8px] font-black uppercase tracking-widest text-text-muted">{t('timeline_fleet_time', 'Fleet / time')}</span>
+                              <button onClick={() => setSelectedDate(dayStr(new Date()))} className="text-[9px] font-bold text-primary hover:text-primary/80 px-1 rounded hover:bg-primary/10">
+                                {viewMode === 'week' ? t('jsx_dateThisWeek','This week') : t('jsx_today','Today')}
+                              </button>
+                            </div>
                             <div className="flex items-center gap-1">
-                              <button onClick={() => setSelectedDate(d => dayStr(addDays(parseDay(d), viewMode === 'week' ? -7 : -1)))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors">
+                              <button onClick={() => setSelectedDate(d => dayStr(addDays(parseDay(d), viewMode === 'week' ? -7 : -1)))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors" title={t('timeline_previous', 'Previous period')}>
                                 <ChevronLeft className="w-3.5 h-3.5" />
                               </button>
                               <Flatpickr
@@ -3390,58 +3736,52 @@ export default function PlanningPage() {
                                 options={{ dateFormat: 'Y-m-d' }}
                                 className="w-20 text-[11px] font-bold text-center bg-transparent border-none focus:ring-0 cursor-pointer text-text-primary p-0"
                               />
-                              <button onClick={() => setSelectedDate(d => dayStr(addDays(parseDay(d), viewMode === 'week' ? 7 : 1)))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors">
+                              <button onClick={() => setSelectedDate(d => dayStr(addDays(parseDay(d), viewMode === 'week' ? 7 : 1)))} className="p-1 rounded hover:bg-surface text-text-secondary hover:text-text-primary transition-colors" title={t('timeline_next', 'Next period')}>
                                 <ChevronRight className="w-3.5 h-3.5" />
                               </button>
                             </div>
-                            <button onClick={() => setSelectedDate(dayStr(new Date()))} className="text-[10px] font-bold text-primary hover:text-primary/80 px-1">
-                              {viewMode === 'week' ? t('jsx_dateThisWeek','This week') : t('jsx_today','Today')}
-                            </button>
                           </div>
                           <div className="flex flex-1 relative" style={{ minWidth: `${totalTimelineWidth}px` }}>
                             {Array.from({ length: hoursVisible }, (_, h) => {
                               const colDate = addDays(fromDateObj, h);
                               const colDateStr = dayStr(colDate);
                               const isToday = colDateStr === dayStr(new Date());
+                              const isWeekendDay = viewMode !== 'day' && viewMode !== 'timeline' && [0, 6].includes(colDate.getDay());
+                              const isNightHour = (viewMode === 'day' || viewMode === 'timeline') && (h < 6 || h >= 21);
+                              const showHourLabel = viewMode !== 'day' && viewMode !== 'timeline' || h % 2 === 0;
                               return (
                                 <div
                                   key={h}
-                                  className={`flex-1 flex items-center justify-center text-center text-[10px] font-bold py-1.5 border-r border-border/30 last:border-0 transition-colors ${
-                                    isToday ? 'bg-primary/10 text-primary font-black border-primary/30' : 'text-text-secondary'
-                                  }`}
+                                  className={`flex-1 flex flex-col items-center justify-center text-center text-[10px] font-bold py-1 border-r border-border/30 last:border-0 transition-colors ${
+                                    isToday ? 'bg-primary/10 text-primary font-black border-primary/30' : isWeekendDay || isNightHour ? 'bg-slate-500/[0.055] text-text-secondary' : 'text-text-secondary'
+                                  } ${(viewMode === 'day' || viewMode === 'timeline') && h % 6 === 0 ? 'border-l border-l-border/60' : ''}`}
                                   style={{ minWidth: `${colWidth}px`, width: `${colWidth}px` }}
                                 >
                                   {viewMode === 'all' ? (
-                                    <div className="flex flex-col items-center justify-center leading-tight">
-                                      <span className="text-[10px] font-bold">
-                                        {colDate.toLocaleDateString([], { day: 'numeric', month: 'short' })}
-                                      </span>
-                                    </div>
+                                    <>
+                                      <span className="text-[8px] uppercase tracking-wide opacity-70">{colDate.toLocaleDateString([], { weekday: 'short' })}</span>
+                                      <span className="text-[10px] font-black">{colDate.getDate()} {colDate.toLocaleDateString([], { month: 'short' })}</span>
+                                    </>
                                   ) : viewMode === 'week' ? (
-                                    <div className="flex flex-col items-center justify-center leading-tight">
-                                      <span className="text-[10px] font-bold">
-                                        {colDate.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}
-                                      </span>
-                                    </div>
+                                    <>
+                                      <span className="text-[8px] uppercase tracking-wide opacity-70">{colDate.toLocaleDateString([], { weekday: 'short' })}</span>
+                                      <span className="text-[10px] font-black">{colDate.getDate()} {colDate.toLocaleDateString([], { month: 'short' })}</span>
+                                    </>
                                   ) : (
-                                    `${String(h).padStart(2,'0')}:00`
+                                    <>
+                                      <span className={`text-[10px] font-black ${showHourLabel ? 'opacity-100' : 'opacity-0'}`}>{String(h).padStart(2,'0')}:00</span>
+                                      {isToday && <span className="text-[7px] uppercase tracking-wide">{t('timeline_now', 'Now')}</span>}
+                                    </>
                                   )}
                                 </div>
                               );
                             })}
-                            {/* Right absolute positioned block for indicators and zoom controls */}
-                            <div className="absolute top-1/2 -translate-y-1/2 right-2 flex items-center gap-3 bg-surface/80 backdrop-blur-sm border border-border/60 rounded-lg px-2 py-1 shadow-sm">
-                              <div className="flex items-center gap-1">
-                                <button onClick={() => setZoomLevel(z => Math.max(0.5, +(z - 0.15).toFixed(2)))} className="p-0.5 rounded hover:bg-card text-text-secondary hover:text-text-primary"><ZoomOut className="w-3 h-3" /></button>
-                                <span className="text-[9px] font-mono font-bold w-7 text-center">{Math.round(zoomLevel * 100)}%</span>
-                                <button onClick={() => setZoomLevel(z => Math.min(2.5, +(z + 0.15).toFixed(2)))} className="p-0.5 rounded hover:bg-card text-text-secondary hover:text-text-primary"><ZoomIn className="w-3 h-3" /></button>
+                            {showNow && (
+                              <div className="absolute bottom-0 top-0 z-30 pointer-events-none" style={{ left: `${(nowMinutes / totalMinutes) * 100}%` }}>
+                                <div className="h-full border-l-2 border-primary" />
+                                <span className="absolute -top-0.5 -left-1.5 w-3 h-3 rounded-full bg-primary border-2 border-card shadow" />
                               </div>
-                              <div className="w-px h-3 bg-border" />
-                              <div className="flex items-center gap-2 text-[10px] font-bold text-text-secondary">
-                                <span>{displayResources.length} res</span>
-                                <span>{trips.length} trips</span>
-                              </div>
-                            </div>
+                            )}
                           </div>
                         </div>
 
@@ -3480,6 +3820,7 @@ export default function PlanningPage() {
                                 grouping={grouping}
                                 colWidth={colWidth}
                                 timelineWidth={totalTimelineWidth}
+                                now={nowTick}
                                 onOpenPlanner={(r) => {
                                   if (r.id === '__unassigned_trips__') {
                                     if (resTrips[0]?.id) setSelectedTripId(resTrips[0].id);
