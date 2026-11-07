@@ -44,6 +44,11 @@ export class PlanningController {
     return this.planningService.preflightConsolidation(req.user, tripId, body.orderIds || []);
   }
 
+  @Post('trips/:tripId/insertion-preview')
+  insertionPreview(@Request() req: any, @Param('tripId') tripId: string, @Body() body: any) {
+    return this.planningService.insertionPreview(req.user, tripId, body.orderIds || []);
+  }
+
   @Post('truck-recommendations')
   recommendTrucks(@Request() req: any, @Body() body: any) {
     return this.planningService.recommendTrucks(req.user, body);

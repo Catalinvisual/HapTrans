@@ -35,6 +35,7 @@ import { buildCargoLedger } from './cargo-ledger';
 import { assessLoadingWindow, isLoadStopType, orderPickupWindow, stopArrival } from './loading-window';
 import { etaDeviations } from './eta-deviation';
 import { mergePlannerStops, plannerStopSetSignature } from './route-plan-stops';
+import { evaluateInsertion } from './stop-insertion';
 import {
   consolidationCapacity,
   incrementalRoute,
@@ -1669,6 +1670,111 @@ export class PlanningService {
     };
   }
 
+  /**
+   * Evaluate every insertion position for adding one Order to an existing Trip.
+   * Nothing is persisted: the dispatcher confirms the recommended sequence and
+   * the assignment call performs it.
+   */
+  async insertionPreview(user: any, tripId: string, orderIds: string[]) {
+    const companyId = user?.companyId || null;
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+    const tripCompanyId = (trip as any).companyId || trip.company?.id || null;
+    if (companyId && tripCompanyId && String(companyId) !== String(tripCompanyId)) {
+      throw new ForbiddenException('Trip does not belong to your company.');
+    }
+    const ids = (orderIds || []).filter(Boolean);
+    if (!ids.length) throw new BadRequestException('At least one order is required.');
+    if (ids.length > 1) throw new BadRequestException('Insertion preview evaluates one order at a time.');
+    const order = await this.orderRepo.findOne({ where: { id: ids[0] }, relations: ['stops', 'cargoItems', 'company'] });
+    if (!order) throw new NotFoundException('Order not found.');
+    if (order.company?.id && companyId && String(order.company.id) !== String(companyId)) {
+      throw new ForbiddenException('Order does not belong to your company.');
+    }
+
+    const truck = trip.truck || null;
+    const trailer = trip.trailer || (truck as any)?.trailer || null;
+    const capacity = knownTruckCapacity(truck);
+    const departure = trip.plannedDeparture ? new Date(trip.plannedDeparture) : null;
+    const orderOfStop = (stop: any) => stop.tasks?.[0]?.order?.id || stop.tasks?.[0]?.orderId || null;
+
+    const existingStops = [...((trip.stops || []) as any[])]
+      .sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0))
+      .map((stop) => ({
+        id: stop.id,
+        key: `${orderOfStop(stop) || 'trip'}:${stop.type}:${stop.city || ''}`,
+        orderId: orderOfStop(stop),
+        type: stop.type,
+        city: stop.city,
+        companyName: stop.companyName,
+        latitude: stop.latitude,
+        longitude: stop.longitude,
+        timeWindowMin: stop.timeWindowMin,
+        timeWindowMax: stop.timeWindowMax,
+        serviceDurationMinutes: stop.serviceDurationMinutes,
+        tasks: stop.tasks || [],
+      }));
+
+    const orderStops = [...((order.stops || []) as any[])]
+      .sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0))
+      .map((stop) => ({
+        id: stop.id,
+        key: `${order.id}:${stop.type}:${stop.city || ''}`,
+        type: stop.type,
+        city: stop.city,
+        companyName: stop.companyName,
+        latitude: stop.latitude,
+        longitude: stop.longitude,
+        dateFrom: stop.dateFrom,
+        timeFrom: stop.timeFrom,
+        dateUntil: stop.dateUntil,
+        timeUntil: stop.timeUntil,
+        timeWindowMin: stop.timeWindowMin,
+        timeWindowMax: stop.timeWindowMax,
+      }));
+
+    // Road legs are resolved once per ordered pair and reused by every candidate.
+    const profile = this.truckRoutingProfile({ truck, trailer } as any);
+    const stopsForLegs = [...existingStops, ...orderStops];
+    const legs = new Map<string, { distanceKm: number; durationMin: number } | null>();
+    for (const from of stopsForLegs) {
+      for (const to of stopsForLegs) {
+        if (from === to) continue;
+        const coords = [from.latitude, from.longitude, to.latitude, to.longitude].map(Number);
+        const key = coords.join(',');
+        if (legs.has(key)) continue;
+        if (coords.some((value) => !Number.isFinite(value))) {
+          legs.set(key, null);
+          continue;
+        }
+        const route = await this.routingService.calculateRoute(coords[0], coords[1], coords[2], coords[3], profile);
+        legs.set(key, route
+          ? { distanceKm: Number(route.distanceKm), durationMin: Number(route.durationMin) }
+          : null);
+      }
+    }
+
+    const evaluation = evaluateInsertion({
+      existingStops,
+      order: { id: order.id, orderNumber: order.orderNumber, cargoItems: order.cargoItems || [], stops: orderStops },
+      capacity,
+      departure,
+      leg: (from, to) => {
+        const key = [from.latitude, from.longitude, to.latitude, to.longitude].map(Number).join(',');
+        return legs.get(key) ?? null;
+      },
+    });
+
+    return {
+      tripId,
+      tripNumber: trip.tripNumber,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      ...evaluation,
+      capacity,
+    };
+  }
+
   /** Rank real trucks for an order using capacity, availability and road distance. */
   async recommendTrucks(user: any, dto: any) {
     const companyId = user?.companyId || null;
@@ -1870,6 +1976,11 @@ export class PlanningService {
     await this.orderRepo.save(newOrders);
 
     await this.rebuildStops(trip.id);
+    // A dispatcher-confirmed insertion sequence is authoritative: apply it to
+    // the rebuilt stops before distance, costs and the route plan are derived.
+    if (Array.isArray(dto.stopOrder) && dto.stopOrder.length) {
+      await this.applyConfirmedStopOrder(trip.id, dto.stopOrder);
+    }
     const reloaded = await this.loadTrip(trip.id);
     if (reloaded) {
       await this.recalculateTrip(reloaded.id);
@@ -1888,6 +1999,42 @@ export class PlanningService {
     });
 
     return this.loadTrip(trip.id);
+  }
+
+  /**
+   * Renumber the trip's stops to a confirmed insertion sequence. Keys are
+   * `orderId:type:city`, which identifies a stop without relying on the ids
+   * that rebuildStops has just recreated.
+   */
+  private async applyConfirmedStopOrder(tripId: string, stopOrder: string[]): Promise<void> {
+    const stops = await this.stopRepo.find({
+      where: { trip: { id: tripId } },
+      relations: ['tasks', 'tasks.order'],
+    });
+    if (!stops.length) return;
+    const keyOf = (stop: any) => {
+      const orderId = stop.tasks?.[0]?.order?.id || stop.tasks?.[0]?.orderId || 'trip';
+      return `${orderId}:${stop.type}:${stop.city || ''}`;
+    };
+    const rank = new Map<string, number>();
+    stopOrder.forEach((key, index) => {
+      if (!rank.has(String(key))) rank.set(String(key), index);
+    });
+    const ordered = stops.slice().sort((a: any, b: any) => {
+      const rankA = rank.get(keyOf(a));
+      const rankB = rank.get(keyOf(b));
+      if (rankA == null && rankB == null) return Number(a.sequence || 0) - Number(b.sequence || 0);
+      if (rankA == null) return 1;
+      if (rankB == null) return -1;
+      return rankA - rankB;
+    });
+    for (let index = 0; index < ordered.length; index += 1) {
+      const stop = ordered[index] as any;
+      if (Number(stop.sequence) !== index + 1) {
+        stop.sequence = index + 1;
+        await this.stopRepo.save(stop);
+      }
+    }
   }
 
   private async nextTripNumber(): Promise<string> {
