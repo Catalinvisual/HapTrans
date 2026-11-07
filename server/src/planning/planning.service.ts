@@ -35,6 +35,15 @@ import { buildCargoLedger } from './cargo-ledger';
 import { resolveTripDriver as resolveAssignedDriver, resolveTripTrailer as resolveAssignedTrailer } from '../trips/driver-assignment';
 import { normalizeTripOperationalStatus } from '../trips/operational-status';
 import {
+  ACTIVE_TRIP_STATUSES as CANONICAL_ACTIVE_TRIP_STATUSES,
+  isActiveTrip,
+  isResourceBusyNow,
+  isResourcePlannedOn,
+  tripInterval,
+  tripOverlaps,
+  overlapInterval,
+} from '../trips/trip-availability';
+import {
   capacityViolations,
   knownTruckCapacity,
   missingTruckCapacity,
@@ -49,10 +58,7 @@ import {
 } from './vehicle-restriction-status';
 
 
-export const ACTIVE_TRIP_STATUSES = [
-  'planning', 'planned', 'assigned', 'dispatched', 'driver_accepted',
-  'started', 'loading', 'driving', 'partially_delivered',
-];
+export const ACTIVE_TRIP_STATUSES = [...CANONICAL_ACTIVE_TRIP_STATUSES];
 export const PLANNING_TRIP_STATUSES = ['planning', 'planned', 'assigned'];
 export const UNPLANNED_ORDER_STATUSES = [
   'draft',
@@ -78,7 +84,10 @@ export const TERMINAL_ORDER_STATUSES = [
   'paid',
   'cancelled',
 ];
-const IN_PROGRESS_TRIP_STATUSES = ['driver_accepted', 'started', 'loading', 'driving', 'partially_delivered'];
+const IN_PROGRESS_TRIP_STATUSES = [
+  'driver_accepted', 'started', 'at_pickup', 'loading', 'driving',
+  'at_delivery', 'unloading', 'partially_delivered',
+];
 
 export interface PlanningConflict {
   id: string;
@@ -605,6 +614,20 @@ export class PlanningService {
     if (q.trailerId) tripsQb.andWhere('trip.trailerId IN (:...tids)', { tids: String(q.trailerId).split(',') });
     const trips = await tripsQb.orderBy('trip.plannedDeparture', 'ASC').getMany();
 
+    // Availability must include every active schedule, not only the board's
+    // visible range. Completed/cancelled trips are historical and never
+    // reserve a resource here.
+    const resourceTrips = await this.tripRepo
+      .createQueryBuilder('trip')
+      .leftJoinAndSelect('trip.truck', 'resourceTruck')
+      .leftJoinAndSelect('trip.trailer', 'resourceTrailer')
+      .leftJoinAndSelect('trip.driver', 'resourceDriver')
+      .leftJoinAndSelect('resourceDriver.user', 'resourceDriverUser')
+      .leftJoinAndSelect('trip.stops', 'resourceStops')
+      .where('trip.status IN (:...activeStatuses)', { activeStatuses: ACTIVE_TRIP_STATUSES })
+      .andWhere(this.companyBracket(companyId, 'trip.companyId'))
+      .getMany();
+
     // Attach the latest route plan so the Results table can use authoritative
     // route driving/waiting/service totals and empty kilometres instead of
     // inventing them from elapsed time.
@@ -712,16 +735,13 @@ export class PlanningService {
     const resources = trucks
       .filter((t) => String(t.status) !== 'inactive')
       .map((t) => {
-        const relevantTrip = trips.find((tr) => tr.truck?.id === t.id && tr.trailer) || trips.find((tr) => tr.truck?.id === t.id);
+        const truckTrips = resourceTrips.filter((tr) => tr.truck?.id === t.id);
+        const relevantTrip = truckTrips.find((tr) => tr.trailer) || truckTrips[0];
         const maint = maintByTruck[t.id] || [];
         const activeMaint = maint.filter((m) => m.status === 'in_progress' && m.completedDate == null);
         const hasMaint = String(t.status).toLowerCase() === 'maintenance';
-        const busy = trips.some(
-          (tr) => tr.truck?.id === t.id && IN_PROGRESS_TRIP_STATUSES.includes(tr.status),
-        );
-        const plannedToday = trips.some(
-          (tr) => tr.truck?.id === t.id && PLANNING_TRIP_STATUSES.includes(tr.status),
-        );
+        const busy = isResourceBusyNow(truckTrips);
+        const plannedToday = isResourcePlannedOn(truckTrips);
         const driver = t.driver
           ? { id: t.driver.id, name: t.driver.user?.name || t.driver.user?.email || '—', status: t.driver.status }
           : null;
@@ -758,6 +778,7 @@ export class PlanningService {
 
     const conflicts = await this.computeConflicts({
       trips,
+      resourceTrips,
       // Convert resources array to a dictionary keyed by truck id so that
       // computeConflicts can look up resources by truckId correctly.
       resourcesById: Object.fromEntries(resources.map((r) => [r.id, r])),
@@ -838,7 +859,8 @@ export class PlanningService {
 
   async computeConflicts(ctx: any): Promise<PlanningConflict[]> {
     const out: PlanningConflict[] = [];
-    const trips: Trip[] = ctx.trips || [];
+    const trips: Trip[] = (ctx.trips || []).filter((trip: any) => isActiveTrip(trip));
+    const resourceTrips: any[] = (ctx.resourceTrips || trips).filter((trip: any) => isActiveTrip(trip));
     const resourcesById = ctx.resourcesById || {};
     const driversById = ctx.driversById || {};
     const trailersById = ctx.trailersById || {};
@@ -870,13 +892,10 @@ export class PlanningService {
             level: 'blocking', code: 'VEHICLE_IN_MAINTENANCE', tripId: t.id, resourceId: truck.id,
             message: `${truck.plateNumber} is in maintenance.`,
           });
-        } else if (!avail && (truck.busy || truck.plannedToday)) {
-          const why = truck.busy ? 'in progress' : 'already planned today';
-          add({
-            level: 'warning', code: 'VEHICLE_ALREADY_USED', tripId: t.id, resourceId: truck.id,
-            message: `${truck.plateNumber} is already ${why}.`,
-          });
         }
+        // A truck being busy on another job is only a conflict when the two
+        // actual intervals overlap. The per-pair check below reports that with
+        // the other trip reference and exact period.
 
         const known = knownTruckCapacity(truck);
         const missing = missingTruckCapacity(known);
@@ -1115,56 +1134,61 @@ export class PlanningService {
       }
     }
 
-    // Phase 3: Trailer Overlap Conflict Detection
-    const tripsByTrailer: Record<string, any[]> = {};
-    for (const trip of trips) {
-      const t = trip as any;
-      const status = String(t.status || '');
-      if (['completed', 'closed', 'cancelled'].includes(status)) continue;
-      const trailerId = t.trailerId || t.trailer?.id || t.truck?.trailer?.id || null;
-      if (trailerId) {
-        (tripsByTrailer[trailerId] ||= []).push(t);
-      }
-    }
+    // One pair-wise overlap engine for truck, trailer and driver. Only active
+    // trips with real intervals participate, so completed history and
+    // back-to-back trips cannot generate false double-booking warnings.
+    const activePeers = resourceTrips.filter((tr: any) => isActiveTrip(tr));
+    const pairKey = (a: any, b: any) => [a.id, b.id].sort().join(':');
+    const seenPairs = new Set<string>();
+    const periodLabel = (start: number, end: number) =>
+      `${new Date(start).toISOString().slice(0, 16).replace('T', ' ')} → ${new Date(end).toISOString().slice(0, 16).replace('T', ' ')}`;
 
-    for (const [trlId, tList] of Object.entries(tripsByTrailer)) {
-      if (tList.length < 2) continue;
-      const trlObj = trailersById[trlId] || tList[0].trailer || tList[0].truck?.trailer;
-      const trlPlate = trlObj?.plateNumber || trlId;
+    for (let i = 0; i < activePeers.length; i++) {
+      for (let j = i + 1; j < activePeers.length; j++) {
+        const a = activePeers[i];
+        const b = activePeers[j];
+        if (!tripOverlaps(a, b)) continue;
+        const ia = tripInterval(a);
+        const ib = tripInterval(b);
+        if (!ia || !ib) continue;
+        const overlap = overlapInterval(ia, ib);
+        const period = periodLabel(overlap.start, overlap.end);
+        const truckA = a.truck?.id || a.truckId;
+        const truckB = b.truck?.id || b.truckId;
+        const trailerA = a.trailer?.id || a.trailerId || a.truck?.trailer?.id;
+        const trailerB = b.trailer?.id || b.trailerId || b.truck?.trailer?.id;
 
-      for (let i = 0; i < tList.length; i++) {
-        for (let j = i + 1; j < tList.length; j++) {
-          const trA = tList[i];
-          const trB = tList[j];
-          const sA = trA.plannedDeparture ? new Date(trA.plannedDeparture).getTime() : 0;
-          const eA = trA.plannedArrival ? new Date(trA.plannedArrival).getTime() : (sA ? sA + 24 * 3600 * 1000 : 0);
-          const sB = trB.plannedDeparture ? new Date(trB.plannedDeparture).getTime() : 0;
-          const eB = trB.plannedArrival ? new Date(trB.plannedArrival).getTime() : (sB ? sB + 24 * 3600 * 1000 : 0);
+        if (truckA && truckB && String(truckA) === String(truckB) && !seenPairs.has(`truck:${pairKey(a, b)}`)) {
+          seenPairs.add(`truck:${pairKey(a, b)}`);
+          const plate = resourcesById[truckA]?.plateNumber || a.truck?.plateNumber || truckA;
+          add({
+            level: 'blocking', code: 'TRUCK_OVERLAP', tripId: a.id, resourceId: truckA,
+            params: { truckId: truckA, plateNumber: plate, tripA: a.tripNumber || a.id, tripB: b.tripNumber || b.id, tripAId: a.id, tripBId: b.id, overlapStart: new Date(overlap.start).toISOString(), overlapEnd: new Date(overlap.end).toISOString(), resolution: `Reassign truck ${plate} on trip ${a.tripNumber || a.id} or trip ${b.tripNumber || b.id}.` },
+            message: `Truck ${plate} is double-booked between trip ${a.tripNumber || a.id} and trip ${b.tripNumber || b.id} (${period}).`,
+          });
+        }
 
-          if (sA && eA && sB && eB && sA < eB && eA > sB) {
-            const oStart = Math.max(sA, sB);
-            const oEnd = Math.min(eA, eB);
-            const periodStr = `${new Date(oStart).toISOString().slice(0, 16).replace('T', ' ')} → ${new Date(oEnd).toISOString().slice(0, 16).replace('T', ' ')}`;
+        if (trailerA && trailerB && String(trailerA) === String(trailerB) && !seenPairs.has(`trailer:${pairKey(a, b)}`)) {
+          seenPairs.add(`trailer:${pairKey(a, b)}`);
+          const trlObj = trailersById[trailerA] || a.trailer || b.trailer || a.truck?.trailer;
+          const trlPlate = trlObj?.plateNumber || trailerA;
+          add({
+            level: 'blocking', code: 'TRAILER_OVERLAP', tripId: a.id, resourceId: trailerA,
+            params: { trailerId: trailerA, trailerPlate: trlPlate, tripA: a.tripNumber || a.id, tripB: b.tripNumber || b.id, tripAId: a.id, tripBId: b.id, overlapStart: new Date(overlap.start).toISOString(), overlapEnd: new Date(overlap.end).toISOString(), resolution: `Reassign trailer ${trlPlate} on trip ${a.tripNumber || a.id} or trip ${b.tripNumber || b.id}.` },
+            message: `Trailer ${trlPlate} is double-booked between trip ${a.tripNumber || a.id} and trip ${b.tripNumber || b.id} (${period}).`,
+          });
+        }
 
-            add({
-              level: 'blocking',
-              code: 'TRAILER_OVERLAP',
-              tripId: trA.id,
-              resourceId: trlId,
-              params: {
-                trailerId: trlId,
-                trailerPlate: trlPlate,
-                tripA: trA.tripNumber || trA.id,
-                tripB: trB.tripNumber || trB.id,
-                tripAId: trA.id,
-                tripBId: trB.id,
-                overlapStart: new Date(oStart).toISOString(),
-                overlapEnd: new Date(oEnd).toISOString(),
-                resolution: `Reassign trailer ${trlPlate} on either trip ${trA.tripNumber || trA.id} or trip ${trB.tripNumber || trB.id}.`,
-              },
-              message: `Trailer ${trlPlate} is double-booked between trip ${trA.tripNumber || trA.id} and trip ${trB.tripNumber || trB.id} (${periodStr}).`,
-            });
-          }
+        const driverA = resolveTripDriver(a)?.entity?.id;
+        const driverB = resolveTripDriver(b)?.entity?.id;
+        if (driverA && driverB && String(driverA) === String(driverB) && !seenPairs.has(`driver:${pairKey(a, b)}`)) {
+          seenPairs.add(`driver:${pairKey(a, b)}`);
+          const driverName = driversById[driverA]?.user?.name || driversById[driverA]?.name || driverA;
+          add({
+            level: 'blocking', code: 'DRIVER_OVERLAP', tripId: a.id, resourceId: driverA,
+            params: { driverId: driverA, driverName, tripA: a.tripNumber || a.id, tripB: b.tripNumber || b.id, tripAId: a.id, tripBId: b.id, overlapStart: new Date(overlap.start).toISOString(), overlapEnd: new Date(overlap.end).toISOString(), resolution: `Reassign driver ${driverName} on trip ${a.tripNumber || a.id} or trip ${b.tripNumber || b.id}.` },
+            message: `Driver ${driverName} is assigned to overlapping trips ${a.tripNumber || a.id} and ${b.tripNumber || b.id} (${period}).`,
+          });
         }
       }
     }
@@ -1182,20 +1206,6 @@ export class PlanningService {
         if (hours > 24) {
           add({ level: 'warning', code: 'WIDE_WINDOW', orderId: order.id, message: `Order ${order.orderNumber || order.id} window spans > 24h.` });
         }
-      }
-    }
-
-    const usedTruck: Record<string, number> = {};
-    for (const trip of trips) {
-      const t = trip as any;
-      if (t.truckId && t.status !== 'completed') {
-        usedTruck[t.truckId] = (usedTruck[t.truckId] || 0) + 1;
-      }
-    }
-    for (const [tid, n] of Object.entries(usedTruck)) {
-      if (n > 1) {
-        const truck = resourcesById[tid];
-        add({ level: 'warning', code: 'TRUCK_MULTIPLE_TRIPS', resourceId: tid, message: `${truck?.plateNumber || tid} is planned for ${n} trips.` });
       }
     }
 
@@ -1282,20 +1292,18 @@ export class PlanningService {
       const overlapping = await this.tripRepo
         .createQueryBuilder('trip')
         .where('trip.truckId = :truckId', { truckId })
-        .andWhere('trip.status NOT IN (:...statuses)', { statuses: ['completed', 'cancelled'] })
+        .andWhere('trip.status IN (:...statuses)', { statuses: ACTIVE_TRIP_STATUSES })
         .andWhere('trip.plannedDeparture < :to AND trip.plannedArrival > :from')
         .setParameters({ truckId, from, to })
         .getMany();
-      // Multiple independent trips on the same truck are supported. Existing
-      // work is a schedule warning that must be reviewed, not a hard block.
       if (overlapping.length > 0) {
         const refs = overlapping.slice(0, 3).map((t: any) => t.tripNumber).filter(Boolean).join(', ');
         add({
-          level: 'warning',
-          code: 'TRUCK_SCHEDULE_OVERLAP',
+          level: 'blocking',
+          code: 'TRUCK_OVERLAP',
           resourceId: truckId,
           params: { date, trips: overlapping.map((t: any) => t.tripNumber || t.id) },
-          message: `Truck already has ${overlapping.length} trip(s) on this date${refs ? ` (${refs})` : ''}. Confirm the new independent trip fits the schedule.`,
+          message: `Truck is already committed to overlapping trip(s) on this date${refs ? ` (${refs})` : ''}. Reassign the truck or move the schedule.`,
         });
       }
     }

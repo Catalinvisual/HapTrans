@@ -31,6 +31,14 @@ export class Invoice {
   @ManyToOne(() => Trip, (trip) => trip.invoices, { onDelete: 'CASCADE' })
   trip: Trip;
 
+  /**
+   * The individual order this invoice was raised for. The unique constraint is
+   * the database-level idempotency guarantee: duplicate completion events and
+   * mobile/network retries can never create a second draft for one order.
+   */
+  @Column({ nullable: true, unique: true })
+  orderId: string;
+
   @ManyToOne(() => Client, (client) => client.invoices, { eager: true, onDelete: 'SET NULL' })
   client: Client;
 

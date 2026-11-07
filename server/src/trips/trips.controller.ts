@@ -16,13 +16,18 @@ export class TripsController {
   ) {}
 
   @Get()
-  findAll(@Request() req: any, @Query("status") status?: string, @Query("truckId") truckId?: string) {
+  findAll(
+    @Request() req: any,
+    @Query("status") status?: string,
+    @Query("truckId") truckId?: string,
+    @Query("activeOnly") activeOnly?: string,
+  ) {
     // Drivers must never receive the fleet-wide list; they only ever see the
     // trips scoped to their own authenticated account.
     if (String(req?.user?.role || '').toLowerCase() === 'driver') {
       return this.service.findForDriver(req.user);
     }
-    return this.service.findAll(status, truckId);
+    return this.service.findAll(status, truckId, activeOnly === 'true' || activeOnly === '1');
   }
 
   @Get("driver/trips")
@@ -109,6 +114,11 @@ export class TripsController {
   @Patch("tasks/:taskId/status")
   updateTaskStatus(@Param("taskId") taskId: string, @Body() body: any, @Request() req: any) {
     return this.service.updateTaskStatus(taskId, body.status, req.user);
+  }
+
+  @Patch("tasks/:taskId/quantities")
+  updateTaskQuantities(@Param("taskId") taskId: string, @Body() body: any, @Request() req: any) {
+    return this.service.updateTaskQuantities(taskId, body, req.user);
   }
 
   @Get(":id/status-history")

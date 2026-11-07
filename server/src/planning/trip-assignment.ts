@@ -69,7 +69,10 @@ export function resolveTripTrailer(trip: any): ResolvedTrailerAssignment {
 /** Driver resolved for compliance checks, falling back to a fully loaded record. */
 export function resolveDriverForCompliance(trip: any, driversById: Record<string, any>): any | null {
   const resolved = resolveTripDriver(trip);
-  const id = resolved.entity?.id;
+  // A trip may carry only `driverId` when the relation was not joined (for
+  // example a lightweight board query). The loaded driver dictionary is still
+  // authoritative, so compliance must not be skipped in that case.
+  const id = resolved.entity?.id || trip?.driverId;
   if (id && driversById[id]) return driversById[id];
-  return resolved.entity || null;
+  return resolved.entity || (trip?.driverId ? driversById[trip.driverId] || null : null);
 }

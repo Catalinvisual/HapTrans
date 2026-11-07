@@ -6,7 +6,10 @@ import { Driver } from '../drivers/driver.entity';
 import { Document, DocumentType } from '../documents/document.entity';
 import { Order, OrderStatus } from '../orders/order.entity';
 
-const ALLOWED_STATUSES = ['driver_accepted', 'loading', 'driving', 'partially_delivered', 'completed'];
+// This legacy route may only record the driver's acceptance. Operational work
+// is advanced through /trips/stops/:id/status, which validates the canonical
+// state machine and updates the trip, stop, order and invoice together.
+const ALLOWED_STATUSES = ['driver_accepted'];
 
 @Injectable()
 export class DriverTripsService {
@@ -65,15 +68,15 @@ export class DriverTripsService {
 
   async updateStatus(userId: string, id: string, status: string) {
     const trip = await this.findOwnedTrip(userId, id);
-    if (!ALLOWED_STATUSES.includes(status)) throw new NotFoundException('Status nepermis');
-    if (String(trip.status) === status) return trip; // idempotent
-    const patch: any = { status };
-    if (status === 'loading' && !trip.actualDeparture) patch.actualDeparture = new Date();
-    if (status === 'completed') patch.actualArrival = new Date();
-    await this.tripsRepo.update(id, patch);
-    if (status === 'completed') {
-      await this.ordersRepo.update({ trip: { id } }, { status: OrderStatus.POD_RECEIVED });
+    if (!ALLOWED_STATUSES.includes(status)) {
+      throw new NotFoundException('Use the stop lifecycle endpoint for this action');
     }
+    if (String(trip.status) === status) return trip; // idempotent
+    const acceptedStatuses = ['dispatched', 'driver_received', 'assigned', 'planned'];
+    if (!acceptedStatuses.includes(String(trip.status).toLowerCase())) {
+      throw new NotFoundException('Trip cannot be accepted in its current state');
+    }
+    await this.tripsRepo.update(id, { status, driverAcceptedAt: new Date() } as any);
     return this.findOwnedTrip(userId, id);
   }
 
@@ -93,7 +96,9 @@ export class DriverTripsService {
       uploadedBy: { id: userId },
     });
     await this.docsRepo.save(doc);
-    await this.ordersRepo.update({ trip: { id } }, { status: OrderStatus.POD_RECEIVED });
+    // A POD belongs to the order(s) on the completed delivery stop, never to
+    // every order in a multi-order trip. Operational completion itself is
+    // written by the stop transition, not by this document upload.
     return this.findOwnedTrip(userId, id);
   }
 }

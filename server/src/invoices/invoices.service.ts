@@ -5,6 +5,7 @@ import * as crypto from 'crypto';
 import { Invoice, InvoiceStatus } from './invoice.entity';
 import { InvoiceItem } from './invoice-item.entity';
 import { Trip } from '../trips/trip.entity';
+import { Order } from '../orders/order.entity';
 import { v2 as cloudinary } from 'cloudinary';
 import { computeAuditChanges } from '../action-logs/diff.util';
 
@@ -187,6 +188,10 @@ export class InvoicesService implements OnModuleInit {
       await this.repo.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "createdAt" SET DEFAULT now()`).catch(() => {});
       await this.repo.query(`ALTER TABLE IF EXISTS "invoices" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT now()`).catch(() => {});
       await this.repo.query(`ALTER TABLE IF EXISTS "invoices" ALTER COLUMN "updatedAt" SET DEFAULT now()`).catch(() => {});
+      // Additive production safety for automatic order drafts. The migration
+      // remains the source of truth; this only repairs pre-migration rows.
+      await this.repo.query(`ALTER TABLE IF EXISTS "invoices" ADD COLUMN IF NOT EXISTS "orderId" uuid`).catch(() => {});
+      await this.repo.query(`CREATE UNIQUE INDEX IF NOT EXISTS "IDX_invoices_order_unique" ON "invoices" ("orderId") WHERE "orderId" IS NOT NULL`).catch(() => {});
       await this.repo.query(`UPDATE "invoices" SET "id" = gen_random_uuid() WHERE "id" IS NULL`).catch(() => {});
       await this.repo.query(`UPDATE "invoices" SET "createdAt" = now() WHERE "createdAt" IS NULL`).catch(() => {});
       await this.repo.query(`UPDATE "invoices" SET "updatedAt" = now() WHERE "updatedAt" IS NULL`).catch(() => {});
@@ -342,6 +347,75 @@ export class InvoicesService implements OnModuleInit {
       }
     }
     return this.findOne(saved.id);
+  }
+
+  /**
+   * Creates exactly one draft invoice for an operationally completed order.
+   * Called from the same persisted delivery-completion transaction as the
+   * stop/order update. It never finalises or sends the invoice.
+   */
+  async createDraftForCompletedOrder(orderId: string, user?: any): Promise<{ invoice: Invoice | null; created: boolean; reason?: string }> {
+    const existing = await this.repo.findOne({ where: { orderId } });
+    if (existing) return { invoice: existing, created: false, reason: 'already_invoiced' };
+
+    const order = await this.repo.manager.getRepository(Order).findOne({
+      where: { id: orderId },
+      relations: ['client', 'trip', 'cargoItems', 'stops'],
+    });
+    if (!order) return { invoice: null, created: false, reason: 'order_not_found' };
+
+    const completedStatuses = ['delivered', 'pod_received', 'completed', 'ready_for_invoice'];
+    if (!completedStatuses.includes(String(order.status || '').toLowerCase())) {
+      return { invoice: null, created: false, reason: 'order_not_completed' };
+    }
+    if (!order.client?.id) {
+      return { invoice: null, created: false, reason: 'client_missing' };
+    }
+
+    const amount = Number(order.price) || 0;
+    const reference = order.orderNumber || order.id;
+    const notes = amount > 0
+      ? `Automatically generated from completed order ${reference}.`
+      : `Automatically generated from completed order ${reference}. Freight rate is missing and must be entered before approval.`;
+
+    try {
+      const invoice = await this.create({
+        orderId,
+        order: { id: orderId },
+        tripId: order.trip?.id || null,
+        clientId: order.client.id,
+        amount,
+        vatPercent: 19,
+        vatType: 'NORMAL',
+        status: InvoiceStatus.DRAFT,
+        issueDate: new Date(),
+        notes,
+        items: amount > 0 ? [{
+          description: `Transport order ${reference}${order.trip?.tripNumber ? ` · ${order.trip.tripNumber}` : ''}`,
+          quantity: 1,
+          unitPrice: amount,
+          vatRate: 19,
+          total: amount,
+        }] : [],
+      }, user);
+
+      if (invoice?.id) {
+        await this.actionLogs.logAction('Invoice', invoice.id, 'AUTO_DRAFT_CREATED', user, {
+          orderId,
+          orderNumber: reference,
+          tripId: order.trip?.id || null,
+          amount,
+          missingRate: amount <= 0,
+        }).catch(() => undefined);
+      }
+      return { invoice: invoice || null, created: true };
+    } catch (error: any) {
+      // A concurrent completion may have won the unique order index. Return the
+      // existing invoice instead of failing the already-successful completion.
+      const raced = await this.repo.findOne({ where: { orderId } }).catch(() => null);
+      if (raced) return { invoice: raced, created: false, reason: 'concurrent_completion' };
+      throw error;
+    }
   }
 
   async approve(id: string, user?: any) {

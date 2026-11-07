@@ -166,7 +166,10 @@ export function deriveOrderStatusForStop(stopType: string, status: string): stri
     if (status === 'arrived' || status === 'unloading') return 'in_transit';
     return null;
   }
-  if (status === 'arrived' || status === 'loading') return 'loading';
+  // Arriving at the pickup only proves the driver is on site. The order does
+  // not become 'loading' until loading has actually started.
+  if (status === 'arrived') return null;
+  if (status === 'loading') return 'loading';
   if (status === 'completed') return 'in_transit';
   return null;
 }
@@ -326,12 +329,14 @@ export function deriveTripStatus(stops: any[]): string {
 
   if (anyDeliveryStarted) {
     if (deliveries.some((s) => s.status === 'completed')) return 'partially_delivered';
-    // The delivery operation is the trip's current stage: once unloading has
-    // started the trip is "unloading", not still "driving to delivery".
+    // Arrival is not unloading. Keep the trip at the delivery address until
+    // the driver actually starts the unloading operation.
     if (deliveries.some((s) => s.status === 'unloading')) return 'unloading';
+    if (deliveries.some((s) => s.status === 'arrived')) return 'at_delivery';
     return 'driving';
   }
   if (allPickupsCompleted) return 'driving';
-  if (anyPickupActive) return 'loading';
+  if (pickups.some((s) => s.status === 'arrived')) return 'at_pickup';
+  if (pickups.some((s) => s.status === 'loading')) return 'loading';
   return 'started';
 }

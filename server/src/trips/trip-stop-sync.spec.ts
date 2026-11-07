@@ -50,7 +50,12 @@ describe('TripsService.updateStopStatus — driver action synchronisation', () =
         findOne: jest.fn(async (_entity: string, opts: any) =>
           opts?.where?.id === 'stop-2' ? delivery : stop,
         ),
-        find: jest.fn(async () => [stop, delivery]),
+        find: jest.fn(async (entity: string) => entity === 'StopTask'
+          ? [
+              { id: 'task-1', type: 'load', order: { id: 'order-1' }, stop },
+              { id: 'task-2', type: 'unload', order: { id: 'order-1' }, stop: delivery },
+            ]
+          : [stop, delivery]),
         save: jest.fn(async (_entity: string, value: any) => value),
         update: jest.fn(async () => ({ affected: 1 })),
       },
@@ -81,9 +86,11 @@ describe('TripsService.updateStopStatus — driver action synchronisation', () =
 
     expect(stop.status).toBe('arrived');
     expect(stop.ata).toBeInstanceOf(Date);
-    // trip leaves "accepted" as soon as the driver is at the loading site
-    expect(repo.update).toHaveBeenCalledWith('trip-1', expect.objectContaining({ status: 'loading' }));
-    expect(repo.manager.update).toHaveBeenCalledWith('Order', { id: 'order-1' }, expect.objectContaining({ status: 'loading', operationalStatus: 'ARRIVED_AT_PICKUP' }));
+    // Arrival is distinct from loading: the trip/order may not become Loading
+    // until the driver separately presses Start Loading.
+    expect(repo.update).toHaveBeenCalledWith('trip-1', expect.objectContaining({ status: 'at_pickup' }));
+    expect(repo.manager.update).toHaveBeenCalledWith('Order', { id: 'order-1' }, expect.objectContaining({ operationalStatus: 'ARRIVED_AT_PICKUP' }));
+    expect(repo.manager.update).not.toHaveBeenCalledWith('Order', { id: 'order-1' }, expect.objectContaining({ status: 'loading' }));
 
     await service.updateStopStatus('stop-1', 'loading', driverUser);
     expect(stop.loadingStartedAt).toBeInstanceOf(Date);

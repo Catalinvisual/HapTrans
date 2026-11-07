@@ -217,7 +217,10 @@ export function legacyOrderStatusForStop(stopTypeValue: string, status: string):
   const type = stopType({ type: stopTypeValue });
   const s = String(status || '').toLowerCase();
   if (type === 'pickup') {
-    if (s === 'arrived' || s === 'loading') return 'loading';
+    // Arrival is not the start of loading. Keeping this distinction here keeps
+    // the order badge consistent with the trip and stop badges.
+    if (s === 'arrived') return null;
+    if (s === 'loading') return 'loading';
     if (s === 'completed') return 'in_transit';
     return null;
   }

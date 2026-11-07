@@ -20,6 +20,7 @@ import { ActionLogsService } from '../action-logs/action-logs.service';
 import { DocumentsService } from '../documents/documents.service';
 import { DocumentType } from '../documents/document.entity';
 import { DeliveryIncident } from './delivery-incident.entity';
+import { localizeStopEvent, localizeTripEvent } from './trip-notification-i18n';
 import {
   deriveOperationalStatus,
   deriveOrderOperationalStatus,
@@ -60,10 +61,12 @@ const TRIP_STATUS_FLOW: Record<string, string[]> = {
   [TripStatus.PLANNED]: [TripStatus.PLANNING, TripStatus.ASSIGNED, TripStatus.DISPATCHED, TripStatus.CANCELLED],
   [TripStatus.ASSIGNED]: [TripStatus.PLANNING, TripStatus.PLANNED, TripStatus.DISPATCHED, TripStatus.CANCELLED],
   [TripStatus.DISPATCHED]: [TripStatus.PLANNING, TripStatus.PLANNED, TripStatus.ASSIGNED, TripStatus.DRIVER_ACCEPTED, TripStatus.STARTED, TripStatus.CANCELLED],
-  [TripStatus.DRIVER_ACCEPTED]: [TripStatus.DISPATCHED, TripStatus.LOADING, TripStatus.STARTED, TripStatus.DRIVING, TripStatus.CANCELLED],
-  [TripStatus.LOADING]: [TripStatus.STARTED, TripStatus.DRIVING, TripStatus.CANCELLED],
-  [TripStatus.STARTED]: [TripStatus.LOADING, TripStatus.DRIVING, TripStatus.PARTIALLY_DELIVERED, TripStatus.COMPLETED, TripStatus.CANCELLED],
-  [TripStatus.DRIVING]: [TripStatus.UNLOADING, TripStatus.PARTIALLY_DELIVERED, TripStatus.COMPLETED, TripStatus.CANCELLED],
+  [TripStatus.DRIVER_ACCEPTED]: [TripStatus.DISPATCHED, TripStatus.STARTED, TripStatus.CANCELLED],
+  [TripStatus.STARTED]: [TripStatus.AT_PICKUP, TripStatus.LOADING, TripStatus.DRIVING, TripStatus.PARTIALLY_DELIVERED, TripStatus.COMPLETED, TripStatus.CANCELLED],
+  [TripStatus.AT_PICKUP]: [TripStatus.LOADING, TripStatus.CANCELLED],
+  [TripStatus.LOADING]: [TripStatus.DRIVING, TripStatus.CANCELLED],
+  [TripStatus.DRIVING]: [TripStatus.AT_DELIVERY, TripStatus.UNLOADING, TripStatus.PARTIALLY_DELIVERED, TripStatus.COMPLETED, TripStatus.CANCELLED],
+  [TripStatus.AT_DELIVERY]: [TripStatus.UNLOADING, TripStatus.CANCELLED],
   [TripStatus.UNLOADING]: [TripStatus.PARTIALLY_DELIVERED, TripStatus.COMPLETED, TripStatus.CANCELLED],
   [TripStatus.PARTIALLY_DELIVERED]: [TripStatus.DRIVING, TripStatus.COMPLETED, TripStatus.CANCELLED],
   [TripStatus.COMPLETED]: [TripStatus.CLOSED, TripStatus.CANCELLED],
@@ -95,7 +98,7 @@ export class TripsService {
     @Optional() @InjectRepository(DeliveryIncident) private incidentsRepo?: Repository<DeliveryIncident>,
   ) {}
 
-  async findAll(status?: string, truckId?: string) {
+  async findAll(status?: string, truckId?: string, activeOnly = false) {
     const findOptions: any = { 
       relations: ['truck', 'truck.driver', 'truck.driver.user', 'driver', 'driver.user', 'trailer', 'stops', 'orders', 'orders.cargoItems', 'costs', 'dispatcher'],
       order: { createdAt: 'DESC' }
@@ -107,6 +110,13 @@ export class TripsService {
     }
     if (truckId) {
       where.truck = { id: truckId };
+    }
+    if (activeOnly && !status) {
+      where.status = In([
+        'planning', 'planned', 'confirmed', 'assigned', 'dispatched',
+        'driver_received', 'driver_accepted', 'started', 'at_pickup', 'loading',
+        'driving', 'at_delivery', 'unloading', 'partially_delivered', 'in_transit',
+      ]);
     }
     if (Object.keys(where).length > 0) {
       findOptions.where = where;
@@ -206,7 +216,7 @@ export class TripsService {
 
       // A trip stage must never contradict the stops the driver already worked
       // (for example "loading" while the truck is at the delivery address).
-      const operational = ['started', 'loading', 'driving', 'partially_delivered', 'in_transit'];
+      const operational = ['started', 'at_pickup', 'loading', 'driving', 'at_delivery', 'unloading', 'partially_delivered', 'in_transit'];
       const derivedStage = deriveTripStatus(((trip as any).stops || []) as any[]);
       if (operational.includes(String((trip as any).status)) && derivedStage) {
         (trip as any).status = derivedStage;
@@ -501,6 +511,24 @@ export class TripsService {
       });
     }
 
+    // The allocation is the auditable quantity record. Persist the reported
+    // rejection next to the order/stop it belongs to; never treat it as
+    // delivered and never replace earlier allocations on other trips.
+    const rejected = Number(saved.affectedQuantity ?? saved.affectedPallets ?? 0);
+    if (orderId && Number.isFinite(rejected) && rejected > 0) {
+      await this.repo.manager
+        .createQueryBuilder()
+        .update('StopTask')
+        .set({
+          rejectedQuantity: rejected,
+          rejectionReason: description,
+          rejectionPhotoUrls: photoIds,
+        })
+        .where('"stopId" = :stopId', { stopId: stop.id })
+        .andWhere('"orderId" = :orderId', { orderId })
+        .execute();
+    }
+
     const source = resolveStatusSource(user);
     await this.actionLogs.logAction('Trip', tripId, 'DELIVERY_INCIDENT_REPORTED', user, {
       incidentId: saved.id,
@@ -668,6 +696,98 @@ export class TripsService {
     return [...ids];
   }
 
+  /** Human operational label used in notifications, never a raw enum. */
+  private stopEventLabel(previous: string, next: string, stopType: string): string {
+    return localizeStopEvent(previous, next, stopType, 'en');
+  }
+
+  /**
+   * Origin-aware notification. A driver action notifies the TMS; it never sends
+   * the driver an echo or a contradictory push about their own tap. A TMS action
+   * notifies the assigned driver only when the change needs their attention.
+   */
+  private async notifyOperationalEvent(
+    trip: any,
+    stop: any,
+    previous: string,
+    next: string,
+    stopType: string,
+    user: any,
+  ) {
+    const source = resolveStatusSource(user);
+    const label = this.stopEventLabel(previous, next, stopType);
+    const driverName = trip?.driver?.user?.name || trip?.truck?.driver?.user?.name || 'Driver';
+    if (source === 'mobile') {
+      try {
+        await this.notificationsService.create({
+          type: 'trip',
+          title: `${driverName}: ${label}`,
+          message: `${trip?.tripNumber || 'Trip'}${stop?.city ? ` · ${stop.city}` : ''}: ${label}.`,
+          relatedId: trip?.id,
+        });
+      } catch (e: any) {
+        // The operational event is already persisted. A notification failure
+        // must never roll it back.
+        console.warn(`TMS notification failed: ${e?.message}`);
+      }
+      return;
+    }
+    if (source === 'tms') {
+      const driverUser = trip?.driver?.user || trip?.truck?.driver?.user;
+      const token = driverUser?.fcmToken;
+      if (!token) return;
+      const driverLabel = localizeStopEvent(previous, next, stopType, driverUser?.language);
+      try {
+        await this.firebaseService.sendPushNotification(
+          token,
+          driverLabel,
+          `${trip?.tripNumber || 'Trip'}${stop?.city ? ` · ${stop.city}` : ''}: ${driverLabel}.`,
+          { tripId: trip?.id, stopId: stop?.id },
+        );
+      } catch (e: any) {
+        console.warn(`Driver push failed: ${e?.message}`);
+      }
+    }
+  }
+
+  /** True only when every delivery allocation for this order is completed. */
+  private async orderDeliveriesCompleted(tripId: string, orderId: string, fallbackType?: string, fallbackStatus?: string): Promise<boolean> {
+    const tasks = (await this.repo.manager.find('StopTask', {
+      where: { order: { id: orderId }, stop: { trip: { id: tripId } } },
+      relations: ['stop'],
+    })) as any[];
+    const deliveryTasks = tasks.filter((task) =>
+      ['unload', 'delivery', 'dropoff'].includes(String(task.type || '').toLowerCase()),
+    );
+    if (deliveryTasks.length === 0) {
+      return fallbackType === 'delivery' && fallbackStatus === 'completed';
+    }
+    return deliveryTasks.every((task) => normalizeStopStatus(task.stop?.status) === 'completed');
+  }
+
+  /**
+   * Automatic draft invoice for one completed order. Idempotent at the service
+   * and database levels. A financial failure is surfaced to the TMS but never
+   * rolls back the operational completion that already happened.
+   */
+  private async ensureDraftInvoice(orderId: string, user: any) {
+    try {
+      const result = await this.invoicesService.createDraftForCompletedOrder(orderId, user);
+      return result;
+    } catch (e: any) {
+      console.error(`Automatic draft invoice failed for order ${orderId}:`, e?.message);
+      try {
+        await this.notificationsService.create({
+          type: 'alert',
+          title: 'Draft invoice could not be generated',
+          message: `Order ${orderId} is operationally complete, but its draft invoice failed: ${e?.message || 'unknown error'}. Retry from Invoices after correcting the data.`,
+          relatedId: orderId,
+        });
+      } catch { /* notification failure is non-fatal */ }
+      return { invoice: null, created: false, reason: 'invoice_failed' as const };
+    }
+  }
+
   async savePod(tripId: string, user: any, data: { orderId?: string; stopId?: string; recipientName: string; signatureBase64?: string; photoUrls?: string[]; notes?: string }) {
     const trip = await this.findOne(tripId);
     if (!trip) throw new NotFoundException('Trip not found');
@@ -734,13 +854,15 @@ export class TripsService {
 
     const orderIds = this.orderIdsForStop(target, trip, data.orderId);
     for (const orderId of orderIds) {
-      const orderPatch: any = { operationalStatus: 'COMPLETED' };
+      const allDeliveriesDone = await this.orderDeliveriesCompleted(tripId, orderId, 'delivery', 'completed');
+      const orderPatch: any = { operationalStatus: allDeliveriesDone ? 'COMPLETED' : 'UNLOADING' };
       // Completion is the only point where the commercial fulfilment status
-      // becomes delivered. Unloading and arrival leave it in transit.
-      if (derived === 'completed' || refreshed.filter((s) => normalizeStopType(s.type, s.sequence) === 'delivery').every((s) => s.status === 'completed')) {
-        orderPatch.status = 'delivered';
-      }
+      // becomes delivered. Other delivery stops may still be outstanding.
+      if (allDeliveriesDone) orderPatch.status = 'delivered';
       await this.repo.manager.update('Order', { id: orderId }, orderPatch);
+      if (allDeliveriesDone) {
+        await this.ensureDraftInvoice(orderId, user);
+      }
     }
 
     const source = resolveStatusSource(user);
@@ -762,6 +884,7 @@ export class TripsService {
       stopId: target.id,
       event: 'POD_SUBMITTED',
     });
+    await this.notifyOperationalEvent(trip, target, String(target.status), 'completed', 'delivery', user);
     return { success: true, message: 'POD saved successfully', operationalStatus: operational };
   }
 
@@ -811,6 +934,11 @@ export class TripsService {
           WHERE "clientRequestId" IS NOT NULL;
         CREATE INDEX IF NOT EXISTS "IDX_delivery_incident_trip" ON "delivery_incidents" ("tripId");
         ALTER TABLE "delivery_incidents" ADD COLUMN IF NOT EXISTS "driverNotes" text;
+        ALTER TABLE "stop_tasks" ADD COLUMN IF NOT EXISTS "loadedQuantity" decimal(10,2);
+        ALTER TABLE "stop_tasks" ADD COLUMN IF NOT EXISTS "deliveredQuantity" decimal(10,2);
+        ALTER TABLE "stop_tasks" ADD COLUMN IF NOT EXISTS "rejectedQuantity" decimal(10,2);
+        ALTER TABLE "stop_tasks" ADD COLUMN IF NOT EXISTS "rejectionReason" text;
+        ALTER TABLE "stop_tasks" ADD COLUMN IF NOT EXISTS "rejectionPhotoUrls" jsonb;
       `);
     } catch (e: any) {
       console.warn(`Failed to auto-migrate stop milestones: ${e?.message}`);
@@ -1046,7 +1174,9 @@ export class TripsService {
     // never reassign vehicles, drivers or prices through this route.
     if (isDriverActor(user)) {
       assertActorMayOperateTrip(existing, user);
-      const driverStatuses = ['driver_received', 'driver_accepted', 'started', 'in_transit'];
+      // Starting, arriving, loading and unloading are stop-level operations.
+      // A driver may never jump the lifecycle by PATCHing a later status here.
+      const driverStatuses = ['driver_received', 'driver_accepted', 'started'];
       if (updateData.status && !driverStatuses.includes(String(updateData.status))) {
         throw new ForbiddenException('Șoferul poate actualiza doar starea operațională a cursei proprii');
       }
@@ -1068,8 +1198,16 @@ export class TripsService {
     // Driver acceptance is idempotent, and starting is impossible before the
     // driver has accepted. These guards are authoritative: hiding a button in
     // the app is never the control.
-    if (isDriverActor(user) && updateData.status === 'started' && !isTripAccepted(existing)) {
-      throw new ConflictException('Trip must be accepted before it can be started.');
+    if (isDriverActor(user) && updateData.status === 'started') {
+      if (!isTripAccepted(existing)) {
+        throw new ConflictException('Trip must be accepted before it can be started.');
+      }
+      const progressed = ((existing as any).stops || []).some(
+        (stop: any) => normalizeStopStatus(stop.status) !== 'pending',
+      );
+      if (progressed) {
+        throw new ConflictException('Trip has already progressed beyond the start stage.');
+      }
     }
 
     // 0. Enforce the status state machine
@@ -1081,11 +1219,10 @@ export class TripsService {
         TripStatus.DISPATCHED,
         TripStatus.CANCELLED,
       ];
-      const isMobileStatus = ['driver_accepted', 'started', 'loading', 'driving', 'partially_delivered', 'completed'].includes(updateData.status);
       const isCancellation = updateData.status === 'cancelled' && existing.status !== 'closed';
       const isDispatch = updateData.status === 'dispatched' && ['planning', 'planned', 'assigned', 'confirmed', 'driver_received', 'dispatched'].includes(existing.status);
 
-      if (!allowed.includes(updateData.status) && !isMobileStatus && !isCancellation && !isDispatch) {
+      if (!allowed.includes(updateData.status) && !isCancellation && !isDispatch) {
         throw new ConflictException(`Invalid transition from ${existing.status} to ${updateData.status}`);
       }
     }
@@ -1147,6 +1284,27 @@ export class TripsService {
         status: updateData.status,
         event: 'TRIP_STATUS_CHANGED',
       });
+      if (source === 'mobile') {
+        const driverName = (existing as any).driver?.user?.name || (existing as any).truck?.driver?.user?.name || 'Driver';
+        await this.notificationsService.create({
+          type: 'trip',
+          title: `${driverName}: ${updateData.status === 'started' ? 'Trip started' : updateData.status === 'driver_accepted' ? 'Trip accepted' : updateData.status}`,
+          message: `${existing.tripNumber || 'Trip'}: ${updateData.status}.`,
+          relatedId: id,
+        }).catch((e: any) => console.warn(`TMS notification failed: ${e?.message}`));
+      } else if (source === 'tms' && ['dispatched', 'assigned', 'cancelled'].includes(String(updateData.status))) {
+        const driverUser = (existing as any).driver?.user || (existing as any).truck?.driver?.user;
+        const token = driverUser?.fcmToken;
+        if (token) {
+          const driverLabel = localizeTripEvent(updateData.status, driverUser?.language);
+          await this.firebaseService.sendPushNotification(
+            token,
+            driverLabel,
+            `${existing.tripNumber || 'Trip'}: ${driverLabel}.`,
+            { tripId: id },
+          ).catch((e: any) => console.warn(`Driver push failed: ${e?.message}`));
+        }
+      }
     }
 
     // 2. Real financial recalculation (CostEngine + PricingEngine)
@@ -1161,12 +1319,14 @@ export class TripsService {
     // 3. Status change notifications & Email Send on Dispatch
     if (dto.status === 'dispatched' && updated) {
       // The push token is the FCM registration token, never the user id.
-      const driverFcmToken = updated.driver?.user?.fcmToken;
+      const driverUser = updated.driver?.user;
+      const driverFcmToken = driverUser?.fcmToken;
       if (driverFcmToken) {
+        const label = localizeTripEvent('dispatched', driverUser?.language);
         await this.firebaseService.sendPushNotification(
           driverFcmToken,
-          'Cursă Nouă Asignată',
-          `Ți-a fost asignată cursa ${updated.tripNumber}. Te rugăm să verifici detaliile în aplicație.`,
+          label,
+          `${updated.tripNumber}: ${label}.`,
           { tripId: updated.id }
         ).catch(err => console.error('FCM send failed', err));
       }
@@ -1383,9 +1543,18 @@ export class TripsService {
     const orderStatus = deriveOrderStatusForStop(stopType, next);
     const orderOperational = deriveOrderOperationalStatus(stopType, next);
     for (const orderId of orderIds) {
-      const patch: any = { operationalStatus: orderOperational };
-      if (orderStatus) patch.status = orderStatus;
+      const allDeliveriesDone = await this.orderDeliveriesCompleted(trip.id, orderId, stopType, next);
+      const patch: any = {
+        operationalStatus: allDeliveriesDone ? 'COMPLETED' : orderOperational,
+      };
+      // A multi-stop order is delivered only after every delivery allocation is
+      // complete. One completed delivery stop must not close the whole order.
+      if (allDeliveriesDone) patch.status = 'delivered';
+      else if (orderStatus && orderStatus !== 'delivered') patch.status = orderStatus;
       await this.repo.manager.update('Order', { id: orderId }, patch);
+      if (allDeliveriesDone) {
+        await this.ensureDraftInvoice(orderId, user);
+      }
     }
 
     const stops = (await this.repo.manager.find('Stop', {
@@ -1422,8 +1591,62 @@ export class TripsService {
       stopId: stop.id,
       event: 'STOP_STATUS_CHANGED',
     });
+    await this.notifyOperationalEvent(trip, stop, previous, next, stopType, user);
 
     return this.findOne(trip.id);
+  }
+
+  /** Records actual loaded/delivered/rejected quantities for one allocation. */
+  async updateTaskQuantities(taskId: string, dto: any, user?: any) {
+    const task = (await this.repo.manager.findOne('StopTask', {
+      where: { id: taskId },
+      relations: ['stop', 'stop.trip', 'stop.trip.driver', 'stop.trip.driver.user', 'stop.trip.truck', 'stop.trip.truck.driver', 'stop.trip.truck.driver.user', 'order'],
+    })) as any;
+    if (!task) throw new NotFoundException('Task not found');
+    const trip = task.stop?.trip;
+    if (trip) assertActorMayOperateTrip(trip, user);
+
+    const num = (value: any): number | null => {
+      if (value === undefined || value === null || value === '') return null;
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed) || parsed < 0) throw new BadRequestException('Quantity must be a non-negative number');
+      return Math.round(parsed * 100) / 100;
+    };
+    const planned = Number(task.quantity || task.pallets || 0);
+    const loaded = num(dto.loadedQuantity);
+    const delivered = num(dto.deliveredQuantity);
+    const rejected = num(dto.rejectedQuantity);
+    if (loaded !== null && planned > 0 && loaded > planned) {
+      throw new BadRequestException(`Loaded quantity ${loaded} exceeds the allocated quantity ${planned}`);
+    }
+    if (delivered !== null && rejected !== null && loaded !== null && delivered + rejected > loaded) {
+      throw new BadRequestException('Delivered plus rejected quantity cannot exceed the loaded quantity');
+    }
+    if (rejected !== null && rejected > 0 && !String(dto.rejectionReason || task.rejectionReason || '').trim()) {
+      throw new BadRequestException('A reason is required when cargo is rejected');
+    }
+
+    const patch: any = {};
+    if (loaded !== null) patch.loadedQuantity = loaded;
+    if (delivered !== null) patch.deliveredQuantity = delivered;
+    if (rejected !== null) patch.rejectedQuantity = rejected;
+    if (dto.rejectionReason !== undefined) patch.rejectionReason = String(dto.rejectionReason || '').trim() || null;
+    if (dto.rejectionPhotoUrls !== undefined) patch.rejectionPhotoUrls = Array.isArray(dto.rejectionPhotoUrls) ? dto.rejectionPhotoUrls : [];
+    await this.repo.manager.update('StopTask', { id: taskId }, patch);
+
+    if (rejected && rejected > 0 && trip) {
+      await this.notificationsService.create({
+        type: 'alert',
+        title: 'Cargo rejection reported',
+        message: `${trip.tripNumber || 'Trip'} · ${task.order?.orderNumber || 'Order'}: ${rejected} rejected. Reason: ${patch.rejectionReason || task.rejectionReason || 'not specified'}.`,
+        relatedId: trip.id,
+      }).catch(() => undefined);
+    }
+
+    await this.actionLogs.logAction('Trip', trip?.id || task.stop?.id, 'QUANTITIES_UPDATED', user, {
+      scope: 'task', taskId, orderId: task.order?.id, ...patch,
+    }, undefined, resolveStatusSource(user));
+    return trip ? this.findOne(trip.id) : task;
   }
 
   async updateTaskStatus(taskId: string, status: string, user?: any) {

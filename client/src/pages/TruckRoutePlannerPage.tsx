@@ -282,10 +282,12 @@ export default function TruckRoutePlannerPage() {
 
   useEffect(() => {
     if (effectiveTruckId) {
-      api.get('/trips', { params: { truckId: effectiveTruckId } })
+      api.get('/trips', { params: { truckId: effectiveTruckId, activeOnly: true } })
         .then((res) => {
           if (Array.isArray(res.data)) {
-            setTruckTrips(res.data.filter((t: any) => !['cancelled', 'closed'].includes(String(t.status).toLowerCase())));
+            // The API already excludes completed history; keep the terminal
+            // filter as a second line of defence for stale cached responses.
+            setTruckTrips(res.data.filter((t: any) => !['completed', 'cancelled', 'closed', 'delivered'].includes(String(t.status).toLowerCase())));
           }
         })
         .catch(() => {});

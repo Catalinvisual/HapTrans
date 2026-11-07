@@ -53,7 +53,7 @@ describe('trip status derives the current operation', () => {
     ).toBe('driving');
     expect(
       deriveTripStatus([...pickupsDone, { type: 'delivery', sequence: 2, status: 'arrived' }]),
-    ).toBe('driving');
+    ).toBe('at_delivery');
   });
 
   it('reports partial delivery and completion separately', () => {

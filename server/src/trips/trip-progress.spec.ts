@@ -57,7 +57,8 @@ describe('trip-progress lifecycle', () => {
   });
 
   it('moves the order with the stop instead of leaving it at assigned', () => {
-    expect(deriveOrderStatusForStop('pickup', 'arrived')).toBe('loading');
+    // Arrival is on-site only; loading has not started yet.
+    expect(deriveOrderStatusForStop('pickup', 'arrived')).toBeNull();
     expect(deriveOrderStatusForStop('pickup', 'loading')).toBe('loading');
     expect(deriveOrderStatusForStop('pickup', 'completed')).toBe('in_transit');
     expect(deriveOrderStatusForStop('delivery', 'arrived')).toBe('in_transit');
@@ -72,14 +73,21 @@ describe('trip-progress lifecycle', () => {
     const delivery = { sequence: 2, type: 'delivery', status: 'pending' };
 
     expect(deriveTripStatus([pickup, delivery])).toBe('started');
-    expect(deriveTripStatus([{ ...pickup, status: 'arrived' }, delivery])).toBe('loading');
+    expect(deriveTripStatus([{ ...pickup, status: 'arrived' }, delivery])).toBe('at_pickup');
+    expect(deriveTripStatus([{ ...pickup, status: 'loading' }, delivery])).toBe('loading');
     expect(deriveTripStatus([{ ...pickup, status: 'completed' }, delivery])).toBe('driving');
     expect(
       deriveTripStatus([
         { ...pickup, status: 'completed' },
         { ...delivery, status: 'arrived' },
       ]),
-    ).toBe('driving');
+    ).toBe('at_delivery');
+    expect(
+      deriveTripStatus([
+        { ...pickup, status: 'completed' },
+        { ...delivery, status: 'unloading' },
+      ]),
+    ).toBe('unloading');
     expect(
       deriveTripStatus([
         { ...pickup, status: 'completed' },

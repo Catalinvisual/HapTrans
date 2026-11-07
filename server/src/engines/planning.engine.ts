@@ -8,6 +8,7 @@ import { StopTask, TaskType } from '../trips/stop-task.entity';
 import { ValidationEngine } from './validation.engine';
 import { OptimizationEngine } from './optimization.engine';
 import { OrderStopType } from '../orders/order-stop.entity';
+import { normalizeStopStatus } from '../trips/trip-progress';
 
 @Injectable()
 export class PlanningEngine {
@@ -61,6 +62,14 @@ export class PlanningEngine {
         const addressKey = os.address.toLowerCase().trim();
         let tripStop = addressToStopMap.get(addressKey);
 
+        const dateTime = (date: any, time: any, fallback: string) => {
+          if (!date) return null;
+          const parsed = new Date(`${String(date).slice(0, 10)}T${time || fallback}:00`);
+          return Number.isNaN(parsed.getTime()) ? null : parsed;
+        };
+        const requestedStart = dateTime(os.dateFrom, os.timeFrom, '00:00');
+        const requestedEnd = dateTime(os.dateTo || os.dateFrom, os.timeUntil, '23:59');
+
         if (!tripStop) {
           const newStopPayload: any = {
             trip: { id: trip.id },
@@ -68,16 +77,46 @@ export class PlanningEngine {
             address: os.address,
             companyName: os.companyName,
             country: os.country,
+            city: os.city,
+            postalCode: os.postalCode,
+            contactPerson: os.contactPerson,
+            phone: os.phone,
             latitude: os.latitude,
             longitude: os.longitude,
             sequence: addressToStopMap.size + 1,
             status: 'pending',
-            type: os.type
+            type: os.type,
+            reference: os.reference || null,
+            timeWindowMin: requestedStart,
+            timeWindowMax: requestedEnd,
           };
           tripStop = this.stopRepo.create(newStopPayload) as any as Stop;
           const savedStop = await this.stopRepo.save(tripStop as any) as any as Stop;
           addressToStopMap.set(addressKey, savedStop);
           tripStop = savedStop;
+        } else if (normalizeStopStatus(tripStop.status) === 'pending') {
+          // The order owns the requested pickup/delivery window. Propagate a
+          // changed date/time onto the existing trip stop instead of leaving a
+          // stale schedule that the Timeline still displays. Never overwrite a
+          // stop already being worked.
+          const patch: any = {
+            timeWindowMin: requestedStart ?? tripStop.timeWindowMin,
+            timeWindowMax: requestedEnd ?? tripStop.timeWindowMax,
+            reference: os.reference || tripStop.reference || null,
+            city: os.city || tripStop.city,
+            postalCode: os.postalCode || tripStop.postalCode,
+            contactPerson: os.contactPerson || tripStop.contactPerson,
+            phone: os.phone || tripStop.phone,
+          };
+          const changed = Object.entries(patch).some(([key, value]) => {
+            const current = (tripStop as any)[key];
+            if (value instanceof Date && current) return new Date(current).getTime() !== value.getTime();
+            return (value ?? null) !== (current ?? null);
+          });
+          if (changed) {
+            Object.assign(tripStop, patch);
+            await this.stopRepo.save(tripStop as any);
+          }
         }
 
         const taskPayload: any = {

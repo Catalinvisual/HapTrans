@@ -53,6 +53,24 @@ export class StopTask {
   @Column({ nullable: true, type: 'integer' })
   quantity: number; // e.g. 5 boxes
 
+  // Per order-trip-stop allocation. `pallets`/`quantity` are the planned
+  // allocation; these columns record what actually happened without rewriting
+  // history when an order is split across trips or only partly loaded.
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  loadedQuantity: number;
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  deliveredQuantity: number;
+
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
+  rejectedQuantity: number;
+
+  @Column({ nullable: true, type: 'text' })
+  rejectionReason: string;
+
+  @Column({ nullable: true, type: 'jsonb' })
+  rejectionPhotoUrls: string[];
+
   @Column({ nullable: true, type: 'text' })
   issueNote: string; // "Driver noted 1 pallet was broken"
 

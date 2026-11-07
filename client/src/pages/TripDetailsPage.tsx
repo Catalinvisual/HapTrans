@@ -26,7 +26,7 @@ import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operat
 import DeliveryIncidentsPanel from '../components/DeliveryIncidentsPanel';
 import { orderIsAdr } from '../lib/adrDetect';
 import { driverDisplayName } from '../lib/driverName';
-import { fmtMoney, fmtMoneySigned, fmtPercent } from '../lib/format';
+import { fmtMoney, fmtMoneySigned, fmtNumber, fmtPercent } from '../lib/format';
 import toast from 'react-hot-toast';
 import { formatDate } from '../lib/dateUtils';
 import { useAuthStore } from '../store/authStore';
@@ -36,6 +36,7 @@ import { archiveAndDownloadPdf } from '../lib/pdfArchiveHelper';
 import PalletIcon from '../components/icons/PalletIcon';
 import WeightKgIcon from '../components/icons/WeightKgIcon';
 import ActivityTimeline from '../components/ActivityTimeline';
+import { summaryText } from '../lib/tripSummaryI18n';
 
 const TRIP_STATUSES = [
   'planning',
@@ -163,6 +164,35 @@ export default function TripDetailsPage() {
   const sortedStops = trip.stops ? [...trip.stops].sort((a: any, b: any) => a.sequence - b.sequence) : [];
   const pickupRef = trip.orders?.map((o: any) => o.loadingReference || o.stops?.find((s: any) => s.type === 'pickup')?.reference || o.customerReference).filter(Boolean).join(', ') || '-';
   const deliveryRef = trip.orders?.map((o: any) => o.unloadingReference || o.stops?.find((s: any) => s.type === 'dropoff')?.reference).filter(Boolean).join(', ') || '-';
+  const pickupStop = sortedStops.find((s: any) => String(s.type).toLowerCase() === 'pickup') || sortedStops[0] || null;
+  const deliveryStop = [...sortedStops].reverse().find((s: any) => ['delivery', 'dropoff'].includes(String(s.type).toLowerCase())) || sortedStops[sortedStops.length - 1] || null;
+  const stopWindow = (stop: any) => {
+    if (!stop) return summaryText(i18n.language, 'not_planned');
+    const from = stop.timeWindowMin || stop.eta;
+    const to = stop.timeWindowMax;
+    if (!from) return summaryText(i18n.language, 'not_planned');
+    const date = formatDate(from);
+    const start = new Date(from).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' });
+    const end = to ? new Date(to).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' }) : null;
+    return `${date} · ${start}${end ? `–${end}` : ''}`;
+  };
+  const cargoTotals = (trip.orders || []).reduce((acc: any, order: any) => {
+    for (const item of order.cargoItems || []) {
+      acc.weight += Number(item.weightKg) || 0;
+      acc.volume += Number(item.volumeCbm) || 0;
+      acc.ldm += Number(item.ldm) || 0;
+      if (String(item.unit || 'pallet').toLowerCase() === 'pallet') acc.pallets += Number(item.quantity) || 0;
+    }
+    return acc;
+  }, { weight: 0, volume: 0, ldm: 0, pallets: 0 });
+  const totalPallets = cargoTotals.pallets;
+  const totalWeight = cargoTotals.weight;
+  const totalVolume = cargoTotals.volume;
+  const totalLdm = cargoTotals.ldm;
+  const currentStop = sortedStops.find((s: any) => String(s.status || '').toLowerCase() !== 'completed') || null;
+  const nextAction = !currentStop
+    ? summaryText(i18n.language, 'completed_stops', { done: sortedStops.length, total: sortedStops.length })
+    : `${String(currentStop.status || '').toLowerCase() === 'pending' ? summaryText(i18n.language, 'awaiting') : OPERATIONAL_STATUS_CONFIG[String(currentStop.status || '').toLowerCase()]?.defaultLabel || currentStop.status}`;
   
   // Segment calculations
   const truckMaxWeight = trip.truck?.maxWeightKg || 24000;
@@ -323,6 +353,59 @@ export default function TripDetailsPage() {
         }} className="btn-secondary py-2 px-4 flex items-center gap-2 text-sm font-semibold border-border text-text hover:bg-surface">
               <Navigation className="w-4 h-4" /> {t('clientTrackingLink', 'Link Urmărire Client')}
             </button>}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface/40 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Box className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-black text-text">{summaryText(i18n.language, 'summary')}</h2>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold text-text-secondary">
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1"><Truck className="h-3 w-3" />{trip.truck?.plateNumber || summaryText(i18n.language, 'not_available')}</span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1">{trip.trailer?.plateNumber || summaryText(i18n.language, 'not_available')}</span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1"><User className="h-3 w-3" />{driverDisplayName(trip.driver) || trip.carrierDriverName || summaryText(i18n.language, 'not_available')}</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-3">
+          <div className="rounded-xl border border-blue-200/60 bg-blue-50/40 p-3">
+            <p className="text-[10px] font-black uppercase tracking-wide text-blue-700">{summaryText(i18n.language, 'pickup')}</p>
+            <p className="mt-1 truncate text-sm font-black text-text">{pickupStop?.companyName || pickupStop?.city || '—'}</p>
+            <p className="mt-0.5 line-clamp-2 text-[11px] font-medium text-text-secondary">{pickupStop?.address || summaryText(i18n.language, 'not_planned')}</p>
+            <p className="mt-2 flex items-center gap-1 text-[11px] font-bold text-text"><Calendar className="h-3.5 w-3.5" />{stopWindow(pickupStop)}</p>
+            <p className="mt-1 text-[11px] font-semibold text-text-secondary">{summaryText(i18n.language, 'loading_ref')}: <b className="text-text">{pickupRef}</b></p>
+          </div>
+          <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/40 p-3">
+            <p className="text-[10px] font-black uppercase tracking-wide text-emerald-700">{summaryText(i18n.language, 'delivery')}</p>
+            <p className="mt-1 truncate text-sm font-black text-text">{deliveryStop?.companyName || deliveryStop?.city || '—'}</p>
+            <p className="mt-0.5 line-clamp-2 text-[11px] font-medium text-text-secondary">{deliveryStop?.address || summaryText(i18n.language, 'not_planned')}</p>
+            <p className="mt-2 flex items-center gap-1 text-[11px] font-bold text-text"><Calendar className="h-3.5 w-3.5" />{stopWindow(deliveryStop)}</p>
+            <p className="mt-1 text-[11px] font-semibold text-text-secondary">{summaryText(i18n.language, 'unloading_ref')}: <b className="text-text">{deliveryRef}</b></p>
+          </div>
+          <div className="rounded-xl border border-border bg-surface/40 p-3">
+            <p className="text-[10px] font-black uppercase tracking-wide text-text-muted">{summaryText(i18n.language, 'cargo')}</p>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] font-bold text-text">
+              <span>{summaryText(i18n.language, 'pallets')}: {fmtNumber(totalPallets)}</span>
+              <span>{summaryText(i18n.language, 'weight')}: {fmtNumber(totalWeight)} kg</span>
+              <span>{summaryText(i18n.language, 'volume')}: {fmtNumber(totalVolume)} m³</span>
+              <span>{summaryText(i18n.language, 'ldm')}: {fmtNumber(totalLdm)}</span>
+            </div>
+            <div className="mt-3 border-t border-border pt-2">
+              <p className="text-[10px] font-black uppercase tracking-wide text-text-muted">{summaryText(i18n.language, 'progress')}</p>
+              <p className="mt-1 text-[11px] font-bold text-text">{summaryText(i18n.language, 'current_stop')}: {currentStop?.city || currentStop?.companyName || '—'}</p>
+              <p className="text-[11px] font-semibold text-text-secondary">{summaryText(i18n.language, 'next_action')}: {nextAction}</p>
+            </div>
+          </div>
+        </div>
+        <div className="border-t border-border px-4 py-2 text-[11px] font-semibold text-text-secondary">
+          {(trip.orders || []).length === 0 ? summaryText(i18n.language, 'no_orders') : (trip.orders || []).map((o: any) => (
+            <div key={o.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border/50 py-1 last:border-0">
+              <span className="font-black text-text">{summaryText(i18n.language, 'order')} {o.orderNumber || o.id}</span>
+              <span>{summaryText(i18n.language, 'loading_ref')}: <b>{o.loadingReference || o.stops?.find((s: any) => s.type === 'pickup')?.reference || '—'}</b></span>
+              <span>{summaryText(i18n.language, 'unloading_ref')}: <b>{o.unloadingReference || o.stops?.find((s: any) => s.type === 'dropoff')?.reference || '—'}</b></span>
+            </div>
+          ))}
         </div>
       </div>
 

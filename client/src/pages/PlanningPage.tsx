@@ -1259,7 +1259,7 @@ function TripDetailDrawer({
   
   const isPlanning = ['planning', 'planned', 'assigned'].includes(st);
   const isConfirmed = st === 'confirmed' || st === 'assigned';
-  const isDispatched = ['dispatched', 'driver_accepted', 'started', 'driving', 'partially_delivered'].includes(st);
+  const isDispatched = ['dispatched', 'driver_accepted', 'started', 'at_pickup', 'loading', 'driving', 'at_delivery', 'unloading', 'partially_delivered'].includes(st);
   const isCompleted = ['completed', 'closed', 'delivered'].includes(st);
   const tone = planningTone(st);
   const col = { border: tone.border, text: tone.text, bg: tone.soft };

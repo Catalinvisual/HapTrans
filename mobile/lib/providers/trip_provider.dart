@@ -150,6 +150,32 @@ class TripProvider extends ChangeNotifier {
     }
   }
 
+  /// Persists actual loaded/delivered/rejected quantities for one allocation.
+  /// A rejection requires a free-text reason and may carry photo evidence.
+  Future<String?> updateTaskQuantities(
+    String token,
+    String taskId, {
+    double? loadedQuantity,
+    double? deliveredQuantity,
+    double? rejectedQuantity,
+    String? rejectionReason,
+    List<String>? rejectionPhotoUrls,
+  }) async {
+    try {
+      await _dio(token).patch('/trips/tasks/$taskId/quantities', data: {
+        if (loadedQuantity != null) 'loadedQuantity': loadedQuantity,
+        if (deliveredQuantity != null) 'deliveredQuantity': deliveredQuantity,
+        if (rejectedQuantity != null) 'rejectedQuantity': rejectedQuantity,
+        if (rejectionReason != null) 'rejectionReason': rejectionReason,
+        if (rejectionPhotoUrls != null) 'rejectionPhotoUrls': rejectionPhotoUrls,
+      });
+      await silentReloadTrips(token);
+      return null;
+    } catch (e) {
+      return _errorText(e);
+    }
+  }
+
   /// Attributed status history for the trip detail timeline.
   Future<List<Map<String, dynamic>>> statusHistory(String token, String tripId) async {
     try {
