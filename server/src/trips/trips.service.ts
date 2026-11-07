@@ -46,6 +46,8 @@ import {
   normalizeStopStatus,
   normalizeStopType,
   driverActionForStop,
+  driverTripAction,
+  isTripAccepted,
   driverTripPriority,
   sortDriverTrips,
   resolveStatusSource,
@@ -236,6 +238,29 @@ export class TripsService {
           if (d?.order && orderIds.has(String(d.order.id))) return true;
           return !d?.order && orderIds.size === 1; // trip-level CMR on a single-order trip
         });
+      }
+
+      // The trip-level action is authoritative. Stop actions are exposed only
+      // after acceptance/start, so the driver app cannot pair an ACCEPTED trip
+      // with "Accept trip" or with a stop action that precedes starting.
+      const nextAction = driverTripAction(trip, ((trip as any).stops || []) as any[]);
+      (trip as any).nextAction = nextAction;
+      (trip as any).allowedActions = nextAction ? [nextAction] : [];
+      (trip as any).acceptanceRequired = nextAction?.kind === 'accept';
+      (trip as any).assignmentStatus = isTripAccepted(trip) ? 'accepted' : 'pending';
+      (trip as any).completionEligibility = {
+        eligible: (trip as any).operationalStatus === 'COMPLETED',
+        hasOpenIncident: Boolean((trip as any).hasOpenIncident),
+        podRequired: Boolean((trip as any).podRequired),
+      };
+      if (nextAction?.kind !== 'arrive_pickup' && nextAction?.kind !== 'start_loading' &&
+          nextAction?.kind !== 'complete_loading' && nextAction?.kind !== 'arrive_delivery' &&
+          nextAction?.kind !== 'start_unloading' && nextAction?.kind !== 'complete_delivery') {
+        for (const stop of ((trip as any).stops || []) as any[]) stop.allowedActions = [];
+      } else {
+        for (const stop of ((trip as any).stops || []) as any[]) {
+          if (String(stop.id) !== String(nextAction.stopId)) stop.allowedActions = [];
+        }
       }
     }
 
@@ -1023,6 +1048,18 @@ export class TripsService {
       }
     }
 
+    // Driver acceptance is idempotent, and starting is impossible before the
+    // driver has accepted. These guards are authoritative: hiding a button in
+    // the app is never the control.
+    if (isDriverActor(user)) {
+      if (updateData.status === 'driver_accepted' && isTripAccepted(existing)) {
+        return existing;
+      }
+      if (updateData.status === 'started' && !isTripAccepted(existing)) {
+        throw new ConflictException('Trip must be accepted before it can be started.');
+      }
+    }
+
     // 0. Enforce the status state machine
     if (updateData.status && updateData.status !== existing.status) {
       const allowed = TRIP_STATUS_FLOW[existing.status] || [
@@ -1277,6 +1314,16 @@ export class TripsService {
     const trip = stop.trip;
     if (!trip) throw new NotFoundException('Trip not found');
     assertActorMayOperateTrip(trip, user);
+
+    if (isDriverActor(user)) {
+      if (!isTripAccepted(trip)) {
+        throw new ConflictException('Trip must be accepted before a stop can be worked.');
+      }
+      const op = String(trip.operationalStatus || '').toUpperCase();
+      if (op === 'ACCEPTED' || String(trip.status) === 'driver_accepted') {
+        throw new ConflictException('Trip must be started before a stop can be worked.');
+      }
+    }
 
     const next = String(status || '').toLowerCase();
     if (!isStopStatus(next)) {

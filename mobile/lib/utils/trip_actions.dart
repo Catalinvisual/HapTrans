@@ -132,9 +132,89 @@ TripNextAction? actionForStop(Map<String, dynamic>? stop) {
   return null;
 }
 
+Map<String, dynamic>? _map(Object? value) {
+  if (value is Map) return Map<String, dynamic>.from(value);
+  return null;
+}
+
+/// The authoritative trip-level action returned by the backend.
+///
+/// `allowedActions` may contain trip actions (accept/start) or the current stop
+/// action. Only the first two belong in the offer slot; stop actions are handled
+/// by [nextActionForTrip].
+String? _backendTripKind(Map<String, dynamic> trip) {
+  final next = _map(trip['nextAction']);
+  final nextKind = next?['kind']?.toString();
+  if (nextKind == 'accept' || nextKind == 'start') return nextKind;
+
+  final allowed = trip['allowedActions'];
+  if (allowed is List) {
+    for (final item in allowed) {
+      final action = _map(item);
+      final kind = action?['kind']?.toString();
+      if (kind == 'accept' || kind == 'start') return kind;
+    }
+  }
+  return null;
+}
+
+bool _isAccepted(Map<String, dynamic> trip) {
+  final status = (trip['status'] ?? '').toString().toLowerCase();
+  final operational = (trip['operationalStatus'] ?? '').toString().toUpperCase();
+  if (trip['driverAcceptedAt'] != null) return true;
+  if (status == 'driver_accepted') return true;
+  if (const [
+    'started',
+    'loading',
+    'driving',
+    'unloading',
+    'at_pickup',
+    'at_delivery',
+    'in_transit',
+    'partially_delivered',
+  ].contains(status)) return true;
+  return const [
+    'ACCEPTED',
+    'EN_ROUTE_TO_PICKUP',
+    'ARRIVED_AT_PICKUP',
+    'LOADING',
+    'EN_ROUTE_TO_DELIVERY',
+    'ARRIVED_AT_DELIVERY',
+    'UNLOADING',
+    'COMPLETED',
+  ].contains(operational);
+}
+
+bool _hasWorkedStop(Map<String, dynamic> trip) {
+  for (final stop in sortedStops(trip)) {
+    final status = stopStatus(stop);
+    if (status != 'pending' && status != 'completed') return true;
+    if (status == 'completed') return true;
+  }
+  return false;
+}
+
 /// The next action of the trip: the first stop that is not completed.
 TripNextAction? nextActionForTrip(Map<String, dynamic> trip) {
+  if (!_isAccepted(trip)) return null;
+  final status = (trip['status'] ?? '').toString().toLowerCase();
+  final operational = (trip['operationalStatus'] ?? '').toString().toUpperCase();
+  if (status == 'driver_accepted' || operational == 'ACCEPTED') return null;
+
   final stops = sortedStops(trip);
+  final backend = _map(trip['nextAction']);
+  final backendKind = backend?['kind']?.toString();
+  final backendStopId = backend?['stopId']?.toString();
+  if (backendKind != null && backendKind != 'accept' && backendKind != 'start') {
+    for (final stop in stops) {
+      if (backendStopId != null && backendStopId.isNotEmpty && stop['id']?.toString() != backendStopId) {
+        continue;
+      }
+      final action = _build(backendKind, stop, backend?['status']?.toString());
+      if (action != null) return action;
+    }
+  }
+
   for (final stop in stops) {
     if (stopStatus(stop) == 'completed') continue;
     return actionForStop(stop);
@@ -146,24 +226,40 @@ TripNextAction? nextActionForTrip(Map<String, dynamic> trip) {
 ///
 /// A newly assigned trip starts with **Accept trip**, not with an extra
 /// "received" acknowledgement: the driver has one decision to make and the
-/// backend records who accepted and when.
+/// backend records who accepted and when. Once accepted (by status, canonical
+/// operational state or timestamp), Accept trip is never offered again.
 String? tripOfferKind(Map<String, dynamic> trip) {
-  final status = (trip['status'] ?? '').toString();
+  final status = (trip['status'] ?? '').toString().toLowerCase();
+  final operational = (trip['operationalStatus'] ?? '').toString().toUpperCase();
   if (status == 'cancelled' || status == 'completed' || status == 'closed' || status == 'rejected') {
     return null;
   }
-  if (status == 'driver_accepted') return 'start';
-  const started = [
-    'started',
-    'loading',
-    'driving',
-    'unloading',
-    'at_pickup',
-    'at_delivery',
-    'in_transit',
-    'partially_delivered',
-  ];
-  if (started.contains(status)) return null;
+  if (const ['COMPLETED', 'CANCELLED', 'REJECTED'].contains(operational)) return null;
+
+  final backendKind = _backendTripKind(trip);
+  if (backendKind == 'start') return 'start';
+
+  final accepted = _isAccepted(trip);
+  if (accepted) {
+    // A backend accept action can only be stale. Ignore it and derive from
+    // the persisted acceptance state instead of showing Accept trip again.
+    if (status == 'driver_accepted' || operational == 'ACCEPTED') {
+      return _hasWorkedStop(trip) ? null : 'start';
+    }
+    const active = [
+      'started',
+      'loading',
+      'driving',
+      'unloading',
+      'at_pickup',
+      'at_delivery',
+      'in_transit',
+      'partially_delivered',
+    ];
+    if (active.contains(status) || _hasWorkedStop(trip)) return null;
+    return 'start';
+  }
+
   // Every assigned-but-unworked trip — dispatched, assigned, planned, planning
   // or a legacy "ready" — starts with one decision: accept it.
   return 'accept';

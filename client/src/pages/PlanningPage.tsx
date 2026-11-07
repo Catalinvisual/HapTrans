@@ -2197,9 +2197,42 @@ export default function PlanningPage() {
   const [orderDrawerTab, setOrderDrawerTab] = useState('overview');
   const [assignOrderModal, setAssignOrderModal] = useState<any | null>(null);
   const [selectedAssignTruckId, setSelectedAssignTruckId] = useState<string>('');
+  const [assignmentReview, setAssignmentReview] = useState<{
+    orderIds: string[];
+    truckId: string;
+    tripId: string | null;
+    tripNumber?: string | null;
+    mode: 'existing' | 'new';
+    loading: boolean;
+    error?: string | null;
+    preflight?: any;
+  } | null>(null);
   const [selectedPoolOrderIds, setSelectedPoolOrderIds] = useState<Set<string>>(new Set());
   const [draggingOrderId, setDraggingOrderId] = useState<string | null>(null);
   const [isPoolDragOver, setIsPoolDragOver] = useState(false);
+  const [truckRecommendations, setTruckRecommendations] = useState<any[]>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+
+  useEffect(() => {
+    const orderId = assignOrderModal?.id;
+    if (!orderId) {
+      setTruckRecommendations([]);
+      return;
+    }
+    let cancelled = false;
+    setRecommendationsLoading(true);
+    planningApi.recommendTrucks([orderId])
+      .then((res: any) => {
+        if (!cancelled) setTruckRecommendations(res?.candidates || []);
+      })
+      .catch(() => {
+        if (!cancelled) setTruckRecommendations([]);
+      })
+      .finally(() => {
+        if (!cancelled) setRecommendationsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [assignOrderModal?.id]);
 
   const [wizardConfig, setWizardConfig] = useState<{ orderId: string; initialStep: number; highlight: string | null } | null>(null);
   const [drawerRefreshKey, setDrawerRefreshKey] = useState(0);
@@ -2551,16 +2584,79 @@ export default function PlanningPage() {
       return;
     }
 
-    executeAssign(orderIds, resourceId);
+    reviewAssignment(orderIds, resourceId);
   };
 
-  const executeAssign = async (orderIds: string[], resourceId: string) => {
+  const existingPlanningTrip = (resourceId: string): any | null => {
+    const sameTruck = trips.filter((tr: any) =>
+      String(tr.truck?.id || tr.truckId) === String(resourceId) &&
+      ['planning', 'planned', 'assigned'].includes(String(tr.status).toLowerCase()),
+    );
+    return sameTruck.find((tr: any) => {
+      const departure = tr.plannedDeparture ? String(tr.plannedDeparture).slice(0, 10) : null;
+      return departure === selectedDate;
+    }) || sameTruck[0] || null;
+  };
+
+  const reviewAssignment = async (
+    orderIds: string[],
+    resourceId: string,
+    mode?: 'existing' | 'new',
+    knownTrip?: any,
+  ) => {
+    const candidate = knownTrip || existingPlanningTrip(resourceId);
+    const targetMode = mode || (candidate?.id ? 'existing' : 'new');
+    setAssignmentReview({
+      orderIds,
+      truckId: resourceId,
+      tripId: targetMode === 'existing' ? candidate?.id || null : null,
+      tripNumber: candidate?.tripNumber || null,
+      mode: targetMode,
+      loading: true,
+      error: null,
+      preflight: null,
+    });
+    try {
+      const preflight = targetMode === 'existing' && candidate?.id
+        ? await planningApi.preflightConsolidation(candidate.id, orderIds)
+        : { recommendation: 'CREATE_NEW_TRIP', blockers: await validateNewTrip(orderIds, resourceId), warnings: [], route: null, cargo: null };
+      setAssignmentReview(prev => prev ? { ...prev, loading: false, preflight } : prev);
+    } catch (err: any) {
+      setAssignmentReview(prev => prev ? {
+        ...prev,
+        loading: false,
+        error: err.response?.data?.message || t('cons_error', 'The feasibility check could not be completed.'),
+      } : prev);
+    }
+  };
+
+  const validateNewTrip = async (orderIds: string[], resourceId: string) => {
+    try {
+      const { data } = await api.post('/planning/orders/validate', { orderIds, truckId: resourceId, date: selectedDate });
+      return (data || []).map((c: any) => ({ ...c, level: c.level === 'blocking' ? 'blocking' : 'warning' }));
+    } catch (err: any) {
+      return [{
+        id: 'preflight_failed',
+        level: 'blocking',
+        code: 'PREFLIGHT_FAILED',
+        message: err.response?.data?.message || t('cons_error', 'The feasibility check could not be completed.'),
+      }];
+    }
+  };
+
+  const executeAssign = async (orderIds: string[], resourceId: string, tripId?: string | null) => {
     setLoadingAction('assign');
     try {
-      await api.post('/planning/assign', { orderIds, truckId: resourceId, date: selectedDate });
+      await api.post('/planning/assign', {
+        orderIds,
+        truckId: resourceId,
+        date: selectedDate,
+        ...(tripId ? { tripIds: [tripId] } : {}),
+      });
       toast.success(t('jsx_assignedOk', 'Orders assigned'));
       setSelectedPoolOrderIds(new Set());
       setDraggingOrderId(null);
+      setAssignmentReview(null);
       loadData();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Assignment failed');
@@ -2621,12 +2717,8 @@ export default function PlanningPage() {
         }
       }
 
-      await api.post('/planning/assign', { orderIds, truckId: resourceId, date: selectedDate });
-      toast.success(t('jsx_assignedOk', 'Orders assigned'));
-      setSelectedPoolOrderIds(new Set());
-      setDraggingOrderId(null);
       setPastDateConflict(null);
-      loadData();
+      reviewAssignment(orderIds, resourceId);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Assignment failed');
     } finally {
@@ -2646,6 +2738,14 @@ export default function PlanningPage() {
   const resources: any[] = boardData?.resources || [];
   const trips: any[] = boardData?.trips || [];
   const orders: any[] = boardData?.orders || [];
+  const rankedResources = useMemo(() => {
+    const rank = new Map(truckRecommendations.map((c: any, index: number) => [String(c.truckId), index]));
+    return [...resources].sort((a: any, b: any) => {
+      const ra = rank.has(String(a.id)) ? rank.get(String(a.id))! : Number.MAX_SAFE_INTEGER;
+      const rb = rank.has(String(b.id)) ? rank.get(String(b.id))! : Number.MAX_SAFE_INTEGER;
+      return ra - rb;
+    });
+  }, [resources, truckRecommendations]);
 
   const unassignedTrips = useMemo(() => {
     return trips.filter((tr: any) => !tr.truckId && !tr.truck?.id);
@@ -3847,6 +3947,160 @@ export default function PlanningPage() {
           </div>
         </div>
       )}
+      {assignmentReview && (() => {
+        const preflight = assignmentReview.preflight;
+        const blockers = (preflight?.blockers || []).filter((c: any) => c.level === 'blocking');
+        const warnings = (preflight?.warnings || []).filter((c: any) => c.level !== 'blocking');
+        const blocked = blockers.length > 0 || !!assignmentReview.error;
+        const recommendation = assignmentReview.error
+          ? 'BLOCKED'
+          : preflight?.recommendation || (blocked ? 'BLOCKED' : 'CREATE_NEW_TRIP');
+        const recLabel = recommendation === 'BLOCKED'
+          ? t('cons_blocked', 'Blocked')
+          : recommendation === 'MANUAL_REVIEW'
+            ? t('cons_manual', 'Manual review required')
+            : recommendation === 'ADD_TO_EXISTING_TRIP'
+              ? t('cons_add_existing', 'Add to existing trip')
+              : t('cons_create_new', 'Create a new trip');
+        const recTone = recommendation === 'BLOCKED'
+          ? 'border-red-500/40 bg-red-500/10 text-red-600'
+          : recommendation === 'MANUAL_REVIEW'
+            ? 'border-amber-500/40 bg-amber-500/10 text-amber-700'
+            : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700';
+        return (
+          <div
+            className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+            onClick={() => !loadingAction && setAssignmentReview(null)}
+          >
+            <div
+              className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 space-y-4 animate-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between border-b border-border pb-3 gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                    <TruckIcon className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-base font-black text-text-primary">{t('cons_title', 'Smart consolidation')}</h3>
+                    <p className="text-xs text-text-secondary truncate">
+                      {assignmentReview.orderIds.length} {t('jsx_orders', 'orders')} · {t('cons_truck', 'Truck')} {resources.find((r: any) => String(r.id) === String(assignmentReview.truckId))?.plateNumber || '—'}
+                      {assignmentReview.tripNumber ? ` · ${assignmentReview.tripNumber}` : ''}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setAssignmentReview(null)}
+                  disabled={!!loadingAction}
+                  className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface shrink-0"
+                  aria-label={t('cons_cancel', 'Cancel')}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {assignmentReview.tripId && (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => reviewAssignment(assignmentReview.orderIds, assignmentReview.truckId, 'existing')}
+                    disabled={assignmentReview.loading || !!loadingAction}
+                    className={`rounded-2xl border p-3 text-left transition-all ${assignmentReview.mode === 'existing' ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border bg-surface/30 hover:bg-surface/60'}`}
+                  >
+                    <span className="block text-xs font-black text-text-primary">{t('cons_add_existing', 'Add to existing trip')}</span>
+                    <span className="block text-[10px] text-text-secondary mt-0.5 truncate">{assignmentReview.tripNumber || t('cons_trip', 'Trip')}</span>
+                  </button>
+                  <button
+                    onClick={() => reviewAssignment(assignmentReview.orderIds, assignmentReview.truckId, 'new')}
+                    disabled={assignmentReview.loading || !!loadingAction}
+                    className={`rounded-2xl border p-3 text-left transition-all ${assignmentReview.mode === 'new' ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border bg-surface/30 hover:bg-surface/60'}`}
+                  >
+                    <span className="block text-xs font-black text-text-primary">{t('cons_create_new', 'Create a new trip')}</span>
+                    <span className="block text-[10px] text-text-secondary mt-0.5">{t('cons_new_hint', 'Independent trip on the same truck')}</span>
+                  </button>
+                </div>
+              )}
+
+              {assignmentReview.loading ? (
+                <div className="py-10 flex flex-col items-center gap-3 text-text-secondary">
+                  <Loader2 className="w-7 h-7 animate-spin text-primary" />
+                  <p className="text-xs font-bold">{t('cons_checking', 'Checking capacity, time windows and road route…')}</p>
+                </div>
+              ) : (
+                <>
+                  <div className={`rounded-2xl border p-3.5 flex items-start gap-3 ${recTone}`}>
+                    {recommendation === 'BLOCKED' ? <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" /> : <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />}
+                    <div className="min-w-0">
+                      <p className="text-xs font-black uppercase tracking-wide">{recLabel}</p>
+                      <p className="text-[11px] mt-0.5 opacity-90">
+                        {blocked
+                          ? t('cons_hard_blocker', 'A hard blocker prevents this assignment.')
+                          : warnings.length
+                            ? t('cons_override', 'Review the warnings before confirming.')
+                            : t('cons_no_blockers', 'No blocking or warning conditions were found.')}
+                      </p>
+                    </div>
+                  </div>
+
+                  {preflight?.cargo && (
+                    <div className="rounded-2xl border border-border bg-surface/30 p-3 space-y-2">
+                      <p className="text-[10px] font-black uppercase tracking-wide text-text-secondary">{t('cons_capacity', 'Capacity')}</p>
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        <div><span className="text-text-secondary">{t('cons_before', 'Before')}</span><b className="block text-text-primary">{fmtNumber(preflight.cargo.before?.weight || 0)} kg · {preflight.cargo.before?.pallets || 0} p</b></div>
+                        <div><span className="text-text-secondary">{t('cons_after', 'After')}</span><b className="block text-text-primary">{fmtNumber(preflight.cargo.after?.weight || 0)} kg · {preflight.cargo.after?.pallets || 0} p</b></div>
+                      </div>
+                      <p className="text-[10px] text-text-muted">
+                        {t('cons_limit', 'Vehicle limit')}: {fmtNumber(preflight.cargo.capacity?.maxWeightKg || 0)} kg · {preflight.cargo.capacity?.maxPallets || 0} p · {fmtNumber(preflight.cargo.capacity?.maxLdm || 0, 1)} LDM
+                      </p>
+                    </div>
+                  )}
+
+                  {preflight?.route && (
+                    <div className="rounded-2xl border border-border bg-surface/30 p-3">
+                      <div className="flex items-center justify-between gap-2 text-[11px]">
+                        <span className="font-bold text-text-primary">{preflight.route.status === 'verified' ? t('cons_route_verified', 'Road route verified') : t('cons_route_unverified', 'Route could not be verified')}</span>
+                        {preflight.route.status === 'verified' && (
+                          <span className="text-text-secondary">{t('cons_distance', 'Additional distance')}: <b className="text-text-primary">{fmtNumber(preflight.route.addedDistanceKm || 0, 0)} km</b> · {t('cons_duration', 'Additional time')}: <b className="text-text-primary">{fmtNumber(preflight.route.addedDurationMin || 0, 0)} min</b></span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {blockers.length > 0 && (
+                    <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-3 space-y-1.5">
+                      <p className="text-[10px] font-black uppercase tracking-wide text-red-600">{t('cons_blockers', 'Blockers')}</p>
+                      {blockers.map((c: any) => <p key={c.id || c.code} className="text-[11px] text-red-700 dark:text-red-300">• {c.message}</p>)}
+                    </div>
+                  )}
+                  {warnings.length > 0 && (
+                    <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3 space-y-1.5">
+                      <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">{t('cons_warnings', 'Warnings')}</p>
+                      {warnings.map((c: any) => <p key={c.id || c.code} className="text-[11px] text-amber-800 dark:text-amber-300">• {c.message}</p>)}
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                <button onClick={() => setAssignmentReview(null)} disabled={!!loadingAction} className="btn-secondary text-xs py-2 px-4 font-bold">
+                  {t('cons_cancel', 'Cancel')}
+                </button>
+                <button
+                  onClick={() => executeAssign(
+                    assignmentReview.orderIds,
+                    assignmentReview.truckId,
+                    assignmentReview.mode === 'existing' ? assignmentReview.tripId : null,
+                  )}
+                  disabled={assignmentReview.loading || blocked || !!loadingAction || !!assignmentReview.error}
+                  className="btn-primary text-xs py-2 px-5 font-black flex items-center gap-1.5 shadow-md shadow-primary/20 disabled:opacity-50"
+                >
+                  {loadingAction === 'assign' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                  {t('cons_confirm', 'Confirm assignment')}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       {assignOrderModal && (
         <div
           className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
@@ -3912,9 +4166,17 @@ export default function PlanningPage() {
               <label className="block text-xs font-bold text-text-primary">
                 {t('plan_order_select_truck', 'Selectați camionul')} *
               </label>
+              {recommendationsLoading && (
+                <div className="flex items-center gap-2 text-[10px] text-text-secondary">
+                  <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                  {t('rec_loading', 'Ranking available trucks…')}
+                </div>
+              )}
               <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                {resources.map((truck) => {
-                  const isSelected = (selectedAssignTruckId || resources[0]?.id) === truck.id;
+                {rankedResources.map((truck, index) => {
+                  const recommendation = truckRecommendations.find((c: any) => String(c.truckId) === String(truck.id));
+                  const recommendationIndex = recommendation ? truckRecommendations.indexOf(recommendation) : -1;
+                  const isSelected = (selectedAssignTruckId || rankedResources[0]?.id) === truck.id;
                   return (
                     <div
                       key={truck.id}
@@ -3925,15 +4187,25 @@ export default function PlanningPage() {
                           : 'border-border bg-surface/30 hover:bg-surface/60'
                       }`}
                     >
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${
                           isSelected ? 'bg-primary text-white' : 'border border-border'
                         }`}>
                           {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs font-black text-text-primary">{truck.plateNumber}</span>
+                            {recommendationIndex === 0 && (
+                              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 border border-emerald-500/30">
+                                {t('rec_best', 'Recommended')}
+                              </span>
+                            )}
+                            {recommendation && recommendation.blockers?.length > 0 && (
+                              <span className="text-[9px] font-bold text-red-600" title={recommendation.blockers.map((b: any) => b.message).join(' · ')}>
+                                {t('cons_blocked', 'Blocked')}
+                              </span>
+                            )}
                             {truck.status && (
                               <span className="text-[10px] uppercase font-bold text-text-muted">
                                 ({truck.status})
@@ -3941,13 +4213,20 @@ export default function PlanningPage() {
                             )}
                           </div>
                           {truck.driver?.user?.name && (
-                            <p className="text-[11px] text-text-secondary mt-0.5">
+                            <p className="text-[11px] text-text-secondary mt-0.5 truncate">
                               {driverEntityDisplayName(truck.driver)}
+                            </p>
+                          )}
+                          {recommendation && (
+                            <p className="text-[10px] mt-0.5 truncate text-text-secondary">
+                              {recommendation.routeStatus === 'verified'
+                                ? `${recommendation.distanceKm} km · ${recommendation.durationMin} min · ${t('rec_deadhead', 'empty distance')}${recommendation.source === 'projected_trip_end' ? ` · ${t('rec_future', 'from projected trip end')}` : ''}`
+                                : t('cons_route_unverified', 'Route could not be verified')}
                             </p>
                           )}
                         </div>
                       </div>
-                      <span className="text-[11px] font-bold text-text-muted">
+                      <span className="text-[11px] font-bold text-text-muted shrink-0">
                         {truck.maxPayloadKg ? `${fmtNumber(truck.maxPayloadKg / 1000, 1)}t` : ''}
                       </span>
                     </div>
@@ -3967,7 +4246,7 @@ export default function PlanningPage() {
               </button>
               <button
                 onClick={async () => {
-                  const targetTruckId = selectedAssignTruckId || resources[0]?.id;
+                  const targetTruckId = selectedAssignTruckId || truckRecommendations[0]?.truckId || rankedResources[0]?.id;
                   if (!targetTruckId) {
                     toast.error(t('select_truck_required', 'Vă rugăm să selectați un camion'));
                     return;
@@ -3976,7 +4255,7 @@ export default function PlanningPage() {
                   setAssignOrderModal(null);
                   handleDropOrder(targetTruckId, orderToPlan.id);
                 }}
-                disabled={!!loadingAction || !resources.length}
+                disabled={!!loadingAction || !rankedResources.length}
                 className="btn-primary text-xs py-2 px-5 font-black flex items-center gap-1.5 shadow-md shadow-primary/20"
               >
                 {loadingAction === 'assign' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}

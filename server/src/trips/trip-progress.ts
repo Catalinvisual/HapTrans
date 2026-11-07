@@ -227,6 +227,84 @@ export function sortDriverTrips(trips: any[]): any[] {
   });
 }
 
+const TRIP_FINISHED_STATUSES = ['completed', 'closed', 'cancelled', 'canceled', 'rejected'];
+const TRIP_ACCEPTED_STATUSES = ['driver_accepted'];
+const TRIP_ACTIVE_STATUSES = [
+  'started',
+  'loading',
+  'driving',
+  'unloading',
+  'at_pickup',
+  'at_delivery',
+  'in_transit',
+  'partially_delivered',
+];
+const CANONICAL_ACCEPTED_OR_LATER = [
+  'ACCEPTED',
+  'EN_ROUTE_TO_PICKUP',
+  'ARRIVED_AT_PICKUP',
+  'LOADING',
+  'EN_ROUTE_TO_DELIVERY',
+  'ARRIVED_AT_DELIVERY',
+  'UNLOADING',
+  'COMPLETED',
+];
+
+/**
+ * Whether the assigned driver has already taken the trip. This is the single
+ * acceptance test used by the API, the mobile action payload and transition
+ * guards. The legacy `status`, canonical `operationalStatus` and the persisted
+ * acceptance timestamp all describe the same fact, so none of them may make
+ * the driver app offer "Accept trip" a second time.
+ */
+export function isTripAccepted(trip: any): boolean {
+  const status = String(trip?.status ?? '').trim().toLowerCase();
+  const operational = String(trip?.operationalStatus ?? '').trim().toUpperCase();
+  if (TRIP_ACCEPTED_STATUSES.includes(status)) return true;
+  if (TRIP_ACTIVE_STATUSES.includes(status)) return true;
+  if (CANONICAL_ACCEPTED_OR_LATER.includes(operational)) return true;
+  return Boolean(trip?.driverAcceptedAt);
+}
+
+export type DriverTripActionKind = 'accept' | 'start' | DriverStopActionKind;
+
+export interface DriverTripAction {
+  kind: DriverTripActionKind;
+  status?: string;
+  stopId?: string;
+}
+
+/**
+ * The one authoritative next action for the authenticated driver's trip.
+ *
+ * Acceptance and starting are trip-level actions; every later action belongs to
+ * the first open stop. The helper derives from canonical status/stops rather
+ * than translated labels or cached UI state.
+ */
+export function driverTripAction(trip: any, stops?: any[]): DriverTripAction | null {
+  const status = String(trip?.status ?? '').trim().toLowerCase();
+  const operational = String(trip?.operationalStatus ?? '').trim().toUpperCase();
+  if (TRIP_FINISHED_STATUSES.includes(status)) return null;
+  if (['COMPLETED', 'CANCELLED', 'REJECTED'].includes(operational)) return null;
+
+  const list = (stops ?? trip?.stops ?? []).filter(Boolean);
+  const sorted = [...list].sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0));
+  const hasProgress = sorted.some((stop) => normalizeStopStatus(stop.status) !== 'pending');
+  const active = TRIP_ACTIVE_STATUSES.includes(status) || hasProgress;
+
+  if (!isTripAccepted(trip)) return { kind: 'accept', status: 'driver_accepted' };
+
+  // Accepted but not started: the only valid next action is Start Trip. This
+  // is what stops ACCEPTED from ever being paired with Accept Trip.
+  if (!active) return { kind: 'start', status: 'started' };
+
+  const firstOpen = sorted.find((stop) => normalizeStopStatus(stop.status) !== 'completed');
+  if (!firstOpen) return null;
+  const next = driverActionForStop(firstOpen);
+  if (!next) return null;
+  return { kind: next.kind, status: next.status, stopId: firstOpen.id };
+}
+
 /**
  * Trip status derived from the stops that actually exist, never from the last
  * button that was pressed. Partial completion stays partial.

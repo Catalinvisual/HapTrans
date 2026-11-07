@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, IsNull, Brackets } from 'typeorm';
+import { Repository, In, IsNull, Not, Brackets } from 'typeorm';
 import { Order, OrderStatus } from '../orders/order.entity';
 import { Trip } from '../trips/trip.entity';
 import { Stop } from '../trips/stop.entity';
@@ -1268,19 +1268,266 @@ export class PlanningService {
     return out;
   }
 
+  /**
+   * One feasibility service for drag-and-drop and "Add order to trip".
+   *
+   * Hard blockers are never overrideable. Route figures are only returned when
+   * the configured truck-routing provider answered; missing provider data is
+   * reported as unverified instead of being replaced by a straight-line ETA.
+   */
+  async preflightConsolidation(user: any, tripId: string, orderIds: string[]) {
+    const trip = await this.loadTrip(tripId);
+    if (!trip) throw new NotFoundException('Trip not found.');
+    const companyId = user?.companyId || null;
+    const tripCompanyId = (trip as any).companyId || trip.company?.id || null;
+    if (companyId && tripCompanyId && String(companyId) !== String(tripCompanyId)) {
+      throw new ForbiddenException('Trip does not belong to your company.');
+    }
+    if (!orderIds.length) throw new BadRequestException('At least one order is required.');
+
+    const orders = await this.orderRepo.find({
+      where: { id: In(orderIds) },
+      relations: ['stops', 'cargoItems', 'company', 'trip'],
+    });
+    if (orders.length !== orderIds.length) {
+      throw new NotFoundException('One or more orders were not found.');
+    }
+
+    const blockers: PlanningConflict[] = [];
+    const warnings: PlanningConflict[] = [];
+    const add = (target: PlanningConflict[], c: Omit<PlanningConflict, 'id'>) =>
+      target.push({ id: `${c.code}_${c.orderId || ''}_${target.length}`, ...c });
+
+    if (!['planning', 'planned', 'assigned'].includes(String(trip.status))) {
+      add(blockers, { level: 'blocking', code: 'TRIP_LOCKED', tripId, message: 'Trip is already in progress and cannot be replanned.' });
+    }
+    for (const order of orders) {
+      if (companyId && order.company?.id && String(order.company.id) !== String(companyId)) {
+        add(blockers, { level: 'blocking', code: 'COMPANY_MISMATCH', orderId: order.id, message: 'Order belongs to a different company.' });
+      }
+      if (String(order.status) === 'cancelled') {
+        add(blockers, { level: 'blocking', code: 'ORDER_CANCELLED', orderId: order.id, message: `Order ${order.orderNumber} is cancelled.` });
+      }
+      if (order.trip?.id && String(order.trip.id) !== String(tripId)) {
+        add(blockers, { level: 'blocking', code: 'ALREADY_PLANNED', orderId: order.id, message: `Order ${order.orderNumber} is already on another trip.` });
+      }
+      if (!order.stops?.length) {
+        add(blockers, { level: 'blocking', code: 'NO_STOPS', orderId: order.id, message: `Order ${order.orderNumber} has no stops.` });
+      }
+    }
+
+    const combinedOrders = [
+      ...((trip.orders || []) as any[]).filter((o) => o?.id && !orderIds.includes(o.id)),
+      ...orders,
+    ];
+    const cargo = this.sumCargo(combinedOrders);
+    const truck = trip.truck || null;
+    const trailer = trip.trailer || truck?.trailer || null;
+    const caps = this.resolveTruckCapacity(truck);
+    if (!truck) {
+      add(blockers, { level: 'blocking', code: 'NO_VEHICLE', tripId, message: 'Trip has no vehicle assigned.' });
+    } else {
+      if (cargo.weight > caps.maxWeightKg) add(blockers, { level: 'blocking', code: 'WEIGHT_OVERLOAD', params: { load: cargo.weight, max: caps.maxWeightKg }, message: `Combined weight ${cargo.weight} kg exceeds ${caps.maxWeightKg} kg.` });
+      if (cargo.ldm > caps.maxLdm) add(blockers, { level: 'blocking', code: 'LDM_OVERLOAD', params: { load: cargo.ldm, max: caps.maxLdm }, message: `Combined LDM ${cargo.ldm} exceeds ${caps.maxLdm}.` });
+      if (cargo.volume > caps.maxVolumeCbm) add(blockers, { level: 'blocking', code: 'VOLUME_OVERLOAD', params: { load: cargo.volume, max: caps.maxVolumeCbm }, message: `Combined volume ${cargo.volume} m³ exceeds ${caps.maxVolumeCbm} m³.` });
+      if (cargo.pallets > caps.maxPallets) add(blockers, { level: 'blocking', code: 'PALLET_OVERLOAD', params: { load: cargo.pallets, max: caps.maxPallets }, message: `Combined pallets ${cargo.pallets} exceed ${caps.maxPallets}.` });
+      for (const order of orders) {
+        for (const req of order.equipmentRequirements || []) {
+          if (!vehicleHasEquipment(truck, trailer, req)) {
+            add(blockers, { level: 'blocking', code: 'EQUIPMENT_MISSING', orderId: order.id, params: { req }, message: `Order ${order.orderNumber} requires equipment: ${req}.` });
+          }
+        }
+      }
+    }
+    if (!resolveTripDriver(trip)) {
+      add(blockers, { level: 'blocking', code: 'NO_DRIVER', tripId, message: 'Trip has no assigned driver.' });
+    }
+
+    const existingStops = [...((trip.stops || []) as any[])].sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0));
+    const newStops = orders.flatMap((order) =>
+      [...((order.stops || []) as any[])].sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0)),
+    );
+    for (const stop of newStops) {
+      if (!stop.latitude || !stop.longitude) {
+        add(warnings, { level: 'warning', code: 'STOP_COORDINATES_MISSING', orderId: stop.order?.id, params: { city: stop.city }, message: 'A stop has no coordinates, so road distance cannot be verified.' });
+      }
+      const windowEnd = this.getStopDateEnd(stop);
+      if (windowEnd && trip.plannedDeparture && windowEnd.getTime() < new Date(trip.plannedDeparture).getTime()) {
+        add(warnings, { level: 'warning', code: 'TIME_WINDOW_AT_RISK', orderId: stop.order?.id, params: { city: stop.city }, message: `The window for ${stop.city || 'a stop'} ends before the planned trip departure.` });
+      }
+    }
+
+    // Real provider distance for the additional stops, in sequence. A failed
+    // provider request is surfaced as unverified and never guessed.
+    let addedDistanceKm: number | null = 0;
+    let addedDurationMin: number | null = 0;
+    let routeStatus: 'verified' | 'unverified' = 'verified';
+    let routeProvider: string | null = null;
+    let cursor = existingStops.length
+      ? { lat: Number(existingStops[existingStops.length - 1].latitude), lng: Number(existingStops[existingStops.length - 1].longitude) }
+      : { lat: Number(truck?.currentLat), lng: Number(truck?.currentLng) };
+    for (const stop of newStops) {
+      const lat = Number(stop.latitude);
+      const lng = Number(stop.longitude);
+      if (!Number.isFinite(cursor.lat) || !Number.isFinite(cursor.lng) || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+        routeStatus = 'unverified';
+        addedDistanceKm = null;
+        addedDurationMin = null;
+        break;
+      }
+      const leg = await this.routingService.calculateRoute(cursor.lat, cursor.lng, lat, lng, this.truckRoutingProfile(trip));
+      if (!leg) {
+        routeStatus = 'unverified';
+        addedDistanceKm = null;
+        addedDurationMin = null;
+        break;
+      }
+      routeProvider = leg.source || routeProvider;
+      addedDistanceKm = (addedDistanceKm || 0) + Number(leg.distanceKm || 0);
+      addedDurationMin = (addedDurationMin || 0) + Number(leg.durationMin || 0);
+      cursor = { lat, lng };
+    }
+
+    const recommendation = blockers.length
+      ? 'BLOCKED'
+      : warnings.length
+        ? 'MANUAL_REVIEW'
+        : 'ADD_TO_EXISTING_TRIP';
+
+    return {
+      tripId,
+      orderIds,
+      recommendation,
+      blockers,
+      warnings,
+      cargo: {
+        before: this.sumCargo((trip.orders || []) as any[]),
+        after: cargo,
+        capacity: caps,
+      },
+      route: {
+        status: routeStatus,
+        provider: routeProvider,
+        addedDistanceKm,
+        addedDurationMin,
+        stops: [...existingStops, ...newStops].map((stop, index) => ({
+          sequence: index + 1,
+          type: String(stop.type || '').toLowerCase(),
+          city: stop.city || null,
+          orderId: stop.order?.id || null,
+        })),
+      },
+      driverHours: {
+        status: 'unverified',
+        message: 'Driver working-time availability requires tachograph data for this candidate.',
+      },
+    };
+  }
+
+  /** Rank real trucks for an order using capacity, availability and road distance. */
+  async recommendTrucks(user: any, dto: any) {
+    const companyId = user?.companyId || null;
+    const orderIds: string[] = (dto.orderIds || []).map((x: any) => (typeof x === 'string' ? x : x.id)).filter(Boolean);
+    if (!orderIds.length) throw new BadRequestException('At least one order is required.');
+    const orders = await this.orderRepo.find({
+      where: { id: In(orderIds) },
+      relations: ['stops', 'cargoItems', 'company'],
+    });
+    if (orders.length !== orderIds.length) throw new NotFoundException('One or more orders were not found.');
+    const cargo = this.sumCargo(orders);
+    const firstStop = orders
+      .flatMap((o) => o.stops || [])
+      .sort((a: any, b: any) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0))[0];
+    if (!firstStop?.latitude || !firstStop?.longitude) {
+      return { candidates: [], status: 'unverified', reason: 'ORDER_COORDINATES_MISSING' };
+    }
+
+    const trucks = await this.truckRepo.find({
+      where: this.companyArrayWhere(companyId),
+      relations: ['driver', 'driver.user', 'trailer'],
+    });
+    const activeTrips = await this.tripRepo.find({
+      where: { status: Not(In(['completed', 'cancelled', 'closed'] as any)) },
+      relations: ['stops', 'truck', 'driver'],
+    });
+    const candidates: any[] = [];
+    for (const truck of trucks) {
+      if (['maintenance', 'inactive', 'out_of_service'].includes(String(truck.status))) continue;
+      const capacity = this.resolveTruckCapacity(truck);
+      const blockers: PlanningConflict[] = [];
+      if (cargo.weight > capacity.maxWeightKg || cargo.ldm > capacity.maxLdm || cargo.volume > capacity.maxVolumeCbm || cargo.pallets > capacity.maxPallets) {
+        blockers.push({ id: `capacity_${truck.id}`, level: 'blocking', code: 'CAPACITY_EXCEEDED', resourceId: truck.id, message: 'Order cargo exceeds this vehicle capacity.' });
+      }
+      for (const order of orders) {
+        for (const req of order.equipmentRequirements || []) {
+          if (!vehicleHasEquipment(truck, truck.trailer, req)) {
+            blockers.push({ id: `equipment_${truck.id}_${req}`, level: 'blocking', code: 'EQUIPMENT_MISSING', resourceId: truck.id, params: { req }, message: `Required equipment is missing: ${req}.` });
+          }
+        }
+      }
+      const currentTrip = activeTrips.find((t) => String((t as any).truck?.id || (t as any).truckId) === String(truck.id));
+      const lastStop = currentTrip
+        ? [...((currentTrip.stops || []) as any[])].sort((a, b) => Number(b.sequence || 0) - Number(a.sequence || 0))[0]
+        : null;
+      const originLat = Number(lastStop?.latitude ?? truck.currentLat);
+      const originLng = Number(lastStop?.longitude ?? truck.currentLng);
+      let distanceKm: number | null = null;
+      let durationMin: number | null = null;
+      let routeStatus: 'verified' | 'unverified' = 'unverified';
+      if (Number.isFinite(originLat) && Number.isFinite(originLng)) {
+        const leg = await this.routingService.calculateRoute(originLat, originLng, Number(firstStop.latitude), Number(firstStop.longitude), this.truckRoutingProfile({ truck, trailer: truck.trailer }));
+        if (leg) {
+          distanceKm = Math.round(Number(leg.distanceKm || 0));
+          durationMin = Math.round(Number(leg.durationMin || 0));
+          routeStatus = 'verified';
+        }
+      }
+      const window = this.orderWindow(orders[0]);
+      const arrivalAt = durationMin != null ? new Date(Date.now() + durationMin * 60000) : null;
+      if (window.end && arrivalAt && arrivalAt.getTime() > window.end.getTime()) {
+        blockers.push({ id: `window_${truck.id}`, level: 'blocking', code: 'PICKUP_WINDOW_MISSED', resourceId: truck.id, message: 'The vehicle cannot reach the pickup within its time window.' });
+      }
+      const utilization = capacity.maxWeightKg > 0 ? Math.round((cargo.weight / capacity.maxWeightKg) * 100) : 0;
+      const score = distanceKm == null ? 0 : Math.max(0, 1000 - distanceKm * 4 - utilization);
+      candidates.push({
+        truckId: truck.id,
+        plateNumber: truck.plateNumber,
+        truckType: truck.truckType,
+        driver: truck.driver?.user?.name || truck.driver?.user?.email || null,
+        trailer: truck.trailer?.plateNumber || null,
+        distanceKm,
+        durationMin,
+        routeStatus,
+        utilizationPct: utilization,
+        score,
+        blockers,
+        warnings: routeStatus === 'unverified' ? [{ code: 'ROUTE_UNVERIFIED', message: 'No truck route was available; distance and ETA are not verified.' }] : [],
+        source: lastStop ? 'projected_trip_end' : 'current_position',
+      });
+    }
+    candidates.sort((a, b) => {
+      if (a.blockers.length !== b.blockers.length) return a.blockers.length - b.blockers.length;
+      return b.score - a.score;
+    });
+    return { candidates: candidates.slice(0, 8), status: candidates.some((c) => c.routeStatus === 'verified') ? 'partial' : 'unverified' };
+  }
+
   // ─── Assignment ─────────────────────────────────────────────────────────────
 
   async assignOrders(user: any, dto: any) {
     const companyId = user?.companyId || null;
     const orderIds: string[] = (dto.orderIds || dto.orders || []).map((x: any) => (typeof x === 'string' ? x : x.id)).filter(Boolean);
     if (!orderIds.length) throw new BadRequestException('At least one order is required.');
-    const orders = await this.orderRepo.find({ where: { id: In(orderIds) }, relations: ['stops', 'cargoItems', 'company'] });
+    const orders = await this.orderRepo.find({ where: { id: In(orderIds) }, relations: ['stops', 'cargoItems', 'company', 'trip'] });
     if (orders.length !== orderIds.length) {
       const found = new Set(orders.map((o) => o.id));
       const missing = orderIds.filter((id) => !found.has(id));
       throw new NotFoundException(`Orders not found: ${missing.join(', ')}`);
     }
     for (const o of orders) {
+      if (o.company?.id && companyId && String(o.company.id) !== String(companyId)) {
+        throw new ForbiddenException('Order does not belong to your company.');
+      }
       if (o.trip?.id) throw new BadRequestException(`Order ${o.orderNumber} is already planned on trip ${o.trip.id}.`);
     }
     const undoSnapshots = orders.map((o) => ({ id: o.id, tripId: null, status: o.status }));
@@ -1291,6 +1538,10 @@ export class PlanningService {
     if (tripIds.length) {
       const existingTrip = await this.loadTrip(tripIds[0]);
       if (!existingTrip) throw new NotFoundException('Trip not found.');
+      const tripCompanyId = (existingTrip as any).companyId || existingTrip.company?.id || null;
+      if (companyId && tripCompanyId && String(companyId) !== String(tripCompanyId)) {
+        throw new ForbiddenException('Trip does not belong to your company.');
+      }
       trip = existingTrip;
       if (String(trip.status) !== 'planning' && String(trip.status) !== 'planned' && String(trip.status) !== 'assigned') {
         throw new BadRequestException('Trip is already in progress and cannot accept orders.');

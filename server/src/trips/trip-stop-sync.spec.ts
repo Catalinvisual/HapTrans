@@ -19,7 +19,9 @@ describe('TripsService.updateStopStatus — driver action synchronisation', () =
   beforeEach(() => {
     trip = {
       id: 'trip-1',
-      status: 'driver_accepted',
+      status: 'started',
+      operationalStatus: 'EN_ROUTE_TO_PICKUP',
+      driverAcceptedAt: new Date('2026-11-07T09:00:00.000Z'),
       podRequired: false,
       actualDeparture: null,
       actualArrival: null,
@@ -137,6 +139,13 @@ describe('TripsService.updateStopStatus — driver action synchronisation', () =
 
   it('rejects a driver who does not own the trip', async () => {
     await expect(service.updateStopStatus('stop-1', 'arrived', otherDriver)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(repo.manager.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects a stop action before the accepted trip has been started', async () => {
+    trip.status = 'driver_accepted';
+    trip.operationalStatus = 'ACCEPTED';
+    await expect(service.updateStopStatus('stop-1', 'arrived', driverUser)).rejects.toBeInstanceOf(ConflictException);
     expect(repo.manager.save).not.toHaveBeenCalled();
   });
 });

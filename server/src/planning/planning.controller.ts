@@ -39,6 +39,16 @@ export class PlanningController {
     return this.planningService.validateOrdersForTrip(tripId, body.orderIds || []);
   }
 
+  @Post('trips/:tripId/consolidation-preflight')
+  preflightConsolidation(@Request() req: any, @Param('tripId') tripId: string, @Body() body: any) {
+    return this.planningService.preflightConsolidation(req.user, tripId, body.orderIds || []);
+  }
+
+  @Post('truck-recommendations')
+  recommendTrucks(@Request() req: any, @Body() body: any) {
+    return this.planningService.recommendTrucks(req.user, body);
+  }
+
   @Post('assign')
   assignOrders(@Request() req: any, @Body() body: any) {
     return this.planningService.assignOrders(req.user, body);

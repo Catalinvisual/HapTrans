@@ -233,6 +233,14 @@ export const planningApi = {
     const { data } = await api.post(`/planning/trips/${tripId}/costs/recalculate`);
     return data;
   },
+  preflightConsolidation: async (tripId: string, orderIds: string[]) => {
+    const { data } = await api.post(`/planning/trips/${tripId}/consolidation-preflight`, { orderIds });
+    return data;
+  },
+  recommendTrucks: async (orderIds: string[]) => {
+    const { data } = await api.post('/planning/truck-recommendations', { orderIds });
+    return data;
+  },
   getDriverActivity: async (driverId: string, params?: { from?: string; to?: string }) => {
     const { data } = await api.get(`/telematics/drivers/${driverId}/activity`, { params });
     return data;

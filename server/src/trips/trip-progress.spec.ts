@@ -3,6 +3,8 @@ import {
   assertStopTransition,
   deriveOrderStatusForStop,
   deriveTripStatus,
+  driverTripAction,
+  isTripAccepted,
   resolveStatusSource,
   timestampsForStop,
 } from './trip-progress';
@@ -92,5 +94,44 @@ describe('trip-progress lifecycle', () => {
         { sequence: 3, type: 'delivery', status: 'pending' },
       ]),
     ).toBe('partially_delivered');
+  });
+
+  it('offers accept only before acceptance and never for an accepted trip', () => {
+    const stops = [{ id: 's1', sequence: 1, type: 'pickup', status: 'pending' }];
+    const planned = { status: 'dispatched', operationalStatus: 'PLANNING', stops };
+    const accepted = { status: 'driver_accepted', operationalStatus: 'ACCEPTED', stops };
+
+    expect(driverTripAction(planned, stops)).toMatchObject({ kind: 'accept' });
+    expect(isTripAccepted(planned)).toBe(false);
+    expect(isTripAccepted(accepted)).toBe(true);
+    // Regression: the previously observed Accepted / Accept trip defect.
+    expect(driverTripAction(accepted, stops)).toMatchObject({ kind: 'start', status: 'started' });
+    expect(driverTripAction(accepted, stops)?.kind).not.toBe('accept');
+  });
+
+  it('derives only the valid next action for every operational stage', () => {
+    const pendingPickup = [{ id: 's1', sequence: 1, type: 'pickup', status: 'pending' }];
+    const arrivedPickup = [{ id: 's1', sequence: 1, type: 'pickup', status: 'arrived' }];
+    const loading = [{ id: 's1', sequence: 1, type: 'pickup', status: 'loading' }];
+    const toDelivery = [
+      { id: 's1', sequence: 1, type: 'pickup', status: 'completed' },
+      { id: 's2', sequence: 2, type: 'delivery', status: 'pending' },
+    ];
+    const arrivedDelivery = [
+      { id: 's1', sequence: 1, type: 'pickup', status: 'completed' },
+      { id: 's2', sequence: 2, type: 'delivery', status: 'arrived' },
+    ];
+    const unloading = [
+      { id: 's1', sequence: 1, type: 'pickup', status: 'completed' },
+      { id: 's2', sequence: 2, type: 'delivery', status: 'unloading' },
+    ];
+
+    expect(driverTripAction({ status: 'started', operationalStatus: 'EN_ROUTE_TO_PICKUP', stops: pendingPickup }, pendingPickup)?.kind).toBe('arrive_pickup');
+    expect(driverTripAction({ status: 'loading', operationalStatus: 'ARRIVED_AT_PICKUP', stops: arrivedPickup }, arrivedPickup)?.kind).toBe('start_loading');
+    expect(driverTripAction({ status: 'loading', operationalStatus: 'LOADING', stops: loading }, loading)?.kind).toBe('complete_loading');
+    expect(driverTripAction({ status: 'driving', operationalStatus: 'EN_ROUTE_TO_DELIVERY', stops: toDelivery }, toDelivery)?.kind).toBe('arrive_delivery');
+    expect(driverTripAction({ status: 'driving', operationalStatus: 'ARRIVED_AT_DELIVERY', stops: arrivedDelivery }, arrivedDelivery)?.kind).toBe('start_unloading');
+    expect(driverTripAction({ status: 'unloading', operationalStatus: 'UNLOADING', stops: unloading }, unloading)?.kind).toBe('complete_delivery');
+    expect(driverTripAction({ status: 'completed', operationalStatus: 'COMPLETED', stops: unloading.map((s) => ({ ...s, status: 'completed' })) })).toBeNull();
   });
 });
