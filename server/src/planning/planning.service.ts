@@ -4069,6 +4069,34 @@ export class PlanningService {
 
     if (!routePlan || !routePlan.stops || routePlan.stops.length === 0) {
       routePlan = await this.createRoutePlanFromTrip(tripId);
+    } else {
+      // This is the read path the planner screen uses, so it is where a plan
+      // created before an Order was added must be reconciled. Serving the
+      // persisted stops blindly hid the new Order and routed a partial trip.
+      let currentTripStops: any[] = [];
+      try {
+        currentTripStops = (await this.stopRepo.find({
+          where: { trip: { id: tripId } },
+          relations: ['tasks', 'tasks.order'],
+          order: { sequence: 'ASC' },
+        })) || [];
+      } catch {
+        currentTripStops = [];
+      }
+      // With no stops loaded there is nothing authoritative to compare against,
+      // so the readable plan is kept instead of rebuilding on a guess.
+      if (currentTripStops.length > 0) {
+        const expectedSignature = plannerStopSetSignature(
+          mergePlannerStops(currentTripStops, (trip.orders || []) as any[]),
+        );
+        if (plannerStopSetSignature(routePlan.stops) !== expectedSignature) {
+          try {
+            routePlan = await this.createRoutePlanFromTrip(tripId);
+          } catch {
+            // Keep the readable plan if the rebuild cannot run (e.g. no vehicle).
+          }
+        }
+      }
     }
 
     // Normalize every persisted array before callers spread or filter it. A
