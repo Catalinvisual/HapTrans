@@ -34,6 +34,7 @@ import { asJsonArray } from './route-plan-json';
 import { buildCargoLedger } from './cargo-ledger';
 import { assessLoadingWindow, isLoadStopType, orderPickupWindow, stopArrival } from './loading-window';
 import { etaDeviations } from './eta-deviation';
+import { mergePlannerStops, plannerStopSetSignature } from './route-plan-stops';
 import {
   consolidationCapacity,
   incrementalRoute,
@@ -3712,8 +3713,16 @@ export class PlanningService {
     return { scheduledDate, start, end };
   }
 
+  /** Stops the planner must route for this trip, covering every attached Order. */
+  private plannerStopsForTrip(trip: Trip): any[] {
+    return mergePlannerStops((trip.stops || []) as any[], (trip.orders || []) as any[]);
+  }
+
   private applyRouteSchedule(routePlan: TruckRoutePlan, stops: RoutePlanStop[]) {
     if (!stops.length) return;
+    // Recomputed from scratch on every call: the previous `+=` accumulated the
+    // waiting time of every earlier calculation (140h+ of "scheduled waiting").
+    routePlan.totalWaitingTimeMinutes = 0;
     const tripDeparture = routePlan.trip?.plannedDeparture ? new Date(routePlan.trip.plannedDeparture) : null;
     let cursor = tripDeparture && !isNaN(tripDeparture.getTime())
       ? tripDeparture.getTime()
@@ -4692,7 +4701,14 @@ export class PlanningService {
         order: { stops: { sequence: 'ASC' }, updatedAt: 'DESC' },
       });
     }
-    if (existingPlan?.stops?.length && !forceRebuild) {
+    // A persisted plan must match the trip's current stop set. An Order added
+    // after the plan was created changes that set; serving the old plan hid the
+    // new Order and calculated the route over a partial stop sequence.
+    const currentStopsSignature = plannerStopSetSignature(this.plannerStopsForTrip(trip));
+    const planIsStale = !!existingPlan?.stops?.length
+      && plannerStopSetSignature(existingPlan.stops) !== currentStopsSignature;
+
+    if (existingPlan?.stops?.length && !forceRebuild && !planIsStale) {
       existingPlan.isCurrent = true;
       if (!existingPlan.routeGeometry && existingPlan.routeStatus !== 'failed') {
         await this.applyRoadRoute(existingPlan, existingPlan.stops);
@@ -4701,7 +4717,7 @@ export class PlanningService {
       }
       return (await this.getRoutePlanById(existingPlan.id)) || existingPlan;
     }
-    if (forceRebuild && existingPlan?.id) {
+    if (existingPlan?.id && (forceRebuild || planIsStale)) {
       await this.routePlanStopRepo.delete({ routePlanId: existingPlan.id });
       existingPlan.stops = [];
     }
@@ -4735,21 +4751,10 @@ export class PlanningService {
 
     const savedPlan = await this.routePlanRepo.save(routePlan);
 
-    // Build stops: either from trip.stops, or from trip.orders
-    let rawStopList: any[] = [];
-    if (trip.stops && trip.stops.length > 0) {
-      rawStopList = [...trip.stops];
-    } else if (trip.orders && trip.orders.length > 0) {
-      for (const ord of trip.orders) {
-        const orderStops = (ord.stops || []).slice();
-        for (const os of orderStops) {
-          rawStopList.push({
-            ...os,
-            tasks: [{ type: os.type === 'pickup' ? TaskType.LOAD : TaskType.UNLOAD, order: ord }],
-          });
-        }
-      }
-    }
+    // The trip's own stops are the routing truth; any Order of the trip that
+    // has no stop represented there is appended from its own stop list so a
+    // multi-order trip can never be planned over a single Order's stops.
+    const rawStopList: any[] = this.plannerStopsForTrip(trip);
 
     // Sort stops: strictly place all pickups before deliveries for every order
     const pickups = rawStopList.filter(s => String(s.type).toLowerCase() === 'pickup' || String(s.type).toLowerCase() === 'load');
@@ -4903,6 +4908,18 @@ export class PlanningService {
           await this.routePlanStopRepo.delete({ id: rm.id });
         }
         routePlan.stops = activeStops;
+      }
+    }
+
+    // A persisted plan is only usable while it still describes the trip's
+    // current stop set. This is the read-or-create entry, so it is also where a
+    // plan created before an Order was added gets rebuilt with all stops.
+    if (routePlan?.tripId && routePlan.stops?.length) {
+      try {
+        const synced = await this.createRoutePlanFromTrip(routePlan.tripId, planningDate);
+        if (synced) return synced;
+      } catch {
+        // Fall through to the regular read path when the plan cannot be rebuilt.
       }
     }
 
