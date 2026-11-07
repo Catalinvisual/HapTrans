@@ -32,6 +32,13 @@ import { resolveDriverForCompliance, resolveTripDriver, resolveTripTrailer } fro
 import { withRoutePlanInitLock } from './route-plan-init-lock';
 import { asJsonArray } from './route-plan-json';
 import { resolveTripDriver as resolveAssignedDriver, resolveTripTrailer as resolveAssignedTrailer } from '../trips/driver-assignment';
+import { normalizeTripOperationalStatus } from '../trips/operational-status';
+import {
+  capacityViolations,
+  knownTruckCapacity,
+  missingTruckCapacity,
+  normalizeEquipmentRequirements,
+} from './assignment-capacity';
 import {
   missingVehicleRestrictions,
   resolveRouteRestrictionsState,
@@ -240,11 +247,22 @@ export class PlanningService {
     let pallets = 0;
     let volume = 0;
     for (const o of orders || []) {
-      for (const c of o.cargoItems || []) {
-        weight += Number(c.weightKg) || 0;
-        ldm += Number(c.ldm) || 0;
-        volume += Number(c.volumeCbm) || 0;
-        if (String(c.unit || 'pallet') === 'pallet') pallets += Number(c.quantity) || 0;
+      const items = Array.isArray(o.cargoItems) ? o.cargoItems : [];
+      if (items.length > 0) {
+        for (const c of items) {
+          weight += Number(c.weightKg) || 0;
+          ldm += Number(c.ldm) || 0;
+          volume += Number(c.volumeCbm) || 0;
+          if (String(c.unit || 'pallet').toLowerCase().trim() === 'pallet') {
+            pallets += Number(c.quantity) || 0;
+          }
+        }
+      } else {
+        // Orders created before cargo items existed still carry totals.
+        weight += Number(o.weightKg || o.totalWeightKg) || 0;
+        ldm += Number(o.loadingMeters || o.ldm) || 0;
+        volume += Number(o.volumeCbm || o.totalVolumeCbm) || 0;
+        pallets += Number(o.pallets || o.totalPallets) || 0;
       }
     }
     return { weight: Math.round(weight * 100) / 100, ldm: Math.round(ldm * 100) / 100, pallets, volume: Math.round(volume * 100) / 100 };
@@ -607,6 +625,7 @@ export class PlanningService {
 
     // Resolve resources once, with the same rules used by validation and the UI.
     for (const trip of trips) {
+      normalizeTripOperationalStatus(trip);
       const driverAssignment = resolveTripDriver(trip);
       const trailerAssignment = resolveTripTrailer(trip);
       (trip as any).assignment = {
@@ -838,25 +857,33 @@ export class PlanningService {
           });
         }
 
-        const w = truck.maxWeightKg || 24000;
-        const l = truck.maxLdm || 13.6;
-        const v = truck.maxVolumeCbm || 90;
-        const p = truck.maxPallets || 33;
-        if (tripCargo.weight > w) add({ level: 'blocking', code: 'WEIGHT_OVERLOAD', tripId: t.id, resourceId: truck.id, params: { load: tripCargo.weight, max: w }, message: `Weight ${tripCargo.weight}kg exceeds ${w}kg.` });
-        if (tripCargo.ldm > l) add({ level: 'blocking', code: 'LDM_OVERLOAD', tripId: t.id, resourceId: truck.id, params: { load: tripCargo.ldm, max: l }, message: `LDM ${tripCargo.ldm} exceeds ${l}.` });
-        if (tripCargo.volume > v) add({ level: 'warning', code: 'VOLUME_OVERLOAD', tripId: t.id, resourceId: truck.id, params: { load: tripCargo.volume, max: v }, message: `Volume ${tripCargo.volume}m³ exceeds ${v}m³.` });
-        if (tripCargo.pallets > p) add({ level: 'blocking', code: 'PALLET_OVERLOAD', tripId: t.id, resourceId: truck.id, params: { load: tripCargo.pallets, max: p }, message: `Pallets ${tripCargo.pallets} exceed ${p}.` });
+        const known = knownTruckCapacity(truck);
+        const missing = missingTruckCapacity(known);
+        if (missing.length) {
+          add({
+            level: 'warning', code: 'TRUCK_CAPACITY_INCOMPLETE', tripId: t.id, resourceId: truck.id,
+            params: { fields: missing },
+            message: `Vehicle capacity is incomplete (${missing.join(', ')}). Missing dimensions are unverified.`,
+          });
+        }
+        for (const violation of capacityViolations(tripCargo, known)) {
+          add({
+            level: 'blocking', code: violation.code, tripId: t.id, resourceId: truck.id,
+            params: { field: violation.field, load: violation.actual, max: violation.expected },
+            message: `${violation.field} exceeded: ${violation.actual} > ${violation.expected}.`,
+          });
+        }
 
         if (t.truckType && truck.truckType && t.truckType !== truck.truckType) {
           add({ level: 'warning', code: 'TRUCK_TYPE_MISMATCH', tripId: t.id, resourceId: truck.id, message: `Trip requires ${t.truckType}, got ${truck.truckType}.` });
         }
-        for (const req of t.equipmentRequirements || []) {
+        for (const req of normalizeEquipmentRequirements(t.equipmentRequirements)) {
           if (!vehicleHasEquipment(truck, trailerAssignment.entity || t.trailer, req)) {
             add({ level: 'warning', code: 'EQUIPMENT_MISSING', tripId: t.id, resourceId: truck.id, params: { req }, message: `Vehicle lacks required equipment: ${req}.` });
           }
         }
         for (const o of t.orders || []) {
-          for (const req of o.equipmentRequirements || []) {
+          for (const req of normalizeEquipmentRequirements(o.equipmentRequirements)) {
             if (!vehicleHasEquipment(truck, trailerAssignment.entity || t.trailer, req)) {
               add({ level: 'warning', code: 'ORDER_EQUIPMENT_MISSING', tripId: t.id, orderId: o.id, resourceId: truck.id, params: { req }, message: `Order ${o.orderNumber} requires equipment: ${req}.` });
             }
@@ -1193,18 +1220,31 @@ export class PlanningService {
       const truck = await this.truckRepo.findOne({ where: { id: truckId } });
       if (!truck) throw new NotFoundException('Truck not found.');
       const sum = this.sumCargo(orders);
-      const w = Number(truck.maxWeightKg) || 24000;
-      const l = Number(truck.maxLdm) || 13.6;
-      const v = Number(truck.maxVolumeCbm) || 90;
-      const p = truck.maxPallets || 33;
-      if (sum.weight > w) add({ level: 'blocking', code: 'WEIGHT_OVERLOAD', params: { load: sum.weight, max: w }, message: `Combined weight ${sum.weight}kg exceeds ${w}kg.` });
-      if (sum.ldm > l) add({ level: 'blocking', code: 'LDM_OVERLOAD', params: { load: sum.ldm, max: l }, message: `Combined LDM ${sum.ldm} exceeds ${l}.` });
-      if (sum.volume > v) add({ level: 'blocking', code: 'VOLUME_OVERLOAD', params: { load: sum.volume, max: v }, message: `Combined volume ${sum.volume}m³ exceeds ${v}m³.` });
-      if (sum.pallets > p) add({ level: 'blocking', code: 'PALLET_OVERLOAD', params: { load: sum.pallets, max: p }, message: `Combined pallets ${sum.pallets} exceed ${p}.` });
+      const known = knownTruckCapacity(truck);
+      const missingCapacity = missingTruckCapacity(known);
+      if (missingCapacity.length) {
+        add({
+          level: 'warning',
+          code: 'TRUCK_CAPACITY_INCOMPLETE',
+          resourceId: truck.id,
+          params: { fields: missingCapacity },
+          message: `Vehicle capacity is incomplete (${missingCapacity.join(', ')}). Missing dimensions are unverified; complete the vehicle record to verify them.`,
+        });
+      }
+      for (const violation of capacityViolations(sum, known)) {
+        add({
+          level: 'blocking',
+          code: violation.code,
+          resourceId: truck.id,
+          params: { field: violation.field, load: violation.actual, max: violation.expected },
+          message: `${violation.field} exceeded: ${violation.actual} > ${violation.expected}.`,
+        });
+      }
       for (const o of orders) {
-        for (const req of o.equipmentRequirements || []) {
-          if (!vehicleHasEquipment(truck, null, req)) {
-            add({ level: 'warning', code: 'EQUIPMENT_MISSING', orderId: o.id, params: { req }, message: `Order ${o.orderNumber} requires equipment: ${req}.` });
+        const requirements = normalizeEquipmentRequirements(o.equipmentRequirements);
+        for (const req of requirements) {
+          if (!vehicleHasEquipment(truck, truck.trailer, req)) {
+            add({ level: 'warning', code: 'EQUIPMENT_MISSING', orderId: o.id, resourceId: truck.id, params: { req }, message: `Order ${o.orderNumber} requires equipment: ${req}.` });
           }
         }
       }
@@ -1221,11 +1261,21 @@ export class PlanningService {
       const overlapping = await this.tripRepo
         .createQueryBuilder('trip')
         .where('trip.truckId = :truckId', { truckId })
-        .andWhere('trip.status NOT IN (:...statuses)', { statuses: ['completed'] })
-        .andWhere('trip.plannedDeparture < :to AND trip.plannedArrival > :from', { from, to })
-        .getCount();
-      if (overlapping > 0) {
-        add({ level: 'blocking', code: 'TRUCK_UNAVAILABLE', params: { date }, message: 'Truck has an overlapping trip on this date.' });
+        .andWhere('trip.status NOT IN (:...statuses)', { statuses: ['completed', 'cancelled'] })
+        .andWhere('trip.plannedDeparture < :to AND trip.plannedArrival > :from')
+        .setParameters({ truckId, from, to })
+        .getMany();
+      // Multiple independent trips on the same truck are supported. Existing
+      // work is a schedule warning that must be reviewed, not a hard block.
+      if (overlapping.length > 0) {
+        const refs = overlapping.slice(0, 3).map((t: any) => t.tripNumber).filter(Boolean).join(', ');
+        add({
+          level: 'warning',
+          code: 'TRUCK_SCHEDULE_OVERLAP',
+          resourceId: truckId,
+          params: { date, trips: overlapping.map((t: any) => t.tripNumber || t.id) },
+          message: `Truck already has ${overlapping.length} trip(s) on this date${refs ? ` (${refs})` : ''}. Confirm the new independent trip fits the schedule.`,
+        });
       }
     }
 
@@ -1256,9 +1306,9 @@ export class PlanningService {
       if (o.trip?.id && o.trip.id !== tripId) {
         add({ level: 'blocking', code: 'ALREADY_PLANNED', orderId: o.id, message: `Order ${o.orderNumber} is on another trip.` });
       }
-      if (trip.truck && o.equipmentRequirements?.length) {
+      if (trip.truck && normalizeEquipmentRequirements(o.equipmentRequirements).length) {
         const truck = trip.truck;
-        for (const req of o.equipmentRequirements) {
+        for (const req of normalizeEquipmentRequirements(o.equipmentRequirements)) {
           if (!vehicleHasEquipment(truck, trip.trailer, req)) {
             add({ level: 'warning', code: 'EQUIPMENT_MISSING', orderId: o.id, params: { req }, message: `Order ${o.orderNumber} requires equipment: ${req}.` });
           }
@@ -1327,12 +1377,28 @@ export class PlanningService {
     if (!truck) {
       add(blockers, { level: 'blocking', code: 'NO_VEHICLE', tripId, message: 'Trip has no vehicle assigned.' });
     } else {
-      if (cargo.weight > caps.maxWeightKg) add(blockers, { level: 'blocking', code: 'WEIGHT_OVERLOAD', params: { load: cargo.weight, max: caps.maxWeightKg }, message: `Combined weight ${cargo.weight} kg exceeds ${caps.maxWeightKg} kg.` });
-      if (cargo.ldm > caps.maxLdm) add(blockers, { level: 'blocking', code: 'LDM_OVERLOAD', params: { load: cargo.ldm, max: caps.maxLdm }, message: `Combined LDM ${cargo.ldm} exceeds ${caps.maxLdm}.` });
-      if (cargo.volume > caps.maxVolumeCbm) add(blockers, { level: 'blocking', code: 'VOLUME_OVERLOAD', params: { load: cargo.volume, max: caps.maxVolumeCbm }, message: `Combined volume ${cargo.volume} m³ exceeds ${caps.maxVolumeCbm} m³.` });
-      if (cargo.pallets > caps.maxPallets) add(blockers, { level: 'blocking', code: 'PALLET_OVERLOAD', params: { load: cargo.pallets, max: caps.maxPallets }, message: `Combined pallets ${cargo.pallets} exceed ${caps.maxPallets}.` });
+      const known = knownTruckCapacity(truck);
+      const capacityMissing = missingTruckCapacity(known);
+      if (capacityMissing.length) {
+        add(warnings, {
+          level: 'warning',
+          code: 'TRUCK_CAPACITY_INCOMPLETE',
+          resourceId: truck.id,
+          params: { fields: capacityMissing, defaults: caps },
+          message: `Vehicle capacity is incomplete (${capacityMissing.join(', ')}). Missing dimensions are unverified; complete the vehicle record to verify the load.`,
+        });
+      }
+      for (const violation of capacityViolations(cargo, known)) {
+        add(blockers, {
+          level: 'blocking',
+          code: violation.code,
+          resourceId: truck.id,
+          params: { field: violation.field, load: violation.actual, max: violation.expected },
+          message: `${violation.field} exceeded: ${violation.actual} > ${violation.expected}.`,
+        });
+      }
       for (const order of orders) {
-        for (const req of order.equipmentRequirements || []) {
+        for (const req of normalizeEquipmentRequirements(order.equipmentRequirements)) {
           if (!vehicleHasEquipment(truck, trailer, req)) {
             add(blockers, { level: 'blocking', code: 'EQUIPMENT_MISSING', orderId: order.id, params: { req }, message: `Order ${order.orderNumber} requires equipment: ${req}.` });
           }
@@ -1340,7 +1406,13 @@ export class PlanningService {
       }
     }
     if (!resolveTripDriver(trip)) {
-      add(blockers, { level: 'blocking', code: 'NO_DRIVER', tripId, message: 'Trip has no assigned driver.' });
+      add(warnings, {
+        level: 'warning',
+        code: 'NO_DRIVER',
+        tripId,
+        resourceId: truck?.id,
+        message: 'No driver is assigned to this vehicle. Planning can continue, but dispatch and driver handover require a driver.',
+      });
     }
 
     const existingStops = [...((trip.stops || []) as any[])].sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0));
@@ -1453,13 +1525,20 @@ export class PlanningService {
     const candidates: any[] = [];
     for (const truck of trucks) {
       if (['maintenance', 'inactive', 'out_of_service'].includes(String(truck.status))) continue;
-      const capacity = this.resolveTruckCapacity(truck);
+      const known = knownTruckCapacity(truck);
       const blockers: PlanningConflict[] = [];
-      if (cargo.weight > capacity.maxWeightKg || cargo.ldm > capacity.maxLdm || cargo.volume > capacity.maxVolumeCbm || cargo.pallets > capacity.maxPallets) {
-        blockers.push({ id: `capacity_${truck.id}`, level: 'blocking', code: 'CAPACITY_EXCEEDED', resourceId: truck.id, message: 'Order cargo exceeds this vehicle capacity.' });
+      for (const violation of capacityViolations(cargo, known)) {
+        blockers.push({
+          id: `${violation.code}_${truck.id}`,
+          level: 'blocking',
+          code: violation.code,
+          resourceId: truck.id,
+          params: { field: violation.field, load: violation.actual, max: violation.expected },
+          message: `${violation.field} exceeded: ${violation.actual} > ${violation.expected}.`,
+        });
       }
       for (const order of orders) {
-        for (const req of order.equipmentRequirements || []) {
+        for (const req of normalizeEquipmentRequirements(order.equipmentRequirements)) {
           if (!vehicleHasEquipment(truck, truck.trailer, req)) {
             blockers.push({ id: `equipment_${truck.id}_${req}`, level: 'blocking', code: 'EQUIPMENT_MISSING', resourceId: truck.id, params: { req }, message: `Required equipment is missing: ${req}.` });
           }
@@ -1487,7 +1566,7 @@ export class PlanningService {
       if (window.end && arrivalAt && arrivalAt.getTime() > window.end.getTime()) {
         blockers.push({ id: `window_${truck.id}`, level: 'blocking', code: 'PICKUP_WINDOW_MISSED', resourceId: truck.id, message: 'The vehicle cannot reach the pickup within its time window.' });
       }
-      const utilization = capacity.maxWeightKg > 0 ? Math.round((cargo.weight / capacity.maxWeightKg) * 100) : 0;
+      const utilization = known.maxWeightKg && known.maxWeightKg > 0 ? Math.round((cargo.weight / known.maxWeightKg) * 100) : 0;
       const score = distanceKm == null ? 0 : Math.max(0, 1000 - distanceKm * 4 - utilization);
       candidates.push({
         truckId: truck.id,
@@ -1576,6 +1655,21 @@ export class PlanningService {
       trip = await this.tripRepo.save(tripEntity as unknown as Trip);
       createdTripId = trip.id;
       this.logger.log(`Created trip ${trip.tripNumber} (${trip.id}) for ${orderIds.length} order(s).`);
+    }
+
+    // The review modal is a preview, not the enforcement point. Re-run the
+    // same server-side feasibility rules for drag/drop and direct API clients
+    // so no hard blocker can be bypassed by posting to /planning/assign.
+    const validation = tripIds.length
+      ? await this.preflightConsolidation(user, trip.id, orderIds)
+      : { blockers: await this.validateAssignment(user, { ...dto, orderIds }) };
+    const hardBlockers = (validation.blockers || []).filter((c: any) => c.level === 'blocking');
+    if (hardBlockers.length) {
+      throw new BadRequestException({
+        message: `Assignment blocked: ${hardBlockers.map((c: any) => c.code).join(', ')}`,
+        code: 'ASSIGNMENT_BLOCKED',
+        blockers: hardBlockers,
+      });
     }
 
     trip.orders = [...(trip.orders || [])];
@@ -2655,6 +2749,10 @@ export class PlanningService {
       return this.sendToDriver(user, tripId, dto);
     }
 
+    // Driver consent cannot be manufactured by a dispatcher status action.
+    if (to === 'driver_accepted' || to === 'accepted') {
+      throw new ForbiddenException('Only the assigned driver can accept a trip.');
+    }
     const orderSnapshots = (trip.orders || []).map((o) => ({ id: o.id, tripId: o.trip?.id || trip.id, status: o.status }));
     const oldStatus = trip.status;
     trip.status = to;
@@ -3336,8 +3434,19 @@ export class PlanningService {
   async driverAccepted(user: any, tripId: string) {
     const trip = await this.loadTrip(tripId);
     if (!trip) throw new NotFoundException('Trip not found.');
+    if (String(user?.role || '').toLowerCase() !== 'driver') {
+      throw new ForbiddenException('Only the assigned driver can accept a trip.');
+    }
     this.assertDriverOwnsTrip(trip, user);
-    if (trip.status === 'driver_accepted') return trip; // idempotent
+    if (trip.status === 'driver_accepted') {
+      // Repair legacy accepted rows that have no timestamp, but never rewrite
+      // an existing legitimate acceptance time.
+      if (!trip.driverAcceptedAt) {
+        trip.driverAcceptedAt = new Date();
+        await this.tripRepo.save(trip);
+      }
+      return this.loadTrip(tripId);
+    }
     const acceptable = [
       'planning',
       'planned',
@@ -3361,6 +3470,11 @@ export class PlanningService {
       (order as any).operationalStatus = 'ACCEPTED';
       await this.orderRepo.save(order);
     }
+    await this.logTimeline('trip_accepted', user, {
+      tripId,
+      message: `Driver accepted trip ${trip.tripNumber || tripId}.`,
+      companyId: trip.company?.id || null,
+    });
     return this.loadTrip(tripId);
   }
 

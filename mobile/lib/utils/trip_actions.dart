@@ -173,16 +173,10 @@ bool _isAccepted(Map<String, dynamic> trip) {
     'in_transit',
     'partially_delivered',
   ].contains(status)) return true;
-  return const [
-    'ACCEPTED',
-    'EN_ROUTE_TO_PICKUP',
-    'ARRIVED_AT_PICKUP',
-    'LOADING',
-    'EN_ROUTE_TO_DELIVERY',
-    'ARRIVED_AT_DELIVERY',
-    'UNLOADING',
-    'COMPLETED',
-  ].contains(operational);
+  // An operationalStatus of ACCEPTED is not evidence on its own. A cached or
+  // previously derived payload must not hide Accept Trip before the backend
+  // has a persisted driver acceptance timestamp.
+  return operational == 'COMPLETED' || operational == 'CANCELLED';
 }
 
 bool _hasWorkedStop(Map<String, dynamic> trip) {

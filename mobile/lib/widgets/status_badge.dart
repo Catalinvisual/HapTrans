@@ -31,7 +31,23 @@ class StatusBadge extends StatelessWidget {
     String? audit,
     bool compact = false,
   }) {
-    final status = (trip['operationalStatus'] ?? trip['status'] ?? 'PLANNING').toString();
+    final raw = (trip['operationalStatus'] ?? trip['status'] ?? 'PLANNING').toString();
+    final legacy = (trip['status'] ?? '').toString().toLowerCase();
+    final acceptedEvidence = trip['driverAcceptedAt'] != null ||
+        legacy == 'driver_accepted' ||
+        const [
+          'started',
+          'loading',
+          'driving',
+          'unloading',
+          'at_pickup',
+          'at_delivery',
+          'in_transit',
+          'partially_delivered',
+        ].contains(legacy);
+    // A stale cache may contain ACCEPTED without any persisted acceptance.
+    // Never present that as a driver-accepted trip.
+    final status = raw.toUpperCase() == 'ACCEPTED' && !acceptedEvidence ? 'PLANNING' : raw;
     return StatusBadge(
       label: tripStatusLabel(status, locale),
       status: status,

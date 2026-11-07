@@ -37,6 +37,7 @@ import OrderDetailDrawer from '../components/orders/OrderDetailDrawer';
 import AdrBadge from '../components/common/AdrBadge';
 import ExcelIcon from '../components/icons/ExcelIcon';
 import { fmtMoney, fmtNumber } from '../lib/format';
+import { buildTruckDimensionsEditUrl } from '../lib/fleetTruckDeepLink';
 import { providerStatusMessage } from '../lib/providerStatus';
 import { statusTone } from '../lib/statusColors';
 import { operationalStatusForDisplay, operationalStatusKey } from '../lib/operationalI18n';
@@ -2592,10 +2593,12 @@ export default function PlanningPage() {
       String(tr.truck?.id || tr.truckId) === String(resourceId) &&
       ['planning', 'planned', 'assigned'].includes(String(tr.status).toLowerCase()),
     );
+    // Never fall back to a trip on another date: the modal would show (and
+    // possibly assign to) a different trip than the one the dispatcher chose.
     return sameTruck.find((tr: any) => {
       const departure = tr.plannedDeparture ? String(tr.plannedDeparture).slice(0, 10) : null;
       return departure === selectedDate;
-    }) || sameTruck[0] || null;
+    }) || null;
   };
 
   const reviewAssignment = async (
@@ -2617,9 +2620,23 @@ export default function PlanningPage() {
       preflight: null,
     });
     try {
-      const preflight = targetMode === 'existing' && candidate?.id
-        ? await planningApi.preflightConsolidation(candidate.id, orderIds)
-        : { recommendation: 'CREATE_NEW_TRIP', blockers: await validateNewTrip(orderIds, resourceId), warnings: [], route: null, cargo: null };
+      let preflight: any;
+      if (targetMode === 'existing' && candidate?.id) {
+        preflight = await planningApi.preflightConsolidation(candidate.id, orderIds);
+      } else {
+        const validation = await validateNewTrip(orderIds, resourceId);
+        preflight = {
+          recommendation: validation.blockers.length
+            ? 'BLOCKED'
+            : validation.warnings.length
+              ? 'MANUAL_REVIEW'
+              : 'CREATE_NEW_TRIP',
+          blockers: validation.blockers,
+          warnings: validation.warnings,
+          route: null,
+          cargo: null,
+        };
+      }
       setAssignmentReview(prev => prev ? { ...prev, loading: false, preflight } : prev);
     } catch (err: any) {
       setAssignmentReview(prev => prev ? {
@@ -2633,14 +2650,24 @@ export default function PlanningPage() {
   const validateNewTrip = async (orderIds: string[], resourceId: string) => {
     try {
       const { data } = await api.post('/planning/orders/validate', { orderIds, truckId: resourceId, date: selectedDate });
-      return (data || []).map((c: any) => ({ ...c, level: c.level === 'blocking' ? 'blocking' : 'warning' }));
+      const list = (Array.isArray(data) ? data : []).map((c: any) => ({
+        ...c,
+        level: c.level === 'blocking' ? 'blocking' : 'warning',
+      }));
+      return {
+        blockers: list.filter((c: any) => c.level === 'blocking'),
+        warnings: list.filter((c: any) => c.level !== 'blocking'),
+      };
     } catch (err: any) {
-      return [{
-        id: 'preflight_failed',
-        level: 'blocking',
-        code: 'PREFLIGHT_FAILED',
-        message: err.response?.data?.message || t('cons_error', 'The feasibility check could not be completed.'),
-      }];
+      return {
+        blockers: [{
+          id: 'preflight_failed',
+          level: 'blocking',
+          code: 'PREFLIGHT_FAILED',
+          message: err.response?.data?.message || t('cons_error', 'The feasibility check could not be completed.'),
+        }],
+        warnings: [],
+      };
     }
   };
 
@@ -4066,15 +4093,39 @@ export default function PlanningPage() {
                   )}
 
                   {blockers.length > 0 && (
-                    <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-3 space-y-1.5">
+                    <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-3 space-y-2">
                       <p className="text-[10px] font-black uppercase tracking-wide text-red-600">{t('cons_blockers', 'Blockers')}</p>
-                      {blockers.map((c: any) => <p key={c.id || c.code} className="text-[11px] text-red-700 dark:text-red-300">• {c.message}</p>)}
+                      {blockers.map((c: any) => (
+                        <div key={c.id || c.code} className="text-[11px] text-red-700 dark:text-red-300">
+                          <div className="flex items-start gap-1.5">
+                            {c.code && <code className="shrink-0 rounded bg-red-500/10 px-1 py-0.5 text-[9px] font-bold">{c.code}</code>}
+                            <span>{c.message}</span>
+                          </div>
+                          {c.params && Object.keys(c.params).length > 0 && (
+                            <p className="mt-0.5 pl-1 font-mono text-[9px] opacity-80">
+                              {Object.entries(c.params).map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : String(value)}`).join(' · ')}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => window.location.assign(buildTruckDimensionsEditUrl(assignmentReview.truckId, '/planning'))}
+                        className="mt-1 inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-white/60 px-2.5 py-1.5 text-[10px] font-black text-red-700 hover:bg-white dark:bg-transparent dark:text-red-300"
+                      >
+                        {t('cons_open_fleet', 'Open selected truck in Fleet')}
+                      </button>
                     </div>
                   )}
                   {warnings.length > 0 && (
                     <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3 space-y-1.5">
                       <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">{t('cons_warnings', 'Warnings')}</p>
-                      {warnings.map((c: any) => <p key={c.id || c.code} className="text-[11px] text-amber-800 dark:text-amber-300">• {c.message}</p>)}
+                      {warnings.map((c: any) => (
+                        <p key={c.id || c.code} className="text-[11px] text-amber-800 dark:text-amber-300">
+                          {c.code ? <code className="mr-1 rounded bg-amber-500/10 px-1 py-0.5 text-[9px] font-bold">{c.code}</code> : null}
+                          {c.message}
+                        </p>
+                      ))}
                     </div>
                   )}
                 </>

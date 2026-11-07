@@ -157,11 +157,17 @@ export function deriveOperationalStatus(stops: any[], tripStatus?: string): Oper
   const type = stopType(firstOpen);
   const status = stopStatus(firstOpen);
 
+  // A pending stop proves that no operational work has started, but it does
+  // not prove that the driver accepted the trip. Only the persisted ACCEPTED
+  // stage can do that; every earlier state stays PLANNING. This is the source
+  // of the defect where future dispatched trips were labelled Accepted.
+  const beforeStart = legacy === 'ACCEPTED' ? 'ACCEPTED' : 'PLANNING';
+
   if (type === 'pickup') {
     if (status === 'arrived') return 'ARRIVED_AT_PICKUP';
     if (status === 'loading') return 'LOADING';
     if (status === 'pending') {
-      return legacy === 'EN_ROUTE_TO_PICKUP' ? 'EN_ROUTE_TO_PICKUP' : 'ACCEPTED';
+      return legacy === 'EN_ROUTE_TO_PICKUP' ? 'EN_ROUTE_TO_PICKUP' : beforeStart;
     }
   }
 
@@ -169,9 +175,23 @@ export function deriveOperationalStatus(stops: any[], tripStatus?: string): Oper
   if (status === 'unloading') return 'UNLOADING';
   if (status === 'pending') {
     const pickupOpen = list.some((s) => stopType(s) === 'pickup' && stopStatus(s) !== 'completed');
-    return pickupOpen ? (legacy === 'EN_ROUTE_TO_PICKUP' ? 'EN_ROUTE_TO_PICKUP' : 'ACCEPTED') : 'EN_ROUTE_TO_DELIVERY';
+    return pickupOpen ? (legacy === 'EN_ROUTE_TO_PICKUP' ? 'EN_ROUTE_TO_PICKUP' : beforeStart) : 'EN_ROUTE_TO_DELIVERY';
   }
   return legacy === 'COMPLETED' ? 'COMPLETED' : 'EN_ROUTE_TO_DELIVERY';
+}
+
+/**
+ * Re-derives the canonical stage on a loaded trip. API reads use this so a
+ * stale stored operationalStatus can never override the real stop state.
+ */
+export function normalizeTripOperationalStatus<T extends { operationalStatus?: any }>(trip: T): T {
+  if (!trip) return trip;
+  const source = trip as any;
+  trip.operationalStatus = deriveOperationalStatus(
+    Array.isArray(source.stops) ? source.stops : [],
+    source.status,
+  );
+  return trip;
 }
 
 /** Operational status for one order, based on the stop that carries it. */

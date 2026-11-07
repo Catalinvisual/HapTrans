@@ -55,7 +55,12 @@ export function sumCargo(orders: any[]) {
           hasLdm = true;
         }
         volume += Number(item.volumeCbm) || 0;
-        pallets += Number(item.quantity) || 0;
+        // Quantity is only a pallet count when the cargo unit is a pallet.
+        // Boxes, coils, machines and loose packages must never inflate the
+        // vehicle's pallet capacity and create a false overload blocker.
+        if (String(item.unit || 'pallet').toLowerCase().trim() === 'pallet') {
+          pallets += Number(item.quantity) || 0;
+        }
       }
     } else {
       weight += Number(order?.weightKg || order?.totalWeightKg) || 0;

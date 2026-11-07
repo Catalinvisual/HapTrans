@@ -65,6 +65,16 @@ void main() {
     expect(nextActionForTrip(accepted)?.kind, 'start_loading');
   });
 
+  test('a stale ACCEPTED cache without driver evidence still offers Accept', () {
+    final stale = trip(
+      status: 'dispatched',
+      operationalStatus: 'ACCEPTED',
+      // No driverAcceptedAt and no accepted/started legacy stage.
+    );
+    expect(tripOfferKind(stale), 'accept');
+    expect(nextActionForTrip(stale), isNull);
+  });
+
   test('a planned trip offers accept', () {
     final planned = trip(status: 'dispatched', operationalStatus: 'PLANNING');
     expect(tripOfferKind(planned), 'accept');

@@ -4,11 +4,22 @@ import {
   incidentBlocksCompletion,
   isDeliveryResolution,
   operationalStatusFromLegacy,
+  normalizeTripOperationalStatus,
 } from './operational-status';
 
 describe('canonical operational lifecycle', () => {
   const pickup = (status: string) => ({ sequence: 1, type: 'pickup', status });
   const delivery = (status: string) => ({ sequence: 2, type: 'delivery', status });
+
+  it('never turns a future dispatched trip into Accepted before the driver acts', () => {
+    const stops = [pickup('pending'), delivery('pending')];
+    expect(deriveOperationalStatus(stops, 'planned')).toBe('PLANNING');
+    expect(deriveOperationalStatus(stops, 'assigned')).toBe('PLANNING');
+    expect(deriveOperationalStatus(stops, 'dispatched')).toBe('PLANNING');
+    // Acceptance exists only after the explicit accepted stage/timestamp path.
+    expect(deriveOperationalStatus(stops, 'driver_accepted')).toBe('ACCEPTED');
+    expect(deriveOperationalStatus(stops, 'started')).toBe('EN_ROUTE_TO_PICKUP');
+  });
 
   it('walks the full lifecycle without folding arrival into loading or unloading', () => {
     expect(deriveOperationalStatus([pickup('pending'), delivery('pending')], 'started')).toBe('EN_ROUTE_TO_PICKUP');
@@ -54,6 +65,23 @@ describe('canonical operational lifecycle', () => {
       { sequence: 1, type: 'pickup', status: 'completed' },
       { sequence: 2, type: 'delivery', status: 'arrived' },
     ], 'driving')).toBe('ARRIVED_AT_DELIVERY');
+  });
+
+  it('overrides a stale persisted ACCEPTED with the stop-derived stage', () => {
+    const stale = normalizeTripOperationalStatus({
+      status: 'assigned',
+      operationalStatus: 'ACCEPTED',
+      stops: [pickup('pending'), delivery('pending')],
+    } as any);
+    expect(stale.operationalStatus).toBe('PLANNING');
+
+    const accepted = normalizeTripOperationalStatus({
+      status: 'driver_accepted',
+      operationalStatus: 'PLANNING',
+      driverAcceptedAt: new Date(),
+      stops: [pickup('pending'), delivery('pending')],
+    } as any);
+    expect(accepted.operationalStatus).toBe('ACCEPTED');
   });
 
   it('maps every legacy stored stage without exposing an unknown code', () => {

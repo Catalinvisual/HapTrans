@@ -52,7 +52,10 @@ export default function SplitTripModal({ isOpen, onClose, trip, onSplit, isLoadi
   }, 0);
 
   const selectedPallets = selectedOrders.reduce((sum: number, o: any) => {
-    const p = (o.cargoItems || []).reduce((s: number, c: any) => s + (Number(c.quantity) || 0), 0) || Number(o.pallets) || 0;
+    const p = (o.cargoItems || []).reduce(
+      (s: number, c: any) => s + (String(c.unit || 'pallet').toLowerCase() === 'pallet' ? Number(c.quantity) || 0 : 0),
+      0,
+    ) || Number(o.pallets) || 0;
     return sum + p;
   }, 0);
 
@@ -147,7 +150,7 @@ export default function SplitTripModal({ isOpen, onClose, trip, onSplit, isLoadi
               const pickup = (o.stops || []).find((s: any) => s.type === 'pickup') || o.stops?.[0];
               const dropoff = (o.stops || []).filter((s: any) => s.type === 'delivery' || s.type === 'dropoff').pop() || o.stops?.[o.stops?.length - 1];
               const w = (o.cargoItems || []).reduce((s: number, c: any) => s + (Number(c.weightKg) || 0), 0) || Number(o.weightKg || o.weight) || 0;
-              const p = (o.cargoItems || []).reduce((s: number, c: any) => s + (Number(c.quantity) || 0), 0) || Number(o.pallets) || 0;
+              const p = (o.cargoItems || []).reduce((s: number, c: any) => s + (String(c.unit || 'pallet').toLowerCase() === 'pallet' ? Number(c.quantity) || 0 : 0), 0) || Number(o.pallets) || 0;
               const l = (o.cargoItems || []).reduce((s: number, c: any) => s + (Number(c.ldm) || 0), 0) || Number(o.loadingMeters || o.ldm) || 0;
 
               return (

@@ -23,6 +23,7 @@ import { DeliveryIncident } from './delivery-incident.entity';
 import {
   deriveOperationalStatus,
   deriveOrderOperationalStatus,
+  normalizeTripOperationalStatus,
   operationalStatusForIncident,
   operationalStatusFromLegacy,
   incidentBlocksCompletion,
@@ -94,7 +95,7 @@ export class TripsService {
     @Optional() @InjectRepository(DeliveryIncident) private incidentsRepo?: Repository<DeliveryIncident>,
   ) {}
 
-  findAll(status?: string, truckId?: string) {
+  async findAll(status?: string, truckId?: string) {
     const findOptions: any = { 
       relations: ['truck', 'truck.driver', 'truck.driver.user', 'driver', 'driver.user', 'trailer', 'stops', 'orders', 'orders.cargoItems', 'costs', 'dispatcher'],
       order: { createdAt: 'DESC' }
@@ -110,7 +111,12 @@ export class TripsService {
     if (Object.keys(where).length > 0) {
       findOptions.where = where;
     }
-    return this.repo.find(findOptions);
+    const trips = await this.repo.find(findOptions);
+    // The stored canonical column is a cache. Every read derives it from the
+    // stops and the persisted legacy stage, so an old row can never surface
+    // as Accepted in the TMS or on the phone.
+    for (const trip of trips) normalizeTripOperationalStatus(trip);
+    return trips;
   }
 
   async findForDriver(user: any) {
@@ -850,8 +856,8 @@ export class TripsService {
     });
   }
 
-  findOne(id: string) {
-    return this.repo.findOne({
+  async findOne(id: string) {
+    const trip = await this.repo.findOne({
       where: { id },
       relations: [
         'truck',
@@ -875,6 +881,7 @@ export class TripsService {
         'dispatcher',
       ],
     });
+    return trip ? normalizeTripOperationalStatus(trip) : trip;
   }
 
   async findByTrackingToken(trackingToken: string): Promise<Trip | null> {
@@ -1048,16 +1055,21 @@ export class TripsService {
       }
     }
 
+    // Acceptance is a driver decision, never a dispatch-side status edit.
+    // A dispatcher may send/reassign a trip, but cannot manufacture consent.
+    if (updateData.status === 'driver_accepted' && !isDriverActor(user)) {
+      throw new ForbiddenException('Only the assigned driver can accept a trip.');
+    }
+    if (updateData.status === 'driver_accepted') {
+      if (isTripAccepted(existing)) return existing;
+      if (!updateData.driverAcceptedAt) updateData.driverAcceptedAt = new Date();
+    }
+
     // Driver acceptance is idempotent, and starting is impossible before the
     // driver has accepted. These guards are authoritative: hiding a button in
     // the app is never the control.
-    if (isDriverActor(user)) {
-      if (updateData.status === 'driver_accepted' && isTripAccepted(existing)) {
-        return existing;
-      }
-      if (updateData.status === 'started' && !isTripAccepted(existing)) {
-        throw new ConflictException('Trip must be accepted before it can be started.');
-      }
+    if (isDriverActor(user) && updateData.status === 'started' && !isTripAccepted(existing)) {
+      throw new ConflictException('Trip must be accepted before it can be started.');
     }
 
     // 0. Enforce the status state machine
