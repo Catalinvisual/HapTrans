@@ -13,10 +13,12 @@ const tripStop = (id: string, orderId: string, type: string, city: string, lat: 
 });
 
 describe('planner stop reconciliation', () => {
-  it('produces the same fingerprint for the same stop set regardless of row order', () => {
+  it('treats a different stop order as a different plan', () => {
+    // The sequence is what the truck drives, so the same stops in another order
+    // must not be treated as the same plan.
     const a = [tripStop('1', orderA, 'pickup', 'Écully', 45.77, 4.77), tripStop('2', orderB, 'pickup', 'Soest', 51.57, 8.11)];
     const b = [a[1], a[0]];
-    expect(plannerStopSetSignature(a)).toBe(plannerStopSetSignature(b));
+    expect(plannerStopSetSignature(a)).not.toBe(plannerStopSetSignature(b));
   });
 
   it('detects that a persisted plan is missing an Order', () => {

@@ -35,6 +35,7 @@ import { buildCargoLedger } from './cargo-ledger';
 import { assessLoadingWindow, isLoadStopType, orderPickupWindow, stopArrival } from './loading-window';
 import { etaDeviations } from './eta-deviation';
 import { mergePlannerStops, plannerStopSetSignature } from './route-plan-stops';
+import { buildRouteSchedule } from './route-schedule';
 import { evaluateInsertion } from './stop-insertion';
 import {
   consolidationCapacity,
@@ -3862,35 +3863,67 @@ export class PlanningService {
 
   /** Stops the planner must route for this trip, covering every attached Order. */
   private plannerStopsForTrip(trip: Trip): any[] {
-    return mergePlannerStops((trip.stops || []) as any[], (trip.orders || []) as any[]);
+    // TypeORM returns loaded relations in no guaranteed order (a real trip came
+    // back as sequences 3, 4, 1, 2). Planning that raw array put the Polish
+    // pickup first and produced a route the truck never drives, so the trip's
+    // own stop sequence is applied before anything else looks at the list.
+    const ordered = [...((trip.stops || []) as any[])].sort((a, b) =>
+      (Number(a.sequence) || Number(a.stopOrder) || 0) - (Number(b.sequence) || Number(b.stopOrder) || 0),
+    );
+    return mergePlannerStops(ordered, (trip.orders || []) as any[]);
   }
 
   private applyRouteSchedule(routePlan: TruckRoutePlan, stops: RoutePlanStop[]) {
     if (!stops.length) return;
-    // Recomputed from scratch on every call: the previous `+=` accumulated the
-    // waiting time of every earlier calculation (140h+ of "scheduled waiting").
-    routePlan.totalWaitingTimeMinutes = 0;
-    const tripDeparture = routePlan.trip?.plannedDeparture ? new Date(routePlan.trip.plannedDeparture) : null;
-    let cursor = tripDeparture && !isNaN(tripDeparture.getTime())
-      ? tripDeparture.getTime()
-      : (stops[0].timeWindowStart ? new Date(stops[0].timeWindowStart).getTime() : Date.now());
+    // One timeline model decides every interval. Waiting is only the short time
+    // before a window opens; days between windows are layover, and breaks/rests
+    // are their own intervals, so no minute is counted twice.
+    const schedule = buildRouteSchedule({
+      departure: (routePlan as any).trip?.plannedDeparture || null,
+      stops: stops.map((stop, index) => ({
+        id: stop.id,
+        sequence: index + 1,
+        city: stop.city,
+        type: stop.type,
+        timeWindowStart: stop.timeWindowStart,
+        timeWindowEnd: stop.timeWindowEnd,
+        serviceDurationMinutes: stop.serviceDurationMinutes,
+        // Leg 0 connects stop 0 to stop 1 and therefore belongs to stop 1.
+        durationFromPreviousMin: index > 0 ? stop.durationFromPreviousMin : 0,
+      })),
+    });
 
-    for (let index = 0; index < stops.length; index++) {
-      const stop = stops[index];
-      if (index > 0) cursor += (Number(stop.durationFromPreviousMin) || 0) * 60000;
-      if (!stop.plannedEta) {
-        stop.plannedEta = stop.eta ? new Date(stop.eta) : (stop.timeWindowStart ? new Date(stop.timeWindowStart) : null as any);
-      }
-      const windowStart = stop.timeWindowStart ? new Date(stop.timeWindowStart).getTime() : null;
-      if (windowStart && Number.isFinite(windowStart) && cursor < windowStart) {
-        routePlan.totalWaitingTimeMinutes = Number(routePlan.totalWaitingTimeMinutes || 0) + Math.round((windowStart - cursor) / 60000);
-        cursor = windowStart;
-      }
-      // Arrival is after any wait for the window; service starts on arrival.
-      stop.calculatedEta = new Date(cursor);
-      cursor += (Number(stop.serviceDurationMinutes) || 30) * 60000;
-      stop.etd = new Date(cursor);
-    }
+    stops.forEach((stop, index) => {
+      const scheduled = schedule.stops[index];
+      if (!scheduled) return;
+      if (!stop.plannedEta) stop.plannedEta = scheduled.arrival as any;
+      stop.calculatedEta = scheduled.arrival as any;
+      stop.etd = scheduled.departure as any;
+    });
+
+    routePlan.totalWaitingTimeMinutes = schedule.waitingMin;
+    routePlan.totalServiceTimeMinutes = schedule.serviceMin;
+    routePlan.totalDurationMinutes = schedule.elapsedMin;
+    const metadata: any = routePlan.optimizationMetadata || {};
+    metadata.scheduleBreakdown = {
+      drivingMin: schedule.drivingMin,
+      serviceMin: schedule.serviceMin,
+      waitingMin: schedule.waitingMin,
+      breakMin: schedule.breakMin,
+      restMin: schedule.restMin,
+      layoverMin: schedule.layoverMin,
+      elapsedMin: schedule.elapsedMin,
+      gaps: schedule.gaps,
+      conflicts: schedule.conflicts,
+    };
+    metadata.scheduleTimeline = schedule.stops;
+    routePlan.optimizationMetadata = metadata;
+    // Only this module's own warnings are replaced; routing and restriction
+    // warnings from the provider must survive a recalculation.
+    routePlan.routeWarnings = [
+      ...((routePlan.routeWarnings || []) as any[]).filter((warning) => !String(warning?.code || '').startsWith('schedule_')),
+      ...(schedule.warnings as any[]),
+    ];
   }
 
   /**
@@ -3980,7 +4013,6 @@ export class PlanningService {
       stop.durationFromPreviousMin = leg?.durationMin ?? null as any;
     });
     this.applyRouteSchedule(routePlan, stops);
-    routePlan.totalDurationMinutes += Number(routePlan.totalWaitingTimeMinutes) || 0;
     const routeMetadata: any = {
       ...(routePlan.optimizationMetadata || {}),
       routeRestrictionsMissing: missingRestrictions,
@@ -5229,7 +5261,12 @@ export class PlanningService {
     this.computeLoadingSequence(stops, loadingRule);
     await this.applyRoadRoute(routePlan, stops);
     routePlan.totalServiceTimeMinutes = stops.reduce((sum, stop) => sum + (Number(stop.serviceDurationMinutes) || 30), 0);
-    routePlan.totalDurationMinutes = Number(routePlan.totalDrivingTimeMinutes || 0) + routePlan.totalServiceTimeMinutes + Number(routePlan.totalWaitingTimeMinutes || 0);
+    const scheduleBreakdown: any = ((routePlan as any).optimizationMetadata || {}).scheduleBreakdown;
+    routePlan.totalDurationMinutes = scheduleBreakdown?.elapsedMin != null
+      ? Number(scheduleBreakdown.elapsedMin)
+      : Number(routePlan.totalDrivingTimeMinutes || 0)
+        + Number(routePlan.totalServiceTimeMinutes || 0)
+        + Number(routePlan.totalWaitingTimeMinutes || 0);
 
     // Validate hard constraints (capacity, pickup-before-delivery)
     const validation = this.validateRoutePlan(stops, routePlan, loadingRule);

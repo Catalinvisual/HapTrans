@@ -60,7 +60,9 @@ export function plannerStopSetSignature(stops: PlannerStopLike[]): string {
     place(stop),
     orderIdsOf(stop).join('+'),
   ].join('|'));
-  return createHash('sha1').update(parts.sort().join(';')).digest('hex');
+  // Ordered fingerprint: the same stops in a different order are a different
+  // plan, because the sequence is what the truck actually drives.
+  return createHash('sha1').update(parts.join(';')).digest('hex');
 }
 
 /**

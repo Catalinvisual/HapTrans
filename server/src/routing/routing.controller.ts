@@ -194,4 +194,18 @@ export class PublicRoutingController {
     // Cached fixed Amsterdam -> Berlin toll request. No user/customer data.
     return this.routingService.probeTollCalculation();
   }
+
+  @Get('deployment')
+  deployment() {
+    // Railway exposes the commit it built. This is how a deployment is verified
+    // as running a specific revision instead of trusting a successful push.
+    return {
+      commit: process.env.RAILWAY_GIT_COMMIT_SHA || null,
+      deploymentId: process.env.RAILWAY_DEPLOYMENT_ID || null,
+      branch: process.env.RAILWAY_GIT_BRANCH || null,
+      environment: process.env.RAILWAY_ENVIRONMENT_NAME || null,
+      uptimeSeconds: Math.round(process.uptime()),
+      bootedAt: new Date(Date.now() - process.uptime() * 1000).toISOString(),
+    };
+  }
 }

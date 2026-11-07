@@ -465,6 +465,10 @@ export default function TruckRoutePlannerPage() {
   const routeDrivingMinutes = Number(routePlan?.totalDrivingTimeMinutes || 0);
   const routeWaitingMinutes = Number(routePlan?.totalWaitingTimeMinutes || 0);
   const routeTotalMinutes = Number(routePlan?.totalDurationMinutes || 0);
+  // The backend classifies every interval: only a short wait before a window is
+  // customer waiting; days between windows are layover, and breaks/rests are
+  // separate. The panel shows each component instead of one "waiting" number.
+  const scheduleBreakdown: any = (routePlan as any)?.optimizationMetadata?.scheduleBreakdown || null;
   const routeFallbackReason = routePlan?.optimizationMetadata?.routeFallbackReason || null;
   const routeWarnings = asArray(routePlan?.routeWarnings);
   const reportedMissingRestrictions: string[] = routeWarnings
@@ -1240,7 +1244,18 @@ export default function TruckRoutePlannerPage() {
               <span className="text-text-secondary">{t('pln_route_provider', 'Provider')}: <strong className="text-text-primary">{routeProviderLabel}</strong></span>
               <span className="text-text-secondary">{t('pln_distance', 'Distance')}: <strong className="text-text-primary">{Number(routePlan.totalDistanceKm || 0).toFixed(0)} km</strong></span>
               <span className="text-text-secondary">{t('pln_driving', 'Driving')}: <strong className="text-text-primary">{Math.floor(routeDrivingMinutes / 60)}h {routeDrivingMinutes % 60}m</strong></span>
-              <span className="text-text-secondary">{t('pln_waiting', 'Scheduled waiting')}: <strong className="text-text-primary">{Math.floor(routeWaitingMinutes / 60)}h {routeWaitingMinutes % 60}m</strong></span>
+              <span className="text-text-secondary">{t('sched_waiting', 'Waiting at stops')}: <strong className="text-text-primary">{Math.floor((scheduleBreakdown?.waitingMin ?? routeWaitingMinutes) / 60)}h {(scheduleBreakdown?.waitingMin ?? routeWaitingMinutes) % 60}m</strong></span>
+              {scheduleBreakdown && (
+                <>
+                  <span className="text-text-secondary">{t('sched_service', 'Loading/unloading')}: <strong className="text-text-primary">{Math.floor(Number(scheduleBreakdown.serviceMin || 0) / 60)}h {Number(scheduleBreakdown.serviceMin || 0) % 60}m</strong></span>
+                  <span className="text-text-secondary">{t('sched_layover', 'Layover / schedule gap')}: <strong className={Number(scheduleBreakdown.layoverMin || 0) > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-text-primary'}>{Math.floor(Number(scheduleBreakdown.layoverMin || 0) / 60)}h {Number(scheduleBreakdown.layoverMin || 0) % 60}m</strong></span>
+                  <span className="text-text-secondary">{t('sched_break', 'Breaks')}: <strong className="text-text-primary">{Number(scheduleBreakdown.breakMin || 0)}m</strong></span>
+                  <span className="text-text-secondary">{t('sched_rest', 'Daily rest')}: <strong className="text-text-primary">{Math.floor(Number(scheduleBreakdown.restMin || 0) / 60)}h {Number(scheduleBreakdown.restMin || 0) % 60}m</strong></span>
+                  {Array.isArray(scheduleBreakdown.gaps) && scheduleBreakdown.gaps.length > 0 && (
+                    <span className="text-amber-700 dark:text-amber-300">{t('sched_gap', 'Schedule gaps')}: {scheduleBreakdown.gaps.length}</span>
+                  )}
+                </>
+              )}
               <span className="text-text-secondary">{t('pln_total_elapsed', 'Total elapsed')}: <strong className="text-text-primary">{Math.floor(routeTotalMinutes / 60)}h {routeTotalMinutes % 60}m</strong></span>
               {routeFallbackReason && <span className="text-amber-700 dark:text-amber-300">{t('pln_route_fallback_reason', 'Fallback reason: {{reason}}', { reason: routeFallbackReason })}</span>}
               {routePlan.routeCalculatedAt && <span className="text-text-muted">{t('pln_route_updated', 'Updated')}: {fmtDate(routePlan.routeCalculatedAt)}</span>}

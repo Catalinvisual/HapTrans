@@ -237,6 +237,10 @@ export const planningApi = {
     const { data } = await api.post(`/planning/trips/${tripId}/consolidation-preflight`, { orderIds });
     return data;
   },
+  previewInsertion: async (tripId: string, orderIds: string[]) => {
+    const { data } = await api.post(`/planning/trips/${tripId}/insertion-preview`, { orderIds });
+    return data;
+  },
   recommendTrucks: async (orderIds: string[]) => {
     const { data } = await api.post('/planning/truck-recommendations', { orderIds });
     return data;

@@ -2510,6 +2510,8 @@ export default function PlanningPage() {
     loading: boolean;
     error?: string | null;
     preflight?: any;
+    insertion?: any;
+    selectedInsertion?: { pickupIndex: number; deliveryIndex: number } | null;
   } | null>(null);
   const [selectedPoolOrderIds, setSelectedPoolOrderIds] = useState<Set<string>>(new Set());
   const [draggingOrderId, setDraggingOrderId] = useState<string | null>(null);
@@ -2951,7 +2953,24 @@ export default function PlanningPage() {
           cargo: null,
         };
       }
-      setAssignmentReview(prev => prev ? { ...prev, loading: false, preflight } : prev);
+      // Insertion positions are evaluated for a single order: the backend
+      // rejects a multi-order preview because each order needs its own
+      // sequence decision.
+      let insertion: any = null;
+      if (targetMode === 'existing' && candidate?.id && orderIds.length === 1) {
+        try {
+          insertion = await planningApi.previewInsertion(candidate.id, [orderIds[0]]);
+        } catch (err: any) {
+          insertion = {
+            status: 'unverified',
+            explanation: err.response?.data?.message || t('ins_loading', 'Evaluating every insertion position…'),
+            blockers: [],
+            candidates: [],
+            recommended: null,
+          };
+        }
+      }
+      setAssignmentReview(prev => prev ? { ...prev, loading: false, preflight, insertion } : prev);
     } catch (err: any) {
       setAssignmentReview(prev => prev ? {
         ...prev,
@@ -2985,7 +3004,7 @@ export default function PlanningPage() {
     }
   };
 
-  const executeAssign = async (orderIds: string[], resourceId: string, tripId?: string | null) => {
+  const executeAssign = async (orderIds: string[], resourceId: string, tripId?: string | null, stopOrder?: string[]) => {
     setLoadingAction('assign');
     try {
       await api.post('/planning/assign', {
@@ -2993,6 +3012,7 @@ export default function PlanningPage() {
         truckId: resourceId,
         date: selectedDate,
         ...(tripId ? { tripIds: [tripId] } : {}),
+        ...(tripId && stopOrder?.length ? { stopOrder } : {}),
       });
       toast.success(t('jsx_assignedOk', 'Orders assigned'));
       setSelectedPoolOrderIds(new Set());
@@ -4326,6 +4346,19 @@ export default function PlanningPage() {
         const blockers = (preflight?.blockers || []).filter((c: any) => c.level === 'blocking');
         const warnings = (preflight?.warnings || []).filter((c: any) => c.level !== 'blocking');
         const blocked = blockers.length > 0 || !!assignmentReview.error;
+        const insertion = assignmentReview.insertion || null;
+        const insertionOptions: any[] = insertion
+          ? [insertion.recommended, ...(insertion.candidates || [])]
+            .filter(Boolean)
+            .filter((option: any, index: number, list: any[]) => list.findIndex((entry: any) =>
+              entry.pickupIndex === option.pickupIndex && entry.deliveryIndex === option.deliveryIndex) === index)
+          : [];
+        const selectedInsertion: any = insertionOptions.find((option: any) => assignmentReview.selectedInsertion
+          && option.pickupIndex === assignmentReview.selectedInsertion.pickupIndex
+          && option.deliveryIndex === assignmentReview.selectedInsertion.deliveryIndex) || insertionOptions[0] || null;
+        // An unverified or infeasible insertion can never be confirmed: the
+        // sequence would route stops whose road legs were never resolved.
+        const insertionBlocked = assignmentReview.mode === 'existing' && !!insertion && insertion.status !== 'feasible';
         const recommendation = assignmentReview.error
           ? 'BLOCKED'
           : preflight?.recommendation || (blocked ? 'BLOCKED' : 'CREATE_NEW_TRIP');
@@ -4440,6 +4473,89 @@ export default function PlanningPage() {
                     </div>
                   )}
 
+                  {assignmentReview.mode === 'existing' && insertion && (
+                    <div className="rounded-2xl border border-border bg-surface/30 p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[10px] font-black uppercase tracking-wide text-text-secondary">{t('ins_title', 'Insertion preview')}</p>
+                        <span className="text-[10px] text-text-muted">{insertion.orderNumber || ''}</span>
+                      </div>
+                      {insertionBlocked ? (
+                        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-800 dark:text-amber-300">
+                          <b>
+                            {insertion.status === 'infeasible'
+                              ? t('ins_none', 'No feasible insertion position.')
+                              : t('ins_unverified', 'Route unverified — this sequence cannot be confirmed')}
+                          </b>
+                          {insertion.explanation && <p className="mt-0.5 opacity-90">{insertion.explanation}</p>}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="space-y-1.5">
+                            {insertionOptions.map((option: any, optionIndex: number) => {
+                              const optionBlocked = (option.blockers || []).length > 0;
+                              const selected = selectedInsertion === option;
+                              return (
+                                <button
+                                  key={`${option.pickupIndex}-${option.deliveryIndex}`}
+                                  type="button"
+                                  disabled={optionBlocked}
+                                  onClick={() => setAssignmentReview(prev => prev ? {
+                                    ...prev,
+                                    selectedInsertion: { pickupIndex: option.pickupIndex, deliveryIndex: option.deliveryIndex },
+                                  } : prev)}
+                                  className={`w-full rounded-xl border p-2 text-left transition-all ${selected ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border bg-card hover:bg-surface/60'} ${optionBlocked ? 'cursor-not-allowed opacity-60' : ''}`}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[10px] font-black text-text-primary">
+                                      {optionIndex === 0 ? t('ins_recommended', 'Recommended sequence') : t('ins_alternative', 'Alternative sequence')}
+                                      {selected && <span className="ml-1 rounded bg-primary/15 px-1 text-[8px] uppercase text-primary">{t('ins_selected', 'Selected')}</span>}
+                                    </span>
+                                    <span className="text-[10px] text-text-secondary">
+                                      {option.addedDistanceKm != null
+                                        ? `+${fmtNumber(option.addedDistanceKm, 0)} km · +${fmtNumber(option.addedDrivingMin, 0)} min`
+                                        : t('ins_unverified', 'Route unverified — this sequence cannot be confirmed')}
+                                    </span>
+                                  </div>
+                                  <div className="mt-1 space-y-0.5">
+                                    {(option.sequence || []).map((stop: any) => (
+                                      <div key={stop.key} className="flex items-center gap-1.5 text-[10px]">
+                                        <span className="w-4 text-right font-mono text-text-muted">{stop.sequence}</span>
+                                        <span className={`rounded px-1 text-[8px] font-black uppercase ${['pickup', 'load'].includes(String(stop.type)) ? 'bg-emerald-500/15 text-emerald-700' : 'bg-sky-500/15 text-sky-700'}`}>{stop.type}</span>
+                                        <span className="truncate text-text-primary">{stop.city || '—'}</span>
+                                        {stop.plannedArrival && (
+                                          <span className="ml-auto shrink-0 text-text-muted">
+                                            {new Date(stop.plannedArrival).toLocaleString()}
+                                          </span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                  {optionBlocked && (
+                                    <p className="mt-1 text-[9px] font-bold text-red-600">
+                                      {t('ins_blocked', 'Not selectable — blocked')}: {(option.blockers || []).map((b: any) => b.code).join(', ')}
+                                    </p>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {selectedInsertion && (
+                            <div className="grid grid-cols-2 gap-2 text-[10px] text-text-secondary">
+                              <span>{t('ins_waiting', 'Customer waiting')}: <b className="text-text-primary">{fmtNumber(selectedInsertion.waitingMin || 0, 0)} min</b></span>
+                              <span>{t('ins_capacity_after', 'Load after insertion')}: <b className="text-text-primary">{selectedInsertion.capacityAfter?.pallets || 0} p · {fmtNumber(selectedInsertion.capacityAfter?.weightKg || 0, 0)} kg</b></span>
+                              <span>{t('ins_driver', 'Driver hours')}: <b className="text-text-primary">{(selectedInsertion.driverHours?.status || 'unverified')} · {fmtNumber(selectedInsertion.driverHours?.drivingMin || 0, 0)} min</b></span>
+                              <span>{t('ins_added_distance', 'Added distance')}: <b className="text-text-primary">{selectedInsertion.addedDistanceKm != null ? `${fmtNumber(selectedInsertion.addedDistanceKm, 0)} km` : '—'}</b></span>
+                            </div>
+                          )}
+                          {selectedInsertion?.explanation && (
+                            <p className="text-[10px] text-text-secondary"><b className="text-text-primary">{t('ins_why', 'Why this sequence')}:</b> {selectedInsertion.explanation}</p>
+                          )}
+                          <p className="text-[9px] text-text-muted">{t('ins_confirm_hint', 'The confirmed sequence is applied when you confirm the assignment.')}</p>
+                        </>
+                      )}
+                    </div>
+                  )}
+
                   {blockers.length > 0 && (
                     <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-3 space-y-2">
                       <p className="text-[10px] font-black uppercase tracking-wide text-red-600">{t('cons_blockers', 'Blockers')}</p>
@@ -4494,8 +4610,9 @@ export default function PlanningPage() {
                     assignmentReview.orderIds,
                     assignmentReview.truckId,
                     assignmentReview.mode === 'existing' ? assignmentReview.tripId : null,
+                    assignmentReview.mode === 'existing' ? selectedInsertion?.stopOrder : undefined,
                   )}
-                  disabled={assignmentReview.loading || blocked || !!loadingAction || !!assignmentReview.error}
+                  disabled={assignmentReview.loading || blocked || insertionBlocked || !!loadingAction || !!assignmentReview.error || (!!selectedInsertion && (selectedInsertion.blockers || []).length > 0)}
                   className="btn-primary text-xs py-2 px-5 font-black flex items-center gap-1.5 shadow-md shadow-primary/20 disabled:opacity-50"
                 >
                   {loadingAction === 'assign' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
