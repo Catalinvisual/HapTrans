@@ -111,9 +111,21 @@ mockOrderRepo = {
 
     mockRoutePlanRepo = {
       findOne: jest.fn(),
+      find: jest.fn().mockResolvedValue([]),
       save: jest.fn((e) => Promise.resolve({ ...e })),
       create: jest.fn((e) => ({ ...e })),
       delete: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    const mockRoutePlanStopRepo = {
+      find: jest.fn().mockResolvedValue([]),
+      save: jest.fn((e) => Promise.resolve({ ...e })),
+      delete: jest.fn().mockResolvedValue({ affected: 1 }),
+      createQueryBuilder: jest.fn().mockReturnValue({
+        delete: jest.fn().mockReturnThis(),
+        from: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ affected: 1 }),
+      }),
     };
 
     mockStopRepo = {
@@ -162,7 +174,7 @@ mockOrderRepo = {
       mockAuditRepo,
       {} as any,
       mockRoutePlanRepo,
-      {} as any,
+      mockRoutePlanStopRepo as any,
       {} as any,
       mockDropHookRepo,
       mockCrossDockRepo,
@@ -316,8 +328,11 @@ mockOrderRepo = {
       expect(received?.driverAcknowledgedAt).toBeDefined();
       trip.status = 'driver_received';
 
-      // Stage 5: Driver Accepted
-      const accepted = await service.driverAccepted(mockUser, 'trip-e2e');
+      // Stage 5: Driver Accepted — only the assigned driver account can accept.
+      const accepted = await service.driverAccepted(
+        { id: 'u-d1', role: 'driver', companyId: 'comp-01', name: 'Liviu Driver' },
+        'trip-e2e',
+      );
       expect(accepted?.status).toBe('driver_accepted');
       expect(accepted?.driverAcceptedAt).toBeDefined();
       trip.status = 'driver_accepted';
