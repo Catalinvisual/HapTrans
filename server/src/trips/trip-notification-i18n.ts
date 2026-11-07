@@ -93,6 +93,27 @@ const TRIP_EVENTS: Record<NotificationLanguage, Record<'assigned' | 'dispatched'
   pl: { assigned: 'Kurs przydzielony', dispatched: 'Nowy kurs przydzielony', cancelled: 'Kurs anulowany', updated: 'Kurs zaktualizowany' },
 };
 
+const SCHEDULE: Record<NotificationLanguage, { title: string; pickup: string; delivery: string; driver: string; vehicle: string }> = {
+  ro: { title: 'Program modificat', pickup: 'încărcare', delivery: 'livrare', driver: 'șofer', vehicle: 'vehicul' },
+  en: { title: 'Schedule changed', pickup: 'pickup', delivery: 'delivery', driver: 'driver', vehicle: 'vehicle' },
+  nl: { title: 'Planning gewijzigd', pickup: 'laden', delivery: 'lossing', driver: 'chauffeur', vehicle: 'voertuig' },
+  de: { title: 'Zeitplan geändert', pickup: 'Beladung', delivery: 'Entladung', driver: 'Fahrer', vehicle: 'Fahrzeug' },
+  fr: { title: 'Planning modifié', pickup: 'chargement', delivery: 'livraison', driver: 'chauffeur', vehicle: 'véhicule' },
+  es: { title: 'Horario modificado', pickup: 'carga', delivery: 'entrega', driver: 'conductor', vehicle: 'vehículo' },
+  pl: { title: 'Harmonogram zmieniony', pickup: 'załadunek', delivery: 'dostawa', driver: 'kierowca', vehicle: 'pojazd' },
+};
+
+export function localizeScheduleChange(language: unknown, fields: string[]): string {
+  const lang = normalizeNotificationLanguage(language);
+  const labels = fields.map((field) => {
+    if (field === 'plannedDeparture') return SCHEDULE[lang].pickup;
+    if (field === 'plannedArrival') return SCHEDULE[lang].delivery;
+    if (field === 'driverId') return SCHEDULE[lang].driver;
+    return SCHEDULE[lang].vehicle;
+  });
+  return `${SCHEDULE[lang].title}: ${labels.join(', ')}`;
+}
+
 export function localizeTripEvent(status: unknown, language: unknown): string {
   const lang = normalizeNotificationLanguage(language);
   const key = String(status || '').toLowerCase();

@@ -15,31 +15,54 @@ export class NotificationsService {
 
   async findAll(): Promise<Notification[]> {
     return this.notificationsRepo.find({
+      where: { audience: 'tms' },
       order: { createdAt: 'DESC' },
-      take: 50, // limit to 50 latest
+      take: 50,
     });
   }
 
   async getUnreadCount(): Promise<number> {
-    return this.notificationsRepo.count({ where: { isRead: false } });
+    return this.notificationsRepo.count({ where: { isRead: false, audience: 'tms' } });
   }
 
-  async create(data: Partial<Notification>): Promise<Notification> {
-    // avoid duplicates for alerts/documents/system
-    if ((data.type === 'alert' || data.type === 'document' || data.type === 'system') && data.relatedId) {
+  /**
+   * Creates a notification at most once per eventId. The database unique index
+   * catches a race between two instances after the read below.
+   */
+  async createOnce(data: Partial<Notification>): Promise<{ notification: Notification; created: boolean }> {
+    const eventId = data.eventId?.trim();
+    if (eventId) {
+      const existing = await this.notificationsRepo.findOne({ where: { eventId } });
+      if (existing) return { notification: existing, created: false };
+    } else if ((data.type === 'alert' || data.type === 'document' || data.type === 'system') && data.relatedId) {
       const existing = await this.notificationsRepo.findOne({
         where: { relatedId: data.relatedId, type: data.type },
       });
-      if (existing) return existing;
+      if (existing) return { notification: existing, created: false };
     }
 
-    const notification = this.notificationsRepo.create(data);
-    const saved = await this.notificationsRepo.save(notification);
-    
-    // Emit real-time notification
-    this.notificationsGateway.emitNewNotification(saved);
-    
-    return saved;
+    const notification = this.notificationsRepo.create({
+      ...data,
+      eventId: eventId || undefined,
+      audience: data.audience || 'tms',
+      origin: data.origin || 'SYSTEM',
+    });
+    try {
+      const saved = await this.notificationsRepo.save(notification);
+      if (saved.audience === 'tms') this.notificationsGateway.emitNewNotification(saved);
+      return { notification: saved, created: true };
+    } catch (error: any) {
+      // 23505 = PostgreSQL unique_violation, possibly from another instance.
+      if (eventId && (error?.code === '23505' || String(error?.message || '').includes('duplicate key'))) {
+        const existing = await this.notificationsRepo.findOne({ where: { eventId } });
+        if (existing) return { notification: existing, created: false };
+      }
+      throw error;
+    }
+  }
+
+  async create(data: Partial<Notification>): Promise<Notification> {
+    return (await this.createOnce(data)).notification;
   }
 
   async markAsRead(id: string): Promise<void> {
@@ -47,6 +70,6 @@ export class NotificationsService {
   }
 
   async markAllAsRead(): Promise<void> {
-    await this.notificationsRepo.update({ isRead: false }, { isRead: true });
+    await this.notificationsRepo.update({ isRead: false, audience: 'tms' }, { isRead: true });
   }
 }

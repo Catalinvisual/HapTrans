@@ -74,6 +74,7 @@ class _DeliveryRejectionSheetState extends State<DeliveryRejectionSheet> {
       'rejection-${DateTime.now().microsecondsSinceEpoch}-${DateTime.now().microsecond}';
 
   String _outcome = 'FULL_REJECTION';
+  String? _selectedTaskId;
   bool _signatureRefused = false;
   bool _submitting = false;
   String? _error;
@@ -104,22 +105,39 @@ class _DeliveryRejectionSheetState extends State<DeliveryRejectionSheet> {
   }
 
   String? get _orderId {
-    final stop = _deliveryStop;
-    final tasks = stop?['tasks'];
-    if (tasks is List) {
-      final ids = tasks
-          .whereType<Map>()
-          .map((task) => task['order'] is Map ? (task['order'] as Map)['id'] : task['orderId'])
-          .where((id) => id != null)
-          .map((id) => id.toString())
-          .toSet();
-      if (ids.length == 1) return ids.first;
+    final selected = _selectedTask;
+    if (selected != null) {
+      final order = selected['order'];
+      final id = order is Map ? order['id'] : selected['orderId'];
+      if (id != null) return id.toString();
     }
     final orders = widget.trip['orders'];
     if (orders is List && orders.length == 1 && orders.first is Map) {
       return (orders.first as Map)['id']?.toString();
     }
     return null;
+  }
+
+  List<Map<String, dynamic>> get _deliveryTasks {
+    final raw = _deliveryStop?['tasks'];
+    if (raw is! List) return const <Map<String, dynamic>>[];
+    return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  Map<String, dynamic>? get _selectedTask {
+    final tasks = _deliveryTasks;
+    if (tasks.isEmpty) return null;
+    for (final task in tasks) {
+      if (task['id']?.toString() == _selectedTaskId) return task;
+    }
+    return tasks.first;
+  }
+
+  String _taskLabel(Map<String, dynamic> task) {
+    final order = task['order'] is Map ? Map<String, dynamic>.from(task['order'] as Map) : const <String, dynamic>{};
+    final number = (order['orderNumber'] ?? task['orderId'] ?? '—').toString();
+    final qty = task['quantity'] ?? task['pallets'] ?? '';
+    return qty.toString().isEmpty ? number : '$number · $qty';
   }
 
   Future<void> _pick(ImageSource source) async {
@@ -324,6 +342,25 @@ class _DeliveryRejectionSheetState extends State<DeliveryRejectionSheet> {
                     ),
                     const SizedBox(height: 10),
                     Text(l.t('rejection_intro'), style: TextStyle(fontSize: 12.5, height: 1.4, color: kTextSecondary)),
+                    if (_deliveryTasks.length > 1) ...[
+                      const SizedBox(height: 16),
+                      _label(l.t('rejection_order')),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: _selectedTask?['id']?.toString(),
+                        isExpanded: true,
+                        decoration: const InputDecoration(border: OutlineInputBorder()),
+                        items: _deliveryTasks
+                            .map((task) => DropdownMenuItem<String>(
+                                  value: task['id']?.toString(),
+                                  child: Text(_taskLabel(task), overflow: TextOverflow.ellipsis),
+                                ))
+                            .toList(),
+                        onChanged: _submitting
+                            ? null
+                            : (value) => setState(() => _selectedTaskId = value),
+                      ),
+                    ],
                     const SizedBox(height: 18),
                     _label(l.t('rejection_outcome')),
                     const SizedBox(height: 8),

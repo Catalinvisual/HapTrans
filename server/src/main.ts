@@ -826,13 +826,26 @@ async function bootstrap() {
     await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "trafficDelayMinutes" integer DEFAULT 0`).catch(() => {});
     await dataSource.query(`ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "trafficStatus" character varying DEFAULT 'normal'`).catch(() => {});
 
-    // NOW run explicit TypeORM migrations (non-destructive, idempotent)
-    // replaces the previous dataSource.synchronize() which could alter schema
-    // in production based on entity drift.
-    await dataSource.runMigrations();
-    console.log('TypeORM migrations completed.');
+    // NOW run explicit TypeORM migrations (non-destructive, idempotent).
+    // Only one instance may migrate at a time; a session-level advisory lock on
+    // a dedicated connection is held for the whole migration run.
+    const migrationLock = dataSource.createQueryRunner();
+    await migrationLock.connect();
+    await migrationLock.query(`SELECT pg_advisory_lock(hashtext('hapcargo:typeorm-migrations'))`);
+    try {
+      await dataSource.runMigrations();
+      console.log('TypeORM migrations completed.');
+    } finally {
+      await migrationLock.query(`SELECT pg_advisory_unlock(hashtext('hapcargo:typeorm-migrations'))`).catch(() => {});
+      await migrationLock.release().catch(() => {});
+    }
   } catch (err) {
-    console.error('Migration failed, but server will still start:', err.message);
+    // A missing required schema is not a degraded state: refuse to serve and
+    // let the platform mark this deployment unhealthy.
+    console.error('Required database migration failed; refusing to start:', err?.message || err);
+    await app.close().catch(() => {});
+    process.exitCode = 1;
+    process.exit(1);
   }
 
   await app.listen(port, '0.0.0.0');

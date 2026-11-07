@@ -13,6 +13,7 @@ import '../utils/number_format.dart';
 import '../utils/trip_actions.dart';
 import '../utils/trip_fields.dart';
 import '../utils/trip_status.dart';
+import '../widgets/cargo_allocations_card.dart';
 import '../widgets/delivery_rejection_sheet.dart';
 import '../widgets/navigation_dialog.dart';
 import '../widgets/report_flow.dart';
@@ -635,6 +636,14 @@ class _TripDashboardScreenState extends State<TripDashboardScreen> {
           ],
           if (!hasCargo && details.isEmpty)
             Text(l.translate('no_cargo'), style: TextStyle(fontSize: 12, color: kTextSecondary)),
+
+          CargoAllocationsCard(
+            token: widget.token,
+            locale: locale,
+            trip: tripData,
+            stop: stop,
+            onChanged: _refreshTrip,
+          ),
 
           if (notes.isNotEmpty) ...[
             Divider(height: 24, color: kBorder),

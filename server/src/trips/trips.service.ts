@@ -20,7 +20,7 @@ import { ActionLogsService } from '../action-logs/action-logs.service';
 import { DocumentsService } from '../documents/documents.service';
 import { DocumentType } from '../documents/document.entity';
 import { DeliveryIncident } from './delivery-incident.entity';
-import { localizeStopEvent, localizeTripEvent } from './trip-notification-i18n';
+import { localizeStopEvent, localizeTripEvent, localizeScheduleChange } from './trip-notification-i18n';
 import {
   deriveOperationalStatus,
   deriveOrderOperationalStatus,
@@ -35,7 +35,7 @@ import {
   OperationalStatus,
 } from './operational-status';
 import { computeAuditChanges } from '../action-logs/diff.util';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
 import { resolveTripDriver, resolveTripDriverAssignment, resolveTripTrailer } from './driver-assignment';
 import {
   STOP_STATUSES,
@@ -701,6 +701,13 @@ export class TripsService {
     return localizeStopEvent(previous, next, stopType, 'en');
   }
 
+  /** Deterministic event key used for persistent notification dedupe. */
+  private notificationKey(...parts: unknown[]): string {
+    return createHash('sha256')
+      .update(parts.map((part) => String(part ?? '')).join('|'))
+      .digest('hex');
+  }
+
   /**
    * Origin-aware notification. A driver action notifies the TMS; it never sends
    * the driver an echo or a contradictory push about their own tap. A TMS action
@@ -717,13 +724,17 @@ export class TripsService {
     const source = resolveStatusSource(user);
     const label = this.stopEventLabel(previous, next, stopType);
     const driverName = trip?.driver?.user?.name || trip?.truck?.driver?.user?.name || 'Driver';
+    const eventId = this.notificationKey('stop', trip?.id, stop?.id, previous, next);
     if (source === 'mobile') {
       try {
-        await this.notificationsService.create({
+        await this.notificationsService.createOnce({
           type: 'trip',
           title: `${driverName}: ${label}`,
           message: `${trip?.tripNumber || 'Trip'}${stop?.city ? ` · ${stop.city}` : ''}: ${label}.`,
           relatedId: trip?.id,
+          eventId,
+          origin: 'DRIVER_APP',
+          audience: 'tms',
         });
       } catch (e: any) {
         // The operational event is already persisted. A notification failure
@@ -738,6 +749,16 @@ export class TripsService {
       if (!token) return;
       const driverLabel = localizeStopEvent(previous, next, stopType, driverUser?.language);
       try {
+        const delivered = await this.notificationsService.createOnce({
+          type: 'trip',
+          title: driverLabel,
+          message: `${trip?.tripNumber || 'Trip'}${stop?.city ? ` · ${stop.city}` : ''}: ${driverLabel}.`,
+          relatedId: trip?.id,
+          eventId: this.notificationKey('tms-stop', trip?.id, stop?.id, previous, next),
+          origin: 'TMS_DISPATCH',
+          audience: 'driver',
+        });
+        if (!delivered.created) return;
         await this.firebaseService.sendPushNotification(
           token,
           driverLabel,
@@ -747,6 +768,35 @@ export class TripsService {
       } catch (e: any) {
         console.warn(`Driver push failed: ${e?.message}`);
       }
+    }
+  }
+
+  /** Pushes schedule, address, reference and assignment changes to the driver. */
+  private async notifyScheduleChange(trip: any, fields: string[]) {
+    if (!trip || fields.length === 0) return;
+    const driverUser = trip?.driver?.user || trip?.truck?.driver?.user;
+    const token = driverUser?.fcmToken;
+    if (!token) return;
+    const label = localizeScheduleChange(driverUser?.language, fields);
+    try {
+      const delivered = await this.notificationsService.createOnce({
+        type: 'trip',
+        title: label,
+        message: `${trip.tripNumber || 'Trip'}: ${label}.`,
+        relatedId: trip.id,
+        eventId: this.notificationKey('tms-schedule', trip.id, fields.join(','), trip.plannedDeparture, trip.plannedArrival, trip.driver?.id, trip.truck?.id, trip.trailer?.id),
+        origin: 'TMS_DISPATCH',
+        audience: 'driver',
+      });
+      if (!delivered.created) return;
+      await this.firebaseService.sendPushNotification(
+        token,
+        label,
+        `${trip.tripNumber || 'Trip'}: ${label}.`,
+        { tripId: trip.id },
+      );
+    } catch (e: any) {
+      console.warn(`Driver schedule push failed: ${e?.message}`);
     }
   }
 
@@ -1286,18 +1336,30 @@ export class TripsService {
       });
       if (source === 'mobile') {
         const driverName = (existing as any).driver?.user?.name || (existing as any).truck?.driver?.user?.name || 'Driver';
-        await this.notificationsService.create({
+        await this.notificationsService.createOnce({
           type: 'trip',
           title: `${driverName}: ${updateData.status === 'started' ? 'Trip started' : updateData.status === 'driver_accepted' ? 'Trip accepted' : updateData.status}`,
           message: `${existing.tripNumber || 'Trip'}: ${updateData.status}.`,
           relatedId: id,
+          eventId: this.notificationKey('trip-status', id, updateData.status),
+          origin: 'DRIVER_APP',
+          audience: 'tms',
         }).catch((e: any) => console.warn(`TMS notification failed: ${e?.message}`));
       } else if (source === 'tms' && ['dispatched', 'assigned', 'cancelled'].includes(String(updateData.status))) {
         const driverUser = (existing as any).driver?.user || (existing as any).truck?.driver?.user;
         const token = driverUser?.fcmToken;
         if (token) {
           const driverLabel = localizeTripEvent(updateData.status, driverUser?.language);
-          await this.firebaseService.sendPushNotification(
+          const delivered = await this.notificationsService.createOnce({
+            type: 'trip',
+            title: driverLabel,
+            message: `${existing.tripNumber || 'Trip'}: ${driverLabel}.`,
+            relatedId: id,
+            eventId: this.notificationKey('trip-status', id, updateData.status),
+            origin: 'TMS_DISPATCH',
+            audience: 'driver',
+          });
+          if (delivered.created) await this.firebaseService.sendPushNotification(
             token,
             driverLabel,
             `${existing.tripNumber || 'Trip'}: ${driverLabel}.`,
@@ -1316,6 +1378,14 @@ export class TripsService {
 
     const updated = await this.findOne(id);
 
+    // A dispatcher schedule/assignment edit must reach the assigned driver and
+    // must not be re-sent on a retry of the same edit.
+    if (!isDriverActor(user) && updated) {
+      const scheduleFields = ['plannedDeparture', 'plannedArrival', 'driverId', 'truckId', 'trailerId']
+        .filter((field) => updateData[field] !== undefined && String(updateData[field] ?? '') !== String((existing as any)[field] ?? ''));
+      if (scheduleFields.length > 0) await this.notifyScheduleChange(updated, scheduleFields);
+    }
+
     // 3. Status change notifications & Email Send on Dispatch
     if (dto.status === 'dispatched' && updated) {
       // The push token is the FCM registration token, never the user id.
@@ -1323,7 +1393,16 @@ export class TripsService {
       const driverFcmToken = driverUser?.fcmToken;
       if (driverFcmToken) {
         const label = localizeTripEvent('dispatched', driverUser?.language);
-        await this.firebaseService.sendPushNotification(
+        const delivered = await this.notificationsService.createOnce({
+          type: 'trip',
+          title: label,
+          message: `${updated.tripNumber}: ${label}.`,
+          relatedId: updated.id,
+          eventId: this.notificationKey('trip-status', updated.id, 'dispatched'),
+          origin: 'TMS_DISPATCH',
+          audience: 'driver',
+        });
+        if (delivered.created) await this.firebaseService.sendPushNotification(
           driverFcmToken,
           label,
           `${updated.tripNumber}: ${label}.`,
@@ -1635,11 +1714,14 @@ export class TripsService {
     await this.repo.manager.update('StopTask', { id: taskId }, patch);
 
     if (rejected && rejected > 0 && trip) {
-      await this.notificationsService.create({
+      await this.notificationsService.createOnce({
         type: 'alert',
         title: 'Cargo rejection reported',
         message: `${trip.tripNumber || 'Trip'} · ${task.order?.orderNumber || 'Order'}: ${rejected} rejected. Reason: ${patch.rejectionReason || task.rejectionReason || 'not specified'}.`,
         relatedId: trip.id,
+        eventId: this.notificationKey('cargo-rejection', trip.id, taskId, rejected, patch.rejectionReason || task.rejectionReason || ''),
+        origin: 'DRIVER_APP',
+        audience: 'tms',
       }).catch(() => undefined);
     }
 
