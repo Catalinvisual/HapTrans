@@ -4086,10 +4086,14 @@ export class PlanningService {
       // With no stops loaded there is nothing authoritative to compare against,
       // so the readable plan is kept instead of rebuilding on a guess.
       if (currentTripStops.length > 0) {
-        const expectedSignature = plannerStopSetSignature(
-          mergePlannerStops(currentTripStops, (trip.orders || []) as any[]),
-        );
-        if (plannerStopSetSignature(routePlan.stops) !== expectedSignature) {
+        const expectedStops = mergePlannerStops(currentTripStops, (trip.orders || []) as any[]);
+        // Order matters as much as membership: a plan whose stops were sorted
+        // pickup-first routes a sequence the truck never drives.
+        const orderKey = (stop: any) => `${String(stop.type || '').toLowerCase()}:${stop.city || ''}`;
+        const expectedOrder = expectedStops.map(orderKey).join('|');
+        const actualOrder = routePlan.stops.map(orderKey).join('|');
+        if (plannerStopSetSignature(routePlan.stops) !== plannerStopSetSignature(expectedStops)
+          || expectedOrder !== actualOrder) {
           try {
             routePlan = await this.createRoutePlanFromTrip(tripId);
           } catch {
@@ -4097,6 +4101,17 @@ export class PlanningService {
           }
         }
       }
+    }
+
+    // A rebuild interrupted mid-flight (client closed the request) can persist
+    // the new stops without ever finishing the route. The stop count exposes
+    // that state, so the route is recalculated instead of serving the previous
+    // distance and waiting time forever.
+    if (routePlan?.stops?.length && Number(routePlan.stopCount) !== routePlan.stops.length) {
+      await this.applyRoadRoute(routePlan, routePlan.stops);
+      for (const stop of routePlan.stops) await this.routePlanStopRepo.save(stop);
+      routePlan.stopCount = routePlan.stops.length;
+      await this.routePlanRepo.save(routePlan);
     }
 
     // Normalize every persisted array before callers spread or filter it. A
@@ -4931,10 +4946,15 @@ export class PlanningService {
     // multi-order trip can never be planned over a single Order's stops.
     const rawStopList: any[] = this.plannerStopsForTrip(trip);
 
-    // Sort stops: strictly place all pickups before deliveries for every order
-    const pickups = rawStopList.filter(s => String(s.type).toLowerCase() === 'pickup' || String(s.type).toLowerCase() === 'load');
-    const deliveries = rawStopList.filter(s => String(s.type).toLowerCase() !== 'pickup' && String(s.type).toLowerCase() !== 'load');
-    const stopList = [...pickups, ...deliveries];
+    // The trip's own stop sequence is authoritative: re-sorting it pickup-first
+    // moved a Poland pickup ahead of a French one and produced a route the truck
+    // never drives. Only a stop list derived purely from Orders is ordered here.
+    const stopList = (trip.stops && trip.stops.length > 0)
+      ? rawStopList
+      : [
+        ...rawStopList.filter((s) => ['pickup', 'load'].includes(String(s.type).toLowerCase())),
+        ...rawStopList.filter((s) => !['pickup', 'load'].includes(String(s.type).toLowerCase())),
+      ];
 
     let cumulativePallets = 0;
     let cumulativeWeight = 0;
